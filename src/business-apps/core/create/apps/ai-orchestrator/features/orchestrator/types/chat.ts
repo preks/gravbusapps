@@ -30,6 +30,27 @@ export interface ChatMessageToolCall {
   progressLines?: string[]
 }
 
+export interface DecisionOptionChoice {
+  id: string
+  title: string
+  description: string
+  riskLevel?: 'low' | 'medium' | 'high'
+  destructive?: boolean
+  requiresExplicitConsent?: boolean
+}
+
+export interface DecisionToolDescriptor {
+  name: string
+  description: string
+}
+
+export interface DecisionPromptState {
+  decisionId?: string
+  riskSummary?: string
+  options: DecisionOptionChoice[]
+  availableTools?: DecisionToolDescriptor[]
+}
+
 export interface CreateChatMessage {
   id: string
   role: ChatMessageRole
@@ -41,6 +62,7 @@ export interface CreateChatMessage {
   thinkingLog?: string
   thinkingCollapsed?: boolean
   blocks?: ChatMessageBlock[]
+  decisionPrompt?: DecisionPromptState
   createdBy?: string
   editHistory?: Array<{
     userId: string
@@ -71,9 +93,8 @@ export const CANVAS_TABS: CanvasTabInfo[] = [
   { id: 'data-model', label: 'Data Model' },
   { id: 'functions', label: 'Functions' },
   { id: 'task-expert', label: 'Task Expert' },
-  { id: 'flow', label: 'Flow' },
   { id: 'agent-mesh', label: 'Agent Mesh' },
-  { id: 'data-flow', label: 'Architecture' },
+  { id: 'flow', label: 'Flow' },
   { id: 'about', label: 'About' }
 ]
 
@@ -104,9 +125,7 @@ export function getVisibleCanvasTabs(components: ComponentSpec[]): CanvasTabInfo
       case 'flow':
         return hasFlow
       case 'agent-mesh':
-        return hasAgent
-      case 'data-flow':
-        return hasFlow || hasAgent
+        return false
       default:
         return true
     }

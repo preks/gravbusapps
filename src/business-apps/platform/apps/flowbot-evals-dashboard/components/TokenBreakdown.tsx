@@ -87,9 +87,10 @@ export function TokenBreakdown({
     () => [
       { label: 'Overall', totals: tokenBreakdown.overall },
       { label: 'Monolith', totals: tokenBreakdown.monolith },
-      { label: 'Controller', totals: tokenBreakdown.controller }
+      { label: 'Controller', totals: tokenBreakdown.controller },
+      { label: 'Prechat', totals: tokenBreakdown.prechat }
     ],
-    [tokenBreakdown.controller, tokenBreakdown.monolith, tokenBreakdown.overall]
+    [tokenBreakdown.controller, tokenBreakdown.monolith, tokenBreakdown.overall, tokenBreakdown.prechat]
   )
 
   const nonEmptyCount = rows.filter(r => isNonEmptyTotals(r.totals)).length

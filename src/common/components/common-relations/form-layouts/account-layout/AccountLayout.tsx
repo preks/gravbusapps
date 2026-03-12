@@ -11,6 +11,9 @@ interface AccountLayoutProps {
   // Business app context for EmployeeSelect
   businessAppContext?: BusinessAppContextProps
 
+  // Account contacts from loaded entity (with nested contact) for display - same pattern as ownerEmployee
+  accountContacts?: any[]
+
   // Owner employee from account data (to display immediately in EmployeeSelect)
   ownerEmployee?: any
 
@@ -61,6 +64,7 @@ interface AccountLayoutProps {
 
 const AccountLayout: React.FC<AccountLayoutProps> = ({
   businessAppContext,
+  accountContacts,
   ownerEmployee,
   entityId,
   annualRevenueCatalogIdentifier,
@@ -113,6 +117,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
       {/* Account Information - Not in FormAccordion */}
       <AccountInformationSegment
         businessAppContext={businessAppContext}
+        accountContacts={accountContacts}
         ownerEmployee={ownerEmployee}
         entityId={entityId}
         useContacts={useContacts}

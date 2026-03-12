@@ -10,7 +10,7 @@
  * @example
  * resolveCssVar("var(--nw-primary)", "#3b82f6") // Returns computed value or fallback
  */
-export const resolveCssVar = (cssVar: string, fallbackHex: string): string => {
+const resolveCssVar = (cssVar: string, fallbackHex: string): string => {
   // Not a CSS variable: return as-is
   if (!cssVar.startsWith('var(')) return cssVar
 
@@ -37,7 +37,7 @@ export const resolveCssVar = (cssVar: string, fallbackHex: string): string => {
  * Design system color tokens for charts
  * Using CSS variables from nw-design-system that will be resolved at runtime
  */
-export const CHART_DESIGN_TOKENS = {
+const CHART_DESIGN_TOKENS = {
   // Chart-specific colors (--nw-chart-1, --nw-chart-2, etc.)
   chart1: {
     token: 'var(--nw-chart-1)',

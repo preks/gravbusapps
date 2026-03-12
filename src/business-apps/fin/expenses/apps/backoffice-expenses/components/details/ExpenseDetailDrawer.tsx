@@ -18,10 +18,15 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle
+  CardTitle,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CalendarIcon, GlobeIcon, CurrencyDollarIcon, UserIcon, ChatCircleIcon } from '@phosphor-icons/react'
+import translations from '../../_i18n'
 import useExpenseRequestDetails from '../../hooks/useExpenseRequestDetails'
+import { formatCurrency, extractCurrencyCode } from '../../utils/currencyUtils'
+import { formatDateTimeLocalized } from '../../utils/dateUtils'
+import { buildEmployeeDisplayName } from '../../hooks/backofficeReportUtils'
 
 interface ExpenseDetailDrawerProps {
   visible: boolean
@@ -40,6 +45,8 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
   type = 'expense-request',
   advancePaymentData
 }) => {
+  const { t } = useTranslation(translations)
+
   // Use the custom hook to fetch expense request details only for expense requests
   const shouldFetchExpenseRequest = type === 'expense-request' && expenseId
   const {
@@ -54,37 +61,12 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
   // Use appropriate data based on type
   const data = type === 'advance-payment' ? advancePaymentData : expenseRequestData
 
-  // Format currency amount
-  const formatCurrency = (amount: number, currencyIdentifier: string = 'USD') => {
-    // Extract currency code from API format (e.g., "Currency:v1:EUR" -> "EUR")
-    const currencyCode = currencyIdentifier.includes(':')
-      ? currencyIdentifier.split(':').pop() || 'EUR'
-      : currencyIdentifier
-
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      currencyDisplay: 'code',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+  const formatDrawerCurrency = (amount: number, currencyIdentifier: string = 'EUR') =>
+    formatCurrency(amount, extractCurrencyCode(currencyIdentifier) || 'EUR', 0)
 
   // ✅ MIGRATED: Custom Description components using nw-design-system
   const DescriptionsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <Card className="gba:mb-6">
+    <Card className="gba:mb-6 gba:bg-card">
       <CardHeader>
         <CardTitle className="gba:text-lg gba:font-semibold gba:text-gray-900">{title}</CardTitle>
       </CardHeader>
@@ -123,25 +105,85 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
     </div>
   )
 
-  // ✅ MIGRATED: Helper function to render the main content using nw-design-system
+  const renderCollectionCard = (config: {
+    title: string
+    icon: React.ReactNode
+    hasItems: boolean
+    emptyDescription: string
+    content: React.ReactNode
+  }) => (
+    <Card className="gba:mb-6">
+      <CardHeader>
+        <CardTitle className="gba:text-lg gba:font-semibold gba:text-gray-900">
+          <span className="gba:flex gba:items-center gba:gap-2">
+            {config.icon}
+            {config.title}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {config.hasItems ? config.content : <EmptyState description={config.emptyDescription} />}
+      </CardContent>
+    </Card>
+  )
+
+  const renderAdvancePaymentContent = (apData: any) => (
+    <div className="gba:space-y-6">
+      <DescriptionsSection title={t('drawer-advance-payment-info')}>
+        <DescriptionItem label={t('drawer-payment-code')}>{apData.code || t('common-not-available')}</DescriptionItem>
+        <DescriptionItem label={t('detail-description')}>
+          {apData.description || t('common-not-available')}
+        </DescriptionItem>
+        <DescriptionItem label={t('header-amount')}>
+          {apData.amount ? `€${apData.amount}` : t('common-not-available')}
+        </DescriptionItem>
+      </DescriptionsSection>
+
+      {apData.expensePlan && (
+        <DescriptionsSection title={t('drawer-expense-plan-info')}>
+          <DescriptionItem label={t('drawer-plan-code')}>
+            {apData.expensePlan.code || t('common-not-available')}
+          </DescriptionItem>
+          <DescriptionItem label={t('drawer-plan-title')}>
+            {apData.expensePlan.title || t('common-not-available')}
+          </DescriptionItem>
+          <DescriptionItem label={t('header-start-date')}>
+            {apData.expensePlan.startDate
+              ? formatDateTimeLocalized(apData.expensePlan.startDate, t)
+              : t('common-not-available')}
+          </DescriptionItem>
+        </DescriptionsSection>
+      )}
+
+      {apData.expensePlan?.employee && (
+        <DescriptionsSection title={t('drawer-employee-info')}>
+          <DescriptionItem label={t('drawer-name')}>
+            {buildEmployeeDisplayName(apData.expensePlan.employee) || t('common-not-available')}
+          </DescriptionItem>
+          <DescriptionItem label={t('header-employee-code')}>
+            {apData.expensePlan.employee.code || t('common-not-available')}
+          </DescriptionItem>
+        </DescriptionsSection>
+      )}
+    </div>
+  )
+
   const renderContent = () => {
-    // Only show loading for expense requests (advance payments don't need to fetch data)
     if (type === 'expense-request' && loading) {
       return (
         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12">
           <Spinner />
-          <p className="gba:text-gray-600 gba:text-sm gba:mt-4">Loading expense details...</p>
+          <p className="gba:text-gray-600 gba:text-sm gba:mt-4">{t('drawer-loading')}</p>
         </div>
       )
     }
 
-    // Only show errors for expense requests (advance payments don't use the hook)
     if (type === 'expense-request' && error) {
       return (
         <Alert variant="destructive" className="gba:m-4">
           <div>
-            <h4 className="gba:font-semibold">Error Loading Details</h4>
-            <p className="gba:text-sm gba:mt-1">Failed to load expense details: {error.message}</p>
+            <h4 className="gba:font-semibold">{t('drawer-error-title')}</h4>
+            <p className="gba:text-sm gba:mt-1">{t('drawer-error-message', { error: error.message })}</p>
           </div>
         </Alert>
       )
@@ -150,168 +192,128 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
     if (!data) {
       return (
         <EmptyState
-          description={`No ${type === 'advance-payment' ? 'advance payment' : 'expense'} details available`}
+          description={type === 'advance-payment' ? t('drawer-no-advance-details') : t('drawer-no-expense-details')}
         />
       )
     }
 
-    // Render content based on type
     if (type === 'advance-payment') {
-      return (
-        <div className="gba:space-y-6">
-          {/* Basic Information for Advance Payment */}
-          <DescriptionsSection title="Advance Payment Information">
-            <DescriptionItem label="Payment Code">{data.code || 'N/A'}</DescriptionItem>
-            <DescriptionItem label="Description">{data.description || 'N/A'}</DescriptionItem>
-            <DescriptionItem label="Amount">{data.amount ? `€${data.amount}` : 'N/A'}</DescriptionItem>
-          </DescriptionsSection>
-
-          {/* Expense Plan Information */}
-          {data.expensePlan && (
-            <DescriptionsSection title="Expense Plan Information">
-              <DescriptionItem label="Plan Code">{data.expensePlan.code || 'N/A'}</DescriptionItem>
-              <DescriptionItem label="Plan Title">{data.expensePlan.title || 'N/A'}</DescriptionItem>
-              <DescriptionItem label="Start Date">
-                {data.expensePlan.startDate ? formatDate(data.expensePlan.startDate) : 'N/A'}
-              </DescriptionItem>
-            </DescriptionsSection>
-          )}
-
-          {/* Employee Information */}
-          {data.expensePlan?.employee && (
-            <DescriptionsSection title="Employee Information">
-              <DescriptionItem label="Name">
-                {`${data.expensePlan.employee.firstName || ''} ${data.expensePlan.employee.lastName || ''}`.trim() ||
-                  'N/A'}
-              </DescriptionItem>
-              <DescriptionItem label="Employee Code">{data.expensePlan.employee.code || 'N/A'}</DescriptionItem>
-            </DescriptionsSection>
-          )}
-        </div>
-      )
+      return renderAdvancePaymentContent(data)
     }
 
     // Default content for expense requests
     return (
       <div className="gba:space-y-6">
         {/* Basic Information */}
-        <DescriptionsSection title="Basic Information">
-          <DescriptionItem label="Request Code">{data.code}</DescriptionItem>
-          <DescriptionItem label="Title">{data.title}</DescriptionItem>
-          <DescriptionItem label="Description">{data.description}</DescriptionItem>
-          <DescriptionItem label="Total Amount">{formatCurrency(data.totalAmount, data.currency)}</DescriptionItem>
-          <DescriptionItem label="Created At">{formatDate(data.createdAt)}</DescriptionItem>
-          <DescriptionItem label="Last Updated">{formatDate(data.updatedAt)}</DescriptionItem>
+        <DescriptionsSection title={t('drawer-basic-info')}>
+          <DescriptionItem label={t('drawer-request-code')}>{data.code}</DescriptionItem>
+          <DescriptionItem label={t('header-title')}>{data.title}</DescriptionItem>
+          <DescriptionItem label={t('detail-description')}>{data.description}</DescriptionItem>
+          <DescriptionItem label={t('header-total-amount')}>
+            {formatDrawerCurrency(data.reimbursableAmount, data.currency)}
+          </DescriptionItem>
+          <DescriptionItem label={t('header-creation-date')}>
+            {formatDateTimeLocalized(data.createdAt, t)}
+          </DescriptionItem>
+          <DescriptionItem label={t('pvr-last-updated')}>{formatDateTimeLocalized(data.updatedAt, t)}</DescriptionItem>
         </DescriptionsSection>
 
         {/* Employee Information */}
-        <DescriptionsSection title="Employee Information">
-          <DescriptionItem label="Name">
-            {`${data.employee?.firstName || ''} ${data.employee?.lastName || ''}`.trim() || 'N/A'}
+        <DescriptionsSection title={t('drawer-employee-info')}>
+          <DescriptionItem label={t('drawer-name')}>
+            {buildEmployeeDisplayName(data.employee) || t('common-not-available')}
           </DescriptionItem>
-          <DescriptionItem label="Employee Code">{data.employee?.businessKey || 'N/A'}</DescriptionItem>
-          <DescriptionItem label="Email">{data.employee?.email || 'N/A'}</DescriptionItem>
-          <DescriptionItem label="Cost Center">
-            {data.costCenter ? `${data.costCenter.name} (${data.costCenter.code})` : 'N/A'}
+          <DescriptionItem label={t('header-employee-code')}>
+            {data.employee?.businessKey || t('common-not-available')}
+          </DescriptionItem>
+          <DescriptionItem label={t('drawer-email')}>
+            {data.employee?.email || t('common-not-available')}
+          </DescriptionItem>
+          <DescriptionItem label={t('detail-cost-center')}>
+            {data.costCenter ? `${data.costCenter.name} (${data.costCenter.code})` : t('common-not-available')}
           </DescriptionItem>
         </DescriptionsSection>
 
-        {/* Trip Details */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <GlobeIcon className="gba:h-5 gba:w-5" />
-              Trip Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.trips && data.trips.length > 0 ? (
-              <div className="gba:space-y-4">
-                {data.trips.map((trip: any, index: number) => (
-                  <ListItem
-                    key={index}
-                    title={trip.description || 'Trip Details'}
-                    description={`Direction: ${trip.tripDirection || 'N/A'}`}
-                  >
-                    <div className="gba:space-y-2 gba:mt-2">
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-gray-600">
-                        <CalendarIcon className="gba:h-4 gba:w-4" />
-                        {formatDate(trip.tripDateTime)}
-                      </div>
-                      <div className="gba:text-sm gba:text-gray-600">
-                        <strong>Destination:</strong> {trip.address}
-                        {trip.country && ` (${trip.country.name})`}
-                      </div>
+        {renderCollectionCard({
+          title: t('drawer-trip-details'),
+          icon: <GlobeIcon className="gba:h-5 gba:w-5" />,
+          hasItems: Boolean(data.trips && data.trips.length > 0),
+          emptyDescription: t('drawer-no-trip-details'),
+          content: (
+            <div className="gba:space-y-4">
+              {data.trips?.map((trip: any, index: number) => (
+                <ListItem
+                  key={index}
+                  title={trip.description || t('drawer-trip-details')}
+                  description={t('drawer-direction', { direction: trip.tripDirection || t('common-not-available') })}
+                >
+                  <div className="gba:space-y-2 gba:mt-2">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-gray-600">
+                      <CalendarIcon className="gba:h-4 gba:w-4" />
+                      {formatDateTimeLocalized(trip.tripDateTime, t)}
                     </div>
-                  </ListItem>
-                ))}
-              </div>
-            ) : (
-              <EmptyState description="No trip details available" />
-            )}
-          </CardContent>
-        </Card>
+                    <div className="gba:text-sm gba:text-gray-600">
+                      <strong>{t('drawer-destination')}</strong> {trip.address}
+                      {trip.country && ` (${trip.country.name})`}
+                    </div>
+                  </div>
+                </ListItem>
+              ))}
+            </div>
+          )
+        })}
 
         {/* Expense Items */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <CurrencyDollarIcon className="gba:h-5 gba:w-5" />
-              Expense Items
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.expenseItems && data.expenseItems.length > 0 ? (
-              <div className="gba:space-y-3">
-                {data.expenseItems.map((item: any, index: number) => (
-                  <ListItem
-                    key={index}
-                    title={item.description || 'Expense Item'}
-                    description={`Category: ${item.category || 'N/A'} | Type: ${item.itemType || 'N/A'}`}
-                    amount={formatCurrency(item.totalAmount, item.currency?.code)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState description="No expense items available" />
-            )}
-          </CardContent>
-        </Card>
+        {renderCollectionCard({
+          title: t('detail-expense-items'),
+          icon: <CurrencyDollarIcon className="gba:h-5 gba:w-5" />,
+          hasItems: Boolean(data.expenseItems && data.expenseItems.length > 0),
+          emptyDescription: t('drawer-no-expense-items'),
+          content: (
+            <div className="gba:space-y-3">
+              {data.expenseItems?.map((item: any, index: number) => (
+                <ListItem
+                  key={index}
+                  title={item.description || t('detail-expense-items')}
+                  description={t('drawer-category-type', {
+                    category: item.category || t('common-not-available'),
+                    type: item.itemType || t('common-not-available')
+                  })}
+                  amount={formatDrawerCurrency(item.reimbursableAmount, item.currency?.code)}
+                />
+              ))}
+            </div>
+          )
+        })}
 
         {/* Approval Metadata */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <UserIcon className="gba:h-5 gba:w-5" />
-              Approval Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.approvalMetadata && data.approvalMetadata.length > 0 ? (
-              <div className="gba:space-y-4">
-                {data.approvalMetadata.map((metadata: any, index: number) => (
-                  <ListItem
-                    key={index}
-                    title={metadata.author || 'Unknown Approver'}
-                    description={metadata.position || 'N/A'}
-                  >
-                    <div className="gba:space-y-2 gba:mt-2">
-                      <div className="gba:text-sm gba:text-gray-600">
-                        <strong>Date:</strong> {formatDate(metadata.date)}
-                      </div>
-                      <div className="gba:flex gba:items-start gba:gap-2 gba:text-sm gba:text-gray-600">
-                        <ChatCircleIcon className="gba:h-4 gba:w-4 gba:mt-0.5 gba:flex-shrink-0" />
-                        <span>{metadata.comment || 'No comment provided'}</span>
-                      </div>
+        {renderCollectionCard({
+          title: t('drawer-approval-info'),
+          icon: <UserIcon className="gba:h-5 gba:w-5" />,
+          hasItems: Boolean(data.approvalMetadata && data.approvalMetadata.length > 0),
+          emptyDescription: t('drawer-no-approval-info'),
+          content: (
+            <div className="gba:space-y-4">
+              {data.approvalMetadata?.map((metadata: any, index: number) => (
+                <ListItem
+                  key={index}
+                  title={metadata.author || t('drawer-unknown-approver')}
+                  description={metadata.position || t('common-not-available')}
+                >
+                  <div className="gba:space-y-2 gba:mt-2">
+                    <div className="gba:text-sm gba:text-gray-600">
+                      <strong>{t('drawer-date-label')}</strong> {formatDateTimeLocalized(metadata.date, t)}
                     </div>
-                  </ListItem>
-                ))}
-              </div>
-            ) : (
-              <EmptyState description="No approval information available" />
-            )}
-          </CardContent>
-        </Card>
+                    <div className="gba:flex gba:items-start gba:gap-2 gba:text-sm gba:text-gray-600">
+                      <ChatCircleIcon className="gba:h-4 gba:w-4 gba:mt-0.5 gba:flex-shrink-0" />
+                      <span>{metadata.comment || t('drawer-no-comment')}</span>
+                    </div>
+                  </div>
+                </ListItem>
+              ))}
+            </div>
+          )
+        })}
       </div>
     )
   }
@@ -320,12 +322,12 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
     <Sheet
       open={visible}
       onOpenChange={onClose}
-      title={type === 'advance-payment' ? 'Advance Payment Details' : 'Expense Request Details'}
+      title={type === 'advance-payment' ? t('advance-payment-details-title') : t('detail-expense-request-details')}
     >
       <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none !gba:z-[99999]" style={{ zIndex: 99999 }}>
         <SheetHeader>
           <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
-            {type === 'advance-payment' ? 'Advance Payment Details' : 'Expense Request Details'}
+            {type === 'advance-payment' ? t('advance-payment-details-title') : t('detail-expense-request-details')}
           </SheetTitle>
         </SheetHeader>
         <div className="gba:mt-6 gba:px-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">{renderContent()}</div>

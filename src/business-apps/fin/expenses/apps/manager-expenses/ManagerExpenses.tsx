@@ -183,12 +183,6 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
     updateUrl('analytics', undefined, 'push')
   }, [updateUrl])
 
-  const handleNavigateBackToDashboard = useCallback(() => {
-    setCurrentView('tabs')
-    setActiveTab('dashboard')
-    updateUrl('tabs', 'dashboard', 'push')
-  }, [updateUrl])
-
   const handleTabChange = useCallback(
     (tab: string) => {
       if (!isValidTab(tab) || tab === activeTab) {
@@ -309,15 +303,15 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
 
   // Render based on current view
   if (currentView === 'approvals') {
-    return <ApprovalsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+    return <ApprovalsPage {...props} />
   }
 
   if (currentView === 'reports') {
-    return <ExpenseReportsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+    return <ExpenseReportsPage {...props} />
   }
 
   if (currentView === 'analytics') {
-    return <TeamSpendingAnalyticsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+    return <TeamSpendingAnalyticsPage {...props} />
   }
 
   // Default tabs view

@@ -2,6 +2,11 @@ import { env } from '@/common/env/EnvUtils'
 
 export type ConnectorKind = 'structured' | 'unstructured'
 
+export interface FunctionConnectionBinding {
+  connectionId: string
+  configMapping?: Record<string, string>
+}
+
 export interface FunctionMetadata {
   id: string
   name: string
@@ -12,6 +17,7 @@ export interface FunctionMetadata {
   connectorKind?: ConnectorKind | null
   enabled: boolean
   config: Record<string, string>
+  connectionBinding?: FunctionConnectionBinding | null
 }
 
 export interface FunctionVersionMeta {
@@ -31,6 +37,7 @@ export interface LatestFunctionItem {
   connectorKind?: ConnectorKind | null
   enabled: boolean
   config: Record<string, string>
+  connectionBinding?: FunctionConnectionBinding | null
   latestVersion: FunctionVersionMeta
 }
 
@@ -205,11 +212,21 @@ export class FunctionsServiceClient {
     return (await res.json()) as T
   }
 
-  async listLatest(params?: { agentEnabled?: boolean; workflowEnabled?: boolean }): Promise<LatestFunctionItem[]> {
+  async listLatest(params?: {
+    agentEnabled?: boolean
+    workflowEnabled?: boolean
+    connectorEnabled?: boolean
+    connectorKind?: ConnectorKind | null
+  }): Promise<LatestFunctionItem[]> {
     return await this.get<LatestFunctionItem[]>('/functions/latest', params as any)
   }
 
-  async list(params?: { agentEnabled?: boolean; workflowEnabled?: boolean }): Promise<FunctionMetadata[]> {
+  async list(params?: {
+    agentEnabled?: boolean
+    workflowEnabled?: boolean
+    connectorEnabled?: boolean
+    connectorKind?: ConnectorKind | null
+  }): Promise<FunctionMetadata[]> {
     return await this.get<FunctionMetadata[]>('/functions', params as any)
   }
 
@@ -226,6 +243,7 @@ export class FunctionsServiceClient {
     connectorEnabled?: boolean
     connectorKind?: ConnectorKind | null
     config?: Record<string, string>
+    connectionBinding?: FunctionConnectionBinding | null
     firstVersion: {
       source: string
       inputSchema?: Record<string, unknown>
@@ -257,6 +275,7 @@ export class FunctionsServiceClient {
       connectorEnabled?: boolean
       connectorKind?: ConnectorKind | null
       config?: Record<string, string>
+      connectionBinding?: FunctionConnectionBinding | null
     }
   ): Promise<void> {
     const res = await fetch(this.baseUrl + `/functions/${functionId}`, {
@@ -304,6 +323,7 @@ export class FunctionsServiceClient {
     inputSchema?: Record<string, unknown>
     outputSchema?: Record<string, unknown>
     config?: Record<string, string>
+    connectionBinding?: FunctionConnectionBinding | null
   }): Promise<{ result: unknown; logs?: FunctionExecutionLogEntry[] }> {
     const res = await fetch(this.baseUrl + '/test', {
       method: 'POST',
@@ -339,8 +359,8 @@ export class FunctionsServiceClient {
     return { result, logs }
   }
 
-  async getFunction(functionId: string): Promise<FunctionMetadata & { version?: { source?: string } }> {
-    return await this.get<FunctionMetadata & { version?: { source?: string } }>(`/functions/${functionId}`)
+  async getFunction(functionId: string): Promise<{ metadata: FunctionMetadata; version?: { source?: string } }> {
+    return await this.get<{ metadata: FunctionMetadata; version?: { source?: string } }>(`/functions/${functionId}`)
   }
 
   async functionAssistantDraft(data: FunctionAssistantDraftRequest): Promise<FunctionAssistantDraftResponse> {

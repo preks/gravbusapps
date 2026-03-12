@@ -26,6 +26,7 @@ interface OrchestratorCanvasContentProps {
   builtByLoading?: boolean
   previewRefreshToken: number
   isRestoringSession?: boolean
+  onPublish?: () => Promise<void> | void
 }
 
 export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps> = ({
@@ -39,7 +40,8 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
   builtBy,
   builtByLoading,
   previewRefreshToken,
-  isRestoringSession = false
+  isRestoringSession = false,
+  onPublish
 }) => {
   // Determine title based on state
   const getTitle = () => {
@@ -150,7 +152,7 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             isPublishing={orchestratorClient.isPublishing}
             publishSuccess={orchestratorClient.publishSuccess}
             publishError={orchestratorClient.publishError}
-            onPublish={orchestratorClient.publishApp}
+            onPublish={onPublish ?? orchestratorClient.publishApp}
             isRestoringSession={isRestoringSession}
           />
         )

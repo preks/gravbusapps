@@ -3,7 +3,6 @@ import {
   toOptions,
   buildEntryMeta,
   CatalogSelectExternalValue,
-  getLocalizedValue,
   buildFiltersSignature,
   resolveCatalogSelectFieldValue
 } from './catalogSelectUtils'
@@ -182,53 +181,4 @@ export const resolveChildMeta = async ({
   })
 
   return resolvedMeta
-}
-
-export const appendResolvedOptionIfMissing = ({
-  id,
-  optionValue,
-  optionLabel,
-  setFor
-}: {
-  id: string
-  optionValue: string
-  optionLabel: string
-  setFor: CatalogSelectDependencySetter
-}) => {
-  setFor(id, previousState => {
-    const optionExists = previousState.options.some(option => option.value === optionValue)
-    if (optionExists) {
-      return previousState
-    }
-
-    return {
-      ...previousState,
-      options: [{ value: optionValue, label: optionLabel }, ...previousState.options]
-    }
-  })
-}
-
-export const fetchSingleOptionLabel = async ({
-  id,
-  optionValue,
-  locale,
-  fetchCatalogEntriesByIdentifier
-}: {
-  id: string
-  optionValue: string
-  locale?: string
-  fetchCatalogEntriesByIdentifier: CatalogSelectDependencyFetcher
-}): Promise<{ value: string; label: string } | undefined> => {
-  const result = await fetchCatalogEntriesByIdentifier(id, {
-    limit: 1,
-    offset: 0,
-    entryId: optionValue
-  })
-
-  if (result.entries.length === 0) return undefined
-
-  return {
-    value: result.entries[0].id,
-    label: getLocalizedValue(result.entries[0], locale)
-  }
 }

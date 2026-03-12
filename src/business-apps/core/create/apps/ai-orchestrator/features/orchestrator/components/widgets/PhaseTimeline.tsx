@@ -79,29 +79,31 @@ export const PhaseTimeline: React.FC<PhaseTimelineProps> = ({
   }
 
   return (
-    <div data-testid={testId} className={cn(className)}>
-      <StageProgression
-        currentStage={currentStage}
-        orientation="horizontal"
-        variant="card"
-        mode={isBuilding ? 'automatic' : 'manual'}
-        activeStageProgress={activeStageProgress}
-      >
-        {phases.map(phase => {
-          const isDisabled = getPhaseDisabled(phase.value)
+    <div data-testid={testId} className={cn('gba:min-w-0', className)}>
+      <div className="gba:overflow-x-auto gba:min-w-0 gba:-mx-1 gba:md:mx-0">
+        <StageProgression
+          currentStage={currentStage}
+          orientation="horizontal"
+          variant="card"
+          mode={isBuilding ? 'automatic' : 'manual'}
+          activeStageProgress={activeStageProgress}
+        >
+          {phases.map(phase => {
+            const isDisabled = getPhaseDisabled(phase.value)
 
-          return (
-            <StageItem
-              key={phase.value}
-              value={phase.value}
-              title={phase.title}
-              description={phase.description}
-              disabled={isDisabled}
-              tooltip={phase.tooltip}
-            />
-          )
-        })}
-      </StageProgression>
+            return (
+              <StageItem
+                key={phase.value}
+                value={phase.value}
+                title={phase.title}
+                description={phase.description}
+                disabled={isDisabled}
+                tooltip={phase.tooltip}
+              />
+            )
+          })}
+        </StageProgression>
+      </div>
     </div>
   )
 }

@@ -43,7 +43,7 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigateTo('/platform/mail')}
+            onClick={() => navigateTo('/platform/every-office/emails')}
             data-testid={`${testId}-back`}
           >
             <ChevronLeft className="gba:w-5 gba:h-5" />

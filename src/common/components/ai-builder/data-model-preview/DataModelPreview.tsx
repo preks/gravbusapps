@@ -8,9 +8,15 @@ import {
   Button,
   Alert,
   AlertDescription,
-  Spinner
+  Spinner,
+  Badge,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent
 } from '@newwork/nw-design-system'
-import { Database, Plus, RefreshCw } from 'lucide-react'
+import { Database, Plus, RefreshCw, LayoutList, Table2 } from 'lucide-react'
+import { PreviewHeaderCard } from '../preview-header'
 import { CustomDataGraphQLClient } from '@/common/network/custom-data/CustomDataGraphQLClient'
 import { CustomDataMutationClient } from '@/common/network/custom-data/CustomDataMutationClient'
 import type { DataModelPreviewColumn, DataModelPreviewDefinition } from './dataModelPreviewTypes'
@@ -109,6 +115,21 @@ interface DataModelPreviewSingleProps {
   testId: string
 }
 
+const COLUMN_TYPE_LABELS: Record<string, string> = {
+  TEXT: 'Short text',
+  NUMBER: 'Number',
+  DATE: 'Date',
+  DATETIME: 'Date and time',
+  CHECKBOX: 'Yes / No',
+  SELECT: 'Dropdown',
+  REFERENCE: 'Link to another list'
+}
+
+function getColumnTypeLabel(type: string): string {
+  const upper = (type ?? 'TEXT').toUpperCase()
+  return COLUMN_TYPE_LABELS[upper] ?? upper
+}
+
 function formatDateLike(value: unknown, type: string): string {
   const num = Number(value)
   if (Number.isNaN(num)) return typeof value === 'string' ? value : JSON.stringify(value)
@@ -165,6 +186,8 @@ function buildListQuery(key: string, columns: DataModelPreviewColumn[]): { query
   return { query: `{ ${listField} {\n      ${fields}\n    } }`, listField }
 }
 
+type DataModelTab = 'structure' | 'data'
+
 const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
   definition,
   onCreateRow,
@@ -173,6 +196,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
   accessToken,
   testId
 }) => {
+  const [activeTab, setActiveTab] = useState<DataModelTab>('structure')
   const [columns, setColumns] = useState<DataModelPreviewColumn[]>(definition.columns ?? [])
   const displayName = definition.display_name ?? definition.key ?? ''
   const [rows, setRows] = useState<RowState[]>([])
@@ -412,174 +436,231 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid={testId}>
-      <Card className="gba:border-border">
-        <CardContent className="gba:pt-4 gba:pb-4">
-          <div className="gba:flex gba:items-start gba:gap-4">
-            <div className="gba:p-3 gba:rounded-xl gba:bg-primary/10 gba:shrink-0">
-              <Database className="gba:h-7 gba:w-7 gba:text-primary" />
-            </div>
-            <div className="gba:flex-1 gba:min-w-0">
-              <span className="gba:text-lg gba:font-semibold gba:text-foreground">{displayName}</span>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                {definition.description ?? 'A data type you can use to store and manage records.'}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <PreviewHeaderCard
+        icon={Database}
+        title={displayName}
+        description={definition.description ?? 'A data type you can use to store and manage records.'}
+        data-testid={`${testId}-header`}
+      />
 
-      <Card className="gba:border-border gba:overflow-hidden">
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:py-3 gba:border-b gba:border-border">
-          <CardTitle className="gba:text-sm gba:font-medium">
-            {displayName} entries
-            {existingRows.length > 0 && (
-              <span className="gba:ml-2 gba:text-xs gba:font-normal gba:text-muted-foreground">
-                ({existingRows.length})
-              </span>
-            )}
-          </CardTitle>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {graphqlClient && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={fetchRows}
-                disabled={fetchLoading}
-                title="Refresh records"
-                data-testid={`${testId}-refresh`}
-              >
-                <RefreshCw className={`gba:h-3.5 gba:w-3.5 ${fetchLoading ? 'gba:animate-spin' : ''}`} />
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={addRow} data-testid={`${testId}-add-row`}>
-              <Plus className="gba:h-3.5 gba:w-3.5 gba:mr-1" /> Add row
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="gba:p-0">
-          {isCatalog && (
-            <div className="gba:px-3 gba:pt-3 gba:pb-2">
-              <Alert className="gba:py-2">
-                <AlertDescription className="gba:text-xs gba:text-muted-foreground">
-                  This is a catalog (reference data). Its entries are managed through the Catalog Manager and are not
-                  directly editable here.
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-          {fetchError && (
-            <div className="gba:px-3 gba:pt-3">
-              <Alert variant="destructive" className="gba:py-2">
-                <AlertDescription className="gba:text-xs">{fetchError}</AlertDescription>
-              </Alert>
-            </div>
-          )}
-          {existingError && (
-            <div className="gba:px-3 gba:pt-3">
-              <Alert variant="destructive" className="gba:py-2">
-                <AlertDescription className="gba:text-xs">{existingError}</AlertDescription>
-              </Alert>
-            </div>
-          )}
-          {(() => {
-            const hasNoRows = existingRows.length === 0 && rows.length === 0
-            if (fetchLoading) {
-              return (
-                <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-                  <Spinner size="sm" />
-                </div>
-              )
-            }
-            if (hasNoRows) {
-              return (
-                <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-10">
-                  No entries yet. Click "Add row" to create one.
-                </div>
-              )
-            }
-            return (
-              <div className="gba:overflow-x-auto">
-                <table className="gba:w-full gba:text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
-                  <colgroup>
-                    {columns.map(col => (
-                      <col key={col.name} />
-                    ))}
-                    <col style={{ width: '120px' }} />
-                  </colgroup>
-                  <thead>
-                    <tr className="gba:bg-muted/50 gba:border-b gba:border-border">
-                      {columns.map(col => (
-                        <th
-                          key={col.name}
-                          className="gba:text-left gba:font-medium gba:px-3 gba:py-2.5 gba:text-foreground gba:overflow-hidden"
-                        >
-                          <div className="gba:truncate">
-                            {col.label || col.name}
-                            {col.required && <span className="gba:text-destructive gba:ml-0.5">*</span>}
-                          </div>
-                        </th>
-                      ))}
-                      <th className="gba:px-3 gba:py-2.5" style={{ width: '120px' }} />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {existingRows.map((row, rowIndex) => {
-                      const rowKey = toStableRowKey(row, rowIndex)
-                      const rowId = toRowId(row)
-                      const isEditingThis = editingExistingId === rowKey
-                      const canEditRow = isCatalog === false && Boolean(effectiveOnUpdateRow) && rowId.length > 0
-                      const canDeleteRow = isCatalog === false && Boolean(effectiveOnDeleteRow) && rowId.length > 0
-                      return (
-                        <SimpleTableRow
-                          key={rowKey}
-                          row={row}
-                          rowIndex={rowIndex}
-                          columns={columns}
-                          isEditing={isEditingThis}
-                          editValues={editingValues}
-                          canEdit={canEditRow}
-                          canDelete={canDeleteRow}
-                          saving={existingSaving}
-                          testId={testId}
-                          onStartEdit={() => startEditingExisting(rowKey, row)}
-                          onCancelEdit={cancelEditingExisting}
-                          onSave={() => saveExistingRow(rowId)}
-                          onDelete={() => deleteExistingRow(rowId)}
-                          onCellChange={updateExistingCell}
-                          formatValue={formatReadValue}
-                        />
-                      )
-                    })}
-                    {rows.map((row, rowIndex) => {
-                      const isSaved = row.saved === true
-                      return (
-                        <SimpleTableRow
-                          key={row.id}
-                          row={row.values}
-                          rowIndex={existingRows.length + rowIndex}
-                          columns={columns}
-                          isEditing={true}
-                          editValues={row.values}
-                          canEdit={false}
-                          canDelete={isSaved === false}
-                          saving={row.saving}
-                          testId={testId}
-                          onStartEdit={() => {}}
-                          onCancelEdit={() => {}}
-                          onSave={() => (effectiveOnCreateRow ? saveRow(row.id) : undefined)}
-                          onDelete={() => deleteRow(row.id)}
-                          onCellChange={(name, value) => updateCell(row.id, name, value)}
-                          formatValue={formatReadValue}
-                        />
-                      )
-                    })}
-                  </tbody>
-                </table>
+      <Tabs
+        value={activeTab}
+        onValueChange={v => setActiveTab(v as DataModelTab)}
+        className="gba:flex gba:flex-col gba:gap-3 gba:min-h-0"
+        data-testid={`${testId}-tabs`}
+      >
+        <TabsList
+          className="gba:w-full gba:grid gba:grid-cols-2 gba:shrink-0 gba:h-11 gba:p-1 gba:bg-muted gba:rounded-lg gba:items-stretch"
+          data-testid={`${testId}-tabs-list`}
+        >
+          <TabsTrigger
+            value="structure"
+            className="gba:inline-flex gba:items-center gba:justify-center gba:gap-1.5 gba:h-full gba:min-h-0 gba:py-0 gba:rounded-md"
+            data-testid={`${testId}-tab-structure`}
+          >
+            <span className="gba:inline-flex gba:items-center gba:gap-1.5">
+              <LayoutList className="gba:h-3.5 gba:w-3.5 gba:shrink-0" />
+              <span>Structure</span>
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="data"
+            className="gba:inline-flex gba:items-center gba:justify-center gba:gap-1.5 gba:h-full gba:min-h-0 gba:py-0 gba:rounded-md"
+            data-testid={`${testId}-tab-data`}
+          >
+            <span className="gba:inline-flex gba:items-center gba:gap-1.5">
+              <Table2 className="gba:h-3.5 gba:w-3.5 gba:shrink-0" />
+              <span>Data</span>
+            </span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="structure" className="gba:mt-0 gba:flex-1 gba:min-h-0" data-testid={`${testId}-structure`}>
+          <Card className="gba:border-border gba:overflow-hidden">
+            <CardHeader className="gba:py-3 gba:border-b gba:border-border">
+              <CardTitle className="gba:text-sm gba:font-medium">Fields</CardTitle>
+            </CardHeader>
+            <CardContent className="gba:p-0">
+              {columns.length === 0 ? (
+                <p className="gba:text-sm gba:text-muted-foreground gba:py-6 gba:px-4">No fields defined.</p>
+              ) : (
+                <ul className="gba:divide-y gba:divide-border">
+                  {columns.map(col => (
+                    <li
+                      key={col.name}
+                      className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3 gba:text-sm"
+                      data-testid={`${testId}-structure-field-${col.name}`}
+                    >
+                      <div className="gba:min-w-0 gba:flex-1">
+                        <span className="gba:font-medium gba:text-foreground">{col.label || col.name}</span>
+                        <span className="gba:text-muted-foreground gba:ml-2">{getColumnTypeLabel(col.type)}</span>
+                      </div>
+                      <Badge variant="outline" className="gba:text-xs gba:shrink-0">
+                        {col.required ? 'Required' : 'Optional'}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="data" className="gba:mt-0 gba:flex-1 gba:min-h-0">
+          <Card className="gba:border-border gba:overflow-hidden">
+            <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:py-3 gba:border-b gba:border-border">
+              <CardTitle className="gba:text-sm gba:font-medium">
+                {displayName} entries
+                {existingRows.length > 0 && (
+                  <span className="gba:ml-2 gba:text-xs gba:font-normal gba:text-muted-foreground">
+                    ({existingRows.length})
+                  </span>
+                )}
+              </CardTitle>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {graphqlClient && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={fetchRows}
+                    disabled={fetchLoading}
+                    title="Refresh records"
+                    data-testid={`${testId}-refresh`}
+                  >
+                    <RefreshCw className={`gba:h-3.5 gba:w-3.5 ${fetchLoading ? 'gba:animate-spin' : ''}`} />
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={addRow} data-testid={`${testId}-add-row`}>
+                  <Plus className="gba:h-3.5 gba:w-3.5 gba:mr-1" /> Add row
+                </Button>
               </div>
-            )
-          })()}
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent className="gba:p-0">
+              {isCatalog && (
+                <div className="gba:px-3 gba:pt-3 gba:pb-2">
+                  <Alert className="gba:py-2">
+                    <AlertDescription className="gba:text-xs gba:text-muted-foreground">
+                      This is a catalog (reference data). Its entries are managed through the Catalog Manager and are
+                      not directly editable here.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
+              {fetchError && (
+                <div className="gba:px-3 gba:pt-3">
+                  <Alert variant="destructive" className="gba:py-2">
+                    <AlertDescription className="gba:text-xs">{fetchError}</AlertDescription>
+                  </Alert>
+                </div>
+              )}
+              {existingError && (
+                <div className="gba:px-3 gba:pt-3">
+                  <Alert variant="destructive" className="gba:py-2">
+                    <AlertDescription className="gba:text-xs">{existingError}</AlertDescription>
+                  </Alert>
+                </div>
+              )}
+              {(() => {
+                const hasNoRows = existingRows.length === 0 && rows.length === 0
+                if (fetchLoading) {
+                  return (
+                    <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+                      <Spinner size="sm" />
+                    </div>
+                  )
+                }
+                if (hasNoRows) {
+                  return (
+                    <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-10">
+                      No entries yet. Click "Add row" to create one.
+                    </div>
+                  )
+                }
+                return (
+                  <div className="gba:overflow-x-auto">
+                    <table className="gba:w-full gba:text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
+                      <colgroup>
+                        {columns.map(col => (
+                          <col key={col.name} />
+                        ))}
+                        <col style={{ width: '120px' }} />
+                      </colgroup>
+                      <thead>
+                        <tr className="gba:bg-muted/50 gba:border-b gba:border-border">
+                          {columns.map(col => (
+                            <th
+                              key={col.name}
+                              className="gba:text-left gba:font-medium gba:px-3 gba:py-2.5 gba:text-foreground gba:overflow-hidden"
+                            >
+                              <div className="gba:truncate">
+                                {col.label || col.name}
+                                {col.required && <span className="gba:text-destructive gba:ml-0.5">*</span>}
+                              </div>
+                            </th>
+                          ))}
+                          <th className="gba:px-3 gba:py-2.5" style={{ width: '120px' }} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {existingRows.map((row, rowIndex) => {
+                          const rowKey = toStableRowKey(row, rowIndex)
+                          const rowId = toRowId(row)
+                          const isEditingThis = editingExistingId === rowKey
+                          const canEditRow = isCatalog === false && Boolean(effectiveOnUpdateRow) && rowId.length > 0
+                          const canDeleteRow = isCatalog === false && Boolean(effectiveOnDeleteRow) && rowId.length > 0
+                          return (
+                            <SimpleTableRow
+                              key={rowKey}
+                              row={row}
+                              rowIndex={rowIndex}
+                              columns={columns}
+                              isEditing={isEditingThis}
+                              editValues={editingValues}
+                              canEdit={canEditRow}
+                              canDelete={canDeleteRow}
+                              saving={existingSaving}
+                              testId={testId}
+                              onStartEdit={() => startEditingExisting(rowKey, row)}
+                              onCancelEdit={cancelEditingExisting}
+                              onSave={() => saveExistingRow(rowId)}
+                              onDelete={() => deleteExistingRow(rowId)}
+                              onCellChange={updateExistingCell}
+                              formatValue={formatReadValue}
+                            />
+                          )
+                        })}
+                        {rows.map((row, rowIndex) => {
+                          const isSaved = row.saved === true
+                          return (
+                            <SimpleTableRow
+                              key={row.id}
+                              row={row.values}
+                              rowIndex={existingRows.length + rowIndex}
+                              columns={columns}
+                              isEditing={true}
+                              editValues={row.values}
+                              canEdit={false}
+                              canDelete={isSaved === false}
+                              saving={row.saving}
+                              testId={testId}
+                              onStartEdit={() => {}}
+                              onCancelEdit={() => {}}
+                              onSave={() => (effectiveOnCreateRow ? saveRow(row.id) : undefined)}
+                              onDelete={() => deleteRow(row.id)}
+                              onCellChange={(name, value) => updateCell(row.id, name, value)}
+                              formatValue={formatReadValue}
+                            />
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              })()}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

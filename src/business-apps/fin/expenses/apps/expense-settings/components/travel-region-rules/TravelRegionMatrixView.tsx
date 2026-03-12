@@ -130,10 +130,10 @@ const handleCellDelete = async (
   cell: EditableCell,
   getExpenseSettingsClient: () => any,
   cellEditing: any,
-  loadData: () => Promise<void>,
+  setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>,
+  setAllowanceRegionRules: React.Dispatch<React.SetStateAction<EditableAllowanceRegionRule[]>>,
   checkDetailUsage: (detailId: string) => Promise<{ isUsed: boolean; usedIn: Record<string, unknown>; message: string }>
 ) => {
-  // Check usage before deletion
   if (cell.id) {
     try {
       const usageInfo = await checkDetailUsage(cell.id)
@@ -143,7 +143,6 @@ const handleCellDelete = async (
       }
     } catch (error) {
       console.error('Error checking detail usage:', error)
-      // Continue with deletion if check fails - user can verify manually
     }
   }
 
@@ -167,7 +166,14 @@ const handleCellDelete = async (
     toast.success('Detail deleted successfully')
     cellEditing.setEditingCellId(null)
     cellEditing.setEditingCellUsageInfo(null)
-    await loadData()
+
+    setEditableCells(prev => prev.filter(c => c.id !== cell.id))
+    setAllowanceRegionRules(prev =>
+      prev.map(rule => ({
+        ...rule,
+        details: rule.details?.filter((d: any) => d.id !== cell.id) || []
+      }))
+    )
   } catch (err: any) {
     console.error('Error deleting detail:', err)
     const errorMsg = err.response?.data?.message || err.message || 'Failed to delete detail'
@@ -547,9 +553,16 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         toast.error('Detail not found')
         return Promise.resolve()
       }
-      return handleCellDelete(cell, getExpenseSettingsClientFn, cellEditing, loadData, checkDetailUsage)
+      return handleCellDelete(
+        cell,
+        getExpenseSettingsClientFn,
+        cellEditing,
+        setEditableCells,
+        setAllowanceRegionRules,
+        checkDetailUsage
+      )
     },
-    [editableCells, cellEditing, loadData, checkDetailUsage]
+    [editableCells, cellEditing, setEditableCells, setAllowanceRegionRules, checkDetailUsage]
   )
 
   // Save handlers
@@ -587,19 +600,13 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     [getExpenseSettingsClient, loadData]
   )
 
-  // Client-side pagination
+  // Client-side pagination (always applied, including during search)
   const paginatedRegions = useMemo(() => {
-    // When searching, show all results without pagination
-    if (search.state.searchTerm) {
-      return sorting.state.sortedRegions
-    }
-
-    // Otherwise, apply pagination
     const { currentPage, pageSize } = pagination.state
     const startIndex = (currentPage - 1) * pageSize
     const endIndex = startIndex + pageSize
     return sorting.state.sortedRegions.slice(startIndex, endIndex)
-  }, [sorting.state.sortedRegions, pagination.state.currentPage, pagination.state.pageSize, search.state.searchTerm])
+  }, [sorting.state.sortedRegions, pagination.state.currentPage, pagination.state.pageSize])
 
   if (isLoading) {
     return (
@@ -926,7 +933,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       })()}
 
       {/* Pagination Controls */}
-      {!search.state.searchTerm && sorting.state.sortedRegions.length > 0 && (
+      {sorting.state.sortedRegions.length > 0 && (
         <MileageRulesPagination
           currentPage={pagination.state.currentPage}
           pageSize={pagination.state.pageSize}
@@ -941,18 +948,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
             }
           }}
         />
-      )}
-
-      {/* Search Results Info */}
-      {search.state.searchTerm && editableTravelRegions.length > 0 && (
-        <div
-          className="gba:flex gba:items-center gba:justify-center gba:mt-6 gba:px-4 gba:py-4 gba:bg-info-secondary gba:border gba:border-info gba:rounded-lg"
-          data-testid={`${prefixDataTestId}-search-results-info`}
-        >
-          <span className="gba:text-sm gba:text-foreground">
-            Showing {editableTravelRegions.length} search results for "{search.state.searchTerm}"
-          </span>
-        </div>
       )}
 
       {/* Rule Creation Modal */}

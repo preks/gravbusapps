@@ -1,5 +1,6 @@
 import React from 'react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../../_i18n'
 import { TablePagination, PaginationChangeParams } from '../../../../../../components'
 
 interface ExpenseRequestPaginationProps {
@@ -20,6 +21,8 @@ const ExpenseRequestPagination: React.FC<ExpenseRequestPaginationProps> = ({
   scrollTargetRef,
   scrollTargetTestId
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <TablePagination
       currentPage={currentPage}
@@ -28,10 +31,7 @@ const ExpenseRequestPagination: React.FC<ExpenseRequestPaginationProps> = ({
       onPageChange={onPageChange}
       scrollTargetRef={scrollTargetRef}
       scrollTargetTestId={scrollTargetTestId}
-      entityNamePlural={getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_list.flows_button.expense_requests',
-        'Expense Requests'
-      )}
+      entityNamePlural={t('tab-expense-requests')}
       dataTestIdPrefix="expense-requests"
     />
   )
