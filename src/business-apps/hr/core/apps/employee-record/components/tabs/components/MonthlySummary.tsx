@@ -223,10 +223,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
               >
                 <>
                   <Icon icon={PencilIcon} />
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.actions.request_correction',
-                    'Request Correction'
-                  )}
+                  {t('manual_entry')}
                 </>
               </AppAction>
 

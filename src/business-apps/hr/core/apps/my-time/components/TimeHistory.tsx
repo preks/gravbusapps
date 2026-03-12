@@ -207,10 +207,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
         >
           <>
             <Icon icon={PencilIcon} />
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:time_tracking.actions.request_correction',
-              'Request Correction'
-            )}
+            {t('manual_entry')}
           </>
         </AppAction>
       </div>

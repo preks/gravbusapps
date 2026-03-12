@@ -13,3 +13,4 @@ holiday = Feiertag
 time_tracking_day_type_weekend = Wochenende
 time_tracking_day_type_not_working = Kein Arbeitstag
 time_tracking_day_type_work_day = Arbeitstag
+manual_entry = Manuelle Erfassung

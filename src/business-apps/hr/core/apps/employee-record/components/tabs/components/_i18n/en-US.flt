@@ -13,3 +13,4 @@ holiday = Bank Holiday
 time_tracking_day_type_weekend = Weekend
 time_tracking_day_type_not_working = Not a working day
 time_tracking_day_type_work_day = Work day
+manual_entry = Manual Entry
