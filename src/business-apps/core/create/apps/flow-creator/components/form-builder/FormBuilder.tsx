@@ -46,6 +46,19 @@ function isShortAbbreviatedName(name: string, label: string): boolean {
   return normalizedName.length <= 3 && slugifiedLabel.length > normalizedName.length
 }
 
+function isTruncatedLabelPrefix(name: string, label: string): boolean {
+  const normalizedName = String(name || '')
+    .trim()
+    .toLowerCase()
+  const slugifiedLabel = slugifyKey(label)
+
+  if (!normalizedName || !slugifiedLabel || normalizedName === slugifiedLabel) return false
+  if (normalizedName.length < 3) return false
+  if (!/^[a-z][a-z0-9_]*$/i.test(normalizedName)) return false
+
+  return slugifiedLabel.startsWith(normalizedName) && normalizedName.length < slugifiedLabel.length
+}
+
 export function shouldNormalizeHiddenName(name: string, label: string): boolean {
   const normalizedName = String(name || '')
     .trim()
@@ -62,6 +75,10 @@ export function shouldNormalizeHiddenName(name: string, label: string): boolean 
   }
 
   if (isShortAbbreviatedName(normalizedName, normalizedLabel)) {
+    return true
+  }
+
+  if (isTruncatedLabelPrefix(normalizedName, normalizedLabel)) {
     return true
   }
 

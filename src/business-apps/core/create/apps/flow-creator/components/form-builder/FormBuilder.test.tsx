@@ -17,4 +17,9 @@ describe('FormBuilder', () => {
     expect(shouldNormalizeHiddenName('id', 'ID')).toBe(false)
     expect(deriveReadableFieldName('id', 'ID', new Set())).toBe('id')
   })
+
+  it('normalizes truncated label prefixes to the full readable slug', () => {
+    expect(shouldNormalizeHiddenName('amou', 'Amount')).toBe(true)
+    expect(deriveReadableFieldName('amou', 'Amount', new Set())).toBe('amount')
+  })
 })
