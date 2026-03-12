@@ -47,9 +47,13 @@ function isValidLocalizedNumberInput(raw: string): boolean {
   const value = String(raw ?? '').trim()
   if (!value) return true
 
-  const PLAIN = /^-?\d+(?:[.,]\d+)?$/
-  const US_GROUPED = /^-?\d{1,3}(?:,\d{3})+(?:\.\d+)?$/
-  const EU_GROUPED = /^-?\d{1,3}(?:\.\d{3})+(?:,\d+)?$/
+  // Tight rules:
+  // - thousands groups must be 3 digits when separators are used
+  // - decimal part (if present) is 1-2 digits
+  // - decimal separator must match locale style for grouped forms
+  const PLAIN = /^-?\d+(?:[.,]\d{1,2})?$/
+  const US_GROUPED = /^-?\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?$/
+  const EU_GROUPED = /^-?\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/
 
   if (!(PLAIN.test(value) || US_GROUPED.test(value) || EU_GROUPED.test(value))) {
     return false
