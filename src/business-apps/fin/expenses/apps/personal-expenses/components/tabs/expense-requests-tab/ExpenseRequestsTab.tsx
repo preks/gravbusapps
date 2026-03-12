@@ -263,7 +263,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       setPageSize(pagination.pageSize)
 
       const nextField = sorter?.field ?? 'requestDate'
-      const nextOrder = sorter?.order ?? 'descend'
+      const nextOrder = sorter?.order
       setSortField(nextField)
       setSortOrder(nextOrder)
 

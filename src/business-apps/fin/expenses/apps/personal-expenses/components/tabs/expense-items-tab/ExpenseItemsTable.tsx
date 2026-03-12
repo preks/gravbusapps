@@ -2,7 +2,7 @@ import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/wi
 import { useDebounce } from '@/common/hooks/useDebounce'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import {
   Button,
   Alert,
@@ -101,11 +101,11 @@ function ExpenseItemsTableSelectAllHeader({
   items,
   selectedRowKeys,
   onSelectAll
-}: {
+}: Readonly<{
   items: ExpenseItem[] | undefined
   selectedRowKeys: React.Key[]
   onSelectAll: (checked: boolean) => void
-}) {
+}>) {
   const itemCount = items?.length ?? 0
   const allSelected = itemCount > 0 && (items ?? []).every(item => selectedRowKeys.includes(item.id))
   return (
@@ -121,11 +121,11 @@ function ExpenseItemSelectionCell({
   record,
   isSelected,
   onCheckedChange
-}: {
+}: Readonly<{
   record: ExpenseItem
   isSelected: boolean
   onCheckedChange: (id: string, checked: boolean) => void
-}) {
+}>) {
   return (
     <Checkbox
       checked={isSelected}
@@ -136,7 +136,7 @@ function ExpenseItemSelectionCell({
   )
 }
 
-function ExpenseItemTitleCell({ record }: { record: ExpenseItem }) {
+function ExpenseItemTitleCell({ record }: Readonly<{ record: ExpenseItem }>) {
   return (
     <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-title-cell">
       {record.title}
@@ -144,7 +144,7 @@ function ExpenseItemTitleCell({ record }: { record: ExpenseItem }) {
   )
 }
 
-function ExpenseItemExpenseDateCell({ record }: { record: ExpenseItem }) {
+function ExpenseItemExpenseDateCell({ record }: Readonly<{ record: ExpenseItem }>) {
   if (!record.expenseDate) {
     return <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
   }
@@ -161,7 +161,7 @@ function ExpenseItemExpenseDateCell({ record }: { record: ExpenseItem }) {
   )
 }
 
-function ExpenseItemStatusCell({ record }: { record: ExpenseItem }) {
+function ExpenseItemStatusCell({ record }: Readonly<{ record: ExpenseItem }>) {
   const statusConf = getExpenseItemStatusDisplay(record.status)
   return (
     <Badge variant={statusConf.badgeVariant || 'outline'} data-testid="expense-status-cell">
@@ -170,7 +170,7 @@ function ExpenseItemStatusCell({ record }: { record: ExpenseItem }) {
   )
 }
 
-function ExpenseItemAttachmentCell({ record }: { record: ExpenseItem }) {
+function ExpenseItemAttachmentCell({ record }: Readonly<{ record: ExpenseItem }>) {
   const hasFiles = record.expenseItemFile && record.expenseItemFile.length > 0
   return (
     <div className="gba:flex gba:items-center gba:justify-center">
@@ -183,12 +183,28 @@ function ExpenseItemAttachmentCell({ record }: { record: ExpenseItem }) {
   )
 }
 
-function ExpenseItemReimbursableAmountCell({ record }: { record: ExpenseItem }) {
+function ExpenseItemReimbursableAmountCell({ record }: Readonly<{ record: ExpenseItem }>) {
   return (
     <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="expense-amount-cell">
       {formatCurrencyDisplay(record.reimbursableAmount ?? 0, record.currency?.code)}
     </div>
   )
+}
+
+function renderItemTitleCell(info: CellContext<ExpenseItem, unknown>) {
+  return <ExpenseItemTitleCell record={info.row.original} />
+}
+function renderItemExpenseDateCell(info: CellContext<ExpenseItem, unknown>) {
+  return <ExpenseItemExpenseDateCell record={info.row.original} />
+}
+function renderItemStatusCell(info: CellContext<ExpenseItem, unknown>) {
+  return <ExpenseItemStatusCell record={info.row.original} />
+}
+function renderItemAttachmentCell(info: CellContext<ExpenseItem, unknown>) {
+  return <ExpenseItemAttachmentCell record={info.row.original} />
+}
+function renderItemReimbursableAmountCell(info: CellContext<ExpenseItem, unknown>) {
+  return <ExpenseItemReimbursableAmountCell record={info.row.original} />
 }
 
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => {
@@ -752,28 +768,28 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           'Title'
         ),
         size: 200,
-        cell: ({ row }) => <ExpenseItemTitleCell record={row.original} />
+        cell: renderItemTitleCell
       },
       {
         id: 'expenseDate',
         accessorKey: 'expenseDate',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date', 'Expense Date'),
         size: 120,
-        cell: ({ row }) => <ExpenseItemExpenseDateCell record={row.original} />
+        cell: renderItemExpenseDateCell
       },
       {
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
         size: 100,
-        cell: ({ row }) => <ExpenseItemStatusCell record={row.original} />
+        cell: renderItemStatusCell
       },
       {
         id: 'attachment',
         accessorFn: (row: ExpenseItem) => row.expenseItemFile?.length ?? 0,
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment'),
         size: 80,
-        cell: ({ row }) => <ExpenseItemAttachmentCell record={row.original} />
+        cell: renderItemAttachmentCell
       },
       {
         id: 'reimbursableAmount',
@@ -784,7 +800,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         ),
         size: 140,
         meta: { align: 'right' as const },
-        cell: ({ row }) => <ExpenseItemReimbursableAmountCell record={row.original} />
+        cell: renderItemReimbursableAmountCell
       }
     ],
     [selectedRowKeys, items?.length, handleSelectAll, handleRowSelectionChange]

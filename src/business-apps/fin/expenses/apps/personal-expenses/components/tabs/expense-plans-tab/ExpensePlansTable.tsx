@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpensePlan } from '../../../hooks/useGetExpensePlans'
 import { getExpensePlanStatusDisplay } from '../../../utils'
@@ -68,7 +68,7 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   availableStatuses?: string[]
 }
 
-function ExpensePlanCodeCell({ record }: { record: ExpensePlan }) {
+function ExpensePlanCodeCell({ record }: Readonly<{ record: ExpensePlan }>) {
   return (
     <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-plan-code-cell">
       {record.code}
@@ -76,7 +76,7 @@ function ExpensePlanCodeCell({ record }: { record: ExpensePlan }) {
   )
 }
 
-function ExpensePlanTitleCell({ record }: { record: ExpensePlan }) {
+function ExpensePlanTitleCell({ record }: Readonly<{ record: ExpensePlan }>) {
   return (
     <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-plan-title-cell">
       {record.title}
@@ -84,7 +84,7 @@ function ExpensePlanTitleCell({ record }: { record: ExpensePlan }) {
   )
 }
 
-function ExpensePlanDateCell({ dateValue, testId }: { dateValue: string | null; testId: string }) {
+function ExpensePlanDateCell({ dateValue, testId }: Readonly<{ dateValue: string | null; testId: string }>) {
   if (!dateValue) {
     return <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
   }
@@ -101,7 +101,7 @@ function ExpensePlanDateCell({ dateValue, testId }: { dateValue: string | null; 
   )
 }
 
-function ExpensePlanStatusCell({ record }: { record: ExpensePlan }) {
+function ExpensePlanStatusCell({ record }: Readonly<{ record: ExpensePlan }>) {
   const statusConfig = getExpensePlanStatusDisplay(record.status)
   return (
     <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-cell">
@@ -110,7 +110,7 @@ function ExpensePlanStatusCell({ record }: { record: ExpensePlan }) {
   )
 }
 
-function ExpensePlanReimbursableAmountCell({ record }: { record: ExpensePlan }) {
+function ExpensePlanReimbursableAmountCell({ record }: Readonly<{ record: ExpensePlan }>) {
   const amount = record.reimbursableAmount || 0
   return (
     <div
@@ -122,7 +122,7 @@ function ExpensePlanReimbursableAmountCell({ record }: { record: ExpensePlan }) 
   )
 }
 
-function ExpensePlanPaidAdvanceCell({ record }: { record: ExpensePlan }) {
+function ExpensePlanPaidAdvanceCell({ record }: Readonly<{ record: ExpensePlan }>) {
   return (
     <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="expense-plan-paid-advance-cell">
       {record.advancePaymentPaidAmount && record.advancePaymentPaidAmount > 0 ? (
@@ -132,6 +132,31 @@ function ExpensePlanPaidAdvanceCell({ record }: { record: ExpensePlan }) {
       )}
     </div>
   )
+}
+
+function renderCodeCell(info: CellContext<ExpensePlan, unknown>) {
+  return <ExpensePlanCodeCell record={info.row.original} />
+}
+function renderTitleCell(info: CellContext<ExpensePlan, unknown>) {
+  return <ExpensePlanTitleCell record={info.row.original} />
+}
+function renderPlanDateCell(info: CellContext<ExpensePlan, unknown>) {
+  return <ExpensePlanDateCell dateValue={info.row.original.planDate} testId="expense-plan-plan-date-cell" />
+}
+function renderStartDateCell(info: CellContext<ExpensePlan, unknown>) {
+  return <ExpensePlanDateCell dateValue={info.row.original.startDate} testId="expense-plan-start-date-cell" />
+}
+function renderEndDateCell(info: CellContext<ExpensePlan, unknown>) {
+  return <ExpensePlanDateCell dateValue={info.row.original.endDate} testId="expense-plan-end-date-cell" />
+}
+function renderStatusCell(info: CellContext<ExpensePlan, unknown>) {
+  return <ExpensePlanStatusCell record={info.row.original} />
+}
+function renderReimbursableAmountCell(info: CellContext<ExpensePlan, unknown>) {
+  return <ExpensePlanReimbursableAmountCell record={info.row.original} />
+}
+function renderPaidAdvanceCell(info: CellContext<ExpensePlan, unknown>) {
+  return <ExpensePlanPaidAdvanceCell record={info.row.original} />
 }
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => {
@@ -590,16 +615,19 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     (newSorting: Array<{ id: string; desc: boolean }>) => {
       if (!onTableChange) return
       const entry = newSorting[0]
-      const field = entry?.id || 'createdAt'
-      let order: 'ascend' | 'descend' | undefined
-      if (entry) {
-        order = entry.desc ? 'descend' : 'ascend'
-      } else {
-        order = undefined
+      if (!entry) {
+        onTableChange({ current: 1, pageSize }, {}, { field: sortField || 'planDate', order: undefined })
+        return
       }
-      onTableChange({ current: 1, pageSize }, {}, { field, order })
+      const isSameColumn = entry.id === sortField
+      const incomingOrder = entry.desc ? 'descend' : 'ascend'
+      if (isSameColumn && sortOrder === 'descend' && incomingOrder === 'ascend') {
+        onTableChange({ current: 1, pageSize }, {}, { field: entry.id, order: undefined })
+      } else {
+        onTableChange({ current: 1, pageSize }, {}, { field: entry.id, order: incomingOrder })
+      }
     },
-    [onTableChange, pageSize]
+    [onTableChange, pageSize, sortField, sortOrder]
   )
   const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
   const handlePaginationChange = useCallback(
@@ -679,23 +707,21 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           'Plan Number'
         ),
         size: 120,
-        cell: ({ row }) => <ExpensePlanCodeCell record={row.original} />
+        cell: renderCodeCell
       },
       {
         id: 'title',
         accessorKey: 'title',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title'),
         size: 200,
-        cell: ({ row }) => <ExpensePlanTitleCell record={row.original} />
+        cell: renderTitleCell
       },
       {
         id: 'planDate',
         accessorKey: 'planDate',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date'),
         size: 110,
-        cell: ({ row }) => (
-          <ExpensePlanDateCell dateValue={row.original.planDate} testId="expense-plan-plan-date-cell" />
-        )
+        cell: renderPlanDateCell
       },
       {
         id: 'startDate',
@@ -705,23 +731,21 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           'Start Date'
         ),
         size: 110,
-        cell: ({ row }) => (
-          <ExpensePlanDateCell dateValue={row.original.startDate} testId="expense-plan-start-date-cell" />
-        )
+        cell: renderStartDateCell
       },
       {
         id: 'endDate',
         accessorKey: 'endDate',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date'),
         size: 110,
-        cell: ({ row }) => <ExpensePlanDateCell dateValue={row.original.endDate} testId="expense-plan-end-date-cell" />
+        cell: renderEndDateCell
       },
       {
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
         size: 100,
-        cell: ({ row }) => <ExpensePlanStatusCell record={row.original} />
+        cell: renderStatusCell
       },
       {
         id: 'reimbursableAmount',
@@ -732,7 +756,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         ),
         size: 140,
         meta: { align: 'right' as const },
-        cell: ({ row }) => <ExpensePlanReimbursableAmountCell record={row.original} />
+        cell: renderReimbursableAmountCell
       },
       {
         id: 'advancePaymentPaidAmount',
@@ -743,7 +767,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         ),
         size: 120,
         meta: { align: 'right' as const },
-        cell: ({ row }) => <ExpensePlanPaidAdvanceCell record={row.original} />
+        cell: renderPaidAdvanceCell
       }
     ],
     []

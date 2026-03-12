@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import {
   Sheet,
   SheetContent,
@@ -54,7 +54,7 @@ export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   tableRefreshTrigger?: number
 }
 
-function AdvancePaymentExpensePlanCell({ record }: { record: AdvancePayment }) {
+function AdvancePaymentExpensePlanCell({ record }: Readonly<{ record: AdvancePayment }>) {
   return (
     <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="advance-payment-expense-plan-cell">
       {record.expensePlan?.title ??
@@ -63,7 +63,7 @@ function AdvancePaymentExpensePlanCell({ record }: { record: AdvancePayment }) {
   )
 }
 
-function AdvancePaymentPlanNumberCell({ record }: { record: AdvancePayment }) {
+function AdvancePaymentPlanNumberCell({ record }: Readonly<{ record: AdvancePayment }>) {
   return (
     <div className="gba:text-sm gba:truncate" data-testid="advance-payment-plan-number-cell">
       {record.expensePlan?.code ?? 'N/A'}
@@ -71,7 +71,7 @@ function AdvancePaymentPlanNumberCell({ record }: { record: AdvancePayment }) {
   )
 }
 
-function AdvancePaymentStatusCell({ record }: { record: AdvancePayment }) {
+function AdvancePaymentStatusCell({ record }: Readonly<{ record: AdvancePayment }>) {
   const statusConfig = getAdvancePaymentStatusDisplay(record.status)
   return (
     <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-cell">
@@ -80,7 +80,7 @@ function AdvancePaymentStatusCell({ record }: { record: AdvancePayment }) {
   )
 }
 
-function AdvancePaymentAmountCell({ record }: { record: AdvancePayment }) {
+function AdvancePaymentAmountCell({ record }: Readonly<{ record: AdvancePayment }>) {
   const plan = record.expensePlan
   const amount = plan?.totalAmount
   const currencyCode = plan?.currency?.code ?? 'EUR'
@@ -93,7 +93,7 @@ function AdvancePaymentAmountCell({ record }: { record: AdvancePayment }) {
   )
 }
 
-function AdvancePaymentAdvanceCell({ record }: { record: AdvancePayment }) {
+function AdvancePaymentAdvanceCell({ record }: Readonly<{ record: AdvancePayment }>) {
   return (
     <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="advance-payment-advance-cell">
       {formatCurrencyDisplay(record.amount, record.currency?.code ?? 'EUR')}
@@ -101,7 +101,7 @@ function AdvancePaymentAdvanceCell({ record }: { record: AdvancePayment }) {
   )
 }
 
-function AdvancePaymentMethodCell({ record }: { record: AdvancePayment }) {
+function AdvancePaymentMethodCell({ record }: Readonly<{ record: AdvancePayment }>) {
   const pm = record.paymentMethod
   let label: string
   if (!pm) {
@@ -126,6 +126,25 @@ function AdvancePaymentMethodCell({ record }: { record: AdvancePayment }) {
       {label}
     </div>
   )
+}
+
+function renderAdvExpensePlanCell(info: CellContext<AdvancePayment, unknown>) {
+  return <AdvancePaymentExpensePlanCell record={info.row.original} />
+}
+function renderAdvPlanNumberCell(info: CellContext<AdvancePayment, unknown>) {
+  return <AdvancePaymentPlanNumberCell record={info.row.original} />
+}
+function renderAdvStatusCell(info: CellContext<AdvancePayment, unknown>) {
+  return <AdvancePaymentStatusCell record={info.row.original} />
+}
+function renderAdvAmountCell(info: CellContext<AdvancePayment, unknown>) {
+  return <AdvancePaymentAmountCell record={info.row.original} />
+}
+function renderAdvAdvanceCell(info: CellContext<AdvancePayment, unknown>) {
+  return <AdvancePaymentAdvanceCell record={info.row.original} />
+}
+function renderAdvMethodCell(info: CellContext<AdvancePayment, unknown>) {
+  return <AdvancePaymentMethodCell record={info.row.original} />
 }
 
 const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTableProps>((props, ref) => {
@@ -895,7 +914,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           'Expense Plan'
         ),
         size: 200,
-        cell: ({ row }) => <AdvancePaymentExpensePlanCell record={row.original} />
+        cell: renderAdvExpensePlanCell
       },
       {
         id: 'planNumber',
@@ -905,14 +924,14 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           'Plan Number'
         ),
         size: 120,
-        cell: ({ row }) => <AdvancePaymentPlanNumberCell record={row.original} />
+        cell: renderAdvPlanNumberCell
       },
       {
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
         size: 100,
-        cell: ({ row }) => <AdvancePaymentStatusCell record={row.original} />
+        cell: renderAdvStatusCell
       },
       {
         id: 'amount',
@@ -920,7 +939,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.amount', 'Amount'),
         size: 120,
         meta: { align: 'right' as const },
-        cell: ({ row }) => <AdvancePaymentAmountCell record={row.original} />
+        cell: renderAdvAmountCell
       },
       {
         id: 'advance',
@@ -931,7 +950,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         ),
         size: 120,
         meta: { align: 'right' as const },
-        cell: ({ row }) => <AdvancePaymentAdvanceCell record={row.original} />
+        cell: renderAdvAdvanceCell
       },
       {
         id: 'paymentMethod',
@@ -941,7 +960,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           'Payment Method'
         ),
         size: 140,
-        cell: ({ row }) => <AdvancePaymentMethodCell record={row.original} />
+        cell: renderAdvMethodCell
       }
     ],
     []

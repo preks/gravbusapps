@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Spinner,
@@ -81,6 +81,68 @@ export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
 
 const DEFAULT_PAGE_SIZE = 20
 const DATA_TEST_ID_PREFIX = 'expense-requests'
+
+function ExpenseRequestCodeCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+  return <div className="gba:font-medium gba:text-sm gba:truncate">{record.code || 'N/A'}</div>
+}
+function ExpenseRequestTitleCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+  return <div className="gba:font-medium gba:text-sm gba:truncate">{record.title}</div>
+}
+function ExpenseRequestDateCell({ dateValue }: Readonly<{ dateValue: string | undefined }>) {
+  return <div className="gba:text-sm">{dateValue ? formatDate(dateValue, 'date.short') || '-' : '-'}</div>
+}
+function ExpenseRequestReimbursableCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+  return (
+    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate">
+      {record.reimbursableAmount && record.reimbursableAmount !== 0 ? (
+        formatCurrencyDisplay(record.reimbursableAmount, record.currency?.code)
+      ) : (
+        <span className="gba:text-muted-foreground">-</span>
+      )}
+    </div>
+  )
+}
+function ExpenseRequestAdvanceCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+  const v = record.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount
+  return (
+    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate">
+      {v && v !== 0 ? (
+        formatCurrencyDisplay(v, record.currency?.code)
+      ) : (
+        <span className="gba:text-muted-foreground">-</span>
+      )}
+    </div>
+  )
+}
+
+function renderReqCodeCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestCodeCell record={info.row.original} />
+}
+function renderReqTitleCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestTitleCell record={info.row.original} />
+}
+function renderReqRequestDateCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestDateCell dateValue={info.row.original.requestDate} />
+}
+function renderReqStartDateCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestDateCell dateValue={info.row.original.startDate} />
+}
+function renderReqEndDateCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestDateCell dateValue={info.row.original.endDate} />
+}
+function renderReqReimbursableCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestReimbursableCell record={info.row.original} />
+}
+function renderReqAdvanceCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestAdvanceCell record={info.row.original} />
+}
+function ExpenseRequestStatusCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+  const statusConfig = getExpenseRequestStatusDisplay(record.status || '')
+  return <Badge variant={(statusConfig as any).badgeVariant || 'outline'}>{statusConfig.label}</Badge>
+}
+function renderReqStatusCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestStatusCell record={info.row.original} />
+}
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(props => {
   const { t: tPersonal } = useTranslation(translations)
@@ -571,28 +633,33 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     setSearchInput(value)
   }, [])
 
-  // Enhanced server-side sorting handler
   const sorting = useMemo(
     () => (sortOrder ? [{ id: sortField || 'requestDate', desc: sortOrder === 'descend' }] : []),
     [sortField, sortOrder]
   )
   const handleSortingChange = useCallback(
     (newSorting: Array<{ id: string; desc: boolean }>) => {
-      const entry = newSorting?.[0]
-      // When table "clears" sort (empty array), it means user clicked the already-sorted column:
-      // TanStack Table cycles asc -> desc -> clear. Treat clear as toggle direction so Request Date (and any column) responds on first click.
-      let field: string
-      let order: 'ascend' | 'descend'
-      if (entry) {
-        field = entry.id || 'requestDate'
-        order = entry.desc ? 'descend' : 'ascend'
+      if (!onTableChange) return
+      const entry = newSorting[0]
+      let nextField: string
+      let nextOrder: 'ascend' | 'descend' | undefined
+      if (!entry) {
+        nextField = sortField || 'requestDate'
+        nextOrder = undefined
       } else {
-        field = sortField || 'requestDate'
-        order = sortOrder === 'descend' ? 'ascend' : 'descend'
+        const isSameColumn = entry.id === sortField
+        const incomingOrder = entry.desc ? 'descend' : 'ascend'
+        if (isSameColumn && sortOrder === 'descend' && incomingOrder === 'ascend') {
+          nextField = entry.id
+          nextOrder = undefined
+        } else {
+          nextField = entry.id
+          nextOrder = incomingOrder
+        }
       }
-      setSortField(field)
-      setSortOrder(order)
-      if (onTableChange) onTableChange({ current: 1, pageSize }, {}, { field, order })
+      setSortField(nextField)
+      setSortOrder(nextOrder)
+      onTableChange({ current: 1, pageSize }, {}, { field: nextField, order: nextOrder })
     },
     [onTableChange, pageSize, sortField, sortOrder]
   )
@@ -614,11 +681,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         'lowcoder:personal_expenses.no_expense_request_data',
         'No expense requests found. Create your first expense request to get started.'
       )
-  const getStatusDisplay = useCallback((status: string) => {
-    const statusConfig = getExpenseRequestStatusDisplay(status)
-    return { label: statusConfig.label, badgeVariant: (statusConfig as any).badgeVariant }
-  }, [])
-
   const columns = useMemo<ColumnDef<ExpenseRequestRow>[]>(
     () => [
       {
@@ -629,14 +691,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
           'Request Number'
         ),
         size: 120,
-        cell: ({ row }) => <div className="gba:font-medium gba:text-sm gba:truncate">{row.original.code || 'N/A'}</div>
+        cell: renderReqCodeCell
       },
       {
         id: 'title',
         accessorKey: 'title',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title'),
         size: 200,
-        cell: ({ row }) => <div className="gba:font-medium gba:text-sm gba:truncate">{row.original.title}</div>
+        cell: renderReqTitleCell
       },
       {
         id: 'requestDate',
@@ -646,11 +708,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
           'Request Date'
         ),
         size: 110,
-        cell: ({ row }) => (
-          <div className="gba:text-sm">
-            {row.original.requestDate ? formatDate(row.original.requestDate, 'date.short') || '-' : '-'}
-          </div>
-        )
+        cell: renderReqRequestDateCell
       },
       {
         id: 'startDate',
@@ -660,32 +718,21 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
           'Start Date'
         ),
         size: 110,
-        cell: ({ row }) => (
-          <div className="gba:text-sm">
-            {row.original.startDate ? formatDate(row.original.startDate, 'date.short') || '-' : '-'}
-          </div>
-        )
+        cell: renderReqStartDateCell
       },
       {
         id: 'endDate',
         accessorKey: 'endDate',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date'),
         size: 110,
-        cell: ({ row }) => (
-          <div className="gba:text-sm">
-            {row.original.endDate ? formatDate(row.original.endDate, 'date.short') || '-' : '-'}
-          </div>
-        )
+        cell: renderReqEndDateCell
       },
       {
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
         size: 100,
-        cell: ({ row }) => {
-          const { label, badgeVariant } = getStatusDisplay(row.original.status || '')
-          return <Badge variant={badgeVariant || 'outline'}>{label}</Badge>
-        }
+        cell: renderReqStatusCell
       },
       {
         id: 'reimbursableAmount',
@@ -696,15 +743,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         ),
         size: 140,
         meta: { align: 'right' as const },
-        cell: ({ row }) => (
-          <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate">
-            {row.original.reimbursableAmount && row.original.reimbursableAmount !== 0 ? (
-              formatCurrencyDisplay(row.original.reimbursableAmount, row.original.currency?.code)
-            ) : (
-              <span className="gba:text-muted-foreground">-</span>
-            )}
-          </div>
-        )
+        cell: renderReqReimbursableCell
       },
       {
         id: 'advance',
@@ -714,23 +753,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
           'Advance'
         ),
         size: 120,
-        enableSorting: false, // Aggregated from relation; ExpenseRequestOrderBy has no 'advance' field
+        enableSorting: false,
         meta: { align: 'right' as const },
-        cell: ({ row }) => {
-          const v = row.original.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount
-          return (
-            <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate">
-              {v && v !== 0 ? (
-                formatCurrencyDisplay(v, row.original.currency?.code)
-              ) : (
-                <span className="gba:text-muted-foreground">-</span>
-              )}
-            </div>
-          )
-        }
+        cell: renderReqAdvanceCell
       }
     ],
-    [getStatusDisplay]
+    []
   )
 
   // Handle item selection
