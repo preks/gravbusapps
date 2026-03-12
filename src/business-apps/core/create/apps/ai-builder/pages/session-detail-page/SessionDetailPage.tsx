@@ -173,6 +173,8 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const filesChangedInRunRef = useRef(false)
   const activeStreamReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null)
   const stopRequestedRef = useRef(false)
+  const persistedMessageSnapshotsRef = useRef<Map<string, string>>(new Map())
+  const chatPersistenceInitializedRef = useRef(false)
   const resolvedTargetPath = detectedTargetPath || targetPath
   const UNKNOWN_AUTHOR_ID = 'unknown-user'
 
@@ -597,6 +599,10 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
         return message
       }
       updated = true
+      const inferredCreatedBy =
+        message.createdBy ??
+        message.editHistory?.slice(-1)[0]?.userId ??
+        (message.role === 'user' ? getCurrentUserId() ?? UNKNOWN_AUTHOR_ID : undefined)
       return {
         ...message,
         content: normalizedContent,
@@ -605,7 +611,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
         toolCalls: normalizedTimeline.toolCalls,
         messageId: message.messageId ?? createMessageId(),
         createdAt: message.createdAt ?? new Date().toISOString(),
-        createdBy: message.createdBy ?? (message.role === 'user' ? UNKNOWN_AUTHOR_ID : undefined)
+        createdBy: inferredCreatedBy
       }
     })
     return { messages, updated }
@@ -993,6 +999,8 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   }, [sessionId, detectedTargetPath, targetPath, resourceUrl, uniqueFileSummary])
 
   useEffect(() => {
+    persistedMessageSnapshotsRef.current = new Map()
+    chatPersistenceInitializedRef.current = false
     checkForChanges()
     refreshPreview()
     builderClient
@@ -1003,6 +1011,13 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           if (normalized.updated) {
             builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
           }
+          const seeded = new Map<string, string>()
+          ;(normalized.messages as Message[]).forEach(message => {
+            if (!message.messageId || message.localOnly || !isPersistableMessage(message)) return
+            seeded.set(message.messageId, JSON.stringify(message))
+          })
+          persistedMessageSnapshotsRef.current = seeded
+          chatPersistenceInitializedRef.current = true
           setMessages(prev =>
             activeStreamReaderRef.current
               ? mergeMessagesById(prev, normalized.messages as Message[])
@@ -1010,19 +1025,46 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           )
           return
         }
+        chatPersistenceInitializedRef.current = true
         setMessages(prev => (activeStreamReaderRef.current ? prev : []))
       })
       .catch(error => {
         console.error('Failed to load chat history:', error)
+        chatPersistenceInitializedRef.current = true
         setMessages(prev => (activeStreamReaderRef.current ? prev : []))
       })
   }, [sessionId])
 
   useEffect(() => {
     const persistableMessages = debouncedMessages.filter(message => !message.localOnly && isPersistableMessage(message))
-    if (sessionId && persistableMessages.length > 0) {
-      builderClient.saveChatHistory(repositoryId, sessionId, persistableMessages)
+    if (!sessionId || persistableMessages.length === 0) return
+    if (!chatPersistenceInitializedRef.current) return
+
+    const queue = persistableMessages.filter(message => {
+      if (!message.messageId) return false
+      const nextSnapshot = JSON.stringify(message)
+      const previousSnapshot = persistedMessageSnapshotsRef.current.get(message.messageId)
+      return previousSnapshot !== nextSnapshot
+    })
+
+    const currentIds = new Set(persistableMessages.map(message => message.messageId).filter(Boolean) as string[])
+    for (const persistedId of Array.from(persistedMessageSnapshotsRef.current.keys())) {
+      if (!currentIds.has(persistedId)) {
+        persistedMessageSnapshotsRef.current.delete(persistedId)
+      }
     }
+
+    if (queue.length === 0) return
+
+    void (async () => {
+      for (const message of queue) {
+        if (!message.messageId) continue
+        const ok = await builderClient.appendChatMessage(repositoryId, sessionId, message)
+        if (ok) {
+          persistedMessageSnapshotsRef.current.set(message.messageId, JSON.stringify(message))
+        }
+      }
+    })()
   }, [debouncedMessages, sessionId, repositoryId])
 
   const currentSession = sessions.find(s => s.sessionId === sessionId)
@@ -1287,7 +1329,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       const mergedHistory = mergeMessagesById(messagesRef.current, normalized.messages as Message[])
       const nextHistory = [...mergedHistory.filter(item => item.messageId !== editedMessage.messageId), editedMessage]
       setMessages(nextHistory)
-      await builderClient.saveChatHistory(repositoryId, sessionId, nextHistory)
+      await builderClient.appendChatMessage(repositoryId, sessionId, editedMessage)
 
       updateRestoreTempMessage(tempMessageId, 'Sending updated prompt')
       await runPrompt(trimmedContent, normalized.messages as Message[])

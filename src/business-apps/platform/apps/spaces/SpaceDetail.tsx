@@ -231,7 +231,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     if (onNavigateToHub) {
       onNavigateToHub()
     } else {
-      navigateTo(buildPlatformUrl('/platform/spaces'))
+      navigateTo(buildPlatformUrl('/platform/every-office/spaces'))
     }
   }, [onNavigateToHub])
 
@@ -273,14 +273,11 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
   const handleItemClick = useCallback(
     (item: SpaceContentItem) => {
-      const isProduction = process.env.NODE_ENV === 'production'
       let url: string
       const spaceParam = `spaceId=${encodeURIComponent(spaceId)}`
 
       // Store the current space URL in sessionStorage for the back button
-      const currentSpaceUrl = isProduction
-        ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
-        : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
+      const currentSpaceUrl = `/platform/every-office/spaces?spaceId=${encodeURIComponent(spaceId)}`
 
       try {
         sessionStorage.setItem('space_return_url', currentSpaceUrl)
@@ -290,24 +287,16 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
       switch (item.type) {
         case 'document':
-          url = isProduction
-            ? `/platform/documents?docId=${item.id}&view=editor`
-            : `/platform/apps/document-apps?docId=${item.id}&view=editor`
+          url = `/platform/every-office/documents?docId=${item.id}&view=editor`
           break
         case 'note':
-          url = isProduction
-            ? `/platform/notes?noteId=${item.id}&view=editor`
-            : `/platform/apps/note-apps?noteId=${item.id}&view=editor`
+          url = `/platform/every-office/notes?noteId=${item.id}&view=editor`
           break
         case 'spreadsheet':
-          url = isProduction
-            ? `/platform/spreadsheets?appId=${item.id}&view=viewer`
-            : `/platform/apps/spreadsheet-apps?appId=${item.id}&view=viewer`
+          url = `/platform/every-office/spreadsheets?appId=${item.id}&view=viewer`
           break
         case 'slide':
-          url = isProduction
-            ? `/platform/slides?slideId=${item.id}&view=editor`
-            : `/platform/apps/slide-apps?slideId=${item.id}&view=editor`
+          url = `/platform/every-office/slides?slideId=${item.id}&view=editor`
           break
       }
 

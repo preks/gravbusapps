@@ -1,6 +1,13 @@
-import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, IconAvatar } from '@newwork/nw-design-system'
-import { ActivityIcon, WarningIcon, TimerIcon, ClockIcon, HashIcon, WrenchIcon } from '@phosphor-icons/react'
+import {
+  ActivityIcon,
+  WarningIcon,
+  TimerIcon,
+  ClockIcon,
+  HashIcon,
+  WrenchIcon,
+  ChartPieSliceIcon
+} from '@phosphor-icons/react'
 import type { DashboardCard } from '../types'
 
 const formatNumber = (value: number) => new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value)
@@ -9,7 +16,7 @@ const formatTokens = (value: number) => `${formatNumber(value)}`
 const formatRatioPct = (value: number) => `${(value * 100).toFixed(2)}%`
 const formatOneDecimal = (value: number) => `${value.toFixed(1)}`
 
-const getCardPresentation = (key: string) => {
+const getCardPresentation = (key: string, unit?: string) => {
   switch (key) {
     case 'runs':
       return { icon: ActivityIcon, variant: 'info' as const, formatter: formatNumber, unitLabel: null }
@@ -19,13 +26,22 @@ const getCardPresentation = (key: string) => {
       return { icon: TimerIcon, variant: 'secondary' as const, formatter: formatMs, unitLabel: 'ms' }
     case 'p50_ttft_ms':
       return { icon: ClockIcon, variant: 'secondary' as const, formatter: formatMs, unitLabel: 'ms' }
-    case 'p95_tokens':
-      return { icon: HashIcon, variant: 'secondary' as const, formatter: formatTokens, unitLabel: 'tokens' }
     case 'avg_tool_calls':
       return { icon: WrenchIcon, variant: 'secondary' as const, formatter: formatOneDecimal, unitLabel: 'calls' }
+    case 'split_view_share':
+      return { icon: ChartPieSliceIcon, variant: 'secondary' as const, formatter: formatRatioPct, unitLabel: 'ratio' }
     default:
-      return { icon: ActivityIcon, variant: 'secondary' as const, formatter: String, unitLabel: null }
+      break
   }
+
+  if (unit === 'tokens' || key.endsWith('_tokens'))
+    return { icon: HashIcon, variant: 'secondary' as const, formatter: formatTokens, unitLabel: 'tokens' }
+  if (unit === 'ms' || key.endsWith('_ms'))
+    return { icon: TimerIcon, variant: 'secondary' as const, formatter: formatMs, unitLabel: 'ms' }
+  if (unit === 'ratio')
+    return { icon: ChartPieSliceIcon, variant: 'secondary' as const, formatter: formatRatioPct, unitLabel: 'ratio' }
+
+  return { icon: ActivityIcon, variant: 'secondary' as const, formatter: String, unitLabel: null }
 }
 
 export interface KpiCardsProps {
@@ -34,12 +50,10 @@ export interface KpiCardsProps {
 }
 
 export function KpiCards({ cards, 'data-testid': testId = 'flowbot-evals-kpis' }: Readonly<KpiCardsProps>) {
-  const topCards = useMemo(() => cards.slice(0, 6), [cards])
-
   return (
     <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2 gba:xl:grid-cols-3" data-testid={testId}>
-      {topCards.map(card => {
-        const pres = getCardPresentation(card.key)
+      {cards.map(card => {
+        const pres = getCardPresentation(card.key, card.unit ?? undefined)
         const valueText = card.value == null ? '—' : pres.formatter(card.value)
         return (
           <Card key={card.key}>

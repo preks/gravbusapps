@@ -95,6 +95,27 @@ export interface ChatMessageBlock {
   order?: number
 }
 
+export interface DecisionPromptOption {
+  id: string
+  title: string
+  description: string
+  riskLevel?: 'low' | 'medium' | 'high'
+  destructive?: boolean
+  requiresExplicitConsent?: boolean
+}
+
+export interface DecisionPromptTool {
+  name: string
+  description: string
+}
+
+export interface DecisionPromptState {
+  decisionId?: string
+  riskSummary?: string
+  options: DecisionPromptOption[]
+  availableTools?: DecisionPromptTool[]
+}
+
 /**
  * Chat message contract aligned with backend ChatHistoryMessageDto.
  * Required persisted metadata for author identity and round-trip:
@@ -110,6 +131,7 @@ export interface ChatMessage {
   thinkingLog?: string
   thinkingCollapsed?: boolean
   blocks?: ChatMessageBlock[]
+  decisionPrompt?: DecisionPromptState
   /** Author user id (user messages) or 'orchestrator-system' (system messages). Required for identity round-trip. */
   createdBy?: string
   /** Edit history for collaboration attribution. Preserve on save. */
@@ -641,6 +663,56 @@ export class BuilderClient {
         })
       }
 
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Append or update one chat message for a session
+   */
+  async appendChatMessage(repoId: string, sessionId: string, message: ChatMessage): Promise<boolean> {
+    try {
+      const compact = this.compactChatHistoryForSave([message], {
+        maxMessages: 1,
+        maxTotalChars: 25_000,
+        maxContentChars: 8_000,
+        maxThinkingChars: 3_000,
+        maxToolCallsPerMessage: 12,
+        maxToolArgsChars: 2_000,
+        maxToolResultChars: 4_000
+      })
+      const payloadMessage = compact[0] ?? message
+      const response = await fetch(`${this.baseUrl}/chat/history/append`, {
+        method: 'POST',
+        headers: this.getHeaders(true),
+        body: JSON.stringify({
+          repoId,
+          sessionId,
+          message: payloadMessage
+        })
+      })
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Trim history up to and including a message ID
+   */
+  async trimChatHistory(repoId: string, sessionId: string, messageId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/history/trim`, {
+        method: 'POST',
+        headers: this.getHeaders(true),
+        body: JSON.stringify({
+          repoId,
+          sessionId,
+          messageId
+        })
+      })
       return response.ok
     } catch {
       return false
@@ -1286,7 +1358,9 @@ export class BuilderClient {
     llmProvider: 'claude' | 'openai' = 'claude',
     customSystemPrompt?: string
   ): Promise<ReadableStream> {
-    const endpoint = useAgenticMode ? '/analyze/query-agentic' : '/analyze/query'
+    void useAgenticMode
+    void buildEnabled
+    void llmProvider
     const MAX_MESSAGES = 10
     const MAX_SINGLE_MESSAGE_CHARS = 3000
     const MAX_TOTAL_CHARS = 20000
@@ -1315,17 +1389,16 @@ export class BuilderClient {
       totalChars = nextTotal
     }
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch(`${this.baseUrl}/orchestration/turns/stream`, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: JSON.stringify({
+        intent: 'ui_mutate',
+        scope: 'ui_only',
         repoId,
-        query,
-        stream: true,
-        conversationHistory: boundedHistory,
-        buildEnabled,
         sessionId,
-        llmProvider,
+        prompt: query,
+        conversationHistory: boundedHistory,
         customSystemPrompt
       })
     })

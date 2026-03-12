@@ -1,14 +1,16 @@
 import { useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { ResponseType } from '@/common/network/rest/RestClient'
 import { env } from '@/common/env/EnvUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpenseData } from '../../../../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import translations from '../../../../_i18n'
 
 export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps>) => {
+  const { t } = useTranslation(translations)
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   const handleDownloadAccountingNote = useCallback(
@@ -89,35 +91,29 @@ export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps
     return trimmedValue.replaceAll(/(\d)\.(\d)/g, '$1,$2')
   }
 
-  const handleTriggerCSV = useCallback(async (record: ExpenseData) => {
-    try {
-      await startProcess({
-        domain: 'cs-selgros',
-        processName: 'createSelgrosExpenseSheetManualTrigger',
-        payload: {
-          employeeId: record.employeeId,
-          expenseRequestId: record.id
-        }
-      })
+  const handleTriggerCSV = useCallback(
+    async (record: ExpenseData) => {
+      try {
+        await startProcess({
+          domain: 'cs-selgros',
+          processName: 'createSelgrosExpenseSheetManualTrigger',
+          payload: {
+            employeeId: record.employeeId,
+            expenseRequestId: record.id
+          }
+        })
 
-      // Show success toast
-      showToast(
-        getTranslationFromI18nKeyAndLabel('expense.request.csv.trigger.success', 'CSV was generated successfully'),
-        'success'
-      )
-    } catch {
-      console.error('Failed to trigger CSV process:', error)
+        // Show success toast
+        showToast(t('csv-trigger-success'), 'success')
+      } catch {
+        console.error('Failed to trigger CSV process:', error)
 
-      // Show error toast
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'expense.request.csv.trigger.error',
-          'Failed to generate CSV. Please try again.'
-        ),
-        'error'
-      )
-    }
-  }, [])
+        // Show error toast
+        showToast(t('csv-trigger-error'), 'error')
+      }
+    },
+    [t]
+  )
 
   return {
     handleDownloadAccountingNote,

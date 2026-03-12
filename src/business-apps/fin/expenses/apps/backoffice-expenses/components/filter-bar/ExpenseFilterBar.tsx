@@ -1,11 +1,19 @@
 import React, { useMemo, useState } from 'react'
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFilterData, type OrganizationalUnit, type Currency } from '../../hooks/useFilterData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getActiveStructureDepartmentOptions } from '../../utils/departmentOptions'
 import { filterOptionsByName } from '../../hooks/queryFilterUtils'
+import translations from '../../_i18n'
 
 export interface FilterOptions {
   department?: string
@@ -37,6 +45,8 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
   filterData: propsFilterData,
   'data-testid': dataTestId = 'expense-filter-bar'
 }) => {
+  const { t } = useTranslation(translations)
+
   // ⚡ PERFORMANCE: Use filter data from parent if provided, otherwise fetch locally
   // Parent (Dashboard) now ensures this component only renders with valid accessToken
   const localFilterData = useFilterData({ accessToken: propsFilterData ? null : accessToken })
@@ -118,11 +128,11 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
       </Button>
     )
   }
-  const getSelectPlaceholder = (translationKey: string, fallbackLabel: string) => {
+  const getSelectPlaceholder = (ftlKey: string) => {
     if (filterDataLoading) {
-      return 'Loading...'
+      return t('common-loading')
     }
-    return getTranslationFromI18nKeyAndLabel(translationKey, fallbackLabel)
+    return t(ftlKey)
   }
   const renderSelectFilter = (config: {
     wrapperTestId: string
@@ -170,10 +180,7 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
             setDepartmentSearch('')
           },
           triggerClassName: 'gba:w-[220px] gba:border-border',
-          selectPlaceholder: getSelectPlaceholder(
-            'lowcoder:expense_request_list.expense_request_filter.expense_department_title',
-            'Filter by department'
-          ),
+          selectPlaceholder: getSelectPlaceholder('filter-department'),
           content: (
             <>
               <div className="gba:p-2">
@@ -181,19 +188,13 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
                   type="text"
                   value={departmentSearch}
                   onChange={event => setDepartmentSearch(event.target.value)}
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.search_departments',
-                    'Search departments...'
-                  )}
+                  placeholder={t('filter-search-departments')}
                   className="gba:w-full gba:h-8 gba:rounded gba:border gba:border-input gba:px-2 gba:text-sm"
                   data-testid="department-filter-search-input"
                 />
               </div>
               <SelectItem value="all" data-testid="department-filter-option-all">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.expense_request_filter.all_departments',
-                  'All Departments'
-                )}
+                {t('filter-all-departments')}
               </SelectItem>
               {filteredOrganizationalUnits.map(orgUnit => (
                 <SelectItem key={orgUnit.id} value={orgUnit.id} data-testid={`department-filter-option-${orgUnit.id}`}>
@@ -217,10 +218,7 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
           value: filters.currency || '',
           onValueChange: value => handleFilterChange('currency', value),
           triggerClassName: 'gba:w-[140px] gba:border-border',
-          selectPlaceholder: getSelectPlaceholder(
-            'lowcoder:expense_request_list.expense_request_filter.filter_by_currency',
-            'Filter by Currency'
-          ),
+          selectPlaceholder: getSelectPlaceholder('filter-currency'),
           content: (
             <>
               {currencies.map(currency => (
@@ -246,20 +244,17 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
           value: filters.period || '',
           onValueChange: value => handleFilterChange('period', value),
           triggerClassName: 'gba:w-[140px] gba:border-border',
-          selectPlaceholder: filterDataLoading ? 'Loading...' : 'Filter by period',
+          selectPlaceholder: getSelectPlaceholder('filter-by-period'),
           content: (
             <>
               <SelectItem value="monthly" data-testid="period-filter-option-monthly">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly', 'Monthly')}
+                {t('filter-period-monthly')}
               </SelectItem>
               <SelectItem value="quarterly" data-testid="period-filter-option-quarterly">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:cards.quartely', 'Quarterly')}
+                {t('filter-period-quarterly')}
               </SelectItem>
               <SelectItem value="yearly" data-testid="period-filter-option-yearly">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_calculation_rule_details.mileage_rule_list.mileage_expense_module.rule_period_yearly',
-                  'Yearly'
-                )}
+                {t('filter-period-yearly')}
               </SelectItem>
             </>
           ),

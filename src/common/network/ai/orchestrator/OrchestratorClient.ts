@@ -19,8 +19,14 @@ import type {
   ListPlansResponse,
   DraftCheckpoint,
   CreateDraftCheckpointRequest,
+  ResolveDraftCheckpointByMessageParams,
   RestoreDraftCheckpointRequest,
-  RestoreDraftCheckpointResponse
+  RestoreDraftCheckpointResponse,
+  TurnEvent,
+  TurnRequest,
+  OrchestrationStateMachineResponse,
+  JobsByStateResponse,
+  JobsPageResponse
 } from '@/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/types/api'
 import type { BuildPlan } from '@/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/types/build'
 import type {
@@ -90,44 +96,6 @@ function parseErrorResponse(errorData: unknown, fallbackMessage: string): string
   return extracted ?? fallbackMessage
 }
 
-type PublishSSEEvent = {
-  type: string
-  message?: string
-  result?: { success: boolean; message?: string }
-}
-
-type PublishResult = { success: boolean; message?: string }
-
-function handlePublishSSEEvent(
-  data: string,
-  onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
-): PublishResult | null {
-  const evt = JSON.parse(data) as PublishSSEEvent
-  onEvent?.(evt)
-  if (evt.type === 'done' && evt.result) {
-    return evt.result
-  }
-  if (evt.type === 'error') {
-    throw new Error(evt.message || 'Publish failed')
-  }
-  return null
-}
-
-function processPublishSSELine(
-  line: string,
-  onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
-): PublishResult | null {
-  if (!line.startsWith('data:')) return null
-  const data = line.slice(5).trim()
-  if (!data) return null
-  try {
-    return handlePublishSSEEvent(data, onEvent)
-  } catch (e) {
-    if (!(e instanceof SyntaxError)) throw e
-    return null
-  }
-}
-
 /**
  * Client for the AI Orchestrator API
  */
@@ -140,26 +108,117 @@ export class OrchestratorClient {
     this.accessToken = accessToken
   }
 
-  /**
-   * Analyze a prompt and generate a build plan
-   */
-  async analyze(request: AnalyzeRequest): Promise<AnalyzeResponse> {
-    const response = await fetch(`${this.baseUrl}/orchestration/analyze`, {
+  private async openTurnStream(request: TurnRequest, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+    const response = await fetch(`${this.baseUrl}/orchestration/turns/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.accessToken}`
+        Authorization: `Bearer ${this.accessToken}`,
+        Accept: 'text/event-stream'
       },
-      body: JSON.stringify(request)
+      body: JSON.stringify(request),
+      signal
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      const errorMessage = parseErrorResponse(errorData, `Analysis failed: ${response.statusText}`)
+      const errorMessage = parseErrorResponse(errorData, `Turn failed: ${response.statusText}`)
       throw new Error(errorMessage)
     }
 
-    return response.json() as Promise<AnalyzeResponse>
+    if (!response.body) {
+      throw new Error('No response body for turn stream')
+    }
+    return response.body
+  }
+
+  async streamTurnRaw(request: TurnRequest, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+    return this.openTurnStream(request, signal)
+  }
+
+  async streamTurn(
+    request: TurnRequest,
+    onEvent?: (event: TurnEvent) => void,
+    signal?: AbortSignal
+  ): Promise<TurnEvent[]> {
+    const stream = await this.openTurnStream(request, signal)
+    const reader = stream.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    const events: TurnEvent[] = []
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed.startsWith('data:')) continue
+        const payload = trimmed.slice(5).trim()
+        if (!payload || payload === '[DONE]' || payload.startsWith(':')) continue
+        try {
+          const event = JSON.parse(payload) as TurnEvent
+          events.push(event)
+          onEvent?.(event)
+        } catch {
+          // Ignore malformed event lines
+        }
+      }
+    }
+
+    return events
+  }
+
+  private extractPlanFromEvent(event: TurnEvent | undefined): BuildPlan | undefined {
+    if (!event?.data || typeof event.data !== 'object') return undefined
+    const data = event.data as Record<string, unknown>
+    if (!('plan' in data)) return undefined
+    return (data as { plan?: BuildPlan }).plan
+  }
+
+  private extractJobIdFromEvent(event: TurnEvent | undefined): string | undefined {
+    if (!event) return undefined
+    if (typeof event.jobId === 'string' && event.jobId.trim()) return event.jobId
+    if (!event.data || typeof event.data !== 'object') return undefined
+    const jobId = (event.data as { jobId?: unknown }).jobId
+    return typeof jobId === 'string' && jobId.trim() ? jobId : undefined
+  }
+
+  /**
+   * Analyze a prompt and generate a build plan
+   */
+  async analyze(request: AnalyzeRequest): Promise<AnalyzeResponse> {
+    const events = await this.streamTurn({
+      intent: 'plan_create',
+      scope: 'orchestrator_full',
+      prompt: request.prompt,
+      context: request.context,
+      answers: request.answers,
+      createdBy: request.createdBy
+    })
+    const planEvent = events.find(event => event.type === 'plan_updated')
+    const streamedPlan = this.extractPlanFromEvent(planEvent)
+    if (streamedPlan) {
+      return {
+        success: true,
+        plan: streamedPlan
+      }
+    }
+    const planJobId = this.extractJobIdFromEvent(planEvent)
+    if (planJobId) {
+      try {
+        const plan = await this.getPlan(planJobId)
+        return { success: true, plan }
+      } catch {
+        // Fall through to error handling for consistency.
+      }
+    }
+    const errorEvent = events.find(event => event.type === 'error' || event.type === 'turn_error')
+    if (errorEvent) {
+      return { success: false, error: String(errorEvent.error || errorEvent.message || 'Analysis failed') }
+    }
+    return { success: false, error: 'Analysis stream ended without a final plan' }
   }
 
   /**
@@ -169,138 +228,38 @@ export class OrchestratorClient {
     request: AnalyzeRequest,
     onEvent?: (event: AnalyzeStreamEvent) => void
   ): Promise<AnalyzeResponse> {
-    const response = await fetch(`${this.baseUrl}/orchestration/analyze/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.accessToken}`,
-        Accept: 'text/event-stream'
+    const events = await this.streamTurn(
+      {
+        intent: 'plan_create',
+        scope: 'orchestrator_full',
+        prompt: request.prompt,
+        context: request.context,
+        answers: request.answers,
+        createdBy: request.createdBy
       },
-      body: JSON.stringify(request)
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      const errorMessage = parseErrorResponse(errorData, `Analysis failed: ${response.statusText}`)
-      throw new Error(errorMessage)
+      event => onEvent?.(event as AnalyzeStreamEvent)
+    )
+    const planEvent = events.find(event => event.type === 'plan_updated')
+    const streamedPlan = this.extractPlanFromEvent(planEvent)
+    if (streamedPlan) {
+      return {
+        success: true,
+        plan: streamedPlan
+      }
     }
-
-    const reader = response.body?.getReader()
-    if (!reader) {
-      throw new Error('No response body for analyze stream')
+    const planJobId = this.extractJobIdFromEvent(planEvent)
+    if (planJobId) {
+      try {
+        const plan = await this.getPlan(planJobId)
+        return { success: true, plan }
+      } catch {
+        // Fall through to error handling for consistency.
+      }
     }
-
-    const finalResult = await this.processAnalyzeStream(reader, onEvent)
-    if (finalResult) return finalResult
+    const errorEvent = events.find(event => event.type === 'error' || event.type === 'turn_error')
     return {
       success: false,
-      error: 'Analysis stream ended without a final result'
-    }
-  }
-
-  private async processAnalyzeStream(
-    reader: ReadableStreamDefaultReader<Uint8Array>,
-    onEvent?: (event: AnalyzeStreamEvent) => void
-  ): Promise<AnalyzeResponse | null> {
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let finalResult: AnalyzeResponse | null = null
-
-    const handleEvent = (event: AnalyzeStreamEvent) => {
-      onEvent?.(event)
-      if (event.type === 'done' && event.result) {
-        finalResult = event.result
-      } else if (event.type === 'error') {
-        finalResult ??= event.result ?? {
-          success: false,
-          error: event.content || 'Analysis failed'
-        }
-      }
-    }
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-      for (const line of lines) {
-        this.tryParseAnalyzeEvent(line, handleEvent)
-      }
-    }
-
-    const remaining = buffer.trim()
-    if (remaining.startsWith('data:')) {
-      this.tryParseAnalyzeEvent(remaining, handleEvent)
-    }
-
-    return finalResult
-  }
-
-  private tryParseAnalyzeEvent(line: string, handleEvent: (event: AnalyzeStreamEvent) => void): void {
-    const trimmed = line.trim()
-    if (!trimmed.startsWith('data:')) return
-    const payload = trimmed.slice(5).trim()
-    if (!payload || payload === '[DONE]' || payload.startsWith(':')) return
-    try {
-      handleEvent(JSON.parse(payload) as AnalyzeStreamEvent)
-    } catch {
-      // Ignore malformed SSE line and continue.
-    }
-  }
-
-  /**
-   * Execute a build plan and return an EventSource for progress streaming
-   * Note: EventSource doesn't support custom headers, so auth must be handled
-   * via cookies or session. For custom headers, use executeWithProgress instead.
-   */
-  createExecutionStream(jobId: string): EventSource {
-    const url = new URL(`${this.baseUrl}/orchestration/plans/${jobId}/execute`)
-    const eventSource = new EventSource(url.toString())
-    return eventSource
-  }
-
-  /**
-   * Execute a build plan using fetch-based SSE (supports authorization)
-   */
-  private parseSseLine(line: string, onEvent: (event: BuildProgressEvent) => void) {
-    if (!line.startsWith('data:')) return
-    const data = line.slice(5).trim()
-    // Skip empty data and SSE comment content that infrastructure (nginx/ingress) may
-    // send as "data: :ping" instead of a proper SSE comment line ":ping".
-    if (!data || data.startsWith(':')) return
-    try {
-      const raw = JSON.parse(data) as Record<string, unknown>
-      const eventType = (raw.eventType ?? raw.event_type) as string | undefined
-      if (eventType === 'heartbeat') {
-        return
-      }
-      const event = normalizeProgressEvent(raw)
-      onEvent(event)
-    } catch (e) {
-      console.error('[OrchestratorClient] Failed to parse SSE event:', e, data)
-    }
-  }
-
-  private async readSseStream(
-    reader: ReadableStreamDefaultReader<Uint8Array>,
-    onEvent: (event: BuildProgressEvent) => void,
-    onComplete?: () => void
-  ) {
-    const decoder = new TextDecoder()
-    let buffer = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        onComplete?.()
-        break
-      }
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-      for (const line of lines) {
-        this.parseSseLine(line, onEvent)
-      }
+      error: String(errorEvent?.error || errorEvent?.message || 'Analysis stream ended without a final result')
     }
   }
 
@@ -313,29 +272,41 @@ export class OrchestratorClient {
     signal?: AbortSignal
   ): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}/execute`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.accessToken}`,
-          Accept: 'text/event-stream'
+      let turnErrorMessage: string | null = null
+      await this.streamTurn(
+        {
+          intent: 'build_execute',
+          scope: 'orchestrator_full',
+          jobId,
+          sessionId: request.sessionId,
+          repoId: request.repoId,
+          skipComponents: request.skipComponents,
+          plan: request.plan,
+          createdBy: request.createdBy
         },
-        body: JSON.stringify(request),
+        event => {
+          const raw = event as unknown as Record<string, unknown>
+          const eventType = (raw.eventType ?? raw.event_type) as string | undefined
+          const turnType = typeof raw.type === 'string' ? raw.type : undefined
+          if (turnType === 'error' || turnType === 'turn_error') {
+            turnErrorMessage =
+              (typeof raw.content === 'string' && raw.content.trim()) ||
+              (typeof raw.message === 'string' && raw.message.trim()) ||
+              (typeof raw.error === 'string' && raw.error.trim()) ||
+              'Build execution failed'
+            return
+          }
+          if (!eventType || eventType === 'heartbeat') {
+            return
+          }
+          onEvent(normalizeProgressEvent(raw))
+        },
         signal
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        const errorMessage = parseErrorResponse(errorData, `Execution failed: ${response.statusText}`)
-        throw new Error(errorMessage)
+      )
+      if (turnErrorMessage) {
+        throw new Error(turnErrorMessage)
       }
-
-      const reader = response.body?.getReader()
-      if (!reader) {
-        throw new Error('No response body')
-      }
-
-      await this.readSseStream(reader, onEvent, onComplete)
+      onComplete?.()
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return
@@ -417,6 +388,55 @@ export class OrchestratorClient {
     return response.json() as Promise<BuildPlan>
   }
 
+  async getStateMachine(): Promise<OrchestrationStateMachineResponse> {
+    const response = await fetch(`${this.baseUrl}/orchestration/state-machine`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`
+      }
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to load state machine: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+    return response.json() as Promise<OrchestrationStateMachineResponse>
+  }
+
+  async getJobsByState(limitPerState = 200): Promise<JobsByStateResponse> {
+    const response = await fetch(`${this.baseUrl}/orchestration/jobs/by-state?limitPerState=${limitPerState}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`
+      }
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to load jobs by state: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+    return response.json() as Promise<JobsByStateResponse>
+  }
+
+  async getJobsPage(limit = 25, offset = 0): Promise<JobsPageResponse> {
+    const query = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset)
+    })
+    const response = await fetch(`${this.baseUrl}/orchestration/jobs?${query.toString()}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`
+      }
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to load jobs page: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+    return response.json() as Promise<JobsPageResponse>
+  }
+
   async createDraftCheckpoint(request: CreateDraftCheckpointRequest): Promise<DraftCheckpoint> {
     const response = await fetch(`${this.baseUrl}/orchestration/drafts/checkpoints`, {
       method: 'POST',
@@ -466,6 +486,31 @@ export class OrchestratorClient {
     return response.json() as Promise<DraftCheckpoint[]>
   }
 
+  async resolveDraftCheckpointByMessage(params: ResolveDraftCheckpointByMessageParams): Promise<DraftCheckpoint | null> {
+    const searchParams = new URLSearchParams({
+      sessionId: params.sessionId,
+      chatCheckpointMessageId: params.chatCheckpointMessageId
+    })
+    if (params.jobId) {
+      searchParams.set('jobId', params.jobId)
+    }
+    const response = await fetch(`${this.baseUrl}/orchestration/drafts/checkpoints/resolve?${searchParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to resolve checkpoint: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    const data = (await response.json()) as DraftCheckpoint | null
+    return data ?? null
+  }
+
   async restoreDraftCheckpoint(request: RestoreDraftCheckpointRequest): Promise<RestoreDraftCheckpointResponse> {
     const response = await fetch(`${this.baseUrl}/orchestration/drafts/restore`, {
       method: 'POST',
@@ -511,49 +556,47 @@ export class OrchestratorClient {
    * Refine a build plan with natural language feedback
    */
   async refinePlan(jobId: string, request: RefinePlanRequest): Promise<AnalyzeResponse> {
-    const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}/refine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.accessToken}`
-      },
-      body: JSON.stringify(request)
+    const events = await this.streamTurn({
+      intent: 'plan_refine',
+      scope: 'orchestrator_full',
+      jobId,
+      prompt: request.feedback,
+      conversationHistory: request.conversationHistory
     })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      const errorMessage = parseErrorResponse(errorData, `Failed to refine plan: ${response.statusText}`)
-      throw new Error(errorMessage)
+    const responseEvent = events.find(event => event.type === 'response')
+    const refinementSummary =
+      typeof responseEvent?.content === 'string' && responseEvent.content.trim() ? responseEvent.content : undefined
+    const planEvent = events.find(event => event.type === 'plan_updated')
+    const streamedPlan = this.extractPlanFromEvent(planEvent)
+    if (streamedPlan) {
+      return {
+        success: true,
+        plan: streamedPlan,
+        refinementSummary
+      }
     }
-
-    return response.json() as Promise<AnalyzeResponse>
+    const planJobId = this.extractJobIdFromEvent(planEvent) || jobId
+    try {
+      const plan = await this.getPlan(planJobId)
+      return { success: true, plan, refinementSummary }
+    } catch {
+      // Keep existing error handling below.
+    }
+    const errorEvent = events.find(event => event.type === 'error' || event.type === 'turn_error')
+    return { success: false, error: String(errorEvent?.error || errorEvent?.message || 'Refinement failed') }
   }
 
   /**
    * Refine a build plan with natural language feedback via SSE stream.
    */
   async refinePlanStream(jobId: string, request: RefinePlanRequest): Promise<ReadableStream<Uint8Array>> {
-    const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}/refine/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.accessToken}`,
-        Accept: 'text/event-stream'
-      },
-      body: JSON.stringify(request)
+    return this.streamTurnRaw({
+      intent: 'plan_refine',
+      scope: 'orchestrator_full',
+      jobId,
+      prompt: request.feedback,
+      conversationHistory: request.conversationHistory
     })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      const errorMessage = parseErrorResponse(errorData, `Failed to refine plan with stream: ${response.statusText}`)
-      throw new Error(errorMessage)
-    }
-
-    if (!response.body) {
-      throw new Error('No response body for refine stream')
-    }
-
-    return response.body
   }
 
   /**
@@ -562,44 +605,42 @@ export class OrchestratorClient {
   async publishApp(
     repoId: string,
     sessionId: string,
+    jobId?: string,
     onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
-  ): Promise<{ success: boolean; message?: string }> {
-    const response = await fetch(`${this.baseUrl}/publish/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.accessToken}`,
-        Accept: 'text/event-stream'
+  ): Promise<{ success: boolean; message?: string; resourceUrl?: string; azureUrl?: string }> {
+    const events = await this.streamTurn(
+      {
+        intent: 'publish',
+        scope: 'orchestrator_full',
+        repoId,
+        sessionId,
+        jobId
       },
-      body: JSON.stringify({ repoId, sessionId })
-    })
+      event => onEvent?.({ type: String(event.type), message: String(event.message || ''), result: event.data })
+    )
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      const errorMessage = parseErrorResponse(errorData, `Publish failed: ${response.statusText}`)
-      throw new Error(errorMessage)
-    }
-
-    const reader = response.body?.getReader()
-    if (!reader) throw new Error('No response body')
-
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let lastResult: PublishResult = { success: false }
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-      for (const line of lines) {
-        const result = processPublishSSELine(line, onEvent)
-        if (result) lastResult = result
+    const publishResultEvent = events.find(event => event.type === 'publish_result')
+    if (publishResultEvent?.data && typeof publishResultEvent.data === 'object') {
+      const result = publishResultEvent.data as {
+        success?: boolean
+        message?: string
+        resourceUrl?: string
+        azureUrl?: string
+      }
+      return {
+        success: result.success === true,
+        message: result.message,
+        resourceUrl: typeof result.resourceUrl === 'string' ? result.resourceUrl : undefined,
+        azureUrl: typeof result.azureUrl === 'string' ? result.azureUrl : undefined
       }
     }
 
-    return lastResult
+    const errorEvent = events.find(event => event.type === 'error' || event.type === 'turn_error')
+    if (errorEvent) {
+      throw new Error(String(errorEvent.error || errorEvent.message || 'Publish failed'))
+    }
+
+    return { success: false, message: 'Publish did not return a final result' }
   }
 
   /**

@@ -32,7 +32,7 @@ import { Share2, Users, X, Search, Trash2, Eye, Pencil, Shield, Send, CheckCircl
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
-import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { SharePermission } from '../types'
 import translations from '../_i18n'
 
@@ -101,8 +101,7 @@ const sendBlinkNotifications = async (
 
     const workflowIds: string[] = []
 
-    // Build the app URL using canonical URL
-    const appUrl = getCanonicalContentUrl('spreadsheet', {
+    const appUrl = buildPlatformUrl('/platform/every-office/spreadsheets', {
       appId: payload.appId,
       view: 'viewer',
       filePath: payload.appFilePath

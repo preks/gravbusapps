@@ -870,8 +870,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [document?.id, formattingYMap])
 
     const editorContent = React.useMemo(
-      () => (document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>'),
-      [document?.id, document?.content, initialContent]
+      () => document?.content || initialContent || '<p></p>',
+      [document?.content, initialContent]
     )
     const editorEditable = React.useMemo(
       () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),

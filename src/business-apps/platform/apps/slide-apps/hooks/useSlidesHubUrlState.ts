@@ -43,6 +43,8 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
+  const initialSlideIdRef = useRef(getUrlParams().slideId)
+  const initialViewRef = useRef(getUrlParams().view)
 
   const updateUrl = useCallback(
     (slideId: string | null, view?: HubView) => {
@@ -80,17 +82,25 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
     }
   }, []) // Run only on mount
 
-  // Load slide from URL on mount
+  // Load slide from URL on mount.
+  // Uses initialSlideIdRef as fallback since parent effects may clear URL params.
   useEffect(() => {
-    const { slideId, view } = getUrlParams()
+    const urlParams = getUrlParams()
+    const slideId = urlParams.slideId || initialSlideIdRef.current
+    const view = urlParams.view || initialViewRef.current
     if (!slideId) return
     if (currentSlideId) return
     if (isLoadingSlide) return
     if (loadAttemptedRef.current === slideId) return
 
     loadAttemptedRef.current = slideId
+    initialSlideIdRef.current = null
+    initialViewRef.current = null
     loadSlideById(slideId).then(slide => {
-      if (!slide) return
+      if (!slide) {
+        loadAttemptedRef.current = null
+        return
+      }
       setSelectedSlideId(slideId)
       setCurrentView(view === 'editor' ? 'editor' : 'editor')
     })
@@ -101,10 +111,10 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
     const referrer = document.referrer
     const urlParams = new URLSearchParams(window.location.search)
     cameFromDeskRef.current =
-      referrer.includes('/platform/apps/desk') ||
       referrer.includes('/platform/every-office') ||
       referrer.includes('?app=platform/apps/desk') ||
       referrer.includes('?app=platform/apps/every-office') ||
+      referrer.includes('?app=core/office/apps/office-launcher') ||
       urlParams.get('from') === 'desk'
 
     if (cameFromDeskRef.current && currentView === 'list') {

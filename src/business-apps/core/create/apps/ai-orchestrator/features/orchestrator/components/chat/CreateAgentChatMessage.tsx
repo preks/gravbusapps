@@ -4,9 +4,22 @@
  */
 
 import React, { useMemo, useState, useCallback } from 'react'
-import { Bot, User, Loader2, Brain, ChevronDown, ChevronRight, UserCircle2, Copy } from 'lucide-react'
+import {
+  Bot,
+  User,
+  Loader2,
+  Brain,
+  ChevronDown,
+  ChevronRight,
+  UserCircle2,
+  Copy,
+  RotateCcw,
+  Pencil,
+  SendHorizontal
+} from 'lucide-react'
 import { AvatarImage } from '../ui/AvatarImage'
 import type { CreateChatMessage } from '../../types/chat'
+import { InputGroup, InputGroupTextarea, InputGroupAddon, InputGroupButton } from '@newwork/nw-design-system'
 
 /** Block or tool call types used for timeline rendering */
 interface ChatMessageBlock {
@@ -55,6 +68,11 @@ interface CreateAgentChatMessageProps {
   isStreaming?: boolean
   userAvatar?: UserAvatar
   authorDisplay?: AuthorDisplay
+  editorDisplays?: AuthorDisplay[]
+  onRestoreMessage?: (message: CreateChatMessage) => void
+  onRequestEdit?: (message: CreateChatMessage) => void
+  onSendDecisionReply?: (reply: string) => void
+  isRestoring?: boolean
   testId?: string
 }
 
@@ -119,14 +137,26 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
   isStreaming = false,
   userAvatar,
   authorDisplay,
+  editorDisplays,
+  onRestoreMessage,
+  onRequestEdit,
+  onSendDecisionReply,
+  isRestoring = false,
   testId = 'create-chat-message'
 }) => {
   const [thinkingState, setThinkingState] = useState<Record<string, boolean>>({})
   const [toolProgressState, setToolProgressState] = useState<Record<string, boolean>>({})
   const [copyFeedback, setCopyFeedback] = useState(false)
+  const [customDecisionInstruction, setCustomDecisionInstruction] = useState('')
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system' || message.messageType === 'system'
   const timeline = useMemo(() => buildTimelineEntries(message), [message])
+  const decisionPrompt = (message as MessageWithTimeline).decisionPrompt
+  const displayTimeline = useMemo(() => buildDisplayTimeline(timeline, decisionPrompt), [timeline, decisionPrompt])
+  const selectableDecisionOptions = useMemo(
+    () => (decisionPrompt?.options ?? []).filter(option => option.id !== '__custom_instruction__'),
+    [decisionPrompt]
+  )
 
   const effectiveUserAvatar = useMemo((): UserAvatar | undefined => {
     if (isUser && authorDisplay) {
@@ -193,7 +223,7 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
             </>
           ) : (
             <div className="gba:space-y-2">
-              {timeline.map(entry =>
+              {displayTimeline.map(entry =>
                 renderTimelineEntry(
                   entry,
                   message,
@@ -203,17 +233,100 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
                   setThinkingState
                 )
               )}
-              {timeline.length === 0 && (message.content || (isStreaming && <StreamingDots />))}
+              {displayTimeline.length === 0 && (message.content || (isStreaming && <StreamingDots />))}
+              {!isStreaming && !isUser && !!decisionPrompt?.options?.length && !!onSendDecisionReply && (
+                <div className="gba:mt-3 gba:rounded-lg gba:border gba:border-border/70 gba:bg-card gba:p-3 gba:space-y-3">
+                  <div className="gba:text-xs gba:text-muted-foreground">
+                    Select a resolution option or provide a custom instruction:
+                  </div>
+                  <div className="gba:space-y-2 gba:max-h-[280px] gba:overflow-y-auto gba:pr-1">
+                    {selectableDecisionOptions.map(option => (
+                      <button
+                        key={`${message.id}-decision-option-${option.id}`}
+                        type="button"
+                        className="gba:w-full gba:text-left gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2.5 gba:py-2 hover:gba:bg-muted/60 gba:transition-colors"
+                        onClick={() => onSendDecisionReply(`I choose option "${option.title}" (id: ${option.id}).`)}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                          <span className="gba:text-sm gba:font-medium gba:text-foreground">{option.title}</span>
+                          <span className="gba:text-[11px] gba:text-muted-foreground">{option.riskLevel ?? 'medium'} risk</span>
+                        </div>
+                        {option.description ? (
+                          <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground gba:whitespace-pre-wrap">
+                            {option.description}
+                          </div>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="gba:space-y-2">
+                    <InputGroup className="gba:min-h-[84px]">
+                      <InputGroupTextarea
+                        value={customDecisionInstruction}
+                        onChange={event => setCustomDecisionInstruction(event.target.value)}
+                        placeholder="Custom resolution instruction..."
+                        className="gba:min-h-[84px] gba:max-h-[200px] gba:resize-none"
+                        rows={3}
+                      />
+                      <InputGroupAddon align="block-end" className="gba:justify-end">
+                        <InputGroupButton
+                          onClick={() => {
+                            const instruction = customDecisionInstruction.trim()
+                            if (!instruction) return
+                            onSendDecisionReply(`Custom resolution instruction: ${instruction}`)
+                            setCustomDecisionInstruction('')
+                          }}
+                          disabled={!customDecisionInstruction.trim()}
+                          variant="default"
+                          size="iconSm"
+                          className="gba:rounded-full"
+                          title="Send custom resolution instruction"
+                        >
+                          <SendHorizontal className="gba:h-4 gba:w-4" />
+                        </InputGroupButton>
+                      </InputGroupAddon>
+                    </InputGroup>
+                    <div className="gba:flex gba:items-center gba:justify-end">
+                      <button
+                        type="button"
+                        className="gba:text-xs gba:text-muted-foreground hover:gba:text-foreground"
+                        onClick={() => onSendDecisionReply('cancel')}
+                      >
+                        Cancel change
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               {isStreaming && message.content && <StreamingCursor />}
             </div>
           )}
         </div>
-        {/* Author name (user messages with authorDisplay) + timestamp + copy */}
+        {/* Author meta + actions */}
         <div
           className={`gba:flex gba:items-center gba:gap-2 gba:mt-1 gba:min-h-5 ${
             isUser ? 'gba:flex-row-reverse' : 'gba:flex-row'
           }`}
         >
+          {isUser && Array.isArray(editorDisplays) && editorDisplays.length > 1 && (
+            <div className="gba:flex gba:items-center gba:-space-x-1" title={editorDisplays.map(display => display.name).join(', ')}>
+              {editorDisplays.slice(0, 4).map((display, index) => (
+                <span
+                  key={`${message.id}-${display.name}-${index}`}
+                  className="gba:w-5 gba:h-5 gba:rounded-full gba:bg-muted gba:border gba:border-background gba:overflow-hidden gba:flex gba:items-center gba:justify-center"
+                >
+                  {display.avatar ? (
+                    <AvatarImage src={display.avatar} alt={display.name} className="gba:w-full gba:h-full gba:object-cover" />
+                  ) : (
+                    <span className="gba:text-[10px] gba:font-semibold gba:text-foreground">{display.initials}</span>
+                  )}
+                </span>
+              ))}
+              {editorDisplays.length > 4 && (
+                <span className="gba:text-[10px] gba:text-muted-foreground gba:ml-1">+{editorDisplays.length - 4}</span>
+              )}
+            </div>
+          )}
           {isUser && authorDisplay && (
             <span className="gba:text-xs gba:text-muted-foreground" title={authorDisplay.name}>
               {authorDisplay.name}
@@ -235,6 +348,30 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
               <Copy className={`gba:w-3.5 gba:h-3.5 ${copyFeedback ? 'gba:text-success' : ''}`} />
             </button>
           )}
+          {isUser && !!onRequestEdit && (
+            <button
+              type="button"
+              onClick={() => onRequestEdit(message)}
+              disabled={isRestoring}
+              className="gba:p-0.5 gba:rounded gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground gba:transition-colors disabled:gba:opacity-50"
+              title="Edit prompt"
+              aria-label="Edit prompt"
+            >
+              <Pencil className="gba:w-3.5 gba:h-3.5" />
+            </button>
+          )}
+          {!isUser && !!onRestoreMessage && (
+            <button
+              type="button"
+              onClick={() => onRestoreMessage(message)}
+              disabled={isRestoring}
+              className="gba:p-0.5 gba:rounded gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground gba:transition-colors disabled:gba:opacity-50"
+              title="Restore from this assistant message"
+              aria-label="Restore from this assistant message"
+            >
+              <RotateCcw className={`gba:w-3.5 gba:h-3.5 ${isRestoring ? 'gba:animate-spin' : ''}`} />
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -254,6 +391,41 @@ type TimelineEntry =
       position: number
       tool: ChatMessageToolCall
     }
+
+function getFirstParagraph(value: string): string {
+  if (!value) return ''
+  const normalized = value.trim()
+  if (!normalized) return ''
+  const [paragraph] = normalized.split(/\n\s*\n/)
+  return paragraph?.trim() ?? ''
+}
+
+function buildDisplayTimeline(
+  timeline: TimelineEntry[],
+  decisionPrompt: CreateChatMessage['decisionPrompt']
+): TimelineEntry[] {
+  if (!decisionPrompt?.options?.length) return timeline
+
+  let didKeepFirstResponse = false
+  return timeline
+    .map(entry => {
+      if (entry.type !== 'block' || entry.block.type !== 'response') return entry
+      if (didKeepFirstResponse) {
+        return null
+      }
+      didKeepFirstResponse = true
+      const concise = decisionPrompt.riskSummary?.trim() || getFirstParagraph(entry.block.content)
+      if (!concise) return null
+      return {
+        ...entry,
+        block: {
+          ...entry.block,
+          content: concise
+        }
+      }
+    })
+    .filter((entry): entry is TimelineEntry => entry != null)
+}
 
 function getToolIndicatorClass(tool: ChatMessageToolCall): string {
   if (tool.status === 'running') return 'gba:bg-warning gba:animate-pulse'
@@ -367,12 +539,32 @@ function renderResponseEntry(
   entry: Extract<TimelineEntry, { type: 'block' }>,
   message: CreateChatMessage
 ): React.ReactNode {
+  const content = entry.block.content
+  const urlPattern = /(https?:\/\/[^\s]+|\/platform\/[^\s]+)/g
+  const parts = content.split(urlPattern)
   return (
     <div
       key={`${message.id}-response-${entry.position}`}
       className="gba:whitespace-pre-wrap gba:text-sm gba:text-foreground"
     >
-      {entry.block.content}
+      {parts.map((part, index) => {
+        const isLink = /^(https?:\/\/[^\s]+|\/platform\/[^\s]+)$/.test(part)
+        if (!isLink) {
+          return <React.Fragment key={`${message.id}-resp-${entry.position}-${index}`}>{part}</React.Fragment>
+        }
+        const href = part.startsWith('/platform/') ? part : part
+        return (
+          <a
+            key={`${message.id}-resp-link-${entry.position}-${index}`}
+            href={href}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="gba:text-primary gba:underline hover:gba:opacity-80"
+          >
+            {part}
+          </a>
+        )
+      })}
     </div>
   )
 }

@@ -1,7 +1,15 @@
 import React from 'react'
 import { PiInfo } from 'react-icons/pi'
-import { Card, CardContent, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  Card,
+  CardContent,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 
 interface SlaKpiValues {
   approvalBreachedRate: string
@@ -18,52 +26,43 @@ interface ReportSlaKpiCardsProps {
   readonly kpiValues: SlaKpiValues
 }
 
-const TOOLTIPS = {
-  approvalBreached:
-    'Share of requests where Approval SLA Status is Breached. Formula: breached approval rows / evaluable approval rows. Rows with missing approval timeline are excluded.',
-  payoutBreached:
-    'Share of requests where Payout SLA Status is Breached. Payout SLA limit is dynamic per request: min(next or same Monday after approval, remaining total SLA window = total SLA - approval days).',
-  totalBreached:
-    'Share of requests where Total Cycle SLA Status is Breached. Formula: breached total-cycle rows / evaluable total-cycle rows. Total cycle compares pending-to-paid duration against total SLA limit.',
-  totalWithin:
-    'Share of requests where Total Cycle SLA Status is Within SLA. Formula: within-SLA total-cycle rows / evaluable total-cycle rows.'
-} as const
-
 const ReportSlaKpiCards: React.FC<ReportSlaKpiCardsProps> = ({ kpiValues }) => {
+  const { t } = useTranslation(translations)
+
   const cards = [
     {
       cardTestId: 'backoffice-approval-sla-breached-kpi',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_sla_breached_rate', 'Approval SLA Breached'),
+      title: t('sla-approval-breached-rate'),
       triggerTestId: 'backoffice-approval-sla-breached-tooltip-trigger',
       triggerLabel: 'Approval SLA Breached formula',
-      tooltip: TOOLTIPS.approvalBreached,
+      tooltip: t('sla-tooltip-approval'),
       value: kpiValues.approvalBreachedRate,
       label: kpiValues.approvalBreachedLabel
     },
     {
       cardTestId: 'backoffice-payout-sla-breached-kpi',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_breached_rate', 'Payout SLA Breached'),
+      title: t('sla-payout-breached-rate'),
       triggerTestId: 'backoffice-payout-sla-breached-tooltip-trigger',
       triggerLabel: 'Payout SLA Breached formula',
-      tooltip: TOOLTIPS.payoutBreached,
+      tooltip: t('sla-tooltip-payout'),
       value: kpiValues.payoutBreachedRate,
       label: kpiValues.payoutBreachedLabel
     },
     {
       cardTestId: 'backoffice-total-cycle-sla-breached-kpi',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_sla_breached_rate', 'Total Cycle SLA Breached'),
+      title: t('sla-total-cycle-breached-rate'),
       triggerTestId: 'backoffice-total-cycle-sla-breached-tooltip-trigger',
       triggerLabel: 'Total Cycle SLA Breached formula',
-      tooltip: TOOLTIPS.totalBreached,
+      tooltip: t('sla-tooltip-total-breached'),
       value: kpiValues.totalBreachedRate,
       label: kpiValues.totalBreachedLabel
     },
     {
       cardTestId: 'backoffice-total-cycle-within-sla-kpi',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_within_sla_rate', 'Total Cycle Within SLA'),
+      title: t('sla-total-cycle-within-rate'),
       triggerTestId: 'backoffice-total-cycle-within-sla-tooltip-trigger',
       triggerLabel: 'Total Cycle Within SLA formula',
-      tooltip: TOOLTIPS.totalWithin,
+      tooltip: t('sla-tooltip-total-within'),
       value: kpiValues.withinTotalRate,
       label: kpiValues.withinTotalLabel
     }
