@@ -1,3 +1,5 @@
+import type { TranslateFn } from '../utils/utils'
+
 export interface ExpensesSlaPolicy {
   approvalSlaBusinessDays: number
   payoutRunWeekday: number
@@ -10,7 +12,7 @@ export const DEFAULT_EXPENSES_SLA_POLICY: ExpensesSlaPolicy = {
   totalCycleSlaBusinessDays: 5
 }
 
-export const FORMER_EMPLOYEE_LABEL = 'Former employee'
+export const getFormerEmployeeLabel = (t: TranslateFn): string => t('report-former-employee')
 
 export const buildEmployeeDisplayName = (
   employee: { fullName?: string; firstName?: string; lastName?: string } | null | undefined
@@ -164,9 +166,9 @@ export const extractBusinessDaysByLabel = (content: string, label: string): numb
   return parsePositiveNumber(match[1])
 }
 
-export const buildSlaStatus = (durationDays: number | null, thresholdDays: number): string => {
+export const buildSlaStatus = (durationDays: number | null, thresholdDays: number, t: TranslateFn): string => {
   if (durationDays === null) return '-'
-  return durationDays > thresholdDays ? 'Breached' : 'Within SLA'
+  return durationDays > thresholdDays ? t('report-sla-breached') : t('report-sla-within')
 }
 
 const getNextOrSameWeekday = (fromDate: Date, targetWeekday: number): Date => {
@@ -182,7 +184,8 @@ export const evaluatePayoutSlaAgainstRunDay = (
   paidAt: string,
   payoutRunWeekday: number,
   approvalDays: number | null,
-  totalCycleSlaBusinessDays: number
+  totalCycleSlaBusinessDays: number,
+  t: TranslateFn
 ): { limitDays: number | null; status: string } => {
   const approvedDate = parseDateOrNull(approvedAt)
   if (!approvedDate) return { limitDays: null, status: '-' }
@@ -198,7 +201,7 @@ export const evaluatePayoutSlaAgainstRunDay = (
   const paidDate = parseDateOrNull(paidAt)
   const evaluationDate = paidDate || new Date()
   const elapsedDays = countBusinessDays(approvedDate, evaluationDate)
-  const status = elapsedDays <= limitDays ? 'Within SLA' : 'Breached'
+  const status = elapsedDays <= limitDays ? t('report-sla-within') : t('report-sla-breached')
   return { limitDays, status }
 }
 
@@ -254,25 +257,33 @@ const buildRequestDateMap = (comments: CommentRow[], payments: PaymentRow[]): Ma
   return byRequest
 }
 
-const accumulateSlaStatus = (status: string, counts: SlaKpiCounts, field: 'approval' | 'payout' | 'total'): void => {
+const accumulateSlaStatus = (
+  status: string,
+  counts: SlaKpiCounts,
+  field: 'approval' | 'payout' | 'total',
+  t: TranslateFn
+): void => {
   if (status === '-') return
+  const breachedLabel = t('report-sla-breached')
+  const withinLabel = t('report-sla-within')
   if (field === 'approval') {
     counts.approvalEvaluated++
-    if (status === 'Breached') counts.approvalBreached++
+    if (status === breachedLabel) counts.approvalBreached++
   } else if (field === 'payout') {
     counts.payoutEvaluated++
-    if (status === 'Breached') counts.payoutBreached++
+    if (status === breachedLabel) counts.payoutBreached++
   } else {
     counts.totalEvaluated++
-    if (status === 'Breached') counts.totalBreached++
-    if (status === 'Within SLA') counts.totalWithin++
+    if (status === breachedLabel) counts.totalBreached++
+    if (status === withinLabel) counts.totalWithin++
   }
 }
 
 export const computeSlaKpiFromFlat = (
   comments: CommentRow[],
   payments: PaymentRow[],
-  slaPolicy: ExpensesSlaPolicy
+  slaPolicy: ExpensesSlaPolicy,
+  t: TranslateFn
 ): SlaKpiCounts => {
   const byRequest = buildRequestDateMap(comments, payments)
   const counts: SlaKpiCounts = {
@@ -296,13 +307,14 @@ export const computeSlaKpiFromFlat = (
       paidAt,
       slaPolicy.payoutRunWeekday,
       approvalDays,
-      slaPolicy.totalCycleSlaBusinessDays
+      slaPolicy.totalCycleSlaBusinessDays,
+      t
     )
     const totalCycleDays = daysDiff(pendingAt, paidAt)
 
-    accumulateSlaStatus(buildSlaStatus(approvalDays, slaPolicy.approvalSlaBusinessDays), counts, 'approval')
-    accumulateSlaStatus(payoutEval.status, counts, 'payout')
-    accumulateSlaStatus(buildSlaStatus(totalCycleDays, slaPolicy.totalCycleSlaBusinessDays), counts, 'total')
+    accumulateSlaStatus(buildSlaStatus(approvalDays, slaPolicy.approvalSlaBusinessDays, t), counts, 'approval', t)
+    accumulateSlaStatus(payoutEval.status, counts, 'payout', t)
+    accumulateSlaStatus(buildSlaStatus(totalCycleDays, slaPolicy.totalCycleSlaBusinessDays, t), counts, 'total', t)
   }
 
   return counts

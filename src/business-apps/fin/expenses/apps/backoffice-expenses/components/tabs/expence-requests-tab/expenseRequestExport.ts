@@ -2,14 +2,15 @@ import { useCallback, useState } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EXPENSE_REQUESTS } from '../../../queries'
 import type { ExpenseRequestQueryData, ExpenseData } from '../../../types'
-import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { formatDateLocalized } from '../../../utils/dateUtils'
-import { getExpenseRequestStatusDisplay, type ExpenseStatus } from '../../../utils/utils'
+import { getExpenseRequestStatusDisplay, type ExpenseStatus, type TranslateFn } from '../../../utils/utils'
 import { downloadCsv, downloadExcel, buildFilename } from '../../../utils/exportUtils'
 import { buildEmployeeDisplayName } from '../../../hooks/backofficeReportUtils'
-import { toast } from '@newwork/nw-design-system'
+import { toast, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
 
-export const transformExpenseRequest = (item: any): ExpenseData => ({
+export const transformExpenseRequest = (item: any, t: TranslateFn): ExpenseData => ({
   id: item.id,
   expenseId: String(item.id ?? '-'),
   code: item.code ?? '-',
@@ -18,9 +19,9 @@ export const transformExpenseRequest = (item: any): ExpenseData => ({
   employeeCode: item.employee?.code ?? '-',
   title: item.title ?? '-',
   department: item.employee?.employeePosition?.costCenter?.name ?? '-',
-  startDate: formatDateLocalized(item.startDate),
-  endDate: formatDateLocalized(item.endDate),
-  requestDate: formatDateLocalized(item.requestDate),
+  startDate: formatDateLocalized(item.startDate, t),
+  endDate: formatDateLocalized(item.endDate, t),
+  requestDate: formatDateLocalized(item.requestDate, t),
   reporter: buildEmployeeDisplayName(item.employee) || '-',
   type: item.requestType?.value ?? '-',
   amount: String(item.totalAmount ?? 0),
@@ -39,76 +40,28 @@ export const transformExpenseRequest = (item: any): ExpenseData => ({
   reimbursableAmount: item.reimbursableAmount,
   currency: { code: item.currency?.code ?? '' },
   status: item.status ?? '',
-  creationDate: formatDateLocalized(item.createdAt),
+  creationDate: formatDateLocalized(item.createdAt, t),
   employeeDocumentId: item.employeeDocumentId ?? '-',
   documentData: item.documentData
 })
 
-export const getExportColumns = () => [
-  {
-    key: 'employee',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
-  },
-  {
-    key: 'employeeCode',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.employee_code', 'Employee Code')
-  },
-  {
-    key: 'sapNumber',
-    title: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
-      'SAP Number'
-    )
-  },
-  {
-    key: 'code',
-    title: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-      'Request Number'
-    )
-  },
-  {
-    key: 'title',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.title', 'Title')
-  },
-  {
-    key: 'startDate',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')
-  },
-  {
-    key: 'endDate',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
-  },
-  {
-    key: 'creationDate',
-    title: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:manager_expense_request_list.expense_table.creation_date',
-      'Creation Date'
-    )
-  },
-  {
-    key: 'status',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-  },
-  {
-    key: 'totalRemainingAmount',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')
-  },
-  {
-    key: 'totalAmount',
-    title: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_request_list.expense_plan_table.total_amount',
-      'Total Amount'
-    )
-  },
-  { key: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency') },
-  {
-    key: 'department',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')
-  }
+export const getExportColumns = (t: (key: string) => string) => [
+  { key: 'employee', title: t('header-employee') },
+  { key: 'employeeCode', title: t('header-employee-code') },
+  { key: 'sapNumber', title: t('header-sap-number') },
+  { key: 'code', title: t('header-request-number') },
+  { key: 'title', title: t('header-title') },
+  { key: 'startDate', title: t('header-start-date') },
+  { key: 'endDate', title: t('header-end-date') },
+  { key: 'creationDate', title: t('header-creation-date') },
+  { key: 'status', title: t('header-status') },
+  { key: 'totalRemainingAmount', title: t('header-remaining-amount') },
+  { key: 'totalAmount', title: t('header-total-amount') },
+  { key: 'currency', title: t('header-currency') },
+  { key: 'department', title: t('header-department') }
 ]
 
-const formatExpenseForExport = (expense: ExpenseData) => ({
+const formatExpenseForExport = (expense: ExpenseData, t: TranslateFn) => ({
   code: expense.code || '-',
   employee: expense.employee || '-',
   employeeCode: expense.employeeCode || '-',
@@ -121,7 +74,7 @@ const formatExpenseForExport = (expense: ExpenseData) => ({
   totalRemainingAmount: expense.totalRemainingAmount ? formatNumberFunction(String(expense.totalRemainingAmount)) : '0',
   totalAmount: expense.reimbursableAmount ? formatNumberFunction(String(expense.reimbursableAmount)) : '0',
   currency: expense.currency?.code || '-',
-  status: getExpenseRequestStatusDisplay(expense.status as ExpenseStatus).label,
+  status: getExpenseRequestStatusDisplay(expense.status as ExpenseStatus, t).label,
   creationDate: expense.creationDate
 })
 
@@ -136,6 +89,7 @@ export function useExpenseRequestExport({
   totalItems,
   buildQueryConditions
 }: UseExpenseRequestExportOptions) {
+  const { t } = useTranslation(translations)
   const [isExporting, setIsExporting] = useState(false)
   const graphqlClient = useGraphqlClient(accessToken)
 
@@ -157,14 +111,14 @@ export function useExpenseRequestExport({
 
       if (!responseData?.ExpenseRequest || responseData.ExpenseRequest.length === 0) break
 
-      allExpenses.push(...responseData.ExpenseRequest.map(transformExpenseRequest))
+      allExpenses.push(...responseData.ExpenseRequest.map((item: any) => transformExpenseRequest(item, t)))
 
       if (responseData.ExpenseRequest.length < batchLimit) break
       offset += batchLimit
     }
 
     return allExpenses
-  }, [graphqlClient, buildQueryConditions])
+  }, [graphqlClient, buildQueryConditions, t])
 
   const handleExport = useCallback(
     async (format: 'csv' | 'excel', e?: React.MouseEvent) => {
@@ -173,7 +127,7 @@ export function useExpenseRequestExport({
 
       if (isExporting || totalItems === 0) {
         if (totalItems === 0) {
-          toast.error('No Data Available', { description: 'No expense data available to export' })
+          toast.error(t('export-no-data-title'), { description: t('export-no-data-description') })
         }
         return
       }
@@ -184,12 +138,12 @@ export function useExpenseRequestExport({
       try {
         const allExpenses = await fetchAllForExport()
         if (!allExpenses || allExpenses.length === 0) {
-          toast.error('No Data Available', { description: 'No expense data available to export' })
+          toast.error(t('export-no-data-title'), { description: t('export-no-data-description') })
           return
         }
 
-        const formattedData = allExpenses.map(formatExpenseForExport)
-        const columns = getExportColumns()
+        const formattedData = allExpenses.map(expense => formatExpenseForExport(expense, t))
+        const columns = getExportColumns(t)
         const filename = buildFilename('expense-requests', format === 'csv' ? 'csv' : 'xlsx')
 
         if (format === 'csv') {
@@ -198,35 +152,38 @@ export function useExpenseRequestExport({
           await downloadExcel(formattedData, columns, filename)
         }
 
-        toast.success('Export Successful', {
-          description: `Exported ${formattedData.length} expense requests to ${formatLabel}`
+        toast.success(t('export-success-title'), {
+          description: t('export-success-description', { count: formattedData.length, format: formatLabel })
         })
       } catch (err) {
         console.error(`[EXPORT ${formatLabel}] Error during export:`, err)
-        toast.error('Export Failed', {
-          description: `Failed to export ${formatLabel}: ` + (err instanceof Error ? err.message : String(err))
+        toast.error(t('export-failed-title'), {
+          description: t('export-failed-description', {
+            format: formatLabel,
+            error: err instanceof Error ? err.message : String(err)
+          })
         })
       } finally {
         setIsExporting(false)
       }
     },
-    [isExporting, totalItems, fetchAllForExport]
+    [isExporting, totalItems, fetchAllForExport, t]
   )
 
   const handleExportCsv = useCallback((e?: React.MouseEvent) => handleExport('csv', e), [handleExport])
   const handleExportExcel = useCallback((e?: React.MouseEvent) => handleExport('excel', e), [handleExport])
 
   const getExportCsvTitle = useCallback((): string => {
-    if (isExporting) return 'Exporting all pages...'
-    if (totalItems === 0) return 'No expenses to export'
-    return `Export all ${totalItems} expense requests to CSV`
-  }, [isExporting, totalItems])
+    if (isExporting) return t('export-csv-tooltip-exporting')
+    if (totalItems === 0) return t('export-csv-tooltip-no-data')
+    return t('export-csv-tooltip', { count: totalItems })
+  }, [isExporting, totalItems, t])
 
   const getExportExcelTitle = useCallback((): string => {
-    if (isExporting) return 'Exporting all pages...'
-    if (totalItems === 0) return 'No expenses to export'
-    return `Export all ${totalItems} expense requests to Excel`
-  }, [isExporting, totalItems])
+    if (isExporting) return t('export-csv-tooltip-exporting')
+    if (totalItems === 0) return t('export-csv-tooltip-no-data')
+    return t('export-excel-tooltip', { count: totalItems })
+  }, [isExporting, totalItems, t])
 
   return {
     isExporting,

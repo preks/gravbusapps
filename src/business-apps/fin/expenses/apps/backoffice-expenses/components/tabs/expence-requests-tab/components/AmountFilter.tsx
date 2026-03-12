@@ -1,4 +1,6 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../../_i18n'
 
 interface AmountFilterProps {
   localAmountMin: string
@@ -15,8 +17,10 @@ const AmountFilter: React.FC<AmountFilterProps> = ({
   setLocalAmountMax,
   debouncedAmountFilter
 }) => {
+  const { t } = useTranslation(translations)
+
   const renderAmountInputRow = (config: {
-    label: 'Min' | 'Max'
+    label: string
     value: string
     setValue: (value: string) => void
     counterpartValue: string
@@ -49,7 +53,7 @@ const AmountFilter: React.FC<AmountFilterProps> = ({
   return (
     <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2" onClick={e => e.stopPropagation()}>
       {renderAmountInputRow({
-        label: 'Min',
+        label: t('common-min'),
         value: localAmountMin,
         setValue: setLocalAmountMin,
         counterpartValue: localAmountMax,
@@ -57,7 +61,7 @@ const AmountFilter: React.FC<AmountFilterProps> = ({
         testId: 'amount-min-filter-input'
       })}
       {renderAmountInputRow({
-        label: 'Max',
+        label: t('common-max'),
         value: localAmountMax,
         setValue: setLocalAmountMax,
         counterpartValue: localAmountMin,

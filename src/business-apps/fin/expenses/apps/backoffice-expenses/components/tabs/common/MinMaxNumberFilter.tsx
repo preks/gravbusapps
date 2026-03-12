@@ -1,4 +1,6 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
 
 interface MinMaxNumberFilterProps {
   readonly minValue: string
@@ -16,28 +18,32 @@ const MinMaxNumberFilter: React.FC<MinMaxNumberFilterProps> = ({
   onMaxChange,
   testIdPrefix,
   onPageReset
-}) => (
-  <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
-    {[
-      { label: 'Min', value: minValue, onChange: onMinChange, suffix: 'min' },
-      { label: 'Max', value: maxValue, onChange: onMaxChange, suffix: 'max' }
-    ].map(input => (
-      <div key={input.suffix} className="gba:flex gba:items-center gba:gap-2">
-        <span className="gba:text-sm gba:text-muted-foreground gba:w-8">{input.label}</span>
-        <input
-          type="number"
-          value={input.value}
-          onChange={event => {
-            input.onChange(event.target.value)
-            onPageReset?.()
-          }}
-          className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-          placeholder={input.label}
-          data-testid={`${testIdPrefix}-${input.suffix}-filter-input`}
-        />
-      </div>
-    ))}
-  </div>
-)
+}) => {
+  const { t } = useTranslation(translations)
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
+      {[
+        { label: t('common-min'), value: minValue, onChange: onMinChange, suffix: 'min' },
+        { label: t('common-max'), value: maxValue, onChange: onMaxChange, suffix: 'max' }
+      ].map(input => (
+        <div key={input.suffix} className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:text-muted-foreground gba:w-8">{input.label}</span>
+          <input
+            type="number"
+            value={input.value}
+            onChange={event => {
+              input.onChange(event.target.value)
+              onPageReset?.()
+            }}
+            className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+            placeholder={input.label}
+            data-testid={`${testIdPrefix}-${input.suffix}-filter-input`}
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default MinMaxNumberFilter

@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DetailsPanelContent, type DetailsPanelField } from './DetailsPanelContent'
 import { useExpenseRequestAnalysis } from '../../hooks/useExpenseRequestAnalysis'
 import AIAnalysisSection from '../AIAnalysisSection'
@@ -26,35 +25,17 @@ export interface ExpenseDetailsPanelRecord {
 export interface ExpenseDetailsPanelContentProps {
   record: ExpenseDetailsPanelRecord
   headerRight?: React.ReactNode
-  /**
-   * Content to render immediately after the title/status header, before the field list.
-   * Useful for action buttons or other prominent content.
-   */
   afterHeaderContent?: React.ReactNode
   extraContent?: React.ReactNode
   footer?: React.ReactNode
   dataTestIdPrefix: string
   formatAmount: (amount: number, currencyCode: string) => React.ReactNode
   fallbackCurrencyCode?: string
-  /**
-   * If false, do not render the internal title header.
-   * Useful when the surrounding details panel already shows the title.
-   */
   showHeader?: boolean
-  /**
-   * Extra fields to display in addition to the standard set.
-   * These are inserted near the top (after Code/Status when header is hidden).
-   */
   additionalFields?: DetailsPanelField[]
-  /**
-   * Expense Request ID for AI Analysis.
-   * If provided along with accessToken, AI Analysis section will be shown.
-   */
   expenseRequestId?: string | null
-  /**
-   * Access token for AI Analysis API call.
-   */
   accessToken?: string
+  t?: (key: string) => string
 }
 
 const normalizeCurrencyCode = (currency: CurrencyLike, fallback: string): string => {
@@ -77,6 +58,20 @@ const asNumberOrNull = (value: unknown): number | null => {
   return null
 }
 
+const FALLBACK_LABELS: Record<string, string> = {
+  'header-employee': 'Employee',
+  'header-employee-code': 'Employee Code',
+  'header-sap-number': 'SAP Number',
+  'header-start-date': 'Start Date',
+  'header-end-date': 'End Date',
+  'header-creation-date': 'Creation Date',
+  'header-remaining-amount': 'Remaining Amount',
+  'header-total-amount': 'Total Amount',
+  'header-status': 'Status',
+  'detail-code': 'Code',
+  'common-not-available': 'N/A'
+}
+
 export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProps> = ({
   record,
   headerRight,
@@ -89,9 +84,10 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
   showHeader = true,
   additionalFields,
   expenseRequestId,
-  accessToken
+  accessToken,
+  t: tProp
 }) => {
-  // AI Analysis for expense requests
+  const t = tProp ?? ((key: string) => FALLBACK_LABELS[key] ?? key)
   const {
     analysis: aiAnalysis,
     loading: aiAnalysisLoading,
@@ -108,63 +104,29 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
   )
 
   const fields: DetailsPanelField[] = useMemo(() => {
-    const codeLabel = getTranslationFromI18nKeyAndLabel('common.code', 'Code')
-    const statusLabel = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_request_list.expense_plan_table.status',
-      'Status'
-    )
-    const employeeLabel = getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
-    const employeeCodeLabel = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_request_table.employee_code',
-      'Employee Code'
-    )
-    const sapLabel = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
-      'SAP Number'
-    )
-    const startLabel = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_plan_list.expense_plan_table.start_date',
-      'Start Date'
-    )
-    const endLabel = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_plan_list.expense_plan_table.end_date',
-      'End Date'
-    )
-    const creationLabel = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:manager_expense_request_list.expense_table.creation_date',
-      'Creation Date'
-    )
-    const remainingLabel = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:approve_expense_plan.remaining',
-      'Remaining Amount'
-    )
-    const totalLabel = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_request_list.expense_plan_table.total_amount',
-      'Total Amount'
-    )
-
+    const na = t('common-not-available')
     const remainingAmount = asNumberOrNull(record.totalRemainingAmount)
     const remainingValue =
       remainingAmount !== null && remainingAmount > 0 ? formatAmount(remainingAmount, currencyCode) : '-'
     const totalValue = formatAmount(Number(record.totalAmount ?? 0), currencyCode)
 
     const base: DetailsPanelField[] = [
-      ...(record.employee == null ? [] : [{ label: employeeLabel, value: record.employee || 'N/A' }]),
+      ...(record.employee == null ? [] : [{ label: t('header-employee'), value: record.employee || na }]),
       ...(record.employeeCode && record.employeeCode !== 'N/A' && record.employeeCode !== undefined
-        ? [{ label: employeeCodeLabel, value: record.employeeCode }]
+        ? [{ label: t('header-employee-code'), value: record.employeeCode }]
         : []),
-      ...(record.sapNumber == null ? [] : [{ label: sapLabel, value: record.sapNumber || 'N/A' }]),
-      { label: startLabel, value: record.startDate || 'N/A' },
-      { label: endLabel, value: record.endDate || 'N/A' },
-      { label: creationLabel, value: record.creationDate || 'N/A' },
-      { label: remainingLabel, value: remainingValue },
-      { label: totalLabel, value: totalValue }
+      ...(record.sapNumber == null ? [] : [{ label: t('header-sap-number'), value: record.sapNumber || na }]),
+      { label: t('header-start-date'), value: record.startDate || na },
+      { label: t('header-end-date'), value: record.endDate || na },
+      { label: t('header-creation-date'), value: record.creationDate || na },
+      { label: t('header-remaining-amount'), value: remainingValue },
+      { label: t('header-total-amount'), value: totalValue }
     ]
-    // When the outer container already renders a header, keep important meta fields visible here.
+
     if (!showHeader) {
       return [
-        ...(record.code ? [{ label: codeLabel, value: record.code }] : []),
-        ...(headerRight ? [{ label: statusLabel, value: headerRight }] : []),
+        ...(record.code ? [{ label: t('detail-code'), value: record.code }] : []),
+        ...(headerRight ? [{ label: t('header-status'), value: headerRight }] : []),
         ...(additionalFields || []),
         ...base
       ]
@@ -184,10 +146,10 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
     formatAmount,
     headerRight,
     showHeader,
-    additionalFields
+    additionalFields,
+    t
   ])
 
-  // Combine footer with AI Analysis section
   const footerWithAiAnalysis = (
     <>
       {footer}
@@ -205,8 +167,8 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
   return (
     <DetailsPanelContent
       dataTestIdPrefix={dataTestIdPrefix}
-      title={record.title || 'N/A'}
-      subtitle={record.code || 'N/A'}
+      title={record.title || t('common-not-available')}
+      subtitle={record.code || t('common-not-available')}
       headerRight={showHeader ? headerRight : undefined}
       afterHeaderContent={afterHeaderContent}
       fields={fields}
