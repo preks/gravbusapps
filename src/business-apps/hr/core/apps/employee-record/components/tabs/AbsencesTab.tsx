@@ -35,6 +35,7 @@ import { fetchHolidayDates } from './utils/fetchHolidayDates'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useAbsenceEffectiveDates } from '../../hooks/useAbsenceEffectiveDates'
 import { useEmployeeWeeklySchedule } from '../../hooks/useEmployeeWeeklySchedule'
+import { useAbsencePrevalidate } from '../../hooks/useAbsencePrevalidate'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -77,6 +78,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     startDateFormatted && endDateFormatted
       ? `${baseRequestText} (${startDateFormatted} - ${endDateFormatted})`
       : baseRequestText
+  const canAddEntitlements = !isFetchingGroups && hasHrBackoffice && !isSelfView
 
   const { absenceList, entitlements, loading, error, refetch } = useAbsenceData(
     employee?.id,
@@ -136,27 +138,28 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           res?.EntitlementUsageSnapshotView || res?.entitlement_usage_snapshot_view || []
 
         // Aggregate all rows per typeRef for Entitlements tab and donut use
-        const byType: Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }> =
-          {}
+        const byType = new Map<
+          string,
+          { total: number; usedApproved: number; usedPending: number; remaining: number }
+        >()
         rows.forEach(r => {
           const key = r?.typeRef
           if (!key) return
-          const acc = byType[key] || { total: 0, usedApproved: 0, usedPending: 0, remaining: 0 }
+          const acc = byType.get(key) || { total: 0, usedApproved: 0, usedPending: 0, remaining: 0 }
           acc.total += Number(r?.totalEntitlement) || 0
           acc.usedApproved += Number(r?.usedApproved) || 0
           acc.usedPending += Number(r?.usedPending) || 0
           // remaining is per-window; recompute after summing components to avoid drift
-          byType[key] = acc
+          byType.set(key, acc)
         })
         // Recompute remaining per type after summation
-        Object.keys(byType).forEach(k => {
-          const v = byType[k]
+        byType.forEach(v => {
           v.remaining = Math.max(0, v.total - v.usedApproved - v.usedPending)
         })
-        setSnapshotByType(byType)
+        setSnapshotByType(Object.fromEntries(byType))
 
         // Derive A001 override from aggregated map
-        const a = byType[A001_TYPE_REF]
+        const a = byType.get(A001_TYPE_REF)
         if (a) {
           setAnnualLeaveOverride({
             total: a.total,
@@ -327,6 +330,13 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   )
   const nonWorkingDates = useEmployeeWeeklySchedule(accessToken, employee?.id, currentDate)
 
+  const prevalidateResult = useAbsencePrevalidate(
+    accessToken,
+    employee?.id,
+    selectedStartDate?.format('YYYY-MM-DD') ?? null,
+    selectedEndDate?.format('YYYY-MM-DD') ?? null
+  )
+
   const tabsItems = [
     {
       key: 'calendar',
@@ -351,6 +361,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             effectiveDates={effectiveDates ?? undefined}
             allowWeekendPaintingInFallback={allowWeekendPaintingInFallback}
             nonWorkingDates={!effectiveDates ? (nonWorkingDates ?? undefined) : undefined}
+            prevalidateResult={prevalidateResult}
           />
         </div>
       )
@@ -444,7 +455,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               )
             })()}
 
-            {!isFetchingGroups && hasHrBackoffice && !isSelfView && (
+            {canAddEntitlements && (
               <div
                 data-testid="employee-entitlements-update-button"
                 className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
@@ -476,29 +487,49 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
       {(shownTab === 'calendar' || shownTab === 'absence-list' || shownTab === 'entitlements') && (
         <div className="gba:flex gba:justify-end gba:mt-4" data-testid="absencehub-inline-action">
-          <AppAction
-            variant="update-primary"
-            key={`inline-${startDateFormatted}-${endDateFormatted}`}
-            data-testid="employee-absence-request-inline-button"
-            lazyLoad
-            emptyState="enable"
-            contexts={[
-              {
-                context: FlowContextName.employeeAbsenceRecord,
-                contextData: {
-                  employeeId: employee.id,
-                  absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
-                  flowType: 'vacation',
-                  startDate: startDateFormatted,
-                  endDate: endDateFormatted
+          <div className="gba:flex gba:items-center gba:gap-4">
+            <AppAction
+              variant="update-primary"
+              key={`inline-${startDateFormatted}-${endDateFormatted}`}
+              data-testid="employee-absence-request-inline-button"
+              lazyLoad
+              emptyState="enable"
+              contexts={[
+                {
+                  context: FlowContextName.employeeAbsenceRecord,
+                  contextData: {
+                    employeeId: employee.id,
+                    absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
+                    flowType: 'vacation',
+                    startDate: startDateFormatted,
+                    endDate: endDateFormatted
+                  }
                 }
-              }
-            ]}
-            prefixDataTestId="employee-absence-request-inline"
-            accessToken={accessToken}
-          >
-            {requestAbsenceLabel}
-          </AppAction>
+              ]}
+              prefixDataTestId="employee-absence-request-inline"
+              accessToken={accessToken}
+            >
+              {requestAbsenceLabel}
+            </AppAction>
+            {shownTab === 'entitlements' && canAddEntitlements && (
+              <div
+                data-testid="employee-entitlements-update-inline-button"
+                className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
+                onClick={() => setIsEntitlementsModalOpen(true)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setIsEntitlementsModalOpen(true)
+                  }
+                }}
+              >
+                <PiPlus className="gba:h-5 gba:w-5" />
+                {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -536,7 +567,11 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             accessToken={accessToken}
             additionalData={{ employeeId: employee?.id }}
             onCancel={() => setIsEntitlementsModalOpen(false)}
-            onSubmit={() => setIsEntitlementsModalOpen(false)}
+            onSubmit={() => {
+              setIsEntitlementsModalOpen(false)
+              refetch?.()
+              setRefreshTick(t => t + 1)
+            }}
           />
         </DialogContent>
       </Dialog>

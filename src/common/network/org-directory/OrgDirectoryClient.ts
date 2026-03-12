@@ -298,6 +298,31 @@ export class OrgDirectoryClient {
   }
 
   /**
+   * Extract best-effort display value from catalog translation objects.
+   */
+  private getCatalogDisplayValue(catalogEntry: any): string {
+    if (!catalogEntry) return ''
+
+    const directValue = String(catalogEntry?.value || catalogEntry?.code || '').trim()
+    if (directValue) return directValue
+
+    const translations = Array.isArray(catalogEntry?.translations) ? catalogEntry.translations : []
+    const preferred = translations.find((t: any) => t?.localeCode === 'en-US') || translations[0]
+
+    return String(preferred?.value || '').trim()
+  }
+
+  /**
+   * Build a readable site location label from country/region catalogs.
+   */
+  private buildSiteLocationName(location: any): string {
+    const countryName = this.getCatalogDisplayValue(location?.country)
+    const regionName = this.getCatalogDisplayValue(location?.region)
+
+    return [countryName, regionName].filter(Boolean).join(', ')
+  }
+
+  /**
    * Get all active users with avatar URLs (lightweight query).
    * Uses the basic selection which includes pictureThumbnail.
    * No userId filter — includes all employees in the active org structure
@@ -625,10 +650,7 @@ export class OrgDirectoryClient {
 
       const locationId = String(location?.id || '')
 
-      // Construct name from country and region catalog entries
-      const countryName = location?.country?.value || location?.country?.code || ''
-      const regionName = location?.region?.value || location?.region?.code || ''
-      const locationName = [countryName, regionName].filter(Boolean).join(', ') || locationId
+      const locationName = this.buildSiteLocationName(location) || locationId
 
       if (locationId && !locationMap.has(locationId)) {
         locationMap.set(locationId, { id: locationId, name: locationName })
@@ -783,10 +805,7 @@ export class OrgDirectoryClient {
       if (!location) continue
 
       const locationId = String(location?.id || '')
-      // Construct name from country and region catalog entries
-      const countryName = location?.country?.value || location?.country?.code || ''
-      const regionName = location?.region?.value || location?.region?.code || ''
-      const locationName = [countryName, regionName].filter(Boolean).join(', ') || locationId
+      const locationName = this.buildSiteLocationName(location) || locationId
 
       if (locationId && !locationMap.has(locationId)) {
         locationMap.set(locationId, { id: locationId, name: locationName })

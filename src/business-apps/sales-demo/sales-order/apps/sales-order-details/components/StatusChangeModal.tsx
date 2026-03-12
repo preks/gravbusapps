@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Modal, Select, Steps, Button, Typography, Space, message } from 'antd'
-import { CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { CheckCircleIcon, ClockIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { useStatusChange } from '../hooks/useStatusChange'
 
 const { Title, Text } = Typography
@@ -12,67 +12,67 @@ const SALES_ORDER_STATUSES = [
     key: 'DRAFT',
     label: 'Draft',
     description: 'The order is being created and not yet confirmed',
-    icon: <ClockCircleOutlined />
+    icon: <ClockIcon size={16} />
   },
   {
     key: 'OPEN',
     label: 'Open',
     description: 'The order has been saved but is still pending confirmation or approval',
-    icon: <ClockCircleOutlined />
+    icon: <ClockIcon size={16} />
   },
   {
     key: 'CONFIRMED',
     label: 'Confirmed',
     description: 'The order is confirmed/accepted and ready to be processed',
-    icon: <CheckCircleOutlined />
+    icon: <CheckCircleIcon size={16} />
   },
   {
     key: 'PARTIALLY_SHIPPED',
     label: 'Partially Shipped',
     description: 'Some items have shipped; others are pending',
-    icon: <ClockCircleOutlined />
+    icon: <ClockIcon size={16} />
   },
   {
     key: 'SHIPPED',
     label: 'Shipped',
     description: 'All items have been shipped',
-    icon: <CheckCircleOutlined />
+    icon: <CheckCircleIcon size={16} />
   },
   {
     key: 'INVOICED',
     label: 'Invoiced',
     description: 'Invoice has been issued',
-    icon: <CheckCircleOutlined />
+    icon: <CheckCircleIcon size={16} />
   },
   {
     key: 'CLOSED',
     label: 'Closed',
     description: 'Order is fulfilled and finalized',
-    icon: <CheckCircleOutlined />
+    icon: <CheckCircleIcon size={16} />
   },
   {
     key: 'CANCELLED',
     label: 'Cancelled',
     description: 'Order was cancelled before fulfillment',
-    icon: <ExclamationCircleOutlined />
+    icon: <WarningCircleIcon size={16} />
   },
   {
     key: 'ON_HOLD',
     label: 'On Hold',
     description: 'Order is paused for review, issue, or approval',
-    icon: <ExclamationCircleOutlined />
+    icon: <WarningCircleIcon size={16} />
   },
   {
     key: 'REJECTED',
     label: 'Rejected',
     description: 'Order was explicitly rejected',
-    icon: <ExclamationCircleOutlined />
+    icon: <WarningCircleIcon size={16} />
   },
   {
     key: 'RETURNED',
     label: 'Returned',
     description: 'Order was returned (after shipping or invoicing)',
-    icon: <ExclamationCircleOutlined />
+    icon: <WarningCircleIcon size={16} />
   }
 ]
 
@@ -82,67 +82,67 @@ const LINE_ITEM_STATUSES = [
     key: 'NEW',
     label: 'New',
     description: 'Line item was just created; no action taken',
-    icon: <ClockCircleOutlined />
+    icon: <ClockIcon size={16} />
   },
   {
     key: 'PLANNED',
     label: 'Planned',
     description: 'Line item is scheduled for processing/shipment',
-    icon: <ClockCircleOutlined />
+    icon: <ClockIcon size={16} />
   },
   {
     key: 'BACKORDERED',
     label: 'Backordered',
     description: 'Not enough stock available for this line',
-    icon: <ExclamationCircleOutlined />
+    icon: <WarningCircleIcon size={16} />
   },
   {
     key: 'PARTIALLY_SHIPPED',
     label: 'Partially Shipped',
     description: 'Some quantity shipped, rest still pending',
-    icon: <ClockCircleOutlined />
+    icon: <ClockIcon size={16} />
   },
   {
     key: 'SHIPPED',
     label: 'Shipped',
     description: 'Fully shipped',
-    icon: <CheckCircleOutlined />
+    icon: <CheckCircleIcon size={16} />
   },
   {
     key: 'PARTIALLY_INVOICED',
     label: 'Partially Invoiced',
     description: 'Partially invoiced (e.g., for partial shipment)',
-    icon: <ClockCircleOutlined />
+    icon: <ClockIcon size={16} />
   },
   {
     key: 'INVOICED',
     label: 'Invoiced',
     description: 'Fully invoiced',
-    icon: <CheckCircleOutlined />
+    icon: <CheckCircleIcon size={16} />
   },
   {
     key: 'DELIVERED',
     label: 'Delivered',
     description: 'Delivered to the customer',
-    icon: <CheckCircleOutlined />
+    icon: <CheckCircleIcon size={16} />
   },
   {
     key: 'CANCELLED',
     label: 'Cancelled',
     description: 'Line item was cancelled before processing',
-    icon: <ExclamationCircleOutlined />
+    icon: <WarningCircleIcon size={16} />
   },
   {
     key: 'RETURNED',
     label: 'Returned',
     description: 'Customer returned this line item',
-    icon: <ExclamationCircleOutlined />
+    icon: <WarningCircleIcon size={16} />
   },
   {
     key: 'ON_HOLD',
     label: 'On Hold',
     description: 'Manually paused — e.g., pricing issue or approval needed',
-    icon: <ExclamationCircleOutlined />
+    icon: <WarningCircleIcon size={16} />
   }
 ]
 

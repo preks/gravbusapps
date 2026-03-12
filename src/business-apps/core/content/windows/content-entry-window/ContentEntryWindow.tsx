@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useTranslation } from '@newwork/nw-design-system'
@@ -54,6 +54,23 @@ function toInstantStartOfDay(value: Date | string | null | undefined): string | 
   const dateOnly = typeof value === 'string' ? value.slice(0, 10) : value.toISOString().slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) return null
   return `${dateOnly}T00:00:00.000Z`
+}
+
+function useStableArray<T>(next: T[] | undefined): T[] | undefined {
+  const ref = useRef<T[] | undefined>(undefined)
+  if (!arraysEqual(ref.current, next)) {
+    ref.current = next
+  }
+  return ref.current
+}
+
+function arraysEqual<T>(a: T[] | undefined, b: T[] | undefined): boolean {
+  if (a === b) return true
+  if (!a || !b || a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
 }
 
 const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => {
@@ -348,16 +365,15 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     const initialRole = additionalData?.role ?? additionalData?.contentEntry?.role ?? undefined
     const initialContentGroupRef =
       additionalData?.contentGroupRef ?? additionalData?.contentEntry?.contentGroupRef ?? extractedContentGroupRef ?? ''
-    const initialContentTypeRef =
+    const rawInitialContentTypeRef =
       additionalData?.contentTypeRef ??
       additionalData?.contentEntry?.contentTypeRef ??
       additionalData?.contentEntry?.contentType ??
       additionalData?.contentEntry?.contentTypeName ??
       ''
+    const initialContentTypeRef = initialContentGroupRef ? rawInitialContentTypeRef : ''
 
-    const isPolicy =
-      initialContentGroupRef === ContentGroup.POLICY ||
-      (typeof initialContentGroupRef === 'string' && initialContentGroupRef.includes('POLICIES'))
+    const isPolicy = initialContentGroupRef === ContentGroup.POLICY
 
     const defaults = {
       id: '',
@@ -460,14 +476,15 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       additionalData.preview ?? additionalData.previewText ?? additionalData.contentEntry?.preview ?? null
     const initialContent = additionalData.content ?? additionalData.contentEntry?.content ?? null
     const initialContentGroupRef =
-      additionalData.contentGroupRef ?? additionalData.contentEntry?.contentGroupRef ?? null
+      additionalData.contentGroupRef ?? additionalData.contentEntry?.contentGroupRef ?? extractedContentGroupRef ?? null
     const initialRole = additionalData.role ?? additionalData.contentEntry?.role ?? null
-    const initialContentTypeRef =
+    const rawInitialContentTypeRef =
       additionalData.contentTypeRef ??
       additionalData.contentEntry?.contentTypeRef ??
       additionalData.contentEntry?.contentType ??
       additionalData.contentEntry?.contentTypeName ??
       null
+    const initialContentTypeRef = initialContentGroupRef ? rawInitialContentTypeRef : null
 
     // Skip if no values to set
     if (
@@ -513,7 +530,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     if (initialRole !== null && initialRole !== currentRole) {
       form.setValue('role', initialRole, { shouldDirty: false, shouldValidate: false })
     }
-  }, [loadedContentEntry?.id, context.additionalData, form])
+  }, [loadedContentEntry?.id, context.additionalData, extractedContentGroupRef, form])
 
   const contentTypeResolutionRef = useRef(false)
   useEffect(() => {
@@ -657,15 +674,18 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     }
   }, [loadedContentEntry?.picture, context.accessToken])
 
-  const { control, watch, setValue } = form
-  const watchContentGroupRef = watch('contentGroupRef')
-  const watchTitle = watch('title')
-  const watchPreviewText = watch('previewText')
-  const watchContent = watch('content')
-  const watchSchedulePublication = watch('schedulePublication')
-  const watchContentTypeRef = watch('contentTypeRef')
-  const watchCategories = watch('categories')
-  const watchTags = watch('tags')
+  const { control, setValue } = form
+  const watchContentGroupRef = useWatch({ control, name: 'contentGroupRef' })
+  const watchTitle = useWatch({ control, name: 'title' })
+  const watchPreviewText = useWatch({ control, name: 'previewText' })
+  const watchSchedulePublication = useWatch({ control, name: 'schedulePublication' })
+  const watchContentTypeRef = useWatch({ control, name: 'contentTypeRef' })
+  const watchCategories = useWatch({ control, name: 'categories' })
+  const watchTags = useWatch({ control, name: 'tags' })
+  const watchDisplayAuthor = useWatch({ control, name: 'displayAuthor' })
+
+  const stableWatchCategories = useStableArray(watchCategories)
+  const stableWatchTags = useStableArray(watchTags)
 
   // Handler for AI-generated catalog fields (must be after form initialization)
   const handleContentTypeRefChange = useCallback(
@@ -754,6 +774,14 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       return 'article'
     }
   }, [watchContentGroupRef])
+
+  useEffect(() => {
+    if (currentSegment !== 'glossary' || !watchContentTypeRef) {
+      return
+    }
+
+    setValue('contentTypeRef', '', { shouldValidate: false })
+  }, [currentSegment, watchContentTypeRef, setValue])
 
   // Register form with catalog provider
   useEffect(() => {
@@ -1069,11 +1097,10 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             setImageFile={setImageFile}
             watchTitle={watchTitle}
             watchPreviewText={watchPreviewText}
-            watchContent={watchContent}
             watchSchedulePublication={watchSchedulePublication}
             watchContentTypeRef={watchContentTypeRef}
-            watchCategories={watchCategories}
-            watchTags={watchTags}
+            watchCategories={stableWatchCategories}
+            watchTags={stableWatchTags}
             setValue={setValue}
             context={context}
             extractedContentGroupRef={extractedContentGroupRef}
@@ -1103,7 +1130,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         {currentSegment === 'document' && (
           <DocumentSegment
             control={control}
-            watchDisplayAuthor={watch('displayAuthor')}
+            watchDisplayAuthor={watchDisplayAuthor}
             authorName={authorName}
             image={image}
             setImage={setImage}
@@ -1134,10 +1161,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             control={control}
             watchTitle={watchTitle}
             watchPreviewText={watchPreviewText}
-            watchContent={watchContent}
             watchContentTypeRef={watchContentTypeRef}
-            watchCategories={watchCategories}
-            watchTags={watchTags}
+            watchCategories={stableWatchCategories}
+            watchTags={stableWatchTags}
             setValue={setValue}
             context={context}
             extractedContentGroupRef={extractedContentGroupRef}

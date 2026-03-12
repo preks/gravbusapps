@@ -12,4 +12,4 @@ export const COMMUNICATION_CHANNEL = 'CommunicationChannel:v1'
 export const COUNTRY = 'Country:v1'
 export const COUNTRY_REGION = 'CountryRegion:v1'
 export const ACADEMIC_TITLE = 'AcademicTitle:v1'
-export const LANGUAGE = 'Languages:v1' // TODO: Replace with Language:v1 when catalog is updated
+export const LANGUAGE = 'Language:v1'

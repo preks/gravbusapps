@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { UserAddOutlined, CloseCircleOutlined, CheckCircleOutlined, EyeOutlined, LikeOutlined } from '@ant-design/icons'
+import { UserPlusIcon, XCircleIcon, CheckCircleIcon, EyeIcon, ThumbsUpIcon } from '@phosphor-icons/react'
 import {
   Badge,
   Button,
@@ -352,7 +352,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               data-testid={`${prefixDataTestId}-reject-button`}
               className="gba:flex gba:items-center gba:gap-2"
             >
-              <CloseCircleOutlined />
+              <XCircleIcon size={16} />
               Reject
             </Button>
           )}
@@ -365,7 +365,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               data-testid={`${prefixDataTestId}-claim-button`}
               className="gba:flex gba:items-center gba:gap-2"
             >
-              <UserAddOutlined />
+              <UserPlusIcon size={16} />
               Claim
             </Button>
           )}
@@ -383,7 +383,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               data-testid={`${prefixDataTestId}-unclaim-button`}
               className="gba:flex gba:items-center gba:gap-2"
             >
-              <CloseCircleOutlined />
+              <XCircleIcon size={16} />
               Unclaim
             </Button>
           )}
@@ -412,14 +412,14 @@ const getCompleteButtonLabel = (stepType?: string): string => {
 const getCompleteButtonIcon = (stepType?: string) => {
   switch (stepType) {
     case 'APPROVAL':
-      return <LikeOutlined />
+      return <ThumbsUpIcon size={16} />
     case 'INFORMATION':
-      return <EyeOutlined />
+      return <EyeIcon size={16} />
     case 'ACKNOWLEDGE':
     case 'ACKNOWLEDGEMENT': // Handle both variations for backward compatibility
-      return <CheckCircleOutlined />
+      return <CheckCircleIcon size={16} />
     case 'TASK':
     default:
-      return <CheckCircleOutlined />
+      return <CheckCircleIcon size={16} />
   }
 }

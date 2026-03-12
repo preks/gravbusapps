@@ -7,6 +7,8 @@ export const getStatusBadgeVariant = (
   switch (status) {
     case AssetStatus.AVAILABLE:
       return 'success'
+    case AssetStatus.PENDING:
+      return 'default'
     case AssetStatus.ALLOCATED:
       return 'info'
     case AssetStatus.UNDER_REPAIR:
@@ -21,6 +23,9 @@ export const getStatusBadgeVariant = (
 export const formatStatus = (status: AssetStatus | string): string => {
   if (status === AssetStatus.AVAILABLE) {
     return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')
+  }
+  if (status === AssetStatus.PENDING) {
+    return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending')
   }
   if (status === AssetStatus.ALLOCATED) {
     return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')

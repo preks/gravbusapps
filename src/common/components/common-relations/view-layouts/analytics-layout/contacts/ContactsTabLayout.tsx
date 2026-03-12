@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup } from '@/components/widget-group'
-import { ContactsOutlined, TeamOutlined, DollarCircleOutlined, RiseOutlined } from '@ant-design/icons'
+import { AddressBookIcon, UsersIcon, CurrencyCircleDollarIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { ContactInsightsDashboard, ContactInsightsDashboardData } from './widgets/ContactInsightsDashboard'
 import { ContactQualityMatrix, ContactQualityData } from './widgets/ContactQualityMatrix'
@@ -84,7 +84,7 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       key: 'total-contacts',
       title: 'Total Contacts',
       value: totalContacts || 0,
-      prefix: <ContactsOutlined />,
+      prefix: <AddressBookIcon size={16} />,
       description: 'All contacts in the system',
       ...(totalGrowth !== undefined && totalLastMonth !== undefined
         ? {
@@ -100,7 +100,7 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       key: 'contacts-this-month',
       title: 'New This Month',
       value: thisMonth || 0,
-      prefix: <RiseOutlined />,
+      prefix: <TrendUpIcon size={16} />,
       description: 'Contacts created this month',
       ...(thisMonth !== undefined && lastMonth !== undefined
         ? {
@@ -117,7 +117,7 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       title: 'Monthly Growth',
       value: growth || 0,
       suffix: '%',
-      prefix: <DollarCircleOutlined />,
+      prefix: <CurrencyCircleDollarIcon size={16} />,
       description: 'Month-over-month growth',
       ...(growth !== undefined
         ? {
@@ -134,7 +134,7 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       title: 'Average per Account',
       value: avgPerAccount || 0,
       precision: 1,
-      prefix: <TeamOutlined />,
+      prefix: <UsersIcon size={16} />,
       description: 'Average contacts per account',
       ...(avgPerAccount !== undefined && avgPerAccountLastMonth !== undefined
         ? {

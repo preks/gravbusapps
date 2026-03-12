@@ -12,5 +12,8 @@ export { useDashboardStats }
 export { useExpenseRequests }
 export { useExpenseRequestDetails }
 export { useAdvancePayments }
+export { useBackofficeExpensesOverview } from './useBackofficeExpensesOverview'
+export { useBackofficeExpenseReportData } from './useBackofficeExpenseReportData'
+export { useBackofficeTeamSpendingAnalytics } from './useBackofficeTeamSpendingAnalytics'
 
 export { default } from './HooksComponent'

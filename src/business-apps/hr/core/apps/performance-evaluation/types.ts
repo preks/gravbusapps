@@ -17,6 +17,8 @@ export interface PerformanceCycle {
   name: string
   startDate: string
   endDate: string
+  evaluationPeriodStartDate?: string
+  evaluationPeriodEndDate?: string
   frequency: FrequencyType
   participants: ParticipantType[]
   stages: EvaluationStage[]

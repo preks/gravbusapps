@@ -188,6 +188,34 @@ export interface PromptExecuteResponse<T = unknown> {
   content: T | string | null
 }
 
+/** Knowledge source entry for execute-json (e.g. catalog reference). */
+export interface ExecutePromptJsonKnowledgeSource {
+  type: string
+  name?: string
+  catalogIdentifier?: string
+  catalogVersion?: string
+  [key: string]: unknown
+}
+
+/** Request body for POST /api/v1/prompts/execute-json (execute prompt with JSON + document links) */
+export interface ExecutePromptJsonBody {
+  model_id?: string
+  model_service?: string
+  model_name?: string
+  system_content?: string
+  user_content?: string
+  tools?: string[]
+  model_settings?: Record<string, unknown>
+  response_schema?: Record<string, unknown>
+  system_params?: Record<string, unknown>
+  user_params?: Record<string, unknown>
+  document_links?: string[]
+  knowledge_sources?: ExecutePromptJsonKnowledgeSource[]
+  citation_mode?: string
+  response_style?: string
+  context?: Record<string, unknown>
+}
+
 // --- Telemetry / Executions ---
 export type ExecutionRunStatus = 'running' | 'success' | 'error'
 
@@ -345,6 +373,8 @@ export interface ToolODM {
   settings?: ToolSettings
   schemaConfig?: SchemaConfig
   schema_config?: SchemaConfig // Backend returns snake_case
+  externalConnectionId?: string | null
+  external_connection_id?: string | null
   active?: boolean
   /** Internal tools are preconfigured and read-only */
   internal?: boolean
@@ -360,6 +390,7 @@ export interface McpAvailableActionsResponse {
   toolId: string
   toolCode?: string | null
   serverId?: string | null
+  externalConnectionId?: string | null
   url: string
   tools: McpAvailableAction[]
 }
@@ -376,6 +407,7 @@ export interface MCPToolDetails {
   config: MCPConfig
   settings?: ToolSettings
   schemaConfig?: SchemaConfig
+  externalConnectionId?: string | null
 }
 
 export type ToolDetails = MCPToolDetails
@@ -387,6 +419,7 @@ export interface ToolPutDetails {
   config?: MCPConfig
   settings?: ToolSettings
   schemaConfig?: SchemaConfig
+  externalConnectionId?: string | null
 }
 
 export interface ToolPatchDetails {
@@ -396,7 +429,140 @@ export interface ToolPatchDetails {
   config?: MCPConfig | null
   settings?: ToolSettings | null
   schemaConfig?: SchemaConfig | null
+  externalConnectionId?: string | null
   active?: boolean | null
+}
+
+export type ExternalConnectionKind = 'mcp' | 'structured' | 'unstructured'
+export type ExternalConnectionLane = 'mcp_servers' | 'data_bridge' | 'anypoint_connect'
+export type ConnectorProviderFormMode = 'custom_form' | 'oauth' | 'mcp_url'
+
+export interface ConnectorProviderConfigField {
+  key: string
+  fieldType: 'text' | 'password' | 'url' | 'number' | 'textarea'
+  required?: boolean
+}
+
+export interface ConnectorProviderODM {
+  _id?: string
+  providerId: string
+  provider_id?: string
+  name: string
+  description?: string
+  kind: ExternalConnectionKind
+  lane: ExternalConnectionLane
+  iconKey: string
+  icon_key?: string
+  formMode: ConnectorProviderFormMode
+  form_mode?: ConnectorProviderFormMode
+  configFields?: ConnectorProviderConfigField[] | null
+  config_fields?: ConnectorProviderConfigField[] | null
+  helpUrl?: string | null
+  help_url?: string | null
+  connectorId?: string | null
+  connector_id?: string | null
+  connectorName?: string | null
+  connector_name?: string | null
+  consumerTypes?: string[] | null
+  consumer_types?: string[] | null
+  active?: boolean
+  managed?: boolean
+  sortOrder?: number | null
+  sort_order?: number | null
+}
+
+export interface ExternalConnectionODM {
+  _id?: string
+  connectionId: string
+  connection_id?: string
+  name: string
+  description?: string
+  kind: ExternalConnectionKind
+  lane: ExternalConnectionLane
+  providerId?: string | null
+  provider_id?: string | null
+  connectorId?: string | null
+  connector_id?: string | null
+  connectorName?: string | null
+  connector_name?: string | null
+  url?: string | null
+  transport?: 'http' | 'sse' | 'websocket' | null
+  env?: Record<string, string> | null
+  config?: Record<string, string>
+  consumerTypes?: string[] | null
+  consumer_types?: string[] | null
+  active?: boolean
+  managed?: boolean
+  internal?: boolean
+}
+
+export interface ExternalConnectionDetails {
+  name: string
+  description?: string
+  kind: ExternalConnectionKind
+  lane: ExternalConnectionLane
+  providerId?: string | null
+  connectorId?: string | null
+  connectorName?: string | null
+  url?: string | null
+  transport?: 'http' | 'sse' | 'websocket' | null
+  env?: Record<string, string> | null
+  config?: Record<string, string> | null
+  consumerTypes?: string[] | null
+  active?: boolean | null
+  managed?: boolean | null
+  internal?: boolean | null
+}
+
+export interface ExternalConnectionPatchDetails {
+  name?: string | null
+  description?: string | null
+  lane?: ExternalConnectionLane | null
+  providerId?: string | null
+  connectorId?: string | null
+  connectorName?: string | null
+  url?: string | null
+  transport?: 'http' | 'sse' | 'websocket' | null
+  env?: Record<string, string> | null
+  config?: Record<string, string> | null
+  consumerTypes?: string[] | null
+  active?: boolean | null
+  managed?: boolean | null
+  internal?: boolean | null
+}
+
+export interface ExternalConnectionPage {
+  data: ExternalConnectionODM[]
+  paging: Paging
+}
+
+export interface ConnectorProviderPage {
+  data: ConnectorProviderODM[]
+  paging: Paging
+}
+
+export interface ConnectorProviderInstantiationDetails {
+  name: string
+  description?: string
+  url?: string | null
+  transport?: 'http' | 'sse' | 'websocket' | null
+  env?: Record<string, string> | null
+  config?: Record<string, string> | null
+  consumerTypes?: string[] | null
+  active?: boolean | null
+}
+
+export interface ExternalConnectionAvailableActionsResponse {
+  connectionId: string
+  url: string
+  tools: McpAvailableAction[]
+}
+
+export interface ExternalConnectionHealthResponse {
+  connectionId: string
+  success: boolean
+  message: string
+  details?: Record<string, unknown>
 }
 
 export interface AIServicePage {
@@ -421,7 +587,6 @@ export class PromptManagerClient extends RestClient {
       }
     }
     if (!url) {
-      // Fallback to BASE_URL/prompt-manager pattern (same as other services) or localhost
       const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? ''
       url = baseUrl ? `${baseUrl}/prompt-manager` : 'http://localhost:8000'
     }
@@ -527,6 +692,14 @@ export class PromptManagerClient extends RestClient {
 
   async executePromptById(id: string, formData: FormData): Promise<PromptExecuteResponse> {
     return this.post<PromptExecuteResponse>(`/api/v1/prompts/${encodeURIComponent(id)}/execute`, formData)
+  }
+
+  /**
+   * Execute prompt with JSON body and optional document links.
+   * POST /api/v1/prompts/execute-json
+   */
+  async executePromptByJson(body: ExecutePromptJsonBody): Promise<PromptExecuteResponse> {
+    return this.post<PromptExecuteResponse>('/api/v1/prompts/execute-json', body)
   }
 
   // --- Execution telemetry (runs + traces) ---
@@ -706,6 +879,87 @@ export class PromptManagerClient extends RestClient {
 
   async deleteMcpTool(id: string): Promise<void> {
     await this.delete<void>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`)
+  }
+
+  // --- External Connections ---
+  async getConnectorProviders(params?: {
+    search?: string | null
+    kind?: ExternalConnectionKind | null
+    lane?: ExternalConnectionLane | null
+    consumerType?: string | null
+    limit?: number
+    offset?: number
+    returnTotalRecords?: boolean
+  }): Promise<ConnectorProviderPage> {
+    return this.get<ConnectorProviderPage>('/api/v1/connector-providers/', {
+      params: params as Record<string, any>
+    })
+  }
+
+  async getConnectorProvider(providerId: string): Promise<ConnectorProviderODM> {
+    return this.get<ConnectorProviderODM>(`/api/v1/connector-providers/${encodeURIComponent(providerId)}`)
+  }
+
+  async instantiateConnectorProvider(
+    providerId: string,
+    body: ConnectorProviderInstantiationDetails
+  ): Promise<ExternalConnectionODM> {
+    return this.post<ExternalConnectionODM>(
+      `/api/v1/connector-providers/${encodeURIComponent(providerId)}/instantiate`,
+      body
+    )
+  }
+
+  async getExternalConnections(params?: {
+    search?: string | null
+    kind?: ExternalConnectionKind | null
+    lane?: ExternalConnectionLane | null
+    connectorId?: string | null
+    consumerType?: string | null
+    limit?: number
+    offset?: number
+    returnTotalRecords?: boolean
+  }): Promise<ExternalConnectionPage> {
+    return this.get<ExternalConnectionPage>('/api/v1/external-connections/', {
+      params: params as Record<string, any>
+    })
+  }
+
+  async getExternalConnection(connectionId: string): Promise<ExternalConnectionODM> {
+    return this.get<ExternalConnectionODM>(`/api/v1/external-connections/${encodeURIComponent(connectionId)}`)
+  }
+
+  async createExternalConnection(body: ExternalConnectionDetails): Promise<ExternalConnectionODM> {
+    return this.post<ExternalConnectionODM>('/api/v1/external-connections/', body)
+  }
+
+  async putExternalConnection(connectionId: string, body: ExternalConnectionDetails): Promise<ExternalConnectionODM> {
+    return this.put<ExternalConnectionODM>(`/api/v1/external-connections/${encodeURIComponent(connectionId)}`, body)
+  }
+
+  async patchExternalConnection(
+    connectionId: string,
+    body: ExternalConnectionPatchDetails
+  ): Promise<ExternalConnectionODM> {
+    return this.patch<ExternalConnectionODM>(`/api/v1/external-connections/${encodeURIComponent(connectionId)}`, body)
+  }
+
+  async deleteExternalConnection(connectionId: string): Promise<void> {
+    await this.delete<void>(`/api/v1/external-connections/${encodeURIComponent(connectionId)}`)
+  }
+
+  async getExternalConnectionAvailableActions(
+    connectionId: string
+  ): Promise<ExternalConnectionAvailableActionsResponse> {
+    return this.get<ExternalConnectionAvailableActionsResponse>(
+      `/api/v1/external-connections/${encodeURIComponent(connectionId)}/available-actions`
+    )
+  }
+
+  async getExternalConnectionHealth(connectionId: string): Promise<ExternalConnectionHealthResponse> {
+    return this.get<ExternalConnectionHealthResponse>(
+      `/api/v1/external-connections/${encodeURIComponent(connectionId)}/health`
+    )
   }
 
   // --- Every Experts (EveryAI Agents) ---

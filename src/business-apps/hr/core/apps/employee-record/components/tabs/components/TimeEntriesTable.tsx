@@ -75,6 +75,9 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
         <TableHeader>
           <TableRow>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.date', 'Date')}</TableHead>
+            <TableHead>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking_table_workday', 'Day Type')}
+            </TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.start', 'Start')}</TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.end', 'End')}</TableHead>
             <TableHead>
@@ -100,15 +103,30 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
         <TableBody>
           {entries.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={13} className="gba:text-muted-foreground">
+              <TableCell colSpan={14} className="gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.empty', 'No entries')}
               </TableCell>
             </TableRow>
           ) : (
             entries.map(e => (
-              <TableRow key={e.id} data-testid={`time-tracking-table-row-${e.id}`}>
+              <TableRow
+                key={e.id}
+                data-testid={`time-tracking-table-row-${e.id}`}
+                className={e.isPlaceholder ? 'gba:text-muted-foreground' : undefined}
+              >
                 <TableCell data-testid={`time-tracking-table-date-cell-${e.id}`}>
                   {formatDate(e.attendanceDateISO)}
+                </TableCell>
+                <TableCell data-testid={`time-tracking-table-daytype-cell-${e.id}`}>
+                  {e.absenceLabel
+                    ? e.absenceLabel
+                    : e.dayType === 'holiday'
+                      ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub_holiday', 'Bank Holiday')
+                      : e.dayType === 'weekend'
+                        ? getTranslationFromI18nKeyAndLabel('time_tracking_day_type_weekend', 'Weekend')
+                        : e.dayType === 'non_working'
+                          ? getTranslationFromI18nKeyAndLabel('time_tracking_day_type_not_working', 'Not a working day')
+                          : getTranslationFromI18nKeyAndLabel('time_tracking_day_type_work_day', 'Work day')}
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-start-cell-${e.id}`}>
                   {formatTime(e.startTimeISO)}
@@ -118,7 +136,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                   {e.recordedTime != null && e.recordedTime !== '' ? formatDurationToHHMM(e.recordedTime) : '-'}
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-break-cell-${e.id}`}>
-                  {formatDurationToHHMM(e.breakTime ?? '0h')}
+                  {e.isPlaceholder ? '-' : formatDurationToHHMM(e.breakTime ?? '0h')}
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-effective-cell-${e.id}`}>
                   {e.effectiveTime != null && e.effectiveTime !== '' ? formatDurationToHHMM(e.effectiveTime) : '-'}
@@ -130,14 +148,18 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                   {e.differenceTime != null && e.differenceTime !== '' ? formatDurationToHHMM(e.differenceTime) : '-'}
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-manual-cell-${e.id}`}>
-                  <Badge variant={e.manualOverride ? 'warning' : 'secondary'}>
-                    {e.manualOverride
-                      ? getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
-                      : getTranslationFromI18nKeyAndLabel('common.no', 'No')}
-                  </Badge>
+                  {e.isPlaceholder ? (
+                    '-'
+                  ) : (
+                    <Badge variant={e.manualOverride ? 'warning' : 'secondary'}>
+                      {e.manualOverride
+                        ? getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
+                        : getTranslationFromI18nKeyAndLabel('common.no', 'No')}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-location-cell-${e.id}`}>
-                  {getLocationLabel(e.attendanceLocation)}
+                  {e.isPlaceholder ? '-' : getLocationLabel(e.attendanceLocation)}
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-notes-cell-${e.id}`}>{e.notes ?? ''}</TableCell>
                 <TableCell data-testid={`time-tracking-table-status-cell-${e.id}`}>
@@ -150,38 +172,42 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                   )}
                 </TableCell>
                 <TableCell className="gba:py-4 gba:px-6">
-                  <div className="gba:flex gba:justify-start gba:gap-2">
-                    <AppActionButton
-                      data-testid={`time-tracking-update-button-${e.id}`}
-                      size="icon"
-                      contextsArray={[FlowContextName.employeeAttendanceCorrectionRequest]}
-                      externalContextData={{
-                        employeeId,
-                        employeeid: employeeId,
-                        timeEntryId: e.id,
-                        attendanceDateISO: e.attendanceDateISO,
-                        startTimeISO: e.startTimeISO,
-                        endTimeISO: e.endTimeISO,
-                        notes: e.notes,
-                        timeEntryVersion: e.version,
-                        recordedTime: e.recordedTime,
-                        breakTime: e.breakTime,
-                        effectiveTime: e.effectiveTime,
-                        plannedTime: e.plannedTime,
-                        differenceTime: e.differenceTime,
-                        changeMode: 'INSERT',
-                        userId: userId,
-                        employeeAttendanceCorrectionRequest: {
+                  {!e.isPlaceholder ? (
+                    <div className="gba:flex gba:justify-start gba:gap-2">
+                      <AppActionButton
+                        data-testid={`time-tracking-update-button-${e.id}`}
+                        size="icon"
+                        contextsArray={[FlowContextName.employeeAttendanceCorrectionRequest]}
+                        externalContextData={{
+                          employeeId,
+                          employeeid: employeeId,
+                          timeEntryId: e.id,
+                          attendanceDateISO: e.attendanceDateISO,
+                          startTimeISO: e.startTimeISO,
+                          endTimeISO: e.endTimeISO,
+                          notes: e.notes,
                           timeEntryVersion: e.version,
-                          timeEntryId: e.id
-                        }
-                      }}
-                      prefixDataTestId={`time-tracking-update`}
-                      accessToken={accessToken}
-                      emptyStateBehavior="enable"
-                      onClick={evt => evt.stopPropagation()}
-                    />
-                  </div>
+                          recordedTime: e.recordedTime,
+                          breakTime: e.breakTime,
+                          effectiveTime: e.effectiveTime,
+                          plannedTime: e.plannedTime,
+                          differenceTime: e.differenceTime,
+                          changeMode: 'INSERT',
+                          userId: userId,
+                          employeeAttendanceCorrectionRequest: {
+                            timeEntryVersion: e.version,
+                            timeEntryId: e.id
+                          }
+                        }}
+                        prefixDataTestId={`time-tracking-update`}
+                        accessToken={accessToken}
+                        emptyStateBehavior="enable"
+                        onClick={evt => evt.stopPropagation()}
+                      />
+                    </div>
+                  ) : (
+                    '-'
+                  )}
                 </TableCell>
               </TableRow>
             ))

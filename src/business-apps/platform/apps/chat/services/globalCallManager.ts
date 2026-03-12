@@ -44,6 +44,7 @@ export interface GlobalCallState {
   remoteHandsRaised: Record<string, boolean> // Map of participantId -> handRaised for remote participants
   handRaisedOrder?: Record<string, { order: number; timestamp: number }> // Map of participantId -> order and timestamp
   conversationType?: 'direct' | 'group' | 'meeting' // Type of conversation for proper UI behavior
+  transcriptionEnabled?: boolean // When true, show "Call transcript is being recorded" banner
 }
 
 interface StoredCallData {
@@ -123,7 +124,8 @@ const initialCallState: GlobalCallState = {
   handRaised: false,
   remoteHandsRaised: {},
   handRaisedOrder: {},
-  conversationType: undefined
+  conversationType: undefined,
+  transcriptionEnabled: false
 }
 
 class GlobalCallManager {

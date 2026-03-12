@@ -31,7 +31,6 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { postToPlatform } from '@/common/utils/postToPlatform'
 import { useEmployeeWorkCommunications } from './hooks/useEmployeeWorkCommunications'
 import SummaryTab from './components/tabs/SummaryTab'
-import AbsencesTab from './components/tabs/AbsencesTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
 import HrAdminTab from './components/tabs/HrAdminTab'
 import HrGrowthTab from './components/tabs/HrGrowthTab'
@@ -44,7 +43,10 @@ import { getEmployeeFullName } from './utils/formatters'
 import { useFeature } from '@/common/hooks/useFeature'
 import TimeTrackingTab from './components/tabs/TimeTrackingTab'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import PersonalAbsences from '@/business-apps/hr/absences/apps/personal-absences'
 
+const EMPLOYEE_RECORD_RESOURCE_URL = '/platform/employee-record'
+const DEFAULT_ICON_SIZE = 20
 const TAB_KEYS = {
   summary: 'summary',
   timeTracking: 'timeTracking',
@@ -226,25 +228,33 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     globalThis.history.replaceState({}, '', newUrl)
   }, [activeTab, employeeIdToShow, currentUserEmployeeId])
 
-  const { loading, error, employee, feedback, absenceEntitlements, performanceGoals, silentRefetch } = useEmployeeData(
+  const { loading, error, employee, feedback, performanceGoals, silentRefetch } = useEmployeeData(
     accessToken,
     activeStructureId,
     employeeIdToShow
   )
 
   useEffect(() => {
+    const pendingRefetchTimers = new Set<number>()
+
     const handleProcessCompletion = (event: Event) => {
       const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
       const resolution = customEvent.detail.resolution
       if (resolution === 'success') {
         // Use silent refetch — avoids the full-page loading spinner for background saves
         silentRefetch()
+        const followUpRefetchTimer = window.setTimeout(() => {
+          pendingRefetchTimers.delete(followUpRefetchTimer)
+          silentRefetch()
+        }, 1200)
+        pendingRefetchTimers.add(followUpRefetchTimer)
       }
     }
 
     globalThis.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
 
     return () => {
+      pendingRefetchTimers.forEach(timerId => window.clearTimeout(timerId))
       globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
     }
   }, [silentRefetch])
@@ -402,32 +412,32 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     hasPermission: hasNotesScopePermission,
     loading: scopePermissionLoading,
     error: scopePermissionError
-  } = useScopePermissionCheck('/platform/employee-record', 'employee-record-notes', accessToken)
+  } = useScopePermissionCheck(EMPLOYEE_RECORD_RESOURCE_URL, 'employee-record-notes', accessToken)
   const employeeRecordHrBackoffice = useScopePermissionCheck(
-    '/platform/employee-record',
+    EMPLOYEE_RECORD_RESOURCE_URL,
     'employee-record-hr-backoffice',
     accessToken
   )
 
   const employeeRecordAllHrBackoffice = useScopePermissionCheck(
-    '/platform/employee-record',
+    EMPLOYEE_RECORD_RESOURCE_URL,
     'employee-record-all-hr-backoffice',
     accessToken
   )
 
   const employeeRecordAllItAdmin = useScopePermissionCheck(
-    '/platform/employee-record',
+    EMPLOYEE_RECORD_RESOURCE_URL,
     'employee-record-all-IT-admin',
     accessToken
   )
 
   const employeeRecordAllEmployees = useScopePermissionCheck(
-    '/platform/employee-record',
+    EMPLOYEE_RECORD_RESOURCE_URL,
     'employee-record-all-employees',
     accessToken
   )
 
-  const employeeGrowthPermission = useScopePermissionCheck('/platform/employee-record', 'employee-growth', accessToken)
+  const employeeGrowthPermission = useScopePermissionCheck(EMPLOYEE_RECORD_RESOURCE_URL, 'employee-growth', accessToken)
 
   const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId)
 
@@ -472,7 +482,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         value: TAB_KEYS.summary,
         label: t('employee-record-tab-summary'),
-        icon: <UserIcon className="gba:mr-2" size={20} />,
+        icon: <UserIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
         content: (
           <div className="gba:col-span-full">
             <SummaryTab employee={employee} accessToken={accessToken} currentUserEmployeeId={currentUserEmployeeId} />
@@ -482,7 +492,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         value: TAB_KEYS.hrAdmin,
         label: t('employee-record-tab-hr-admin'),
-        icon: <BriefcaseIcon className="gba:mr-2" size={20} />,
+        icon: <BriefcaseIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
         content: (() => {
           let hasHrNotesAccess = false
           if (!scopePermissionLoading && !isSelfView) {
@@ -519,7 +529,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         value: TAB_KEYS.hrGrowth,
         label: t('employee-record-tab-hr-growth'),
-        icon: <ChartBarIcon className="gba:mr-2" size={20} />,
+        icon: <ChartBarIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
         content: (
           <div className="gba:col-span-full">
             <HrGrowthTab
@@ -540,7 +550,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             {
               value: TAB_KEYS.compensation,
               label: t('employee-record-tab-compensation'),
-              icon: <CurrencyEurIcon className="gba:mr-2" size={20} />,
+              icon: <CurrencyEurIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
               content: (
                 <div className="gba:col-span-full">
                   <CompensationTab
@@ -564,7 +574,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             {
               value: TAB_KEYS.timeTracking,
               label: t('employee-record-tab-time-tracking'),
-              icon: <ClockCounterClockwiseIcon className="gba:mr-2" size={20} />,
+              icon: <ClockCounterClockwiseIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
               content: (
                 <div className="gba:col-span-full">
                   <TimeTrackingTab
@@ -582,17 +592,10 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         value: TAB_KEYS.absences,
         label: t('employee-record-tab-absences'),
-        icon: <CalendarIcon className="gba:mr-2" size={20} />,
+        icon: <CalendarIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
         content: (
           <div className="gba:col-span-full">
-            <AbsencesTab
-              employee={employee}
-              employeeAbsenceEntitlement={absenceEntitlements ?? []}
-              accessToken={accessToken}
-              employeeId={employeeIdToShow}
-              userInfo={userInfo}
-              isSelfView={isSelfView}
-            />
+            <PersonalAbsences accessToken={accessToken} userInfo={userInfo} employeeIdOverride={employee.id} embedded />
           </div>
         )
       },
@@ -601,7 +604,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             {
               value: TAB_KEYS.assets,
               label: t('employee-record-tab-assets'),
-              icon: <PackageIcon className="gba:mr-2" size={20} />,
+              icon: <PackageIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
               content: (
                 <div className="gba:col-span-full">
                   <AssetsTab
@@ -620,7 +623,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             {
               value: TAB_KEYS.serviceRequests,
               label: t('employee-record-tab-service-requests'),
-              icon: <ReceiptIcon className="gba:mr-2" size={20} />,
+              icon: <ReceiptIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
               content: (
                 <div className="gba:col-span-full">
                   <ServiceRequestsTab
@@ -687,7 +690,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           isManagerWithPermissionButNotDirect
         const hasFeedbackAccess =
           isDirectManagerWithPermission ||
-          (devFeatureFlag && tabPermissions?.['feedback']?.hasAccess === true) ||
+          tabPermissions?.['feedback']?.hasAccess === true ||
           employeeRecordAllEmployees?.hasPermission === true ||
           isManagerWithPermissionButNotDirect
         const hasPerformanceAccess =

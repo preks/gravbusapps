@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  CalendarOutlined,
-  UserOutlined,
-  TeamOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined
-} from '@ant-design/icons'
+  CalendarIcon,
+  UserIcon,
+  UsersIcon,
+  ClockIcon,
+  WarningCircleIcon
+} from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import {
   Spinner,
@@ -319,31 +319,31 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   const viewOptions = [
     {
       key: 'birthdays',
-      icon: <CalendarOutlined />,
+      icon: <CalendarIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthdays', 'Birthdays'),
       count: birthdays.length
     },
     {
       key: 'anniversaries',
-      icon: <UserOutlined />,
+      icon: <UserIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversaries', 'Anniversaries'),
       count: anniversaries.length
     },
     {
       key: 'new-hires',
-      icon: <TeamOutlined />,
+      icon: <UsersIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.new_hires', 'New Hires'),
       count: newHires.length
     },
     {
       key: 'probation-ends',
-      icon: <ClockCircleOutlined />,
+      icon: <ClockIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.probation_ends', 'Probation Ends'),
       count: probationEnds.length
     },
     {
       key: 'terminations',
-      icon: <ExclamationCircleOutlined />,
+      icon: <WarningCircleIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.terminations', 'Terminations'),
       count: terminations.length
     }

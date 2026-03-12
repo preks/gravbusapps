@@ -1,5 +1,7 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import React, { useEffect } from 'react'
+import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../../_i18n'
+import useCloseDropdownOnOutsideClick from '../../common/useCloseDropdownOnOutsideClick'
 
 interface Employee {
   id: string
@@ -33,19 +35,12 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
   handleEmployeeFilter,
   debouncedSearchEmployees
 }) => {
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('.employee-search-container')) {
-        setShowEmployeeDropdown(false)
-      }
-    }
+  const { t } = useTranslation(translations)
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [setShowEmployeeDropdown])
+  useCloseDropdownOnOutsideClick({
+    containerClassName: 'employee-search-container',
+    onOutsideClick: () => setShowEmployeeDropdown(false)
+  })
 
   return (
     <div className="employee-search-container gba:relative gba:p-2">
@@ -59,21 +54,20 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
         }}
         onFocus={() => setShowEmployeeDropdown(true)}
         className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-        placeholder={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_table.employee_search_filter',
-          'Search employee...'
-        )}
+        placeholder={t('filter-search-employee')}
         data-testid="employee-search-input"
       />
 
-      {/* Dropdown with search results */}
       {showEmployeeDropdown && employeeSearchText.trim() && (
         <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
-          {employeeSearchLoading ? (
-            <div className="gba:p-2 gba:text-sm gba:text-gray-500">Loading employees...</div>
-          ) : employeeSearchResults.length === 0 ? (
-            <div className="gba:p-2 gba:text-sm gba:text-gray-500">No employees found</div>
-          ) : (
+          {employeeSearchLoading && (
+            <div className="gba:p-2 gba:text-sm gba:text-gray-500">{t('employee-loading')}</div>
+          )}
+          {!employeeSearchLoading && employeeSearchResults.length === 0 && (
+            <div className="gba:p-2 gba:text-sm gba:text-gray-500">{t('employee-no-results')}</div>
+          )}
+          {!employeeSearchLoading &&
+            employeeSearchResults.length > 0 &&
             employeeSearchResults.map(employee => (
               <button
                 key={employee.id}
@@ -95,8 +89,7 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
               >
                 {employee.name}
               </button>
-            ))
-          )}
+            ))}
         </div>
       )}
     </div>

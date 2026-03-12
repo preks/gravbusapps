@@ -192,7 +192,22 @@ completed-showing = Showing {$current} of {$total} completed tasks
 completed-load-more = Load More
 
 # UniversalCflowTaskDetails Component
+task-details-related-links = Related Links
+task-details-meeting-links = Meeting Links
 task-details-related-to = Related To
+task-details-meeting-recording-notice = Recording and transcription. By joining, you consent to being included.
+task-details-meeting-participants = Participants
+task-details-meeting-participants-with-count = Participants ({$count})
+task-details-meeting-organiser = Organiser
+task-details-meeting-invitation-title-with-count = Meeting Invitation: {$count} participants
+task-details-meeting-participants-show-more = Show {$count} more
+task-details-meeting-participants-show-less = Show less
+task-details-meeting-please-respond = Please respond to this invitation.
+task-details-meeting-participant-view-profile = View profile
+task-details-meeting-status-pending = Pending
+task-details-meeting-status-accepted = Accepted
+task-details-meeting-status-declined = Declined
+task-details-meeting-status-tentative = Tentative
 task-details-attachments = Attachments ({$count})
 task-details-form = Form
 task-due-date-label = Due

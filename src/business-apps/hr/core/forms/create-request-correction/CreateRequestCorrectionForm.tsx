@@ -120,15 +120,25 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return `${hh}:${mm}`
   }
 
+  // Track the original values so we can detect whether the user changed anything
+  const [initialValues, setInitialValues] = useState<{
+    date: string
+    clockIn: string
+    clockOut: string
+    notes: string
+  } | null>(null)
+
   // Initialize/Reset form values from platform params
   React.useEffect(() => {
     if (!platformParams) return
-    form.reset({
+    const vals = {
       date: platformParams.attendanceDateISO || '',
       clockIn: formatIsoToHHMM(platformParams.startTimeISO),
       clockOut: formatIsoToHHMM(platformParams.endTimeISO),
       notes: platformParams.notes || ''
-    })
+    }
+    form.reset(vals)
+    setInitialValues(vals)
   }, [platformParams, form])
 
   const [dateVal, clockInVal, clockOutVal, notesVal] = form.watch(['date', 'clockIn', 'clockOut', 'notes']) as [
@@ -144,17 +154,23 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     if (Number.isNaN(hh) || Number.isNaN(mm)) return null
     return hh * 60 + mm
   }
+  const hasChanges = useMemo(() => {
+    if (!initialValues) return true
+    return (
+      dateVal !== initialValues.date ||
+      clockInVal !== initialValues.clockIn ||
+      clockOutVal !== initialValues.clockOut ||
+      notesVal !== initialValues.notes
+    )
+  }, [dateVal, clockInVal, clockOutVal, notesVal, initialValues])
+
   const isValid = useMemo(() => {
     const hasNotes = typeof notesVal === 'string' && notesVal.trim().length > 0
     const startMins = hhmmToMinutes(clockInVal)
     const endMins = hhmmToMinutes(clockOutVal)
-    const timeOrderOk =
-      startMins === null ||
-      endMins === null ||
-      // Allow equal, only invalidate when start is strictly after end
-      startMins <= endMins
-    return Boolean(dateVal && clockInVal && clockOutVal && hasNotes && timeOrderOk)
-  }, [dateVal, clockInVal, clockOutVal, notesVal])
+    const timeOrderOk = startMins === null || endMins === null || startMins <= endMins
+    return Boolean(dateVal && clockInVal && clockOutVal && hasNotes && timeOrderOk && hasChanges)
+  }, [dateVal, clockInVal, clockOutVal, notesVal, hasChanges])
 
   // Normalize any date (ISO with time or YYYY-MM-DD) to UTC midnight ISO
   const toUtcMidnightIso = (input: string): string => {

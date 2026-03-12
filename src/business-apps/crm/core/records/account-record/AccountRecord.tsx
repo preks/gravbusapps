@@ -63,7 +63,8 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
   const { account: accountData, loading, error, refetch } = useCustomerAccount(props.accessToken, accountId)
 
   // AI Summary hook - must be called before any conditional returns
-  const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken)
+  // Pass already-fetched accountData to avoid a duplicate GetAccountById query
+  const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken, accountData)
 
   const handleTabChange = useCallback((value: string) => {
     if ((ALLOWED_TABS as readonly string[]).includes(value)) {

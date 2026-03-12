@@ -1,14 +1,18 @@
 import React from 'react'
 import { Separator, Button } from '@newwork/nw-design-system'
-import { PiArrowRight } from 'react-icons/pi'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ArrowRightIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface AdvancePaymentDetailsFooterProps {
   expensePlanId?: string
+  t?: (key: string) => string
 }
 
-export const AdvancePaymentDetailsFooter: React.FC<AdvancePaymentDetailsFooterProps> = ({ expensePlanId }) => {
+export const AdvancePaymentDetailsFooter: React.FC<AdvancePaymentDetailsFooterProps> = ({
+  expensePlanId,
+  t: tProp
+}) => {
+  const t = tProp ?? ((key: string) => (key === 'detail-view-full-details' ? 'View Full Details' : key))
   if (!expensePlanId) return null
 
   return (
@@ -20,11 +24,8 @@ export const AdvancePaymentDetailsFooter: React.FC<AdvancePaymentDetailsFooterPr
           onClick={() => navigateTo(buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { expensePlanId }))}
           data-testid="view-expense-plan-details-button"
         >
-          <PiArrowRight className="gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.plan_details.view_full_details',
-            'View Full Details'
-          )}
+          <ArrowRightIcon className="gba:mr-2" />
+          {t('detail-view-full-details')}
         </Button>
       </div>
     </>

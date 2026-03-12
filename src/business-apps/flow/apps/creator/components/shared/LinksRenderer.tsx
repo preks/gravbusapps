@@ -14,7 +14,7 @@ function isDocumentLink(link: Link): boolean {
   const type = String(link?.type || '')
     .trim()
     .toLowerCase()
-  return type === 'document' || type.startsWith('document:')
+  return type === 'document' || type === 'file' || type === 'image' || type.startsWith('document:')
 }
 
 type StoredDocumentFileInfo = {

@@ -12,7 +12,7 @@ query GetAdvancePayments($where: AdvancePaymentBoolExp, $limit: Int!, $offset: I
   advancePaymentStats: AdvancePaymentAggregate(
     where: {
       isDeleted: { _eq: false },
-      status: { _nin: ["CREATED", "PREPARED", "RETURNED", "REJECTED", "DISCARDED"] }
+      status: { _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"] }
     }
   ) {
     aggregate {
@@ -98,24 +98,6 @@ query GetAdvancePayments($where: AdvancePaymentBoolExp, $limit: Int!, $offset: I
 }
 `
 
-// ⚡ DEPRECATED: Statistics are now included in GET_ADVANCE_PAYMENTS
-export const GET_ADVANCE_PAYMENT_STATISTICS = `
-  query GetAdvancePaymentStatistics {
-    advancePaymentStats: AdvancePaymentAggregate(
-      where: {
-        isDeleted: { _eq: false },
-        status: { _nin: ["CREATED", "PREPARED", "RETURNED", "REJECTED", "DISCARDED"] }
-      }
-    ) {
-      aggregate {
-        sum {
-          amount
-        }
-      }
-    }
-  }
-`
-
 // ⚡ OPTIMIZED: Lightweight query to get statuses (deduplication happens in code)
 // Shows all statuses that exist in the database except CREATED, RETURNED, and DISCARDED
 // Note: distinct_on is not supported by this GraphQL schema, so deduplication is done client-side
@@ -148,8 +130,7 @@ export const GET_ADVANCE_PAYMENT_REPORTERS = `
           {
             _or: [
               { expensePlan: { employee: { firstName: { _ilike: $searchTerm } } } },
-              { expensePlan: { employee: { lastName: { _ilike: $searchTerm } } } },
-              { expensePlan: { employee: { displayName: { _ilike: $searchTerm } } } }
+              { expensePlan: { employee: { lastName: { _ilike: $searchTerm } } } }
             ]
           }
         ]

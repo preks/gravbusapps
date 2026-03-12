@@ -11,6 +11,7 @@ import {
   employmentRegionHolidaysQuery,
   employeeAttendanceMonthlyAllQuery as allQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
+import { GET_EMPLOYEE_ABSENCES } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
@@ -36,6 +37,12 @@ export type TimeEntry = {
   status?: 'approved' | 'pending' | 'rejected' | 'open'
   // derived for internal calculations (not rendered directly)
   totalMinutes?: number
+  isPlaceholder?: boolean
+  dayType?: 'holiday' | 'non_working' | 'weekend'
+  /** Holiday display name from catalog (e.g. "Easter Monday") when dayType is holiday */
+  holidayLabel?: string
+  /** Absence type label (e.g. "Vacation", "Relocation") when day has personal absence */
+  absenceLabel?: string
 }
 
 export type SortDirection = 'asc' | 'desc'
@@ -68,7 +75,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
   // Search removed per requirements
   const [sortKey, setSortKey] = useState<keyof TimeEntry>('attendanceDateISO')
-  const [sortDir, setSortDir] = useState<SortDirection>('desc')
+  const [sortDir, setSortDir] = useState<SortDirection>('asc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [entries, setEntries] = useState<TimeEntry[]>([])
@@ -76,6 +83,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [allMonthEntries, setAllMonthEntries] = useState<TimeEntry[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [holidayDates, setHolidayDates] = useState<string[]>([])
+  const [holidayNamesByDate, setHolidayNamesByDate] = useState<Record<string, string>>({})
+  const [absenceLabelsByDate, setAbsenceLabelsByDate] = useState<Record<string, string>>({})
   // monthly totals (minutes)
   const [monthlyRequiredMinutes, setMonthlyRequiredMinutes] = useState(0)
   const [monthlyRequiredUntilYesterdayMinutes, setMonthlyRequiredUntilYesterdayMinutes] = useState(0)
@@ -170,7 +179,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const rows = result?.EmployeeAttendance ?? []
     const list: TimeEntry[] = rows.map(mapAttendanceToEntry)
 
-    // Fetch active correction requests for the same date range and employee
+    let correctionDates: Set<string> = new Set()
     try {
       const { employeeAttendanceCorrectionsForRangeQuery } = await import(
         '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
@@ -180,13 +189,12 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         dateFrom: variables.dateFrom,
         dateTo: variables.dateTo
       })
-      const correctionDates: Set<string> = new Set(
+      const terminalStatuses = new Set(['APPROVED_CORRECTION_REQUEST', 'REJECTED_CORRECTION_REQUEST'])
+      correctionDates = new Set(
         (corRes?.EmployeeAttendanceCorrectionRequest ?? [])
-          // Ignore approved requests; treat all other active requests as pending overlays
-          .filter((r: any) => String(r?.status) !== 'APPROVED_CORRECTION_REQUEST')
+          .filter((r: any) => !terminalStatuses.has(String(r?.status)))
           .map((r: any) => String(r.attendanceDate))
       )
-      // Mark entries as pending if there's an active correction for the same date
       if (correctionDates.size > 0) {
         for (const entry of list) {
           const entryDay = toLocalDateKey(new Date(entry.attendanceDateISO))
@@ -200,8 +208,6 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     }
 
     setAllEntries(list)
-    const count = result?.EmployeeAttendance_aggregate?.aggregate?.count ?? list.length
-    setTotalCount(count)
 
     // derive open state from most recent row (ordered by startTime desc)
     const mostRecent = rows[0]
@@ -260,9 +266,10 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     // no project tracking yet in this screen
     setTodaysProjectMinutes(0)
 
-    // Resolve region holidays and build a set of holiday dates for current month
+    // Resolve region holidays and build a set of holiday dates + names for current month
     const activeLocale = locale || 'en-US'
-    let holidayDateSet = new Set<string>()
+    const holidayDateSet = new Set<string>()
+    const namesByDate: Record<string, string> = {}
     try {
       const regionRes = await graphqlClient.request<any>(employeeRegionLookupQuery, {
         employeeId,
@@ -285,32 +292,68 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         const monthIndex = currentMonth.getMonth()
         const year = currentMonth.getFullYear()
         const yearStr = String(year)
-        // First, filter by year using additionalValue3
         const holidaysForYear = holidays.filter(h => String(h?.additionalValue3 ?? '') === yearStr)
-        const dates: string[] = holidaysForYear
-          .map(h => String(h?.alternativeCode ?? h?.code ?? ''))
-          .map(code => {
-            // Codes come as YYYYMMDD, e.g., 20251010
-            const dateCodeRegex = /^(\d{4})(\d{2})(\d{2})$/
-            const parts = dateCodeRegex.exec(code)
-            if (!parts) return null
-            const y = parseInt(parts[1], 10)
-            const m = parseInt(parts[2], 10) // 1-12
-            const d = parseInt(parts[3], 10)
-            if (y !== year || m !== monthIndex + 1) return null
-            if (Number.isNaN(d) || d < 1 || d > 31) return null
-            const date = new Date(year, monthIndex, d)
-            if (date.getMonth() !== monthIndex || date.getFullYear() !== year) return null
-            return toLocalDateKey(date)
-          })
-          .filter(Boolean) as string[]
-        holidayDateSet = new Set(dates)
+        holidaysForYear.forEach((h: any) => {
+          const code = String(h?.alternativeCode ?? h?.code ?? '')
+          const dateCodeRegex = /^(\d{4})(\d{2})(\d{2})$/
+          const parts = dateCodeRegex.exec(code)
+          if (!parts) return
+          const y = parseInt(parts[1], 10)
+          const m = parseInt(parts[2], 10) // 1-12
+          const d = parseInt(parts[3], 10)
+          if (y !== year || m !== monthIndex + 1) return
+          if (Number.isNaN(d) || d < 1 || d > 31) return
+          const date = new Date(year, monthIndex, d)
+          if (date.getMonth() !== monthIndex || date.getFullYear() !== year) return
+          const dateKey = toLocalDateKey(date)
+          holidayDateSet.add(dateKey)
+          const label = h.translations?.[0]?.value || h.value || ''
+          namesByDate[dateKey] = (label && String(label).trim()) || 'Holiday'
+        })
       }
     } catch (e) {
       // ignore holiday fetch errors for now
       console.error(e)
     }
+    setHolidayNamesByDate(namesByDate)
     setHolidayDates(Array.from(holidayDateSet))
+
+    // Fetch personal absences (Vacation, Relocation, Health Cure, etc.) — same query as Personal Absences calendar
+    const absenceLabelsByDateMap: Record<string, string> = {}
+    try {
+      const absRes = await graphqlClient.request<any>(GET_EMPLOYEE_ABSENCES, {
+        where: { employee: { id: { _eq: employeeId } }, isDeleted: { _eq: false } },
+        orderBy: [{ createdAt: 'DESC' }],
+        limit: 1000,
+        offset: 0,
+        activeUserLocale: activeLocale
+      })
+      const absences: any[] = absRes?.EmployeeAbsence || []
+      const addAbsenceRange = (fromIso: string, toIso: string, label: string) => {
+        const from = new Date(fromIso)
+        const to = new Date(toIso)
+        const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
+        const end = new Date(to.getFullYear(), to.getMonth(), to.getDate())
+        while (cursor <= end) {
+          const key = toLocalDateKey(cursor)
+          if (cursor >= monthStart && cursor <= monthEnd) {
+            const existing = absenceLabelsByDateMap[key]
+            absenceLabelsByDateMap[key] = existing ? `${existing}, ${label}` : label
+          }
+          cursor.setDate(cursor.getDate() + 1)
+        }
+      }
+      for (const a of absences) {
+        const label = a.type?.translations?.[0]?.value || a.type?.objectValue || ''
+        const trimmed = (label && String(label).trim()) || 'Absence'
+        if (a.startDate && a.endDate) {
+          addAbsenceRange(String(a.startDate), String(a.endDate), trimmed)
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+    setAbsenceLabelsByDate(absenceLabelsByDateMap)
 
     // Compute monthly required totals based on working hours pattern, excluding holidays
     const computeRequiredMinutesForRange = (from: Date, to: Date) => {
@@ -345,7 +388,16 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       dateTo: toDateString(monthEnd)
     })
     const allRows: any[] = allRes?.EmployeeAttendance ?? []
-    setAllMonthEntries(allRows.map(mapAttendanceToEntry))
+    const allMapped = allRows.map(mapAttendanceToEntry)
+    if (correctionDates.size > 0) {
+      for (const entry of allMapped) {
+        const entryDay = toLocalDateKey(new Date(entry.attendanceDateISO))
+        if (correctionDates.has(entryDay)) {
+          entry.status = 'pending'
+        }
+      }
+    }
+    setAllMonthEntries(allMapped)
     // Use today's local date as the upper bound and exclude it (strictly <)
     const todayLocal = new Date()
     const untilDay = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(
@@ -533,17 +585,80 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     }
   }, [accessToken, allEntries, loadFromGraphql])
 
-  // Derive displayed entries from allEntries + controls
-  useEffect(() => {
-    const sorted = [...allEntries].sort((a, b) => {
+  const filledMonthEntries = useMemo(() => {
+    const existingDates = new Set(allMonthEntries.map(e => toLocalDateKey(new Date(e.attendanceDateISO))))
+    const holidaySet = new Set(holidayDates)
+    const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+    const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
+
+    const getDayType = (key: string): 'holiday' | 'non_working' | 'weekend' | undefined => {
+      if (holidaySet.has(key)) return 'holiday'
+      const [y, m, d] = key.split('-').map(Number)
+      if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return undefined
+      const date = new Date(y, m - 1, d, 12)
+      const planned = getPlannedMinutesForDate(date.toISOString())
+      if (planned !== 0) return undefined
+      const dayOfWeek = date.getDay() // 0 = Sunday, 6 = Saturday
+      return dayOfWeek === 0 || dayOfWeek === 6 ? 'weekend' : 'non_working'
+    }
+
+    const filled: TimeEntry[] = allMonthEntries.map(e => {
+      const key = toLocalDateKey(new Date(e.attendanceDateISO))
+      const dayType = getDayType(key)
+      const holidayLabel = dayType === 'holiday' ? holidayNamesByDate[key] : undefined
+      const absenceLabel = dayType !== 'holiday' && absenceLabelsByDate[key] ? absenceLabelsByDate[key] : undefined
+      // When backend plannedTime is missing or zero, derive from working hours so work days show correct planned time
+      const backendPlannedMinutes = parseDurationToMinutes(e.plannedTime)
+      const useComputedPlanned =
+        backendPlannedMinutes == null || Number.isNaN(backendPlannedMinutes) || backendPlannedMinutes <= 0
+      const plannedTime = useComputedPlanned
+        ? minutesToHHMM(getPlannedMinutesForDate(e.attendanceDateISO))
+        : e.plannedTime
+      return { ...e, dayType, holidayLabel, absenceLabel, plannedTime }
+    })
+    const cursor = new Date(monthStart)
+    while (cursor <= monthEnd) {
+      const key = toLocalDateKey(cursor)
+      if (!existingDates.has(key)) {
+        const isHoliday = holidaySet.has(key)
+        const plannedMinutes = isHoliday
+          ? 0
+          : getPlannedMinutesForDate(
+              new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 12).toISOString()
+            )
+        const dayType = getDayType(key)
+        const holidayLabel = dayType === 'holiday' ? holidayNamesByDate[key] : undefined
+        const absenceLabel = dayType !== 'holiday' && absenceLabelsByDate[key] ? absenceLabelsByDate[key] : undefined
+        filled.push({
+          id: `empty-${key}`,
+          attendanceDateISO: new Date(`${key}T00:00:00.000Z`).toISOString(),
+          plannedTime: minutesToHHMM(plannedMinutes),
+          isPlaceholder: true,
+          dayType,
+          holidayLabel,
+          absenceLabel
+        })
+      }
+      cursor.setDate(cursor.getDate() + 1)
+    }
+    return filled
+  }, [allMonthEntries, currentMonth, workingHours, holidayDates, holidayNamesByDate, absenceLabelsByDate])
+
+  const sortedFilledEntries = useMemo(() => {
+    return [...filledMonthEntries].sort((a, b) => {
       const va = a[sortKey]
       const vb = b[sortKey]
       const cmp = String(va ?? '').localeCompare(String(vb ?? ''))
       return sortDir === 'asc' ? cmp : -cmp
     })
-    // Server-side pagination used; just set received page
-    setEntries(sorted)
-  }, [allEntries, sortKey, sortDir, locale])
+  }, [filledMonthEntries, sortKey, sortDir])
+
+  useEffect(() => {
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+    setEntries(sortedFilledEntries.slice(start, end))
+    setTotalCount(sortedFilledEntries.length)
+  }, [sortedFilledEntries, page, pageSize])
 
   const paginationInfo = useMemo(() => {
     const start = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
@@ -612,6 +727,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     isNearOffice,
     hasTodayAttendanceRecord,
     entries,
+    entriesForReport: sortedFilledEntries,
     allMonthEntries,
     holidayDates,
     totalCount,

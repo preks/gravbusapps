@@ -4,24 +4,25 @@
  * Tabs: Screen (default), Data Model, Functions, Task Expert, Flow.
  */
 
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle } from 'lucide-react'
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
-import { BuildPlanTab } from './BuildPlanTab'
-import { DataFlowDiagram } from './DataFlowDiagram'
+import { OverviewTab } from './OverviewTab'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import { AppAboutView } from './AppAboutView'
 import { DataModelPreview } from '@/common/components/ai-builder/data-model-preview/DataModelPreview'
 import { FunctionPreview } from '@/common/components/ai-builder/function-preview/FunctionPreview'
 import { FlowPreview } from '@/common/components/ai-builder/flow-preview/FlowPreview'
 import { AgentPreview } from '@/common/components/ai-builder/agent-preview/AgentPreview'
+import { AgentMeshPreview } from '@/common/components/ai-builder/agent-mesh-preview/AgentMeshPreview'
 import { PreviewTemplate } from '@/common/components/ai-builder/preview-template/PreviewTemplate'
 import { mapDataModelSpec, mapFunctionSpec, mapFlowSpec, mapAgentSpec } from './componentSpecPreviewMappers'
 import type { ComponentSpec, CanvasTab } from '../../types'
+import { getVisibleCanvasTabs } from '../../types'
 import type { AppMetadata, BuildAnalysis, UserSummary } from '../../types/build'
 
 export interface CompleteViewProps {
@@ -31,6 +32,8 @@ export interface CompleteViewProps {
   prompt?: string
   accessToken?: string
   userInfo?: any
+  builtBy?: any
+  builtByLoading?: boolean
   /** Incremented by the chat panel when an AI fix modifies screen code */
   previewRefreshToken?: number
   appMetadata?: AppMetadata
@@ -40,7 +43,7 @@ export interface CompleteViewProps {
   isPublishing?: boolean
   publishSuccess?: boolean
   publishError?: string | null
-  onPublish?: () => void
+  onPublish?: () => void | Promise<void>
   onReset?: () => void
   isRestoringSession?: boolean
 }
@@ -53,6 +56,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   components,
   accessToken,
   userInfo,
+  builtBy,
+  builtByLoading,
   previewRefreshToken,
   appMetadata,
   analysis,
@@ -66,15 +71,20 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   isRestoringSession = false
 }) => {
   const [activeTab, setActiveTab] = useState<CanvasTab>('screen')
+  const visibleTabs = useMemo(() => getVisibleCanvasTabs(components), [components])
   const previewComponent = useMemo(() => firstScreenWithSession(components), [components])
+
+  useEffect(() => {
+    const visibleIds = visibleTabs.map(t => t.id)
+    if (visibleIds.length > 0 && !visibleIds.includes(activeTab)) {
+      setActiveTab(visibleTabs[0].id)
+    }
+  }, [visibleTabs, activeTab])
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'build-plan':
-        return <BuildPlanTab components={components} userSummary={userSummary} prompt={prompt} />
-
-      case 'data-flow':
-        return <DataFlowDiagram components={components} />
+        return <OverviewTab components={components} userSummary={userSummary} prompt={prompt} />
 
       case 'screen':
         if (previewComponent && accessToken) {
@@ -208,19 +218,43 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
           )
         }
         return (
-          <div className="gba:h-full gba:min-h-0 gba:flex gba:flex-col">
+          <div className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:overflow-y-auto gba:p-4">
             <PreviewTemplate items={eligible.map(c => ({ id: c.id, label: c.flowSpec?.name ?? c.name }))}>
               {selectedId => {
                 const comp = eligible.find(c => c.id === selectedId) ?? eligible[0]
                 const effectiveId = comp.createdId ?? comp.existingId ?? comp.id
                 if (comp.flowSpec) {
                   const specTemplate = { ...mapFlowSpec(comp.flowSpec), id: effectiveId }
-                  return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} template={specTemplate} />
+                  return (
+                    <FlowPreview
+                      key={comp.id}
+                      accessToken={accessToken ?? ''}
+                      userInfo={userInfo}
+                      template={specTemplate}
+                    />
+                  )
                 }
-                return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} flowId={effectiveId} />
+                return (
+                  <FlowPreview key={comp.id} accessToken={accessToken ?? ''} userInfo={userInfo} flowId={effectiveId} />
+                )
               }}
             </PreviewTemplate>
           </div>
+        )
+      }
+
+      case 'agent-mesh': {
+        const builtAgents = components.filter(
+          c =>
+            c.type === 'agent' && (c.status === 'completed' || c.status === 'reused') && (c.createdId || c.existingId)
+        )
+        const agentIds = builtAgents.map(c => c.createdId ?? c.existingId ?? c.id)
+        return (
+          <AgentMeshPreview
+            accessToken={accessToken ?? ''}
+            agentIds={agentIds}
+            data-testid="complete-view-agent-mesh-preview"
+          />
         )
       }
 
@@ -234,6 +268,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             originalPrompt={prompt}
             createdAt={createdAt}
             userInfo={userInfo}
+            builtBy={builtBy}
+            builtByLoading={builtByLoading}
             accessToken={accessToken}
           />
         )
@@ -318,10 +354,10 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
 
       {/* Tab Header */}
       <div className="gba:bg-background gba:border-b gba:border-border">
-        <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} />
+        <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} tabs={visibleTabs} />
       </div>
 
-      {/* Tab Content — position:relative so DataFlowDiagram can use absolute inset:0 */}
+      {/* Tab Content — position:relative so DataFlowDiagram can use absolute inset:0; no key so content switches without remount flash */}
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-hidden gba:relative">{renderTabContent()}</div>
     </div>
   )

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Panel, useReactFlow, useStore } from '@xyflow/react'
 import { Minus, Plus, ImageDown } from 'lucide-react'
-import { RiFocus3Line } from 'react-icons/ri'
+import { CrosshairIcon } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
 import type { FlowCanvasThemeColors } from '../types/viewerTypes'
 
@@ -122,7 +122,7 @@ export const FlowCanvasControls: React.FC<FlowCanvasControlsProps> = ({
           data-testid={`${testId}-fit-view`}
           aria-label="Fit to view"
         >
-          <RiFocus3Line className="gba:h-4 gba:w-4" />
+          <CrosshairIcon className="gba:h-4 gba:w-4" />
         </Button>
 
         <Button

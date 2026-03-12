@@ -3,6 +3,7 @@ import { Button, Input } from '@newwork/nw-design-system'
 import { PaperPlaneTilt, Paperclip, At, XIcon, File } from '@phosphor-icons/react'
 import { useEntityMentions, type EntityReference, type MessageEntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
+import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
 import type { Message } from '../types'
 
@@ -80,6 +81,28 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     const lastProcessedPrependRef = useRef<string | null>(null)
     const isTypingRef = useRef<boolean>(false)
 
+    const searchDocuments = useCallback(
+      async (query: string): Promise<EntityReference[]> => {
+        if (!accessToken) return []
+        DocumentApiService.setAccessToken(accessToken)
+        const docs = await DocumentApiService.listDocuments({
+          search: query || undefined,
+          limit: 5,
+          includeShared: true
+        })
+        const lowerQuery = query.toLowerCase()
+        return docs
+          .filter(doc => !query || (doc.title || '').toLowerCase().includes(lowerQuery))
+          .map(doc => ({
+            id: doc.id,
+            type: 'document' as const,
+            name: doc.title || 'Untitled Document',
+            subtitle: `Document${doc.status ? ` • ${doc.status}` : ''}`
+          }))
+      },
+      [accessToken]
+    )
+
     const {
       entities,
       isLoading,
@@ -91,7 +114,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       removeMention: removeMentionFromHook,
       closeMention,
       registerMentionEntity
-    } = useEntityMentions(accessToken, { activeExperts })
+    } = useEntityMentions(accessToken, { activeExperts, searchDocuments })
 
     // Helper to update value (works for both controlled and uncontrolled)
     const setValue = useCallback(

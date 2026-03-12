@@ -133,7 +133,8 @@ export function useRealtimeKitGlobalCallManager(params: {
         participants: participantsHook.participants,
         handRaised: websocket.handRaised,
         remoteHandsRaised: websocket.remoteHandsRaised || {},
-        handRaisedOrder: websocket.handRaisedOrder || {}
+        handRaisedOrder: websocket.handRaisedOrder || {},
+        transcriptionEnabled: callState.transcriptionEnabled ?? false
       },
       localStream: media.localStream,
       remoteStreams: remoteStreamsMap,
@@ -206,6 +207,7 @@ export function useRealtimeKitGlobalCallManager(params: {
     callState.conversationName,
     callState.isMinimized,
     callState.hasBeenMinimized,
+    callState.transcriptionEnabled,
     meeting,
     media,
     screenShare.isScreenSharing,

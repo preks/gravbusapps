@@ -1037,6 +1037,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       groupCallState,
       groupParticipants: groupParticipantsRaw,
       joinGroupCall: joinGroupCall as (roomId: string, callType: 'audio' | 'video', prefs?: unknown) => void,
+      realtimeKitApiClient,
+      calendarApiClient,
       getUserPresence,
       currentUserId: currentUser?.id ?? null
     })

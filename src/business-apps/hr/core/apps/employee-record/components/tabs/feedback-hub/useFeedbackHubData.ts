@@ -74,23 +74,32 @@ export const useFeedbackHubData = ({
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const [pendingRequestsPage, setPendingRequestsPage] = useState(1)
   const [showPendingPanel, setShowPendingPanel] = useState(false)
-  const { tasks: pendingFeedbackTasks, totalCount: pendingFeedbackTotalCount } = useFlowExecutionTasks(
-    { accessToken, userInfo } as any,
-    {
-      currentPage: pendingRequestsPage,
-      pageSize: PENDING_REQUESTS_PAGE_SIZE,
-      searchTerm: '',
-      filterTaskName: 'enterRequestedFeedback'
-    }
-  )
+  const {
+    tasks: pendingFeedbackTasks,
+    totalCount: pendingFeedbackTotalCount,
+    refresh: refreshPendingFeedbackTasks
+  } = useFlowExecutionTasks({ accessToken, userInfo } as any, {
+    currentPage: pendingRequestsPage,
+    pageSize: PENDING_REQUESTS_PAGE_SIZE,
+    searchTerm: '',
+    filterTaskName: 'enterRequestedFeedback'
+  })
 
   const buildFeedbackWhere = useCallback(
     (mode: FeedbackStream) => {
       const andClauses: any[] = [{ isDeleted: { _neq: true } }]
 
-      if (mode === 'received') andClauses.push({ employeeId: { _eq: employee?.id } })
-      else andClauses.push({ senderEmployeeId: { _eq: currentUserEmployeeId } })
+      if (mode === 'received') {
+        andClauses.push({ employeeId: { _eq: employee?.id } })
+      } else {
+        // Given: when self-view show feedback I sent; when viewing another profile show feedback that employee sent.
+        const givenSenderId = isSelfView ? currentUserEmployeeId : employee?.id
+        if (givenSenderId) andClauses.push({ senderEmployeeId: { _eq: givenSenderId } })
+      }
 
+      // When viewing another profile, only public feedback is visible. When viewing own profile, filter by selection.
+      // Private feedback: only giver and receiver can see it. Receiver = profile owner (received list when isSelfView).
+      // Giver: given list uses sender = current user when isSelfView, or profile employee when !isSelfView (section is hidden in UI for !isSelfView).
       if (!isSelfView || filterType === 'public') andClauses.push({ feedbackPublic: { _eq: true } })
       else if (filterType === 'private') andClauses.push({ feedbackPublic: { _eq: false } })
 
@@ -289,7 +298,9 @@ export const useFeedbackHubData = ({
           dueDate: task?.dueDate || null,
           message,
           employeeId: employee?.id ?? null,
-          requesterEmployeeId: requesterUserId,
+          requesterEmployeeId: requesterUserId || task?.inputs?.receiverId || null,
+          endpoint: task?.endpoint || null,
+          processInstanceId: task?.processInstanceId || null,
           requesterEmployee: {
             id: resolvedEmployee?.id ?? null,
             displayName: resolvedEmployee?.displayName || fallbackName || null,
@@ -354,6 +365,13 @@ export const useFeedbackHubData = ({
     [receivedList, givenList]
   )
 
+  const reloadAllData = useCallback(() => {
+    refreshPendingFeedbackTasks()
+    fetchList('received', receivedPage)
+    fetchList('given', givenPage)
+    fetchKpiData()
+  }, [refreshPendingFeedbackTasks, fetchList, receivedPage, givenPage, fetchKpiData])
+
   return {
     searchTerm,
     setSearchTerm,
@@ -383,6 +401,7 @@ export const useFeedbackHubData = ({
     setPendingRequestsPage,
     showPendingPanel,
     setShowPendingPanel,
-    typeOptions
+    typeOptions,
+    reloadAllData
   }
 }

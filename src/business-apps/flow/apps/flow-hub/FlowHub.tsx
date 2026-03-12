@@ -16,19 +16,19 @@ import { FlowArea, FlowQuickAction } from './types'
 import { useFlowDashboardStats } from './hooks/useFlowDashboardStats'
 import { useFlowPermissions } from './hooks/useFlowPermissions'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import * as RemixIcons from '@remixicon/react'
-// Import RemixIcons for LauncherLayout
 import {
-  RiUser3Line as User,
-  RiSettings4Line as Gear,
-  RiBarChartLine as ChartBar,
-  RiLineChartLine as ChartLine,
-  RiTeamLine as Users,
-  RiPieChartLine as ChartPie,
-  RiFlowChart as Workflow,
-  RiFileTextLine as FileText,
-  RiPlayLine as Play
-} from '@remixicon/react'
+  UserIcon,
+  GearIcon,
+  ChartBarIcon,
+  ChartLineIcon,
+  UsersThreeIcon,
+  ChartPieIcon,
+  GitBranchIcon,
+  FileTextIcon,
+  PlayIcon,
+  WarningIcon,
+  ArrowsClockwiseIcon
+} from '@phosphor-icons/react'
 
 type FlowHubProps = BusinessAppContextProps
 
@@ -169,7 +169,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
           id: 'personal-workflows',
           title: 'Personal Flows',
           description: 'Manage your own flow initiations and task assignments',
-          icon: User,
+          icon: UserIcon,
           category: 'management',
           kpiType: 'personal',
           links: [
@@ -187,7 +187,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         id: 'system-administration',
         title: 'System Administration',
         description: 'Comprehensive flow system oversight and administration',
-        icon: Gear,
+        icon: GearIcon,
         category: 'admin',
         kpiType: 'admin',
         links: [
@@ -204,7 +204,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         id: 'system-analytics',
         title: 'System Analytics',
         description: 'Enterprise flow analytics, system performance, and insights',
-        icon: ChartLine,
+        icon: ChartLineIcon,
         category: 'admin',
         kpiType: 'analytics',
         buttonLabel: 'View System Analytics',
@@ -216,7 +216,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
           id: 'personal-workflows',
           title: 'Personal Flows',
           description: 'Manage your own flow initiations and task assignments',
-          icon: User,
+          icon: UserIcon,
           category: 'management',
           kpiType: 'personal',
           links: [
@@ -235,7 +235,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
           id: 'team-workflows',
           title: 'Team Flows',
           description: 'Oversee and manage your team members flow activities',
-          icon: Users,
+          icon: UsersThreeIcon,
           category: 'management',
           kpiType: 'team',
           links: [
@@ -253,7 +253,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         id: 'workflow-analytics',
         title: 'Flow Analytics',
         description: 'Personal flow insights, performance metrics, and trends',
-        icon: ChartBar,
+        icon: ChartBarIcon,
         category: 'management',
         kpiType: 'analytics',
         buttonLabel: 'View My Analytics',
@@ -265,7 +265,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
           id: 'team-analytics',
           title: 'Team Analytics',
           description: 'Team flow insights, performance tracking, and metrics',
-          icon: ChartPie,
+          icon: ChartPieIcon,
           category: 'management',
           kpiType: 'analytics',
           buttonLabel: 'View Team Analytics',
@@ -278,7 +278,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         id: 'my-flows',
         title: 'My Flows',
         description: 'Access your inbox and initiated flows',
-        icon: Workflow,
+        icon: GitBranchIcon,
         category: 'core',
         links: [
           { label: 'Open Tasks', action: 'inbox-open-tasks' },
@@ -292,7 +292,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         id: 'flow-value-packs',
         title: 'Flow Value Packs',
         description: 'Prebuilt value packs for flows',
-        icon: Gear,
+        icon: GearIcon,
         category: 'core',
         links: [
           { label: 'Compliance', action: 'value-pack-compliance' },
@@ -307,7 +307,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         id: 'flow-launcher',
         title: 'Flow Launcher',
         description: 'Launch flow templates',
-        icon: Play,
+        icon: PlayIcon,
         category: 'core',
         links: [{ label: 'Launch Flow', action: 'launcher-launch' }],
         buttonLabel: 'Open Flow Launcher',
@@ -318,7 +318,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         id: 'flow-creator',
         title: 'Flow Creator',
         description: 'Create and manage flow templates',
-        icon: FileText,
+        icon: FileTextIcon,
         category: 'core',
         links: [
           { label: 'Create Flow Template', action: 'templates-create' },
@@ -332,7 +332,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         id: 'flow-success',
         title: 'Flow Success',
         description: 'Track flow outcomes and performance over time',
-        icon: ChartLine,
+        icon: ChartLineIcon,
         category: 'analytics',
         links: [
           { label: 'Flow Analytics', action: 'success-flow' },
@@ -348,7 +348,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         id: 'flow-guardian',
         title: 'Flow Guardian',
         description: 'Monitor flow quality and governance checks',
-        icon: ChartPie,
+        icon: ChartPieIcon,
         category: 'analytics',
         links: [{ label: 'Guardian Dashboard', action: 'guardian-dashboard' }],
         buttonLabel: 'Open Flow Guardian',
@@ -714,7 +714,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-decorative-1">
         <div className="max-w-md mx-auto p-6">
           <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
-            <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
+            <WarningIcon size={16} className="h-4 w-4" />
             <AlertTitle>Permission Check Failed</AlertTitle>
             <AlertDescription>Unable to determine your permissions. Showing limited view.</AlertDescription>
           </Alert>
@@ -729,13 +729,13 @@ const FlowHub: React.FC<FlowHubProps> = context => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-decorative-1">
         <div className="max-w-md mx-auto p-6">
           <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
-            <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
+            <WarningIcon size={16} className="h-4 w-4" />
             <AlertTitle>Error Loading Stats</AlertTitle>
             <AlertDescription>
               {error}
               <div className="mt-2">
                 <Button size="sm" variant="outline" onClick={refetch}>
-                  <RemixIcons.RiRefreshLine className="h-4 w-4 mr-1" />
+                  <ArrowsClockwiseIcon size={16} className="h-4 w-4 mr-1" />
                   Retry
                 </Button>
               </div>
@@ -750,7 +750,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
     <LauncherLayout
       title={getPageTitle()}
       description={getDescriptionText()}
-      icon={Workflow as unknown as any}
+      icon={GitBranchIcon as unknown as any}
       headerKpis={headerKpis}
       sections={sections}
       quickActions={hubQuickActions}

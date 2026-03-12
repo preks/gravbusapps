@@ -10,7 +10,16 @@ import { toast } from 'sonner'
 import {
   Card,
   Button,
+  AiButton,
   Input,
+  Label,
+  Textarea,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
   Spinner,
   DropdownMenu,
   DropdownMenuContent,
@@ -56,13 +65,17 @@ import {
   Archive,
   Send,
   Sparkles,
+  Wand2,
   ChevronLeft,
   FileType,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  ExternalLink
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { buildDocumentCreatePrompt } from '@/common/utils/buildDocumentCreatePrompt'
+import { openEveryAI } from '@/common/utils/openEveryAI'
 
 // Components
 import { WordUploader } from './components/WordUploader'
@@ -82,9 +95,7 @@ import { useDocumentTemplates } from './hooks/useDocumentTemplates'
 
 import { useDocumentAppsHubUserLookup } from './hooks/useDocumentAppsHubUserLookup'
 import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites'
-import { useDocumentAppsHubFiltering } from './hooks/useDocumentAppsHubFiltering'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
-import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 
 // Entities / context
@@ -96,10 +107,11 @@ import type { DocumentTemplate, ParsedWordDocument, DocumentSummary } from './ty
 import translations from './_i18n'
 
 export interface DocumentAppsHubProps extends BusinessAppContextProps {
+  entityContext?: string
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'upload' | 'upload-pdf' | 'upload-odf' | 'editor' | 'templates'
+type HubView = Parameters<typeof useDocumentAppsHubUrlState>[0]['currentView']
 type SidebarSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'archived'
 
 /** Get initials from a name */
@@ -187,12 +199,20 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
   const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false)
   const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
+  const [createWithAiDialogOpen, setCreateWithAiDialogOpen] = useState(false)
+  const [createWithAiTitle, setCreateWithAiTitle] = useState('Untitled Document')
+  const [createWithAiAbout, setCreateWithAiAbout] = useState('')
   /** Context chosen in create modal; used only to pick entities in the editor (not sent to API). */
   const [sessionEntityContext, setSessionEntityContext] = useState<string | null>(null)
   const templateEditorRef = useRef<PagedDocumentEditorRef>(null)
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+  const currentUserName =
+    [userInfo?.givenName, userInfo?.familyName].filter(Boolean).join(' ') ||
+    userInfo?.userName ||
+    [userInfo?.employeeDetails?.firstName, userInfo?.employeeDetails?.lastName].filter(Boolean).join(' ') ||
+    ''
 
   // Clear space return URL if not opened from a space
   useEffect(() => {
@@ -233,6 +253,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     error: documentsError,
     storageMode,
     currentDocumentPermission,
+    pageMeta,
     loadDocument,
     createDocument,
     updateDocument,
@@ -270,28 +291,59 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     localStorage.setItem('document-hub-sidebar-collapsed', String(isSidebarCollapsed))
   }, [isSidebarCollapsed])
 
+  // Map frontend sort names to backend field names
+  const sortByMap: Record<string, 'createdAt' | 'updatedAt' | 'title'> = {
+    created: 'createdAt',
+    modified: 'updatedAt',
+    name: 'title'
+  }
+
+  // Drive server-side queries when section, search, sort, or page changes
+  const serverPageRef = useRef(1)
+  const PAGE_SIZE = 20
+
+  const fetchPage = useCallback(
+    (page: number) => {
+      serverPageRef.current = page
+      refreshDocuments({
+        section: activeSection === 'templates' ? undefined : activeSection,
+        favoriteIds: activeSection === 'favorites' ? [...favorites].join(',') : undefined,
+        search: searchQuery || undefined,
+        page,
+        limit: PAGE_SIZE,
+        sortBy: sortByMap[sortBy] ?? 'updatedAt',
+        sortOrder: sortOrder === 'asc' ? 'ASC' : 'DESC'
+      })
+    },
+    [activeSection, favorites, searchQuery, sortBy, sortOrder, refreshDocuments]
+  )
+
+  useEffect(() => {
+    if (activeSection !== 'templates') {
+      fetchPage(1)
+    }
+  }, [activeSection, searchQuery, sortBy, sortOrder, favorites, fetchPage])
+
+  const goToPage = useCallback((page: number) => fetchPage(page), [fetchPage])
+
+  // Server-driven pagination values
+  const paginatedDocuments = documents
+  const filteredDocuments = documents
+  const currentPage = pageMeta.page
+  const totalPages = pageMeta.totalPages
+  const totalItems = pageMeta.total
+  const pageSize = pageMeta.limit
+
+  const sharedDocuments = useMemo(() => documents.filter(d => d.isShared === true), [documents])
+
+  const hubLookupDocuments =
+    currentView === 'list' && activeSection !== 'templates' && viewLayout === 'list' ? paginatedDocuments : []
+
   const { ownerInfoMap, sharedUsersMap, refreshSharedUsersForDocument } = useDocumentAppsHubUserLookup({
     accessToken,
-    documents
+    documents: hubLookupDocuments,
+    loadSharedUsers: hubLookupDocuments.length > 0
   })
-
-  const { sharedDocuments, filteredDocuments } = useDocumentAppsHubFiltering({
-    documents,
-    activeSection,
-    favorites,
-    searchQuery,
-    sortBy,
-    sortOrder
-  })
-
-  const {
-    paginatedItems: paginatedDocuments,
-    currentPage,
-    totalPages,
-    totalItems,
-    goToPage,
-    pageSize
-  } = useHubPagination({ items: filteredDocuments, pageSize: 20 })
 
   /**
    * Handle Word file parsed from uploader
@@ -318,6 +370,32 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       updateUrl(newDoc.id, 'editor')
     }
   }, [createDocument, currentUserId, updateUrl, t])
+
+  const handleCreateWithAi = useCallback(() => {
+    setCreateWithAiDialogOpen(true)
+  }, [])
+
+  const handleSubmitCreateWithAi = useCallback(() => {
+    const instruction = createWithAiAbout.trim()
+    if (!instruction) return
+
+    const prompt = buildDocumentCreatePrompt({
+      title: createWithAiTitle.trim() || undefined,
+      userInstruction: instruction
+    })
+    setCreateWithAiDialogOpen(false)
+    setCreateWithAiTitle('Untitled Document')
+    setCreateWithAiAbout('')
+    openEveryAI({ prompt })
+
+    // Fallback: if this shell does not handle openEveryAI events, navigate directly.
+    globalThis.setTimeout(() => {
+      const everyAiMounted = Boolean(document.querySelector('[data-testid="every-ai-app"]'))
+      if (!everyAiMounted) {
+        navigateTo('/platform/every-ai')
+      }
+    }, 800)
+  }, [createWithAiAbout, createWithAiTitle])
 
   /**
    * Handle template selection
@@ -695,6 +773,21 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 <div>
                   <div className="gba:font-medium">{t('menu-new-blank-title')}</div>
                   <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-blank-description')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Draft a new document with AI</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCreateNew}>
+                <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
+                <div>
+                  <div className="gba:font-medium">Blank Document</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Start from scratch</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCreateWithAi}>
+                <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
+                <div>
+                  <div className="gba:font-medium">Create with AI</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Draft a new document with Flowbot</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleStartUpload}>
@@ -1199,6 +1292,14 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                         <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
                         {t('empty-create-document')}
                       </Button>
+                      <AiButton
+                        showIcon
+                        icon={<Wand2 className="gba:w-4 gba:h-4 gba:text-purple-500" />}
+                        iconPosition="before"
+                        onClick={handleCreateWithAi}
+                      >
+                        Create with AI
+                      </AiButton>
                       <Button variant="outline" onClick={handleStartUpload}>
                         <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
                         {t('empty-upload-word')}
@@ -1295,9 +1396,17 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           {/* Name & Icon */}
                           <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
                             <div
-                              className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 ${doc.isPdf ? 'gba:bg-red-500/10' : 'gba:bg-blue-500/10'}`}
+                              className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 ${
+                                doc.settings?.external
+                                  ? 'gba:bg-info-secondary'
+                                  : doc.isPdf
+                                    ? 'gba:bg-red-500/10'
+                                    : 'gba:bg-blue-500/10'
+                              }`}
                             >
-                              {doc.isPdf ? (
+                              {doc.settings?.external ? (
+                                <ExternalLink className="gba:w-5 gba:h-5 gba:text-info" />
+                              ) : doc.isPdf ? (
                                 <FileType className="gba:w-5 gba:h-5 gba:text-red-600" />
                               ) : (
                                 <FileText className="gba:w-5 gba:h-5 gba:text-blue-600" />
@@ -1324,6 +1433,15 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                 {doc.isShared && !isOwner && (
                                   <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
                                     {t('status-shared')}
+                                  </Badge>
+                                )}
+                                {doc.settings?.external && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:gap-0.5"
+                                  >
+                                    <ExternalLink className="gba:w-2.5 gba:h-2.5" />
+                                    {doc.settings.external.connectorName}
                                   </Badge>
                                 )}
                                 {isOwner && sharedWith.length > 0 && (
@@ -1481,9 +1599,17 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                       >
                         {/* Preview area */}
                         <div
-                          className={`gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:flex gba:items-center gba:justify-center gba:rounded-t-lg ${doc.isPdf ? 'gba:from-red-500/10 gba:to-red-600/10' : 'gba:from-blue-500/10 gba:to-indigo-500/10'}`}
+                          className={`gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:flex gba:items-center gba:justify-center gba:rounded-t-lg ${
+                            doc.settings?.external
+                              ? 'gba:from-info-secondary gba:to-info-secondary'
+                              : doc.isPdf
+                                ? 'gba:from-red-500/10 gba:to-red-600/10'
+                                : 'gba:from-blue-500/10 gba:to-indigo-500/10'
+                          }`}
                         >
-                          {doc.isPdf ? (
+                          {doc.settings?.external ? (
+                            <ExternalLink className="gba:w-16 gba:h-16 gba:text-info/50" />
+                          ) : doc.isPdf ? (
                             <FileType className="gba:w-16 gba:h-16 gba:text-red-500/50" />
                           ) : (
                             <FileText className="gba:w-16 gba:h-16 gba:text-blue-500/50" />
@@ -1524,6 +1650,17 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                             <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
                               <Users className="gba:w-3 gba:h-3 gba:mr-1" />
                               {t('status-shared')}
+                            </Badge>
+                          )}
+
+                          {/* External source badge */}
+                          {doc.settings?.external && (
+                            <Badge
+                              variant="secondary"
+                              className="gba:absolute gba:bottom-2 gba:right-2 gba:text-[10px] gba:gap-0.5"
+                            >
+                              <ExternalLink className="gba:w-2.5 gba:h-2.5" />
+                              {doc.settings.external.connectorName}
                             </Badge>
                           )}
                         </div>
@@ -1570,7 +1707,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           documentId={documentForApproval}
           documentTitle={documents.find(d => d.id === documentForApproval)?.title || t('title-untitled-document')}
           currentUserId={currentUserId}
-          currentUserName={userInfo?.displayName || userInfo?.employeeDetails?.displayName}
+          currentUserName={currentUserName}
           accessToken={accessToken}
           shareDocument={shareDocument}
           onApprovalSent={async (approverIds, approverWorkflows) => {
@@ -1614,7 +1751,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           documentId={documentForShare}
           documentTitle={documents.find(d => d.id === documentForShare)?.title || t('title-untitled-document')}
           currentUserId={currentUserId}
-          currentUserName={userInfo?.displayName || userInfo?.employeeDetails?.displayName}
+          currentUserName={currentUserName}
           accessToken={accessToken}
           shareDocument={shareDocument}
           onShareComplete={async () => {
@@ -1648,6 +1785,54 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           data-testid={`${testId}-manage-shares-dialog`}
         />
       )}
+
+      <Dialog open={createWithAiDialogOpen} onOpenChange={setCreateWithAiDialogOpen}>
+        <DialogContent data-testid={`${testId}-create-with-ai-dialog`}>
+          <DialogHeader>
+            <DialogTitle>Create document with AI</DialogTitle>
+            <DialogDescription>Provide a title and what this document should be about.</DialogDescription>
+          </DialogHeader>
+          <div className="gba:space-y-4">
+            <div className="gba:space-y-2">
+              <Label htmlFor="create-with-ai-title">Title</Label>
+              <Input
+                id="create-with-ai-title"
+                value={createWithAiTitle}
+                onChange={e => setCreateWithAiTitle(e.target.value)}
+                placeholder="e.g. CRM Account Summary"
+                data-testid={`${testId}-create-with-ai-title`}
+              />
+            </div>
+            <div className="gba:space-y-2">
+              <Label htmlFor="create-with-ai-about">What is it about?</Label>
+              <Textarea
+                id="create-with-ai-about"
+                value={createWithAiAbout}
+                onChange={e => setCreateWithAiAbout(e.target.value)}
+                placeholder="Describe the content and goal of the document..."
+                rows={4}
+                className="gba:resize-none"
+                data-testid={`${testId}-create-with-ai-about`}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCreateWithAiDialogOpen(false)}>
+              Cancel
+            </Button>
+            <AiButton
+              showIcon
+              icon={<Wand2 className="gba:w-4 gba:h-4 gba:text-purple-500" />}
+              iconPosition="before"
+              onClick={handleSubmitCreateWithAi}
+              disabled={!createWithAiAbout.trim()}
+              data-testid={`${testId}-create-with-ai-submit`}
+            >
+              Create with AI
+            </AiButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

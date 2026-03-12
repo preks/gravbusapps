@@ -56,6 +56,7 @@ const ENTITY_URL_PATTERNS = [
 
   // Other entities
   { pattern: /\/platform\/documents\?docId=([^&]+)/, entity_name: 'document' },
+  { pattern: /\/platform\/apps\/document-apps\?[^#]*docId=([^&]+)/, entity_name: 'document' },
   { pattern: /\/platform\/spreadsheets\?appId=([^&]+)/, entity_name: 'spreadsheet' },
   { pattern: /\/platform\/notes\?noteId=([^&]+)/, entity_name: 'note' },
   { pattern: /\/platform\/slides\?slideId=([^&]+)/, entity_name: 'slide' }
@@ -88,6 +89,7 @@ const OVERVIEW_URL_PATTERNS = [
 
   // Other overviews
   { pattern: /\/platform\/documents/, entity_name: 'document' },
+  { pattern: /\/platform\/apps\/document-apps/, entity_name: 'document' },
   { pattern: /\/platform\/spreadsheets/, entity_name: 'spreadsheet' },
   { pattern: /\/platform\/notes/, entity_name: 'note' },
   { pattern: /\/platform\/slides/, entity_name: 'slide' }

@@ -25,6 +25,7 @@ export interface SessionUser {
 export interface SessionMetadata {
   sessionId: string
   repoId: string | null
+  namespace?: string | null
   targetPath: string | null
   resourceUrl: string | null
   createdAt: string
@@ -94,6 +95,35 @@ export interface ChatMessageBlock {
   order?: number
 }
 
+export interface DecisionPromptOption {
+  id: string
+  title: string
+  description: string
+  riskLevel?: 'low' | 'medium' | 'high'
+  destructive?: boolean
+  requiresExplicitConsent?: boolean
+}
+
+export interface DecisionPromptTool {
+  name: string
+  description: string
+}
+
+export interface DecisionPromptState {
+  decisionId?: string
+  riskSummary?: string
+  options: DecisionPromptOption[]
+  availableTools?: DecisionPromptTool[]
+}
+
+/**
+ * Chat message contract aligned with backend ChatHistoryMessageDto.
+ * Required persisted metadata for author identity and round-trip:
+ * - createdBy: user id for user messages; 'orchestrator-system' for system messages
+ * - messageId, createdAt/serverCreatedAt for restore/version flows
+ * - editHistory for collaboration attribution
+ * Adapters MUST preserve these fields when persisting; do not strip on save.
+ */
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
@@ -101,7 +131,10 @@ export interface ChatMessage {
   thinkingLog?: string
   thinkingCollapsed?: boolean
   blocks?: ChatMessageBlock[]
+  decisionPrompt?: DecisionPromptState
+  /** Author user id (user messages) or 'orchestrator-system' (system messages). Required for identity round-trip. */
   createdBy?: string
+  /** Edit history for collaboration attribution. Preserve on save. */
   editHistory?: Array<{
     userId: string
     editedAt: string
@@ -187,6 +220,142 @@ export interface PublishResponse {
   azureUrl?: string
   message: string
   error?: string
+}
+
+export interface LatestPublishedResourceVersion {
+  repoId: string
+  targetPath: string | null
+  sessionId: string | null
+  versionMajor: number
+  versionMinor: number
+  resourceUrl: string
+  azureUrl: string | null
+  publishedAt: string | null
+  firstPublishedAt: string | null
+}
+
+export type BuilderMetricsTimeframe = 'last24h' | 'last7d' | 'last30d' | 'mtd' | 'all'
+
+export interface SessionUsageMetric {
+  sessionId: string
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalTokens: number
+  totalCalls: number
+  timeframeInputTokens: number
+  timeframeOutputTokens: number
+  timeframeTokens: number
+  timeframeCalls: number
+  lastUsedAt: string | null
+  timeframeCostUsd: number
+  totalCostUsd: number
+}
+
+export interface SessionUsageMetricsResponse {
+  generatedAt: string
+  timeframe: BuilderMetricsTimeframe
+  sessions: SessionUsageMetric[]
+}
+
+export interface AiModelUsageMetric {
+  model: string
+  provider: string
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCalls: number
+  timeframeInputTokens: number
+  timeframeOutputTokens: number
+  timeframeCalls: number
+  priceInputUsdPerMillion: number
+  priceOutputUsdPerMillion: number
+  timeframeCostUsd: number
+  totalCostUsd: number
+}
+
+export interface AiTotalsMetric {
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCalls: number
+  timeframeInputTokens: number
+  timeframeOutputTokens: number
+  timeframeCalls: number
+  timeframeCostUsd: number
+  totalCostUsd: number
+}
+
+export interface LlmPricingConfigEntry {
+  id: string
+  provider: string
+  model: string
+  inputUsdPerMillion: number
+  outputUsdPerMillion: number
+  source: string
+  updatedAt: string | null
+}
+
+export interface LlmPricingConfigResponse {
+  generatedAt: string
+  note: string
+  entries: LlmPricingConfigEntry[]
+}
+
+export interface UpdateLlmPricingConfigRequest {
+  entries: Array<{
+    id?: string
+    provider: string
+    model?: string
+    inputUsdPerMillion: number
+    outputUsdPerMillion: number
+  }>
+}
+
+export interface MetricsTimeseriesPoint {
+  bucketStart: string
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  calls: number
+  totalCostUsd: number
+}
+
+export interface MetricsTimeseriesResponse {
+  generatedAt: string
+  timeframe: BuilderMetricsTimeframe
+  points: MetricsTimeseriesPoint[]
+}
+
+export interface BuilderServiceMetricsResponse {
+  generatedAt: string
+  timeframe: BuilderMetricsTimeframe
+  sessions: {
+    total: number
+    withinTimeframe: number
+  }
+  screens: {
+    versionsCreated: number
+    versionsPublished: number
+    createdWithinTimeframe: number
+    publishedWithinTimeframe: number
+  }
+  builds: {
+    total: number
+    completed: number
+    failed: number
+    successRate: number
+    avgDurationSeconds: number
+    withinTimeframe: number
+  }
+  ai: {
+    byModel: AiModelUsageMetric[]
+    totals: AiTotalsMetric
+  }
+  orchestration: {
+    total: number
+    completed: number
+    failed: number
+    running: number
+    withinTimeframe: number
+  }
 }
 
 // ============================================================================
@@ -321,6 +490,14 @@ export class BuilderClient {
         thinkingLog: this.truncateText(message.thinkingLog, maxThinkingChars),
         thinkingCollapsed: typeof message.thinkingCollapsed === 'boolean' ? message.thinkingCollapsed : undefined,
         blocks: compactBlocks,
+        createdBy: typeof message.createdBy === 'string' ? message.createdBy : undefined,
+        editHistory: Array.isArray(message.editHistory)
+          ? message.editHistory
+              .map((entry: { userId?: string; editedAt?: string }) =>
+                entry?.userId && entry?.editedAt ? { userId: entry.userId, editedAt: entry.editedAt } : null
+              )
+              .filter((e): e is { userId: string; editedAt: string } => e !== null)
+          : undefined,
         messageId: message.messageId,
         createdAt: message.createdAt,
         serverCreatedAt: message.serverCreatedAt
@@ -486,6 +663,56 @@ export class BuilderClient {
         })
       }
 
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Append or update one chat message for a session
+   */
+  async appendChatMessage(repoId: string, sessionId: string, message: ChatMessage): Promise<boolean> {
+    try {
+      const compact = this.compactChatHistoryForSave([message], {
+        maxMessages: 1,
+        maxTotalChars: 25_000,
+        maxContentChars: 8_000,
+        maxThinkingChars: 3_000,
+        maxToolCallsPerMessage: 12,
+        maxToolArgsChars: 2_000,
+        maxToolResultChars: 4_000
+      })
+      const payloadMessage = compact[0] ?? message
+      const response = await fetch(`${this.baseUrl}/chat/history/append`, {
+        method: 'POST',
+        headers: this.getHeaders(true),
+        body: JSON.stringify({
+          repoId,
+          sessionId,
+          message: payloadMessage
+        })
+      })
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Trim history up to and including a message ID
+   */
+  async trimChatHistory(repoId: string, sessionId: string, messageId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/history/trim`, {
+        method: 'POST',
+        headers: this.getHeaders(true),
+        body: JSON.stringify({
+          repoId,
+          sessionId,
+          messageId
+        })
+      })
       return response.ok
     } catch {
       return false
@@ -807,6 +1034,121 @@ export class BuilderClient {
     return response.body
   }
 
+  async listLatestPublishedResources(params?: {
+    prefix?: string
+    search?: string
+    limit?: number
+    offset?: number
+  }): Promise<{ data: LatestPublishedResourceVersion[]; totalCount: number }> {
+    const query = new URLSearchParams()
+    if (params?.prefix) query.set('prefix', params.prefix)
+    if (params?.search) query.set('search', params.search)
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit))
+    if (typeof params?.offset === 'number') query.set('offset', String(params.offset))
+
+    const url = query.toString()
+      ? `${this.baseUrl}/versions/published/latest?${query.toString()}`
+      : `${this.baseUrl}/versions/published/latest`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load latest published resources')
+    }
+
+    return {
+      data: Array.isArray(payload?.data) ? payload.data : [],
+      totalCount: Number(payload?.totalCount ?? payload?.paging?.totalRecords ?? 0)
+    }
+  }
+
+  async getSessionUsageMetrics(params?: {
+    timeframe?: BuilderMetricsTimeframe
+    sessionIds?: string[]
+    limit?: number
+  }): Promise<SessionUsageMetricsResponse> {
+    const query = new URLSearchParams()
+    if (params?.timeframe) query.set('timeframe', params.timeframe)
+    if (Array.isArray(params?.sessionIds) && params.sessionIds.length > 0) {
+      query.set('sessionIds', params.sessionIds.join(','))
+    }
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit))
+
+    const url = query.toString()
+      ? `${this.baseUrl}/metrics/sessions?${query.toString()}`
+      : `${this.baseUrl}/metrics/sessions`
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load session usage metrics')
+    }
+
+    return {
+      generatedAt: typeof payload?.generatedAt === 'string' ? payload.generatedAt : new Date().toISOString(),
+      timeframe: (payload?.timeframe || params?.timeframe || 'last7d') as BuilderMetricsTimeframe,
+      sessions: Array.isArray(payload?.sessions) ? payload.sessions : []
+    }
+  }
+
+  async getServiceMetrics(timeframe: BuilderMetricsTimeframe = 'last7d'): Promise<BuilderServiceMetricsResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics?timeframe=${encodeURIComponent(timeframe)}`, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load AI Builder metrics')
+    }
+
+    return payload as BuilderServiceMetricsResponse
+  }
+
+  async getMetricsTimeseries(timeframe: BuilderMetricsTimeframe = 'last7d'): Promise<MetricsTimeseriesResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics/timeseries?timeframe=${encodeURIComponent(timeframe)}`, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load AI Builder timeseries metrics')
+    }
+    return payload as MetricsTimeseriesResponse
+  }
+
+  async getLlmPricingConfig(): Promise<LlmPricingConfigResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics/pricing`, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load LLM pricing configuration')
+    }
+    return payload as LlmPricingConfigResponse
+  }
+
+  async updateLlmPricingConfig(request: UpdateLlmPricingConfigRequest): Promise<LlmPricingConfigResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics/pricing`, {
+      method: 'PUT',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(request)
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to update LLM pricing configuration')
+    }
+    return payload as LlmPricingConfigResponse
+  }
+
   /**
    * Build preview bundle with SSE progress.
    */
@@ -1016,7 +1358,9 @@ export class BuilderClient {
     llmProvider: 'claude' | 'openai' = 'claude',
     customSystemPrompt?: string
   ): Promise<ReadableStream> {
-    const endpoint = useAgenticMode ? '/analyze/query-agentic' : '/analyze/query'
+    void useAgenticMode
+    void buildEnabled
+    void llmProvider
     const MAX_MESSAGES = 10
     const MAX_SINGLE_MESSAGE_CHARS = 3000
     const MAX_TOTAL_CHARS = 20000
@@ -1045,17 +1389,16 @@ export class BuilderClient {
       totalChars = nextTotal
     }
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch(`${this.baseUrl}/orchestration/turns/stream`, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: JSON.stringify({
+        intent: 'ui_mutate',
+        scope: 'ui_only',
         repoId,
-        query,
-        stream: true,
-        conversationHistory: boundedHistory,
-        buildEnabled,
         sessionId,
-        llmProvider,
+        prompt: query,
+        conversationHistory: boundedHistory,
         customSystemPrompt
       })
     })

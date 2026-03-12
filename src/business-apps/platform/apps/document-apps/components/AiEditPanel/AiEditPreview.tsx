@@ -8,6 +8,7 @@
 import React from 'react'
 import { Badge, useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
+import { sanitizeHtmlForExport } from '../../utils/exportUtils'
 import { Check, FileText, TextSelect } from 'lucide-react'
 
 export interface AiEditPreviewProps {
@@ -67,7 +68,10 @@ export const AiEditPreview: React.FC<AiEditPreviewProps> = ({
         className="gba:rounded-lg gba:border gba:border-border/50 gba:bg-card gba:p-3 gba:text-xs gba:max-h-[300px] gba:overflow-auto"
         data-testid="ai-edit-preview-content"
       >
-        <div className="gba:prose gba:prose-xs gba:max-w-none" dangerouslySetInnerHTML={{ __html: html }} />
+        <div
+          className="gba:prose gba:prose-xs gba:max-w-none"
+          dangerouslySetInnerHTML={{ __html: sanitizeHtmlForExport(html) }}
+        />
       </div>
     </div>
   )

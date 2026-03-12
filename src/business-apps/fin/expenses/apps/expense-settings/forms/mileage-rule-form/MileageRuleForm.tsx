@@ -31,7 +31,7 @@ import {
   FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
-import { PiPlus, PiTrash, PiWarning, PiDotsSixVertical } from 'react-icons/pi'
+import { PlusIcon, TrashIcon, WarningIcon, DotsSixVerticalIcon } from '@phosphor-icons/react'
 import { getMileageRulePeriodOptions } from '../../types/ExpenseEnums'
 import { DndContext, closestCenter, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
@@ -115,7 +115,7 @@ const SortableRow: React.FC<SortableRowProps> = ({ id, children }) => {
   return (
     <TableRow ref={setNodeRef} style={style} {...attributes}>
       <TableCell className="gba:w-10 gba:text-center gba:cursor-grab" {...listeners}>
-        <PiDotsSixVertical className="gba:text-gray-400 gba:text-lg" />
+        <DotsSixVerticalIcon className="gba:text-gray-400 gba:text-lg" />
       </TableCell>
       {children}
     </TableRow>
@@ -812,7 +812,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                 data-testid="mileage-rule-form-add-detail"
                 className="gba:flex gba:items-center gba:gap-2"
               >
-                <PiPlus className="gba:w-4 gba:h-4" />
+                <PlusIcon className="gba:w-4 gba:h-4" />
                 Add Detail
               </Button>
             </CardTitle>
@@ -863,7 +863,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                                 data-testid={`mileage-rule-form-detail-delete-${stableId}`}
                                 className="gba:text-red-600 hover:gba:text-red-800"
                               >
-                                <PiTrash className="gba:w-4 gba:h-4" />
+                                <TrashIcon className="gba:w-4 gba:h-4" />
                               </Button>
                             </TableCell>
                             <TableCell>
@@ -957,7 +957,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                   {activeId ? (
                     <TableRow className="gba:bg-muted gba:opacity-80">
                       <TableCell className="gba:w-10 gba:text-center">
-                        <PiDotsSixVertical className="gba:text-gray-400 gba:text-lg" />
+                        <DotsSixVerticalIcon className="gba:text-gray-400 gba:text-lg" />
                       </TableCell>
                       <TableCell></TableCell>
                       <TableCell>Dragging...</TableCell>
@@ -976,7 +976,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
         {/* Validation Errors */}
         {validationErrors.length > 0 && (
           <Alert variant="destructive">
-            <PiWarning className="gba:w-4 gba:h-4" />
+            <WarningIcon className="gba:w-4 gba:h-4" />
             <AlertDescription>
               <strong>Please fix the following issues:</strong>
               <ul className="gba:list-disc gba:list-inside gba:mt-2">

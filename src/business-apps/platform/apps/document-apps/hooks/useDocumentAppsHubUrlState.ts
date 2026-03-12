@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
-type HubView = 'list' | 'upload' | 'editor' | 'templates'
+type HubView = 'list' | 'upload' | 'upload-pdf' | 'upload-odf' | 'editor' | 'templates'
 type SidebarSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'archived'
 
 export interface UseDocumentAppsHubUrlStateParams {
@@ -43,6 +43,9 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
+  // Capture initial URL params at render time before any effects can clear them
+  const initialDocIdRef = useRef(getUrlParams().docId)
+  const initialViewRef = useRef(getUrlParams().view)
   // Track URL search params to detect changes
   const [urlSearch, setUrlSearch] = useState(window.location.search)
 
@@ -96,17 +99,25 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
   }, [urlSearch])
 
   // Load document from URL on mount or when URL changes.
+  // Uses initialDocIdRef as fallback since parent effects may clear URL params
+  // before this effect runs (race condition with section-sync effect).
   useEffect(() => {
-    const { docId, view } = getUrlParams()
+    const urlParams = getUrlParams()
+    const docId = urlParams.docId || initialDocIdRef.current
+    const view = urlParams.view || initialViewRef.current
     if (!docId) return
-    // Only skip if we're already viewing the requested document
     if (currentDocumentId === docId) return
     if (isLoadingDocument) return
     if (loadAttemptedRef.current === docId) return
 
     loadAttemptedRef.current = docId
+    initialDocIdRef.current = null
+    initialViewRef.current = null
     loadDocumentById(docId).then(doc => {
-      if (!doc) return
+      if (!doc) {
+        loadAttemptedRef.current = null
+        return
+      }
       setSelectedDocumentId(docId)
       setCurrentView(view === 'editor' ? 'editor' : 'editor')
     })
@@ -117,10 +128,10 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
     const referrer = document.referrer
     const urlParams = new URLSearchParams(window.location.search)
     cameFromDeskRef.current =
-      referrer.includes('/platform/apps/desk') ||
       referrer.includes('/platform/every-office') ||
       referrer.includes('?app=platform/apps/desk') ||
       referrer.includes('?app=platform/apps/every-office') ||
+      referrer.includes('?app=core/office/apps/office-launcher') ||
       urlParams.get('from') === 'desk'
 
     if (cameFromDeskRef.current && currentView === 'list') {
@@ -146,7 +157,7 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
           const spaceReturnUrl = sessionStorage.getItem('space_return_url')
           if (spaceReturnUrl) {
             sessionStorage.removeItem('space_return_url')
-            window.location.href = spaceReturnUrl
+            navigateTo(spaceReturnUrl)
             return
           }
         } catch (e) {
@@ -158,11 +169,8 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
         const urlParams = new URLSearchParams(window.location.search)
         const spaceId = urlParams.get('spaceId')
         if (spaceId) {
-          const isProduction = process.env.NODE_ENV === 'production'
-          const spaceUrl = isProduction
-            ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
-            : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
-          window.location.href = spaceUrl
+          const spaceUrl = `/platform/every-office/spaces?spaceId=${encodeURIComponent(spaceId)}`
+          navigateTo(spaceUrl)
           return
         }
       }

@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { PiX } from 'react-icons/pi'
+import { XIcon } from '@phosphor-icons/react'
 import { User } from 'lucide-react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { ContactTypeLabels } from '@/common/data/relations/constants/contactConstants'
@@ -207,7 +207,7 @@ const ContactItem: React.FC<{
         aria-label={`Remove ${contactData.name}`}
         disabled={disabled}
       >
-        <PiX className="gba:w-4 gba:h-4" />
+        <XIcon className="gba:w-4 gba:h-4" />
       </Button>
     </div>
   )

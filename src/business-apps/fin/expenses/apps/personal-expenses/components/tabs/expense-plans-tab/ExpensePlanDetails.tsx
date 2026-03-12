@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { Separator, Button, Badge } from '@newwork/nw-design-system'
 import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PiArrowRight } from 'react-icons/pi'
+import { ArrowRightIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -159,7 +159,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
               }}
               data-testid="view-expense-plan-details-button"
             >
-              <PiArrowRight className="gba:mr-2" />
+              <ArrowRightIcon className="gba:mr-2" />
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.plan_details.view_full_details',
                 'View Full Details'

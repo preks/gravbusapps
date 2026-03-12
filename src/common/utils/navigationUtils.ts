@@ -93,35 +93,37 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/chat': 'platform/apps/chat', // Chat application
   '/platform/every-ai': 'platform/apps/every-ai',
   '/platform/debugger': 'platform/apps/debugger',
-  '/platform/every-office': 'platform/apps/every-office',
-  '/platform/spaces': 'platform/apps/spaces',
-  '/platform/apps/desk': 'platform/apps/desk',
-  '/platform/apps/document-apps': 'platform/apps/document-apps',
-  '/platform/apps/note-apps': 'platform/apps/note-apps',
-  '/platform/apps/spreadsheet-apps': 'platform/apps/spreadsheet-apps',
+  '/platform/every-office': 'core/office/apps/office-launcher',
+  '/platform/every-office/settings': 'core/office/apps/office-settings',
+  '/platform/every-office/nexus': 'core/office/apps/office-canvas',
+  '/platform/every-office/documents': 'core/office/apps/documents',
+  '/platform/every-office/drive': 'core/office/apps/drive',
+  '/platform/every-office/emails': 'core/office/apps/emails',
+  '/platform/mail/oauth/callback': 'core/office/apps/emails',
+  '/platform/every-office/notes': 'core/office/apps/notes',
+  '/platform/every-office/slides': 'core/office/apps/slides',
+  '/platform/every-office/spaces': 'core/office/apps/spaces',
+  '/platform/every-office/spreadsheets': 'core/office/apps/spreadsheets',
   '/platform/apps/board-apps': 'platform/apps/board-apps',
-  '/platform/slides': 'platform/apps/slide-apps',
-  '/platform/nexus': 'platform/apps/nexus',
-
-  // Email
-  '/platform/apps/email-apps': 'platform/apps/email-apps',
-  '/platform/mail': 'platform/apps/email-apps',
-  '/platform/mail/oauth/callback': 'platform/apps/email-apps',
-  '/platform/mail/settings': 'platform/apps/email-provider-settings',
+  '/platform/apps/agent-mesh': 'platform/apps/agent-mesh',
 
   // Canonical URLs for content apps (production-ready)
-  '/platform/documents': 'platform/apps/document-apps',
-  '/platform/notes': 'platform/apps/note-apps',
-  '/platform/spreadsheets': 'platform/apps/spreadsheet-apps',
   '/platform/boards': 'platform/apps/board-apps',
 
   // Create
   '/platform/create': 'core/create/apps/create-workspace',
+  '/platform/create/connect': 'core/create/apps/newwork-connect',
   '/platform/create/function-manager': 'core/create/apps/function-manager',
   '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
-  '/platform/create/ai-builder': 'core/create/apps/ai-builder',
-  '/platform/create/ai-orchestrator': 'core/create/apps/ai-orchestrator',
+  '/platform/create/screen-builder': 'core/create/apps/ai-builder',
+  '/platform/create/ai-builder': 'core/create/apps/ai-orchestrator',
+  '/platform/create/ai-builder-admin': 'core/create/apps/ai-builder-admin',
+  '/platform/create/ai-orchestrator-admin': 'core/create/apps/ai-builder-admin',
+  '/platform/create/ai-builder-metrics': 'core/create/apps/ai-builder-metrics-dashboard',
+  '/platform/create/apps/ai-builder-metrics': 'core/create/apps/ai-builder-metrics-dashboard',
   '/platform/create/resource-preview-demo': 'core/create/apps/resource-preview-demo',
+  '/platform/create/debug/generated-resource-urls': 'core/create/debug/apps/generated-resource-urls-debug',
+  '/platform/create/debug/apps/generated-resource-urls': 'core/create/debug/apps/generated-resource-urls-debug',
 
   // Flow
   '/platform/apps/flow/apps/creator': 'flow/apps/creator',
@@ -131,9 +133,6 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/crm/lead-list': 'crm/common/apps/lead-list',
   '/platform/irm/liquid-portfolio-record': 'crm/investments/apps/liquid-portfolio-record'
 }
-
-/** Canonical platform path for Every Office (Desk hub). Use with navigateTo(). */
-export const EVERY_OFFICE_PLATFORM_PATH = '/platform/every-office'
 
 /**
  * Checks if a URL is a platform URL that should be mapped to app query parameters
@@ -277,6 +276,23 @@ export const navigateTo = (url: string, options?: NavigateOptions): void => {
 }
 
 /**
+ * Opens a platform URL in a new browser tab.
+ * Handles dev/prod URL conversion the same way navigateTo does.
+ */
+export const openInNewTab = (url: string): void => {
+  if (typeof window === 'undefined') return
+  const isProduction = process.env.NODE_ENV === 'production'
+  if (isProduction) {
+    window.open(url, '_blank')
+  } else if (isPlatformUrl(url)) {
+    const queryParams = convertToDevQueryParams(url)
+    window.open(`${window.location.origin}${queryParams}`, '_blank')
+  } else {
+    window.open(url, '_blank')
+  }
+}
+
+/**
  * Helper function to build platform URLs with parameters
  */
 export const buildPlatformUrl = (basePath: string, params?: Record<string, string>): string => {
@@ -289,21 +305,18 @@ export const buildPlatformUrl = (basePath: string, params?: Record<string, strin
 }
 
 /**
- * Get canonical URL for content apps (for sharing notifications, etc.)
- * Always returns production-style URLs regardless of environment
+ * Returns current pathname + search with the given params applied (set or deleted).
+ * Use when already on the target page (e.g. chat) and only search params should change (e.g. view=calendar&meetingId=xxx).
+ * Pass null/undefined to remove a param. Preserves all other current search params.
  */
-export const getCanonicalContentUrl = (
-  type: 'document' | 'spreadsheet' | 'note' | 'slide' | 'email',
-  params?: Record<string, string>
-): string => {
-  const baseUrls = {
-    document: '/platform/documents',
-    spreadsheet: '/platform/spreadsheets',
-    note: '/platform/notes',
-    slide: '/platform/slides',
-    email: '/platform/mail'
+export const getCurrentUrlWithUpdatedSearchParams = (updates: Record<string, string | null | undefined>): string => {
+  if (globalThis.window === undefined) return ''
+  const params = new URLSearchParams(globalThis.window.location.search)
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === null || value === undefined) params.delete(key)
+    else params.set(key, value)
   }
-
-  const basePath = baseUrls[type]
-  return buildPlatformUrl(basePath, params)
+  const query = params.toString()
+  const suffix = query ? '?' + query : ''
+  return globalThis.window.location.pathname + suffix
 }

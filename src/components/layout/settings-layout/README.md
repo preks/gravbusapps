@@ -10,20 +10,19 @@ A reusable settings layout component built with `@newwork/nw-design-system` for 
 - **⚡ TypeScript Support**: Full type safety and IntelliSense
 - **🎯 Accessibility**: Proper test IDs and keyboard navigation
 - **🔗 Navigation**: Integrated with platform navigation utilities
-- **🎨 Phosphor Icons**: Uses phosphor icons from `react-icons/pi` for consistency
+- **🎨 Phosphor Icons**: Uses `@phosphor-icons/react` for consistency
 
 ## Usage
 
 ```tsx
 import { SettingsLayout } from '@/components/layout/settings-layout'
-import { PiGear, PiFlow } from 'react-icons/pi'
-
+import { GearIcon, FlowIcon } from '@phosphor-icons/react'
 const MySettingsPage = () => {
   const cards = [
     {
       title: 'Pipeline Data',
       description: 'Manage pipelines and sales processes',
-      icon: PiFlow,
+      icon: FlowIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -42,7 +41,7 @@ const MySettingsPage = () => {
   return (
     <SettingsLayout
       headerPhosphorIcon={{
-        icon: PiGear,
+        icon: GearIcon,
         variant: 'default',
         size: 'lg',
         label: 'My Settings'
@@ -73,7 +72,7 @@ const MySettingsPage = () => {
 
 | Prop      | Type            | Required | Description                                                                                            |
 | --------- | --------------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| `icon`    | `ComponentType` | ✅       | Phosphor icon component (e.g., `PiGear`)                                                               |
+| `icon`    | `ComponentType` | ✅       | Phosphor icon component (e.g., `GearIcon`)                                                               |
 | `variant` | `string`        | ❌       | Icon variant ('default', 'secondary', 'success', 'warning', 'info', 'employee', 'strategy', 'premium') |
 | `size`    | `string`        | ❌       | Icon size ('sm', 'md', 'lg', 'xl')                                                                     |
 | `label`   | `string`        | ❌       | Accessible label for the icon                                                                          |
@@ -84,7 +83,7 @@ const MySettingsPage = () => {
 | ------------- | --------------------- | -------- | ---------------------------------- |
 | `title`       | `string`              | ✅       | Card title                         |
 | `description` | `string`              | ❌       | Card description                   |
-| `icon`        | `ComponentType`       | ❌       | Icon component (e.g., `PiGear`)    |
+| `icon`        | `ComponentType`       | ❌       | Icon component (e.g., `GearIcon`)    |
 | `iconSize`    | `string`              | ❌       | Icon size ('sm', 'md', 'lg', 'xl') |
 | `entries`     | `SettingsCardEntry[]` | ❌       | Array of clickable entries         |
 
@@ -135,14 +134,14 @@ Test IDs are automatically generated with the format:
 ### Basic Settings Page
 
 ```tsx
-<SettingsLayout headerIcon={<PiUsers />} headerLabel="HR Settings" cards={hrSettingsCards} />
+<SettingsLayout headerIcon={<UsersIcon />} headerLabel="HR Settings" cards={hrSettingsCards} />
 ```
 
 ### With Custom Search
 
 ```tsx
 <SettingsLayout
-  headerIcon={<PiTrendUp />}
+  headerIcon={<TrendUpIcon />}
   headerLabel="Investment Settings"
   cards={investmentCards}
   searchPlaceholder="Search investment settings..."
@@ -153,7 +152,7 @@ Test IDs are automatically generated with the format:
 
 ```tsx
 <SettingsLayout
-  headerIcon={<PiUsersThree />}
+  headerIcon={<UsersThreeIcon />}
   headerLabel="Customer Settings"
   cards={customerCards}
   prefixDataTestId="CustomerSettings"

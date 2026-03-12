@@ -84,10 +84,10 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   const { fetchCustomerLeads } = useCustomerLeads(context)
   const leadStatistics = useCustomerLeadStatistics(context)
 
-  // Statistics - Hook already returns the correct format
-  const leadStatisticsData = leadStatistics
-
-  // Config
+  // Config — leadStatistics is intentionally excluded so that statistics state
+  // updates (isLoading, recentLeads, etc.) do not recreate config, which would
+  // cascade into new queryVariables/loadData references and re-fire GetLeads.
+  // leadStatistics is passed as a separate prop to LeadLayout instead.
   const config: LeadViewConfig<CustomerLead, CustomerLeadQueryVariables> = useMemo(
     () => ({
       fetchLeads: fetchCustomerLeads,
@@ -132,7 +132,6 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         createContext: FlowContextName.customerLeadCreate
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/crm/lead-record', { leadId: id }),
-      leadStatistics: leadStatisticsData,
       rowActionsContextArray: [FlowContextName.customerLeadEntity],
       buildRowActionsExternalContextData: (row: { original: CustomerLead }) => ({
         leadId: row.original.id
@@ -148,10 +147,12 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         addLead: { key: 'crm:lead.addLead', default: 'Add Lead' }
       }
     }),
-    [fetchCustomerLeads, leadStatisticsData, accessToken]
+    [fetchCustomerLeads, accessToken]
   )
 
-  return <LeadLayout context={context} config={config} dataTestId="customer-lead-view" />
+  return (
+    <LeadLayout context={context} config={config} leadStatistics={leadStatistics} dataTestId="customer-lead-view" />
+  )
 }
 
 export default LeadView

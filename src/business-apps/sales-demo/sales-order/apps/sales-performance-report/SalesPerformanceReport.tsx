@@ -1,7 +1,7 @@
 import React, { useEffect, useState, ReactNode } from 'react'
 import { Alert } from 'antd'
 import { Tabs } from '@newwork/gravity-ui-catalog'
-import { PiChartLineUp, PiGauge, PiFunnel, PiTruck } from 'react-icons/pi'
+import { ChartLineUpIcon, GaugeIcon, FunnelIcon, TruckIcon } from '@phosphor-icons/react'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -47,7 +47,7 @@ const SalesPerformanceReport: React.FC<SalesPerformanceReportProps> = props => {
       key: 'overview',
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiGauge style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <GaugeIcon style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Sales Performance Overview</span>
         </div>
       ),
@@ -58,7 +58,7 @@ const SalesPerformanceReport: React.FC<SalesPerformanceReportProps> = props => {
       key: 'pipeline',
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiFunnel style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <FunnelIcon style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Sales Order Pipeline</span>
         </div>
       ),
@@ -69,7 +69,7 @@ const SalesPerformanceReport: React.FC<SalesPerformanceReportProps> = props => {
       key: 'fulfillment',
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiTruck style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <TruckIcon style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Fulfillment & Delivery Report</span>
         </div>
       ),
@@ -104,7 +104,7 @@ const SalesPerformanceReport: React.FC<SalesPerformanceReportProps> = props => {
 
   return (
     <PageLayout
-      headerIcon={<PiChartLineUp color="#376399" />}
+      headerIcon={<ChartLineUpIcon color="#376399" />}
       headerLabel="Sales Performance Report"
       pageController={
         <Tabs
