@@ -74,24 +74,23 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
       case ReportType.EXPENSE_ITEM:
         return [
           { id: 'CREATED', label: t('status-draft') },
+          { id: 'ASSIGNED', label: t('status-assigned') },
           { id: 'PENDING', label: t('status-in-approval') },
           { id: 'APPROVED', label: t('status-verification-required') },
+          { id: 'REJECTED', label: t('status-revision-required') },
           { id: 'VERIFIED', label: t('status-booking-required') },
           { id: 'BOOKED', label: t('status-booked') },
           { id: 'TRANSFERRED', label: t('status-transferred') },
           { id: 'PAID', label: t('status-paid') },
-          { id: 'CLOSED', label: t('status-closed') }
+          { id: 'DISCARDED', label: t('status-discarded') }
         ]
       case ReportType.EXPENSE_PLAN:
         return [
           { id: 'CREATED', label: t('status-draft') },
+          { id: 'ASSIGNED', label: t('status-assigned') },
           { id: 'PENDING', label: t('status-in-approval') },
+          { id: 'APPROVED', label: t('status-approved') },
           { id: 'REJECTED', label: t('status-revision-required') },
-          { id: 'APPROVED', label: t('status-verification-required') },
-          { id: 'VERIFIED', label: t('status-booking-required') },
-          { id: 'BOOKED', label: t('status-booked') },
-          { id: 'TRANSFERRED', label: t('status-transferred') },
-          { id: 'PAID', label: t('status-paid') },
           { id: 'CLOSED', label: t('status-closed') },
           { id: 'DISCARDED', label: t('status-discarded') }
         ]
@@ -99,8 +98,8 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
         return [
           { id: 'CREATED', label: t('status-draft') },
           { id: 'PENDING', label: t('status-in-approval') },
-          { id: 'REJECTED', label: t('status-revision-required') },
           { id: 'APPROVED', label: t('status-verification-required') },
+          { id: 'REJECTED', label: t('status-revision-required') },
           { id: 'VERIFIED', label: t('status-booking-required') },
           { id: 'BOOKED', label: t('status-booked') },
           { id: 'TRANSFERRED', label: t('status-transferred') },
@@ -109,11 +108,12 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
         ]
       case ReportType.ADVANCE_PAYMENT:
         return [
+          { id: 'CREATED', label: t('status-draft') },
           { id: 'PREPARED', label: t('status-prepared') },
           { id: 'PENDING', label: t('status-in-approval') },
-          { id: 'REJECTED', label: t('status-revision-required') },
-          { id: 'RETURNED', label: t('status-returned') },
           { id: 'APPROVED', label: t('status-approved') },
+          { id: 'RETURNED', label: t('status-returned') },
+          { id: 'REJECTED', label: t('status-revision-required') },
           { id: 'VERIFIED', label: t('status-booking-required') },
           { id: 'BOOKED', label: t('status-booked') },
           { id: 'TRANSFERRED', label: t('status-payment-required') },

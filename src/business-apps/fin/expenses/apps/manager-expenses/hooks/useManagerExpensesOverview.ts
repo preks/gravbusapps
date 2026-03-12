@@ -200,21 +200,30 @@ function buildRequestTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
   return { _or: typeOr } as unknown as GqlBoolExp
 }
 
-function buildStatusWhere(statuses?: string[]): GqlBoolExp {
+const REQUEST_DEFAULT_EXCLUDED = ['CREATED', 'DISCARDED']
+const PAYMENT_DEFAULT_EXCLUDED = ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED']
+
+function buildEntityStatusWhere(statuses: string[] | undefined, defaultExcluded: string[]): GqlBoolExp {
   if (Array.isArray(statuses) && statuses.length > 0) {
     return { status: { _in: statuses } } as unknown as GqlBoolExp
   }
-  // Exclude CREATED status by default when no specific filter is provided
-  return { status: { _neq: 'CREATED' } } as unknown as GqlBoolExp
+  return { status: { _nin: defaultExcluded } } as unknown as GqlBoolExp
 }
 
-/** Build plan status filter. When exclude is provided (e.g. PLAN_TAB_HIDDEN_STATUSES), uses it; otherwise excludes only CREATED. */
+function buildRequestStatusWhere(statuses?: string[]): GqlBoolExp {
+  return buildEntityStatusWhere(statuses, REQUEST_DEFAULT_EXCLUDED)
+}
+
+function buildPaymentStatusWhere(statuses?: string[]): GqlBoolExp {
+  return buildEntityStatusWhere(statuses, PAYMENT_DEFAULT_EXCLUDED)
+}
+
+/** Build plan status filter. Excludes statuses by default, but honors explicit user selections. */
 function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]): GqlBoolExp {
   const excluded: readonly string[] = Array.isArray(exclude) && exclude.length > 0 ? exclude : ['CREATED']
   const selected = Array.isArray(statuses) ? statuses.filter(Boolean) : []
-  const allowed = selected.filter(s => !excluded.includes(s))
-  if (allowed.length > 0) {
-    return { status: { _in: allowed } } as unknown as GqlBoolExp
+  if (selected.length > 0) {
+    return { status: { _in: selected } } as unknown as GqlBoolExp
   }
   return { status: { _nin: excluded } } as unknown as GqlBoolExp
 }
@@ -290,9 +299,9 @@ function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Recor
     payCurrencyWhere,
     planDateWhere: buildPlanDateWhereClause(params),
     reqDateWhere: buildRequestDateWhereClause(params),
-    reqStatusWhere: buildStatusWhere(params.requestsStatus),
+    reqStatusWhere: buildRequestStatusWhere(params.requestsStatus),
     planStatusWhere: buildPlanStatusWhere(params.plansStatus, params.plansStatusExclude),
-    payStatusWhere: buildStatusWhere(params.paymentsStatus)
+    payStatusWhere: buildPaymentStatusWhere(params.paymentsStatus)
   }
 }
 

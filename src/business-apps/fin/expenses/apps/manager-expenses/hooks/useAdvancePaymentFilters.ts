@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataFilter'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../utils'
+import { getAdvancePaymentStatusDisplay } from '../utils'
+import { advancePaymentFilterStatuses } from './availableFilterStatuses'
 import { useCurrencyStore } from '../store/useCurrencyStore'
 import { useAdvancePaymentCurrencies } from './useAdvancePaymentCurrencies'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -34,8 +35,7 @@ export const useAdvancePaymentFilters = ({
   managerId
 }: UseAdvancePaymentFiltersProps = {}): UseAdvancePaymentFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('')
-  // No default filter - show all advance payments initially
-  const [statusFilter, setStatusFilter] = useState<string[] | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string[] | null>(['PENDING'])
   // Local primary currency for advance payments (independent from global store)
   const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string>('')
   const [userHasSelectedCurrency, setUserHasSelectedCurrency] = useState(false)
@@ -143,21 +143,7 @@ export const useAdvancePaymentFilters = ({
     ]
   )
 
-  // Define the statuses that should be used for filtering with the correct mappings
-  // Include all relevant statuses from the ExpenseStatus enum to match backend values
-  const availableFilterStatuses: ExpenseStatus[] = [
-    ExpenseStatus.PREPARED,
-    ExpenseStatus.ASSIGNED,
-    ExpenseStatus.PENDING,
-    ExpenseStatus.APPROVED,
-    ExpenseStatus.REJECTED,
-    ExpenseStatus.VERIFIED,
-    ExpenseStatus.BOOKED,
-    ExpenseStatus.PAID,
-    ExpenseStatus.CLOSED,
-    ExpenseStatus.DISCARDED,
-    ExpenseStatus.TRANSFERRED
-  ]
+  const availableFilterStatuses = advancePaymentFilterStatuses
 
   // Helper function to format status display name with brackets (matching personal expenses pattern)
   const getStatusDisplayName = useCallback((status: string): string => {

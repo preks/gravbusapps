@@ -7,7 +7,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpenseRequestCurrencies } from './useExpenseRequestCurrencies'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { createDateRangeFilterComponent } from './dateRangeFilterComponent'
-import { availableFilterStatuses } from './availableFilterStatuses'
+import { requestFilterStatuses } from './availableFilterStatuses'
 
 export interface UseExpenseRequestFiltersProps {
   accessToken?: string
@@ -59,7 +59,7 @@ export const useExpenseRequestFilters = ({
   onCurrencyChange
 }: UseExpenseRequestFiltersProps = {}): UseExpenseRequestFiltersReturn => {
   const [search, setSearch] = useState<string>('')
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([])
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(['PENDING'])
   // Date range filters
   const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null)
   const [requestDateRange, setRequestDateRange] = useState<[Date | null, Date | null] | null>(null)
@@ -271,7 +271,7 @@ export const useExpenseRequestFilters = ({
   // Build filter label map with date ranges and request type
   const filterLabelMapWithDates = useMemo(() => {
     const map: Record<string, string> = {}
-    for (const status of availableFilterStatuses) {
+    for (const status of requestFilterStatuses) {
       map[status] = getStatusDisplayName(status)
     }
     // Add request type labels
@@ -298,7 +298,7 @@ export const useExpenseRequestFilters = ({
     addDateRangeLabel(map, endDateRange, 'endDateRange', 'lowcoder:personal_expenses.end_date', 'End Date')
     return map
   }, [
-    availableFilterStatuses,
+    requestFilterStatuses,
     effectiveDateRange,
     requestDateRange,
     startDateRange,
@@ -309,7 +309,7 @@ export const useExpenseRequestFilters = ({
 
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
     // Status filters
-    const statusItems: DataFilter[] = availableFilterStatuses.map(status => ({
+    const statusItems: DataFilter[] = requestFilterStatuses.map(status => ({
       id: status,
       label: filterLabelMapWithDates[status],
       selected: selectedFilters.includes(status)
@@ -390,7 +390,7 @@ export const useExpenseRequestFilters = ({
       }
     ]
   }, [
-    availableFilterStatuses,
+    requestFilterStatuses,
     filterLabelMapWithDates,
     selectedFilters,
     availableCurrencies,

@@ -67,6 +67,10 @@ const setParamIfChanged = (url: URL, key: string, value: string | null): boolean
 
 const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
   const { t } = useTranslation(translations)
+  const [translationsReady, setTranslationsReady] = useState(false)
+  useEffect(() => {
+    setTranslationsReady(true)
+  }, [])
   const hostTabParam = typeof props.additionalData?.tab === 'string' ? props.additionalData.tab : undefined
   const contextTab = isValidBackofficeTab(hostTabParam) ? hostTabParam : null
   const viewOptions = [
@@ -246,7 +250,7 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
   }
 
   // Keep hook order stable; gate rendering only after hooks are declared.
-  if (!hasValidAccessToken) {
+  if (!hasValidAccessToken || !translationsReady) {
     return null
   }
 
