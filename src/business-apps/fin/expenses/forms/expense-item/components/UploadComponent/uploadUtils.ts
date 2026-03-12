@@ -29,6 +29,19 @@ export function getFilePreviewKind(file: File): FilePreviewKind {
   return 'other'
 }
 
+let uploadItemIdCounter = 0
+
+/**
+ * Generates a unique id for upload list items. Uses crypto.randomUUID when available.
+ */
+function generateUploadItemUid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  uploadItemIdCounter += 1
+  return `upload-${Date.now()}-${uploadItemIdCounter}`
+}
+
 /**
  * Builds an antd Upload file list item from a File.
  */
@@ -37,7 +50,7 @@ export function createUploadFileItem(
   uid?: string
 ): { uid: string; name: string; status: string; originFileObj: File } {
   return {
-    uid: uid ?? `${Date.now()}${Math.random().toString(36).substring(2, 9)}`,
+    uid: uid ?? generateUploadItemUid(),
     name: file.name,
     status: 'done',
     originFileObj: file
