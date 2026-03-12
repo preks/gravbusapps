@@ -140,6 +140,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
         {/* Account Layout */}
         <AccountLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
+          accountContacts={account?.accountContacts}
           ownerEmployee={account?.ownerEmployee}
           entityId={account?.id || accountId}
           annualRevenueCatalogIdentifier={ANNUAL_REVENUE}

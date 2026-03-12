@@ -209,25 +209,77 @@ export const DocumentApiService = {
     sortBy?: 'createdAt' | 'updatedAt' | 'title'
     sortOrder?: 'ASC' | 'DESC'
   }): Promise<PaginatedResponse<DocumentSummary>> {
-    const params = new URLSearchParams()
-    if (options?.section) params.set('section', options.section)
-    if (options?.favoriteIds) params.set('favoriteIds', options.favoriteIds)
-    if (options?.status) params.set('status', options.status)
-    if (options?.category) params.set('category', options.category)
-    if (options?.tags?.length) params.set('tags', options.tags.join(','))
-    if (options?.search) params.set('search', options.search)
-    if (options?.page) params.set('page', options.page.toString())
-    if (options?.limit) params.set('limit', options.limit.toString())
-    if (options?.sortBy) params.set('sortBy', options.sortBy)
-    if (options?.sortOrder) params.set('sortOrder', options.sortOrder)
-    if (!options?.section) {
-      params.set('includeShared', options?.includeShared !== false ? 'true' : 'false')
+    const requestedPage = options?.page ?? 1
+    const requestedLimit = options?.limit ?? 20
+
+    const buildParams = (useSection: boolean) => {
+      const params = new URLSearchParams()
+      const section = options?.section
+
+      if (useSection && section) {
+        params.set('section', section)
+      } else if (section) {
+        if (section === 'archived') params.set('status', 'archived')
+        else if (section === 'shared') params.set('includeShared', 'true')
+        else if (section === 'my-documents') params.set('includeShared', 'false')
+        else params.set('includeShared', options?.includeShared !== false ? 'true' : 'false')
+      } else {
+        params.set('includeShared', options?.includeShared !== false ? 'true' : 'false')
+      }
+
+      if (options?.favoriteIds) params.set('favoriteIds', options.favoriteIds)
+      if (options?.status && !(section === 'archived' && !useSection)) params.set('status', options.status)
+      if (options?.category) params.set('category', options.category)
+      if (options?.tags?.length) params.set('tags', options.tags.join(','))
+      if (options?.search) params.set('search', options.search)
+      if (options?.page) params.set('page', options.page.toString())
+      if (options?.limit) params.set('limit', options.limit.toString())
+      if (options?.sortBy) params.set('sortBy', options.sortBy)
+      if (options?.sortOrder) params.set('sortOrder', options.sortOrder)
+      return params
     }
 
-    const queryString = params.toString()
-    const endpoint = `/documents${queryString ? `?${queryString}` : ''}`
+    const fetchDocs = async (useSection: boolean, overrides?: { page?: number; limit?: number }) => {
+      const params = buildParams(useSection)
+      if (overrides?.page) params.set('page', overrides.page.toString())
+      if (overrides?.limit) params.set('limit', overrides.limit.toString())
+      const qs = params.toString()
+      return apiRequest<PaginatedResponse<Record<string, unknown>>>(`/documents${qs ? `?${qs}` : ''}`)
+    }
 
-    const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
+    let response: PaginatedResponse<Record<string, unknown>>
+    try {
+      response = await fetchDocs(true)
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('section should not exist')) {
+        if (options?.section === 'shared') {
+          const fallbackLimit = 100
+          const firstPage = await fetchDocs(false, { page: 1, limit: fallbackLimit })
+          const remainingPages = Array.from({ length: Math.max(firstPage.totalPages - 1, 0) }, (_, index) =>
+            fetchDocs(false, { page: index + 2, limit: fallbackLimit })
+          )
+          const allPages = [firstPage, ...(await Promise.all(remainingPages))]
+          const sharedItems = allPages
+            .flatMap(page => page.items)
+            .map(doc => mapApiDocToSummary(doc))
+            .filter(doc => doc.isShared || !!doc.sharedBy || (doc.permission && doc.permission !== 'owner'))
+          const startIndex = (requestedPage - 1) * requestedLimit
+          const pagedItems = sharedItems.slice(startIndex, startIndex + requestedLimit)
+
+          return {
+            items: pagedItems,
+            total: sharedItems.length,
+            page: requestedPage,
+            limit: requestedLimit,
+            totalPages: Math.max(1, Math.ceil(sharedItems.length / requestedLimit))
+          }
+        }
+
+        response = await fetchDocs(false)
+      } else {
+        throw err
+      }
+    }
 
     const items = response.items.map(doc => mapApiDocToSummary(doc))
 

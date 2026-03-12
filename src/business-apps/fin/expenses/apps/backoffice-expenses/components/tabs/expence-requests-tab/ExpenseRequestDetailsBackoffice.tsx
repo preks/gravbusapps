@@ -1,11 +1,21 @@
 import React from 'react'
-import { Separator, Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { Badge } from '@newwork/nw-design-system'
-import { getExpenseRequestStatusDisplay, formatCurrencyDisplay } from '../../../../personal-expenses/utils'
+import {
+  Separator,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  useTranslation,
+  Badge
+} from '@newwork/nw-design-system'
+import { getExpenseRequestStatusDisplay } from '../../../utils/utils'
+import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CalendarIcon, ClockIcon, PathIcon, ArrowRightIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import translations from '../../../_i18n'
 import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
 import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 
@@ -20,6 +30,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
   requestTypeLabel,
   ...contextProps
 }) => {
+  const { t } = useTranslation(translations)
   // Call hooks unconditionally before any early returns
   const { printExpenseRequest } = useCommonExpenseRequestFileService(contextProps)
 
@@ -71,7 +82,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
         </div>
         <div className="gba:flex gba:items-center gba:gap-3">
           {(() => {
-            const statusConfig = getExpenseRequestStatusDisplay(selectedItem.status)
+            const statusConfig = getExpenseRequestStatusDisplay(selectedItem.status, t)
             return (
               <Badge
                 variant={(statusConfig as any).badgeVariant || 'outline'}
@@ -91,8 +102,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
             <div className="gba:flex gba:items-center gba:space-x-2">
               <CalendarIcon weight="duotone" className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}:{' '}
-                {formatDate(selectedItem.startDate, 'date.short')} {' → '}
+                {t('detail-duration')}: {formatDate(selectedItem.startDate, 'date.short')} {' → '}
                 {formatDate(selectedItem.endDate, 'date.short')}
               </span>
             </div>
@@ -101,17 +111,14 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
           {selectedItem.requestDate &&
             renderDateInfoRow({
               icon: <ClockIcon className="gba:text-gray-500" />,
-              label: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:confirm_transfer_advance_payment.request_date_label',
-                'Request Date'
-              ),
+              label: t('detail-request-date'),
               value: formatDate(selectedItem.requestDate, 'date.short')
             })}
 
           {selectedItem.decisionDate &&
             renderDateInfoRow({
               icon: <PathIcon className="gba:text-gray-500" />,
-              label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date'),
+              label: t('detail-decision-date'),
               value: formatDate(selectedItem.decisionDate, 'date.short')
             })}
         </CardContent>
@@ -121,12 +128,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
       {selectedItem.description && (
         <Card>
           <CardHeader>
-            <CardTitle className="gba:text-base">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_overview.expense_history.expense_history_table.description',
-                'Description'
-              )}
-            </CardTitle>
+            <CardTitle className="gba:text-base">{t('detail-description')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="gba:text-sm gba:text-gray-700" data-testid="expense-request-description">
@@ -139,58 +141,32 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
       {/* Details Information */}
       <Card>
         <CardHeader>
-          <CardTitle className="gba:text-base">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-              'Request Details'
-            )}
-          </CardTitle>
+          <CardTitle className="gba:text-base">{t('detail-expense-request-details')}</CardTitle>
         </CardHeader>
         <CardContent className="gba:space-y-4">
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">
             {(selectedItem.employee || selectedItem.reporter) &&
               renderDetailRow(
-                getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester'),
+                t('detail-requester'),
                 selectedItem.employee?.fullName || selectedItem.employee || selectedItem.reporter
               )}
 
             {selectedItem.employee?.employeePosition?.supervisor &&
-              renderDetailRow(
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.profile_icon_list.manager_title',
-                  'Manager'
-                ),
-                selectedItem.employee.employeePosition.supervisor.fullName
-              )}
+              renderDetailRow(t('detail-manager'), selectedItem.employee.employeePosition.supervisor.fullName)}
 
             {(selectedItem.costCenter?.name || selectedItem.employee?.employeePosition?.costCenter?.name) &&
               renderDetailRow(
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-                  'Cost Center'
-                ),
+                t('detail-cost-center'),
                 selectedItem.costCenter?.name || selectedItem.employee?.employeePosition?.costCenter?.name
               )}
 
             {(selectedItem.project?.name || selectedItem.project) &&
-              renderDetailRow(
-                getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project'),
-                selectedItem.project?.name || selectedItem.project
-              )}
+              renderDetailRow(t('detail-project'), selectedItem.project?.name || selectedItem.project)}
+
+            {renderDetailRow(t('detail-request-type'), formatTypeLabel(requestTypeLabel))}
 
             {renderDetailRow(
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
-                'Request Type'
-              ),
-              formatTypeLabel(requestTypeLabel)
-            )}
-
-            {renderDetailRow(
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                'Total Amount'
-              ),
+              t('header-total-amount'),
               (() => {
                 const displayAmount = selectedItem.reimbursableAmount ?? selectedItem.amount
                 return typeof displayAmount === 'number'
@@ -212,10 +188,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
 
               return advanceAmount
                 ? renderDetailRow(
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:approve_expense_request.advance_payment',
-                      'Advance Payment'
-                    ),
+                    t('detail-advance-payment'),
                     formatCurrencyDisplay(advanceAmount, selectedItem.currency?.code),
                     true
                   )
@@ -247,10 +220,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
           data-testid="view-expense-request-details-button"
         >
           <ArrowRightIcon className="gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.plan_details.view_full_details',
-            'View Full Details'
-          )}
+          {t('detail-view-full-details')}
         </Button>
       </div>
     </div>

@@ -2,138 +2,205 @@ interface NavigationMapping {
   [key: string]: string
 }
 
-// Mapping of platform URLs to app paths for development mode
-const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
+export const NAVIGATION_BASE_PATH = '/platform'
+
+export const Navigation = {
   // CRM
-
-  /// Core: Apps
-  '/platform/crm/customer-launcher': 'crm/core/apps/customer-launcher',
-  '/platform/crm/customer-relations': 'crm/core/apps/customer-relations',
-  '/platform/crm/customer-settings': 'crm/core/apps/customer-settings',
-  '/platform/crm/data-import': 'crm/core/apps/data-import',
-
-  ///  Core: Records
-  '/platform/crm/account-record': 'crm/core/records/account-record',
-  '/platform/crm/contact-record': 'crm/core/records/contact-record',
-  '/platform/crm/lead-record': 'crm/core/records/lead-record',
-  '/platform/crm/opportunity-record': 'crm/core/records/opportunity-record',
-
-  /// Campaigns: Apps
-  '/platform/crm/campaign-management': 'crm/campaigns/apps/campaign-management', // Standalone Campaigns Module
-
-  /// Campaigns: Records
-  '/platform/crm/campaign-record': 'crm/campaigns/records/campaign-record', // Standalone Campaigns Module
-
-  /// Performance: Apps
-  '/platform/crm/team-performance': 'crm/performance/apps/sales-team-performance', // TODO: Naming
-
-  /// Performance: Records
-  '/platform/crm/team-member-record': 'crm/common/apps/customer-member-record', // TODO: Create and extract from team-performance
+  CRM_CUSTOMER_LAUNCHER: `${NAVIGATION_BASE_PATH}/crm/customer-launcher`,
+  CRM_CUSTOMER_RELATIONS: `${NAVIGATION_BASE_PATH}/crm/customer-relations`,
+  CRM_CUSTOMER_SETTINGS: `${NAVIGATION_BASE_PATH}/crm/customer-settings`,
+  CRM_CUSTOMER_DATA_IMPORT: `${NAVIGATION_BASE_PATH}/crm/data-import`,
+  CRM_CUSTOMER_ACCOUNT_RECORD: `${NAVIGATION_BASE_PATH}/crm/account-record`,
+  CRM_CUSTOMER_CONTACT_RECORD: `${NAVIGATION_BASE_PATH}/crm/contact-record`,
+  CRM_CUSTOMER_LEAD_RECORD: `${NAVIGATION_BASE_PATH}/crm/lead-record`,
+  CRM_CUSTOMER_OPPORTUNITY_RECORD: `${NAVIGATION_BASE_PATH}/crm/opportunity-record`,
+  CRM_CAMPAIGN_MANAGEMENT: `${NAVIGATION_BASE_PATH}/crm/campaign-management`,
+  CRM_CAMPAIGN_RECORD: `${NAVIGATION_BASE_PATH}/crm/campaign-record`,
+  CRM_PERFORMANCE_TEAM_PERFORMANCE: `${NAVIGATION_BASE_PATH}/crm/team-performance`,
+  CRM_PERFORMANCE_TEAM_MEMBER_RECORD: `${NAVIGATION_BASE_PATH}/crm/team-member-record`,
 
   // IRM
-  /// Core: Apps
-  '/platform/irm/investment-launcher': 'irm/core/apps/investment-launcher',
-  '/platform/irm/investment-relations': 'irm/core/apps/investment-relations',
-  '/platform/irm/investment-settings': 'irm/core/apps/investment-settings',
-  '/platform/irm/data-import': 'irm/core/apps/data-import',
-
-  /// Core: Records
-  '/platform/irm/account-record': 'irm/core/records/account-record',
-  '/platform/irm/contact-record': 'irm/core/records/contact-record',
-  '/platform/irm/lead-record': 'irm/core/records/lead-record',
-  '/platform/irm/opportunity-record': 'irm/core/records/opportunity-record',
-
-  /// Investments: Apps
-  '/platform/irm/investment-management': 'irm/investments/apps/investment-management',
-  '/platform/irm/investment-portal': 'irm/investments/apps/investment-portal',
-
-  /// Investments: Records
-  '/platform/irm/investment-record': 'irm/investments/records/investment-record',
+  IRM_INVESTMENT_LAUNCHER: `${NAVIGATION_BASE_PATH}/irm/investment-launcher`,
+  IRM_INVESTMENT_RELATIONS: `${NAVIGATION_BASE_PATH}/irm/investment-relations`,
+  IRM_INVESTMENT_SETTINGS: `${NAVIGATION_BASE_PATH}/irm/investment-settings`,
+  IRM_INVESTMENT_DATA_IMPORT: `${NAVIGATION_BASE_PATH}/irm/data-import`,
+  IRM_INVESTMENT_ACCOUNT_RECORD: `${NAVIGATION_BASE_PATH}/irm/account-record`,
+  IRM_INVESTMENT_CONTACT_RECORD: `${NAVIGATION_BASE_PATH}/irm/contact-record`,
+  IRM_INVESTMENT_LEAD_RECORD: `${NAVIGATION_BASE_PATH}/irm/lead-record`,
+  IRM_INVESTMENT_OPPORTUNITY_RECORD: `${NAVIGATION_BASE_PATH}/irm/opportunity-record`,
+  IRM_INVESTMENT_MANAGEMENT: `${NAVIGATION_BASE_PATH}/irm/investment-management`,
+  IRM_INVESTMENT_PORTAL: `${NAVIGATION_BASE_PATH}/irm/investment-portal`,
+  IRM_INVESTMENT_RECORD: `${NAVIGATION_BASE_PATH}/irm/investment-record`,
 
   // FIN
-  '/platform/fin/expenses/expense-plan-record': 'fin/expenses/apps/expense-plan-record',
-  '/platform/fin/expenses/expense-request-record': 'fin/expenses/apps/expense-request-record',
-  '/platform/fin/expenses/personal-expenses': 'fin/expenses/apps/personal-expenses',
-  '/platform/fin/expenses/unallocated-expense-items': 'fin/expenses/apps/unallocated-expense-items',
-  '/platform/fin/expenses/manager-expenses': 'fin/expenses/apps/manager-expenses',
-  '/platform/fin/expenses/backoffice-expenses': 'fin/expenses/apps/backoffice-expenses',
+  FIN_EXPENSES_EXPENSE_PLAN_RECORD: `${NAVIGATION_BASE_PATH}/fin/expenses/expense-plan-record`,
+  FIN_EXPENSES_EXPENSE_REQUEST_RECORD: `${NAVIGATION_BASE_PATH}/fin/expenses/expense-request-record`,
+  FIN_EXPENSES_PERSONAL_ROLE: `${NAVIGATION_BASE_PATH}/fin/expenses/personal-expenses`,
+  FIN_EXPENSES_UNALLOCATED_EXPENSE_ITEMS: `${NAVIGATION_BASE_PATH}/fin/expenses/unallocated-expense-items`,
+  FIN_EXPENSES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/fin/expenses/manager-expenses`,
+  FIN_EXPENSES_BACKOFFICE_ROLE: `${NAVIGATION_BASE_PATH}/fin/expenses/backoffice-expenses`,
 
   // HR
-  '/platform/employee-record': 'hr/core/apps/employee-record',
-  '/platform/hr/absences/manager-absences': 'hr/absences/apps/manager-absences',
-  '/platform/onboarding-employee': 'hr/core/apps/onboarding-employee',
+  HR_EMPLOYEE_RECORD: `${NAVIGATION_BASE_PATH}/employee-record`,
+  HR_ABSENCES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/absences/manager-absences`,
+  HR_RECRUITING_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-manager`,
+  HR_RECRUITING_PORTAL: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-portal`,
+  HR_RECRUITING_JOB_POSTING_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-posting-record`,
+  HR_RECRUITING_JOB_CANDIDATE_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-candidate-record`,
+  HR_RECRUITING_JOB_APPLICATION_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-application-record`,
 
-  /// Recruiting: Apps
-  '/platform/hr/recruiting/recruiting-manager': 'hr/recruiting/apps/recruiting-manager',
-  '/platform/hr/recruiting/recruiting-portal': 'hr/recruiting/apps/recruiting-portal',
+  // Service
+  SERVICE_DESK: `${NAVIGATION_BASE_PATH}/sales-demo/service-desk`,
+  SERVICE_LAUNCHER: `${NAVIGATION_BASE_PATH}/sales-demo/service-launcher`,
 
-  /// Recruiting: Records
-  '/platform/hr/recruiting/job-posting-record': 'hr/recruiting/records/job-posting-record',
-  '/platform/hr/recruiting/job-candidate-record': 'hr/recruiting/records/job-candidate-record',
-  '/platform/hr/recruiting/job-application-record': 'hr/recruiting/records/job-application-record',
+  // MDM
+  MDM_PIPELINE_DATA: `${NAVIGATION_BASE_PATH}/mdm/pipeline-data`,
+  MDM_LEAD_DATA: `${NAVIGATION_BASE_PATH}/mdm/lead-data`,
+  MDM_OPERATION_DATA: `${NAVIGATION_BASE_PATH}/mdm/operation-data`,
+  MDM_ENGAGEMENT_DATA: `${NAVIGATION_BASE_PATH}/mdm/engagement-data`,
+  MDM_COMPANY_RECORD: `${NAVIGATION_BASE_PATH}/mdm/company-record`,
 
-  '/platform/sales-demo/service-desk': 'ser/apps/service-desk',
-  '/platform/sales-demo/service-launcher': 'ser/apps/service-portal',
-  '/platform/mdm/pipeline-data': 'mdm/apps/pipeline-data',
-  '/platform/mdm/lead-data': 'mdm/apps/lead-data',
-  '/platform/mdm/operation-data': 'mdm/apps/operation-data',
-  '/platform/mdm/engagement-data': 'mdm/apps/engagement-data',
-
-  /// MDM: Records
-  '/platform/mdm/company-record': 'mdm/records/company-record',
-
-  // Platform
-  '/platform/every-box': 'core/every/apps/every-box',
-  '/platform/task-manager': 'core/every/apps/every-box',
-
-  // Core
-  '/platform/content/intranet': 'core/content/apps/content-portal',
-  '/platform/content/intranet/content-record': 'core/content/records/content-record',
+  // Content
+  CONTENT_PORTAL: `${NAVIGATION_BASE_PATH}/content/intranet`,
+  CONTENT_ENTRY_RECORD: `${NAVIGATION_BASE_PATH}/content/intranet/content-record`,
+  CONTENT_MANAGER: `${NAVIGATION_BASE_PATH}/content/manager`,
 
   // Platform
-  '/platform/chat': 'platform/apps/chat', // Chat application
-  '/platform/every-ai': 'platform/apps/every-ai',
-  '/platform/debugger': 'platform/apps/debugger',
-  '/platform/every-office': 'core/office/apps/office-launcher',
-  '/platform/every-office/settings': 'core/office/apps/office-settings',
-  '/platform/every-office/nexus': 'core/office/apps/office-canvas',
-  '/platform/every-office/documents': 'core/office/apps/documents',
-  '/platform/every-office/drive': 'core/office/apps/drive',
-  '/platform/every-office/emails': 'core/office/apps/emails',
-  '/platform/mail/oauth/callback': 'core/office/apps/emails',
-  '/platform/every-office/notes': 'core/office/apps/notes',
-  '/platform/every-office/slides': 'core/office/apps/slides',
-  '/platform/every-office/spaces': 'core/office/apps/spaces',
-  '/platform/every-office/spreadsheets': 'core/office/apps/spreadsheets',
-  '/platform/apps/board-apps': 'platform/apps/board-apps',
-  '/platform/apps/agent-mesh': 'platform/apps/agent-mesh',
+  PLATFORM_TASK_MANAGER: `${NAVIGATION_BASE_PATH}/task-manager`,
+  PLATFORM_TEAM_CHAT: `${NAVIGATION_BASE_PATH}/chat`,
+  PLATFORM_AI_CHAT: `${NAVIGATION_BASE_PATH}/every-ai`,
+  PLATFORM_DEBUGGER: `${NAVIGATION_BASE_PATH}/debugger`,
+  PLATFORM_BOARDS: `${NAVIGATION_BASE_PATH}/boards`,
 
-  // Canonical URLs for content apps (production-ready)
-  '/platform/boards': 'platform/apps/board-apps',
+  // Office
+  OFFICE: `${NAVIGATION_BASE_PATH}/every-office`,
+  OFFICE_SETTINGS: `${NAVIGATION_BASE_PATH}/every-office/settings`,
+  OFFICE_CANVAS: `${NAVIGATION_BASE_PATH}/every-office/nexus`,
+  OFFICE_DOCUMENTS: `${NAVIGATION_BASE_PATH}/every-office/documents`,
+  OFFICE_DRIVE: `${NAVIGATION_BASE_PATH}/every-office/drive`,
+  OFFICE_EMAILS: `${NAVIGATION_BASE_PATH}/every-office/emails`,
+  OFFICE_EMAILS_OAUTH_CALLBACK: `${NAVIGATION_BASE_PATH}/mail/oauth/callback`,
+  OFFICE_NOTES: `${NAVIGATION_BASE_PATH}/every-office/notes`,
+  OFFICE_SLIDES: `${NAVIGATION_BASE_PATH}/every-office/slides`,
+  OFFICE_SPACES: `${NAVIGATION_BASE_PATH}/every-office/spaces`,
+  OFFICE_SPREADSHEETS: `${NAVIGATION_BASE_PATH}/every-office/spreadsheets`,
 
   // Create
-  '/platform/create': 'core/create/apps/create-workspace',
-  '/platform/create/connect': 'core/create/apps/newwork-connect',
-  '/platform/create/function-manager': 'core/create/apps/function-manager',
-  '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
-  '/platform/create/screen-builder': 'core/create/apps/ai-builder',
-  '/platform/create/ai-builder': 'core/create/apps/ai-orchestrator',
-  '/platform/create/ai-builder-admin': 'core/create/apps/ai-builder-admin',
-  '/platform/create/ai-orchestrator-admin': 'core/create/apps/ai-builder-admin',
-  '/platform/create/ai-builder-metrics': 'core/create/apps/ai-builder-metrics-dashboard',
-  '/platform/create/apps/ai-builder-metrics': 'core/create/apps/ai-builder-metrics-dashboard',
-  '/platform/create/resource-preview-demo': 'core/create/apps/resource-preview-demo',
-  '/platform/create/debug/generated-resource-urls': 'core/create/debug/apps/generated-resource-urls-debug',
-  '/platform/create/debug/apps/generated-resource-urls': 'core/create/debug/apps/generated-resource-urls-debug',
-  '/platform/create/flow-studio': 'core/create/apps/flow-creator',
+  CREATE: `${NAVIGATION_BASE_PATH}/create`,
+  CREATE_CONNECT: `${NAVIGATION_BASE_PATH}/create/connect`,
+  CREATE_FUNCTION_MANAGER: `${NAVIGATION_BASE_PATH}/create/function-manager`,
+  CREATE_PROMPT_MANAGER: `${NAVIGATION_BASE_PATH}/create/prompt-manager`,
+  CREATE_SCREEN_BUILDER: `${NAVIGATION_BASE_PATH}/create/screen-builder`,
+  CREATE_AI_BUILDER: `${NAVIGATION_BASE_PATH}/create/ai-builder`,
+  CREATE_AI_BUILDER_ADMIN: `${NAVIGATION_BASE_PATH}/create/ai-builder-admin`,
+  CREATE_AI_ORCHESTRATOR_ADMIN: `${NAVIGATION_BASE_PATH}/create/ai-orchestrator-admin`,
+  CREATE_AI_BUILDER_METRICS: `${NAVIGATION_BASE_PATH}/create/ai-builder-metrics`,
+  CREATE_AI_BUILDER_METRICS_APPS: `${NAVIGATION_BASE_PATH}/create/apps/ai-builder-metrics`,
+  CREATE_RESOURCE_PREVIEW_DEMO: `${NAVIGATION_BASE_PATH}/create/resource-preview-demo`,
+  CREATE_DEBUG_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/generated-resource-urls`,
+  CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/apps/generated-resource-urls`,
+  CREATE_PROMPT_MESH: `${NAVIGATION_BASE_PATH}/apps/agent-mesh`,
+  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/apps/flow/apps/creator`
+} as const
 
-  // Flow
-  '/platform/apps/flow/apps/creator': 'flow/apps/creator',
+// Mapping of platform URLs to app paths (exported for BusinessAppIDE path resolution)
+export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
+  // CRM
+  [Navigation.CRM_CUSTOMER_LAUNCHER]: 'crm/core/apps/customer-launcher',
+  [Navigation.CRM_CUSTOMER_RELATIONS]: 'crm/core/apps/customer-relations',
+  [Navigation.CRM_CUSTOMER_SETTINGS]: 'crm/core/apps/customer-settings',
+  [Navigation.CRM_CUSTOMER_DATA_IMPORT]: 'crm/core/apps/data-import',
+  [Navigation.CRM_CUSTOMER_ACCOUNT_RECORD]: 'crm/core/records/account-record',
+  [Navigation.CRM_CUSTOMER_CONTACT_RECORD]: 'crm/core/records/contact-record',
+  [Navigation.CRM_CUSTOMER_LEAD_RECORD]: 'crm/core/records/lead-record',
+  [Navigation.CRM_CUSTOMER_OPPORTUNITY_RECORD]: 'crm/core/records/opportunity-record',
+  [Navigation.CRM_CAMPAIGN_MANAGEMENT]: 'crm/campaigns/apps/campaign-management',
+  [Navigation.CRM_CAMPAIGN_RECORD]: 'crm/campaigns/records/campaign-record',
+  [Navigation.CRM_PERFORMANCE_TEAM_PERFORMANCE]: 'crm/performance/apps/sales-team-performance',
+  [Navigation.CRM_PERFORMANCE_TEAM_MEMBER_RECORD]: 'crm/common/apps/customer-member-record',
 
-  // Obsolete
-  // TODO: Clean Up
-  '/platform/crm/lead-list': 'crm/common/apps/lead-list',
-  '/platform/irm/liquid-portfolio-record': 'crm/investments/apps/liquid-portfolio-record'
+  // IRM
+  [Navigation.IRM_INVESTMENT_LAUNCHER]: 'irm/core/apps/investment-launcher',
+  [Navigation.IRM_INVESTMENT_RELATIONS]: 'irm/core/apps/investment-relations',
+  [Navigation.IRM_INVESTMENT_SETTINGS]: 'irm/core/apps/investment-settings',
+  [Navigation.IRM_INVESTMENT_DATA_IMPORT]: 'irm/core/apps/data-import',
+  [Navigation.IRM_INVESTMENT_ACCOUNT_RECORD]: 'irm/core/records/account-record',
+  [Navigation.IRM_INVESTMENT_CONTACT_RECORD]: 'irm/core/records/contact-record',
+  [Navigation.IRM_INVESTMENT_LEAD_RECORD]: 'irm/core/records/lead-record',
+  [Navigation.IRM_INVESTMENT_OPPORTUNITY_RECORD]: 'irm/core/records/opportunity-record',
+  [Navigation.IRM_INVESTMENT_MANAGEMENT]: 'irm/investments/apps/investment-management',
+  [Navigation.IRM_INVESTMENT_PORTAL]: 'irm/investments/apps/investment-portal',
+  [Navigation.IRM_INVESTMENT_RECORD]: 'irm/investments/records/investment-record',
+
+  // FIN
+  [Navigation.FIN_EXPENSES_EXPENSE_PLAN_RECORD]: 'fin/expenses/apps/expense-plan-record',
+  [Navigation.FIN_EXPENSES_EXPENSE_REQUEST_RECORD]: 'fin/expenses/apps/expense-request-record',
+  [Navigation.FIN_EXPENSES_PERSONAL_ROLE]: 'fin/expenses/apps/personal-expenses',
+  [Navigation.FIN_EXPENSES_UNALLOCATED_EXPENSE_ITEMS]: 'fin/expenses/apps/unallocated-expense-items',
+  [Navigation.FIN_EXPENSES_MANAGER_ROLE]: 'fin/expenses/apps/manager-expenses',
+  [Navigation.FIN_EXPENSES_BACKOFFICE_ROLE]: 'fin/expenses/apps/backoffice-expenses',
+
+  // HR
+  [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
+  [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
+  [Navigation.HR_RECRUITING_MANAGER_ROLE]: 'hr/recruiting/apps/recruiting-manager',
+  [Navigation.HR_RECRUITING_PORTAL]: 'hr/recruiting/apps/recruiting-portal',
+  [Navigation.HR_RECRUITING_JOB_POSTING_RECORD]: 'hr/recruiting/records/job-posting-record',
+  [Navigation.HR_RECRUITING_JOB_CANDIDATE_RECORD]: 'hr/recruiting/records/job-candidate-record',
+  [Navigation.HR_RECRUITING_JOB_APPLICATION_RECORD]: 'hr/recruiting/records/job-application-record',
+
+  // Service
+  [Navigation.SERVICE_DESK]: 'ser/apps/service-desk',
+  [Navigation.SERVICE_LAUNCHER]: 'ser/apps/service-portal',
+
+  // MDM
+  [Navigation.MDM_PIPELINE_DATA]: 'mdm/apps/pipeline-data',
+  [Navigation.MDM_LEAD_DATA]: 'mdm/apps/lead-data',
+  [Navigation.MDM_OPERATION_DATA]: 'mdm/apps/operation-data',
+  [Navigation.MDM_ENGAGEMENT_DATA]: 'mdm/apps/engagement-data',
+  [Navigation.MDM_COMPANY_RECORD]: 'mdm/records/company-record',
+
+  // Content
+  [Navigation.CONTENT_PORTAL]: 'core/content/apps/content-portal',
+  [Navigation.CONTENT_ENTRY_RECORD]: 'core/content/records/content-record',
+  [Navigation.CONTENT_MANAGER]: 'core/content/apps/content-manager',
+
+  // Platform
+  [Navigation.PLATFORM_TASK_MANAGER]: 'core/every/apps/every-box',
+  [Navigation.PLATFORM_TEAM_CHAT]: 'platform/apps/chat',
+  [Navigation.PLATFORM_AI_CHAT]: 'platform/apps/every-ai',
+  [Navigation.PLATFORM_DEBUGGER]: 'platform/apps/debugger',
+  [Navigation.PLATFORM_BOARDS]: 'platform/apps/board-apps',
+
+  // Office
+  [Navigation.OFFICE]: 'core/office/apps/office-launcher',
+  [Navigation.OFFICE_SETTINGS]: 'core/office/apps/office-settings',
+  [Navigation.OFFICE_CANVAS]: 'core/office/apps/office-canvas',
+  [Navigation.OFFICE_DOCUMENTS]: 'core/office/apps/documents',
+  [Navigation.OFFICE_DRIVE]: 'core/office/apps/drive',
+  [Navigation.OFFICE_EMAILS]: 'core/office/apps/emails',
+  [Navigation.OFFICE_EMAILS_OAUTH_CALLBACK]: 'core/office/apps/emails',
+  [Navigation.OFFICE_NOTES]: 'core/office/apps/notes',
+  [Navigation.OFFICE_SLIDES]: 'core/office/apps/slides',
+  [Navigation.OFFICE_SPACES]: 'core/office/apps/spaces',
+  [Navigation.OFFICE_SPREADSHEETS]: 'core/office/apps/spreadsheets',
+
+  // Create
+  [Navigation.CREATE]: 'core/create/apps/create-workspace',
+  [Navigation.CREATE_CONNECT]: 'core/create/apps/newwork-connect',
+  [Navigation.CREATE_FUNCTION_MANAGER]: 'core/create/apps/function-manager',
+  [Navigation.CREATE_PROMPT_MANAGER]: 'core/create/apps/prompt-manager',
+  [Navigation.CREATE_SCREEN_BUILDER]: 'core/create/apps/ai-builder',
+  [Navigation.CREATE_AI_BUILDER]: 'core/create/apps/ai-orchestrator',
+  [Navigation.CREATE_AI_BUILDER_ADMIN]: 'core/create/apps/ai-builder-admin',
+  [Navigation.CREATE_AI_ORCHESTRATOR_ADMIN]: 'core/create/apps/ai-builder-admin',
+  [Navigation.CREATE_AI_BUILDER_METRICS]: 'core/create/apps/ai-builder-metrics-dashboard',
+  [Navigation.CREATE_AI_BUILDER_METRICS_APPS]: 'core/create/apps/ai-builder-metrics-dashboard',
+  [Navigation.CREATE_RESOURCE_PREVIEW_DEMO]: 'core/create/apps/resource-preview-demo',
+  [Navigation.CREATE_DEBUG_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
+  [Navigation.CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
+  [Navigation.CREATE_PROMPT_MESH]: 'platform/apps/agent-mesh',
+  [Navigation.CREATE_FLOW_CREATOR]: 'flow/apps/creator'
 }
 
 /**
@@ -145,39 +212,20 @@ const isPlatformUrl = (url: string): boolean => {
 }
 
 /**
- * Converts a platform URL to development query parameters
- */
-const convertToDevQueryParams = (url: string): string => {
-  const [basePath, queryString] = url.split('?')
-  const appPath = PLATFORM_URL_TO_APP_MAPPING[basePath]
-
-  if (!appPath) {
-    console.warn(`No app mapping found for platform URL: ${basePath}`)
-    return url
-  }
-
-  // Platform URLs always map to app parameters
-  const existingParams = queryString ? `&${queryString}` : ''
-  return `?app=${appPath}${existingParams}`
-}
-
-/**
- * Navigation options
- */
-export interface NavigateOptions {
-  /**
-   * Force a window refresh via SPA navigation (not full page reload)
-   * Adds a cache-busting parameter to ensure content refreshes when it has changed
-   */
-  forceReload?: boolean
-}
-
-/**
  * Handles navigation based on the environment
  * In production: uses the original URL
  * In development: converts platform URLs to app query parameters, keeps others unchanged
  */
-export const navigateTo = (url: string, options?: NavigateOptions): void => {
+export const navigateTo = (
+  url: string,
+  options?: {
+    /**
+     * Force a window refresh via SPA navigation (not full page reload)
+     * Adds a cache-busting parameter to ensure content refreshes when it has changed
+     */
+    forceReload?: boolean
+  }
+): void => {
   if (typeof window === 'undefined') {
     console.warn('Navigation called in non-browser environment')
     return
@@ -186,15 +234,13 @@ export const navigateTo = (url: string, options?: NavigateOptions): void => {
   const { forceReload = false } = options || {}
   const isProduction = process.env.NODE_ENV === 'production'
 
-  // Helper to get the target URL (converted in dev mode if needed)
+  // Helper to get the target URL. In dev we use the real platform path so the URL bar shows e.g. /platform/every-office.
   const getTargetUrl = (): string => {
     if (isProduction) {
       return url
     }
-    // Development: convert platform URLs to query parameters
     if (isPlatformUrl(url)) {
-      const queryParams = convertToDevQueryParams(url)
-      return `${window.location.origin}${queryParams}`
+      return `${window.location.origin}${url}`
     }
     return url
   }
@@ -221,8 +267,10 @@ export const navigateTo = (url: string, options?: NavigateOptions): void => {
           window.location.href = urlToNavigate
         }
       } else {
-        // Development: navigate to URL with refresh param
-        window.location.href = urlObj.toString()
+        // Development: SPA navigation with refresh param so auth is preserved
+        const targetPathAndSearch = urlObj.pathname + urlObj.search + (urlObj.hash || '')
+        window.history.pushState(null, '', targetPathAndSearch)
+        window.dispatchEvent(new PopStateEvent('popstate'))
       }
     } catch {
       // Fallback if URL parsing fails
@@ -251,28 +299,27 @@ export const navigateTo = (url: string, options?: NavigateOptions): void => {
       window.location.href = url
     }
   } else {
-    // Development: check if it's a platform URL
-    if (isPlatformUrl(url)) {
-      // Convert to app query parameter and stay on localhost:3000
-      const queryParams = convertToDevQueryParams(url)
-      const currentOrigin = window.location.origin
-      const targetUrl = `${currentOrigin}${queryParams}`
+    // Development: SPA navigation (pushState + popstate) so auth state and token are preserved
+    const targetUrl = getTargetUrl()
+    const fullUrl = targetUrl.startsWith('http') ? targetUrl : `${window.location.origin}${targetUrl}`
 
-      // Check if we're already on the same URL - if so, force reload
-      const currentUrl = window.location.href
-      if (currentUrl === targetUrl) {
-        window.location.reload()
-      } else {
-        window.location.href = targetUrl
+    try {
+      const urlObj = new URL(fullUrl)
+      if (urlObj.origin !== window.location.origin) {
+        window.location.href = fullUrl
+        return
       }
-    } else {
-      // Non-platform URLs (like orgchart) use original behavior
-      const currentUrl = window.location.href
-      if (currentUrl === url) {
-        window.location.reload()
-      } else {
-        window.location.href = url
+      const targetPath = urlObj.pathname.replace(/\/$/, '') || '/'
+      const currentPath = window.location.pathname.replace(/\/$/, '') || '/'
+      const targetPathAndSearch = targetPath + urlObj.search + (urlObj.hash || '')
+      const currentPathAndSearchNorm = currentPath + window.location.search + (window.location.hash || '')
+      if (currentPathAndSearchNorm === targetPathAndSearch) {
+        return
       }
+      window.history.pushState(null, '', urlObj.pathname + urlObj.search + (urlObj.hash || ''))
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    } catch {
+      window.location.href = fullUrl
     }
   }
 }
@@ -284,14 +331,8 @@ export const navigateTo = (url: string, options?: NavigateOptions): void => {
 export const openInNewTab = (url: string): void => {
   if (typeof window === 'undefined') return
   const isProduction = process.env.NODE_ENV === 'production'
-  if (isProduction) {
-    window.open(url, '_blank')
-  } else if (isPlatformUrl(url)) {
-    const queryParams = convertToDevQueryParams(url)
-    window.open(`${window.location.origin}${queryParams}`, '_blank')
-  } else {
-    window.open(url, '_blank')
-  }
+  const fullUrl = isProduction || !url.startsWith('/') ? url : `${window.location.origin}${url}`
+  window.open(fullUrl, '_blank')
 }
 
 /**

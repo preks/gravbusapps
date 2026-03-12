@@ -35,6 +35,7 @@ export type {
   ListPlansLinks,
   DraftCheckpoint,
   CreateDraftCheckpointRequest,
+  ResolveDraftCheckpointByMessageParams,
   RestoreDraftCheckpointRequest,
   RestoreDraftCheckpointResponse
 } from './api'

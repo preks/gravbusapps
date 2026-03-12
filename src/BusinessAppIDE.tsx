@@ -27,7 +27,6 @@ import {
   SidebarTrigger,
   Separator,
   LocalizationProvider,
-  SupportedLocale,
   Badge,
   Switch
 } from '@newwork/nw-design-system'
@@ -60,6 +59,22 @@ import {
   STORAGE_KEY_ADDITIONAL_DATA,
   STORAGE_KEY_SIDEBAR_COLLAPSED
 } from './common/constants/ideStorageKeys'
+import { NAVIGATION_BASE_PATH, PLATFORM_URL_TO_APP_MAPPING, navigateTo } from './common/utils/navigationUtils'
+
+type Locales = 'en-US' | 'de-DE' | 'ro-RO'
+
+function getAppPathForPlatformUrl(pathname: string): string | undefined {
+  const normalized = pathname?.replace(/\/$/, '') || ''
+  const withLeading = normalized.startsWith('/') ? normalized : `/${normalized}`
+  return PLATFORM_URL_TO_APP_MAPPING[withLeading]
+}
+
+function getPlatformPathForAppPath(appPath: string): string | undefined {
+  if (!appPath) return undefined
+  return Object.keys(PLATFORM_URL_TO_APP_MAPPING).find(
+    platformPath => PLATFORM_URL_TO_APP_MAPPING[platformPath] === appPath
+  )
+}
 
 // Get available modules without eagerly loading them
 const modulePatterns = import.meta.glob('./business-apps/**/index.ts', {
@@ -78,14 +93,6 @@ const allModulePaths = Object.keys(modulePatterns)
 
 // Build the businessApps array from index.ts files (matching getDynamicEntries logic)
 for (const path in modulePatterns) {
-  if (
-    path.includes('/opportunity-tabs/') ||
-    path.includes('/oportunity-tabs/') ||
-    path.includes('/opportunity-components/')
-  ) {
-    continue
-  }
-
   const excludedDirs = ['/components/', '/modules/', '/hooks/', '/lib/', '/utils/']
   if (excludedDirs.some(dir => path.includes(dir))) {
     continue
@@ -293,14 +300,15 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   // Check for different parameter types (app, form, popup, window)
   const appFromUrl = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
 
-  // Dev deep-links may use path-based URLs without `?app=...` (e.g. copy/paste).
-  // Infer the app from the pathname for a small set of known routes.
   const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+  // /platform is home (no app); only paths under /platform/... with a mapping resolve to an app
+  const appPathFromPathname =
+    pathname && pathname !== NAVIGATION_BASE_PATH ? getAppPathForPlatformUrl(pathname) : undefined
   const inferredAppFromPath =
-    !appFromUrl && (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft'))
+    !appPathFromPathname && !appFromUrl && (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft'))
       ? 'flow/apps/creator'
       : null
-  const effectiveAppFromUrl = appFromUrl || inferredAppFromPath
+  const effectiveAppFromUrl = appPathFromPathname ?? appFromUrl ?? inferredAppFromPath
 
   const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
     // First try to find by full path (new format), then fallback to name (legacy format)
@@ -326,7 +334,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
         : 'gba:density-default'
 
   // Locale state for LocalizationProvider
-  const [locale, setLocale] = useState<SupportedLocale>('en-US')
+  const [locale, setLocale] = useState<Locales>('en-US')
   const [enableIdeStructureIdAutofill, setEnableIdeStructureIdAutofill] = useState(true)
 
   // Apply density globally on <html> to ensure DS components outside wrapper are affected
@@ -523,7 +531,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
 
     // Load saved locale
-    const savedLocale = localStorage.getItem('business-app-ide-locale') as SupportedLocale | null
+    const savedLocale = localStorage.getItem('business-app-ide-locale') as Locales | null
     if (savedLocale) {
       setLocale(savedLocale)
     }
@@ -536,9 +544,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
     setHasLoadedSettings(true)
 
-    // Set open keys based on the currently selected app (from URL)
-    // Only if menu is not collapsed initially and using legacy menu
-    const initialSelectedApp = getAppByPath(appFromUrl || '') || getAppByName(appFromUrl || '')
+    // Set open keys based on the currently selected app (from URL or pathname)
+    const initialSelectedApp = getAppByPath(effectiveAppFromUrl || '') || getAppByName(effectiveAppFromUrl || '')
     const initialCollapsed = localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === 'true'
     if (!initialCollapsed && initialSelectedApp) {
       const requiredKeys = getRequiredOpenKeysForApp(initialSelectedApp)
@@ -574,22 +581,77 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   }, [selectedApp, collapsed])
 
   useEffect(() => {
+    const pathname = window.location.pathname
+    const hasOAuthParams = window.location.search.includes('code=') || window.location.search.includes('state=')
+
+    if (!selectedApp) {
+      const isStartUrl = pathname === '' || pathname === '/' || pathname === NAVIGATION_BASE_PATH
+      if (isStartUrl && !hasOAuthParams) {
+        window.history.pushState({}, '', NAVIGATION_BASE_PATH)
+      }
+      if (!isStartUrl) {
+        const appPathFromPathname = getAppPathForPlatformUrl(pathname)
+        const app = appPathFromPathname ? getAppByPath(appPathFromPathname) || getAppByName(appPathFromPathname) : null
+        if (app) setSelectedApp(app)
+      }
+      setLastPublishedDate('')
+      return
+    }
+
+    fetchLastPublishedDate(selectedApp)
+
+    const platformPath = getPlatformPathForAppPath(selectedApp.screenKey)
     const url = new URL(window.location.href)
 
-    // Clear all type parameters first
-    url.searchParams.delete('app')
-    url.searchParams.delete('form')
-    url.searchParams.delete('popup')
-
-    if (selectedApp) {
-      // Set the appropriate parameter based on the app's type
-      url.searchParams.set(selectedApp.type, selectedApp.screenKey)
-      fetchLastPublishedDate(selectedApp)
+    if (platformPath) {
+      url.pathname = platformPath
+      url.searchParams.delete('app')
+      url.searchParams.delete('form')
+      url.searchParams.delete('popup')
+      url.searchParams.delete('window')
     } else {
-      setLastPublishedDate('')
+      url.searchParams.delete('app')
+      url.searchParams.delete('form')
+      url.searchParams.delete('popup')
+      url.searchParams.delete('window')
+      url.searchParams.set(selectedApp.type, selectedApp.screenKey)
     }
-    window.history.pushState({}, '', url.toString())
+    const targetUrl = url.pathname + (url.search || '')
+    const currentUrl = window.location.pathname + window.location.search
+    if (targetUrl !== currentUrl) {
+      window.history.pushState({}, '', targetUrl)
+    }
   }, [selectedApp])
+
+  // Redirect root to platform home so localhost:3002 lands on /platform.
+  // Do not touch the URL when it has OAuth callback params (code, state) – Keycloak must process them first; overwriting causes a login loop.
+  useEffect(() => {
+    const path = window.location.pathname
+    const search = window.location.search
+    const hasOAuthParams = search.includes('code=') || search.includes('state=')
+    if ((path === '/' || path === '') && !hasOAuthParams) {
+      window.history.replaceState({}, '', NAVIGATION_BASE_PATH)
+    }
+  }, [])
+
+  // Sync selectedApp from URL when user navigates back/forward (pathname or query)
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathname = window.location.pathname
+      const params = new URLSearchParams(window.location.search)
+      const appFromQuery = params.get('app') || params.get('form') || params.get('popup') || params.get('window')
+      const appPathFromPathname = getAppPathForPlatformUrl(pathname)
+      const effectivePath = appPathFromPathname ?? appFromQuery
+      if (effectivePath) {
+        const app = getAppByPath(effectivePath) || getAppByName(effectivePath)
+        setSelectedApp(app)
+      } else {
+        setSelectedApp(null)
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   /**
    * Fetches the last published date for a business app from Azure Storage
@@ -717,6 +779,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   }
 
   const goToStartScreen = () => {
+    navigateTo(NAVIGATION_BASE_PATH)
     setSelectedApp(null)
   }
 
@@ -917,6 +980,22 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
   }, [profileUserInfo])
 
+  // After auth init, sync selectedApp from URL (covers path restore after reload)
+  useEffect(() => {
+    if (!authInitialized) return
+    const pathname = window.location.pathname
+    const params = new URLSearchParams(window.location.search)
+    const appFromQuery = params.get('app') || params.get('form') || params.get('popup') || params.get('window')
+    const appPathFromPathname = getAppPathForPlatformUrl(pathname)
+    const effectivePath = appPathFromPathname ?? appFromQuery
+    if (effectivePath) {
+      const app = getAppByPath(effectivePath) || getAppByName(effectivePath)
+      setSelectedApp(app)
+    } else if (pathname === '' || pathname === '/' || pathname === NAVIGATION_BASE_PATH) {
+      setSelectedApp(null)
+    }
+  }, [authInitialized])
+
   const handleLogout = useCallback(async () => {
     await logout()
     setAccessToken('')
@@ -931,17 +1010,22 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     setSettingsModalVisible(true)
   }, [refreshToken])
 
-  // While authentication is initializing, show a minimal loading shell
-  // Exception: if this is a Microsoft OAuth callback, render immediately so email app can handle it
-  if (!authInitialized || (profileLoading && !isMsOAuthCallback)) {
+  // While authentication is initializing, show a minimal loading shell.
+  // Only block on profile loading when we do not have profile yet (avoids fullscreen "Signing in" on token refresh).
+  // Exception: if this is a Microsoft OAuth callback, render immediately so email app can handle it.
+  const hasSavedReturnPath = typeof window !== 'undefined' && sessionStorage.getItem('keycloak_return_path') != null
+  if (!authInitialized || (profileLoading && !profileUserInfo && !isMsOAuthCallback)) {
+    const loadingLabel = isMsOAuthCallback
+      ? 'Completing Microsoft sign-in…'
+      : hasSavedReturnPath
+        ? 'Loading…'
+        : 'Signing you in to NEWWORK…'
     return (
       <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
         <LocalizationProvider locale={locale}>
           <div className={densityClass}>
             <div className="gba:h-screen gba:flex gba:items-center gba:justify-center">
-              <div className="gba:text-sm gba:text-muted-foreground">
-                {isMsOAuthCallback ? 'Completing Microsoft sign-in…' : 'Signing you in to NEWWORK…'}
-              </div>
+              <div className="gba:text-sm gba:text-muted-foreground">{loadingLabel}</div>
             </div>
           </div>
         </LocalizationProvider>
@@ -984,7 +1068,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                         <SidebarTrigger className="gba:-ml-1" />
                         <Separator orientation="vertical" className="gba:mr-2" />
                         <a
-                          href="#"
+                          href={NAVIGATION_BASE_PATH}
                           onClick={e => {
                             e.preventDefault()
                             goToStartScreen()
@@ -1012,7 +1096,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
                       <div className="gba:flex gba:items-center gba:justify-end gba:gap-4 gba:pr-4">
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <Select value={locale} onValueChange={v => setLocale(v as SupportedLocale)}>
+                          <Select value={locale} onValueChange={v => setLocale(v as Locales)}>
                             <SelectTrigger data-testid="BusinessAppIDE-locale-select" aria-label="Language">
                               <SelectValue placeholder="Language" />
                             </SelectTrigger>

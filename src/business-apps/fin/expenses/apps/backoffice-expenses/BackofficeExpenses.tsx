@@ -6,10 +6,11 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { PageLayout } from '@newwork/nw-design-system'
+import { PageLayout, useTranslation } from '@newwork/nw-design-system'
 import { GaugeIcon, MoneyIcon, HandCoinsIcon, WalletIcon } from '@phosphor-icons/react'
 import { ChartBarIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
+import translations from './_i18n'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -65,34 +66,33 @@ const setParamIfChanged = (url: URL, key: string, value: string | null): boolean
 }
 
 const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
+  const { t } = useTranslation(translations)
+  const [translationsReady, setTranslationsReady] = useState(false)
+  useEffect(() => {
+    setTranslationsReady(true)
+  }, [])
   const hostTabParam = typeof props.additionalData?.tab === 'string' ? props.additionalData.tab : undefined
   const contextTab = isValidBackofficeTab(hostTabParam) ? hostTabParam : null
   const viewOptions = [
     {
       key: 'dashboard',
       icon: <GaugeIcon className="gba:w-5 gba:h-5" />,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Dashboard')
+      label: t('tab-dashboard')
     },
     {
       key: 'expense-requests',
       icon: <MoneyIcon className="gba:w-5 gba:h-5" />,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')
+      label: t('tab-expense-requests')
     },
     {
       key: 'advance-payments',
       icon: <HandCoinsIcon className="gba:w-5 gba:h-5" />,
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:backoffice_expense_landing_page.advance_title',
-        'Advance Payments'
-      )
+      label: t('tab-advance-payments')
     },
     {
       key: 'plan-vs-request',
       icon: <ChartBarIcon className="gba:w-5 gba:h-5" />,
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.plan_vs_request',
-        'Plan vs Request'
-      )
+      label: t('tab-plan-vs-request')
     }
   ]
 
@@ -250,7 +250,7 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
   }
 
   // Keep hook order stable; gate rendering only after hooks are declared.
-  if (!hasValidAccessToken) {
+  if (!hasValidAccessToken || !translationsReady) {
     return null
   }
 
@@ -260,14 +260,8 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
         <div data-testid="backoffice-expenses-container">
           <PageLayout
             headerIcon={WalletIcon}
-            headerTitle={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_table.expense_management_title',
-              'Expense Management'
-            )}
-            headerDescription={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_table.expense_management_subheader',
-              'Manage backoffice expenses, track expense requests, and advance payments'
-            )}
+            headerTitle={t('expense-management-title')}
+            headerDescription={t('expense-management-subheader')}
             headerContent={
               <div
                 id="expenses-header-filter"

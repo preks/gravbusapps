@@ -85,6 +85,7 @@ export interface OrchestratorHandlerDeps {
   userInfo?: any
   onComplete?: (success: boolean) => void
   onBack?: () => void
+  onAnalyzeAssistantResponse?: (content: string) => void
 }
 
 export interface OrchestratorHandlers {
@@ -103,12 +104,14 @@ export const useOrchestratorHandlers = ({
   orchestratorClient,
   buildProgress,
   userInfo,
-  onBack
+  onBack,
+  onAnalyzeAssistantResponse
 }: OrchestratorHandlerDeps): OrchestratorHandlers => {
   // Handle analyze prompt (from idle state input)
   const handleAnalyze = useCallback(
     async (prompt: string) => {
       const bumpAnalysisProgress = createBumpAnalysisProgress(state)
+      let assistantResponse = ''
 
       // Track step start times for duration calculation
       const stepStartTimes: Record<number, number> = {}
@@ -137,6 +140,10 @@ export const useOrchestratorHandlers = ({
 
         const detail = typeof event.content === 'string' ? event.content : undefined
         const timestamp = event.timestamp ? new Date(event.timestamp).getTime() : Date.now()
+        if ((event.type === 'response' || event.type === 'token') && detail) {
+          assistantResponse += detail
+          return
+        }
 
         let stepIndex: number | null = null
 
@@ -188,6 +195,9 @@ export const useOrchestratorHandlers = ({
 
       if (response.success && response.plan) {
         state.setAnalysisProgress(100)
+        if (assistantResponse.trim()) {
+          onAnalyzeAssistantResponse?.(assistantResponse.trim())
+        }
         // Mark all steps complete with final durations
         state.setThinkingSteps(prev =>
           prev.map((s, index) => {
@@ -204,7 +214,7 @@ export const useOrchestratorHandlers = ({
         state.setViewState('error')
       }
     },
-    [orchestratorClient.analyzeStream, state]
+    [onAnalyzeAssistantResponse, orchestratorClient.analyzeStream, state]
   )
 
   // Handle re-analyze
@@ -265,23 +275,39 @@ export const useOrchestratorHandlers = ({
   const handleStartBuild = useCallback(
     async (skipComponents?: string[]) => {
       prepareBuildRun(state, 'Build started...')
-      const sessionId = orchestratorClient.lastSessionId
-      const repoId = orchestratorClient.lastRepoId
+      const sessionId = orchestratorClient.currentPlan?.sessionId ?? orchestratorClient.lastSessionId
+      const repoId = orchestratorClient.currentPlan?.repoId ?? orchestratorClient.lastRepoId
       const createdBy = buildCreatedByFromUserInfo(userInfo)
       await buildProgress.startBuild(skipComponents, sessionId ?? undefined, repoId ?? undefined, createdBy)
     },
-    [buildProgress.startBuild, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state, userInfo]
+    [
+      buildProgress.startBuild,
+      orchestratorClient.currentPlan?.sessionId,
+      orchestratorClient.currentPlan?.repoId,
+      orchestratorClient.lastSessionId,
+      orchestratorClient.lastRepoId,
+      state,
+      userInfo
+    ]
   )
 
   // Handle retry - Re-execute the same build plan
   const handleRetry = useCallback(async () => {
     buildProgress.resetProgress()
     prepareBuildRun(state, 'Retrying build...')
-    const sessionId = orchestratorClient.lastSessionId
-    const repoId = orchestratorClient.lastRepoId
+    const sessionId = orchestratorClient.currentPlan?.sessionId ?? orchestratorClient.lastSessionId
+    const repoId = orchestratorClient.currentPlan?.repoId ?? orchestratorClient.lastRepoId
     const createdBy = buildCreatedByFromUserInfo(userInfo)
     await buildProgress.startBuild(undefined, sessionId ?? undefined, repoId ?? undefined, createdBy)
-  }, [buildProgress, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state, userInfo])
+  }, [
+    buildProgress,
+    orchestratorClient.currentPlan?.sessionId,
+    orchestratorClient.currentPlan?.repoId,
+    orchestratorClient.lastSessionId,
+    orchestratorClient.lastRepoId,
+    state,
+    userInfo
+  ])
 
   // Handle cancel
   const handleCancel = useCallback(() => {

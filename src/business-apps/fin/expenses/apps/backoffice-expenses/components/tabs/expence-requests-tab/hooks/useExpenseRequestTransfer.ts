@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useFlowClient } from '@/common/network/flows/useFlowClient'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpenseData } from '../../../../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import translations from '../../../../_i18n'
 
 const MIN_TRANSFER_LOCK_MS = 1200
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -24,6 +25,7 @@ export const useExpenseRequestTransfer = (
   refetchData?: () => void,
   clearSelection?: () => void
 ) => {
+  const { t } = useTranslation(translations)
   const flowClient = useFlowClient(props)
   const [transferInProgressIds, setTransferInProgressIds] = useState<Set<string>>(new Set())
   const [isBulkTransferInProgress, setIsBulkTransferInProgress] = useState(false)
@@ -51,25 +53,13 @@ export const useExpenseRequestTransfer = (
 
         await flowClient.initiateFlow('employee-expense', 'temporaryTransferExpenseRequest', { expenseRequests })
 
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'expense.request.transfer.success',
-            'Transfer payment process started successfully'
-          ),
-          'success'
-        )
+        showToast(t('transfer-success'), 'success')
 
         await Promise.resolve(refetchData?.())
         clearSelection?.()
       } catch (error) {
         console.error('Error starting process:', error)
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'expense.request.transfer.error',
-            'Failed to start transfer payment process. Please try again.'
-          ),
-          'error'
-        )
+        showToast(t('transfer-error'), 'error')
       } finally {
         const elapsedMs = Date.now() - startedAt
         if (elapsedMs < MIN_TRANSFER_LOCK_MS) {
@@ -83,7 +73,7 @@ export const useExpenseRequestTransfer = (
         })
       }
     },
-    [flowClient, refetchData, clearSelection]
+    [flowClient, refetchData, clearSelection, t]
   )
 
   const handleBulkTransferPayment = useCallback(
@@ -109,26 +99,14 @@ export const useExpenseRequestTransfer = (
 
         await flowClient.initiateFlow('employee-expense', 'temporaryTransferExpenseRequest', { expenseRequests })
 
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'expense.request.bulk.transfer.success',
-            `Transfer payment process started successfully for ${records.length} expense requests`
-          ),
-          'success'
-        )
+        showToast(t('transfer-bulk-success', { count: records.length }), 'success')
 
         await Promise.resolve(refetchData?.())
 
         clearSelection?.()
       } catch (error) {
         console.error('Error starting bulk process:', error)
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'expense.request.bulk.transfer.error',
-            'Failed to start bulk transfer payment process. Please try again.'
-          ),
-          'error'
-        )
+        showToast(t('transfer-bulk-error'), 'error')
       } finally {
         const elapsedMs = Date.now() - startedAt
         if (elapsedMs < MIN_TRANSFER_LOCK_MS) {
@@ -144,7 +122,7 @@ export const useExpenseRequestTransfer = (
         })
       }
     },
-    [flowClient, refetchData, clearSelection]
+    [flowClient, refetchData, clearSelection, t]
   )
 
   const isTransferInProgress = useCallback(
