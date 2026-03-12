@@ -794,7 +794,13 @@ employment-label-church-affiliation = Kirchenzugehörigkeit
 employment-label-child-tax-allowance = Kinderfreibetrag
 employment-label-health-insurance = Krankenversicherung
 employment-label-type-of-health-insurance = Art der Krankenversicherung
+employment-label-request-at-office = Beantragung beim Finanzamt
+employment-label-last-updated = Zuletzt aktualisiert
+employment-label-employee-tax-office = Finanzamt des Arbeitnehmers
+employment-label-individual-free-amount = Individueller Freibetrag
 common-loading = Wird geladen...
+common-yes = Ja
+common-no = Nein
 
 # Change Log Categories
 changelog-category-personal = Persönliche Daten

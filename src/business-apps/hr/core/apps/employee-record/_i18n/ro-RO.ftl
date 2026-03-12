@@ -794,7 +794,13 @@ employment-label-church-affiliation = Aparținere biserică
 employment-label-child-tax-allowance = Deducere fiscală pentru copii
 employment-label-health-insurance = Asigurare de sănătate
 employment-label-type-of-health-insurance = Tip asigurare de sănătate
+employment-label-request-at-office = Cerere la biroul fiscal
+employment-label-last-updated = Ultima actualizare
+employment-label-employee-tax-office = Oficiul fiscal al angajatului
+employment-label-individual-free-amount = Sumă neimpozabilă individuală
 common-loading = Se încarcă...
+common-yes = Da
+common-no = Nu
 
 # Change Log Categories
 changelog-category-personal = Date personale
