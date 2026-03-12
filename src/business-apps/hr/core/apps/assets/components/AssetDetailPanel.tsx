@@ -47,6 +47,7 @@ interface AssetDetailPanelProps {
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onGenerateDocument?: (assetId: string) => void
 }
 
 const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
@@ -116,7 +117,8 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
-  onRetrieveAsset
+  onRetrieveAsset,
+  onGenerateDocument
 }) => {
   if (!asset) return null
 
@@ -194,8 +196,29 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
       })
     }
 
+    if (isRetired && onGenerateDocument) {
+      actions.push({
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        key: 'generate-document',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.export_certificate', 'Export certificate'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onGenerateDocument(asset.id)
+        }
+      })
+    }
+
     return actions
-  }, [asset.id, isAllocated, isRetired, onAllocateAsset, onUpdateAsset, onRetireAsset, onRetrieveAsset])
+  }, [
+    asset.id,
+    isAllocated,
+    isRetired,
+    onAllocateAsset,
+    onUpdateAsset,
+    onRetireAsset,
+    onRetrieveAsset,
+    onGenerateDocument
+  ])
 
   const userLocale = getCurrentActiveUserLocale()
   const localeCode = userLocale.split('-')[0].toLowerCase()
