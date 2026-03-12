@@ -70,43 +70,31 @@ export const hasAnyReportFilters = (filters: ReportFilters): boolean =>
 export const REPORT_TYPE_DEFINITIONS: Array<{
   key: ReportType
   nameKey: string
-  nameFallback: string
   descKey: string
-  descFallback: string
 }> = [
   {
     key: ReportType.APPROVAL_PAYOUT_CYCLE,
-    nameKey: 'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
-    nameFallback: 'Approval & Payout Cycle',
-    descKey: 'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle_subheader',
-    descFallback: 'Pending to approved to paid cycle durations'
+    nameKey: 'report-approval-payout-cycle',
+    descKey: 'report-approval-payout-cycle-desc'
   },
   {
     key: ReportType.EXPENSE_ITEM,
-    nameKey: 'lowcoder:personal_expenses.expense_items',
-    nameFallback: 'Expense Items',
-    descKey: 'lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions',
-    descFallback: 'Individual expense items and transactions'
+    nameKey: 'report-expense-item',
+    descKey: 'report-expense-item-desc'
   },
   {
     key: ReportType.EXPENSE_PLAN,
-    nameKey: 'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-    nameFallback: 'Expense Plans',
-    descKey: 'lowcoder:team_expenses_page.dashboard_tab.expense_plans_subheader',
-    descFallback: 'Budget plans and allocations'
+    nameKey: 'report-expense-plan',
+    descKey: 'report-expense-plan-desc'
   },
   {
     key: ReportType.EXPENSE_REQUEST,
-    nameKey: 'lowcoder:employee_list.flows_button.expense_requests',
-    nameFallback: 'Expense Requests',
-    descKey: 'lowcoder:team_expenses_page.dashboard_tab.expense_requests_subheader',
-    descFallback: 'Submitted expense requests and approvals'
+    nameKey: 'report-expense-request',
+    descKey: 'report-expense-request-desc'
   },
   {
     key: ReportType.ADVANCE_PAYMENT,
-    nameKey: 'lowcoder:backoffice_expense_landing_page.advance_title',
-    nameFallback: 'Advance Payments',
-    descKey: 'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
-    descFallback: 'Cash advances and prepayments'
+    nameKey: 'report-advance-payment',
+    descKey: 'report-advance-payment-desc'
   }
 ]

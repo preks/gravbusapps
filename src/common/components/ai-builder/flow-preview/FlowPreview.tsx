@@ -1,8 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Card,
-  CardHeader,
-  CardTitle,
   Spinner,
   Alert,
   AlertDescription,
@@ -23,6 +20,7 @@ import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateCli
 import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
 import { templateToFlowGraphDefinition, flowNodeIdToStepIndex } from '@/common/data/flow/templateToFlowGraph'
 import { PreviewTemplate } from '../preview-template'
+import { PreviewHeaderCard } from '../preview-header'
 import { FlowPreviewStepPanel } from './FlowPreviewStepPanel'
 import type { FlowPreviewInputBlock, FlowPreviewTemplate } from './flowPreviewTypes'
 
@@ -313,46 +311,41 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
 
   return (
     <div className="gba:w-full gba:h-full gba:min-h-96 gba:flex gba:flex-col" data-testid={testId}>
-      <Card className="gba:shrink-0 gba:border-border">
-        <CardHeader className="gba:border-b gba:border-border">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <div className="gba:p-2 gba:rounded-lg gba:bg-primary/10">
-              <Workflow className="gba:h-5 gba:w-5 gba:text-primary" />
-            </div>
-            <div className="gba:flex-1 gba:min-w-0">
-              <CardTitle className="gba:text-lg">{template.name}</CardTitle>
-              {template.description && (
-                <p className="gba:text-sm gba:text-muted-foreground gba:mt-0.5">{template.description}</p>
-              )}
-              {template.start?.triggers?.length ? (
-                <div className="gba:flex gba:items-center gba:gap-1.5 gba:mt-2 gba:flex-wrap">
-                  <Play className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
-                  <span className="gba:text-xs gba:text-muted-foreground">Start:</span>
-                  {template.start.triggers.map(t => (
-                    <Badge key={t.id} variant="outline" className="gba:text-xs gba:font-normal">
-                      {t.name}
-                    </Badge>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            {template.id && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  navigateTo(buildPlatformUrl('/platform/apps/flow/apps/launcher', { templateId: template.id! }))
-                }
-                className="gba:shrink-0"
-                data-testid={`${testId}-open-flow-launcher`}
-              >
-                <ExternalLink className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
-                Open in Flow Launcher
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-      </Card>
+      <PreviewHeaderCard
+        icon={Workflow}
+        title={template.name}
+        description={template.description ?? undefined}
+        badges={
+          template.start?.triggers?.length ? (
+            <>
+              <Play className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+              <span className="gba:text-xs gba:text-muted-foreground">Start:</span>
+              {template.start.triggers.map(t => (
+                <Badge key={t.id} variant="outline" className="gba:text-xs gba:font-normal">
+                  {t.name}
+                </Badge>
+              ))}
+            </>
+          ) : undefined
+        }
+        action={
+          template.id ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                navigateTo(buildPlatformUrl('/platform/apps/flow/apps/launcher', { templateId: template.id! }))
+              }
+              className="gba:shrink-0"
+              data-testid={`${testId}-open-flow-launcher`}
+            >
+              <ExternalLink className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
+              Open in Flow Launcher
+            </Button>
+          ) : undefined
+        }
+        data-testid={`${testId}-header`}
+      />
       {(() => {
         let rightPanelContent: React.ReactNode = null
         if (selectedNodeId === START_NODE_ID) {

@@ -125,9 +125,7 @@ export function getVisibleCanvasTabs(components: ComponentSpec[]): CanvasTabInfo
       case 'flow':
         return hasFlow
       case 'agent-mesh':
-        return hasAgent
-      case 'data-flow':
-        return hasFlow || hasAgent
+        return false
       default:
         return true
     }
