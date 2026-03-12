@@ -4,6 +4,7 @@ import { Button, Tabs, TabsContent, TabsList, TabsTrigger, useTranslation } from
 import { Bot, ListPlus } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { KnowledgeSource } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { CreateHeroHeader } from '../../components/CreateHeroHeader'
 import { TaskExpertsSpace } from './components/TaskExpertsSpace'
 import { TaskExpertEditor } from './components/TaskExpertEditor'
@@ -101,6 +102,11 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
   // Handle URL parameter for direct expert access
   useEffect(() => {
     if (editingPromptId || viewingPromptId || isCreateOpen) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('pmTab') === 'connections') {
+      navigateTo(buildPlatformUrl('/platform/create/connect'))
+      return
+    }
     const action = parseUrlAction(window.location.search)
     if (!action) return
 

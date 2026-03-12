@@ -1,6 +1,15 @@
-import { Button } from '@newwork/nw-design-system'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Textarea
+} from '@newwork/nw-design-system'
 import { History, Plus, MessageSquare, Sparkles } from 'lucide-react'
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState } from 'react'
 import { useChatScroll } from '../../hooks/useChatScroll'
 import { useMessageAuthors } from '../../hooks/useMessageAuthors'
 import { CreateAgentChatMessage } from './CreateAgentChatMessage'
@@ -35,6 +44,9 @@ interface CreateAgentChatProps {
   messages: CreateChatMessage[]
   isProcessing: boolean
   onSend: (message: string) => void
+  onEditMessage?: (message: CreateChatMessage, nextContent: string) => void
+  onRestoreMessage?: (message: CreateChatMessage) => void
+  isRestoringMessageId?: string | null
   onNewSession: () => void
   onOpenHistory: () => void
   userInfo?: UserInfoProps
@@ -48,6 +60,9 @@ export const CreateAgentChat = ({
   messages,
   isProcessing,
   onSend,
+  onEditMessage,
+  onRestoreMessage,
+  isRestoringMessageId,
   onNewSession,
   onOpenHistory,
   userInfo,
@@ -57,6 +72,10 @@ export const CreateAgentChat = ({
   testId = 'create-agent-chat'
 }: CreateAgentChatProps) => {
   const { messagesEndRef, scrollContainerRef, handleScroll } = useChatScroll(messages.length)
+  const [editingMessage, setEditingMessage] = useState<CreateChatMessage | null>(null)
+  const [editingContent, setEditingContent] = useState('')
+  const [pendingRestoreMessage, setPendingRestoreMessage] = useState<CreateChatMessage | null>(null)
+  const UNKNOWN_AUTHOR_ID = 'unknown-user'
 
   // Legacy session = no builder info (old sessions), or placeholder "orchestrator", or id-only with no name/photo
   const isLegacySession =
@@ -73,9 +92,9 @@ export const CreateAgentChat = ({
   const authorIds = useMemo(() => {
     const fromCreatedBy = messages.filter(m => m.role === 'user' && m.createdBy).map(m => m.createdBy!)
     const fromEditHistory = messages
-      .filter(m => m.role === 'user' && !m.createdBy && (m.editHistory?.length ?? 0) > 0)
+      .filter(m => m.role === 'user' && (m.editHistory?.length ?? 0) > 0)
       .flatMap(m => (m.editHistory ?? []).map(e => e.userId).filter(Boolean))
-    return [...new Set([...fromCreatedBy, ...fromEditHistory])]
+    return [...new Set([...fromCreatedBy, ...fromEditHistory].filter(id => !!id && id !== UNKNOWN_AUTHOR_ID))]
   }, [messages])
   const currentUserInAuthors = !!userInfo?.id && authorIds.includes(userInfo.id)
   const currentUserEmployeeId = currentUserInAuthors ? userInfo?.employeeDetails?.employeeId : undefined
@@ -127,6 +146,14 @@ export const CreateAgentChat = ({
       }
 
       if (createdBy) {
+        if (createdBy === UNKNOWN_AUTHOR_ID && isLegacySession) {
+          return getCurrentUserDisplay(
+            userInfo,
+            builtBy,
+            builtBy?.pictureThumbnail ?? pictureThumbnail,
+            currentUserPictureThumbnail ?? undefined
+          )
+        }
         const author = getAuthor(createdBy)
         if (author) return author
         return { name: 'Unknown', initials: '?', avatar: undefined }
@@ -145,6 +172,76 @@ export const CreateAgentChat = ({
     },
     [userInfo, getAuthor, builtBy, pictureThumbnail, currentUserPictureThumbnail, isLegacySession]
   )
+
+  const getEditorDisplaysForMessage = useCallback(
+    (message: CreateChatMessage): Array<{ name: string; avatar?: string; initials: string }> => {
+      if (message.role !== 'user') return []
+      const ids = [
+        message.createdBy,
+        ...(Array.isArray(message.editHistory) ? message.editHistory.map(entry => entry.userId) : [])
+      ].filter(Boolean) as string[]
+      const uniqueIds: string[] = []
+      const seen = new Set<string>()
+      ids.forEach(id => {
+        if (!id || seen.has(id)) return
+        seen.add(id)
+        uniqueIds.push(id)
+      })
+      return uniqueIds
+        .map(id => {
+          if (id === userInfo?.id || (id === UNKNOWN_AUTHOR_ID && isLegacySession)) {
+            return getCurrentUserDisplay(
+              userInfo,
+              builtBy,
+              builtBy?.pictureThumbnail ?? pictureThumbnail,
+              currentUserPictureThumbnail ?? undefined
+            )
+          }
+          return getAuthor(id) ?? { name: 'Unknown', initials: '?', avatar: undefined }
+        })
+        .filter(Boolean)
+    },
+    [
+      builtBy,
+      currentUserPictureThumbnail,
+      getAuthor,
+      isLegacySession,
+      pictureThumbnail,
+      userInfo
+    ]
+  )
+
+  const openEditDialog = useCallback((message: CreateChatMessage) => {
+    setEditingMessage(message)
+    setEditingContent(message.content || '')
+  }, [])
+
+  const closeEditDialog = useCallback(() => {
+    setEditingMessage(null)
+    setEditingContent('')
+  }, [])
+
+  const confirmEditDialog = useCallback(() => {
+    if (!editingMessage || !onEditMessage) return
+    const nextContent = editingContent.trim()
+    if (!nextContent) return
+    onEditMessage(editingMessage, nextContent)
+    closeEditDialog()
+  }, [closeEditDialog, editingContent, editingMessage, onEditMessage])
+
+  const requestRestoreDialog = useCallback((message: CreateChatMessage) => {
+    setPendingRestoreMessage(message)
+  }, [])
+
+  const closeRestoreDialog = useCallback(() => {
+    setPendingRestoreMessage(null)
+  }, [])
+
+  const confirmRestoreDialog = useCallback(() => {
+    if (!pendingRestoreMessage || !onRestoreMessage) return
+    onRestoreMessage(pendingRestoreMessage)
+    setPendingRestoreMessage(null)
+  }, [onRestoreMessage, pendingRestoreMessage])
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid={testId}>
@@ -189,6 +286,11 @@ export const CreateAgentChat = ({
             isStreaming={!!message.isStreaming}
             userAvatar={userAvatar}
             authorDisplay={getAuthorDisplayForMessage(message)}
+            editorDisplays={getEditorDisplaysForMessage(message)}
+            onRestoreMessage={onRestoreMessage ? requestRestoreDialog : undefined}
+            onRequestEdit={onEditMessage ? openEditDialog : undefined}
+            onSendDecisionReply={onSend}
+            isRestoring={isRestoringMessageId === message.id}
           />
         ))}
 
@@ -204,6 +306,43 @@ export const CreateAgentChat = ({
           testId={`${testId}-input`}
         />
       </div>
+      <Dialog open={!!editingMessage} onOpenChange={open => !open && closeEditDialog()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Prompt</DialogTitle>
+            <DialogDescription>
+              Updating a previous prompt restores context before it and reruns from the edited text.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea rows={6} value={editingContent} onChange={event => setEditingContent(event.target.value)} />
+          <DialogFooter>
+            <Button variant="outline" onClick={closeEditDialog}>
+              Cancel
+            </Button>
+            <Button onClick={confirmEditDialog} disabled={!editingContent.trim()}>
+              Save and rerun
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!pendingRestoreMessage} onOpenChange={open => !open && closeRestoreDialog()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restore to this message?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to restore? This will restore the app and chat to this assistant message.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeRestoreDialog}>
+              Cancel
+            </Button>
+            <Button onClick={confirmRestoreDialog} disabled={isRestoringMessageId === pendingRestoreMessage?.id}>
+              {isRestoringMessageId === pendingRestoreMessage?.id ? 'Restoring...' : 'Restore'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

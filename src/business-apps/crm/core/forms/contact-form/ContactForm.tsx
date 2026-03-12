@@ -178,6 +178,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additi
       >
         <ContactLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
+          accountContacts={contact?.accountContacts}
           ownerEmployee={contact?.ownerEmployee}
           entityId={contact?.id || contactId}
           useAccounts={useAccounts}

@@ -1,6 +1,5 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { extractCurrencyCode as extractFromCommon } from '../../../common/utils/currencyUtils'
-import type { StatusDisplayConfig } from './utils'
+import type { StatusDisplayConfig, TranslateFn } from './utils'
 
 export const extractCurrencyCode = (currencyRef: string | null | undefined, fallback = 'EUR'): string => {
   if (!currencyRef) return fallback
@@ -9,13 +8,16 @@ export const extractCurrencyCode = (currencyRef: string | null | undefined, fall
 
 export const buildStatusDisplayName = (
   status: string,
-  getStatusDisplay: (s: string) => StatusDisplayConfig
+  getStatusDisplay: (s: string, t: TranslateFn) => StatusDisplayConfig,
+  t: TranslateFn
 ): string => {
-  const config = getStatusDisplay(status)
+  const config = getStatusDisplay(status, t)
   if (config.label.toLowerCase() === status.toLowerCase()) return config.label
   const formatted = status.charAt(0) + status.slice(1).toLowerCase()
-  const translated = getTranslationFromI18nKeyAndLabel(`lowcoder:expense_statuses.${status.toLowerCase()}`, formatted)
-  return `${config.label} (${translated})`
+  const statusKey = 'status-' + status.toLowerCase()
+  const translated = t(statusKey)
+  const displayTranslation = translated === statusKey ? formatted : translated
+  return config.label + ' (' + displayTranslation + ')'
 }
 
 const MAX_QUERY_LIMIT = 1000
