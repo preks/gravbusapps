@@ -287,7 +287,7 @@ error-end-date-after-start-date = End date must be on or after the benefit start
 
 # Employee Record - Notifications
 notification-address-updated-success = Address updates are sent for HR approval
-notification-bank-account-updated-success = Bank account updates are sent for HR approval
+notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates are sent for HR approval
 notification-communication-updated-success = Communication details updates are sent for HR approval
 notification-profile-picture-updated-success = Profile picture updates are sent for HR approval
@@ -301,7 +301,7 @@ notification-working-hours-updated-success = Working hours updates are sent for 
 
 # HR approval phrasing (profile updates)
 notification-address-updated-success = Address updates sent to be approved by the HR department.
-notification-bank-account-updated-success = Bank account updates sent to be approved by the HR department.
+notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
 notification-communication-updated-success = Communication details updates sent to be approved by the HR department.
 
