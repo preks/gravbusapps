@@ -221,10 +221,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
                 prefixDataTestId="timeclock-request-correction"
                 accessToken={accessToken}
               >
-                <>
-                  <Icon icon={PencilIcon} />
-                  {t('manual_entry')}
-                </>
+                {t('manual_entry')}
               </AppAction>
 
               <AppAction
