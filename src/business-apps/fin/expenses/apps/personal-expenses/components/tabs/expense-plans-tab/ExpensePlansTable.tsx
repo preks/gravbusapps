@@ -68,6 +68,72 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   availableStatuses?: string[]
 }
 
+function ExpensePlanCodeCell({ record }: { record: ExpensePlan }) {
+  return (
+    <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-plan-code-cell">
+      {record.code}
+    </div>
+  )
+}
+
+function ExpensePlanTitleCell({ record }: { record: ExpensePlan }) {
+  return (
+    <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-plan-title-cell">
+      {record.title}
+    </div>
+  )
+}
+
+function ExpensePlanDateCell({ dateValue, testId }: { dateValue: string | null; testId: string }) {
+  if (!dateValue) {
+    return <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
+  }
+  let formatted: string
+  try {
+    formatted = formatDate(dateValue, 'date.short') || 'N/A'
+  } catch {
+    formatted = 'N/A'
+  }
+  return (
+    <div className="gba:text-sm gba:truncate" data-testid={testId}>
+      {formatted}
+    </div>
+  )
+}
+
+function ExpensePlanStatusCell({ record }: { record: ExpensePlan }) {
+  const statusConfig = getExpensePlanStatusDisplay(record.status)
+  return (
+    <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-cell">
+      {statusConfig.label}
+    </Badge>
+  )
+}
+
+function ExpensePlanReimbursableAmountCell({ record }: { record: ExpensePlan }) {
+  const amount = record.reimbursableAmount || 0
+  return (
+    <div
+      className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
+      data-testid="expense-plan-reimbursable-amount-cell"
+    >
+      {formatCurrencyDisplay(amount, record.currency?.code)}
+    </div>
+  )
+}
+
+function ExpensePlanPaidAdvanceCell({ record }: { record: ExpensePlan }) {
+  return (
+    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="expense-plan-paid-advance-cell">
+      {record.advancePaymentPaidAmount && record.advancePaymentPaidAmount > 0 ? (
+        formatCurrencyDisplay(record.advancePaymentPaidAmount, record.currency?.code)
+      ) : (
+        <span className="gba:text-muted-foreground">-</span>
+      )}
+    </div>
+  )
+}
+
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => {
   const {
     items: plans,
@@ -613,42 +679,23 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           'Plan Number'
         ),
         size: 120,
-        cell: ({ row }) => (
-          <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-plan-code-cell">
-            {row.original.code}
-          </div>
-        )
+        cell: ({ row }) => <ExpensePlanCodeCell record={row.original} />
       },
       {
         id: 'title',
         accessorKey: 'title',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title'),
         size: 200,
-        cell: ({ row }) => (
-          <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-plan-title-cell">
-            {row.original.title}
-          </div>
-        )
+        cell: ({ row }) => <ExpensePlanTitleCell record={row.original} />
       },
       {
         id: 'planDate',
         accessorKey: 'planDate',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date'),
         size: 110,
-        cell: ({ row }) =>
-          row.original.planDate ? (
-            <div className="gba:text-sm gba:truncate" data-testid="expense-plan-plan-date-cell">
-              {(() => {
-                try {
-                  return formatDate(row.original.planDate, 'date.short') || 'N/A'
-                } catch {
-                  return 'N/A'
-                }
-              })()}
-            </div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
-          )
+        cell: ({ row }) => (
+          <ExpensePlanDateCell dateValue={row.original.planDate} testId="expense-plan-plan-date-cell" />
+        )
       },
       {
         id: 'startDate',
@@ -658,54 +705,23 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           'Start Date'
         ),
         size: 110,
-        cell: ({ row }) =>
-          row.original.startDate ? (
-            <div className="gba:text-sm gba:truncate" data-testid="expense-plan-start-date-cell">
-              {(() => {
-                try {
-                  return formatDate(row.original.startDate, 'date.short') || 'N/A'
-                } catch {
-                  return 'N/A'
-                }
-              })()}
-            </div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
-          )
+        cell: ({ row }) => (
+          <ExpensePlanDateCell dateValue={row.original.startDate} testId="expense-plan-start-date-cell" />
+        )
       },
       {
         id: 'endDate',
         accessorKey: 'endDate',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date'),
         size: 110,
-        cell: ({ row }) =>
-          row.original.endDate ? (
-            <div className="gba:text-sm gba:truncate" data-testid="expense-plan-end-date-cell">
-              {(() => {
-                try {
-                  return formatDate(row.original.endDate, 'date.short') || 'N/A'
-                } catch {
-                  return 'N/A'
-                }
-              })()}
-            </div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
-          )
+        cell: ({ row }) => <ExpensePlanDateCell dateValue={row.original.endDate} testId="expense-plan-end-date-cell" />
       },
       {
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
         size: 100,
-        cell: ({ row }) => {
-          const statusConfig = getExpensePlanStatusDisplay(row.original.status)
-          return (
-            <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-cell">
-              {statusConfig.label}
-            </Badge>
-          )
-        }
+        cell: ({ row }) => <ExpensePlanStatusCell record={row.original} />
       },
       {
         id: 'reimbursableAmount',
@@ -716,16 +732,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         ),
         size: 140,
         meta: { align: 'right' as const },
-        cell: ({ row }) => (
-          <div
-            className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
-            data-testid="expense-plan-reimbursable-amount-cell"
-          >
-            {row.original.reimbursableAmount
-              ? formatCurrencyDisplay(row.original.reimbursableAmount, row.original.currency?.code)
-              : formatCurrencyDisplay(0, row.original.currency?.code)}
-          </div>
-        )
+        cell: ({ row }) => <ExpensePlanReimbursableAmountCell record={row.original} />
       },
       {
         id: 'advancePaymentPaidAmount',
@@ -736,18 +743,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         ),
         size: 120,
         meta: { align: 'right' as const },
-        cell: ({ row }) => (
-          <div
-            className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
-            data-testid="expense-plan-paid-advance-cell"
-          >
-            {row.original.advancePaymentPaidAmount && row.original.advancePaymentPaidAmount > 0 ? (
-              formatCurrencyDisplay(row.original.advancePaymentPaidAmount, row.original.currency?.code)
-            ) : (
-              <span className="gba:text-muted-foreground">-</span>
-            )}
-          </div>
-        )
+        cell: ({ row }) => <ExpensePlanPaidAdvanceCell record={row.original} />
       }
     ],
     []
