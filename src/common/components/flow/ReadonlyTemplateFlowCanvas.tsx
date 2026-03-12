@@ -19,12 +19,16 @@ import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateCli
 interface ReadonlyTemplateFlowCanvasProps {
   accessToken: string
   templateId?: string | null
+  templateDefinition?: Record<string, unknown> | null
   title: string
   description: string
   emptyTitle: string
   emptyDescription: string
   isVisible?: boolean
   executionState?: FlowExecutionState
+  selectedNodeId?: string | null
+  selectedStepReference?: string | null
+  compact?: boolean
   showControls?: boolean
   'data-testid'?: string
 }
@@ -32,12 +36,16 @@ interface ReadonlyTemplateFlowCanvasProps {
 export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProps> = ({
   accessToken,
   templateId,
+  templateDefinition,
   title,
   description,
   emptyTitle,
   emptyDescription,
   isVisible = true,
   executionState,
+  selectedNodeId,
+  selectedStepReference,
+  compact = false,
   showControls = true,
   'data-testid': testId = 'readonly-template-flow-canvas'
 }) => {
@@ -47,6 +55,13 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (templateDefinition) {
+      setTemplate(templateDefinition)
+      setError(null)
+      setIsLoading(false)
+      return
+    }
+
     if (!templateId) {
       setTemplate(null)
       setError(null)
@@ -76,7 +91,7 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
     return () => {
       cancelled = true
     }
-  }, [templateClient, templateId])
+  }, [templateClient, templateDefinition, templateId])
 
   const graphDefinition = useMemo(() => {
     if (!template) return null
@@ -97,12 +112,35 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
       }))
     }
   }, [graphDefinition])
+  const resolvedSelectedNodeId = useMemo(() => {
+    if (selectedNodeId) return selectedNodeId
+    const reference = String(selectedStepReference || '').trim()
+    if (!reference || !template?.steps?.length) return null
+
+    const matchedIndex = template.steps.findIndex((step: { reference?: string; id?: string }, index: number) => {
+      const candidates = [String(step?.reference || '').trim(), String(step?.id || '').trim(), `step_${index}`].filter(
+        Boolean
+      )
+      return candidates.includes(reference)
+    })
+
+    return matchedIndex >= 0 ? `step-${matchedIndex}` : null
+  }, [selectedNodeId, selectedStepReference, template])
   const resolvedExecutionState = useMemo(() => {
     if (!previewGraphDefinition || !executionState?.activeNodeId) return executionState
     return enrichExecutionStateWithActivePath(previewGraphDefinition, executionState)
   }, [executionState, previewGraphDefinition])
   const hasGraphContent = Boolean(previewGraphDefinition?.nodes?.length)
-  const canvasMountKey = `${templateId ?? 'none'}-${isVisible ? 'visible' : 'hidden'}`
+  const canvasMountKey = [
+    templateId ?? 'none',
+    isVisible ? 'visible' : 'hidden',
+    resolvedSelectedNodeId ?? 'no-selection',
+    previewGraphDefinition?.nodes?.length ?? 0,
+    previewGraphDefinition?.edges?.length ?? 0,
+    compact ? 'compact' : 'full'
+  ].join('-')
+  const contentMinHeightClass = compact ? 'gba:min-h-[320px]' : 'gba:min-h-[560px]'
+  const emptyStateMinHeightClass = compact ? 'gba:min-h-[280px]' : 'gba:min-h-[520px]'
 
   return (
     <Card
@@ -113,14 +151,16 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="gba:flex gba:min-h-[560px] gba:flex-1 gba:flex-col gba:overflow-hidden gba:p-0">
-        {!templateId ? (
-          <div className="gba:flex gba:min-h-[520px] gba:flex-1 gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:px-6 gba:text-center">
+      <CardContent className={`gba:flex gba:flex-1 gba:flex-col gba:overflow-hidden gba:p-0 ${contentMinHeightClass}`}>
+        {!templateId && !templateDefinition ? (
+          <div
+            className={`gba:flex gba:flex-1 gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:px-6 gba:text-center ${emptyStateMinHeightClass}`}
+          >
             <h3 className="gba:text-base gba:font-medium gba:text-foreground">{emptyTitle}</h3>
             <p className="gba:max-w-md gba:text-sm gba:text-muted-foreground">{emptyDescription}</p>
           </div>
         ) : isLoading ? (
-          <div className="gba:flex gba:min-h-[520px] gba:flex-1 gba:items-center gba:justify-center">
+          <div className={`gba:flex gba:flex-1 gba:items-center gba:justify-center ${emptyStateMinHeightClass}`}>
             <Spinner />
           </div>
         ) : error ? (
@@ -130,8 +170,13 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
             </Alert>
           </div>
         ) : hasGraphContent && previewGraphDefinition ? (
-          <div className="gba:h-full gba:min-h-[560px] gba:w-full gba:flex-1">
-            <FlowCanvasProvider key={canvasMountKey} isInteractive={false} executionState={resolvedExecutionState}>
+          <div className={`gba:h-full gba:w-full gba:flex-1 ${contentMinHeightClass}`}>
+            <FlowCanvasProvider
+              key={canvasMountKey}
+              isInteractive={false}
+              executionState={resolvedExecutionState}
+              selectedNodeId={resolvedSelectedNodeId}
+            >
               <FlowCanvas
                 definition={previewGraphDefinition}
                 useForwardEdgesOnlyForRanking={true}
@@ -142,7 +187,9 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
             </FlowCanvasProvider>
           </div>
         ) : (
-          <div className="gba:flex gba:min-h-[520px] gba:flex-1 gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:px-6 gba:text-center">
+          <div
+            className={`gba:flex gba:flex-1 gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:px-6 gba:text-center ${emptyStateMinHeightClass}`}
+          >
             <h3 className="gba:text-base gba:font-medium gba:text-foreground">{emptyTitle}</h3>
             <p className="gba:max-w-md gba:text-sm gba:text-muted-foreground">{emptyDescription}</p>
           </div>

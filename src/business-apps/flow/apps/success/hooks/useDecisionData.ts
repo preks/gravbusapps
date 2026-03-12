@@ -7,6 +7,7 @@ export interface DecisionLogEntry {
   id?: string
   flowId: string
   templateId: string
+  originalTemplate?: Record<string, unknown> | null
   stepReference: string
   decisionTitle?: string
   decisionMode: string
@@ -15,6 +16,8 @@ export interface DecisionLogEntry {
   decisionOutput: Record<string, unknown>
   selectedBranch: string
   selectedBranchLabel?: string
+  defaultBranchId?: string
+  defaultBranchLabel?: string
   decisionReasoning?: string
   decisionInstructions?: string
   humanReviewInstructions?: string
@@ -30,6 +33,22 @@ export interface DecisionLogEntry {
   promptExecutionId?: string
   aiSuggestedBranch?: string
   branchAgreement?: boolean | null
+  decisionLinks?: Array<{
+    name: string
+    url: string
+    type?: string
+  }>
+  logicRoutes?: Array<{
+    branchId: string
+    branchLabel?: string
+    condition?: string
+    isDefault?: boolean
+    isSelected?: boolean
+  }>
+  workflowVariableLabels?: Record<string, string>
+  logicRouteType?: string
+  logicMatchedCondition?: string
+  logicFallbackReason?: string
   correlationId?: string
   durationMs: number
   isTest?: boolean

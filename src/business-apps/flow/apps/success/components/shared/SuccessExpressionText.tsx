@@ -7,6 +7,7 @@ import type { ExpressionSourceType } from '@/common/components/flow/expression-e
 interface SuccessExpressionTextProps {
   value?: string | null
   fallback?: string
+  resolveExpressionLabel?: (expression: string, source: ExpressionSourceType) => string | undefined
   'data-testid'?: string
 }
 
@@ -38,6 +39,7 @@ function splitExpressionSegments(value: string): ExpressionSegment[] {
 export const SuccessExpressionText: React.FC<SuccessExpressionTextProps> = ({
   value,
   fallback,
+  resolveExpressionLabel,
   'data-testid': testId = 'success-expression-text'
 }) => {
   const { t } = useTranslation(translations)
@@ -47,6 +49,8 @@ export const SuccessExpressionText: React.FC<SuccessExpressionTextProps> = ({
 
   const getExpressionLabel = (expression: string) => {
     const source = detectSourceType(expression)
+    const resolvedLabel = resolveExpressionLabel?.(expression, source)?.trim()
+    if (resolvedLabel) return resolvedLabel
     const labelBySource: Record<ExpressionSourceType, string> = {
       trigger: t('expression-pill-workflow-variable'),
       workflow: t('expression-pill-workflow-variable'),

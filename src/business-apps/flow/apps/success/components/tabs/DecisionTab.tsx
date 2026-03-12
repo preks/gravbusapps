@@ -20,7 +20,7 @@ import {
   SuccessTimeframeSelect
 } from '../shared'
 import { formatDateTime, formatStatusLabel } from '../../utils/formatters'
-import { getDecisionStepDisplayLabel } from '../../utils/decisionLabels'
+import { getDecisionStepDisplayLabel, getDecisionStepTypeLabel } from '../../utils/decisionLabels'
 import { getSuccessTimeframeOptions } from '../../utils/timeframe'
 import { DecisionDetailsDialog } from './DecisionDetailsDialog'
 import { DecisionOptimizationPanel } from './DecisionOptimizationPanel'
@@ -190,7 +190,19 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({
     return t('decisions-ai-escalated-to-user')
   }
 
+  const getDecisionTableLabel = (entry: DecisionLogEntry) => {
+    if (entry.decisionMode === 'USER') {
+      return getDecisionStepTypeLabel(entry.decisionMode) || t('value-not-available')
+    }
+
+    return getDecisionStepDisplayLabel(entry, t('value-not-available'))
+  }
+
   const getDecisionPreview = (entry: DecisionLogEntry) => {
+    if (entry.decisionMode === 'USER') {
+      return getDecisionPathLabel(entry)
+    }
+
     return (
       entry.decisionInstructions ||
       entry.humanReviewInstructions ||
@@ -295,9 +307,7 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({
                       </td>
                       <td className="gba:p-3 gba:text-sm">
                         <div className="gba:flex gba:flex-col gba:gap-1">
-                          <span className="gba:font-medium">
-                            {getDecisionStepDisplayLabel(entry, t('value-not-available'))}
-                          </span>
+                          <span className="gba:font-medium">{getDecisionTableLabel(entry)}</span>
                           <span className="gba:text-xs gba:text-muted-foreground">
                             <span className="gba:line-clamp-2">{getDecisionPreview(entry)}</span>
                           </span>
@@ -353,6 +363,7 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({
       <DecisionDetailsDialog
         entry={selectedEntry}
         actorName={selectedEntry?.decidedBy ? getActorName(selectedEntry.decidedBy) : undefined}
+        accessToken={accessToken}
         open={Boolean(selectedEntry)}
         onOpenChange={open => {
           if (!open) setSelectedEntry(null)
