@@ -182,7 +182,13 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
   return (
     <div className="gba:space-y-6" data-testid="feedback-tab">
-      <FeedbackHubHeader t={t} employee={employee} accessToken={accessToken} />
+      <FeedbackHubHeader
+        t={t}
+        employee={employee}
+        accessToken={accessToken}
+        isSelfView={isSelfView}
+        currentUserEmployeeId={currentUserEmployeeId}
+      />
 
       <FeedbackHubKpiGrid
         t={t}
@@ -317,7 +323,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 ) : (
                   <SparkleIcon className="gba:h-4 gba:w-4" weight="fill" />
                 )}
-                {analyzingInsights.given ? t('feedback-hub-ai-insights-analyzing') : t('feedback-hub-ai-insights-button')}
+                {analyzingInsights.given
+                  ? t('feedback-hub-ai-insights-analyzing')
+                  : t('feedback-hub-ai-insights-button')}
               </Button>
             }
             showBackContent={openInsights.given}
