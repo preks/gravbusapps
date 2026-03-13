@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import type { SortingState } from '@tanstack/react-table'
 import { FileTextIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -12,7 +13,7 @@ import {
   DATE_RANGE_FILTER_KEYS,
   type FilterAddRemove
 } from '../../../utils/plansFilterHelpers'
-import { ExpensePlan } from '../../../hooks/useMainViewExpensePlans'
+import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters'
 import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics'
 import ExpensePlansTable from './ExpensePlansTable'
@@ -278,15 +279,17 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     prevFilterSignatureRef.current = signature
   }, [filterSignature])
 
-  const updateSorting = useCallback((field: any) => {
-    setSorting(prev => {
-      if (prev.field === field) {
-        if (prev.order === 'ASC') return { field, order: 'DESC' }
-        if (prev.order === 'DESC') return { field: null, order: null }
-        return { field, order: 'ASC' }
-      }
-      return { field, order: 'ASC' }
-    })
+  const handleSortingChange = useCallback((newSorting: SortingState) => {
+    if (newSorting.length === 0) {
+      setSorting({ field: null, order: null, lastField: null })
+    } else {
+      const first = newSorting[0]
+      setSorting({
+        field: first.id as SortField,
+        order: first.desc ? 'DESC' : 'ASC',
+        lastField: first.id as SortField
+      })
+    }
     setCurrentPage(1)
   }, [])
 
@@ -401,6 +404,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       <DataContainer
         key="expense-plans-data-container"
         addLeftPaddingWhenNoFilter={true}
+        contentBackground="white"
         dataControllerProps={{
           search: searchTerm,
           // Always keep filter chips in sync with the active filters,
@@ -443,7 +447,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
               sorting={sorting}
-              updateSorting={updateSorting}
+              onSortingChange={handleSortingChange}
               pageSize={pageSize}
               setPageSize={setPageSize}
             />
