@@ -4,10 +4,10 @@
  * Tabs: Screen (default), Data Model, Functions, Task Expert, Flow.
  */
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle } from 'lucide-react'
+import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle, Download } from 'lucide-react'
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
@@ -44,6 +44,11 @@ export interface CompleteViewProps {
   publishSuccess?: boolean
   publishError?: string | null
   onPublish?: () => void | Promise<void>
+  onSaveVersion?: () => void | Promise<void>
+  isSavingVersion?: boolean
+  onDownloadPackage?: () => void | Promise<void>
+  onImportFolder?: (files: File[], mode: 'update' | 'new') => void | Promise<void>
+  isImportingFolder?: boolean
   onReset?: () => void
   isRestoringSession?: boolean
 }
@@ -68,9 +73,16 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   publishSuccess,
   publishError,
   onPublish,
+  onSaveVersion,
+  isSavingVersion = false,
+  onDownloadPackage,
+  onImportFolder,
+  isImportingFolder = false,
   isRestoringSession = false
 }) => {
   const [activeTab, setActiveTab] = useState<CanvasTab>('screen')
+  const [pendingImportMode, setPendingImportMode] = useState<'update' | 'new' | null>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
   const visibleTabs = useMemo(() => getVisibleCanvasTabs(components), [components])
   const previewComponent = useMemo(() => firstScreenWithSession(components), [components])
   const dataModelItems = useMemo(
@@ -91,6 +103,21 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
       setActiveTab(visibleTabs[0].id)
     }
   }, [visibleTabs, activeTab])
+
+  const openFolderPicker = (mode: 'update' | 'new') => {
+    if (!onImportFolder || isImportingFolder) return
+    setPendingImportMode(mode)
+    folderInputRef.current?.click()
+  }
+
+  const handleFolderSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || [])
+    const mode = pendingImportMode
+    event.target.value = ''
+    setPendingImportMode(null)
+    if (!onImportFolder || !mode || selectedFiles.length === 0) return
+    await onImportFolder(selectedFiles, mode)
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -291,6 +318,54 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
           <div className="gba:min-w-0 gba:flex-1">
             <p className="gba:font-semibold gba:text-foreground gba:text-base gba:leading-tight">{appMetadata.name}</p>
             <p className="gba:text-sm gba:text-muted-foreground gba:truncate">{appMetadata.description}</p>
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:justify-end">
+            {onDownloadPackage && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onDownloadPackage}
+                disabled={isImportingFolder || isSavingVersion}
+                className="gba:gap-1.5"
+              >
+                <Download className="gba:w-3.5 gba:h-3.5" />
+                Download Project ZIP
+              </Button>
+            )}
+            {onSaveVersion && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onSaveVersion}
+                disabled={isSavingVersion || isImportingFolder}
+                className="gba:gap-1.5"
+              >
+                <Upload className="gba:w-3.5 gba:h-3.5" />
+                {isSavingVersion ? 'Saving Version...' : 'Save Version'}
+              </Button>
+            )}
+            {onImportFolder && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openFolderPicker('update')}
+                  disabled={isImportingFolder}
+                  className="gba:gap-1.5"
+                >
+                  <Upload className="gba:w-3.5 gba:h-3.5" />
+                  {isImportingFolder ? 'Importing Folder...' : 'Import Folder to Current App'}
+                </Button>
+              </>
+            )}
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              onChange={handleFolderSelected}
+              className="gba:hidden"
+              {...({ webkitdirectory: 'true', directory: 'true' } as Record<string, string>)}
+            />
           </div>
           {(() => {
             if (publishSuccess) {

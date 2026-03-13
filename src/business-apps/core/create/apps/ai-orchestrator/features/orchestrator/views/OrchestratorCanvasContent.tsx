@@ -27,6 +27,11 @@ interface OrchestratorCanvasContentProps {
   previewRefreshToken: number
   isRestoringSession?: boolean
   onPublish?: () => Promise<void> | void
+  onSaveVersion?: () => Promise<void> | void
+  isSavingVersion?: boolean
+  onDownloadPackage?: () => Promise<void> | void
+  onImportFolder?: (files: File[], mode: 'update' | 'new') => Promise<void> | void
+  isImportingFolder?: boolean
 }
 
 export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps> = ({
@@ -41,7 +46,12 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
   builtByLoading,
   previewRefreshToken,
   isRestoringSession = false,
-  onPublish
+  onPublish,
+  onSaveVersion,
+  isSavingVersion = false,
+  onDownloadPackage,
+  onImportFolder,
+  isImportingFolder = false
 }) => {
   // Determine title based on state
   const getTitle = () => {
@@ -153,6 +163,11 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             publishSuccess={orchestratorClient.publishSuccess}
             publishError={orchestratorClient.publishError}
             onPublish={onPublish ?? orchestratorClient.publishApp}
+            onSaveVersion={onSaveVersion}
+            isSavingVersion={isSavingVersion}
+            onDownloadPackage={onDownloadPackage}
+            onImportFolder={onImportFolder}
+            isImportingFolder={isImportingFolder}
             isRestoringSession={isRestoringSession}
           />
         )

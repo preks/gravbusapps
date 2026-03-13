@@ -234,6 +234,38 @@ export interface LatestPublishedResourceVersion {
   firstPublishedAt: string | null
 }
 
+export interface AppVersionSummary {
+  id: string
+  repoId: string
+  targetPath: string
+  sessionId: string | null
+  versionMajor: number
+  versionMinor: number
+  isMajor: boolean
+  note: string | null
+  resourceUrl: string | null
+  createdAt: string
+}
+
+export interface ImportFolderSnapshotRequest {
+  files: File[]
+  sessionId: string
+  applyToCache?: boolean
+  repoId: string
+  targetPath: string
+  resourceUrl?: string
+  versionNote?: string
+  createdBy?: Record<string, unknown>
+  importMode?: 'update' | 'new'
+}
+
+export interface ImportFolderSnapshotResponse {
+  success: boolean
+  version: AppVersionSummary
+  baseVersionId: string
+  sharedScopeChangePaths: string[]
+}
+
 export type BuilderMetricsTimeframe = 'last24h' | 'last7d' | 'last30d' | 'mtd' | 'all'
 
 export interface SessionUsageMetric {
@@ -791,6 +823,123 @@ export class BuilderClient {
     if (!response.ok) {
       throw new Error(data.error || data.message || 'Failed to restore initial state')
     }
+  }
+
+  /**
+   * List app versions for a target path.
+   */
+  async listVersions(repoId: string, targetPath: string, sessionId: string): Promise<AppVersionSummary[]> {
+    const query = new URLSearchParams({
+      repoId,
+      targetPath,
+      sessionId
+    })
+
+    const response = await fetch(`${this.baseUrl}/versions?${query.toString()}`, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.error || payload?.message || 'Failed to list versions')
+    }
+    return Array.isArray(payload?.versions) ? payload.versions : []
+  }
+
+  /**
+   * Download a version package as ZIP.
+   */
+  async downloadVersionPackage(versionId: string): Promise<Blob> {
+    const response = await fetch(`${this.baseUrl}/versions/${encodeURIComponent(versionId)}/export`, {
+      method: 'POST',
+      headers: this.getHeaders(true)
+    })
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}))
+      throw new Error(payload?.error || payload?.message || 'Failed to download app package')
+    }
+
+    return response.blob()
+  }
+
+  /**
+   * Capture current session workspace as a new snapshot version.
+   */
+  async captureSessionVersion(params: {
+    repoId: string
+    sessionId: string
+    targetPath?: string
+    resourceUrl?: string
+    versionNote?: string
+  }): Promise<AppVersionSummary> {
+    const response = await fetch(`${this.baseUrl}/versions/capture`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify({
+        repoId: params.repoId,
+        sessionId: params.sessionId,
+        targetPath: params.targetPath,
+        resourceUrl: params.resourceUrl,
+        versionNote: params.versionNote
+      })
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.error || payload?.message || 'Failed to capture session version')
+    }
+
+    return payload.version as AppVersionSummary
+  }
+
+  /**
+   * Import an app snapshot from a folder upload.
+   */
+  async importFolderSnapshot(request: ImportFolderSnapshotRequest): Promise<ImportFolderSnapshotResponse> {
+    if (!Array.isArray(request.files) || request.files.length === 0) {
+      throw new Error('No files selected for upload')
+    }
+
+    const formData = new FormData()
+    request.files.forEach(file => {
+      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
+      formData.append('files', file, relativePath)
+    })
+
+    formData.append('sessionId', request.sessionId)
+    formData.append('repoId', request.repoId)
+    formData.append('targetPath', request.targetPath)
+    if (request.resourceUrl) formData.append('resourceUrl', request.resourceUrl)
+    if (request.versionNote) formData.append('versionNote', request.versionNote)
+    if (request.applyToCache !== undefined) formData.append('applyToCache', request.applyToCache ? 'true' : 'false')
+    if (request.createdBy) formData.append('createdBy', JSON.stringify(request.createdBy))
+    formData.append('importMode', request.importMode === 'new' ? 'new' : 'update')
+
+    const headers: HeadersInit = {}
+    if (this.accessToken) {
+      headers.Authorization = `Bearer ${this.accessToken}`
+    }
+
+    const response = await fetch(`${this.baseUrl}/versions/import/folder`, {
+      method: 'POST',
+      headers,
+      body: formData
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || payload?.success === false) {
+      if (response.status === 409 && Array.isArray(payload?.conflicts)) {
+        const firstConflicts = payload.conflicts.slice(0, 5).map((c: { filePath?: string }) => c?.filePath).filter(Boolean)
+        throw new Error(
+          payload?.message ||
+            `Upload conflict detected in ${payload.conflicts.length} file(s): ${firstConflicts.join(', ')}`
+        )
+      }
+      throw new Error(payload?.error || payload?.message || 'Failed to import folder snapshot')
+    }
+
+    return payload as ImportFolderSnapshotResponse
   }
 
   // ============================================================================

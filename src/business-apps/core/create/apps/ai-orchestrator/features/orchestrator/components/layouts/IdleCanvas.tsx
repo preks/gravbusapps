@@ -4,7 +4,7 @@
  * Uses the same space hero video background.
  */
 
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import {
   Users,
   Receipt,
@@ -14,7 +14,8 @@ import {
   ArrowRight,
   Blocks,
   Loader2,
-  History
+  History,
+  Upload
 } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
@@ -82,6 +83,8 @@ export interface IdleCanvasProps {
   onOpenHistory?: () => void
   onSelectSession?: (jobId: string) => void
   recentPlans?: BuildPlan[]
+  onImportFolderAsNewApp?: (files: File[]) => void | Promise<void>
+  isImportingFolderAsNewApp?: boolean
   isLoading?: boolean
   'data-testid'?: string
 }
@@ -121,10 +124,13 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
   onOpenHistory,
   onSelectSession,
   recentPlans,
+  onImportFolderAsNewApp,
+  isImportingFolderAsNewApp = false,
   isLoading = false,
   'data-testid': testId = 'idle-canvas'
 }) => {
   const [inputValue, setInputValue] = useState('')
+  const importFolderInputRef = useRef<HTMLInputElement>(null)
 
   const handleSubmit = () => {
     if (!inputValue.trim() || isLoading) return
@@ -141,6 +147,18 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
       e.preventDefault()
       handleSubmit()
     }
+  }
+
+  const handleImportFolderClick = () => {
+    if (!onImportFolderAsNewApp || isImportingFolderAsNewApp || isLoading) return
+    importFolderInputRef.current?.click()
+  }
+
+  const handleFolderSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || [])
+    event.target.value = ''
+    if (!onImportFolderAsNewApp || selectedFiles.length === 0) return
+    await onImportFolderAsNewApp(selectedFiles)
   }
 
   return (
@@ -287,6 +305,34 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Import as new app */}
+          {onImportFolderAsNewApp && (
+            <div className="gba:w-full gba:mt-6 gba:space-y-2">
+              <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground/50">OR</p>
+              <div className="gba:flex gba:justify-start">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleImportFolderClick}
+                  disabled={isImportingFolderAsNewApp || isLoading}
+                  className="gba:gap-1.5"
+                  data-testid={`${testId}-import-new-app`}
+                >
+                  <Upload className="gba:w-3.5 gba:h-3.5" />
+                  {isImportingFolderAsNewApp ? 'Importing Folder...' : 'Import Folder as New App'}
+                </Button>
+              </div>
+              <input
+                ref={importFolderInputRef}
+                type="file"
+                multiple
+                onChange={handleFolderSelected}
+                className="gba:hidden"
+                {...({ webkitdirectory: 'true', directory: 'true' } as Record<string, string>)}
+              />
+            </div>
+          )}
 
           {/* Recent apps grid */}
           {recentPlans && recentPlans.length > 0 && (

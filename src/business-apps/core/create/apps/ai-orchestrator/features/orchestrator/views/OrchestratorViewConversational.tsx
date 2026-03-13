@@ -32,12 +32,15 @@ import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import { useListPlans } from '../hooks/useListPlans'
 import { useOrchestratorSidebar } from '../hooks/useOrchestratorSidebar'
 import { SessionSwitchOverlay } from '../components/widgets/SessionSwitchOverlay'
+import { ImportFolderNewAppDialog } from '@/common/components/ai-builder/import-new-app/ImportFolderNewAppDialog'
+import type { BuildPlan } from '../types/build'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
   userInfo?: any
   initialPrompt?: string
   initialJobId?: string
+  initialSessionId?: string
   onBack?: () => void
   onComplete?: (success: boolean) => void
   'data-testid'?: string
@@ -48,6 +51,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   userInfo,
   initialPrompt = '',
   initialJobId,
+  initialSessionId,
   onBack,
   onComplete,
   'data-testid': testId = 'orchestrator-conversational'
@@ -59,6 +63,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     currentPlan,
     lastSessionId,
     lastRepoId,
+    setCurrentPlanSnapshot,
     setSessionFromBuild,
     refreshPlan,
     listDraftCheckpoints,
@@ -69,6 +74,13 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
 
   const [previewRefreshToken, setPreviewRefreshToken] = useState(0)
   const [isRestoringMessageId, setIsRestoringMessageId] = useState<string | null>(null)
+  const [isSavingVersion, setIsSavingVersion] = useState(false)
+  const [isImportingFolder, setIsImportingFolder] = useState(false)
+  const [importNewAppDialogOpen, setImportNewAppDialogOpen] = useState(false)
+  const [pendingImportFiles, setPendingImportFiles] = useState<File[] | null>(null)
+  const [importTargetPath, setImportTargetPath] = useState('')
+  const [importResourceUrl, setImportResourceUrl] = useState('')
+  const [importDialogError, setImportDialogError] = useState<string | null>(null)
   const lastChatStateRef = useRef<string | null>(null)
   const isRestoringSessionRef = useRef(false)
   const chatSaveTimeoutRef = useRef<number | null>(null)
@@ -289,15 +301,191 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     })
   }, [chat, buildProgress, orchestratorClient, state])
 
-  const resolveSessionTargetPath = useCallback(async (): Promise<string | null> => {
-    if (!lastSessionId) return null
+  const buildDefaultResourceUrl = useCallback((targetPath: string): string => {
+    const normalized = targetPath.replace(/^\/+|\/+$/g, '')
+    const slug = normalized.split('/').filter(Boolean).pop() || normalized
+    return `/platform/generated/${slug}`
+  }, [])
+
+  const formatAppNameFromTargetPath = useCallback((targetPath: string): string => {
+    const slug = targetPath.split('/').filter(Boolean).pop() || targetPath
+    const cleaned = slug.replace(/[^a-zA-Z0-9-_ ]/g, '')
+    return (
+      cleaned
+        .split(/[-_\s]+/)
+        .filter(Boolean)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ') || 'Imported App'
+    )
+  }, [])
+
+  const buildImportedSessionPlan = useCallback(
+    (input: {
+      sessionId: string
+      repoId: string
+      targetPath: string
+      resourceUrl?: string | null
+      createdAt?: string | null
+    }): BuildPlan => {
+      const appName = formatAppNameFromTargetPath(input.targetPath)
+      const effectiveResourceUrl = input.resourceUrl || buildDefaultResourceUrl(input.targetPath)
+      return {
+        jobId: '',
+        originalPrompt: `Imported app from ${input.targetPath}`,
+        sessionId: input.sessionId,
+        repoId: input.repoId,
+        analysis: {
+          summary: `Imported existing app at ${input.targetPath}`,
+          intent: 'Imported app session',
+          complexity: 'moderate',
+          requiresDataModel: false,
+          requiresFunctions: false,
+          requiresAgents: false,
+          requiresFlows: false,
+          requiresScreens: true,
+          notes: ['Session imported from local folder; no plan generated automatically.']
+        },
+        userSummary: {
+          title: appName,
+          whatYouGet: ['Existing app code imported into a new isolated session'],
+          whatYouCanDo: ['Preview current UI', 'Import updates', 'Continue iterative AI fixes'],
+          businessValue: 'Start from a real baseline app without forcing an initial planning cycle.',
+          estimatedTime: 'Ready now'
+        },
+        components: [
+          {
+            id: `imported-screen-${input.sessionId}`,
+            type: 'screen',
+            name: appName.replace(/\s+/g, ''),
+            description: `Imported screen for ${appName}`,
+            status: 'completed',
+            dependencies: [],
+            screenSpec: {
+              screenType: 'dashboard',
+              name: appName.replace(/\s+/g, ''),
+              title: appName,
+              description: `Imported from ${input.targetPath}`
+            },
+            resourceUrl: effectiveResourceUrl,
+            metadata: {
+              sessionId: input.sessionId,
+              repoId: input.repoId,
+              resourceUrl: effectiveResourceUrl
+            }
+          }
+        ],
+        estimatedDurationSeconds: 0,
+        createdAt: input.createdAt || new Date().toISOString(),
+        status: 'completed',
+        currentPhase: 'complete',
+        appMetadata: {
+          name: appName,
+          icon: 'LayoutDashboard',
+          description: `Imported app from ${input.targetPath}`,
+          longDescription: 'Imported existing app session. Plan generation is optional and user-initiated.',
+          category: 'Imported App',
+          tags: ['imported'],
+          version: '1.0.0'
+        }
+      }
+    },
+    [buildDefaultResourceUrl, formatAppNameFromTargetPath]
+  )
+
+  const openImportedSession = useCallback(
+    async (input: {
+      sessionId: string
+      repoId: string
+      targetPath: string
+      resourceUrl?: string | null
+      createdAt?: string | null
+      announce?: boolean
+    }) => {
+      const importedPlan = buildImportedSessionPlan(input)
+      setCurrentPlanSnapshot(importedPlan)
+      setSessionFromBuild(input.sessionId, input.repoId)
+      state.setViewState('complete')
+      state.setChatActive(true)
+      state.setUserPrompt('')
+
+      const persistedHistory = await builderClient.loadChatHistory(input.repoId, input.sessionId).catch(() => null)
+      if (Array.isArray(persistedHistory) && persistedHistory.length > 0) {
+        chat.replaceMessages(fromPersistedChatMessages(persistedHistory))
+      } else {
+        chat.resetMessages()
+      }
+
+      if (input.announce !== false) {
+        chat.addSystemMessage(
+          `Imported app ready. Viewing current state from ${input.targetPath}. No plan was generated automatically.`
+        )
+      }
+      setPreviewRefreshToken(prev => prev + 1)
+    },
+    [buildImportedSessionPlan, builderClient, chat, setCurrentPlanSnapshot, setSessionFromBuild, state]
+  )
+
+  useEffect(() => {
+    if (initialJobId || !initialSessionId || !accessToken) return
+    const restoreKey = `session:${initialSessionId}:${accessToken}`
+    if (initialRestoreKeyRef.current === restoreKey) return
+    initialRestoreKeyRef.current = restoreKey
+
+    isRestoringSessionRef.current = true
+    setIsRestoringSession(true)
+    ;(async () => {
+      try {
+        const sessionResponse = await builderClient.getSession(initialSessionId)
+        const session = sessionResponse?.session
+        if (!session?.repoId || !session.targetPath) {
+          throw new Error('Session context is incomplete for imported app preview.')
+        }
+        await openImportedSession({
+          sessionId: session.sessionId,
+          repoId: session.repoId,
+          targetPath: session.targetPath,
+          resourceUrl: session.resourceUrl,
+          createdAt: session.createdAt,
+          announce: false
+        })
+        setRestoreComplete(true)
+      } catch {
+        isRestoringSessionRef.current = false
+        setIsRestoringSession(false)
+      }
+    })()
+  }, [
+    accessToken,
+    builderClient,
+    initialJobId,
+    initialSessionId,
+    openImportedSession,
+    setIsRestoringSession,
+    setRestoreComplete
+  ])
+
+  const resolveSessionDetails = useCallback(async (): Promise<{
+    targetPath: string | null
+    resourceUrl: string | null
+  }> => {
+    if (!lastSessionId) {
+      return { targetPath: null, resourceUrl: null }
+    }
     try {
       const sessionResponse = await builderClient.getSession(lastSessionId)
-      return sessionResponse?.session?.targetPath ?? null
+      return {
+        targetPath: sessionResponse?.session?.targetPath ?? null,
+        resourceUrl: sessionResponse?.session?.resourceUrl ?? null
+      }
     } catch {
-      return null
+      return { targetPath: null, resourceUrl: null }
     }
   }, [builderClient, lastSessionId])
+
+  const resolveSessionTargetPath = useCallback(async (): Promise<string | null> => {
+    const details = await resolveSessionDetails()
+    return details.targetPath
+  }, [resolveSessionDetails])
 
   const reloadChatHistory = useCallback(async () => {
     if (!lastSessionId || !lastRepoId) return
@@ -536,6 +724,310 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     ]
   )
 
+  const captureVersionForCurrentSession = useCallback(
+    async (options?: { silent?: boolean; versionNote?: string }) => {
+      const sessionId = lastSessionId
+      const repoId = lastRepoId ?? currentPlan?.repoId ?? null
+      if (!sessionId || !repoId) {
+        throw new Error('No active app session available to version.')
+      }
+
+      const details = await resolveSessionDetails()
+      if (!details.targetPath) {
+        throw new Error('Target path is not available for this session.')
+      }
+
+      const resourceUrl = details.resourceUrl || buildDefaultResourceUrl(details.targetPath)
+
+      const version = await builderClient.captureSessionVersion({
+        repoId,
+        sessionId,
+        targetPath: details.targetPath,
+        resourceUrl,
+        versionNote: options?.versionNote ?? 'Manual version save'
+      })
+
+      if (!options?.silent) {
+        chat.addSystemMessage(`Version saved: v${version.versionMajor}.${version.versionMinor}`)
+      }
+
+      return {
+        version,
+        sessionId,
+        targetPath: details.targetPath
+      }
+    },
+    [
+      buildDefaultResourceUrl,
+      builderClient,
+      chat,
+      currentPlan?.repoId,
+      lastRepoId,
+      lastSessionId,
+      resolveSessionDetails
+    ]
+  )
+
+  const handleSaveVersion = useCallback(async () => {
+    setIsSavingVersion(true)
+    try {
+      await captureVersionForCurrentSession()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save version.'
+      chat.addSystemMessage(message)
+    } finally {
+      setIsSavingVersion(false)
+    }
+  }, [captureVersionForCurrentSession, chat])
+
+  const handleDownloadPackage = useCallback(async () => {
+    const sessionId = lastSessionId
+    const repoId = lastRepoId ?? currentPlan?.repoId ?? null
+    if (!sessionId || !repoId) {
+      chat.addSystemMessage('No active app session available for package download.')
+      return
+    }
+
+    const { targetPath } = await resolveSessionDetails()
+    if (!targetPath) {
+      chat.addSystemMessage('Target path is not available for this session.')
+      return
+    }
+
+    try {
+      const { version: latest } = await captureVersionForCurrentSession({
+        silent: true,
+        versionNote: 'Download package capture'
+      })
+      const blob = await builderClient.downloadVersionPackage(latest.id)
+      const safeTargetPath = targetPath.replace(/[\\/]/g, '-').replace(/[^a-zA-Z0-9._-]/g, '_')
+      const filename = `ai-builder-${safeTargetPath}-v${latest.versionMajor}.${latest.versionMinor}.zip`
+      const blobUrl = URL.createObjectURL(blob)
+      try {
+        const link = Object.assign(document.createElement('a'), {
+          href: blobUrl,
+          download: filename
+        })
+        link.click()
+      } finally {
+        URL.revokeObjectURL(blobUrl)
+      }
+
+      chat.addSystemMessage(`Downloaded app package: ${filename}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to download app package.'
+      chat.addSystemMessage(message)
+    }
+  }, [
+    builderClient,
+    captureVersionForCurrentSession,
+    chat,
+    currentPlan?.repoId,
+    lastRepoId,
+    lastSessionId,
+    resolveSessionDetails
+  ])
+
+  const { data: recentPlans } = useListPlans({
+    accessToken,
+    params: { limit: 8, offset: 0, sort: '-createdAt' },
+    enabled: !!accessToken
+  })
+
+  const toSessionUser = useCallback(() => {
+    return {
+      id: String(userInfo?.id ?? 'unknown-user'),
+      employeeId: String(userInfo?.employeeId ?? ''),
+      firstName: String(userInfo?.firstName ?? userInfo?.givenName ?? ''),
+      lastName: String(userInfo?.lastName ?? userInfo?.familyName ?? ''),
+      displayName: String(userInfo?.displayName ?? userInfo?.name ?? 'Unknown User'),
+      email: typeof userInfo?.email === 'string' ? userInfo.email : undefined,
+      pictureThumbnail:
+        typeof userInfo?.pictureThumbnail === 'string'
+          ? userInfo.pictureThumbnail
+          : typeof userInfo?.picture === 'string'
+            ? userInfo.picture
+            : undefined,
+      consentToStorePii: Boolean(userInfo?.consentToStorePii)
+    }
+  }, [userInfo])
+
+  const resolveRepoIdForImport = useCallback(async (): Promise<string | null> => {
+    let repoId =
+      lastRepoId ??
+      currentPlan?.repoId ??
+      recentPlans?.find(plan => typeof plan.repoId === 'string' && plan.repoId.trim().length > 0)?.repoId ??
+      null
+    if (!repoId) {
+      const appConfig = await builderClient.fetchAppConfig().catch(() => null)
+      repoId = appConfig?.repositoryId || null
+    }
+    return repoId
+  }, [builderClient, currentPlan?.repoId, lastRepoId, recentPlans])
+
+  const resetImportNewAppDialog = useCallback(() => {
+    setImportNewAppDialogOpen(false)
+    setPendingImportFiles(null)
+    setImportDialogError(null)
+    setImportTargetPath('')
+    setImportResourceUrl('')
+  }, [])
+
+  const syncUrlToImportedSession = useCallback((sessionId: string) => {
+    const params = new URLSearchParams(globalThis.location.search)
+    params.set('sessionId', sessionId)
+    params.delete('jobId')
+    const nextUrl = params.toString()
+      ? `${globalThis.location.pathname}?${params.toString()}`
+      : globalThis.location.pathname
+    globalThis.history.replaceState({}, '', nextUrl)
+  }, [])
+
+  const handleImportFolderFromScreenBuilder = useCallback(
+    async (files: File[], mode: 'update' | 'new') => {
+      if (!Array.isArray(files) || files.length === 0) return
+
+      if (mode === 'new') {
+        const firstPath = files[0].webkitRelativePath || files[0].name || 'imported-app'
+        const defaultTargetPath = firstPath.split('/').filter(Boolean)[0]?.trim().replace(/\s+/g, '-') || 'imported-app'
+        setPendingImportFiles(files)
+        setImportTargetPath(defaultTargetPath)
+        setImportResourceUrl(buildDefaultResourceUrl(defaultTargetPath))
+        setImportDialogError(null)
+        setImportNewAppDialogOpen(true)
+        return
+      }
+
+      setIsImportingFolder(true)
+      try {
+        const repoId = await resolveRepoIdForImport()
+        if (!repoId) {
+          throw new Error('No repository is available for folder import.')
+        }
+        if (!lastSessionId) {
+          throw new Error('No active session is available to update.')
+        }
+
+        const details = await resolveSessionDetails()
+        if (!details.targetPath) {
+          throw new Error('Target path is missing for the active session.')
+        }
+
+        const resourceUrl = details.resourceUrl || buildDefaultResourceUrl(details.targetPath)
+
+        await builderClient.importFolderSnapshot({
+          files,
+          sessionId: lastSessionId,
+          repoId,
+          targetPath: details.targetPath,
+          resourceUrl,
+          applyToCache: true,
+          versionNote: 'Imported folder snapshot (screen builder update)',
+          createdBy: toSessionUser(),
+          importMode: 'update'
+        })
+
+        if (currentPlan?.jobId) {
+          await refreshPlan(currentPlan.jobId)
+        }
+        setPreviewRefreshToken(prev => prev + 1)
+        chat.addSystemMessage('Folder imported successfully. Existing app session was updated.')
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to import folder.'
+        chat.addSystemMessage(message)
+      } finally {
+        setIsImportingFolder(false)
+      }
+    },
+    [
+      buildDefaultResourceUrl,
+      builderClient,
+      chat,
+      currentPlan?.jobId,
+      lastSessionId,
+      refreshPlan,
+      resolveRepoIdForImport,
+      resolveSessionDetails,
+      toSessionUser
+    ]
+  )
+
+  const handleConfirmImportFolderAsNewApp = useCallback(async () => {
+    if (!pendingImportFiles || pendingImportFiles.length === 0) return
+    const normalizedTargetPath = importTargetPath.trim().replace(/^\/+|\/+$/g, '')
+    if (!normalizedTargetPath) {
+      setImportDialogError('Target path is required.')
+      return
+    }
+
+    const repoId = await resolveRepoIdForImport()
+    if (!repoId) {
+      setImportDialogError('No repository is available for folder import.')
+      return
+    }
+
+    const rawResourceUrl = importResourceUrl.trim()
+    const resourceUrl = rawResourceUrl
+      ? rawResourceUrl.startsWith('/')
+        ? rawResourceUrl
+        : `/${rawResourceUrl}`
+      : buildDefaultResourceUrl(normalizedTargetPath)
+
+    setIsImportingFolder(true)
+    setImportDialogError(null)
+    try {
+      const createdBy = toSessionUser()
+      const newSession = await builderClient.saveSession({
+        repoId,
+        targetPath: normalizedTargetPath,
+        resourceUrl,
+        fileCount: 0,
+        description: `Imported from local folder (${normalizedTargetPath})`,
+        createdBy
+      })
+
+      await builderClient.importFolderSnapshot({
+        files: pendingImportFiles,
+        sessionId: newSession.sessionId,
+        repoId,
+        targetPath: normalizedTargetPath,
+        resourceUrl,
+        applyToCache: true,
+        versionNote: 'Imported folder snapshot (screen builder new app)',
+        createdBy,
+        importMode: 'new'
+      })
+      syncUrlToImportedSession(newSession.sessionId)
+      await openImportedSession({
+        sessionId: newSession.sessionId,
+        repoId,
+        targetPath: normalizedTargetPath,
+        resourceUrl,
+        createdAt: new Date().toISOString(),
+        announce: true
+      })
+      resetImportNewAppDialog()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to import folder.'
+      setImportDialogError(message)
+      chat.addSystemMessage(message)
+    } finally {
+      setIsImportingFolder(false)
+    }
+  }, [
+    pendingImportFiles,
+    importTargetPath,
+    resolveRepoIdForImport,
+    importResourceUrl,
+    buildDefaultResourceUrl,
+    toSessionUser,
+    builderClient,
+    openImportedSession,
+    resetImportNewAppDialog,
+    syncUrlToImportedSession,
+    chat
+  ])
+
   const handlePublishWithChat = useCallback(async () => {
     const result = await orchestratorClient.publishApp()
     if (result.success) {
@@ -577,85 +1069,115 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     chat.addSystemMessage(`Publish failed: ${result.message || 'Unknown publish error'}`)
   }, [chat, orchestratorClient])
 
-  const { data: recentPlans } = useListPlans({
-    accessToken,
-    params: { limit: 8, offset: 0, sort: '-createdAt' },
-    enabled: !!accessToken
-  })
+  const importNewAppDialog = (
+    <ImportFolderNewAppDialog
+      open={importNewAppDialogOpen}
+      onOpenChange={open => {
+        if (!open && !isImportingFolder) {
+          resetImportNewAppDialog()
+          return
+        }
+        setImportNewAppDialogOpen(open)
+      }}
+      title="Import Folder as New App"
+      description="Create a new AI Builder app from a local folder and open it in complete preview mode."
+      targetPath={importTargetPath}
+      onTargetPathChange={setImportTargetPath}
+      resourceUrl={importResourceUrl}
+      onResourceUrlChange={setImportResourceUrl}
+      confirmLabel="Create"
+      isSubmitting={isImportingFolder}
+      errorMessage={importDialogError}
+      onConfirm={handleConfirmImportFolderAsNewApp}
+    />
+  )
 
   if (!state.chatActive && state.viewState === 'idle' && !sidebarOpen) {
     return (
-      <div
-        className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:rounded-t-none"
-        data-testid={testId}
-      >
-        <IdleCanvas
-          onSubmit={handleIdleSubmit}
-          isLoading={orchestratorClient.isAnalyzing}
-          onOpenHistory={handleOpenHistory}
-          recentPlans={recentPlans}
-          onSelectSession={handleSelectSession}
-        />
-      </div>
+      <>
+        <div
+          className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:rounded-t-none"
+          data-testid={testId}
+        >
+          <IdleCanvas
+            onSubmit={handleIdleSubmit}
+            isLoading={orchestratorClient.isAnalyzing}
+            onOpenHistory={handleOpenHistory}
+            recentPlans={recentPlans}
+            onSelectSession={handleSelectSession}
+            onImportFolderAsNewApp={files => handleImportFolderFromScreenBuilder(files, 'new')}
+            isImportingFolderAsNewApp={isImportingFolder}
+          />
+        </div>
+        {importNewAppDialog}
+      </>
     )
   }
 
   return (
-    <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:relative" data-testid={testId}>
-      {isRestoringSession && <SessionSwitchOverlay />}
+    <>
+      <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:relative" data-testid={testId}>
+        {isRestoringSession && <SessionSwitchOverlay />}
 
-      <CreateLayout
-        sidebarOpen={sidebarOpen}
-        sidebar={
-          <CreateSessionSidebar
-            plans={plans}
-            currentPlanId={currentPlan?.jobId}
-            loading={plansLoading}
-            onSelectSession={handleSelectSession}
-            onClose={handleCloseSidebar}
-            accessToken={accessToken}
-            onRefresh={refetchPlans}
-          />
-        }
-        chatPanel={
-          <CreateAgentChat
-            messages={chat.messages}
-            isProcessing={
-              chat.isProcessing ||
-              orchestratorClient.isAnalyzing ||
-              orchestratorClient.isRefining ||
-              buildProgress.isBuilding
-            }
-            onSend={chat.handleSend}
-            onEditMessage={handleEditMessage}
-            onRestoreMessage={handleRestoreAssistantMessage}
-            isRestoringMessageId={isRestoringMessageId}
-            onNewSession={handleNewSession}
-            onOpenHistory={handleOpenHistory}
-            userInfo={userInfo}
-            builtBy={builtBy}
-            builtByLoading={builtByLoading}
-            accessToken={accessToken}
-          />
-        }
-        canvasPanel={
-          <OrchestratorCanvasContent
-            state={state}
-            orchestratorClient={orchestratorClient}
-            buildProgress={buildProgress}
-            handlers={handlers}
-            completedPhases={completedPhases}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            builtBy={builtBy}
-            builtByLoading={builtByLoading}
-            previewRefreshToken={previewRefreshToken}
-            isRestoringSession={isRestoringSession}
-            onPublish={handlePublishWithChat}
-          />
-        }
-      />
-    </div>
+        <CreateLayout
+          sidebarOpen={sidebarOpen}
+          sidebar={
+            <CreateSessionSidebar
+              plans={plans}
+              currentPlanId={currentPlan?.jobId}
+              loading={plansLoading}
+              onSelectSession={handleSelectSession}
+              onClose={handleCloseSidebar}
+              accessToken={accessToken}
+              onRefresh={refetchPlans}
+            />
+          }
+          chatPanel={
+            <CreateAgentChat
+              messages={chat.messages}
+              isProcessing={
+                chat.isProcessing ||
+                orchestratorClient.isAnalyzing ||
+                orchestratorClient.isRefining ||
+                buildProgress.isBuilding
+              }
+              onSend={chat.handleSend}
+              onEditMessage={handleEditMessage}
+              onRestoreMessage={handleRestoreAssistantMessage}
+              isRestoringMessageId={isRestoringMessageId}
+              onNewSession={handleNewSession}
+              onOpenHistory={handleOpenHistory}
+              userInfo={userInfo}
+              builtBy={builtBy}
+              builtByLoading={builtByLoading}
+              accessToken={accessToken}
+            />
+          }
+          canvasPanel={
+            <OrchestratorCanvasContent
+              state={state}
+              orchestratorClient={orchestratorClient}
+              buildProgress={buildProgress}
+              handlers={handlers}
+              completedPhases={completedPhases}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              builtBy={builtBy}
+              builtByLoading={builtByLoading}
+              previewRefreshToken={previewRefreshToken}
+              isRestoringSession={isRestoringSession}
+              onPublish={handlePublishWithChat}
+              onSaveVersion={handleSaveVersion}
+              isSavingVersion={isSavingVersion}
+              onDownloadPackage={handleDownloadPackage}
+              onImportFolder={handleImportFolderFromScreenBuilder}
+              isImportingFolder={isImportingFolder}
+            />
+          }
+        />
+      </div>
+      {importNewAppDialog}
+    </>
   )
 }
 

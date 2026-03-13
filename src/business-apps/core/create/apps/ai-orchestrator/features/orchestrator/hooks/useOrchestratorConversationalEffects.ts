@@ -92,7 +92,11 @@ export function useOrchestratorConversationalEffects(options: UseOrchestratorCon
     } else if (viewState === 'building') {
       chat.addSystemMessage('Build started. Watch the progress on the canvas.')
     } else if (viewState === 'complete') {
-      chat.addSystemMessage('Build complete. You can keep chatting and request further changes.')
+      chat.addSystemMessage(
+        planJobId
+          ? 'Build complete. You can keep chatting and request further changes.'
+          : 'Imported app ready. You can keep chatting and request further changes.'
+      )
     }
   }, [viewState, planJobId, planTitle, chat, isRestoringSessionRef, lastChatStateRef])
 
