@@ -800,34 +800,60 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   }
 
   /**
-   * Fetches missing expense types for positions
+   * Fetches missing expense types for positions whose group is known but type wasn't resolved.
+   * Uses a single fetch covering all needed groups to avoid race conditions on setExpenseTypes.
    */
   const fetchMissingExpenseTypes = async (newPositions: ExpensePosition[], data: any): Promise<void> => {
-    const promises = newPositions.map(async (position, index) => {
-      if (!position.expenseGroup || position.expenseType) return
+    const missingGroupIds = [
+      ...new Set(newPositions.filter(pos => pos.expenseGroup && !pos.expenseType).map(pos => pos.expenseGroup))
+    ]
+    if (missingGroupIds.length === 0) return
 
-      try {
-        const types = await fetchExpenseTypesWrapper(position.expenseGroup)
+    try {
+      const allTypes = await fetchExpenseTypes(
+        missingGroupIds[0],
+        newPositions,
+        employeeRuleId,
+        graphqlClient,
+        setExpenseTypes,
+        t
+      )
+
+      const typesByGroup: Record<string, ExpenseType[]> = {}
+      allTypes.forEach((type: ExpenseType) => {
+        if (!typesByGroup[type.classId]) typesByGroup[type.classId] = []
+        typesByGroup[type.classId].push(type)
+      })
+
+      const updatedPositions = newPositions.map((position, index) => {
+        if (position.expenseType || !position.expenseGroup) return position
+
+        const groupTypes = typesByGroup[position.expenseGroup]
+        if (!groupTypes) return position
+
         const expenseCode = data.items[index]?.expenseDetails?.expenseCode
+        if (!expenseCode) return position
 
-        if (expenseCode) {
-          const matchingType = types.find(type => type.code === expenseCode)
-          if (matchingType) {
-            const updatedPositions = [...newPositions]
-            updatedPositions[index].expenseType = matchingType.id
-            setPositions(updatedPositions)
-            form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id })
-          }
+        const matchingType = groupTypes.find((type: ExpenseType) => type.code === expenseCode)
+        if (!matchingType) return position
+
+        return { ...position, expenseType: matchingType.id }
+      })
+
+      setPositions(updatedPositions)
+      const formBatch: Record<string, any> = {}
+      updatedPositions.forEach((pos, idx) => {
+        if (pos.expenseType) {
+          formBatch[`expenseType-${idx}`] = pos.expenseType
         }
-      } catch {
-        showToast(
-          t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
-          'error'
-        )
-      }
-    })
-
-    await Promise.all(promises)
+      })
+      form.setFieldsValue(formBatch)
+    } catch {
+      showToast(
+        t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
+        'error'
+      )
+    }
   }
 
   const setByReceipts = (receiptData: any): void => {
