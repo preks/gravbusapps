@@ -11,7 +11,7 @@ const META: Record<
     isAI?: boolean
   }
 > = {
-  TASK: { Icon: ClipboardList, description: 'Human task with assignee.' },
+  TASK: { Icon: ClipboardList, description: 'User task with assignee.' },
   APPROVAL: { Icon: UserCheck, description: 'Approve or reject.' },
   INFORMATION: { Icon: Info, description: 'Share info to acknowledge.' },
   ACKNOWLEDGE: { Icon: CheckCircle2, description: 'Quick acknowledgment.' },

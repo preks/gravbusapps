@@ -2,15 +2,16 @@ import React from 'react'
 import { Label, Switch } from '@newwork/nw-design-system'
 import type { InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import type { DesignerMode } from '../../types/studioTypes'
-import { ExpressionEditor } from '@/common/components/flow/expression-editor'
 import { useStudioExpressionSuggestions } from '../../hooks/useStudioExpressionSuggestions'
 import { NEUTRAL_SWITCH_CLASSNAME } from '../../utils/neutralSwitchClassName'
+import { FlowContextExpressionEditor } from '../shared/FlowContextExpressionEditor'
 
 interface FormFieldDefaultValueSectionProps {
   mode: DesignerMode
   field: InputBlock
   onChange: (partial: Partial<InputBlock>) => void
   index: number
+  dataSources?: React.ComponentProps<typeof FlowContextExpressionEditor>['dataSources']
   testId: string
 }
 
@@ -19,6 +20,7 @@ export const FormFieldDefaultValueSection: React.FC<FormFieldDefaultValueSection
   field,
   onChange,
   index,
+  dataSources,
   testId
 }) => {
   const enabled = field.value !== undefined
@@ -42,11 +44,12 @@ export const FormFieldDefaultValueSection: React.FC<FormFieldDefaultValueSection
       </div>
 
       {enabled && (
-        <ExpressionEditor
+        <FlowContextExpressionEditor
           value={field.value ?? ''}
           onChange={value => onChange({ value })}
           suggestions={suggestions}
-          placeholder="Type {{ to pick an expression..."
+          dataSources={dataSources}
+          placeholder="Type {{ to insert flow context…"
           allowFreeText
           singleLine
           data-testid={`${testId}-${index}-default`}

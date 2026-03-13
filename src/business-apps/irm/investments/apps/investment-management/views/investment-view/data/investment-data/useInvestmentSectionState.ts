@@ -55,8 +55,21 @@ export const useInvestmentSectionState = ({
   ])
   const initialLoadDone = useRef(false)
 
-  // Query variables
+  // Convert currencyIds → currency.code customCondition (relation path works; scalar path does not).
+  const currencyConditions = useMemo(() => {
+    const ids: string[] = selectedFilters.currencyIds ?? []
+    const codes = ids.map((id: string) => id.split(':').pop()).filter(Boolean)
+    if (codes.length === 0) return []
+    return [{ currency: { code: { _in: codes } } }]
+  }, [selectedFilters.currencyIds])
+
+  // Query variables — strip currencyIds from direct filter path (handled via currencyConditions).
   const queryVariables: InvestmentQueryVariables = useMemo(() => {
+    const existingConditions: Record<string, any>[] = selectedFilters.customConditions ?? []
+    const listFilters = Object.fromEntries(
+      Object.entries(selectedFilters).filter(([key]) => key !== 'currencyIds' && key !== 'customConditions')
+    )
+    const mergedConditions = [...existingConditions, ...currencyConditions]
     return {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
@@ -64,9 +77,10 @@ export const useInvestmentSectionState = ({
       orderBy: sortField
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-      ...selectedFilters
+      ...listFilters,
+      ...(mergedConditions.length > 0 ? { customConditions: mergedConditions } : {})
     }
-  }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters])
+  }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters, currencyConditions])
 
   // Fetch data
   const {

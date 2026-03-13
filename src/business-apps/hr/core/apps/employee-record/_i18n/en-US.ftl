@@ -801,7 +801,13 @@ employment-label-church-affiliation = Church Affiliation
 employment-label-child-tax-allowance = Child Tax Allowance
 employment-label-health-insurance = Health Insurance
 employment-label-type-of-health-insurance = Type Of Health Insurance
+employment-label-request-at-office = Request at tax office
+employment-label-last-updated = Last Updated
+employment-label-employee-tax-office = Employee's Tax Office
+employment-label-individual-free-amount = Individual Free Amount
 common-loading = Loading...
+common-yes = Yes
+common-no = No
 
 # Change Log Categories
 changelog-category-personal = Personal Data

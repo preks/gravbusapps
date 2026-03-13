@@ -140,7 +140,7 @@ export function useInvestments(
         const orderByArray = buildOrderBy(orderByInput, INVESTMENT_DESCRIPTORS)
 
         // Build GraphQL variables
-        const limit = Math.min(vars.limit || 50, 100)
+        const limit = Math.min(vars.limit || 20, 100)
         const offset = vars.offset || 0
 
         const graphQLVariables: Record<string, any> = {

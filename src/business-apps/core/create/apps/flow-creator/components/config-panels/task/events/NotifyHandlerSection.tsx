@@ -2,12 +2,13 @@ import React, { useMemo } from 'react'
 import { Checkbox, Label } from '@newwork/nw-design-system'
 import { EventHandlerType, type NotifyHandlerConfig } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import { NOTIFY_CHANNEL_OPTIONS } from './eventConstants'
-import { ExpressionEditor } from '@/common/components/flow/expression-editor'
 import { useStudioExpressionSuggestions } from '../../../../hooks/useStudioExpressionSuggestions'
+import { FlowContextExpressionEditor } from '../../../shared/FlowContextExpressionEditor'
 
 interface NotifyHandlerSectionProps {
   handler: NotifyHandlerConfig
   onChange: (next: NotifyHandlerConfig) => void
+  dataSources?: React.ComponentProps<typeof FlowContextExpressionEditor>['dataSources']
   testId: string
   subscriptionId: string
 }
@@ -15,6 +16,7 @@ interface NotifyHandlerSectionProps {
 export const NotifyHandlerSection: React.FC<NotifyHandlerSectionProps> = ({
   handler,
   onChange,
+  dataSources,
   testId,
   subscriptionId
 }) => {
@@ -63,10 +65,11 @@ export const NotifyHandlerSection: React.FC<NotifyHandlerSectionProps> = ({
       <div className="gba:grid gba:grid-cols-2 gba:gap-3">
         <div className="gba:flex gba:flex-col gba:gap-1.5">
           <Label className="gba:text-xs gba:font-semibold gba:text-foreground">Recipients</Label>
-          <ExpressionEditor
+          <FlowContextExpressionEditor
             value={handler.recipientsExpression ?? ''}
             onChange={value => onChange({ ...handler, type: EventHandlerType.NOTIFY, recipientsExpression: value })}
             suggestions={suggestions}
+            dataSources={dataSources}
             placeholder="Type {{ to insert recipients from workflow data…"
             allowFreeText
             singleLine
@@ -75,10 +78,11 @@ export const NotifyHandlerSection: React.FC<NotifyHandlerSectionProps> = ({
         </div>
         <div className="gba:flex gba:flex-col gba:gap-1.5">
           <Label className="gba:text-xs gba:font-semibold gba:text-foreground">Subject</Label>
-          <ExpressionEditor
+          <FlowContextExpressionEditor
             value={handler.subjectExpression ?? ''}
             onChange={value => onChange({ ...handler, type: EventHandlerType.NOTIFY, subjectExpression: value })}
             suggestions={suggestions}
+            dataSources={dataSources}
             placeholder="Task updated — type {{ to insert fields…"
             allowFreeText
             singleLine
@@ -89,10 +93,11 @@ export const NotifyHandlerSection: React.FC<NotifyHandlerSectionProps> = ({
 
       <div className="gba:flex gba:flex-col gba:gap-1.5">
         <Label className="gba:text-xs gba:font-semibold gba:text-foreground">Body</Label>
-        <ExpressionEditor
+        <FlowContextExpressionEditor
           value={handler.bodyExpression ?? ''}
           onChange={value => onChange({ ...handler, type: EventHandlerType.NOTIFY, bodyExpression: value })}
           suggestions={suggestions}
+          dataSources={dataSources}
           placeholder="Message template — type {{ to insert fields…"
           allowFreeText
           multiline
