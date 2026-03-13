@@ -234,7 +234,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
       const escapedMentionName = mention.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      html += `<span contenteditable="false" class="mention-badge gba:inline-flex gba:align-middle gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-primary/25 gba:bg-primary/10 gba:px-1.5 gba:py-0 gba:leading-none gba:text-xs gba:text-primary" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" data-mention-markdown="${escapedMarkdown}">${escapedMentionName}</span>`
+      html += `<span contenteditable="false" class="mention-badge gba:inline-flex gba:align-middle gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-primary/25 gba:bg-primary/10 gba:px-1.5 gba:py-0 gba:leading-none" style="color: #007BA7; font-family: inherit; font-size: inherit; font-weight: inherit;" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" data-mention-markdown="${escapedMarkdown}">${escapedMentionName}</span>`
       lastIndex = mention.endIndex
     }
 
