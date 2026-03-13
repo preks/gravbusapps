@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
+import { DataTable, DataDisplay, type FilterConfiguration, useTranslation } from '@newwork/nw-design-system'
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import { Badge, Button } from '@newwork/nw-design-system'
+import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
 import { message } from 'antd'
 import { AppAction } from '@/components/app-action'
 import { startProcess } from '@/common/utils/start-process'
@@ -145,6 +146,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     }),
     [props.accessToken, props.userInfo]
   )
+
+  // Pre-register common advance payment details bundle so the details sidebar shows translated labels on first render
+  useTranslation(advancePaymentDetailsTranslations)
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetAdvancePayments(contextProps)
   const {
