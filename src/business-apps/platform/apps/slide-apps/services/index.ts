@@ -1,11 +1,12 @@
 export { SlidesApiService } from './SlidesApiService'
-export { SlideGenerationService } from './SlideGenerationService'
+export { SlideGenerationService, SlideGenerationError, parseGenerationError } from './SlideGenerationService'
 export type {
   ContentReference,
   ContentType,
   GenerationOptions,
   GenerationResult,
-  GenerationProgressCallback
+  GenerationProgressCallback,
+  SlideGenerationErrorDetails
 } from './SlideGenerationService'
 export { SlideResearchService } from './SlideResearchService'
 export type {

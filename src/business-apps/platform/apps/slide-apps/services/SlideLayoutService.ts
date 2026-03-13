@@ -35,6 +35,7 @@ import {
   createComparisonColumns,
   COLORS
 } from './SlideVisualBuilders'
+import type { BrandIdentity, LogoPosition, LogoSize } from '../types/template'
 
 // Slide dimensions
 const SLIDE_WIDTH = 1280
@@ -188,6 +189,168 @@ export function addMasterElements(
   }
 
   return result
+}
+
+// Logo size configurations
+const LOGO_SIZES: Record<LogoSize, { width: number; height: number }> = {
+  small: { width: 80, height: 26 },
+  medium: { width: 120, height: 40 },
+  large: { width: 160, height: 52 }
+}
+
+// Logo position configurations for different slide types
+type SlideType = 'cover' | 'section' | 'content' | 'closing'
+
+function getLogoPosition(position: LogoPosition, slideType: SlideType, size: LogoSize): { x: number; y: number } {
+  const logoSize = LOGO_SIZES[size]
+  const margin = slideType === 'cover' ? 60 : 30
+  const bottomMargin = slideType === 'cover' ? 80 : 30
+
+  switch (position) {
+    case 'top-left':
+      return { x: margin, y: margin }
+    case 'top-right':
+      return { x: SLIDE_WIDTH - logoSize.width - margin, y: margin }
+    case 'bottom-left':
+      return { x: margin, y: SLIDE_HEIGHT - logoSize.height - bottomMargin }
+    case 'bottom-right':
+      return { x: SLIDE_WIDTH - logoSize.width - margin, y: SLIDE_HEIGHT - logoSize.height - bottomMargin }
+  }
+}
+
+/**
+ * Determine if a slide background is dark
+ */
+function isSlideDarkBackground(slide: SlideData): boolean {
+  if (!slide.background) return false
+
+  if (slide.background.type === 'branded') {
+    return true
+  }
+
+  if (slide.background.type === 'solid') {
+    const color = slide.background.color.toLowerCase()
+    if (color === '#000000' || color === '#0a0a0a' || color === '#1a1a2e' || color === '#0f172a') {
+      return true
+    }
+    // Check for dark colors using hex parsing
+    if (color.startsWith('#') && color.length === 7) {
+      const r = parseInt(color.slice(1, 3), 16)
+      const g = parseInt(color.slice(3, 5), 16)
+      const b = parseInt(color.slice(5, 7), 16)
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+      return luminance < 0.5
+    }
+  }
+
+  return false
+}
+
+/**
+ * Add brand logo to a slide based on brand identity
+ */
+export function addBrandLogoToSlide(slide: SlideData, branding: BrandIdentity, slideType: SlideType): SlideData {
+  if (!branding.logo) return slide
+
+  const isDark = isSlideDarkBackground(slide)
+  const logoUrl = isDark ? branding.logo.lightUrl : branding.logo.darkUrl
+  const position = getLogoPosition(branding.logo.position, slideType, branding.logo.size)
+  const size = LOGO_SIZES[branding.logo.size]
+
+  const logoElement = createImageElement({
+    id: `brand-logo-${slide.id}`,
+    src: logoUrl,
+    position,
+    size,
+    zIndex: 100,
+    fit: 'contain'
+  })
+
+  return {
+    ...slide,
+    elements: [...slide.elements, logoElement]
+  }
+}
+
+/**
+ * Add brand footer to a slide based on brand identity
+ */
+export function addBrandFooterToSlide(
+  slide: SlideData,
+  branding: BrandIdentity,
+  slideIndex: number,
+  totalSlides: number
+): SlideData {
+  if (!branding.footer?.text) return slide
+
+  const isDark = isSlideDarkBackground(slide)
+  const footerColor = isDark
+    ? branding.colors?.mutedText || 'rgba(255, 255, 255, 0.5)'
+    : branding.colors?.mutedText || 'rgba(0, 0, 0, 0.5)'
+
+  const footerElement = createFooterElement({
+    id: `brand-footer-${slide.id}`,
+    pageNumber: slideIndex + 1,
+    totalPages: totalSlides,
+    showPageNumber: true,
+    confidentialityText: branding.footer.text,
+    color: footerColor,
+    fontSize: 10
+  })
+
+  return {
+    ...slide,
+    elements: [...slide.elements, footerElement]
+  }
+}
+
+/**
+ * Apply branding to a single slide (logo + optional footer)
+ */
+export function applyBrandingToSlide(
+  slide: SlideData,
+  branding: BrandIdentity,
+  slideIndex: number,
+  totalSlides: number,
+  slideType: SlideType = 'content'
+): SlideData {
+  let result = slide
+
+  // Add logo
+  if (branding.logo) {
+    result = addBrandLogoToSlide(result, branding, slideType)
+  }
+
+  // Add footer if configured to show on all slides
+  if (branding.footer?.showOnAllSlides) {
+    result = addBrandFooterToSlide(result, branding, slideIndex, totalSlides)
+  }
+
+  return result
+}
+
+/**
+ * Apply branding to all slides in a presentation
+ */
+export function applyBrandingToSlides(slides: SlideData[], branding: BrandIdentity): SlideData[] {
+  return slides.map((slide, index) => {
+    // Determine slide type based on index and layout patterns
+    let slideType: SlideType = 'content'
+    if (index === 0) {
+      slideType = 'cover'
+    } else if (index === slides.length - 1) {
+      slideType = 'closing'
+    } else if (
+      slide.elements.length <= 3 &&
+      slide.elements.some(
+        el => el.type === 'text' && (el as TextElement).fontSize && parseInt((el as TextElement).fontSize || '0') >= 48
+      )
+    ) {
+      slideType = 'section'
+    }
+
+    return applyBrandingToSlide(slide, branding, index, slides.length, slideType)
+  })
 }
 
 // Layout types

@@ -7,7 +7,66 @@ import type { SlideData } from '../components/slideElements'
 /**
  * Template category for organization
  */
-export type TemplateCategory = 'business' | 'creative' | 'minimal' | 'custom'
+export type TemplateCategory = 'business' | 'creative' | 'minimal' | 'custom' | 'branded'
+
+/**
+ * Logo position options for branded templates
+ */
+export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
+/**
+ * Logo size options
+ */
+export type LogoSize = 'small' | 'medium' | 'large'
+
+/**
+ * Brand logo configuration
+ */
+export interface BrandLogo {
+  lightUrl: string
+  darkUrl: string
+  position: LogoPosition
+  size: LogoSize
+}
+
+/**
+ * Brand color palette
+ */
+export interface BrandColors {
+  primary: string
+  secondary: string
+  accent: string
+  text: string
+  mutedText: string
+}
+
+/**
+ * Brand typography settings
+ */
+export interface BrandTypography {
+  headingFont?: string
+  bodyFont?: string
+}
+
+/**
+ * Brand footer configuration
+ */
+export interface BrandFooter {
+  text: string
+  showOnAllSlides: boolean
+}
+
+/**
+ * Complete brand identity for a company template
+ */
+export interface BrandIdentity {
+  companyName: string
+  keywords: string[]
+  logo: BrandLogo
+  colors: BrandColors
+  typography?: BrandTypography
+  footer?: BrandFooter
+}
 
 /**
  * Template summary for list/grid views
@@ -24,6 +83,20 @@ export interface SlideTemplateSummary {
   createdBy: string
   isPublic: boolean
   isOwner?: boolean
+  isBranded?: boolean
+  branding?: BrandIdentity
+}
+
+/**
+ * Template metadata stored in contentJson._templateMeta
+ */
+export interface TemplateMeta {
+  isTemplate: boolean
+  category: TemplateCategory
+  isPublic: boolean
+  thumbnailUrl?: string
+  isBranded?: boolean
+  branding?: BrandIdentity
 }
 
 /**
@@ -38,12 +111,15 @@ export interface SlideTemplate {
   contentJson: {
     slides: SlideData[]
     themeId: string
+    _templateMeta?: TemplateMeta
   }
   createdAt: string
   updatedAt: string
   createdBy: string
   isPublic: boolean
   isOwner?: boolean
+  isBranded?: boolean
+  branding?: BrandIdentity
 }
 
 /**
@@ -57,7 +133,9 @@ export interface CreateTemplateRequest {
   contentJson: {
     slides: SlideData[]
     themeId: string
+    _templateMeta?: TemplateMeta
   }
+  branding?: BrandIdentity
 }
 
 /**
@@ -71,7 +149,9 @@ export interface UpdateTemplateRequest {
   contentJson?: {
     slides: SlideData[]
     themeId: string
+    _templateMeta?: TemplateMeta
   }
+  branding?: BrandIdentity
 }
 
 /**
@@ -82,4 +162,5 @@ export interface TemplateFilters {
   search?: string
   isPublic?: boolean
   createdBy?: string
+  isBranded?: boolean
 }

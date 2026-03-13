@@ -15,11 +15,156 @@ import {
   type ResearchResult,
   type VisualStyleRecommendation
 } from './SlideResearchService'
-import { generateSlideFromLayout, type SlideLayoutContent, type SlideLayoutType } from './SlideLayoutService'
+import {
+  generateSlideFromLayout,
+  applyBrandingToSlides,
+  type SlideLayoutContent,
+  type SlideLayoutType
+} from './SlideLayoutService'
 import { SlidesApiService } from './SlidesApiService'
-import type { SlideTemplate } from '../types'
+import {
+  findBrandedTemplate,
+  filterBrandedTemplates,
+  getBrandColorsWithFallbacks,
+  type BrandMatch
+} from './BrandMatchingService'
+import type { SlideTemplate, BrandColors } from '../types'
 
 const API_URL = getDocumentServiceApiUrl()
+
+/**
+ * Structured error for slide generation failures
+ */
+export interface SlideGenerationErrorDetails {
+  statusCode: number
+  errorType: 'validation' | 'auth' | 'server' | 'network' | 'unknown'
+  userMessage: string
+  technicalMessage: string
+  fieldErrors?: string[]
+}
+
+export class SlideGenerationError extends Error {
+  public details: SlideGenerationErrorDetails
+
+  constructor(statusCode: number, errorText: string) {
+    const details = SlideGenerationError.parseError(statusCode, errorText)
+    super(details.userMessage)
+    this.name = 'SlideGenerationError'
+    this.details = details
+  }
+
+  private static parseError(statusCode: number, errorText: string): SlideGenerationErrorDetails {
+    let parsed: { message?: string | string[]; error?: string } = {}
+
+    try {
+      parsed = JSON.parse(errorText)
+    } catch {
+      parsed = { message: errorText }
+    }
+
+    const messages = Array.isArray(parsed.message) ? parsed.message : [parsed.message || errorText]
+    const fieldErrors = messages.filter(Boolean)
+
+    let errorType: SlideGenerationErrorDetails['errorType'] = 'unknown'
+    let userMessage = 'An unexpected error occurred. Please try again.'
+
+    if (statusCode === 400) {
+      errorType = 'validation'
+      userMessage = SlideGenerationError.formatValidationMessage(fieldErrors)
+    } else if (statusCode === 401 || statusCode === 403) {
+      errorType = 'auth'
+      userMessage = 'Authentication failed. Please log in again.'
+    } else if (statusCode >= 500) {
+      errorType = 'server'
+      userMessage = 'The server encountered an error. Please try again in a moment.'
+    } else if (statusCode === 0 || !statusCode) {
+      errorType = 'network'
+      userMessage = 'Network connection failed. Please check your internet connection.'
+    }
+
+    return {
+      statusCode,
+      errorType,
+      userMessage,
+      technicalMessage: errorText,
+      fieldErrors: fieldErrors.length > 0 ? fieldErrors : undefined
+    }
+  }
+
+  private static formatValidationMessage(fieldErrors: string[]): string {
+    if (fieldErrors.length === 0) {
+      return 'Please check your input and try again.'
+    }
+
+    if (fieldErrors.length === 1) {
+      return SlideGenerationError.humanizeFieldError(fieldErrors[0])
+    }
+
+    return fieldErrors.map(err => SlideGenerationError.humanizeFieldError(err)).join('\n')
+  }
+
+  private static humanizeFieldError(error: string): string {
+    const replacements: [RegExp, string][] = [
+      [
+        /description must be at least (\d+) characters/i,
+        'Please provide a more detailed topic description (at least $1 characters).'
+      ],
+      [
+        /description must be shorter than or equal to (\d+) characters/i,
+        'Topic description is too long (maximum $1 characters).'
+      ],
+      [
+        /additionalRequirements must be shorter than or equal to (\d+) characters/i,
+        'Additional requirements are too long (maximum $1 characters).'
+      ],
+      [/property (\w+) should not exist/i, 'Invalid option: $1.'],
+      [/(\w+) is required/i, '$1 is required.'],
+      [/(\w+) must be a (\w+)/i, '$1 must be a valid $2.']
+    ]
+
+    for (const [pattern, replacement] of replacements) {
+      if (pattern.test(error)) {
+        return error.replace(pattern, replacement)
+      }
+    }
+
+    return error.charAt(0).toUpperCase() + error.slice(1)
+  }
+}
+
+/**
+ * Parse any error into a user-friendly message
+ */
+export function parseGenerationError(error: unknown): SlideGenerationErrorDetails {
+  if (error instanceof SlideGenerationError) {
+    return error.details
+  }
+
+  if (error instanceof Error) {
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      return {
+        statusCode: 0,
+        errorType: 'network',
+        userMessage: 'Network connection failed. Please check your internet connection.',
+        technicalMessage: error.message
+      }
+    }
+
+    return {
+      statusCode: 0,
+      errorType: 'unknown',
+      userMessage: error.message,
+      technicalMessage: error.message
+    }
+  }
+
+  return {
+    statusCode: 0,
+    errorType: 'unknown',
+    userMessage: 'An unexpected error occurred. Please try again.',
+    technicalMessage: String(error)
+  }
+}
 
 // Content types for references
 export type ContentType = 'document' | 'spreadsheet' | 'note' | 'slide'
@@ -224,7 +369,11 @@ export interface GenerationOptions {
   /** Brand name for branded presentations */
   brandName?: string
   /** Custom brand colors */
-  brandColors?: { primary: string; secondary: string }
+  brandColors?: BrandColors
+  /** Use branded template if detected */
+  useBrandedTemplate?: boolean
+  /** Detected brand match (auto-populated during generation) */
+  detectedBrandMatch?: BrandMatch
 }
 
 export interface GenerationResult {
@@ -238,6 +387,8 @@ export interface GenerationResult {
     name: string
     themeId?: string
   }
+  /** Detected brand match (if branded template was matched) */
+  detectedBrand?: BrandMatch
 }
 
 export type GenerationProgressCallback = (
@@ -776,7 +927,7 @@ async function callDocumentServiceAPI(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error')
-    throw new Error(`API error: ${response.status} ${errorText}`)
+    throw new SlideGenerationError(response.status, errorText)
   }
 
   return response.json()
@@ -1404,11 +1555,52 @@ export async function generateSlides(
   let researchData: ResearchResult | undefined
   const sources: string[] = []
   let matchedTemplate: SlideTemplate | null = null
+  let detectedBrandMatch: BrandMatch | null = null
 
-  // Phase 0: Template matching (if enabled, default: true)
+  // Phase 0a: Branded template matching (priority over regular matching)
+  const useBrandedTemplates = options.useBrandedTemplate !== false
+
+  if (useBrandedTemplates && !options.templateId) {
+    onProgress?.('generation', 'progress-checking-templates')
+
+    try {
+      SlidesApiService.setAccessToken(accessToken)
+      const allTemplates = await SlidesApiService.listTemplates({ includeShared: true })
+      const brandedTemplates = filterBrandedTemplates(allTemplates)
+
+      if (brandedTemplates.length > 0) {
+        detectedBrandMatch = findBrandedTemplate(options.description, brandedTemplates)
+
+        if (detectedBrandMatch) {
+          matchedTemplate = brandedTemplates.find(t => t.id === detectedBrandMatch!.templateId) || null
+
+          if (matchedTemplate) {
+            const brandColors = getBrandColorsWithFallbacks(detectedBrandMatch.branding)
+            options = {
+              ...options,
+              brandName: detectedBrandMatch.companyName,
+              brandColors,
+              stylePreference: 'branded',
+              detectedBrandMatch
+            }
+            console.log(
+              `[SlideGeneration] Brand match: ${detectedBrandMatch.companyName} (confidence: ${(detectedBrandMatch.confidence * 100).toFixed(0)}%)`
+            )
+            onProgress?.('generation', 'progress-using-branded-template', {
+              brandName: detectedBrandMatch.companyName
+            })
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[SlideGeneration] Branded template matching failed:', err)
+    }
+  }
+
+  // Phase 0b: Regular template matching (if no brand match found)
   const useTemplateMatching = options.useTemplateMatching !== false
 
-  if (useTemplateMatching) {
+  if (useTemplateMatching && !matchedTemplate) {
     onProgress?.('generation', 'progress-checking-templates')
 
     try {
@@ -1583,8 +1775,24 @@ export async function generateSlides(
     console.log(`[SlideGeneration] Using dark theme (effectiveStyle: ${effectiveStyle})`)
   }
 
-  if (matchedTemplate && matchedTemplate.contentJson.slides.length > 0) {
-    // Use template slides as base, populate with AI-generated content
+  // Check if we're using a branded template
+  const isBrandedGeneration = detectedBrandMatch && matchedTemplate?.isBranded
+
+  if (isBrandedGeneration) {
+    // For branded templates: Generate professional slides using layout service,
+    // then apply branding (logos, footers, branded backgrounds)
+    slides = transformedSlides.map((spec, index) => {
+      const layoutContent = mapToLayoutContent(spec, options.getMessage, effectiveStyle)
+      return generateSlideFromLayout(layoutContent, index, effectiveTheme)
+    })
+
+    // Apply branding from the matched template
+    if (detectedBrandMatch.branding) {
+      slides = applyBrandingToSlides(slides, detectedBrandMatch.branding)
+      console.log(`[SlideGeneration] Applied ${detectedBrandMatch.companyName} branding to ${slides.length} slides`)
+    }
+  } else if (matchedTemplate && matchedTemplate.contentJson.slides.length > 0) {
+    // For regular (non-branded) templates: use template slides as base
     // This preserves the template's visual design (backgrounds, layouts, element positions)
     slides = populateTemplateWithContent(matchedTemplate.contentJson.slides, transformedSlides)
     console.log(`[SlideGeneration] Populated ${slides.length} template slides with AI content`)
@@ -1596,7 +1804,7 @@ export async function generateSlides(
     })
   }
 
-  const result = {
+  const result: GenerationResult = {
     slides,
     title: apiResponse.title || options.description.substring(0, 50),
     sources: sources.length > 0 ? sources : undefined,
@@ -1607,7 +1815,8 @@ export async function generateSlides(
           name: matchedTemplate.name,
           themeId: matchedTemplate.contentJson.themeId
         }
-      : undefined
+      : undefined,
+    detectedBrand: detectedBrandMatch || undefined
   }
   return result
 }

@@ -7,15 +7,44 @@
 
 import React, { useRef, useState, useEffect } from 'react'
 import { Button, Badge, useTranslation } from '@newwork/nw-design-system'
-import { Briefcase, Palette, Minimize2, Folder, Trash2, Globe, Lock, MoreVertical } from 'lucide-react'
+import { Briefcase, Palette, Minimize2, Folder, Trash2, Globe, Lock, MoreVertical, Building2 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@newwork/nw-design-system'
 import type { SlideTemplateSummary, TemplateCategory } from '../types'
-import type { SlideData } from './slideElements'
+import type { SlideData, SlideBackground } from './slideElements'
 import { gradientToCss } from './slideElements'
 import translations from '../_i18n'
 
 const SLIDE_WIDTH = 1280
 const SLIDE_HEIGHT = 720
+
+const getBackgroundStyle = (background: SlideBackground): React.CSSProperties => {
+  switch (background.type) {
+    case 'gradient':
+      return background.gradient ? { background: gradientToCss(background.gradient) } : {}
+    case 'branded': {
+      const layers: string[] = []
+      if (background.overlay) {
+        layers.push(gradientToCss(background.overlay))
+      }
+      if (background.gradient) {
+        layers.push(gradientToCss(background.gradient))
+      }
+      const baseColor = background.color || '#0a0a0a'
+      if (layers.length > 0) {
+        return { background: `${layers.join(', ')}, ${baseColor}` }
+      }
+      return { backgroundColor: baseColor }
+    }
+    case 'image':
+      return background.imageUrl
+        ? { backgroundImage: `url(${background.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : {}
+    case 'video':
+      return { backgroundColor: '#000000' }
+    default:
+      return { backgroundColor: background.color || '#ffffff' }
+  }
+}
 
 export interface TemplateCardProps {
   template: SlideTemplateSummary
@@ -30,7 +59,8 @@ const CATEGORY_ICONS: Record<TemplateCategory, React.ReactNode> = {
   business: <Briefcase className="gba:w-3 gba:h-3" />,
   creative: <Palette className="gba:w-3 gba:h-3" />,
   minimal: <Minimize2 className="gba:w-3 gba:h-3" />,
-  custom: <Folder className="gba:w-3 gba:h-3" />
+  custom: <Folder className="gba:w-3 gba:h-3" />,
+  branded: <Building2 className="gba:w-3 gba:h-3" />
 }
 
 export const TemplateCard: React.FC<TemplateCardProps> = ({
@@ -75,12 +105,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
         {previewSlide ? (
           <div
             className="gba:absolute gba:inset-0"
-            style={{
-              backgroundColor: previewSlide.background?.color || '#fff',
-              background: previewSlide.background?.gradient
-                ? gradientToCss(previewSlide.background.gradient)
-                : undefined
-            }}
+            style={getBackgroundStyle(previewSlide.background || { type: 'solid', color: '#ffffff' })}
           >
             <div
               style={{
@@ -195,6 +220,15 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
             </span>
           </Badge>
         </div>
+        {template.branding && (
+          <Badge
+            variant="outline"
+            className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:text-primary gba:border-primary/30"
+          >
+            <Building2 className="gba:w-2.5 gba:h-2.5 gba:mr-1" />
+            {template.branding.companyName}
+          </Badge>
+        )}
         {template.description && (
           <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2">{template.description}</p>
         )}

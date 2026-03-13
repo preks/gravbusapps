@@ -298,12 +298,15 @@ generate-references-optional = (optional)
 generate-additional-instructions = Additional Instructions
 generate-requirements-placeholder = Include a timeline, use minimal text per slide, end with next steps...
 generate-failed = Generation failed
+generate-error-validation-hint = Please check your inputs above and try again.
 generate-research = Research
 generate-generate = Generate
 generate-validate = Validate
 generate-cancel = Cancel
 generate-button = Generate
 generate-generating = Generating...
+generate-creating-slides = Creating Your Presentation
+generate-ai-working = AI is crafting professional slides...
 generate-use-template = Use Template
 generate-clear-template = Clear Template Selection
 generate-advanced-options = Advanced Options
@@ -333,6 +336,9 @@ generate-theme-branded-desc = Use NEWWORK branded theme
 generate-extract-style = Extract style from references
 generate-toast-success = Presentation generated!
 generate-toast-description = Created { $count } slides
+generate-brand-detected = Brand detected
+generate-brand-detected-desc = Brand template will be applied automatically
+generate-brand-dismiss = Use different template
 
 # Version History
 version-history-title = Version History
@@ -549,10 +555,19 @@ template-save-error = Failed to save template
 template-saved-title = Template Saved
 template-saved-description = Your template has been saved successfully
 
+template-brand-settings = Brand Settings
+template-brand-company = Company Name
+template-brand-company-placeholder = e.g., NEWWORK
+template-brand-company-required = Company name is required for branded templates
+template-brand-keywords = Detection Keywords
+template-brand-keywords-placeholder = e.g., newwork, gravity, everyoffice
+template-brand-keywords-help = Comma-separated keywords to auto-detect this brand in presentation topics
+
 template-browse-button = Templates
 template-browser-title = Template Browser
 template-browser-description = Choose a template to start your presentation
 template-tab-all = All
+template-category-branded = Branded
 template-tab-my-templates = My Templates
 template-search-placeholder = Search templates...
 template-loading = Loading templates...
@@ -570,6 +585,12 @@ template-public = Public
 template-private = Private
 template-delete = Delete
 template-delete-confirm = Delete this template?
+template-delete-title = Delete Template
+template-delete-message = Are you sure you want to delete "{ $name }"? This action cannot be undone.
+template-deleted-title = Template deleted
+template-deleted-description = "{ $name }" has been deleted.
+template-delete-error-title = Delete failed
+template-delete-error-description = Could not delete the template. Please try again.
 
 # Speaker Notes
 editor-speaker-notes = Speaker Notes

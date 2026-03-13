@@ -297,12 +297,15 @@ generate-references-optional = (optional)
 generate-additional-instructions = Zusätzliche Anweisungen
 generate-requirements-placeholder = Zeitachse einbeziehen, minimalen Text pro Folie, nächste Schritte am Ende...
 generate-failed = Generierung fehlgeschlagen
+generate-error-validation-hint = Bitte überprüfen Sie Ihre Eingaben und versuchen Sie es erneut.
 generate-research = Recherche
 generate-generate = Generieren
 generate-validate = Validieren
 generate-cancel = Abbrechen
 generate-button = Generieren
 generate-generating = Wird generiert...
+generate-creating-slides = Ihre Präsentation wird erstellt
+generate-ai-working = KI erstellt professionelle Folien...
 generate-use-template = Vorlage verwenden
 generate-clear-template = Vorlagenauswahl löschen
 generate-advanced-options = Erweiterte Optionen
@@ -332,6 +335,9 @@ generate-theme-branded-desc = NEWWORK-Markenthema verwenden
 generate-extract-style = Stil aus Referenzen extrahieren
 generate-toast-success = Präsentation generiert!
 generate-toast-description = { $count } Folien erstellt
+generate-brand-detected = Marke erkannt
+generate-brand-detected-desc = Markenvorlage wird automatisch angewendet
+generate-brand-dismiss = Andere Vorlage verwenden
 
 # Version History
 version-history-title = Versionsverlauf
@@ -551,10 +557,19 @@ template-save-error = Vorlage konnte nicht gespeichert werden
 template-saved-title = Vorlage gespeichert
 template-saved-description = Ihre Vorlage wurde erfolgreich gespeichert
 
+template-brand-settings = Markeneinstellungen
+template-brand-company = Firmenname
+template-brand-company-placeholder = z.B. NEWWORK
+template-brand-company-required = Firmenname ist für Markenvorlagen erforderlich
+template-brand-keywords = Erkennungsschlüsselwörter
+template-brand-keywords-placeholder = z.B. newwork, gravity, everyoffice
+template-brand-keywords-help = Kommagetrennte Schlüsselwörter zur automatischen Erkennung dieser Marke in Präsentationsthemen
+
 template-browse-button = Vorlagen
 template-browser-title = Vorlagen-Browser
 template-browser-description = Wählen Sie eine Vorlage für Ihre Präsentation
 template-tab-all = Alle
+template-category-branded = Markenvorlagen
 template-tab-my-templates = Meine Vorlagen
 template-search-placeholder = Vorlagen suchen...
 template-loading = Vorlagen werden geladen...
@@ -572,6 +587,12 @@ template-public = Öffentlich
 template-private = Privat
 template-delete = Löschen
 template-delete-confirm = Diese Vorlage löschen?
+template-delete-title = Vorlage löschen
+template-delete-message = Möchten Sie „{ $name }" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+template-deleted-title = Vorlage gelöscht
+template-deleted-description = „{ $name }" wurde gelöscht.
+template-delete-error-title = Löschen fehlgeschlagen
+template-delete-error-description = Die Vorlage konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.
 
 # Speaker Notes
 editor-speaker-notes = Sprechernotizen

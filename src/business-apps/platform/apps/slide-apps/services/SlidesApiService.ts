@@ -14,7 +14,8 @@ import type {
   SlideTemplateSummary,
   CreateTemplateRequest,
   UpdateTemplateRequest,
-  TemplateFilters
+  TemplateFilters,
+  BrandIdentity
 } from '../types'
 import type { Version, FileLock, LockFileInput } from '../../shared/types/versioning'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
@@ -473,11 +474,19 @@ export const SlidesApiService = {
           // Apply createdBy filter (my templates)
           if (filters?.createdBy === 'me' && !item.isOwner) return false
 
+          // Apply isBranded filter
+          if (filters?.isBranded !== undefined) {
+            const hasBranding = meta.branding && (meta.branding as Record<string, unknown>).keywords
+            if (filters.isBranded && !hasBranding) return false
+            if (!filters.isBranded && hasBranding) return false
+          }
+
           return true
         })
         .map(item => {
           const contentJson = (item.contentJson as Record<string, unknown>) || {}
           const meta = (contentJson._templateMeta as Record<string, unknown>) || {}
+          const branding = meta.branding as BrandIdentity | undefined
           return {
             id: item.id as string,
             name: item.title as string,
@@ -489,7 +498,9 @@ export const SlidesApiService = {
             updatedAt: item.updatedAt as string,
             createdBy: item.ownerId as string,
             isPublic: (meta.isPublic as boolean) || false,
-            isOwner: item.isOwner as boolean | undefined
+            isOwner: item.isOwner as boolean | undefined,
+            isBranded: meta.isBranded as boolean | undefined,
+            branding
           }
         })
     } catch (error) {
@@ -510,6 +521,8 @@ export const SlidesApiService = {
         return null
       }
 
+      const branding = meta.branding as BrandIdentity | undefined
+
       return {
         id: api.id as string,
         name: api.title as string,
@@ -518,13 +531,16 @@ export const SlidesApiService = {
         thumbnailUrl: meta.thumbnailUrl as string | undefined,
         contentJson: {
           slides: contentJson.slides as SlideTemplate['contentJson']['slides'],
-          themeId: contentJson.themeId as string
+          themeId: contentJson.themeId as string,
+          _templateMeta: meta as SlideTemplate['contentJson']['_templateMeta']
         },
         createdAt: api.createdAt as string,
         updatedAt: api.updatedAt as string,
         createdBy: api.ownerId as string,
         isPublic: (meta.isPublic as boolean) || false,
-        isOwner: api.isOwner as boolean | undefined
+        isOwner: api.isOwner as boolean | undefined,
+        isBranded: meta.isBranded as boolean | undefined,
+        branding
       }
     } catch (error) {
       console.error('[SlidesApiService] Failed to get template:', error)
@@ -540,7 +556,9 @@ export const SlidesApiService = {
         _templateMeta: {
           isTemplate: true,
           category: payload.category,
-          isPublic: payload.isPublic
+          isPublic: payload.isPublic,
+          isBranded: !!payload.branding,
+          branding: payload.branding
         }
       }
 
@@ -594,7 +612,9 @@ export const SlidesApiService = {
         _templateMeta: {
           isTemplate: true,
           category: updates.category ?? current.category,
-          isPublic: updates.isPublic ?? current.isPublic
+          isPublic: updates.isPublic ?? current.isPublic,
+          isBranded: updates.branding ? true : current.isBranded,
+          branding: updates.branding ?? current.branding
         }
       }
 
@@ -636,6 +656,25 @@ export const SlidesApiService = {
       console.error('[SlidesApiService] Failed to delete template:', error)
       return false
     }
+  },
+
+  /**
+   * List only branded templates (templates with branding configuration)
+   */
+  async listBrandedTemplates(): Promise<SlideTemplate[]> {
+    const templates = await this.listTemplates({ isBranded: true, includeShared: true } as TemplateFilters & {
+      includeShared?: boolean
+    })
+    const fullTemplates: SlideTemplate[] = []
+
+    for (const summary of templates) {
+      const full = await this.getTemplate(summary.id)
+      if (full) {
+        fullTemplates.push(full)
+      }
+    }
+
+    return fullTemplates
   }
 }
 

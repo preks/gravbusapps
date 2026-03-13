@@ -18,7 +18,8 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import { LayoutTemplate, Search, Briefcase, Palette, Minimize2, Folder, User, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { LayoutTemplate, Search, Briefcase, Palette, Minimize2, Folder, User, X, Building2, Trash2 } from 'lucide-react'
 import type { SlideData } from './slideElements'
 import type { SlideTemplateSummary, TemplateCategory } from '../types'
 import { SlidesApiService } from '../services/SlidesApiService'
@@ -42,6 +43,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { key: 'all', labelKey: 'template-tab-all', icon: <LayoutTemplate className="gba:w-4 gba:h-4" /> },
+  { key: 'branded', labelKey: 'template-category-branded', icon: <Building2 className="gba:w-4 gba:h-4" /> },
   { key: 'business', labelKey: 'template-category-business', icon: <Briefcase className="gba:w-4 gba:h-4" /> },
   { key: 'creative', labelKey: 'template-category-creative', icon: <Palette className="gba:w-4 gba:h-4" /> },
   { key: 'minimal', labelKey: 'template-category-minimal', icon: <Minimize2 className="gba:w-4 gba:h-4" /> },
@@ -79,6 +81,8 @@ export const TemplateBrowserDialog: React.FC<TemplateBrowserDialogProps> = ({
 
       if (activeTab === 'my-templates') {
         filters.createdBy = 'me'
+      } else if (activeTab === 'branded') {
+        filters.isBranded = true
       } else if (activeTab !== 'all') {
         filters.category = activeTab as TemplateCategory
       }
@@ -136,21 +140,48 @@ export const TemplateBrowserDialog: React.FC<TemplateBrowserDialogProps> = ({
     }
   }, [searchQuery])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedTemplate?.isOwner && !isApplying) {
+        e.preventDefault()
+        handleDeleteTemplate(selectedTemplate)
+      }
+    }
+
+    if (open) {
+      window.addEventListener('keydown', handleKeyDown)
+      return () => window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open, selectedTemplate, isApplying])
+
   const handleSelectTemplate = (template: SlideTemplateSummary) => {
     setSelectedTemplate(prev => (prev?.id === template.id ? null : template))
   }
 
   const handleDeleteTemplate = async (template: SlideTemplateSummary) => {
-    if (!window.confirm(t('template-delete-confirm') || `Delete template "${template.name}"?`)) {
+    const message =
+      t('template-delete-message', { name: template.name }) ||
+      `Are you sure you want to delete "${template.name}"? This action cannot be undone.`
+
+    if (!window.confirm(message)) {
       return
     }
 
     const success = await SlidesApiService.deleteTemplate(template.id)
+
     if (success) {
       setTemplates(prev => prev.filter(t => t.id !== template.id))
       if (selectedTemplate?.id === template.id) {
         setSelectedTemplate(null)
       }
+      toast.success(t('template-deleted-title') || 'Template deleted', {
+        description:
+          t('template-deleted-description', { name: template.name }) || `"${template.name}" has been deleted.`
+      })
+    } else {
+      toast.error(t('template-delete-error-title') || 'Delete failed', {
+        description: t('template-delete-error-description') || 'Could not delete the template. Please try again.'
+      })
     }
   }
 
@@ -288,6 +319,17 @@ export const TemplateBrowserDialog: React.FC<TemplateBrowserDialogProps> = ({
               )}
             </div>
             <div className="gba:flex gba:gap-2">
+              {selectedTemplate?.isOwner && (
+                <Button
+                  variant="outline"
+                  className="gba:text-destructive gba:border-destructive/30 hover:gba:bg-destructive/10"
+                  onClick={() => handleDeleteTemplate(selectedTemplate)}
+                  data-testid={`${testId}-delete-btn`}
+                >
+                  <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('template-delete') || 'Delete'}
+                </Button>
+              )}
               <Button variant="outline" onClick={() => onOpenChange(false)} data-testid={`${testId}-cancel-btn`}>
                 {t('template-cancel') || 'Cancel'}
               </Button>

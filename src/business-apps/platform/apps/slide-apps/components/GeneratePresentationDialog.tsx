@@ -32,12 +32,6 @@ import {
   ToggleGroupItem,
   RadioGroup,
   RadioGroupItem,
-  Stepper,
-  StepperItem,
-  StepperTrigger,
-  StepperIndicator,
-  StepperTitle,
-  StepperSeparator,
   cn,
   useTranslation
 } from '@newwork/nw-design-system'
@@ -58,15 +52,47 @@ import {
   Users,
   Sparkles,
   FileText,
-  Moon
+  Moon,
+  Building2,
+  Undo2
 } from 'lucide-react'
 import { ContentAttachmentPicker } from './ContentAttachmentPicker'
 import { useSlideGeneration, type MatchedTemplateInfo } from '../hooks/useSlideGeneration'
-import type { SlideData } from './slideElements'
+import type { SlideData, SlideBackground } from './slideElements'
 import { gradientToCss } from './slideElements'
 import type { ContentReference, GenerationOptions } from '../services/SlideGenerationService'
-import type { SlideTemplateSummary, TemplateCategory } from '../types'
+
+const getBackgroundStyle = (background: SlideBackground): React.CSSProperties => {
+  switch (background.type) {
+    case 'gradient':
+      return background.gradient ? { background: gradientToCss(background.gradient) } : {}
+    case 'branded': {
+      const layers: string[] = []
+      if (background.overlay) {
+        layers.push(gradientToCss(background.overlay))
+      }
+      if (background.gradient) {
+        layers.push(gradientToCss(background.gradient))
+      }
+      const baseColor = background.color || '#0a0a0a'
+      if (layers.length > 0) {
+        return { background: `${layers.join(', ')}, ${baseColor}` }
+      }
+      return { backgroundColor: baseColor }
+    }
+    case 'image':
+      return background.imageUrl
+        ? { backgroundImage: `url(${background.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : {}
+    case 'video':
+      return { backgroundColor: '#000000' }
+    default:
+      return { backgroundColor: background.color || '#ffffff' }
+  }
+}
+import type { SlideTemplateSummary, TemplateCategory, SlideTemplate } from '../types'
 import { SlidesApiService } from '../services/SlidesApiService'
+import { findBrandedTemplate, filterBrandedTemplates, type BrandMatch } from '../services/BrandMatchingService'
 import translations from '../_i18n'
 
 export interface GeneratePresentationDialogProps {
@@ -155,8 +181,14 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
   const templateScrollRef = useRef<HTMLDivElement>(null)
 
+  // Brand matching state
+  const [detectedBrand, setDetectedBrand] = useState<BrandMatch | null>(null)
+  const [brandedTemplates, setBrandedTemplates] = useState<SlideTemplate[]>([])
+  const [useBrandedTemplate, setUseBrandedTemplate] = useState(true)
+  const brandMatchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Generation hook
-  const { isGenerating, phase, error, progressMessage, generate, reset } = useSlideGeneration({
+  const { isGenerating, phase, error, errorDetails, progressMessage, generate, reset } = useSlideGeneration({
     accessToken,
     onSuccess: (slides, title, _sources, matchedTemplate) => {
       onGenerate(slides, title, matchedTemplate)
@@ -222,9 +254,58 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
       setAudience('general')
       setThemePreference('auto')
       setExtractStyleFromReferences(true)
+      setDetectedBrand(null)
+      setUseBrandedTemplate(true)
       reset()
     }
   }, [open, reset])
+
+  // Fetch branded templates when dialog opens
+  useEffect(() => {
+    if (!open) return
+
+    const fetchBrandedTemplates = async () => {
+      try {
+        const allTemplates = await SlidesApiService.listTemplates({ includeShared: true })
+        const branded = filterBrandedTemplates(allTemplates as SlideTemplate[])
+        setBrandedTemplates(branded)
+      } catch (error) {
+        console.error('[GeneratePresentationDialog] Failed to fetch branded templates:', error)
+      }
+    }
+
+    fetchBrandedTemplates()
+  }, [open])
+
+  // Detect brand match when description changes
+  useEffect(() => {
+    if (!description.trim() || brandedTemplates.length === 0 || !useBrandedTemplate) {
+      setDetectedBrand(null)
+      return
+    }
+
+    if (brandMatchDebounceRef.current) {
+      clearTimeout(brandMatchDebounceRef.current)
+    }
+
+    brandMatchDebounceRef.current = setTimeout(() => {
+      const match = findBrandedTemplate(description, brandedTemplates)
+      setDetectedBrand(match)
+
+      if (match) {
+        setThemePreference('branded')
+        console.log(
+          `[GeneratePresentationDialog] Brand detected: ${match.companyName} (confidence: ${(match.confidence * 100).toFixed(0)}%)`
+        )
+      }
+    }, 300)
+
+    return () => {
+      if (brandMatchDebounceRef.current) {
+        clearTimeout(brandMatchDebounceRef.current)
+      }
+    }
+  }, [description, brandedTemplates, useBrandedTemplate])
 
   // Handle form submission
   const handleGenerate = useCallback(async () => {
@@ -245,9 +326,12 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
       additionalRequirements: combinedRequirements || undefined,
       references: references.length > 0 ? references : undefined,
       useWebSearch,
-      templateId: selectedTemplateId || undefined,
+      templateId: detectedBrand ? detectedBrand.templateId : selectedTemplateId || undefined,
       stylePreference: themePreference !== 'auto' ? themePreference : undefined,
-      extractStyleFromReferences: references.length > 0 ? extractStyleFromReferences : undefined
+      extractStyleFromReferences: references.length > 0 ? extractStyleFromReferences : undefined,
+      useBrandedTemplate: useBrandedTemplate && detectedBrand !== null,
+      brandName: detectedBrand?.companyName,
+      brandColors: detectedBrand?.branding?.colors
     }
 
     await generate(options)
@@ -263,6 +347,8 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
     audience,
     themePreference,
     extractStyleFromReferences,
+    detectedBrand,
+    useBrandedTemplate,
     generate
   ])
 
@@ -283,16 +369,220 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
 
   return (
     <Dialog open={open} onOpenChange={isGenerating ? undefined : onOpenChange}>
-      <DialogContent className="gba:max-w-xl gba:p-0 gba:gap-0 gba:overflow-hidden" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-xl gba:max-h-[90vh] gba:p-0 gba:gap-0 gba:overflow-hidden gba:flex gba:flex-col"
+        data-testid={testId}
+      >
         {/* Header */}
-        <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4">
+        <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4 gba:flex-shrink-0">
           <DialogTitle className="gba:text-xl gba:font-semibold gba:tracking-tight">{t('generate-title')}</DialogTitle>
           <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('generate-description')}</p>
         </DialogHeader>
 
-        <Separator />
+        <Separator className="gba:flex-shrink-0" />
 
-        <div className="gba:px-6 gba:py-5 gba:space-y-5 gba:max-h-[60vh] gba:overflow-y-auto">
+        {/* Error - Fixed at top, outside scrollable area */}
+        {error && (
+          <div className="gba:mx-6 gba:mt-4 gba:rounded-lg gba:border gba:border-destructive/20 gba:bg-destructive/5 gba:overflow-hidden gba:flex-shrink-0">
+            <div className="gba:flex gba:items-start gba:gap-3 gba:p-4">
+              <div className="gba:flex-shrink-0 gba:w-8 gba:h-8 gba:rounded-full gba:bg-destructive/10 gba:flex gba:items-center gba:justify-center">
+                <AlertCircle className="gba:w-4 gba:h-4 gba:text-destructive" />
+              </div>
+              <div className="gba:flex-1 gba:min-w-0">
+                <p className="gba:font-medium gba:text-destructive">{t('generate-failed')}</p>
+                <p className="gba:text-sm gba:text-destructive/80 gba:mt-1 gba:whitespace-pre-line">{error}</p>
+                {errorDetails?.fieldErrors && errorDetails.fieldErrors.length > 1 && (
+                  <ul className="gba:mt-2 gba:space-y-1">
+                    {errorDetails.fieldErrors.map((fieldError, idx) => (
+                      <li key={idx} className="gba:text-sm gba:text-destructive/70 gba:flex gba:items-start gba:gap-2">
+                        <span className="gba:text-destructive/50">•</span>
+                        <span>{fieldError}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gba:flex-shrink-0 gba:text-destructive/60 hover:gba:text-destructive hover:gba:bg-destructive/10"
+                onClick={reset}
+              >
+                <X className="gba:w-4 gba:h-4" />
+              </Button>
+            </div>
+            {errorDetails?.errorType === 'validation' && (
+              <div className="gba:px-4 gba:py-2 gba:bg-destructive/5 gba:border-t gba:border-destructive/10">
+                <p className="gba:text-xs gba:text-destructive/60">{t('generate-error-validation-hint')}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Progress - Fixed at top, outside scrollable area */}
+        {isGenerating && (
+          <div className="gba:mx-6 gba:mt-4 gba:rounded-xl gba:border gba:bg-gradient-to-br gba:from-background gba:via-muted/30 gba:to-background gba:overflow-hidden gba:flex-shrink-0">
+            {/* Animated Header */}
+            <div className="gba:px-5 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/50 gba:bg-gradient-to-r gba:from-primary/5 gba:via-transparent gba:to-primary/5">
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <div className="gba:relative">
+                  <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-primary gba:to-primary/70 gba:flex gba:items-center gba:justify-center gba:shadow-lg gba:shadow-primary/20">
+                    <Sparkles className="gba:w-5 gba:h-5 gba:text-white gba:animate-pulse" />
+                  </div>
+                  <div className="gba:absolute gba:-inset-1 gba:bg-primary/20 gba:rounded-xl gba:blur-md gba:animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="gba:font-semibold gba:text-foreground">
+                    {t('generate-creating-slides') || 'Creating Your Presentation'}
+                  </h4>
+                  <p className="gba:text-xs gba:text-muted-foreground">
+                    {t('generate-ai-working') || 'AI is crafting professional slides...'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Animated Slide Preview Skeletons */}
+            <div className="gba:p-5">
+              <div className="gba:flex gba:gap-3 gba:mb-5 gba:overflow-hidden">
+                {[0, 1, 2, 3].map(i => (
+                  <div
+                    key={i}
+                    className="gba:flex-shrink-0 gba:w-28 gba:rounded-lg gba:border gba:border-border/50 gba:overflow-hidden gba:bg-background gba:shadow-sm"
+                    style={{
+                      aspectRatio: '16/9',
+                      animation: `slideIn 0.5s ease-out ${i * 0.15}s both, pulse 2s ease-in-out ${i * 0.3}s infinite`
+                    }}
+                  >
+                    <div className="gba:w-full gba:h-full gba:relative gba:bg-gradient-to-br gba:from-muted gba:to-muted/50">
+                      {/* Shimmer effect */}
+                      <div
+                        className="gba:absolute gba:inset-0 gba:bg-gradient-to-r gba:from-transparent gba:via-white/20 gba:to-transparent"
+                        style={{
+                          animation: 'shimmer 2s infinite',
+                          transform: 'translateX(-100%)'
+                        }}
+                      />
+                      {/* Skeleton content */}
+                      <div className="gba:p-2 gba:space-y-1.5">
+                        <div className="gba:h-1.5 gba:bg-muted-foreground/20 gba:rounded gba:w-3/4" />
+                        <div className="gba:h-1 gba:bg-muted-foreground/10 gba:rounded gba:w-full" />
+                        <div className="gba:h-1 gba:bg-muted-foreground/10 gba:rounded gba:w-2/3" />
+                      </div>
+                      {/* Slide number */}
+                      <div className="gba:absolute gba:bottom-1 gba:right-1 gba:text-[8px] gba:text-muted-foreground/40 gba:font-medium">
+                        {i + 1}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {/* More slides indicator */}
+                <div className="gba:flex-shrink-0 gba:w-10 gba:flex gba:items-center gba:justify-center">
+                  <span className="gba:text-xs gba:text-muted-foreground gba:font-medium">...</span>
+                </div>
+              </div>
+
+              {/* Phase Progress */}
+              <div className="gba:space-y-3">
+                {/* Progress bar */}
+                <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+                  <div
+                    className="gba:h-full gba:bg-gradient-to-r gba:from-primary gba:to-primary/70 gba:rounded-full gba:transition-all gba:duration-700 gba:ease-out"
+                    style={{
+                      width:
+                        phase === 'research'
+                          ? '20%'
+                          : phase === 'generation'
+                            ? '60%'
+                            : phase === 'validation'
+                              ? '90%'
+                              : '100%'
+                    }}
+                  />
+                </div>
+
+                {/* Phase indicators */}
+                <div className="gba:flex gba:items-center gba:justify-between gba:text-xs">
+                  {useWebSearch && (
+                    <div
+                      className={cn(
+                        'gba:flex gba:items-center gba:gap-1.5 gba:transition-colors',
+                        phase === 'research' ? 'gba:text-primary gba:font-medium' : 'gba:text-muted-foreground'
+                      )}
+                    >
+                      {phase === 'research' ? (
+                        <Spinner size="xs" className="gba:text-primary" />
+                      ) : getPhaseStatus('research') === 'complete' ? (
+                        <Check className="gba:w-3 gba:h-3 gba:text-green-500" />
+                      ) : (
+                        <Search className="gba:w-3 gba:h-3" />
+                      )}
+                      <span>{t('generate-research') || 'Research'}</span>
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      'gba:flex gba:items-center gba:gap-1.5 gba:transition-colors',
+                      phase === 'generation' ? 'gba:text-primary gba:font-medium' : 'gba:text-muted-foreground'
+                    )}
+                  >
+                    {phase === 'generation' ? (
+                      <Spinner size="xs" className="gba:text-primary" />
+                    ) : getPhaseStatus('generate') === 'complete' ? (
+                      <Check className="gba:w-3 gba:h-3 gba:text-green-500" />
+                    ) : (
+                      <Layers className="gba:w-3 gba:h-3" />
+                    )}
+                    <span>{t('generate-generate') || 'Generate'}</span>
+                  </div>
+                  <div
+                    className={cn(
+                      'gba:flex gba:items-center gba:gap-1.5 gba:transition-colors',
+                      phase === 'validation' ? 'gba:text-primary gba:font-medium' : 'gba:text-muted-foreground'
+                    )}
+                  >
+                    {phase === 'validation' ? (
+                      <Spinner size="xs" className="gba:text-primary" />
+                    ) : getPhaseStatus('validate') === 'complete' ? (
+                      <Check className="gba:w-3 gba:h-3 gba:text-green-500" />
+                    ) : (
+                      <Check className="gba:w-3 gba:h-3" />
+                    )}
+                    <span>{t('generate-validate') || 'Validate'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status message */}
+              {progressMessage && (
+                <div className="gba:mt-4 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
+                  <Wand2 className="gba:w-3.5 gba:h-3.5 gba:animate-bounce" />
+                  <span>{progressMessage}</span>
+                </div>
+              )}
+            </div>
+
+            {/* CSS Animations */}
+            <style>{`
+              @keyframes shimmer {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(100%); }
+              }
+              @keyframes slideIn {
+                from {
+                  opacity: 0;
+                  transform: translateY(10px);
+                }
+                to {
+                  opacity: 1;
+                  transform: translateY(0);
+                }
+              }
+            `}</style>
+          </div>
+        )}
+
+        <div className="gba:px-6 gba:py-5 gba:space-y-5 gba:flex-1 gba:min-h-0 gba:overflow-y-auto">
           {/* Description */}
           <div className="gba:space-y-2">
             <Label htmlFor="description" className="gba:text-sm gba:font-medium">
@@ -309,6 +599,43 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
               data-testid={`${testId}-description`}
             />
           </div>
+
+          {/* Detected Brand Alert */}
+          {detectedBrand && useBrandedTemplate && (
+            <div
+              className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-primary/5"
+              data-testid={`${testId}-brand-detected`}
+            >
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <div className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10">
+                  <Building2 className="gba:w-4 gba:h-4 gba:text-primary" />
+                </div>
+                <div>
+                  <p className="gba:text-sm gba:font-medium">
+                    {t('generate-brand-detected') || 'Brand detected'}:{' '}
+                    <span className="gba:text-primary">{detectedBrand.companyName}</span>
+                  </p>
+                  <p className="gba:text-xs gba:text-muted-foreground">
+                    {t('generate-brand-detected-desc') || 'Brand template will be applied automatically'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setUseBrandedTemplate(false)
+                  setDetectedBrand(null)
+                  setThemePreference('auto')
+                }}
+                className="gba:text-xs gba:h-7"
+                data-testid={`${testId}-brand-dismiss`}
+              >
+                <Undo2 className="gba:w-3 gba:h-3 gba:mr-1" />
+                {t('generate-brand-dismiss') || 'Use different template'}
+              </Button>
+            </div>
+          )}
 
           {/* Length selector - horizontal pills */}
           <div className="gba:space-y-2">
@@ -430,12 +757,9 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
                               {templatePreviews[template.id] ? (
                                 <div
                                   className="gba:absolute gba:inset-0"
-                                  style={{
-                                    backgroundColor: templatePreviews[template.id].background?.color || '#fff',
-                                    background: templatePreviews[template.id].background?.gradient
-                                      ? gradientToCss(templatePreviews[template.id].background!.gradient!)
-                                      : undefined
-                                  }}
+                                  style={getBackgroundStyle(
+                                    templatePreviews[template.id].background || { type: 'solid', color: '#ffffff' }
+                                  )}
                                 >
                                   <div
                                     style={{
@@ -737,79 +1061,12 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
               data-testid={`${testId}-requirements`}
             />
           </div>
-
-          {/* Error */}
-          {error && (
-            <div className="gba:flex gba:items-start gba:gap-3 gba:p-4 gba:bg-destructive/5 gba:border gba:border-destructive/20 gba:text-destructive gba:rounded-lg">
-              <AlertCircle className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:mt-0.5" />
-              <div className="gba:text-sm">
-                <p className="gba:font-medium">{t('generate-failed')}</p>
-                <p className="gba:text-destructive/80 gba:mt-0.5">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Progress */}
-          {isGenerating && (
-            <div className="gba:p-4 gba:rounded-lg gba:border gba:bg-muted/20">
-              {/* Phase stepper using NewWork Stepper component */}
-              <Stepper value={phase} linear={false} className="gba:mb-4">
-                {useWebSearch && (
-                  <>
-                    <StepperItem value="research">
-                      <StepperTrigger value="research" disabled className="gba:cursor-default">
-                        <StepperIndicator value="research">
-                          {getPhaseStatus('research') === 'active' ? (
-                            <Spinner size="sm" />
-                          ) : (
-                            <Search className="gba:w-4 gba:h-4" />
-                          )}
-                        </StepperIndicator>
-                        <StepperTitle>{t('generate-research')}</StepperTitle>
-                      </StepperTrigger>
-                    </StepperItem>
-                    <StepperSeparator />
-                  </>
-                )}
-                <StepperItem value="generation">
-                  <StepperTrigger value="generation" disabled className="gba:cursor-default">
-                    <StepperIndicator value="generation">
-                      {getPhaseStatus('generate') === 'active' ? (
-                        <Spinner size="sm" />
-                      ) : (
-                        <Layers className="gba:w-4 gba:h-4" />
-                      )}
-                    </StepperIndicator>
-                    <StepperTitle>{t('generate-generate')}</StepperTitle>
-                  </StepperTrigger>
-                </StepperItem>
-                <StepperSeparator />
-                <StepperItem value="validation">
-                  <StepperTrigger value="validation" disabled className="gba:cursor-default">
-                    <StepperIndicator value="validation">
-                      {getPhaseStatus('validate') === 'active' ? (
-                        <Spinner size="sm" />
-                      ) : (
-                        <Check className="gba:w-4 gba:h-4" />
-                      )}
-                    </StepperIndicator>
-                    <StepperTitle>{t('generate-validate')}</StepperTitle>
-                  </StepperTrigger>
-                </StepperItem>
-              </Stepper>
-
-              {/* Status text */}
-              {progressMessage && (
-                <p className="gba:text-xs gba:text-muted-foreground gba:text-center">{progressMessage}</p>
-              )}
-            </div>
-          )}
         </div>
 
-        <Separator />
+        <Separator className="gba:flex-shrink-0" />
 
         {/* Footer */}
-        <DialogFooter className="gba:px-6 gba:py-4 gba:bg-muted/30">
+        <DialogFooter className="gba:px-6 gba:py-4 gba:bg-muted/30 gba:flex-shrink-0">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isGenerating}>
             {t('generate-cancel')}
           </Button>

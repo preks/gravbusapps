@@ -278,12 +278,15 @@ generate-references-optional = (opțional)
 generate-additional-instructions = Instrucțiuni suplimentare
 generate-requirements-placeholder = Includeți cronologie, text minim per slide, pași următori la final...
 generate-failed = Generare eșuată
+generate-error-validation-hint = Vă rugăm să verificați datele introduse și să încercați din nou.
 generate-research = Cercetare
 generate-generate = Generare
 generate-validate = Validare
 generate-cancel = Anulare
 generate-button = Generare
 generate-generating = Se generează...
+generate-creating-slides = Se creează prezentarea
+generate-ai-working = AI creează slide-uri profesionale...
 generate-use-template = Folosește șablon
 generate-clear-template = Șterge selecția șablonului
 generate-advanced-options = Opțiuni avansate
@@ -313,6 +316,9 @@ generate-theme-branded-desc = Folosește tema de marcă NEWWORK
 generate-extract-style = Extrage stilul din referințe
 generate-toast-success = Prezentare generată!
 generate-toast-description = Creat { $count } slide-uri
+generate-brand-detected = Brand detectat
+generate-brand-detected-desc = Șablonul de brand va fi aplicat automat
+generate-brand-dismiss = Utilizați alt șablon
 
 # Version History
 version-history-title = Istoric versiuni
@@ -532,10 +538,19 @@ template-save-error = Nu s-a putut salva șablonul
 template-saved-title = Șablon salvat
 template-saved-description = Șablonul a fost salvat cu succes
 
+template-brand-settings = Setări de brand
+template-brand-company = Nume companie
+template-brand-company-placeholder = ex. NEWWORK
+template-brand-company-required = Numele companiei este obligatoriu pentru șabloanele de brand
+template-brand-keywords = Cuvinte cheie de detectare
+template-brand-keywords-placeholder = ex. newwork, gravity, everyoffice
+template-brand-keywords-help = Cuvinte cheie separate prin virgulă pentru detectarea automată a acestui brand în subiectele prezentărilor
+
 template-browse-button = Șabloane
 template-browser-title = Browser șabloane
 template-browser-description = Alegeți un șablon pentru prezentarea dvs.
 template-tab-all = Toate
+template-category-branded = Șabloane de brand
 template-tab-my-templates = Șabloanele mele
 template-search-placeholder = Caută șabloane...
 template-loading = Se încarcă șabloanele...
@@ -553,6 +568,12 @@ template-public = Public
 template-private = Privat
 template-delete = Șterge
 template-delete-confirm = Ștergeți acest șablon?
+template-delete-title = Ștergere șablon
+template-delete-message = Sunteți sigur că doriți să ștergeți „{ $name }"? Această acțiune nu poate fi anulată.
+template-deleted-title = Șablon șters
+template-deleted-description = „{ $name }" a fost șters.
+template-delete-error-title = Ștergere eșuată
+template-delete-error-description = Șablonul nu a putut fi șters. Vă rugăm să încercați din nou.
 
 # Voice Input
 editor-voice-listening = Ascultare... Vorbiți acum

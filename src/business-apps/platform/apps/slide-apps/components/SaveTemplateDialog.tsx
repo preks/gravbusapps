@@ -25,12 +25,41 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import { LayoutTemplate, Briefcase, Palette, Minimize2, Folder } from 'lucide-react'
-import type { SlideData } from './slideElements'
-import type { TemplateCategory } from '../types'
+import { LayoutTemplate, Briefcase, Palette, Minimize2, Folder, Building2 } from 'lucide-react'
+import type { SlideData, SlideBackground } from './slideElements'
+import type { TemplateCategory, BrandIdentity } from '../types'
 import { SlidesApiService } from '../services/SlidesApiService'
 import { gradientToCss } from './slideElements'
 import translations from '../_i18n'
+
+const getBackgroundStyle = (background: SlideBackground): React.CSSProperties => {
+  switch (background.type) {
+    case 'gradient':
+      return background.gradient ? { background: gradientToCss(background.gradient) } : {}
+    case 'branded': {
+      const layers: string[] = []
+      if (background.overlay) {
+        layers.push(gradientToCss(background.overlay))
+      }
+      if (background.gradient) {
+        layers.push(gradientToCss(background.gradient))
+      }
+      const baseColor = background.color || '#0a0a0a'
+      if (layers.length > 0) {
+        return { background: `${layers.join(', ')}, ${baseColor}` }
+      }
+      return { backgroundColor: baseColor }
+    }
+    case 'image':
+      return background.imageUrl
+        ? { backgroundImage: `url(${background.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : {}
+    case 'video':
+      return { backgroundColor: '#000000' }
+    default:
+      return { backgroundColor: background.color || '#ffffff' }
+  }
+}
 
 export interface SaveTemplateDialogProps {
   open: boolean
@@ -42,6 +71,7 @@ export interface SaveTemplateDialogProps {
 }
 
 const CATEGORY_OPTIONS: { value: TemplateCategory; label: string; icon: React.ReactNode }[] = [
+  { value: 'branded', label: 'Branded', icon: <Building2 className="gba:w-4 gba:h-4" /> },
   { value: 'business', label: 'Business', icon: <Briefcase className="gba:w-4 gba:h-4" /> },
   { value: 'creative', label: 'Creative', icon: <Palette className="gba:w-4 gba:h-4" /> },
   { value: 'minimal', label: 'Minimal', icon: <Minimize2 className="gba:w-4 gba:h-4" /> },
@@ -65,6 +95,10 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Brand settings for branded templates
+  const [brandCompanyName, setBrandCompanyName] = useState('')
+  const [brandKeywords, setBrandKeywords] = useState('')
+
   useEffect(() => {
     if (open) {
       setName('')
@@ -73,21 +107,44 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
       setIsPublic(false)
       setIsSaving(false)
       setError(null)
+      setBrandCompanyName('')
+      setBrandKeywords('')
     }
   }, [open])
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) return
 
+    // Validate brand fields when category is branded
+    if (category === 'branded' && !brandCompanyName.trim()) {
+      setError(t('template-brand-company-required') || 'Company name is required for branded templates')
+      return
+    }
+
     setIsSaving(true)
     setError(null)
 
     try {
+      // Build branding object for branded templates
+      const branding: BrandIdentity | undefined =
+        category === 'branded'
+          ? {
+              companyName: brandCompanyName.trim(),
+              keywords: brandKeywords
+                .split(',')
+                .map(k => k.trim().toLowerCase())
+                .filter(k => k.length > 0),
+              logo: { lightUrl: '', darkUrl: '' },
+              colors: { primary: '#E11D48', secondary: '#1e293b' }
+            }
+          : undefined
+
       const result = await SlidesApiService.createTemplate({
         name: name.trim(),
         description: description.trim() || undefined,
         category,
         isPublic,
+        branding,
         contentJson: {
           slides,
           themeId
@@ -105,9 +162,21 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
     } finally {
       setIsSaving(false)
     }
-  }, [name, description, category, isPublic, slides, themeId, onSaved, onOpenChange, t])
+  }, [
+    name,
+    description,
+    category,
+    isPublic,
+    brandCompanyName,
+    brandKeywords,
+    slides,
+    themeId,
+    onSaved,
+    onOpenChange,
+    t
+  ])
 
-  const isValid = name.trim().length > 0
+  const isValid = name.trim().length > 0 && (category !== 'branded' || brandCompanyName.trim().length > 0)
 
   const thumbScale = 80 / 1280
 
@@ -141,10 +210,7 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
                 >
                   <div
                     className="gba:relative gba:w-full gba:h-full"
-                    style={{
-                      backgroundColor: slide.background?.color || '#fff',
-                      background: slide.background?.gradient ? gradientToCss(slide.background.gradient) : undefined
-                    }}
+                    style={getBackgroundStyle(slide.background || { type: 'solid', color: '#ffffff' })}
                   >
                     <div
                       style={{
@@ -248,6 +314,50 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Brand Settings (shown when Branded category is selected) */}
+          {category === 'branded' && (
+            <div className="gba:space-y-4 gba:p-4 gba:rounded-lg gba:border gba:border-primary/20 gba:bg-primary/5">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:font-medium gba:text-primary">
+                <Building2 className="gba:w-4 gba:h-4" />
+                {t('template-brand-settings') || 'Brand Settings'}
+              </div>
+
+              {/* Company Name */}
+              <div className="gba:space-y-2">
+                <Label htmlFor="brand-company" className="gba:text-sm gba:font-medium">
+                  {t('template-brand-company') || 'Company Name'} *
+                </Label>
+                <Input
+                  id="brand-company"
+                  value={brandCompanyName}
+                  onChange={e => setBrandCompanyName(e.target.value)}
+                  placeholder={t('template-brand-company-placeholder') || 'e.g., NEWWORK'}
+                  disabled={isSaving}
+                  data-testid={`${testId}-brand-company-input`}
+                />
+              </div>
+
+              {/* Keywords */}
+              <div className="gba:space-y-2">
+                <Label htmlFor="brand-keywords" className="gba:text-sm gba:font-medium">
+                  {t('template-brand-keywords') || 'Detection Keywords'}
+                </Label>
+                <Input
+                  id="brand-keywords"
+                  value={brandKeywords}
+                  onChange={e => setBrandKeywords(e.target.value)}
+                  placeholder={t('template-brand-keywords-placeholder') || 'e.g., newwork, gravity, everyoffice'}
+                  disabled={isSaving}
+                  data-testid={`${testId}-brand-keywords-input`}
+                />
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {t('template-brand-keywords-help') ||
+                    'Comma-separated keywords to auto-detect this brand in presentation topics'}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Public Toggle */}
           <div className="gba:flex gba:items-center gba:justify-between gba:py-2">
