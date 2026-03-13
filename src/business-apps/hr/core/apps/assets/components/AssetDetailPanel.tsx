@@ -449,15 +449,31 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
               </CardHeader>
               <CardContent>
                 {sortedAllocations.length === 0 ? (
-                  <p
-                    className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4"
-                    data-testid="no-allocation-history"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_assets.allocation_history_empty',
-                      'No allocation history available for this asset.'
+                  <div className="gba:space-y-2">
+                    <p
+                      className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4"
+                      data-testid="no-allocation-history"
+                    >
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:hr_assets.allocation_history_empty',
+                        'No allocation history available for this asset.'
+                      )}
+                    </p>
+                    {isRetired && (
+                      <p
+                        className="gba:text-xs gba:text-muted-foreground gba:text-center"
+                        data-testid="asset-retired-at-by"
+                      >
+                        {t('retired-at-by', {
+                          disposalDate:
+                            asset.disposalDate != null && asset.disposalDate !== ''
+                              ? formatDate(asset.disposalDate) || asset.disposalDate
+                              : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A'),
+                          responsiblePerson: getResponsiblePersonDisplay()
+                        })}
+                      </p>
                     )}
-                  </p>
+                  </div>
                 ) : (
                   <div className="gba:space-y-4">
                     {sortedAllocations.map((allocation, index) => {
