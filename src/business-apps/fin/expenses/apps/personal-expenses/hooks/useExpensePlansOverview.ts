@@ -431,7 +431,11 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       }
 
       // Page not in cache or force refresh - fetch from server
-      setIsLoading(true)
+      // Only show table loading when we have no data yet (initial load); skip for sort/pagination so the table doesn't rerender/flash
+      const hasExistingListData = (dataRef.current?.items?.length ?? 0) > 0
+      if (!hasExistingListData) {
+        setIsLoading(true)
+      }
       // Always set statistics loading on initial fetch or when statistics don't exist
       // This ensures loading skeleton shows instead of 0 values
       // On initial load (data is null) or when statistics are missing, show loading skeleton
