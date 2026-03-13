@@ -426,10 +426,13 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   }
 
   return (
-    <div className="gba:space-y-4" data-testid={dataTestId || 'contact-list'}>
+    <div className="gba:space-y-4 gba:w-full gba:min-w-0" data-testid={dataTestId || 'contact-list'}>
       {/* Contact Cards List */}
       {internalValue.length > 0 && (
-        <div className="gba:space-y-2" data-testid={formatDataTestId(dataTestId || 'contact-list', 'cards-list')}>
+        <div
+          className="gba:space-y-2 gba:w-full gba:min-w-0"
+          data-testid={formatDataTestId(dataTestId || 'contact-list', 'cards-list')}
+        >
           {internalValue.map((contactValue, index) => {
             const contactId = getContactId(contactValue)
             const contactData = getContactData(contactValue)
@@ -457,7 +460,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
             return (
               <div
                 key={contactId}
-                className="gba:flex gba:items-center gba:gap-3 gba:py-2"
+                className="gba:flex gba:items-center gba:gap-3 gba:py-2 gba:w-full gba:min-w-0 gba:overflow-hidden"
                 data-testid={formatDataTestId(dataTestId || 'contact-list', `contact-card-${index}`)}
               >
                 {/* Avatar */}
@@ -469,11 +472,13 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                   )}
                 </Avatar>
 
-                {/* Name, Job Position, Department */}
-                <div className="gba:flex-1 gba:min-w-0">
-                  <h4 className="gba:text-sm gba:font-semibold gba:truncate">{displayName}</h4>
+                {/* Name, Job Position, Department - flex-1 min-w-0 so name truncates within available width */}
+                <div className="gba:flex-1 gba:min-w-0 gba:overflow-hidden">
+                  <h4 className="gba:text-sm gba:font-semibold gba:truncate" title={displayName}>
+                    {displayName}
+                  </h4>
                   {(jobPosition || department) && (
-                    <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:mt-1 gba:text-xs">
+                    <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:mt-1 gba:text-xs gba:min-w-0 gba:overflow-hidden">
                       {jobPosition && (
                         <span className="gba:flex gba:items-center gba:gap-1">
                           <Briefcase className="gba:w-3 gba:h-3" />
@@ -491,8 +496,8 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                   )}
                 </div>
 
-                {/* Contact Type Select */}
-                <div className="gba:w-48">
+                {/* Contact Type Select - fixed width, never shrink */}
+                <div className="gba:w-48 gba:flex-shrink-0">
                   <Select
                     value={contactType || ''}
                     onValueChange={value => handleContactTypeChange(index, value)}
