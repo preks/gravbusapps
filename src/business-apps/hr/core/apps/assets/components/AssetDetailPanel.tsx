@@ -142,6 +142,14 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
     return conditionValue || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
   }
 
+  const getResponsiblePersonDisplay = (): string => {
+    const r = asset.responsibleEmployee
+    if (!r) return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+    if (r.displayName?.trim()) return r.displayName.trim()
+    const name = `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim()
+    return name || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+  }
+
   const isAllocated = asset.assetStatus === AssetStatus.ALLOCATED
   const isRetired = asset.assetStatus === AssetStatus.RETIRED
 
@@ -550,6 +558,21 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                                     allocation.endAssetConditionRef,
                                     allocation.endAssetCondition.value
                                   )}
+                                </p>
+                              )}
+
+                              {isRetired && index === 0 && (
+                                <p
+                                  className="gba:text-xs gba:text-muted-foreground gba:mt-1"
+                                  data-testid="asset-retired-at-by"
+                                >
+                                  {t('retired-at-by', {
+                                    disposalDate:
+                                      asset.disposalDate != null && asset.disposalDate !== ''
+                                        ? formatDate(asset.disposalDate) || asset.disposalDate
+                                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A'),
+                                    responsiblePerson: getResponsiblePersonDisplay()
+                                  })}
                                 </p>
                               )}
                             </div>
