@@ -1,6 +1,16 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import { UserIcon, TargetIcon, HandshakeIcon, BuildingIcon, CalendarIcon } from '@phosphor-icons/react'
+import {
+  UserIcon,
+  TargetIcon,
+  HandshakeIcon,
+  BuildingIcon,
+  CalendarBlankIcon as CalendarIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  UsersIcon,
+  ListChecksIcon
+} from '@phosphor-icons/react'
 import type { TeamSalesActivity } from '../hooks/useTeamActivitiesData'
 import type { SalesTeamMember } from '../../sales-members-list/types'
 import {
@@ -195,15 +205,17 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
       return (
         <button
           type="button"
-          className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer gba:hover:bg-accent gba:px-3 gba:py-2 gba:rounded gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:w-fit"
+          className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer gba:hover:bg-accent gba:px-3 gba:py-2 gba:rounded gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:overflow-hidden gba:max-w-[200px]"
           onClick={handleClick}
         >
           {resolvedName ? (
-            <span className="gba:text-sm gba:font-medium gba:text-primary" title={resolvedName}>
+            <span className="gba:text-sm gba:font-medium gba:text-primary gba:truncate" title={resolvedName}>
               {resolvedName}
             </span>
           ) : (
-            <span className="gba:text-sm gba:italic gba:text-muted-foreground">Unnamed {resolvedType}</span>
+            <span className="gba:text-sm gba:italic gba:text-muted-foreground gba:truncate">
+              Unnamed {resolvedType}
+            </span>
           )}
           <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
             {getEntityTypeIcon(resolvedType)}
