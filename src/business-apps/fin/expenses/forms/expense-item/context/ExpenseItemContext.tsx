@@ -790,6 +790,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     const formValuesBatch: Record<string, any> = {}
     newPositions.forEach((pos, idx) => {
       formValuesBatch[`expenseGroup-${idx}`] = pos.expenseGroup || undefined
+      formValuesBatch[`expenseType-${idx}`] = pos.expenseType || undefined
       formValuesBatch[`amount-${idx}`] = pos.amount
       formValuesBatch[`costCenter-${idx}`] = pos.costCenter
       formValuesBatch[`isReimbursable-${idx}`] = pos.isReimbursable
