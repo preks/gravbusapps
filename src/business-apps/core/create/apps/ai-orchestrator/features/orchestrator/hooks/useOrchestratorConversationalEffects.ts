@@ -14,6 +14,7 @@ export interface UseOrchestratorConversationalEffectsOptions {
   state: OrchestratorState
   chat: Pick<UseCreateChatResult, 'messages' | 'addAssistantMessage' | 'addSystemMessage'>
   currentPlan: BuildPlan | null
+  initialJobId?: string
   lastSessionId: string | null
   lastRepoId: string | null
   builderClient: {
@@ -42,6 +43,7 @@ export function useOrchestratorConversationalEffects(options: UseOrchestratorCon
     state,
     chat,
     currentPlan,
+    initialJobId,
     lastSessionId,
     lastRepoId,
     builderClient,
@@ -54,7 +56,7 @@ export function useOrchestratorConversationalEffects(options: UseOrchestratorCon
 
   const [builtBy, setBuiltBy] = useState<unknown>(null)
   const [builtByLoading, setBuiltByLoading] = useState(false)
-  const [isRestoringSession, setIsRestoringSession] = useState(false)
+  const [isRestoringSession, setIsRestoringSession] = useState(Boolean(initialJobId))
   const [restoreComplete, setRestoreComplete] = useState(false)
   const persistedMessageSnapshotsRef = useRef<Map<string, string>>(new Map())
   const chatPersistenceInitializedRef = useRef(false)
@@ -108,15 +110,17 @@ export function useOrchestratorConversationalEffects(options: UseOrchestratorCon
     if (isRestoringSessionRef.current) return
     if (chat.messages.length === 0) return
 
-    const persistable = toPersistedChatMessages(chat.messages.filter(message => !message.isStreaming)).filter(message => {
-      const hasContent = typeof message.content === 'string' && message.content.trim().length > 0
-      const hasThinking = typeof message.thinkingLog === 'string' && message.thinkingLog.trim().length > 0
-      const hasBlocks =
-        Array.isArray(message.blocks) &&
-        message.blocks.some(block => typeof block?.content === 'string' && block.content.trim().length > 0)
-      const hasToolCalls = Array.isArray(message.toolCalls) && message.toolCalls.length > 0
-      return message.role === 'user' ? hasContent : hasContent || hasThinking || hasBlocks || hasToolCalls
-    })
+    const persistable = toPersistedChatMessages(chat.messages.filter(message => !message.isStreaming)).filter(
+      message => {
+        const hasContent = typeof message.content === 'string' && message.content.trim().length > 0
+        const hasThinking = typeof message.thinkingLog === 'string' && message.thinkingLog.trim().length > 0
+        const hasBlocks =
+          Array.isArray(message.blocks) &&
+          message.blocks.some(block => typeof block?.content === 'string' && block.content.trim().length > 0)
+        const hasToolCalls = Array.isArray(message.toolCalls) && message.toolCalls.length > 0
+        return message.role === 'user' ? hasContent : hasContent || hasThinking || hasBlocks || hasToolCalls
+      }
+    )
 
     if (persistable.length === 0) return
 

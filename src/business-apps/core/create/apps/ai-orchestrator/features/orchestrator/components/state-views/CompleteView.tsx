@@ -73,6 +73,17 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   const [activeTab, setActiveTab] = useState<CanvasTab>('screen')
   const visibleTabs = useMemo(() => getVisibleCanvasTabs(components), [components])
   const previewComponent = useMemo(() => firstScreenWithSession(components), [components])
+  const dataModelItems = useMemo(
+    () =>
+      components
+        .filter(c => c.type === 'data_model' && (c.status === 'completed' || c.status === 'reused') && c.dataModelSpec)
+        .map(c => ({
+          id: c.id,
+          label: c.dataModelSpec!.name,
+          definition: mapDataModelSpec(c.dataModelSpec!)
+        })),
+    [components]
+  )
 
   useEffect(() => {
     const visibleIds = visibleTabs.map(t => t.id)
@@ -105,10 +116,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
         )
 
       case 'data-model': {
-        const built = components.filter(
-          c => c.type === 'data_model' && (c.status === 'completed' || c.status === 'reused') && c.dataModelSpec
-        )
-        if (built.length === 0) {
+        if (dataModelItems.length === 0) {
           return (
             <ComponentPlaceholderList
               components={components.filter(c => c.type === 'data_model')}
@@ -117,14 +125,9 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             />
           )
         }
-        const items = built.map(c => ({
-          id: c.id,
-          label: c.dataModelSpec!.name,
-          definition: mapDataModelSpec(c.dataModelSpec!)
-        }))
         return (
           <div className="gba:h-full gba:overflow-y-auto gba:p-4">
-            <DataModelPreview items={items} accessToken={accessToken} />
+            <DataModelPreview items={dataModelItems} accessToken={accessToken} />
           </div>
         )
       }

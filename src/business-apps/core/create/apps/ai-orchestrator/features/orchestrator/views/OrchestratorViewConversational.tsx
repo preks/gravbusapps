@@ -163,7 +163,10 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
         conversationHistory,
         createdBy: userInfo
       })
-      const { assistantMessage, hasMutation, hasPlanUpdate, planJobId } = await parseFixAssistantFromStream(stream, onPartial)
+      const { assistantMessage, hasMutation, hasPlanUpdate, planJobId } = await parseFixAssistantFromStream(
+        stream,
+        onPartial
+      )
       if (hasMutation) {
         setPreviewRefreshToken(prev => prev + 1)
       }
@@ -209,6 +212,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       state,
       chat,
       currentPlan,
+      initialJobId,
       lastSessionId,
       lastRepoId,
       builderClient,
@@ -309,7 +313,10 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   }, [])
 
   const normalizeCheckpointViewState = useCallback(
-    (checkpoint: { snapshot?: Record<string, unknown> } | null, restoredPlan: typeof currentPlan): 'review' | 'complete' | 'error' => {
+    (
+      checkpoint: { snapshot?: Record<string, unknown> } | null,
+      restoredPlan: typeof currentPlan
+    ): 'review' | 'complete' | 'error' => {
       const derivedFromPlan = deriveViewStateFromPlan(restoredPlan)
       const rawViewState = checkpoint?.snapshot?.viewState
       if (!isValidOrchestratorViewState(rawViewState)) {
@@ -347,10 +354,9 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
 
       const restoreResult = await restoreDraftCheckpoint(checkpoint.checkpointId, lastSessionId, true)
       const restoredCheckpoint = restoreResult?.checkpoint ?? checkpoint
-      const restoredJobId =
-        typeof restoredCheckpoint?.jobId === 'string'
-          ? restoredCheckpoint.jobId
-          : (typeof checkpoint.jobId === 'string' ? checkpoint.jobId : null)
+      const restoredCheckpointJobId = typeof restoredCheckpoint?.jobId === 'string' ? restoredCheckpoint.jobId : null
+      const checkpointJobId = typeof checkpoint.jobId === 'string' ? checkpoint.jobId : null
+      const restoredJobId = restoredCheckpointJobId ?? checkpointJobId
       const restoredPlan = restoredJobId ? await refreshPlan(restoredJobId) : null
 
       if (restoredCheckpoint?.sessionId || restoredCheckpoint?.repoId) {
@@ -390,11 +396,16 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
         const { checkpoint, restoredPlan } = await applyPlanSnapshotRestoreForMessage(message.id)
         await reloadChatHistory()
 
-        const latestPlan =
-          restoredPlan ??
-          (typeof checkpoint?.jobId === 'string'
-            ? await refreshPlan(checkpoint.jobId)
-            : (currentPlan?.jobId ? await refreshPlan(currentPlan.jobId) : currentPlan))
+        let latestPlan = restoredPlan
+        if (!latestPlan && typeof checkpoint?.jobId === 'string') {
+          latestPlan = await refreshPlan(checkpoint.jobId)
+        }
+        if (!latestPlan && currentPlan?.jobId) {
+          latestPlan = await refreshPlan(currentPlan.jobId)
+        }
+        if (!latestPlan) {
+          latestPlan = currentPlan
+        }
         const nextViewState = normalizeCheckpointViewState(checkpoint, latestPlan)
         state.setViewState(nextViewState)
         state.setChatActive(true)
@@ -428,7 +439,10 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       const historySnapshot = chat.messages
       const targetIndex = historySnapshot.findIndex(item => item.id === message.id)
       if (targetIndex < 0) return
-      const previousAssistant = [...historySnapshot.slice(0, targetIndex)].reverse().find(item => item.role === 'assistant')
+      const previousAssistant = historySnapshot
+        .slice(0, targetIndex)
+        .reverse()
+        .find(item => item.role === 'assistant')
 
       setIsRestoringMessageId(message.id)
       try {
@@ -484,11 +498,16 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
           return
         }
 
-        const latestPlan =
-          restoredPlan ??
-          (typeof restoredCheckpoint?.jobId === 'string'
-            ? await refreshPlan(restoredCheckpoint.jobId)
-            : (currentPlan?.jobId ? await refreshPlan(currentPlan.jobId) : currentPlan))
+        let latestPlan = restoredPlan
+        if (!latestPlan && typeof restoredCheckpoint?.jobId === 'string') {
+          latestPlan = await refreshPlan(restoredCheckpoint.jobId)
+        }
+        if (!latestPlan && currentPlan?.jobId) {
+          latestPlan = await refreshPlan(currentPlan.jobId)
+        }
+        if (!latestPlan) {
+          latestPlan = currentPlan
+        }
         const nextViewState = normalizeCheckpointViewState(restoredCheckpoint, latestPlan)
         state.setViewState(nextViewState)
         state.setChatActive(true)
@@ -529,11 +548,14 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
         if (!baseUrl) return null
 
         const normalizedPath = raw.startsWith('/') ? raw : `/${raw}`
-        const platformPath = normalizedPath.startsWith('/platform/')
-          ? normalizedPath
-          : normalizedPath.startsWith('/apps/')
-            ? `/platform/generated${normalizedPath}`
-            : `/platform/generated/apps/${normalizedPath.replace(/^\/+/, '')}`
+        let platformPath = normalizedPath
+        if (!normalizedPath.startsWith('/platform/')) {
+          if (normalizedPath.startsWith('/apps/')) {
+            platformPath = `/platform/generated${normalizedPath}`
+          } else {
+            platformPath = `/platform/generated/apps/${normalizedPath.replace(/^\/+/, '')}`
+          }
+        }
         return `${baseUrl}${platformPath}`
       }
 

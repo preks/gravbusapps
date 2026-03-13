@@ -599,11 +599,32 @@ export class PromptManagerClient extends RestClient {
     super(url, {})
   }
 
+  private normalizeAccessToken(accessToken: unknown): string | null {
+    if (typeof accessToken !== 'string') return null
+    const trimmed = accessToken.trim()
+    if (!trimmed) return null
+    if (trimmed === '[object Object]') return null
+    if (trimmed.toLowerCase() === 'undefined' || trimmed.toLowerCase() === 'null') return null
+    if (trimmed.startsWith('Bearer ')) {
+      const raw = trimmed.slice('Bearer '.length).trim()
+      return raw || null
+    }
+    return trimmed
+  }
+
   setAccessToken(accessToken: string) {
     if (!this.headers) {
       this.headers = {}
     }
-    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
+    const normalized = this.normalizeAccessToken(accessToken)
+    if (!normalized) {
+      delete this.headers['Authorization']
+      if (typeof console !== 'undefined') {
+        console.warn('[PromptManagerClient] Invalid access token supplied; Authorization header cleared')
+      }
+      return
+    }
+    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(normalized)
   }
 
   // --- Workspaces ---

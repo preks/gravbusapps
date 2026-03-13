@@ -179,11 +179,82 @@ function toRowId(row: Record<string, unknown>): string {
   return `${id}`
 }
 
-function buildListQuery(key: string, columns: DataModelPreviewColumn[]): { query: string; listField: string } {
-  const listField = key.charAt(0).toLowerCase() + key.slice(1) + 'List'
+function areColumnOptionsEqual(
+  left: Array<{ value: string; label: string }> | undefined,
+  right: Array<{ value: string; label: string }> | undefined
+): boolean {
+  if (!left && !right) return true
+  if (!left || !right) return false
+  if (left.length !== right.length) return false
+  return left.every((option, index) => {
+    const rightOption = right[index]
+    return option.value === rightOption?.value && option.label === rightOption?.label
+  })
+}
+
+function areColumnsEqual(left: DataModelPreviewColumn[], right: DataModelPreviewColumn[]): boolean {
+  if (left.length !== right.length) return false
+  return left.every((column, index) => {
+    const rightColumn = right[index]
+    return (
+      column.name === rightColumn?.name &&
+      column.label === rightColumn?.label &&
+      column.type === rightColumn?.type &&
+      column.required === rightColumn?.required &&
+      areColumnOptionsEqual(column.options, rightColumn?.options)
+    )
+  })
+}
+
+function toPascalCaseEntityKey(input: string): string {
+  const value = String(input || '').trim()
+  if (!value) return 'Entity'
+  const parts = value
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  const out = parts.map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('')
+  return out && /^[A-Za-z]/.test(out) ? out : `Entity${out}`
+}
+
+function toCamelCaseEntityKey(input: string): string {
+  const pascal = toPascalCaseEntityKey(input)
+  return pascal.charAt(0).toLowerCase() + pascal.slice(1)
+}
+
+function toGraphqlSafeEntityBase(input: string): string {
+  const value = String(input || '').trim()
+  if (!value) return 'entity'
+  const safe = value.replace(/\W/g, '_')
+  if (!safe) return 'entity'
+  return /^[_A-Za-z]/.test(safe) ? safe : `_${safe}`
+}
+
+function buildEntityQueryNames(entityKey: string): { listPrimary: string; listCandidates: string[]; typeName: string } {
+  const primaryBase = toCamelCaseEntityKey(entityKey)
+  const rawBase = toGraphqlSafeEntityBase(entityKey)
+  const rawLowerBase = rawBase.charAt(0).toLowerCase() + rawBase.slice(1)
+  const bases = Array.from(new Set([primaryBase, rawBase, rawLowerBase].filter(Boolean)))
+
+  return {
+    listPrimary: `${primaryBase}List`,
+    listCandidates: bases.map(base => `${base}List`),
+    typeName: toPascalCaseEntityKey(entityKey)
+  }
+}
+
+function buildListQuery(
+  key: string,
+  columns: DataModelPreviewColumn[]
+): { query: string; listFieldCandidates: string[] } {
+  const queryNames = buildEntityQueryNames(key)
   const scalarFields = columns.filter(c => SCALAR_COLUMN_TYPES.has(c.type)).map(c => c.name)
   const fields = ['id', ...scalarFields].join('\n      ')
-  return { query: `{ ${listField} {\n      ${fields}\n    } }`, listField }
+  return {
+    query: `{ ${queryNames.listPrimary} {\n      ${fields}\n    } }`,
+    listFieldCandidates: queryNames.listCandidates
+  }
 }
 
 type DataModelTab = 'structure' | 'data'
@@ -211,6 +282,13 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
   const [existingError, setExistingError] = useState<string | null>(null)
 
   const isCatalog = definition.modelType === 'catalog'
+  const entityQueryNames = useMemo(() => buildEntityQueryNames(definition.key), [definition.key])
+  const scalarFieldNames = useMemo(
+    () => columns.filter(c => SCALAR_COLUMN_TYPES.has(c.type)).map(c => c.name),
+    [columns]
+  )
+  const scalarFieldSignature = useMemo(() => scalarFieldNames.join('|'), [scalarFieldNames])
+  const listQueryConfig = useMemo(() => buildListQuery(definition.key, columns), [definition.key, scalarFieldSignature])
 
   const graphqlClient = useMemo(
     () =>
@@ -228,37 +306,49 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
     if (!graphqlClient) return
 
     try {
-      const schemaTypes = await graphqlClient.introspectEntityType(definition.key)
+      const schemaTypes = await graphqlClient.introspectEntityType(entityQueryNames.typeName)
       if (Object.keys(schemaTypes).length > 0) {
         const enrichedColumns = enrichColumnsWithSchemaTypes(definition.columns ?? [], schemaTypes)
-        setColumns(enrichedColumns)
+        setColumns(prev => (areColumnsEqual(prev, enrichedColumns) ? prev : enrichedColumns))
       }
     } catch (error) {
       console.warn('Failed to fetch schema types, using definition types:', error)
     }
-  }, [graphqlClient, definition.key, definition.columns])
+  }, [graphqlClient, definition.columns, entityQueryNames.typeName])
 
   useEffect(() => {
     fetchSchemaTypes()
   }, [fetchSchemaTypes])
 
-  const fetchRows = useCallback(async () => {
-    if (!graphqlClient) return
-    setFetchLoading(true)
-    setFetchError(null)
-    try {
-      const { query, listField } = buildListQuery(definition.key, columns)
-      const data = await graphqlClient.request<Record<string, Record<string, unknown>[]>>(query)
-      setExistingRows(data[listField] ?? [])
-    } catch (e) {
-      setFetchError(e instanceof Error ? e.message : 'Failed to load records')
-    } finally {
-      setFetchLoading(false)
-    }
-  }, [graphqlClient, definition.key, columns])
+  const fetchRows = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!graphqlClient) return
+      const isSilent = options?.silent === true
+      if (!isSilent) {
+        setFetchLoading(true)
+      }
+      setFetchError(null)
+      try {
+        const { query, listFieldCandidates } = listQueryConfig
+        const data = await graphqlClient.request<Record<string, Record<string, unknown>[]>>(query)
+        const listRows =
+          listFieldCandidates
+            .map(field => data[field])
+            .find((rows): rows is Record<string, unknown>[] => Array.isArray(rows)) || []
+        setExistingRows(listRows)
+      } catch (e) {
+        setFetchError(e instanceof Error ? e.message : 'Failed to load records')
+      } finally {
+        if (!isSilent) {
+          setFetchLoading(false)
+        }
+      }
+    },
+    [graphqlClient, listQueryConfig]
+  )
 
   useEffect(() => {
-    fetchRows()
+    void fetchRows({ silent: true })
   }, [fetchRows])
 
   const effectiveOnCreateRow = useMemo<((values: Record<string, unknown>) => Promise<void>) | undefined>(() => {
@@ -266,7 +356,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
     if (!mutationClient) return undefined
     return async (values: Record<string, unknown>) => {
       await mutationClient.createRow({ definitionKey: definition.key, values, namespace: definition.namespace })
-      await fetchRows()
+      await fetchRows({ silent: true })
     }
   }, [onCreateRow, mutationClient, definition.key, definition.namespace, fetchRows])
 
@@ -282,7 +372,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
         values,
         namespace: definition.namespace
       })
-      await fetchRows()
+      await fetchRows({ silent: true })
     }
   }, [onUpdateRow, mutationClient, definition.key, definition.namespace, fetchRows])
 
@@ -295,7 +385,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
         rowId,
         namespace: definition.namespace
       })
-      await fetchRows()
+      await fetchRows({ silent: true })
     }
   }, [onDeleteRow, mutationClient, definition.key, definition.namespace, fetchRows])
 
@@ -522,7 +612,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={fetchRows}
+                    onClick={() => void fetchRows()}
                     disabled={fetchLoading}
                     title="Refresh records"
                     data-testid={`${testId}-refresh`}
@@ -562,7 +652,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
               )}
               {(() => {
                 const hasNoRows = existingRows.length === 0 && rows.length === 0
-                if (fetchLoading) {
+                if (fetchLoading && hasNoRows) {
                   return (
                     <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
                       <Spinner size="sm" />
