@@ -1,35 +1,20 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
-import {
-  Button,
-  Spinner,
-  Sheet,
-  SheetContent,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '@newwork/nw-design-system'
+import React, { useState, useCallback, useMemo } from 'react'
+import { Button } from '@newwork/nw-design-system'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
-import { ExpenseStatus } from '../../../utils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action'
 import { RowActionsWrapper, RowActionsIcon } from '../../../common/components/RowActionComponents'
+import { PrintPreviewDialog } from '../../../common/components/PrintPreviewDialog'
+import { DetailsSheet } from '../../../common/components/DetailsSheet'
 import { useExpensePlanFileService } from '../../../../../common/files/useExpensePlanFileService'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { ExpenseDataTable } from '../../../common/components/ExpenseDataTable'
 import { createExpensePlanColumns } from './expensePlanColumns'
 
 interface ExpensePlansTableProps extends BusinessAppContextProps {
-  search?: string
-  onSearchChange?: (search: string) => void
-  employeeId?: string
-  activeFilter?: ExpenseStatus[] | null
-  onFilterChange?: (filter: ExpenseStatus[] | null) => void
-  onClearFilters?: () => void
   onViewDetails?: (plan: ExpensePlan) => void
   currencyFilter?: string | null
   expensePlans: ExpensePlan[]
@@ -42,11 +27,8 @@ interface ExpensePlansTableProps extends BusinessAppContextProps {
   onSortingChange: (sorting: SortingState) => void
   pageSize: number
   setPageSize: (size: number) => void
-  effectiveDateRange?: [Date | null, Date | null] | null
-  planDateRange?: [Date | null, Date | null] | null
-  startDateRange?: [Date | null, Date | null] | null
-  endDateRange?: [Date | null, Date | null] | null
-  planTypeFilter?: string[]
+  visibleColumnIds: string[]
+  emptyMessage: string
 }
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
@@ -82,38 +64,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
     setPageSize
   } = props
 
-  const hasActiveFilters = useMemo(() => {
-    const hasSearch = (props.search || '').trim() !== ''
-    const hasStatusFilters = Array.isArray(props.activeFilter) && props.activeFilter.length > 0
-    const hasPlanTypeFilters = Array.isArray(props.planTypeFilter) && props.planTypeFilter.length > 0
-    const hasDateRangeFilters =
-      (props.effectiveDateRange && (props.effectiveDateRange[0] || props.effectiveDateRange[1])) ||
-      (props.planDateRange && (props.planDateRange[0] || props.planDateRange[1])) ||
-      (props.startDateRange && (props.startDateRange[0] || props.startDateRange[1])) ||
-      (props.endDateRange && (props.endDateRange[0] || props.endDateRange[1]))
-    return hasSearch || hasStatusFilters || hasPlanTypeFilters || hasDateRangeFilters
-  }, [
-    props.search,
-    props.activeFilter,
-    props.planTypeFilter,
-    props.effectiveDateRange,
-    props.planDateRange,
-    props.startDateRange,
-    props.endDateRange
-  ])
-
-  const currentStatusFilter = props.activeFilter || []
-  const prevFilterRef = useRef<ExpenseStatus[] | null>(null)
-
-  useEffect(() => {
-    const currentFilterStr = JSON.stringify(currentStatusFilter)
-    const prevFilterStr = JSON.stringify(prevFilterRef.current)
-    if (prevFilterRef.current !== null && currentFilterStr !== prevFilterStr) {
-      setCurrentPage(1)
-    }
-    prevFilterRef.current = currentStatusFilter
-  }, [currentStatusFilter, setCurrentPage])
-
   const handleCloseDetails = useCallback(() => setSelectedItem(null), [])
 
   const handleViewDetails = useCallback((plan: ExpensePlan) => {
@@ -146,7 +96,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
     [printExpensePlan, isMounted]
   )
 
-  const columns = useMemo(() => createExpensePlanColumns(currentCurrencyFilter), [currentCurrencyFilter])
+  const allColumns = useMemo(() => createExpensePlanColumns(currentCurrencyFilter), [currentCurrencyFilter])
+  const columns = useMemo(() => {
+    const ids = props.visibleColumnIds.length > 0 ? props.visibleColumnIds : allColumns.map(c => c.id as string)
+    return allColumns.filter(col => ids.includes((col.id as string) ?? ''))
+  }, [allColumns, props.visibleColumnIds])
 
   const sortingState: SortingState = useMemo(() => {
     if (!sorting.field || !sorting.order) return []
@@ -164,13 +118,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   )
 
   const errorMessage = error?.message ?? null
-
-  const emptyMessage = hasActiveFilters
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data available')
-    : getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_landing_page.no_plans_created_by_team',
-        'No expense plan created by your team yet.'
-      )
 
   const actions = useCallback(
     (row: { original: ExpensePlan }) => {
@@ -266,11 +213,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         onPaginationChange={handlePaginationChange}
         onRowClick={onRowClick}
         actions={actions}
-        emptyMessage={emptyMessage}
+        emptyMessage={props.emptyMessage}
         dataTestId={DATA_TEST_ID_PREFIX}
       />
 
-      <Dialog
+      <PrintPreviewDialog
         open={printModalOpen}
         onOpenChange={open => {
           if (!open) {
@@ -278,69 +225,34 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
             setPrintPdfUrl('')
           }
         }}
-      >
-        <DialogContent
-          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md gba:max-h-[90vh]"
-          data-testid="print-plan-modal"
-        >
-          <DialogHeader className="gba:p-4">
-            <DialogTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:print.title', 'Print Expense Plan')}</DialogTitle>
-          </DialogHeader>
-          {printLoading ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-              <Spinner />
-            </div>
-          ) : printPdfUrl ? (
-            <iframe
-              src={printPdfUrl}
-              className="gba:w-full gba:border-0 gba:min-h-[calc(90vh-55px)]"
-              title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
-              data-testid="print-plan-iframe"
-            />
-          ) : (
-            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-              <div className="gba:text-muted-foreground gba:mb-4">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:print.no_document', 'No document available for printing')}
-              </div>
-              <div className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:print.no_document_details',
-                  'This expense plan does not have an associated document to print.'
-                )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+        title={getTranslationFromI18nKeyAndLabel('lowcoder:print.title', 'Print Expense Plan')}
+        loading={printLoading}
+        pdfUrl={printPdfUrl}
+        testIdPrefix="print-plan"
+      />
 
-      <Sheet
+      <DetailsSheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
-        data-testid="expense-plan-details-sheet"
+        title={
+          selectedItem?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:approve_expense_plan.expense_subtitle_details',
+            'Expense Plan Details'
+          )
+        }
+        testId="expense-plan-details-sheet"
+        onClose={handleCloseDetails}
       >
-        <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedItem?.title ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:approve_expense_plan.expense_subtitle_details',
-                'Expense Plan Details'
-              )
-            }
+        {selectedItem && (
+          <ExpensePlanDetails
+            selectedItem={selectedItem}
             onClose={handleCloseDetails}
-            dataTestIdPrefix="expense-plan-details"
-          >
-            {selectedItem && (
-              <ExpensePlanDetails
-                selectedItem={selectedItem}
-                onClose={handleCloseDetails}
-                accessToken={contextProps.accessToken}
-                userInfo={contextProps.userInfo}
-              />
-            )}
-          </ExpenseDetailsShell>
-        </SheetContent>
-      </Sheet>
+            accessToken={contextProps.accessToken}
+            userInfo={contextProps.userInfo}
+          />
+        )}
+      </DetailsSheet>
     </div>
   )
 }
