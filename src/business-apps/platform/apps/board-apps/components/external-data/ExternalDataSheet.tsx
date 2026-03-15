@@ -125,8 +125,14 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
     setIsLoadingConnectors(true)
     setConnectorError(null)
     try {
-      const [allConnectors, mcpConns] = await Promise.all([
+      const [allConnectors, boardStructuredConns, mcpConns] = await Promise.all([
         BoardApiService.listExternalConnectors(boardId, sheetId),
+        pmClientRef.current.getExternalConnections({
+          kind: 'structured',
+          consumerType: 'board_import',
+          limit: 100,
+          offset: 0
+        }),
         pmClientRef.current.getExternalConnections({
           kind: 'mcp',
           consumerType: 'board_import',
@@ -134,19 +140,31 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
           offset: 0
         })
       ])
-      const structuredConnectors = allConnectors as unknown as ConnectorSummary[]
 
-      const mcpAsConnectors: ConnectorSummary[] = (mcpConns.data || []).map(c => {
-        const connId = (c as any).connection_id || (c as any).connectionId || ''
-        return {
-          id: connId,
-          name: c.name || connId,
-          description: c.description ?? null,
-          connectorEnabled: true,
-          config: { __kind: 'mcp' },
-          latestVersion: { version: 1, inputSchema: {}, outputSchema: {}, createdAt: '' }
-        }
-      })
+      const activeConnectorNames = new Set(
+        (boardStructuredConns.data || [])
+          .filter(c => c.active !== false)
+          .map(c => c.connectorId || c.connector_id || c.connectorName || c.connector_name)
+          .filter(Boolean) as string[]
+      )
+
+      const structuredConnectors = (allConnectors as unknown as ConnectorSummary[]).filter(c =>
+        activeConnectorNames.has(c.name)
+      )
+
+      const mcpAsConnectors: ConnectorSummary[] = (mcpConns.data || [])
+        .filter(c => c.active !== false)
+        .map(c => {
+          const connId = (c as any).connection_id || (c as any).connectionId || ''
+          return {
+            id: connId,
+            name: c.name || connId,
+            description: c.description ?? null,
+            connectorEnabled: true,
+            config: { __kind: 'mcp' },
+            latestVersion: { version: 1, inputSchema: {}, outputSchema: {}, createdAt: '' }
+          }
+        })
 
       setConnectors([...structuredConnectors, ...mcpAsConnectors])
     } catch {

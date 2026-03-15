@@ -37,7 +37,7 @@ describe('ConnectionsSpace', () => {
           name: 'SAP',
           description: 'SAP provider',
           kind: 'structured',
-          lane: 'data_bridge',
+          lane: 'anypoint_connect',
           consumerTypes: ['function', 'board_import']
         }
       ],
@@ -48,9 +48,11 @@ describe('ConnectionsSpace', () => {
       paging: { limit: 100, offset: 0, totalRecords: 0 }
     })
 
-    render(<ConnectionsSpace accessToken="token" /> as any)
+    render((<ConnectionsSpace accessToken="token" />) as any)
 
-    expect(await screen.findByTestId('prompt-manager-connections-provider-card-data-bridge.sap')).toBeInTheDocument()
+    expect(
+      await screen.findByTestId('prompt-manager-connections-provider-card-anypoint-connect.sap')
+    ).toBeInTheDocument()
     expect(await screen.findByTestId('prompt-manager-connections-empty')).toBeInTheDocument()
   })
 
@@ -62,7 +64,7 @@ describe('ConnectionsSpace', () => {
           name: 'SAP',
           description: 'SAP provider',
           kind: 'structured',
-          lane: 'data_bridge',
+          lane: 'anypoint_connect',
           consumerTypes: ['function', 'board_import'],
           configFields: [{ key: 'BASE_URL', fieldType: 'url' }]
         }
@@ -78,9 +80,9 @@ describe('ConnectionsSpace', () => {
       name: 'SAP Europe'
     })
 
-    render(<ConnectionsSpace accessToken="token" /> as any)
+    render((<ConnectionsSpace accessToken="token" />) as any)
 
-    fireEvent.click(await screen.findByTestId('prompt-manager-connections-provider-connect-data-bridge.sap'))
+    fireEvent.click(await screen.findByTestId('prompt-manager-connections-provider-connect-anypoint-connect.sap'))
     fireEvent.change(await screen.findByTestId('prompt-manager-connections-form-name'), {
       target: { value: 'SAP Europe' }
     })
@@ -138,7 +140,7 @@ describe('ConnectionsSpace', () => {
       message: 'Connection healthy'
     })
 
-    render(<ConnectionsSpace accessToken="token" /> as any)
+    render((<ConnectionsSpace accessToken="token" />) as any)
 
     fireEvent.click(await screen.findByTestId('prompt-manager-connections-test-conn-flow'))
 
