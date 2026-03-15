@@ -54,8 +54,8 @@ export const LANE_CONFIG: Record<
 }
 
 export const CUSTOM_MCP_PROVIDER_ID = 'mcp.custom-server'
-export const CUSTOM_STRUCTURED_PROVIDER_ID = 'data-bridge.custom-structured'
-export const CUSTOM_UNSTRUCTURED_PROVIDER_ID = 'anypoint-connect.custom-unstructured'
+export const CUSTOM_STRUCTURED_PROVIDER_ID = 'anypoint-connect.custom-structured'
+export const CUSTOM_UNSTRUCTURED_PROVIDER_ID = 'data-bridge.custom-unstructured'
 
 const providerIconMap: Record<string, LucideIcon> = {
   [CUSTOM_MCP_PROVIDER_ID]: Cable,
@@ -67,27 +67,28 @@ const providerIconMap: Record<string, LucideIcon> = {
   'mcp.linear': Compass,
   'mcp.google-maps': MapPin,
   'mcp.puppeteer': Compass,
-  'data-bridge.sap': Building2,
-  'data-bridge.oracle': Server,
-  'data-bridge.salesforce': Cloud,
-  'data-bridge.hubspot': Cloud,
-  'data-bridge.postgresql': DatabaseZap,
-  'data-bridge.mysql': DatabaseZap,
-  'data-bridge.mongodb': DatabaseZap,
-  'data-bridge.snowflake': DatabaseZap,
-  'data-bridge.dynamics365': Building2,
-  'data-bridge.servicenow': Server,
+  'mcp.nw-product-report': Compass,
+  'anypoint-connect.sap': Building2,
+  'anypoint-connect.oracle': Server,
+  'anypoint-connect.salesforce': Cloud,
+  'anypoint-connect.hubspot': Cloud,
+  'anypoint-connect.postgresql': DatabaseZap,
+  'anypoint-connect.mysql': DatabaseZap,
+  'anypoint-connect.mongodb': DatabaseZap,
+  'anypoint-connect.snowflake': DatabaseZap,
+  'anypoint-connect.dynamics365': Building2,
+  'anypoint-connect.servicenow': Server,
   [CUSTOM_STRUCTURED_PROVIDER_ID]: DatabaseZap,
-  'anypoint-connect.sharepoint': Landmark,
-  'anypoint-connect.onedrive': Cloud,
-  'anypoint-connect.confluence': NotebookText,
-  'anypoint-connect.google-drive': HardDrive,
-  'anypoint-connect.s3': Warehouse,
-  'anypoint-connect.notion': NotebookText,
-  'anypoint-connect.dropbox': FolderOpen,
-  'anypoint-connect.box': FolderOpen,
-  'anypoint-connect.azure-blob': Cloud,
-  'anypoint-connect.gcs': Warehouse,
+  'data-bridge.sharepoint': Landmark,
+  'data-bridge.onedrive': Cloud,
+  'data-bridge.confluence': NotebookText,
+  'data-bridge.google-drive': HardDrive,
+  'data-bridge.s3': Warehouse,
+  'data-bridge.notion': NotebookText,
+  'data-bridge.dropbox': FolderOpen,
+  'data-bridge.box': FolderOpen,
+  'data-bridge.azure-blob': Cloud,
+  'data-bridge.gcs': Warehouse,
   [CUSTOM_UNSTRUCTURED_PROVIDER_ID]: FileBox
 }
 
@@ -97,8 +98,8 @@ export const getProviderIconForProvider = (provider?: ConnectorProviderODM | nul
   getProviderIcon(getProviderId(provider))
 
 export const getLaneIcon = (lane: ExternalConnectionLane): LucideIcon => {
-  if (lane === 'anypoint_connect') return FolderOpen
-  if (lane === 'data_bridge') return DatabaseZap
+  if (lane === 'anypoint_connect') return DatabaseZap
+  if (lane === 'data_bridge') return FolderOpen
   return Cable
 }
 
@@ -139,43 +140,47 @@ const providerCopyKeys: Record<string, { title: string; description: string }> =
     title: 'connect-provider-puppeteer-title',
     description: 'connect-provider-puppeteer-description'
   },
-  'data-bridge.sap': {
+  'mcp.nw-product-report': {
+    title: 'connect-provider-nw-product-report-title',
+    description: 'connect-provider-nw-product-report-description'
+  },
+  'anypoint-connect.sap': {
     title: 'connect-provider-sap-title',
     description: 'connect-provider-sap-description'
   },
-  'data-bridge.oracle': {
+  'anypoint-connect.oracle': {
     title: 'connect-provider-oracle-title',
     description: 'connect-provider-oracle-description'
   },
-  'data-bridge.salesforce': {
+  'anypoint-connect.salesforce': {
     title: 'connect-provider-salesforce-title',
     description: 'connect-provider-salesforce-description'
   },
-  'data-bridge.hubspot': {
+  'anypoint-connect.hubspot': {
     title: 'connect-provider-hubspot-title',
     description: 'connect-provider-hubspot-description'
   },
-  'data-bridge.postgresql': {
+  'anypoint-connect.postgresql': {
     title: 'connect-provider-postgresql-title',
     description: 'connect-provider-postgresql-description'
   },
-  'data-bridge.mysql': {
+  'anypoint-connect.mysql': {
     title: 'connect-provider-mysql-title',
     description: 'connect-provider-mysql-description'
   },
-  'data-bridge.mongodb': {
+  'anypoint-connect.mongodb': {
     title: 'connect-provider-mongodb-title',
     description: 'connect-provider-mongodb-description'
   },
-  'data-bridge.snowflake': {
+  'anypoint-connect.snowflake': {
     title: 'connect-provider-snowflake-title',
     description: 'connect-provider-snowflake-description'
   },
-  'data-bridge.dynamics365': {
+  'anypoint-connect.dynamics365': {
     title: 'connect-provider-dynamics365-title',
     description: 'connect-provider-dynamics365-description'
   },
-  'data-bridge.servicenow': {
+  'anypoint-connect.servicenow': {
     title: 'connect-provider-servicenow-title',
     description: 'connect-provider-servicenow-description'
   },
@@ -183,43 +188,43 @@ const providerCopyKeys: Record<string, { title: string; description: string }> =
     title: 'connect-provider-custom-structured-title',
     description: 'connect-provider-custom-structured-description'
   },
-  'anypoint-connect.sharepoint': {
+  'data-bridge.sharepoint': {
     title: 'connect-provider-sharepoint-title',
     description: 'connect-provider-sharepoint-description'
   },
-  'anypoint-connect.onedrive': {
+  'data-bridge.onedrive': {
     title: 'connect-provider-onedrive-title',
     description: 'connect-provider-onedrive-description'
   },
-  'anypoint-connect.confluence': {
+  'data-bridge.confluence': {
     title: 'connect-provider-confluence-title',
     description: 'connect-provider-confluence-description'
   },
-  'anypoint-connect.google-drive': {
+  'data-bridge.google-drive': {
     title: 'connect-provider-google-drive-title',
     description: 'connect-provider-google-drive-description'
   },
-  'anypoint-connect.s3': {
+  'data-bridge.s3': {
     title: 'connect-provider-s3-title',
     description: 'connect-provider-s3-description'
   },
-  'anypoint-connect.notion': {
+  'data-bridge.notion': {
     title: 'connect-provider-notion-title',
     description: 'connect-provider-notion-description'
   },
-  'anypoint-connect.dropbox': {
+  'data-bridge.dropbox': {
     title: 'connect-provider-dropbox-title',
     description: 'connect-provider-dropbox-description'
   },
-  'anypoint-connect.box': {
+  'data-bridge.box': {
     title: 'connect-provider-box-title',
     description: 'connect-provider-box-description'
   },
-  'anypoint-connect.azure-blob': {
+  'data-bridge.azure-blob': {
     title: 'connect-provider-azure-blob-title',
     description: 'connect-provider-azure-blob-description'
   },
-  'anypoint-connect.gcs': {
+  'data-bridge.gcs': {
     title: 'connect-provider-gcs-title',
     description: 'connect-provider-gcs-description'
   },
@@ -297,8 +302,8 @@ export const inferProviderIdFromConnection = (connection?: ExternalConnectionODM
   const explicitProviderId = getConnectionProviderId(connection)
   if (explicitProviderId) return explicitProviderId
   if (connection?.kind === 'mcp') return CUSTOM_MCP_PROVIDER_ID
-  if (connection?.lane === 'data_bridge' || connection?.kind === 'structured') return CUSTOM_STRUCTURED_PROVIDER_ID
-  if (connection?.lane === 'anypoint_connect' || connection?.kind === 'unstructured')
+  if (connection?.lane === 'anypoint_connect' || connection?.kind === 'structured') return CUSTOM_STRUCTURED_PROVIDER_ID
+  if (connection?.lane === 'data_bridge' || connection?.kind === 'unstructured')
     return CUSTOM_UNSTRUCTURED_PROVIDER_ID
   return ''
 }

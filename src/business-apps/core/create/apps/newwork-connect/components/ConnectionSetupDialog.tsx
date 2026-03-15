@@ -34,6 +34,14 @@ import {
   getProviderHelpUrl,
   getProviderTitle
 } from './connectCatalog'
+import {
+  type AuthState,
+  buildAuthConfig,
+  ConnectionAuthFields,
+  DEFAULT_AUTH_STATE,
+  extractAuthState,
+  isAuthConfigKey
+} from './ConnectionAuthFields'
 
 type EditorState =
   | { mode: 'create'; provider: ConnectorProviderODM }
@@ -68,12 +76,13 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [url, setUrl] = useState('')
-  const [transport, setTransport] = useState<'http' | 'sse' | 'websocket'>('http')
+  const [transport, setTransport] = useState<'http' | 'sse'>('http')
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({})
   const [configJson, setConfigJson] = useState('')
   const [envJson, setEnvJson] = useState('')
   const [active, setActive] = useState(true)
   const [consumerTypes, setConsumerTypes] = useState<string[]>([])
+  const [auth, setAuth] = useState<AuthState>(DEFAULT_AUTH_STATE)
   const [formError, setFormError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -81,6 +90,7 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
   const providerFieldKeys = useMemo(() => new Set(providerFields.map(field => field.key)), [providerFields])
   const helpUrl = useMemo(() => getProviderHelpUrl(provider), [provider])
   const showUrlField = provider?.kind === 'mcp' || !!url
+  const showAuthSection = provider?.kind === 'mcp'
 
   useEffect(() => {
     if (!editorState) return
@@ -92,15 +102,16 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
       return acc
     }, {})
     const extraConfig = Object.entries(rawConfig).reduce<Record<string, string>>((acc, [key, value]) => {
-      if (!providerFieldKeys.has(key)) acc[key] = value
+      if (!providerFieldKeys.has(key) && !isAuthConfigKey(key)) acc[key] = value
       return acc
     }, {})
 
     setName(connection?.name || getProviderTitle(t, provider) || '')
     setDescription(connection?.description || '')
     setUrl(connection?.url || '')
-    setTransport(connection?.transport || 'http')
+    setTransport((connection?.transport === 'sse' ? 'sse' : 'http') as 'http' | 'sse')
     setFieldValues(providerBoundValues)
+    setAuth(connection ? extractAuthState(rawConfig) : DEFAULT_AUTH_STATE)
     setConfigJson(stringifyJson(extraConfig))
     setEnvJson(stringifyJson(connection?.env))
     setActive(connection?.active !== false)
@@ -129,9 +140,9 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
       }, {})
       const extraConfig = parseJsonRecord(configJson)
       const env = parseJsonRecord(envJson)
-      const mergedConfig = Object.keys({ ...fieldConfig, ...(extraConfig || {}) }).length
-        ? { ...fieldConfig, ...(extraConfig || {}) }
-        : null
+      const authConfig = showAuthSection ? buildAuthConfig(auth) : {}
+      const allConfig = { ...fieldConfig, ...(extraConfig || {}), ...authConfig }
+      const mergedConfig = Object.keys(allConfig).length ? allConfig : null
 
       if (editorState.mode === 'create') {
         await onCreate(editorState.provider.providerId || editorState.provider.provider_id || '', {
@@ -251,19 +262,20 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
               </div>
               <div className="gba:space-y-2">
                 <Label>{t('connect-transport-label')}</Label>
-                <Select value={transport} onValueChange={value => setTransport(value as 'http' | 'sse' | 'websocket')}>
+                <Select value={transport} onValueChange={value => setTransport(value as 'http' | 'sse')}>
                   <SelectTrigger data-testid="newwork-connect-form-transport">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="http">http</SelectItem>
-                    <SelectItem value="sse">sse</SelectItem>
-                    <SelectItem value="websocket">websocket</SelectItem>
+                    <SelectItem value="http">HTTP (Streamable)</SelectItem>
+                    <SelectItem value="sse">SSE (Legacy)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
           ) : null}
+
+          {showAuthSection ? <ConnectionAuthFields auth={auth} onChange={setAuth} t={t} /> : null}
 
           {providerFields.length ? (
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">

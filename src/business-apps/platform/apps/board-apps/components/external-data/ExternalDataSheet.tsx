@@ -125,20 +125,39 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
     setIsLoadingConnectors(true)
     setConnectorError(null)
     try {
-      const [allConnectors, activeConnections] = await Promise.all([
+      const [allConnectors, structuredConns, mcpConns] = await Promise.all([
         BoardApiService.listExternalConnectors(boardId, sheetId),
         pmClientRef.current.getExternalConnections({
           kind: 'structured',
           consumerType: 'board_import',
           limit: 100,
           offset: 0
+        }),
+        pmClientRef.current.getExternalConnections({
+          kind: 'mcp',
+          consumerType: 'board_import',
+          limit: 100,
+          offset: 0
         })
       ])
       const activeConnectorIds = new Set(
-        (activeConnections.data || []).map(c => (c as any).connector_id || (c as any).connectorId || '').filter(Boolean)
+        (structuredConns.data || []).map(c => (c as any).connector_id || (c as any).connectorId || '').filter(Boolean)
       )
       const filtered = (allConnectors as unknown as ConnectorSummary[]).filter(c => activeConnectorIds.has(c.name))
-      setConnectors(filtered)
+
+      const mcpAsConnectors: ConnectorSummary[] = (mcpConns.data || []).map(c => {
+        const connId = (c as any).connection_id || (c as any).connectionId || ''
+        return {
+          id: connId,
+          name: c.name || connId,
+          description: c.description ?? null,
+          connectorEnabled: true,
+          config: { __kind: 'mcp' },
+          latestVersion: { version: 1, inputSchema: {}, outputSchema: {}, createdAt: '' }
+        }
+      })
+
+      setConnectors([...filtered, ...mcpAsConnectors])
     } catch {
       setConnectorError('Failed to load connectors')
     } finally {
@@ -149,6 +168,7 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
   const loadConnectProviders = useCallback(async () => {
     try {
       const result = await promptManagerClient.getConnectorProviders({
+        consumerType: 'board_import',
         limit: 100,
         offset: 0,
         returnTotalRecords: true
@@ -166,6 +186,8 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
     }
   }, [open, step, loadConnectors, loadConnectProviders])
 
+  const isMcpConnector = (c: ConnectorSummary | null) => c?.config?.__kind === 'mcp'
+
   useEffect(() => {
     const loadSharedConnections = async () => {
       if (!selectedConnector) {
@@ -174,6 +196,15 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
         setSharedConnectionsError(null)
         return
       }
+
+      if (isMcpConnector(selectedConnector)) {
+        setSharedConnections([])
+        setSelectedConnectionId(selectedConnector.id)
+        setSharedConnectionsError(null)
+        setIsLoadingSharedConnections(false)
+        return
+      }
+
       setIsLoadingSharedConnections(true)
       setSharedConnectionsError(null)
       try {
