@@ -6,6 +6,16 @@ sidebar-favorites = Favorites
 sidebar-trash = Trash
 sidebar-spaces = Spaces
 
+hero-parent-label = Every Office
+hero-drive-title = Drive
+hero-new-button = New
+hero-tabs-aria-label = Drive sections
+hero-tab-my-drive = My Drive
+hero-tab-shared = Shared
+hero-tab-recent = Recent
+hero-tab-favorites = Favorites
+hero-tab-trash = Trash
+
 header-search-placeholder = Search in Drive...
 header-new-folder = New folder
 header-upload-file = Upload file

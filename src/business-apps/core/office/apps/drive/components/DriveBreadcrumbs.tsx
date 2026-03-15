@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronRight, HardDrive, Share2, Users } from 'lucide-react'
+import { ChevronRight, Share2, Users } from 'lucide-react'
 import type { DriveBreadcrumb, DriveSection } from '../types/drive.types'
 
 export interface DriveBreadcrumbsProps {
@@ -34,11 +34,10 @@ export const DriveBreadcrumbs: React.FC<DriveBreadcrumbsProps> = ({
       <nav className="gba:flex gba:items-center gba:gap-1 gba:text-sm">
         <button
           onClick={onNavigateRoot}
-          className="gba:flex gba:items-center gba:gap-1.5 gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:px-1.5 gba:py-0.5 gba:rounded"
+          className="gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:px-1.5 gba:py-0.5 gba:rounded gba:text-sm gba:font-medium"
           data-testid={`${testId}-root`}
         >
-          <HardDrive className="gba:w-3.5 gba:h-3.5" />
-          <span>{t(SECTION_ROOT_KEYS[section])}</span>
+          {t(SECTION_ROOT_KEYS[section])}
         </button>
 
         {breadcrumbs.map((crumb, idx) => (

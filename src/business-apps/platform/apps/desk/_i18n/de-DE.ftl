@@ -6,6 +6,14 @@ hero-tag-spreadsheets = Tabellen
 hero-tag-notes = Notizen
 hero-headline = Ihr Inhalt. Gebündelt.
 hero-subtitle = Dokumente erstellen, Tabellen aufbauen und Notizen festhalten. Alles in einem nahtlosen Arbeitsbereich.
+hero-nav-aria-label = Office-Apps
+hero-nav-documents = Doku
+hero-nav-spreadsheets = Tabellen
+hero-nav-notes = Notizen
+hero-nav-slides = Folien
+hero-nav-drive = Ablage
+hero-nav-spaces = Räume
+hero-nav-emails = Mail
 
 # DeskHub – Spaces & Work
 spaces-title = Ihre Spaces
