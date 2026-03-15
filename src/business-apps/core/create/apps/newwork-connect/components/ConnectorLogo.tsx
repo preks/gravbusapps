@@ -1,6 +1,9 @@
 import React from 'react'
 import { Cable, DatabaseZap, FileBox } from 'lucide-react'
 import type { ExternalConnectionLane } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import anypointConnectLogo from '@/assets/icons/anypoint-connect-logo.png'
+import dataBridgeLogo from '@/assets/icons/data-bridge-logo.png'
+import mcpServersLogo from '@/assets/icons/mcp-servers-logo.png'
 import { connectorLogoPaths } from './connectorLogoPaths'
 
 interface ConnectorLogoProps {
@@ -68,36 +71,27 @@ interface LaneLogoProps {
 }
 
 interface LaneBrandDef {
-  abbr: string
-  bg: string
-  fg: string
+  image?: string
   icon?: React.FC<{ className?: string }>
 }
 
 const laneBrands: Record<ExternalConnectionLane, LaneBrandDef> = {
-  anypoint_connect: { abbr: 'AP', bg: '#6366F1', fg: '#fff' },
-  data_bridge: { abbr: 'DB', bg: '#059669', fg: '#fff' },
-  mcp_servers: { abbr: '', bg: '', fg: '', icon: Cable }
+  anypoint_connect: { image: anypointConnectLogo },
+  data_bridge: { image: dataBridgeLogo },
+  mcp_servers: { image: mcpServersLogo }
 }
 
 export const LaneLogo: React.FC<LaneLogoProps> = ({ lane }) => {
   const brand = laneBrands[lane]
 
-  if (brand.abbr) {
-    return (
-      <div
-        className="gba:shrink-0 gba:flex gba:h-14 gba:w-14 gba:items-center gba:justify-center gba:rounded-2xl gba:text-lg gba:font-bold gba:select-none"
-        style={{ backgroundColor: brand.bg, color: brand.fg }}
-      >
-        {brand.abbr}
-      </div>
-    )
+  if (brand.image) {
+    return <img src={brand.image} alt={lane} className="gba:h-24 gba:w-24 gba:shrink-0 gba:object-contain" />
   }
 
   const Icon = brand.icon || Cable
   return (
-    <div className="gba:shrink-0 gba:flex gba:h-14 gba:w-14 gba:items-center gba:justify-center gba:rounded-2xl gba:bg-muted">
-      <Icon className="gba:h-7 gba:w-7" />
+    <div className="gba:shrink-0 gba:flex gba:h-20 gba:w-20 gba:items-center gba:justify-center gba:rounded-2xl gba:bg-muted">
+      <Icon className="gba:h-10 gba:w-10" />
     </div>
   )
 }
