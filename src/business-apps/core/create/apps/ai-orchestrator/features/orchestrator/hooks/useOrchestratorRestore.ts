@@ -8,7 +8,7 @@ import type { OrchestratorState } from './useOrchestratorState'
 import type { BuildPlan, OrchestratorViewState } from '../types'
 import type { ChatMessage as BuilderChatMessage } from '@/common/network/ai/builder/BuilderClient'
 import type { CreateChatMessage } from '../types/chat'
-import { isValidOrchestratorViewState } from '../utils/orchestratorSessionUtils'
+import { canShowExistingBuild, isValidOrchestratorViewState } from '../utils/orchestratorSessionUtils'
 import { fromPersistedChatMessages } from '../utils/chatMessageConversion'
 
 export interface UseOrchestratorRestoreOptions {
@@ -27,10 +27,19 @@ export interface UseOrchestratorRestoreOptions {
   state: OrchestratorState
   setSessionFromBuild: (sessionId?: string, repoId?: string) => void
   lastChatStateRef: MutableRefObject<string | null>
+  onCompletedPlanRestored?: (plan: BuildPlan) => void
 }
 
 export function useOrchestratorRestore(options: UseOrchestratorRestoreOptions) {
-  const { listDraftCheckpoints, builderClient, chat, state, setSessionFromBuild, lastChatStateRef } = options
+  const {
+    listDraftCheckpoints,
+    builderClient,
+    chat,
+    state,
+    setSessionFromBuild,
+    lastChatStateRef,
+    onCompletedPlanRestored
+  } = options
 
   const deriveViewStateFromPlan = useCallback((plan: BuildPlan): OrchestratorViewState => {
     if (plan.currentPhase === 'awaiting_change_decision') {
@@ -73,10 +82,25 @@ export function useOrchestratorRestore(options: UseOrchestratorRestoreOptions) {
     [listDraftCheckpoints]
   )
 
+  const loadHistoryForSession = useCallback(
+    async (sessionContext: { sessionId: string; repoId: string }): Promise<boolean> => {
+      try {
+        const history = await builderClient.loadChatHistory(sessionContext.repoId, sessionContext.sessionId)
+        if (history.length === 0) return false
+
+        chat.replaceMessages(fromPersistedChatMessages(history))
+        return true
+      } catch {
+        // Chat hydration is best-effort
+        return false
+      }
+    },
+    [builderClient, chat]
+  )
+
   const applyRestoredPlan = useCallback(
     async (plan: BuildPlan) => {
-      const alreadyBuilt =
-        deriveViewStateFromPlan(plan) === 'complete'
+      const alreadyBuilt = deriveViewStateFromPlan(plan) === 'complete'
 
       // Get session directly from plan (no need to extract from components)
       const sessionContext = plan.sessionId && plan.repoId ? { sessionId: plan.sessionId, repoId: plan.repoId } : null
@@ -86,19 +110,7 @@ export function useOrchestratorRestore(options: UseOrchestratorRestoreOptions) {
         ? await resolveViewStateFromCheckpoint(sessionContext, plan, baseViewState)
         : baseViewState
 
-      let loadedHistory = false
-      if (sessionContext) {
-        try {
-          const history = await builderClient.loadChatHistory(sessionContext.repoId, sessionContext.sessionId)
-          if (history.length > 0) {
-            const normalizedHistory = fromPersistedChatMessages(history)
-            chat.replaceMessages(normalizedHistory)
-            loadedHistory = true
-          }
-        } catch {
-          // Chat hydration is best-effort
-        }
-      }
+      const loadedHistory = sessionContext ? await loadHistoryForSession(sessionContext) : false
 
       if (sessionContext) {
         setSessionFromBuild(sessionContext.sessionId, sessionContext.repoId)
@@ -114,11 +126,25 @@ export function useOrchestratorRestore(options: UseOrchestratorRestoreOptions) {
         chat.addSystemMessage(fallbackMessage)
       }
 
+      if (canShowExistingBuild(plan)) {
+        onCompletedPlanRestored?.(plan)
+      }
+
       lastChatStateRef.current = loadedHistory ? `${resolvedViewState}:${plan.jobId}` : null
       state.setChatActive(true)
       state.setViewState(resolvedViewState)
     },
-    [chat, state, builderClient, setSessionFromBuild, resolveViewStateFromCheckpoint, lastChatStateRef, deriveViewStateFromPlan]
+    [
+      chat,
+      state,
+      builderClient,
+      setSessionFromBuild,
+      resolveViewStateFromCheckpoint,
+      loadHistoryForSession,
+      lastChatStateRef,
+      deriveViewStateFromPlan,
+      onCompletedPlanRestored
+    ]
   )
 
   return { applyRestoredPlan }

@@ -20,7 +20,13 @@ import {
   type AssistantStreamPartial
 } from '../utils/orchestratorStreamParsers'
 import { fromPersistedChatMessages } from '../utils/chatMessageConversion'
-import { isValidOrchestratorViewState, resetOrchestratorState } from '../utils/orchestratorSessionUtils'
+import {
+  canShowExistingBuild,
+  createFallbackCompletedSnapshot,
+  extractSessionContextFromPlan,
+  isValidOrchestratorViewState,
+  resetOrchestratorState
+} from '../utils/orchestratorSessionUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { env } from '@/common/env/EnvUtils'
 import { IdleCanvas } from '../components/layouts'
@@ -77,6 +83,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   const [isSavingVersion, setIsSavingVersion] = useState(false)
   const [isImportingFolder, setIsImportingFolder] = useState(false)
   const [importNewAppDialogOpen, setImportNewAppDialogOpen] = useState(false)
+  const [lastCompletedPlanSnapshot, setLastCompletedPlanSnapshot] = useState<BuildPlan | null>(null)
+  const [reviewCanvasMode, setReviewCanvasMode] = useState<'plan' | 'currentBuild'>('plan')
   const [pendingImportFiles, setPendingImportFiles] = useState<File[] | null>(null)
   const [importTargetPath, setImportTargetPath] = useState('')
   const [importResourceUrl, setImportResourceUrl] = useState('')
@@ -87,6 +95,32 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   const lastUiCheckpointKeyRef = useRef<string | null>(null)
   const initialRestoreKeyRef = useRef<string | null>(null)
   const pendingAnalyzeAssistantRef = useRef<string | null>(null)
+  const snapshotLookupKeyRef = useRef<string | null>(null)
+
+  const clearCompletedPlanSnapshot = useCallback(() => {
+    setLastCompletedPlanSnapshot(null)
+    setReviewCanvasMode('plan')
+  }, [])
+
+  const rememberCompletedPlanSnapshot = useCallback((plan: BuildPlan | null) => {
+    if (!canShowExistingBuild(plan)) return false
+    setLastCompletedPlanSnapshot(plan)
+    return true
+  }, [])
+
+  const showExistingBuild = useCallback(() => {
+    setReviewCanvasMode('currentBuild')
+  }, [])
+
+  const showReviewPlan = useCallback(() => {
+    setReviewCanvasMode('plan')
+  }, [])
+
+  const { data: recentPlans } = useListPlans({
+    accessToken,
+    params: { limit: 8, offset: 0, sort: '-createdAt' },
+    enabled: !!accessToken
+  })
 
   const buildProgress = useBuildProgress({
     client: orchestratorClient.client,
@@ -110,7 +144,13 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       const meta = event.metadata as { sessionId?: string; repoId?: string } | undefined
       setSessionFromBuild(meta?.sessionId, meta?.repoId)
       if (event.jobId) {
-        refreshPlan(event.jobId).catch(() => {})
+        refreshPlan(event.jobId)
+          .then(plan => {
+            if (rememberCompletedPlanSnapshot(plan)) {
+              setReviewCanvasMode('plan')
+            }
+          })
+          .catch(() => {})
       }
     },
     onComponentUpdate: orchestratorClient.updateComponentProperties
@@ -193,6 +233,9 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             refreshedPlan.status === 'completed' && refreshedPlan.currentPhase !== 'awaiting_change_decision'
               ? 'complete'
               : 'review'
+          if (rememberCompletedPlanSnapshot(refreshedPlan)) {
+            setReviewCanvasMode('plan')
+          }
           state.setViewState(nextViewState)
         }
       }
@@ -216,7 +259,12 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     chat,
     state,
     setSessionFromBuild,
-    lastChatStateRef
+    lastChatStateRef,
+    onCompletedPlanRestored: plan => {
+      if (rememberCompletedPlanSnapshot(plan)) {
+        setReviewCanvasMode('plan')
+      }
+    }
   })
 
   const { builtBy, builtByLoading, isRestoringSession, setIsRestoringSession, setRestoreComplete } =
@@ -247,6 +295,158 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       setRestoreComplete
     })
 
+  const findMatchingCompletedSnapshotPlan = useCallback(
+    (sessionContext: { sessionId: string; repoId: string }, activeJobId?: string | null) => {
+      const candidatePlans = [...plans, ...recentPlans, ...(currentPlan ? [currentPlan] : [])]
+      const seenJobIds = new Set<string>()
+
+      for (const plan of candidatePlans) {
+        if (!plan?.jobId || seenJobIds.has(plan.jobId)) continue
+        seenJobIds.add(plan.jobId)
+
+        const planSessionContext = extractSessionContextFromPlan(plan)
+        if (!planSessionContext) continue
+        if (
+          planSessionContext.sessionId !== sessionContext.sessionId ||
+          planSessionContext.repoId !== sessionContext.repoId
+        ) {
+          continue
+        }
+        if (activeJobId && plan.jobId === activeJobId && !canShowExistingBuild(plan)) {
+          continue
+        }
+        if (canShowExistingBuild(plan)) {
+          return plan
+        }
+      }
+
+      return null
+    },
+    [currentPlan, plans, recentPlans]
+  )
+
+  const resolveHistoricalCompletedSnapshot = useCallback(
+    async (plan: BuildPlan) => {
+      const sessionContext = extractSessionContextFromPlan(plan)
+      if (!sessionContext) return null
+
+      const checkpoints = await listDraftCheckpoints({
+        jobId: plan.jobId,
+        sessionId: sessionContext.sessionId,
+        limit: 20
+      }).catch(() => [])
+
+      const hasCompletedCheckpoint = checkpoints.some(checkpoint => checkpoint.snapshot?.viewState === 'complete')
+      if (!hasCompletedCheckpoint) return null
+
+      return createFallbackCompletedSnapshot(plan)
+    },
+    [listDraftCheckpoints]
+  )
+
+  const resolveSessionBackedCompletedSnapshot = useCallback(
+    async (plan: BuildPlan) => {
+      const sessionContext = extractSessionContextFromPlan(plan)
+      if (!sessionContext) return null
+
+      const sessionResponse = await builderClient.getSession(sessionContext.sessionId).catch(() => null)
+      const session = sessionResponse?.session
+      if (!session || (!session.targetPath && !session.resourceUrl)) {
+        return null
+      }
+
+      const fallbackPlan = createFallbackCompletedSnapshot(plan)
+      if (!fallbackPlan) return null
+
+      return {
+        ...fallbackPlan,
+        components: fallbackPlan.components.map(component => {
+          if (component.type !== 'screen') {
+            return component
+          }
+
+          return {
+            ...component,
+            resourceUrl: component.resourceUrl ?? session.resourceUrl ?? undefined,
+            metadata: {
+              ...component.metadata,
+              resourceUrl: component.metadata?.resourceUrl ?? session.resourceUrl ?? undefined
+            }
+          }
+        })
+      }
+    },
+    [builderClient]
+  )
+
+  useEffect(() => {
+    if (state.viewState === 'review' && currentPlan?.currentPhase === 'awaiting_change_decision') {
+      setReviewCanvasMode('plan')
+    }
+  }, [currentPlan, state.viewState])
+
+  useEffect(() => {
+    if (state.viewState !== 'review' || lastCompletedPlanSnapshot) {
+      snapshotLookupKeyRef.current = null
+      return
+    }
+
+    const sessionContext =
+      (currentPlan && extractSessionContextFromPlan(currentPlan)) ??
+      (lastSessionId && lastRepoId ? { sessionId: lastSessionId, repoId: lastRepoId } : null)
+    if (!sessionContext) return
+
+    const lookupKey = `${sessionContext.sessionId}:${sessionContext.repoId}:${currentPlan?.jobId ?? ''}`
+    if (snapshotLookupKeyRef.current === lookupKey) return
+
+    const candidatePlan = findMatchingCompletedSnapshotPlan(sessionContext, currentPlan?.jobId)
+    snapshotLookupKeyRef.current = lookupKey
+    void (async () => {
+      try {
+        const hydratedCandidatePlan = candidatePlan ? await refreshPlan(candidatePlan.jobId) : null
+        const fallbackPlan =
+          hydratedCandidatePlan ??
+          candidatePlan ??
+          (currentPlan ? await resolveHistoricalCompletedSnapshot(currentPlan) : null) ??
+          (currentPlan ? await resolveSessionBackedCompletedSnapshot(currentPlan) : null)
+
+        if (!rememberCompletedPlanSnapshot(fallbackPlan)) {
+          snapshotLookupKeyRef.current = null
+        }
+      } catch {
+        snapshotLookupKeyRef.current = null
+      }
+    })()
+  }, [
+    currentPlan,
+    findMatchingCompletedSnapshotPlan,
+    lastCompletedPlanSnapshot,
+    lastRepoId,
+    lastSessionId,
+    refreshPlan,
+    resolveHistoricalCompletedSnapshot,
+    resolveSessionBackedCompletedSnapshot,
+    rememberCompletedPlanSnapshot,
+    state.viewState
+  ])
+
+  useEffect(() => {
+    if (!lastCompletedPlanSnapshot) return
+
+    const snapshotContext = extractSessionContextFromPlan(lastCompletedPlanSnapshot)
+    const currentPlanContext = currentPlan ? extractSessionContextFromPlan(currentPlan) : null
+    const activeContext =
+      currentPlanContext ?? (lastSessionId && lastRepoId ? { sessionId: lastSessionId, repoId: lastRepoId } : null)
+
+    if (
+      !snapshotContext ||
+      snapshotContext.sessionId !== activeContext?.sessionId ||
+      snapshotContext.repoId !== activeContext?.repoId
+    ) {
+      clearCompletedPlanSnapshot()
+    }
+  }, [clearCompletedPlanSnapshot, currentPlan, lastCompletedPlanSnapshot, lastRepoId, lastSessionId])
+
   useEffect(() => {
     if (!initialJobId || !accessToken) return
     const restoreKey = `${initialJobId}:${accessToken}`
@@ -274,6 +474,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
 
   const handleIdleSubmit = useCallback(
     async (prompt: string) => {
+      clearCompletedPlanSnapshot()
       state.setChatActive(true)
       chat.addUserMessage(prompt, 'prompt', { createdBy: userInfo?.id })
       try {
@@ -286,10 +487,11 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
         pendingAnalyzeAssistantRef.current = null
       }
     },
-    [handlers, state, chat, userInfo?.id]
+    [clearCompletedPlanSnapshot, handlers, state, chat, userInfo?.id]
   )
 
   const handleNewSession = useCallback(() => {
+    clearCompletedPlanSnapshot()
     resetOrchestratorState({
       chatSaveTimeoutRef,
       chat,
@@ -299,7 +501,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       lastChatStateRef,
       lastUiCheckpointKeyRef
     })
-  }, [chat, buildProgress, orchestratorClient, state])
+  }, [chat, buildProgress, clearCompletedPlanSnapshot, orchestratorClient, state])
 
   const buildDefaultResourceUrl = useCallback((targetPath: string): string => {
     const normalized = targetPath.replace(/^\/+|\/+$/g, '')
@@ -404,6 +606,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       const importedPlan = buildImportedSessionPlan(input)
       setCurrentPlanSnapshot(importedPlan)
       setSessionFromBuild(input.sessionId, input.repoId)
+      rememberCompletedPlanSnapshot(importedPlan)
+      setReviewCanvasMode('plan')
       state.setViewState('complete')
       state.setChatActive(true)
       state.setUserPrompt('')
@@ -422,7 +626,15 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       }
       setPreviewRefreshToken(prev => prev + 1)
     },
-    [buildImportedSessionPlan, builderClient, chat, setCurrentPlanSnapshot, setSessionFromBuild, state]
+    [
+      buildImportedSessionPlan,
+      builderClient,
+      chat,
+      rememberCompletedPlanSnapshot,
+      setCurrentPlanSnapshot,
+      setSessionFromBuild,
+      state
+    ]
   )
 
   useEffect(() => {
@@ -828,12 +1040,6 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     resolveSessionDetails
   ])
 
-  const { data: recentPlans } = useListPlans({
-    accessToken,
-    params: { limit: 8, offset: 0, sort: '-createdAt' },
-    enabled: !!accessToken
-  })
-
   const toSessionUser = useCallback(() => {
     return {
       id: String(userInfo?.id ?? 'unknown-user'),
@@ -1172,6 +1378,11 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
               onDownloadPackage={handleDownloadPackage}
               onImportFolder={handleImportFolderFromScreenBuilder}
               isImportingFolder={isImportingFolder}
+              reviewCanvasMode={reviewCanvasMode}
+              completedBuildSnapshot={lastCompletedPlanSnapshot}
+              canShowExistingBuild={canShowExistingBuild(lastCompletedPlanSnapshot)}
+              onShowExistingBuild={showExistingBuild}
+              onShowReviewPlan={showReviewPlan}
             />
           }
         />
