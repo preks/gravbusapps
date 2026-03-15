@@ -3,7 +3,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { Loader2 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { DriveItem, DriveFolder } from './types/drive.types'
-import { DriveSidebar } from './components/DriveSidebar'
+import { DriveHero } from './components/DriveHero'
 import { DriveBreadcrumbs } from './components/DriveBreadcrumbs'
 import { DriveToolbar } from './components/DriveToolbar'
 import { DriveContentGrid } from './components/DriveContentGrid'
@@ -221,16 +221,19 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
   )
 
   return (
-    <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
-      <DriveSidebar
+    <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+      <DriveHero
         activeSection={activeSection}
         onSectionChange={s => setUrlState({ section: s, folderId: null, page: 1 })}
         onCreateNew={() => setCreateFolderOpen(true)}
         t={t}
-        data-testid={`${testId}-sidebar`}
+        data-testid={`${testId}-hero`}
       />
 
-      <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:relative" {...dropZone.dropZoneProps}>
+      <div
+        className="gba:flex-1 gba:min-w-0 gba:min-h-0 gba:flex gba:flex-col gba:relative gba:max-w-6xl gba:mx-auto gba:w-full"
+        {...dropZone.dropZoneProps}
+      >
         <DriveDropZoneOverlay
           isDragActive={dropZone.isDragActive}
           uploadProgress={upload.progress}
@@ -238,15 +241,17 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
           data-testid={`${testId}-drop-overlay`}
         />
         <div className="gba:px-6 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/50 gba:space-y-3">
-          <DriveBreadcrumbs
-            section={activeSection}
-            breadcrumbs={drive.breadcrumbs}
-            isCurrentFolderShared={drive.isCurrentFolderShared}
-            onNavigateRoot={() => setUrlState({ folderId: null, page: 1 })}
-            onNavigateFolder={id => setUrlState({ folderId: id, page: 1 })}
-            t={t}
-            data-testid={`${testId}-breadcrumbs`}
-          />
+          {drive.breadcrumbs.length > 0 && (
+            <DriveBreadcrumbs
+              section={activeSection}
+              breadcrumbs={drive.breadcrumbs}
+              isCurrentFolderShared={drive.isCurrentFolderShared}
+              onNavigateRoot={() => setUrlState({ folderId: null, page: 1 })}
+              onNavigateFolder={id => setUrlState({ folderId: id, page: 1 })}
+              t={t}
+              data-testid={`${testId}-breadcrumbs`}
+            />
+          )}
           <DriveToolbar
             viewMode={viewMode}
             onViewModeChange={m => setUrlState({ viewMode: m })}
