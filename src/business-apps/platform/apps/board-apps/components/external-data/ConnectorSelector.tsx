@@ -105,7 +105,7 @@ export const ConnectorSelector: React.FC<ConnectorSelectorProps> = ({
       mcp_servers: []
     }
     const ids = new Set<string>()
-    const connectorIds = new Set(connectors.map(c => c.id))
+    const connectorIds = new Set(connectors.flatMap(c => [c.id, c.name]))
 
     providers.forEach(p => {
       const cid = p.connectorId || p.connector_id
@@ -118,13 +118,13 @@ export const ConnectorSelector: React.FC<ConnectorSelectorProps> = ({
   }, [connectors, providers])
 
   const customConnectors = useMemo(
-    () => connectors.filter(c => !providerConnectorIds.has(c.id)),
+    () => connectors.filter(c => !providerConnectorIds.has(c.id) && !providerConnectorIds.has(c.name)),
     [connectors, providerConnectorIds]
   )
 
   const handleProviderSelect = (provider: ConnectorProviderODM) => {
     const cid = provider.connectorId || provider.connector_id
-    const match = connectors.find(c => c.id === cid)
+    const match = connectors.find(c => c.id === cid || c.name === cid)
     if (match) onSelect(match)
   }
 
@@ -164,34 +164,36 @@ export const ConnectorSelector: React.FC<ConnectorSelectorProps> = ({
     <div className="gba:space-y-4" data-testid={testId}>
       {/* Lane category cards — only show lanes that have providers for this consumer */}
       {visibleLanes.length > 0 && (
-      <div className={`gba:grid gba:gap-2 ${visibleLanes.length === 1 ? 'gba:grid-cols-1' : visibleLanes.length === 2 ? 'gba:grid-cols-2' : 'gba:grid-cols-3'}`}>
-        {visibleLanes.map(lane => {
-          const { title, description, Icon } = LANE_META[lane]
-          const count = providersByLane[lane].length
-          const isActive = activeLane === lane
-          return (
-            <Card
-              key={lane}
-              className={`gba:cursor-pointer gba:transition-colors ${isActive ? 'gba:border-primary gba:bg-accent' : ''}`}
-              onClick={() => setActiveLane(isActive ? null : lane)}
-              data-testid={`${testId}-lane-${lane}`}
-            >
-              <CardHeader className="gba:p-3 gba:pb-1">
-                <Icon className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:mb-1" />
-                <CardTitle className="gba:text-xs">{title}</CardTitle>
-                <CardDescription className="gba:text-[10px]">{description}</CardDescription>
-              </CardHeader>
-              <CardContent className="gba:px-3 gba:pb-3 gba:pt-0">
-                {count > 0 && (
-                  <Badge variant="secondary" className="gba:text-[10px]">
-                    {count}
-                  </Badge>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+        <div
+          className={`gba:grid gba:gap-2 ${visibleLanes.length === 1 ? 'gba:grid-cols-1' : visibleLanes.length === 2 ? 'gba:grid-cols-2' : 'gba:grid-cols-3'}`}
+        >
+          {visibleLanes.map(lane => {
+            const { title, description, Icon } = LANE_META[lane]
+            const count = providersByLane[lane].length
+            const isActive = activeLane === lane
+            return (
+              <Card
+                key={lane}
+                className={`gba:cursor-pointer gba:transition-colors ${isActive ? 'gba:border-primary gba:bg-accent' : ''}`}
+                onClick={() => setActiveLane(isActive ? null : lane)}
+                data-testid={`${testId}-lane-${lane}`}
+              >
+                <CardHeader className="gba:p-3 gba:pb-1">
+                  <Icon className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:mb-1" />
+                  <CardTitle className="gba:text-xs">{title}</CardTitle>
+                  <CardDescription className="gba:text-[10px]">{description}</CardDescription>
+                </CardHeader>
+                <CardContent className="gba:px-3 gba:pb-3 gba:pt-0">
+                  {count > 0 && (
+                    <Badge variant="secondary" className="gba:text-[10px]">
+                      {count}
+                    </Badge>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
       )}
 
       {/* Preconfigured providers for selected lane */}
