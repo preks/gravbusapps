@@ -23,6 +23,7 @@ import {
   getEmployeeAbsences,
   getEmployeeAbsenceEntitlement,
   getTodayAbsences,
+  latestEntitlementSnapshotForRangeQuery,
   employeeRegionLookupQuery,
   employmentRegionHolidayByDateQuery,
   employmentRegionHolidaysInRangeQuery,
@@ -74,6 +75,15 @@ export interface EmployeeAbsenceEntitlement {
   }
 }
 
+/** Up-to-date balance from EntitlementUsageSnapshotView (GetLatestEntitlementSnapshotForRange). */
+export interface EntitlementSnapshotForBalance {
+  totalEntitlement: number
+  usedApproved: number
+  usedPending: number
+  remaining: number
+  snapshotAt: string
+}
+
 export interface UseAbsenceValidationProps {
   accessToken: string
   employeeId: string
@@ -123,6 +133,7 @@ export const useAbsenceValidation = ({
   const [isValidating, setIsValidating] = useState(false)
   const [existingAbsences, setExistingAbsences] = useState<EmployeeAbsence[]>([])
   const [absenceEntitlement, setAbsenceEntitlement] = useState<EmployeeAbsenceEntitlement | null>(null)
+  const [entitlementSnapshot, setEntitlementSnapshot] = useState<EntitlementSnapshotForBalance | null>(null)
   const [todayAbsences, setTodayAbsences] = useState<EmployeeAbsence[]>([])
   const [existingSickLeave, setExistingSickLeave] = useState<EmployeeAbsence | null>(null)
   const [employeeRegionRef, setEmployeeRegionRef] = useState<string | null>(null)
@@ -258,34 +269,56 @@ export const useAbsenceValidation = ({
 
     if (!shouldCheckEntitlement) {
       setAbsenceEntitlement(null)
+      setEntitlementSnapshot(null)
       return
     }
 
-    const fetchAbsenceEntitlement = async () => {
+    const fetchEntitlementAndSnapshot = async () => {
       try {
-        const response = await client.request(getEmployeeAbsenceEntitlement, {
-          employeeId,
-          typeRef: selectedType
-        })
-        const entitlements = response?.EmployeeAbsenceEntitlement || []
+        const now = dayjs()
+        const fromStr = now.startOf('year').format('YYYY-MM-DD')
+        const toStr = now.endOf('year').format('YYYY-MM-DD')
 
-        // Find valid entitlement for current period
+        const [entitlementResponse, snapshotResponse] = await Promise.all([
+          client.request(getEmployeeAbsenceEntitlement, {
+            employeeId,
+            typeRef: selectedType
+          }),
+          client.request(latestEntitlementSnapshotForRangeQuery, {
+            employeeId,
+            typeRef: selectedType,
+            from: fromStr,
+            to: toStr
+          })
+        ])
+
+        const entitlements = entitlementResponse?.EmployeeAbsenceEntitlement || []
         const validEntitlement = entitlements.find((entitlement: EmployeeAbsenceEntitlement) => {
-          const now = dayjs()
           const validFrom = dayjs(entitlement.validFrom)
           const validTo = dayjs(entitlement.validTo)
-          const isValid = now.isSameOrAfter(validFrom) && now.isSameOrBefore(validTo)
-
-          return isValid
+          return now.isSameOrAfter(validFrom) && now.isSameOrBefore(validTo)
         })
-
         setAbsenceEntitlement(validEntitlement || null)
+
+        const snapshotRow = snapshotResponse?.EntitlementUsageSnapshotView?.[0]
+        if (snapshotRow) {
+          setEntitlementSnapshot({
+            totalEntitlement: Number(snapshotRow.totalEntitlement) || 0,
+            usedApproved: Number(snapshotRow.usedApproved) || 0,
+            usedPending: Number(snapshotRow.usedPending) || 0,
+            remaining: Number(snapshotRow.remaining) || 0,
+            snapshotAt: snapshotRow.snapshotAt
+          })
+        } else {
+          setEntitlementSnapshot(null)
+        }
       } catch {
         setAbsenceEntitlement(null)
+        setEntitlementSnapshot(null)
       }
     }
 
-    fetchAbsenceEntitlement()
+    fetchEntitlementAndSnapshot()
   }, [accessToken, employeeId, selectedType, client, absenceTypeDetails])
 
   const checkOverlapValidation = useCallback(
@@ -371,7 +404,29 @@ export const useAbsenceValidation = ({
         return { errors, warnings }
       }
 
-      if (!absenceEntitlement) {
+      // Prefer up-to-date snapshot (GetLatestEntitlementSnapshotForRange); fall back to table entitlement
+      const effectiveAvailableFromSnapshot =
+        entitlementSnapshot != null ? Math.max(0, entitlementSnapshot.remaining) : null
+      const effectiveAvailableFromTable =
+        absenceEntitlement != null
+          ? Math.max(0, absenceEntitlement.total - absenceEntitlement.approved - absenceEntitlement.pending)
+          : null
+      const effectiveAvailable = effectiveAvailableFromSnapshot ?? effectiveAvailableFromTable
+      const balanceSource: 'snapshot' | 'table' = effectiveAvailableFromSnapshot != null ? 'snapshot' : 'table'
+      const totalBalance =
+        balanceSource === 'snapshot' && entitlementSnapshot
+          ? entitlementSnapshot.totalEntitlement
+          : (absenceEntitlement?.total ?? 0)
+      const approvedBalance =
+        balanceSource === 'snapshot' && entitlementSnapshot
+          ? entitlementSnapshot.usedApproved
+          : (absenceEntitlement?.approved ?? 0)
+      const pendingBalance =
+        balanceSource === 'snapshot' && entitlementSnapshot
+          ? entitlementSnapshot.usedPending
+          : (absenceEntitlement?.pending ?? 0)
+
+      if (effectiveAvailable == null) {
         warnings.push({
           type: 'balance',
           message: t('create-absence-unable-to-verify-balance'),
@@ -403,14 +458,6 @@ export const useAbsenceValidation = ({
 
       const roundedRequestedDays = Math.round(requestedDays * 100) / 100
 
-      // Compute the effective available balance as total minus both approved and pending days.
-      // The raw `available` field from the entitlement record may not reflect absences that are
-      // currently in PENDING status, so we derive it manually from the individual counters.
-      const effectiveAvailable = Math.max(
-        0,
-        absenceEntitlement.total - absenceEntitlement.approved - absenceEntitlement.pending
-      )
-
       if (roundedRequestedDays > effectiveAvailable) {
         const insufficientBalanceLabel = t('create-absence-insufficient-balance')
         const requestedLabel = t('create-absence-requested')
@@ -437,16 +484,16 @@ export const useAbsenceValidation = ({
           details: {
             requestedDays: roundedRequestedDays,
             availableBalance: effectiveAvailable,
-            totalBalance: absenceEntitlement.total,
-            approvedBalance: absenceEntitlement.approved,
-            pendingBalance: absenceEntitlement.pending
+            totalBalance,
+            approvedBalance,
+            pendingBalance
           }
         })
       }
 
       return { errors, warnings }
     },
-    [absenceEntitlement, absenceTypeDetails, holidays, workingHours, t]
+    [absenceEntitlement, entitlementSnapshot, absenceTypeDetails, holidays, workingHours, t]
   )
 
   const checkSingleDayBankHoliday = useCallback(
@@ -633,6 +680,7 @@ export const useAbsenceValidation = ({
     generalErrors: validationErrors.filter(error => error.type === 'general'),
     existingAbsences,
     absenceEntitlement,
+    entitlementSnapshot,
     todayAbsences,
     existingSickLeave,
     isSickLeaveType,
