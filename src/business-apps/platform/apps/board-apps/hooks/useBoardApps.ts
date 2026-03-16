@@ -194,11 +194,16 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
       setRowsLoading(true)
       try {
         const result = await BoardApiService.getRows(boardId, sheetId, options)
+        const MAX_LOADED_ROWS = 500
         if (options?.append) {
           setRows(prev => {
             const existingIds = new Set(prev.map(r => r.id))
             const newItems = result.items.filter(r => !existingIds.has(r.id))
-            return newItems.length > 0 ? [...prev, ...newItems] : prev
+            if (newItems.length === 0) return prev
+            const merged = [...prev, ...newItems]
+            return merged.length > MAX_LOADED_ROWS
+              ? merged.slice(merged.length - MAX_LOADED_ROWS)
+              : merged
           })
         } else {
           setRows(result.items)

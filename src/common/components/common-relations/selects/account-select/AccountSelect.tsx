@@ -427,10 +427,13 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   }, [mergedAccounts, selectedAccountIds])
 
   return (
-    <div className="gba:space-y-2" data-testid={dataTestId || 'account-list'}>
+    <div className="gba:space-y-2 gba:w-full gba:min-w-0" data-testid={dataTestId || 'account-list'}>
       {/* Selected Accounts List - shown for both single and multiple modes */}
       {internalValue.length > 0 && (
-        <div className="gba:space-y-0" data-testid={formatDataTestId(dataTestId || 'account-list', 'selected-list')}>
+        <div
+          className="gba:space-y-0 gba:w-full gba:min-w-0"
+          data-testid={formatDataTestId(dataTestId || 'account-list', 'selected-list')}
+        >
           {internalValue.map((account, index) => {
             const accountId = getAccountId(account)
             const accountData = getAccountData(account)
@@ -442,7 +445,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
             return (
               <div
                 key={accountId}
-                className="gba:flex gba:items-center gba:gap-3 gba:py-2"
+                className="gba:flex gba:items-center gba:gap-3 gba:py-2 gba:w-full gba:min-w-0 gba:overflow-hidden"
                 data-testid={formatDataTestId(dataTestId || 'account-list', `account-card-${index}`)}
               >
                 {/* Avatar */}
@@ -459,9 +462,11 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
                   )}
                 </Avatar>
 
-                {/* Account Info */}
-                <div className="gba:flex-1 gba:min-w-0">
-                  <h4 className="gba:text-sm gba:font-semibold gba:truncate">{accountData.label}</h4>
+                {/* Account Info - flex-1 min-w-0 so name truncates within available width */}
+                <div className="gba:flex-1 gba:min-w-0 gba:overflow-hidden">
+                  <h4 className="gba:text-sm gba:font-semibold gba:truncate" title={accountData.label}>
+                    {accountData.label}
+                  </h4>
                   {accountData.extraInfo?.website && (
                     <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
                       {accountData.extraInfo.website}
@@ -469,8 +474,8 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
                   )}
                 </div>
 
-                {/* Account Type Select - Using Catalog */}
-                <div className="gba:w-48">
+                {/* Account Type Select - fixed width, never shrink */}
+                <div className="gba:w-48 gba:flex-shrink-0">
                   <CatalogSelect
                     catalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
                     value={accountValue.accountType || ''}

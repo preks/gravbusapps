@@ -46,6 +46,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
   const [previewItems, setPreviewItems] = useState<UnstructuredPreviewItem[]>([])
   const [estimatedTotal, setEstimatedTotal] = useState<number | undefined>()
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   const [limit, setLimit] = useState(100)
   const [keepConnected, setKeepConnected] = useState(false)
@@ -144,6 +145,9 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
   const handlePreview = useCallback(async () => {
     if (!selectedConnector) return
     setIsLoadingPreview(true)
+    setPreviewError(null)
+    setPreviewItems([])
+    setEstimatedTotal(undefined)
     setStep('preview')
     try {
       const result = await DocumentExternalSourceService.preview(
@@ -157,9 +161,10 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
         toast.error('Preview failed')
         setStep('select')
       }
-    } catch {
-      toast.error('Preview failed')
-      setStep('select')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Preview failed'
+      setPreviewError(message)
+      toast.error(message)
     } finally {
       setIsLoadingPreview(false)
     }
@@ -256,6 +261,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
     setSharedConnectionsError(null)
     setPreviewItems([])
     setEstimatedTotal(undefined)
+    setPreviewError(null)
     setRunId(null)
     setRunStatus('queued')
     setTotalDiscovered(0)
@@ -330,6 +336,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
               items={previewItems}
               estimatedTotal={estimatedTotal}
               isLoading={isLoadingPreview}
+              error={previewError}
               onBack={() => setStep('select')}
               onNext={() => setStep('config')}
               data-testid={`${testId}-preview`}

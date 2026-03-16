@@ -466,8 +466,8 @@ error-unknown = Unbekannter Fehler aufgetreten
 error-failed-load-expense-groups = Spesengruppdaten konnten nicht geladen werden
 error-failed-load-filter-data = Filterdaten konnten nicht abgerufen werden
 
-# Quick Actions
-quick-actions-title = Schnellaktionen
+# Insights & Reports
+quick-actions-title = Einblicke & Berichte
 quick-actions-reports-cta = Spesenberichte erstellen oder anzeigen.
 
 # SLA Tooltips

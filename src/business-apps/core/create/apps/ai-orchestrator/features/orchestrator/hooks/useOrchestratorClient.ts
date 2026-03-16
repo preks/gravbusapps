@@ -84,6 +84,8 @@ export interface UseOrchestratorClientResult {
   publishApp: () => Promise<{ success: boolean; message?: string; resourceUrl?: string; azureUrl?: string }>
   clearPlan: () => void
   clearRefinementSummary: () => void
+  /** Explicitly set current plan snapshot (used for imported-session bootstrap flows). */
+  setCurrentPlanSnapshot: (plan: BuildPlan | null) => void
   /** Store session from build_complete event so refine/execute-again can send it */
   setSessionFromBuild: (sessionId: string | undefined, repoId: string | undefined) => void
   updateComponentProperties: (
@@ -454,6 +456,10 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     setRefinementSummary(null)
   }, [])
 
+  const setCurrentPlanSnapshot = useCallback((plan: BuildPlan | null) => {
+    setCurrentPlan(plan)
+  }, [])
+
   /**
    * Update component properties (for publish results, etc.)
    */
@@ -521,6 +527,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     publishApp,
     clearPlan,
     clearRefinementSummary,
+    setCurrentPlanSnapshot,
     setSessionFromBuild,
     updateComponentProperties,
     client

@@ -12,6 +12,7 @@ overtime = Suplimentar
 incomplete = Incomplet
 complete = Completat
 generate_report = Generează raport
+manual_entry = Introducere manuală
 report_title = Raport istoric de timp
 generated = Generat
 history = Istoric

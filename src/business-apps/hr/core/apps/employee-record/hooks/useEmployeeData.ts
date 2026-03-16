@@ -229,6 +229,9 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         region {
           value
           id
+          parentEntry {
+            code
+          }
         }
         remote {
           id
@@ -276,6 +279,8 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         childTaxAllowance
         healthInsuranceName
         healthInsuranceTypeRef
+        additionalProperties
+        updatedAt
       }
       nationality {
         value
@@ -651,6 +656,9 @@ interface CodeValue {
     localeCode: string
     value: string
   }[]
+  parentEntry?: {
+    code?: string
+  }
 }
 
 interface JobHistory {
@@ -756,6 +764,12 @@ interface TaxDetail {
   childTaxAllowance: number
   healthInsuranceName: string
   healthInsuranceTypeRef: string
+  additionalProperties?: {
+    requestAtTaxOffice?: boolean
+    employeeTaxOffice?: string
+    individualFreeAmount?: string
+  }
+  updatedAt?: string | null
 }
 
 export interface EmployeeFeedback {

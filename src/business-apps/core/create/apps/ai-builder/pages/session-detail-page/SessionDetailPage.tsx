@@ -10,7 +10,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup
 } from '@newwork/nw-design-system'
-import { X } from 'lucide-react'
+import { X, Download, Upload } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import screenDiscoveryConfig from '../../../../../../../../scripts/screen-discovery.config.json'
 import { SYSTEM_PROMPT } from '../../config/systemPrompt'
@@ -157,6 +157,8 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     lines: string[]
     error: string | null
   }>({ active: false, lines: [], error: null })
+  const [isSavingVersion, setIsSavingVersion] = useState(false)
+  const [isFolderImporting, setIsFolderImporting] = useState(false)
   const [fileExplorerRefreshKey, setFileExplorerRefreshKey] = useState(0)
   const [previewReady, setPreviewReady] = useState(false)
   const messagesRef = useRef<Message[]>([])
@@ -165,6 +167,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const toolIdCounter = useRef(0)
   const toolIdPrefix = useRef(`tool-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`)
   const previewSandboxRef = useRef<PreviewSandboxHandle>(null)
+  const importCurrentFolderInputRef = useRef<HTMLInputElement>(null)
   const previousChangeCountRef = useRef(0)
   const publishProgressRef = useRef<string[]>([])
   const restoreProgressRef = useRef<string[]>([])
@@ -602,7 +605,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       const inferredCreatedBy =
         message.createdBy ??
         message.editHistory?.slice(-1)[0]?.userId ??
-        (message.role === 'user' ? getCurrentUserId() ?? UNKNOWN_AUTHOR_ID : undefined)
+        (message.role === 'user' ? (getCurrentUserId() ?? UNKNOWN_AUTHOR_ID) : undefined)
       return {
         ...message,
         content: normalizedContent,
@@ -798,6 +801,41 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     return `/platform/generated/${screenName}`
   }
 
+  const resolveCreatedBy = (): SessionMetadata['createdBy'] => {
+    const activeSession = sessions.find(s => s.sessionId === sessionId)
+    if (activeSession?.createdBy?.id) {
+      return activeSession.createdBy
+    }
+
+    const userInfo = (context.userInfo ?? {}) as Partial<{
+      id: string
+      employeeId: string
+      firstName: string
+      lastName: string
+      displayName: string
+      name: string
+      email: string
+      pictureThumbnail: string
+      picture: string
+      consentToStorePii: boolean
+    }>
+    return {
+      id: String(userInfo.id ?? UNKNOWN_AUTHOR_ID),
+      employeeId: String(userInfo.employeeId ?? ''),
+      firstName: String(userInfo.firstName ?? ''),
+      lastName: String(userInfo.lastName ?? ''),
+      displayName: String(userInfo.displayName ?? userInfo.name ?? 'Unknown User'),
+      email: typeof userInfo.email === 'string' ? userInfo.email : undefined,
+      pictureThumbnail:
+        typeof userInfo.pictureThumbnail === 'string'
+          ? userInfo.pictureThumbnail
+          : typeof userInfo.picture === 'string'
+            ? userInfo.picture
+            : undefined,
+      consentToStorePii: Boolean(userInfo.consentToStorePii)
+    }
+  }
+
   const toPreviewAppName = (pathValue?: string | null): string | null => {
     const normalizedPath = normalizeNonEmpty(pathValue)
     if (!normalizedPath) return null
@@ -891,29 +929,208 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     }
   }
 
-  const handleDownloadPatch = async (): Promise<void> => {
-    if (!sessionId) return
+  const downloadBlobWithFilename = (blob: Blob, filename: string): void => {
+    const blobUrl = URL.createObjectURL(blob)
     try {
-      const blob = await builderClient.downloadPatch(repositoryId, sessionId)
-      const safeSessionId = sanitizeFilename(sessionId)
-      const safeFilename = `ai-builder-${safeSessionId}.patch`
-      const blobUrl = URL.createObjectURL(blob)
-      try {
-        const link = Object.assign(document.createElement('a'), {
-          href: blobUrl,
-          download: safeFilename
-        })
-        link.click()
-      } finally {
-        URL.revokeObjectURL(blobUrl)
-      }
+      const link = Object.assign(document.createElement('a'), {
+        href: blobUrl,
+        download: filename
+      })
+      link.click()
+    } finally {
+      URL.revokeObjectURL(blobUrl)
+    }
+  }
+
+  const resolveActiveTargetPath = (): string | null => {
+    const currentSession = sessions.find(s => s.sessionId === sessionId)
+    return (
+      normalizeNonEmpty(detectedTargetPath) ??
+      normalizeNonEmpty(targetPath) ??
+      normalizeNonEmpty(currentSession?.targetPath)
+    )
+  }
+
+  const captureCurrentSessionVersion = async (options?: { silent?: boolean; versionNote?: string }) => {
+    const activeTargetPath = resolveActiveTargetPath()
+    if (!activeTargetPath) {
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.capture_version_requires_target_path',
+          'Target path is required before saving a version.'
+        )
+      )
+    }
+
+    const currentSession = sessions.find(s => s.sessionId === sessionId)
+    const normalizedResource =
+      normalizeResourceUrl(resourceUrl) ??
+      normalizeResourceUrl(currentSession?.resourceUrl) ??
+      getAutoResourceUrl(activeTargetPath)
+
+    const version = await builderClient.captureSessionVersion({
+      repoId: repositoryId,
+      sessionId,
+      targetPath: activeTargetPath,
+      resourceUrl: normalizedResource,
+      versionNote: options?.versionNote ?? 'Manual version save'
+    })
+
+    if (!options?.silent) {
+      alert(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.version_saved_success',
+          `Version saved: v${version.versionMajor}.${version.versionMinor}`
+        )
+      )
+    }
+
+    return version
+  }
+
+  const handleSaveVersion = async (): Promise<void> => {
+    if (!sessionId) return
+    setIsSavingVersion(true)
+    try {
+      await captureCurrentSessionVersion()
     } catch (error) {
       alert(
         error instanceof Error
           ? error.message
-          : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.download_patch_failed', 'Failed to download patch')
+          : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.save_version_failed', 'Failed to save version')
+      )
+    } finally {
+      setIsSavingVersion(false)
+    }
+  }
+
+  const handleDownloadAppPackage = async (): Promise<void> => {
+    if (!sessionId) return
+
+    const activeTargetPath = resolveActiveTargetPath()
+    if (!activeTargetPath) {
+      alert(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.download_package_requires_target_path',
+          'Target path is required before downloading an app package.'
+        )
+      )
+      return
+    }
+
+    try {
+      const latest = await captureCurrentSessionVersion({
+        silent: true,
+        versionNote: 'Download package capture'
+      })
+      const blob = await builderClient.downloadVersionPackage(latest.id)
+      const safeTargetPath = sanitizeFilename(activeTargetPath.replace(/[\\/]/g, '-'))
+      const safeFilename = `ai-builder-${safeTargetPath}-v${latest.versionMajor}.${latest.versionMinor}.zip`
+      downloadBlobWithFilename(blob, safeFilename)
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : getTranslationFromI18nKeyAndLabel(
+              'lowcoder:ai_builder.download_package_failed',
+              'Failed to download app package'
+            )
       )
     }
+  }
+
+  const handleImportFolder = async (files: File[], mode: 'update' | 'new'): Promise<void> => {
+    if (!Array.isArray(files) || files.length === 0) return
+    setIsFolderImporting(true)
+
+    try {
+      const createdBy = resolveCreatedBy()
+
+      if (mode === 'update') {
+        const currentSession = sessions.find(s => s.sessionId === sessionId)
+        const activeTargetPath = resolveActiveTargetPath()
+        if (!activeTargetPath) {
+          throw new Error(
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:ai_builder.upload_folder_requires_target_path',
+              'Target path is required to update an existing app.'
+            )
+          )
+        }
+
+        const nextResourceUrl =
+          normalizeResourceUrl(resourceUrl) ??
+          normalizeResourceUrl(currentSession?.resourceUrl) ??
+          getAutoResourceUrl(activeTargetPath)
+
+        await builderClient.importFolderSnapshot({
+          files,
+          sessionId,
+          repoId: repositoryId,
+          targetPath: activeTargetPath,
+          resourceUrl: nextResourceUrl,
+          applyToCache: true,
+          versionNote: 'Imported folder snapshot (update existing app)',
+          createdBy: createdBy as unknown as Record<string, unknown>,
+          importMode: 'update'
+        })
+
+        const fileCount = await checkForChanges()
+        refreshFileExplorer()
+        await refreshPreview({ force: true })
+
+        if (currentSession) {
+          const updatedSession: SessionMetadata = {
+            ...currentSession,
+            targetPath: activeTargetPath,
+            resourceUrl: nextResourceUrl,
+            fileCount,
+            lastModified: new Date().toISOString()
+          }
+          const updated = sessions.map(s => (s.sessionId === sessionId ? updatedSession : s))
+          updateSessionsState(updated)
+          saveSessionToAPI(updatedSession)
+        }
+
+        alert(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:ai_builder.upload_folder_update_success',
+            'Folder uploaded successfully. Existing app session was updated.'
+          )
+        )
+        return
+      }
+
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.import_new_available_in_overview',
+          'Import as New App is available from the sessions overview page.'
+        )
+      )
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : getTranslationFromI18nKeyAndLabel(
+              'lowcoder:ai_builder.upload_folder_failed',
+              'Failed to upload folder snapshot'
+            )
+      )
+    } finally {
+      setIsFolderImporting(false)
+    }
+  }
+
+  const handleImportCurrentAppFolderClick = (): void => {
+    if (isFolderImporting) return
+    importCurrentFolderInputRef.current?.click()
+  }
+
+  const handleImportCurrentAppFolderSelected = async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const selectedFiles = Array.from(event.target.files || [])
+    event.target.value = ''
+    if (selectedFiles.length === 0) return
+    await handleImportFolder(selectedFiles, 'update')
   }
 
   const refreshPreview = async (options?: { force?: boolean }) => {
@@ -1967,6 +2184,54 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background">
       <SessionDetailHero onBackToSessions={backToSessionList} />
 
+      <div className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:px-6 gba:py-3 gba:border-b gba:border-border gba:bg-card">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDownloadAppPackage}
+          disabled={isFolderImporting || isSavingVersion}
+          className="gba:gap-1.5"
+        >
+          <Download className="gba:w-3.5 gba:h-3.5" />
+          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.download_project_zip', 'Download Project ZIP')}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSaveVersion}
+          disabled={isSavingVersion || isFolderImporting}
+          className="gba:gap-1.5"
+        >
+          <Upload className="gba:w-3.5 gba:h-3.5" />
+          {isSavingVersion
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.saving_version', 'Saving Version...')
+            : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.save_version', 'Save Version')}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleImportCurrentAppFolderClick}
+          disabled={isFolderImporting}
+          className="gba:gap-1.5"
+        >
+          <Upload className="gba:w-3.5 gba:h-3.5" />
+          {isFolderImporting
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.importing_folder', 'Importing Folder...')
+            : getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.import_folder_current_app',
+                'Import Folder to Current App'
+              )}
+        </Button>
+        <input
+          ref={importCurrentFolderInputRef}
+          type="file"
+          multiple
+          onChange={handleImportCurrentAppFolderSelected}
+          className="gba:hidden"
+          {...({ webkitdirectory: 'true', directory: 'true' } as Record<string, string>)}
+        />
+      </div>
+
       <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
         {fileExplorerEnabled && showFileExplorer && sessionId && (
           <div className="gba:w-[480px] gba:border-r gba:border-border gba:flex-shrink-0 gba:bg-muted/30 gba:overflow-hidden">
@@ -1975,8 +2240,6 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
               repoId={repositoryId}
               sessionId={sessionId}
               onFileClick={path => setSelectedFile(path)}
-              onDownloadPatch={handleDownloadPatch}
-              uniqueFileSummary={uniqueFileSummary}
             />
           </div>
         )}
@@ -2073,7 +2336,6 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     setPublishError(null)
                     setShowPublishDialog(true)
                   }}
-                  onDownloadPatch={handleDownloadPatch}
                   onRefresh={checkForChanges}
                   publishSuccess={publishSuccess}
                   onDismissPublishSuccess={() => setPublishSuccess(null)}

@@ -7,7 +7,7 @@ import ExpenseRequestsTable from './ExpenseRequestsTable'
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests'
 import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters'
 import { useExpenseRequestCurrencies } from '../../../hooks/useExpenseRequestCurrencies'
-import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
+import { getSelectedCurrencyRef, pickMostUsedCurrencyRef } from '../../../utils/currencyUtils'
 import { message } from 'antd'
 import { getRequestCardStrategies, preserveCurrencyAndReset } from './cardStrategies'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -41,9 +41,13 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     search,
     setSearch,
     getFilters,
-    setStartDateRange,
-    setEndDateRange,
+    requestDateRange,
     setRequestDateRange,
+    startDateRange,
+    setStartDateRange,
+    endDateRange,
+    setEndDateRange,
+    effectiveDateRange,
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,
@@ -51,19 +55,28 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   } = useExpenseRequestFilters()
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps)
-  const selectedCurrencyRef = useMemo(
-    () => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'),
-    [selectedFilters]
-  )
-  const explicitSelectedCurrencyRef = useMemo(() => {
-    const token = selectedFilters.find(f => f.startsWith('currency:'))
-    return token ? token.substring('currency:'.length) : undefined
-  }, [selectedFilters])
   const { currencyStats, initialized: currenciesInitialized } = useExpenseRequestCurrencies(
     contextProps,
     selectedFilters,
     setFilters
   )
+  const mostUsedCurrencyRef = useMemo(
+    () => pickMostUsedCurrencyRef(currencyStats as { ref: string; code: string; count: number }[]),
+    [currencyStats]
+  )
+  const selectedCurrencyRef = useMemo(
+    () => getSelectedCurrencyRef(selectedFilters, mostUsedCurrencyRef),
+    [selectedFilters, mostUsedCurrencyRef]
+  )
+  const currencyCodeForCards = useMemo(() => {
+    if (!selectedCurrencyRef) return 'EUR'
+    const code = currencyStats.find((s: { ref: string; code: string }) => s.ref === selectedCurrencyRef)?.code
+    return code ?? selectedCurrencyRef.split(':').pop() ?? 'EUR'
+  }, [selectedCurrencyRef, currencyStats])
+  const explicitSelectedCurrencyRef = useMemo(() => {
+    const token = selectedFilters.find(f => f.startsWith('currency:'))
+    return token ? token.substring('currency:'.length) : undefined
+  }, [selectedFilters])
 
   const prevSelectedFiltersRef = useRef<string | null>(null)
 
@@ -84,7 +97,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
         return
       }
 
-      preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter)
+      preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter, mostUsedCurrencyRef)
       strategies[widgetKey]?.apply()
       setActiveWidget(widgetKey)
     },
@@ -96,7 +109,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       setStartDateRange,
       setEndDateRange,
       selectedFilters,
-      addFilter
+      addFilter,
+      mostUsedCurrencyRef
     ]
   )
 
@@ -201,14 +215,14 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     return (
       <ExpenseRequestStatistics
         {...contextProps}
-        currencyCode={selectedCurrencyRef?.split(':').pop() || 'EUR'}
+        currencyCode={currencyCodeForCards}
         {...({ selectedCurrencyRef } as any)}
         {...({ currencyInitialized: currenciesInitialized } as any)}
         onWidgetClick={handleWidgetClick}
         activeWidgetKey={activeWidget || undefined}
       />
     )
-  }, [contextProps, handleWidgetClick, activeWidget, selectedCurrencyRef])
+  }, [contextProps, handleWidgetClick, activeWidget, currencyCodeForCards])
 
   const onContentHeaderChange = props.onContentHeaderChange
   useEffect(() => {
@@ -243,31 +257,39 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     })
   }, [contextProps.userInfo?.employeeDetails?.employeeId])
 
-  const handleTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
-    setCurrentPage(pagination.current)
-    setPageSize(pagination.pageSize)
+  const handleTableChange = useCallback(
+    (pagination: any, _filters: any, sorter: any) => {
+      setCurrentPage(pagination.current)
+      setPageSize(pagination.pageSize)
 
-    if (sorter && sorter.field) {
-      setSortField(sorter.field)
-      setSortOrder(sorter.order)
-    } else {
-      setSortField('requestDate')
-      setSortOrder('descend')
-    }
-  }, [])
+      const nextField = sorter?.field ?? 'requestDate'
+      const nextOrder = sorter?.order
+      setSortField(nextField)
+      setSortOrder(nextOrder)
 
-  const handleSetFilter = useCallback(
-    (filters: string[]) => {
-      if (filters.length === 0) {
-        clearFilters()
-        setActiveWidget(null)
-      } else {
-        const removedFilters = selectedFilters.filter(f => !filters.includes(f))
-        removedFilters.forEach(filterId => removeFilter(filterId))
+      // Refetch immediately when sort or pagination changes so request date (and other columns) sorting updates
+      if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId && currenciesInitialized) {
+        const filters = getFilters()
+        fetchItems(filters, pagination.current, pagination.pageSize ?? pageSize, nextField, nextOrder)
       }
+    },
+    [
+      getFilters,
+      fetchItems,
+      pageSize,
+      contextProps.accessToken,
+      contextProps.userInfo?.employeeDetails?.employeeId,
+      currenciesInitialized
+    ]
+  )
+
+  const setFiltersForTable = useCallback(
+    (filters: string[]) => {
+      setFilters(filters)
+      if (filters.length === 0) setActiveWidget(null)
       setCurrentPage(1)
     },
-    [clearFilters, selectedFilters, removeFilter]
+    [setFilters]
   )
 
   const handleFilterChangeCallback = useCallback(
@@ -294,7 +316,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       search={search}
       onSearchChange={setSearch}
       selectedFilters={selectedFilters}
-      setFilters={handleSetFilter}
+      setFilters={setFiltersForTable}
       filterGroups={filterGroups}
       handleFilterChange={(filterId: string, selected: boolean) => {
         if (filterId.startsWith('currency:')) {
@@ -310,7 +332,15 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       tableRefreshTrigger={tableRefreshTrigger}
       addFilter={addFilter}
       removeFilter={removeFilter}
-      {...({ currencyStats } as any)}
+      requestDateRange={requestDateRange}
+      setRequestDateRange={setRequestDateRange}
+      startDateRange={startDateRange}
+      setStartDateRange={setStartDateRange}
+      endDateRange={endDateRange}
+      setEndDateRange={setEndDateRange}
+      effectiveDateRange={effectiveDateRange}
+      setEffectiveDateRange={setEffectiveDateRange}
+      currencyStats={currencyStats}
     />
   )
 }

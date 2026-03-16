@@ -1,0 +1,90 @@
+import { useMemo } from 'react'
+import type { ExpressionSuggestionItem, ExpressionValueType } from '@/common/components/flow/expression-editor'
+import { collectJsonSchemaPaths } from '../decisionConfigUtils'
+
+export function useTaskExpertMappingSuggestions(
+  agents: any[] | undefined,
+  promptId: string | undefined
+): { schemaPaths: string[]; suggestions: ExpressionSuggestionItem[] } {
+  const schemaPaths = useMemo(() => {
+    const id = String(promptId || '').trim()
+    if (!id) return []
+    const prompt = (agents ?? []).find(a => a._id === id)
+    return collectJsonSchemaPaths(prompt?.response_schema ?? null)
+  }, [agents, promptId])
+
+  const suggestions = useMemo((): ExpressionSuggestionItem[] => {
+    const id = String(promptId || '').trim()
+    const prompt = id ? (agents ?? []).find(a => a._id === id) : undefined
+    const schema = (prompt?.response_schema ?? null) as any
+
+    const getObjectProperty = (node: any, key: string): any => {
+      if (node?.type === 'object' && node?.properties && typeof node.properties === 'object') {
+        return node.properties[key]
+      }
+      return undefined
+    }
+
+    const getSchemaNodeAtPath = (root: any, path: string): any => {
+      if (!root || typeof root !== 'object') return null
+      const raw = String(path || '').trim()
+      if (!raw) return root
+
+      const parts = raw.split('.').filter(Boolean)
+      let cur: any = root
+      for (const part0 of parts) {
+        if (!cur || typeof cur !== 'object') return null
+        const part = String(part0)
+
+        if (part.endsWith('[]')) {
+          const key = part.slice(0, -2)
+          if (key) cur = getObjectProperty(cur, key)
+          cur = cur?.items
+          continue
+        }
+
+        cur = getObjectProperty(cur, part)
+      }
+      return cur
+    }
+
+    const inferValueType = (node: any): ExpressionValueType => {
+      const type = String(node?.type || '').trim()
+      const format = String(node?.format || '').trim()
+      if (type === 'boolean') return 'boolean'
+      if (type === 'number' || type === 'integer') return 'number'
+      if (type === 'string') {
+        if (format === 'date') return 'date'
+        if (format === 'date-time' || format === 'datetime') return 'datetime'
+        return 'string'
+      }
+      return 'unknown'
+    }
+
+    const schemaItems: ExpressionSuggestionItem[] = (schemaPaths || []).map((p, i) => {
+      const path = String(p || '').trim()
+      const node = path ? getSchemaNodeAtPath(schema, path) : null
+      const type = inferValueType(node)
+      return {
+        id: `taskexpert-schema-${i}-${path}`,
+        label: path,
+        expression: `$steps.self.resultData.${path}`,
+        source: 'steps',
+        dataType: type,
+        description: 'From the selected Task Expert output schema.'
+      }
+    })
+
+    const merged = [...schemaItems]
+    const seen = new Set<string>()
+    return merged.filter(item => {
+      const key = String(item.expression || '').trim()
+      if (!key) return false
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [agents, promptId, schemaPaths])
+
+  return { schemaPaths, suggestions }
+}

@@ -26,10 +26,12 @@ export interface TimeEntriesTableProps {
   accessToken: string
   employeeId: string
   userId?: string
+  /** When false, hides the "Rows per page" selector (e.g. for My Time Time History with fixed 100) */
+  showRowsPerPage?: boolean
 }
 
 export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
-  const { entries, locale, pageSize, onPageSizeChange, accessToken, employeeId, userId } = props
+  const { entries, locale, pageSize, onPageSizeChange, accessToken, employeeId, userId, showRowsPerPage = true } = props
   const { t } = useTranslation(hrI18n)
 
   const statusToVariant: Record<string, any> = {
@@ -71,7 +73,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
 
   return (
     <div data-testid="time-tracking-table">
-      <Table>
+      <Table className="gba:[&_th]:py-1.5 gba:[&_td]:py-1.5 gba:[&_tbody_tr]:h-10 gba:[&_tbody_td]:align-middle">
         <TableHeader>
           <TableRow>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.date', 'Date')}</TableHead>
@@ -121,12 +123,12 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                   {e.absenceLabel
                     ? e.absenceLabel
                     : e.dayType === 'holiday'
-                      ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub_holiday', 'Bank Holiday')
+                      ? t('holiday')
                       : e.dayType === 'weekend'
-                        ? getTranslationFromI18nKeyAndLabel('time_tracking_day_type_weekend', 'Weekend')
+                        ? t('time_tracking_day_type_weekend')
                         : e.dayType === 'non_working'
-                          ? getTranslationFromI18nKeyAndLabel('time_tracking_day_type_not_working', 'Not a working day')
-                          : getTranslationFromI18nKeyAndLabel('time_tracking_day_type_work_day', 'Work day')}
+                          ? t('time_tracking_day_type_not_working')
+                          : t('time_tracking_day_type_work_day')}
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-start-cell-${e.id}`}>
                   {formatTime(e.startTimeISO)}
@@ -171,9 +173,9 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                     '-'
                   )}
                 </TableCell>
-                <TableCell className="gba:py-4 gba:px-6">
+                <TableCell className="gba:py-1.5 gba:px-2 gba:align-middle">
                   {!e.isPlaceholder ? (
-                    <div className="gba:flex gba:justify-start gba:gap-2">
+                    <div className="gba:flex gba:items-center gba:justify-start gba:scale-[0.65] gba:origin-left">
                       <AppActionButton
                         data-testid={`time-tracking-update-button-${e.id}`}
                         size="icon"
@@ -215,24 +217,26 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
         </TableBody>
       </Table>
 
-      {/* Custom footer with rows-per-page aligned right */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:border-t gba:border-border gba:pt-4 gba:mt-4">
-        <div />
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:text-muted-foreground">Rows per page</span>
-          <select
-            className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-            value={pageSize}
-            onChange={e => onPageSizeChange(Number(e.target.value))}
-            data-testid="time-tracking-rows-per-page"
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
+      {/* Custom footer with rows-per-page aligned right (optional, hidden on My Time Time History) */}
+      {showRowsPerPage && (
+        <div className="gba:flex gba:items-center gba:justify-between gba:border-t gba:border-border gba:pt-4 gba:mt-4">
+          <div />
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground">Rows per page</span>
+            <select
+              className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              value={pageSize}
+              onChange={e => onPageSizeChange(Number(e.target.value))}
+              data-testid="time-tracking-rows-per-page"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

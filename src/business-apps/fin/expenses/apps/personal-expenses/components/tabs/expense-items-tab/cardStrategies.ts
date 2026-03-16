@@ -39,12 +39,20 @@ export const getItemsCardStrategies = (ctx: ItemsCardContext): Record<string, Ca
   }
 })
 
+/**
+ * Clears filters then re-applies only currency filters.
+ * When no currency is selected (showing "All"), applies mostUsedCurrencyRef so the card scope shows a single currency (pill + dropdown).
+ */
 export const preserveCurrencyAndReset = (
   selectedFilters: string[],
   clearFilters: () => void,
-  addFilter: (filterId: string) => void
+  addFilter: (filterId: string) => void,
+  mostUsedCurrencyRef?: string
 ) => {
-  const currencies = selectedFilters.filter(f => f.startsWith('currency:'))
+  let currencies = selectedFilters.filter(f => f.startsWith('currency:'))
+  if (currencies.length === 0 && mostUsedCurrencyRef) {
+    currencies = [`currency:${mostUsedCurrencyRef}`]
+  }
   clearFilters()
   currencies.forEach(cf => addFilter(cf))
 }
