@@ -564,6 +564,7 @@ editor-header-footer-close = Gata
 editor-header-footer-label-header = Antet
 editor-header-footer-label-footer = Subsol
 editor-header-footer-double-click = Faceți dublu clic pentru editare
+editor-header-footer-double-click-exit = Faceți dublu clic în afara zonei pentru a ieși
 
 # Template fields panel
 template-fields-insert = Inserați câmp

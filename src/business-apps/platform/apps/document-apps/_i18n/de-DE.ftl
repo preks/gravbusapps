@@ -564,6 +564,7 @@ editor-header-footer-close = Fertig
 editor-header-footer-label-header = Kopfzeile
 editor-header-footer-label-footer = Fußzeile
 editor-header-footer-double-click = Doppelklicken zum Bearbeiten
+editor-header-footer-double-click-exit = Doppelklicken Sie außerhalb, um den Bearbeitungsmodus zu verlassen
 
 # Template fields panel
 template-fields-insert = Feld einfügen

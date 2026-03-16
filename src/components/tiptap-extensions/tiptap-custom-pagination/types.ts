@@ -49,6 +49,7 @@ export interface PagesUiLabels {
   headerLabel: string
   footerLabel: string
   doubleClickHint: string
+  doubleClickExitHint: string
   doneLabel: string
 }
 

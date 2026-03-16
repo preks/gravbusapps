@@ -251,7 +251,12 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       })
     }
 
-    const openEditor = (type: 'header' | 'footer', pageNumber: number, target: HTMLElement) => {
+    const openEditor = (
+      type: 'header' | 'footer',
+      pageNumber: number,
+      target: HTMLElement,
+      clickPosition?: { clientX: number; clientY: number }
+    ) => {
       const storage = this.storage
       const options = getRuntimeOptions(editor, extensionOptions)
       const overlayManager = getOverlayManager(
@@ -269,6 +274,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         type,
         pageNumber,
         target,
+        clickPosition,
         initialContent: getInitialEditorContent(storage, options, type, pageNumber, totalPages),
         storage,
         options,
@@ -384,8 +390,10 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             storage.pageCount = currentPageCount
             if (measuredPageCount !== currentPageCount) {
               storage.pageCount = measuredPageCount
-              queueRefresh(updatedView)
-              return
+              if (storage.activeEditorType === null) {
+                queueRefresh(updatedView)
+                return
+              }
             }
 
             refreshPageMinHeight(updatedView.dom)
@@ -475,6 +483,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         type,
         pageNumber,
         target,
+        clickPosition: undefined,
         initialContent: getInitialEditorContent(storage, options, type, pageNumber, totalPages),
         storage,
         options,
@@ -490,8 +499,10 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
 
           if (measuredPageCount !== currentPageCount) {
             storage.pageCount = measuredPageCount
-            refresh(editor)
-            return
+            if (storage.activeEditorType === null) {
+              refresh(editor)
+              return
+            }
           }
 
           refreshPageMinHeight(mountedView.dom)

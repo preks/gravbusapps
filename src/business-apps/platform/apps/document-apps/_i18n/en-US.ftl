@@ -569,6 +569,7 @@ editor-header-footer-close = Done
 editor-header-footer-label-header = Header
 editor-header-footer-label-footer = Footer
 editor-header-footer-double-click = Double-click to edit
+editor-header-footer-double-click-exit = Double-click outside to exit
 
 # Template fields panel
 template-fields-insert = Insert field

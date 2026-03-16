@@ -345,8 +345,8 @@ export function getPageLayoutHeights(
 ) {
   const measuredHeaderHeight = clampHeaderContentHeight(pageFormat, storage, headerHeight)
   const measuredFooterHeight = clampFooterContentHeight(pageFormat, storage, footerHeight)
-  const headerReserved = pageFormat.margins.top + storage.headerTopMargin + measuredHeaderHeight
-  const footerReserved = pageFormat.margins.bottom + storage.footerBottomMargin + measuredFooterHeight
+  const headerReserved = Math.max(pageFormat.margins.top, storage.headerTopMargin + measuredHeaderHeight)
+  const footerReserved = Math.max(pageFormat.margins.bottom, storage.footerBottomMargin + measuredFooterHeight)
   const bodyHeight = Math.max(1, pageFormat.height - headerReserved - footerReserved)
 
   return {
@@ -373,12 +373,12 @@ export function getPageContentHeight(pageFormat: PageFormat): number {
   return Math.max(1, pageFormat.height - pageFormat.margins.top - pageFormat.margins.bottom)
 }
 
-function getHeaderContentSelector(pageNumber: number): string {
-  return `[data-rm-editor-type="header"][data-rm-page-number="${pageNumber}"] .rm-page-header-content`
+function getHeaderMeasurementSelector(pageNumber: number): string {
+  return `[data-rm-editor-type="header"][data-rm-page-number="${pageNumber}"] .rm-page-header`
 }
 
-function getFooterContentSelector(pageNumber: number): string {
-  return `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"] .rm-page-footer-content`
+function getFooterMeasurementSelector(pageNumber: number): string {
+  return `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"] .rm-page-footer`
 }
 
 export function measureHeaderFooterContentHeights(
@@ -394,12 +394,12 @@ export function measureHeaderFooterContentHeights(
     const headerHeight = clampHeaderContentHeight(
       pageFormat,
       storage,
-      readMeasuredElementHeight(editorDom.querySelector(getHeaderContentSelector(pageNumber)) as HTMLElement | null)
+      readMeasuredElementHeight(editorDom.querySelector(getHeaderMeasurementSelector(pageNumber)) as HTMLElement | null)
     )
     const footerHeight = clampFooterContentHeight(
       pageFormat,
       storage,
-      readMeasuredElementHeight(editorDom.querySelector(getFooterContentSelector(pageNumber)) as HTMLElement | null)
+      readMeasuredElementHeight(editorDom.querySelector(getFooterMeasurementSelector(pageNumber)) as HTMLElement | null)
     )
 
     headerHeights.set(pageNumber, headerHeight)
@@ -453,7 +453,30 @@ function getLastContentElement(editorDom: HTMLElement): HTMLElement | null {
 }
 
 function getElementBottom(element: HTMLElement): number {
-  const layoutHeight = Math.max(element.offsetHeight, element.clientHeight, element.scrollHeight)
+  const rectHeight = typeof element.getBoundingClientRect === 'function' ? element.getBoundingClientRect().height : 0
+  const measuredContentHeight = readMeasuredElementHeight(element)
+  let trailingEmptyLineHeight = 0
+
+  if (measuredContentHeight <= 0 && element.matches('p') && element.querySelector('br.ProseMirror-trailingBreak')) {
+    const computedStyle = typeof window !== 'undefined' ? window.getComputedStyle(element) : null
+    const parsedLineHeight = Number.parseFloat(computedStyle?.lineHeight ?? '')
+    const parsedFontSize = Number.parseFloat(computedStyle?.fontSize ?? '')
+
+    trailingEmptyLineHeight = Number.isFinite(parsedLineHeight)
+      ? parsedLineHeight
+      : Number.isFinite(parsedFontSize)
+        ? parsedFontSize * 1.2
+        : 0
+  }
+
+  const layoutHeight = Math.max(
+    element.offsetHeight,
+    element.clientHeight,
+    element.scrollHeight,
+    rectHeight,
+    measuredContentHeight,
+    trailingEmptyLineHeight
+  )
   return element.offsetTop + layoutHeight
 }
 

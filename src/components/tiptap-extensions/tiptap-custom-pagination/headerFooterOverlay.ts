@@ -10,6 +10,7 @@ interface OpenOverlayParams {
   type: HeaderFooterEditorType
   pageNumber: number
   target: HTMLElement
+  clickPosition?: { clientX: number; clientY: number }
   initialContent: PagesHeaderFooter
   storage: PagesStorage
   options: PagesOptions
@@ -40,37 +41,52 @@ export class HeaderFooterOverlayManager {
   open(params: OpenOverlayParams) {
     this.close()
 
-    const { target, type, pageNumber, initialContent, storage, options } = params
+    const { target, type, pageNumber, initialContent, storage, options, clickPosition } = params
     const overlay = document.createElement('div')
     const editorHost = document.createElement('div')
     const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
     const visibleContent = target.querySelector(contentSelector) as HTMLElement | null
+    const hint = target.querySelector('.rm-page-region-hint') as HTMLElement | null
     const variant = resolveVariantForPage(pageNumber, options)
     const accentColor =
       type === 'header'
         ? (options.headerAccentColor ?? options.accentColor ?? '#6366f1')
         : (options.footerAccentColor ?? options.accentColor ?? '#6366f1')
+    const inactiveHint = options.uiLabels?.doubleClickHint ?? 'Double-click to edit'
+    const activeHint = options.uiLabels?.doubleClickExitHint ?? 'Double-click outside to exit'
 
     overlay.className = 'rm-page-overlay'
     overlay.dataset.rmOverlayType = type
     overlay.style.setProperty('--rm-overlay-accent', accentColor)
     editorHost.className = 'rm-page-overlay-editor'
+
     if (visibleContent) {
       const targetRect = target.getBoundingClientRect()
       const contentRect = visibleContent.getBoundingClientRect()
       const topInset = Math.max(0, contentRect.top - targetRect.top)
       const leftInset = Math.max(0, contentRect.left - targetRect.left)
       const rightInset = Math.max(0, targetRect.right - contentRect.right)
-      const bottomInset = type === 'footer' ? Math.max(0, targetRect.bottom - contentRect.bottom) : 0
+      const bottomInset = Math.max(0, targetRect.bottom - contentRect.bottom)
 
       overlay.style.top = `${topInset}px`
       overlay.style.left = `${leftInset}px`
       overlay.style.right = `${rightInset}px`
       overlay.style.bottom = `${bottomInset}px`
     }
+
+    const stopPointerPropagation = (event: MouseEvent) => {
+      event.stopPropagation()
+    }
+    overlay.addEventListener('mousedown', stopPointerPropagation, true)
+    overlay.addEventListener('mouseup', stopPointerPropagation, true)
+    overlay.addEventListener('click', stopPointerPropagation, true)
+
     target.dataset.rmOverlayActive = 'true'
     overlay.append(editorHost)
     target.appendChild(overlay)
+    if (hint) {
+      hint.textContent = activeHint
+    }
 
     const previousEditable = this.hostEditor.isEditable
     this.hostEditor.setEditable(false, false)
@@ -92,7 +108,6 @@ export class HeaderFooterOverlayManager {
       })
 
       if (visibleContent) {
-        visibleContent.innerHTML = html
         visibleContent.dataset.rmEmpty = isEmptyHeaderFooterHtml(html) ? 'true' : 'false'
       }
 
@@ -108,9 +123,8 @@ export class HeaderFooterOverlayManager {
     }
 
     overlayEditor.on('update', syncOverlayContentToStorage)
-    syncOverlayContentToStorage()
 
-    const handleDocumentMouseDown = (event: MouseEvent) => {
+    const handleDocumentDoubleClick = (event: MouseEvent) => {
       if (overlay.contains(event.target as Node)) return
 
       const shouldPreventClose =
@@ -136,16 +150,27 @@ export class HeaderFooterOverlayManager {
       }
     }
 
-    document.addEventListener('mousedown', handleDocumentMouseDown, true)
+    document.addEventListener('dblclick', handleDocumentDoubleClick, true)
     document.addEventListener('keydown', handleEscape, true)
 
     const cleanup = () => {
-      document.removeEventListener('mousedown', handleDocumentMouseDown, true)
+      document.removeEventListener('dblclick', handleDocumentDoubleClick, true)
       document.removeEventListener('keydown', handleEscape, true)
+      overlay.removeEventListener('mousedown', stopPointerPropagation, true)
+      overlay.removeEventListener('mouseup', stopPointerPropagation, true)
+      overlay.removeEventListener('click', stopPointerPropagation, true)
       overlayEditor.off('update', syncOverlayContentToStorage)
+      const finalHtml = overlayEditor.getHTML()
       overlayEditor.destroy()
+      if (visibleContent) {
+        visibleContent.innerHTML = finalHtml
+        visibleContent.dataset.rmEmpty = isEmptyHeaderFooterHtml(finalHtml) ? 'true' : 'false'
+      }
       overlay.remove()
       delete target.dataset.rmOverlayActive
+      if (hint) {
+        hint.textContent = inactiveHint
+      }
       this.hostEditor.setEditable(previousEditable, false)
       params.onClose()
     }
@@ -164,7 +189,7 @@ export class HeaderFooterOverlayManager {
     storage.activeEditorType = type
     storage.activePageNumber = pageNumber
     notifyActiveEditorChange()
-    overlayEditor.commands.focus('end')
+    focusOverlayEditor(overlayEditor, clickPosition)
   }
 
   close() {
@@ -200,4 +225,50 @@ export class HeaderFooterOverlayManager {
 
     this.activeOverlay.overlay.style.setProperty('--rm-overlay-accent', color)
   }
+}
+
+function focusOverlayEditor(editor: Editor, clickPosition?: { clientX: number; clientY: number }) {
+  const position = resolveEditorPositionFromClick(editor, clickPosition)
+  editor.commands.focus(position ?? 'end')
+}
+
+function resolveEditorPositionFromClick(editor: Editor, clickPosition?: { clientX: number; clientY: number }) {
+  if (!clickPosition) return null
+
+  try {
+    const positionAtCoords = editor.view.posAtCoords({
+      left: clickPosition.clientX,
+      top: clickPosition.clientY
+    })
+    if (positionAtCoords?.pos != null) {
+      return positionAtCoords.pos
+    }
+  } catch {
+    // Fall through to DOM-based caret resolution when ProseMirror cannot map the coordinates.
+  }
+
+  const ownerDocument = editor.view.dom.ownerDocument as Document & {
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
+    caretRangeFromPoint?: (x: number, y: number) => Range | null
+  }
+
+  try {
+    const caretPosition = ownerDocument.caretPositionFromPoint?.(clickPosition.clientX, clickPosition.clientY)
+    if (caretPosition?.offsetNode) {
+      return editor.view.posAtDOM(caretPosition.offsetNode, caretPosition.offset)
+    }
+  } catch {
+    // Ignore and continue to the Range fallback.
+  }
+
+  try {
+    const caretRange = ownerDocument.caretRangeFromPoint?.(clickPosition.clientX, clickPosition.clientY)
+    if (caretRange?.startContainer) {
+      return editor.view.posAtDOM(caretRange.startContainer, caretRange.startOffset)
+    }
+  } catch {
+    // Ignore and fall back to the default focus position.
+  }
+
+  return null
 }

@@ -64,6 +64,7 @@ export function ensurePagesStyles(targetDocument: Document) {
       box-sizing: border-box;
       overflow: hidden;
       color: #5f6368;
+      user-select: none;
     }
     .rm-pages-root .rm-first-page-header {
       width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
@@ -104,6 +105,8 @@ export function ensurePagesStyles(targetDocument: Document) {
       outline: none;
       word-break: break-word;
       overflow: hidden;
+      pointer-events: none;
+      user-select: none;
     }
     .rm-pages-root .rm-page-header-content[data-rm-empty="true"]::before,
     .rm-pages-root .rm-page-footer-content[data-rm-empty="true"]::before {
@@ -149,8 +152,18 @@ export function ensurePagesStyles(targetDocument: Document) {
     }
     .rm-pages-root .rm-page-header-region[data-rm-editable="true"]:hover .rm-page-region-hint,
     .rm-pages-root .rm-page-footer-region[data-rm-editable="true"]:hover .rm-page-region-hint,
-    .rm-pages-root .rm-first-page-header[data-rm-editable="true"]:hover .rm-page-region-hint {
+    .rm-pages-root .rm-first-page-header[data-rm-editable="true"]:hover .rm-page-region-hint,
+    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-region-hint,
+    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-region-hint,
+    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-region-hint {
       opacity: 1;
+    }
+    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-header-content,
+    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-footer-content,
+    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-header-content {
+      visibility: hidden;
+      pointer-events: none;
+      user-select: none;
     }
     .rm-pages-root .rm-page-overlay {
       position: absolute;
@@ -200,25 +213,34 @@ export function ensurePagesStyles(targetDocument: Document) {
     .rm-pages-root .rm-page-overlay-editor {
       flex: 1;
       min-height: 0;
-      overflow: auto;
+      overflow: visible;
       box-sizing: border-box;
       border: 0;
       border-radius: 0;
       background: transparent;
-      padding: 8px 0 0;
+      padding: 0;
       caret-color: var(--rm-overlay-accent, #6366f1);
+      user-select: text;
     }
     .rm-pages-root .rm-page-overlay-editor .ProseMirror {
-      min-height: 100%;
+      min-height: 0;
       outline: none;
+      user-select: text;
+    }
+    .rm-pages-root .rm-page-inline-editor {
+      width: 100%;
+      box-sizing: border-box;
+      background: transparent;
+      caret-color: var(--rm-overlay-accent, #6366f1);
+      user-select: text;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror {
+      outline: none;
+      user-select: text;
     }
     .rm-pages-root .rm-page-overlay[data-rm-overlay-type="header"] .rm-page-overlay-editor .ProseMirror {
-      border-bottom: 1px solid #e8eaed;
-      padding-bottom: 4px;
     }
     .rm-pages-root .rm-page-overlay[data-rm-overlay-type="footer"] .rm-page-overlay-editor .ProseMirror {
-      border-top: 1px solid #e8eaed;
-      padding-top: 4px;
     }
   `
   targetDocument.head.appendChild(style)
@@ -257,6 +279,13 @@ export function refreshPageMinHeight(targetNode: HTMLElement) {
   targetNode.style.minHeight = `${minHeight + 2}px`
 }
 
+function blockInactiveRegionSelection(event: MouseEvent, region: HTMLElement) {
+  if (region.dataset.rmOverlayActive === 'true') return
+
+  event.preventDefault()
+  event.stopPropagation()
+}
+
 export function createHeaderFooterRegion(params: {
   type: HeaderFooterEditorType
   pageNumber: number
@@ -265,7 +294,12 @@ export function createHeaderFooterRegion(params: {
   options: PagesOptions
   storage: PagesStorage
   extensions: Extension[]
-  onOpenEditor?: (type: HeaderFooterEditorType, pageNumber: number, target: HTMLElement) => void
+  onOpenEditor?: (
+    type: HeaderFooterEditorType,
+    pageNumber: number,
+    target: HTMLElement,
+    clickPosition?: { clientX: number; clientY: number }
+  ) => void
   firstPage?: boolean
 }): HTMLElement {
   const { type, pageNumber, totalPages, options, storage, extensions, onOpenEditor, firstPage } = params
@@ -319,10 +353,17 @@ export function createHeaderFooterRegion(params: {
   }
   region.appendChild(inner)
 
+  region.addEventListener('mousedown', event => {
+    blockInactiveRegionSelection(event, region)
+  })
+
   region.addEventListener('dblclick', event => {
     event.preventDefault()
     event.stopPropagation()
-    onOpenEditor?.(type, pageNumber, region)
+    onOpenEditor?.(type, pageNumber, region, {
+      clientX: event.clientX,
+      clientY: event.clientY
+    })
   })
 
   return region
@@ -335,7 +376,12 @@ export function createPageBreakElement(params: {
   options: PagesOptions
   storage: PagesStorage
   extensions: Extension[]
-  onOpenEditor?: (type: HeaderFooterEditorType, pageNumber: number, target: HTMLElement) => void
+  onOpenEditor?: (
+    type: HeaderFooterEditorType,
+    pageNumber: number,
+    target: HTMLElement,
+    clickPosition?: { clientX: number; clientY: number }
+  ) => void
 }): HTMLElement {
   const { pageNumber, totalPages, pageFormat, options, storage, extensions, onOpenEditor } = params
 
@@ -372,6 +418,10 @@ export function createPageBreakElement(params: {
   const pageGap = document.createElement('div')
   pageGap.className = 'rm-page-gap'
   pageGap.style.height = `${storage.pageGap}px`
+  pageGap.addEventListener('mousedown', event => {
+    event.preventDefault()
+    event.stopPropagation()
+  })
 
   const nextHeader = createHeaderFooterRegion({
     type: 'header',
@@ -396,7 +446,12 @@ export function createPaginationWrapper(params: {
   options: PagesOptions
   storage: PagesStorage
   extensions: Extension[]
-  onOpenEditor?: (type: HeaderFooterEditorType, pageNumber: number, target: HTMLElement) => void
+  onOpenEditor?: (
+    type: HeaderFooterEditorType,
+    pageNumber: number,
+    target: HTMLElement,
+    clickPosition?: { clientX: number; clientY: number }
+  ) => void
 }): HTMLElement {
   const { totalPages, pageFormat, options, storage, extensions, onOpenEditor } = params
   const wrapper = document.createElement('div')
@@ -427,7 +482,12 @@ export function createFirstPageHeader(params: {
   options: PagesOptions
   storage: PagesStorage
   extensions: Extension[]
-  onOpenEditor?: (type: HeaderFooterEditorType, pageNumber: number, target: HTMLElement) => void
+  onOpenEditor?: (
+    type: HeaderFooterEditorType,
+    pageNumber: number,
+    target: HTMLElement,
+    clickPosition?: { clientX: number; clientY: number }
+  ) => void
 }): HTMLElement {
   return createHeaderFooterRegion({
     type: 'header',

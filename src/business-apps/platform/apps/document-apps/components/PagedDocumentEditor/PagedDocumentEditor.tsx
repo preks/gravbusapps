@@ -1409,6 +1409,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     headerLabel: t('editor-header-footer-label-header'),
                     footerLabel: t('editor-header-footer-label-footer'),
                     doubleClickHint: t('editor-header-footer-double-click'),
+                    doubleClickExitHint: t('editor-header-footer-double-click-exit'),
                     doneLabel: t('editor-header-footer-close')
                   },
                   onActiveEditorChange: handlePagesActiveEditorChange,
