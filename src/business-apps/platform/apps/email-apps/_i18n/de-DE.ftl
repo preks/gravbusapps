@@ -440,3 +440,5 @@ assistant-apply-alternative = Alternative anwenden
 assistant-reply-context-missing = Antwortkontext fehlt. Öffnen Sie die Nachricht und versuchen Sie es erneut.
 assistant-advanced-show = Erweiterte Optionen anzeigen
 assistant-advanced-hide = Erweiterte Optionen ausblenden
+assistant-bubble-open = Assistant öffnen
+assistant-bubble-close = Assistant schließen

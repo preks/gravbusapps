@@ -442,3 +442,5 @@ assistant-apply-alternative = Aplică alternativa
 assistant-reply-context-missing = Lipsește contextul răspunsului. Deschideți mesajul și încercați din nou.
 assistant-advanced-show = Afișează opțiuni avansate
 assistant-advanced-hide = Ascunde opțiuni avansate
+assistant-bubble-open = Deschide Assistant
+assistant-bubble-close = Închide Assistant

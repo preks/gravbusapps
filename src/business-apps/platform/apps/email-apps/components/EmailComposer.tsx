@@ -13,7 +13,7 @@ import { Send, X, Minus, Trash2, Paperclip } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailRecipientInput } from './EmailRecipientInput'
 import { ComposerAttachments } from './ComposerAttachments'
-import { EmailAssistantPanel } from './EmailAssistantPanel'
+import { EmailAssistantBubble } from './EmailAssistantBubble'
 import { useFileAttachments } from '../hooks/useFileAttachments'
 import { useEmailAssistant } from '../hooks/useEmailAssistant'
 import { buildReplySubject, buildReplyBody, buildHtmlBody, buildTextBody } from '../utils/composerUtils'
@@ -543,8 +543,18 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
                 data-testid={`${testId}-subject`}
               />
             </div>
+          </div>
 
-            <EmailAssistantPanel
+          {/* Body + Signature preview (drag-and-drop zone) */}
+          <div className="gba:flex-1 gba:overflow-y-auto gba:px-4 gba:py-2 gba:relative" {...dragHandlers}>
+            <Textarea
+              value={body}
+              onChange={e => setBody(e.target.value)}
+              placeholder={t('composer-body-placeholder')}
+              className="gba:min-h-32 gba:resize-none gba:text-sm gba:border-0 gba:p-0 gba:focus:ring-0"
+              data-testid={`${testId}-body`}
+            />
+            <EmailAssistantBubble
               isEnabled={isAssistantEnabled}
               isCapabilitiesLoading={isAssistantCapabilitiesLoading}
               loading={assistantLoading}
@@ -586,17 +596,6 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
               onCancel={cancelAction}
               onApplyAlternative={alternative => setBody(alternative)}
               data-testid={`${testId}-assistant`}
-            />
-          </div>
-
-          {/* Body + Signature preview (drag-and-drop zone) */}
-          <div className="gba:flex-1 gba:overflow-y-auto gba:px-4 gba:py-2 gba:relative" {...dragHandlers}>
-            <Textarea
-              value={body}
-              onChange={e => setBody(e.target.value)}
-              placeholder={t('composer-body-placeholder')}
-              className="gba:min-h-32 gba:resize-none gba:text-sm gba:border-0 gba:p-0 gba:focus:ring-0"
-              data-testid={`${testId}-body`}
             />
 
             {/* Rich signature preview */}

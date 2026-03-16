@@ -48,6 +48,9 @@ interface EmailAssistantPanelProps {
   onRetry: () => void
   onCancel: (action: 'draft' | 'rewrite' | 'replySuggest' | 'temperatureCheck') => void
   onApplyAlternative: (text: string) => void
+  defaultAssistantExpanded?: boolean
+  containerClassName?: string
+  loadingClassName?: string
   'data-testid'?: string
 }
 
@@ -90,18 +93,27 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
   onRetry,
   onCancel,
   onApplyAlternative,
+  defaultAssistantExpanded = false,
+  containerClassName,
+  loadingClassName,
   'data-testid': testId = 'email-assistant-panel'
 }) => {
   const { t } = useTranslation(translations)
   const isReplyMode = mode === 'reply' || mode === 'reply-all'
   const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(() => !isReplyMode)
-  const [isAssistantExpanded, setIsAssistantExpanded] = useState(false)
+  const [isAssistantExpanded, setIsAssistantExpanded] = useState(defaultAssistantExpanded)
   const [isInsightsExpanded, setIsInsightsExpanded] = useState(false)
   const [isRiskExpanded, setIsRiskExpanded] = useState(false)
+  const shouldExpandContainer = isAdvancedExpanded || Boolean(previewDraft)
 
   if (isCapabilitiesLoading) {
     return (
-      <div className="gba:mt-3 gba:p-3 gba:rounded-lg gba:border gba:bg-muted" data-testid={`${testId}-loading`}>
+      <div
+        className={['gba:mt-3 gba:p-3 gba:rounded-lg gba:border gba:bg-muted', loadingClassName]
+          .filter(Boolean)
+          .join(' ')}
+        data-testid={`${testId}-loading`}
+      >
         <p className="gba:text-xs gba:text-muted-foreground">{t('assistant-loading-capabilities')}</p>
       </div>
     )
@@ -111,7 +123,13 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
 
   return (
     <div
-      className="gba:mt-3 gba:p-3 gba:rounded-lg gba:border gba:space-y-3 gba:max-h-96 gba:overflow-y-auto"
+      className={[
+        'gba:mt-3 gba:p-3 gba:rounded-lg gba:border gba:space-y-3',
+        shouldExpandContainer ? 'gba:max-h-none gba:overflow-visible' : 'gba:max-h-96 gba:overflow-y-auto',
+        containerClassName
+      ]
+        .filter(Boolean)
+        .join(' ')}
       data-testid={testId}
     >
       <button

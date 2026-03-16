@@ -452,3 +452,5 @@ assistant-apply-alternative = Apply alternative
 assistant-reply-context-missing = Missing reply context. Open the message and try again.
 assistant-advanced-show = Show advanced options
 assistant-advanced-hide = Hide advanced options
+assistant-bubble-open = Open Assistant
+assistant-bubble-close = Close Assistant
