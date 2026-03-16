@@ -62,8 +62,23 @@ describe('Pages extension helpers', () => {
 
   it('calculates page count and renders one boundary per page', () => {
     const root = document.createElement('div')
-    Object.defineProperty(root, 'scrollHeight', {
-      value: 1620,
+    const paragraph = document.createElement('p')
+    root.appendChild(paragraph)
+
+    Object.defineProperty(paragraph, 'offsetTop', {
+      value: 1500,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'offsetHeight', {
+      value: 120,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'clientHeight', {
+      value: 120,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'scrollHeight', {
+      value: 120,
       configurable: true
     })
 
@@ -84,6 +99,97 @@ describe('Pages extension helpers', () => {
 
     expect(wrapper.children).toHaveLength(2)
     expect(wrapper.querySelectorAll('.breaker')).toHaveLength(2)
+  })
+
+  it('ignores pagination helper widgets when measuring blank content', () => {
+    const root = document.createElement('div')
+    const paragraph = document.createElement('p')
+    const wrapper = document.createElement('div')
+    wrapper.dataset.rmPagination = 'true'
+
+    const pageBreak = document.createElement('div')
+    pageBreak.className = 'rm-page-break'
+    const breaker = document.createElement('div')
+    breaker.className = 'breaker'
+    pageBreak.appendChild(breaker)
+    wrapper.appendChild(pageBreak)
+
+    const firstPageHeader = document.createElement('div')
+    firstPageHeader.className = 'rm-first-page-header'
+
+    root.append(paragraph, wrapper, firstPageHeader)
+
+    Object.defineProperty(paragraph, 'offsetTop', {
+      value: 0,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'offsetHeight', {
+      value: 24,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'clientHeight', {
+      value: 24,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'scrollHeight', {
+      value: 24,
+      configurable: true
+    })
+
+    Object.defineProperty(breaker, 'offsetTop', {
+      value: 900,
+      configurable: true
+    })
+    Object.defineProperty(breaker, 'offsetHeight', {
+      value: 0,
+      configurable: true
+    })
+    Object.defineProperty(breaker, 'clientHeight', {
+      value: 0,
+      configurable: true
+    })
+    Object.defineProperty(breaker, 'scrollHeight', {
+      value: 0,
+      configurable: true
+    })
+
+    expect(calculatePageCount({ dom: root } as any, PAGE_FORMATS.A4, 40)).toBe(1)
+  })
+
+  it('clamps an effectively empty prose mirror document to a single page', () => {
+    const root = document.createElement('div')
+
+    const pageBreak = document.createElement('div')
+    pageBreak.className = 'rm-page-break'
+    const breaker = document.createElement('div')
+    breaker.className = 'breaker'
+    pageBreak.appendChild(breaker)
+
+    const wrapper = document.createElement('div')
+    wrapper.dataset.rmPagination = 'true'
+    wrapper.appendChild(pageBreak)
+
+    root.appendChild(wrapper)
+
+    expect(
+      calculatePageCount(
+        {
+          dom: root,
+          state: {
+            doc: {
+              childCount: 1,
+              firstChild: {
+                type: { name: 'paragraph' },
+                childCount: 0,
+                textContent: ''
+              }
+            }
+          }
+        } as any,
+        PAGE_FORMATS.A4,
+        40
+      )
+    ).toBe(1)
   })
 })
 
@@ -109,6 +215,27 @@ describe('Pages extension commands', () => {
     expect(editor.commands.setPageFormat('Letter')).toBe(true)
     expect(editor.storage.pages.pageFormat.name).toBe('Letter')
     expect(onPageFormatChange).toHaveBeenCalledWith(expect.objectContaining({ name: 'Letter' }))
+
+    editor.destroy()
+    element.remove()
+  })
+
+  it('batches pages option updates in a single command', () => {
+    const { editor, element } = createEditor()
+
+    expect(
+      (
+        editor.commands as typeof editor.commands & { setPagesOptions?: (updates: Record<string, unknown>) => boolean }
+      ).setPagesOptions?.({
+        differentFirstPage: true,
+        header: '<p>Header</p>',
+        footer: '<p>Footer</p>',
+        headerFirstPage: '<p>First header</p>'
+      })
+    ).toBe(true)
+
+    expect(editor.storage.pages.differentFirstPage).toBe(true)
+    expect(editor.storage.pages.getPageCount()).toBeGreaterThanOrEqual(1)
 
     editor.destroy()
     element.remove()

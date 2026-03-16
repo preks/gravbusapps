@@ -22,13 +22,13 @@ import type {
   OpenHeaderFooterEditorParams,
   PageFormatInput,
   PagesHeaderFooter,
+  PagesOptionUpdates,
   PagesOptions,
   PagesStorage
 } from './types'
 import {
   calculatePageCount,
   createStorageFromOptions,
-  getExistingPageCount,
   getHeaderFooterExtensions,
   getInitialEditorContent,
   resolvePageFormat,
@@ -66,6 +66,7 @@ function getOverlayManager(editor: object, create: () => HeaderFooterOverlayMana
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     pages: {
+      setPagesOptions: (updates: PagesOptionUpdates) => ReturnType
       setPageFormat: (pageFormat: PageFormatInput) => ReturnType
       setHeader: (header: PagesHeaderFooter) => ReturnType
       setFooter: (footer: PagesHeaderFooter) => ReturnType
@@ -262,14 +263,6 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             const options = getRuntimeOptions(editor, extensionOptions)
             syncStorageFromOptions(storage, options)
             applyRootStyles(updatedView.dom, storage.pageFormat, options)
-
-            const pageCount = calculatePageCount(updatedView, storage.pageFormat, options.pageGap)
-            if (pageCount !== storage.pageCount || pageCount !== getExistingPageCount(updatedView)) {
-              storage.pageCount = pageCount
-              requestAnimationFrame(() => requestRefresh(updatedView))
-              return
-            }
-
             refreshPageMinHeight(updatedView.dom)
           }
         })
@@ -362,91 +355,129 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       return true
     }
 
+    const applyOptionUpdates = (editor: typeof this.editor, updates: PagesOptionUpdates) => {
+      const options = getRuntimeOptions(editor, extensionOptions)
+
+      if (updates.pageFormat !== undefined) {
+        const storage = editor.storage.pages as PagesStorage
+        options.pageFormat = updates.pageFormat
+        storage.pageFormat = resolvePageFormat(updates.pageFormat)
+        syncEditorStorage(editor as unknown as { storage: Record<string, unknown> }, storage)
+        options.onPageFormatChange?.(storage.pageFormat)
+      }
+      if (updates.header !== undefined) options.header = updates.header
+      if (updates.footer !== undefined) options.footer = updates.footer
+      if (updates.headerTopMargin !== undefined) options.headerTopMargin = updates.headerTopMargin
+      if (updates.footerBottomMargin !== undefined) options.footerBottomMargin = updates.footerBottomMargin
+      if (updates.differentFirstPage !== undefined) options.differentFirstPage = updates.differentFirstPage
+      if (updates.headerFirstPage !== undefined) options.headerFirstPage = updates.headerFirstPage
+      if (updates.footerFirstPage !== undefined) options.footerFirstPage = updates.footerFirstPage
+      if (updates.differentOddEven !== undefined) options.differentOddEven = updates.differentOddEven
+      if (updates.headerOdd !== undefined) options.headerOdd = updates.headerOdd
+      if (updates.headerEven !== undefined) options.headerEven = updates.headerEven
+      if (updates.footerOdd !== undefined) options.footerOdd = updates.footerOdd
+      if (updates.footerEven !== undefined) options.footerEven = updates.footerEven
+      if (updates.accentColor !== undefined) options.accentColor = updates.accentColor
+      if (updates.headerAccentColor !== undefined) options.headerAccentColor = updates.headerAccentColor
+      if (updates.footerAccentColor !== undefined) options.footerAccentColor = updates.footerAccentColor
+    }
+
     return {
+      setPagesOptions:
+        updates =>
+        ({ editor }) => {
+          closeOverlay(editor)
+          applyOptionUpdates(editor, updates)
+          getOverlayManager(
+            editor,
+            () =>
+              new HeaderFooterOverlayManager(
+                editor,
+                () => getRuntimeOptions(editor, extensionOptions),
+                () => editor.storage.pages as PagesStorage
+              )
+          ).updateAccentColor()
+          return refresh(editor)
+        },
       setPageFormat:
         pageFormat =>
         ({ editor }) => {
           closeOverlay(editor)
-          const options = getRuntimeOptions(editor, extensionOptions)
-          options.pageFormat = pageFormat
-          const storage = editor.storage.pages as PagesStorage
-          storage.pageFormat = resolvePageFormat(pageFormat)
-          syncEditorStorage(editor as unknown as { storage: Record<string, unknown> }, storage)
-          options.onPageFormatChange?.(storage.pageFormat)
+          applyOptionUpdates(editor, { pageFormat })
           return refresh(editor)
         },
       setHeader:
         header =>
         ({ editor }) => {
-          getRuntimeOptions(editor, extensionOptions).header = header
+          applyOptionUpdates(editor, { header })
           return refresh(editor)
         },
       setFooter:
         footer =>
         ({ editor }) => {
-          getRuntimeOptions(editor, extensionOptions).footer = footer
+          applyOptionUpdates(editor, { footer })
           return refresh(editor)
         },
       setHeaderTopMargin:
         margin =>
         ({ editor }) => {
-          getRuntimeOptions(editor, extensionOptions).headerTopMargin = margin
+          applyOptionUpdates(editor, { headerTopMargin: margin })
           return refresh(editor)
         },
       setFooterBottomMargin:
         margin =>
         ({ editor }) => {
-          getRuntimeOptions(editor, extensionOptions).footerBottomMargin = margin
+          applyOptionUpdates(editor, { footerBottomMargin: margin })
           return refresh(editor)
         },
       setDifferentFirstPage:
         enabled =>
         ({ editor }) => {
           closeOverlay(editor)
-          getRuntimeOptions(editor, extensionOptions).differentFirstPage = enabled
+          applyOptionUpdates(editor, { differentFirstPage: enabled })
           return refresh(editor)
         },
       setHeaderFirstPage:
         header =>
         ({ editor }) => {
-          getRuntimeOptions(editor, extensionOptions).headerFirstPage = header
+          applyOptionUpdates(editor, { headerFirstPage: header })
           return refresh(editor)
         },
       setFooterFirstPage:
         footer =>
         ({ editor }) => {
-          getRuntimeOptions(editor, extensionOptions).footerFirstPage = footer
+          applyOptionUpdates(editor, { footerFirstPage: footer })
           return refresh(editor)
         },
       setDifferentOddEven:
         enabled =>
         ({ editor }) => {
           closeOverlay(editor)
-          getRuntimeOptions(editor, extensionOptions).differentOddEven = enabled
+          applyOptionUpdates(editor, { differentOddEven: enabled })
           return refresh(editor)
         },
       setHeaderOdd:
         header =>
         ({ editor }) => {
-          getRuntimeOptions(editor, extensionOptions).headerOdd = header
+          applyOptionUpdates(editor, { headerOdd: header })
           return refresh(editor)
         },
       setHeaderEven:
         header =>
         ({ editor }) => {
-          getRuntimeOptions(editor, extensionOptions).headerEven = header
+          applyOptionUpdates(editor, { headerEven: header })
           return refresh(editor)
         },
       setFooterOdd:
         footer =>
         ({ editor }) => {
-          getRuntimeOptions(editor, extensionOptions).footerOdd = footer
+          applyOptionUpdates(editor, { footerOdd: footer })
           return refresh(editor)
         },
       setFooterEven:
         footer =>
         ({ editor }) => {
-          getRuntimeOptions(editor, extensionOptions).footerEven = footer
+          applyOptionUpdates(editor, { footerEven: footer })
           return refresh(editor)
         },
       openHeaderEditor:

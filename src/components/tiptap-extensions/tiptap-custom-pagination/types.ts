@@ -39,6 +39,31 @@ export interface OpenHeaderFooterEditorParams {
 
 export type PreventCloseCallback = (event: MouseEvent) => boolean
 
+export interface ActivePagesEditorState {
+  activeEditor: Editor | null
+  activeEditorType: HeaderFooterEditorType | null
+  activePageNumber: number | null
+}
+
+export interface PagesOptionUpdates {
+  pageFormat?: PageFormatInput
+  header?: PagesHeaderFooterSource
+  footer?: PagesHeaderFooterSource
+  headerTopMargin?: number
+  footerBottomMargin?: number
+  differentFirstPage?: boolean
+  headerFirstPage?: PagesHeaderFooterSource
+  footerFirstPage?: PagesHeaderFooterSource
+  differentOddEven?: boolean
+  headerOdd?: PagesHeaderFooterSource
+  headerEven?: PagesHeaderFooterSource
+  footerOdd?: PagesHeaderFooterSource
+  footerEven?: PagesHeaderFooterSource
+  accentColor?: string
+  headerAccentColor?: string
+  footerAccentColor?: string
+}
+
 export interface PagesOptions {
   pageFormat: PageFormatInput
   headerHeight: number
@@ -65,6 +90,7 @@ export interface PagesOptions {
   headerAccentColor?: string
   footerAccentColor?: string
   onPageFormatChange?: (pageFormat: PageFormat) => void
+  onActiveEditorChange?: (state: ActivePagesEditorState) => void
 }
 
 export interface PagesStorage {

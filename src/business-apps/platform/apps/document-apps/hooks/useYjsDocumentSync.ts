@@ -10,6 +10,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Socket } from 'socket.io-client'
 import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
 import { DocumentApiService } from '../services/DocumentApiService'
+import type { DocumentFormatting } from '../types'
 
 const SNAPSHOT_SAVE_DELAY_MS = 2000
 
@@ -22,6 +23,7 @@ export interface UseYjsDocumentSyncParams {
   suppressSnapshotSaveRef?: React.MutableRefObject<boolean>
   isReadOnly: boolean
   title: string
+  getFormattingForSave?: () => DocumentFormatting | undefined
   setLastSaved: (date: Date | null) => void
   setHasUnsavedChanges: (value: boolean) => void
 }
@@ -40,6 +42,7 @@ export function useYjsDocumentSync({
   suppressSnapshotSaveRef,
   isReadOnly,
   title,
+  getFormattingForSave,
   setLastSaved,
   setHasUnsavedChanges
 }: UseYjsDocumentSyncParams): UseYjsDocumentSyncResult {
@@ -59,7 +62,11 @@ export function useYjsDocumentSync({
 
       autoSaveTimeoutRef.current = setTimeout(() => {
         const html = currentEditor?.getHTML?.() || ''
-        DocumentApiService.updateDocument(documentId, { title, content: html }, { createVersion: false })
+        DocumentApiService.updateDocument(
+          documentId,
+          { title, content: html, formatting: getFormattingForSave?.() },
+          { createVersion: false }
+        )
           .then(() => {
             setLastSaved(new Date())
             setHasUnsavedChanges(false)
@@ -69,7 +76,7 @@ export function useYjsDocumentSync({
           })
       }, SNAPSHOT_SAVE_DELAY_MS)
     },
-    [documentId, isReadOnly, isYjsSynced, title, setLastSaved, setHasUnsavedChanges]
+    [documentId, getFormattingForSave, isReadOnly, isYjsSynced, title, setLastSaved, setHasUnsavedChanges]
   )
 
   useEffect(() => {

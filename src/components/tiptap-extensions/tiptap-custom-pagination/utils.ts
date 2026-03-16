@@ -1,5 +1,6 @@
 import { Editor, type Extension, type JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { EditorView } from '@tiptap/pm/view'
 import { PAGE_FORMATS, PAGE_SIZES, type PageSize } from './constants'
 import type {
@@ -83,7 +84,7 @@ export function cloneJSONValue<T>(value: T): T {
 }
 
 export function replaceTemplateTokens(template: string, page: number, total: number): string {
-  return template.replaceAll('{page}', String(page)).replaceAll('{total}', String(total))
+  return template.replace(/\{page\}/g, String(page)).replace(/\{total\}/g, String(total))
 }
 
 export function replaceTokensInJSONContent(content: JSONContent, page: number, total: number): JSONContent {
@@ -286,38 +287,85 @@ export function getExistingPageCount(view: EditorView): number {
   return paginationElement ? paginationElement.children.length : 0
 }
 
+function isEffectivelyEmptyDocument(doc: ProseMirrorNode | undefined): boolean {
+  if (!doc) return false
+
+  if (doc.childCount !== 1) return false
+
+  const firstChild = doc.firstChild
+  if (!firstChild) return true
+
+  return firstChild.type.name === 'paragraph' && firstChild.childCount === 0 && firstChild.textContent.trim() === ''
+}
+
+function isPaginationMeasurementHelper(element: Element): boolean {
+  if (element.hasAttribute('data-rm-pagination')) return true
+
+  if (!(element instanceof HTMLElement)) return false
+
+  return (
+    element.classList.contains('ProseMirror-widget') ||
+    element.classList.contains('rm-first-page-header') ||
+    element.classList.contains('rm-page-break') ||
+    element.classList.contains('rm-page-spacer') ||
+    element.classList.contains('breaker')
+  )
+}
+
+function getLastContentElement(editorDom: HTMLElement): HTMLElement | null {
+  let current = editorDom.lastElementChild
+
+  while (current) {
+    if (!isPaginationMeasurementHelper(current) && current instanceof HTMLElement) {
+      return current
+    }
+    current = current.previousElementSibling
+  }
+
+  return null
+}
+
+function getElementBottom(element: HTMLElement): number {
+  const layoutHeight = Math.max(element.offsetHeight, element.clientHeight, element.scrollHeight)
+  return element.offsetTop + layoutHeight
+}
+
 export function calculatePageCount(view: EditorView, pageFormat: PageFormat, pageGap: number): number {
+  if (isEffectivelyEmptyDocument((view as EditorView & { state?: { doc?: ProseMirrorNode } }).state?.doc)) {
+    return 1
+  }
+
   const editorDom = view.dom
   const pageContentHeight = getPageContentHeight(pageFormat)
   const paginationElement = editorDom.querySelector('[data-rm-pagination]')
   const currentPageCount = getExistingPageCount(view)
+  const lastContentElement = getLastContentElement(editorDom)
 
   if (paginationElement) {
-    const lastElementOfEditor = editorDom.lastElementChild as HTMLElement | null
     const lastPageBreak = paginationElement.lastElementChild?.querySelector('.breaker') as HTMLElement | null
 
-    if (lastElementOfEditor && lastPageBreak) {
-      const lastElementRect = lastElementOfEditor.getBoundingClientRect()
-      const lastPageBreakRect = lastPageBreak.getBoundingClientRect()
-      const lastPageGap = lastElementRect.bottom - lastPageBreakRect.bottom
-
-      if (lastPageGap > 0) {
-        return currentPageCount + Math.ceil(lastPageGap / pageContentHeight)
-      }
-
-      const lowerBound = -(pageFormat.height - 10)
-      if (lastPageGap > lowerBound && lastPageGap < -10) return currentPageCount
-      if (lastPageGap < lowerBound) {
-        const removePage = Math.floor(lastPageGap / (pageFormat.height + pageGap))
-        return Math.max(1, currentPageCount + removePage)
-      }
-
+    if (!lastContentElement || !lastPageBreak) {
       return Math.max(1, currentPageCount)
     }
 
-    return 1
+    const lastPageGap = getElementBottom(lastContentElement) - getElementBottom(lastPageBreak)
+
+    if (lastPageGap > 0) {
+      return currentPageCount + Math.ceil(lastPageGap / pageContentHeight)
+    }
+
+    const lowerBound = -(pageFormat.height - 10)
+    if (lastPageGap > lowerBound && lastPageGap < -10) return currentPageCount
+    if (lastPageGap < lowerBound) {
+      const removePage = Math.floor(lastPageGap / (pageFormat.height + pageGap))
+      return Math.max(1, currentPageCount + removePage)
+    }
+
+    return Math.max(1, currentPageCount)
   }
 
-  const editorHeight = editorDom.scrollHeight
+  if (!lastContentElement) return 1
+
+  const editorHeight = Math.max(getElementBottom(lastContentElement), 1)
   return Math.max(1, Math.ceil(editorHeight / pageContentHeight))
 }

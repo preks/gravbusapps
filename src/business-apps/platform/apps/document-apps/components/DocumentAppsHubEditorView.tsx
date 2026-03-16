@@ -30,7 +30,10 @@ export interface DocumentAppsHubEditorViewProps {
     id: string,
     updates: { title?: string; content?: string; formatting?: DocumentFormatting }
   ) => Promise<Document | null>
-  updateTemplate: (id: string, updates: { name?: string; content?: string }) => Promise<DocumentTemplate | null>
+  updateTemplate: (
+    id: string,
+    updates: { name?: string; content?: string; formatting?: DocumentFormatting }
+  ) => Promise<DocumentTemplate | null>
   updateUrl: (docId: string | null, view?: string) => void
   setSelectedDocumentId: (id: string | null) => void
   setCurrentView: (v: string) => void
@@ -80,6 +83,7 @@ export function DocumentAppsHubEditorView({
         key={`template-${templateBeingEdited.id}`}
         initialContent={templateBeingEdited.content}
         initialTitle={templateBeingEdited.name}
+        initialFormatting={templateBeingEdited.formatting}
         leftPanel={
           <TemplateFieldsPanel
             onInsertField={placeholder => templateEditorRef.current?.insertAtCursor(placeholder)}
@@ -89,8 +93,8 @@ export function DocumentAppsHubEditorView({
             data-testid={`${testId}-template-fields-panel`}
           />
         }
-        onSave={async (title, content) => {
-          const updated = await updateTemplate(templateBeingEdited.id, { name: title, content })
+        onSave={async (title, content, formatting) => {
+          const updated = await updateTemplate(templateBeingEdited.id, { name: title, content, formatting })
           if (updated) {
             setTemplateBeingEdited(updated)
             toast.success(t('editor-toast-template-saved'))
@@ -187,6 +191,7 @@ export function DocumentAppsHubEditorView({
                 const copy = await createDocument({
                   title: `${currentDocument.title} (copy)`,
                   content: currentDocument.content,
+                  formatting: currentDocument.formatting,
                   status: 'draft',
                   createdBy: currentUserId
                 })

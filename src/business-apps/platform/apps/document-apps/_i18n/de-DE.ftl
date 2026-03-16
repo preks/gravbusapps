@@ -557,6 +557,10 @@ editor-approval-approver-alt = Genehmiger
 editor-approval-rejector-alt = Ablehner
 editor-page-of = Seite { $current } von { $total }
 editor-user-fallback = Benutzer
+editor-header-footer-editing-header = Kopfzeile auf Seite { $page } bearbeiten
+editor-header-footer-editing-footer = Fußzeile auf Seite { $page } bearbeiten
+editor-header-footer-mode-description = Werkzeugleisten-Aktionen gelten für die aktive Kopf- oder Fußzeile, bis Sie diesen Modus schließen.
+editor-header-footer-close = Kopf- und Fußzeile schließen
 
 # Template fields panel
 template-fields-insert = Feld einfügen

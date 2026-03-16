@@ -562,6 +562,10 @@ editor-approval-approver-alt = Approver
 editor-approval-rejector-alt = Rejector
 editor-page-of = Page { $current } of { $total }
 editor-user-fallback = User
+editor-header-footer-editing-header = Editing header on page { $page }
+editor-header-footer-editing-footer = Editing footer on page { $page }
+editor-header-footer-mode-description = Toolbar actions apply to the active header or footer until you close this mode.
+editor-header-footer-close = Close header and footer
 
 # Template fields panel
 template-fields-insert = Insert field

@@ -63,7 +63,25 @@ export class HeaderFooterOverlayManager {
       editable: true
     })
 
-    const handleDocumentDblClick = (event: MouseEvent) => {
+    const syncOverlayContentToStorage = () => {
+      setStoredVariantContent(storage, type, variant, {
+        html: overlayEditor.getHTML(),
+        json: overlayEditor.getJSON()
+      })
+    }
+
+    const notifyActiveEditorChange = () => {
+      options.onActiveEditorChange?.({
+        activeEditor: storage.activeEditor,
+        activeEditorType: storage.activeEditorType,
+        activePageNumber: storage.activePageNumber
+      })
+    }
+
+    overlayEditor.on('update', syncOverlayContentToStorage)
+    syncOverlayContentToStorage()
+
+    const handleDocumentMouseDown = (event: MouseEvent) => {
       if (overlay.contains(event.target as Node)) return
 
       const shouldPreventClose =
@@ -72,7 +90,13 @@ export class HeaderFooterOverlayManager {
         false
 
       if (!shouldPreventClose) {
+        const targetNode = event.target as Node | null
         this.close()
+        if (targetNode && this.hostEditor.view.dom.contains(targetNode)) {
+          requestAnimationFrame(() => {
+            this.hostEditor.commands.focus()
+          })
+        }
       }
     }
 
@@ -83,12 +107,13 @@ export class HeaderFooterOverlayManager {
       }
     }
 
-    document.addEventListener('dblclick', handleDocumentDblClick, true)
+    document.addEventListener('mousedown', handleDocumentMouseDown, true)
     document.addEventListener('keydown', handleEscape, true)
 
     const cleanup = () => {
-      document.removeEventListener('dblclick', handleDocumentDblClick, true)
+      document.removeEventListener('mousedown', handleDocumentMouseDown, true)
       document.removeEventListener('keydown', handleEscape, true)
+      overlayEditor.off('update', syncOverlayContentToStorage)
       overlayEditor.destroy()
       overlay.remove()
       this.hostEditor.setEditable(previousEditable, false)
@@ -108,6 +133,7 @@ export class HeaderFooterOverlayManager {
     storage.activeEditor = overlayEditor
     storage.activeEditorType = type
     storage.activePageNumber = pageNumber
+    notifyActiveEditorChange()
     overlayEditor.commands.focus('end')
   }
 
@@ -123,6 +149,11 @@ export class HeaderFooterOverlayManager {
     storage.activeEditor = null
     storage.activeEditorType = null
     storage.activePageNumber = null
+    this.getOptions().onActiveEditorChange?.({
+      activeEditor: null,
+      activeEditorType: null,
+      activePageNumber: null
+    })
 
     this.activeOverlay = null
     activeOverlay.cleanup()

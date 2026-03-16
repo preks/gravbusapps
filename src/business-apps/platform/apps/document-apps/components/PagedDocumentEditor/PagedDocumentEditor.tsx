@@ -78,9 +78,11 @@ import {
   RefreshCw
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { Document, DocumentApprovalRequest, DocumentFormatting } from '../../types'
+import type { Document, DocumentApprovalRequest, DocumentFormatting, DocumentPagesFormatting } from '../../types'
 import {
   getPaginationConfigFromFormatting,
+  getPagesConfigFromFormatting,
+  normalizeStoredPagesFormatting,
   resolvePageLayout,
   getDefaultPageLayout,
   DEFAULT_PAGE_COLOR
@@ -93,7 +95,11 @@ import {
   useVersionUserDisplays
 } from '../../hooks'
 import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
-import { PaginationPlus } from 'tiptap-pagination-plus'
+import {
+  Pages,
+  type ActivePagesEditorState,
+  type PaginationPlusStorage as PagesStorage
+} from '@/components/tiptap-extensions/tiptap-custom-pagination'
 import { LineAndParagraphSpacing } from './extensions/LineAndParagraphSpacing'
 import { DocumentImage, PageBreak, SearchHighlight } from './extensions'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
@@ -328,6 +334,27 @@ function areHtmlSemanticallyEquivalent(left: string, right: string): boolean {
   return false
 }
 
+function readPagesFormattingFromStorage(storage?: PagesStorage | null): DocumentPagesFormatting | undefined {
+  if (!storage) return undefined
+
+  return normalizeStoredPagesFormatting({
+    differentFirstPage: storage.differentFirstPage,
+    differentOddEven: storage.differentOddEven,
+    header: storage.headerHTML,
+    footer: storage.footerHTML,
+    headerFirstPage: storage.headerFirstPageHTML,
+    footerFirstPage: storage.footerFirstPageHTML,
+    headerOdd: storage.headerOddHTML,
+    headerEven: storage.headerEvenHTML,
+    footerOdd: storage.footerOddHTML,
+    footerEven: storage.footerEvenHTML,
+    headerHeight: storage.headerHeight,
+    footerHeight: storage.footerHeight,
+    headerTopMargin: storage.headerTopMargin,
+    footerBottomMargin: storage.footerBottomMargin
+  })
+}
+
 /**
  * ApprovalStatusBadge Component - Shows detailed approval status in header
  */
@@ -448,6 +475,7 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   document?: Document
   initialContent?: string
   initialTitle?: string
+  initialFormatting?: DocumentFormatting
   onSave: (title: string, content: string, formatting?: DocumentFormatting) => Promise<void>
   onBack: () => void
   /** When provided, page setup changes are persisted immediately on OK (so layout survives when leaving without Save). */
@@ -604,6 +632,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       document,
       initialContent = '',
       initialTitle,
+      initialFormatting,
       onSave,
       onBack,
       onPersistFormatting,
@@ -629,10 +658,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [currentPage, setCurrentPage] = useState(1)
     const [layoutFormatting, setLayoutFormatting] = useState<DocumentFormatting>(() => getDefaultPageLayout())
 
-    const editorContainerRef = useRef<HTMLDivElement>(null)
+    const editorContainerRef = useRef<HTMLDivElement | null>(null)
+    const editorChromeRef = useRef<HTMLDivElement | null>(null)
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const titleInputRef = useRef<HTMLInputElement>(null)
     const editorRef = useRef<any>(null) // Store editor instance
+    const [pagesEditorState, setPagesEditorState] = useState<ActivePagesEditorState>({
+      activeEditor: null,
+      activeEditorType: null,
+      activePageNumber: null
+    })
 
     useEffect(() => {
       DocumentApiService.setAccessToken(accessTokenProp || null)
@@ -640,20 +675,31 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const resolvedLayout = resolvePageLayout(layoutFormatting)
     const paginationConfig = getPaginationConfigFromFormatting(layoutFormatting)
+    const pagesFormattingConfig = getPagesConfigFromFormatting(layoutFormatting)
     const isPageless = resolvedLayout.pageless
     const pageColor = resolvedLayout.pageColor ?? DEFAULT_PAGE_COLOR
+    const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
 
     useEffect(() => {
-      const fromDoc = resolvePageLayout(document?.formatting)
+      const sourceFormatting = document?.formatting ?? initialFormatting
+      const fromDoc = resolvePageLayout(sourceFormatting)
       setLayoutFormatting({
         ...getDefaultPageLayout(),
-        ...document?.formatting,
+        ...sourceFormatting,
         pageSize: fromDoc.pageSize,
         orientation: fromDoc.orientation,
         margins: fromDoc.margins,
         marginUnit: fromDoc.marginUnit,
         pageColor: fromDoc.pageColor,
         pageless: fromDoc.pageless
+      })
+    }, [document?.id, initialFormatting])
+
+    useEffect(() => {
+      setPagesEditorState({
+        activeEditor: null,
+        activeEditorType: null,
+        activePageNumber: null
       })
     }, [document?.id])
 
@@ -795,6 +841,40 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       apiService: DocumentApiService
     })
 
+    const getPagesStorageSnapshot = useCallback((): PagesStorage | null => {
+      const editorInstance = editorRef.current as { storage?: { pages?: PagesStorage } } | null
+      return editorInstance?.storage?.pages ?? null
+    }, [])
+
+    const getPersistedPagesFormatting = useCallback(
+      (fallback?: DocumentPagesFormatting): DocumentPagesFormatting | undefined => {
+        const pagesFromEditor = readPagesFormattingFromStorage(getPagesStorageSnapshot())
+        return pagesFromEditor ?? normalizeStoredPagesFormatting(fallback)
+      },
+      [getPagesStorageSnapshot]
+    )
+
+    const buildPersistedFormatting = useCallback(
+      (
+        formattingSource: DocumentFormatting = layoutFormatting,
+        pagesOverride?: DocumentPagesFormatting
+      ): DocumentFormatting => {
+        const resolved = resolvePageLayout(formattingSource)
+        return {
+          ...document?.formatting,
+          ...formattingSource,
+          pageSize: resolved.pageSize,
+          orientation: resolved.orientation,
+          margins: resolved.margins,
+          marginUnit: resolved.marginUnit,
+          pageColor: resolved.pageColor,
+          pageless: resolved.pageless,
+          pages: getPersistedPagesFormatting(pagesOverride ?? formattingSource.pages)
+        }
+      },
+      [document?.formatting, getPersistedPagesFormatting, layoutFormatting]
+    )
+
     const { isYjsSynced } = useYjsDocumentSync({
       documentId: document?.id,
       collaborationSocket,
@@ -804,6 +884,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       suppressSnapshotSaveRef: suppressYjsSnapshotSaveRef,
       isReadOnly,
       title,
+      getFormattingForSave: () => buildPersistedFormatting(layoutFormatting),
       setLastSaved,
       setHasUnsavedChanges
     })
@@ -1140,8 +1221,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       paginationModelRef.current = { totalPages, boundaryEls }
 
       setPageCount(totalPages)
-      setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
-    }, [computeCurrentPageFromBoundaries])
+      setCurrentPage(previousPage => Math.min(Math.max(1, previousPage), totalPages))
+    }, [])
 
     const schedulePaginationRebuild = useCallback(
       (immediate = false) => {
@@ -1167,6 +1248,64 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         }, PAGINATION_DEBOUNCE_MS)
       },
       [rebuildPaginationModel]
+    )
+
+    const handlePagesActiveEditorChange = useCallback((state: ActivePagesEditorState) => {
+      setPagesEditorState(state)
+    }, [])
+
+    const headerFooterExtensions = useMemo(
+      () =>
+        [
+          StarterKit.configure({
+            heading: {
+              levels: [1, 2, 3, 4, 5, 6]
+            },
+            link: false,
+            underline: false
+          } as any),
+          TextAlign.configure({
+            types: ['heading', 'paragraph']
+          }),
+          LineAndParagraphSpacing.configure({
+            types: ['heading', 'paragraph']
+          }),
+          Underline,
+          TextStyle,
+          Color,
+          Highlight.configure({
+            multicolor: true
+          }),
+          Link.configure({
+            openOnClick: true,
+            HTMLAttributes: {
+              class: 'editor-link',
+              rel: 'noopener noreferrer'
+            },
+            isAllowedUri: (url, ctx) => !!ctx.defaultValidate(url) && isAllowedHref(url)
+          }),
+          DocumentImage.configure({
+            getAccessToken: () => accessToken,
+            HTMLAttributes: {
+              class: 'editor-image'
+            }
+          }),
+          Table.configure({
+            resizable: true,
+            HTMLAttributes: {
+              class: 'editor-table'
+            }
+          }),
+          TableRow,
+          TableHeader,
+          TableCell,
+          FontFamily,
+          FontSize.configure({ types: ['textStyle'] }),
+          Subscript,
+          Superscript,
+          Typography
+        ] as any[],
+      [accessToken]
     )
 
     // Initialize TipTap editor
@@ -1237,25 +1376,31 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           SearchHighlight,
           ...(paginationConfig
             ? [
-                PaginationPlus.configure({
-                  pageWidth: paginationConfig.pageWidth,
-                  pageHeight: paginationConfig.pageHeight,
+                Pages.configure({
+                  pageFormat: paginationConfig.pageFormat,
                   pageGap: PAGE_GAP_PX,
-                  marginTop: paginationConfig.marginTop,
-                  marginBottom: paginationConfig.marginBottom,
-                  marginLeft: paginationConfig.marginLeft,
-                  marginRight: paginationConfig.marginRight,
-                  contentMarginTop: 0,
-                  contentMarginBottom: 0,
                   pageBreakBackground: '#f3f4f6',
-                  pageGapBorderSize: 0,
-                  pageGapBorderColor: '#f3f4f6',
-                  headerLeft: '',
-                  headerRight: '',
-                  footerLeft: '',
-                  footerRight: '',
-                  customHeader: {},
-                  customFooter: {}
+                  header: pagesFormattingConfig.header,
+                  footer: pagesFormattingConfig.footer,
+                  headerFirstPage: pagesFormattingConfig.headerFirstPage,
+                  footerFirstPage: pagesFormattingConfig.footerFirstPage,
+                  headerOdd: pagesFormattingConfig.headerOdd,
+                  headerEven: pagesFormattingConfig.headerEven,
+                  footerOdd: pagesFormattingConfig.footerOdd,
+                  footerEven: pagesFormattingConfig.footerEven,
+                  differentFirstPage: pagesFormattingConfig.differentFirstPage,
+                  differentOddEven: pagesFormattingConfig.differentOddEven,
+                  headerHeight: pagesFormattingConfig.headerHeight ?? 50,
+                  footerHeight: pagesFormattingConfig.footerHeight ?? 50,
+                  headerTopMargin: pagesFormattingConfig.headerTopMargin,
+                  footerBottomMargin: pagesFormattingConfig.footerBottomMargin,
+                  accentColor: pagesFormattingConfig.accentColor,
+                  headerAccentColor: pagesFormattingConfig.headerAccentColor,
+                  footerAccentColor: pagesFormattingConfig.footerAccentColor,
+                  headerFooterExtensions,
+                  onActiveEditorChange: handlePagesActiveEditorChange,
+                  onDblClickHeaderFooterPreventClose: event =>
+                    editorChromeRef.current?.contains(event.target as Node) ?? false
                 })
               ]
             : []),
@@ -1307,7 +1452,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }
         },
         onUpdate: () => {
-          schedulePaginationRebuild()
           if (document?.id) versioning.markAsChanged()
           if (!document?.id) {
             setHasUnsavedChanges(true)
@@ -1343,6 +1487,93 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     useEffect(() => {
       editorRef.current = editor
     }, [editor])
+
+    const activeEditor = (pagesEditorState.activeEditor as typeof editor | null) ?? editor
+    const pagesOptionsSyncEditorRef = useRef<typeof editor | null>(null)
+
+    useEffect(() => {
+      if (!editor || !paginationConfig) return
+
+      if (pagesOptionsSyncEditorRef.current !== editor) {
+        pagesOptionsSyncEditorRef.current = editor
+        return
+      }
+
+      const commands = editor.commands as typeof editor.commands & Record<string, (...args: any[]) => boolean>
+      commands.setPagesOptions?.({
+        differentFirstPage: pagesFormattingConfig.differentFirstPage,
+        differentOddEven: pagesFormattingConfig.differentOddEven,
+        header: pagesFormattingConfig.header,
+        footer: pagesFormattingConfig.footer,
+        headerFirstPage: pagesFormattingConfig.headerFirstPage ?? '',
+        footerFirstPage: pagesFormattingConfig.footerFirstPage ?? '',
+        headerOdd: pagesFormattingConfig.headerOdd ?? '',
+        headerEven: pagesFormattingConfig.headerEven ?? '',
+        footerOdd: pagesFormattingConfig.footerOdd ?? '',
+        footerEven: pagesFormattingConfig.footerEven ?? '',
+        headerTopMargin: pagesFormattingConfig.headerTopMargin,
+        footerBottomMargin: pagesFormattingConfig.footerBottomMargin,
+        accentColor: pagesFormattingConfig.accentColor,
+        headerAccentColor: pagesFormattingConfig.headerAccentColor,
+        footerAccentColor: pagesFormattingConfig.footerAccentColor
+      })
+    }, [
+      editor,
+      pagesFormattingConfig.accentColor,
+      pagesFormattingConfig.differentFirstPage,
+      pagesFormattingConfig.differentOddEven,
+      pagesFormattingConfig.footer,
+      pagesFormattingConfig.footerBottomMargin,
+      pagesFormattingConfig.footerEven,
+      pagesFormattingConfig.footerFirstPage,
+      pagesFormattingConfig.footerOdd,
+      pagesFormattingConfig.footerAccentColor,
+      pagesFormattingConfig.header,
+      pagesFormattingConfig.headerTopMargin,
+      pagesFormattingConfig.headerEven,
+      pagesFormattingConfig.headerFirstPage,
+      pagesFormattingConfig.headerOdd,
+      pagesFormattingConfig.headerAccentColor
+    ])
+
+    const previousPagesEditorTypeRef = useRef<ActivePagesEditorState['activeEditorType']>(null)
+
+    useEffect(() => {
+      const previousType = previousPagesEditorTypeRef.current
+      previousPagesEditorTypeRef.current = pagesEditorState.activeEditorType
+
+      if (previousType === null || pagesEditorState.activeEditorType !== null) {
+        return
+      }
+
+      const nextPagesFormatting = getPersistedPagesFormatting(layoutFormatting.pages)
+      const nextFormatting = buildPersistedFormatting(
+        { ...layoutFormatting, pages: nextPagesFormatting },
+        nextPagesFormatting
+      )
+      setLayoutFormatting(prev => {
+        const previousPages = JSON.stringify(prev.pages ?? {})
+        const nextPages = JSON.stringify(nextPagesFormatting ?? {})
+        if (previousPages === nextPages) return prev
+        return { ...prev, pages: nextPagesFormatting }
+      })
+
+      if (document?.id && isYjsSynced) {
+        formattingYMap.set('formatting', nextFormatting)
+      }
+      if (document?.id && onPersistFormatting) {
+        void onPersistFormatting(nextFormatting)
+      }
+    }, [
+      buildPersistedFormatting,
+      document?.id,
+      formattingYMap,
+      getPersistedPagesFormatting,
+      isYjsSynced,
+      layoutFormatting,
+      onPersistFormatting,
+      pagesEditorState.activeEditorType
+    ])
 
     useEffect(() => {
       scheduleAutocompleteRef.current = scheduleAutocomplete
@@ -1510,8 +1741,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       schedulePaginationRebuild(true)
     }, [document?.id, isYjsSynced, schedulePaginationRebuild])
 
-    // Observe editor DOM changes so the page model updates when PaginationPlus inserts/reflows its DOM.
-    // (In edit/collaboration mode this often happens after initial render, without a user-driven update.)
+    // Observe top-level editor DOM changes so the page model updates when pagination widgets
+    // are inserted/removed, without reacting to every text-node mutation inside the document.
     useEffect(() => {
       const container = editorContainerRef.current
       if (!container) return
@@ -1528,7 +1759,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       observer.observe(root, {
         childList: true,
-        subtree: true,
+        subtree: false,
         attributes: false,
         characterData: false
       })
@@ -1580,27 +1811,28 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const handlePageSetupApply = useCallback(
       (nextFormatting: DocumentFormatting) => {
         setLayoutFormatting(nextFormatting)
+        const persistedFormatting = buildPersistedFormatting(nextFormatting, nextFormatting.pages)
         // Sync formatting to other collaborators (edit mode only).
         if (document?.id && isYjsSynced) {
-          formattingYMap.set('formatting', nextFormatting)
+          formattingYMap.set('formatting', persistedFormatting)
         }
         if (document?.id && onPersistFormatting) {
-          void onPersistFormatting(nextFormatting)
+          void onPersistFormatting(persistedFormatting)
         }
       },
-      [document?.id, formattingYMap, isYjsSynced, onPersistFormatting]
+      [buildPersistedFormatting, document?.id, formattingYMap, isYjsSynced, onPersistFormatting]
     )
 
     const openLinkDialog = useCallback(() => {
-      if (!editor) return
-      const { from, to } = editor.state.selection
+      if (!activeEditor) return
+      const { from, to } = activeEditor.state.selection
       const isEmpty = from === to
-      if (editor.isActive('link')) {
+      if (activeEditor.isActive('link')) {
         setLinkDialogMode('edit')
         setLinkDialogInitialValues({
-          href: editor.getAttributes('link').href || '',
-          displayText: editor.state.doc.textBetween(from, to),
-          openInNewTab: editor.getAttributes('link').target === '_blank'
+          href: activeEditor.getAttributes('link').href || '',
+          displayText: activeEditor.state.doc.textBetween(from, to),
+          openInNewTab: activeEditor.getAttributes('link').target === '_blank'
         })
         setLinkDialogInsertWithNoSelection(false)
       } else if (isEmpty) {
@@ -1611,22 +1843,22 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         setLinkDialogMode('insert')
         setLinkDialogInitialValues({
           href: '',
-          displayText: editor.state.doc.textBetween(from, to),
+          displayText: activeEditor.state.doc.textBetween(from, to),
           openInNewTab: false
         })
         setLinkDialogInsertWithNoSelection(false)
       }
       setShowLinkDialog(true)
-    }, [editor])
+    }, [activeEditor])
 
     const handleLinkApply = useCallback(
       (values: { href: string; displayText?: string; openInNewTab: boolean }) => {
-        if (!editor) return
+        if (!activeEditor) return
         const { href, displayText: displayTextVal, openInNewTab } = values
         if (!isAllowedHref(href)) return
         const target = openInNewTab ? '_blank' : undefined
         if (linkDialogMode === 'edit') {
-          editor.chain().focus().extendMarkRange('link').setLink({ href, target }).run()
+          activeEditor.chain().focus().extendMarkRange('link').setLink({ href, target }).run()
           return
         }
         if (linkDialogInsertWithNoSelection) {
@@ -1634,18 +1866,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           const rel = 'noopener noreferrer'
           const targetAttr = openInNewTab ? ' target="_blank"' : ''
           const html = `<a href="${escapeHtmlAttr(href)}"${targetAttr} rel="${rel}">${escapeHtmlText(text)}</a>`
-          editor.chain().focus().insertContent(html).run()
+          activeEditor.chain().focus().insertContent(html).run()
           return
         }
-        editor.chain().focus().setLink({ href, target }).run()
+        activeEditor.chain().focus().setLink({ href, target }).run()
       },
-      [editor, linkDialogMode, linkDialogInsertWithNoSelection]
+      [activeEditor, linkDialogMode, linkDialogInsertWithNoSelection]
     )
 
     const handleLinkRemove = useCallback(() => {
-      if (!editor) return
-      editor.chain().focus().extendMarkRange('link').unsetLink().run()
-    }, [editor])
+      if (!activeEditor) return
+      activeEditor.chain().focus().extendMarkRange('link').unsetLink().run()
+    }, [activeEditor])
 
     // Save document (pass merged formatting so layout is persisted)
     const handleSave = useCallback(async () => {
@@ -1661,16 +1893,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         }
 
         const content = editor.getHTML()
-        const formatting: DocumentFormatting = {
-          ...document?.formatting,
-          ...layoutFormatting,
-          pageSize: resolvedLayout.pageSize,
-          orientation: resolvedLayout.orientation,
-          margins: resolvedLayout.margins,
-          marginUnit: resolvedLayout.marginUnit,
-          pageColor: resolvedLayout.pageColor,
-          pageless: resolvedLayout.pageless
-        }
+        const formatting = buildPersistedFormatting(layoutFormatting)
         await onSave(nextTitle, content, formatting)
         setLastSaved(new Date())
         setHasUnsavedChanges(false)
@@ -1687,10 +1910,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       isSaving,
       document?.id,
       document?.formatting,
+      buildPersistedFormatting,
       isYjsSynced,
       metaYMap,
-      layoutFormatting,
-      resolvedLayout
+      layoutFormatting
     ])
 
     const lastSavedTitleRef = useRef(title)
@@ -1735,7 +1958,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       },
       onAddInlineComment: handleAddInlineComment,
       onOpenLinkDialog: openLinkDialog,
-      editor,
+      editor: activeEditor,
       editorContainerRef
     })
 
@@ -2045,7 +2268,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }
 
     // Measure header + toolbar height for sidebar alignment
-    const headerToolbarRef = useRef<HTMLDivElement>(null)
+    const headerToolbarRef = useRef<HTMLDivElement | null>(null)
     const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState(0)
 
     useEffect(() => {
@@ -2063,7 +2286,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:bg-background gba:relative" data-testid={testId}>
         {/* Header */}
-        <div ref={headerToolbarRef} className="gba:border-b gba:bg-card gba:shadow-sm">
+        <div
+          ref={node => {
+            headerToolbarRef.current = node
+            editorChromeRef.current = node
+          }}
+          className="gba:border-b gba:bg-card gba:shadow-sm"
+        >
           <div className="gba:px-4 gba:py-3">
             <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
               {/* Left side - Back button and title */}
@@ -2099,7 +2328,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                       <span>{t('editor-character-count', { count: charCount })}</span>
                       <span>•</span>
                       <span>
-                        {t('editor-page-of', { current: Math.min(currentPage, pageCount), total: pageCount })}
+                        {t('editor-page-of', {
+                          current: pagesEditorState.activePageNumber ?? Math.min(currentPage, pageCount),
+                          total: pageCount
+                        })}
                       </span>
                     </div>
                   </div>
@@ -2369,9 +2601,39 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
           {headerExtra && <div className="gba:px-4 gba:pb-2">{headerExtra}</div>}
 
+          {isHeaderFooterEditing && (
+            <div className="gba:px-4 gba:pb-2">
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:rounded-md gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
+                <div className="gba:flex gba:flex-col">
+                  <span className="gba:text-sm gba:font-medium">
+                    {pagesEditorState.activeEditorType === 'header'
+                      ? t('editor-header-footer-editing-header', {
+                          page: pagesEditorState.activePageNumber ?? 1
+                        })
+                      : t('editor-header-footer-editing-footer', {
+                          page: pagesEditorState.activePageNumber ?? 1
+                        })}
+                  </span>
+                  <span className="gba:text-xs gba:text-muted-foreground">
+                    {t('editor-header-footer-mode-description')}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => editor?.commands.closeHeaderFooterEditors()}
+                  data-testid="document-header-footer-close-mode"
+                >
+                  {t('editor-header-footer-close')}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Toolbar */}
           <EditorToolbar
-            editor={editor}
+            editor={activeEditor}
             onOpenLinkDialog={openLinkDialog}
             onOpenInsertImageDialog={() => setShowInsertImageDialog(true)}
             data-testid={`${testId}-toolbar`}
@@ -2957,11 +3219,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           />
         )}
 
-        {showInsertImageDialog && editor && (
+        {showInsertImageDialog && activeEditor && (
           <InsertImageDialog
             open={showInsertImageDialog}
             onOpenChange={setShowInsertImageDialog}
-            editor={editor}
+            editor={activeEditor}
             documentId={document?.id ?? null}
             accessToken={accessToken}
             data-testid="document-insert-image-dialog"

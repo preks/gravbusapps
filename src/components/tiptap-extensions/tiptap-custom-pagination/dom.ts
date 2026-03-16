@@ -18,13 +18,13 @@ export function ensurePagesStyles(targetDocument: Document) {
     }
     .rm-pages-root .rm-page-break {
       position: relative;
-      clear: both;
     }
     .rm-pages-root .rm-page-spacer {
       position: relative;
       float: left;
       clear: both;
-      width: 100%;
+      width: 0;
+      height: 0;
     }
     .rm-pages-root .breaker {
       position: relative;
