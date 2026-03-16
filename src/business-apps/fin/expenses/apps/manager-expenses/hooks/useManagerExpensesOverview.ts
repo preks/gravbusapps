@@ -220,12 +220,15 @@ function buildPaymentStatusWhere(statuses?: string[]): GqlBoolExp {
   return buildEntityStatusWhere(statuses, PAYMENT_DEFAULT_EXCLUDED)
 }
 
-/** Build plan status filter. Excludes statuses by default, but honors explicit user selections. */
+/** Build plan status filter. When exclude is provided and non-empty, excludes those statuses when none selected; when exclude is empty, no exclusion (show all). Honors explicit user selections. */
 function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]): GqlBoolExp {
-  const excluded: readonly string[] = Array.isArray(exclude) && exclude.length > 0 ? exclude : ['CREATED']
+  const excluded: readonly string[] = Array.isArray(exclude) ? exclude : ['CREATED']
   const selected = Array.isArray(statuses) ? statuses.filter(Boolean) : []
   if (selected.length > 0) {
     return { status: { _in: selected } } as unknown as GqlBoolExp
+  }
+  if (excluded.length === 0) {
+    return {} as unknown as GqlBoolExp
   }
   return { status: { _nin: excluded } } as unknown as GqlBoolExp
 }
