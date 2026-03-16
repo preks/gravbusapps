@@ -5,16 +5,14 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters'
+import { useExpensePlansOverviewData } from '../../../hooks/useExpensePlansOverviewData'
 import { planFilterStatuses } from '../../../hooks/availableFilterStatuses'
 import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics'
 import ExpensePlansTable from './ExpensePlansTable'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { DetailsSheet } from '../../../common/components/DetailsSheet'
-import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
-import { standardizeCurrencyRef, extractCurrencyCode } from '../../../utils/currencyUtils'
-import { PLAN_TAB_HIDDEN_STATUSES } from '../../../constants/expenseStatus'
-import dayjs from 'dayjs'
 import { CurrencyDropdown } from '../../../common/components/CurrencyDropdown'
+import { PLAN_TAB_HIDDEN_STATUSES } from '../../../constants/expenseStatus'
 import { createExpensePlanFilterConfig } from './config/expensePlanFilterConfig'
 import { expensePlanSortableColumns } from './config/expensePlanSortableColumns'
 import { expensePlanAvailableColumns } from './config/expensePlanAvailableColumns'
@@ -66,10 +64,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const [pageSize, setPageSize] = useState<number>(20)
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...DEFAULT_VISIBLE_COLUMN_IDS])
 
-  let planStats: any = null
-  let statsLoading = false
-  let statsError: any = null
-
   const DEFAULT_SORT: { field: SortField | null; order: 'ASC' | 'DESC' | null; lastField: SortField | null } = useMemo(
     () => ({ field: 'createdAt', order: 'DESC', lastField: 'createdAt' }),
     []
@@ -95,130 +89,24 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     return buildOrderByClause(sorting.field, sorting.order)
   }, [sorting.field, sorting.order, buildOrderByClause])
 
-  // List: filter by selected currency only; when "All" selected, show all currencies in table.
-  const currencyRef = useMemo(
-    () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
-    [primaryCurrency]
-  )
-
-  // Cards: always show stats for one currency (selected or, when "All", most-used). Single source of truth.
   const effectiveStatsCurrency = primaryCurrency ?? mostUsedCurrency ?? null
-  const planStatsCurrencyRef = useMemo(
-    () => (effectiveStatsCurrency ? standardizeCurrencyRef(effectiveStatsCurrency) : undefined),
-    [effectiveStatsCurrency]
-  )
 
-  const convertDateRangeToGraphQL = useCallback((dateRange: [Date | null, Date | null] | null) => {
-    if (!dateRange || (!dateRange[0] && !dateRange[1])) return null
-    return {
-      from: dateRange[0] ? dayjs(dateRange[0]).startOf('day').format('YYYY-MM-DD HH:mm:ss') : null,
-      to: dateRange[1] ? dayjs(dateRange[1]).endOf('day').format('YYYY-MM-DD HH:mm:ss') : null
-    }
-  }, [])
-
-  const plansEffectiveDateRange = useMemo(() => convertDateRangeToGraphQL(effectiveDateRange), [effectiveDateRange])
-  const plansStartDateRange = useMemo(() => convertDateRangeToGraphQL(startDateRange), [startDateRange])
-  const plansEndDateRange = useMemo(() => convertDateRangeToGraphQL(endDateRange), [endDateRange])
-  const plansPlanDateRange = useMemo(() => convertDateRangeToGraphQL(planDateRange), [planDateRange])
-
-  const requestsParams = useMemo(() => ({ limit: 0, offset: 0 }), [])
-  const paymentsParams = useMemo(() => ({ limit: 0, offset: 0 }), [])
-
-  const plansParams = useMemo(
-    () => ({
-      limit: pageSize,
-      offset: (currentPage - 1) * pageSize,
-      orderBy: planOrderBy
-    }),
-    [pageSize, currentPage, planOrderBy]
-  )
-
-  const overviewParams = useMemo(
-    () => ({
+  const { planStats, statsLoading, statsError, expensePlans, plansLoading, plansError, totalCount } =
+    useExpensePlansOverviewData(props, {
       managerId,
-      currencyRef,
-      planStatsCurrencyRef,
+      primaryCurrency,
+      mostUsedCurrency,
       searchTerm,
-      plans: plansParams,
-      plansStatus: statusFilter,
-      plansStatusExclude: PLAN_TAB_HIDDEN_STATUSES,
-      requests: requestsParams,
-      payments: paymentsParams,
-      plansEffectiveDateRange,
-      plansStartDateRange,
-      plansEndDateRange,
-      plansPlanDateRange,
-      plansTypeFilter: planTypeFilter
-    }),
-    [
-      managerId,
-      currencyRef,
-      planStatsCurrencyRef,
-      searchTerm,
-      plansParams,
       statusFilter,
-      requestsParams,
-      paymentsParams,
-      plansEffectiveDateRange,
-      plansStartDateRange,
-      plansEndDateRange,
-      plansPlanDateRange,
-      planTypeFilter
-    ]
-  )
-
-  const overview = useManagerExpensesOverview(props, overviewParams)
-  const lastValidStatsRef = useRef<any>(null)
-
-  planStats = useMemo(() => {
-    if (!overview.data) return lastValidStatsRef.current
-    const newStats = {
-      totalCount: overview.data.planTotalCount || 0,
-      sumTotalAmount: overview.data.planTotalAmount || 0,
-      pendingCount: overview.data.planPendingCount || 0,
-      pendingAmount: overview.data.planPendingAmount || 0
-    }
-    lastValidStatsRef.current = newStats
-    return newStats
-  }, [
-    overview.data?.planTotalCount,
-    overview.data?.planTotalAmount,
-    overview.data?.planPendingCount,
-    overview.data?.planPendingAmount
-  ])
-
-  statsLoading = overview.isLoading && !overview.data
-  statsError = overview.error ? new Error(overview.error) : null
-
-  const expensePlans: ExpensePlan[] = useMemo(() => {
-    const rows = overview.data?.expensePlans || []
-    return rows.map((p: any) => {
-      const currency = p?.currencyRef ? extractCurrencyCode(p.currencyRef) : undefined
-      return {
-        id: p.id,
-        code: p.code,
-        title: p.title,
-        description: p.description ?? null,
-        status: p.status,
-        startDate: p.startDate,
-        endDate: p.endDate,
-        planDate: p.planDate,
-        totalAmount: Number(p.totalAmount ?? 0),
-        currency: currency || primaryCurrency || 'EUR',
-        currencyRef: p.currencyRef,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-        requestType: p.requestType,
-        expenseRequest: Array.isArray(p.expenseRequest) ? p.expenseRequest : [],
-        employeeDocument: p.employeeDocument || null,
-        employee: p.employee
-      } as ExpensePlan
+      planTypeFilter,
+      effectiveDateRange,
+      planDateRange,
+      startDateRange,
+      endDateRange,
+      pageSize,
+      currentPage,
+      planOrderBy
     })
-  }, [overview.data?.expensePlans, primaryCurrency])
-
-  const plansLoading = overview.isLoading && !overview.data
-  const plansError = overview.error ? new Error(overview.error) : null
-  const totalCount = overview.data?.expensePlansTotal ?? 0
 
   const filterSignature = useMemo(
     () => ({

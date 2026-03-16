@@ -204,6 +204,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       className="gba:py-0 gba:bg-transparent"
       onWidgetClick={handleWidgetClick}
       hoverable={true}
+      data-testid="expense-plans-stats"
     />
   )
 }
