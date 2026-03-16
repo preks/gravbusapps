@@ -41,14 +41,10 @@ import {
   Search,
   List,
   Upload,
-  Database,
   AlertCircle,
   FileText,
-  Home,
-  FolderClosed,
   Users,
   Star,
-  Clock,
   Trash2,
   MoreHorizontal,
   Share2,
@@ -61,17 +57,15 @@ import {
   X,
   LayoutGrid,
   User,
-  RefreshCw,
-  ChevronLeft,
-  PanelLeftClose,
-  PanelLeft,
-  Zap
+  RefreshCw
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getWorkEmailFromCommunication } from '@/common/data/employee/useEmployeeSearch'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
 
 // Components
+import { SpreadsheetHero } from './components/SpreadsheetHero'
+import type { SpreadsheetSection } from './components/SpreadsheetHero'
 import { ExcelUploader } from './components/ExcelUploader'
 import { PromoteToDatabaseModal } from './components/PromoteToDatabaseModal'
 import { SpreadsheetAppViewer } from './SpreadsheetAppViewer'
@@ -106,7 +100,7 @@ export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
 }
 
 type HubView = 'list' | 'upload' | 'viewer' | 'editor'
-type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'automations' | 'tasks' | 'trash'
+type SidebarSection = SpreadsheetSection
 
 const resolveCurrentUserId = (userInfo?: SpreadsheetAppsHubProps['userInfo']): string =>
   userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
@@ -131,24 +125,6 @@ function getInitials(name: string): string {
     .join('')
     .toUpperCase()
     .slice(0, 2)
-}
-
-function isOwner(app: SpreadsheetAppSummary, currentUserId: string): boolean {
-  if (app.createdBy) return app.createdBy === currentUserId
-  return app.isOwner === true
-}
-
-function isExcelCollectionCopy(app: SpreadsheetAppSummary): boolean {
-  return app.settings?.excel_collection_copy === true
-}
-
-function hasContributorAccess(app: SpreadsheetAppSummary, currentUserId: string): boolean {
-  if (isOwner(app, currentUserId)) return true
-  return app.permission === 'owner' || app.permission === 'edit' || app.permission === 'admin'
-}
-
-function isExcelCollectionTaskForCurrentUser(app: SpreadsheetAppSummary, currentUserId: string): boolean {
-  return isExcelCollectionCopy(app) && hasContributorAccess(app, currentUserId)
 }
 
 function isSubmittedExcelCollectionCopy(app: SpreadsheetAppSummary): boolean {
@@ -176,29 +152,6 @@ function resolveCurrentUserName(userInfo?: SpreadsheetAppsHubProps['userInfo']):
     return `${userInfo.givenName} ${userInfo.familyName}`
   }
   return userInfo?.nickName || userInfo?.userName || undefined
-}
-
-function getSectionTitle(activeSection: SidebarSection, t: TranslationFn): string {
-  switch (activeSection) {
-    case 'home':
-      return t('section-home')
-    case 'my-files':
-      return t('section-my-spreadsheets')
-    case 'shared':
-      return t('section-shared-with-me')
-    case 'favorites':
-      return t('section-favorites')
-    case 'recent':
-      return t('section-recent')
-    case 'automations':
-      return t('section-automations')
-    case 'tasks':
-      return t('section-my-tasks')
-    case 'trash':
-      return t('section-trash')
-    default:
-      return t('section-spreadsheets')
-  }
 }
 
 /**
@@ -259,7 +212,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
-  const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed'>('pending')
+  const [taskStatusFilter] = useState<'pending' | 'completed'>('pending')
 
   // Clear space return URL if not opened from a space
   useEffect(() => {
@@ -280,10 +233,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    const saved = localStorage.getItem('spreadsheet-hub-sidebar-collapsed')
-    return saved === 'true'
-  })
   const { favorites, setFavorites } = useSpreadsheetAppsHubFavorites()
 
   // Data state
@@ -328,7 +277,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     currentApp,
     isLoading: isLoadingApps,
     error: appsError,
-    storageMode,
     currentAppPermission,
     loadApp,
     createApp,
@@ -376,11 +324,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     }
   }, [activeSection, currentView, currentApp, updateUrl])
 
-  // Persist sidebar collapsed state
-  useEffect(() => {
-    localStorage.setItem('spreadsheet-hub-sidebar-collapsed', String(isSidebarCollapsed))
-  }, [isSidebarCollapsed])
-
   const { filteredApps } = useSpreadsheetAppsHubFiltering({
     apps,
     currentUserId,
@@ -390,20 +333,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     sortBy,
     sortOrder
   })
-  const sharedWithMeCount = apps.filter(
-    app => app.isShared && !isOwner(app, currentUserId) && !isExcelCollectionCopy(app)
-  ).length
-  const tasksCount = apps.filter(app => isExcelCollectionTaskForCurrentUser(app, currentUserId)).length
-
-  const pendingTasksCount = useMemo(
-    () => (activeSection === 'tasks' ? filteredApps.filter(app => !isSubmittedExcelCollectionCopy(app)).length : 0),
-    [activeSection, filteredApps]
-  )
-  const completedTasksCount = useMemo(
-    () => (activeSection === 'tasks' ? filteredApps.filter(app => isSubmittedExcelCollectionCopy(app)).length : 0),
-    [activeSection, filteredApps]
-  )
-
   const taskDisplayedApps = useMemo(
     () => filterTaskDisplayedApps(activeSection, taskStatusFilter, filteredApps),
     [activeSection, filteredApps, taskStatusFilter]
@@ -1010,312 +939,49 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       return renderEditorContent(currentApp)
     }
 
+    const heroNewButton = (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            className="gba:gap-1.5 gba:bg-white/15 gba:text-white gba:border gba:border-white/20 hover:gba:bg-white/25 gba:backdrop-blur-sm"
+            data-testid={`${testId}-hero-new-btn`}
+          >
+            <Plus className="gba:w-4 gba:h-4" />
+            {t('sidebar-new')}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="gba:w-56">
+          <DropdownMenuItem onClick={() => setIsCreateEmptyDialogOpen(true)}>
+            <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-emerald-500" />
+            <div>
+              <div className="gba:font-medium">{t('sidebar-blank-spreadsheet')}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('sidebar-blank-spreadsheet-desc')}</div>
+            </div>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleStartUpload}>
+            <Upload className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
+            <div>
+              <div className="gba:font-medium">{t('sidebar-upload-excel')}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('sidebar-upload-excel-desc')}</div>
+            </div>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+
     return (
-      <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
-        {/* Sidebar */}
-        <aside
-          className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-300 ${isSidebarCollapsed ? 'gba:w-16' : 'gba:w-60'}`}
-        >
-          {/* Logo / Brand */}
-          <div className={`gba:border-b ${isSidebarCollapsed ? 'gba:p-2' : 'gba:p-4'}`}>
-            {/* Back button and collapse toggle row */}
-            <div
-              className={`gba:flex gba:items-center gba:mb-2 ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:justify-between'}`}
-            >
-              <TooltipProvider>
-                {!isSidebarCollapsed && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => globalThis.history.back()}
-                        data-testid={`${testId}-back-to-desk`}
-                      >
-                        <ChevronLeft className="gba:w-4 gba:h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('sidebar-back-to-desk')}</TooltipContent>
-                  </Tooltip>
-                )}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      data-testid={`${testId}-toggle-sidebar`}
-                    >
-                      {isSidebarCollapsed ? (
-                        <PanelLeft className="gba:w-4 gba:h-4" />
-                      ) : (
-                        <PanelLeftClose className="gba:w-4 gba:h-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{isSidebarCollapsed ? t('sidebar-expand') : t('sidebar-collapse')}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-
-            {/* Brand section */}
-            {!isSidebarCollapsed && (
-              <div className="gba:flex gba:items-center gba:gap-3">
-                <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-emerald-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center">
-                  <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-white" />
-                </div>
-                <div>
-                  <h1 className="gba:font-semibold gba:text-foreground">{t('sidebar-brand-title')}</h1>
-                  <p className="gba:text-xs gba:text-muted-foreground">{t('sidebar-brand-subtitle')}</p>
-                </div>
-              </div>
-            )}
-            {isSidebarCollapsed && (
-              <div className="gba:flex gba:justify-center">
-                <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-emerald-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center">
-                  <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-white" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* New Button */}
-          <div className={isSidebarCollapsed ? 'gba:p-2' : 'gba:p-3'}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-600 gba:text-white hover:gba:from-emerald-600 hover:gba:to-teal-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
-                >
-                  <Plus className="gba:w-4 gba:h-4" />
-                  {!isSidebarCollapsed && t('sidebar-new')}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="gba:w-56">
-                <DropdownMenuItem onClick={() => setIsCreateEmptyDialogOpen(true)}>
-                  <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-emerald-500" />
-                  <div>
-                    <div className="gba:font-medium">{t('sidebar-blank-spreadsheet')}</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">{t('sidebar-blank-spreadsheet-desc')}</div>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleStartUpload}>
-                  <Upload className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
-                  <div>
-                    <div className="gba:font-medium">{t('sidebar-upload-excel')}</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">{t('sidebar-upload-excel-desc')}</div>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* Navigation */}
-          <nav className="gba:flex-1 gba:overflow-y-auto gba:px-2 gba:py-2">
-            <div className="gba:space-y-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('home')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'home'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <Home className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && t('sidebar-home')}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-home')}</TooltipContent>}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('my-files')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'my-files'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <FolderClosed className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && t('sidebar-my-spreadsheets')}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-my-spreadsheets')}</TooltipContent>}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('shared')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'shared'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <Users className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && (
-                        <>
-                          {t('sidebar-shared-with-me')}
-                          {sharedWithMeCount > 0 && (
-                            <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                              {sharedWithMeCount}
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && (
-                    <TooltipContent side="right">
-                      {t('sidebar-shared-with-me')} {sharedWithMeCount > 0 && `(${sharedWithMeCount})`}
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('tasks')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'tasks'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <List className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && (
-                        <>
-                          {t('sidebar-my-tasks')}
-                          {tasksCount > 0 && (
-                            <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                              {tasksCount}
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && (
-                    <TooltipContent side="right">
-                      {t('sidebar-my-tasks')} {tasksCount > 0 && `(${tasksCount})`}
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('recent')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'recent'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <Clock className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && t('sidebar-recent')}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-recent')}</TooltipContent>}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('automations')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'automations'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <Zap className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && t('sidebar-automations')}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-automations')}</TooltipContent>}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('favorites')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'favorites'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <Star className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && t('sidebar-favorites')}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-favorites')}</TooltipContent>}
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-
-            {!isSidebarCollapsed && (
-              <div className="gba:mt-6 gba:pt-4 gba:border-t">
-                <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
-                  {t('sidebar-storage')}
-                </p>
-                <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                    <Database
-                      className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-emerald-500' : 'gba:text-amber-500'}`}
-                    />
-                    <span className="gba:text-xs gba:text-muted-foreground">
-                      {storageMode === 'database' ? t('sidebar-cloud-storage') : t('sidebar-local-storage')}
-                    </span>
-                  </div>
-                  <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                    <div
-                      className="gba:h-full gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-500 gba:rounded-full"
-                      style={{ width: `${Math.min((apps.length / 50) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
-                    {t('sidebar-spreadsheets-count', { count: apps.length })}
-                  </p>
-                </div>
-              </div>
-            )}
-            {isSidebarCollapsed && (
-              <div className="gba:mt-6 gba:pt-4 gba:border-t gba:flex gba:justify-center">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="gba:p-2">
-                        <Database
-                          className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-emerald-500' : 'gba:text-amber-500'}`}
-                        />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <div>
-                        <p className="gba:font-medium">
-                          {storageMode === 'database' ? t('sidebar-cloud-storage') : t('sidebar-local-storage')}
-                        </p>
-                        <p className="gba:text-xs gba:text-muted-foreground">
-                          {t('sidebar-spreadsheets-count', { count: apps.length })}
-                        </p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
-          </nav>
-        </aside>
+      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+        <SpreadsheetHero
+          activeSection={activeSection}
+          onSectionChange={s => setActiveSection(s)}
+          newButton={heroNewButton}
+          t={t}
+          data-testid={`${testId}-hero`}
+        />
 
         {/* Main Content */}
-        <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:overflow-hidden">
+        <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden">
           {/* Upload View */}
           {currentView === 'upload' && (
             <div className="gba:flex-1 gba:overflow-auto gba:p-8">
@@ -1358,138 +1024,106 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           {/* List View */}
           {currentView === 'list' && activeSection !== 'automations' && (
             <>
-              {/* Header / Toolbar */}
-              <header className="gba:border-b gba:bg-card gba:flex-shrink-0">
-                {/* Breadcrumb */}
-                <div className="gba:px-6 gba:py-3 gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                  <span className="gba:font-medium gba:text-foreground">{getSectionTitle(activeSection, t)}</span>
-                </div>
-
-                {/* Task status tabs */}
-                {activeSection === 'tasks' && (
-                  <div className="gba:px-6 gba:pb-2">
-                    <Tabs
-                      value={taskStatusFilter}
-                      onValueChange={v => setTaskStatusFilter(v as 'pending' | 'completed')}
-                    >
-                      <TabsList>
-                        <TabsTrigger value="pending" data-testid="spreadsheet-apps-hub-tasks-tab-pending">
-                          {t('tasks-pending')}
-                          {pendingTasksCount > 0 && (
-                            <Badge variant="secondary" className="gba:ml-1.5 gba:text-xs">
-                              {pendingTasksCount}
-                            </Badge>
-                          )}
-                        </TabsTrigger>
-                        <TabsTrigger value="completed" data-testid="spreadsheet-apps-hub-tasks-tab-completed">
-                          {t('tasks-completed')}
-                          {completedTasksCount > 0 && (
-                            <Badge variant="secondary" className="gba:ml-1.5 gba:text-xs">
-                              {completedTasksCount}
-                            </Badge>
-                          )}
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                )}
-
-                {/* Action Bar */}
-                <div className="gba:px-6 gba:py-2 gba:flex gba:items-center gba:justify-between gba:border-t gba:border-border/50">
-                  <div className="gba:flex gba:items-center gba:gap-1">
-                    {selectedApps.size > 0 ? (
-                      <>
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedApps(new Set())}>
-                          <X className="gba:w-4 gba:h-4 gba:mr-1" />
-                          {t('action-clear', { count: selectedApps.size })}
-                        </Button>
-                        <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-2" />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            selectedApps.forEach(id => handleShareApp(id))
-                          }}
-                        >
-                          <Share2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                          {t('action-share')}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            selectedApps.forEach(id => handleExportApp(id))
-                          }}
-                        >
-                          <Download className="gba:w-4 gba:h-4 gba:mr-1" />
-                          {t('action-download')}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gba:text-destructive"
-                          onClick={() => {
-                            if (confirm(t('action-delete-confirm', { count: selectedApps.size }))) {
-                              selectedApps.forEach(id => handleDeleteApp(id))
-                            }
-                          }}
-                        >
-                          <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                          {t('action-delete-spreadsheet')}
-                        </Button>
-                      </>
-                    ) : null}
-                  </div>
-
-                  <div className="gba:flex gba:items-center gba:gap-2">
+              {/* Content Area */}
+              <div className="gba:flex-1 gba:overflow-auto">
+                <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5">
+                  {/* Spotlight search bar */}
+                  <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
                     <div className="gba:relative">
-                      <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                      <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
                       <Input
                         placeholder={t('action-search-placeholder')}
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        className="gba:pl-9 gba:w-64 gba:h-9"
+                        className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
+                        data-testid={`${testId}-search-input`}
                       />
                     </div>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
+
+                    {/* Actions row */}
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      {selectedApps.size > 0 ? (
+                        <div className="gba:flex gba:items-center gba:gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gba:h-7 gba:text-xs"
+                            onClick={() => setSelectedApps(new Set())}
+                          >
+                            <X className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                            {t('action-clear', { count: selectedApps.size })}
+                          </Button>
+                          <div className="gba:w-px gba:h-4 gba:bg-border gba:mx-1" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gba:h-7 gba:text-xs"
+                            onClick={() => {
+                              selectedApps.forEach(id => handleShareApp(id))
+                            }}
+                          >
+                            <Share2 className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                            {t('action-share')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gba:h-7 gba:text-xs"
+                            onClick={() => {
+                              selectedApps.forEach(id => handleExportApp(id))
+                            }}
+                          >
+                            <Download className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                            {t('action-download')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gba:h-7 gba:text-xs gba:text-destructive"
+                            onClick={() => {
+                              if (confirm(t('action-delete-confirm', { count: selectedApps.size }))) {
+                                selectedApps.forEach(id => handleDeleteApp(id))
+                              }
+                            }}
+                          >
+                            <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                            {t('action-delete-spreadsheet')}
+                          </Button>
+                        </div>
+                      ) : (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => refreshApps()}
+                          className="gba:gap-1.5 gba:h-7 gba:text-xs"
                           data-testid="spreadsheet-apps-hub-refresh-button"
                         >
-                          <RefreshCw className="gba:w-4 gba:h-4" />
+                          <RefreshCw className="gba:w-3.5 gba:h-3.5" />
+                          {t('action-refresh')}
                         </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{t('action-refresh')}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <div className="gba:flex gba:items-center gba:border gba:rounded-md">
-                      <Button
-                        variant={viewLayout === 'list' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewLayout('list')}
-                        className="gba:rounded-r-none"
-                      >
-                        <List className="gba:w-4 gba:h-4" />
-                      </Button>
-                      <Button
-                        variant={viewLayout === 'grid' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewLayout('grid')}
-                        className="gba:rounded-l-none"
-                      >
-                        <LayoutGrid className="gba:w-4 gba:h-4" />
-                      </Button>
+                      )}
+
+                      <div className="gba:ml-auto gba:flex gba:items-center gba:gap-1.5">
+                        <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:p-0.5">
+                          <button
+                            onClick={() => setViewLayout('list')}
+                            className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'list' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                            data-testid={`${testId}-view-list`}
+                          >
+                            <List className="gba:w-3.5 gba:h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setViewLayout('grid')}
+                            className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'grid' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                            data-testid={`${testId}-view-grid`}
+                          >
+                            <LayoutGrid className="gba:w-3.5 gba:h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </header>
-
-              {/* Content Area */}
-              <div className="gba:flex-1 gba:overflow-auto">
                 {/* Loading state */}
                 {isLoadingApps && (
                   <div className="gba:flex gba:items-center gba:justify-center gba:py-16">

@@ -35,6 +35,17 @@ section-my-tasks = Sarcinile mele
 section-trash = Coș de gunoi
 section-spreadsheets = Foi de calcul
 
+# Hero section
+sh-parent-label = Every Office
+sh-title = Foi de calcul
+sh-tabs-aria-label = Secțiuni foi de calcul
+sh-tab-my-files = Foile mele
+sh-tab-shared = Partajate cu mine
+sh-tab-tasks = Sarcinile mele
+sh-tab-recent = Recente
+sh-tab-automations = Automatizări
+sh-tab-favorites = Favorite
+
 # Upload view
 upload-cancel = Anulare
 upload-title = Încarcă fișier Excel

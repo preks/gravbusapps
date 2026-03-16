@@ -35,6 +35,17 @@ section-my-tasks = My tasks
 section-trash = Trash
 section-spreadsheets = Spreadsheets
 
+# Hero section
+sh-parent-label = Every Office
+sh-title = Spreadsheets
+sh-tabs-aria-label = Spreadsheet sections
+sh-tab-my-files = My Spreadsheets
+sh-tab-shared = Shared with me
+sh-tab-tasks = My tasks
+sh-tab-recent = Recent
+sh-tab-automations = Automations
+sh-tab-favorites = Favorites
+
 # Upload view
 upload-cancel = Cancel
 upload-title = Upload Excel File

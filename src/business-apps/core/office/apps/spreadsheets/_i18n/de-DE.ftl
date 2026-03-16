@@ -35,6 +35,17 @@ section-my-tasks = Meine Aufgaben
 section-trash = Papierkorb
 section-spreadsheets = Tabellen
 
+# Hero section
+sh-parent-label = Every Office
+sh-title = Tabellen
+sh-tabs-aria-label = Tabellenbereiche
+sh-tab-my-files = Meine Tabellen
+sh-tab-shared = Mit mir geteilt
+sh-tab-tasks = Meine Aufgaben
+sh-tab-recent = Zuletzt verwendet
+sh-tab-automations = Automatisierungen
+sh-tab-favorites = Favoriten
+
 # Upload view
 upload-cancel = Abbrechen
 upload-title = Excel-Datei hochladen
