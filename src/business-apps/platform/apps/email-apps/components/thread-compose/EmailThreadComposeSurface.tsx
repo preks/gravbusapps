@@ -19,6 +19,7 @@ export const EmailThreadComposeSurface: React.FC<ThreadComposeSurfaceProps> = ({
   onSent,
   searchContacts,
   onRecipientsUsed,
+  assistantEnabled = false,
   'data-testid': testId = 'email-thread-compose-surface'
 }) => {
   const { t } = useTranslation(translations)
@@ -31,6 +32,7 @@ export const EmailThreadComposeSurface: React.FC<ThreadComposeSurfaceProps> = ({
     onClose,
     onSent,
     onRecipientsUsed,
+    assistantEnabled,
     t
   })
 

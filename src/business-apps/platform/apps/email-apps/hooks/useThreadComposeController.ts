@@ -27,6 +27,7 @@ interface UseThreadComposeControllerOptions {
   onClose: () => void
   onSent: () => void
   onRecipientsUsed?: (recipients: Array<{ name?: string; email: string }>) => void
+  assistantEnabled?: boolean
   t: (key: string, vars?: Record<string, string | number>) => string
 }
 
@@ -59,6 +60,7 @@ export function useThreadComposeController({
   onClose,
   onSent,
   onRecipientsUsed,
+  assistantEnabled = false,
   t
 }: UseThreadComposeControllerOptions): ThreadComposeController {
   const [accountId, setAccountId] = useState(defaultAccountId || '')
@@ -77,7 +79,7 @@ export function useThreadComposeController({
   const [assistantLength, setAssistantLength] = useState<EmailAssistantLength>('medium')
   const [assistantCustomInstruction, setAssistantCustomInstruction] = useState('')
 
-  const assistant = useEmailAssistant(isOpen && Boolean(accountId))
+  const assistant = useEmailAssistant(isOpen && Boolean(accountId) && assistantEnabled)
   const {
     autoTemperatureCheck,
     setAutoTemperatureCheck,

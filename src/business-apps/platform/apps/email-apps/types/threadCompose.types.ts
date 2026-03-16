@@ -12,6 +12,7 @@ export interface ThreadComposeSurfaceProps {
   onSent: () => void
   searchContacts: (query: string) => EmailContact[]
   onRecipientsUsed?: (recipients: Array<{ name?: string; email: string }>) => void
+  assistantEnabled?: boolean
   'data-testid'?: string
 }
 

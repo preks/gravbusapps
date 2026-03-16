@@ -164,6 +164,13 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       return false
     }
   })
+  const [assistantEnabled, setAssistantEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('email-assistant-enabled') === 'true'
+    } catch {
+      return false
+    }
+  })
 
   // Compose state
   const [isComposing, setIsComposing] = useState(false)
@@ -508,6 +515,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
           onSent={refreshMessages}
           searchContacts={searchContacts}
           onRecipientsUsed={handleRecipientsUsed}
+          assistantEnabled={assistantEnabled}
         />
       ) : (
         <EmailReader
@@ -546,6 +554,16 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
             const next = !prev
             try {
               localStorage.setItem('email-thread-view-enabled', String(next))
+            } catch {}
+            return next
+          })
+        }}
+        assistantEnabled={assistantEnabled}
+        onToggleAssistantEnabled={() => {
+          setAssistantEnabled(prev => {
+            const next = !prev
+            try {
+              localStorage.setItem('email-assistant-enabled', String(next))
             } catch {}
             return next
           })
