@@ -73,9 +73,9 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
         setState(prev => ({ ...prev, progress: 20 }))
 
         // Build the user prompt
-        const userPrompt = SPREADSHEET_ANALYZER_USER_PROMPT.replace('{fileName}', parsedFile.fileName)
-          .replace('{sheetCount}', String(parsedFile.sheets.length))
-          .replace('{sheetData}', sheetData)
+        const userPrompt = SPREADSHEET_ANALYZER_USER_PROMPT.replaceAll('{fileName}', parsedFile.fileName)
+          .replaceAll('{sheetCount}', String(parsedFile.sheets.length))
+          .replaceAll('{sheetData}', sheetData)
 
         setState(prev => ({ ...prev, progress: 30 }))
 
@@ -322,7 +322,7 @@ function validateColumnType(type: string): ColumnType {
  */
 function validateViewType(type: string): 'table' | 'form' | 'dashboard' | 'kanban' | 'calendar' {
   const validTypes = ['table', 'form', 'dashboard', 'kanban', 'calendar']
-  return validTypes.includes(type) ? (type as any) : 'table'
+  return validTypes.includes(type) ? (type as 'table' | 'form' | 'dashboard' | 'kanban' | 'calendar') : 'table'
 }
 
 /**
@@ -330,7 +330,7 @@ function validateViewType(type: string): 'table' | 'form' | 'dashboard' | 'kanba
  */
 function validateAppType(type: string): 'data_grid' | 'form_table' | 'dashboard' | 'mixed' {
   const validTypes = ['data_grid', 'form_table', 'dashboard', 'mixed']
-  return validTypes.includes(type) ? (type as any) : 'data_grid'
+  return validTypes.includes(type) ? (type as 'data_grid' | 'form_table' | 'dashboard' | 'mixed') : 'data_grid'
 }
 
 /**
@@ -533,7 +533,7 @@ function performLocalAnalysis(parsedFile: ParsedExcelFile): SpreadsheetAnalysis 
     sheets,
     relationships,
     suggestedAppType: determineBestAppType(sheets),
-    suggestedAppName: parsedFile.fileName.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' '),
+    suggestedAppName: parsedFile.fileName.replace(/\.[^.]+$/, '').replaceAll(/[_-]/g, ' '),
     confidence: 0.6 // Lower confidence for local analysis
   }
 }
@@ -686,7 +686,7 @@ function detectRelationships(sheets: SheetAnalysis[]): SheetRelationship[] {
     for (const col of sheet.columns) {
       // Look for foreign key patterns
       if (col.name.toLowerCase().endsWith('_id') || col.name.toLowerCase().endsWith('id')) {
-        const refTableName = col.name.toLowerCase().replace(/_?id$/i, '').replace(/_/g, '')
+        const refTableName = col.name.toLowerCase().replace(/_?id$/i, '').replaceAll('_', '')
 
         // Find matching sheet
         const refSheet = sheets.find(

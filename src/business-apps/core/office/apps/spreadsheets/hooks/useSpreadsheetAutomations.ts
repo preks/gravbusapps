@@ -281,13 +281,14 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         if (!response.ok) return null
 
         const payload = (await response.json()) as Record<string, unknown>
-        const items: Array<Record<string, unknown>> = Array.isArray(payload)
-          ? (payload as Array<Record<string, unknown>>)
-          : Array.isArray(payload.data)
-            ? (payload.data as Array<Record<string, unknown>>)
-            : Array.isArray(payload.items)
-              ? (payload.items as Array<Record<string, unknown>>)
-              : []
+        let items: Array<Record<string, unknown>> = []
+        if (Array.isArray(payload)) {
+          items = payload
+        } else if (Array.isArray(payload.data)) {
+          items = payload.data
+        } else if (Array.isArray(payload.items)) {
+          items = payload.items
+        }
 
         const normalizeType = (raw: unknown): string => {
           const value = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
@@ -540,34 +541,24 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
           // For bulk_collection and excel_collection: create rows showing "Sent" status when automation starts.
           if (isCollectionAutomation(automation)) {
-            if (!onAddRowsRef.current) {
-              console.error('[useSpreadsheetAutomations] ERROR: onAddRowsRef.current is not set!')
-            } else {
+            if (onAddRowsRef.current) {
               const statusColumn = automation.workflowConfig.statusColumn
               const trackingColumns = ensureRecipientTrackingColumns(
                 automation.collectionConfig?.trackingColumns || getDefaultTrackingColumns(),
                 automation.type === 'excel_collection' ? 'excel_collection' : 'bulk_collection'
               )
 
-              // Build a lookup from columnId to columnName for proper data mapping
-              // The table renders using col.name, so we need to store data with column names, not IDs
               const columnIdToName = buildColumnIdToNameMap(automation)
-              // Fetch recipient data (name, email, avatar) via GraphQL
               const recipientIds = result.workflows.map(wf => wf.rowId.replace('recipient_', ''))
 
-              // Set access token and fetch recipient data
               graphQLClient.setAccessToken(accessToken)
               const recipientDataMap = await fetchRecipientsData(graphQLClient, recipientIds)
 
-              // Create initial rows for each workflow that was sent out
               const initialRows = result.workflows.map(wf => {
-                // Extract recipient info from rowId (format: "recipient_<userId>")
                 const recipientId = wf.rowId.replace('recipient_', '')
 
-                // Get fetched recipient data
                 const recipientData = recipientDataMap.get(recipientId)
 
-                // Build tracking column values using the user's selected columns
                 const trackingValues = buildSentRowTrackingValues(
                   trackingColumns,
                   {
@@ -581,11 +572,9 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
                 const cells: Record<string, unknown> = {
                   ...trackingValues,
-                  // Always include workflow ID for updates
                   _workflow_id: wf.workflowId
                 }
 
-                // Set the user's chosen status column to "Sent" (map ID to name)
                 if (statusColumn) {
                   const statusColumnName = columnIdToName.get(statusColumn) || statusColumn
                   cells[statusColumnName] = 'Sent'
@@ -598,12 +587,14 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
                     recipientId,
                     automationId,
                     isBulkCollectionPending: true,
-                    trackingColumns // Pass along for use when updating
+                    trackingColumns
                   }
                 }
               })
 
               onAddRowsRef.current(initialRows)
+            } else {
+              console.error('[useSpreadsheetAutomations] ERROR: onAddRowsRef.current is not set!')
             }
           }
         }
@@ -969,29 +960,29 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
     // Set up polling interval (use sanitized value to prevent code injection from untrusted inputs)
     const sanitizedInterval = sanitizePollInterval(pollInterval)
-    const intervalId = window.setInterval(() => {
+    const intervalId = globalThis.setInterval(() => {
       void fetchBulkCollectionResponses()
     }, sanitizedInterval)
     const handleVisibilityOrFocus = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      if (globalThis.document !== undefined && document.visibilityState === 'visible') {
         void fetchBulkCollectionResponses()
       }
     }
-    if (typeof window !== 'undefined') {
-      window.addEventListener('focus', handleVisibilityOrFocus)
-      window.addEventListener('pageshow', handleVisibilityOrFocus)
+    if (globalThis.window !== undefined) {
+      globalThis.addEventListener('focus', handleVisibilityOrFocus)
+      globalThis.addEventListener('pageshow', handleVisibilityOrFocus)
     }
-    if (typeof document !== 'undefined') {
+    if (globalThis.document !== undefined) {
       document.addEventListener('visibilitychange', handleVisibilityOrFocus)
     }
 
     return () => {
-      window.clearInterval(intervalId)
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('focus', handleVisibilityOrFocus)
-        window.removeEventListener('pageshow', handleVisibilityOrFocus)
+      globalThis.clearInterval(intervalId)
+      if (globalThis.window !== undefined) {
+        globalThis.removeEventListener('focus', handleVisibilityOrFocus)
+        globalThis.removeEventListener('pageshow', handleVisibilityOrFocus)
       }
-      if (typeof document !== 'undefined') {
+      if (globalThis.document !== undefined) {
         document.removeEventListener('visibilitychange', handleVisibilityOrFocus)
       }
     }

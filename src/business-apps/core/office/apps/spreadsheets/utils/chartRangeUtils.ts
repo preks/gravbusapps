@@ -38,11 +38,11 @@ export function parseChartRange(range: string): ParsedChartRange | null {
   const trimmed = range.trim()
   if (!trimmed) return null
 
-  const match = trimmed.match(/^([A-Z]+)([0-9]+)(?::([A-Z]+)([0-9]+))?$/i)
+  const match = /^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/i.exec(trimmed)
   if (!match) return null
 
   const startCol = excelColToIndex(match[1])
-  const startRow = parseInt(match[2], 10)
+  const startRow = Number.parseInt(match[2], 10)
   if (Number.isNaN(startRow) || startRow < 1 || startCol < 0) return null
 
   let endRow = startRow
@@ -50,7 +50,7 @@ export function parseChartRange(range: string): ParsedChartRange | null {
 
   if (match[3] && match[4]) {
     endCol = excelColToIndex(match[3])
-    endRow = parseInt(match[4], 10)
+    endRow = Number.parseInt(match[4], 10)
     if (Number.isNaN(endRow) || endRow < 1 || endCol < 0) return null
   }
 

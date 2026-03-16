@@ -80,7 +80,7 @@ export function generateAppSchemaFromParsedFile(
     name:
       parsedFile.fileName
         .replace(/\.[^.]+$/, '')
-        .replace(/[_-]/g, ' ')
+        .replaceAll(/[-_]/g, ' ')
         .trim() || 'Imported Spreadsheet',
     description: 'Imported from spreadsheet file',
     icon: undefined,
@@ -298,7 +298,7 @@ function generateColumnSchema(analysis: ColumnAnalysis, index: number, parsedShe
   let selectOptions: SelectOption[] | undefined
   if (analysis.selectOptions && analysis.selectOptions.length > 0) {
     selectOptions = analysis.selectOptions.map(opt => ({
-      value: opt.toLowerCase().replace(/\s+/g, '_'),
+      value: opt.toLowerCase().replaceAll(/\s+/g, '_'),
       label: opt,
       color: generateColorForOption(opt)
     }))
@@ -398,7 +398,8 @@ function generateChartConfigs(analysis: SheetAnalysis, columns: SpreadsheetColum
     })
   }
 
-  return charts.length > 0 ? charts : undefined
+  if (charts.length > 0) return charts
+  return undefined
 }
 
 /**
@@ -512,18 +513,12 @@ function calculateColumnWidth(analysis: ColumnAnalysis): number {
  * Format column name as human-readable label
  */
 function formatColumnLabel(name: string): string {
-  return (
-    name
-      // Handle camelCase
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      // Handle snake_case
-      .replace(/_/g, ' ')
-      // Handle kebab-case
-      .replace(/-/g, ' ')
-      // Capitalize first letter of each word
-      .replace(/\b\w/g, c => c.toUpperCase())
-      .trim()
-  )
+  return name
+    .replaceAll(/([a-z])([A-Z])/g, '$1 $2')
+    .replaceAll(/_/g, ' ')
+    .replaceAll(/-/g, ' ')
+    .replaceAll(/\b\w/g, c => c.toUpperCase())
+    .trim()
 }
 
 /**
@@ -592,7 +587,7 @@ function createSelectOptions(sampleValues: unknown[]): SelectOption[] | undefine
   if (optionValues.length === 0 || optionValues.length > 20) return undefined
 
   return optionValues.map(option => ({
-    value: option.toLowerCase().replace(/\s+/g, '_'),
+    value: option.toLowerCase().replaceAll(/\s+/g, '_'),
     label: option,
     color: generateColorForOption(option)
   }))
@@ -651,16 +646,15 @@ function generateId(prefix: string): string {
 /**
  * Update app schema with user customizations
  */
-export function updateAppWithCustomizations(
-  app: SpreadsheetApp,
-  customizations: {
-    name?: string
-    description?: string
-    icon?: string
-    columns?: Record<string, Partial<SpreadsheetColumn>>
-    views?: Record<string, Partial<SheetView>>
-  }
-): SpreadsheetApp {
+type AppCustomizations = {
+  name?: string
+  description?: string
+  icon?: string
+  columns?: Record<string, Partial<SpreadsheetColumn>>
+  views?: Record<string, Partial<SheetView>>
+}
+
+export function updateAppWithCustomizations(app: SpreadsheetApp, customizations: AppCustomizations): SpreadsheetApp {
   const updatedApp = { ...app }
 
   if (customizations.name) {

@@ -285,14 +285,21 @@ interface ExecutionHistoryRowProps {
   t: (key: string, vars?: Record<string, number | string>) => string
 }
 
+function getStatusIcon(entry: AutomationExecutionHistory) {
+  if (entry.failedCount === 0) return CheckCircle
+  if (entry.failedCount < entry.rowCount) return AlertTriangle
+  return XCircle
+}
+
+function getStatusColorClass(entry: AutomationExecutionHistory) {
+  if (entry.failedCount === 0) return 'gba:text-success'
+  if (entry.failedCount < entry.rowCount) return 'gba:text-warning'
+  return 'gba:text-destructive'
+}
+
 const ExecutionHistoryRow: React.FC<ExecutionHistoryRowProps> = ({ entry, automationName, t }) => {
-  const isSuccess = entry.failedCount === 0
-  const StatusIcon = isSuccess ? CheckCircle : entry.failedCount < entry.rowCount ? AlertTriangle : XCircle
-  const statusColor = isSuccess
-    ? 'gba:text-success'
-    : entry.failedCount < entry.rowCount
-      ? 'gba:text-warning'
-      : 'gba:text-destructive'
+  const StatusIcon = getStatusIcon(entry)
+  const statusColor = getStatusColorClass(entry)
 
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:border-b gba:last:border-b-0">
@@ -372,7 +379,9 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
   const filteredAutomations = useMemo(() => {
     if (!searchQuery.trim()) return automations
     const query = searchQuery.toLowerCase()
-    return automations.filter(a => a.name.toLowerCase().includes(query) || a.description?.toLowerCase().includes(query))
+    return automations.filter(
+      a => a.name.toLowerCase().includes(query) || (a.description || '').toLowerCase().includes(query)
+    )
   }, [automations, searchQuery])
 
   // Count active workflows per automation
@@ -389,7 +398,8 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
   // Get automation name by ID for history display
   const getAutomationName = useCallback(
     (automationId: string) => {
-      return automations.find(a => a.id === automationId)?.name
+      const automation = automations.find(a => a.id === automationId)
+      return automation ? automation.name : undefined
     },
     [automations]
   )
@@ -418,7 +428,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
       setRunningAutomations(prev => new Set(prev).add(automationId))
       try {
         const result = await onRunAutomation(automationId)
-        if (!result?.success && result?.error) {
+        if (result && !result.success && result.error) {
           toast.error(result.error)
         }
       } catch (err) {
@@ -445,6 +455,56 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
 
     return { total: automations.length, enabled, totalExecutions, activeWorkflows }
   }, [automations, workflowLinks])
+
+  const renderAutomationsContent = () => {
+    if (isLoading) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+          <Spinner size="lg" />
+        </div>
+      )
+    }
+    if (filteredAutomations.length === 0) {
+      const isEmpty = automations.length === 0
+      return (
+        <Card className="gba:border-dashed">
+          <CardContent className="gba:py-16 gba:text-center">
+            <Zap className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
+              {isEmpty ? t('automations-hub-empty-title') : t('automations-hub-empty-filtered')}
+            </h3>
+            <p className="gba:text-muted-foreground gba:mb-4">
+              {isEmpty ? t('automations-hub-empty-hint') : t('automations-hub-empty-search-hint')}
+            </p>
+            {isEmpty && (
+              <Button onClick={onCreateAutomation}>
+                <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+                {t('automations-hub-create-button')}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )
+    }
+    return (
+      <div className="gba:space-y-3">
+        {filteredAutomations.map(automation => (
+          <AutomationCard
+            key={automation.id}
+            automation={automation}
+            activeWorkflows={activeWorkflowCounts[automation.id] || 0}
+            onEdit={() => onEditAutomation(automation)}
+            onDelete={() => handleDeleteClick(automation)}
+            onToggle={enabled => onToggleAutomation(automation.id, enabled)}
+            onDuplicate={() => onDuplicateAutomation(automation.id)}
+            onRun={() => handleRunAutomation(automation.id)}
+            isRunning={runningAutomations.has(automation.id)}
+            t={t}
+          />
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid={testId}>
@@ -533,46 +593,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
 
         {/* Automations Tab */}
         <TabsContent value="automations" className="gba:flex-1">
-          {isLoading ? (
-            <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
-              <Spinner size="lg" />
-            </div>
-          ) : filteredAutomations.length === 0 ? (
-            <Card className="gba:border-dashed">
-              <CardContent className="gba:py-16 gba:text-center">
-                <Zap className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
-                <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
-                  {automations.length === 0 ? t('automations-hub-empty-title') : t('automations-hub-empty-filtered')}
-                </h3>
-                <p className="gba:text-muted-foreground gba:mb-4">
-                  {automations.length === 0 ? t('automations-hub-empty-hint') : t('automations-hub-empty-search-hint')}
-                </p>
-                {automations.length === 0 && (
-                  <Button onClick={onCreateAutomation}>
-                    <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('automations-hub-create-button')}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="gba:space-y-3">
-              {filteredAutomations.map(automation => (
-                <AutomationCard
-                  key={automation.id}
-                  automation={automation}
-                  activeWorkflows={activeWorkflowCounts[automation.id] || 0}
-                  onEdit={() => onEditAutomation(automation)}
-                  onDelete={() => handleDeleteClick(automation)}
-                  onToggle={enabled => onToggleAutomation(automation.id, enabled)}
-                  onDuplicate={() => onDuplicateAutomation(automation.id)}
-                  onRun={() => handleRunAutomation(automation.id)}
-                  isRunning={runningAutomations.has(automation.id)}
-                  t={t}
-                />
-              ))}
-            </div>
-          )}
+          {renderAutomationsContent()}
         </TabsContent>
 
         {/* History Tab */}
@@ -610,7 +631,9 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
           <DialogHeader>
             <DialogTitle>{t('automations-hub-delete-dialog-title')}</DialogTitle>
             <DialogDescription>
-              {t('automations-hub-delete-dialog-desc', { name: automationToDelete?.name ?? '' })}
+              {t('automations-hub-delete-dialog-desc', {
+                name: automationToDelete ? (automationToDelete.name ?? '') : ''
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

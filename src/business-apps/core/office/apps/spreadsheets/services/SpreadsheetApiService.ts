@@ -26,11 +26,7 @@ const API_URL = getDocumentServiceApiUrl()
 
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
   try {
-    return (
-      typeof window !== 'undefined' &&
-      typeof window.localStorage !== 'undefined' &&
-      window.localStorage.getItem('debug:spreadsheet-apps') === '1'
-    )
+    return globalThis.localStorage?.getItem('debug:spreadsheet-apps') === '1'
   } catch {
     return false
   }
@@ -43,8 +39,8 @@ const debugLog = (...args: unknown[]) => {
 }
 
 export class SpreadsheetApiRequestError extends Error {
-  status: number
-  details?: unknown
+  readonly status: number
+  readonly details?: unknown
 
   constructor(message: string, status: number, details?: unknown) {
     super(message)
@@ -68,16 +64,13 @@ export function setSpreadsheetApiAuthTokenProvider(provider: (() => string | nul
 // Get auth token - check multiple storage locations
 const getAuthToken = (): string | null => {
   try {
-    // Prefer external token provider (e.g., BusinessAppContext accessToken)
     const externalToken = externalAuthTokenProvider?.()
     if (externalToken) return externalToken
 
-    // First check the IDE's storage key (Business App IDE)
-    const ideToken = localStorage.getItem('business-app-ide-access-token')
+    const ideToken = globalThis.localStorage?.getItem('business-app-ide-access-token')
     if (ideToken) return ideToken
 
-    // Check keycloak token format
-    const authData = localStorage.getItem('keycloak-token')
+    const authData = globalThis.localStorage?.getItem('keycloak-token')
     if (authData) {
       try {
         const parsed = JSON.parse(authData) as { token?: unknown; access_token?: unknown }
@@ -91,14 +84,11 @@ const getAuthToken = (): string | null => {
       }
     }
 
-    // Check session storage
-    const sessionToken = sessionStorage.getItem('auth_token')
+    const sessionToken = globalThis.sessionStorage?.getItem('auth_token')
     if (sessionToken) return sessionToken
 
-    // Check window global
-    if (typeof window !== 'undefined' && (window as unknown as { authToken?: string }).authToken) {
-      return (window as unknown as { authToken: string }).authToken
-    }
+    const windowAuthToken = (globalThis as unknown as { authToken?: string }).authToken
+    if (windowAuthToken) return windowAuthToken
 
     return null
   } catch {
@@ -111,7 +101,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const token = getAuthToken()
   const method = (options.method || 'GET').toUpperCase()
   const shouldUseKeepAlive =
-    typeof window !== 'undefined' && method !== 'GET' && method !== 'HEAD' && options.keepalive === undefined
+    globalThis.window !== undefined && method !== 'GET' && method !== 'HEAD' && options.keepalive === undefined
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -157,9 +147,9 @@ type SpreadsheetRowData = Record<string, unknown> & {
 }
 
 function mapApiRowToFrontendRow(row: Record<string, unknown>): Record<string, unknown> {
-  const rowData = (((row as Record<string, unknown>).data as Record<string, unknown>) || {}) as SpreadsheetRowData
+  const rowData = ((row.data as Record<string, unknown>) ?? {}) as SpreadsheetRowData
   const clientRowId = rowData._clientRowId
-  const backendId = String((row as Record<string, unknown>).id || '')
+  const backendId = String(row.id ?? '')
 
   if (clientRowId) {
     return {
@@ -227,8 +217,7 @@ const getOperationCellCoordinates = (operation: SpreadsheetBatchOperation): { ro
   return { rowId, columnName }
 }
 
-const toLegacyRowRef = (row: Record<string, unknown>): string =>
-  String((row as Record<string, unknown>)._rowUuid ?? (row as Record<string, unknown>)._id ?? row.id ?? '')
+const toLegacyRowRef = (row: Record<string, unknown>): string => String(row._rowUuid ?? row._id ?? row.id ?? '')
 
 const createLegacyOperationResult = (
   operation: SpreadsheetBatchOperation,
@@ -272,7 +261,29 @@ function mapPermission(backendPermission: string | undefined): SpreadsheetApp['p
   return backendPermission as SpreadsheetApp['permission']
 }
 
-// Map API response to frontend types
+function mapApiResponseToSheet(sheet: Record<string, unknown>): SpreadsheetSheet {
+  return {
+    id: sheet.id as string,
+    name: sheet.name as string,
+    description: sheet.description as string | undefined,
+    version: (sheet.version as number | undefined) ?? 0,
+    viewType:
+      (sheet.viewType as SpreadsheetSheet['viewType'] | undefined) ||
+      ((sheet.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
+        | SpreadsheetSheet['viewType']
+        | undefined) ||
+      'table',
+    columns: (sheet.columns as SpreadsheetSheet['columns']) || [],
+    views: (sheet.views as SpreadsheetSheet['views']) || [],
+    settings: (sheet.settings as SpreadsheetSheet['settings']) || {},
+    entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
+    chartConfigs: sheet.chartConfigs as SpreadsheetSheet['chartConfigs'],
+    data: [],
+    automations: [],
+    workflowLinks: []
+  }
+}
+
 function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): SpreadsheetApp {
   const sheets = (apiApp.sheets as Array<Record<string, unknown>>) || []
 
@@ -289,45 +300,16 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
     settings: (apiApp.settings as SpreadsheetApp['settings']) || {},
     relationships: apiApp.relationships as SpreadsheetApp['relationships'],
     sheets: sheets.map(sheet => {
-      // Map rows from backend to data array for frontend
       const rows = (sheet.rows as Array<{ id: string; data: Record<string, unknown> }>) || []
       const data = rows.map(row => {
-        const rowData = (row.data || {}) as SpreadsheetRowData
-        // If a client row id is present (entity-data-source mode), use it as the UI row key
-        // and preserve the backend UUID separately for PATCH calls.
+        const rowData = (row.data ?? {}) as SpreadsheetRowData
         if (rowData._clientRowId) {
-          return {
-            ...rowData,
-            _id: rowData._clientRowId,
-            _rowUuid: row.id
-          }
+          return { ...rowData, _id: rowData._clientRowId, _rowUuid: row.id }
         }
-        return {
-          ...rowData,
-          _id: row.id
-        }
+        return { ...rowData, _id: row.id }
       })
 
-      return {
-        id: sheet.id as string,
-        name: sheet.name as string,
-        description: sheet.description as string | undefined,
-        version: (sheet.version as number | undefined) ?? 0,
-        viewType:
-          (sheet.viewType as SpreadsheetSheet['viewType'] | undefined) ||
-          ((sheet.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
-            | SpreadsheetSheet['viewType']
-            | undefined) ||
-          'table',
-        columns: (sheet.columns as SpreadsheetSheet['columns']) || [],
-        views: (sheet.views as SpreadsheetSheet['views']) || [],
-        settings: (sheet.settings as SpreadsheetSheet['settings']) || {},
-        entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
-        chartConfigs: sheet.chartConfigs as SpreadsheetSheet['chartConfigs'],
-        data,
-        automations: [],
-        workflowLinks: []
-      }
+      return { ...mapApiResponseToSheet(sheet), data }
     }),
     sharedWith: [],
     // Permission info from backend
@@ -337,9 +319,40 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
   }
 }
 
-/**
- * Spreadsheet API Service
- */
+function mapCommentResponse(
+  response: Record<string, unknown>,
+  fallbackId: string,
+  fallbackParentId?: string
+): Comment | null {
+  const entityId = (response.entityId as string | undefined) || (response.appId as string | undefined)
+  const type = response.type as Comment['type'] | undefined
+  const content = response.content as string | undefined
+  const createdBy = response.createdBy as string | undefined
+  const createdAt = response.createdAt as string | undefined
+
+  if (!entityId || !type || content === undefined || !createdBy || !createdAt) {
+    return null
+  }
+
+  return {
+    id: (response.id as string | undefined) || fallbackId,
+    entityId,
+    entityType: 'spreadsheet_app',
+    type,
+    content,
+    createdBy,
+    createdByName: response.createdByName as string | undefined,
+    createdByAvatar: response.createdByAvatar as string | undefined,
+    createdAt,
+    updatedAt: response.updatedAt as string | undefined,
+    resolvedAt: response.resolvedAt as string | undefined,
+    resolvedBy: response.resolvedBy as string | undefined,
+    cellReference: response.cellReference as string | undefined,
+    sheetId: response.sheetId as string | undefined,
+    parentId: (response.parentId as string | undefined) || fallbackParentId
+  }
+}
+
 export const SpreadsheetApiService = {
   // ============ Apps ============
 
@@ -514,26 +527,7 @@ export const SpreadsheetApiService = {
     try {
       debugLog('getSheet', appId, sheetId)
       const sheet = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`)
-      return {
-        id: sheet.id as string,
-        name: sheet.name as string,
-        description: sheet.description as string | undefined,
-        version: (sheet.version as number | undefined) ?? 0,
-        viewType:
-          (sheet.viewType as SpreadsheetSheet['viewType'] | undefined) ||
-          ((sheet.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
-            | SpreadsheetSheet['viewType']
-            | undefined) ||
-          'table',
-        columns: (sheet.columns as SpreadsheetSheet['columns']) || [],
-        views: (sheet.views as SpreadsheetSheet['views']) || [],
-        settings: (sheet.settings as SpreadsheetSheet['settings']) || {},
-        entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
-        chartConfigs: sheet.chartConfigs as SpreadsheetSheet['chartConfigs'],
-        data: [],
-        automations: [],
-        workflowLinks: []
-      }
+      return mapApiResponseToSheet(sheet)
     } catch (error) {
       console.error('Failed to get sheet:', error)
       return null
@@ -560,24 +554,7 @@ export const SpreadsheetApiService = {
       body: JSON.stringify(payload)
     })
 
-    return {
-      id: created.id as string,
-      name: created.name as string,
-      description: created.description as string | undefined,
-      version: (created.version as number | undefined) ?? 0,
-      viewType:
-        (created.viewType as SpreadsheetSheet['viewType'] | undefined) ||
-        ((created.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
-          | SpreadsheetSheet['viewType']
-          | undefined) ||
-        'table',
-      columns: (created.columns as SpreadsheetSheet['columns']) || [],
-      views: (created.views as SpreadsheetSheet['views']) || [],
-      settings: (created.settings as SpreadsheetSheet['settings']) || {},
-      data: [],
-      automations: [],
-      workflowLinks: []
-    }
+    return mapApiResponseToSheet(created)
   },
 
   /**
@@ -606,24 +583,7 @@ export const SpreadsheetApiService = {
       body: JSON.stringify(payload)
     })
 
-    return {
-      id: updated.id as string,
-      name: updated.name as string,
-      description: updated.description as string | undefined,
-      version: (updated.version as number | undefined) ?? 0,
-      viewType:
-        (updated.viewType as SpreadsheetSheet['viewType'] | undefined) ||
-        ((updated.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
-          | SpreadsheetSheet['viewType']
-          | undefined) ||
-        'table',
-      columns: (updated.columns as SpreadsheetSheet['columns']) || [],
-      views: (updated.views as SpreadsheetSheet['views']) || [],
-      settings: (updated.settings as SpreadsheetSheet['settings']) || {},
-      data: [],
-      automations: [],
-      workflowLinks: []
-    }
+    return mapApiResponseToSheet(updated)
   },
 
   /**
@@ -716,24 +676,21 @@ export const SpreadsheetApiService = {
       body: JSON.stringify(data)
     })
 
-    const createdData = (((created as Record<string, unknown>).data as Record<string, unknown>) ||
-      {}) as SpreadsheetRowData
+    const createdData = ((created.data as Record<string, unknown>) ?? {}) as SpreadsheetRowData
     const clientRowId = (data as SpreadsheetRowData)._clientRowId
 
-    // If we created a row for a client row id (entity-data-source), keep the UI key stable
-    // and store the backend UUID separately.
     if (clientRowId) {
       return {
         ...createdData,
         _id: clientRowId,
-        _rowUuid: (created as Record<string, unknown>).id as string,
+        _rowUuid: created.id as string,
         _clientRowId: clientRowId
       }
     }
 
     return {
       ...createdData,
-      _id: (created as Record<string, unknown>).id as string
+      _id: created.id as string
     }
   },
 
@@ -756,20 +713,19 @@ export const SpreadsheetApiService = {
       }
     )
 
-    const updatedData = (((updated as Record<string, unknown>).data as Record<string, unknown>) ||
-      {}) as SpreadsheetRowData
+    const updatedData = ((updated.data as Record<string, unknown>) ?? {}) as SpreadsheetRowData
     const clientRowId = updatedData._clientRowId
     if (clientRowId) {
       return {
         ...updatedData,
         _id: clientRowId,
-        _rowUuid: (updated as Record<string, unknown>).id as string
+        _rowUuid: updated.id as string
       }
     }
 
     return {
       ...updatedData,
-      _id: (updated as Record<string, unknown>).id as string
+      _id: updated.id as string
     }
   },
 
@@ -1132,9 +1088,6 @@ export const SpreadsheetApiService = {
       })
     })
 
-    // TODO: Import row data from analysis
-    // This would require parsing the actual Excel content
-
     return app
   },
 
@@ -1418,29 +1371,23 @@ export const SpreadsheetApiService = {
         `/versions/spreadsheet_app/${appId}/compare?versionA=${versionA}&versionB=${versionB}`
       )
 
+      const vA = response.versionA as Record<string, unknown>
+      const vB = response.versionB as Record<string, unknown>
+      const mapVersion = (v: Record<string, unknown>): Version => ({
+        id: v.id as string,
+        version: v.versionNumber as number,
+        content: JSON.stringify(v.contentSnapshot),
+        createdAt: v.createdAt as string,
+        createdBy: v.changedBy as string,
+        changeDescription: v.changeSummary as string | undefined,
+        isCheckpoint: !v.isAutoSave,
+        isAutoSave: v.isAutoSave as boolean,
+        fileSize: (v.fileSize as number) || 0
+      })
+
       return {
-        versionA: {
-          id: (response.versionA as Record<string, unknown>).id as string,
-          version: (response.versionA as Record<string, unknown>).versionNumber as number,
-          content: JSON.stringify((response.versionA as Record<string, unknown>).contentSnapshot),
-          createdAt: (response.versionA as Record<string, unknown>).createdAt as string,
-          createdBy: (response.versionA as Record<string, unknown>).changedBy as string,
-          changeDescription: (response.versionA as Record<string, unknown>).changeSummary as string | undefined,
-          isCheckpoint: !(response.versionA as Record<string, unknown>).isAutoSave,
-          isAutoSave: (response.versionA as Record<string, unknown>).isAutoSave as boolean,
-          fileSize: ((response.versionA as Record<string, unknown>).fileSize as number) || 0
-        },
-        versionB: {
-          id: (response.versionB as Record<string, unknown>).id as string,
-          version: (response.versionB as Record<string, unknown>).versionNumber as number,
-          content: JSON.stringify((response.versionB as Record<string, unknown>).contentSnapshot),
-          createdAt: (response.versionB as Record<string, unknown>).createdAt as string,
-          createdBy: (response.versionB as Record<string, unknown>).changedBy as string,
-          changeDescription: (response.versionB as Record<string, unknown>).changeSummary as string | undefined,
-          isCheckpoint: !(response.versionB as Record<string, unknown>).isAutoSave,
-          isAutoSave: (response.versionB as Record<string, unknown>).isAutoSave as boolean,
-          fileSize: ((response.versionB as Record<string, unknown>).fileSize as number) || 0
-        },
+        versionA: mapVersion(vA),
+        versionB: mapVersion(vB),
         diff: response.diff as Array<{
           path: string
           type: 'added' | 'removed' | 'modified'
@@ -1555,34 +1502,7 @@ export const SpreadsheetApiService = {
         method: 'PATCH',
         body: JSON.stringify({ content: updates.content })
       })
-
-      const entityId = (response.entityId as string | undefined) || (response.appId as string | undefined)
-      const type = response.type as Comment['type'] | undefined
-      const content = response.content as string | undefined
-      const createdBy = response.createdBy as string | undefined
-      const createdAt = response.createdAt as string | undefined
-
-      if (!entityId || !type || content === undefined || !createdBy || !createdAt) {
-        return null
-      }
-
-      return {
-        id: (response.id as string | undefined) || commentId,
-        entityId,
-        entityType: 'spreadsheet_app',
-        type,
-        content,
-        createdBy,
-        createdByName: response.createdByName as string | undefined,
-        createdByAvatar: response.createdByAvatar as string | undefined,
-        createdAt,
-        updatedAt: response.updatedAt as string | undefined,
-        resolvedAt: response.resolvedAt as string | undefined,
-        resolvedBy: response.resolvedBy as string | undefined,
-        cellReference: response.cellReference as string | undefined,
-        sheetId: response.sheetId as string | undefined,
-        parentId: response.parentId as string | undefined
-      }
+      return mapCommentResponse(response, commentId)
     } catch (error) {
       console.error('Failed to update comment:', error)
       return null
@@ -1615,34 +1535,7 @@ export const SpreadsheetApiService = {
         method: 'POST',
         body: JSON.stringify({ content: reply })
       })
-
-      const entityId = (response.entityId as string | undefined) || (response.appId as string | undefined)
-      const type = response.type as Comment['type'] | undefined
-      const content = response.content as string | undefined
-      const createdBy = response.createdBy as string | undefined
-      const createdAt = response.createdAt as string | undefined
-
-      if (!entityId || !type || content === undefined || !createdBy || !createdAt) {
-        return null
-      }
-
-      return {
-        id: response.id as string,
-        entityId,
-        entityType: 'spreadsheet_app',
-        type,
-        content,
-        createdBy,
-        createdByName: response.createdByName as string | undefined,
-        createdByAvatar: response.createdByAvatar as string | undefined,
-        createdAt,
-        updatedAt: response.updatedAt as string | undefined,
-        resolvedAt: response.resolvedAt as string | undefined,
-        resolvedBy: response.resolvedBy as string | undefined,
-        cellReference: response.cellReference as string | undefined,
-        sheetId: response.sheetId as string | undefined,
-        parentId: (response.parentId as string | undefined) || commentId
-      }
+      return mapCommentResponse(response, response.id as string, commentId)
     } catch (error) {
       console.error('Failed to reply to comment:', error)
       return null
@@ -1686,19 +1579,19 @@ export const SpreadsheetApiService = {
     try {
       const response = await apiRequest<Record<string, unknown>>(`/locks/spreadsheet_app/${appId}`)
 
-      if (!response.isLocked) {
-        return null
+      if (response.isLocked) {
+        return {
+          isLocked: true,
+          lockedBy: response.lockedBy as string | undefined,
+          lockedByName: response.lockedByName as string | undefined,
+          lockedByAvatar: response.lockedByAvatar as string | undefined,
+          lockedAt: response.lockedAt as string | undefined,
+          lockReason: response.lockReason as string | undefined,
+          lockExpiry: response.lockExpiry as string | undefined
+        }
       }
 
-      return {
-        isLocked: Boolean(response.isLocked),
-        lockedBy: response.lockedBy as string | undefined,
-        lockedByName: response.lockedByName as string | undefined,
-        lockedByAvatar: response.lockedByAvatar as string | undefined,
-        lockedAt: response.lockedAt as string | undefined,
-        lockReason: response.lockReason as string | undefined,
-        lockExpiry: response.lockExpiry as string | undefined
-      }
+      return null
     } catch (error) {
       console.error('Failed to get lock status:', error)
       return null

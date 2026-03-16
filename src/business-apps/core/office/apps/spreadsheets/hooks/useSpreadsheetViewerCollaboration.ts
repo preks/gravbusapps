@@ -8,7 +8,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useCollaboration } from '../../../../../platform/apps/shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type { DocumentParticipant, CollaborationOperation } from '../../../../../platform/apps/shared/services/CollaborationClient'
+import type {
+  DocumentParticipant,
+  CollaborationOperation
+} from '../../../../../platform/apps/shared/services/CollaborationClient'
 
 function sameBaseParticipant(a: DocumentParticipant, b: DocumentParticipant): boolean {
   return (
@@ -44,7 +47,7 @@ function safeParseJwtPayload(
   try {
     const parts = token.split('.')
     if (parts.length !== 3 || !parts[1]) return null
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const base64 = parts[1].replaceAll('-', '+').replaceAll('_', '/')
     const json = atob(base64)
     const payload = JSON.parse(json)
     return typeof payload === 'object' && payload !== null ? payload : null

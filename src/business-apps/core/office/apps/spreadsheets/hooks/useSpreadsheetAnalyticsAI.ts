@@ -110,7 +110,7 @@ export function useSpreadsheetAnalyticsAI({
     for (const column of numeric.slice(0, 4)) {
       const values = sheetData
         .map(row => row[column.name])
-        .map(value => (typeof value === 'number' ? value : Number(String(value ?? '').replace(/,/g, ''))))
+        .map(value => (typeof value === 'number' ? value : Number(String(value ?? '').replaceAll(',', ''))))
         .filter(v => Number.isFinite(v))
 
       if (values.length < 2) continue

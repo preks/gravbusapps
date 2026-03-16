@@ -89,6 +89,41 @@ const isConnectionError = (error: unknown): boolean =>
 const CONNECTION_ERROR_MSG =
   'Document service is unavailable. Start the backend (npm run dev in document-service) to use spreadsheets.'
 
+function getErrorMessage(error: unknown, isConnection: boolean, fallback: string): string {
+  if (isConnection) return CONNECTION_ERROR_MSG
+  return error instanceof Error ? error.message : fallback
+}
+
+function mergeAppIntoList(apps: SpreadsheetAppSummary[], id: string, updated: SpreadsheetApp): SpreadsheetAppSummary[] {
+  return apps.map(app =>
+    app.id === id
+      ? {
+          ...app,
+          name: updated.name,
+          description: updated.description,
+          status: updated.status,
+          updatedAt: updated.updatedAt
+        }
+      : app
+  )
+}
+
+async function fetchAllAppsPaginated(): Promise<Awaited<ReturnType<typeof SpreadsheetApiService.listApps>>> {
+  const PAGE_SIZE = 100
+  const allApps: Awaited<ReturnType<typeof SpreadsheetApiService.listApps>> = []
+  let page = 1
+  let hasMore = true
+
+  while (hasMore) {
+    const pageItems = await SpreadsheetApiService.listApps({ limit: PAGE_SIZE, page })
+    allApps.push(...pageItems)
+    hasMore = pageItems.length === PAGE_SIZE
+    page++
+  }
+
+  return allApps
+}
+
 async function persistSheetRows(appId: string, sheetId: string, data: Record<string, unknown>[]): Promise<void> {
   for (const row of data) {
     const rowId = row._id as string | undefined
@@ -139,17 +174,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
     setState(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      const PAGE_SIZE = 100
-      let allApps: Awaited<ReturnType<typeof SpreadsheetApiService.listApps>> = []
-      let page = 1
-      let hasMore = true
-
-      while (hasMore) {
-        const pageItems = await SpreadsheetApiService.listApps({ limit: PAGE_SIZE, page })
-        allApps = [...allApps, ...pageItems]
-        hasMore = pageItems.length === PAGE_SIZE
-        page++
-      }
+      const allApps = await fetchAllAppsPaginated()
 
       setState(prev => ({
         ...prev,
@@ -163,7 +188,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: isConn ? CONNECTION_ERROR_MSG : error instanceof Error ? error.message : 'Failed to load apps'
+        error: getErrorMessage(error, isConn, 'Failed to load apps')
       }))
     }
   }, [accessToken])
@@ -222,7 +247,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         setState(prev => ({
           ...prev,
           isLoading: false,
-          error: isConn ? CONNECTION_ERROR_MSG : error instanceof Error ? error.message : 'Failed to load app'
+          error: getErrorMessage(error, isConn, 'Failed to load app')
         }))
         return null
       }
@@ -287,17 +312,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           setState(prev => ({
             ...prev,
             currentApp: prev.currentApp?.id === id ? updatedApp : prev.currentApp,
-            apps: prev.apps.map(app =>
-              app.id === id
-                ? {
-                    ...app,
-                    name: updatedApp.name,
-                    description: updatedApp.description,
-                    status: updatedApp.status,
-                    updatedAt: updatedApp.updatedAt
-                  }
-                : app
-            ),
+            apps: mergeAppIntoList(prev.apps, id, updatedApp),
             isSaving: false,
             storageMode: 'database'
           }))

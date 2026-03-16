@@ -79,7 +79,7 @@ interface UniverSnapshot {
 /** Normalise a 6-char hex to ARGB (full opacity). */
 function toArgb(rgb: string | undefined): string | undefined {
   if (!rgb) return undefined
-  const hex = rgb.replace('#', '')
+  const hex = rgb.replaceAll('#', '')
   if (hex.length === 6) return `FF${hex.toUpperCase()}`
   if (hex.length === 8) return hex.toUpperCase()
   return undefined
@@ -313,6 +313,6 @@ export async function exportSnapshotAsXlsx(snapshot: Record<string, unknown>, fi
   a.download = `${filename}.xlsx`
   document.body.appendChild(a)
   a.click()
-  document.body.removeChild(a)
+  a.remove()
   URL.revokeObjectURL(url)
 }

@@ -74,9 +74,12 @@ function getAutomationTypeIcon(type: AutomationType) {
   }
 }
 
-/**
- * Get icon for workflow status
- */
+function getWorkflowStatusBadgeVariant(status: string): 'success' | 'destructive' | 'info' | 'outline' {
+  if (status === 'COMPLETED') return 'success'
+  if (status === 'FAILED') return 'destructive'
+  if (status === 'RUNNING') return 'info'
+  return 'outline'
+}
 
 /**
  * AutomationRowContextMenu Component
@@ -109,16 +112,19 @@ export const AutomationRowContextMenu: React.FC<AutomationRowContextMenuProps> =
 
   // Check if current user is assigned to the current task
   const isAssignedToCurrentUser = useMemo(() => {
-    if (!workflowLink?.stepDetails || !currentUserId) return false
+    if (!workflowLink || !workflowLink.stepDetails || !currentUserId) return false
     const currentStep = workflowLink.stepDetails[workflowLink.currentStepIndex]
-    return currentStep?.assignedTo === currentUserId
+    return currentStep && currentStep.assignedTo === currentUserId
   }, [workflowLink, currentUserId])
 
   // Determine available actions based on workflow state
+  const currentStep =
+    workflowLink && workflowLink.stepDetails && workflowLink.stepDetails[workflowLink.currentStepIndex]
   const canClaim =
     workflowLink &&
     workflowLink.workflowStatus === 'RUNNING' &&
-    workflowLink.stepDetails?.[workflowLink.currentStepIndex]?.status === 'PENDING' &&
+    currentStep &&
+    currentStep.status === 'PENDING' &&
     onClaimTask
 
   const canComplete =
@@ -186,15 +192,7 @@ export const AutomationRowContextMenu: React.FC<AutomationRowContextMenuProps> =
               <Eye className="gba:w-4 gba:h-4 gba:mr-2" />
               View Workflow Details
               <Badge
-                variant={
-                  workflowLink.workflowStatus === 'COMPLETED'
-                    ? 'success'
-                    : workflowLink.workflowStatus === 'FAILED'
-                      ? 'destructive'
-                      : workflowLink.workflowStatus === 'RUNNING'
-                        ? 'info'
-                        : 'outline'
-                }
+                variant={getWorkflowStatusBadgeVariant(workflowLink.workflowStatus)}
                 className="gba:ml-auto gba:text-xs"
               >
                 {getWorkflowStatusLabel(workflowLink.workflowStatus)}

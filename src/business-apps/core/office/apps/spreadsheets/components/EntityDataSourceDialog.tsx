@@ -52,6 +52,7 @@ import {
 import { useEntityDataSource } from '../hooks/useEntityDataSource'
 import type {
   EntityDataSource,
+  EntityFilterCondition,
   EntityFilterGroup,
   EntitySortConfig,
   EntityFieldMapping,
@@ -369,7 +370,13 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
   ])
 
   return (
-    <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={open => {
+        if (open) return
+        onClose()
+      }}
+    >
       <DialogContent
         className="gba:max-w-4xl gba:max-h-[85vh] gba:overflow-hidden gba:flex gba:flex-col"
         data-testid={testId}
@@ -420,12 +427,13 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                     </p>
                   </div>
 
-                  {isLoadingEntities ? (
+                  {isLoadingEntities && (
                     <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
                       <Loader2 className="gba:h-6 gba:w-6 gba:animate-spin gba:text-muted-foreground" />
                       <span className="gba:ml-2 gba:text-muted-foreground">Loading entities...</span>
                     </div>
-                  ) : entitiesError ? (
+                  )}
+                  {!isLoadingEntities && entitiesError && (
                     <div className="gba:text-center gba:py-8">
                       <AlertCircle className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:text-destructive" />
                       <p className="gba:text-destructive gba:font-medium gba:mb-1">Failed to load entities</p>
@@ -435,19 +443,23 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                         Retry
                       </Button>
                     </div>
-                  ) : availableEntities.length > 0 ? (
+                  )}
+                  {!isLoadingEntities && !entitiesError && availableEntities.length > 0 && (
                     <div className="gba:grid gba:grid-cols-2 gba:gap-3">
                       {availableEntities.map(entity => {
                         const Icon = getEntityIcon(entity.type)
                         const isSelected = selectedEntityType === entity.type
 
+                        const iconWrapperClass = isSelected
+                          ? 'gba:p-2 gba:rounded-lg gba:bg-primary gba:text-primary-foreground'
+                          : 'gba:p-2 gba:rounded-lg gba:bg-muted'
                         return (
                           <button
                             key={entity.type}
                             type="button"
                             onClick={() => {
                               setSelectedEntityType(entity.type)
-                              setFieldMappings([]) // Reset to regenerate
+                              setFieldMappings([])
                             }}
                             className={`gba:flex gba:items-start gba:gap-3 gba:p-4 gba:rounded-lg gba:border gba:text-left gba:transition-colors ${
                               isSelected
@@ -456,9 +468,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                             }`}
                             data-testid={`${testId}-entity-${entity.type}`}
                           >
-                            <div
-                              className={`gba:p-2 gba:rounded-lg ${isSelected ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted'}`}
-                            >
+                            <div className={iconWrapperClass}>
                               <Icon className="gba:h-5 gba:w-5" />
                             </div>
                             <div className="gba:flex-1 gba:min-w-0">
@@ -467,7 +477,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                                 {isSelected && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
                               </div>
                               <p className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                                {entity.description || `${entity.fields.length} fields available`}
+                                {entity.description ?? `${entity.fields?.length ?? 0} fields available`}
                               </p>
                               {entity.category && (
                                 <Badge variant="secondary" className="gba:mt-1">
@@ -479,7 +489,8 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                         )
                       })}
                     </div>
-                  ) : (
+                  )}
+                  {!isLoadingEntities && !entitiesError && availableEntities.length === 0 && (
                     <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
                       <AlertCircle className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2" />
                       <p>No entities available</p>
@@ -694,7 +705,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                   {/* Fields list */}
                   <div className="gba:space-y-2">
                     {fieldMappings.map(mapping => {
-                      const isFiltered = searchQuery && !filteredFields.some(f => f.name === mapping.entityField)
+                      const isFiltered = searchQuery && filteredFields.every(f => f.name !== mapping.entityField)
                       if (isFiltered) return null
 
                       return (

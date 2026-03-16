@@ -137,15 +137,16 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
         <p className="gba:text-sm gba:text-muted-foreground">
           Choose a presentation. The chart will be added as a new slide.
         </p>
-        {loading ? (
+        {loading && (
           <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
             <Spinner className="gba:w-8 gba:h-8" />
           </div>
-        ) : error ? (
-          <p className="gba:text-sm gba:text-destructive gba:py-4">{error}</p>
-        ) : slides.length === 0 ? (
+        )}
+        {!loading && error && <p className="gba:text-sm gba:text-destructive gba:py-4">{error}</p>}
+        {!loading && !error && slides.length === 0 && (
           <p className="gba:text-sm gba:text-muted-foreground gba:py-4">No presentations found.</p>
-        ) : (
+        )}
+        {!loading && !error && slides.length > 0 && (
           <ScrollArea className="gba:max-h-[320px] gba:rounded-md gba:border gba:border-border">
             <div className="gba:p-2 gba:space-y-1">
               {slides.map(s => (

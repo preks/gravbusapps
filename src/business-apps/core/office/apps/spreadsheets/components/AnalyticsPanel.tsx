@@ -131,12 +131,9 @@ function buildFallbackHeaderMap(
 
   const map = new Map<string, string>()
   for (const col of columns) {
-    const raw =
-      first[col.name] ?? first[col.id] ?? (first as Record<string, unknown>)[(col as { label?: string }).label]
-    const value =
-      raw != null && typeof raw === 'object' && !Array.isArray(raw)
-        ? ((raw as Record<string, unknown>).v ?? (raw as Record<string, unknown>).m ?? raw)
-        : raw
+    const raw = first[col.name] ?? first[col.id] ?? (col.label ? first[col.label] : undefined)
+    const obj = raw != null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null
+    const value = obj ? (obj.v ?? obj.m ?? raw) : raw
     const label = value != null && value !== '' ? String(value).trim() : ''
     if (label) map.set(col.name, label)
   }
@@ -145,6 +142,181 @@ function buildFallbackHeaderMap(
 
 function toggleSelection(values: string[], value: string): string[] {
   return values.includes(value) ? values.filter(name => name !== value) : [...values, value]
+}
+
+function getRatioBarClass(ratio: number): string {
+  if (ratio >= 60) return 'gba:bg-success'
+  if (ratio >= 30) return 'gba:bg-primary'
+  return 'gba:bg-warning'
+}
+
+interface ChartPreviewProps {
+  chartData: Record<string, unknown>[]
+  chartXAxis: string
+  chartYAxis: string[]
+  chartXRange: string
+  chartYRange: string
+  normalizedChartRows: Record<string, unknown>[]
+  chartableValueColumnNames: Set<string>
+  columns: SpreadsheetColumn[]
+  chartType: AnalyticsChartType
+  showGrid: boolean
+  showLegend: boolean
+  getColumnHeader: (column: SpreadsheetColumn) => string
+}
+
+function ChartPreview({
+  chartData,
+  chartXAxis,
+  chartYAxis,
+  chartXRange,
+  chartYRange,
+  normalizedChartRows,
+  chartableValueColumnNames,
+  columns,
+  chartType,
+  showGrid,
+  showLegend,
+  getColumnHeader
+}: ChartPreviewProps): React.ReactNode {
+  if (chartData.length === 0) {
+    const hasAxes = chartXAxis && chartYAxis.length > 0
+    const hasData = normalizedChartRows.length > 0
+    return (
+      <div className="gba:text-xs gba:text-muted-foreground" data-testid="chart-preview-empty">
+        {!hasAxes && 'Select X and Y fields to render a chart preview.'}
+        {hasAxes &&
+          !hasData &&
+          (chartXRange || chartYRange
+            ? 'No data in the specified range. Try a different range or clear the range fields to use all data.'
+            : 'No data rows available. Add data to your sheet.')}
+        {hasAxes && hasData && 'Could not extract chart data. Ensure your columns contain the selected fields.'}
+      </div>
+    )
+  }
+
+  const yAxesForRender = chartYAxis.filter(y => y !== chartXAxis && chartableValueColumnNames.has(y))
+  const primaryY = yAxesForRender[0] ?? chartYAxis[0]
+
+  if (chartType === 'pie') {
+    return (
+      <ResponsiveContainer width="100%" height={220}>
+        <PieChart>
+          <Tooltip />
+          <Pie data={chartData as any[]} dataKey={primaryY} nameKey={chartXAxis} innerRadius={50} outerRadius={82}>
+            {(chartData as any[]).map((entry, index) => (
+              <Cell
+                key={`pie-${String(entry[chartXAxis] ?? index)}`}
+                fill={CHART_COLORS[index % CHART_COLORS.length]}
+              />
+            ))}
+          </Pie>
+          {showLegend && <Legend />}
+        </PieChart>
+      </ResponsiveContainer>
+    )
+  }
+
+  if (chartType === 'line') {
+    return (
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={chartData as any[]}>
+          {showGrid && <CartesianGrid vertical={false} />}
+          <XAxis dataKey={chartXAxis} tickLine={false} axisLine={false} />
+          <YAxis tickLine={false} axisLine={false} />
+          <Tooltip />
+          {showLegend && <Legend />}
+          {yAxesForRender.map((y, index) => {
+            const col = columns.find(c => c.name === y)
+            const displayName = col ? getColumnHeader(col) : y
+            return (
+              <Line
+                key={y}
+                type="monotone"
+                dataKey={y}
+                name={displayName}
+                stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                strokeWidth={2}
+              />
+            )
+          })}
+        </LineChart>
+      </ResponsiveContainer>
+    )
+  }
+
+  if (chartType === 'area') {
+    return (
+      <ResponsiveContainer width="100%" height={220}>
+        <AreaChart data={chartData as any[]}>
+          {showGrid && <CartesianGrid vertical={false} />}
+          <XAxis dataKey={chartXAxis} tickLine={false} axisLine={false} />
+          <YAxis tickLine={false} axisLine={false} />
+          <Tooltip />
+          {showLegend && <Legend />}
+          {yAxesForRender.map((y, index) => {
+            const col = columns.find(c => c.name === y)
+            const displayName = col ? getColumnHeader(col) : y
+            return (
+              <Area
+                key={y}
+                type="monotone"
+                dataKey={y}
+                name={displayName}
+                stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                fill={CHART_COLORS[index % CHART_COLORS.length]}
+                fillOpacity={0.2}
+              />
+            )
+          })}
+        </AreaChart>
+      </ResponsiveContainer>
+    )
+  }
+
+  if (chartType === 'scatter') {
+    const xCol = columns.find(c => c.name === chartXAxis)
+    const yCol = columns.find(c => c.name === primaryY)
+    const xDisplay = xCol ? getColumnHeader(xCol) : chartXAxis
+    const yDisplay = yCol ? getColumnHeader(yCol) : primaryY
+    return (
+      <ResponsiveContainer width="100%" height={220}>
+        <ScatterChart>
+          {showGrid && <CartesianGrid />}
+          <XAxis dataKey={chartXAxis} name={xDisplay} />
+          <YAxis dataKey={primaryY} name={yDisplay} />
+          <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+          {showLegend && <Legend />}
+          <Scatter data={chartData as any[]} fill={CHART_COLORS[0]} />
+        </ScatterChart>
+      </ResponsiveContainer>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={chartData as any[]}>
+        {showGrid && <CartesianGrid vertical={false} />}
+        <XAxis dataKey={chartXAxis} tickLine={false} axisLine={false} />
+        <YAxis tickLine={false} axisLine={false} />
+        <Tooltip />
+        {showLegend && <Legend />}
+        {yAxesForRender.map((y, index) => {
+          const col = columns.find(c => c.name === y)
+          const displayName = col ? getColumnHeader(col) : y
+          return (
+            <Bar
+              key={y}
+              dataKey={y}
+              name={displayName}
+              fill={CHART_COLORS[index % CHART_COLORS.length]}
+              radius={[4, 4, 0, 0]}
+            />
+          )
+        })}
+      </BarChart>
+    </ResponsiveContainer>
+  )
 }
 
 export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function AnalyticsPanel({
@@ -203,37 +375,43 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
     return detectHeaderInfo(columns, sheetData, hasGenericColumnNames)
   }, [columns, hasGenericColumnNames, sheetData])
 
-  const gridHeaderMap = isOpen && getHeaderRowFromGrid ? getHeaderRowFromGrid() : null
-  const gridSheetData = isOpen && getSheetDataFromGrid ? getSheetDataFromGrid() : null
+  const gridHeaderMap = isOpen ? (getHeaderRowFromGrid?.() ?? null) : null
+  const gridSheetData = isOpen ? (getSheetDataFromGrid?.() ?? null) : null
   const detectedHeaderMap = detectedHeaderInfo.headerMap
   const fallbackHeaderMap = useMemo(() => {
     return buildFallbackHeaderMap(columns, sheetData)
   }, [columns, sheetData])
-  const firstRowHeaderMap =
-    (gridHeaderMap?.size ? gridHeaderMap : null) ??
-    (detectedHeaderMap.size ? detectedHeaderMap : null) ??
-    (fallbackHeaderMap.size ? fallbackHeaderMap : new Map<string, string>())
-  const headerRowIndex = gridHeaderMap?.size
-    ? 0
-    : detectedHeaderMap.size
-      ? detectedHeaderInfo.headerRowIndex
-      : fallbackHeaderMap.size
-        ? 0
-        : -1
+  let firstRowHeaderMap: Map<string, string>
+  let headerRowIndex: number
+  if (gridHeaderMap?.size) {
+    firstRowHeaderMap = gridHeaderMap
+    headerRowIndex = 0
+  } else if (detectedHeaderMap.size) {
+    firstRowHeaderMap = detectedHeaderMap
+    headerRowIndex = detectedHeaderInfo.headerRowIndex
+  } else if (fallbackHeaderMap.size) {
+    firstRowHeaderMap = fallbackHeaderMap
+    headerRowIndex = 0
+  } else {
+    firstRowHeaderMap = new Map<string, string>()
+    headerRowIndex = -1
+  }
   const shouldUseFirstRowAsHeaders = firstRowHeaderMap.size > 0 && headerRowIndex >= 0
 
   const baseDataForAnalytics = gridSheetData ?? sheetData
   const analyticsRows = useMemo(() => {
-    let rows = shouldUseFirstRowAsHeaders ? baseDataForAnalytics.slice((headerRowIndex ?? 0) + 1) : baseDataForAnalytics
-    if (rows.length === 0 && shouldUseFirstRowAsHeaders) return []
-    if (rows.length === 0) return baseDataForAnalytics
+    let rows = shouldUseFirstRowAsHeaders ? baseDataForAnalytics.slice(headerRowIndex + 1) : baseDataForAnalytics
+    if (rows.length === 0) {
+      return shouldUseFirstRowAsHeaders ? [] : baseDataForAnalytics
+    }
     if (gridSheetData) {
       rows = rows.filter(row => {
         const vals = Object.values(row)
         return vals.some(v => v != null && v !== '')
       })
     }
-    return rows.length > 0 ? rows : shouldUseFirstRowAsHeaders ? [] : baseDataForAnalytics
+    if (rows.length > 0) return rows
+    return shouldUseFirstRowAsHeaders ? [] : baseDataForAnalytics
   }, [baseDataForAnalytics, headerRowIndex, shouldUseFirstRowAsHeaders, gridSheetData])
 
   const getDefaultRangeForColumn = useCallback(
@@ -251,7 +429,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
   const parsedYRange = useMemo(() => parseChartRange(chartYRange), [chartYRange])
 
   const chartAnalyticsRows = useMemo(() => {
-    const headerRow = headerRowIndex ?? 0
+    const headerRow = headerRowIndex
 
     const applyRange = (parsed: ReturnType<typeof parseChartRange>) => {
       if (!parsed) return analyticsRows
@@ -417,9 +595,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
   const getCellValueForChart = useCallback(
     (row: Record<string, unknown>, col: SpreadsheetColumn): unknown => {
-      const keysToTry = [col.name, col.id, (col as { label?: string }).label, firstRowHeaderMap.get(col.name)].filter(
-        Boolean
-      ) as string[]
+      const keysToTry = [col.name, col.id, col.label, firstRowHeaderMap.get(col.name)].filter(Boolean) as string[]
       for (const key of keysToTry) {
         const raw = row[key]
         if (raw !== undefined) return extractCellValue(raw)
@@ -506,6 +682,15 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
   if (!isOpen) return null
 
+  let yRangePlaceholder = 'e.g. G2:G100'
+  if (chartYAxis[0]) {
+    const yIdx = columns.findIndex(c => c.name === chartYAxis[0])
+    if (yIdx >= 0) {
+      const colLetter = indexToExcelCol(yIdx)
+      yRangePlaceholder = `${colLetter}2:${colLetter}${Math.max(100, analyticsRows.length + 10)}`
+    }
+  }
+
   const handleComputePivot = () => {
     if (!canComputePivot) return
     const cacheKey = JSON.stringify({
@@ -541,149 +726,17 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
     await navigator.clipboard.writeText(text)
   }
 
-  const renderChartPreview = () => {
-    if (chartData.length === 0) {
-      const hasAxes = chartXAxis && chartYAxis.length > 0
-      const hasData = normalizedChartRows.length > 0
-      return (
-        <div className="gba:text-xs gba:text-muted-foreground" data-testid="chart-preview-empty">
-          {!hasAxes && 'Select X and Y fields to render a chart preview.'}
-          {hasAxes &&
-            !hasData &&
-            (chartXRange || chartYRange
-              ? 'No data in the specified range. Try a different range or clear the range fields to use all data.'
-              : 'No data rows available. Add data to your sheet.')}
-          {hasAxes && hasData && 'Could not extract chart data. Ensure your columns contain the selected fields.'}
-        </div>
-      )
-    }
-
-    const yAxesForRender = chartYAxis.filter(y => y !== chartXAxis && chartableValueColumnNames.has(y))
-    const primaryY = yAxesForRender[0] ?? chartYAxis[0]
-
-    if (chartType === 'pie') {
-      return (
-        <ResponsiveContainer width="100%" height={220}>
-          <PieChart>
-            <Tooltip />
-            <Pie data={chartData as any[]} dataKey={primaryY} nameKey={chartXAxis} innerRadius={50} outerRadius={82}>
-              {(chartData as any[]).map((_, index) => (
-                <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-              ))}
-            </Pie>
-            {showLegend && <Legend />}
-          </PieChart>
-        </ResponsiveContainer>
-      )
-    }
-
-    if (chartType === 'line') {
-      return (
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={chartData as any[]}>
-            {showGrid && <CartesianGrid vertical={false} />}
-            <XAxis dataKey={chartXAxis} tickLine={false} axisLine={false} />
-            <YAxis tickLine={false} axisLine={false} />
-            <Tooltip />
-            {showLegend && <Legend />}
-            {yAxesForRender.map((y, index) => {
-              const col = columns.find(c => c.name === y)
-              const displayName = col ? getColumnHeader(col) : y
-              return (
-                <Line
-                  key={y}
-                  type="monotone"
-                  dataKey={y}
-                  name={displayName}
-                  stroke={CHART_COLORS[index % CHART_COLORS.length]}
-                  strokeWidth={2}
-                />
-              )
-            })}
-          </LineChart>
-        </ResponsiveContainer>
-      )
-    }
-
-    if (chartType === 'area') {
-      return (
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={chartData as any[]}>
-            {showGrid && <CartesianGrid vertical={false} />}
-            <XAxis dataKey={chartXAxis} tickLine={false} axisLine={false} />
-            <YAxis tickLine={false} axisLine={false} />
-            <Tooltip />
-            {showLegend && <Legend />}
-            {yAxesForRender.map((y, index) => {
-              const col = columns.find(c => c.name === y)
-              const displayName = col ? getColumnHeader(col) : y
-              return (
-                <Area
-                  key={y}
-                  type="monotone"
-                  dataKey={y}
-                  name={displayName}
-                  stroke={CHART_COLORS[index % CHART_COLORS.length]}
-                  fill={CHART_COLORS[index % CHART_COLORS.length]}
-                  fillOpacity={0.2}
-                />
-              )
-            })}
-          </AreaChart>
-        </ResponsiveContainer>
-      )
-    }
-
-    if (chartType === 'scatter') {
-      const xCol = columns.find(c => c.name === chartXAxis)
-      const yCol = columns.find(c => c.name === primaryY)
-      const xDisplay = xCol ? getColumnHeader(xCol) : chartXAxis
-      const yDisplay = yCol ? getColumnHeader(yCol) : primaryY
-      return (
-        <ResponsiveContainer width="100%" height={220}>
-          <ScatterChart>
-            {showGrid && <CartesianGrid />}
-            <XAxis dataKey={chartXAxis} name={xDisplay} />
-            <YAxis dataKey={primaryY} name={yDisplay} />
-            <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-            {showLegend && <Legend />}
-            <Scatter data={chartData as any[]} fill={CHART_COLORS[0]} />
-          </ScatterChart>
-        </ResponsiveContainer>
-      )
-    }
-
-    return (
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={chartData as any[]}>
-          {showGrid && <CartesianGrid vertical={false} />}
-          <XAxis dataKey={chartXAxis} tickLine={false} axisLine={false} />
-          <YAxis tickLine={false} axisLine={false} />
-          <Tooltip />
-          {showLegend && <Legend />}
-          {yAxesForRender.map((y, index) => {
-            const col = columns.find(c => c.name === y)
-            const displayName = col ? getColumnHeader(col) : y
-            return (
-              <Bar
-                key={y}
-                dataKey={y}
-                name={displayName}
-                fill={CHART_COLORS[index % CHART_COLORS.length]}
-                radius={[4, 4, 0, 0]}
-              />
-            )
-          })}
-        </BarChart>
-      </ResponsiveContainer>
-    )
-  }
-
   return createPortal(
     <div className="gba:fixed gba:inset-0" style={{ zIndex: 999999 }} data-testid={testId}>
       <div
         className="gba:absolute gba:inset-0 gba:bg-black/30 gba:backdrop-blur-[2px] gba:transition-opacity"
+        role="button"
+        tabIndex={0}
+        aria-label="Close panel"
         onClick={onClose}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') onClose()
+        }}
         style={{ zIndex: 999999 }}
       />
       <div
@@ -698,7 +751,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
             <div>
               <h2 className="gba:text-base gba:font-semibold gba:text-foreground">AI Analytics</h2>
               <p className="gba:text-xs gba:text-muted-foreground">
-                {analyticsRows.length} rows x {columns.length} cols
+                {`${analyticsRows.length} rows x ${columns.length} cols`}
               </p>
             </div>
           </div>
@@ -811,8 +864,11 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                       </tr>
                     </thead>
                     <tbody>
-                      {pivotRows.slice(0, 40).map((row, index) => (
-                        <tr key={index} className="gba:border-t gba:border-border/40">
+                      {pivotRows.slice(0, 40).map((row, rowIdx) => (
+                        <tr
+                          key={`pivot-${String(row[pivotPreviewColumns[0]] ?? rowIdx)}`}
+                          className="gba:border-t gba:border-border/40"
+                        >
                           {pivotPreviewColumns.map(column => (
                             <td key={column} className="gba:px-2.5 gba:py-1.5">
                               {String(row[column] ?? '')}
@@ -879,9 +935,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 <label className="gba:text-xs gba:text-muted-foreground">
                   Y-Axis (Values)
                   <div className="gba:mt-1 gba:flex gba:flex-wrap gba:gap-1">
-                    {chartableValueColumns.length === 0 ? (
-                      <span className="gba:text-xs gba:text-muted-foreground">No value columns detected.</span>
-                    ) : (
+                    {chartableValueColumns.length > 0 ? (
                       chartableValueColumns
                         .filter(col => col.name !== chartXAxis)
                         .map(col => {
@@ -897,22 +951,15 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                             </Button>
                           )
                         })
+                    ) : (
+                      <span className="gba:text-xs gba:text-muted-foreground">No value columns detected.</span>
                     )}
                   </div>
                   <div className="gba:mt-1 gba:flex gba:items-center gba:gap-2">
                     <span className="gba:text-xs gba:text-muted-foreground/80">Range:</span>
                     <input
                       type="text"
-                      placeholder={
-                        chartYAxis[0]
-                          ? (() => {
-                              const idx = columns.findIndex(c => c.name === chartYAxis[0])
-                              if (idx < 0) return 'e.g. G2:G100'
-                              const colLetter = indexToExcelCol(idx)
-                              return `${colLetter}2:${colLetter}${Math.max(100, analyticsRows.length + 10)}`
-                            })()
-                          : 'e.g. G2:G100'
-                      }
+                      placeholder={yRangePlaceholder}
                       className="gba:flex-1 gba:min-w-0 gba:h-8 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-2.5 gba:text-sm gba:font-mono"
                       value={chartYRange}
                       onChange={e => setChartYRange(e.target.value)}
@@ -983,7 +1030,20 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                     </h3>
                   )}
                   <div data-chart-export-target className="gba:w-full">
-                    {renderChartPreview()}
+                    <ChartPreview
+                      chartData={chartData}
+                      chartXAxis={chartXAxis}
+                      chartYAxis={chartYAxis}
+                      chartXRange={chartXRange}
+                      chartYRange={chartYRange}
+                      normalizedChartRows={normalizedChartRows}
+                      chartableValueColumnNames={chartableValueColumnNames}
+                      columns={columns}
+                      chartType={chartType}
+                      showGrid={showGrid}
+                      showLegend={showLegend}
+                      getColumnHeader={getColumnHeader}
+                    />
                   </div>
                 </div>
               </div>
@@ -1007,25 +1067,25 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
               {insightsError && (
                 <p className="gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/30 gba:rounded-md gba:p-2">
-                  Using local fallback: {insightsError}
+                  {`Using local fallback: ${insightsError}`}
                 </p>
               )}
               <div className="gba:space-y-2">
-                {insights.length === 0 ? (
-                  <div className="gba:border gba:border-secondary/30 gba:bg-secondary/5 gba:rounded-md gba:p-3">
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      Run AI insights to analyze trends and anomalies.
-                    </p>
-                  </div>
-                ) : (
-                  insights.map((item, index) => (
+                {insights.length > 0 ? (
+                  insights.map(item => (
                     <div
-                      key={index}
+                      key={item.slice(0, 60)}
                       className="gba:text-sm gba:p-3 gba:rounded-md gba:bg-success/5 gba:border gba:border-success/20"
                     >
                       {item}
                     </div>
                   ))
+                ) : (
+                  <div className="gba:border gba:border-secondary/30 gba:bg-secondary/5 gba:rounded-md gba:p-3">
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      Run AI insights to analyze trends and anomalies.
+                    </p>
+                  </div>
                 )}
               </div>
             </TabsContent>
@@ -1048,7 +1108,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
               {summaryError && (
                 <p className="gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/30 gba:rounded-md gba:p-2">
-                  Using local fallback: {summaryError}
+                  {`Using local fallback: ${summaryError}`}
                 </p>
               )}
               {summary ? (
@@ -1064,10 +1124,10 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                       <div className="gba:flex gba:items-center gba:justify-between">
                         <h4 className="gba:text-sm gba:font-medium">{card.columnName}</h4>
                         <span className="gba:text-xs gba:text-muted-foreground">
-                          Count {card.count} · Unique {card.unique}
+                          {`Count ${card.count} · Unique ${card.unique}`}
                         </span>
                       </div>
-                      <p className="gba:text-xs gba:text-muted-foreground">Mode: {card.mode}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">{`Mode: ${card.mode}`}</p>
                       <div className="gba:space-y-1">
                         {card.topValues.slice(0, 4).map(item => {
                           const ratio = card.count > 0 ? (item.count / card.count) * 100 : 0
@@ -1079,7 +1139,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                               </div>
                               <div className="gba:h-1.5 gba:bg-muted gba:rounded">
                                 <div
-                                  className={`gba:h-1.5 gba:rounded ${ratio >= 60 ? 'gba:bg-success' : ratio >= 30 ? 'gba:bg-primary' : 'gba:bg-warning'}`}
+                                  className={`gba:h-1.5 gba:rounded ${getRatioBarClass(ratio)}`}
                                   style={{ width: `${Math.min(100, ratio)}%` }}
                                 />
                               </div>
@@ -1132,7 +1192,6 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
               </Button>
             </div>
           )}
-          {activeTab !== 'pivot' && activeTab !== 'charts' && null}
         </div>
       </div>
       <SendToSlidesDialog

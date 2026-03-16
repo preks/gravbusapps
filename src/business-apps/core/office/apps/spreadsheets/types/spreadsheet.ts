@@ -7,12 +7,15 @@
  */
 
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
-import type { Version, Comment, FileLock, PublishStatus, PublishMetadata } from '../../../../../platform/apps/shared/types/versioning'
+export type {
+  Version,
+  Comment,
+  FileLock,
+  PublishStatus,
+  PublishMetadata
+} from '../../../../../platform/apps/shared/types/versioning'
 import type { EntityDataSource } from './entityDataSource'
 import type { SpreadsheetAutomation, WorkflowRowLink, WorkflowStatusColumnConfig } from './automation'
-
-// Re-export shared types for convenience
-export type { Version, Comment, FileLock, PublishStatus, PublishMetadata }
 
 // ============================================================================
 // Excel Parsing Types
@@ -245,6 +248,8 @@ export interface TableWidgetConfig {
  */
 export type AppType = 'data_grid' | 'form_table' | 'dashboard' | 'mixed'
 
+export type AppPermission = 'owner' | 'view' | 'edit' | 'comment' | 'admin'
+
 /**
  * Complete spreadsheet app definition
  */
@@ -271,7 +276,7 @@ export interface SpreadsheetApp {
     sharedAt: string
   }>
   // Permission info (from backend for shared apps)
-  permission?: 'owner' | 'view' | 'edit' | 'comment' | 'admin'
+  permission?: AppPermission
   isShared?: boolean
   sharedBy?: string
 
@@ -627,7 +632,7 @@ export interface SpreadsheetAppSummary {
   isOwner?: boolean
   sharedWithCount?: number
   // Permission info from backend
-  permission?: 'owner' | 'view' | 'edit' | 'comment' | 'admin'
+  permission?: AppPermission
   sharedBy?: string
   sharedByName?: string
   /** App settings (e.g. excel_collection_copy for Excel Collection copies to hide from list) */

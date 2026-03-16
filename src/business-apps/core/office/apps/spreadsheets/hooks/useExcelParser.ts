@@ -24,6 +24,12 @@ export interface UseExcelParserResult extends UseExcelParserState {
 
 const MAX_SAMPLE_VALUES = 10
 const MAX_ROWS_FOR_TYPE_INFERENCE = 100
+const VALID_FILE_TYPES = [
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/csv',
+  'application/csv'
+]
+const FILE_EXTENSION_REGEX = /\.(xlsx|csv)$/i
 
 type NormalizedCellValue = string | number | boolean | null
 
@@ -34,7 +40,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function normalizeColorToHex(value: unknown): string | null {
   if (!isRecord(value) || typeof value.argb !== 'string') return null
   const argb = value.argb.trim()
-  if (!/^[0-9a-fA-F]{8}$/.test(argb)) return null
+  if (!/^[\da-fA-F]{8}$/.test(argb)) return null
   // ExcelJS stores ARGB (AARRGGBB). FortuneSheet expects #RRGGBB.
   return `#${argb.slice(2).toLowerCase()}`
 }
@@ -297,6 +303,39 @@ function getWorksheetMaxColumns(worksheet: ExcelJS.Worksheet): number {
   return Math.max(worksheet.actualColumnCount || 0, headerRow.cellCount || 0)
 }
 
+function isValidExcelFileType(file: File): boolean {
+  return VALID_FILE_TYPES.includes(file.type) || FILE_EXTENSION_REGEX.test(file.name)
+}
+
+function isCsvFile(file: File): boolean {
+  const fileNameLower = file.name.toLowerCase()
+  return file.type === 'text/csv' || file.type === 'application/csv' || fileNameLower.endsWith('.csv')
+}
+
+async function parseCsvFile(file: File): Promise<{ sheets: ParsedSheet[]; metadata: ExcelMetadata }> {
+  const content = await file.text()
+  const { headers, dataRows } = parseCSVContent(content)
+  return {
+    sheets: [
+      buildParsedSheetFromAoa({
+        name: 'Sheet1',
+        index: 0,
+        headers,
+        dataRows
+      })
+    ],
+    metadata: { sheetCount: 1 }
+  }
+}
+
+async function parseXlsxFile(
+  file: File,
+  mode: 'structured' | 'preserve-format'
+): Promise<{ sheets: ParsedSheet[]; metadata: ExcelMetadata }> {
+  const arrayBuffer = await file.arrayBuffer()
+  return parseXlsxArrayBufferWithMode(arrayBuffer, mode)
+}
+
 function buildColumnWidthMap(worksheet: ExcelJS.Worksheet, maxColumns: number): Record<number, number | undefined> {
   const widths: Record<number, number | undefined> = {}
   for (let col = 1; col <= maxColumns; col++) {
@@ -451,53 +490,17 @@ export function useExcelParser(): UseExcelParserResult {
       setState(prev => ({ ...prev, isLoading: true, error: null, progress: 0 }))
 
       try {
-        // Validate file type
-        const validTypes = [
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-          'text/csv', // .csv
-          'application/csv'
-        ]
-
-        const isValidType = validTypes.includes(file.type) || /\.(xlsx|csv)$/i.test(file.name)
-
-        if (!isValidType) {
+        if (!isValidExcelFileType(file)) {
           throw new Error('Invalid file type. Please upload an Excel (.xlsx) or CSV file.')
         }
 
         setState(prev => ({ ...prev, progress: 10 }))
-
-        const fileNameLower = file.name.toLowerCase()
-        const isCsv = file.type === 'text/csv' || file.type === 'application/csv' || fileNameLower.endsWith('.csv')
-
         setState(prev => ({ ...prev, progress: 30 }))
-
-        let sheets: ParsedSheet[]
-        let metadata: ExcelMetadata
-
         setState(prev => ({ ...prev, progress: 60 }))
 
-        if (isCsv) {
-          const content = await file.text()
-          const { headers, dataRows } = parseCSVContent(content)
-          sheets = [
-            buildParsedSheetFromAoa({
-              name: 'Sheet1',
-              index: 0,
-              headers,
-              dataRows
-            })
-          ]
-          metadata = { sheetCount: 1 }
-          setState(prev => ({ ...prev, progress: 95 }))
-        } else {
-          const arrayBuffer = await file.arrayBuffer()
-          setState(prev => ({ ...prev, progress: 50 }))
+        const { sheets, metadata } = isCsvFile(file) ? await parseCsvFile(file) : await parseXlsxFile(file, mode)
 
-          const parsed = await parseXlsxArrayBufferWithMode(arrayBuffer, mode)
-          sheets = parsed.sheets
-          metadata = parsed.metadata
-          setState(prev => ({ ...prev, progress: 95 }))
-        }
+        setState(prev => ({ ...prev, progress: 95 }))
 
         const parsedFile: ParsedExcelFile = {
           fileName: file.name,
@@ -591,71 +594,55 @@ export function useExcelParser(): UseExcelParserResult {
   }
 }
 
-/**
- * Utility to infer column type from sample values
- * This is a basic inference - the AI will do more sophisticated analysis
- */
+const BOOLEAN_VALUES = ['true', 'false', 'yes', 'no', '1', '0', 'y', 'n']
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const DATE_PATTERNS = [/^\d{4}-\d{2}-\d{2}/, /^\d{1,2}\/\d{1,2}\/\d{2,4}/, /^\d{1,2}\.\d{1,2}\.\d{2,4}/]
+
+function inferTypeFromColumnName(nameLower: string): 'email' | 'date' | 'number' | null {
+  if (nameLower.includes('email')) return 'email'
+  if (nameLower.includes('date') || nameLower.includes('time')) return 'date'
+  if (nameLower.includes('price') || nameLower.includes('amount') || nameLower.includes('cost')) return 'number'
+  return null
+}
+
+function isAllNumbers(values: unknown[]): boolean {
+  return values.every(v => !Number.isNaN(Number(v)))
+}
+
+function isAllBooleans(values: unknown[]): boolean {
+  return values.every(v => BOOLEAN_VALUES.includes(String(v).toLowerCase()))
+}
+
+function isAllEmails(values: unknown[]): boolean {
+  return values.every(v => EMAIL_PATTERN.test(String(v)))
+}
+
+function isAllDates(values: unknown[]): boolean {
+  return values.every(v => {
+    const str = String(v)
+    return DATE_PATTERNS.some(p => p.test(str)) || !Number.isNaN(Date.parse(str))
+  })
+}
+
 export function inferColumnType(
   columnName: string,
   sampleValues: unknown[]
 ): 'text' | 'number' | 'date' | 'email' | 'boolean' | 'select' {
-  if (sampleValues.length === 0) {
-    return 'text'
-  }
+  if (sampleValues.length === 0) return 'text'
 
-  // Check column name hints
-  const nameLower = columnName.toLowerCase()
+  const nameHint = inferTypeFromColumnName(columnName.toLowerCase())
+  if (nameHint) return nameHint
 
-  if (nameLower.includes('email')) return 'email'
-  if (nameLower.includes('date') || nameLower.includes('time')) return 'date'
-  if (nameLower.includes('price') || nameLower.includes('amount') || nameLower.includes('cost')) return 'number'
-
-  // Analyze sample values
   const nonNullValues = sampleValues.filter(v => v !== null && v !== undefined)
+  if (nonNullValues.length === 0) return 'text'
 
-  if (nonNullValues.length === 0) {
-    return 'text'
-  }
+  if (isAllNumbers(nonNullValues)) return 'number'
+  if (isAllBooleans(nonNullValues)) return 'boolean'
+  if (isAllEmails(nonNullValues)) return 'email'
+  if (isAllDates(nonNullValues)) return 'date'
 
-  // Check if all values are numbers
-  const allNumbers = nonNullValues.every(v => {
-    const num = Number(v)
-    return !isNaN(num)
-  })
-
-  if (allNumbers) return 'number'
-
-  // Check if all values are booleans
-  const booleanValues = ['true', 'false', 'yes', 'no', '1', '0', 'y', 'n']
-  const allBooleans = nonNullValues.every(v => booleanValues.includes(String(v).toLowerCase()))
-
-  if (allBooleans) return 'boolean'
-
-  // Check if values look like emails
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  const allEmails = nonNullValues.every(v => emailPattern.test(String(v)))
-
-  if (allEmails) return 'email'
-
-  // Check if values look like dates
-  const datePatterns = [
-    /^\d{4}-\d{2}-\d{2}/, // ISO date
-    /^\d{1,2}\/\d{1,2}\/\d{2,4}/, // US date
-    /^\d{1,2}\.\d{1,2}\.\d{2,4}/ // EU date
-  ]
-
-  const allDates = nonNullValues.every(v => {
-    const str = String(v)
-    return datePatterns.some(p => p.test(str)) || !isNaN(Date.parse(str))
-  })
-
-  if (allDates) return 'date'
-
-  // Check if it's a select (limited unique values)
   const uniqueValues = new Set(nonNullValues.map(v => String(v)))
-  if (uniqueValues.size <= 20 && uniqueValues.size < nonNullValues.length * 0.5) {
-    return 'select'
-  }
+  if (uniqueValues.size <= 20 && uniqueValues.size < nonNullValues.length * 0.5) return 'select'
 
   return 'text'
 }

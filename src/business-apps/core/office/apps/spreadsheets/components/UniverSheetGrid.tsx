@@ -10,7 +10,10 @@ import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
-import type { DocumentParticipant, DocumentOperation } from '../../../../../platform/apps/shared/services/CollaborationClient'
+import type {
+  DocumentParticipant,
+  DocumentOperation
+} from '../../../../../platform/apps/shared/services/CollaborationClient'
 import {
   buildWorkbookSnapshot,
   createUniverConversionContext,
@@ -256,6 +259,316 @@ function getInitials(name?: string): string {
   return parts.map(p => p[0]?.toUpperCase() || '').join('') || 'U'
 }
 
+const COMMENT_ICON_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+
+const CONTEXT_MENU_ANCHOR_LABELS = ['Copy Special', 'Paste Special', 'Clear', 'Insert', 'Delete', 'Freeze', 'Protect']
+
+function distanceToRect(x: number, y: number, rect: DOMRect): number {
+  const dx = x < rect.left ? rect.left - x : x > rect.right ? x - rect.right : 0
+  const dy = y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0
+  return Math.hypot(dx, dy)
+}
+
+function getOrCreateClientRowId(globalRowIndex: number, idMap: Map<number, string>): string {
+  let clientRowId = idMap.get(globalRowIndex)
+  if (clientRowId) return clientRowId
+  try {
+    clientRowId = `client_${crypto.randomUUID()}`
+  } catch {
+    clientRowId = `client_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  }
+  idMap.set(globalRowIndex, clientRowId)
+  return clientRowId
+}
+
+interface SnapshotDimensions {
+  defaultColWidth: number
+  defaultRowHeight: number
+  columnData: Record<string | number, { w?: number }>
+  rowData: Record<string | number, { h?: number }>
+  rowHeaderWidth: number
+  columnHeaderHeight: number
+  zoomRatio: number
+}
+
+function extractDimensionsFromSnapshot(snap: Record<string, unknown>): SnapshotDimensions | null {
+  const sheetOrder = snap?.sheetOrder as string[] | undefined
+  const sheets = snap?.sheets as Record<string, Record<string, unknown>> | undefined
+  const firstSheetId = sheetOrder?.[0]
+  let sheetSnap: Record<string, unknown> | undefined
+  if (firstSheetId && sheets) {
+    sheetSnap = sheets[firstSheetId]
+  } else if (sheets) {
+    sheetSnap = Object.values(sheets)[0]
+  }
+  if (!sheetSnap) return null
+  const rawCol = sheetSnap.columnData as Record<string | number, { w?: number }> | undefined
+  const rawRow = sheetSnap.rowData as Record<string | number, { h?: number }> | undefined
+  const rowHeader = sheetSnap.rowHeader as { width?: number } | undefined
+  const columnHeader = sheetSnap.columnHeader as { height?: number } | undefined
+  const zoomRatio = (sheetSnap.zoomRatio as number | undefined) ?? 1
+  return {
+    defaultColWidth: (sheetSnap.defaultColumnWidth as number | undefined) ?? CURSOR_OVERLAY_COL_WIDTH_PX,
+    defaultRowHeight: (sheetSnap.defaultRowHeight as number | undefined) ?? CURSOR_OVERLAY_ROW_HEIGHT_PX,
+    columnData: rawCol ?? {},
+    rowData: rawRow ?? {},
+    rowHeaderWidth: rowHeader?.width ?? CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX,
+    columnHeaderHeight: columnHeader?.height ?? CURSOR_OVERLAY_HEADER_HEIGHT_PX,
+    zoomRatio
+  }
+}
+
+function extractActiveRangePosition(workbook: unknown): { row: number; col: number } | null {
+  const activeRange =
+    (workbook as { getActiveRange?: () => unknown } | null | undefined)?.getActiveRange?.() ??
+    (workbook as { getActiveSheet?: () => { getActiveRange?: () => unknown } } | null | undefined)
+      ?.getActiveSheet?.()
+      ?.getActiveRange?.()
+  if (!activeRange) return null
+  const rangeRecord = activeRange as {
+    getRow?: () => number
+    getColumn?: () => number
+    getRange?: () => { startRow?: number; startColumn?: number }
+    startRow?: number
+    startColumn?: number
+    row?: number
+    column?: number
+  }
+  const nestedRange = rangeRecord.getRange?.()
+  const row = rangeRecord.getRow?.() ?? nestedRange?.startRow ?? rangeRecord.startRow ?? rangeRecord.row
+  const col = rangeRecord.getColumn?.() ?? nestedRange?.startColumn ?? rangeRecord.startColumn ?? rangeRecord.column
+  if (typeof row !== 'number' || typeof col !== 'number') return null
+  return { row, col }
+}
+
+function extractSelectionFromEvent(event: unknown): { row: number; col: number } | null {
+  const eventRecord = (event ?? {}) as {
+    selections?: Array<{
+      range?: { startRow?: number; startColumn?: number; row?: number; column?: number }
+      primary?: { actualRow?: number; actualColumn?: number; startRow?: number; startColumn?: number }
+    }>
+    range?: {
+      startRow?: number
+      startColumn?: number
+      row?: number
+      column?: number
+      actualRow?: number
+      actualColumn?: number
+    }
+    params?: {
+      selections?: Array<{
+        range?: { startRow?: number; startColumn?: number; row?: number; column?: number }
+        primary?: { actualRow?: number; actualColumn?: number; startRow?: number; startColumn?: number }
+      }>
+      range?: {
+        startRow?: number
+        startColumn?: number
+        row?: number
+        column?: number
+        actualRow?: number
+        actualColumn?: number
+      }
+    }
+    primary?: { actualRow?: number; actualColumn?: number; startRow?: number; startColumn?: number }
+  }
+  const selection =
+    eventRecord.selections?.[0]?.range ??
+    eventRecord.range ??
+    eventRecord.params?.selections?.[0]?.range ??
+    eventRecord.params?.range
+  const primary =
+    eventRecord.selections?.[0]?.primary ?? eventRecord.primary ?? eventRecord.params?.selections?.[0]?.primary
+  const startRow = primary?.actualRow ?? primary?.startRow ?? selection?.startRow ?? selection?.row
+  const startColumn = primary?.actualColumn ?? primary?.startColumn ?? selection?.startColumn ?? selection?.column
+  if (typeof startRow !== 'number' || typeof startColumn !== 'number') return null
+  return { row: startRow, col: startColumn }
+}
+
+function areCursorRectsEqual(
+  a: Record<string, { top: number; left: number; width: number; height: number }>,
+  b: Record<string, { top: number; left: number; width: number; height: number }>
+): boolean {
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (const key of aKeys) {
+    const ra = a[key]
+    const rb = b[key]
+    if (!rb) return false
+    if (
+      Math.abs(ra.top - rb.top) > 0.5 ||
+      Math.abs(ra.left - rb.left) > 0.5 ||
+      Math.abs(ra.width - rb.width) > 0.5 ||
+      Math.abs(ra.height - rb.height) > 0.5
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
+function createContextMenuItem(
+  template: HTMLElement,
+  markerAttr: string,
+  className: string,
+  label: string,
+  onClick: () => void
+): HTMLElement {
+  const item = template.cloneNode(true) as HTMLElement
+  item.setAttribute(markerAttr, 'true')
+  item.classList.add(className)
+  item.querySelectorAll('[aria-haspopup="true"]').forEach(node => node.removeAttribute('aria-haspopup'))
+  item.innerHTML = ''
+  item.classList.remove('univer-justify-between')
+  item.classList.add('univer-flex', 'univer-items-center', 'univer-gap-3', 'univer-justify-start', 'univer-text-sm')
+  item.style.justifyContent = 'flex-start'
+  const iconWrap = document.createElement('span')
+  iconWrap.className =
+    'univer-text-base univer-flex univer-flex-shrink-0 univer-items-center univer-justify-center univer-h-6 univer-min-w-6'
+  iconWrap.style.color = 'var(--univer-primary-600, #2563eb)'
+  iconWrap.innerHTML = COMMENT_ICON_SVG
+  const labelEl = document.createElement('span')
+  labelEl.className =
+    'univer-flex-1 univer-min-w-0 univer-max-w-full univer-break-words univer-text-left univer-text-sm univer-leading-4'
+  labelEl.textContent = label
+  labelEl.style.whiteSpace = 'nowrap'
+  labelEl.style.wordBreak = 'normal'
+  labelEl.style.overflowWrap = 'normal'
+  labelEl.style.fontFamily = 'inherit'
+  labelEl.style.fontSize = 'inherit'
+  labelEl.style.fontWeight = 'inherit'
+  item.appendChild(iconWrap)
+  item.appendChild(labelEl)
+  item.style.whiteSpace = 'nowrap'
+  item.style.wordBreak = 'normal'
+  item.style.overflowWrap = 'normal'
+  item.addEventListener('click', onClick)
+  return item
+}
+
+function tryInjectViaMenuGroupList(markerAttr: string, createItem: (template: HTMLElement) => HTMLElement): boolean {
+  const listSelectors = '.univer-menu-item-group-list, .rc-menu-item-group-list, [class*="menu-item-group-list"]'
+  const univerLists = Array.from(document.querySelectorAll<HTMLElement>(listSelectors)).filter(
+    list => !list.querySelector(`[${markerAttr}]`)
+  )
+  for (const list of univerLists) {
+    const items = list.querySelectorAll<HTMLElement>('.univer-menu-item, li, [role="menuitem"]')
+    const firstItem = items[0]
+    if (!firstItem) continue
+    const listText = (list.textContent || '').toLowerCase()
+    if (!CONTEXT_MENU_ANCHOR_LABELS.some(lbl => listText.includes(lbl.toLowerCase()))) continue
+    const item = createItem(firstItem)
+    if (document.querySelector(`[${markerAttr}]`)) return true
+    list.prepend(item)
+    return true
+  }
+  return false
+}
+
+function findGridInsertParent(grid: HTMLElement): HTMLElement {
+  const firstChild = grid.firstElementChild as HTMLElement | null
+  if (!firstChild) return grid
+  const firstText = (firstChild.textContent || '').toLowerCase()
+  const firstIsIconRow =
+    firstText.includes('copy') && !firstText.includes('copy special') && !firstText.includes('insert')
+  if (!firstIsIconRow) return grid
+  for (let sib = firstChild.nextElementSibling; sib; sib = sib.nextElementSibling) {
+    const sibText = ((sib as HTMLElement).textContent || '').toLowerCase()
+    if (CONTEXT_MENU_ANCHOR_LABELS.some(lbl => sibText.includes(lbl.toLowerCase()))) {
+      return sib as HTMLElement
+    }
+  }
+  return grid
+}
+
+function tryInjectViaGridContainer(markerAttr: string, createItem: (template: HTMLElement) => HTMLElement): boolean {
+  const gridContainers = Array.from(
+    document.querySelectorAll<HTMLElement>('[class*="univer-grid"][class*="univer-gap-1"]')
+  ).filter(el => {
+    if (el.querySelector(`[${markerAttr}]`)) return false
+    const gridText = (el.textContent || '').toLowerCase()
+    if (!CONTEXT_MENU_ANCHOR_LABELS.some(lbl => gridText.includes(lbl.toLowerCase()))) return false
+    if (gridText.includes('copy') && !gridText.includes('copy special') && !gridText.includes('insert')) return false
+    const childGrids = el.querySelectorAll<HTMLElement>('[class*="univer-grid"][class*="univer-gap-1"]')
+    for (const child of childGrids) {
+      if (child === el) continue
+      const childText = (child.textContent || '').toLowerCase()
+      if (CONTEXT_MENU_ANCHOR_LABELS.some(lbl => childText.includes(lbl.toLowerCase()))) return false
+    }
+    return true
+  })
+  for (const grid of gridContainers) {
+    const insertParent = findGridInsertParent(grid)
+    const template = insertParent.querySelector<HTMLElement>(
+      'button, [role="button"], .univer-menu-item, [class*="menu-item"]'
+    )
+    if (!template) continue
+    if (document.querySelector(`[${markerAttr}]`)) return true
+    const item = createItem(template)
+    insertParent.prepend(item)
+    return true
+  }
+  return false
+}
+
+function findMenuItemCandidate(el: HTMLElement): HTMLElement | null {
+  let current: HTMLElement | null = el
+  for (let d = 0; d < 6 && current; d++) {
+    const cls = (current.getAttribute('class') || '').toLowerCase()
+    const role = current.getAttribute('role')
+    const tag = current.tagName.toLowerCase()
+    if (role === 'menuitem' || cls.includes('menu-item') || tag === 'li' || tag === 'button') {
+      return current
+    }
+    current = current.parentElement
+  }
+  return null
+}
+
+function tryInjectViaTextSearch(
+  anchorX: number,
+  anchorY: number,
+  markerAttr: string,
+  createItem: (template: HTMLElement) => HTMLElement
+): boolean {
+  const allElements = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+  const anchorCandidates: HTMLElement[] = []
+  for (const el of allElements) {
+    const text = (el.textContent || '').trim()
+    if (!text) continue
+    if (el.closest('[style*="display: none"]') || el.closest('.rc-menu-hidden')) continue
+    if (!CONTEXT_MENU_ANCHOR_LABELS.some(lbl => text.includes(lbl))) continue
+    const candidate = findMenuItemCandidate(el)
+    if (candidate) anchorCandidates.push(candidate)
+  }
+  if (anchorCandidates.length === 0) return false
+  const closest = anchorCandidates
+    .map(el => ({ el, dist: distanceToRect(anchorX, anchorY, el.getBoundingClientRect()) }))
+    .sort((a, b) => a.dist - b.dist)[0]?.el
+  if (!closest) return false
+  const parent = closest.parentElement
+  if (!parent || parent.querySelector(`[${markerAttr}]`)) return true
+  const item = createItem(closest)
+  if (document.querySelector(`[${markerAttr}]`)) return true
+  closest.before(item)
+  return true
+}
+
+function tryInjectContextMenuItem(
+  anchorX: number,
+  anchorY: number,
+  markerAttr: string,
+  createItem: (template: HTMLElement) => HTMLElement
+): boolean {
+  if (document.querySelector(`[${markerAttr}]`)) return true
+  return (
+    tryInjectViaMenuGroupList(markerAttr, createItem) ||
+    tryInjectViaGridContainer(markerAttr, createItem) ||
+    tryInjectViaTextSearch(anchorX, anchorY, markerAttr, createItem)
+  )
+}
+
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
   function UniverSheetGrid(props, ref) {
     const {
@@ -382,29 +695,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       [props.commentedCells]
     )
 
-    const areCursorRectsEqual = (
-      a: Record<string, { top: number; left: number; width: number; height: number }>,
-      b: Record<string, { top: number; left: number; width: number; height: number }>
-    ): boolean => {
-      const aKeys = Object.keys(a)
-      const bKeys = Object.keys(b)
-      if (aKeys.length !== bKeys.length) return false
-      for (const key of aKeys) {
-        const ra = a[key]
-        const rb = b[key]
-        if (!rb) return false
-        if (
-          Math.abs(ra.top - rb.top) > 0.5 ||
-          Math.abs(ra.left - rb.left) > 0.5 ||
-          Math.abs(ra.width - rb.width) > 0.5 ||
-          Math.abs(ra.height - rb.height) > 0.5
-        ) {
-          return false
-        }
-      }
-      return true
-    }
-
     const resolveCellRect = useCallback(
       (row: number, col: number): { top: number; left: number; width: number; height: number } | null => {
         const api = univerAPIRef.current
@@ -519,12 +809,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       refresh()
       const onResize = () => refresh()
       const onScroll = () => refresh()
-      window.addEventListener('resize', onResize)
-      window.addEventListener('scroll', onScroll, true)
+      globalThis.addEventListener('resize', onResize)
+      globalThis.addEventListener('scroll', onScroll, true)
       return () => {
         refreshCursorRectsRef.current = null
-        window.removeEventListener('resize', onResize)
-        window.removeEventListener('scroll', onScroll, true)
+        globalThis.removeEventListener('resize', onResize)
+        globalThis.removeEventListener('scroll', onScroll, true)
       }
     }, [remoteCursorOverlays, resolveCellRect])
 
@@ -564,18 +854,18 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       refreshCommentRectsRef.current = refresh
       refresh()
       // Retry when Univer canvas isn't ready yet — resolveCellRect can return null initially
-      const retryId = window.setTimeout(() => {
+      const retryId = globalThis.setTimeout(() => {
         refresh()
       }, 300)
       const onResize = () => refresh()
       const onScroll = () => refresh()
-      window.addEventListener('resize', onResize)
-      window.addEventListener('scroll', onScroll, true)
+      globalThis.addEventListener('resize', onResize)
+      globalThis.addEventListener('scroll', onScroll, true)
       return () => {
-        window.clearTimeout(retryId)
+        globalThis.clearTimeout(retryId)
         refreshCommentRectsRef.current = null
-        window.removeEventListener('resize', onResize)
-        window.removeEventListener('scroll', onScroll, true)
+        globalThis.removeEventListener('resize', onResize)
+        globalThis.removeEventListener('scroll', onScroll, true)
       }
     }, [commentOverlays, resolveCellRect])
 
@@ -704,31 +994,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     )
 
     const getActiveCellReference = useCallback((): string | null => {
-      let active = activeSelectionRef.current
-      if (!active) {
-        const workbook = univerAPIRef.current?.getActiveWorkbook?.()
-        const activeRange =
-          (workbook as { getActiveRange?: () => unknown } | null | undefined)?.getActiveRange?.() ??
-          (workbook?.getActiveSheet?.() as { getActiveRange?: () => unknown } | undefined)?.getActiveRange?.()
-        const rangeRecord = activeRange as
-          | {
-              getRow?: () => number
-              getColumn?: () => number
-              getRange?: () => { startRow?: number; startColumn?: number }
-              startRow?: number
-              startColumn?: number
-              row?: number
-              column?: number
-            }
-          | undefined
-        const nestedRange = rangeRecord?.getRange?.()
-        const row = rangeRecord?.getRow?.() ?? nestedRange?.startRow ?? rangeRecord?.startRow ?? rangeRecord?.row
-        const col =
-          rangeRecord?.getColumn?.() ?? nestedRange?.startColumn ?? rangeRecord?.startColumn ?? rangeRecord?.column
-        if (typeof row === 'number' && typeof col === 'number') {
-          active = { row, col }
-        }
-      }
+      const active =
+        activeSelectionRef.current ?? extractActiveRangePosition(univerAPIRef.current?.getActiveWorkbook?.())
       if (!active) return null
       const a1 = toA1Reference(active.row, active.col)
       return a1 || null
@@ -738,230 +1005,56 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const container = containerRef.current
       if (!container || props.isReadOnly) return
 
-      const customLabel = 'Add comment'
       const customMarkerAttr = 'data-univer-custom-comment-item'
       const customClassName = 'univer-custom-comment-item'
-      const verticalListAnchorLabels = [
-        'Copy Special',
-        'Paste Special',
-        'Clear',
-        'Insert',
-        'Delete',
-        'Freeze',
-        'Protect'
-      ]
       let contextMenuObserver: MutationObserver | null = null
 
-      const distanceToRect = (x: number, y: number, rect: DOMRect): number => {
-        const dx = x < rect.left ? rect.left - x : x > rect.right ? x - rect.right : 0
-        const dy = y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0
-        return Math.hypot(dx, dy)
-      }
-
-      const commentIconSvg = (): string =>
-        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
-
-      const createAddCommentItem = (template: HTMLElement): HTMLElement => {
-        const item = template.cloneNode(true) as HTMLElement
-        item.setAttribute(customMarkerAttr, 'true')
-        item.classList.add(customClassName)
-        item.querySelectorAll('[aria-haspopup="true"]').forEach(node => node.removeAttribute('aria-haspopup'))
-        item.innerHTML = ''
-        // Match Univer menu item layout: remove justify-between (pushes label right when no arrow), use gap-3
-        item.classList.remove('univer-justify-between')
-        item.classList.add(
-          'univer-flex',
-          'univer-items-center',
-          'univer-gap-3',
-          'univer-justify-start',
-          'univer-text-sm'
-        )
-        item.style.justifyContent = 'flex-start'
-        const iconWrap = document.createElement('span')
-        iconWrap.className =
-          'univer-text-base univer-flex univer-flex-shrink-0 univer-items-center univer-justify-center univer-h-6 univer-min-w-6'
-        iconWrap.style.color = 'var(--univer-primary-600, #2563eb)'
-        iconWrap.innerHTML = commentIconSvg()
-        const label = document.createElement('span')
-        label.className =
-          'univer-flex-1 univer-min-w-0 univer-max-w-full univer-break-words univer-text-left univer-text-sm univer-leading-4'
-        label.textContent = customLabel
-        label.style.whiteSpace = 'nowrap'
-        label.style.wordBreak = 'normal'
-        label.style.overflowWrap = 'normal'
-        label.style.fontFamily = 'inherit'
-        label.style.fontSize = 'inherit'
-        label.style.fontWeight = 'inherit'
-        item.appendChild(iconWrap)
-        item.appendChild(label)
-        item.style.whiteSpace = 'nowrap'
-        item.style.wordBreak = 'normal'
-        item.style.overflowWrap = 'normal'
-        item.addEventListener('click', () => {
+      const createItem = (template: HTMLElement) =>
+        createContextMenuItem(template, customMarkerAttr, customClassName, 'Add comment', () => {
           callbacksRef.current.onOpenCommentRequest?.()
         })
-        return item
-      }
 
-      const tryInjectMenuItem = (anchorX: number, anchorY: number): boolean => {
-        // Prevent double injection: if we already injected, the MutationObserver would fire and
-        // inject into a second vertical group. Return success without injecting again.
-        if (document.querySelector(`[${customMarkerAttr}]`)) return true
+      const inject = (x: number, y: number) => tryInjectContextMenuItem(x, y, customMarkerAttr, createItem)
 
-        // Strategy 1: Use Univer/rc-menu class structure (try multiple selectors for different versions)
-        const listSelectors = '.univer-menu-item-group-list, .rc-menu-item-group-list, [class*="menu-item-group-list"]'
-        const univerLists = Array.from(document.querySelectorAll<HTMLElement>(listSelectors)).filter(
-          list => !list.querySelector(`[${customMarkerAttr}]`)
-        )
-
-        for (const list of univerLists) {
-          const items = list.querySelectorAll<HTMLElement>('.univer-menu-item, li, [role="menuitem"]')
-          const firstItem = items[0]
-          if (!firstItem) continue
-          const listText = (list.textContent || '').toLowerCase()
-          const hasVerticalLabels = verticalListAnchorLabels.some(lbl => listText.includes(lbl.toLowerCase()))
-          if (!hasVerticalLabels) continue
-
-          const item = createAddCommentItem(firstItem)
-          if (document.querySelector(`[${customMarkerAttr}]`)) return true
-          list.insertBefore(item, list.firstChild)
-          return true
-        }
-
-        // Strategy 2: Univer preset uses custom grid layout (univer-grid univer-gap-1), not rc-menu
-        const gridContainers = Array.from(
-          document.querySelectorAll<HTMLElement>('[class*="univer-grid"][class*="univer-gap-1"]')
-        ).filter(el => {
-          if (el.querySelector(`[${customMarkerAttr}]`)) return false
-          const gridText = (el.textContent || '').toLowerCase()
-          const hasVerticalLabels = verticalListAnchorLabels.some(lbl => gridText.includes(lbl.toLowerCase()))
-          if (!hasVerticalLabels) return false
-          // Exclude the icon row (Copy, Cut, Paste only - no "insert" or "copy special")
-          if (gridText.includes('copy') && !gridText.includes('copy special') && !gridText.includes('insert'))
-            return false
-          // Exclude parent grids: we want the innermost grid that contains the vertical list.
-          // A parent grid wraps both the icon row and the vertical list; inserting there puts
-          // "Add comment" before the icon row, causing a truncated/malformed display.
-          const childGrids = el.querySelectorAll<HTMLElement>('[class*="univer-grid"][class*="univer-gap-1"]')
-          for (const child of childGrids) {
-            if (child === el) continue
-            const childText = (child.textContent || '').toLowerCase()
-            if (verticalListAnchorLabels.some(lbl => childText.includes(lbl.toLowerCase()))) return false
-          }
-          return true
-        })
-        for (const grid of gridContainers) {
-          // If the first child is the icon row (Copy, Cut, Paste), insert into the next sibling
-          // that contains the vertical list. Otherwise we'd put "Add comment" before the icons,
-          // causing a truncated "Pld comment" at the top.
-          let insertParent: HTMLElement = grid
-          const firstChild = grid.firstElementChild as HTMLElement | null
-          if (firstChild) {
-            const firstText = (firstChild.textContent || '').toLowerCase()
-            const firstIsIconRow =
-              firstText.includes('copy') && !firstText.includes('copy special') && !firstText.includes('insert')
-            if (firstIsIconRow) {
-              for (let sib = firstChild.nextElementSibling; sib; sib = sib.nextElementSibling) {
-                const sibText = ((sib as HTMLElement).textContent || '').toLowerCase()
-                if (verticalListAnchorLabels.some(lbl => sibText.includes(lbl.toLowerCase()))) {
-                  insertParent = sib as HTMLElement
-                  break
-                }
-              }
-            }
-          }
-          const template = insertParent.querySelector<HTMLElement>(
-            'button, [role="button"], .univer-menu-item, [class*="menu-item"]'
-          )
-          if (!template) continue
-          if (document.querySelector(`[${customMarkerAttr}]`)) return true
-          const item = createAddCommentItem(template)
-          insertParent.insertBefore(item, insertParent.firstChild)
-          return true
-        }
-
-        // Strategy 3: Find by text (relaxed: includes, not exact) for different Univer versions
-        const allElements = Array.from(document.querySelectorAll<HTMLElement>('body *'))
-        const anchorCandidates: HTMLElement[] = []
-        for (const el of allElements) {
-          const text = (el.textContent || '').trim()
-          if (!text) continue
-          // Skip visibility check - menu may still be animating when we run
-          if (el.closest('[style*="display: none"]') || el.closest('.rc-menu-hidden')) continue
-          const match = verticalListAnchorLabels.find(lbl => text.includes(lbl))
-          if (!match) continue
-          let current: HTMLElement | null = el
-          for (let d = 0; d < 6 && current; d++) {
-            const cls = `${current.className || ''}`.toLowerCase()
-            const role = current.getAttribute('role')
-            const tag = current.tagName.toLowerCase()
-            if (role === 'menuitem' || cls.includes('menu-item') || tag === 'li' || tag === 'button') {
-              anchorCandidates.push(current)
-              break
-            }
-            current = current.parentElement
-          }
-        }
-
-        if (anchorCandidates.length === 0) return false
-        const closest = anchorCandidates
-          .map(el => ({ el, dist: distanceToRect(anchorX, anchorY, el.getBoundingClientRect()) }))
-          .sort((a, b) => a.dist - b.dist)[0]?.el
-        if (!closest) return false
-
-        const parent = closest.parentElement
-        if (!parent || parent.querySelector(`[${customMarkerAttr}]`)) return true
-
-        const item = createAddCommentItem(closest)
-        if (document.querySelector(`[${customMarkerAttr}]`)) return true
-        parent.insertBefore(item, closest)
-        return true
-      }
-
-      const stopContextMenuObserver = () => {
+      const stopObserver = () => {
         if (contextMenuObserver) {
           contextMenuObserver.disconnect()
           contextMenuObserver = null
         }
       }
 
+      const pollInjection = (x: number, y: number, attempts: { count: number }, maxAttempts: number) => {
+        attempts.count += 1
+        if (inject(x, y)) {
+          stopObserver()
+          return
+        }
+        if (attempts.count < maxAttempts) {
+          globalThis.setTimeout(() => pollInjection(x, y, attempts, maxAttempts), 50)
+        } else {
+          stopObserver()
+        }
+      }
+
       const onNativeContextMenu = (e: MouseEvent) => {
         const x = e.clientX
         const y = e.clientY
-        let attempts = 0
-        const maxAttempts = 40
-        stopContextMenuObserver()
+        const attempts = { count: 0 }
+        stopObserver()
         contextMenuObserver = new MutationObserver(() => {
-          if (tryInjectMenuItem(x, y)) {
-            stopContextMenuObserver()
-          }
+          if (inject(x, y)) stopObserver()
         })
         contextMenuObserver.observe(document.body, { childList: true, subtree: true })
-        const run = () => {
-          attempts += 1
-          const ok = tryInjectMenuItem(x, y)
-          if (ok) {
-            stopContextMenuObserver()
-            return
-          }
-          if (attempts < maxAttempts) {
-            window.setTimeout(run, 50)
-          } else {
-            stopContextMenuObserver()
-          }
-        }
-        // Wait for next paint so Univer's context menu DOM is ready
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            window.setTimeout(run, 0)
+            globalThis.setTimeout(() => pollInjection(x, y, attempts, 40), 0)
           })
         })
       }
 
-      // Capture-phase lets us react to native Univer menu opening without replacing it.
       container.addEventListener('contextmenu', onNativeContextMenu, true)
       return () => {
-        stopContextMenuObserver()
+        stopObserver()
         container.removeEventListener('contextmenu', onNativeContextMenu, true)
       }
     }, [props.isReadOnly])
@@ -1028,31 +1121,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         ]
       })
 
-      // Populate cell dimensions from the initial snapshot immediately so cursor overlays
-      // use correct sizes from the first render (no wait for Univer to hydrate).
-      const applyDimensionsFromSnapshot = (snap: Record<string, unknown>) => {
-        const sheetOrder = snap?.sheetOrder as string[] | undefined
-        const sheets = snap?.sheets as Record<string, Record<string, unknown>> | undefined
-        const firstSheetId = sheetOrder?.[0]
-        const sheetSnap = firstSheetId && sheets ? sheets[firstSheetId] : sheets ? Object.values(sheets)[0] : undefined
-        if (sheetSnap) {
-          const rawCol = sheetSnap.columnData as Record<string | number, { w?: number }> | undefined
-          const rawRow = sheetSnap.rowData as Record<string | number, { h?: number }> | undefined
-          const rowHeader = sheetSnap.rowHeader as { width?: number } | undefined
-          const columnHeader = sheetSnap.columnHeader as { height?: number } | undefined
-          const zoomRatio = (sheetSnap.zoomRatio as number | undefined) ?? 1
-          cellDimensionsRef.current = {
-            defaultColWidth: (sheetSnap.defaultColumnWidth as number | undefined) ?? CURSOR_OVERLAY_COL_WIDTH_PX,
-            defaultRowHeight: (sheetSnap.defaultRowHeight as number | undefined) ?? CURSOR_OVERLAY_ROW_HEIGHT_PX,
-            columnData: rawCol ?? {},
-            rowData: rawRow ?? {},
-            rowHeaderWidth: rowHeader?.width ?? CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX,
-            columnHeaderHeight: columnHeader?.height ?? CURSOR_OVERLAY_HEADER_HEIGHT_PX,
-            zoomRatio
-          }
-        }
-      }
-      applyDimensionsFromSnapshot(snapshotForInit as unknown as Record<string, unknown>)
+      const initDims = extractDimensionsFromSnapshot(snapshotForInit as unknown as Record<string, unknown>)
+      if (initDims) cellDimensionsRef.current = initDims
 
       univerAPIRef.current = univerAPI
       univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
@@ -1065,7 +1135,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             getSnapshot?: () => Record<string, unknown>
           } | null
           const snap = wb?.save?.() ?? wb?.getSnapshot?.()
-          if (snap) applyDimensionsFromSnapshot(snap)
+          const d = snap ? extractDimensionsFromSnapshot(snap) : null
+          if (d) cellDimensionsRef.current = d
         } catch {}
       }
       setTimeout(updateCellDimensions, 200)
@@ -1284,29 +1355,18 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (!ctxBefore) return
           const currentData = propsRef.current.data
 
-          const range = payload.params?.range?.[0] ?? params.effectedRanges?.[0]?.getRange?.()
+          const range = payload?.params?.range?.[0] ?? params.effectedRanges?.[0]?.getRange?.()
           const { rowOffset, colOffset } = resolveCellOffsets(range, cellValue)
           const newRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
           if (newRowIndices.length > 0 && onDataChangeCb) {
-            const getClientRowId = (globalRowIndex: number): string => {
-              let clientRowId = newRowClientIdByIndexRef.current.get(globalRowIndex)
-              if (clientRowId) return clientRowId
-              try {
-                clientRowId = `client_${crypto.randomUUID()}`
-              } catch {
-                clientRowId = `client_${Date.now()}_${Math.random().toString(16).slice(2)}`
-              }
-              newRowClientIdByIndexRef.current.set(globalRowIndex, clientRowId)
-              return clientRowId
-            }
-
             const newRows = buildNewRowsFromCellMatrix({
               newRowIndices,
               cellValue,
               ctx: ctxBefore,
               colOffset,
               rowOffset,
-              getClientRowId
+              getClientRowId: (globalRowIndex: number) =>
+                getOrCreateClientRowId(globalRowIndex, newRowClientIdByIndexRef.current)
             })
             const nextData = [...currentData, ...newRows]
             onDataChangeCb(nextData)
@@ -1347,39 +1407,17 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         lastEmittedCursorPathRef.current = signature
         onCursorEmitCb({ path })
       }
-      const getRowColFromActiveRange = () => {
-        const workbook = univerAPIRef.current?.getActiveWorkbook?.()
-        const activeRange =
-          (workbook as { getActiveRange?: () => unknown } | null | undefined)?.getActiveRange?.() ??
-          (workbook?.getActiveSheet?.() as { getActiveRange?: () => unknown } | undefined)?.getActiveRange?.()
-        if (!activeRange) return null
-        const rangeRecord = activeRange as {
-          getRow?: () => number
-          getColumn?: () => number
-          getRange?: () => { startRow?: number; startColumn?: number }
-          startRow?: number
-          startColumn?: number
-          row?: number
-          column?: number
-        }
-        const nestedRange = rangeRecord.getRange?.()
-        const row = rangeRecord.getRow?.() ?? nestedRange?.startRow ?? rangeRecord.startRow ?? rangeRecord.row
-        const col =
-          rangeRecord.getColumn?.() ?? nestedRange?.startColumn ?? rangeRecord.startColumn ?? rangeRecord.column
-        if (typeof row !== 'number' || typeof col !== 'number') return null
-        return { row, col }
-      }
       const emitCursorFromWorksheetSelection = () => {
-        const fromRange = getRowColFromActiveRange()
+        const workbook = univerAPIRef.current?.getActiveWorkbook?.()
+        const fromRange = extractActiveRangePosition(workbook)
         if (fromRange) {
           emitCursorByRowCol(fromRange.row, fromRange.col)
           return
         }
-        const workbook = univerAPIRef.current?.getActiveWorkbook?.()
         const worksheet = workbook?.getActiveSheet?.()
         const selection = (
-          worksheet as { getSelection?: () => { getCurrentCell?: () => unknown } | null }
-        ).getSelection?.()
+          worksheet as { getSelection?: () => { getCurrentCell?: () => unknown } | null } | undefined
+        )?.getSelection?.()
         const currentCell = selection?.getCurrentCell?.() as
           | { actualRow?: number; actualColumn?: number; row?: number; column?: number }
           | undefined
@@ -1389,71 +1427,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         emitCursorByRowCol(row, col)
       }
       const emitCursorFromSelectionEvent = (event: unknown) => {
-        const eventRecord = (event ?? {}) as {
-          selections?: Array<{
-            range?: {
-              startRow?: number
-              startColumn?: number
-              row?: number
-              column?: number
-            }
-            primary?: {
-              actualRow?: number
-              actualColumn?: number
-              startRow?: number
-              startColumn?: number
-            }
-          }>
-          range?: {
-            startRow?: number
-            startColumn?: number
-            row?: number
-            column?: number
-            actualRow?: number
-            actualColumn?: number
-          }
-          params?: {
-            selections?: Array<{
-              range?: {
-                startRow?: number
-                startColumn?: number
-                row?: number
-                column?: number
-              }
-              primary?: {
-                actualRow?: number
-                actualColumn?: number
-                startRow?: number
-                startColumn?: number
-              }
-            }>
-            range?: {
-              startRow?: number
-              startColumn?: number
-              row?: number
-              column?: number
-              actualRow?: number
-              actualColumn?: number
-            }
-          }
-          primary?: {
-            actualRow?: number
-            actualColumn?: number
-            startRow?: number
-            startColumn?: number
-          }
-        }
-        const selection =
-          eventRecord.selections?.[0]?.range ??
-          eventRecord.range ??
-          eventRecord.params?.selections?.[0]?.range ??
-          eventRecord.params?.range
-        const primary =
-          eventRecord.selections?.[0]?.primary ?? eventRecord.primary ?? eventRecord.params?.selections?.[0]?.primary
-        const startRow = primary?.actualRow ?? primary?.startRow ?? selection?.startRow ?? selection?.row
-        const startColumn = primary?.actualColumn ?? primary?.startColumn ?? selection?.startColumn ?? selection?.column
-        if (typeof startRow !== 'number' || typeof startColumn !== 'number') return
-        emitCursorByRowCol(startRow, startColumn)
+        const pos = extractSelectionFromEvent(event)
+        if (!pos) return
+        emitCursorByRowCol(pos.row, pos.col)
       }
       const selectionDisposable = (
         univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
@@ -1519,11 +1495,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         isSheetInteractionActiveRef.current = e.target instanceof Node && container.contains(e.target)
       }
 
-      window.addEventListener('pointerdown', onPointerDownCapture, true)
-      window.addEventListener('focusin', onFocusInCapture, true)
+      globalThis.addEventListener('pointerdown', onPointerDownCapture, true)
+      globalThis.addEventListener('focusin', onFocusInCapture, true)
       return () => {
-        window.removeEventListener('pointerdown', onPointerDownCapture, true)
-        window.removeEventListener('focusin', onFocusInCapture, true)
+        globalThis.removeEventListener('pointerdown', onPointerDownCapture, true)
+        globalThis.removeEventListener('focusin', onFocusInCapture, true)
       }
     }, [])
 
@@ -1575,8 +1551,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
       }
 
-      window.addEventListener('keydown', onKeyDownCapture, true)
-      return () => window.removeEventListener('keydown', onKeyDownCapture, true)
+      globalThis.addEventListener('keydown', onKeyDownCapture, true)
+      return () => globalThis.removeEventListener('keydown', onKeyDownCapture, true)
     }, [props.isReadOnly])
 
     // If sheet turns read-only while focused, drop the active interaction flag so

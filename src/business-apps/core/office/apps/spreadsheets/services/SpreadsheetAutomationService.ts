@@ -14,9 +14,7 @@ import type {
   WorkflowStatus,
   SpreadsheetWorkflowTags,
   ColumnWorkflowMapping,
-  AutomationFormInput,
-  AutomationInputType,
-  AutomationStepType
+  AutomationFormInput
 } from '../types/automation'
 import { isUuid } from '../types/automation'
 import { env } from '@/common/env/EnvUtils'
@@ -44,8 +42,8 @@ const getFlowEngineApiUrl = () => {
     return `${normalized}/flow-engine/api`
   }
 
-  if (typeof window !== 'undefined') {
-    const { protocol, host } = window.location
+  if (typeof globalThis.location !== 'undefined') {
+    const { protocol, host } = globalThis.location
     return `${protocol}//${host}/flow-engine/api`
   }
 
@@ -58,9 +56,8 @@ const getExecuteDynamicUrl = () => `${getFlowEngineBaseUrl()}/api/templates/exec
 const isSpreadsheetAutomationDebugEnabled = (): boolean => {
   try {
     return (
-      typeof window !== 'undefined' &&
-      typeof window.localStorage !== 'undefined' &&
-      window.localStorage.getItem('debug:spreadsheet-automations') === '1'
+      typeof globalThis.localStorage !== 'undefined' &&
+      globalThis.localStorage.getItem('debug:spreadsheet-automations') === '1'
     )
   } catch {
     return false
@@ -72,6 +69,8 @@ const automationDebug = (...args: unknown[]) => {
     console.debug(...args)
   }
 }
+
+const TRUTHY_STRING_VALUES = new Set(['true', '1', 'yes'])
 
 /**
  * Parameters for executing a workflow for a single row
@@ -161,8 +160,8 @@ export interface WorkflowExecutionResult {
  * Service for managing spreadsheet automations
  */
 export class SpreadsheetAutomationService {
-  private accessToken: string
-  private apiBaseUrl: string
+  private readonly accessToken: string
+  private readonly apiBaseUrl: string
 
   constructor(accessToken: string, apiBaseUrl?: string) {
     this.accessToken = accessToken
@@ -431,14 +430,17 @@ export class SpreadsheetAutomationService {
     }
 
     if (resolvedRecipients.length === 0) {
+      let errorMessage: string
+      if (recipientType !== 'specific') {
+        errorMessage = `No ${recipientType} members found. Please check your team/department membership.`
+      } else if (mode === 'excel_collection') {
+        errorMessage = 'No recipients configured for Excel Collection. Please edit the automation.'
+      } else {
+        errorMessage = 'No recipients specified for bulk collection. Please edit this automation and select recipients.'
+      }
       return {
         success: false,
-        error:
-          recipientType === 'specific'
-            ? mode === 'excel_collection'
-              ? 'No recipients configured for Excel Collection. Please edit the automation.'
-              : 'No recipients specified for bulk collection. Please edit this automation and select recipients.'
-            : `No ${recipientType} members found. Please check your team/department membership.`
+        error: errorMessage
       }
     }
 
@@ -654,7 +656,7 @@ export class SpreadsheetAutomationService {
     return {
       recipients,
       message: automation.collectionConfig?.message,
-      baseUrl: (typeof window !== 'undefined' && window.location?.origin) || env('NEXT_PUBLIC_BASE_URL') || '',
+      baseUrl: globalThis.location?.origin || env('NEXT_PUBLIC_BASE_URL') || '',
       managerDisplayName: 'Manager',
       recipientNames
     }
@@ -694,7 +696,7 @@ export class SpreadsheetAutomationService {
     const workflows: Array<{ rowId: string; workflowId: string; status: WorkflowStatus }> = runCopies.map(copy => ({
       rowId: `recipient_${copy.recipientId}`,
       workflowId: copy.workflowId || '',
-      status: copy.workflowId ? 'RUNNING' : ('FAILED' as WorkflowStatus)
+      status: copy.workflowId ? 'RUNNING' : 'FAILED'
     }))
     const failedRows = runCopies.filter(copy => !copy.workflowId).map(copy => copy.recipientId)
 
@@ -719,7 +721,7 @@ export class SpreadsheetAutomationService {
     recipientId: string,
     copyAppId: string
   ): AutomationFlowTemplate {
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const origin = globalThis.location?.origin ?? ''
     const copyUrl = `${origin}${getSpreadsheetBasePath()}?appId=${encodeURIComponent(copyAppId)}&view=viewer&excel_collection=1`
 
     return {
@@ -848,7 +850,7 @@ export class SpreadsheetAutomationService {
     const formInputs: AutomationFormInput[] = formFields.map(field => ({
       name: field.columnId || field.id,
       label: field.label,
-      type: (field.inputType || 'TEXT') as AutomationInputType,
+      type: field.inputType || 'TEXT',
       required: field.required ?? true,
       options: field.options?.map(opt => ({ value: opt, label: opt }))
     }))
@@ -980,14 +982,14 @@ export class SpreadsheetAutomationService {
     const steps: AutomationFlowStep[] =
       approvalSteps.length > 0
         ? approvalSteps.map(step => ({
-            type: 'APPROVAL' as AutomationStepType,
+            type: 'APPROVAL',
             title: step.title,
             message: step.message || `Please review and approve ${rows.length} items`,
             form: [
               {
                 name: 'approvalDecision',
                 label: 'Decision',
-                type: 'SELECT' as AutomationInputType,
+                type: 'SELECT',
                 required: true,
                 options: [
                   { value: 'approve', label: 'Approve' },
@@ -997,7 +999,7 @@ export class SpreadsheetAutomationService {
               {
                 name: 'comments',
                 label: 'Comments',
-                type: 'TEXTAREA' as AutomationInputType,
+                type: 'TEXTAREA',
                 required: false
               }
             ],
@@ -1005,14 +1007,14 @@ export class SpreadsheetAutomationService {
           }))
         : [
             {
-              type: 'APPROVAL' as AutomationStepType,
+              type: 'APPROVAL',
               title: 'Review & Approve',
               message: `Please review and approve ${rows.length} items`,
               form: [
                 {
                   name: 'approvalDecision',
                   label: 'Decision',
-                  type: 'SELECT' as AutomationInputType,
+                  type: 'SELECT',
                   required: true,
                   options: [
                     { value: 'approve', label: 'Approve' },
@@ -1022,7 +1024,7 @@ export class SpreadsheetAutomationService {
                 {
                   name: 'comments',
                   label: 'Comments',
-                  type: 'TEXTAREA' as AutomationInputType,
+                  type: 'TEXTAREA',
                   required: false
                 }
               ],
@@ -1115,7 +1117,7 @@ export class SpreadsheetAutomationService {
     const baseTemplate = workflowConfig.dynamicTemplate || this.createDefaultTemplate(automation)
 
     // Clone the template to avoid mutating the original
-    const template: AutomationFlowTemplate = JSON.parse(JSON.stringify(baseTemplate))
+    const template: AutomationFlowTemplate = structuredClone(baseTemplate)
 
     // Apply column mappings to inject row data into template
     template.steps = template.steps.map(step =>
@@ -1173,7 +1175,7 @@ export class SpreadsheetAutomationService {
           if (value !== undefined) {
             return {
               ...input,
-              defaultValue: String(value)
+              defaultValue: typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)
             }
           }
         }
@@ -1199,7 +1201,7 @@ export class SpreadsheetAutomationService {
    * Supports {{columnName}} syntax
    */
   private interpolateRowData(template: string, rowData: Record<string, unknown>): string {
-    return template.replace(/\{\{(\w+)\}\}/g, (match, columnName) => {
+    return template.replaceAll(/\{\{(\w+)\}\}/g, (match, columnName) => {
       const value = rowData[columnName]
       return value !== undefined ? String(value) : match
     })
@@ -1235,7 +1237,7 @@ export class SpreadsheetAutomationService {
   private transformValue(value: unknown, transform?: string): string {
     if (value === null || value === undefined) return ''
 
-    const stringValue = String(value)
+    const stringValue = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)
 
     switch (transform) {
       case 'uppercase':
@@ -1245,11 +1247,11 @@ export class SpreadsheetAutomationService {
       case 'trim':
         return stringValue.trim()
       case 'number':
-        return String(parseFloat(stringValue) || 0)
+        return String(Number.parseFloat(stringValue) || 0)
       case 'date':
         return new Date(stringValue).toISOString()
       case 'boolean':
-        return String(['true', '1', 'yes'].includes(stringValue.toLowerCase()))
+        return String(TRUTHY_STRING_VALUES.has(stringValue.toLowerCase()))
       default:
         return stringValue
     }
@@ -1789,90 +1791,9 @@ export class SpreadsheetAutomationService {
         })
       }
 
-      return (data.completedResults || []).map((result: Record<string, unknown>) => {
-        const outputData = (result.outputData as Record<string, unknown>) || {}
-        const tags = (result.tags as Record<string, string>) || {}
-        const outputContext = (outputData.context as Record<string, unknown>) || {}
-        const formDataBase = (outputData.formData as Record<string, unknown>) || outputData
-
-        const workflowId = String(
-          result.workflowId ||
-            result.flowId ||
-            result.id ||
-            (result.data as Record<string, unknown> | undefined)?.workflowId ||
-            ''
-        ).trim()
-
-        const responderIdRaw =
-          (outputData.responderId as string) ||
-          (outputData.userId as string) ||
-          (outputData.recipientId as string) ||
-          (outputData.assignedTo as string) ||
-          (outputData.ownerId as string) ||
-          (formDataBase.responderId as string) ||
-          (formDataBase.recipientId as string) ||
-          (formDataBase.userId as string) ||
-          (formDataBase.ownerId as string) ||
-          tags.recipientId ||
-          tags.userId ||
-          tags.ownerId ||
-          ''
-        const responderId = responderIdRaw && String(responderIdRaw).trim() ? String(responderIdRaw).trim() : ''
-
-        let formData = formDataBase
-        if (params.automationType === 'excel_collection') {
-          const copyAppId = String(
-            tags.copyAppId ||
-              tags.copy_app_id ||
-              (outputData.copyAppId as string) ||
-              (outputData.copy_app_id as string) ||
-              (outputContext.copyAppId as string) ||
-              (outputContext.copy_app_id as string) ||
-              (formDataBase.copyAppId as string) ||
-              (formDataBase.copy_app_id as string) ||
-              ''
-          ).trim()
-          const copyUrl = String(
-            (outputData.copyUrl as string) ||
-              (outputData.copyURL as string) ||
-              (outputData.copyLink as string) ||
-              (outputData.copy_link as string) ||
-              (outputContext.copyUrl as string) ||
-              (outputContext.copyURL as string) ||
-              (outputContext.copyLink as string) ||
-              (outputContext.copy_link as string) ||
-              (formDataBase.copyUrl as string) ||
-              (formDataBase.copyURL as string) ||
-              (formDataBase.copyLink as string) ||
-              (formDataBase.copy_link as string) ||
-              ''
-          ).trim()
-          if (copyAppId || copyUrl) {
-            formData = {
-              ...formData,
-              ...(copyAppId ? { copyAppId } : {}),
-              ...(copyUrl ? { copyUrl } : {})
-            }
-          }
-        }
-
-        return {
-          workflowId,
-          responderId,
-          responderName:
-            (outputData.responderName as string) ||
-            (formDataBase.responderName as string) ||
-            (outputData.ownerName as string) ||
-            'Unknown',
-          responderEmail:
-            (outputData.responderEmail as string) ||
-            (formDataBase.responderEmail as string) ||
-            (outputData.ownerEmail as string),
-          submittedAt: (result.completedAt as string) || new Date().toISOString(),
-          formData,
-          status: 'COMPLETED'
-        }
-      })
+      return (data.completedResults || []).map((result: Record<string, unknown>) =>
+        this.mapCompletedBulkResult(result, params.automationType)
+      )
     } catch (error) {
       console.error('[SpreadsheetAutomationService] Fetch bulk responses error:', error)
       // Fall back to querying flows directly
@@ -1881,6 +1802,113 @@ export class SpreadsheetAutomationService {
         automationType: params.automationType || 'bulk_collection'
       })
     }
+  }
+
+  private mapCompletedBulkResult(
+    result: Record<string, unknown>,
+    automationType?: 'bulk_collection' | 'excel_collection'
+  ): {
+    workflowId: string
+    responderId: string
+    responderName: string
+    responderEmail?: string
+    submittedAt: string
+    formData: Record<string, unknown>
+    status: 'COMPLETED'
+  } {
+    const outputData = (result.outputData as Record<string, unknown>) || {}
+    const tags = (result.tags as Record<string, string>) || {}
+    const formDataBase = (outputData.formData as Record<string, unknown>) || outputData
+
+    const workflowId = String(
+      result.workflowId ||
+        result.flowId ||
+        result.id ||
+        (result.data as Record<string, unknown> | undefined)?.workflowId ||
+        ''
+    ).trim()
+
+    const responderIdRaw =
+      (outputData.responderId as string) ||
+      (outputData.userId as string) ||
+      (outputData.recipientId as string) ||
+      (outputData.assignedTo as string) ||
+      (outputData.ownerId as string) ||
+      (formDataBase.responderId as string) ||
+      (formDataBase.recipientId as string) ||
+      (formDataBase.userId as string) ||
+      (formDataBase.ownerId as string) ||
+      tags.recipientId ||
+      tags.userId ||
+      tags.ownerId ||
+      ''
+    const responderId = responderIdRaw && String(responderIdRaw).trim() ? String(responderIdRaw).trim() : ''
+
+    let formData = formDataBase
+    if (automationType === 'excel_collection') {
+      const outputContext = (outputData.context as Record<string, unknown>) || {}
+      formData = this.enrichExcelCollectionFormData(formData, tags, outputData, outputContext, formDataBase)
+    }
+
+    return {
+      workflowId,
+      responderId,
+      responderName:
+        (outputData.responderName as string) ||
+        (formDataBase.responderName as string) ||
+        (outputData.ownerName as string) ||
+        'Unknown',
+      responderEmail:
+        (outputData.responderEmail as string) ||
+        (formDataBase.responderEmail as string) ||
+        (outputData.ownerEmail as string),
+      submittedAt: (result.completedAt as string) || new Date().toISOString(),
+      formData,
+      status: 'COMPLETED'
+    }
+  }
+
+  private enrichExcelCollectionFormData(
+    formData: Record<string, unknown>,
+    tags: Record<string, string>,
+    outputData: Record<string, unknown>,
+    outputContext: Record<string, unknown>,
+    formDataBase: Record<string, unknown>
+  ): Record<string, unknown> {
+    const copyAppId = String(
+      tags.copyAppId ||
+        tags.copy_app_id ||
+        (outputData.copyAppId as string) ||
+        (outputData.copy_app_id as string) ||
+        (outputContext.copyAppId as string) ||
+        (outputContext.copy_app_id as string) ||
+        (formDataBase.copyAppId as string) ||
+        (formDataBase.copy_app_id as string) ||
+        ''
+    ).trim()
+    const copyUrl = String(
+      (outputData.copyUrl as string) ||
+        (outputData.copyURL as string) ||
+        (outputData.copyLink as string) ||
+        (outputData.copy_link as string) ||
+        (outputContext.copyUrl as string) ||
+        (outputContext.copyURL as string) ||
+        (outputContext.copyLink as string) ||
+        (outputContext.copy_link as string) ||
+        (formDataBase.copyUrl as string) ||
+        (formDataBase.copyURL as string) ||
+        (formDataBase.copyLink as string) ||
+        (formDataBase.copy_link as string) ||
+        ''
+    ).trim()
+    if (copyAppId || copyUrl) {
+      return {
+        ...formData,
+        ...(copyAppId ? { copyAppId } : {}),
+        ...(copyUrl ? { copyUrl } : {})
+      }
+    }
+    return formData
   }
 
   /**
@@ -1972,7 +2000,7 @@ export class SpreadsheetAutomationService {
           return {
             workflowId: flowId,
             responderId: recipientId || '',
-            responderName: 'Unknown', // TODO: Look up user name
+            responderName: 'Unknown',
             responderEmail: undefined,
             submittedAt: (flow.completedAt as string) || new Date().toISOString(),
             formData,
@@ -2333,11 +2361,7 @@ export class SpreadsheetAutomationService {
    * Split array into chunks for concurrent processing
    */
   private chunkArray<T>(array: T[], size: number): T[][] {
-    const chunks: T[][] = []
-    for (let i = 0; i < array.length; i += size) {
-      chunks.push(array.slice(i, i + size))
-    }
-    return chunks
+    return Array.from({ length: Math.ceil(array.length / size) }, (_, i) => array.slice(i * size, (i + 1) * size))
   }
 
   /**

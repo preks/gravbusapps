@@ -55,7 +55,7 @@ export const isNumericColumn = (column: SpreadsheetColumn): boolean => numericCo
 function looksNumeric(value: unknown): boolean {
   if (typeof value === 'number' && Number.isFinite(value)) return true
   if (value == null || value === '') return false
-  const s = String(value).replace(/,/g, '').trim()
+  const s = String(value).replaceAll(',', '').trim()
   if (!s) return false
   const n = Number(s)
   return Number.isFinite(n)
@@ -113,7 +113,7 @@ const toNumber = (value: unknown): number | null => {
   const v = extractValue(value)
   if (typeof v === 'number' && Number.isFinite(v)) return v
   if (typeof v === 'string') {
-    const normalized = v.replace(/,/g, '').trim()
+    const normalized = v.replaceAll(',', '').trim()
     if (!normalized) return null
     const parsed = Number(normalized)
     return Number.isFinite(parsed) ? parsed : null

@@ -573,14 +573,17 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {Object.entries(PERMISSION_CONFIG).map(([key, config]) => (
-                              <SelectItem key={key} value={key}>
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <config.icon className="gba:w-4 gba:h-4" />
-                                  {config.label}
-                                </div>
-                              </SelectItem>
-                            ))}
+                            {Object.entries(PERMISSION_CONFIG).map(([key, config]) => {
+                              const Icon = config.icon
+                              return (
+                                <SelectItem key={key} value={key}>
+                                  <div className="gba:flex gba:items-center gba:gap-2">
+                                    <Icon className="gba:w-4 gba:h-4" />
+                                    {config.label}
+                                  </div>
+                                </SelectItem>
+                              )
+                            })}
                           </SelectContent>
                         </Select>
                         <Button

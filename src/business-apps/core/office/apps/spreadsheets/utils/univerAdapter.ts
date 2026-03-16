@@ -78,7 +78,8 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
     )
     if (matchingKey) value = row[matchingKey]
   }
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
+  if (value && typeof value === 'object') {
+    if (Array.isArray(value)) return value
     const cellObject = value as Record<string, unknown>
     if ('v' in cellObject || 'f' in cellObject || 'm' in cellObject || 'ct' in cellObject) {
       return cellObject
@@ -88,16 +89,20 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
   return value
 }
 
+function hexToRgb(hex: string, fallback: string): string {
+  const cleaned = hex.replaceAll('#', '')
+  if (cleaned.length === 6 || cleaned.length === 8) return `#${cleaned}`
+  return fallback
+}
+
 /** Map our parsed style (from Excel import) to Univer inline style */
 function toUniverInlineStyle(obj: Record<string, unknown>): Record<string, unknown> | undefined {
   const style: Record<string, unknown> = {}
   if (obj.bg && typeof obj.bg === 'string') {
-    const hex = obj.bg.replace('#', '')
-    style.bg = { rgb: hex.length === 6 || hex.length === 8 ? `#${hex}` : obj.bg }
+    style.bg = { rgb: hexToRgb(obj.bg, obj.bg) }
   }
   if (obj.fc && typeof obj.fc === 'string') {
-    const hex = obj.fc.replace('#', '')
-    style.cl = { rgb: hex.length === 6 || hex.length === 8 ? `#${hex}` : obj.fc }
+    style.cl = { rgb: hexToRgb(obj.fc, obj.fc) }
   }
   if (obj.bl) style.bl = 1
   if (obj.it) style.it = 1
@@ -148,8 +153,8 @@ function toFormulaCell(obj: Record<string, unknown>): UniverCellData | null {
   const cell: UniverCellData = {}
   if (obj.f && typeof obj.f === 'string') cell.f = obj.f.startsWith('=') ? obj.f : `=${obj.f}`
   const val = obj.v ?? obj.m
-  if (val !== undefined && val !== null) cell.v = val as string | number | boolean
-  else if (obj.m !== undefined) cell.v = obj.m as string | number | boolean
+  if (val !== undefined && val !== null) cell.v = val
+  else if (obj.m !== undefined) cell.v = obj.m
   const univerStyle = toUniverInlineStyle(obj)
   if (univerStyle) cell.s = univerStyle
   return Object.keys(cell).length > 0 ? cell : null
@@ -170,35 +175,87 @@ function toUniverCellData(raw: unknown, column: SpreadsheetColumn): UniverCellDa
   const avatarColumn = isAvatarColumn(column)
   const linkColumn = isLinkColumn(column)
 
-  if (typeof raw === 'object' && !Array.isArray(raw)) {
+  if (typeof raw === 'object') {
+    if (Array.isArray(raw)) return { v: raw }
     const obj = raw as Record<string, unknown>
     const objectValue = extractObjectValue(obj)
     if ((column.type === 'image' || avatarColumn || column.type === 'url' || linkColumn) && objectValue)
       raw = objectValue
-    else return toFormulaCell(obj) ?? (raw as UniverCellData)
+    else return toFormulaCell(obj) ?? obj
   }
 
   if (typeof raw === 'string') {
     const trimmed = raw.trim()
     if ((column.type === 'url' || linkColumn) && /^https?:\/\//i.test(trimmed)) {
-      const safeUrl = trimmed.replace(/"/g, '""')
+      const safeUrl = trimmed.replaceAll('"', '""')
       return { f: `=HYPERLINK("${safeUrl}","View Response")` }
     }
     if (column.type === 'image' || avatarColumn) {
       const imageUrl = toImageUrl(trimmed)
       if (imageUrl) {
-        const safeUrl = imageUrl.replace(/"/g, '""')
-        // Avatar columns: use custom size (sizing=3, 32x32) for small round-like display.
-        // Regular image columns: default stretch behavior.
-        const isAvatar = avatarColumn
-        return isAvatar
-          ? { f: `=IMAGE("${safeUrl}", "", 3, 32, 32)` }
-          : { f: `=IMAGE("${safeUrl}")` }
+        const safeUrl = imageUrl.replaceAll('"', '""')
+        if (avatarColumn) return { f: `=IMAGE("${safeUrl}", "", 3, 32, 32)` }
+        return { f: `=IMAGE("${safeUrl}")` }
       }
     }
   }
 
-  return { v: raw as string | number | boolean }
+  if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean') {
+    return { v: raw }
+  }
+  return null
+}
+
+const DEFAULT_MIN_ROWS = 1000
+const UNIVER_DEFAULT_COL_WIDTH = 73
+const UNIVER_DEFAULT_ROW_HEIGHT = 23
+const UNIVER_ROW_HEADER_WIDTH = 46
+const UNIVER_COLUMN_HEADER_HEIGHT = 20
+const AVATAR_COL_WIDTH = 40
+
+function buildRowCells(
+  row: Record<string, unknown>,
+  visibleColumns: SpreadsheetColumn[]
+): Record<number, UniverCellData> {
+  const rowCells: Record<number, UniverCellData> = {}
+  for (let colIndex = 0; colIndex < visibleColumns.length; colIndex++) {
+    const col = visibleColumns[colIndex]
+    const raw = getCellValue(row, col)
+    const cell = toUniverCellData(raw, col)
+    if (cell) rowCells[colIndex] = cell
+  }
+  return rowCells
+}
+
+function buildCellData(data: Record<string, unknown>[], visibleColumns: SpreadsheetColumn[]): UniverSheetCellData {
+  const cellData: UniverSheetCellData = {}
+  for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
+    const rowCells = buildRowCells(data[rowIndex], visibleColumns)
+    if (Object.keys(rowCells).length > 0) cellData[rowIndex] = rowCells
+  }
+  return cellData
+}
+
+function buildColumnWidths(visibleColumns: SpreadsheetColumn[]): Record<number, { w?: number }> {
+  const columnData: Record<number, { w?: number }> = {}
+  for (let idx = 0; idx < visibleColumns.length; idx++) {
+    const col = visibleColumns[idx]
+    let w: number
+    if (typeof col.width === 'number' && col.width > 0) w = col.width
+    else if (isAvatarColumn(col)) w = AVATAR_COL_WIDTH
+    else w = UNIVER_DEFAULT_COL_WIDTH
+    columnData[idx] = { w }
+  }
+  return columnData
+}
+
+function buildRowHeights(data: Record<string, unknown>[]): Record<number, { h?: number }> {
+  const rowData: Record<number, { h?: number }> = {}
+  for (let idx = 0; idx < data.length; idx++) {
+    const h = data[idx]._height
+    if (typeof h === 'number' && h > 0) rowData[idx] = { h }
+  }
+  return rowData
 }
 
 /**
@@ -211,49 +268,9 @@ export function buildWorkbookSnapshot(
   columns: SpreadsheetColumn[]
 ): UniverWorkbookSnapshot {
   const visibleColumns = columns.filter(c => c.isVisible !== false)
-  const cellData: UniverSheetCellData = {}
-
-  data.forEach((row, rowIndex) => {
-    const rowCells: Record<number, UniverCellData> = {}
-    visibleColumns.forEach((col, colIndex) => {
-      const raw = getCellValue(row, col)
-      const cell = toUniverCellData(raw, col)
-      if (cell) {
-        rowCells[colIndex] = cell
-      }
-    })
-    if (Object.keys(rowCells).length > 0) {
-      cellData[rowIndex] = rowCells
-    }
-  })
-
-  const DEFAULT_MIN_ROWS = 1000
-  const UNIVER_DEFAULT_COL_WIDTH = 73
-  const UNIVER_DEFAULT_ROW_HEIGHT = 23
-  const UNIVER_ROW_HEADER_WIDTH = 46
-  const UNIVER_COLUMN_HEADER_HEIGHT = 20
-
-  const AVATAR_COL_WIDTH = 40
-  const columnData: Record<number, { w?: number }> = {}
-  visibleColumns.forEach((col, idx) => {
-    let w: number
-    if (typeof col.width === 'number' && col.width > 0) {
-      w = col.width
-    } else if (isAvatarColumn(col)) {
-      w = AVATAR_COL_WIDTH
-    } else {
-      w = UNIVER_DEFAULT_COL_WIDTH
-    }
-    columnData[idx] = { w }
-  })
-
-  const rowData: Record<number, { h?: number }> = {}
-  data.forEach((row, idx) => {
-    const h = row._height as number | undefined
-    if (typeof h === 'number' && h > 0) {
-      rowData[idx] = { h }
-    }
-  })
+  const cellData = buildCellData(data, visibleColumns)
+  const columnData = buildColumnWidths(visibleColumns)
+  const rowData = buildRowHeights(data)
 
   const worksheet: UniverWorksheetData = {
     id: sheet.id,
@@ -284,6 +301,34 @@ export function buildWorkbookSnapshot(
 /** Regex to match old 1-arg IMAGE formula for upgrade to sized version (allows optional spaces) */
 const OLD_IMAGE_FORMULA = /^=IMAGE\s*\(\s*"((?:[^"]|"")*)"\s*\)$/
 
+function upgradeImageFormula(cell: UniverCellData): void {
+  const formula = cell.f
+  if (typeof formula !== 'string') return
+  const m = formula.match(OLD_IMAGE_FORMULA)
+  if (m) {
+    const url = m[1].replaceAll('""', '"')
+    cell.f = `=IMAGE("${url.replaceAll('"', '""')}", "", 3, 32, 32)`
+  }
+}
+
+function processAvatarCellsInRow(rowCells: Record<number, UniverCellData>, avatarColIndices: Set<number>): void {
+  for (const colIdx of avatarColIndices) {
+    const cell = rowCells[colIdx]
+    if (cell?.f && typeof cell.f === 'string') upgradeImageFormula(cell)
+  }
+}
+
+function processAvatarColumnConfig(sheetData: UniverWorksheetData, avatarColIndices: Set<number>): void {
+  const columnData = sheetData.columnData
+  if (columnData !== undefined && typeof columnData === 'object') {
+    for (const colIdx of avatarColIndices) {
+      const colConfig = columnData[colIdx]
+      if (colConfig && typeof colConfig === 'object') colConfig.w = AVATAR_COL_WIDTH
+      else columnData[colIdx] = { w: AVATAR_COL_WIDTH }
+    }
+  }
+}
+
 /**
  * Transform a loaded Univer snapshot to use small avatar images.
  * - Upgrades =IMAGE("url") to =IMAGE("url", "", 3, 32, 32) in avatar columns
@@ -295,7 +340,7 @@ export function transformAvatarFormulasInSnapshot(
   columns: SpreadsheetColumn[]
 ): void {
   const sheets = snapshot?.sheets as Record<string, UniverWorksheetData> | undefined
-  if (!sheets) return
+  if (sheets === undefined) return
 
   const visibleColumns = columns.filter(c => c.isVisible !== false)
   const avatarColIndices = new Set(
@@ -303,34 +348,14 @@ export function transformAvatarFormulasInSnapshot(
   )
   if (avatarColIndices.size === 0) return
 
-  const AVATAR_COL_WIDTH = 40
-
   for (const sheetData of Object.values(sheets)) {
-    if (!sheetData?.cellData) continue
-
-    for (const rowCells of Object.values(sheetData.cellData) as Record<number, UniverCellData>[]) {
-      if (typeof rowCells !== 'object') continue
-      for (const colIdx of avatarColIndices) {
-        const cell = rowCells[colIdx]
-        if (!cell?.f || typeof cell.f !== 'string') continue
-        const m = cell.f.match(OLD_IMAGE_FORMULA)
-        if (m) {
-          const url = m[1].replace(/""/g, '"')
-          cell.f = `=IMAGE("${url.replace(/"/g, '""')}", "", 3, 32, 32)`
-        }
+    const cellData = sheetData?.cellData
+    if (cellData !== undefined) {
+      for (const rowCells of Object.values(cellData) as Record<number, UniverCellData>[]) {
+        if (typeof rowCells === 'object') processAvatarCellsInRow(rowCells, avatarColIndices)
       }
     }
-
-    if (sheetData.columnData && typeof sheetData.columnData === 'object') {
-      for (const colIdx of avatarColIndices) {
-        const colConfig = sheetData.columnData[colIdx]
-        if (colConfig && typeof colConfig === 'object') {
-          ;(colConfig as { w?: number }).w = AVATAR_COL_WIDTH
-        } else {
-          ;(sheetData.columnData as Record<number, { w?: number }>)[colIdx] = { w: AVATAR_COL_WIDTH }
-        }
-      }
-    }
+    processAvatarColumnConfig(sheetData, avatarColIndices)
   }
 }
 
@@ -359,7 +384,7 @@ export function createUniverConversionContext(
     indexToExcelCol.set(index, excelCol)
   })
   data.forEach((row, index) => {
-    const rowId = (row._id as string) || `row_${index}`
+    const rowId = typeof row._id === 'string' ? row._id : `row_${index}`
     rowIdToIndex.set(rowId, index)
     rowIndexToId.set(index, rowId)
   })

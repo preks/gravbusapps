@@ -45,7 +45,9 @@ const clamp = (value: number): number => Math.max(0, Math.min(100, Math.round(va
 
 export const parseSheetsAIReviewResponse = (value: unknown): SheetsAIReviewResponse | null => {
   const raw = typeof value === 'string' ? value.trim() : JSON.stringify(value ?? null)
-  const jsonCandidate = raw.startsWith('```') ? raw.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '') : raw
+  const jsonCandidate = raw.startsWith('```')
+    ? raw.replaceAll(/^```(?:json)?\s*\n?/g, '').replaceAll(/\n?```\s*$/g, '')
+    : raw
   let parsed: Partial<SheetsAIReviewResponse> | null = null
   try {
     parsed = JSON.parse(jsonCandidate) as Partial<SheetsAIReviewResponse>

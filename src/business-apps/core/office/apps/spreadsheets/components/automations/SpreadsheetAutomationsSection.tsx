@@ -352,9 +352,73 @@ function getStatusIcon(status: AutomationRun['status']) {
   }
 }
 
-/**
- * SpreadsheetAutomationsSection Component
- */
+async function fetchAutomationsForApp(
+  app: { id: string; name: string },
+  docServiceUrl: string,
+  accessToken: string
+): Promise<AutomationWithRuns[]> {
+  const [automationsResponse, spreadsheetResponse] = await Promise.all([
+    fetch(`${docServiceUrl}/automations/app/${app.id}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
+    }),
+    fetch(`${docServiceUrl}/spreadsheets/${app.id}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
+    })
+  ])
+
+  const fromAutomationEndpoint = automationsResponse.ok
+    ? extractAutomations(await automationsResponse.json()).map(normalizeAutomation)
+    : []
+
+  const fromSheetConfig: SpreadsheetAutomation[] = []
+  if (spreadsheetResponse.ok) {
+    const spreadsheetPayload = unwrapObject(await spreadsheetResponse.json())
+    const collected = await collectAutomationsFromSpreadsheetPayload(
+      spreadsheetPayload,
+      app.id,
+      docServiceUrl,
+      accessToken
+    )
+    fromSheetConfig.push(...collected)
+  }
+
+  const seen = new Set<string>()
+  const mergedAutomations: SpreadsheetAutomation[] = []
+  for (const automation of [...fromAutomationEndpoint, ...fromSheetConfig]) {
+    const key = getAutomationIdentity(automation)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    mergedAutomations.push(automation)
+  }
+
+  return mergedAutomations.map(automation => ({
+    ...automation,
+    spreadsheetAppId: app.id,
+    spreadsheetAppName: app.name
+  }))
+}
+
+async function fetchRunsForAutomation(
+  automation: AutomationWithRuns,
+  docServiceUrl: string,
+  accessToken: string
+): Promise<AutomationWithRuns> {
+  try {
+    const runsResponse = await fetch(`${docServiceUrl}/automations/${automation.id}/runs?limit=5`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
+    })
+    if (runsResponse.ok) {
+      return { ...automation, recentRuns: extractArray<AutomationRun>(await runsResponse.json()) }
+    }
+  } catch {
+    // Ignore run fetch errors
+  }
+  return { ...automation, recentRuns: [] }
+}
+
 export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSectionProps> = ({
   accessToken,
   'data-testid': testId = 'spreadsheet-automations-section'
@@ -417,85 +481,15 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
       const automationsByApp = await Promise.all(
         spreadsheets.map(async app => {
           try {
-            const [automationsResponse, spreadsheetResponse] = await Promise.all([
-              fetch(`${docServiceUrl}/automations/app/${app.id}`, {
-                method: 'GET',
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json'
-                }
-              }),
-              fetch(`${docServiceUrl}/spreadsheets/${app.id}`, {
-                method: 'GET',
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json'
-                }
-              })
-            ])
-
-            const fromAutomationEndpoint = automationsResponse.ok
-              ? extractAutomations(await automationsResponse.json()).map(normalizeAutomation)
-              : []
-
-            const fromSheetConfig: SpreadsheetAutomation[] = []
-            if (spreadsheetResponse.ok) {
-              const spreadsheetPayload = unwrapObject(await spreadsheetResponse.json())
-              const collected = await collectAutomationsFromSpreadsheetPayload(
-                spreadsheetPayload,
-                app.id,
-                docServiceUrl,
-                accessToken
-              )
-              fromSheetConfig.push(...collected)
-            }
-
-            const seen = new Set<string>()
-            const mergedAutomations: SpreadsheetAutomation[] = []
-            for (const automation of [...fromAutomationEndpoint, ...fromSheetConfig]) {
-              const key = getAutomationIdentity(automation)
-              if (!key || seen.has(key)) continue
-              seen.add(key)
-              mergedAutomations.push(automation)
-            }
-
-            return mergedAutomations.map(automation => ({
-              ...automation,
-              spreadsheetAppId: app.id,
-              spreadsheetAppName: app.name
-            }))
+            return await fetchAutomationsForApp(app, docServiceUrl, accessToken)
           } catch {
             return [] as AutomationWithRuns[]
           }
         })
       )
-      const automationsList = automationsByApp.flat()
 
-      // Fetch recent runs for each automation
       const automationsWithRuns = await Promise.all(
-        automationsList.map(async (automation: AutomationWithRuns) => {
-          try {
-            const runsResponse = await fetch(`${docServiceUrl}/automations/${automation.id}/runs?limit=5`, {
-              method: 'GET',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              }
-            })
-
-            if (runsResponse.ok) {
-              const runsData = await runsResponse.json()
-              return {
-                ...automation,
-                recentRuns: extractArray<AutomationRun>(runsData)
-              }
-            }
-          } catch {
-            // Silently ignore run fetch errors
-          }
-
-          return { ...automation, recentRuns: [] }
-        })
+        automationsByApp.flat().map(automation => fetchRunsForAutomation(automation, docServiceUrl, accessToken))
       )
 
       setAutomations(automationsWithRuns)

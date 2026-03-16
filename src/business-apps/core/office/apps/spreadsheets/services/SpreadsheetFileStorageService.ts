@@ -31,11 +31,7 @@ const APP_FILE_PREFIX = 'spreadsheet-app'
 
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
   try {
-    return (
-      typeof window !== 'undefined' &&
-      typeof window.localStorage !== 'undefined' &&
-      window.localStorage.getItem('debug:spreadsheet-apps') === '1'
-    )
+    return globalThis.localStorage?.getItem('debug:spreadsheet-apps') === '1'
   } catch {
     return false
   }
@@ -75,10 +71,10 @@ interface StoredIndexInfo {
 }
 
 export class SpreadsheetFileStorageService {
-  private accessToken: string
-  private currentUserId: string
+  private readonly accessToken: string
+  private readonly currentUserId: string
   private indexInfo: StoredIndexInfo | null = null
-  private syncService: UserDataSyncService
+  private readonly syncService: UserDataSyncService
 
   constructor(accessToken: string, currentUserId: string) {
     this.accessToken = accessToken
@@ -135,7 +131,8 @@ export class SpreadsheetFileStorageService {
       // Build the full URL manually to avoid path joining issues
       // The filePath from upload response is like: /api/v1/tenant/downloads/...
       const baseUrl = 'https://newwork-dev.newwork.com/files'
-      const url = `${baseUrl}${filePath.startsWith('/') ? filePath : '/' + filePath}`
+      const pathPart = filePath.startsWith('/') ? filePath : `/${filePath}`
+      const url = `${baseUrl}${pathPart}`
 
       const response = await fetch(url, {
         method: 'GET',
@@ -467,7 +464,8 @@ export class SpreadsheetFileStorageService {
       if (!shared?.filePath) return null
       debugLog('[SpreadsheetStorage] Loading from shared apps:', id)
       const app = await this.readJsonFileByPath<SpreadsheetApp>(shared.filePath)
-      return app && app.id === id ? app : null
+      if (app?.id === id) return app
+      return null
     } catch (e) {
       console.warn('[SpreadsheetStorage] Failed to load from shared apps:', e)
       return null
@@ -695,10 +693,7 @@ export class SpreadsheetFileStorageService {
     // Use the already-loaded app (we loaded it above for permission check)
     debugLog('[TRACE] Using already-loaded app, sheets:', currentApp.sheets.length)
     console.warn('[SpreadsheetStorage] updateApp - currentApp rows:', currentApp.sheets[0]?.data?.length)
-    console.warn(
-      '[SpreadsheetStorage] updateApp - updates rows:',
-      (updates as SpreadsheetApp).sheets?.[0]?.data?.length
-    )
+    console.warn('[SpreadsheetStorage] updateApp - updates rows:', updates.sheets?.[0]?.data?.length)
 
     // Merge updates
     const now = new Date().toISOString()

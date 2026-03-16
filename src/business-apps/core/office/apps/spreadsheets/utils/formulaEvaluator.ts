@@ -26,7 +26,6 @@ export function evaluateFormula(formula: string, context: FormulaContext): unkno
     return null
   }
 
-  // Remove leading = if present
   const cleanFormula = formula.trim().startsWith('=') ? formula.trim().slice(1).trim() : formula.trim()
 
   if (!cleanFormula) {
@@ -48,9 +47,6 @@ export function isFormula(value: unknown): boolean {
   return typeof value === 'string' && value.trim().startsWith('=')
 }
 
-/**
- * Evaluate an expression (recursive)
- */
 function evaluateExpression(expr: string, context: FormulaContext): unknown {
   const normalizedExpr = expr.trim()
   if (!normalizedExpr) {
@@ -81,12 +77,12 @@ function evaluateExpression(expr: string, context: FormulaContext): unknown {
 }
 
 function getQuotedLiteral(expr: string): string | null {
-  const quotedLiteral = expr.match(/^"(.*)"$/)
+  const quotedLiteral = /^"(.*)"$/.exec(expr)
   return quotedLiteral ? quotedLiteral[1] : null
 }
 
 function parseFunctionCall(expr: string): { name: string; args: string } | null {
-  const functionMatch = expr.match(/^([A-Z]+)\s*\((.*)\)$/i)
+  const functionMatch = /^([A-Z]+)\s*\((.*)\)$/i.exec(expr)
   if (!functionMatch) return null
   return {
     name: functionMatch[1].toUpperCase(),
@@ -150,9 +146,6 @@ function getRowValueByColumn(row: Record<string, unknown>, colName: string, colI
   return matchingKey ? row[matchingKey] : undefined
 }
 
-/**
- * Evaluate Excel functions
- */
 function evaluateFunction(name: string, args: string, context: FormulaContext): unknown {
   switch (name) {
     case 'SUM':
@@ -175,59 +168,41 @@ function evaluateFunction(name: string, args: string, context: FormulaContext): 
   }
 }
 
-/**
- * SUM function: SUM(A1:A10) or SUM(A1, B1, C1)
- */
 function sumFunction(args: string, context: FormulaContext): number {
   const values = parseFunctionArgs(args, context)
   const result = values.reduce((sum, val) => {
     const num = toNumber(val)
-    return sum + (isNaN(num) ? 0 : num)
+    return sum + (Number.isNaN(num) ? 0 : num)
   }, 0)
   return result
 }
 
-/**
- * AVERAGE function: AVERAGE(A1:A10) or AVERAGE(A1, B1, C1)
- */
 function averageFunction(args: string, context: FormulaContext): number {
   const values = parseFunctionArgs(args, context)
-  const numbers = values.map(toNumber).filter(n => !isNaN(n))
+  const numbers = values.map(toNumber).filter(n => !Number.isNaN(n))
   if (numbers.length === 0) return 0
   return numbers.reduce((sum, n) => sum + n, 0) / numbers.length
 }
 
-/**
- * MAX function: MAX(A1:A10) or MAX(A1, B1, C1)
- */
 function maxFunction(args: string, context: FormulaContext): number {
   const values = parseFunctionArgs(args, context)
-  const numbers = values.map(toNumber).filter(n => !isNaN(n))
+  const numbers = values.map(toNumber).filter(n => !Number.isNaN(n))
   if (numbers.length === 0) return 0
   return Math.max(...numbers)
 }
 
-/**
- * MIN function: MIN(A1:A10) or MIN(A1, B1, C1)
- */
 function minFunction(args: string, context: FormulaContext): number {
   const values = parseFunctionArgs(args, context)
-  const numbers = values.map(toNumber).filter(n => !isNaN(n))
+  const numbers = values.map(toNumber).filter(n => !Number.isNaN(n))
   if (numbers.length === 0) return 0
   return Math.min(...numbers)
 }
 
-/**
- * COUNT function: COUNT(A1:A10) or COUNT(A1, B1, C1)
- */
 function countFunction(args: string, context: FormulaContext): number {
   const values = parseFunctionArgs(args, context)
   return values.filter(v => v !== null && v !== undefined && v !== '').length
 }
 
-/**
- * IF function: IF(condition, value_if_true, value_if_false)
- */
 function ifFunction(args: string, context: FormulaContext): unknown {
   const parts = splitFunctionArgs(args)
   if (parts.length < 3) {
@@ -238,14 +213,10 @@ function ifFunction(args: string, context: FormulaContext): unknown {
   const valueIfTrue = evaluateExpression(parts[1], context)
   const valueIfFalse = evaluateExpression(parts[2], context)
 
-  // Evaluate condition - handle comparison operators
   const conditionValue = evaluateCondition(conditionExpr, context)
   return conditionValue ? valueIfTrue : valueIfFalse
 }
 
-/**
- * SUMIF function: SUMIF(criteria_range, criteria, [sum_range])
- */
 function sumIfFunction(args: string, context: FormulaContext): number {
   const parts = splitFunctionArgs(args)
   if (parts.length < 2) {
@@ -266,7 +237,7 @@ function sumIfFunction(args: string, context: FormulaContext): number {
   for (let i = 0; i < rowCount; i++) {
     if (matchesCriteria(criteriaValues[i], criteriaRaw, context)) {
       const num = toNumber(sumValues[i])
-      if (!isNaN(num)) total += num
+      if (!Number.isNaN(num)) total += num
     }
   }
   return total
@@ -274,21 +245,26 @@ function sumIfFunction(args: string, context: FormulaContext): number {
 
 function resolveRangeExpression(rangeExpr: string, context: FormulaContext): unknown[] {
   const trimmed = rangeExpr.trim()
-  const rangeMatch = trimmed.match(/^(.+):(.+)$/)
+  const rangeMatch = /^(.+):(.+)$/.exec(trimmed)
   if (rangeMatch) {
     return getRangeValues(rangeMatch[1].trim(), rangeMatch[2].trim(), context)
   }
   return getRangeValues(trimmed, trimmed, context)
 }
 
-/**
- * Evaluate a condition expression (e.g., "A1>10", "price<100", "quantity=5")
- */
 function evaluateCondition(expr: string, context: FormulaContext): boolean {
-  // Replace cell references first
-  expr = replaceCellReferences(expr, context)
+  const resolved = replaceCellReferences(expr, context)
 
-  // Check for comparison operators
+  const comparisonResult = findComparisonResult(resolved)
+  if (comparisonResult !== null) {
+    return comparisonResult
+  }
+
+  const value = evaluateArithmetic(resolved, context)
+  return toBoolean(value)
+}
+
+function findComparisonResult(expr: string): boolean | null {
   const comparisons = [
     { pattern: />=/g, fn: (a: number, b: number) => a >= b },
     { pattern: /<=/g, fn: (a: number, b: number) => a <= b },
@@ -301,6 +277,7 @@ function evaluateCondition(expr: string, context: FormulaContext): boolean {
 
   for (const comp of comparisons) {
     if (comp.pattern.test(expr)) {
+      comp.pattern.lastIndex = 0
       const parts = expr.split(comp.pattern)
       if (parts.length === 2) {
         const left = toNumber(parts[0].trim())
@@ -310,14 +287,9 @@ function evaluateCondition(expr: string, context: FormulaContext): boolean {
     }
   }
 
-  // If no comparison operator, evaluate as boolean
-  const value = evaluateArithmetic(expr, context)
-  return toBoolean(value)
+  return null
 }
 
-/**
- * Parse function arguments (handles ranges and individual cells)
- */
 function parseFunctionArgs(args: string, context: FormulaContext): unknown[] {
   const parts = splitFunctionArgs(args)
   const values: unknown[] = []
@@ -325,15 +297,13 @@ function parseFunctionArgs(args: string, context: FormulaContext): unknown[] {
   for (const part of parts) {
     const trimmed = part.trim()
 
-    // Check for range (e.g., A1:A10)
-    const rangeMatch = trimmed.match(/^([A-Z]+[0-9]*|[A-Za-z_][A-Za-z0-9_]*):([A-Z]+[0-9]*|[A-Za-z_][A-Za-z0-9_]*)$/i)
+    const rangeMatch = /^([A-Z]+\d*|[a-z_][a-z\d_]*):([A-Z]+\d*|[a-z_][a-z\d_]*)$/i.exec(trimmed)
     if (rangeMatch) {
       const startRef = rangeMatch[1]
       const endRef = rangeMatch[2]
       const rangeValues = getRangeValues(startRef, endRef, context)
       values.push(...rangeValues)
     } else {
-      // Single cell reference or value
       const value = evaluateExpression(trimmed, context)
       values.push(value)
     }
@@ -342,9 +312,6 @@ function parseFunctionArgs(args: string, context: FormulaContext): unknown[] {
   return values
 }
 
-/**
- * Split function arguments by comma, handling nested parentheses
- */
 function splitFunctionArgs(args: string): string[] {
   const parts: string[] = []
   let current = ''
@@ -373,16 +340,12 @@ function splitFunctionArgs(args: string): string[] {
   return parts
 }
 
-/**
- * Get values from a range (e.g., A1:A10 or price:quantity)
- */
 function getRangeValues(startRef: string, endRef: string, context: FormulaContext): unknown[] {
   if (startRef === endRef) {
     const singleRange = getSingleRangeValues(startRef, context)
     if (singleRange) return singleRange
   }
 
-  // Excel full-column range (e.g. B:G)
   if (isExcelStyleColumnRef(startRef) && isExcelStyleColumnRef(endRef)) {
     return getExcelColumnRangeValues(startRef, endRef, context)
   }
@@ -398,7 +361,7 @@ function getRangeValues(startRef: string, endRef: string, context: FormulaContex
 }
 
 function isExcelStyleCellRef(ref: string): boolean {
-  return /^[A-Z]+[0-9]+$/i.test(ref)
+  return /^[A-Z]+\d+$/i.test(ref)
 }
 
 function isExcelStyleColumnRef(ref: string): boolean {
@@ -406,7 +369,6 @@ function isExcelStyleColumnRef(ref: string): boolean {
 }
 
 function getSingleRangeValues(ref: string, context: FormulaContext): unknown[] | null {
-  // Column name/id reference
   const columnByNameOrId = context.columns.find(
     c => c.name.toLowerCase() === ref.toLowerCase() || c.id.toLowerCase() === ref.toLowerCase()
   )
@@ -414,7 +376,6 @@ function getSingleRangeValues(ref: string, context: FormulaContext): unknown[] |
     return context.allRows.map(row => row[columnByNameOrId.name] ?? row[columnByNameOrId.id])
   }
 
-  // Excel whole-column reference (e.g. B)
   if (isExcelStyleColumnRef(ref)) {
     const colIndex = columnLetterToIndex(ref)
     if (colIndex < 0 || colIndex >= context.columns.length) return null
@@ -518,24 +479,18 @@ function getFallbackCellRangeValues(startRef: string, endRef: string, context: F
   })
 }
 
-/**
- * Parse Excel-style cell reference (A1, B2, etc.) or column name
- */
 function parseCellReference(ref: string, context: FormulaContext): { colIndex: number; rowIndex: number } | null {
-  // Excel-style reference (A1, B2, etc.)
-  const excelMatch = ref.match(/^([A-Z]+)([0-9]+)$/i)
+  const excelMatch = /^([A-Z]+)(\d+)$/i.exec(ref)
   if (excelMatch) {
     const colLetter = excelMatch[1].toUpperCase()
-    const rowNum = parseInt(excelMatch[2], 10) - 1 // Convert to 0-based index
+    const rowNum = Number.parseInt(excelMatch[2], 10) - 1
 
-    // Convert column letter to index (A=0, B=1, etc.)
     let colIndex = 0
     for (let i = 0; i < colLetter.length; i++) {
-      colIndex = colIndex * 26 + (colLetter.charCodeAt(i) - 64)
+      colIndex = colIndex * 26 + ((colLetter.codePointAt(i) ?? 0) - 64)
     }
-    colIndex -= 1 // Convert to 0-based
+    colIndex -= 1
 
-    // Validate indices
     if (colIndex < 0 || colIndex >= context.columns.length) {
       return null
     }
@@ -546,7 +501,6 @@ function parseCellReference(ref: string, context: FormulaContext): { colIndex: n
     return { colIndex, rowIndex: rowNum }
   }
 
-  // Column name reference
   const col = context.columns.find(
     c => c.name.toLowerCase() === ref.toLowerCase() || c.id.toLowerCase() === ref.toLowerCase()
   )
@@ -557,16 +511,11 @@ function parseCellReference(ref: string, context: FormulaContext): { colIndex: n
   return null
 }
 
-/**
- * Evaluate arithmetic expression with proper operator precedence
- */
 function evaluateArithmetic(expr: string, context: FormulaContext): unknown {
-  // Replace cell references with values first
   expr = replaceCellReferences(expr, context)
 
-  // Handle parentheses recursively
   while (expr.includes('(')) {
-    const match = expr.match(/\(([^()]+)\)/)
+    const match = /\(([^()]+)\)/.exec(expr)
     if (!match) break
 
     const innerExpr = match[1]
@@ -574,17 +523,12 @@ function evaluateArithmetic(expr: string, context: FormulaContext): unknown {
     expr = expr.replace(match[0], String(innerResult))
   }
 
-  // Tokenize the expression
   const tokens = tokenizeExpression(expr)
   if (tokens.length === 0) return 0
 
-  // Evaluate using shunting yard algorithm for proper precedence
   return evaluateTokens(tokens)
 }
 
-/**
- * Tokenize expression into numbers and operators
- */
 function tokenizeExpression(expr: string): Array<string | number> {
   const tokens: Array<string | number> = []
   let current = ''
@@ -597,15 +541,14 @@ function tokenizeExpression(expr: string): Array<string | number> {
     }
 
     if (['+', '-', '*', '/'].includes(char)) {
-      // Handle unary minus
       if (char === '-' && (tokens.length === 0 || typeof tokens[tokens.length - 1] === 'string')) {
         current += char
         continue
       }
 
       if (current) {
-        const num = parseFloat(current)
-        tokens.push(isNaN(num) ? 0 : num)
+        const num = Number.parseFloat(current)
+        tokens.push(Number.isNaN(num) ? 0 : num)
         current = ''
       }
       tokens.push(char)
@@ -615,47 +558,50 @@ function tokenizeExpression(expr: string): Array<string | number> {
   }
 
   if (current) {
-    const num = parseFloat(current)
-    tokens.push(isNaN(num) ? 0 : num)
+    const num = Number.parseFloat(current)
+    tokens.push(Number.isNaN(num) ? 0 : num)
   }
 
   return tokens
 }
 
-/**
- * Evaluate tokens with proper operator precedence
- */
 function evaluateTokens(tokens: Array<string | number>): number {
   if (tokens.length === 0) return 0
   if (tokens.length === 1) return typeof tokens[0] === 'number' ? tokens[0] : 0
 
-  // First pass: multiplication and division
-  const afterMulDiv: Array<string | number> = []
+  const afterMulDiv = applyMultiplicationAndDivision(tokens)
+  return applyAdditionAndSubtraction(afterMulDiv)
+}
+
+function applyMultiplicationAndDivision(tokens: Array<string | number>): Array<string | number> {
+  const result: Array<string | number> = []
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]
-    const prev = afterMulDiv[afterMulDiv.length - 1]
+    const prev = result[result.length - 1]
 
     if (token === '*' || token === '/') {
       const left = typeof prev === 'number' ? prev : 0
-      const right = typeof tokens[i + 1] === 'number' ? tokens[i + 1] : 0
-      afterMulDiv.pop()
+      const right = typeof tokens[i + 1] === 'number' ? (tokens[i + 1] as number) : 0
+      result.pop()
 
       if (token === '*') {
-        afterMulDiv.push(left * right)
+        result.push(left * right)
       } else {
-        afterMulDiv.push(right !== 0 ? left / right : 0)
+        result.push(right !== 0 ? left / right : 0)
       }
-      i++ // Skip the right operand
+      i++
     } else {
-      afterMulDiv.push(token)
+      result.push(token)
     }
   }
+  return result
+}
 
-  // Second pass: addition and subtraction
-  let result = typeof afterMulDiv[0] === 'number' ? afterMulDiv[0] : 0
-  for (let i = 1; i < afterMulDiv.length; i += 2) {
-    const op = afterMulDiv[i]
-    const right = typeof afterMulDiv[i + 1] === 'number' ? afterMulDiv[i + 1] : 0
+function applyAdditionAndSubtraction(tokens: Array<string | number>): number {
+  let result = typeof tokens[0] === 'number' ? tokens[0] : 0
+  for (let i = 1; i < tokens.length; i += 2) {
+    const op = tokens[i]
+    const right = typeof tokens[i + 1] === 'number' ? (tokens[i + 1] as number) : 0
 
     if (op === '+') {
       result += right
@@ -663,18 +609,26 @@ function evaluateTokens(tokens: Array<string | number>): number {
       result -= right
     }
   }
-
   return result
 }
 
-/**
- * Replace cell references in expression with actual values
- */
+function replaceColumnToken(
+  expr: string,
+  token: string,
+  col: { name: string; id: string },
+  row: Record<string, unknown>
+): string {
+  const regex = new RegExp(String.raw`\b${escapeRegex(token)}\b`, 'gi')
+  return expr.replaceAll(regex, () => {
+    const value = row[col.name] ?? row[col.id]
+    return String(value ?? 0)
+  })
+}
+
 function replaceCellReferences(expr: string, context: FormulaContext): string {
-  // Replace Excel-style references (A1, B2, etc.)
-  expr = expr.replace(/\b([A-Z]+)([0-9]+)\b/gi, (match, colLetter, rowNum) => {
+  expr = expr.replaceAll(/\b([A-Z]+)(\d+)\b/gi, (_match, colLetter: string, rowNum: string) => {
     const colIndex = columnLetterToIndex(colLetter)
-    const rowIndex = parseInt(rowNum, 10) - 1
+    const rowIndex = Number.parseInt(rowNum, 10) - 1
 
     if (rowIndex >= 0 && rowIndex < context.allRows.length && colIndex >= 0 && colIndex < context.columns.length) {
       const col = context.columns[colIndex]
@@ -684,19 +638,10 @@ function replaceCellReferences(expr: string, context: FormulaContext): string {
     return '0'
   })
 
-  // Replace column name references
   for (const col of context.columns) {
-    const replaceToken = (token: string) => {
-      const regex = new RegExp(`\\b${escapeRegex(token)}\\b`, 'gi')
-      expr = expr.replace(regex, () => {
-        const value = context.row[col.name] ?? context.row[col.id]
-        return String(value ?? 0)
-      })
-    }
-
-    replaceToken(col.name)
+    expr = replaceColumnToken(expr, col.name, col, context.row)
     if (col.id && col.id !== col.name) {
-      replaceToken(col.id)
+      expr = replaceColumnToken(expr, col.id, col, context.row)
     }
   }
 
@@ -705,7 +650,7 @@ function replaceCellReferences(expr: string, context: FormulaContext): string {
 
 function matchesCriteria(value: unknown, criteriaRaw: string, context: FormulaContext): boolean {
   const parsedCriterion = parseCriteriaToken(criteriaRaw, context)
-  const operatorMatch = typeof parsedCriterion === 'string' ? parsedCriterion.match(/^(<=|>=|<>|=|<|>)(.*)$/) : null
+  const operatorMatch = typeof parsedCriterion === 'string' ? /^(<=|>=|<>|=|<|>)(.*)$/.exec(parsedCriterion) : null
 
   if (!operatorMatch) {
     return compareWithoutOperator(value, parsedCriterion)
@@ -729,15 +674,17 @@ function compareWithOperator(value: unknown, operator: string, operandRaw: strin
   const operandIsNumber = operandRaw !== '' && Number.isFinite(operandMaybeNumber)
 
   if (operator === '=') {
-    return operandIsNumber
-      ? toNumber(value) === operandMaybeNumber
-      : normalizedString(value) === normalizedString(operandRaw)
+    if (operandIsNumber) {
+      return toNumber(value) === operandMaybeNumber
+    }
+    return normalizedString(value) === normalizedString(operandRaw)
   }
 
   if (operator === '<>') {
-    return operandIsNumber
-      ? toNumber(value) !== operandMaybeNumber
-      : normalizedString(value) !== normalizedString(operandRaw)
+    if (operandIsNumber) {
+      return toNumber(value) !== operandMaybeNumber
+    }
+    return normalizedString(value) !== normalizedString(operandRaw)
   }
 
   if (!operandIsNumber) return false
@@ -762,7 +709,7 @@ function normalizedString(value: unknown): string {
 
 function parseCriteriaToken(criteriaRaw: string, context: FormulaContext): string | number {
   const trimmed = criteriaRaw.trim()
-  const quoted = trimmed.match(/^"(.*)"$/)
+  const quoted = /^"(.*)"$/.exec(trimmed)
   if (quoted) return quoted[1]
   const numberValue = Number(trimmed)
   if (Number.isFinite(numberValue)) return numberValue
@@ -771,42 +718,30 @@ function parseCriteriaToken(criteriaRaw: string, context: FormulaContext): strin
   return String(evaluated ?? trimmed)
 }
 
-/**
- * Convert column letter to index (A=0, B=1, etc.)
- */
 function columnLetterToIndex(letter: string): number {
   let index = 0
   const upper = letter.toUpperCase()
   for (let i = 0; i < upper.length; i++) {
-    index = index * 26 + (upper.charCodeAt(i) - 64)
+    index = index * 26 + ((upper.codePointAt(i) ?? 0) - 64)
   }
   return index - 1
 }
 
-/**
- * Escape regex special characters
- */
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
 }
 
-/**
- * Convert value to number
- */
 function toNumber(value: unknown): number {
   if (typeof value === 'number') {
-    return isNaN(value) ? 0 : value
+    return Number.isNaN(value) ? 0 : value
   }
   if (typeof value === 'string') {
-    const num = parseFloat(value.replace(/[^\d.-]/g, ''))
-    return isNaN(num) ? 0 : num
+    const num = Number.parseFloat(value.replaceAll(/[^\d.-]/g, ''))
+    return Number.isNaN(num) ? 0 : num
   }
   return 0
 }
 
-/**
- * Convert value to boolean
- */
 function toBoolean(value: unknown): boolean {
   if (typeof value === 'boolean') return value
   if (typeof value === 'number') return value !== 0
@@ -814,9 +749,8 @@ function toBoolean(value: unknown): boolean {
     const lower = value.toLowerCase().trim()
     if (lower === 'true' || lower === '1' || lower === 'yes') return true
     if (lower === 'false' || lower === '0' || lower === 'no') return false
-    // Try numeric comparison
-    const num = parseFloat(lower)
-    if (!isNaN(num)) return num !== 0
+    const num = Number.parseFloat(lower)
+    if (!Number.isNaN(num)) return num !== 0
   }
   return Boolean(value)
 }

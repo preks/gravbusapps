@@ -161,6 +161,11 @@ function isSubmittedExcelCollectionCopy(app: SpreadsheetAppSummary): boolean {
   return settings.excel_collection_submitted === true || Boolean(submittedAt) || status.includes('COMPLETED')
 }
 
+function formatAvatarUrl(src?: string): string | undefined {
+  if (!src) return undefined
+  return src.startsWith('data:') ? src : `data:image/png;base64,${src}`
+}
+
 /**
  * Format relative time
  */
@@ -180,7 +185,7 @@ function formatRelativeTime(dateString: string, t: (key: string, vars?: Record<s
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric'
   })
 }
 
@@ -201,7 +206,7 @@ function formatDate(dateString: string, t: (key: string, vars?: Record<string, n
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric'
   })
 }
 
@@ -540,11 +545,64 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [accessToken, t]
   )
 
-  /**
-   * Enrich shared user records with display names and avatars via GraphQL.
-   * Accepts an optional knownUsers map (userId → details) as a fallback
-   * when the GraphQL lookup fails or returns no results.
-   */
+  const resolveShareUser = useCallback(
+    async (
+      share: {
+        id: string
+        userId: string
+        userName: string
+        userEmail: string
+        permission: 'view' | 'edit' | 'admin'
+        sharedAt: string
+        sharedBy: string
+      },
+      knownUsers?: Map<string, { displayName: string; avatar?: string; email?: string }>
+    ) => {
+      if (graphqlClient) {
+        for (const queryFn of [GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID]) {
+          try {
+            const query = queryFn(share.userId)
+            const result = await graphqlClient.request<{
+              Employee: Array<{
+                displayName: string
+                pictureThumbnail?: string
+                communication?: Array<{ value?: string; channelRef?: string }>
+              }>
+            }>(query)
+            const emp = result.Employee?.[0]
+            if (emp?.displayName) {
+              return {
+                ...share,
+                userName: emp.displayName,
+                userEmail: getWorkEmailFromCommunication(emp.communication) || '',
+                userAvatar: formatAvatarUrl(emp.pictureThumbnail)
+              }
+            }
+          } catch {
+            // Try next lookup strategy
+          }
+        }
+      }
+
+      const known = knownUsers?.get(share.userId)
+      if (known) {
+        return {
+          ...share,
+          userName: known.displayName,
+          userEmail: known.email || '',
+          userAvatar: formatAvatarUrl(known.avatar)
+        }
+      }
+
+      return {
+        ...share,
+        userName: `User ${share.userId.slice(0, 8)}`,
+        userEmail: ''
+      }
+    },
+    [graphqlClient]
+  )
+
   const enrichSharedUsers = useCallback(
     async (
       shares: Array<{
@@ -559,65 +617,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       knownUsers?: Map<string, { displayName: string; avatar?: string; email?: string }>
     ) => {
       if (shares.length === 0) return shares
-
-      return Promise.all(
-        shares.map(async share => {
-          // Try GraphQL lookup: first by userId (Keycloak ID), then by id (Employee record ID)
-          if (graphqlClient) {
-            for (const queryFn of [GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID]) {
-              try {
-                const query = queryFn(share.userId)
-                const result = await graphqlClient.request<{
-                  Employee: Array<{
-                    displayName: string
-                    pictureThumbnail?: string
-                    communication?: Array<{ value?: string; channelRef?: string }>
-                  }>
-                }>(query)
-                const emp = result.Employee?.[0]
-                if (emp?.displayName) {
-                  return {
-                    ...share,
-                    userName: emp.displayName,
-                    userEmail: getWorkEmailFromCommunication(emp.communication) || '',
-                    userAvatar: emp.pictureThumbnail
-                      ? emp.pictureThumbnail.startsWith('data:')
-                        ? emp.pictureThumbnail
-                        : `data:image/png;base64,${emp.pictureThumbnail}`
-                      : undefined
-                  }
-                }
-              } catch {
-                // Try next lookup strategy
-              }
-            }
-          }
-
-          // Fall back to pre-known user details (e.g. from employee search)
-          const known = knownUsers?.get(share.userId)
-          if (known) {
-            return {
-              ...share,
-              userName: known.displayName,
-              userEmail: known.email || '',
-              userAvatar: known.avatar
-                ? known.avatar.startsWith('data:')
-                  ? known.avatar
-                  : `data:image/png;base64,${known.avatar}`
-                : undefined
-            }
-          }
-
-          // Last resort fallback
-          return {
-            ...share,
-            userName: `User ${share.userId.slice(0, 8)}`,
-            userEmail: ''
-          }
-        })
-      )
+      return Promise.all(shares.map(share => resolveShareUser(share, knownUsers)))
     },
-    [graphqlClient]
+    [resolveShareUser]
   )
 
   /**
@@ -728,14 +730,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     await refreshApps()
   }, [selectedAppForShare, fetchAndEnrichShares, refreshApps])
 
-  // const _handlePromoteApp = useCallback(
-  //   async (id: string) => {
-  //     const app = await loadApp(id)
-  //     if (app) setAppToPromote(app)
-  //   },
-  //   [loadApp]
-  // )
-
   const handlePromoteExecute = useCallback(
     async (app: SpreadsheetApp, entityName: string) => {
       const result = await promoteToDatabase(app, entityName)
@@ -769,8 +763,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       return
     }
 
-    // Otherwise, go back in history
-    window.history.back()
+    globalThis.history.back()
   }, [])
 
   const handleStartUpload = useCallback(() => {
@@ -840,7 +833,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const copyLink = useCallback(
     (app: SpreadsheetAppSummary) => {
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.location.href)
       url.searchParams.set('appId', app.id)
       if (app.filePath) url.searchParams.set('filePath', encodeURIComponent(app.filePath))
       navigator.clipboard.writeText(url.toString())
@@ -993,7 +986,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => window.history.back()}
+                      onClick={() => globalThis.history.back()}
                       data-testid={`${testId}-back-to-desk`}
                     >
                       <ChevronLeft className="gba:w-4 gba:h-4" />
@@ -1534,9 +1527,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         <div className="gba:w-8 gba:flex-shrink-0" />
                         <div
                           className="gba:flex-1 gba:min-w-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
                             setSortBy('name')
                             setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setSortBy('name')
+                              setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
+                            }
                           }}
                         >
                           {t('action-sort-name')}
@@ -1544,9 +1546,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         </div>
                         <div
                           className="gba:w-36 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
                             setSortBy('modified')
                             setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setSortBy('modified')
+                              setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
+                            }
                           }}
                         >
                           {t('action-sort-modified')}
@@ -1555,9 +1566,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         <div className="gba:w-40 gba:flex-shrink-0">{t('table-modified-by')}</div>
                         <div
                           className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
                             setSortBy('created')
                             setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setSortBy('created')
+                              setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
+                            }
                           }}
                         >
                           {t('action-sort-created')}
@@ -1583,10 +1603,26 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                             className={`gba:flex gba:items-center gba:px-4 gba:py-3 gba:transition-colors gba:cursor-pointer ${
                               isSelected ? 'gba:bg-primary/5' : 'hover:gba:bg-muted/30'
                             }`}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => handleOpenApp(app.id)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                handleOpenApp(app.id)
+                              }
+                            }}
                           >
                             {/* Checkbox */}
-                            <div className="gba:w-8 gba:flex-shrink-0" onClick={e => e.stopPropagation()}>
+                            <div
+                              className="gba:w-8 gba:flex-shrink-0"
+                              role="button"
+                              tabIndex={0}
+                              onClick={e => e.stopPropagation()}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
+                              }}
+                            >
                               <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectApp(app.id)} />
                             </div>
 

@@ -184,14 +184,16 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         setShares(prev =>
           prev.map(s => {
             const userInfo = userInfoMap.get(s.userId)
+            const thumb = userInfo?.pictureThumbnail
+            const userAvatar = thumb
+              ? thumb.startsWith('data:')
+                ? thumb
+                : `data:image/png;base64,${thumb}`
+              : undefined
             return {
               ...s,
               userName: userInfo?.displayName || t('manage-user-fallback', { id: s.userId.slice(0, 8) }),
-              userAvatar: userInfo?.pictureThumbnail
-                ? userInfo.pictureThumbnail.startsWith('data:')
-                  ? userInfo.pictureThumbnail
-                  : `data:image/png;base64,${userInfo.pictureThumbnail}`
-                : undefined,
+              userAvatar,
               isLoading: false
             }
           })

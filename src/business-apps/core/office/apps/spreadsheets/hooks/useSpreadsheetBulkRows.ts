@@ -79,9 +79,8 @@ function findNewFields(allFieldNames: Set<string>, existingColumns: SpreadsheetC
   const newFieldNames: string[] = []
 
   allFieldNames.forEach(fieldName => {
-    if (!existingColumnIds.has(fieldName) && !existingColumnNames.has(fieldName)) {
-      newFieldNames.push(fieldName)
-    }
+    if (existingColumnIds.has(fieldName) || existingColumnNames.has(fieldName)) return
+    newFieldNames.push(fieldName)
   })
 
   return newFieldNames
@@ -114,8 +113,8 @@ function createColumnsForFields(newFieldNames: string[]): SpreadsheetColumn[] {
       label = fieldName
         .replace(/^col_\d+_\w+$/, 'Response')
         .replace(/^_/, '')
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, l => l.toUpperCase())
+        .replaceAll('_', ' ')
+        .replaceAll(/\b\w/g, l => l.toUpperCase())
     }
 
     return {
@@ -184,6 +183,169 @@ function createTrackingHeaderRow(updatedColumns: SpreadsheetColumn[]): Record<st
     },
     { _id: `tmp_header_${crypto.randomUUID()}`, _isTrackingHeader: true }
   )
+}
+
+function collectFieldNamesFromUpdates(
+  updates: Array<{ cells: Record<string, unknown> }>,
+  skipFields: Set<string>
+): Set<string> {
+  const allFieldNames = new Set<string>()
+  updates.forEach(update => {
+    Object.keys(update.cells).forEach(key => {
+      const isTracking = isTrackingColumn(key)
+      const isMetadata = skipFields.has(key)
+      if (isTracking || !isMetadata) {
+        allFieldNames.add(key)
+      }
+    })
+  })
+  return allFieldNames
+}
+
+function buildRecipientIdToBestRowIndex(
+  currentData: Record<string, unknown>[],
+  updateByRecipientId: Map<string, { workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+): Map<string, number> {
+  const recipientIdToBestRowIndex = new Map<string, number>()
+  currentData.forEach((row, idx) => {
+    const recipientId = row.recipientId as string | undefined
+    if (!recipientId || !updateByRecipientId.has(recipientId)) return
+    const status = String((row._workflow_status as string) ?? '').toLowerCase()
+    const currentBest = recipientIdToBestRowIndex.get(recipientId)
+    const currentBestRow = currentBest !== undefined ? currentData[currentBest] : null
+    const currentBestStatus = String((currentBestRow?._workflow_status as string) ?? '').toLowerCase()
+    if (
+      currentBest === undefined ||
+      (status === 'sent' && currentBestStatus === 'completed') ||
+      (status === currentBestStatus && idx < currentBest)
+    ) {
+      recipientIdToBestRowIndex.set(recipientId, idx)
+    }
+  })
+  return recipientIdToBestRowIndex
+}
+
+function buildCompletedRowIndices(
+  currentData: Record<string, unknown>[],
+  completedByWorkflowId: Map<string, { workflowId: string; recipientId?: string; cells: Record<string, unknown> }>,
+  completedByRecipientId: Map<string, { workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+): { byWorkflowId: Map<string, number>; byRecipientId: Map<string, number> } {
+  const completedRowByWorkflowId = new Map<string, number>()
+  const completedRowByRecipientId = new Map<string, number>()
+  currentData.forEach((row, idx) => {
+    const status = String((row._workflow_status as string) ?? '').toLowerCase()
+    if (status !== 'completed') return
+    const workflowId = row._workflow_id as string | undefined
+    const recipientId = row.recipientId as string | undefined
+    if (workflowId && completedByWorkflowId.has(workflowId) && !completedRowByWorkflowId.has(workflowId)) {
+      completedRowByWorkflowId.set(workflowId, idx)
+    }
+    if (recipientId && completedByRecipientId.has(recipientId) && !completedRowByRecipientId.has(recipientId)) {
+      completedRowByRecipientId.set(recipientId, idx)
+    }
+  })
+  return { byWorkflowId: completedRowByWorkflowId, byRecipientId: completedRowByRecipientId }
+}
+
+type UpdateEntry = { workflowId: string; recipientId?: string; cells: Record<string, unknown> }
+
+function applyRowUpdates(
+  currentData: Record<string, unknown>[],
+  columnMap: Map<string, SpreadsheetColumn>,
+  updateByWorkflowId: Map<string, UpdateEntry>,
+  updateByRecipientId: Map<string, UpdateEntry>,
+  completedByWorkflowId: Map<string, UpdateEntry>,
+  completedByRecipientId: Map<string, UpdateEntry>,
+  recipientIdToBestRowIndex: Map<string, number>,
+  completedRowByWorkflowId: Map<string, number>,
+  completedRowByRecipientId: Map<string, number>
+): {
+  updatedExisting: Record<string, unknown>[]
+  matchCount: number
+  matchedUpdateIds: Set<string>
+  matchedRecipientIds: Set<string>
+  matchedCompletedWorkflowIds: Set<string>
+  matchedCompletedRecipientIds: Set<string>
+} {
+  const matchedRecipientIds = new Set<string>()
+  const matchedCompletedWorkflowIds = new Set<string>()
+  const matchedCompletedRecipientIds = new Set<string>()
+  const matchedUpdateIds = new Set<string>()
+  let matchCount = 0
+
+  const updatedExisting = currentData.map((row, rowIndex) => {
+    const workflowId = row._workflow_id as string | undefined
+    const recipientId = row.recipientId as string | undefined
+    const status = String((row._workflow_status as string) ?? '').toLowerCase()
+
+    if (workflowId && updateByWorkflowId.has(workflowId)) {
+      matchCount++
+      const update = updateByWorkflowId.get(workflowId)!
+      matchedUpdateIds.add(update.workflowId)
+      return { ...row, ...mapCellsToColumnNames(update.cells, columnMap), _updatedAt: new Date().toISOString() }
+    }
+
+    if (
+      recipientId &&
+      updateByRecipientId.has(recipientId) &&
+      !matchedRecipientIds.has(recipientId) &&
+      recipientIdToBestRowIndex.get(recipientId) === rowIndex
+    ) {
+      matchCount++
+      matchedRecipientIds.add(recipientId)
+      const update = updateByRecipientId.get(recipientId)!
+      matchedUpdateIds.add(update.workflowId)
+      return {
+        ...row,
+        ...mapCellsToColumnNames(update.cells, columnMap),
+        _workflow_id: update.workflowId,
+        _updatedAt: new Date().toISOString()
+      }
+    }
+
+    if (status === 'completed' && workflowId && completedByWorkflowId.has(workflowId)) {
+      const completedIdx = completedRowByWorkflowId.get(workflowId)
+      if (completedIdx === rowIndex) {
+        matchCount++
+        const update = completedByWorkflowId.get(workflowId)!
+        matchedCompletedWorkflowIds.add(workflowId)
+        matchedUpdateIds.add(update.workflowId)
+        return { ...row, ...mapCellsToColumnNames(update.cells, columnMap), _updatedAt: new Date().toISOString() }
+      }
+    }
+
+    if (
+      status === 'completed' &&
+      recipientId &&
+      completedByRecipientId.has(recipientId) &&
+      !matchedCompletedRecipientIds.has(recipientId)
+    ) {
+      const completedIdx = completedRowByRecipientId.get(recipientId)
+      if (completedIdx === rowIndex) {
+        matchCount++
+        const update = completedByRecipientId.get(recipientId)!
+        matchedCompletedRecipientIds.add(recipientId)
+        matchedUpdateIds.add(update.workflowId)
+        return {
+          ...row,
+          ...mapCellsToColumnNames(update.cells, columnMap),
+          _workflow_id: update.workflowId,
+          _updatedAt: new Date().toISOString()
+        }
+      }
+    }
+
+    return row
+  })
+
+  return {
+    updatedExisting,
+    matchCount,
+    matchedUpdateIds,
+    matchedRecipientIds,
+    matchedCompletedWorkflowIds,
+    matchedCompletedRecipientIds
+  }
 }
 
 export function useSpreadsheetBulkRows({
@@ -291,12 +453,14 @@ export function useSpreadsheetBulkRows({
             const reconciled = localSheetDataRef.current.map(row => {
               const tempId = String(row._id ?? '')
               const persisted = persistedByTempId.get(tempId)
-              if (!persisted) return row
-              return {
-                ...row,
-                _id: persisted._id ?? row._id,
-                _rowUuid: persisted._rowUuid ?? (persisted as Record<string, unknown>).id ?? row._rowUuid
+              if (persisted) {
+                return {
+                  ...row,
+                  _id: persisted._id ?? row._id,
+                  _rowUuid: persisted._rowUuid ?? persisted.id ?? row._rowUuid
+                }
               }
+              return row
             })
             localSheetDataRef.current = reconciled
             setLocalSheetData(reconciled)
@@ -330,18 +494,7 @@ export function useSpreadsheetBulkRows({
 
       if (!activeSheet || updates.length === 0) return
 
-      // Collect field names and find new ones
-      const allFieldNames = new Set<string>()
-      updates.forEach(update => {
-        Object.keys(update.cells).forEach(key => {
-          const isTracking = isTrackingColumn(key)
-          const isMetadata = INTERNAL_METADATA_FIELDS.has(key)
-          if (isTracking || !isMetadata) {
-            allFieldNames.add(key)
-          }
-        })
-      })
-
+      const allFieldNames = collectFieldNamesFromUpdates(updates, INTERNAL_METADATA_FIELDS)
       const newFieldNames = findNewFields(allFieldNames, activeSheet.columns)
       const newColumns = createColumnsForFields(newFieldNames)
       const updatedColumns = mergeColumns(activeSheet.columns, newColumns)
@@ -359,123 +512,32 @@ export function useSpreadsheetBulkRows({
       // Build update maps for non-Completed (Sent, etc.)
       const updateByWorkflowId = new Map(nonCompletedUpdates.map(u => [u.workflowId, u]))
       const updateByRecipientId = new Map(nonCompletedUpdates.filter(u => u.recipientId).map(u => [u.recipientId!, u]))
-
-      // Build maps for Completed updates (for matching existing Completed rows to avoid duplicates)
       const completedByWorkflowId = new Map(completedUpdates.map(u => [u.workflowId, u]))
       const completedByRecipientId = new Map(completedUpdates.filter(u => u.recipientId).map(u => [u.recipientId!, u]))
 
-      // Track which recipientIds we've already matched (non-Completed)
-      const matchedRecipientIds = new Set<string>()
-      // Track which Completed updates we matched to existing rows (avoid adding duplicate Completed rows)
-      const matchedCompletedWorkflowIds = new Set<string>()
-      const matchedCompletedRecipientIds = new Set<string>()
-
       const currentData = localSheetDataRef.current
-      let matchCount = 0
-      const matchedUpdateIds = new Set<string>()
+      const recipientIdToBestRowIndex = buildRecipientIdToBestRowIndex(currentData, updateByRecipientId)
+      const { byWorkflowId: completedRowByWorkflowId, byRecipientId: completedRowByRecipientId } =
+        buildCompletedRowIndices(currentData, completedByWorkflowId, completedByRecipientId)
 
-      // For non-Completed: find best row per recipient (prefer Sent over Completed)
-      const recipientIdToBestRowIndex = new Map<string, number>()
-      currentData.forEach((row, idx) => {
-        const recipientId = row.recipientId as string | undefined
-        if (!recipientId || !updateByRecipientId.has(recipientId)) return
-        const status = String((row._workflow_status as string) ?? '').toLowerCase()
-        const currentBest = recipientIdToBestRowIndex.get(recipientId)
-        const currentBestRow = currentBest !== undefined ? currentData[currentBest] : null
-        const currentBestStatus = String((currentBestRow?._workflow_status as string) ?? '').toLowerCase()
-        if (
-          currentBest === undefined ||
-          (status === 'sent' && currentBestStatus === 'completed') ||
-          (status === currentBestStatus && idx < currentBest)
-        ) {
-          recipientIdToBestRowIndex.set(recipientId, idx)
-        }
-      })
-
-      // For Completed: find first Completed row per workflowId/recipientId (to update instead of duplicate)
-      const completedRowByWorkflowId = new Map<string, number>()
-      const completedRowByRecipientId = new Map<string, number>()
-      currentData.forEach((row, idx) => {
-        const status = String((row._workflow_status as string) ?? '').toLowerCase()
-        if (status !== 'completed') return
-        const workflowId = row._workflow_id as string | undefined
-        const recipientId = row.recipientId as string | undefined
-        if (workflowId && completedByWorkflowId.has(workflowId) && !completedRowByWorkflowId.has(workflowId)) {
-          completedRowByWorkflowId.set(workflowId, idx)
-        }
-        if (recipientId && completedByRecipientId.has(recipientId) && !completedRowByRecipientId.has(recipientId)) {
-          completedRowByRecipientId.set(recipientId, idx)
-        }
-      })
-
-      const updatedExisting = currentData.map((row, rowIndex) => {
-        const workflowId = row._workflow_id as string | undefined
-        const recipientId = row.recipientId as string | undefined
-        const status = String((row._workflow_status as string) ?? '').toLowerCase()
-
-        // 1. Non-Completed: match by workflowId
-        if (workflowId && updateByWorkflowId.has(workflowId)) {
-          matchCount++
-          const update = updateByWorkflowId.get(workflowId)!
-          matchedUpdateIds.add(update.workflowId)
-          return { ...row, ...mapCellsToColumnNames(update.cells, columnMap), _updatedAt: new Date().toISOString() }
-        }
-
-        // 2. Non-Completed: match by recipientId (best row per recipient)
-        if (
-          recipientId &&
-          updateByRecipientId.has(recipientId) &&
-          !matchedRecipientIds.has(recipientId) &&
-          recipientIdToBestRowIndex.get(recipientId) === rowIndex
-        ) {
-          matchCount++
-          matchedRecipientIds.add(recipientId)
-          const update = updateByRecipientId.get(recipientId)!
-          matchedUpdateIds.add(update.workflowId)
-          return {
-            ...row,
-            ...mapCellsToColumnNames(update.cells, columnMap),
-            _workflow_id: update.workflowId,
-            _updatedAt: new Date().toISOString()
-          }
-        }
-
-        // 3. Completed: match existing Completed row by workflowId (update instead of add)
-        if (status === 'completed' && workflowId && completedByWorkflowId.has(workflowId)) {
-          const completedIdx = completedRowByWorkflowId.get(workflowId)
-          if (completedIdx === rowIndex) {
-            matchCount++
-            const update = completedByWorkflowId.get(workflowId)!
-            matchedCompletedWorkflowIds.add(workflowId)
-            matchedUpdateIds.add(update.workflowId)
-            return { ...row, ...mapCellsToColumnNames(update.cells, columnMap), _updatedAt: new Date().toISOString() }
-          }
-        }
-
-        // 4. Completed: match existing Completed row by recipientId (first one wins)
-        if (
-          status === 'completed' &&
-          recipientId &&
-          completedByRecipientId.has(recipientId) &&
-          !matchedCompletedRecipientIds.has(recipientId)
-        ) {
-          const completedIdx = completedRowByRecipientId.get(recipientId)
-          if (completedIdx === rowIndex) {
-            matchCount++
-            const update = completedByRecipientId.get(recipientId)!
-            matchedCompletedRecipientIds.add(recipientId)
-            matchedUpdateIds.add(update.workflowId)
-            return {
-              ...row,
-              ...mapCellsToColumnNames(update.cells, columnMap),
-              _workflow_id: update.workflowId,
-              _updatedAt: new Date().toISOString()
-            }
-          }
-        }
-
-        return row
-      })
+      const {
+        updatedExisting,
+        matchCount,
+        matchedUpdateIds,
+        matchedRecipientIds,
+        matchedCompletedWorkflowIds,
+        matchedCompletedRecipientIds
+      } = applyRowUpdates(
+        currentData,
+        columnMap,
+        updateByWorkflowId,
+        updateByRecipientId,
+        completedByWorkflowId,
+        completedByRecipientId,
+        recipientIdToBestRowIndex,
+        completedRowByWorkflowId,
+        completedRowByRecipientId
+      )
 
       // Create new rows only for updates that didn't match any existing row:
       // - Completed: only if no existing Completed row for this workflowId/recipientId

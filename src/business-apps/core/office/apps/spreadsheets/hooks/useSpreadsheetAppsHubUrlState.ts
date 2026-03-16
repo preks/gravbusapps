@@ -28,7 +28,7 @@ function getUrlParams(): {
   view: HubView | null
   section: SidebarSection | null
 } {
-  const urlParams = new URLSearchParams(window.location.search)
+  const urlParams = new URLSearchParams(globalThis.location.search)
   return {
     appId: urlParams.get('appId'),
     filePath: urlParams.get('filePath'),
@@ -58,14 +58,13 @@ export function useSpreadsheetAppsHubUrlState(
 
   const updateUrl = useCallback(
     (appId: string | null, view?: HubView, filePath?: string | null) => {
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.location.search)
       if (appId) {
         urlParams.set('appId', appId)
         if (view) urlParams.set('view', view)
         if (filePath) {
           urlParams.set('filePath', encodeURIComponent(filePath))
         } else {
-          // Avoid carrying stale filePath from previous app URL state.
           urlParams.delete('filePath')
         }
       } else {
@@ -73,16 +72,15 @@ export function useSpreadsheetAppsHubUrlState(
         urlParams.delete('view')
         urlParams.delete('filePath')
       }
-      // Always preserve section in URL (even when no app is selected)
       if (activeSection && activeSection !== 'my-files') {
         urlParams.set('section', activeSection)
       } else {
         urlParams.delete('section')
       }
       const newUrl = urlParams.toString()
-        ? `${window.location.pathname}?${urlParams.toString()}`
-        : window.location.pathname
-      window.history.pushState({ appId, view, filePath, section: activeSection }, '', newUrl)
+        ? `${globalThis.location.pathname}?${urlParams.toString()}`
+        : globalThis.location.pathname
+      globalThis.history.pushState({ appId, view, filePath, section: activeSection }, '', newUrl)
     },
     [activeSection]
   )
@@ -164,7 +162,7 @@ export function useSpreadsheetAppsHubUrlState(
 
         // Second, check if current URL has a spaceId parameter
         // If so, we should return to that space
-        const urlParams = new URLSearchParams(window.location.search)
+        const urlParams = new URLSearchParams(globalThis.location.search)
         const spaceId = urlParams.get('spaceId')
         if (spaceId) {
           const spaceUrl = `/platform/every-office/spaces?spaceId=${encodeURIComponent(spaceId)}`
@@ -194,8 +192,8 @@ export function useSpreadsheetAppsHubUrlState(
       setCurrentView('list')
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [currentView, loadAppById, setCurrentView, setSelectedAppId, setActiveSection, onLoadFailed])
 
   return { updateUrl, resetLoadAttempt }

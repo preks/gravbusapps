@@ -12,14 +12,14 @@ import translations from '../_i18n'
 import { AutomationsHub } from './automations/AutomationsHub'
 import { AutomationWizard } from './automations/AutomationWizard'
 import { AutomationToolbarActions } from './automations/AutomationToolbarActions'
-import type { SpreadsheetAutomation, SpreadsheetColumn } from '../types'
+import type { SpreadsheetAutomation, SpreadsheetColumn, WorkflowRowLink } from '../types'
 
 export interface AutomationsPanelProps {
   isOpen: boolean
   onClose: () => void
   automations: SpreadsheetAutomation[]
   executionHistory: unknown[]
-  workflowLinks: unknown[]
+  workflowLinks: WorkflowRowLink[]
   isLoading: boolean
   columns: SpreadsheetColumn[]
   sheetData: Record<string, unknown>[]
@@ -117,7 +117,7 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
                 <div className="gba:mb-4">
                   <AutomationToolbarActions
                     automations={automations}
-                    workflowLinks={workflowLinks as any}
+                    workflowLinks={workflowLinks}
                     selectedRowIds={[]}
                     onOpenHub={() => {}}
                     onCreateAutomation={() => {

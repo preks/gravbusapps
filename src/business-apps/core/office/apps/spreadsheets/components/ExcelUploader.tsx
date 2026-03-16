@@ -93,7 +93,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
       setIsDragging(false)
 
       const files = e.dataTransfer.files
-      if (files && files.length > 0) {
+      if (files?.length) {
         handleFileSelect(files[0])
       }
     },
@@ -113,7 +113,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files
-      if (files && files.length > 0) {
+      if (files?.length) {
         handleFileSelect(files[0])
       }
     },

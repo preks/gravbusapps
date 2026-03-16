@@ -55,13 +55,11 @@ import {
   getIconsByCategory,
   type AppIconConfig
 } from './utils/appIcons'
-import type {
-  EntityDataSource,
-  EntityFilterCondition,
-  EntityFieldMapping
-} from './types/entityDataSource'
+import type { EntityDataSource, EntityFilterCondition, EntityFieldMapping } from './types/entityDataSource'
 import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn, SheetView, ViewType } from './types'
 import translations from './_i18n'
+
+const DefaultAppIcon = DEFAULT_APP_ICON
 
 export interface SpreadsheetAppEditorProps {
   app: SpreadsheetApp
@@ -118,7 +116,9 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
     <K extends keyof SpreadsheetSheet>(sheetId: string, key: K, value: SpreadsheetSheet[K]) => {
       setApp((prev: SpreadsheetApp) => ({
         ...prev,
-        sheets: prev.sheets.map((sheet: SpreadsheetSheet) => (sheet.id === sheetId ? { ...sheet, [key]: value } : sheet))
+        sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
+          sheet.id === sheetId ? { ...sheet, [key]: value } : sheet
+        )
       }))
     },
     []
@@ -131,12 +131,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
     setApp((prev: SpreadsheetApp) => ({
       ...prev,
       sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
-        sheet.id === sheetId
-          ? {
-              ...sheet,
-              columns: sheet.columns.map((col: SpreadsheetColumn) => (col.id === column.id ? column : col))
-            }
-          : sheet
+        sheet.id === sheetId ? { ...sheet, columns: replaceColumnInList(sheet.columns, column) } : sheet
       )
     }))
     setEditingColumn(null)
@@ -148,27 +143,9 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
   const moveColumn = useCallback((sheetId: string, columnId: string, direction: 'up' | 'down') => {
     setApp((prev: SpreadsheetApp) => ({
       ...prev,
-      sheets: prev.sheets.map((sheet: SpreadsheetSheet) => {
-        if (sheet.id !== sheetId) return sheet
-
-        const columns = [...sheet.columns]
-        const index = columns.findIndex((c: SpreadsheetColumn) => c.id === columnId)
-
-        if ((direction === 'up' && index <= 0) || (direction === 'down' && index >= columns.length - 1)) {
-          return sheet
-        }
-
-        const newIndex = direction === 'up' ? index - 1 : index + 1
-        const [removed] = columns.splice(index, 1)
-        columns.splice(newIndex, 0, removed)
-
-        // Update order property
-        columns.forEach((col, i) => {
-          col.order = i
-        })
-
-        return { ...sheet, columns }
-      })
+      sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
+        sheet.id === sheetId ? reorderColumnInSheet(sheet, columnId, direction) : sheet
+      )
     }))
   }, [])
 
@@ -179,14 +156,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
     setApp((prev: SpreadsheetApp) => ({
       ...prev,
       sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
-        sheet.id === sheetId
-          ? {
-              ...sheet,
-              columns: sheet.columns.map((col: SpreadsheetColumn) =>
-                col.id === columnId ? { ...col, isVisible: !col.isVisible } : col
-              )
-            }
-          : sheet
+        sheet.id === sheetId ? { ...sheet, columns: toggleVisibilityInColumns(sheet.columns, columnId) } : sheet
       )
     }))
   }, [])
@@ -227,7 +197,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
     setApp((prev: SpreadsheetApp) => ({
       ...prev,
       sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
-        sheet.id === sheetId ? { ...sheet, columns: sheet.columns.filter((col: SpreadsheetColumn) => col.id !== columnId) } : sheet
+        sheet.id === sheetId ? { ...sheet, columns: removeColumnById(sheet.columns, columnId) } : sheet
       )
     }))
   }, [])
@@ -263,15 +233,9 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
   const deleteView = useCallback((sheetId: string, viewId: string) => {
     setApp((prev: SpreadsheetApp) => ({
       ...prev,
-      sheets: prev.sheets.map((sheet: SpreadsheetSheet) => {
-        if (sheet.id !== sheetId) return sheet
-        const views = sheet.views.filter((v: SheetView) => v.id !== viewId)
-        // Ensure at least one default view
-        if (views.length > 0 && !views.some((v: SheetView) => v.isDefault)) {
-          views[0].isDefault = true
-        }
-        return { ...sheet, views }
-      })
+      sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
+        sheet.id === sheetId ? removeViewFromSheet(sheet, viewId) : sheet
+      )
     }))
   }, [])
 
@@ -282,15 +246,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
     setApp((prev: SpreadsheetApp) => ({
       ...prev,
       sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
-        sheet.id === sheetId
-          ? {
-              ...sheet,
-              views: sheet.views.map((view: SheetView) => ({
-                ...view,
-                isDefault: view.id === viewId
-              }))
-            }
-          : sheet
+        sheet.id === sheetId ? { ...sheet, views: applyDefaultView(sheet.views, viewId) } : sheet
       )
     }))
   }, [])
@@ -301,7 +257,9 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
   const updateEntityDataSource = useCallback((sheetId: string, dataSource: EntityDataSource | undefined) => {
     setApp((prev: SpreadsheetApp) => ({
       ...prev,
-      sheets: prev.sheets.map((sheet: SpreadsheetSheet) => (sheet.id === sheetId ? { ...sheet, entityDataSource: dataSource } : sheet))
+      sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
+        sheet.id === sheetId ? { ...sheet, entityDataSource: dataSource } : sheet
+      )
     }))
   }, [])
 
@@ -343,7 +301,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                 {AppIconComponent ? (
                   <AppIconComponent className="gba:w-5 gba:h-5 gba:text-primary" />
                 ) : (
-                  <DEFAULT_APP_ICON className="gba:w-5 gba:h-5 gba:text-primary" />
+                  <DefaultAppIcon className="gba:w-5 gba:h-5 gba:text-primary" />
                 )}
               </div>
               <Input
@@ -419,7 +377,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                 {AppIconComponent ? (
                   <AppIconComponent className="gba:w-5 gba:h-5 gba:text-primary" />
                 ) : (
-                  <DEFAULT_APP_ICON className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
+                  <DefaultAppIcon className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
                 )}
                 <span className="gba:text-sm">{iconButtonLabel}</span>
               </Button>
@@ -489,7 +447,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                       </tr>
                     </thead>
                     <tbody>
-                      {activeSheet.columns
+                      {[...activeSheet.columns]
                         .sort((a: SpreadsheetColumn, b: SpreadsheetColumn) => a.order - b.order)
                         .map((column: SpreadsheetColumn, index: number) => (
                           <tr key={column.id} className="gba:border-t gba:border-border">
@@ -622,13 +580,22 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                       <div>
                         <p className="gba:text-sm gba:text-muted-foreground">Filters</p>
                         <p className="gba:font-medium gba:text-foreground">
-                          {activeSheet.entityDataSource.filters.conditions.filter((c: EntityFilterCondition) => c.isActive).length} active
+                          {
+                            activeSheet.entityDataSource.filters.conditions.filter(
+                              (c: EntityFilterCondition) => c.isActive
+                            ).length
+                          }{' '}
+                          active
                         </p>
                       </div>
                       <div>
                         <p className="gba:text-sm gba:text-muted-foreground">Fields</p>
                         <p className="gba:font-medium gba:text-foreground">
-                          {activeSheet.entityDataSource.fieldMappings.filter((f: EntityFieldMapping) => f.include).length} selected
+                          {
+                            activeSheet.entityDataSource.fieldMappings.filter((f: EntityFieldMapping) => f.include)
+                              .length
+                          }{' '}
+                          selected
                         </p>
                       </div>
                       <div>
@@ -642,7 +609,10 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                       <div>
                         <p className="gba:text-sm gba:text-muted-foreground">Refresh Mode</p>
                         <p className="gba:font-medium gba:text-foreground gba:capitalize">
-                          {activeSheet.entityDataSource.refreshMode.replace(/([A-Z])/g, ' $1').trim()}
+                          {activeSheet.entityDataSource.refreshMode
+                            .split(/(?=[A-Z])/)
+                            .join(' ')
+                            .trim()}
                         </p>
                       </div>
                     </div>
@@ -668,7 +638,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                     )}
 
                     {/* Filter conditions preview */}
-                    {activeSheet.entityDataSource.filters.conditions.filter((c: EntityFilterCondition) => c.isActive).length > 0 && (
+                    {activeSheet.entityDataSource.filters.conditions.some((c: EntityFilterCondition) => c.isActive) && (
                       <>
                         <Separator className="gba:my-4" />
                         <div>
@@ -863,7 +833,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                 name: s.name,
                 columns: s.columns.map((c: SpreadsheetColumn) => ({ id: c.id, name: c.name }))
               }))}
-              onSave={(column: SpreadsheetColumn) => updateColumn(activeSheet!.id, column)}
+              onSave={(column: SpreadsheetColumn) => updateColumn(activeSheet.id, column)}
               onCancel={() => setEditingColumn(null)}
             />
           </DialogContent>
@@ -874,7 +844,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
       <AddViewDialog
         isOpen={isAddViewDialogOpen}
         onClose={() => setIsAddViewDialogOpen(false)}
-        onAdd={(type, name) => addView(activeSheet!.id, type, name)}
+        onAdd={(type, name) => addView(activeSheet.id, type, name)}
       />
 
       {/* Entity Data Source Dialog */}
@@ -1037,6 +1007,52 @@ const AddViewDialog: React.FC<AddViewDialogProps> = ({ isOpen, onClose, onAdd })
   )
 }
 
+function replaceColumnInList(columns: SpreadsheetColumn[], targetColumn: SpreadsheetColumn): SpreadsheetColumn[] {
+  return columns.map(col => (col.id === targetColumn.id ? targetColumn : col))
+}
+
+function reorderColumnInSheet(sheet: SpreadsheetSheet, columnId: string, direction: 'up' | 'down'): SpreadsheetSheet {
+  const columns = [...sheet.columns]
+  const index = columns.findIndex(c => c.id === columnId)
+
+  if ((direction === 'up' && index <= 0) || (direction === 'down' && index >= columns.length - 1)) {
+    return sheet
+  }
+
+  const newIndex = direction === 'up' ? index - 1 : index + 1
+  const [removed] = columns.splice(index, 1)
+  columns.splice(newIndex, 0, removed)
+
+  columns.forEach((col, i) => {
+    col.order = i
+  })
+
+  return { ...sheet, columns }
+}
+
+function toggleVisibilityInColumns(columns: SpreadsheetColumn[], columnId: string): SpreadsheetColumn[] {
+  return columns.map(col => (col.id === columnId ? { ...col, isVisible: !col.isVisible } : col))
+}
+
+function removeColumnById(columns: SpreadsheetColumn[], columnId: string): SpreadsheetColumn[] {
+  return columns.filter(col => col.id !== columnId)
+}
+
+function removeViewFromSheet(sheet: SpreadsheetSheet, viewId: string): SpreadsheetSheet {
+  const views = sheet.views.filter(v => v.id !== viewId)
+  if (views.length > 0 && !views.some(v => v.isDefault)) {
+    views[0].isDefault = true
+  }
+  return { ...sheet, views }
+}
+
+function applyDefaultView(views: SheetView[], viewId: string): SheetView[] {
+  return views.map(view => ({
+    ...view,
+    isDefault: view.id === viewId
+  }))
+}
+
 /**
  * Get default view configuration for a type
  */
@@ -1058,7 +1074,7 @@ function getDefaultViewConfig(type: ViewType, columns: SpreadsheetColumn[]): any
         type: 'dashboard',
         widgets: []
       }
-    case 'kanban':
+    case 'kanban': {
       const statusCol = columns.find(c => c.type === 'select')
       const titleCol = columns.find(c => c.type === 'text')
       return {
@@ -1066,7 +1082,8 @@ function getDefaultViewConfig(type: ViewType, columns: SpreadsheetColumn[]): any
         statusColumn: statusCol?.id || '',
         titleColumn: titleCol?.id || ''
       }
-    case 'calendar':
+    }
+    case 'calendar': {
       const dateCol = columns.find(c => ['date', 'datetime'].includes(c.type))
       const nameCol = columns.find(c => c.type === 'text')
       return {
@@ -1074,6 +1091,7 @@ function getDefaultViewConfig(type: ViewType, columns: SpreadsheetColumn[]): any
         dateColumn: dateCol?.id || '',
         titleColumn: nameCol?.id || ''
       }
+    }
     default:
       return { type }
   }

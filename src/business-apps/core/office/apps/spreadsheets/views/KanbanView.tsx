@@ -50,13 +50,10 @@ export const KanbanView = memo<KanbanViewProps>(function KanbanView({
     [...new Set(data.map(row => String(row[statusCol.name] || '')))].filter(Boolean)
 
   // Group data by status
-  const groupedData = statuses.reduce(
-    (acc, status) => {
-      acc[status] = data.filter(row => String(row[statusCol.name]) === status)
-      return acc
-    },
-    {} as Record<string, Record<string, unknown>[]>
-  )
+  const groupedData = statuses.reduce<Record<string, Record<string, unknown>[]>>((acc, status) => {
+    acc[status] = data.filter(row => String(row[statusCol.name]) === status)
+    return acc
+  }, {})
 
   return (
     <div className="gba:flex gba:gap-4 gba:overflow-x-auto gba:pb-4" data-testid={testId}>

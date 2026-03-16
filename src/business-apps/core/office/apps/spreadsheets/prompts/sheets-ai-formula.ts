@@ -37,7 +37,7 @@ const safeParseJson = <T>(value: unknown): T | null => {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   const jsonCandidate = trimmed.startsWith('```')
-    ? trimmed.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
+    ? trimmed.replaceAll(/^```(?:json)?\s*\n?/g, '').replaceAll(/\n?```\s*$/g, '')
     : trimmed
   try {
     return JSON.parse(jsonCandidate) as T
