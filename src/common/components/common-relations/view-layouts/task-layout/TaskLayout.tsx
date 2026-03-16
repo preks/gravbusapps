@@ -93,6 +93,12 @@ export interface TaskLayoutProps<TTask extends Task = Task, TQueryVariables = an
   exportFilenamePrefix?: string
 }
 
+const getTaskExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
+  if (isExporting) return 'Exporting…'
+  if (totalCount === 0) return 'No data to export'
+  return `Export ${totalCount} tasks as ${format}`
+}
+
 /**
  * Generic Task Layout Component
  * Provides common task management functionality with domain-specific customization
@@ -304,16 +310,8 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   // Export buttons — only rendered when enableExport is true
   const exportButtons = useMemo(() => {
     if (!enableExport) return null
-    const csvTitle = isExporting
-      ? 'Exporting…'
-      : totalCount === 0
-        ? 'No data to export'
-        : `Export ${totalCount} tasks as CSV`
-    const excelTitle = isExporting
-      ? 'Exporting…'
-      : totalCount === 0
-        ? 'No data to export'
-        : `Export ${totalCount} tasks as Excel`
+    const csvTitle = getTaskExportButtonTitle(isExporting, totalCount, 'CSV')
+    const excelTitle = getTaskExportButtonTitle(isExporting, totalCount, 'Excel')
     return (
       <>
         <Button
