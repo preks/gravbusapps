@@ -1303,7 +1303,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           FontSize.configure({ types: ['textStyle'] }),
           Subscript,
           Superscript,
-          Typography
+          Typography,
+          TaskList,
+          TaskItem.configure({
+            nested: true,
+            HTMLAttributes: {
+              class: 'editor-task-item'
+            }
+          })
         ] as any[],
       [accessToken]
     )
