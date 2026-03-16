@@ -150,6 +150,124 @@ function getRatioBarClass(ratio: number): string {
   return 'gba:bg-warning'
 }
 
+function resolveHeaderSource(
+  gridHeaderMap: Map<string, string> | null,
+  detectedHeaderMap: Map<string, string>,
+  detectedHeaderRowIndex: number,
+  fallbackHeaderMap: Map<string, string>
+): { firstRowHeaderMap: Map<string, string>; headerRowIndex: number } {
+  if (gridHeaderMap?.size) {
+    return { firstRowHeaderMap: gridHeaderMap, headerRowIndex: 0 }
+  }
+  if (detectedHeaderMap.size) {
+    return { firstRowHeaderMap: detectedHeaderMap, headerRowIndex: detectedHeaderRowIndex }
+  }
+  if (fallbackHeaderMap.size) {
+    return { firstRowHeaderMap: fallbackHeaderMap, headerRowIndex: 0 }
+  }
+  return { firstRowHeaderMap: new Map<string, string>(), headerRowIndex: -1 }
+}
+
+function deriveAnalyticsRows(
+  baseDataForAnalytics: Record<string, unknown>[],
+  shouldUseFirstRowAsHeaders: boolean,
+  headerRowIndex: number,
+  gridSheetData: Record<string, unknown>[] | null
+): Record<string, unknown>[] {
+  let rows = shouldUseFirstRowAsHeaders ? baseDataForAnalytics.slice(headerRowIndex + 1) : baseDataForAnalytics
+  if (rows.length === 0) {
+    return shouldUseFirstRowAsHeaders ? [] : baseDataForAnalytics
+  }
+  if (gridSheetData) {
+    rows = rows.filter(row => {
+      const vals = Object.values(row)
+      return vals.some(v => v != null && v !== '')
+    })
+  }
+  if (rows.length > 0) return rows
+  return shouldUseFirstRowAsHeaders ? [] : baseDataForAnalytics
+}
+
+function applySingleChartRange(
+  parsed: ReturnType<typeof parseChartRange> | null,
+  analyticsRows: Record<string, unknown>[],
+  headerRowIndex: number
+): Record<string, unknown>[] {
+  if (!parsed) return analyticsRows
+  const { startRow, endRow } = parsed
+  const startIdx = Math.max(0, startRow - headerRowIndex - 1)
+  const endIdxExclusive = endRow - headerRowIndex
+  if (startIdx >= analyticsRows.length || endIdxExclusive <= 0) return analyticsRows
+  return analyticsRows.slice(startIdx, Math.min(endIdxExclusive, analyticsRows.length))
+}
+
+function deriveChartAnalyticsRows(
+  analyticsRows: Record<string, unknown>[],
+  headerRowIndex: number,
+  parsedXRange: ReturnType<typeof parseChartRange> | null,
+  parsedYRange: ReturnType<typeof parseChartRange> | null
+): Record<string, unknown>[] {
+  if (parsedXRange && parsedYRange) {
+    const xStart = Math.max(0, parsedXRange.startRow - headerRowIndex - 1)
+    const xEnd = parsedXRange.endRow - headerRowIndex
+    const yStart = Math.max(0, parsedYRange.startRow - headerRowIndex - 1)
+    const yEnd = parsedYRange.endRow - headerRowIndex
+    const startIdx = Math.max(xStart, yStart)
+    const endIdxExclusive = Math.min(analyticsRows.length, Math.min(xEnd, yEnd))
+    if (startIdx >= endIdxExclusive) return analyticsRows
+    return analyticsRows.slice(startIdx, endIdxExclusive)
+  }
+  if (parsedXRange) return applySingleChartRange(parsedXRange, analyticsRows, headerRowIndex)
+  if (parsedYRange) return applySingleChartRange(parsedYRange, analyticsRows, headerRowIndex)
+  return analyticsRows
+}
+
+function extractChartCellValue(raw: unknown): unknown {
+  if (raw == null) return raw
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>
+    const value = obj.v ?? obj.m ?? obj.url ?? obj.src
+    return value !== undefined ? value : raw
+  }
+  return raw
+}
+
+function getCellValueForChartFromRow(
+  row: Record<string, unknown>,
+  col: SpreadsheetColumn,
+  firstRowHeaderMap: Map<string, string>
+): unknown {
+  const keysToTry = [col.name, col.id, col.label, firstRowHeaderMap.get(col.name)].filter(Boolean) as string[]
+  for (const key of keysToTry) {
+    const raw = row[key]
+    if (raw !== undefined) return extractChartCellValue(raw)
+  }
+  const rowKeys = Object.keys(row).filter(k => !k.startsWith('_'))
+  const match = rowKeys.find(
+    k =>
+      k === col.name ||
+      k === col.id ||
+      k.toLowerCase() === (col.name || '').toLowerCase() ||
+      k.toLowerCase() === (col.id || '').toLowerCase() ||
+      k === firstRowHeaderMap.get(col.name)
+  )
+  if (match) return extractChartCellValue(row[match])
+  return undefined
+}
+
+function buildYRangePlaceholder(
+  chartYAxis: string[],
+  columns: SpreadsheetColumn[],
+  analyticsRowsLength: number
+): string {
+  const firstYAxis = chartYAxis[0]
+  if (!firstYAxis) return 'e.g. G2:G100'
+  const yIdx = columns.findIndex(c => c.name === firstYAxis)
+  if (yIdx < 0) return 'e.g. G2:G100'
+  const colLetter = indexToExcelCol(yIdx)
+  return `${colLetter}2:${colLetter}${Math.max(100, analyticsRowsLength + 10)}`
+}
+
 interface ChartPreviewProps {
   chartData: Record<string, unknown>[]
   chartXAxis: string
@@ -381,37 +499,17 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
   const fallbackHeaderMap = useMemo(() => {
     return buildFallbackHeaderMap(columns, sheetData)
   }, [columns, sheetData])
-  let firstRowHeaderMap: Map<string, string>
-  let headerRowIndex: number
-  if (gridHeaderMap?.size) {
-    firstRowHeaderMap = gridHeaderMap
-    headerRowIndex = 0
-  } else if (detectedHeaderMap.size) {
-    firstRowHeaderMap = detectedHeaderMap
-    headerRowIndex = detectedHeaderInfo.headerRowIndex
-  } else if (fallbackHeaderMap.size) {
-    firstRowHeaderMap = fallbackHeaderMap
-    headerRowIndex = 0
-  } else {
-    firstRowHeaderMap = new Map<string, string>()
-    headerRowIndex = -1
-  }
+  const { firstRowHeaderMap, headerRowIndex } = resolveHeaderSource(
+    gridHeaderMap,
+    detectedHeaderMap,
+    detectedHeaderInfo.headerRowIndex,
+    fallbackHeaderMap
+  )
   const shouldUseFirstRowAsHeaders = firstRowHeaderMap.size > 0 && headerRowIndex >= 0
 
   const baseDataForAnalytics = gridSheetData ?? sheetData
   const analyticsRows = useMemo(() => {
-    let rows = shouldUseFirstRowAsHeaders ? baseDataForAnalytics.slice(headerRowIndex + 1) : baseDataForAnalytics
-    if (rows.length === 0) {
-      return shouldUseFirstRowAsHeaders ? [] : baseDataForAnalytics
-    }
-    if (gridSheetData) {
-      rows = rows.filter(row => {
-        const vals = Object.values(row)
-        return vals.some(v => v != null && v !== '')
-      })
-    }
-    if (rows.length > 0) return rows
-    return shouldUseFirstRowAsHeaders ? [] : baseDataForAnalytics
+    return deriveAnalyticsRows(baseDataForAnalytics, shouldUseFirstRowAsHeaders, headerRowIndex, gridSheetData)
   }, [baseDataForAnalytics, headerRowIndex, shouldUseFirstRowAsHeaders, gridSheetData])
 
   const getDefaultRangeForColumn = useCallback(
@@ -429,30 +527,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
   const parsedYRange = useMemo(() => parseChartRange(chartYRange), [chartYRange])
 
   const chartAnalyticsRows = useMemo(() => {
-    const headerRow = headerRowIndex
-
-    const applyRange = (parsed: ReturnType<typeof parseChartRange>) => {
-      if (!parsed) return analyticsRows
-      const { startRow, endRow } = parsed
-      const startIdx = Math.max(0, startRow - headerRow - 1)
-      const endIdxExclusive = endRow - headerRow
-      if (startIdx >= analyticsRows.length || endIdxExclusive <= 0) return analyticsRows
-      return analyticsRows.slice(startIdx, Math.min(endIdxExclusive, analyticsRows.length))
-    }
-
-    if (parsedXRange && parsedYRange) {
-      const xStart = Math.max(0, parsedXRange.startRow - headerRow - 1)
-      const xEnd = parsedXRange.endRow - headerRow
-      const yStart = Math.max(0, parsedYRange.startRow - headerRow - 1)
-      const yEnd = parsedYRange.endRow - headerRow
-      const startIdx = Math.max(xStart, yStart)
-      const endIdxExclusive = Math.min(analyticsRows.length, Math.min(xEnd, yEnd))
-      if (startIdx >= endIdxExclusive) return analyticsRows
-      return analyticsRows.slice(startIdx, endIdxExclusive)
-    }
-    if (parsedXRange) return applyRange(parsedXRange)
-    if (parsedYRange) return applyRange(parsedYRange)
-    return analyticsRows
+    return deriveChartAnalyticsRows(analyticsRows, headerRowIndex, parsedXRange, parsedYRange)
   }, [analyticsRows, headerRowIndex, parsedXRange, parsedYRange])
 
   const chartableValueColumns = useMemo(
@@ -583,34 +658,9 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
     a.click()
   }, [getChartAsPngDataUrl])
 
-  const extractCellValue = (raw: unknown): unknown => {
-    if (raw == null) return raw
-    if (typeof raw === 'object' && !Array.isArray(raw)) {
-      const obj = raw as Record<string, unknown>
-      const v = obj.v ?? obj.m ?? obj.url ?? obj.src
-      return v !== undefined ? v : raw
-    }
-    return raw
-  }
-
   const getCellValueForChart = useCallback(
     (row: Record<string, unknown>, col: SpreadsheetColumn): unknown => {
-      const keysToTry = [col.name, col.id, col.label, firstRowHeaderMap.get(col.name)].filter(Boolean) as string[]
-      for (const key of keysToTry) {
-        const raw = row[key]
-        if (raw !== undefined) return extractCellValue(raw)
-      }
-      const rowKeys = Object.keys(row).filter(k => !k.startsWith('_'))
-      const match = rowKeys.find(
-        k =>
-          k === col.name ||
-          k === col.id ||
-          k.toLowerCase() === (col.name || '').toLowerCase() ||
-          k.toLowerCase() === (col.id || '').toLowerCase() ||
-          k === firstRowHeaderMap.get(col.name)
-      )
-      if (match) return extractCellValue(row[match])
-      return undefined
+      return getCellValueForChartFromRow(row, col, firstRowHeaderMap)
     },
     [firstRowHeaderMap]
   )
@@ -682,14 +732,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
   if (!isOpen) return null
 
-  let yRangePlaceholder = 'e.g. G2:G100'
-  if (chartYAxis[0]) {
-    const yIdx = columns.findIndex(c => c.name === chartYAxis[0])
-    if (yIdx >= 0) {
-      const colLetter = indexToExcelCol(yIdx)
-      yRangePlaceholder = `${colLetter}2:${colLetter}${Math.max(100, analyticsRows.length + 10)}`
-    }
-  }
+  const yRangePlaceholder = buildYRangePlaceholder(chartYAxis, columns, analyticsRows.length)
 
   const handleComputePivot = () => {
     if (!canComputePivot) return

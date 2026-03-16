@@ -170,33 +170,82 @@ function toImageUrl(raw: string): string {
   return ''
 }
 
+type ObjectRawResolution = { type: 'cell'; cell: UniverCellData } | { type: 'raw'; raw: unknown }
+
+function isMediaOrLinkColumn(column: SpreadsheetColumn, avatarColumn: boolean, linkColumn: boolean): boolean {
+  return column.type === 'image' || avatarColumn || column.type === 'url' || linkColumn
+}
+
+function resolveObjectRaw(
+  raw: unknown,
+  column: SpreadsheetColumn,
+  avatarColumn: boolean,
+  linkColumn: boolean
+): ObjectRawResolution {
+  if (Array.isArray(raw)) {
+    return { type: 'cell', cell: { v: raw } }
+  }
+
+  const obj = raw as Record<string, unknown>
+  const objectValue = extractObjectValue(obj)
+  if (isMediaOrLinkColumn(column, avatarColumn, linkColumn) && objectValue) {
+    return { type: 'raw', raw: objectValue }
+  }
+
+  return { type: 'cell', cell: toFormulaCell(obj) ?? (obj as UniverCellData) }
+}
+
+function toHyperlinkCell(raw: string, column: SpreadsheetColumn, linkColumn: boolean): UniverCellData | null {
+  if (column.type !== 'url' && !linkColumn) {
+    return null
+  }
+  if (!/^https?:\/\//i.test(raw)) {
+    return null
+  }
+  const safeUrl = raw.replaceAll('"', '""')
+  return { f: `=HYPERLINK("${safeUrl}","View Response")` }
+}
+
+function toImageCell(raw: string, column: SpreadsheetColumn, avatarColumn: boolean): UniverCellData | null {
+  if (column.type !== 'image' && !avatarColumn) {
+    return null
+  }
+
+  const imageUrl = toImageUrl(raw)
+  if (!imageUrl) {
+    return null
+  }
+
+  const safeUrl = imageUrl.replaceAll('"', '""')
+  if (avatarColumn) {
+    return { f: `=IMAGE("${safeUrl}", "", 3, 32, 32)` }
+  }
+  return { f: `=IMAGE("${safeUrl}")` }
+}
+
 function toUniverCellData(raw: unknown, column: SpreadsheetColumn): UniverCellData | null {
   if (raw === undefined || raw === null || raw === '') return null
   const avatarColumn = isAvatarColumn(column)
   const linkColumn = isLinkColumn(column)
 
   if (typeof raw === 'object') {
-    if (Array.isArray(raw)) return { v: raw }
-    const obj = raw as Record<string, unknown>
-    const objectValue = extractObjectValue(obj)
-    if ((column.type === 'image' || avatarColumn || column.type === 'url' || linkColumn) && objectValue)
-      raw = objectValue
-    else return toFormulaCell(obj) ?? obj
+    const resolved = resolveObjectRaw(raw, column, avatarColumn, linkColumn)
+    if (resolved.type === 'cell') {
+      return resolved.cell
+    }
+    raw = resolved.raw
   }
 
   if (typeof raw === 'string') {
     const trimmed = raw.trim()
-    if ((column.type === 'url' || linkColumn) && /^https?:\/\//i.test(trimmed)) {
-      const safeUrl = trimmed.replaceAll('"', '""')
-      return { f: `=HYPERLINK("${safeUrl}","View Response")` }
+    const hyperlinkCell = toHyperlinkCell(trimmed, column, linkColumn)
+    if (hyperlinkCell) {
+      return hyperlinkCell
     }
-    if (column.type === 'image' || avatarColumn) {
-      const imageUrl = toImageUrl(trimmed)
-      if (imageUrl) {
-        const safeUrl = imageUrl.replaceAll('"', '""')
-        if (avatarColumn) return { f: `=IMAGE("${safeUrl}", "", 3, 32, 32)` }
-        return { f: `=IMAGE("${safeUrl}")` }
-      }
+
+    const imageCell = toImageCell(trimmed, column, avatarColumn)
+    if (imageCell) {
+      return imageCell
     }
   }
 

@@ -108,78 +108,92 @@ const buildAnalyticsInsertPayloads = (
     })
     .filter(payload => Object.keys(payload).length > 0)
 
+const applySetCellDelta = (rows: ViewerRow[], payload: Record<string, unknown>): ViewerRow[] => {
+  const rowId = String(payload.rowId || '')
+  const columnName = String(payload.columnName || '')
+  const value = payload.value
+  return rows.map(row => (backendRowIdOf(row) === rowId ? { ...row, [columnName]: value } : row))
+}
+
+const applySetRangeDelta = (rows: ViewerRow[], payload: Record<string, unknown>): ViewerRow[] => {
+  const cells = Array.isArray(payload.cells) ? (payload.cells as Array<Record<string, unknown>>) : []
+  const updatesByRowId = new Map<string, Record<string, unknown>>()
+  for (const cell of cells) {
+    const rowId = String(cell.rowId || '')
+    const columnName = String(cell.columnName || '')
+    if (!rowId || !columnName) continue
+    const updates = updatesByRowId.get(rowId) ?? {}
+    updates[columnName] = cell.value
+    updatesByRowId.set(rowId, updates)
+  }
+  return rows.map(row => {
+    const updates = updatesByRowId.get(backendRowIdOf(row))
+    if (!updates) return row
+    return { ...row, ...updates }
+  })
+}
+
+const applyClearCellDelta = (rows: ViewerRow[], payload: Record<string, unknown>): ViewerRow[] => {
+  const rowId = String(payload.rowId || '')
+  const columnName = String(payload.columnName || '')
+  return rows.map(row => {
+    if (backendRowIdOf(row) !== rowId) return row
+    const rowCopy = { ...row }
+    delete rowCopy[columnName]
+    return rowCopy
+  })
+}
+
+const mapAddedRowsFromDeltaResult = (result: Record<string, unknown>): ViewerRow[] => {
+  const rows = Array.isArray(result.rows) ? (result.rows as Array<Record<string, unknown>>) : []
+  return rows.map(entry => {
+    const rowData = ((entry.data as Record<string, unknown>) || {}) as Record<string, unknown>
+    const clientRowId = rowData._clientRowId
+    if (clientRowId) {
+      return {
+        ...rowData,
+        _id: clientRowId,
+        _rowUuid: (entry.id as string) || `row_${Math.random().toString(16).slice(2)}`
+      }
+    }
+    return {
+      ...rowData,
+      _id: (entry.id as string) || `row_${Math.random().toString(16).slice(2)}`
+    }
+  })
+}
+
+const applyDeleteRowsDelta = (rows: ViewerRow[], payload: Record<string, unknown>): ViewerRow[] => {
+  const rowIds = Array.isArray(payload.rowIds) ? (payload.rowIds as Array<unknown>).map(String) : []
+  return rows.filter(row => !rowIds.includes(backendRowIdOf(row)))
+}
+
+const applySingleDeltaChange = (rows: ViewerRow[], change: unknown): ViewerRow[] => {
+  const changeRecord = change as Record<string, unknown>
+  const opType = String(changeRecord.operationType || '')
+  const payload = (changeRecord.payload || {}) as Record<string, unknown>
+  const result = (changeRecord.result || {}) as Record<string, unknown>
+
+  switch (opType) {
+    case 'set_cell':
+      return applySetCellDelta(rows, payload)
+    case 'set_range':
+      return applySetRangeDelta(rows, payload)
+    case 'clear_cell':
+      return applyClearCellDelta(rows, payload)
+    case 'add_rows':
+      return [...rows, ...mapAddedRowsFromDeltaResult(result)]
+    case 'delete_rows':
+      return applyDeleteRowsDelta(rows, payload)
+    default:
+      return rows
+  }
+}
+
 const applyDeltaChangesToRows = (baseRows: ViewerRow[], changes: unknown[] | undefined): ViewerRow[] => {
   let next = [...baseRows]
   for (const change of changes || []) {
-    const changeRecord = change as Record<string, unknown>
-    const opType = String(changeRecord.operationType || '')
-    const payload = (changeRecord.payload || {}) as Record<string, unknown>
-    const result = (changeRecord.result || {}) as Record<string, unknown>
-
-    if (opType === 'set_cell') {
-      const rowId = String(payload.rowId || '')
-      const columnName = String(payload.columnName || '')
-      const value = payload.value
-      next = next.map(row => (backendRowIdOf(row) === rowId ? { ...row, [columnName]: value } : row))
-      continue
-    }
-
-    if (opType === 'set_range') {
-      const cells = Array.isArray(payload.cells) ? (payload.cells as Array<Record<string, unknown>>) : []
-      const updatesByRowId = new Map<string, Record<string, unknown>>()
-      for (const cell of cells) {
-        const rowId = String(cell.rowId || '')
-        const columnName = String(cell.columnName || '')
-        if (!rowId || !columnName) continue
-        const updates = updatesByRowId.get(rowId) ?? {}
-        updates[columnName] = cell.value
-        updatesByRowId.set(rowId, updates)
-      }
-      next = next.map(row => {
-        const updates = updatesByRowId.get(backendRowIdOf(row))
-        if (!updates) return row
-        return { ...row, ...updates }
-      })
-      continue
-    }
-
-    if (opType === 'clear_cell') {
-      const rowId = String(payload.rowId || '')
-      const columnName = String(payload.columnName || '')
-      next = next.map(row => {
-        if (backendRowIdOf(row) !== rowId) return row
-        const rowCopy = { ...row }
-        delete rowCopy[columnName]
-        return rowCopy
-      })
-      continue
-    }
-
-    if (opType === 'add_rows') {
-      const rows = Array.isArray(result.rows) ? (result.rows as Array<Record<string, unknown>>) : []
-      const mapped = rows.map(entry => {
-        const rowData = ((entry.data as Record<string, unknown>) || {}) as Record<string, unknown>
-        const clientRowId = rowData._clientRowId
-        if (clientRowId) {
-          return {
-            ...rowData,
-            _id: clientRowId,
-            _rowUuid: (entry.id as string) || `row_${Math.random().toString(16).slice(2)}`
-          }
-        }
-        return {
-          ...rowData,
-          _id: (entry.id as string) || `row_${Math.random().toString(16).slice(2)}`
-        }
-      })
-      next = [...next, ...mapped]
-      continue
-    }
-
-    if (opType === 'delete_rows') {
-      const rowIds = Array.isArray(payload.rowIds) ? (payload.rowIds as Array<unknown>).map(String) : []
-      next = next.filter(row => !rowIds.includes(backendRowIdOf(row)))
-    }
+    next = applySingleDeltaChange(next, change)
   }
   return next
 }
@@ -462,23 +476,14 @@ const buildSnapshotReconcilePlan = ({
     return { hasCellData, updatesByRowIndex, reconcileCells }
   }
 
-  for (const rowKey of Object.keys(cellData)) {
-    const rowIndex = Number(rowKey)
-    if (Number.isNaN(rowIndex) || rowIndex < 0) continue
-    const row = currentRows[rowIndex]
-    if (!row) continue
-
-    const rowCells = cellData[rowKey]
-    if (!rowCells || typeof rowCells !== 'object') continue
-
-    const backendRowId = getValidatedBackendRowId(row, isUuid)
+  const collectRowUpdates = (rowIndex: number, rowCells: Record<string, unknown>, backendRowId: string | null) => {
     for (const colKey of Object.keys(rowCells)) {
       const colIndex = Number(colKey)
       if (Number.isNaN(colIndex) || colIndex < 0) continue
       const columnName = visibleColumns[colIndex]?.name
       if (!columnName) continue
 
-      const nextValue = (rowCells as Record<string, unknown>)[colKey]
+      const nextValue = rowCells[colKey]
       const persistedValue = (persistedBaseline[rowIndex] as Record<string, unknown> | undefined)?.[columnName]
       if (toComparableCellValue(persistedValue) === toComparableCellValue(nextValue)) continue
 
@@ -492,7 +497,162 @@ const buildSnapshotReconcilePlan = ({
     }
   }
 
+  for (const rowKey of Object.keys(cellData)) {
+    const rowIndex = Number(rowKey)
+    if (Number.isNaN(rowIndex) || rowIndex < 0) continue
+    const row = currentRows[rowIndex]
+    if (!row) continue
+
+    const rowCells = cellData[rowKey]
+    if (!rowCells || typeof rowCells !== 'object') continue
+
+    const backendRowId = getValidatedBackendRowId(row, isUuid)
+    collectRowUpdates(rowIndex, rowCells as Record<string, unknown>, backendRowId)
+  }
+
   return { hasCellData, updatesByRowIndex, reconcileCells }
+}
+
+const getWorksheetFromSnapshot = (snapshot: unknown, activeSheetId: string): Record<string, unknown> | undefined => {
+  const workbook = snapshot as Record<string, unknown>
+  const sheets = workbook.sheets as Record<string, unknown> | undefined
+  if (!sheets) return undefined
+  if (sheets[activeSheetId] != null) return sheets[activeSheetId] as Record<string, unknown>
+  if (Array.isArray(workbook.sheetOrder)) {
+    const orderedKey = workbook.sheetOrder[0] as string | undefined
+    if (orderedKey && sheets[orderedKey] != null) return sheets[orderedKey] as Record<string, unknown>
+  }
+  const firstSheet = Object.values(sheets)[0]
+  return firstSheet as Record<string, unknown> | undefined
+}
+
+const mergeRowsWithIndexUpdates = (
+  rows: ViewerRow[],
+  updatesByRowIndex: Map<number, Record<string, unknown>>
+): ViewerRow[] =>
+  rows.map((row, idx) => {
+    const updates = updatesByRowIndex.get(idx)
+    if (!updates) return row
+    return { ...row, ...updates, _updatedAt: new Date().toISOString() }
+  })
+
+const saveSnapshotWithRetry = async ({
+  appId,
+  activeSheetId,
+  baseSnapshot,
+  sheetVersionRef,
+  snapshotSaveMetricsRef,
+  recoverFromVersionConflict,
+  spreadsheetGridRef,
+  collaboration,
+  maxSnapshotRetries
+}: {
+  appId: string
+  activeSheetId: string
+  baseSnapshot: unknown
+  sheetVersionRef: React.MutableRefObject<number>
+  snapshotSaveMetricsRef: React.MutableRefObject<{
+    attempts: number
+    conflicts: number
+    failures: number
+    fallbackLoads: number
+  }>
+  recoverFromVersionConflict: () => Promise<void>
+  spreadsheetGridRef: React.MutableRefObject<UniverSheetGridHandle | null>
+  collaboration: {
+    isCollaborationConnected: boolean
+    emitOperation: (operation: { type: 'dimension_sync'; data: CellDimensionsPayload; broadcastOnly: true }) => void
+  }
+  maxSnapshotRetries: number
+}): Promise<{ savedSnapshot: unknown; cacheResult: { stored: boolean; reason: string | null } }> => {
+  let lastError: unknown
+  for (let attempt = 0; attempt < maxSnapshotRetries; attempt++) {
+    try {
+      const snapshotToSave =
+        attempt === 0 ? baseSnapshot : (spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? baseSnapshot)
+      const cacheResult = writeUniverSnapshotCache(
+        appId,
+        activeSheetId,
+        Number(sheetVersionRef.current || 0),
+        snapshotToSave
+      )
+      await SpreadsheetApiService.saveUniverSnapshot(appId, activeSheetId, {
+        version: sheetVersionRef.current,
+        snapshot: snapshotToSave
+      })
+      if (collaboration.isCollaborationConnected) {
+        const dimensionPayload = buildDimensionPayloadFromSnapshot(snapshotToSave, activeSheetId)
+        if (dimensionPayload) {
+          collaboration.emitOperation({
+            type: 'dimension_sync',
+            data: dimensionPayload,
+            broadcastOnly: true
+          })
+        }
+      }
+      return { savedSnapshot: snapshotToSave, cacheResult }
+    } catch (error) {
+      lastError = error
+      if (error instanceof SpreadsheetApiRequestError && error.status === 409 && attempt < maxSnapshotRetries - 1) {
+        snapshotSaveMetricsRef.current.conflicts += 1
+        await recoverFromVersionConflict()
+        continue
+      }
+      snapshotSaveMetricsRef.current.failures += 1
+      throw error
+    }
+  }
+  throw lastError
+}
+
+const insertAnalyticsRowsWithOnRowAdd = async ({
+  payloads,
+  onRowAdd,
+  appId,
+  sheetId
+}: {
+  payloads: Array<Record<string, unknown>>
+  onRowAdd: (
+    appId: string,
+    sheetId: string,
+    rowData: Record<string, unknown>
+  ) => Promise<Record<string, unknown> | null>
+  appId: string
+  sheetId: string
+}): Promise<Array<Record<string, unknown>>> => {
+  const createdRows: Array<Record<string, unknown>> = []
+  for (const payload of payloads) {
+    const created = await onRowAdd(appId, sheetId, payload)
+    if (created) {
+      createdRows.push({ ...payload, ...created })
+    }
+  }
+  return createdRows
+}
+
+const insertAnalyticsRowsWithApiFallback = async ({
+  payloads,
+  appId,
+  sheetId
+}: {
+  payloads: Array<Record<string, unknown>>
+  appId: string
+  sheetId: string
+}): Promise<Array<Record<string, unknown>>> => {
+  try {
+    return await SpreadsheetApiService.bulkAddRows(appId, sheetId, payloads)
+  } catch (error) {
+    if (!(error instanceof SpreadsheetApiRequestError) || (error.status !== 404 && error.status !== 405)) {
+      throw error
+    }
+
+    const createdRows: Array<Record<string, unknown>> = []
+    for (const payload of payloads) {
+      const created = await SpreadsheetApiService.addRow(appId, sheetId, payload)
+      createdRows.push({ ...payload, ...created })
+    }
+    return createdRows
+  }
 }
 
 export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
@@ -1058,7 +1218,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onSheetUpdate,
     isCollaborationConnected: collaboration.isCollaborationConnected,
     emitOperation: op => {
-      void collaboration.emitOperation(op as any)
+      collaboration.emitOperation(op as any).catch(() => undefined)
     }
   })
 
@@ -1261,17 +1421,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return
       }
 
-      const workbook = snapshot as Record<string, unknown>
-      let sheetKey: string | undefined
-      if ((workbook.sheets as Record<string, unknown> | undefined)?.[activeSheetId] != null) {
-        sheetKey = activeSheetId
-      } else if (Array.isArray(workbook.sheetOrder)) {
-        sheetKey = workbook.sheetOrder[0] as string | undefined
-      }
-
-      const worksheet =
-        (sheetKey && (workbook.sheets as Record<string, unknown> | undefined)?.[sheetKey]) ||
-        (workbook.sheets ? Object.values(workbook.sheets as Record<string, unknown>)[0] : undefined)
+      const worksheet = getWorksheetFromSnapshot(snapshot, activeSheetId)
 
       const visibleColumns = activeSheet.columns.filter(c => c.isVisible !== false)
       const current = localSheetDataRef.current
@@ -1297,11 +1447,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
 
       if (updatesByRowIndex.size > 0) {
-        const nextLocal = current.map((row, idx) => {
-          const updates = updatesByRowIndex.get(idx)
-          if (!updates) return row
-          return { ...row, ...updates, _updatedAt: new Date().toISOString() }
-        })
+        const nextLocal = mergeRowsWithIndexUpdates(current, updatesByRowIndex)
         setLocalSheetData(nextLocal)
         onDataChange?.(activeSheetId, nextLocal)
       }
@@ -1320,57 +1466,29 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         lastPersistedSheetDataRef.current = localSheetDataRef.current
       }
 
-      const maxSnapshotRetries = 3
-      let lastError: unknown
-      for (let attempt = 0; attempt < maxSnapshotRetries; attempt++) {
-        try {
-          const snapshotToSave =
-            attempt === 0 ? snapshot : (spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? snapshot)
-          const cacheResult = writeUniverSnapshotCache(
-            app.id,
-            activeSheetId,
-            Number(sheetVersionRef.current || 0),
-            snapshotToSave
-          )
-          await SpreadsheetApiService.saveUniverSnapshot(app.id, activeSheetId, {
-            version: sheetVersionRef.current,
-            snapshot: snapshotToSave
-          })
-          const saveFinishedAt = nowMs()
-          debugLog('snapshot checkpoint saved', {
-            appId: app.id,
-            sheetId: activeSheetId,
-            version: sheetVersionRef.current,
-            sizeBytes: snapshotSizeBytes,
-            latencyMs: Math.round(saveFinishedAt - saveStartedAt),
-            cacheStored: cacheResult.stored,
-            cacheReason: cacheResult.reason,
-            metrics: snapshotSaveMetricsRef.current
-          })
-          lastSuccessfulSnapshotCheckpointAtRef.current = Date.now()
-          if (collaboration.isCollaborationConnected) {
-            const dimensionPayload = buildDimensionPayloadFromSnapshot(snapshotToSave, activeSheetId)
-            if (dimensionPayload) {
-              collaboration.emitOperation({
-                type: 'dimension_sync',
-                data: dimensionPayload,
-                broadcastOnly: true
-              })
-            }
-          }
-          return
-        } catch (error) {
-          lastError = error
-          if (error instanceof SpreadsheetApiRequestError && error.status === 409 && attempt < maxSnapshotRetries - 1) {
-            snapshotSaveMetricsRef.current.conflicts += 1
-            await recoverFromVersionConflict()
-            continue
-          }
-          snapshotSaveMetricsRef.current.failures += 1
-          throw error
-        }
-      }
-      throw lastError
+      const { cacheResult } = await saveSnapshotWithRetry({
+        appId: app.id,
+        activeSheetId,
+        baseSnapshot: snapshot,
+        sheetVersionRef,
+        snapshotSaveMetricsRef,
+        recoverFromVersionConflict,
+        spreadsheetGridRef,
+        collaboration,
+        maxSnapshotRetries: 3
+      })
+      const saveFinishedAt = nowMs()
+      debugLog('snapshot checkpoint saved', {
+        appId: app.id,
+        sheetId: activeSheetId,
+        version: sheetVersionRef.current,
+        sizeBytes: snapshotSizeBytes,
+        latencyMs: Math.round(saveFinishedAt - saveStartedAt),
+        cacheStored: cacheResult.stored,
+        cacheReason: cacheResult.reason,
+        metrics: snapshotSaveMetricsRef.current
+      })
+      lastSuccessfulSnapshotCheckpointAtRef.current = Date.now()
     }
 
     return chainOnOperationQueue(operationQueueRef, run)
@@ -1900,29 +2018,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
 
       try {
-        const createdRows: Array<Record<string, unknown>> = []
-        if (onRowAdd) {
-          for (const payload of payloads) {
-            const created = await onRowAdd(app.id, activeSheetId, payload)
-            if (created) {
-              createdRows.push({ ...payload, ...created })
-            }
-          }
-        } else {
-          try {
-            const created = await SpreadsheetApiService.bulkAddRows(app.id, activeSheetId, payloads)
-            createdRows.push(...created)
-          } catch (error) {
-            if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 405)) {
-              for (const payload of payloads) {
-                const created = await SpreadsheetApiService.addRow(app.id, activeSheetId, payload)
-                createdRows.push({ ...payload, ...created })
-              }
-            } else {
-              throw error
-            }
-          }
-        }
+        const createdRows = onRowAdd
+          ? await insertAnalyticsRowsWithOnRowAdd({
+              payloads,
+              onRowAdd,
+              appId: app.id,
+              sheetId: activeSheetId
+            })
+          : await insertAnalyticsRowsWithApiFallback({
+              payloads,
+              appId: app.id,
+              sheetId: activeSheetId
+            })
 
         if (createdRows.length === 0) {
           toast.error('No rows were inserted into the sheet.')
@@ -2061,6 +2168,95 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     return rows.length > 0 ? rows : null
   }, [activeSheet.columns, sheetData.length])
 
+  const renderMainView = useCallback((): React.ReactNode => {
+    if (viewType === 'table') {
+      if (isBootstrapSnapshotLoading) {
+        return (
+          <div className="gba:flex gba:h-full gba:w-full gba:items-center gba:justify-center">
+            <div className="gba:text-sm gba:text-muted-foreground">Loading spreadsheet snapshot...</div>
+          </div>
+        )
+      }
+      return (
+        <TableView
+          sheet={activeSheet}
+          data={sheetData}
+          initialSnapshot={bootstrapSnapshot}
+          snapshotSeed={bootstrapSnapshotSeed}
+          columns={[]}
+          spreadsheetColumns={activeSheet.columns.filter(c => c.isVisible)}
+          testId={`${testId}-table-view`}
+          onCellChange={handleCellChange}
+          onCellsChange={handleCellsChange}
+          onSnapshotRequested={enqueueUniverSnapshotCheckpoint}
+          onOpenCommentRequest={handleOpenCommentRequest}
+          commentedCells={commentedCells}
+          onDataChange={handleUniverDataChange}
+          participants={collaboration.cursorParticipants}
+          onOperationEmit={op => collaboration.emitOperation(op as any)}
+          onCursorEmit={pos => collaboration.emitCursor({ path: pos.path })}
+          collaborationEnabled={collaboration.isCollaborationConnected}
+          onColumnAdd={canEditWithLock ? columnsState.handleAutoColumnAdd : undefined}
+          isReadOnly={!canEditWithLock}
+          gridRef={spreadsheetGridRef}
+        />
+      )
+    }
+
+    if (viewType === 'form') {
+      return (
+        <FormView
+          sheet={activeSheet}
+          data={sheetData}
+          onEdit={row => setEditingRow(row)}
+          onDelete={handleDeleteRow}
+          canEdit={canEditWithLock}
+          testId={`${testId}-form-view`}
+        />
+      )
+    }
+
+    if (viewType === 'dashboard') {
+      return <DashboardView sheet={activeSheet} data={sheetData} testId={`${testId}-dashboard-view`} />
+    }
+
+    if (viewType === 'kanban') {
+      return (
+        <KanbanView
+          sheet={activeSheet}
+          data={sheetData}
+          view={activeView!}
+          onEdit={row => setEditingRow(row)}
+          canEdit={canEditWithLock}
+          testId={`${testId}-kanban-view`}
+        />
+      )
+    }
+
+    return null
+  }, [
+    viewType,
+    isBootstrapSnapshotLoading,
+    activeSheet,
+    sheetData,
+    bootstrapSnapshot,
+    bootstrapSnapshotSeed,
+    testId,
+    handleCellChange,
+    handleCellsChange,
+    enqueueUniverSnapshotCheckpoint,
+    handleOpenCommentRequest,
+    commentedCells,
+    handleUniverDataChange,
+    collaboration,
+    canEditWithLock,
+    columnsState.handleAutoColumnAdd,
+    spreadsheetGridRef,
+    setEditingRow,
+    handleDeleteRow,
+    activeView
+  ])
+
   return (
     <div className="gba:flex gba:flex-col gba:w-full gba:h-full gba:overflow-hidden" data-testid={testId}>
       <SpreadsheetHeader
@@ -2127,63 +2323,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         />
       )}
 
-      <div className="gba:flex-1 gba:relative gba:min-h-0 gba:overflow-hidden">
-        {viewType === 'table' &&
-          (isBootstrapSnapshotLoading ? (
-            <div className="gba:flex gba:h-full gba:w-full gba:items-center gba:justify-center">
-              <div className="gba:text-sm gba:text-muted-foreground">Loading spreadsheet snapshot...</div>
-            </div>
-          ) : (
-            <TableView
-              sheet={activeSheet}
-              data={sheetData}
-              initialSnapshot={bootstrapSnapshot}
-              snapshotSeed={bootstrapSnapshotSeed}
-              columns={[]}
-              spreadsheetColumns={activeSheet.columns.filter(c => c.isVisible)}
-              testId={`${testId}-table-view`}
-              onCellChange={handleCellChange}
-              onCellsChange={handleCellsChange}
-              onSnapshotRequested={enqueueUniverSnapshotCheckpoint}
-              onOpenCommentRequest={handleOpenCommentRequest}
-              commentedCells={commentedCells}
-              onDataChange={handleUniverDataChange}
-              participants={collaboration.cursorParticipants}
-              onOperationEmit={op => collaboration.emitOperation(op as any)}
-              onCursorEmit={pos => collaboration.emitCursor({ path: pos.path })}
-              collaborationEnabled={collaboration.isCollaborationConnected}
-              onColumnAdd={canEditWithLock ? columnsState.handleAutoColumnAdd : undefined}
-              isReadOnly={!canEditWithLock}
-              gridRef={spreadsheetGridRef}
-            />
-          ))}
-
-        {viewType === 'form' && (
-          <FormView
-            sheet={activeSheet}
-            data={sheetData}
-            onEdit={row => setEditingRow(row)}
-            onDelete={handleDeleteRow}
-            canEdit={canEditWithLock}
-            testId={`${testId}-form-view`}
-          />
-        )}
-
-        {viewType === 'dashboard' && (
-          <DashboardView sheet={activeSheet} data={sheetData} testId={`${testId}-dashboard-view`} />
-        )}
-
-        {viewType === 'kanban' && (
-          <KanbanView
-            sheet={activeSheet}
-            data={sheetData}
-            view={activeView!}
-            onEdit={row => setEditingRow(row)}
-            canEdit={canEditWithLock}
-            testId={`${testId}-kanban-view`}
-          />
-        )}
-      </div>
+      <div className="gba:flex-1 gba:relative gba:min-h-0 gba:overflow-hidden">{renderMainView()}</div>
 
       <SpreadsheetSheetTabs
         sheets={app.sheets}

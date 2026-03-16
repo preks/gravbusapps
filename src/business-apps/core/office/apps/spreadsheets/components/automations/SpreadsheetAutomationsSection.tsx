@@ -212,6 +212,40 @@ async function fetchSheetPayload(
   }
 }
 
+function appendNormalizedAutomations(target: SpreadsheetAutomation[], rawAutomations: Record<string, unknown>[]): void {
+  rawAutomations.forEach(rawAutomation => {
+    target.push(normalizeAutomation(rawAutomation))
+  })
+}
+
+function collectSheetLevelAutomationIdsAndPayloads(
+  sheets: Record<string, unknown>[],
+  target: SpreadsheetAutomation[]
+): string[] {
+  const sheetIdsNeedingDetails: string[] = []
+  sheets.forEach(sheet => {
+    const sheetAutomations = extractAutomations(sheet.automations)
+    if (sheetAutomations.length > 0) {
+      appendNormalizedAutomations(target, sheetAutomations)
+      return
+    }
+    const sheetId = typeof sheet.id === 'string' ? sheet.id.trim() : ''
+    if (sheetId) sheetIdsNeedingDetails.push(sheetId)
+  })
+  return sheetIdsNeedingDetails
+}
+
+function appendAutomationsFromSheetResponses(
+  target: SpreadsheetAutomation[],
+  sheetResponses: Array<Record<string, unknown> | null>
+): void {
+  sheetResponses.forEach(sheetPayload => {
+    if (!sheetPayload) return
+    const normalizedSheetPayload = unwrapObject(sheetPayload)
+    appendNormalizedAutomations(target, extractAutomations(normalizedSheetPayload.automations))
+  })
+}
+
 async function collectAutomationsFromSpreadsheetPayload(
   spreadsheetPayload: Record<string, unknown>,
   appId: string,
@@ -219,42 +253,17 @@ async function collectAutomationsFromSpreadsheetPayload(
   accessToken: string
 ): Promise<SpreadsheetAutomation[]> {
   const fromSheetConfig: SpreadsheetAutomation[] = []
-  const appLevelAutomations = extractAutomations(spreadsheetPayload.automations)
-  for (const rawAutomation of appLevelAutomations) {
-    fromSheetConfig.push(normalizeAutomation(rawAutomation))
-  }
+  appendNormalizedAutomations(fromSheetConfig, extractAutomations(spreadsheetPayload.automations))
 
   const sheets = extractArray<Record<string, unknown>>(spreadsheetPayload.sheets)
-  const sheetIdsNeedingDetails: string[] = []
-  for (const sheet of sheets) {
-    const sheetAutomations = extractAutomations(sheet.automations)
-    if (sheetAutomations.length > 0) {
-      for (const rawAutomation of sheetAutomations) {
-        fromSheetConfig.push(normalizeAutomation(rawAutomation))
-      }
-      continue
-    }
-
-    const sheetId = typeof sheet.id === 'string' ? sheet.id.trim() : ''
-    if (sheetId) sheetIdsNeedingDetails.push(sheetId)
-  }
-
-  if (sheetIdsNeedingDetails.length === 0) {
-    return fromSheetConfig
-  }
+  const sheetIdsNeedingDetails = collectSheetLevelAutomationIdsAndPayloads(sheets, fromSheetConfig)
+  if (sheetIdsNeedingDetails.length === 0) return fromSheetConfig
 
   const sheetResponses = await Promise.all(
     sheetIdsNeedingDetails.map(sheetId => fetchSheetPayload(docServiceUrl, accessToken, appId, sheetId))
   )
 
-  for (const sheetPayload of sheetResponses) {
-    if (!sheetPayload) continue
-    const normalizedSheetPayload = unwrapObject(sheetPayload)
-    const sheetAutomations = extractAutomations(normalizedSheetPayload.automations)
-    for (const rawAutomation of sheetAutomations) {
-      fromSheetConfig.push(normalizeAutomation(rawAutomation))
-    }
-  }
+  appendAutomationsFromSheetResponses(fromSheetConfig, sheetResponses)
 
   return fromSheetConfig
 }

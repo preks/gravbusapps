@@ -2101,6 +2101,30 @@ export class SpreadsheetAutomationService {
     }
   }
 
+  private extractFormDataFromFlowOutput(
+    outputData: Record<string, unknown> | undefined
+  ): Record<string, unknown> | null {
+    if (!outputData || Object.keys(outputData).length === 0) return null
+    const fromOutput = (outputData.formData as Record<string, unknown> | undefined) || outputData
+    return Object.keys(fromOutput).length > 0 ? fromOutput : null
+  }
+
+  private extractFormDataFromFlowSteps(
+    steps: Array<Record<string, unknown>> | undefined
+  ): Record<string, unknown> | null {
+    if (!Array.isArray(steps)) return null
+    for (const step of steps) {
+      const outputs = step.outputs as Record<string, unknown> | undefined
+      if (outputs && Object.keys(outputs).length > 0) {
+        const fromOutputs = (outputs.formData as Record<string, unknown> | undefined) || outputs
+        if (Object.keys(fromOutputs).length > 0) return fromOutputs
+      }
+      const formData = step.formData as Record<string, unknown> | undefined
+      if (formData && Object.keys(formData).length > 0) return formData
+    }
+    return null
+  }
+
   private async fetchFormDataFromFlowDetail(flowId: string): Promise<Record<string, unknown> | null> {
     try {
       const detailResponse = await fetch(`${this.apiBaseUrl}/flows/${flowId}`, {
@@ -2113,25 +2137,11 @@ export class SpreadsheetAutomationService {
       const flowDetail = detailData.data || detailData
 
       const outputData = flowDetail?.outputData as Record<string, unknown> | undefined
-      if (outputData && Object.keys(outputData).length > 0) {
-        const fromOutput = (outputData.formData as Record<string, unknown> | undefined) || outputData
-        if (Object.keys(fromOutput).length > 0) return fromOutput
-      }
+      const fromOutput = this.extractFormDataFromFlowOutput(outputData)
+      if (fromOutput) return fromOutput
 
       const steps = flowDetail?.steps as Array<Record<string, unknown>> | undefined
-      if (!Array.isArray(steps)) return null
-
-      for (const step of steps) {
-        const outputs = step.outputs as Record<string, unknown> | undefined
-        if (outputs && Object.keys(outputs).length > 0) {
-          const fromOutputs = (outputs.formData as Record<string, unknown> | undefined) || outputs
-          if (Object.keys(fromOutputs).length > 0) return fromOutputs
-        }
-        const formData = step.formData as Record<string, unknown> | undefined
-        if (formData && Object.keys(formData).length > 0) return formData
-      }
-
-      return null
+      return this.extractFormDataFromFlowSteps(steps)
     } catch (detailErr) {
       console.error('[SpreadsheetAutomationService] Error fetching flow detail:', detailErr)
       return null

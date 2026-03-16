@@ -364,6 +364,38 @@ function buildHeaders(
   return headers
 }
 
+function buildRowValuesAndBackgrounds(
+  row: ExcelJS.Row,
+  maxColumns: number,
+  mode: 'structured' | 'preserve-format'
+): { rowValues: unknown[]; rowBackgrounds: Array<string | undefined> } {
+  const rowValues: unknown[] = []
+  const rowBackgrounds: Array<string | undefined> = []
+  for (let col = 1; col <= maxColumns; col++) {
+    const cell = row.getCell(col)
+    rowValues[col - 1] = mode === 'preserve-format' ? buildStyledCellValue(cell) : normalizeExcelJsCellValue(cell.value)
+    if (mode !== 'preserve-format') rowBackgrounds[col - 1] = extractCellBackgroundHex(cell) ?? undefined
+  }
+  return { rowValues, rowBackgrounds }
+}
+
+function hasRenderableRowContent(rowValues: unknown[], rowBackgrounds: Array<string | undefined>): boolean {
+  const hasData = rowValues.some(v => v !== null && v !== undefined && v !== '')
+  if (hasData) return true
+  return rowBackgrounds.some(Boolean)
+}
+
+function writeRowBackgrounds(
+  backgroundByCell: Record<string, string | undefined>,
+  rowBackgrounds: Array<string | undefined>,
+  parsedRowIndex: number
+): void {
+  rowBackgrounds.forEach((backgroundHex, colIndex) => {
+    if (!backgroundHex) return
+    backgroundByCell[`${parsedRowIndex}:${colIndex}`] = backgroundHex
+  })
+}
+
 function parseWorksheetRows(
   worksheet: ExcelJS.Worksheet,
   maxColumns: number,
@@ -384,25 +416,12 @@ function parseWorksheetRows(
     const rowHeight = row.height
     if (typeof rowHeight === 'number' && rowHeight > 0) rowHeightByIndex[dataRows.length] = rowHeight
 
-    const rowValues: unknown[] = []
-    const rowBackgrounds: Array<string | undefined> = []
-    for (let col = 1; col <= maxColumns; col++) {
-      const cell = row.getCell(col)
-      rowValues[col - 1] =
-        mode === 'preserve-format' ? buildStyledCellValue(cell) : normalizeExcelJsCellValue(cell.value)
-      if (mode !== 'preserve-format') rowBackgrounds[col - 1] = extractCellBackgroundHex(cell) ?? undefined
-    }
-
-    const hasData = rowValues.some(v => v !== null && v !== undefined && v !== '')
-    const hasBackground = rowBackgrounds.some(Boolean)
-    if (!hasData && !hasBackground) continue
+    const { rowValues, rowBackgrounds } = buildRowValuesAndBackgrounds(row, maxColumns, mode)
+    if (!hasRenderableRowContent(rowValues, rowBackgrounds)) continue
 
     const parsedRowIndex = dataRows.length
     dataRows.push(rowValues)
-    rowBackgrounds.forEach((backgroundHex, colIndex) => {
-      if (!backgroundHex) return
-      backgroundByCell[`${parsedRowIndex}:${colIndex}`] = backgroundHex
-    })
+    writeRowBackgrounds(backgroundByCell, rowBackgrounds, parsedRowIndex)
   }
 
   return { dataRows, backgroundByCell, rowHeightByIndex }

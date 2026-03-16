@@ -56,9 +56,52 @@ function parseA1Reference(cellRef: string): { row: number; col: number } | null 
 
 type SheetRangeShape = { startRow: number; endRow: number; startColumn: number; endColumn: number }
 type SheetCellMatrix = Record<number, Record<number, unknown>>
+type SheetCellBounds = { min: number; max: number }
 
 function normalizeCellMatrix(value: unknown): SheetCellMatrix | undefined {
   return value && typeof value === 'object' ? (value as SheetCellMatrix) : undefined
+}
+
+function readWorksheetCellValue(
+  worksheet: { getRange?: (row: number, col: number) => unknown } | undefined,
+  row: number,
+  col: number
+): unknown {
+  const cellRange = worksheet?.getRange?.(row, col)
+  return (
+    (cellRange as { getValue?: () => unknown })?.getValue?.() ??
+    (cellRange as { getCellData?: () => { v?: unknown } })?.getCellData?.()?.v
+  )
+}
+
+function getNumericMatrixKeys(value: SheetCellMatrix): number[] {
+  return Object.keys(value)
+    .map(k => Number(k))
+    .filter(n => !Number.isNaN(n))
+}
+
+function getColumnKeysFromMatrix(value: SheetCellMatrix): number[] {
+  const colKeys: number[] = []
+  for (const rowKey of Object.keys(value)) {
+    const rowCells = value[Number(rowKey)]
+    if (!rowCells || typeof rowCells !== 'object') continue
+    colKeys.push(...getNumericMatrixKeys(rowCells as SheetCellMatrix))
+  }
+  return colKeys
+}
+
+function getBounds(values: number[]): SheetCellBounds {
+  if (values.length === 0) return { min: 0, max: 0 }
+  return {
+    min: Math.min(...values),
+    max: Math.max(...values)
+  }
+}
+
+function resolveAxisOffset(bounds: SheetCellBounds, rangeStart: number, rangeEnd: number): number {
+  const looksAbsolute = bounds.min >= rangeStart && bounds.max <= rangeEnd
+  const looksRelative = bounds.min >= 0 && bounds.max <= rangeEnd - rangeStart
+  return !looksAbsolute && looksRelative ? rangeStart : 0
 }
 
 function deriveCellMatrixFromRanges(
@@ -68,21 +111,26 @@ function deriveCellMatrixFromRanges(
 ): SheetCellMatrix | undefined {
   const derived: SheetCellMatrix = {}
   let visited = 0
+
+  const limitReached = () => visited > maxCells
+  const addCellValue = (row: number, col: number) => {
+    visited += 1
+    if (limitReached()) return
+    const value = readWorksheetCellValue(worksheet, row, col)
+    if (value === undefined) return
+    if (!derived[row]) derived[row] = {}
+    derived[row][col] = value
+  }
+
   for (const range of ranges) {
     for (let r = range.startRow; r <= range.endRow; r++) {
       for (let c = range.startColumn; c <= range.endColumn; c++) {
-        if (++visited > maxCells) break
-        const cellRange = worksheet?.getRange?.(r, c)
-        const value =
-          (cellRange as { getValue?: () => unknown })?.getValue?.() ??
-          (cellRange as { getCellData?: () => { v?: unknown } })?.getCellData?.()?.v
-        if (value === undefined) continue
-        if (!derived[r]) derived[r] = {}
-        derived[r][c] = value
+        addCellValue(r, c)
+        if (limitReached()) break
       }
-      if (visited > maxCells) break
+      if (limitReached()) break
     }
-    if (visited > maxCells) break
+    if (limitReached()) break
   }
   return Object.keys(derived).length > 0 ? derived : undefined
 }
@@ -93,32 +141,12 @@ function resolveCellOffsets(
 ): { rowOffset: number; colOffset: number } {
   if (!range) return { rowOffset: 0, colOffset: 0 }
 
-  const rowKeys = Object.keys(cellValue)
-    .map(k => Number(k))
-    .filter(n => !Number.isNaN(n))
-  const minRow = rowKeys.length ? Math.min(...rowKeys) : 0
-  const maxRow = rowKeys.length ? Math.max(...rowKeys) : 0
-
-  const colKeys: number[] = []
-  for (const rowKey of Object.keys(cellValue)) {
-    const rowCells = cellValue[Number(rowKey)]
-    if (!rowCells || typeof rowCells !== 'object') continue
-    for (const colKey of Object.keys(rowCells)) {
-      const n = Number(colKey)
-      if (!Number.isNaN(n)) colKeys.push(n)
-    }
-  }
-
-  const minCol = colKeys.length ? Math.min(...colKeys) : 0
-  const maxCol = colKeys.length ? Math.max(...colKeys) : 0
-  const looksAbsoluteRows = minRow >= range.startRow && maxRow <= range.endRow
-  const looksRelativeRows = minRow >= 0 && maxRow <= range.endRow - range.startRow
-  const looksAbsoluteCols = minCol >= range.startColumn && maxCol <= range.endColumn
-  const looksRelativeCols = minCol >= 0 && maxCol <= range.endColumn - range.startColumn
+  const rowBounds = getBounds(getNumericMatrixKeys(cellValue))
+  const colBounds = getBounds(getColumnKeysFromMatrix(cellValue))
 
   return {
-    rowOffset: !looksAbsoluteRows && looksRelativeRows ? range.startRow : 0,
-    colOffset: !looksAbsoluteCols && looksRelativeCols ? range.startColumn : 0
+    rowOffset: resolveAxisOffset(rowBounds, range.startRow, range.endRow),
+    colOffset: resolveAxisOffset(colBounds, range.startColumn, range.endColumn)
   }
 }
 
@@ -567,6 +595,14 @@ function tryInjectContextMenuItem(
     tryInjectViaGridContainer(markerAttr, createItem) ||
     tryInjectViaTextSearch(anchorX, anchorY, markerAttr, createItem)
   )
+}
+
+function scheduleContextMenuInjectionPoll(run: () => void): void {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      globalThis.setTimeout(run, 0)
+    })
+  })
 }
 
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
@@ -1045,11 +1081,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (inject(x, y)) stopObserver()
         })
         contextMenuObserver.observe(document.body, { childList: true, subtree: true })
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            globalThis.setTimeout(() => pollInjection(x, y, attempts, 40), 0)
-          })
-        })
+        scheduleContextMenuInjectionPoll(() => pollInjection(x, y, attempts, 40))
       }
 
       container.addEventListener('contextmenu', onNativeContextMenu, true)

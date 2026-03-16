@@ -923,6 +923,36 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     [trigger]
   )
 
+  const handleRecipientsValueChange = useCallback((ids: string[]) => {
+    setSelectedRecipients(prev => prev.filter(recipient => ids.includes(recipient.id)))
+  }, [])
+
+  const handleRecipientsEmployeesChange = useCallback(
+    (employees: Array<{ id: string; userId?: string; displayName?: string }>) => {
+      setSelectedRecipients(
+        employees.map(emp => ({
+          id: emp.id,
+          userId: emp.userId,
+          name: emp.displayName || 'Unknown',
+          email: undefined
+        }))
+      )
+    },
+    []
+  )
+
+  const handleColumnMappingColumnChange = useCallback(
+    (index: number, value: string) => {
+      const column = columns.find(c => c.id === value)
+      updateColumnMapping(index, {
+        columnId: value,
+        columnName: column?.name || value,
+        workflowParameter: getFormFieldSuggestion(column?.label || value)
+      })
+    },
+    [columns, updateColumnMapping]
+  )
+
   // Render step content
   const renderStepContent = () => {
     switch (currentStep) {
@@ -1629,17 +1659,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     <MultiEmployeeSelect
                       accessToken={accessToken}
                       value={selectedRecipients.map(r => r.id)}
-                      onValueChange={ids => setSelectedRecipients(prev => prev.filter(r => ids.includes(r.id)))}
-                      onEmployeesChange={employees => {
-                        setSelectedRecipients(
-                          employees.map(emp => ({
-                            id: emp.id,
-                            userId: emp.userId,
-                            name: emp.displayName || 'Unknown',
-                            email: undefined
-                          }))
-                        )
-                      }}
+                      onValueChange={handleRecipientsValueChange}
+                      onEmployeesChange={handleRecipientsEmployeesChange}
                       placeholder="Search employees to add..."
                       data-testid="bulk-collection-employee-select"
                     />
@@ -1984,15 +2005,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                         <div className="gba:col-span-4">
                           <Select
                             value={mapping.columnId}
-                            onValueChange={value => {
-                              const column = columns.find(c => c.id === value)
-                              updateColumnMapping(index, {
-                                columnId: value,
-                                columnName: column?.name || value,
-                                // Auto-suggest field name
-                                workflowParameter: getFormFieldSuggestion(column?.label || value)
-                              })
-                            }}
+                            onValueChange={value => handleColumnMappingColumnChange(index, value)}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select column..." />

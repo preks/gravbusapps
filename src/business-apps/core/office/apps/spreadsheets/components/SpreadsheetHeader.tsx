@@ -227,7 +227,9 @@ function CollectionStatusSection({
     return (
       <Button
         size="sm"
-        onClick={() => void handleSubmitCollection()}
+        onClick={() => {
+          handleSubmitCollection().catch(() => undefined)
+        }}
         disabled={isSubmittingCollection}
         data-testid="spreadsheet-submit-collection"
       >
@@ -400,8 +402,8 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             onShowVersionHistory={onShowVersionHistory}
             onShowCheckpointDialog={onShowCheckpointDialog}
             isLockedByMe={fileLock.isLockedByMe}
-            onAcquireLock={() => void fileLock.acquireLock()}
-            onReleaseLock={() => void fileLock.releaseLock()}
+            onAcquireLock={fileLock.acquireLock}
+            onReleaseLock={fileLock.releaseLock}
             canEdit={canEdit}
             onShare={onShare}
             onOpenAnalytics={onOpenAnalytics}

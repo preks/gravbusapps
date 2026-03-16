@@ -108,6 +108,33 @@ function mergeAppIntoList(apps: SpreadsheetAppSummary[], id: string, updated: Sp
   )
 }
 
+function replaceSheetRowById(
+  rows: Record<string, unknown>[],
+  rowId: string,
+  updatedRow: Record<string, unknown>
+): Record<string, unknown>[] {
+  return rows.map(row => ((row._id as string) === rowId ? updatedRow : row))
+}
+
+function removeSheetRowById(rows: Record<string, unknown>[], rowId: string): Record<string, unknown>[] {
+  return rows.filter(row => (row._id as string) !== rowId)
+}
+
+function updateSheetRowsForRowUpdate(
+  sheets: SpreadsheetSheet[],
+  sheetId: string,
+  rowId: string,
+  updatedRow: Record<string, unknown>
+): SpreadsheetSheet[] {
+  return sheets.map(sheet =>
+    sheet.id === sheetId ? { ...sheet, data: replaceSheetRowById(sheet.data, rowId, updatedRow) } : sheet
+  )
+}
+
+function updateSheetRowsForRowDelete(sheets: SpreadsheetSheet[], sheetId: string, rowId: string): SpreadsheetSheet[] {
+  return sheets.map(sheet => (sheet.id === sheetId ? { ...sheet, data: removeSheetRowById(sheet.data, rowId) } : sheet))
+}
+
 async function fetchAllAppsPaginated(): Promise<Awaited<ReturnType<typeof SpreadsheetApiService.listApps>>> {
   const PAGE_SIZE = 100
   const allApps: Awaited<ReturnType<typeof SpreadsheetApiService.listApps>> = []
@@ -533,11 +560,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
             currentApp: prev.currentApp
               ? {
                   ...prev.currentApp,
-                  sheets: prev.currentApp.sheets.map(s =>
-                    s.id === sheetId
-                      ? { ...s, data: s.data.map(r => ((r._id as string) === rowId ? updatedRow : r)) }
-                      : s
-                  )
+                  sheets: updateSheetRowsForRowUpdate(prev.currentApp.sheets, sheetId, rowId, updatedRow)
                 }
               : null
           }))
@@ -568,9 +591,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
             currentApp: prev.currentApp
               ? {
                   ...prev.currentApp,
-                  sheets: prev.currentApp.sheets.map(s =>
-                    s.id === sheetId ? { ...s, data: s.data.filter(r => (r._id as string) !== rowId) } : s
-                  )
+                  sheets: updateSheetRowsForRowDelete(prev.currentApp.sheets, sheetId, rowId)
                 }
               : null
           }))

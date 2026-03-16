@@ -540,27 +540,20 @@ function tokenizeExpression(expr: string): Array<string | number> {
       continue
     }
 
-    if (['+', '-', '*', '/'].includes(char)) {
-      if (char === '-' && (tokens.length === 0 || typeof tokens[tokens.length - 1] === 'string')) {
+    if (isArithmeticOperator(char)) {
+      if (isUnaryMinusToken(char, tokens)) {
         current += char
         continue
       }
 
-      if (current) {
-        const num = Number.parseFloat(current)
-        tokens.push(Number.isNaN(num) ? 0 : num)
-        current = ''
-      }
+      current = pushCurrentNumberToken(tokens, current)
       tokens.push(char)
     } else {
       current += char
     }
   }
 
-  if (current) {
-    const num = Number.parseFloat(current)
-    tokens.push(Number.isNaN(num) ? 0 : num)
-  }
+  pushCurrentNumberToken(tokens, current)
 
   return tokens
 }
@@ -577,24 +570,44 @@ function applyMultiplicationAndDivision(tokens: Array<string | number>): Array<s
   const result: Array<string | number> = []
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]
-    const prev = result[result.length - 1]
-
-    if (token === '*' || token === '/') {
-      const left = typeof prev === 'number' ? prev : 0
-      const right = typeof tokens[i + 1] === 'number' ? (tokens[i + 1] as number) : 0
-      result.pop()
-
-      if (token === '*') {
-        result.push(left * right)
-      } else {
-        result.push(right !== 0 ? left / right : 0)
-      }
-      i++
-    } else {
+    if (token !== '*' && token !== '/') {
       result.push(token)
+      continue
     }
+
+    const prev = result[result.length - 1]
+    const left = typeof prev === 'number' ? prev : 0
+    const right = typeof tokens[i + 1] === 'number' ? (tokens[i + 1] as number) : 0
+    result.pop()
+    result.push(applyBinaryArithmetic(left, right, token))
+    i++
   }
   return result
+}
+
+function isArithmeticOperator(char: string): boolean {
+  return char === '+' || char === '-' || char === '*' || char === '/'
+}
+
+function isUnaryMinusToken(char: string, tokens: Array<string | number>): boolean {
+  return char === '-' && (tokens.length === 0 || typeof tokens[tokens.length - 1] === 'string')
+}
+
+function pushCurrentNumberToken(tokens: Array<string | number>, current: string): string {
+  if (!current) {
+    return current
+  }
+
+  const num = Number.parseFloat(current)
+  tokens.push(Number.isNaN(num) ? 0 : num)
+  return ''
+}
+
+function applyBinaryArithmetic(left: number, right: number, operator: '*' | '/'): number {
+  if (operator === '*') {
+    return left * right
+  }
+  return right !== 0 ? left / right : 0
 }
 
 function applyAdditionAndSubtraction(tokens: Array<string | number>): number {
