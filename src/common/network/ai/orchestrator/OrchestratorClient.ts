@@ -96,6 +96,30 @@ function parseErrorResponse(errorData: unknown, fallbackMessage: string): string
   return extracted ?? fallbackMessage
 }
 
+function normalizeOptionalId(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : undefined
+}
+
+function sanitizeTurnRequest(request: TurnRequest): TurnRequest {
+  const sanitized: TurnRequest = { ...request }
+  const jobId = normalizeOptionalId(request.jobId)
+  const sessionId = normalizeOptionalId(request.sessionId)
+  const repoId = normalizeOptionalId(request.repoId)
+
+  if (jobId) sanitized.jobId = jobId
+  else delete sanitized.jobId
+
+  if (sessionId) sanitized.sessionId = sessionId
+  else delete sanitized.sessionId
+
+  if (repoId) sanitized.repoId = repoId
+  else delete sanitized.repoId
+
+  return sanitized
+}
+
 /**
  * Client for the AI Orchestrator API
  */
@@ -109,6 +133,7 @@ export class OrchestratorClient {
   }
 
   private async openTurnStream(request: TurnRequest, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+    const sanitizedRequest = sanitizeTurnRequest(request)
     const response = await fetch(`${this.baseUrl}/orchestration/turns/stream`, {
       method: 'POST',
       headers: {
@@ -116,7 +141,7 @@ export class OrchestratorClient {
         Authorization: `Bearer ${this.accessToken}`,
         Accept: 'text/event-stream'
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify(sanitizedRequest),
       signal
     })
 
@@ -195,6 +220,8 @@ export class OrchestratorClient {
       prompt: request.prompt,
       context: request.context,
       answers: request.answers,
+      sessionId: request.sessionId,
+      repoId: request.repoId,
       createdBy: request.createdBy
     })
     const planEvent = events.find(event => event.type === 'plan_updated')
@@ -235,6 +262,8 @@ export class OrchestratorClient {
         prompt: request.prompt,
         context: request.context,
         answers: request.answers,
+        sessionId: request.sessionId,
+        repoId: request.repoId,
         createdBy: request.createdBy
       },
       event => onEvent?.(event as AnalyzeStreamEvent)

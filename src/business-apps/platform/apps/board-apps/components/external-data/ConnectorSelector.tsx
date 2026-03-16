@@ -15,12 +15,39 @@ import {
   SelectValue,
   Spinner
 } from '@newwork/nw-design-system'
-import { ArrowRight, Cable, DatabaseZap, FolderOpen, Plug } from 'lucide-react'
+import { ArrowRight, Cable, CheckCircle2, DatabaseZap, FolderOpen, Plug } from 'lucide-react'
 import type {
   ConnectorProviderODM,
   ExternalConnectionLane
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { ConnectorLogo } from '@/business-apps/core/create/apps/newwork-connect/components/ConnectorLogo'
 import type { ConnectorSummary } from '../../types'
+
+const connectorNameToProviderId: Record<string, string> = {
+  'nw-connector-sap': 'anypoint-connect.sap',
+  'nw-connector-salesforce': 'anypoint-connect.salesforce',
+  'nw-connector-postgresql': 'anypoint-connect.postgresql',
+  'nw-connector-mysql': 'anypoint-connect.mysql',
+  'nw-connector-oracle': 'anypoint-connect.oracle',
+  'nw-connector-mongodb': 'anypoint-connect.mongodb',
+  'nw-connector-snowflake': 'anypoint-connect.snowflake',
+  'nw-connector-hubspot': 'anypoint-connect.hubspot',
+  'nw-connector-dynamics365': 'anypoint-connect.dynamics365',
+  'nw-connector-servicenow': 'anypoint-connect.servicenow'
+}
+
+const connectorDisplayName: Record<string, string> = {
+  'nw-connector-sap': 'SAP S/4HANA',
+  'nw-connector-salesforce': 'Salesforce',
+  'nw-connector-postgresql': 'PostgreSQL',
+  'nw-connector-mysql': 'MySQL',
+  'nw-connector-oracle': 'Oracle',
+  'nw-connector-mongodb': 'MongoDB',
+  'nw-connector-snowflake': 'Snowflake',
+  'nw-connector-hubspot': 'HubSpot',
+  'nw-connector-dynamics365': 'Dynamics 365',
+  'nw-connector-servicenow': 'ServiceNow'
+}
 
 export interface SharedConnectionOption {
   id: string
@@ -49,8 +76,8 @@ const LANE_META: Record<
   ExternalConnectionLane,
   { title: string; description: string; Icon: React.FC<{ className?: string }> }
 > = {
-  anypoint_connect: { title: 'AnyPoint', description: 'Unstructured sources', Icon: FolderOpen },
-  data_bridge: { title: 'DataBridge', description: 'Structured data', Icon: DatabaseZap },
+  anypoint_connect: { title: 'AnyPoint Connect', description: 'Structured data', Icon: DatabaseZap },
+  data_bridge: { title: 'DataBridge', description: 'Unstructured sources', Icon: FolderOpen },
   mcp_servers: { title: 'MCP', description: 'Tool endpoints', Icon: Cable }
 }
 
@@ -78,7 +105,7 @@ export const ConnectorSelector: React.FC<ConnectorSelectorProps> = ({
       mcp_servers: []
     }
     const ids = new Set<string>()
-    const connectorIds = new Set(connectors.map(c => c.id))
+    const connectorIds = new Set(connectors.flatMap(c => [c.id, c.name]))
 
     providers.forEach(p => {
       const cid = p.connectorId || p.connector_id
@@ -91,17 +118,18 @@ export const ConnectorSelector: React.FC<ConnectorSelectorProps> = ({
   }, [connectors, providers])
 
   const customConnectors = useMemo(
-    () => connectors.filter(c => !providerConnectorIds.has(c.id)),
+    () => connectors.filter(c => !providerConnectorIds.has(c.id) && !providerConnectorIds.has(c.name)),
     [connectors, providerConnectorIds]
   )
 
   const handleProviderSelect = (provider: ConnectorProviderODM) => {
     const cid = provider.connectorId || provider.connector_id
-    const match = connectors.find(c => c.id === cid)
+    const match = connectors.find(c => c.id === cid || c.name === cid)
     if (match) onSelect(match)
   }
 
   const activeProviders = activeLane ? providersByLane[activeLane] : []
+  const visibleLanes = LANES.filter(lane => providersByLane[lane].length > 0)
 
   if (isLoading) {
     return (
@@ -134,35 +162,39 @@ export const ConnectorSelector: React.FC<ConnectorSelectorProps> = ({
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
-      {/* Lane category cards */}
-      <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-        {LANES.map(lane => {
-          const { title, description, Icon } = LANE_META[lane]
-          const count = providersByLane[lane].length
-          const isActive = activeLane === lane
-          return (
-            <Card
-              key={lane}
-              className={`gba:cursor-pointer gba:transition-colors ${isActive ? 'gba:border-primary gba:bg-accent' : ''}`}
-              onClick={() => setActiveLane(isActive ? null : lane)}
-              data-testid={`${testId}-lane-${lane}`}
-            >
-              <CardHeader className="gba:p-3 gba:pb-1">
-                <Icon className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:mb-1" />
-                <CardTitle className="gba:text-xs">{title}</CardTitle>
-                <CardDescription className="gba:text-[10px]">{description}</CardDescription>
-              </CardHeader>
-              <CardContent className="gba:px-3 gba:pb-3 gba:pt-0">
-                {count > 0 && (
-                  <Badge variant="secondary" className="gba:text-[10px]">
-                    {count}
-                  </Badge>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+      {/* Lane category cards — only show lanes that have providers for this consumer */}
+      {visibleLanes.length > 0 && (
+        <div
+          className={`gba:grid gba:gap-2 ${visibleLanes.length === 1 ? 'gba:grid-cols-1' : visibleLanes.length === 2 ? 'gba:grid-cols-2' : 'gba:grid-cols-3'}`}
+        >
+          {visibleLanes.map(lane => {
+            const { title, description, Icon } = LANE_META[lane]
+            const count = providersByLane[lane].length
+            const isActive = activeLane === lane
+            return (
+              <Card
+                key={lane}
+                className={`gba:cursor-pointer gba:transition-colors ${isActive ? 'gba:border-primary gba:bg-accent' : ''}`}
+                onClick={() => setActiveLane(isActive ? null : lane)}
+                data-testid={`${testId}-lane-${lane}`}
+              >
+                <CardHeader className="gba:p-3 gba:pb-1">
+                  <Icon className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:mb-1" />
+                  <CardTitle className="gba:text-xs">{title}</CardTitle>
+                  <CardDescription className="gba:text-[10px]">{description}</CardDescription>
+                </CardHeader>
+                <CardContent className="gba:px-3 gba:pb-3 gba:pt-0">
+                  {count > 0 && (
+                    <Badge variant="secondary" className="gba:text-[10px]">
+                      {count}
+                    </Badge>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
 
       {/* Preconfigured providers for selected lane */}
       {activeLane && activeProviders.length > 0 && (
@@ -172,20 +204,29 @@ export const ConnectorSelector: React.FC<ConnectorSelectorProps> = ({
             {activeProviders.map(p => {
               const pid = p.providerId || p.provider_id
               const cid = p.connectorId || p.connector_id
+              const isSelected = selectedId === cid
               return (
                 <button
                   key={pid}
                   type="button"
-                  className={`gba:w-full gba:text-left gba:rounded-md gba:border gba:p-3 gba:transition-colors ${
-                    selectedId === cid ? 'gba:border-primary gba:bg-accent' : 'gba:border-border gba:hover:bg-accent/50'
+                  className={`gba:relative gba:w-full gba:text-left gba:rounded-xl gba:border gba:p-4 gba:transition-all ${
+                    isSelected
+                      ? 'gba:border-primary gba:bg-accent gba:ring-1 gba:ring-primary'
+                      : 'gba:border-border gba:hover:border-primary/40 gba:hover:bg-accent/50'
                   }`}
                   onClick={() => handleProviderSelect(p)}
                   data-testid={`${testId}-provider-${pid}`}
                 >
-                  <div className="gba:text-sm gba:font-medium gba:truncate">{p.name}</div>
-                  {p.description && (
-                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{p.description}</div>
-                  )}
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <ConnectorLogo providerId={pid} size="sm" />
+                    <div className="gba:min-w-0 gba:flex-1">
+                      <div className="gba:text-sm gba:font-semibold gba:truncate">{p.name}</div>
+                      {p.description && (
+                        <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{p.description}</div>
+                      )}
+                    </div>
+                    {isSelected && <CheckCircle2 className="gba:w-5 gba:h-5 gba:text-primary gba:shrink-0" />}
+                  </div>
                 </button>
               )
             })}
@@ -198,33 +239,41 @@ export const ConnectorSelector: React.FC<ConnectorSelectorProps> = ({
         <div className="gba:space-y-2">
           <Label className="gba:text-xs gba:text-muted-foreground">{activeLane ? 'Custom' : 'Connectors'}</Label>
           <div className="gba:space-y-1">
-            {customConnectors.map(c => (
-              <button
-                key={c.id}
-                type="button"
-                className={`gba:w-full gba:text-left gba:rounded-md gba:border gba:p-3 gba:transition-colors ${
-                  selectedId === c.id ? 'gba:border-primary gba:bg-accent' : 'gba:border-border gba:hover:bg-accent/50'
-                }`}
-                onClick={() => onSelect(c)}
-                data-testid={`${testId}-option-${c.id}`}
-              >
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Plug className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:shrink-0" />
-                  <div className="gba:min-w-0">
-                    <div className="gba:text-sm gba:font-medium gba:truncate">{c.name}</div>
-                    {c.description && (
-                      <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{c.description}</div>
-                    )}
+            {customConnectors.map(c => {
+              const isSelected = selectedId === c.id
+              const providerId = connectorNameToProviderId[c.name] || connectorNameToProviderId[c.id] || c.name
+              const displayName = connectorDisplayName[c.name] || connectorDisplayName[c.id] || c.name
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`gba:relative gba:w-full gba:text-left gba:rounded-xl gba:border gba:p-4 gba:transition-all ${
+                    isSelected
+                      ? 'gba:border-primary gba:bg-accent gba:ring-1 gba:ring-primary'
+                      : 'gba:border-border gba:hover:border-primary/40 gba:hover:bg-accent/50'
+                  }`}
+                  onClick={() => onSelect(c)}
+                  data-testid={`${testId}-option-${c.id}`}
+                >
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <ConnectorLogo providerId={providerId} size="sm" />
+                    <div className="gba:min-w-0 gba:flex-1">
+                      <div className="gba:text-sm gba:font-semibold gba:truncate">{displayName}</div>
+                      {c.description && (
+                        <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{c.description}</div>
+                      )}
+                    </div>
+                    {isSelected && <CheckCircle2 className="gba:w-5 gba:h-5 gba:text-primary gba:shrink-0" />}
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
 
-      {/* Shared connection picker */}
-      {selectedId && onConnectionChange ? (
+      {/* Shared connection picker — hidden for MCP connectors (connection IS the source) */}
+      {selectedId && onConnectionChange && (isLoadingConnections || connectionOptions.length > 0) ? (
         <div className="gba:space-y-2">
           <Label className="gba:text-xs">Shared connection</Label>
           <Select
