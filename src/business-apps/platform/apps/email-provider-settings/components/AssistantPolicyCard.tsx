@@ -93,53 +93,58 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
         <p className="gba:text-sm gba:text-muted-foreground">Configure assistant behavior for your tenant.</p>
       </div>
 
-      <label className="gba:block gba:text-sm gba:font-medium">
-        Culture summary
+      <label htmlFor={`${testId}-culture-summary`} className="gba:block gba:text-sm gba:font-medium">
+        <span className="gba:block gba:mb-1">Culture summary</span>
         <textarea
+          id={`${testId}-culture-summary`}
           value={cultureSummary}
           onChange={event => setCultureSummary(event.target.value)}
-          className="gba:mt-1 gba:w-full gba:min-h-20 gba:p-2 gba:border gba:rounded gba:bg-background"
+          className="gba:w-full gba:min-h-20 gba:p-2 gba:border gba:rounded gba:bg-background"
           data-testid={`${testId}-culture-summary`}
         />
       </label>
 
-      <label className="gba:block gba:text-sm gba:font-medium">
-        Preferred phrases (one per line)
+      <label htmlFor={`${testId}-preferred-phrases`} className="gba:block gba:text-sm gba:font-medium">
+        <span className="gba:block gba:mb-1">Preferred phrases (one per line)</span>
         <textarea
+          id={`${testId}-preferred-phrases`}
           value={preferredPhrasesText}
           onChange={event => setPreferredPhrasesText(event.target.value)}
-          className="gba:mt-1 gba:w-full gba:min-h-16 gba:p-2 gba:border gba:rounded gba:bg-background"
+          className="gba:w-full gba:min-h-16 gba:p-2 gba:border gba:rounded gba:bg-background"
           data-testid={`${testId}-preferred-phrases`}
         />
       </label>
 
-      <label className="gba:block gba:text-sm gba:font-medium">
-        Disallowed phrases (one per line)
+      <label htmlFor={`${testId}-disallowed-phrases`} className="gba:block gba:text-sm gba:font-medium">
+        <span className="gba:block gba:mb-1">Disallowed phrases (one per line)</span>
         <textarea
+          id={`${testId}-disallowed-phrases`}
           value={disallowedPhrasesText}
           onChange={event => setDisallowedPhrasesText(event.target.value)}
-          className="gba:mt-1 gba:w-full gba:min-h-16 gba:p-2 gba:border gba:rounded gba:bg-background"
+          className="gba:w-full gba:min-h-16 gba:p-2 gba:border gba:rounded gba:bg-background"
           data-testid={`${testId}-disallowed-phrases`}
         />
       </label>
 
-      <label className="gba:block gba:text-sm gba:font-medium">
-        Required courtesy markers (one per line)
+      <label htmlFor={`${testId}-required-courtesy-markers`} className="gba:block gba:text-sm gba:font-medium">
+        <span className="gba:block gba:mb-1">Required courtesy markers (one per line)</span>
         <textarea
+          id={`${testId}-required-courtesy-markers`}
           value={requiredCourtesyMarkersText}
           onChange={event => setRequiredCourtesyMarkersText(event.target.value)}
-          className="gba:mt-1 gba:w-full gba:min-h-16 gba:p-2 gba:border gba:rounded gba:bg-background"
+          className="gba:w-full gba:min-h-16 gba:p-2 gba:border gba:rounded gba:bg-background"
           data-testid={`${testId}-required-courtesy-markers`}
         />
       </label>
 
       <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-        <label className="gba:block gba:text-sm gba:font-medium">
-          Default formality
+        <label htmlFor={`${testId}-default-formality`} className="gba:block gba:text-sm gba:font-medium">
+          <span className="gba:block gba:mb-1">Default formality</span>
           <select
+            id={`${testId}-default-formality`}
             value={defaultFormality}
             onChange={event => setDefaultFormality(event.target.value as EmailAssistantPolicy['defaultFormality'])}
-            className="gba:mt-1 gba:w-full gba:h-9 gba:px-2 gba:border gba:rounded gba:bg-background"
+            className="gba:w-full gba:h-9 gba:px-2 gba:border gba:rounded gba:bg-background"
             data-testid={`${testId}-default-formality`}
           >
             <option value="formal">Formal</option>
@@ -148,28 +153,30 @@ export const AssistantPolicyCard: React.FC<AssistantPolicyCardProps> = ({
           </select>
         </label>
 
-        <label className="gba:block gba:text-sm gba:font-medium">
-          History window size
+        <label htmlFor={`${testId}-history-window-size`} className="gba:block gba:text-sm gba:font-medium">
+          <span className="gba:block gba:mb-1">History window size</span>
           <input
+            id={`${testId}-history-window-size`}
             type="number"
             value={historyWindowSize}
             min={1}
             max={20}
             onChange={event => setHistoryWindowSize(Number(event.target.value) || 1)}
-            className="gba:mt-1 gba:w-full gba:h-9 gba:px-2 gba:border gba:rounded gba:bg-background"
+            className="gba:w-full gba:h-9 gba:px-2 gba:border gba:rounded gba:bg-background"
             data-testid={`${testId}-history-window-size`}
           />
         </label>
       </div>
 
-      <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
+      <label htmlFor={`${testId}-advisory-only`} className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
         <input
+          id={`${testId}-advisory-only`}
           type="checkbox"
           checked={advisoryOnly}
           onChange={event => setAdvisoryOnly(event.target.checked)}
           data-testid={`${testId}-advisory-only`}
         />
-        Advisory only (assistant never blocks sending)
+        <span>Advisory only (assistant never blocks sending)</span>
       </label>
 
       {validationError && (
