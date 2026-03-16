@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import {
   type CustomerActivity,
   CUSTOMER_ACTIVITY_DESCRIPTORS
@@ -295,6 +296,20 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     filterConfiguration: dynamicFilterConfig,
     createContext: FlowContextName.customerActivityCreate,
     rowActionsContextArray: [FlowContextName.customerActivityEntity],
+    buildReferenceUrl: (entityType: string, entityId: string) => {
+      switch (entityType) {
+        case 'lead':
+          return buildPlatformUrl('/platform/crm/lead-record', { leadId: entityId })
+        case 'account':
+          return buildPlatformUrl('/platform/crm/account-record', { accountId: entityId })
+        case 'contact':
+          return buildPlatformUrl('/platform/crm/contact-record', { contactId: entityId })
+        case 'opportunity':
+          return buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: entityId })
+        default:
+          return ''
+      }
+    },
     buildRowActionsExternalContextData: (row: { original: CustomerActivity }) => {
       const externalContextData: Record<string, string> = {
         activityId: row.original.id
