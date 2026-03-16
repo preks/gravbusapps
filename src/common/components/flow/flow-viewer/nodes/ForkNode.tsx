@@ -25,9 +25,9 @@ function getStatusBorder(status?: StepStatus, isSelected?: boolean, isOnActivePa
 }
 
 function getStatusBg(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
-  if (isSelected) return 'gba:bg-accent'
+  if (isSelected) return 'gba:bg-card'
   if (isOnActivePath) return 'gba:bg-card'
-  if (status === 'active') return 'gba:bg-accent'
+  if (status === 'active') return 'gba:bg-card'
   return 'gba:bg-card'
 }
 

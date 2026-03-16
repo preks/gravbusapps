@@ -51,10 +51,10 @@ const VARIANT_META: Record<
 }
 
 function getStatusBorder(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
-  if (isSelected) return 'gba:border-primary gba:shadow-md gba:scale-[1.02]'
+  if (isSelected) return 'gba:border-primary'
   if (isOnActivePath) return 'gba:border-info'
   if (status === 'completed') return 'gba:border-success'
-  if (status === 'active') return 'gba:border-info gba:shadow-md'
+  if (status === 'active') return 'gba:border-info'
   if (status === 'failed') return 'gba:border-destructive'
   if (status === 'skipped') return 'gba:border-muted-foreground/30 gba:opacity-60'
   return 'gba:border-border'
@@ -63,9 +63,9 @@ function getStatusBorder(status?: StepStatus, isSelected?: boolean, isOnActivePa
 function getStatusBg(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
   if (isSelected) return 'gba:bg-card'
   if (isOnActivePath) return 'gba:bg-card'
-  if (status === 'completed') return 'gba:bg-success-secondary'
-  if (status === 'active') return 'gba:bg-accent'
-  if (status === 'failed') return 'gba:bg-destructive-secondary'
+  if (status === 'completed') return 'gba:bg-card'
+  if (status === 'active') return 'gba:bg-card'
+  if (status === 'failed') return 'gba:bg-card'
   return 'gba:bg-card'
 }
 

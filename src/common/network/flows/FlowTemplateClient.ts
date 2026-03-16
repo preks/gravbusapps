@@ -402,8 +402,13 @@ export class FlowTemplateClient extends RestClient {
   /**
    * Get a specific flow template by ID
    */
-  async getTemplate(id: string): Promise<FlowTemplate> {
-    const response = await this.get<ApiResponse<FlowTemplate>>(`/${id}`)
+  async getTemplate(id: string, version?: number): Promise<FlowTemplate> {
+    const searchParams = new URLSearchParams()
+    if (typeof version === 'number' && Number.isFinite(version)) {
+      searchParams.append('version', String(version))
+    }
+    const url = searchParams.toString() ? `/${id}?${searchParams.toString()}` : `/${id}`
+    const response = await this.get<ApiResponse<FlowTemplate>>(url)
     return response.data
   }
 

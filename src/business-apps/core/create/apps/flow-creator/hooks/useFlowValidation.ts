@@ -9,6 +9,7 @@ import { useFlowStudioStore } from './useFlowStudioStore'
 import type { StudioNode } from '../types/studioTypes'
 import type { FlowGraphEdge } from '@/common/components/flow/flow-viewer'
 import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
+import { getUnmappedPromptParams } from '../utils/promptParameterUtils'
 
 export type ValidationSeverity = 'error' | 'warning' | 'info'
 
@@ -105,6 +106,61 @@ function validateDecisionNodes(nodes: StudioNode[]): PartialIssue[] {
       message: `Decision "${n.label}" must have at least 2 branches`,
       rule: 'decision-min-branches'
     }))
+}
+
+function extractPromptUserParams(template: string | undefined): string[] {
+  if (!template) return []
+
+  const matches = template.matchAll(/\{([a-zA-Z0-9_]+)\}/g)
+  const params = new Set<string>()
+  for (const match of matches) {
+    const value = String(match[1] || '').trim()
+    if (value) params.add(value)
+  }
+  return Array.from(params)
+}
+
+function validateDecisionTaskExpertParams(nodes: StudioNode[]): PartialIssue[] {
+  const issues: PartialIssue[] = []
+
+  for (const node of nodes) {
+    if (node.type !== 'decision' || node.config.nodeType !== 'decision' || node.config.decisionMode !== 'AI') continue
+
+    const aiConfig = node.config.aiConfig
+    if (aiConfig?.executor !== 'TASK_EXPERT') continue
+
+    const promptId = String(aiConfig.promptId || '').trim()
+    if (!promptId) {
+      issues.push({
+        nodeId: node.id,
+        severity: 'error',
+        message: `Decision "${node.label}" must select a Task Expert prompt`,
+        rule: 'decision-taskexpert-prompt-required'
+      })
+      continue
+    }
+
+    const systemKeys = Object.keys(aiConfig.systemParamsMap ?? {})
+    const userKeys = Object.keys(aiConfig.userParamsMap ?? {})
+    const snapshotUserParams = extractPromptUserParams(aiConfig.promptUserContent)
+    const unmappedSystem = getUnmappedPromptParams(aiConfig.systemParamsMap, systemKeys)
+    const unmappedUser = getUnmappedPromptParams(
+      aiConfig.userParamsMap,
+      Array.from(new Set([...userKeys, ...snapshotUserParams]))
+    )
+    const unmapped = Array.from(new Set([...unmappedSystem, ...unmappedUser]))
+
+    if (unmapped.length > 0) {
+      issues.push({
+        nodeId: node.id,
+        severity: 'error',
+        message: `Decision "${node.label}" must map all Task Expert prompt parameters before publish: ${unmapped.join(', ')}`,
+        rule: 'decision-taskexpert-param-mapping'
+      })
+    }
+  }
+
+  return issues
 }
 
 function hasSpecificAssignmentTargets(targets: unknown): boolean {
@@ -225,13 +281,14 @@ function validateEdges(edges: FlowGraphEdge[], nodeIds: Set<string>): PartialIss
   return issues
 }
 
-function validateFlow(nodes: StudioNode[], edges: FlowGraphEdge[]): ValidationIssue[] {
+export function validateFlow(nodes: StudioNode[], edges: FlowGraphEdge[]): ValidationIssue[] {
   const nodeIds = new Set(nodes.map(n => n.id))
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const allIssues: PartialIssue[] = [
     ...validateStartAndEndNodes(nodes),
     ...validateOrphanNodes(nodes, edges),
     ...validateDecisionNodes(nodes),
+    ...validateDecisionTaskExpertParams(nodes),
     ...validateClaimAssignments(nodes),
     ...validateForkJoinPairs(nodes),
     ...validateReworkTargets(nodes, nodeMap),
