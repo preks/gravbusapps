@@ -8,6 +8,28 @@ function isEmptyHeaderFooterHtml(html: string | null | undefined) {
   return !html || html.replace(/<[^>]*>/g, '').trim() === ''
 }
 
+export function renderHeaderFooterDisplayContent(
+  content: HTMLElement,
+  html: string | null | undefined,
+  placeholder: string
+) {
+  const isEmpty = isEmptyHeaderFooterHtml(html)
+  content.innerHTML = ''
+  content.dataset.rmEmpty = isEmpty ? 'true' : 'false'
+  content.dataset.rmPlaceholder = placeholder
+
+  if (isEmpty) {
+    const placeholderElement = document.createElement('span')
+    placeholderElement.className = 'rm-page-region-placeholder'
+    placeholderElement.textContent = placeholder
+    placeholderElement.setAttribute('contenteditable', 'false')
+    content.appendChild(placeholderElement)
+    return
+  }
+
+  content.innerHTML = html ?? ''
+}
+
 export function ensurePagesStyles(targetDocument: Document) {
   if (targetDocument.head.querySelector(`[${STYLE_ATTR}]`)) return
 
@@ -121,9 +143,8 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: none;
       -webkit-user-select: none;
     }
-    .rm-pages-root .rm-page-header-content[data-rm-empty="true"]::before,
-    .rm-pages-root .rm-page-footer-content[data-rm-empty="true"]::before {
-      content: attr(data-rm-placeholder);
+    .rm-pages-root .rm-page-region-placeholder {
+      display: inline-block;
       color: #9aa0a6;
     }
     .rm-pages-root .rm-page-region-meta {
@@ -352,10 +373,12 @@ export function createHeaderFooterRegion(params: {
 
   const content = document.createElement('div')
   content.className = type === 'header' ? 'rm-page-header-content' : 'rm-page-footer-content'
-  content.innerHTML = displayContent.html ?? ''
-  content.dataset.rmEmpty = isEmptyHeaderFooterHtml(displayContent.html) ? 'true' : 'false'
-  content.dataset.rmPlaceholder = type === 'header' ? uiLabels.headerLabel : uiLabels.footerLabel
   content.setAttribute('contenteditable', 'false')
+  renderHeaderFooterDisplayContent(
+    content,
+    displayContent.html,
+    type === 'header' ? uiLabels.headerLabel : uiLabels.footerLabel
+  )
 
   const meta = document.createElement('div')
   meta.className = `rm-page-region-meta rm-page-region-meta-${type}`

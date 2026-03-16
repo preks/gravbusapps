@@ -1,10 +1,7 @@
 import { Editor, type Extension } from '@tiptap/core'
 import type { HeaderFooterEditorType, PagesHeaderFooter, PagesOptions, PagesStorage, PageVariantKey } from './types'
+import { renderHeaderFooterDisplayContent } from './dom'
 import { getHeaderFooterExtensions, resolveVariantForPage, setStoredVariantContent } from './utils'
-
-function isEmptyHeaderFooterHtml(html: string) {
-  return html.replace(/<[^>]*>/g, '').trim() === ''
-}
 
 interface OpenOverlayParams {
   type: HeaderFooterEditorType
@@ -54,6 +51,8 @@ export class HeaderFooterOverlayManager {
         : (options.footerAccentColor ?? options.accentColor ?? '#6366f1')
     const inactiveHint = options.uiLabels?.doubleClickHint ?? 'Double-click to edit'
     const activeHint = options.uiLabels?.doubleClickExitHint ?? 'Double-click outside to exit'
+    const placeholderLabel =
+      type === 'header' ? (options.uiLabels?.headerLabel ?? 'Header') : (options.uiLabels?.footerLabel ?? 'Footer')
 
     overlay.className = 'rm-page-overlay'
     overlay.dataset.rmOverlayType = type
@@ -108,7 +107,7 @@ export class HeaderFooterOverlayManager {
       })
 
       if (visibleContent) {
-        visibleContent.dataset.rmEmpty = isEmptyHeaderFooterHtml(html) ? 'true' : 'false'
+        renderHeaderFooterDisplayContent(visibleContent, html, placeholderLabel)
       }
 
       params.onUpdate?.()
@@ -163,8 +162,7 @@ export class HeaderFooterOverlayManager {
       const finalHtml = overlayEditor.getHTML()
       overlayEditor.destroy()
       if (visibleContent) {
-        visibleContent.innerHTML = finalHtml
-        visibleContent.dataset.rmEmpty = isEmptyHeaderFooterHtml(finalHtml) ? 'true' : 'false'
+        renderHeaderFooterDisplayContent(visibleContent, finalHtml, placeholderLabel)
       }
       overlay.remove()
       delete target.dataset.rmOverlayActive

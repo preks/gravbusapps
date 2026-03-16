@@ -880,6 +880,100 @@ describe('Pages extension helpers', () => {
     expect(measured.headerHeights.get(1)).toBe(116)
     expect(measured.footerHeights.get(1)).toBe(82)
   })
+
+  it('measures empty footer placeholder geometry from rendered DOM content', () => {
+    const root = document.createElement('div')
+    const options = createOptions({
+      footer: '',
+      footerBottomMargin: 16
+    })
+    const storage = createStorageFromOptions(options)
+    const originalCreateRange = document.createRange
+
+    Object.defineProperty(document, 'createRange', {
+      configurable: true,
+      value: jest.fn(
+        () =>
+          ({
+            selectNodeContents: jest.fn(),
+            getBoundingClientRect: () =>
+              ({
+                x: 0,
+                y: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                width: 0,
+                height: 0,
+                toJSON: () => ({})
+              }) as DOMRect
+          }) as unknown as Range
+      )
+    })
+
+    try {
+      const wrapper = createPaginationWrapper({
+        totalPages: 1,
+        pageFormat: storage.pageFormat,
+        options,
+        storage,
+        extensions: [StarterKit]
+      })
+
+      root.append(wrapper)
+
+      const footerShell = root.querySelector(
+        '[data-rm-editor-type="footer"][data-rm-page-number="1"] .rm-page-footer'
+      ) as HTMLElement | null
+      const footerContent = root.querySelector(
+        '[data-rm-editor-type="footer"][data-rm-page-number="1"] .rm-page-footer-content'
+      ) as HTMLElement | null
+      const footerMeta = root.querySelector(
+        '[data-rm-editor-type="footer"][data-rm-page-number="1"] .rm-page-region-meta'
+      ) as HTMLElement | null
+      const placeholder = footerContent?.querySelector('.rm-page-region-placeholder') as HTMLElement | null
+
+      expect(footerShell).not.toBeNull()
+      expect(footerMeta).not.toBeNull()
+      expect(footerContent?.dataset.rmEmpty).toBe('true')
+      expect(placeholder?.textContent).toBe('Footer')
+
+      Object.defineProperty(footerShell as HTMLElement, 'scrollHeight', {
+        value: 0,
+        configurable: true
+      })
+      Object.defineProperty(footerShell as HTMLElement, 'clientHeight', {
+        value: 0,
+        configurable: true
+      })
+      Object.defineProperty(footerShell as HTMLElement, 'offsetHeight', {
+        value: 0,
+        configurable: true
+      })
+
+      mockRect(footerMeta as HTMLElement, {
+        top: 20,
+        bottom: 20,
+        left: 0,
+        right: 80
+      })
+      mockRect(footerContent as HTMLElement, {
+        top: 20,
+        bottom: 38,
+        left: 0,
+        right: 80
+      })
+
+      const measured = measureHeaderFooterContentHeights(root, 1, storage.pageFormat, storage)
+      expect(measured.footerHeights.get(1)).toBe(18)
+    } finally {
+      Object.defineProperty(document, 'createRange', {
+        configurable: true,
+        value: originalCreateRange
+      })
+    }
+  })
 })
 
 describe('Pages extension commands', () => {
