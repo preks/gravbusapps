@@ -84,6 +84,105 @@ export interface EntitlementSnapshotForBalance {
   snapshotAt: string
 }
 
+type ResolvedBalanceDetails = {
+  effectiveAvailable: number
+  totalBalance: number
+  approvedBalance: number
+  pendingBalance: number
+}
+
+type RequestedDaysCalculation = {
+  requestedDays: number
+  breakdown: DateRangeBreakdown
+}
+
+const resolveBalanceDetails = (
+  snapshot: EntitlementSnapshotForBalance | null,
+  entitlement: EmployeeAbsenceEntitlement | null
+): ResolvedBalanceDetails | null => {
+  if (snapshot != null) {
+    return {
+      effectiveAvailable: Math.max(0, snapshot.remaining),
+      totalBalance: snapshot.totalEntitlement,
+      approvedBalance: snapshot.usedApproved,
+      pendingBalance: snapshot.usedPending
+    }
+  }
+
+  if (entitlement == null) {
+    return null
+  }
+
+  return {
+    effectiveAvailable: Math.max(0, entitlement.total - entitlement.approved - entitlement.pending),
+    totalBalance: entitlement.total,
+    approvedBalance: entitlement.approved,
+    pendingBalance: entitlement.pending
+  }
+}
+
+const calculateRequestedDaysWithBreakdown = (
+  measurement: string | undefined,
+  newStartDate: Date,
+  newEndDate: Date,
+  holidaysToUse: HolidayEntry[],
+  workingHours: WorkingHours | null
+): RequestedDaysCalculation => {
+  const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidaysToUse, workingHours)
+  if (measurement === 'WorkingDays') {
+    const halfDayDates = extractHalfDayDates(holidaysToUse, newStartDate, newEndDate)
+    return {
+      requestedDays: calculateWorkingDays(newStartDate, newEndDate, {
+        holidays: holidaysToUse,
+        excludeWeekends: true,
+        halfDayDates,
+        workingHours
+      }),
+      breakdown
+    }
+  }
+
+  return {
+    requestedDays: breakdown.effectiveDays - breakdown.holidays.length - breakdown.halfDays.length * 0.5,
+    breakdown
+  }
+}
+
+const buildInsufficientBalanceMessage = (
+  roundedRequestedDays: number,
+  effectiveAvailable: number,
+  measurement: string | undefined,
+  holidaysToUse: HolidayEntry[],
+  newStartDate: Date,
+  newEndDate: Date,
+  requestedDays: number,
+  workingHours: WorkingHours | null,
+  t: (key: string, values?: Record<string, unknown>) => string
+): string => {
+  const insufficientBalanceLabel = t('create-absence-insufficient-balance')
+  const requestedLabel = t('create-absence-requested')
+  const availableLabel = t('create-absence-available')
+  const daysLabel = t('create-absence-days')
+  let message = `${insufficientBalanceLabel}. ${requestedLabel}: ${roundedRequestedDays} ${daysLabel}, ${availableLabel}: ${effectiveAvailable} ${daysLabel}`
+
+  if (measurement !== 'WorkingDays' || holidaysToUse.length === 0) {
+    return message
+  }
+
+  const weekdaysOnly = calculateWorkingDays(newStartDate, newEndDate, {
+    holidays: [],
+    excludeWeekends: true,
+    halfDayDates: new Set(),
+    workingHours
+  })
+  const excludedHolidayDays = Math.round((weekdaysOnly - requestedDays) * 100) / 100
+  if (excludedHolidayDays > 0) {
+    message += `. ${t('create-absence-bank-holidays-not-counted', { count: excludedHolidayDays })}`
+  }
+
+  return message
+}
+
 export interface UseAbsenceValidationProps {
   accessToken: string
   employeeId: string
@@ -404,29 +503,8 @@ export const useAbsenceValidation = ({
         return { errors, warnings }
       }
 
-      // Prefer up-to-date snapshot (GetLatestEntitlementSnapshotForRange); fall back to table entitlement
-      const effectiveAvailableFromSnapshot =
-        entitlementSnapshot != null ? Math.max(0, entitlementSnapshot.remaining) : null
-      const effectiveAvailableFromTable =
-        absenceEntitlement != null
-          ? Math.max(0, absenceEntitlement.total - absenceEntitlement.approved - absenceEntitlement.pending)
-          : null
-      const effectiveAvailable = effectiveAvailableFromSnapshot ?? effectiveAvailableFromTable
-      const balanceSource: 'snapshot' | 'table' = effectiveAvailableFromSnapshot != null ? 'snapshot' : 'table'
-      const totalBalance =
-        balanceSource === 'snapshot' && entitlementSnapshot
-          ? entitlementSnapshot.totalEntitlement
-          : (absenceEntitlement?.total ?? 0)
-      const approvedBalance =
-        balanceSource === 'snapshot' && entitlementSnapshot
-          ? entitlementSnapshot.usedApproved
-          : (absenceEntitlement?.approved ?? 0)
-      const pendingBalance =
-        balanceSource === 'snapshot' && entitlementSnapshot
-          ? entitlementSnapshot.usedPending
-          : (absenceEntitlement?.pending ?? 0)
-
-      if (effectiveAvailable == null) {
+      const balanceDetails = resolveBalanceDetails(entitlementSnapshot, absenceEntitlement)
+      if (balanceDetails == null) {
         warnings.push({
           type: 'balance',
           message: t('create-absence-unable-to-verify-balance'),
@@ -437,47 +515,30 @@ export const useAbsenceValidation = ({
 
       const holidaysToUse = holidaysForRange ?? holidays
       const measurement = absenceTypeDetails?.objectValue?.measurement
-      let requestedDays: number
-
-      if (measurement === 'WorkingDays') {
-        const halfDayDates = extractHalfDayDates(holidaysToUse, newStartDate, newEndDate)
-        requestedDays = calculateWorkingDays(newStartDate, newEndDate, {
-          holidays: holidaysToUse,
-          excludeWeekends: true,
-          halfDayDates,
-          workingHours
-        })
-        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidaysToUse, workingHours)
-        setDateRangeBreakdown(breakdown)
-      } else {
-        // For calendar-day measurements, exclude bank holidays so they don't count against the quota
-        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidaysToUse, workingHours)
-        setDateRangeBreakdown(breakdown)
-        requestedDays = breakdown.effectiveDays - breakdown.holidays.length - breakdown.halfDays.length * 0.5
-      }
+      const { requestedDays, breakdown } = calculateRequestedDaysWithBreakdown(
+        measurement,
+        newStartDate,
+        newEndDate,
+        holidaysToUse,
+        workingHours
+      )
+      setDateRangeBreakdown(breakdown)
 
       const roundedRequestedDays = Math.round(requestedDays * 100) / 100
+      const { effectiveAvailable, totalBalance, approvedBalance, pendingBalance } = balanceDetails
 
       if (roundedRequestedDays > effectiveAvailable) {
-        const insufficientBalanceLabel = t('create-absence-insufficient-balance')
-        const requestedLabel = t('create-absence-requested')
-        const availableLabel = t('create-absence-available')
-        const daysLabel = t('create-absence-days')
-        let message = `${insufficientBalanceLabel}. ${requestedLabel}: ${roundedRequestedDays} ${daysLabel}, ${availableLabel}: ${effectiveAvailable} ${daysLabel}`
-
-        if (measurement === 'WorkingDays' && holidaysToUse.length > 0) {
-          const weekdaysOnly = calculateWorkingDays(newStartDate, newEndDate, {
-            holidays: [],
-            excludeWeekends: true,
-            halfDayDates: new Set(),
-            workingHours
-          })
-          const excludedHolidayDays = Math.round((weekdaysOnly - requestedDays) * 100) / 100
-          if (excludedHolidayDays > 0) {
-            message += `. ${t('create-absence-bank-holidays-not-counted', { count: excludedHolidayDays })}`
-          }
-        }
-
+        const message = buildInsufficientBalanceMessage(
+          roundedRequestedDays,
+          effectiveAvailable,
+          measurement,
+          holidaysToUse,
+          newStartDate,
+          newEndDate,
+          requestedDays,
+          workingHours,
+          t
+        )
         errors.push({
           type: 'balance',
           message,

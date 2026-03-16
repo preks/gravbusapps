@@ -121,9 +121,9 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   })
 
   const prevalidateStartDateStr =
-    formValuesState.startDate != null ? dayjs(formValuesState.startDate).format('YYYY-MM-DD') : null
+    formValuesState.startDate == null ? null : dayjs(formValuesState.startDate).format('YYYY-MM-DD')
   const prevalidateEndDateStr =
-    formValuesState.endDate != null ? dayjs(formValuesState.endDate).format('YYYY-MM-DD') : null
+    formValuesState.endDate == null ? null : dayjs(formValuesState.endDate).format('YYYY-MM-DD')
   const prevalidate = useAbsencePrevalidate(
     accessToken,
     employeeId || undefined,
