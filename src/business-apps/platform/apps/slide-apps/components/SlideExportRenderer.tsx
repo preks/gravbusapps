@@ -18,6 +18,26 @@ import { gradientToCss } from './slideElements'
 const SLIDE_WIDTH = 1280
 const SLIDE_HEIGHT = 720
 
+/**
+ * Sanitize media URL to prevent XSS attacks.
+ * Only allows https, http, data:image, blob, or relative paths.
+ */
+const sanitizeMediaUrl = (url: string | undefined): string => {
+  if (!url) return ''
+  const trimmed = url.trim()
+  if (
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('./')
+  ) {
+    return trimmed
+  }
+  return ''
+}
+
 interface SlideExportRendererProps {
   slides: SlideData[]
   slideIndices: number[]
@@ -240,9 +260,9 @@ const renderElement = (element: AnySlideElement): React.ReactNode => {
 
       {element.type === 'shape' && renderShape(element as ShapeElement)}
 
-      {element.type === 'image' && (
+      {element.type === 'image' && sanitizeMediaUrl((element as ImageElement).src) && (
         <img
-          src={(element as ImageElement).src}
+          src={sanitizeMediaUrl((element as ImageElement).src)}
           alt={(element as ImageElement).alt}
           crossOrigin="anonymous"
           style={{

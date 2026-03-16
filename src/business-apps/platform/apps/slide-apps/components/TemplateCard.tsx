@@ -25,6 +25,26 @@ import type { SlideData, SlideBackground } from './slideElements'
 import { gradientToCss } from './slideElements'
 import translations from '../_i18n'
 
+/**
+ * Sanitize media URL to prevent XSS attacks.
+ * Only allows https, http, data:image, blob, or relative paths.
+ */
+const sanitizeMediaUrl = (url: string | undefined): string => {
+  if (!url) return ''
+  const trimmed = url.trim()
+  if (
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('./')
+  ) {
+    return trimmed
+  }
+  return ''
+}
+
 const SLIDE_WIDTH = 1280
 const SLIDE_HEIGHT = 720
 
@@ -156,8 +176,12 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
                       {(el as any).content}
                     </div>
                   )}
-                  {el.type === 'image' && (
-                    <img src={(el as any).src} alt="" className="gba:w-full gba:h-full gba:object-cover" />
+                  {el.type === 'image' && sanitizeMediaUrl((el as any).src) && (
+                    <img
+                      src={sanitizeMediaUrl((el as any).src)}
+                      alt=""
+                      className="gba:w-full gba:h-full gba:object-cover"
+                    />
                   )}
                 </div>
               ))}

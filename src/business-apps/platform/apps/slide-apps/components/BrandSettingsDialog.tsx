@@ -40,6 +40,19 @@ import type {
 } from '../types/template'
 import translations from '../_i18n'
 
+/**
+ * Sanitize URL to prevent XSS attacks.
+ * Only allows http, https, and data:image URLs.
+ */
+const sanitizeImageUrl = (url: string): string => {
+  if (!url) return ''
+  const trimmed = url.trim()
+  if (trimmed.startsWith('https://') || trimmed.startsWith('http://') || trimmed.startsWith('data:image/')) {
+    return trimmed
+  }
+  return ''
+}
+
 export interface BrandSettingsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -380,9 +393,13 @@ export const BrandSettingsDialog: React.FC<BrandSettingsDialogProps> = ({
                     placeholder="https://example.com/logo-white.svg"
                     data-testid="brand-logo-light-input"
                   />
-                  {logo.lightUrl && (
+                  {sanitizeImageUrl(logo.lightUrl) && (
                     <div className="gba:p-2 gba:bg-gray-800 gba:rounded gba:flex gba:justify-center">
-                      <img src={logo.lightUrl} alt="Light logo preview" className="gba:max-h-12 gba:object-contain" />
+                      <img
+                        src={sanitizeImageUrl(logo.lightUrl)}
+                        alt="Light logo preview"
+                        className="gba:max-h-12 gba:object-contain"
+                      />
                     </div>
                   )}
                 </div>
@@ -396,9 +413,13 @@ export const BrandSettingsDialog: React.FC<BrandSettingsDialogProps> = ({
                     placeholder="https://example.com/logo-dark.svg"
                     data-testid="brand-logo-dark-input"
                   />
-                  {logo.darkUrl && (
+                  {sanitizeImageUrl(logo.darkUrl) && (
                     <div className="gba:p-2 gba:bg-gray-100 gba:rounded gba:flex gba:justify-center">
-                      <img src={logo.darkUrl} alt="Dark logo preview" className="gba:max-h-12 gba:object-contain" />
+                      <img
+                        src={sanitizeImageUrl(logo.darkUrl)}
+                        alt="Dark logo preview"
+                        className="gba:max-h-12 gba:object-contain"
+                      />
                     </div>
                   )}
                 </div>

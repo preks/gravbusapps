@@ -35,6 +35,30 @@ const hexToRgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+/**
+ * Sanitize media URL to prevent XSS attacks.
+ * Only allows https, http, data:image/video, blob, or relative paths.
+ */
+const sanitizeMediaUrl = (url: string | undefined, allowedTypes: string[] = ['image/', 'video/']): string => {
+  if (!url) return ''
+  const trimmed = url.trim()
+  if (
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('./')
+  ) {
+    return trimmed
+  }
+  for (const type of allowedTypes) {
+    if (trimmed.startsWith(`data:${type}`)) {
+      return trimmed
+    }
+  }
+  return ''
+}
+
 interface InlineEditingProps {
   editingTextId: string | null
   onTextChange: (value: string) => void
@@ -163,6 +187,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
     const renderVideoBackground = () => {
       if (background.type !== 'video' || !background.videoUrl) return null
+      const sanitizedVideoUrl = sanitizeMediaUrl(background.videoUrl, ['video/'])
+      if (!sanitizedVideoUrl) return null
       return (
         <video
           autoPlay
@@ -172,7 +198,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
           style={{ zIndex: 0 }}
         >
-          <source src={background.videoUrl} type="video/mp4" />
+          <source src={sanitizedVideoUrl} type="video/mp4" />
         </video>
       )
     }
@@ -1031,9 +1057,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
           {element.type === 'image' && (
             <>
-              {!failedImages.has(element.id) ? (
+              {!failedImages.has(element.id) && sanitizeMediaUrl((element as ImageElement).src, ['image/']) ? (
                 <img
-                  src={(element as ImageElement).src}
+                  src={sanitizeMediaUrl((element as ImageElement).src, ['image/'])}
                   alt={(element as ImageElement).alt}
                   style={{
                     width: '100%',
@@ -1088,9 +1114,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             </pre>
           )}
 
-          {element.type === 'video' && (
+          {element.type === 'video' && sanitizeMediaUrl((element as VideoElement).src, ['video/']) && (
             <video
-              src={(element as VideoElement).src}
+              src={sanitizeMediaUrl((element as VideoElement).src, ['video/'])}
               autoPlay={(element as VideoElement).autoplay}
               loop={(element as VideoElement).loop}
               muted={(element as VideoElement).muted}
