@@ -1,14 +1,7 @@
-import { useState, useCallback } from 'react'
-import { toast } from '@newwork/nw-design-system'
-import {
-  buildFilename,
-  formatCellValue,
-  triggerDownload,
-  buildExcelWorkbook,
-  downloadExcelWorkbook
-} from '@/common/utils/excelExportUtils'
+import { useCallback } from 'react'
+import { buildFilename, formatExportDate } from '@/common/utils/excelExportUtils'
+import { useExportBase } from '@/common/hooks/useExportBase'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
-import dayjs from 'dayjs'
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 
@@ -23,16 +16,9 @@ export const ACTIVITY_EXPORT_COLUMNS = [
   { key: 'occurredAt', title: 'Occurred Date' }
 ] as const
 
-// ─── Formatters ───────────────────────────────────────────────────────────────
+const ACTIVITY_DATE_COLUMN_KEYS = new Set(['createdAt', 'occurredAt'])
 
-const formatDate = (value?: string | null): string => {
-  if (!value) return '-'
-  const parsed = dayjs(value)
-  // Use DD-MMM-YYYY (e.g. "25-Feb-2026") — fixed 11-char width so Excel
-  // never shows "########" due to column-too-narrow, and is less likely
-  // to be auto-converted to a locale date serial by Excel.
-  return parsed.isValid() ? parsed.format('DD-MMM-YYYY') : '-'
-}
+// ─── Formatters ───────────────────────────────────────────────────────────────
 
 const getReferenceName = (activity: Activity): string => {
   if (activity.account) return activity.account.name || '-'
@@ -67,53 +53,9 @@ export const formatActivityForExport = (activity: Activity): Record<string, stri
   type: activity.activityType?.value || '-',
   reference: getReferenceName(activity),
   referenceType: getReferenceType(activity),
-  createdAt: formatDate(activity.createdAt),
-  occurredAt: formatDate(activity.occurredAt)
+  createdAt: formatExportDate(activity.createdAt),
+  occurredAt: formatExportDate(activity.occurredAt)
 })
-
-// ─── CSV helpers ──────────────────────────────────────────────────────────────
-
-const sanitizeText = (value: string): string => value.replace(/[\r\n]+/g, ' ').trim()
-
-const escapeCsv = (value: string): string => {
-  const sanitized = sanitizeText(value)
-  const needsQuotes = /[",]/.test(sanitized)
-  const out = sanitized.replace(/"/g, '""')
-  return needsQuotes ? `"${out}"` : out
-}
-
-// Date columns use ="value" formula syntax so Excel treats them as plain text
-// and never auto-converts them to date serials (which causes "########").
-const DATE_COLUMN_KEYS = new Set(['createdAt', 'occurredAt'])
-
-const escapeCsvCell = (key: string, value: string): string => {
-  if (DATE_COLUMN_KEYS.has(key) && value !== '-') {
-    return `="${value}"`
-  }
-  return escapeCsv(value)
-}
-
-const downloadCsv = (
-  data: Record<string, string>[],
-  columns: readonly { key: string; title: string }[],
-  filename: string
-) => {
-  const header = columns.map(c => escapeCsv(c.title))
-  const rows = data.map(row => columns.map(c => escapeCsvCell(c.key, formatCellValue(row[c.key]))))
-  const csvContent = '\uFEFF' + [header.join(','), ...rows.map(r => r.join(','))].join('\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  triggerDownload(blob, filename)
-}
-
-const downloadExcel = async (
-  data: Record<string, string>[],
-  columns: readonly { key: string; title: string }[],
-  filename: string
-): Promise<void> => {
-  const excelColumns = columns.map(col => ({ header: col.title, key: col.key }))
-  const workbook = buildExcelWorkbook('Activities', excelColumns, data, 'NEWWORK Activity Export')
-  await downloadExcelWorkbook(workbook, filename)
-}
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -130,63 +72,22 @@ export function useActivityExport({
   totalCount,
   filenamePrefix = 'activities'
 }: UseActivityExportOptions) {
-  const [isExporting, setIsExporting] = useState(false)
-
-  const fetchAllForExport = useCallback(async (): Promise<Activity[]> => {
-    const result = await fetchActivities({
-      ...queryVariables,
-      limit: totalCount,
-      offset: 0
-    })
+  const fetchAllItems = useCallback(async (): Promise<Activity[]> => {
+    const result = await fetchActivities({ ...queryVariables, limit: totalCount, offset: 0 })
     return result.activities || []
   }, [fetchActivities, queryVariables, totalCount])
 
-  const handleExport = useCallback(
-    async (format: 'csv' | 'excel') => {
-      if (isExporting) return
-
-      if (totalCount === 0) {
-        toast.error('No data to export', { description: 'Apply different filters or wait for data to load.' })
-        return
-      }
-
-      setIsExporting(true)
-      const formatLabel = format === 'csv' ? 'CSV' : 'Excel'
-
-      try {
-        const activities = await fetchAllForExport()
-
-        if (!activities || activities.length === 0) {
-          toast.error('No data to export', { description: 'No activities were found for the current filters.' })
-          return
-        }
-
-        const rows = activities.map(formatActivityForExport)
-        const filename = buildFilename(filenamePrefix, format === 'csv' ? 'csv' : 'xlsx')
-
-        if (format === 'csv') {
-          downloadCsv(rows, ACTIVITY_EXPORT_COLUMNS, filename)
-        } else {
-          await downloadExcel(rows, ACTIVITY_EXPORT_COLUMNS, filename)
-        }
-
-        toast.success(`${formatLabel} exported successfully`, {
-          description: `${rows.length} activities exported.`
-        })
-      } catch (err) {
-        console.error(`[EXPORT ${formatLabel}] Error:`, err)
-        toast.error(`Export failed`, {
-          description: err instanceof Error ? err.message : String(err)
-        })
-      } finally {
-        setIsExporting(false)
-      }
-    },
-    [isExporting, totalCount, fetchAllForExport, filenamePrefix]
-  )
-
-  const handleExportCsv = useCallback(() => handleExport('csv'), [handleExport])
-  const handleExportExcel = useCallback(() => handleExport('excel'), [handleExport])
-
-  return { isExporting, handleExportCsv, handleExportExcel }
+  return useExportBase<Activity>({
+    fetchAllItems,
+    formatItem: formatActivityForExport,
+    columns: ACTIVITY_EXPORT_COLUMNS,
+    dateColumnKeys: ACTIVITY_DATE_COLUMN_KEYS,
+    sheetName: 'Activities',
+    entityLabel: 'activities',
+    totalCount,
+    filenamePrefix
+  })
 }
+
+// Keep backward-compatible re-export of buildFilename for any callers
+export { buildFilename }
