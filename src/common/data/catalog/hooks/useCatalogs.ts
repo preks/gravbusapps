@@ -5,6 +5,30 @@ import { GET_CATALOGS } from '../queries/catalogQueries'
 import { BaseCatalog, Catalog, CatalogList, CatalogQueryOptions, CatalogResponse } from '../types/catalogTypes'
 import { toCatalog } from '../mappers/catalogMappers'
 
+const buildCatalogList = (result: CatalogResponse, variables: CatalogQueryOptions): CatalogList => {
+  const items: Catalog[] = (result.Catalog as BaseCatalog[]).map(baseCatalog =>
+    toCatalog(baseCatalog, {
+      mapEntries: !!variables.includeCatalogEntries,
+      mapChildEntries: !!variables.includeChildCatalogEntries,
+      entriesLimit: variables.entriesLimit,
+      entriesOffset: variables.entriesOffset,
+      search: variables.search
+    })
+  )
+
+  const total = result.CatalogAggregate?.aggregate?.count || items.length || 0
+  const limit = variables.limit ?? 20
+  const offset = variables.offset ?? 0
+  const page = limit > 0 ? Math.floor(offset / limit) + 1 : 1
+
+  return { items, total, limit, offset, page, search: variables.search, loading: false }
+}
+
+const isFieldNotFoundError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error)
+  return message.includes('field') && message.includes('not found in type')
+}
+
 export const useCatalogs = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
@@ -17,32 +41,14 @@ export const useCatalogs = (context: BusinessAppContextProps) => {
       const query = GET_CATALOGS(variables)
       try {
         const result = await graphqlClient.request<CatalogResponse>(query)
-
-        const items: Catalog[] = (result.Catalog as BaseCatalog[]).map(baseCatalog =>
-          toCatalog(baseCatalog, {
-            mapEntries: !!variables.includeCatalogEntries,
-            mapChildEntries: !!variables.includeChildCatalogEntries,
-            entriesLimit: variables.entriesLimit,
-            entriesOffset: variables.entriesOffset,
-            search: variables.search
-          })
-        )
-
-        const total = result.CatalogAggregate?.aggregate?.count || items.length || 0
-        const limit = variables.limit ?? 20
-        const offset = variables.offset ?? 0
-        const page = limit > 0 ? Math.floor(offset / limit) + 1 : 1
-
-        return {
-          items,
-          total,
-          limit,
-          offset,
-          page,
-          search: variables.search,
-          loading: false
-        } as CatalogList
+        return buildCatalogList(result, variables)
       } catch (error) {
+        if (isFieldNotFoundError(error)) {
+          console.warn('Catalog query field not yet available in schema, retrying without it')
+          const fallbackQuery = query.replace(/isCustomerManaged\s*/g, '')
+          const result = await graphqlClient.request<CatalogResponse>(fallbackQuery)
+          return buildCatalogList(result, variables)
+        }
         console.error('Error fetching catalogs:', error)
         throw error
       }

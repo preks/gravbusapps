@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { Plus, Database, Calendar, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Database, Calendar, MoreHorizontal, Pencil, Trash2, Check } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogs, Catalog, useCreateCatalog, useDeleteCatalog, useUpdateCatalog } from '@/common/data/catalog'
 import { DebouncedInput } from '@/components/debounced-input'
@@ -147,7 +147,8 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
         validFrom: formatDateTimeForAPI(data.validFrom),
         validTo: formatDateTimeForAPI(data.validTo),
         defaultLocale: data.defaultLocale,
-        description: data.description || undefined
+        description: data.description || undefined,
+        isCustomerManaged: data.isCustomerManaged ?? false
       } as any
       const created = await createCatalog(payload)
       if (created) {
@@ -255,6 +256,11 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
           <span style={{ color: 'var(--nw-color-text-secondary)' }}>—</span>
         )}
       </TableCell>
+      <TableCell>
+        <div className="gba:flex gba:items-center gba:justify-center">
+          {catalog.isCustomerManaged ? <Check className="gba:h-4 gba:w-4 gba:text-success" /> : null}
+        </div>
+      </TableCell>
       <TableCell className="gba:w-[60px]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -353,7 +359,8 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
                 validTo: editingCatalog.validTo,
                 defaultLocale: editingCatalog.defaultLocale as any,
                 description: editingCatalog.description,
-                id: editingCatalog.id
+                id: editingCatalog.id,
+                isCustomerManaged: editingCatalog.isCustomerManaged
               }
             : undefined
         }
@@ -371,7 +378,8 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
             validFrom: formatDateTimeForAPI(data.validFrom),
             validTo: formatDateTimeForAPI(data.validTo),
             defaultLocale: data.defaultLocale as any,
-            description: data.description
+            description: data.description,
+            isCustomerManaged: data.isCustomerManaged ?? false
           } as any)
           setIsUpdateOpen(false)
           setEditingCatalog(null)
@@ -424,6 +432,7 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
                     <TableHead>Status</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Last Updated</TableHead>
+                    <TableHead>Customer Managed</TableHead>
                     <TableHead className="gba:w-[60px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
