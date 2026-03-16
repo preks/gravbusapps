@@ -155,7 +155,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
 
                 {/* Card Entries */}
                 {card.entries && card.entries.length > 0 && (
-                  <div className="gba:px-4 gba:pb-4 gba:mt-auto">
+                  <div className="gba:px-4 gba:pt-2 gba:pb-4">
                     <div className="gba:space-y-1">
                       {card.entries.map((entry, entryIndex) => (
                         <div
