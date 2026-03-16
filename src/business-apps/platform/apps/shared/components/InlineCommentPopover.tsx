@@ -11,6 +11,7 @@ import sharedTranslations from '../_i18n'
 
 export interface InlineCommentPopoverMessages {
   addComment?: string
+  editComment?: string
   placeholder?: string
   comment?: string
 }
@@ -21,6 +22,8 @@ export interface InlineCommentPopoverProps {
   onSubmit: (content: string) => void
   onEditWithAI?: () => void
   onClose: () => void
+  /** Pre-fill content when editing an existing comment */
+  initialValue?: string
   messages?: InlineCommentPopoverMessages
   'data-testid'?: string
 }
@@ -34,17 +37,19 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
   onSubmit,
   onEditWithAI,
   onClose,
+  initialValue = '',
   messages: messagesProp,
   'data-testid': testId = 'inline-comment-popover'
 }) => {
   const { t } = useTranslation(sharedTranslations)
   const defaultMessages: Required<InlineCommentPopoverMessages> = {
     addComment: t('inline-comment-add'),
+    editComment: t('comment-thread-edit'),
     placeholder: t('inline-comment-placeholder'),
     comment: t('inline-comment-button')
   }
   const messages = { ...defaultMessages, ...messagesProp }
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState(initialValue)
   const [mode, setMode] = useState<'actions' | 'comment'>('actions')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -56,18 +61,23 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setMode(onEditWithAI ? 'actions' : 'comment')
-      setContent('')
+      setMode(initialValue ? 'comment' : onEditWithAI ? 'actions' : 'comment')
+      setContent(initialValue)
     }
-  }, [isOpen, onEditWithAI])
+  }, [isOpen, onEditWithAI, initialValue])
 
-  const handleSubmit = () => {
-    if (content.trim()) {
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    // Allow empty submit when editing (to delete comment); require content when adding
+    if (content.trim() || initialValue) {
       onSubmit(content.trim())
       setContent('')
       onClose()
     }
   }
+
+  const headerTitle = initialValue ? messages.editComment : messages.addComment
+  const canSubmit = !!content.trim() || !!initialValue
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (mode !== 'comment') {
@@ -111,10 +121,11 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
                 <Send className="gba:h-3.5 gba:w-3.5 gba:text-warning" />
               </div>
               <span className="gba:text-sm gba:font-semibold">
-                {mode === 'actions' ? 'Selection Actions' : messages.addComment}
+                {mode === 'actions' ? 'Selection Actions' : headerTitle}
               </span>
             </div>
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={() => {
@@ -136,7 +147,7 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
                 onClick={() => setMode('comment')}
                 data-testid={`${testId}-action-comment`}
               >
-                Add comment
+                {messages.addComment}
               </Button>
               {onEditWithAI && (
                 <AiButton
@@ -159,9 +170,9 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
                 value={content}
                 onChange={e => setContent(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Add a comment..."
+                placeholder={messages.placeholder}
                 rows={3}
-                className="gba:text-sm gba:resize-none gba:border-border/50 focus-visible:gba:ring-warning/30"
+                className="gba:text-sm gba:resize-none gba:border-border/50 focus-visible:gba:ring-warning/30 gba:min-h-[72px] gba:max-h-32 gba:overflow-y-auto"
                 data-testid={`${testId}-textarea`}
               />
 
@@ -189,14 +200,15 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
                     </Button>
                   )}
                   <Button
+                    type="button"
                     size="sm"
                     onClick={handleSubmit}
-                    disabled={!content.trim()}
+                    disabled={!canSubmit}
                     data-testid={`${testId}-submit`}
                     className="gba:h-8 gba:px-3 gba:gap-1.5"
                   >
                     <Send className="gba:h-3.5 gba:w-3.5" />
-                    <span>Comment</span>
+                    <span>{messages.comment}</span>
                   </Button>
                 </div>
               </div>
