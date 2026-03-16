@@ -95,10 +95,18 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     return buildOrderByClause(sorting.field, sorting.order)
   }, [sorting.field, sorting.order, buildOrderByClause])
 
-  const currencyRef = useMemo(() => {
-    const currencyForQuery = primaryCurrency ?? mostUsedCurrency
-    return currencyForQuery ? standardizeCurrencyRef(currencyForQuery) : undefined
-  }, [primaryCurrency, mostUsedCurrency])
+  // List: filter by selected currency only; when "All" selected, show all currencies in table.
+  const currencyRef = useMemo(
+    () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
+    [primaryCurrency]
+  )
+
+  // Cards: always show stats for one currency (selected or, when "All", most-used). Single source of truth.
+  const effectiveStatsCurrency = primaryCurrency ?? mostUsedCurrency ?? null
+  const planStatsCurrencyRef = useMemo(
+    () => (effectiveStatsCurrency ? standardizeCurrencyRef(effectiveStatsCurrency) : undefined),
+    [effectiveStatsCurrency]
+  )
 
   const convertDateRangeToGraphQL = useCallback((dateRange: [Date | null, Date | null] | null) => {
     if (!dateRange || (!dateRange[0] && !dateRange[1])) return null
@@ -129,6 +137,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     () => ({
       managerId,
       currencyRef,
+      planStatsCurrencyRef,
       searchTerm,
       plans: plansParams,
       plansStatus: statusFilter,
@@ -144,6 +153,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     [
       managerId,
       currencyRef,
+      planStatsCurrencyRef,
       searchTerm,
       plansParams,
       statusFilter,
@@ -270,12 +280,15 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     [setSearchTerm]
   )
 
+  const displayCurrencyForCards = effectiveStatsCurrency ?? 'EUR'
+
   const handleStatsFilterChange = useCallback(
     (filter: any) => {
       setCurrentPage(1)
+      setCurrencyFilter(effectiveStatsCurrency)
       setStatusFilter(filter || [])
     },
-    [setStatusFilter]
+    [effectiveStatsCurrency, setCurrencyFilter, setStatusFilter]
   )
 
   const availableStatuses = useMemo(() => planFilterStatuses.filter(s => !PLAN_TAB_HIDDEN_STATUSES.includes(s)), [])
@@ -385,7 +398,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           activeFilter={statusFilter}
           onFilterChange={handleStatsFilterChange}
           currencyFilter={primaryCurrency}
-          displayCurrency={primaryCurrency ?? mostUsedCurrency ?? 'EUR'}
+          displayCurrency={displayCurrencyForCards}
           fetchPlanStatistics={() => {}}
         />
       </div>

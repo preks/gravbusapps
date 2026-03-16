@@ -13,6 +13,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     $monthStart: timestamp, $monthEnd: timestamp, $yearStart: timestamp,
     $reqCurrencyWhere: ExpenseRequestBoolExp = {},
     $planCurrencyWhere: ExpensePlanBoolExp = {},
+    $planStatsCurrencyWhere: ExpensePlanBoolExp = {},
     $payCurrencyWhere: AdvancePaymentBoolExp = {},
     $reqStatusWhere: ExpenseRequestBoolExp = {},
     $planStatusWhere: ExpensePlanBoolExp = {},
@@ -114,7 +115,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     ExpensePlansTotalAggregate: ExpensePlanAggregate(
       where: {
         _and: [
-          $planCurrencyWhere,
+          $planStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _nin: ["CREATED","REJECTED","DISCARDED"] } },
           { isDeleted: { _eq: false } }
@@ -122,11 +123,11 @@ export const MANAGER_EXPENSES_OVERVIEW = `
       }
     ) { aggregate { sum { totalAmount } } }
 
-    # Plans statistics (total and pending) - currency filtered
+    # Plans statistics (total and pending) - stats currency (e.g. most-used when list shows All)
     AllPlansAggregate: ExpensePlanAggregate(
       where: {
         _and: [
-          $planCurrencyWhere,
+          $planStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _nin: ["CREATED","REJECTED","DISCARDED"] } },
           { isDeleted: { _eq: false } }
@@ -137,7 +138,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     PendingPlansCountAggregate: ExpensePlanAggregate(
       where: {
         _and: [
-          $planCurrencyWhere,
+          $planStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _eq: "PENDING" } },
           { isDeleted: { _eq: false } }
@@ -148,7 +149,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     PendingPlansAmountAggregate: ExpensePlanAggregate(
       where: {
         _and: [
-          $planCurrencyWhere,
+          $planStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _eq: "PENDING" } },
           { isDeleted: { _eq: false } }

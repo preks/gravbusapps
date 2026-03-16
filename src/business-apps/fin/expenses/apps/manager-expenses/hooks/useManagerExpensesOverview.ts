@@ -13,6 +13,8 @@ export interface OverviewPagingAndSort<TOrder> {
 export interface UseManagerExpensesOverviewParams {
   managerId: string
   currencyRef?: string | null
+  /** When set, plan card stats use this currency (e.g. most-used when list shows All). Falls back to currencyRef. */
+  planStatsCurrencyRef?: string | null
   searchTerm?: string | null
   // Windows for aggregates/trends
   monthStart?: string | null // ISO timestamp
@@ -272,10 +274,12 @@ function buildRequestDateWhereClause(params: UseManagerExpensesOverviewParams): 
 
 function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Record<string, unknown> {
   const currencyRef = params.currencyRef || null
+  const planStatsCurrencyRef = params.planStatsCurrencyRef ?? currencyRef
   const searchTerm = buildSearchPattern(params.searchTerm)
 
   const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
   const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const planStatsCurrencyWhere = planStatsCurrencyRef ? { currencyRef: { _eq: planStatsCurrencyRef } } : {}
   const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
 
   return {
@@ -296,6 +300,7 @@ function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Recor
     yearStart: params.yearStart ?? undefined,
     reqCurrencyWhere,
     planCurrencyWhere,
+    planStatsCurrencyWhere,
     payCurrencyWhere,
     planDateWhere: buildPlanDateWhereClause(params),
     reqDateWhere: buildRequestDateWhereClause(params),
@@ -479,6 +484,7 @@ export const useManagerExpensesOverview = (
   }, [
     params.managerId,
     params.currencyRef,
+    params.planStatsCurrencyRef,
     params.searchTerm,
     params.requests?.limit,
     params.requests?.offset,
