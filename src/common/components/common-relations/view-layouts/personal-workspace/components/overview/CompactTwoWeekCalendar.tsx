@@ -485,6 +485,7 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
             onOpenChange={(open: boolean) => {
               if (!open) setSelectedActivity(null)
             }}
+            buildReferenceUrl={config.myActivitiesConfig?.buildReferenceUrl}
             data-testid="calendar-activity-detail-sheet"
             accessToken={accessToken}
             flowContext={config.myActivitiesConfig?.rowActionsContextArray?.[0]}

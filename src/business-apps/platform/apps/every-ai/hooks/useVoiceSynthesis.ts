@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 export type OpenAIVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
 
@@ -96,9 +96,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
 
       try {
         const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        const baseUrl = isLocalDev
-          ? 'http://localhost:8000'
-          : env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+        const baseUrl = isLocalDev ? 'http://localhost:8000' : resolveFlowbotBaseUrl()
         const url = `${baseUrl}/flowbot/api/agent/tts`
 
         const response = await fetch(url, {

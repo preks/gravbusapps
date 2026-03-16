@@ -57,6 +57,9 @@ export interface MyActivitiesViewConfig<TActivity extends Activity = Activity> {
   rowActionsContextArray?: FlowContextName[]
   buildRowActionsExternalContextData?: (row: { original: TActivity }) => Record<string, string>
 
+  // Reference navigation
+  buildReferenceUrl?: (entityType: string, entityId: string) => string
+
   // KPIs
   kpiStatistics?: ActivityStatisticsData | null
   kpiLoading?: boolean
@@ -247,6 +250,7 @@ export const MyActivitiesView: React.FC<MyActivitiesViewProps> = ({
         onOpenChange={open => {
           if (!open) setSelectedActivity(null)
         }}
+        buildReferenceUrl={config.buildReferenceUrl}
         data-testid={`${dataTestId}-detail-sheet`}
         accessToken={accessToken}
         flowContext={config.rowActionsContextArray?.[0]}
