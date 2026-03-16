@@ -7,10 +7,12 @@
  * @see https://bitbucket.org/new-work-team/cursor-rules
  */
 module.exports = {
-  // Base preset to extend
-  extends: ['@newwork/cursor-rules/presets/business-apps'],
+  // Preset used (helps keep default subscription set aligned over time)
+  presetId: 'business-apps',
 
-  modules: ['crm', 'hr', 'fin', 'mdm', 'irm'],
+  // Subscriptions to include
+  subscriptions: ['base', 'react', 'typescript', 'api', 'process', 'remote', 'crm', 'hr', 'fin'],
+
   // Project-specific rule overrides
   rules: {
     // Example: Override max file size
@@ -23,11 +25,6 @@ module.exports = {
 
   // Local rules to include (project-specific)
   include: ['.cursor/rules/local/**/*.mdc'],
-
-  // Rules to exclude
-  exclude: [
-    // 'modules/hr', // Example: exclude HR module
-  ],
 
   // Output directory (default: .cursor/rules)
   outputDir: '.cursor/rules',

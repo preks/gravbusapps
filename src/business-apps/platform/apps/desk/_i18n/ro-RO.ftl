@@ -6,6 +6,14 @@ hero-tag-spreadsheets = Foile de calcul
 hero-tag-notes = Note
 hero-headline = Conținutul tău. Unificat.
 hero-subtitle = Creați documente, construiți foi de calcul și capturați note. Totul într-un singur spațiu de lucru.
+hero-nav-aria-label = Aplicații Office
+hero-nav-documents = Docs
+hero-nav-spreadsheets = Tabele
+hero-nav-notes = Note
+hero-nav-slides = Slide-uri
+hero-nav-drive = Stocare
+hero-nav-spaces = Spații
+hero-nav-emails = Email
 
 # DeskHub – Spaces & Work
 spaces-title = Spațiile tale

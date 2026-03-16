@@ -8,7 +8,8 @@ import {
   PageLayout,
   Tabs,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { ColumnDef as TanstackColumnDef, OnChangeFn, SortingState } from '@tanstack/react-table'
 import { PiDownload, PiFileText } from 'react-icons/pi'
@@ -16,7 +17,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBackofficeExpenseReportData, ReportType } from '../../hooks/useBackofficeExpenseReportData'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { useFilterData } from '../../hooks/useFilterData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { downloadCsvReport, downloadExcelReport } from './backofficeExpenseReportsPage.utils'
 import { getReportColumns, getExportColumns, getBackendSortableColumnKeys } from './reportColumnDefinitions'
 import ReportSlaKpiCards from './ReportSlaKpiCards'
@@ -24,6 +24,7 @@ import { type ReportSnapshot, REPORT_TYPE_DEFINITIONS, hasAnyReportFilters } fro
 import { useReportFilters } from './useReportFilters'
 import { renderReportTableCell } from './reportTableCells'
 import { useSlaKpiValues } from './useSlaKpiValues'
+import translations from '../../_i18n'
 
 const readUrlParams = () => {
   const params = new URLSearchParams(globalThis.location?.search || '')
@@ -48,6 +49,7 @@ const writeUrlParams = (values: Record<string, string | undefined>) => {
 }
 
 const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
+  const { t } = useTranslation(translations)
   const [initialUrlParams] = useState(readUrlParams)
   const [sorting, setSorting] = useState<SortingState>([])
   const [reportSnapshotsByType, setReportSnapshotsByType] = useState<Partial<Record<ReportType, ReportSnapshot>>>({})
@@ -82,7 +84,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     fetchAllForExport,
     allEmployeeNames,
     slaKpiCounts
-  } = useBackofficeExpenseReportData(contextProps, filtersByReportType, sorting)
+  } = useBackofficeExpenseReportData(contextProps, t, filtersByReportType, sorting)
 
   const { organizationalUnits } = useFilterData({ accessToken })
 
@@ -130,7 +132,8 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     setFiltersByReportType,
     setCurrentPage,
     setLocalSearchText,
-    setSearchTerm
+    setSearchTerm,
+    t
   })
 
   const slaKpiValues = useSlaKpiValues(slaKpiCounts)
@@ -177,14 +180,14 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     () =>
       REPORT_TYPE_DEFINITIONS.map(def => ({
         key: def.key,
-        name: getTranslationFromI18nKeyAndLabel(def.nameKey, def.nameFallback),
-        description: getTranslationFromI18nKeyAndLabel(def.descKey, def.descFallback)
+        name: t(def.nameKey),
+        description: t(def.descKey)
       })),
-    []
+    [t]
   )
-  const selectedReportMeta = reportTypes.find(t => t.key === selectedReportType)
+  const selectedReportMeta = reportTypes.find(rt => rt.key === selectedReportType)
 
-  const columns = useMemo(() => getReportColumns(selectedReportType), [selectedReportType])
+  const columns = useMemo(() => getReportColumns(selectedReportType, t), [selectedReportType, t])
   const backendSortableColumnKeys = useMemo(
     () => getBackendSortableColumnKeys(selectedReportType),
     [selectedReportType]
@@ -196,7 +199,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
         enableSorting: backendSortableColumnKeys.has(col.key),
         header: col.title ?? '',
         accessorFn: (row: any) => row?.[col.key],
-        cell: ({ row }: any) => renderReportTableCell(col.key, row?.original)
+        cell: ({ row }: any) => renderReportTableCell(col.key, row?.original, t)
       })),
     [columns, backendSortableColumnKeys]
   )
@@ -218,7 +221,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   }, [])
 
   const handleReportTypeChange = (value: string) => {
-    const nextType = reportTypes.find(t => t.key === value)?.key
+    const nextType = reportTypes.find(rt => rt.key === value)?.key
     if (nextType) setSelectedReportType(nextType)
   }
   const handleSortingChange: OnChangeFn<SortingState> = updater => {
@@ -226,12 +229,12 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     setCurrentPage(1)
   }
   const handleDownload = async () => {
-    const cols = getExportColumns(selectedReportType)
+    const cols = getExportColumns(selectedReportType, t)
     if (!cols.length) return
     downloadCsvReport(selectedReportType, cols, (await fetchAllForExport()) as any[])
   }
   const handleDownloadExcel = async () => {
-    const cols = getExportColumns(selectedReportType)
+    const cols = getExportColumns(selectedReportType, t)
     if (!cols.length) return
     downloadExcelReport(selectedReportType, cols, (await fetchAllForExport()) as any[])
   }
@@ -256,14 +259,8 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   return (
     <div data-testid="backoffice-expense-reports-page-container">
       <PageLayout
-        headerTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn',
-          'Expense Reports'
-        )}
-        headerDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.expense_reports_subheader',
-          'Generate and download comprehensive expense reports across different categories and time periods'
-        )}
+        headerTitle={t('expense-reports-title')}
+        headerDescription={t('expense-reports-subheader')}
         headerIcon={PiFileText as any}
         className="gba:min-h-screen"
       >
@@ -275,7 +272,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
             {error && (
               <Alert data-testid="backoffice-expense-reports-error-alert">
                 <AlertDescription>
-                  <strong>{getTranslationFromI18nKeyAndLabel('lowcoder:common.error_title', 'Error')}</strong> {error}
+                  <strong>{t('common-error')}</strong> {error}
                 </AlertDescription>
               </Alert>
             )}
@@ -308,7 +305,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
               titleSections={[
                 {
                   id: 'results',
-                  label: getTranslationFromI18nKeyAndLabel('lowcoder:common.data', 'Data'),
+                  label: t('report-data-label'),
                   metadata: {
                     count: hasClientSideFilters ? filteredReportRows.length : displayTotalCount,
                     isLoading: tableLoading
@@ -317,10 +314,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
               ]}
               currentSection="results"
               searchValue={localSearchText}
-              searchPlaceholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.search_report_data',
-                'Search report data...'
-              )}
+              searchPlaceholder={t('report-search')}
               onSearchChange={handleSearchChange}
               filters={activeFiltersOnly}
               filterConfiguration={filterConfiguration}
@@ -336,10 +330,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                       onClick={handleResetFilters}
                       data-testid="backoffice-expense-reports-reset-filters-button"
                     >
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:team_expenses_page.dashboard_tab.reset_filters',
-                        'Reset Filters'
-                      )}
+                      {t('filter-report-filters')}
                     </Button>
                   )}
                   <Button
@@ -349,10 +340,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                     data-testid="backoffice-expense-reports-download-button"
                   >
                     <PiDownload className="gba:text-sm" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.download_report',
-                      'Download CSV'
-                    )}
+                    {t('report-download-csv')}
                   </Button>
                   <Button
                     variant="outline"
@@ -361,10 +349,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                     data-testid="backoffice-expense-reports-download-excel-button"
                   >
                     <PiDownload className="gba:text-sm" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.download_report_excel',
-                      'Download Excel'
-                    )}
+                    {t('report-download-excel')}
                   </Button>
                 </div>
               }
@@ -391,10 +376,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                   rowsPerPageOptions={[10, 20, 50, 100]}
                   showPageNumbers
                   maxVisiblePages={7}
-                  emptyMessage={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.no_expense_reports_found',
-                    'No expense reports found'
-                  )}
+                  emptyMessage={t('report-no-reports-found')}
                   data-testid="backoffice-expense-reports-table"
                 />
               </div>

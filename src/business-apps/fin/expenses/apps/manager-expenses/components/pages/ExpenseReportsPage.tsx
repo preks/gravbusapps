@@ -14,7 +14,7 @@ import {
   CardContent,
   PageLayout
 } from '@newwork/nw-design-system'
-import { MagnifyingGlassIcon, DownloadIcon, ArrowLeftIcon, FileTextIcon } from '@phosphor-icons/react'
+import { MagnifyingGlassIcon, DownloadIcon, FileTextIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpenseReportData, ReportType } from '../../hooks/useExpenseReportData'
@@ -61,11 +61,9 @@ const buildFilename = (type: string, ext: string) => {
   return sanitizeFilename(filename)
 }
 
-interface ExpenseReportsPageProps extends BusinessAppContextProps {
-  onNavigateBack: () => void
-}
+type ExpenseReportsPageProps = BusinessAppContextProps
 
-const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack, accessToken, userInfo }) => {
+const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
   // State
   // search term handled by hook; keep local for type search only
   const [reportTypeSearchTerm, setReportTypeSearchTerm] = useState('')
@@ -472,52 +470,6 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
 
   return (
     <div data-testid="expense-reports-page-container">
-      {/* Back Button Above Everything */}
-      <div className="gba:px-6 gba:pt-6 gba:pb-0">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <button
-            onClick={onNavigateBack}
-            className="gba:flex gba:items-center gba:text-foreground gba:hover:text-primary"
-            data-testid="expense-reports-back-button"
-          >
-            <ArrowLeftIcon className="gba:mr-2" />
-            <span>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
-                'Back to Dashboard'
-              )}
-            </span>
-          </button>
-
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Button
-              variant="outline"
-              onClick={handleDownload}
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid="expense-reports-download-button"
-            >
-              <DownloadIcon className="gba:text-sm" />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.download_report',
-                'Download CSV'
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleDownloadExcel}
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid="expense-reports-download-excel-button"
-            >
-              <DownloadIcon className="gba:text-sm" />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.download_report_excel',
-                'Download Excel'
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-
       <PageLayout
         headerTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn',
@@ -587,8 +539,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
               </Alert>
             )}
 
-            {/* Search Bar for Table Data */}
-            <div className="gba:mb-4">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
               <div className="gba:relative gba:w-64">
                 <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
                 <DebouncedInput
@@ -604,6 +555,32 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
                   className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
                   data-testid="expense-reports-data-search-input"
                 />
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleDownload}
+                  className="gba:flex gba:items-center gba:gap-2"
+                  data-testid="expense-reports-download-button"
+                >
+                  <DownloadIcon className="gba:text-sm" />
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:team_expenses_page.dashboard_tab.download_report',
+                    'Download CSV'
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadExcel}
+                  className="gba:flex gba:items-center gba:gap-2"
+                  data-testid="expense-reports-download-excel-button"
+                >
+                  <DownloadIcon className="gba:text-sm" />
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:team_expenses_page.dashboard_tab.download_report_excel',
+                    'Download Excel'
+                  )}
+                </Button>
               </div>
             </div>
 

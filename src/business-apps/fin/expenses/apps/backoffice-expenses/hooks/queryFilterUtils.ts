@@ -196,11 +196,13 @@ const buildEntityWhereForExport = (
   search: string,
   employeeFilters: string[],
   departmentFilters: string[],
-  config: EntityWhereConfig
+  config: EntityWhereConfig,
+  statusFilters: string[] = []
 ) => {
+  const defaultExclusion = config.statusExclusion ?? ['CREATED', 'DISCARDED']
   const where: any = {
     isDeleted: { _eq: false },
-    status: { _nin: config.statusExclusion ?? ['CREATED', 'DISCARDED'] }
+    status: statusFilters.length > 0 ? { _in: statusFilters } : { _nin: defaultExclusion }
   }
   const searchPattern = `%${search.trim()}%`
   const conditions = buildAndConditions(
@@ -249,9 +251,10 @@ export const buildExpensePlanWhereForExport = (
   search: string,
   employeeFilters: string[] = [],
   departmentFilters: string[] = [],
-  dates: DateRanges = {}
+  dates: DateRanges = {},
+  statusFilters: string[] = []
 ) => {
-  const where = buildEntityWhereForExport(search, employeeFilters, departmentFilters, PLAN_WHERE_CONFIG)
+  const where = buildEntityWhereForExport(search, employeeFilters, departmentFilters, PLAN_WHERE_CONFIG, statusFilters)
   const andAppend: any[] = []
   if (dates.effectiveDateFrom || dates.effectiveDateTo) {
     const effRange = { from: dates.effectiveDateFrom, to: dates.effectiveDateTo }
@@ -268,9 +271,16 @@ export const buildAdvancePaymentWhereForExport = (
   search: string,
   employeeFilters: string[] = [],
   departmentFilters: string[] = [],
-  dates: DateRanges = {}
+  dates: DateRanges = {},
+  statusFilters: string[] = []
 ) => {
-  const where = buildEntityWhereForExport(search, employeeFilters, departmentFilters, ADVANCE_PAYMENT_WHERE_CONFIG)
+  const where = buildEntityWhereForExport(
+    search,
+    employeeFilters,
+    departmentFilters,
+    ADVANCE_PAYMENT_WHERE_CONFIG,
+    statusFilters
+  )
   const andAppend: any[] = []
   if (dates.effectiveDateFrom || dates.effectiveDateTo) {
     const effCond = buildDateFieldCondition(dates.effectiveDateFrom, dates.effectiveDateTo)

@@ -57,35 +57,23 @@ export interface DeskHubProps extends BusinessAppContextProps {
 
 /**
  * Navigate to a specific app screen using platform URLs
- * Use pretty platform routes in production (e.g. /platform/documents),
- * and /platform/apps/* in development so navigationUtils can map to ?app=...
+ * Use canonical Every Office routes and let navigationUtils map them in dev.
  */
 const navigateToApp = (appPath: string, params?: Record<string, string>) => {
   // Extract just the app name (e.g., 'document-apps' from 'platform/apps/document-apps' or 'document-apps')
   const appName = appPath.replace(/^\/?platform\/apps\//, '')
-  const isProduction = process.env.NODE_ENV === 'production'
 
   const platformUrl =
     appName === 'document-apps'
-      ? isProduction
-        ? '/platform/documents'
-        : '/platform/apps/document-apps'
+      ? '/platform/every-office/documents'
       : appName === 'spreadsheet-apps'
-        ? isProduction
-          ? '/platform/spreadsheets'
-          : '/platform/apps/spreadsheet-apps'
+        ? '/platform/every-office/spreadsheets'
         : appName === 'note-apps'
-          ? isProduction
-            ? '/platform/notes'
-            : '/platform/apps/note-apps'
+          ? '/platform/every-office/notes'
           : appName === 'slide-apps'
-            ? isProduction
-              ? '/platform/slides'
-              : '/platform/apps/slide-apps'
+            ? '/platform/every-office/slides'
             : appName === 'drive-apps'
-              ? isProduction
-                ? '/platform/drive'
-                : '/platform/apps/drive-apps'
+              ? '/platform/every-office/drive'
               : `/platform/apps/${appName}`
   const urlParams = params?.from ? params : { from: 'desk', ...params }
   navigateTo(buildPlatformUrl(platformUrl, urlParams))
@@ -178,7 +166,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
   }, [])
 
   const handleOpenSpaces = useCallback(() => {
-    navigateTo(buildPlatformUrl('/platform/spaces'))
+    navigateTo(buildPlatformUrl('/platform/every-office/spaces'))
   }, [])
 
   const toggleAppsCollapse = useCallback(() => {
@@ -190,7 +178,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
   }, [])
 
   const handleSpaceClick = useCallback((spaceId: string) => {
-    navigateTo(buildPlatformUrl('/platform/spaces', { spaceId, from: 'desk' }))
+    navigateTo(buildPlatformUrl('/platform/every-office/spaces', { spaceId, from: 'desk' }))
   }, [])
 
   // Handle item click - navigate to the specific item
@@ -391,7 +379,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                   description={t('app-drive-description')}
                   icon={HardDrive}
                   count={stats.totalItems}
-                  accentColor="secondary"
+                  accentColor="decorative"
                   onOpen={handleOpenDrive}
                   onCreate={handleOpenDrive}
                   isLoading={isLoading}

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { BuildLogEntry } from '../components/widgets/BuildConsoleLog'
 import { OrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
 import type {
+  BuildJobStatus,
   BuildPlan,
   BuildProgressEvent,
   ComponentType,
@@ -600,6 +601,40 @@ function handleTerminalBuildEvent(event: BuildProgressEvent, finishBuild: Finish
   }
 }
 
+function toTerminalStatusEvent(
+  jobId: string,
+  status: BuildJobStatus,
+  fallbackErrorMessage: string
+): BuildProgressEvent | null {
+  if (status.status === 'completed') {
+    return {
+      eventType: 'build_complete',
+      jobId,
+      timestamp: new Date().toISOString(),
+      status: 'completed',
+      message:
+        `Build complete: ${status.completedComponents} completed, ` +
+        `${status.failedComponents} failed, ${status.skippedComponents || 0} skipped`,
+      totalComponents: status.totalComponents,
+      completedComponents: status.completedComponents,
+      failedComponents: status.failedComponents,
+      skippedComponents: status.skippedComponents
+    }
+  }
+
+  if (status.status === 'error' || status.status === 'cancelled') {
+    return {
+      eventType: 'build_error',
+      jobId,
+      timestamp: new Date().toISOString(),
+      status: 'error',
+      message: status.errorMessage || fallbackErrorMessage
+    }
+  }
+
+  return null
+}
+
 export function useBuildProgress({
   client,
   plan,
@@ -685,33 +720,9 @@ export function useBuildProgress({
     if (!plan || completedCallbackSentRef.current) return
     try {
       const status = await client.getJobStatus(plan.jobId)
-      if (status.status === 'completed') {
-        const event: BuildProgressEvent = {
-          eventType: 'build_complete',
-          jobId: plan.jobId,
-          timestamp: new Date().toISOString(),
-          status: 'completed',
-          message:
-            `Build complete: ${status.completedComponents} completed, ` +
-            `${status.failedComponents} failed, ${status.skippedComponents || 0} skipped`,
-          totalComponents: status.totalComponents,
-          completedComponents: status.completedComponents,
-          failedComponents: status.failedComponents,
-          skippedComponents: status.skippedComponents
-        }
-        handleProgressEvent(event)
-        return
-      }
-
-      if (status.status === 'error' || status.status === 'cancelled') {
-        const event: BuildProgressEvent = {
-          eventType: 'build_error',
-          jobId: plan.jobId,
-          timestamp: new Date().toISOString(),
-          status: 'error',
-          message: status.errorMessage || 'Build failed before completion'
-        }
-        handleProgressEvent(event)
+      const terminalEvent = toTerminalStatusEvent(plan.jobId, status, 'Build failed before completion')
+      if (terminalEvent) {
+        handleProgressEvent(terminalEvent)
         return
       }
 
@@ -721,6 +732,32 @@ export function useBuildProgress({
       finishBuild(false, message)
     }
   }, [client, finishBuild, handleProgressEvent, plan])
+
+  const reconcileAfterStreamFailure = useCallback(
+    async (streamError: Error) => {
+      if (!plan || completedCallbackSentRef.current) {
+        finishBuild(false, streamError.message)
+        return
+      }
+
+      try {
+        // Give the backend a brief moment to persist terminal status after a dropped stream.
+        await new Promise(resolve => setTimeout(resolve, 1200))
+        const status = await client.getJobStatus(plan.jobId)
+
+        const terminalEvent = toTerminalStatusEvent(plan.jobId, status, streamError.message || 'Build failed')
+        if (terminalEvent) {
+          handleProgressEvent(terminalEvent)
+          return
+        }
+
+        finishBuild(false, `${streamError.message} (build status: ${status.status})`)
+      } catch {
+        finishBuild(false, streamError.message)
+      }
+    },
+    [client, finishBuild, handleProgressEvent, plan]
+  )
 
   const startBuild = useCallback(
     async (skipComponents?: string[], sessionId?: string, repoId?: string, createdBy?: ExecuteRequest['createdBy']) => {
@@ -753,7 +790,7 @@ export function useBuildProgress({
         handleProgressEvent,
         error => {
           if (abortControllerRef.current?.signal.aborted) return
-          finishBuild(false, error.message)
+          void reconcileAfterStreamFailure(error)
         },
         () => {
           if (abortControllerRef.current?.signal.aborted) return
@@ -762,7 +799,7 @@ export function useBuildProgress({
         abortControllerRef.current.signal
       )
     },
-    [client, finishBuild, handleProgressEvent, onError, plan, reconcileAfterStreamEnd]
+    [client, handleProgressEvent, onError, plan, reconcileAfterStreamEnd, reconcileAfterStreamFailure]
   )
 
   const cancelBuild = useCallback(() => {

@@ -8,7 +8,7 @@ import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
  * Helper to validate cell amount
  */
 const validateCellAmount = (amount: number | null | undefined): boolean => {
-  if (amount === null || amount === undefined || isNaN(amount)) {
+  if (amount === null || amount === undefined || Number.isNaN(amount)) {
     toast.error('Amount is required')
     return false
   }

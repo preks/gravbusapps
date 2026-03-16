@@ -4,6 +4,8 @@
  */
 
 import React, { useMemo, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
 import AdvancePaymentsTable from './AdvancePaymentsTable'
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
 import type { BackofficeTabProps } from '../common/backofficeTabProps'
@@ -15,41 +17,37 @@ type AdvancePaymentTabProps = BackofficeTabProps
 
 function AdvancePaymentTab(props: Readonly<AdvancePaymentTabProps>) {
   const { isActive = true, onContentHeaderChange } = props
+  const { t } = useTranslation(translations)
 
   const { searchTerm, handleSearchChange } = useBackofficeTabSearch()
 
-  // Extract only the necessary props for statistics display
   const contextProps = {
     accessToken: props.accessToken,
-    isActive // ⚡ PERFORMANCE: Only initialize loading state when tab is active
+    isActive
   }
 
   const { totalCount, advancePaymentStats, isLoading } = useAdvancePayments(contextProps)
 
-  // Note: Statistics are now automatically fetched with the main payments query
-  // No separate fetch call needed
-
-  // Helper to get total amount display text (avoids nested ternary)
   const getTotalAmountText = useCallback((): string => {
     if (isLoading) {
-      return 'Loading statistics...'
+      return t('advance-payment-loading-stats')
     }
     if (advancePaymentStats?.totalAmount) {
-      return `Total Amount: ${advancePaymentStats.totalAmount}`
+      return t('advance-payment-total-amount', { amount: advancePaymentStats.totalAmount })
     }
-    return 'Total Amount: $0'
-  }, [isLoading, advancePaymentStats?.totalAmount])
+    return t('advance-payment-total-amount-zero')
+  }, [isLoading, advancePaymentStats?.totalAmount, t])
 
   const statsHeader = useMemo(
     () => (
       <BackofficeTabHeaderAlert
         wrapperTestId="advance-payment-stats-header"
         alertTestId="advance-payment-stats-alert"
-        title={`${totalCount || 0} Advance Payments`}
+        title={t('advance-payment-count', { count: totalCount || 0 })}
         description={getTotalAmountText()}
       />
     ),
-    [totalCount, getTotalAmountText]
+    [totalCount, getTotalAmountText, t]
   )
 
   useBackofficeContentHeader(onContentHeaderChange, statsHeader)

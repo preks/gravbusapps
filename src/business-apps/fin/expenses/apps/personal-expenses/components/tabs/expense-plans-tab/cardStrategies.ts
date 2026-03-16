@@ -192,12 +192,20 @@ export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, Card
   }
 })
 
+/**
+ * Clears filters then re-applies only currency filters.
+ * When no currency is selected (showing "All"), applies mostUsedCurrencyRef so the card scope shows a single currency (pill + dropdown).
+ */
 export const preserveCurrencyAndResetPlans = (
   selectedFilters: string[],
   clearFilters: () => void,
-  setFilters: (filters: string[]) => void
+  setFilters: (filters: string[]) => void,
+  mostUsedCurrencyRef?: string
 ) => {
-  const currencies = selectedFilters.filter(f => f.startsWith('currency:'))
+  let currencies = selectedFilters.filter(f => f.startsWith('currency:'))
+  if (currencies.length === 0 && mostUsedCurrencyRef) {
+    currencies = [`currency:${mostUsedCurrencyRef}`]
+  }
   clearFilters()
   if (currencies.length > 0) {
     setFilters(currencies)

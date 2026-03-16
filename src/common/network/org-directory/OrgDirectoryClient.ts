@@ -354,7 +354,8 @@ export class OrgDirectoryClient {
         _or: [
           { id: { _eq: String(userId) } },
           { userId: { _eq: String(userId) } },
-          { employeeId: { _eq: String(userId) } }
+          { employeeId: { _eq: String(userId) } },
+          { employee: { userId: { _eq: String(userId) } } }
         ]
       },
       'full'

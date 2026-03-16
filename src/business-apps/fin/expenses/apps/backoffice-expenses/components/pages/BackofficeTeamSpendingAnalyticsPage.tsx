@@ -6,7 +6,8 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCurrencyStore } from '../../../manager-expenses/store/useCurrencyStore'
@@ -15,8 +16,8 @@ import { extractCurrencyCode } from '../../utils/sharedUtils'
 import { useBackofficeTeamSpendingAnalytics, DateRangeOption } from '../../hooks/useBackofficeTeamSpendingAnalytics'
 import { useFilterData } from '../../hooks/useFilterData'
 import { getActiveStructureDepartmentOptions } from '../../utils/departmentOptions'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import translations from '../../_i18n'
 import AnalyticsFilterPanel from './analytics/AnalyticsFilterPanel'
 import AnalyticsTabContent from './analytics/AnalyticsTabContent'
 
@@ -25,33 +26,30 @@ const TAB_DEFINITIONS = [
     value: 'expense-items',
     triggerTestId: 'backoffice-analytics-tab-expense-items',
     contentTestId: 'backoffice-analytics-tab-content-expense-items',
-    labelKey: 'lowcoder:personal_expenses.expense_items',
-    labelFallback: 'Expense Items'
+    ftlKey: 'tab-expense-items'
   },
   {
     value: 'expense-requests',
     triggerTestId: 'backoffice-analytics-tab-expense-requests',
     contentTestId: 'backoffice-analytics-tab-content-expense-requests',
-    labelKey: 'lowcoder:employee_list.flows_button.expense_requests',
-    labelFallback: 'Expense Requests'
+    ftlKey: 'tab-expense-requests'
   },
   {
     value: 'expense-plans',
     triggerTestId: 'backoffice-analytics-tab-expense-plans',
     contentTestId: 'backoffice-analytics-tab-content-expense-plans',
-    labelKey: 'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-    labelFallback: 'Expense Plans'
+    ftlKey: 'tab-expense-plans'
   },
   {
     value: 'advance-payments',
     triggerTestId: 'backoffice-analytics-tab-advance-payments',
     contentTestId: 'backoffice-analytics-tab-content-advance-payments',
-    labelKey: 'lowcoder:backoffice_expense_landing_page.advance_title',
-    labelFallback: 'Advance Payments'
+    ftlKey: 'tab-advance-payments'
   }
 ]
 
 const BackofficeTeamSpendingAnalyticsPage: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+  const { t } = useTranslation(translations)
   const { primaryCurrency } = useCurrencyStore()
   const [activeTab, setActiveTab] = useState<string>('expense-items')
   const [currencyFilter, setCurrencyFilter] = useState<string | null>(primaryCurrency || null)
@@ -135,20 +133,20 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BusinessAppContextProps> = (
     if (!data?.expenseItemsByCategory) return []
     const aggregated = new Map<string, number>()
     ;(data.expenseItemsByCategory as Array<{ name?: string; value?: number }>).forEach(entry => {
-      const key = entry.name || getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
+      const key = entry.name || t('common-not-available')
       aggregated.set(key, (aggregated.get(key) || 0) + Number(entry.value ?? 0))
     })
     return Array.from(aggregated.entries()).map(([name, value]) => ({ name, value }))
-  }, [data?.expenseItemsByCategory])
+  }, [data?.expenseItemsByCategory, t])
 
   const travelByDestinationPointChartData = useMemo(() => {
     const aggregated = new Map<string, number>()
     ;(data?.travelByDestinationPoint || []).forEach(entry => {
-      const key = entry.location || getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
+      const key = entry.location || t('common-not-available')
       aggregated.set(key, (aggregated.get(key) || 0) + Number(entry.amount ?? 0))
     })
     return Array.from(aggregated.entries()).map(([name, value]) => ({ name, value }))
-  }, [data?.travelByDestinationPoint])
+  }, [data?.travelByDestinationPoint, t])
 
   const kpiCurrencyCode = extractCurrencyCode(currencyFilter || primaryCurrency)
   const formatKpiAmount = (amount: number | null | undefined): string =>
@@ -158,79 +156,49 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BusinessAppContextProps> = (
   const widgets: WidgetItem[] = [
     {
       key: 'total-expense-items',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.total_expense_items',
-        'Total Expense Items'
-      ),
+      title: t('kpi-total-expense-items'),
       value: formatKpiAmount(data?.totalExpenseAmount),
       color: 'var(--nw-primary)',
       valueIsString: true,
-      footer: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions',
-        'Individual expense transactions'
-      ),
+      footer: t('kpi-total-expense-items-footer'),
       trend: hiddenTrendPlaceholder
     },
     {
       key: 'total-expense-requests',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.total_expense_requests',
-        'Total Expense Requests'
-      ),
+      title: t('kpi-total-expense-requests'),
       value: formatKpiAmount(data?.totalRequestAmount),
       color: 'var(--nw-success)',
       valueIsString: true,
-      footer: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.submitted_expense_requests',
-        'Submitted expense requests'
-      ),
+      footer: t('kpi-total-expense-requests-footer'),
       trend: hiddenTrendPlaceholder
     },
     {
       key: 'total-expense-plans',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.total_expense_plans',
-        'Total Expense Plans'
-      ),
+      title: t('kpi-total-expense-plans'),
       value: formatKpiAmount(data?.totalPlanAmount),
       color: 'var(--nw-accent)',
       valueIsString: true,
-      footer: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.planned_expense_budgets',
-        'Planned expense budgets'
-      ),
+      footer: t('kpi-total-expense-plans-footer'),
       trend: hiddenTrendPlaceholder
     },
     {
       key: 'total-advance-payments',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
-        'Total Advance Payments'
-      ),
+      title: t('kpi-total-advance-payments'),
       value: formatKpiAmount(data?.totalAdvanceAmount),
       color: 'var(--nw-warning)',
       valueIsString: true,
-      footer: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.advance_payments_to_employees',
-        'Advance payments to employees'
-      ),
+      footer: t('kpi-total-advance-payments-footer'),
       trend: hiddenTrendPlaceholder
     }
   ]
 
-  const activeTabDef = TAB_DEFINITIONS.find(t => t.value === activeTab)
+  const activeTabDef = TAB_DEFINITIONS.find(tab => tab.value === activeTab)
 
   return (
     <div data-testid="backoffice-team-spending-analytics-page-container">
       <PageLayout
-        headerTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:backoffice_expenses.analytics.spending_analysis',
-          'Spending Analysis'
-        )}
-        headerDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:backoffice_expenses.analytics.spending_analysis_description',
-          'Comprehensive analysis of spending patterns, trends, and budget allocations across all expense categories'
-        )}
+        headerTitle={t('spending-analysis-title')}
+        headerDescription={t('spending-analysis-description')}
         className="gba:min-h-screen"
       >
         <div className="gba:flex gba:gap-6">
@@ -261,26 +229,20 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BusinessAppContextProps> = (
               onRetry={() => globalThis.location?.reload?.()}
               skeletonCount={4}
               useWidgetStructureForLoading
-              emptyText={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.no_analytics_data',
-                'No analytics data available.'
-              )}
+              emptyText={t('analytics-no-data')}
               data-testid="backoffice-team-spending-analytics-statistics"
             />
             <div
               className="gba:mt-2 gba:text-sm gba:text-muted-foreground"
               data-testid="backoffice-analytics-bucketing-note"
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.bucketing_note',
-                'Data scope: Only finalized expenses (status PAID or CLOSED) are included in analytics calculations.'
-              )}
+              {t('analytics-bucketing-note')}
             </div>
 
             {error ? (
               <Alert data-testid="backoffice-team-spending-analytics-error-alert">
                 <AlertDescription>
-                  <strong>{getTranslationFromI18nKeyAndLabel('lowcoder:common.error_title', 'Error')}</strong> {error}
+                  <strong>{t('common-error')}</strong> {error}
                 </AlertDescription>
               </Alert>
             ) : (
@@ -293,7 +255,7 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BusinessAppContextProps> = (
                 <TabsList className="gba:grid gba:w-full gba:grid-cols-4" data-testid="backoffice-analytics-tabs-list">
                   {TAB_DEFINITIONS.map(tab => (
                     <TabsTrigger key={tab.value} value={tab.value} data-testid={tab.triggerTestId}>
-                      {getTranslationFromI18nKeyAndLabel(tab.labelKey, tab.labelFallback)}
+                      {t(tab.ftlKey)}
                     </TabsTrigger>
                   ))}
                 </TabsList>

@@ -139,7 +139,7 @@ export class CustomDataGraphQLClient {
       query IntrospectEntityType($name: String!) {
         __type(name: $name) {
           name
-          fields {
+          fields(includeDeprecated: true) {
             name
             type {
               name

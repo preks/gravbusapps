@@ -573,6 +573,8 @@ export const createInvestmentDescriptors = (
   },
 
   // Date Range Filters
+  { key: 'createdAtFrom', path: 'createdAt', kind: 'dateFrom' },
+  { key: 'createdAtTo', path: 'createdAt', kind: 'dateTo' },
   { key: 'acquisitionDateFrom', path: fields.acquisitionDate, kind: 'dateFrom' },
   { key: 'acquisitionDateTo', path: fields.acquisitionDate, kind: 'dateTo' },
   { key: 'plannedExitDateFrom', path: fields.plannedExitDate, kind: 'dateFrom' },

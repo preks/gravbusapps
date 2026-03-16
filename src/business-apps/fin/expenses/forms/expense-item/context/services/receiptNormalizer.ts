@@ -1,102 +1,176 @@
-/** Matches the exact words "Tip" or "Tax" (case-insensitive), not substrings like "tipping" or "taxi" */
-const TAX_TIP_DESCRIPTION_PATTERN = /\b(Tip|Tax)\b/i
-/** Descriptions containing these phrases are kept even if they match Tip/Tax (e.g. "City Tax") */
-const KEEP_DESCRIPTION_PATTERN = /City Tax/i
+/**
+ * Normalizes receipt/invoice data from AI processing.
+ *
+ * Responsibilities:
+ * - Ensures items array exists
+ * - Folds tax into items when the item sum + tax === receipt total
+ * - Merges negative-amount items (discounts) into the first positive item
+ *   with the same expense group and type
+ * - Enriches taxDetails and tipDetails with expense classification codes
+ *
+ * Does not mutate the input; returns a new object.
+ */
 
-const SERVICE_TAX_EXPENSE = {
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const TOTAL_MATCH_TOLERANCE = 0.02
+const CURRENCY_MULTIPLIER = 100
+
+const SERVICE_TAX_EXPENSE: ReceiptExpenseDetails = {
   expenseCode: 'ST',
   expenseLabel: 'Service Tax',
   expenseGroupCode: 'OTHER',
   expenseGroupLabel: 'Other'
-} as const
+}
 
-const TIP_EXPENSE = {
+const TIP_EXPENSE: ReceiptExpenseDetails = {
   expenseCode: 'TIP',
   expenseLabel: 'Tip',
   expenseGroupCode: 'OTHER',
   expenseGroupLabel: 'Other'
-} as const
-
-const TOTAL_MATCH_TOLERANCE = 0.02
-
-function sumItemsTotal(items: any[]): number {
-  if (!Array.isArray(items)) return 0
-  return items.reduce((sum, item) => sum + (Number(item?.totalPrice) || 0), 0)
 }
 
-/** Add tax position only when sum is strictly less than AI total (tax is a separate line). If sum matches or is bigger, tax is already included. */
-function shouldAddTaxPosition(positionsSum: number, aiTotal: number | null | undefined): boolean {
-  if (aiTotal == null || typeof aiTotal !== 'number') return false
-  return positionsSum < aiTotal - TOTAL_MATCH_TOLERANCE
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface ReceiptExpenseDetails {
+  expenseCode?: string | null
+  expenseLabel?: string | null
+  expenseGroupCode?: string | null
+  expenseGroupLabel?: string | null
 }
 
-/**
- * Normalizes receipt/invoice data from the AI:
- * - Removes items whose description contains the words "tax" or "tip" (except e.g. "City Tax")
- * - When taxDetails has data: enriches it; adds a tax position only if sum of (filtered) items is strictly less than AI total. If sum matches or exceeds total, tax is already included in item amounts — do not add tax position.
- * - When tipDetails has data: enriches it and always adds a single tip item (no sum check)
- * Handles all cases: both tax and tip, only tax, only tip, or neither.
- */
-export function normalizeReceiptData(data: any): any {
-  if (!data) return data
+export interface ReceiptItem {
+  description?: string
+  quantity?: number
+  unitPrice?: number
+  totalPrice?: number
+  taxRate?: number
+  taxAmount?: number | null
+  expenseDetails?: ReceiptExpenseDetails | null
+}
 
-  const normalized = { ...data }
+export interface ReceiptData {
+  items?: ReceiptItem[]
+  total?: number | null
+  taxDetails?: { taxAmount?: number; taxRate?: number } | null
+  tipDetails?: { tipAmount?: number } | null
+  [key: string]: unknown
+}
 
-  // 1. Filter out items that are tax or tip by description (word match), except e.g. "City Tax"
-  if (Array.isArray(normalized.items)) {
-    normalized.items = normalized.items.filter((item: any) => {
-      const desc = item?.description ?? ''
-      if (KEEP_DESCRIPTION_PATTERN.test(desc)) return true
-      return !TAX_TIP_DESCRIPTION_PATTERN.test(desc)
-    })
-  } else {
-    normalized.items = []
+// ─── Pure helpers ───────────────────────────────────────────────────────────
+
+function toNumber(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
+function roundCurrency(value: number): number {
+  return Math.round(value * CURRENCY_MULTIPLIER) / CURRENCY_MULTIPLIER
+}
+
+function amountsMatch(a: number, b: number): boolean {
+  return Math.abs(a - b) <= TOTAL_MATCH_TOLERANCE
+}
+
+function itemTotal(item: ReceiptItem): number {
+  return toNumber(item.totalPrice)
+}
+
+function sumItems(items: ReceiptItem[]): number {
+  return items.reduce((sum, item) => sum + itemTotal(item), 0)
+}
+
+function hasClassification(item: ReceiptItem): boolean {
+  const ed = item.expenseDetails
+  return !!(ed?.expenseCode && ed?.expenseGroupCode)
+}
+
+function sameClassification(a: ReceiptItem, b: ReceiptItem): boolean {
+  return (
+    hasClassification(a) &&
+    hasClassification(b) &&
+    a.expenseDetails!.expenseCode === b.expenseDetails!.expenseCode &&
+    a.expenseDetails!.expenseGroupCode === b.expenseDetails!.expenseGroupCode
+  )
+}
+
+function withUpdatedTotal(item: ReceiptItem, newTotal: number): ReceiptItem {
+  const rounded = roundCurrency(newTotal)
+  const qty = toNumber(item.quantity)
+  const canRecalcUnitPrice = qty > 0 && item.unitPrice != null
+
+  return {
+    ...item,
+    totalPrice: rounded,
+    ...(canRecalcUnitPrice && { unitPrice: roundCurrency(rounded / qty) })
+  }
+}
+
+// ─── Normalization steps (each is a pure function: items in → items out) ──
+
+function foldTaxIntoItems(
+  items: ReceiptItem[],
+  receiptTotal: number | null,
+  taxAmount: number | undefined
+): ReceiptItem[] {
+  if (items.length === 0 || receiptTotal == null || taxAmount == null) return items
+  if (amountsMatch(sumItems(items), receiptTotal)) return items
+  if (!amountsMatch(sumItems(items) + taxAmount, receiptTotal)) return items
+
+  const updatedFirst = withUpdatedTotal(items[0], itemTotal(items[0]) + taxAmount)
+  return [updatedFirst, ...items.slice(1)]
+}
+
+function mergeDiscounts(items: ReceiptItem[]): ReceiptItem[] {
+  if (items.length === 0) return items
+
+  const result = items.map(item => ({ ...item }))
+  const merged = new Set<number>()
+
+  for (let i = 0; i < result.length; i++) {
+    if (itemTotal(result[i]) >= 0 || !hasClassification(result[i])) continue
+
+    const targetIndex = result.findIndex(
+      (candidate, idx) =>
+        idx !== i && !merged.has(idx) && itemTotal(candidate) > 0 && sameClassification(result[i], candidate)
+    )
+    if (targetIndex === -1) continue
+
+    const adjustedTarget = withUpdatedTotal(result[targetIndex], itemTotal(result[targetIndex]) + itemTotal(result[i]))
+    result[targetIndex] = adjustedTarget
+    merged.add(i)
   }
 
-  const aiTotal = normalized.total != null ? Number(normalized.total) : null
-  let positionsSum = sumItemsTotal(normalized.items)
+  return merged.size > 0 ? result.filter((_, idx) => !merged.has(idx)) : items
+}
 
-  // 2. Add tax position only when taxDetails has data and sum of items is strictly less than AI total. If sum matches or is bigger, tax is already included — do not add.
-  const taxDetails = normalized.taxDetails
-  if (taxDetails && (taxDetails.taxAmount != null || taxDetails.taxRate != null)) {
-    const enrichedTaxDetails = {
-      ...taxDetails,
-      ...SERVICE_TAX_EXPENSE
-    }
-    normalized.taxDetails = enrichedTaxDetails
-    const taxAmount = taxDetails.taxAmount ?? 0
-    if (taxAmount > 0 && shouldAddTaxPosition(positionsSum, aiTotal)) {
-      normalized.items.push({
-        description: 'Service Tax',
-        quantity: 1,
-        unitPrice: taxAmount,
-        totalPrice: taxAmount,
-        taxRate: taxDetails.taxRate ?? null,
-        taxAmount: taxDetails.taxAmount ?? null,
-        expenseDetails: { ...SERVICE_TAX_EXPENSE }
-      })
-      positionsSum += taxAmount
-    }
+function enrichTaxDetails(data: ReceiptData): ReceiptData['taxDetails'] {
+  if (!data.taxDetails) return data.taxDetails
+  if (data.taxDetails.taxAmount == null && data.taxDetails.taxRate == null) return data.taxDetails
+  return { ...data.taxDetails, ...SERVICE_TAX_EXPENSE }
+}
+
+function enrichTipDetails(data: ReceiptData): ReceiptData['tipDetails'] {
+  if (!data.tipDetails) return data.tipDetails
+  if (!data.tipDetails.tipAmount || data.tipDetails.tipAmount <= 0) return data.tipDetails
+  return { ...data.tipDetails, ...TIP_EXPENSE }
+}
+
+// ─── Public API ─────────────────────────────────────────────────────────────
+
+export function normalizeReceiptData(data: ReceiptData | null | undefined): ReceiptData | null | undefined {
+  if (data == null) return data
+
+  const items = Array.isArray(data.items) ? data.items : []
+  const receiptTotal = data.total != null ? toNumber(data.total) : null
+  const taxAmount = data.taxDetails?.taxAmount
+
+  const normalizedItems = mergeDiscounts(foldTaxIntoItems(items, receiptTotal, taxAmount))
+
+  return {
+    ...data,
+    items: normalizedItems,
+    taxDetails: enrichTaxDetails(data),
+    tipDetails: enrichTipDetails(data)
   }
-
-  // 3. Add tip item when tipDetails exists and has tipAmount (no sum vs total check)
-  const tipDetails = normalized.tipDetails
-  if (tipDetails && tipDetails.tipAmount != null && tipDetails.tipAmount > 0) {
-    const enrichedTipDetails = {
-      ...tipDetails,
-      ...TIP_EXPENSE
-    }
-    normalized.tipDetails = enrichedTipDetails
-    normalized.items.push({
-      description: 'Tip',
-      quantity: 1,
-      unitPrice: tipDetails.tipAmount,
-      totalPrice: tipDetails.tipAmount,
-      taxRate: null,
-      taxAmount: null,
-      expenseDetails: { ...TIP_EXPENSE }
-    })
-  }
-
-  return normalized
 }
