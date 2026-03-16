@@ -445,6 +445,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
           await BoardApiService.startExternalSync(board.id, activeSheet.id, {
             connectorId: ds.connectorId as string,
             connectorName: ds.connectorName as string,
+            connectionId: ds.connectionId as string | undefined,
             query: ds.query as Record<string, unknown> | undefined,
             selectedFields: ds.selectedFields as string[] | undefined,
             limit: dsLimit,

@@ -15,16 +15,12 @@ import {
   SelectValue,
   Switch
 } from '@newwork/nw-design-system'
-import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2, X } from 'lucide-react'
-import {
-  InputType,
-  type InputBlock,
-  type InputOption,
-  type DataSource
-} from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { ChevronDown, ChevronUp, GripVertical, Trash2 } from 'lucide-react'
+import { InputType, type InputBlock, type InputOption } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import type { DesignerMode } from '../../types/studioTypes'
 import { FormFieldDefaultValueSection } from './FormFieldDefaultValueSection'
 import { NEUTRAL_SWITCH_CLASSNAME } from '../../utils/neutralSwitchClassName'
+import { FormFieldOptionsSection } from './FormFieldOptionsSection'
 
 /** Field types available in simple mode */
 const SIMPLE_TYPES = [
@@ -70,6 +66,20 @@ interface FormFieldEditorProps {
   total: number
   mode: DesignerMode
   catalogs?: CatalogOption[]
+  catalogsLoading?: boolean
+  catalogsError?: string | null
+  catalogsQuery?: string
+  catalogsHasMore?: boolean
+  searchCatalogs?: (query: string) => Promise<void>
+  loadMoreCatalogs?: () => Promise<void>
+  entities?: Array<{ type: string; name: string; fields: string[] }>
+  entitiesLoading?: boolean
+  entitiesError?: string | null
+  customDataNamespaces?: string[]
+  customDataNamespacesLoading?: boolean
+  customDataKeysByNamespace?: Record<string, string[]>
+  customDataKeysLoadingByNamespace?: Record<string, boolean>
+  fetchCustomDataKeys?: (namespace: string) => Promise<void>
   onChange: (updated: InputBlock) => void
   onRemove: () => void
   onMoveUp: () => void
@@ -83,6 +93,20 @@ export const FormFieldEditor: React.FC<FormFieldEditorProps> = ({
   total,
   mode,
   catalogs,
+  catalogsLoading,
+  catalogsError,
+  catalogsQuery,
+  catalogsHasMore,
+  searchCatalogs,
+  loadMoreCatalogs,
+  entities,
+  entitiesLoading,
+  entitiesError,
+  customDataNamespaces,
+  customDataNamespacesLoading,
+  customDataKeysByNamespace,
+  customDataKeysLoadingByNamespace,
+  fetchCustomDataKeys,
   onChange,
   onRemove,
   onMoveUp,
@@ -97,6 +121,19 @@ export const FormFieldEditor: React.FC<FormFieldEditorProps> = ({
 
   const updateField = (partial: Partial<InputBlock>) => {
     onChange({ ...field, ...partial })
+  }
+
+  const flowContextDataSources = {
+    catalogs: catalogs ?? [],
+    catalogsLoading: Boolean(catalogsLoading),
+    catalogsError: catalogsError ?? null,
+    catalogsQuery: String(catalogsQuery ?? ''),
+    catalogsHasMore: Boolean(catalogsHasMore),
+    searchCatalogs: searchCatalogs ?? (async () => {}),
+    loadMoreCatalogs: loadMoreCatalogs ?? (async () => {}),
+    entities: entities ?? [],
+    entitiesLoading: Boolean(entitiesLoading),
+    entitiesError: entitiesError ?? null
   }
 
   const addOption = () => {
@@ -201,7 +238,14 @@ export const FormFieldEditor: React.FC<FormFieldEditorProps> = ({
       {/* Name (technical key) */}
       {/* Field name is auto-generated and intentionally hidden */}
 
-      <FormFieldDefaultValueSection mode={mode} field={field} onChange={updateField} index={index} testId={testId} />
+      <FormFieldDefaultValueSection
+        mode={mode}
+        field={field}
+        onChange={updateField}
+        index={index}
+        dataSources={flowContextDataSources}
+        testId={testId}
+      />
 
       {/* Read-only toggle (advanced) */}
       {mode === 'advanced' && (
@@ -218,105 +262,31 @@ export const FormFieldEditor: React.FC<FormFieldEditorProps> = ({
 
       {/* Data source for select-like types */}
       {HAS_OPTIONS.has(field.type) && (
-        <div className="gba:flex gba:flex-col gba:gap-2">
-          {/* Data source toggle (advanced mode with catalogs) */}
-          {mode === 'advanced' && catalogs && catalogs.length > 0 && (
-            <div className="gba:flex gba:flex-col gba:gap-1">
-              <Label className="gba:text-[10px] gba:font-medium gba:text-muted-foreground">Data Source</Label>
-              <Select
-                value={field.dataSource?.type === 'CATALOG' ? 'catalog' : 'manual'}
-                onValueChange={v => {
-                  if (v === 'manual') {
-                    updateField({ dataSource: undefined })
-                  } else {
-                    updateField({
-                      dataSource: {
-                        type: 'CATALOG',
-                        catalog: '',
-                        valueField: 'code',
-                        labelField: 'value'
-                      } as DataSource
-                    })
-                  }
-                }}
-              >
-                <SelectTrigger data-testid={`${testId}-${index}-datasource`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">Manual options</SelectItem>
-                  <SelectItem value="catalog">Catalog</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Catalog selector */}
-          {field.dataSource?.type === 'CATALOG' && catalogs && (
-            <div className="gba:flex gba:flex-col gba:gap-1">
-              <Label className="gba:text-[10px] gba:font-medium gba:text-muted-foreground">Catalog</Label>
-              <Select
-                value={field.dataSource.catalog || ''}
-                onValueChange={v => {
-                  updateField({
-                    dataSource: {
-                      ...field.dataSource!,
-                      catalog: v
-                    }
-                  })
-                }}
-              >
-                <SelectTrigger data-testid={`${testId}-${index}-catalog`}>
-                  <SelectValue placeholder="Select catalog..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {catalogs.map(c => (
-                    <SelectItem key={c.identifier} value={c.identifier}>
-                      {c.name} ({c.entryCount} entries)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Manual options list */}
-          {field.dataSource?.type !== 'CATALOG' && (
-            <>
-              <Label className="gba:text-[10px] gba:font-medium gba:text-muted-foreground">Options</Label>
-              {(field.options ?? []).map((opt, oi) => (
-                <div key={opt.value || opt.label || `opt-${oi}`} className="gba:flex gba:items-center gba:gap-1.5">
-                  <Input
-                    value={opt.label}
-                    onChange={e => updateOption(oi, { label: e.target.value })}
-                    placeholder="Label"
-                    className="gba:flex-1"
-                    data-testid={`${testId}-${index}-opt-label-${oi}`}
-                  />
-                  <Input
-                    value={opt.value}
-                    onChange={e => updateOption(oi, { value: e.target.value })}
-                    placeholder="Value"
-                    className="gba:w-24"
-                    data-testid={`${testId}-${index}-opt-value-${oi}`}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeOption(oi)}
-                    data-testid={`${testId}-${index}-opt-remove-${oi}`}
-                  >
-                    <X className="gba:h-3 gba:w-3" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={addOption} data-testid={`${testId}-${index}-opt-add`}>
-                <Plus className="gba:h-3 gba:w-3 gba:mr-1" />
-                Add option
-              </Button>
-            </>
-          )}
-        </div>
+        <FormFieldOptionsSection
+          field={field}
+          catalogs={catalogs}
+          catalogsLoading={catalogsLoading}
+          catalogsError={catalogsError}
+          catalogsQuery={catalogsQuery}
+          catalogsHasMore={catalogsHasMore}
+          searchCatalogs={searchCatalogs}
+          loadMoreCatalogs={loadMoreCatalogs}
+          entities={entities}
+          entitiesLoading={entitiesLoading}
+          entitiesError={entitiesError}
+          customDataNamespaces={customDataNamespaces}
+          customDataNamespacesLoading={customDataNamespacesLoading}
+          customDataKeysByNamespace={customDataKeysByNamespace}
+          customDataKeysLoadingByNamespace={customDataKeysLoadingByNamespace}
+          fetchCustomDataKeys={fetchCustomDataKeys}
+          index={index}
+          mode={mode}
+          onChange={onChange}
+          onAddOption={addOption}
+          onUpdateOption={updateOption}
+          onRemoveOption={removeOption}
+          data-testid={testId}
+        />
       )}
     </div>
   )

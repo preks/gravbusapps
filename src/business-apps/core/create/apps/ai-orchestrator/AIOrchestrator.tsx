@@ -8,22 +8,24 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PlanDetailPage } from './pages/plan-detail-page/PlanDetailPage'
 
 const JOB_ID_PARAM = 'jobId'
+const SESSION_ID_PARAM = 'sessionId'
 const PROMPT_PARAM = 'prompt'
 
-function getQueryParams(): { jobId: string | null; initialPrompt: string | null } {
+function getQueryParams(): { jobId: string | null; sessionId: string | null; initialPrompt: string | null } {
   if (typeof globalThis.window === 'undefined') {
-    return { jobId: null, initialPrompt: null }
+    return { jobId: null, sessionId: null, initialPrompt: null }
   }
   const params = new URLSearchParams(globalThis.location.search)
   return {
     jobId: params.get(JOB_ID_PARAM),
+    sessionId: params.get(SESSION_ID_PARAM),
     initialPrompt: params.get(PROMPT_PARAM)
   }
 }
 
 export const AIOrchestrator: React.FC<BusinessAppContextProps> = context => {
   // Capture URL params only on mount — replaceState during session must not re-trigger restore
-  const [{ jobId, initialPrompt }] = useState(() => getQueryParams())
+  const [{ jobId, sessionId, initialPrompt }] = useState(() => getQueryParams())
 
   return (
     <div className="gba:h-full gba:w-full">
@@ -31,6 +33,7 @@ export const AIOrchestrator: React.FC<BusinessAppContextProps> = context => {
         accessToken={context.accessToken ?? ''}
         userInfo={context.userInfo}
         jobId={jobId}
+        sessionId={sessionId}
         initialPrompt={initialPrompt ?? undefined}
       />
     </div>

@@ -8,6 +8,7 @@ export interface UnstructuredPreviewProps {
   items: UnstructuredPreviewItem[]
   estimatedTotal?: number
   isLoading: boolean
+  error?: string | null
   onBack: () => void
   onNext: () => void
   'data-testid'?: string
@@ -24,6 +25,7 @@ export const UnstructuredPreview: React.FC<UnstructuredPreviewProps> = ({
   items,
   estimatedTotal,
   isLoading,
+  error,
   onBack,
   onNext,
   'data-testid': testId = 'unstructured-preview'
@@ -33,6 +35,23 @@ export const UnstructuredPreview: React.FC<UnstructuredPreviewProps> = ({
       <div className="gba:flex gba:items-center gba:justify-center gba:py-12" data-testid={testId}>
         <Spinner size="md" />
         <span className="gba:ml-2 gba:text-sm gba:text-muted-foreground">Loading preview...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="gba:space-y-4" data-testid={testId}>
+        <div className="gba:rounded-md gba:border gba:border-destructive/40 gba:bg-destructive-secondary gba:p-4">
+          <p className="gba:text-sm gba:font-medium gba:text-destructive">Preview failed</p>
+          <p className="gba:mt-1 gba:text-sm gba:text-destructive">{error}</p>
+        </div>
+
+        <div className="gba:flex gba:justify-start gba:pt-2">
+          <Button variant="outline" size="sm" onClick={onBack} data-testid={`${testId}-back`}>
+            <ArrowLeft className="gba:w-3 gba:h-3 gba:mr-1" /> Back
+          </Button>
+        </div>
       </div>
     )
   }

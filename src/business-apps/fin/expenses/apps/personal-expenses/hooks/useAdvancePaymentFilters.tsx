@@ -134,16 +134,12 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     return filters
   }, [statusFilter, currencyTokens, amountRange, advanceRange])
 
-  // Create a mapping of filter IDs to their display labels
+  // Single source of truth: one label per status (raw value as key). Used by DataDisplay filter options and by pills.
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
 
-    // Status filters - map both filter IDs and raw status values
     AVAILABLE_FILTER_STATUSES.forEach(status => {
       const displayLabel = STATUS_DISPLAY_MAP[status] || getAdvancePaymentStatusDisplay(status).label
-      // Map filter IDs (for DataFilter component)
-      map[`status-${status}`] = displayLabel
-      // Map raw status values (for DataController pills)
       map[status] = displayLabel
     })
 
@@ -244,11 +240,11 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     [advanceRange]
   )
 
-  // Create filter groups for the DataFilter component
+  // Filter groups (legacy DataFilter sidebar; status id kept as status-* so handleDataFilterChange still works)
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
     const statusItems: DataFilter[] = AVAILABLE_FILTER_STATUSES.map(status => ({
       id: `status-${status}`,
-      label: filterLabelMap[`status-${status}`],
+      label: filterLabelMap[status],
       selected: statusFilter.includes(status)
     }))
 

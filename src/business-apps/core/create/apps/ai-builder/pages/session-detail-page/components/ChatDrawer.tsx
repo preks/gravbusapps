@@ -250,6 +250,9 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     if (userId && userId === currentUserId) {
       return userName
     }
+    if (userId && userId === UNKNOWN_AUTHOR_ID && currentUserId) {
+      return userName
+    }
     if (userId) {
       const employee = employeeMap.get(userId)
       if (employee?.displayName) return employee.displayName
@@ -261,6 +264,9 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
 
   const getAvatarForUserId = (userId?: string): string | undefined => {
     if (userId && userId === currentUserId) {
+      return userAvatar
+    }
+    if (userId && userId === UNKNOWN_AUTHOR_ID && currentUserId) {
       return userAvatar
     }
     if (userId) {

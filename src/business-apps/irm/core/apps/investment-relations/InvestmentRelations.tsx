@@ -9,7 +9,8 @@ import {
   UsersIcon,
   CurrencyDollarIcon,
   ChartBarIcon,
-  ChartLineIcon
+  ChartLineIcon,
+  BellIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
@@ -20,6 +21,7 @@ import { OpportunityView } from './views/opportunity-view'
 import { AnalyticsView } from './views/analytics-view'
 import { DashboardView } from './views/dashboard-view/DashboardView'
 import { TaskView } from './views/task-view'
+import { ActivityView } from './views/activity-view'
 import { WorkspaceView } from './views/workspace-view'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { useSalesDashboard } from './views/dashboard-view/hooks/useSalesDashboard'
@@ -49,6 +51,11 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context =
         key: 'personal',
         icon: <ChartLineIcon />,
         label: 'My Workspace'
+      },
+      {
+        key: 'activities',
+        icon: <BellIcon />,
+        label: 'Activities'
       },
       {
         key: 'tasks',
@@ -197,6 +204,12 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context =
         return (
           <div data-testid="personal-workspace-tab-content">
             <WorkspaceView {...context} />
+          </div>
+        )
+      case 'activities':
+        return (
+          <div data-testid="activities-tab-content">
+            <ActivityView {...context} />
           </div>
         )
       case 'tasks':

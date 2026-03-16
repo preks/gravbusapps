@@ -3,6 +3,8 @@
  * Expression pills represent dynamic data references like {{$steps.step_0.formData.amount}}.
  */
 
+import type { ReactNode } from 'react'
+
 export type ExpressionSourceType = 'trigger' | 'workflow' | 'steps' | 'catalog' | 'entity' | 'orgchart'
 
 export type ExpressionValueType = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'unknown'
@@ -46,6 +48,11 @@ export interface ExpressionEditorProps {
   onChange: (value: string) => void
   /** Available suggestion items */
   suggestions?: ExpressionSuggestionItem[]
+  /**
+   * Optional UI affordance for Flow Creator to open a Flow context explorer.
+   * The editor only renders this node; insertion behavior should be handled by the consumer.
+   */
+  flowContextExplorer?: ReactNode
   /** Placeholder text */
   placeholder?: string
   /** Whether to allow free-text mixed with expressions (Advanced mode) */
@@ -62,6 +69,10 @@ export interface ExpressionEditorProps {
   'data-testid'?: string
 }
 
+export interface ExpressionEditorHandle {
+  insertSuggestion: (item: ExpressionSuggestionItem) => void
+}
+
 /**
  * Map of source types to design system color tokens.
  */
@@ -74,33 +85,33 @@ export const SOURCE_COLOR_MAP: Record<
   }
 > = {
   trigger: {
-    bg: 'gba:bg-secondary/60',
-    text: 'gba:text-secondary-foreground',
-    border: 'gba:border-secondary'
+    bg: 'gba:bg-muted',
+    text: 'gba:text-foreground',
+    border: 'gba:border-border'
   },
   workflow: {
-    bg: 'gba:bg-primary/10',
-    text: 'gba:text-primary',
-    border: 'gba:border-primary/20'
+    bg: 'gba:bg-muted',
+    text: 'gba:text-foreground',
+    border: 'gba:border-border'
   },
   steps: {
-    bg: 'gba:bg-accent/50',
-    text: 'gba:text-accent-foreground',
-    border: 'gba:border-accent'
+    bg: 'gba:bg-muted',
+    text: 'gba:text-foreground',
+    border: 'gba:border-border'
   },
   catalog: {
-    bg: 'gba:bg-info-secondary',
-    text: 'gba:text-info-secondary-foreground',
-    border: 'gba:border-info/20'
+    bg: 'gba:bg-muted',
+    text: 'gba:text-foreground',
+    border: 'gba:border-border'
   },
   entity: {
-    bg: 'gba:bg-success-secondary',
-    text: 'gba:text-success-secondary-foreground',
-    border: 'gba:border-success/20'
+    bg: 'gba:bg-muted',
+    text: 'gba:text-foreground',
+    border: 'gba:border-border'
   },
   orgchart: {
-    bg: 'gba:bg-warning-secondary',
-    text: 'gba:text-warning-secondary-foreground',
-    border: 'gba:border-warning/20'
+    bg: 'gba:bg-muted',
+    text: 'gba:text-foreground',
+    border: 'gba:border-border'
   }
 }

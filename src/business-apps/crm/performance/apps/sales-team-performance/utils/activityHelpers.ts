@@ -64,6 +64,23 @@ export const getEntityType = (activity: {
 }
 
 /**
+ * Get entity type from IDs alone — reliable even when the joined entity object has no name.
+ * Use this as a fallback when getEntityType/getEntityName return 'No reference' but IDs exist.
+ */
+export const getEntityTypeFromIds = (activity: {
+  accountId?: string | null
+  contactId?: string | null
+  leadId?: string | null
+  opportunityId?: string | null
+}): string => {
+  if (activity.accountId) return 'Account'
+  if (activity.contactId) return 'Contact'
+  if (activity.leadId) return 'Lead'
+  if (activity.opportunityId) return 'Opportunity'
+  return ''
+}
+
+/**
  * Get activity score badge variant based on score value
  */
 export const getActivityScoreBadgeVariant = (score?: number): 'default' | 'secondary' | 'destructive' | 'outline' => {
@@ -84,13 +101,13 @@ export const getActivityTypeVariant = (
     case 'Call':
       return 'success'
     case 'Email':
-      return 'default'
+      return 'outline'
     case 'Meeting':
       return 'warning'
     case 'Task':
       return 'secondary'
     default:
-      return 'outline'
+      return 'secondary'
   }
 }
 

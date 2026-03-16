@@ -353,11 +353,15 @@ export const useExpenseItemsFilters = (
         filter.status = statuses.map(status => status.toUpperCase())
       }
 
-      // Process expense date range filters (priority over time period filters)
+      // Process expense date range filters (priority over time period filters); allow partial range (from only or to only)
       const dateRangeToUse = expenseDateRangeParam || expenseDateRange
-      if (dateRangeToUse && dateRangeToUse[0] && dateRangeToUse[1]) {
-        filter.expenseDateStart = dateRangeToUse[0].toISOString().split('T')[0]
-        filter.expenseDateEnd = dateRangeToUse[1].toISOString().split('T')[0]
+      if (dateRangeToUse) {
+        if (dateRangeToUse[0]) {
+          filter.expenseDateStart = dateRangeToUse[0].toISOString().split('T')[0]
+        }
+        if (dateRangeToUse[1]) {
+          filter.expenseDateEnd = dateRangeToUse[1].toISOString().split('T')[0]
+        }
       }
       // Process date range filters (priority over time period filters)
       else if (startDateRange && startDateRange[0] && endDateRange && endDateRange[1]) {

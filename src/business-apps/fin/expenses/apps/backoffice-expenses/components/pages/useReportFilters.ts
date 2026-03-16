@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useCallback } from 'react'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ReportType } from '../../hooks/useBackofficeExpenseReportData'
 import { getActiveStructureDepartmentOptions } from '../../utils/departmentOptions'
 import { EMPTY_REPORT_FILTERS, normalizeReportFilters, areReportFiltersEqual } from './reportFilterUtils'
+
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string
 
 interface UseReportFiltersParams {
   selectedReportType: ReportType | null
@@ -15,6 +16,7 @@ interface UseReportFiltersParams {
   setCurrentPage: (page: number) => void
   setLocalSearchText: (text: string) => void
   setSearchTerm: (term: string) => void
+  t: TranslateFn
 }
 
 function makeDateGroup(id: string, label: string) {
@@ -49,7 +51,8 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
     setFiltersByReportType,
     setCurrentPage,
     setLocalSearchText,
-    setSearchTerm
+    setSearchTerm,
+    t
   } = params
 
   const selectedFilters = useMemo(() => {
@@ -58,69 +61,68 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
   }, [filtersByReportType, selectedReportType])
 
   const statusFilterOptions = useMemo(() => {
-    const t = getTranslationFromI18nKeyAndLabel
     switch (selectedReportType) {
       case ReportType.APPROVAL_PAYOUT_CYCLE:
         return [
-          { id: 'PENDING', label: t('lowcoder:expense_statuses.in_approval', 'In Approval') },
-          { id: 'APPROVED', label: t('lowcoder:expense_statuses.verification_required', 'Verification Required') },
-          { id: 'VERIFIED', label: t('lowcoder:expense_statuses.verified', 'Verified') },
-          { id: 'BOOKED', label: t('lowcoder:expense_statuses.booked', 'Booked') },
-          { id: 'TRANSFERRED', label: t('lowcoder:expense_statuses.transferred', 'Transferred') },
-          { id: 'PAID', label: t('lowcoder:expense_statuses.paid', 'Paid') }
+          { id: 'PENDING', label: t('status-in-approval') },
+          { id: 'APPROVED', label: t('status-verification-required') },
+          { id: 'VERIFIED', label: t('status-verified') },
+          { id: 'BOOKED', label: t('status-booked') },
+          { id: 'TRANSFERRED', label: t('status-transferred') },
+          { id: 'PAID', label: t('status-paid') }
         ]
       case ReportType.EXPENSE_ITEM:
         return [
-          { id: 'CREATED', label: t('lowcoder:expense_statuses.draft', 'Draft') },
-          { id: 'PENDING', label: t('lowcoder:expense_statuses.in_approval', 'In Approval') },
-          { id: 'APPROVED', label: t('lowcoder:expense_statuses.verification_required', 'Verification Required') },
-          { id: 'VERIFIED', label: t('lowcoder:expense_statuses.booking_required', 'Booking Required') },
-          { id: 'BOOKED', label: t('lowcoder:expense_statuses.booked', 'Booked') },
-          { id: 'TRANSFERRED', label: t('lowcoder:expense_statuses.transferred', 'Transferred') },
-          { id: 'PAID', label: t('lowcoder:expense_statuses.paid', 'Paid') },
-          { id: 'CLOSED', label: t('lowcoder:expense_statuses.closed', 'Closed') }
+          { id: 'CREATED', label: t('status-draft') },
+          { id: 'ASSIGNED', label: t('status-assigned') },
+          { id: 'PENDING', label: t('status-in-approval') },
+          { id: 'APPROVED', label: t('status-verification-required') },
+          { id: 'REJECTED', label: t('status-revision-required') },
+          { id: 'VERIFIED', label: t('status-booking-required') },
+          { id: 'BOOKED', label: t('status-booked') },
+          { id: 'TRANSFERRED', label: t('status-transferred') },
+          { id: 'PAID', label: t('status-paid') },
+          { id: 'DISCARDED', label: t('status-discarded') }
         ]
       case ReportType.EXPENSE_PLAN:
         return [
-          { id: 'CREATED', label: t('lowcoder:expense_statuses.draft', 'Draft') },
-          { id: 'PENDING', label: t('lowcoder:expense_statuses.in_approval', 'In Approval') },
-          { id: 'REJECTED', label: t('lowcoder:expense_statuses.revision_required', 'Revision Required') },
-          { id: 'APPROVED', label: t('lowcoder:expense_statuses.verification_required', 'Verification Required') },
-          { id: 'VERIFIED', label: t('lowcoder:expense_statuses.booking_required', 'Booking Required') },
-          { id: 'BOOKED', label: t('lowcoder:expense_statuses.booked', 'Booked') },
-          { id: 'TRANSFERRED', label: t('lowcoder:expense_statuses.transferred', 'Transferred') },
-          { id: 'PAID', label: t('lowcoder:expense_statuses.paid', 'Paid') },
-          { id: 'CLOSED', label: t('lowcoder:expense_statuses.closed', 'Closed') },
-          { id: 'DISCARDED', label: t('lowcoder:expense_statuses.discarded', 'Discarded') }
+          { id: 'CREATED', label: t('status-draft') },
+          { id: 'ASSIGNED', label: t('status-assigned') },
+          { id: 'PENDING', label: t('status-in-approval') },
+          { id: 'APPROVED', label: t('status-approved') },
+          { id: 'REJECTED', label: t('status-revision-required') },
+          { id: 'CLOSED', label: t('status-closed') },
+          { id: 'DISCARDED', label: t('status-discarded') }
         ]
       case ReportType.EXPENSE_REQUEST:
         return [
-          { id: 'CREATED', label: t('lowcoder:expense_statuses.draft', 'Draft') },
-          { id: 'PENDING', label: t('lowcoder:expense_statuses.in_approval', 'In Approval') },
-          { id: 'REJECTED', label: t('lowcoder:expense_statuses.revision_required', 'Revision Required') },
-          { id: 'APPROVED', label: t('lowcoder:expense_statuses.verification_required', 'Verification Required') },
-          { id: 'VERIFIED', label: t('lowcoder:expense_statuses.booking_required', 'Booking Required') },
-          { id: 'BOOKED', label: t('lowcoder:expense_statuses.booked', 'Booked') },
-          { id: 'TRANSFERRED', label: t('lowcoder:expense_statuses.transferred', 'Transferred') },
-          { id: 'PAID', label: t('lowcoder:expense_statuses.paid', 'Paid') },
-          { id: 'DISCARDED', label: t('lowcoder:expense_statuses.discarded', 'Discarded') }
+          { id: 'CREATED', label: t('status-draft') },
+          { id: 'PENDING', label: t('status-in-approval') },
+          { id: 'APPROVED', label: t('status-verification-required') },
+          { id: 'REJECTED', label: t('status-revision-required') },
+          { id: 'VERIFIED', label: t('status-booking-required') },
+          { id: 'BOOKED', label: t('status-booked') },
+          { id: 'TRANSFERRED', label: t('status-transferred') },
+          { id: 'PAID', label: t('status-paid') },
+          { id: 'DISCARDED', label: t('status-discarded') }
         ]
       case ReportType.ADVANCE_PAYMENT:
         return [
-          { id: 'PREPARED', label: t('lowcoder:expense_statuses.prepared', 'Prepared') },
-          { id: 'PENDING', label: t('lowcoder:expense_statuses.in_approval', 'In Approval') },
-          { id: 'REJECTED', label: t('lowcoder:expense_statuses.revision_required', 'Revision Required') },
-          { id: 'RETURNED', label: t('lowcoder:expense_statuses.returned', 'Returned') },
-          { id: 'APPROVED', label: t('lowcoder:expense_statuses.approved', 'Approved') },
-          { id: 'VERIFIED', label: t('lowcoder:expense_statuses.booking_required', 'Booking Required') },
-          { id: 'BOOKED', label: t('lowcoder:expense_statuses.booked', 'Booked') },
-          { id: 'TRANSFERRED', label: t('lowcoder:expense_statuses.payment_required', 'Payment Required') },
-          { id: 'PAID', label: t('lowcoder:expense_statuses.paid', 'Paid') }
+          { id: 'CREATED', label: t('status-draft') },
+          { id: 'PREPARED', label: t('status-prepared') },
+          { id: 'PENDING', label: t('status-in-approval') },
+          { id: 'APPROVED', label: t('status-approved') },
+          { id: 'RETURNED', label: t('status-returned') },
+          { id: 'REJECTED', label: t('status-revision-required') },
+          { id: 'VERIFIED', label: t('status-booking-required') },
+          { id: 'BOOKED', label: t('status-booked') },
+          { id: 'TRANSFERRED', label: t('status-payment-required') },
+          { id: 'PAID', label: t('status-paid') }
         ]
       default:
         return []
     }
-  }, [selectedReportType])
+  }, [selectedReportType, t])
 
   const employeeFilterOptions = useMemo(() => allEmployeeNames.map(v => ({ id: v, label: v })), [allEmployeeNames])
 
@@ -138,48 +140,40 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
   }, [organizationalUnits, reportRowsWithGroupedStatuses])
 
   const dateGroups = useMemo(() => {
-    const t = getTranslationFromI18nKeyAndLabel
     if (selectedReportType === ReportType.EXPENSE_ITEM) {
-      return [makeDateGroup('dateRange', t('lowcoder:personal_expenses.expense_date_label', 'Expense Date'))]
+      return [makeDateGroup('dateRange', t('header-expense-date'))]
     }
     if (selectedReportType === ReportType.ADVANCE_PAYMENT) {
-      return [makeDateGroup('effectiveDateRange', t('lowcoder:personal_expenses.effective_date', 'Effective Date'))]
+      return [makeDateGroup('effectiveDateRange', t('filter-effective-date'))]
     }
     if (
       selectedReportType === ReportType.EXPENSE_PLAN ||
       selectedReportType === ReportType.EXPENSE_REQUEST ||
       selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
     ) {
-      const groups = [
-        makeDateGroup('effectiveDateRange', t('lowcoder:personal_expenses.effective_date', 'Effective Date'))
-      ]
+      const groups = [makeDateGroup('effectiveDateRange', t('filter-effective-date'))]
       if (selectedReportType === ReportType.EXPENSE_PLAN) {
-        groups.push(makeDateGroup('planDateRange', t('lowcoder:personal_expenses.plan_date', 'Plan Date')))
+        groups.push(makeDateGroup('planDateRange', t('header-start-date')))
       }
       if (
         selectedReportType === ReportType.EXPENSE_REQUEST ||
         selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
       ) {
-        groups.push(
-          makeDateGroup(
-            'requestDateRange',
-            t('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date')
-          )
-        )
+        groups.push(makeDateGroup('requestDateRange', t('header-creation-date')))
       }
       return groups
     }
     return []
-  }, [selectedReportType])
+  }, [selectedReportType, t])
 
   const filterConfiguration = useMemo<FilterConfiguration>(() => {
-    const statusLabel = getTranslationFromI18nKeyAndLabel('lowcoder:common.status', 'Status')
-    const employeeLabel = getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
-    const departmentLabel = getTranslationFromI18nKeyAndLabel('lowcoder:common.department', 'Department')
+    const statusLabel = t('header-status')
+    const employeeLabel = t('header-employee')
+    const departmentLabel = t('header-department')
 
     return {
       id: `backoffice-expense-reports-filters-${selectedReportType || 'unknown'}`,
-      name: getTranslationFromI18nKeyAndLabel('lowcoder:common.report_filters', 'Report Filters'),
+      name: t('filter-report-filters'),
       groups: [
         ...dateGroups,
         {
@@ -215,10 +209,7 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
               type: 'multi-select',
               config: {
                 options: employeeFilterOptions,
-                searchPlaceholder: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_table.employee_search_filter',
-                  'Search employee...'
-                ),
+                searchPlaceholder: t('filter-search-employee'),
                 totalCount: employeeFilterOptions.length,
                 hasMore: false
               }
@@ -247,7 +238,7 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
         }
       ]
     }
-  }, [statusFilterOptions, employeeFilterOptions, departmentFilterOptions, dateGroups, selectedReportType])
+  }, [statusFilterOptions, employeeFilterOptions, departmentFilterOptions, dateGroups, selectedReportType, t])
 
   useEffect(() => {
     if (!selectedReportType) return

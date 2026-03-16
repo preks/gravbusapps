@@ -221,13 +221,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
                 prefixDataTestId="timeclock-request-correction"
                 accessToken={accessToken}
               >
-                <>
-                  <Icon icon={PencilIcon} />
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.actions.request_correction',
-                    'Request Correction'
-                  )}
-                </>
+                {t('manual_entry')}
               </AppAction>
 
               <AppAction

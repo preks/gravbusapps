@@ -9,9 +9,9 @@ import dayjs from 'dayjs'
 import { getPlanCardStrategies, preserveCurrencyAndResetPlans } from './cardStrategies'
 // ExpenseStatus usage moved into strategies
 import { useExpensePlanCurrencies } from '../../../hooks/useExpensePlanCurrencies'
-import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
-import { useDebounce } from '@/common/hooks/useDebounce'
+import { getSelectedCurrencyRef, pickMostUsedCurrencyRef } from '../../../utils/currencyUtils'
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ExpenseStatus } from '../../../utils'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
@@ -26,8 +26,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const [destinationFilter, setDestinationFilter] = useState<string | null>(null)
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
   const [suppressCurrencyAutoSelect, setSuppressCurrencyAutoSelect] = useState<boolean>(false)
-  // Add sorting state for server-side sorting
-  const [sortField, setSortField] = useState<string>('createdAt')
+  // Add sorting state for server-side sorting (default: plan date descending)
+  const [sortField, setSortField] = useState<string>('planDate')
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | null>('descend')
 
   const {
@@ -40,17 +40,20 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     setSearch,
     debouncedSearch,
     getFilters,
+    startDateRange,
     setStartDateRange,
+    endDateRange,
     setEndDateRange,
+    planDateRange,
     setPlanDateRange,
-    // expose effective date setter from filters hook
+    effectiveDateRange,
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,
     removeFilter
   } = useExpensePlanFilters()
 
-  const debouncedSelectedFilters = useDebounce(selectedFilters, 200) // Reduced from 300ms for faster filter response
+  const availableStatuses = useMemo(() => Object.values(ExpenseStatus).filter(s => s !== ExpenseStatus.DISCARDED), [])
 
   const {
     data: overview,
@@ -61,10 +64,20 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     fetchOverview,
     invalidateCache
   } = useExpensePlansOverview(props)
-  const selectedCurrencyRef = useMemo(
-    () => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'),
-    [selectedFilters]
+  const { currencyStats } = useExpensePlanCurrencies(props, selectedFilters, setFilters)
+  const mostUsedCurrencyRef = useMemo(
+    () => pickMostUsedCurrencyRef(currencyStats as { ref: string; code: string; count: number }[]),
+    [currencyStats]
   )
+  const selectedCurrencyRef = useMemo(
+    () => getSelectedCurrencyRef(selectedFilters, mostUsedCurrencyRef),
+    [selectedFilters, mostUsedCurrencyRef]
+  )
+  const currencyCodeForCards = useMemo(() => {
+    if (!selectedCurrencyRef) return 'EUR'
+    const code = currencyStats.find((s: { ref: string; code: string }) => s.ref === selectedCurrencyRef)?.code
+    return code ?? selectedCurrencyRef.split(':').pop() ?? 'EUR'
+  }, [selectedCurrencyRef, currencyStats])
   // Statistics should be undefined until loaded - don't default to 0 values
   // This prevents showing "0" values before real data loads
   const statistics = overview?.statistics
@@ -79,7 +92,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     const token = selectedFilters.find(f => f.startsWith('currency:'))
     return token ? token.substring('currency:'.length) : undefined
   }, [selectedFilters])
-  const { currencyStats, initialized: currencyInit } = useExpensePlanCurrencies(props, selectedFilters, setFilters)
 
   // Add a filter "pill" for the Top Destination widget so users can see/remove it.
   const topDestinationPill = useMemo(() => {
@@ -106,37 +118,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
   // Track previous selectedFilters to reset pagination when filters change.
   const prevSelectedFiltersRef = useRef<string | null>(null)
+  // When filters change we must fetch page 1; track filters key so the fetch effect can force page 1.
+  const lastFiltersKeyRef = useRef<string>('')
   // Track previous search to detect when search is cleared
   const prevSearchRef = useRef<string>('')
-
-  // Persist and restore currency filter per user to avoid losing it on tab switches
-  useEffect(() => {
-    const employeeId = props.userInfo?.employeeDetails?.employeeId
-    if (!employeeId) return
-    try {
-      const storageKey = `personal-expenses:plans:currencyRef:${employeeId}`
-      const persisted = sessionStorage.getItem(storageKey)
-      if (!suppressCurrencyAutoSelect && persisted && !selectedFilters.some(f => f.startsWith('currency:'))) {
-        const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'))
-        setFilters([...nonCurrency, `currency:${persisted}`])
-        return
-      }
-      // If currencies are initialized and still no selection, default to EUR
-      if (!suppressCurrencyAutoSelect && currencyInit && !selectedFilters.some(f => f.startsWith('currency:'))) {
-        const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'))
-        setFilters([...nonCurrency, 'currency:Currency:v1:EUR'])
-        sessionStorage.setItem(storageKey, 'Currency:v1:EUR')
-      }
-    } catch {
-      // ignore storage errors
-    }
-  }, [
-    props.userInfo?.employeeDetails?.employeeId,
-    selectedFilters,
-    setFilters,
-    currencyInit,
-    suppressCurrencyAutoSelect
-  ])
 
   // Synchronize activeWidget with selectedFilters when filters change externally
   useEffect(() => {
@@ -171,12 +156,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       if (isDeactivating) {
         strategies[widgetKey]?.remove()
         // Restore to base state while preserving currency selection
-        preserveCurrencyAndResetPlans(selectedFilters, clearFilters, setFilters)
+        preserveCurrencyAndResetPlans(selectedFilters, clearFilters, setFilters, mostUsedCurrencyRef)
         if (widgetKey === 'top-destinations') setDestinationFilter(null)
         return
       }
 
-      preserveCurrencyAndResetPlans(selectedFilters, clearFilters, setFilters)
+      preserveCurrencyAndResetPlans(selectedFilters, clearFilters, setFilters, mostUsedCurrencyRef)
       if (widgetKey !== 'top-destinations') setDestinationFilter(null)
       strategies[widgetKey]?.apply()
     },
@@ -190,7 +175,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       overview?.topDestination,
       selectedFilters,
       clearFilters,
-      setFilters
+      setFilters,
+      mostUsedCurrencyRef
     ]
   )
 
@@ -202,22 +188,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     setActiveWidget(null)
     setDestinationFilter(null)
   }, [setFilters])
-
-  // Helper to persist currency selection in session storage
-  const persistCurrencySelection = (employeeId: string | undefined, filters: string[]) => {
-    if (!employeeId) return
-    try {
-      const storageKey = `personal-expenses:plans:currencyRef:${employeeId}`
-      const newCurrency = (filters.find(f => f.startsWith('currency:')) || '').replace('currency:', '')
-      if (newCurrency) {
-        sessionStorage.setItem(storageKey, newCurrency)
-      } else {
-        sessionStorage.removeItem(storageKey)
-      }
-    } catch {
-      // ignore storage errors
-    }
-  }
 
   // Helper function to build widget-specific filters
   const buildWidgetFilters = useCallback(
@@ -284,13 +254,13 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     [activeWidget, destinationFilter]
   )
 
-  // Memoize the filters to prevent unnecessary API calls
+  // Memoize the filters for API calls. Depend on selectedFilters (not debounced) so that when the
+  // user applies a status/filter, we refetch immediately with the new filters and correct page.
   const memoizedFilters = useMemo(() => {
-    const baseFilters = getFilters() // This now uses debouncedSearch internally
+    const baseFilters = getFilters()
     // Filter by currency only when explicitly selected
     if (explicitSelectedCurrencyRef) {
       baseFilters._and = baseFilters._and || []
-      // Match by ref OR by code (to handle v1/v2 ref differences), for both plan and related request
       const selectedCode = (explicitSelectedCurrencyRef.split(':').pop() || '').toUpperCase()
       baseFilters._and.push({
         _or: [
@@ -307,24 +277,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     }
     const finalFilters = buildWidgetFilters(baseFilters)
     return finalFilters
-  }, [getFilters, buildWidgetFilters, explicitSelectedCurrencyRef, debouncedSelectedFilters])
+  }, [getFilters, buildWidgetFilters, explicitSelectedCurrencyRef, selectedFilters])
 
   // Only fetch when filters, page, pageSize, or sorting changes and context is ready
   useEffect(() => {
-    // Check sessionStorage first for persisted currency (synchronous, no waiting)
-    const employeeId = props.userInfo?.employeeDetails?.employeeId
-    let persistedCurrency: string | null = null
-    if (employeeId) {
-      try {
-        const storageKey = `personal-expenses:plans:currencyRef:${employeeId}`
-        persistedCurrency = sessionStorage.getItem(storageKey)
-      } catch {
-        // ignore storage errors
-      }
-    }
-
-    // Avoid an initial fetch that will immediately be invalidated by currency auto-selection.
-    // We only fetch once currency is explicitly present in filters (unless user suppressed auto-select).
     const hasExplicitCurrency = !!explicitSelectedCurrencyRef
     const canFetch =
       !!props.accessToken &&
@@ -332,8 +288,15 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       (suppressCurrencyAutoSelect || hasExplicitCurrency)
 
     if (canFetch) {
-      const statsCurrency = explicitSelectedCurrencyRef || persistedCurrency || 'Currency:v1:EUR'
-      fetchOverview(memoizedFilters, currentPage, pageSize, sortField, sortOrder, statsCurrency)
+      const statsCurrency = explicitSelectedCurrencyRef || 'Currency:v1:EUR'
+      const filtersKey = JSON.stringify(memoizedFilters)
+      const filtersChanged = filtersKey !== lastFiltersKeyRef.current
+      if (filtersChanged) {
+        lastFiltersKeyRef.current = filtersKey
+        setCurrentPage(1)
+      }
+      const pageToFetch = filtersChanged ? 1 : currentPage
+      fetchOverview(memoizedFilters, pageToFetch, pageSize, sortField, sortOrder, statsCurrency)
     }
   }, [
     fetchOverview,
@@ -348,19 +311,18 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     suppressCurrencyAutoSelect
   ])
 
-  // Reset pagination when filters change (e.g., applying a status filter while on a later page).
-  // Use debounced filters to avoid resetting page multiple times during rapid filter changes
+  // When filters change (e.g. apply status filter while on page 2), reset to page 1 so the next
+  // fetch (triggered by memoizedFilters + currentPage in the main effect) uses page 1.
   useEffect(() => {
-    const currentFiltersKey = JSON.stringify(debouncedSelectedFilters)
+    const currentFiltersKey = JSON.stringify(selectedFilters)
     const previousFiltersKey = prevSelectedFiltersRef.current
 
-    // Skip on initial render; only react to actual changes.
     if (previousFiltersKey !== null && previousFiltersKey !== currentFiltersKey) {
       setCurrentPage(1)
     }
 
     prevSelectedFiltersRef.current = currentFiltersKey
-  }, [debouncedSelectedFilters])
+  }, [selectedFilters])
 
   // Force refetch when search is cleared to ensure table repopulates with correct filters
   useEffect(() => {
@@ -483,7 +445,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         activeWidgetKey={activeWidget ?? undefined}
         currentMonthClosedPlans={hasStatistics ? statistics.currentMonthClosedPlans : 0}
         previousMonthClosedPlans={hasStatistics ? statistics.previousMonthClosedPlans : 0}
-        currencyCode={selectedCurrencyRef?.split(':').pop() || 'EUR'}
+        currencyCode={currencyCodeForCards}
       />
     )
   }, [
@@ -493,7 +455,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     overviewError,
     handleWidgetClick,
     activeWidget,
-    selectedCurrencyRef
+    currencyCodeForCards
   ])
 
   useEffect(() => {
@@ -502,10 +464,26 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     }
   }, [props.onContentHeaderChange, contentHeader])
 
-  // Enhanced table change handler for server-side sorting
+  const getNextSortState = useCallback(
+    (sorter: any): { nextField: string; nextOrder: 'ascend' | 'descend' } => {
+      if (!sorter?.field) return { nextField: 'createdAt', nextOrder: 'ascend' }
+      const isSameColumn = sortField === sorter.field
+      const orderFromTable = sorter.order ?? null
+      if (isSameColumn && orderFromTable !== null) {
+        return { nextField: sorter.field, nextOrder: orderFromTable }
+      }
+      if (isSameColumn) {
+        if (sortOrder === 'ascend') return { nextField: sorter.field, nextOrder: 'descend' }
+        if (sortOrder === 'descend') return { nextField: 'createdAt', nextOrder: 'ascend' }
+        return { nextField: sorter.field, nextOrder: 'ascend' }
+      }
+      return { nextField: sorter.field, nextOrder: 'ascend' }
+    },
+    [sortField, sortOrder]
+  )
+
   const handleTableChange = useCallback(
     (pagination: any, _filters: any, sorter: any) => {
-      // Validate page number against total count to prevent invalid pagination
       const totalCount = overview?.totalCount || 0
       const maxPages = Math.max(1, Math.ceil(totalCount / pagination.pageSize))
       const validPage = pagination.current > maxPages ? 1 : pagination.current
@@ -513,30 +491,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       setCurrentPage(validPage)
       setPageSize(pagination.pageSize)
 
-      // Handle sorting for server-side sorting
-      if (sorter && sorter.field) {
-        // If clicking the same field, cycle through: ascend -> descend -> clear
-        if (sortField === sorter.field) {
-          if (sortOrder === 'ascend') {
-            setSortOrder('descend')
-          } else if (sortOrder === 'descend') {
-            setSortField('createdAt')
-            setSortOrder('descend')
-          } else {
-            setSortOrder('ascend')
-          }
-        } else {
-          // New field - start with ascend
-          setSortField(sorter.field)
-          setSortOrder('ascend')
-        }
-      } else {
-        // Reset to default sorting (creation date descending)
-        setSortField('createdAt')
-        setSortOrder('descend')
-      }
+      const { nextField, nextOrder } = getNextSortState(sorter)
+      setSortField(nextField)
+      setSortOrder(nextOrder)
     },
-    [sortField, sortOrder, overview?.totalCount]
+    [getNextSortState, overview?.totalCount]
   )
 
   return (
@@ -563,8 +522,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         // Strip synthetic token before storing in the real filters state.
         const strippedFilters = filters.filter(f => !f.startsWith(TOP_DESTINATION_FILTER_TOKEN_PREFIX))
 
-        // keep currency filter persisted
-        persistCurrencySelection(props.userInfo?.employeeDetails?.employeeId, strippedFilters)
         // manage auto-select suppression
         if (strippedFilters.length === 0) {
           setSuppressCurrencyAutoSelect(true)
@@ -578,9 +535,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         if (filterId.startsWith('currency:')) {
           const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'))
           const newFilters = selected ? [...nonCurrency, filterId] : nonCurrency
-          // persist currency change
-          persistCurrencySelection(props.userInfo?.employeeDetails?.employeeId, newFilters)
-          // If user deselects the currency, suppress auto-selection (persisted or default)
+          // If user deselects the currency, suppress auto-selection on next mount
           setSuppressCurrencyAutoSelect(!selected)
           setFilters(newFilters)
         } else {
@@ -594,6 +549,16 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       tableRefreshTrigger={tableRefreshTrigger}
       sortField={sortField}
       sortOrder={sortOrder}
+      planDateRange={planDateRange}
+      setPlanDateRange={setPlanDateRange}
+      startDateRange={startDateRange}
+      setStartDateRange={setStartDateRange}
+      endDateRange={endDateRange}
+      setEndDateRange={setEndDateRange}
+      effectiveDateRange={effectiveDateRange}
+      setEffectiveDateRange={setEffectiveDateRange}
+      onFiltersChange={() => setCurrentPage(1)}
+      availableStatuses={availableStatuses}
       {...({ currencyStats } as any)}
     />
   )

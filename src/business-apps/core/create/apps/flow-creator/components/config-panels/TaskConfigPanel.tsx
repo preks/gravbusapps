@@ -22,7 +22,7 @@ import {
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { TaskNodeConfig, DesignerMode } from '../../types/studioTypes'
-import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { AssignmentMode, FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 import { TaskGeneralTab } from './task/TaskGeneralTab'
 import { TaskFormTab } from './task/TaskFormTab'
@@ -50,6 +50,7 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
   const { t } = useTranslation(translations)
   const updateNodeConfig = useFlowStudioStore(s => s.updateNodeConfig)
   const updateNode = useFlowStudioStore(s => s.updateNode)
+  const rewriteExpressionsForTaskFieldRename = useFlowStudioStore(s => s.rewriteExpressionsForTaskFieldRename)
   const [activeTab, setActiveTab] = useState('general')
   const [view, setView] = useState<'config' | 'switchType'>('config')
   const showFormTab = config.kind === 'USER'
@@ -59,13 +60,14 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
     () =>
       [
         'general',
-        showFormTab ? 'form' : null,
         showAssignmentTab ? 'assignment' : null,
+        showFormTab ? 'form' : null,
         showAutomationTab ? 'events' : null
       ].filter(Boolean) as string[],
     [showAssignmentTab, showAutomationTab, showFormTab]
   )
   const showTabBar = visibleTabs.length > 1
+  const contentPaddingClassName = showTabBar ? 'gba:p-5' : 'gba:px-5 gba:py-4'
 
   useEffect(() => {
     if (!showFormTab && activeTab === 'form') setActiveTab('general')
@@ -74,10 +76,10 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
   }, [activeTab, showAssignmentTab, showAutomationTab, showFormTab])
   const header = useMemo(() => {
     if (config.stepType === FlowStepType.AI_TASK_EXPERT) {
-      return { Icon: Bot, bg: 'gba:bg-info-secondary', fg: 'gba:text-info-secondary-foreground', badge: 'AI' }
+      return { Icon: Bot, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'AI' }
     }
     if (config.stepType === FlowStepType.AI_AGENT) {
-      return { Icon: Brain, bg: 'gba:bg-info-secondary', fg: 'gba:text-info-secondary-foreground', badge: 'AI' }
+      return { Icon: Brain, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'AI' }
     }
     if (config.stepType === FlowStepType.FUNCTION) {
       return { Icon: Code2, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'Automation' }
@@ -87,16 +89,16 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
         Icon: UserCheck,
         bg: 'gba:bg-warning-secondary',
         fg: 'gba:text-warning-secondary-foreground',
-        badge: 'Human'
+        badge: 'User'
       }
     }
     if (config.stepType === FlowStepType.INFORMATION) {
-      return { Icon: Info, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'Human' }
+      return { Icon: Info, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'User' }
     }
     if (config.stepType === FlowStepType.ACKNOWLEDGE) {
-      return { Icon: CheckCircle2, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'Human' }
+      return { Icon: CheckCircle2, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'User' }
     }
-    return { Icon: ClipboardList, bg: 'gba:bg-accent', fg: 'gba:text-accent-foreground', badge: 'Human' }
+    return { Icon: ClipboardList, bg: 'gba:bg-accent', fg: 'gba:text-accent-foreground', badge: 'User' }
   }, [config.stepType])
 
   const update = useCallback(
@@ -111,9 +113,28 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
       const isAutomation = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT].includes(
         nextType
       )
+      const keepFunctionConfig = nextType === FlowStepType.FUNCTION && config.stepType === FlowStepType.FUNCTION
+      const keepTaskExpertConfig =
+        nextType === FlowStepType.AI_TASK_EXPERT && config.stepType === FlowStepType.AI_TASK_EXPERT
+      const neutralSystemAssignment = {
+        targets: null,
+        assignmentMode: AssignmentMode.ASSIGN,
+        allowReassignment: true
+      }
+
       update({
         stepType: nextType,
         kind: isAutomation ? 'SYSTEM' : 'USER',
+        assignment: isAutomation ? (neutralSystemAssignment as any) : config.assignment,
+        form: isAutomation ? [] : config.form,
+        links: nextType === FlowStepType.FUNCTION || nextType === FlowStepType.AI_TASK_EXPERT ? [] : config.links,
+        dueInMinutes: isAutomation ? undefined : config.dueInMinutes,
+        defaultPriority: isAutomation ? undefined : config.defaultPriority,
+        customStates: isAutomation ? undefined : config.customStates,
+        eventSubscriptions: isAutomation ? undefined : config.eventSubscriptions,
+        reworkConfig: isAutomation ? undefined : config.reworkConfig,
+        functionConfig: keepFunctionConfig ? config.functionConfig : undefined,
+        agentConfig: keepTaskExpertConfig ? config.agentConfig : undefined,
         permissionContext:
           nextType === FlowStepType.AI_AGENT
             ? (config.permissionContext ?? { contextType: 'USER', permissions: ['read', 'write', 'execute'] })
@@ -211,20 +232,6 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
                 >
                   {t('config-general')}
                 </TabsTrigger>
-                {showFormTab && (
-                  <TabsTrigger
-                    value="form"
-                    startIcon={<FileText className="gba:h-3.5 gba:w-3.5" />}
-                    className={
-                      activeTab === 'form'
-                        ? 'gba:bg-background gba:text-foreground gba:font-semibold gba:shadow-sm'
-                        : 'gba:text-muted-foreground'
-                    }
-                    data-testid={`${testId}-tab-form`}
-                  >
-                    {t('config-form')}
-                  </TabsTrigger>
-                )}
                 {showAssignmentTab && (
                   <TabsTrigger
                     value="assignment"
@@ -237,6 +244,20 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
                     data-testid={`${testId}-tab-assignment`}
                   >
                     {t('config-assignment')}
+                  </TabsTrigger>
+                )}
+                {showFormTab && (
+                  <TabsTrigger
+                    value="form"
+                    startIcon={<FileText className="gba:h-3.5 gba:w-3.5" />}
+                    className={
+                      activeTab === 'form'
+                        ? 'gba:bg-background gba:text-foreground gba:font-semibold gba:shadow-sm'
+                        : 'gba:text-muted-foreground'
+                    }
+                    data-testid={`${testId}-tab-form`}
+                  >
+                    {t('config-form')}
                   </TabsTrigger>
                 )}
                 {showAutomationTab && (
@@ -257,14 +278,14 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
             </div>
           )}
 
-          <div
-            className={
-              showTabBar ? 'gba:flex-1 gba:overflow-y-auto gba:p-5' : 'gba:flex-1 gba:overflow-y-auto gba:px-5 gba:py-4'
-            }
-          >
+          <div className="gba:flex-1 gba:overflow-y-auto">
             {/* General Tab */}
-            <TabsContent value="general" className="gba:flex gba:flex-col gba:gap-4 gba:mt-0">
+            <TabsContent
+              value="general"
+              className={`gba:flex gba:flex-col gba:gap-4 gba:mt-0 ${contentPaddingClassName}`}
+            >
               <TaskGeneralTab
+                nodeId={nodeId}
                 mode={mode}
                 config={config}
                 accessToken={accessToken}
@@ -277,24 +298,14 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
               />
             </TabsContent>
 
-            {/* Form Tab */}
-            {showFormTab && (
-              <TabsContent value="form" className="gba:flex gba:flex-col gba:gap-4 gba:mt-0">
-                <TaskFormTab
-                  mode={mode}
-                  config={config}
-                  studioData={studioData}
-                  update={update}
-                  title={t('config-form')}
-                  testId={testId}
-                />
-              </TabsContent>
-            )}
-
             {/* Assignment Tab */}
             {showAssignmentTab && (
-              <TabsContent value="assignment" className="gba:flex gba:flex-col gba:gap-4 gba:mt-0">
+              <TabsContent
+                value="assignment"
+                className={`gba:flex gba:flex-col gba:gap-4 gba:mt-0 ${contentPaddingClassName}`}
+              >
                 <TaskAssignmentTab
+                  nodeId={nodeId}
                   mode={mode}
                   config={config}
                   update={update}
@@ -304,9 +315,32 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
               </TabsContent>
             )}
 
+            {/* Form Tab */}
+            {showFormTab && (
+              <TabsContent
+                value="form"
+                className={`gba:flex gba:flex-col gba:gap-4 gba:mt-0 ${contentPaddingClassName}`}
+              >
+                <TaskFormTab
+                  mode={mode}
+                  config={config}
+                  studioData={studioData}
+                  update={update}
+                  title={t('config-form')}
+                  testId={testId}
+                  onFieldKeyRename={({ oldKey, newKey }) =>
+                    rewriteExpressionsForTaskFieldRename(nodeId, oldKey, newKey)
+                  }
+                />
+              </TabsContent>
+            )}
+
             {/* Automation Tab (Advanced only, user tasks only) */}
             {showAutomationTab && (
-              <TabsContent value="events" className="gba:flex gba:flex-col gba:gap-4 gba:mt-0">
+              <TabsContent
+                value="events"
+                className={`gba:flex gba:flex-col gba:gap-4 gba:mt-0 ${contentPaddingClassName}`}
+              >
                 <TaskEventsTab
                   config={config}
                   studioData={studioData}
