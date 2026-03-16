@@ -8,21 +8,21 @@ import type {
 type Translate = (key: string, args?: Record<string, unknown>) => string
 
 export const CUSTOM_MCP_PROVIDER_ID = 'mcp.custom-server'
-export const CUSTOM_STRUCTURED_PROVIDER_ID = 'data-bridge.custom-structured'
-export const CUSTOM_UNSTRUCTURED_PROVIDER_ID = 'anypoint-connect.custom-unstructured'
+export const CUSTOM_STRUCTURED_PROVIDER_ID = 'anypoint-connect.custom-structured'
+export const CUSTOM_UNSTRUCTURED_PROVIDER_ID = 'data-bridge.custom-unstructured'
 
-export const laneOrder: ExternalConnectionLane[] = ['mcp_servers', 'data_bridge', 'anypoint_connect']
+export const laneOrder: ExternalConnectionLane[] = ['mcp_servers', 'anypoint_connect', 'data_bridge']
 
 const providerCopyKeys: Record<string, { title: string; description: string }> = {
   [CUSTOM_MCP_PROVIDER_ID]: {
     title: 'connections-provider-custom-mcp-title',
     description: 'connections-provider-custom-mcp-description'
   },
-  'data-bridge.sap': {
+  'anypoint-connect.sap': {
     title: 'connections-provider-sap-title',
     description: 'connections-provider-sap-description'
   },
-  'data-bridge.oracle': {
+  'anypoint-connect.oracle': {
     title: 'connections-provider-oracle-title',
     description: 'connections-provider-oracle-description'
   },
@@ -30,23 +30,23 @@ const providerCopyKeys: Record<string, { title: string; description: string }> =
     title: 'connections-provider-custom-structured-title',
     description: 'connections-provider-custom-structured-description'
   },
-  'anypoint-connect.sharepoint': {
+  'data-bridge.sharepoint': {
     title: 'connections-provider-sharepoint-title',
     description: 'connections-provider-sharepoint-description'
   },
-  'anypoint-connect.onedrive': {
+  'data-bridge.onedrive': {
     title: 'connections-provider-onedrive-title',
     description: 'connections-provider-onedrive-description'
   },
-  'anypoint-connect.confluence': {
+  'data-bridge.confluence': {
     title: 'connections-provider-confluence-title',
     description: 'connections-provider-confluence-description'
   },
-  'anypoint-connect.google-drive': {
+  'data-bridge.google-drive': {
     title: 'connections-provider-google-drive-title',
     description: 'connections-provider-google-drive-description'
   },
-  'anypoint-connect.s3': {
+  'data-bridge.s3': {
     title: 'connections-provider-s3-title',
     description: 'connections-provider-s3-description'
   },
@@ -100,8 +100,8 @@ export const inferProviderIdFromConnection = (connection?: ExternalConnectionODM
   const explicitProviderId = getConnectionProviderId(connection)
   if (explicitProviderId) return explicitProviderId
   if (connection?.kind === 'mcp') return CUSTOM_MCP_PROVIDER_ID
-  if (connection?.lane === 'data_bridge' || connection?.kind === 'structured') return CUSTOM_STRUCTURED_PROVIDER_ID
-  if (connection?.lane === 'anypoint_connect' || connection?.kind === 'unstructured')
+  if (connection?.lane === 'anypoint_connect' || connection?.kind === 'structured') return CUSTOM_STRUCTURED_PROVIDER_ID
+  if (connection?.lane === 'data_bridge' || connection?.kind === 'unstructured')
     return CUSTOM_UNSTRUCTURED_PROVIDER_ID
   return ''
 }

@@ -41,6 +41,46 @@ export function extractSessionContextFromPlan(plan: BuildPlan): { sessionId: str
   return null
 }
 
+function hasPreviewableScreen(plan: BuildPlan): boolean {
+  return plan.components.some(
+    component =>
+      component.type === 'screen' &&
+      typeof component.metadata?.sessionId === 'string' &&
+      component.metadata.sessionId.length > 0 &&
+      typeof component.metadata?.repoId === 'string' &&
+      component.metadata.repoId.length > 0
+  )
+}
+
+export function canShowExistingBuild(plan: BuildPlan | null | undefined): plan is BuildPlan {
+  if (!plan) return false
+  if (!extractSessionContextFromPlan(plan)) return false
+  return hasPreviewableScreen(plan)
+}
+
+export function createFallbackCompletedSnapshot(plan: BuildPlan): BuildPlan | null {
+  const sessionContext = extractSessionContextFromPlan(plan)
+  if (!sessionContext) return null
+
+  const screenComponents = plan.components.filter(component => component.type === 'screen')
+  if (screenComponents.length === 0) return null
+
+  return {
+    ...plan,
+    status: 'completed',
+    currentPhase: 'complete',
+    components: screenComponents.map(component => ({
+      ...component,
+      status: component.status === 'completed' || component.status === 'reused' ? component.status : 'completed',
+      metadata: {
+        ...component.metadata,
+        sessionId: component.metadata?.sessionId ?? sessionContext.sessionId,
+        repoId: component.metadata?.repoId ?? sessionContext.repoId
+      }
+    }))
+  }
+}
+
 export function isValidOrchestratorViewState(value: unknown): value is OrchestratorViewState {
   return (
     value === 'idle' ||

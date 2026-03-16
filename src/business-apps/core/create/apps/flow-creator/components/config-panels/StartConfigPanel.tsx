@@ -4,7 +4,7 @@
  * Advanced mode: all trigger types (MANUAL_FORM, WEBHOOK, EVENT, SCHEDULE).
  */
 
-import React, { useCallback, useEffect } from 'react'
+import React, { useCallback, useEffect, useMemo } from 'react'
 import {
   Input,
   Label,
@@ -22,8 +22,9 @@ import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { StartNodeConfig, DesignerMode, TriggerType } from '../../types/studioTypes'
 import { FormBuilder } from '../form-builder'
 import type { InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
-import { ExpressionEditor } from '@/common/components/flow/expression-editor'
+import { FlowContextExpressionEditor } from '../shared/FlowContextExpressionEditor'
 import { useStudioExpressionSuggestions } from '../../hooks/useStudioExpressionSuggestions'
+import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 
 const TRIGGER_ICONS: Record<TriggerType, React.ElementType> = {
   MANUAL_FORM: Play,
@@ -43,6 +44,7 @@ interface StartConfigPanelProps {
   nodeId: string
   config: StartNodeConfig
   mode: DesignerMode
+  studioData: FlowStudioData
   'data-testid'?: string
 }
 
@@ -50,11 +52,39 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
   nodeId,
   config,
   mode,
+  studioData,
   'data-testid': testId = 'flow-studio-start-config'
 }) => {
   const { t } = useTranslation(translations)
   const updateNodeConfig = useFlowStudioStore(s => s.updateNodeConfig)
+  const rewriteExpressionsForStartFieldRename = useFlowStudioStore(s => s.rewriteExpressionsForStartFieldRename)
   const suggestions = useStudioExpressionSuggestions()
+  const dataSources = useMemo(
+    () => ({
+      catalogs: studioData.catalogs,
+      catalogsLoading: studioData.catalogsLoading,
+      catalogsError: studioData.catalogsError,
+      catalogsQuery: studioData.catalogsQuery,
+      catalogsHasMore: studioData.catalogsHasMore,
+      searchCatalogs: studioData.searchCatalogs,
+      loadMoreCatalogs: studioData.loadMoreCatalogs,
+      entities: studioData.entities,
+      entitiesLoading: studioData.entitiesLoading,
+      entitiesError: studioData.entitiesError
+    }),
+    [
+      studioData.catalogs,
+      studioData.catalogsError,
+      studioData.catalogsHasMore,
+      studioData.catalogsLoading,
+      studioData.catalogsQuery,
+      studioData.entities,
+      studioData.entitiesError,
+      studioData.entitiesLoading,
+      studioData.loadMoreCatalogs,
+      studioData.searchCatalogs
+    ]
+  )
 
   const handleTriggerChange = useCallback(
     (value: string) => {
@@ -82,8 +112,8 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
       <div className="gba:flex gba:items-center gba:gap-2 gba:px-5 gba:py-3 gba:border-b gba:border-border">
-        <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-success-secondary">
-          <Play className="gba:h-4 gba:w-4 gba:text-success-secondary-foreground" />
+        <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-muted">
+          <Play className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
         </div>
         <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Start Trigger</h3>
       </div>
@@ -127,7 +157,23 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
             <FormBuilder
               fields={config.form ?? []}
               onChange={(fields: InputBlock[]) => updateNodeConfig(nodeId, { form: fields })}
+              onFieldKeyRename={({ oldKey, newKey }) => rewriteExpressionsForStartFieldRename(oldKey, newKey)}
               mode={mode}
+              catalogs={studioData.catalogs}
+              catalogsLoading={studioData.catalogsLoading}
+              catalogsError={studioData.catalogsError}
+              catalogsQuery={studioData.catalogsQuery}
+              catalogsHasMore={studioData.catalogsHasMore}
+              searchCatalogs={studioData.searchCatalogs}
+              loadMoreCatalogs={studioData.loadMoreCatalogs}
+              entities={studioData.entities}
+              entitiesLoading={studioData.entitiesLoading}
+              entitiesError={studioData.entitiesError}
+              customDataNamespaces={studioData.customDataNamespaces}
+              customDataNamespacesLoading={studioData.customDataNamespacesLoading}
+              customDataKeysByNamespace={studioData.customDataKeysByNamespace}
+              customDataKeysLoadingByNamespace={studioData.customDataKeysLoadingByNamespace}
+              fetchCustomDataKeys={studioData.fetchCustomDataKeys}
               title={t('config-form')}
               description="Configure the form that initiators fill out to start this flow."
               data-testid={`${testId}-form-builder`}
@@ -182,8 +228,8 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
                 />
               </div>
               <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label className="gba:text-xs gba:font-medium">Filter Expression</Label>
-                <ExpressionEditor
+                <Label className="gba:text-xs gba:font-medium">Filter condition</Label>
+                <FlowContextExpressionEditor
                   value={config.eventConfig?.filter ?? ''}
                   onChange={value =>
                     updateNodeConfig(nodeId, {
@@ -191,6 +237,7 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
                     })
                   }
                   suggestions={suggestions}
+                  dataSources={dataSources}
                   placeholder="Optional condition — type {{ to insert fields…"
                   allowFreeText
                   data-testid={`${testId}-event-filter`}

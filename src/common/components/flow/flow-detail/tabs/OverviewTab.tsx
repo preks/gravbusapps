@@ -208,7 +208,9 @@ const getStepNumberColor = (status: string): { backgroundColor: string; color: s
 // Helper function to generate assignment display text based on step data
 const getAssignmentDisplayText = (step: FlowStep): string => {
   if (!step.assignedTo) return ''
-  return step.assignmentMode === 'ASSIGN' ? getAssignModeText(step) : getClaimModeText(step)
+  return step.assignmentMode === 'ASSIGN' || step.assignmentMode === 'ASSIGN_SINGLE'
+    ? getAssignModeText(step)
+    : getClaimModeText(step)
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ flowData, flowSteps }) => {

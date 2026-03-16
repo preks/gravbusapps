@@ -258,6 +258,8 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
             enablePagination
             enableSorting
             enableSelection={false}
+            enableResizing={false}
+            tableLayout="fixed"
           />
         </div>
       </DataDisplay>

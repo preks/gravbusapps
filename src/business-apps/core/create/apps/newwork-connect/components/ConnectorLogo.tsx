@@ -1,5 +1,5 @@
 import React from 'react'
-import { Cable, DatabaseZap, FileBox } from 'lucide-react'
+import { Cable, DatabaseZap, FileBox, Waypoints, ArrowLeftRight, Server } from 'lucide-react'
 import type { ExternalConnectionLane } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { connectorLogoPaths } from './connectorLogoPaths'
 
@@ -67,37 +67,18 @@ interface LaneLogoProps {
   lane: ExternalConnectionLane
 }
 
-interface LaneBrandDef {
-  abbr: string
-  bg: string
-  fg: string
-  icon?: React.FC<{ className?: string }>
-}
-
-const laneBrands: Record<ExternalConnectionLane, LaneBrandDef> = {
-  anypoint_connect: { abbr: 'AP', bg: '#6366F1', fg: '#fff' },
-  data_bridge: { abbr: 'DB', bg: '#059669', fg: '#fff' },
-  mcp_servers: { abbr: '', bg: '', fg: '', icon: Cable }
+const laneIcons: Record<ExternalConnectionLane, React.FC<{ className?: string; strokeWidth?: number }>> = {
+  anypoint_connect: Waypoints,
+  data_bridge: ArrowLeftRight,
+  mcp_servers: Server
 }
 
 export const LaneLogo: React.FC<LaneLogoProps> = ({ lane }) => {
-  const brand = laneBrands[lane]
+  const Icon = laneIcons[lane]
 
-  if (brand.abbr) {
-    return (
-      <div
-        className="gba:shrink-0 gba:flex gba:h-14 gba:w-14 gba:items-center gba:justify-center gba:rounded-2xl gba:text-lg gba:font-bold gba:select-none"
-        style={{ backgroundColor: brand.bg, color: brand.fg }}
-      >
-        {brand.abbr}
-      </div>
-    )
-  }
-
-  const Icon = brand.icon || Cable
   return (
-    <div className="gba:shrink-0 gba:flex gba:h-14 gba:w-14 gba:items-center gba:justify-center gba:rounded-2xl gba:bg-muted">
-      <Icon className="gba:h-7 gba:w-7" />
+    <div className="gba:shrink-0 gba:flex gba:h-14 gba:w-14 gba:items-center gba:justify-center gba:rounded-2xl gba:bg-decorative-1">
+      <Icon className="gba:h-7 gba:w-7 gba:text-decorative-3" strokeWidth={1.5} />
     </div>
   )
 }

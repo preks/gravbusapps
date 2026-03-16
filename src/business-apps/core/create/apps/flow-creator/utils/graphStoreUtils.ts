@@ -26,19 +26,24 @@ export function createDefaultConfig(type: FlowNodeType): StudioNodeConfig {
         kind: 'USER',
         title: 'New Task',
         form: [],
+        links: [],
         assignment: { targets: null, assignmentMode: AssignmentMode.CLAIM }
       } satisfies TaskNodeConfig
     case 'decision':
       return {
         nodeType: 'decision',
         decisionMode: 'USER',
+        links: [],
         branches: [
           { id: uuid(), label: 'Approve' },
           { id: uuid(), label: 'Reject' }
         ],
         userConfig: {
           userDecisionType: 'APPROVAL',
-          assignment: { targets: null, assignmentMode: AssignmentMode.CLAIM },
+          assignment: {
+            targets: { users: ['{{$orgchart.managerByUserId[$workflow.initiator]}}'] },
+            assignmentMode: AssignmentMode.ASSIGN_SINGLE
+          },
           options: [
             { id: 'approve', label: 'Approve' },
             { id: 'reject', label: 'Reject' }

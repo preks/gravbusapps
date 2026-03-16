@@ -1086,6 +1086,89 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       accessToken
     })
 
+    // Page count and current page from PaginationPlus DOM.
+    //
+    // PaginationPlus renders a `[data-rm-pagination]` wrapper with one `.rm-page-break` child per page.
+    // Each `.rm-page-break` contains a `.breaker` element positioned at the end of that page.
+    // We compute:
+    // - total pages = number of `.rm-page-break` children (fallback to 1)
+    // - current page = 1 + number of *page boundaries* (breaker elements except last page) above viewport center
+    const paginationModelRef = useRef<{ totalPages: number; boundaryEls: HTMLElement[] }>({
+      totalPages: 1,
+      boundaryEls: []
+    })
+    const paginationRafRef = useRef<number | null>(null)
+    const paginationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const PAGINATION_DEBOUNCE_MS = 150
+
+    const computeCurrentPageFromBoundaries = useCallback(
+      (container: HTMLDivElement, totalPages: number, boundaryEls: HTMLElement[]) => {
+        if (totalPages <= 1 || boundaryEls.length === 0) return 1
+        const containerRect = container.getBoundingClientRect()
+        const viewportCenterY = containerRect.top + containerRect.height / 2
+
+        let passedBoundaries = 0
+        for (const boundaryEl of boundaryEls) {
+          const boundaryTop = boundaryEl.getBoundingClientRect().top
+          if (viewportCenterY >= boundaryTop) {
+            passedBoundaries += 1
+          } else {
+            break
+          }
+        }
+
+        return Math.min(Math.max(1, 1 + passedBoundaries), totalPages)
+      },
+      []
+    )
+
+    const rebuildPaginationModel = useCallback(() => {
+      const container = editorContainerRef.current
+      if (!container) return
+
+      const paginationRoot = container.querySelector('[data-rm-pagination]')
+      const pageEls = paginationRoot ? Array.from(paginationRoot.children) : []
+      const pageBreakEls = pageEls.filter((el): el is HTMLElement => el instanceof HTMLElement)
+      const totalPages = pageBreakEls.length > 0 ? pageBreakEls.length : 1
+
+      // Boundaries between pages are the `.breaker` elements for all but the last page.
+      const boundaryEls = pageBreakEls
+        .slice(0, -1)
+        .map(el => el.querySelector('.breaker'))
+        .filter((el): el is HTMLElement => el instanceof HTMLElement)
+
+      paginationModelRef.current = { totalPages, boundaryEls }
+
+      setPageCount(totalPages)
+      setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
+    }, [computeCurrentPageFromBoundaries])
+
+    const schedulePaginationRebuild = useCallback(
+      (immediate = false) => {
+        const run = () => {
+          if (paginationRafRef.current) cancelAnimationFrame(paginationRafRef.current)
+          paginationRafRef.current = requestAnimationFrame(() => {
+            paginationRafRef.current = null
+            rebuildPaginationModel()
+          })
+        }
+        if (immediate) {
+          if (paginationDebounceRef.current) {
+            clearTimeout(paginationDebounceRef.current)
+            paginationDebounceRef.current = null
+          }
+          run()
+          return
+        }
+        if (paginationDebounceRef.current) clearTimeout(paginationDebounceRef.current)
+        paginationDebounceRef.current = setTimeout(() => {
+          paginationDebounceRef.current = null
+          run()
+        }, PAGINATION_DEBOUNCE_MS)
+      },
+      [rebuildPaginationModel]
+    )
+
     // Initialize TipTap editor
     const editor = useEditor(
       {
@@ -1412,89 +1495,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         setShowInlineCommentPopover(true)
       },
       [editor]
-    )
-
-    // Page count and current page from PaginationPlus DOM.
-    //
-    // PaginationPlus renders a `[data-rm-pagination]` wrapper with one `.rm-page-break` child per page.
-    // Each `.rm-page-break` contains a `.breaker` element positioned at the end of that page.
-    // We compute:
-    // - total pages = number of `.rm-page-break` children (fallback to 1)
-    // - current page = 1 + number of *page boundaries* (breaker elements except last page) above viewport center
-    const paginationModelRef = useRef<{ totalPages: number; boundaryEls: HTMLElement[] }>({
-      totalPages: 1,
-      boundaryEls: []
-    })
-    const paginationRafRef = useRef<number | null>(null)
-    const paginationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const PAGINATION_DEBOUNCE_MS = 150
-
-    const computeCurrentPageFromBoundaries = useCallback(
-      (container: HTMLDivElement, totalPages: number, boundaryEls: HTMLElement[]) => {
-        if (totalPages <= 1 || boundaryEls.length === 0) return 1
-        const containerRect = container.getBoundingClientRect()
-        const viewportCenterY = containerRect.top + containerRect.height / 2
-
-        let passedBoundaries = 0
-        for (const boundaryEl of boundaryEls) {
-          const boundaryTop = boundaryEl.getBoundingClientRect().top
-          if (viewportCenterY >= boundaryTop) {
-            passedBoundaries += 1
-          } else {
-            break
-          }
-        }
-
-        return Math.min(Math.max(1, 1 + passedBoundaries), totalPages)
-      },
-      []
-    )
-
-    const rebuildPaginationModel = useCallback(() => {
-      const container = editorContainerRef.current
-      if (!container) return
-
-      const paginationRoot = container.querySelector('[data-rm-pagination]')
-      const pageEls = paginationRoot ? Array.from(paginationRoot.children) : []
-      const pageBreakEls = pageEls.filter((el): el is HTMLElement => el instanceof HTMLElement)
-      const totalPages = pageBreakEls.length > 0 ? pageBreakEls.length : 1
-
-      // Boundaries between pages are the `.breaker` elements for all but the last page.
-      const boundaryEls = pageBreakEls
-        .slice(0, -1)
-        .map(el => el.querySelector('.breaker'))
-        .filter((el): el is HTMLElement => el instanceof HTMLElement)
-
-      paginationModelRef.current = { totalPages, boundaryEls }
-
-      setPageCount(totalPages)
-      setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
-    }, [computeCurrentPageFromBoundaries])
-
-    const schedulePaginationRebuild = useCallback(
-      (immediate = false) => {
-        const run = () => {
-          if (paginationRafRef.current) cancelAnimationFrame(paginationRafRef.current)
-          paginationRafRef.current = requestAnimationFrame(() => {
-            paginationRafRef.current = null
-            rebuildPaginationModel()
-          })
-        }
-        if (immediate) {
-          if (paginationDebounceRef.current) {
-            clearTimeout(paginationDebounceRef.current)
-            paginationDebounceRef.current = null
-          }
-          run()
-          return
-        }
-        if (paginationDebounceRef.current) clearTimeout(paginationDebounceRef.current)
-        paginationDebounceRef.current = setTimeout(() => {
-          paginationDebounceRef.current = null
-          run()
-        }, PAGINATION_DEBOUNCE_MS)
-      },
-      [rebuildPaginationModel]
     )
 
     useEffect(() => {

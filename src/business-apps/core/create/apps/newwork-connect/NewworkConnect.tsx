@@ -215,15 +215,22 @@ export const NewworkConnect: React.FC<BusinessAppContextProps> = ({ accessToken 
                   data-testid={`newwork-connect-hero-card-${lane}`}
                 >
                   <CardHeader className="gba:pb-3">
-                    <div className="gba:flex gba:items-center gba:gap-3">
+                    <div className="gba:flex gba:items-center gba:gap-4">
                       <LaneLogo lane={lane} />
                       <div className="gba:min-w-0 gba:flex-1">
-                        <CardTitle className="gba:text-base">{t(config.titleKey)}</CardTitle>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <CardTitle className="gba:font-funnel-display gba:text-lg gba:font-light gba:tracking-tight">
+                            {t(config.titleKey)}
+                          </CardTitle>
+                          <span
+                            className="gba:inline-flex gba:items-center gba:px-2 gba:py-0.5 gba:rounded-full gba:text-[11px] gba:font-semibold gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground"
+                            data-testid={`newwork-connect-hero-count-${lane}`}
+                          >
+                            {activeCount} {t('connect-active-suffix')}
+                          </span>
+                        </div>
                         <CardDescription className="gba:text-xs">{t(config.descriptionKey)}</CardDescription>
                       </div>
-                      <Badge variant="secondary" data-testid={`newwork-connect-hero-count-${lane}`}>
-                        {activeCount} {t('connect-active-suffix')}
-                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="gba:pt-0">

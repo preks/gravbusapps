@@ -45,21 +45,7 @@ function normalizeValueKeys(values: Record<string, unknown>): Record<string, unk
   const result: Record<string, unknown> = {}
 
   for (const [key, val] of Object.entries(values)) {
-    // Normalize to camelCase
-    // Split on separators first to avoid backtracking vulnerabilities
-    const parts = key.split(/[_\-\s]+/)
-    const normalized = parts
-      .map((part, index) => {
-        // Remove non-alphanumeric chars from each part
-        const cleaned = part.replace(/[^a-zA-Z0-9]/g, '')
-        if (!cleaned) return ''
-        // First part starts lowercase, rest start uppercase
-        if (index === 0) {
-          return cleaned.charAt(0).toLowerCase() + cleaned.slice(1)
-        }
-        return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
-      })
-      .join('')
+    const normalized = normalizeValueKey(key)
 
     if (normalized !== key && process.env.NODE_ENV !== 'production') {
       console.warn(
@@ -73,6 +59,20 @@ function normalizeValueKeys(values: Record<string, unknown>): Record<string, unk
   }
 
   return result
+}
+
+function normalizeValueKey(key: string): string {
+  const parts = key.split(/[_\-\s]+/)
+  return parts
+    .map((part, index) => {
+      const cleaned = part.replace(/[^a-zA-Z0-9]/g, '')
+      if (!cleaned) return ''
+      if (index === 0) {
+        return cleaned.charAt(0).toLowerCase() + cleaned.slice(1)
+      }
+      return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+    })
+    .join('')
 }
 
 export class CustomDataMutationClient extends RestClient {
@@ -107,16 +107,26 @@ export class CustomDataMutationClient extends RestClient {
 
   async createRow(params: CustomDataRowCreateParams): Promise<CustomDataFlowMutationResponse> {
     const namespace = (params.namespace ?? this.namespace) || 'default'
+    const normalizedValues = normalizeValueKeys(params.values)
 
     try {
       return await this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-create', {
         namespace,
         definitionKey: params.definitionKey,
-        values: normalizeValueKeys(params.values),
+        values: normalizedValues,
         initiator: params.initiator,
         timeoutMs: params.timeoutMs
       })
     } catch (error: any) {
+      if (this.shouldRetryWithOriginalValues(error, params.values, normalizedValues)) {
+        return this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-create', {
+          namespace,
+          definitionKey: params.definitionKey,
+          values: params.values,
+          initiator: params.initiator,
+          timeoutMs: params.timeoutMs
+        })
+      }
       // Enhance "Unknown column" errors with field name suggestions
       if (error?.message?.includes('Unknown column')) {
         const enhancedMessage = this.enhanceUnknownColumnError(error.message, params.values, params.definitionKey)
@@ -128,17 +138,28 @@ export class CustomDataMutationClient extends RestClient {
 
   async updateRow(params: CustomDataRowUpdateParams): Promise<CustomDataFlowMutationResponse> {
     const namespace = (params.namespace ?? this.namespace) || 'default'
+    const normalizedValues = normalizeValueKeys(params.values)
 
     try {
       return await this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-update', {
         namespace,
         definitionKey: params.definitionKey,
         rowId: params.rowId,
-        values: normalizeValueKeys(params.values),
+        values: normalizedValues,
         initiator: params.initiator,
         timeoutMs: params.timeoutMs
       })
     } catch (error: any) {
+      if (this.shouldRetryWithOriginalValues(error, params.values, normalizedValues)) {
+        return this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-update', {
+          namespace,
+          definitionKey: params.definitionKey,
+          rowId: params.rowId,
+          values: params.values,
+          initiator: params.initiator,
+          timeoutMs: params.timeoutMs
+        })
+      }
       // Enhance "Unknown column" errors with field name suggestions
       if (error?.message?.includes('Unknown column')) {
         const enhancedMessage = this.enhanceUnknownColumnError(error.message, params.values, params.definitionKey)
@@ -159,6 +180,18 @@ export class CustomDataMutationClient extends RestClient {
       `but the entity schema may not have these fields.\n` +
       `Check the data model definition to see the actual field names.`
     )
+  }
+
+  private shouldRetryWithOriginalValues(
+    error: any,
+    originalValues: Record<string, unknown>,
+    normalizedValues: Record<string, unknown>
+  ): boolean {
+    if (!error?.message?.includes('Unknown column')) return false
+    const originalKeys = Object.keys(originalValues)
+    const normalizedKeys = Object.keys(normalizedValues)
+    if (originalKeys.length !== normalizedKeys.length) return true
+    return originalKeys.some(key => normalizeValueKey(key) !== key)
   }
 
   async deleteRow(params: CustomDataRowDeleteParams): Promise<CustomDataFlowMutationResponse> {

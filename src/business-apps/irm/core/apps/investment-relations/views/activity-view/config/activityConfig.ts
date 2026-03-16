@@ -1,4 +1,3 @@
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { ActivityViewConfig } from '@/common/components/common-relations/view-layouts/activity-layout/ActivityLayout'
 import type { InvestmentActivity } from '@/common/data/investment/types/investmentActivityTypes'
 import type { InvestmentActivityQueryVariables } from '@/common/data/investment/queries/investmentActivityQueries'
@@ -6,13 +5,23 @@ import { useGetInvestmentActivities } from '@/common/data/investment/hooks/useIn
 import {
   createActivityColumns,
   activitySortableColumns,
-  activityAvailableColumns,
-  activityFilterConfig
+  activityAvailableColumns
 } from '@/common/components/common-relations/view-layouts/activity-layout/config'
-import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/utils/filterHelpers'
+import { investmentActivityFilterConfig } from '@/common/components/common-relations/view-layouts/activity-layout/config/investmentActivityFilterConfig'
 import { createActivityDescriptors } from '@/common/data/relations/types/activityTypes'
-import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+
+/**
+ * Maps column ids (used by the table) to descriptor keys (used by buildOrderBy).
+ * Required when the column id contains a nested path like 'activityType.value'
+ * but the descriptor key is just 'activityType'.
+ */
+const COLUMN_TO_SORT_FIELD: Record<string, string> = {
+  'activityType.value': 'activityType',
+  'ownerEmployee.displayName': 'ownerEmployee'
+}
 
 /**
  * Helper: Build sorting configuration
@@ -20,11 +29,11 @@ import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 const buildSortingConfig = (sorting: Array<{ id: string; desc: boolean }>) => {
   if (sorting.length > 0) {
     return sorting.map(sort => ({
-      field: sort.id as any,
-      direction: sort.desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+      field: COLUMN_TO_SORT_FIELD[sort.id] ?? sort.id,
+      direction: (sort.desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST') as 'DESC_NULLS_LAST' | 'ASC_NULLS_LAST'
     }))
   }
-  return [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }]
+  return [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' as const }]
 }
 
 /**
@@ -37,11 +46,9 @@ const applyActivityFilters = (
   if (selectedFilters.activityTypeIds && Array.isArray(selectedFilters.activityTypeIds)) {
     variables.activityTypeIds = selectedFilters.activityTypeIds
   }
-
   if (selectedFilters.ownerEmployeeIds && Array.isArray(selectedFilters.ownerEmployeeIds)) {
     variables.ownerEmployeeIds = selectedFilters.ownerEmployeeIds
   }
-
   if (selectedFilters.referenceType && Array.isArray(selectedFilters.referenceType)) {
     variables.referenceTypes = selectedFilters.referenceType
   }
@@ -59,7 +66,6 @@ const applyDateRangeFilters = (
     if (createdAtRange.from) variables.createdAtFrom = createdAtRange.from
     if (createdAtRange.to) variables.createdAtTo = createdAtRange.to
   }
-
   const occurredAtRange = normalizeDateRange(selectedFilters.occurredAtRange)
   if (occurredAtRange) {
     if (occurredAtRange.from) variables.occurredAtFrom = occurredAtRange.from
@@ -84,30 +90,22 @@ const buildQueryVariables = (params: {
     search: searchTerm || undefined
   }
 
-  // Apply sorting configuration
   variables.orderBy = buildSortingConfig(sorting)
-
-  // Apply activity filters
   applyActivityFilters(variables, selectedFilters)
-
-  // Apply date range filters
   applyDateRangeFilters(variables, selectedFilters)
 
   return variables
 }
 
 /**
- * Build IRM Activity Configuration
+ * Build IRM Activity Configuration.
+ * Accepts fetchInvestmentActivities as a parameter so the caller can call the hook
+ * at the component level and memoize the resulting config — same pattern as IRM TaskView.
  */
 export const buildIrmActivityConfig = (
-  context: BusinessAppContextProps
+  fetchInvestmentActivities: ReturnType<typeof useGetInvestmentActivities>['fetchInvestmentActivities']
 ): ActivityViewConfig<InvestmentActivity, InvestmentActivityQueryVariables> => {
-  const { fetchInvestmentActivities } = useGetInvestmentActivities(context)
   const activityDescriptors = createActivityDescriptors()
-  const filterGroups = useFilterGroups(context, 'InvestmentActivity', activityDescriptors, { limit: 100 })
-
-  // Enhanced filter configuration with dynamic options
-  const enhancedFilterConfig = buildDynamicFilterConfig(activityFilterConfig, activityDescriptors, filterGroups)
 
   return {
     fetchActivities: async variables => {
@@ -118,15 +116,54 @@ export const buildIrmActivityConfig = (
       }
     },
 
-    createColumns: config => createActivityColumns(config),
+    createColumns: config => createActivityColumns(config) as any,
 
-    baseFilterConfig: enhancedFilterConfig,
+    descriptors: activityDescriptors,
+    entityName: 'InvestmentActivity',
+
+    baseFilterConfig: investmentActivityFilterConfig,
 
     buildQueryVariables,
 
     sortableColumns: activitySortableColumns,
 
     availableColumns: activityAvailableColumns,
+
+    flowContexts: {
+      entityContext: FlowContextName.investmentActivityEntity,
+      createContext: FlowContextName.investmentActivityCreate
+    },
+
+    rowActionsContextArray: [FlowContextName.investmentActivityEntity],
+
+    buildRowActionsExternalContextData: (row: { original: InvestmentActivity }) => {
+      const externalContextData: Record<string, string> = {
+        activityId: row.original.id
+      }
+      if (row.original.accountId) externalContextData.accountId = row.original.accountId
+      if (row.original.contactId) externalContextData.contactId = row.original.contactId
+      if (row.original.leadId) externalContextData.leadId = row.original.leadId
+      if (row.original.opportunityId) externalContextData.opportunityId = row.original.opportunityId
+      if ((row.original as any).investmentId) externalContextData.investmentId = (row.original as any).investmentId
+      return externalContextData
+    },
+
+    buildReferenceUrl: reference => {
+      switch (reference.type) {
+        case 'lead':
+          return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id })
+        case 'account':
+          return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id })
+        case 'contact':
+          return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id })
+        case 'opportunity':
+          return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id })
+        case 'investment':
+          return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id })
+        default:
+          return ''
+      }
+    },
 
     translations: {
       allActivities: {

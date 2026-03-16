@@ -5,7 +5,7 @@
  * Example: "Hello {{$workflow.initiator.name}}, your amount is {{$steps.step_0.formData.amount}}"
  */
 
-import type { ExpressionSourceType, ExpressionPillData } from './types/expressionTypes'
+import type { ExpressionSourceType, ExpressionPillData, ExpressionSuggestionItem } from './types/expressionTypes'
 
 /**
  * Detect the source type from an expression string prefix.
@@ -37,13 +37,50 @@ export function expressionToLabel(expression: string): string {
   return `${parts[1]}.${parts[parts.length - 1]}`
 }
 
+function getExpressionAliases(expression: string): string[] {
+  const expr = String(expression || '').trim()
+  if (!expr) return []
+
+  const aliases = new Set<string>([expr])
+
+  const triggerInputValuesMatch = expr.match(/^\$workflow\.input\.inputValues\.(.+)$/)
+  if (triggerInputValuesMatch) {
+    const suffix = triggerInputValuesMatch[1]
+    aliases.add(`$workflow.input.${suffix}`)
+    aliases.add(`$workflow.input.formData.${suffix}`)
+    aliases.add(`$workflow.input.inputData.${suffix}`)
+  }
+
+  const stepResultMatch = expr.match(/^\$steps\.([^.]+)\.resultData\.(.+)$/)
+  if (stepResultMatch) {
+    aliases.add(`$steps.${stepResultMatch[1]}.${stepResultMatch[2]}`)
+  }
+
+  return Array.from(aliases)
+}
+
 /**
  * Convert an expression string (with {{...}}) to Tiptap editor JSON content.
  */
-export function expressionToEditorJSON(value: string): Record<string, unknown> {
+export function expressionToEditorJSON(
+  value: string,
+  suggestions?: ExpressionSuggestionItem[]
+): Record<string, unknown> {
   const content: Array<Record<string, unknown>> = []
   let lastIndex = 0
   let searchFrom = 0
+
+  const byExpression = (() => {
+    const map = new Map<string, ExpressionSuggestionItem>()
+    for (const s of suggestions ?? []) {
+      const expr = String(s?.expression || '').trim()
+      if (!expr) continue
+      for (const alias of getExpressionAliases(expr)) {
+        if (!map.has(alias)) map.set(alias, s)
+      }
+    }
+    return map
+  })()
 
   while (searchFrom <= value.length) {
     const openIdx = value.indexOf('{{', searchFrom)
@@ -62,8 +99,9 @@ export function expressionToEditorJSON(value: string): Record<string, unknown> {
     }
 
     const expr = value.slice(openIdx + 2, closeIdx)
-    const source = detectSourceType(expr)
-    const label = expressionToLabel(expr)
+    const match = byExpression.get(expr)
+    const source = (match?.source as ExpressionSourceType | undefined) ?? detectSourceType(expr)
+    const label = String(match?.label || '').trim() || expressionToLabel(expr)
 
     content.push({
       type: 'mention',

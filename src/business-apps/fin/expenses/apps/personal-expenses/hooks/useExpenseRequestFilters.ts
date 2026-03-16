@@ -81,9 +81,13 @@ export interface UseExpenseRequestFiltersReturn {
   handleFilterChange: (filterId: string, selected: boolean) => void
   clearFilters: () => void
   getFilters: () => ExpenseRequestWhereClause
-  setStartDateRange: (dateRange: [Date | null, Date | null] | null) => void
-  setEndDateRange: (dateRange: [Date | null, Date | null] | null) => void
+  requestDateRange: [Date | null, Date | null] | null
   setRequestDateRange: (dateRange: [Date | null, Date | null] | null) => void
+  startDateRange: [Date | null, Date | null] | null
+  setStartDateRange: (dateRange: [Date | null, Date | null] | null) => void
+  endDateRange: [Date | null, Date | null] | null
+  setEndDateRange: (dateRange: [Date | null, Date | null] | null) => void
+  effectiveDateRange: [Date | null, Date | null] | null
   setEffectiveDateRange: (dateRange: [Date | null, Date | null] | null) => void
   filterLabelMap: Record<string, string>
   addFilter: (filterId: string) => void
@@ -507,9 +511,13 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     handleFilterChange,
     clearFilters: clearAllFilters,
     getFilters,
-    setStartDateRange,
-    setEndDateRange,
+    requestDateRange,
     setRequestDateRange,
+    startDateRange,
+    setStartDateRange,
+    endDateRange,
+    setEndDateRange,
+    effectiveDateRange,
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,

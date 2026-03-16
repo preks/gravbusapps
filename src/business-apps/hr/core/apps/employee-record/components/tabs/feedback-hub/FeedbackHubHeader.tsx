@@ -9,9 +9,17 @@ interface FeedbackHubHeaderProps {
   t: (key: string, options?: Record<string, unknown>) => string
   employee: Employee
   accessToken: string
+  isSelfView: boolean
+  currentUserEmployeeId: string
 }
 
-const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({ t, employee, accessToken }) => (
+const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({
+  t,
+  employee,
+  accessToken,
+  isSelfView,
+  currentUserEmployeeId
+}) => (
   <div>
     <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:items-center gba:gap-4">
       <div className="gba:max-w-2xl">
@@ -19,15 +27,28 @@ const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({ t, employee, acce
         <p className="gba:text-muted-foreground gba:text-lg">{t('feedback-hub-description')}</p>
       </div>
       <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
-        <AppAction
-          variant="update-primary"
-          contexts={[{ context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }]}
-          prefixDataTestId="add-feedback"
-          accessToken={accessToken}
-          autoExecute={true}
-        >
-          {t('feedback-hub-give-feedback')}
-        </AppAction>
+        {!isSelfView && (
+          <AppAction
+            variant="update-primary"
+            contexts={[
+              {
+                context: FlowContextName.employeeGiveFeedback,
+                contextData: {
+                  // Resolve flow permissions against current user context.
+                  employeeId: currentUserEmployeeId,
+                  // Prefill modal target with viewed employee.
+                  receiverId: employee?.userId,
+                  targetEmployeeId: employee?.id
+                }
+              }
+            ]}
+            prefixDataTestId="add-feedback"
+            accessToken={accessToken}
+            autoExecute={true}
+          >
+            {t('feedback-hub-give-feedback')}
+          </AppAction>
+        )}
         <AppAction
           variant="update-secondary"
           buttonSize="default"

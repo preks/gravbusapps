@@ -305,6 +305,7 @@ working-conditions-unit-year = { $count ->
 
 # Create Request Correction Form
 complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
+request-correction-date-absence-error = Dieses Datum ist ein Feiertag oder eine Abwesenheit und kann nicht für eine Korrekturanfrage verwendet werden.
 notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
 notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet

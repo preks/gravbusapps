@@ -12,6 +12,7 @@ overtime = Überstunden
 incomplete = Unvollständig
 complete = Vollständig
 generate_report = Bericht erstellen
+manual_entry = Manuelle Erfassung
 report_title = Zeitverlauf-Bericht
 generated = Erstellt
 history = Verlauf
