@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { buildFilename, formatExportDate } from '@/common/utils/excelExportUtils'
+import { formatExportDate } from '@/common/utils/excelExportUtils'
 import { useExportBase } from '@/common/hooks/useExportBase'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
 
@@ -90,4 +90,4 @@ export function useActivityExport({
 }
 
 // Keep backward-compatible re-export of buildFilename for any callers
-export { buildFilename }
+export { buildFilename } from '@/common/utils/excelExportUtils'
