@@ -82,7 +82,11 @@ export const TableWidget: React.FC<TableWidgetProps> = ({ config, columns, rows,
                     colIdx === 0 ? 'gba:font-medium' : ''
                   }`}
                 >
-                  {row.data[col.name] != null ? String(row.data[col.name]) : ''}
+                  {row.data[col.name] != null
+                    ? (typeof row.data[col.name] === 'object'
+                      ? (() => { try { return JSON.stringify(row.data[col.name]) } catch { return '' } })()
+                      : String(row.data[col.name]))
+                    : ''}
                 </td>
               ))}
             </tr>

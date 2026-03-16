@@ -39,9 +39,12 @@ import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 
 /**
  * Customer Activity Query Variables Interface
- * Extends CommonActivityQueryVariables (no CRM-specific filters)
+ * Extends CommonActivityQueryVariables with CRM-specific reference type filter.
  */
-export type CustomerActivityQueryVariables = CommonActivityQueryVariables
+export interface CustomerActivityQueryVariables extends CommonActivityQueryVariables {
+  /** Filter by reference entity type: 'account' | 'contact' | 'lead' | 'opportunity' */
+  referenceTypes?: string[]
+}
 
 /**
  * Build Customer Activity query with fields mapping

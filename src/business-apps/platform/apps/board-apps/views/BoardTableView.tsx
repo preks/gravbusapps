@@ -77,24 +77,21 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   testId
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const loadMoreSentinelRef = useRef<HTMLDivElement>(null)
   const [settingsColumn, setSettingsColumn] = useState<BoardColumn | null>(null)
-  useEffect(() => {
-    if (!onLoadMore || rowsLoading || !rowsTotalProp) return
-    const hasMore = rows.length < rowsTotalProp
-    if (!hasMore) return
-    const el = loadMoreSentinelRef.current
-    if (!el) return
-    const root = containerRef.current
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0]?.isIntersecting) onLoadMore()
-      },
-      { root: root ?? undefined, rootMargin: '200px', threshold: 0 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
+  const handleScroll = useCallback(() => {
+    const el = containerRef.current
+    if (!el || !onLoadMore || rowsLoading) return
+    if (rowsTotalProp == null || rows.length >= rowsTotalProp) return
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 300
+    if (nearBottom) onLoadMore()
   }, [onLoadMore, rows.length, rowsTotalProp, rowsLoading])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !onLoadMore) return
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => el.removeEventListener('scroll', handleScroll)
+  }, [handleScroll, onLoadMore])
 
   const hasFlowRows = rows.some(r => r.data.flowId && typeof r.data.flowId === 'string')
   const flowExpand = useFlowExpandableRows()
@@ -377,8 +374,8 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
         </table>
         {onLoadMore && rowsTotalProp != null && rows.length < rowsTotalProp && (
           <div
-            ref={loadMoreSentinelRef}
-            className="gba:flex gba:items-center gba:justify-center gba:py-4 gba:w-full"
+            className="gba:flex gba:items-center gba:justify-center gba:py-4 gba:sticky gba:left-0"
+            style={{ width: containerRef.current?.clientWidth ?? '100%' }}
             data-testid={`${testId}-load-more-sentinel`}
           >
             {rowsLoading ? (

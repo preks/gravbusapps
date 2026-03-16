@@ -6,6 +6,14 @@ hero-tag-spreadsheets = Spreadsheets
 hero-tag-notes = Notes
 hero-headline = Your content. Unified.
 hero-subtitle = Create documents, build spreadsheets, and capture notes. All in one seamless workspace.
+hero-nav-aria-label = Office apps
+hero-nav-documents = Docs
+hero-nav-spreadsheets = Sheets
+hero-nav-notes = Notes
+hero-nav-slides = Slides
+hero-nav-drive = Drive
+hero-nav-spaces = Spaces
+hero-nav-emails = Mail
 
 # DeskHub – Spaces & Work
 spaces-title = Your Spaces

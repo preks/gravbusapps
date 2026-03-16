@@ -11,6 +11,8 @@ export interface PlanDetailPageProps {
   userInfo?: any
   /** From URL query: open this plan (load and show review) */
   jobId: string | null
+  /** From URL query: open an imported app session directly (show complete preview state) */
+  sessionId?: string | null
   initialPrompt?: string
   onBack?: () => void
 }
@@ -19,6 +21,7 @@ export const PlanDetailPage: React.FC<PlanDetailPageProps> = ({
   accessToken,
   userInfo,
   jobId,
+  sessionId,
   initialPrompt,
   onBack
 }) => {
@@ -29,6 +32,7 @@ export const PlanDetailPage: React.FC<PlanDetailPageProps> = ({
         userInfo={userInfo}
         initialPrompt={initialPrompt ?? ''}
         initialJobId={jobId ?? undefined}
+        initialSessionId={sessionId ?? undefined}
         onBack={onBack}
         data-testid="ai-orchestrator-plan-detail"
       />
