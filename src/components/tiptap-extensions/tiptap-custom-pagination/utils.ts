@@ -16,6 +16,19 @@ import type {
   StoredHeaderFooterContent
 } from './types'
 
+interface PageCountLayoutOptions {
+  storage?: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>
+  headerHeights?: Map<number, number>
+  footerHeights?: Map<number, number>
+  defaultHeaderHeight?: number
+  defaultFooterHeight?: number
+}
+
+export interface MeasuredHeaderFooterHeights {
+  headerHeights: Map<number, number>
+  footerHeights: Map<number, number>
+}
+
 const PAGE_VARIANT_FIELDS = {
   header: {
     default: ['headerHTML', 'headerJSON'],
@@ -278,8 +291,119 @@ export function syncStorageFromOptions(storage: PagesStorage, options: PagesOpti
   storage.differentOddEven = options.differentOddEven
 }
 
+function clampToNonNegative(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, value) : 0
+}
+
+function readMeasuredElementHeight(element: HTMLElement | null): number {
+  if (!element) return 0
+
+  const rectHeight = typeof element.getBoundingClientRect === 'function' ? element.getBoundingClientRect().height : 0
+  return Math.max(element.scrollHeight, element.clientHeight, element.offsetHeight, rectHeight, 0)
+}
+
+export function getMaxHeaderContentHeight(
+  pageFormat: PageFormat,
+  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>
+): number {
+  return clampToNonNegative(Math.floor(pageFormat.height * 0.45) - pageFormat.margins.top - storage.headerTopMargin)
+}
+
+export function getMaxFooterContentHeight(
+  pageFormat: PageFormat,
+  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>
+): number {
+  return clampToNonNegative(
+    Math.floor(pageFormat.height * 0.45) - pageFormat.margins.bottom - storage.footerBottomMargin
+  )
+}
+
+function clampHeaderContentHeight(
+  pageFormat: PageFormat,
+  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>,
+  height: number
+): number {
+  return Math.min(clampToNonNegative(height), getMaxHeaderContentHeight(pageFormat, storage))
+}
+
+function clampFooterContentHeight(
+  pageFormat: PageFormat,
+  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>,
+  height: number
+): number {
+  return Math.min(clampToNonNegative(height), getMaxFooterContentHeight(pageFormat, storage))
+}
+
+export function getPageLayoutHeights(
+  pageFormat: PageFormat,
+  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>,
+  headerHeight = 0,
+  footerHeight = 0
+) {
+  const measuredHeaderHeight = clampHeaderContentHeight(pageFormat, storage, headerHeight)
+  const measuredFooterHeight = clampFooterContentHeight(pageFormat, storage, footerHeight)
+  const headerReserved = pageFormat.margins.top + storage.headerTopMargin + measuredHeaderHeight
+  const footerReserved = pageFormat.margins.bottom + storage.footerBottomMargin + measuredFooterHeight
+  const bodyHeight = Math.max(1, pageFormat.height - headerReserved - footerReserved)
+
+  return {
+    headerReserved,
+    footerReserved,
+    bodyHeight,
+    measuredHeaderHeight,
+    measuredFooterHeight
+  }
+}
+
+export function getPageSpacerHeight(
+  pageFormat: PageFormat,
+  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>,
+  pageNumber: number,
+  headerHeight = 0,
+  footerHeight = 0
+): number {
+  const { headerReserved, bodyHeight } = getPageLayoutHeights(pageFormat, storage, headerHeight, footerHeight)
+  return pageNumber === 1 ? headerReserved + bodyHeight : bodyHeight
+}
+
 export function getPageContentHeight(pageFormat: PageFormat): number {
   return Math.max(1, pageFormat.height - pageFormat.margins.top - pageFormat.margins.bottom)
+}
+
+function getHeaderContentSelector(pageNumber: number): string {
+  return `[data-rm-editor-type="header"][data-rm-page-number="${pageNumber}"] .rm-page-header-content`
+}
+
+function getFooterContentSelector(pageNumber: number): string {
+  return `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"] .rm-page-footer-content`
+}
+
+export function measureHeaderFooterContentHeights(
+  editorDom: HTMLElement,
+  totalPages: number,
+  pageFormat: PageFormat,
+  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>
+): MeasuredHeaderFooterHeights {
+  const headerHeights = new Map<number, number>()
+  const footerHeights = new Map<number, number>()
+
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+    const headerHeight = clampHeaderContentHeight(
+      pageFormat,
+      storage,
+      readMeasuredElementHeight(editorDom.querySelector(getHeaderContentSelector(pageNumber)) as HTMLElement | null)
+    )
+    const footerHeight = clampFooterContentHeight(
+      pageFormat,
+      storage,
+      readMeasuredElementHeight(editorDom.querySelector(getFooterContentSelector(pageNumber)) as HTMLElement | null)
+    )
+
+    headerHeights.set(pageNumber, headerHeight)
+    footerHeights.set(pageNumber, footerHeight)
+  }
+
+  return { headerHeights, footerHeights }
 }
 
 export function getExistingPageCount(view: EditorView): number {
@@ -330,16 +454,52 @@ function getElementBottom(element: HTMLElement): number {
   return element.offsetTop + layoutHeight
 }
 
-export function calculatePageCount(view: EditorView, pageFormat: PageFormat, pageGap: number): number {
+function getPageBodyHeightForCount(
+  pageFormat: PageFormat,
+  layoutOptions: PageCountLayoutOptions,
+  pageNumber: number
+): number {
+  const storage = layoutOptions.storage ?? { headerTopMargin: 0, footerBottomMargin: 0 }
+  const headerHeight = layoutOptions.headerHeights?.get(pageNumber) ?? layoutOptions.defaultHeaderHeight ?? 0
+  const footerHeight = layoutOptions.footerHeights?.get(pageNumber) ?? layoutOptions.defaultFooterHeight ?? 0
+
+  return getPageLayoutHeights(pageFormat, storage, headerHeight, footerHeight).bodyHeight
+}
+
+function getMinimumMeasuredBodyHeight(
+  pageFormat: PageFormat,
+  currentPageCount: number,
+  layoutOptions: PageCountLayoutOptions
+): number {
+  if (!currentPageCount) {
+    return getPageBodyHeightForCount(pageFormat, layoutOptions, 1)
+  }
+
+  let minimumBodyHeight = Number.POSITIVE_INFINITY
+  for (let pageNumber = 1; pageNumber <= currentPageCount; pageNumber += 1) {
+    minimumBodyHeight = Math.min(minimumBodyHeight, getPageBodyHeightForCount(pageFormat, layoutOptions, pageNumber))
+  }
+
+  return Number.isFinite(minimumBodyHeight)
+    ? Math.max(1, minimumBodyHeight)
+    : getPageBodyHeightForCount(pageFormat, layoutOptions, 1)
+}
+
+export function calculatePageCount(
+  view: EditorView,
+  pageFormat: PageFormat,
+  pageGap: number,
+  layoutOptions: PageCountLayoutOptions = {}
+): number {
   if (isEffectivelyEmptyDocument((view as EditorView & { state?: { doc?: ProseMirrorNode } }).state?.doc)) {
     return 1
   }
 
   const editorDom = view.dom
-  const pageContentHeight = getPageContentHeight(pageFormat)
   const paginationElement = editorDom.querySelector('[data-rm-pagination]')
   const currentPageCount = getExistingPageCount(view)
   const lastContentElement = getLastContentElement(editorDom)
+  const pageContentHeight = getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
 
   if (paginationElement) {
     const lastPageBreak = paginationElement.lastElementChild?.querySelector('.breaker') as HTMLElement | null
@@ -367,5 +527,6 @@ export function calculatePageCount(view: EditorView, pageFormat: PageFormat, pag
   if (!lastContentElement) return 1
 
   const editorHeight = Math.max(getElementBottom(lastContentElement), 1)
-  return Math.max(1, Math.ceil(editorHeight / pageContentHeight))
+  const initialPageContentHeight = getPageBodyHeightForCount(pageFormat, layoutOptions, 1)
+  return Math.max(1, Math.ceil(editorHeight / Math.max(1, initialPageContentHeight)))
 }

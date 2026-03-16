@@ -1,10 +1,17 @@
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { createPaginationWrapper } from './dom'
+import { createFirstPageHeader, createPaginationWrapper } from './dom'
 import { PAGE_FORMATS } from './constants'
 import { Pages } from './PaginationPlus'
 import type { PagesOptions } from './types'
-import { calculatePageCount, createStorageFromOptions, resolveDisplayContent } from './utils'
+import {
+  calculatePageCount,
+  createStorageFromOptions,
+  getPageLayoutHeights,
+  getPageSpacerHeight,
+  measureHeaderFooterContentHeights,
+  resolveDisplayContent
+} from './utils'
 
 const TEST_PAGE_FORMAT = {
   name: 'Test',
@@ -99,12 +106,8 @@ describe('Pages extension helpers', () => {
 
     expect(wrapper.children).toHaveLength(2)
     expect(wrapper.querySelectorAll('.breaker')).toHaveLength(2)
-    expect((wrapper.querySelector('.rm-page-break:nth-child(1) > .page') as HTMLElement | null)?.style.marginTop).toBe(
-      `${storage.pageFormat.height - storage.pageFormat.margins.bottom}px`
-    )
-    expect((wrapper.querySelector('.rm-page-break:nth-child(2) > .page') as HTMLElement | null)?.style.marginTop).toBe(
-      `${storage.pageFormat.height - storage.pageFormat.margins.top - storage.pageFormat.margins.bottom}px`
-    )
+    expect(wrapper.querySelector('.rm-page-break:nth-child(1) > .page')).not.toBeNull()
+    expect(wrapper.querySelector('.rm-page-break:nth-child(2) > .page')).not.toBeNull()
   })
 
   it('ignores pagination helper widgets when measuring blank content', () => {
@@ -196,6 +199,113 @@ describe('Pages extension helpers', () => {
         40
       )
     ).toBe(1)
+  })
+
+  it('shrinks body height as header and footer content grow', () => {
+    const storage = createStorageFromOptions(
+      createOptions({
+        headerTopMargin: 12,
+        footerBottomMargin: 18
+      })
+    )
+
+    const compactLayout = getPageLayoutHeights(storage.pageFormat, storage, 20, 12)
+    const expandedLayout = getPageLayoutHeights(storage.pageFormat, storage, 84, 46)
+
+    expect(expandedLayout.bodyHeight).toBeLessThan(compactLayout.bodyHeight)
+    expect(getPageSpacerHeight(storage.pageFormat, storage, 2, 84, 46)).toBe(expandedLayout.bodyHeight)
+    expect(getPageSpacerHeight(storage.pageFormat, storage, 1, 84, 46)).toBe(
+      expandedLayout.headerReserved + expandedLayout.bodyHeight
+    )
+  })
+
+  it('increases page count when measured header and footer heights reduce usable body space', () => {
+    const root = document.createElement('div')
+    const paragraph = document.createElement('p')
+    root.appendChild(paragraph)
+
+    Object.defineProperty(paragraph, 'offsetTop', {
+      value: 900,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'offsetHeight', {
+      value: 120,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'clientHeight', {
+      value: 120,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'scrollHeight', {
+      value: 120,
+      configurable: true
+    })
+
+    const options = createOptions({
+      headerTopMargin: 12,
+      footerBottomMargin: 16
+    })
+    const storage = createStorageFromOptions(options)
+
+    const baselinePageCount = calculatePageCount({ dom: root } as any, storage.pageFormat, options.pageGap)
+    const reducedBodyPageCount = calculatePageCount({ dom: root } as any, storage.pageFormat, options.pageGap, {
+      storage,
+      headerHeights: new Map([[1, 84]]),
+      footerHeights: new Map([[1, 54]]),
+      defaultHeaderHeight: options.headerHeight,
+      defaultFooterHeight: options.footerHeight
+    })
+
+    expect(reducedBodyPageCount).toBeGreaterThan(baselinePageCount)
+  })
+
+  it('measures header and footer content from the rendered regions', () => {
+    const root = document.createElement('div')
+    const options = createOptions({
+      headerTopMargin: 12,
+      footerBottomMargin: 16
+    })
+    const storage = createStorageFromOptions(options)
+
+    const firstPageHeader = createFirstPageHeader({
+      totalPages: 1,
+      pageFormat: storage.pageFormat,
+      options,
+      storage,
+      extensions: [StarterKit]
+    })
+    const wrapper = createPaginationWrapper({
+      totalPages: 1,
+      pageFormat: storage.pageFormat,
+      options,
+      storage,
+      extensions: [StarterKit]
+    })
+
+    root.append(firstPageHeader, wrapper)
+
+    const headerContent = root.querySelector(
+      '[data-rm-editor-type="header"][data-rm-page-number="1"] .rm-page-header-content'
+    ) as HTMLElement | null
+    const footerContent = root.querySelector(
+      '[data-rm-editor-type="footer"][data-rm-page-number="1"] .rm-page-footer-content'
+    ) as HTMLElement | null
+
+    expect(headerContent).not.toBeNull()
+    expect(footerContent).not.toBeNull()
+
+    Object.defineProperty(headerContent as HTMLElement, 'scrollHeight', {
+      value: 88,
+      configurable: true
+    })
+    Object.defineProperty(footerContent as HTMLElement, 'scrollHeight', {
+      value: 54,
+      configurable: true
+    })
+
+    const measured = measureHeaderFooterContentHeights(root, 1, storage.pageFormat, storage)
+    expect(measured.headerHeights.get(1)).toBe(88)
+    expect(measured.footerHeights.get(1)).toBe(54)
   })
 })
 

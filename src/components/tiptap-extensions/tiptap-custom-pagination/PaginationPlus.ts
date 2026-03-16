@@ -31,6 +31,10 @@ import {
   createStorageFromOptions,
   getHeaderFooterExtensions,
   getInitialEditorContent,
+  getPageLayoutHeights,
+  getPageSpacerHeight,
+  getExistingPageCount,
+  measureHeaderFooterContentHeights,
   resolvePageFormat,
   syncStorageFromOptions
 } from './utils'
@@ -61,6 +65,60 @@ function getOverlayManager(editor: object, create: () => HeaderFooterOverlayMana
   const next = create()
   overlayManagers.set(editor, next)
   return next
+}
+
+function applyMeasuredPageHeightsToView(view: EditorView, storage: PagesStorage, options: PagesOptions) {
+  const pageCount = Math.max(1, getExistingPageCount(view) || storage.pageCount)
+  const measured = measureHeaderFooterContentHeights(view.dom, pageCount, storage.pageFormat, storage)
+  let smallestBodyHeight = Number.POSITIVE_INFINITY
+
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    const headerHeight = measured.headerHeights.get(pageNumber) ?? options.headerHeight
+    const footerHeight = measured.footerHeights.get(pageNumber) ?? options.footerHeight
+    const layout = getPageLayoutHeights(storage.pageFormat, storage, headerHeight, footerHeight)
+
+    smallestBodyHeight = Math.min(smallestBodyHeight, layout.bodyHeight)
+    view.dom.style.setProperty(
+      `--rm-page-content-${pageNumber}`,
+      `${getPageSpacerHeight(storage.pageFormat, storage, pageNumber, headerHeight, footerHeight)}px`
+    )
+  }
+
+  const firstPageHeaderHeight = measured.headerHeights.get(1) ?? options.headerHeight
+  const firstPageFooterHeight = measured.footerHeights.get(1) ?? options.footerHeight
+  const generalPageNumber = Math.max(2, pageCount + 1)
+  const generalHeaderHeight = measured.headerHeights.get(generalPageNumber) ?? options.headerHeight
+  const generalFooterHeight = measured.footerHeights.get(generalPageNumber) ?? options.footerHeight
+
+  view.dom.style.setProperty(
+    '--rm-page-content-first',
+    `${getPageSpacerHeight(storage.pageFormat, storage, 1, firstPageHeaderHeight, firstPageFooterHeight)}px`
+  )
+  view.dom.style.setProperty(
+    '--rm-page-content-general',
+    `${getPageSpacerHeight(storage.pageFormat, storage, generalPageNumber, generalHeaderHeight, generalFooterHeight)}px`
+  )
+
+  if (Number.isFinite(smallestBodyHeight)) {
+    view.dom.style.setProperty('--rm-max-content-child-height', `${Math.max(1, smallestBodyHeight - 10)}px`)
+  }
+
+  return measured
+}
+
+function getMeasuredPageCount(
+  view: EditorView,
+  storage: PagesStorage,
+  options: PagesOptions,
+  measured: ReturnType<typeof applyMeasuredPageHeightsToView>
+) {
+  return calculatePageCount(view, storage.pageFormat, options.pageGap, {
+    storage,
+    headerHeights: measured.headerHeights,
+    footerHeights: measured.footerHeights,
+    defaultHeaderHeight: options.headerHeight,
+    defaultFooterHeight: options.footerHeight
+  })
 }
 
 declare module '@tiptap/core' {
@@ -168,10 +226,24 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
   addProseMirrorPlugins() {
     const editor = this.editor
     const extensionOptions = this.options
+    let measuredHeaderHeights = new Map<number, number>()
+    let measuredFooterHeights = new Map<number, number>()
+    let refreshQueued = false
 
     const requestRefresh = (view: EditorView) => {
       const transaction = view.state.tr.setMeta(REFRESH_META, true)
       view.dispatch(transaction)
+    }
+
+    const queueRefresh = (view: EditorView) => {
+      if (refreshQueued) return
+      refreshQueued = true
+
+      queueMicrotask(() => {
+        refreshQueued = false
+        if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
+        requestRefresh(view)
+      })
     }
 
     const openEditor = (type: 'header' | 'footer', pageNumber: number, target: HTMLElement) => {
@@ -196,6 +268,21 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         storage,
         options,
         extensions: getHeaderFooterExtensions(options.headerFooterExtensions),
+        onUpdate: () => {
+          const measured = applyMeasuredPageHeightsToView(editor.view, storage, options)
+          measuredHeaderHeights = measured.headerHeights
+          measuredFooterHeights = measured.footerHeights
+          const currentPageCount = Math.max(1, getExistingPageCount(editor.view) || storage.pageCount)
+          const measuredPageCount = getMeasuredPageCount(editor.view, storage, options, measured)
+          storage.pageCount = currentPageCount
+
+          if (measuredPageCount !== currentPageCount) {
+            storage.pageCount = measuredPageCount
+            queueRefresh(editor.view)
+          }
+
+          refreshPageMinHeight(editor.view.dom)
+        },
         onClose: () => requestRefresh(editor.view)
       })
     }
@@ -208,7 +295,13 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             const storage = this.storage
             const options = getRuntimeOptions(editor, extensionOptions)
             syncStorageFromOptions(storage, options)
-            const totalPages = calculatePageCount(view, storage.pageFormat, options.pageGap)
+            const totalPages = calculatePageCount(view, storage.pageFormat, options.pageGap, {
+              storage,
+              headerHeights: measuredHeaderHeights,
+              footerHeights: measuredFooterHeights,
+              defaultHeaderHeight: options.headerHeight,
+              defaultFooterHeight: options.footerHeight
+            })
             storage.pageCount = totalPages
 
             return createPaginationWrapper({
@@ -229,7 +322,13 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             const options = getRuntimeOptions(editor, extensionOptions)
             const totalPages = Math.max(
               storage.pageCount,
-              calculatePageCount(view, storage.pageFormat, options.pageGap)
+              calculatePageCount(view, storage.pageFormat, options.pageGap, {
+                storage,
+                headerHeights: measuredHeaderHeights,
+                footerHeights: measuredFooterHeights,
+                defaultHeaderHeight: options.headerHeight,
+                defaultFooterHeight: options.footerHeight
+              })
             )
 
             return createFirstPageHeader({
@@ -263,6 +362,20 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             const options = getRuntimeOptions(editor, extensionOptions)
             syncStorageFromOptions(storage, options)
             applyRootStyles(updatedView.dom, storage.pageFormat, options)
+            const measured = applyMeasuredPageHeightsToView(updatedView, storage, options)
+            measuredHeaderHeights = measured.headerHeights
+            measuredFooterHeights = measured.footerHeights
+
+            const currentPageCount = Math.max(1, getExistingPageCount(updatedView) || storage.pageCount)
+            const measuredPageCount = getMeasuredPageCount(updatedView, storage, options, measured)
+
+            storage.pageCount = currentPageCount
+            if (measuredPageCount !== currentPageCount) {
+              storage.pageCount = measuredPageCount
+              queueRefresh(updatedView)
+              return
+            }
+
             refreshPageMinHeight(updatedView.dom)
           }
         })
@@ -349,6 +462,20 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         storage,
         options,
         extensions: getHeaderFooterExtensions(options.headerFooterExtensions),
+        onUpdate: () => {
+          const measured = applyMeasuredPageHeightsToView(editor.view, storage, options)
+          const currentPageCount = Math.max(1, getExistingPageCount(editor.view) || storage.pageCount)
+          const measuredPageCount = getMeasuredPageCount(editor.view, storage, options, measured)
+          storage.pageCount = currentPageCount
+
+          if (measuredPageCount !== currentPageCount) {
+            storage.pageCount = measuredPageCount
+            refresh(editor)
+            return
+          }
+
+          refreshPageMinHeight(editor.view.dom)
+        },
         onClose: () => refresh(editor)
       })
 

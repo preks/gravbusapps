@@ -1,6 +1,6 @@
 import type { Extension } from '@tiptap/core'
 import type { HeaderFooterEditorType, PageFormat, PagesOptions, PagesStorage } from './types'
-import { getHeaderFooterExtensions, getPageContentHeight, resolveDisplayContent } from './utils'
+import { getHeaderFooterExtensions, getPageSpacerHeight, resolveDisplayContent } from './utils'
 
 const STYLE_ATTR = 'data-rm-pages-style'
 
@@ -60,13 +60,6 @@ export function ensurePagesStyles(targetDocument: Document) {
       box-sizing: border-box;
       overflow: hidden;
     }
-    .rm-pages-root .rm-page-header-region,
-    .rm-pages-root .rm-first-page-header {
-      min-height: var(--rm-page-margin-top);
-    }
-    .rm-pages-root .rm-page-footer-region {
-      min-height: var(--rm-page-margin-bottom);
-    }
     .rm-pages-root .rm-page-header,
     .rm-pages-root .rm-page-footer {
       position: relative;
@@ -78,17 +71,22 @@ export function ensurePagesStyles(targetDocument: Document) {
       font: inherit;
     }
     .rm-pages-root .rm-page-header {
-      min-height: var(--rm-header-height);
+      padding-top: var(--rm-page-margin-top);
+      padding-bottom: var(--rm-header-top-margin);
+      max-height: calc((var(--rm-page-height) * 0.45) - var(--rm-page-margin-top) - var(--rm-header-top-margin));
     }
     .rm-pages-root .rm-page-footer {
-      min-height: var(--rm-footer-height);
+      padding-top: var(--rm-footer-bottom-margin);
+      padding-bottom: var(--rm-page-margin-bottom);
+      max-height: calc((var(--rm-page-height) * 0.45) - var(--rm-footer-bottom-margin) - var(--rm-page-margin-bottom));
     }
     .rm-pages-root .rm-page-header-content,
     .rm-pages-root .rm-page-footer-content {
       width: 100%;
-      min-height: 100%;
+      min-height: 0;
       outline: none;
       word-break: break-word;
+      overflow: hidden;
     }
     .rm-pages-root .rm-page-header-region[data-rm-editable="true"],
     .rm-pages-root .rm-page-footer-region[data-rm-editable="true"],
@@ -149,8 +147,17 @@ export function applyRootStyles(targetNode: HTMLElement, pageFormat: PageFormat,
   targetNode.style.setProperty('--rm-page-margin-bottom', `${pageFormat.margins.bottom}px`)
   targetNode.style.setProperty('--rm-page-margin-left', `${pageFormat.margins.left}px`)
   targetNode.style.setProperty('--rm-page-margin-right', `${pageFormat.margins.right}px`)
+  targetNode.style.setProperty('--rm-page-height', `${pageFormat.height}px`)
   targetNode.style.setProperty('--rm-header-height', `${options.headerHeight}px`)
   targetNode.style.setProperty('--rm-footer-height', `${options.footerHeight}px`)
+  targetNode.style.setProperty(
+    '--rm-header-top-margin',
+    `${options.headerTopMargin ?? Math.round(pageFormat.margins.top / 2)}px`
+  )
+  targetNode.style.setProperty(
+    '--rm-footer-bottom-margin',
+    `${options.footerBottomMargin ?? Math.round(pageFormat.margins.bottom / 2)}px`
+  )
   targetNode.style.setProperty('--rm-page-break-background', options.pageBreakBackground ?? '#f3f4f6')
 }
 
@@ -174,7 +181,7 @@ export function createHeaderFooterRegion(params: {
   onOpenEditor?: (type: HeaderFooterEditorType, pageNumber: number, target: HTMLElement) => void
   firstPage?: boolean
 }): HTMLElement {
-  const { type, pageNumber, totalPages, pageFormat, options, storage, extensions, onOpenEditor, firstPage } = params
+  const { type, pageNumber, totalPages, options, storage, extensions, onOpenEditor, firstPage } = params
   const displayContent = resolveDisplayContent(
     storage,
     options,
@@ -190,19 +197,9 @@ export function createHeaderFooterRegion(params: {
   region.dataset.rmPageNumber = String(pageNumber)
   region.dataset.rmEditorType = type
   region.dataset.rmEditable = 'true'
-  region.style.height = type === 'header' ? `${pageFormat.margins.top}px` : `${pageFormat.margins.bottom}px`
-
-  if (type === 'header') {
-    region.style.paddingTop = `${storage.headerTopMargin}px`
-  } else {
-    region.style.display = 'flex'
-    region.style.alignItems = 'flex-end'
-    region.style.paddingBottom = `${storage.footerBottomMargin}px`
-  }
 
   const inner = document.createElement('div')
   inner.className = type === 'header' ? 'rm-page-header' : 'rm-page-footer'
-  inner.style.height = type === 'header' ? `${storage.headerHeight}px` : `${storage.footerHeight}px`
 
   const content = document.createElement('div')
   content.className = type === 'header' ? 'rm-page-header-content' : 'rm-page-footer-content'
@@ -236,8 +233,16 @@ export function createPageBreakElement(params: {
 
   const page = document.createElement('div')
   page.className = 'page'
-  page.style.marginTop =
-    pageNumber === 1 ? `${pageFormat.height - pageFormat.margins.bottom}px` : `${getPageContentHeight(pageFormat)}px`
+  page.style.setProperty(
+    'margin-top',
+    `var(--rm-page-content-${pageNumber}, ${getPageSpacerHeight(
+      pageFormat,
+      storage,
+      pageNumber,
+      options.headerHeight,
+      options.footerHeight
+    )}px)`
+  )
 
   const breaker = document.createElement('div')
   breaker.className = 'breaker'

@@ -11,6 +11,7 @@ interface OpenOverlayParams {
   options: PagesOptions
   extensions: Extension[]
   onClose: () => void
+  onUpdate?: () => void
 }
 
 interface ActiveOverlay {
@@ -64,10 +65,21 @@ export class HeaderFooterOverlayManager {
     })
 
     const syncOverlayContentToStorage = () => {
+      const html = overlayEditor.getHTML()
+      const json = overlayEditor.getJSON()
+
       setStoredVariantContent(storage, type, variant, {
-        html: overlayEditor.getHTML(),
-        json: overlayEditor.getJSON()
+        html,
+        json
       })
+
+      const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
+      const visibleContent = target.querySelector(contentSelector) as HTMLElement | null
+      if (visibleContent) {
+        visibleContent.innerHTML = html
+      }
+
+      params.onUpdate?.()
     }
 
     const notifyActiveEditorChange = () => {
