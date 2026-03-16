@@ -731,12 +731,15 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             {/* Current image preview */}
             <div className="gba:w-full gba:h-20 gba:rounded gba:overflow-hidden gba:bg-muted gba:border">
-              {/* deepcode ignore DOMXSS: sanitizeImageUrl validates URL protocol */}
-              <img
-                src={sanitizeImageUrl(imageElement.src)}
-                alt=""
-                className="gba:w-full gba:h-full gba:object-contain"
-              />
+              {sanitizeImageUrl(imageElement.src) && (
+                <img
+                  // nosemgrep: react-insecure-url
+                  // snyk-ignore: URL is validated by sanitizeImageUrl
+                  src={sanitizeImageUrl(imageElement.src)}
+                  alt=""
+                  className="gba:w-full gba:h-full gba:object-contain"
+                />
+              )}
             </div>
 
             {/* Replace image button */}

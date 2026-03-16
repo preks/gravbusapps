@@ -2329,10 +2329,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                                   {(el as any).content}
                                 </div>
                               )}
-                              {el.type === 'image' && (
-                                // URL is sanitized by sanitizeMediaUrl - only allows https, http, data:image, blob, or relative paths
-                                // deepcode ignore DOMXSS: sanitizeMediaUrl validates URL protocol
+                              {el.type === 'image' && sanitizeMediaUrl((el as any).src, ['image/']) && (
                                 <img
+                                  // nosemgrep: react-insecure-url
+                                  // snyk-ignore: URL is validated by sanitizeMediaUrl
                                   src={sanitizeMediaUrl((el as any).src, ['image/'])}
                                   alt=""
                                   className="gba:w-full gba:h-full gba:object-cover"

@@ -395,6 +395,7 @@ export const BrandSettingsDialog: React.FC<BrandSettingsDialogProps> = ({
                   />
                   {sanitizeImageUrl(logo.lightUrl) && (
                     <div className="gba:p-2 gba:bg-gray-800 gba:rounded gba:flex gba:justify-center">
+                      {/* deepcode ignore DOMXSS: sanitizeImageUrl validates URL protocol */}
                       <img
                         src={sanitizeImageUrl(logo.lightUrl)}
                         alt="Light logo preview"
@@ -415,6 +416,7 @@ export const BrandSettingsDialog: React.FC<BrandSettingsDialogProps> = ({
                   />
                   {sanitizeImageUrl(logo.darkUrl) && (
                     <div className="gba:p-2 gba:bg-gray-100 gba:rounded gba:flex gba:justify-center">
+                      {/* deepcode ignore DOMXSS: sanitizeImageUrl validates URL protocol */}
                       <img
                         src={sanitizeImageUrl(logo.darkUrl)}
                         alt="Dark logo preview"
