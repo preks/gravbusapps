@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { CalendarIcon, FileTextIcon } from '@phosphor-icons/react'
+import { CalendarIcon, CurrencyDollarIcon, FileTextIcon } from '@phosphor-icons/react'
 import { ExpenseStatus } from '../../../utils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans' // Assuming this type is exported from your hook
 
-interface ExpensePlanStatisticsProps {
+export interface ExpensePlanStatisticsProps {
   planStats: ExpensePlanStatistics | null
   statsLoading: boolean
   statsError: Error | null
@@ -14,6 +14,8 @@ interface ExpensePlanStatisticsProps {
   activeFilter: ExpenseStatus[] | null
   onFilterChange: (filter: ExpenseStatus[] | null) => void
   currencyFilter?: string | null
+  /** Currency used for formatting amounts/labels when no filter is set (e.g. most used currency). */
+  displayCurrency?: string | null
 }
 
 const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
@@ -23,10 +25,10 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
   fetchPlanStatistics,
   activeFilter,
   onFilterChange,
-  currencyFilter
+  currencyFilter,
+  displayCurrency: displayCurrencyProp
 }) => {
-  // Use only the currency filter passed from parent - no global store dependency
-  const displayCurrency = currencyFilter || 'EUR'
+  const displayCurrency = displayCurrencyProp ?? currencyFilter ?? 'EUR'
   // Handle card click
   const handleCardClick = useCallback(
     (filterKey: ExpenseStatus | null) => {
@@ -97,7 +99,12 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'Pending Approval'
         ),
         value: planStats.pendingCount.toString(),
-        prefix: <CalendarIcon size={16} />,
+        prefix: (
+          <span className="gba:flex gba:items-center gba:gap-1.5">
+            <CalendarIcon size={16} />
+            <span className="gba:font-medium">{displayCurrency}</span>
+          </span>
+        ),
         color: 'var(--nw-warning)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
@@ -114,7 +121,12 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'Total Plans (Submitted)'
         ),
         value: planStats.totalCount.toString(),
-        prefix: <FileTextIcon size={16} />,
+        prefix: (
+          <span className="gba:flex gba:items-center gba:gap-1.5">
+            <FileTextIcon size={16} />
+            <span className="gba:font-medium">{displayCurrency}</span>
+          </span>
+        ),
         color: 'var(--nw-primary)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
@@ -165,11 +177,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         value: planStats.sumTotalAmount
           ? formatCurrencyDisplay(planStats.sumTotalAmount, displayCurrency)
           : formatCurrencyDisplay(0, displayCurrency),
-        prefix: (
-          <span className="gba:font-medium" data-testid="expense-plan-stats-total-currency-code">
-            {displayCurrency}
-          </span>
-        ),
+        prefix: <CurrencyDollarIcon size={16} data-testid="expense-plan-stats-total-amount-icon" />,
         color: 'var(--nw-success)',
         valueIsString: true,
 

@@ -45,6 +45,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     setStatusFilter,
     primaryCurrency,
     setCurrencyFilter,
+    mostUsedCurrency,
     availableCurrencies,
     filterLabelMap,
     effectiveDateRange,
@@ -94,10 +95,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     return buildOrderByClause(sorting.field, sorting.order)
   }, [sorting.field, sorting.order, buildOrderByClause])
 
-  const currencyRef = useMemo(
-    () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
-    [primaryCurrency]
-  )
+  const currencyRef = useMemo(() => {
+    const currencyForQuery = primaryCurrency ?? mostUsedCurrency
+    return currencyForQuery ? standardizeCurrencyRef(currencyForQuery) : undefined
+  }, [primaryCurrency, mostUsedCurrency])
 
   const convertDateRangeToGraphQL = useCallback((dateRange: [Date | null, Date | null] | null) => {
     if (!dateRange || (!dateRange[0] && !dateRange[1])) return null
@@ -384,6 +385,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           activeFilter={statusFilter}
           onFilterChange={handleStatsFilterChange}
           currencyFilter={primaryCurrency}
+          displayCurrency={primaryCurrency ?? mostUsedCurrency ?? 'EUR'}
           fetchPlanStatistics={() => {}}
         />
       </div>
