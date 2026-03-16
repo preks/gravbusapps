@@ -19,6 +19,17 @@ export const CostCenterField: React.FC<CostCenterFieldProps> = ({
   isProcessingFiles,
   onChange
 }) => {
+  // [DEBUG:CostCenterField] trace render values
+  const resolvedName = value ? costCenters.find(c => c.id === value)?.name : undefined
+  console.log(`[DEBUG:CostCenterField] index=${index} value=${value} resolvedName=${resolvedName} costCentersCount=${costCenters.length}`)
+
+  const resolvedValue = value
+    ? {
+        id: value,
+        name: costCenters.find(c => c.id === value)?.name || value
+      }
+    : undefined
+
   return (
     <div className="gba:mb-4" data-testid={`cost-center-container-${index}`}>
       <div className="gba:relative">
@@ -36,6 +47,7 @@ export const CostCenterField: React.FC<CostCenterFieldProps> = ({
           style={{ marginBottom: 0 }}
         >
           <SelectField
+            key={`costCenter-${index}-${costCenters.length}`}
             allowClear
             name="costCenter"
             disabled={isProcessingFiles}
@@ -53,14 +65,7 @@ export const CostCenterField: React.FC<CostCenterFieldProps> = ({
               'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
               'Select Cost Center'
             )}
-            value={
-              value
-                ? {
-                    id: value,
-                    name: costCenters.find(c => c.id === value)?.name || value
-                  }
-                : undefined
-            }
+            value={resolvedValue}
             required={true}
           />
         </Form.Item>

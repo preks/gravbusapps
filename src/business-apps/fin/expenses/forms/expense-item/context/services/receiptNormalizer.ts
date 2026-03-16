@@ -128,19 +128,31 @@ function mergeDiscounts(items: ReceiptItem[]): ReceiptItem[] {
   const merged = new Set<number>()
 
   for (let i = 0; i < result.length; i++) {
-    if (itemTotal(result[i]) >= 0 || !hasClassification(result[i])) continue
+    const total = itemTotal(result[i])
+    const classified = hasClassification(result[i])
+    // [DEBUG:mergeDiscounts] evaluate each item
+    console.log(`[DEBUG:mergeDiscounts] item[${i}] total=${total} hasClassification=${classified}`,
+      `code=${result[i].expenseDetails?.expenseCode} group=${result[i].expenseDetails?.expenseGroupCode}`)
+
+    if (total >= 0 || !classified) {
+      console.log(`[DEBUG:mergeDiscounts] item[${i}] skipped (total>=0: ${total >= 0}, !classified: ${!classified})`)
+      continue
+    }
 
     const targetIndex = result.findIndex(
       (candidate, idx) =>
         idx !== i && !merged.has(idx) && itemTotal(candidate) > 0 && sameClassification(result[i], candidate)
     )
+    console.log(`[DEBUG:mergeDiscounts] item[${i}] discount -> targetIndex=${targetIndex}`)
     if (targetIndex === -1) continue
 
     const adjustedTarget = withUpdatedTotal(result[targetIndex], itemTotal(result[targetIndex]) + itemTotal(result[i]))
     result[targetIndex] = adjustedTarget
     merged.add(i)
+    console.log(`[DEBUG:mergeDiscounts] merged item[${i}] into item[${targetIndex}], new total=${adjustedTarget.totalPrice}`)
   }
 
+  console.log(`[DEBUG:mergeDiscounts] merged count: ${merged.size}`)
   return merged.size > 0 ? result.filter((_, idx) => !merged.has(idx)) : items
 }
 
@@ -165,7 +177,22 @@ export function normalizeReceiptData(data: ReceiptData | null | undefined): Rece
   const receiptTotal = data.total != null ? toNumber(data.total) : null
   const taxAmount = data.taxDetails?.taxAmount
 
-  const normalizedItems = mergeDiscounts(foldTaxIntoItems(items, receiptTotal, taxAmount))
+  // [DEBUG:receipt-normalizer] trace normalization pipeline
+  console.log('[DEBUG:receipt-normalizer] input items:', JSON.stringify(items.map(i => ({
+    desc: i.description, total: i.totalPrice,
+    code: i.expenseDetails?.expenseCode, group: i.expenseDetails?.expenseGroupCode
+  }))))
+  console.log('[DEBUG:receipt-normalizer] receiptTotal:', receiptTotal, 'taxAmount:', taxAmount)
+
+  const afterTaxFold = foldTaxIntoItems(items, receiptTotal, taxAmount)
+  console.log('[DEBUG:receipt-normalizer] after foldTaxIntoItems count:', afterTaxFold.length)
+
+  const normalizedItems = mergeDiscounts(afterTaxFold)
+  console.log('[DEBUG:receipt-normalizer] after mergeDiscounts count:', normalizedItems.length,
+    'items:', JSON.stringify(normalizedItems.map(i => ({
+      desc: i.description, total: i.totalPrice,
+      code: i.expenseDetails?.expenseCode, group: i.expenseDetails?.expenseGroupCode
+    }))))
 
   return {
     ...data,
