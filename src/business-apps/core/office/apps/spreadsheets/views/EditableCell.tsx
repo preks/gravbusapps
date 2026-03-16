@@ -293,6 +293,91 @@ export const EditableCell: React.FC<EditableCellProps> = React.memo(
     )
 
     // Handle keyboard events when cell is selected (not editing)
+    const handleNavigationAndActionKeys = useCallback(
+      (e: React.KeyboardEvent<HTMLDivElement>): boolean => {
+        const directionByKey: Partial<Record<string, 'up' | 'down' | 'left' | 'right'>> = {
+          ArrowUp: 'up',
+          ArrowDown: 'down',
+          ArrowLeft: 'left',
+          ArrowRight: 'right'
+        }
+
+        const direction = directionByKey[e.key]
+        if (direction) {
+          e.preventDefault()
+          navigateToCell(direction)
+          return true
+        }
+
+        if (e.key === 'Tab') {
+          e.preventDefault()
+          navigateToCell(e.shiftKey ? 'left' : 'right')
+          return true
+        }
+
+        if (e.key === 'Enter' || e.key === 'F2') {
+          e.preventDefault()
+          if (canEdit) startEditing(false)
+          return true
+        }
+
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault()
+          if (canEdit) onSave(rowId, column.name, '')
+          return true
+        }
+
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          setSelectedCell(null)
+          return true
+        }
+
+        return false
+      },
+      [navigateToCell, canEdit, startEditing, onSave, rowId, column.name, setSelectedCell]
+    )
+
+    const handleClipboardKeys = useCallback(
+      (e: React.KeyboardEvent<HTMLDivElement>): boolean => {
+        const isCtrlOrMeta = e.ctrlKey || e.metaKey
+
+        if (isCtrlOrMeta && e.key === 'c') {
+          e.preventDefault()
+          navigator.clipboard.writeText(String(value ?? ''))
+          return true
+        }
+
+        if (isCtrlOrMeta && e.key === 'v') {
+          e.preventDefault()
+          if (!canEdit) return true
+          navigator.clipboard.readText().then(text => {
+            const processedText = isValidUrl(text) ? urlToMarkdown(text) : text
+            onSave(rowId, column.name, processedText)
+          })
+          return true
+        }
+
+        return false
+      },
+      [value, canEdit, onSave, rowId, column.name]
+    )
+
+    const handlePrintableKeyStartEdit = useCallback(
+      (e: React.KeyboardEvent<HTMLDivElement>): boolean => {
+        const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
+        if (!isPrintable || !canEdit) return false
+
+        e.preventDefault()
+        startedFromTypingRef.current = true
+        setOriginalValue(storedFormula || String(value ?? ''))
+        setEditValue(e.key)
+        setIsEditing(true)
+        return true
+      },
+      [canEdit, storedFormula, value]
+    )
+
     const handleCellKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLDivElement>) => {
         if (isEditing) return
@@ -300,85 +385,11 @@ export const EditableCell: React.FC<EditableCellProps> = React.memo(
         // Don't handle if link editor is open
         if (showLinkEditor) return
 
-        switch (e.key) {
-          case 'ArrowUp':
-            e.preventDefault()
-            navigateToCell('up')
-            return
-          case 'ArrowDown':
-            e.preventDefault()
-            navigateToCell('down')
-            return
-          case 'ArrowLeft':
-            e.preventDefault()
-            navigateToCell('left')
-            return
-          case 'ArrowRight':
-            e.preventDefault()
-            navigateToCell('right')
-            return
-          case 'Tab':
-            e.preventDefault()
-            navigateToCell(e.shiftKey ? 'left' : 'right')
-            return
-          case 'Enter':
-          case 'F2':
-            e.preventDefault()
-            if (canEdit) startEditing(false)
-            return
-          case 'Delete':
-          case 'Backspace':
-            e.preventDefault()
-            if (canEdit) onSave(rowId, column.name, '')
-            return
-          case 'Escape':
-            e.preventDefault()
-            setSelectedCell(null)
-            return
-          default:
-            break
-        }
-
-        const isCopy = (e.ctrlKey || e.metaKey) && e.key === 'c'
-        if (isCopy) {
-          e.preventDefault()
-          navigator.clipboard.writeText(String(value ?? ''))
-          return
-        }
-
-        const isPaste = (e.ctrlKey || e.metaKey) && e.key === 'v'
-        if (isPaste) {
-          e.preventDefault()
-          if (!canEdit) return
-          navigator.clipboard.readText().then(text => {
-            const processedText = isValidUrl(text) ? urlToMarkdown(text) : text
-            onSave(rowId, column.name, processedText)
-          })
-          return
-        }
-
-        const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
-        if (isPrintable && canEdit) {
-          e.preventDefault()
-          startedFromTypingRef.current = true
-          setOriginalValue(storedFormula || String(value ?? ''))
-          setEditValue(e.key)
-          setIsEditing(true)
-        }
+        if (handleNavigationAndActionKeys(e)) return
+        if (handleClipboardKeys(e)) return
+        handlePrintableKeyStartEdit(e)
       },
-      [
-        isEditing,
-        showLinkEditor,
-        navigateToCell,
-        canEdit,
-        startEditing,
-        onSave,
-        rowId,
-        column.name,
-        setSelectedCell,
-        value,
-        storedFormula
-      ]
+      [isEditing, showLinkEditor, handleNavigationAndActionKeys, handleClipboardKeys, handlePrintableKeyStartEdit]
     )
 
     // Handle keyboard events when editing

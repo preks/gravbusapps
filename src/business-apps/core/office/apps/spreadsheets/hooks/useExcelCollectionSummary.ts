@@ -21,12 +21,62 @@ import type { SpreadsheetApp } from '../types/spreadsheet'
 const MAX_COPIES = 20
 const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
 
+interface AiModelCandidate {
+  _id: string
+  name: string
+}
+
 const parseSummaryContent = (content: unknown): CollectionSummaryResponse => {
   let normalized = typeof content === 'string' ? content : JSON.stringify(content)
   if (normalized.trim().startsWith('```')) {
     normalized = normalized.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
   }
   return JSON.parse(normalized) as CollectionSummaryResponse
+}
+
+async function ensureAppHasSheetData(copyAppId: string, app: SpreadsheetApp): Promise<void> {
+  if (app.sheets?.length && app.sheets.some(s => (s.data?.length ?? 0) > 0)) return
+  for (const sheet of app.sheets ?? []) {
+    const rows = await SpreadsheetApiService.getRows(copyAppId, sheet.id)
+    sheet.data = rows
+  }
+}
+
+async function fetchCopiesForSummary(
+  copiesToFetch: Array<{ copyAppId: string; recipientName: string }>
+): Promise<Array<{ app: SpreadsheetApp; recipientName: string }>> {
+  const copies: Array<{ app: SpreadsheetApp; recipientName: string }> = []
+
+  for (const { copyAppId, recipientName } of copiesToFetch) {
+    const app = await SpreadsheetApiService.getApp(copyAppId)
+    if (!app) {
+      throw new Error(`Could not load response for ${recipientName}`)
+    }
+
+    await ensureAppHasSheetData(copyAppId, app)
+    copies.push({ app, recipientName })
+  }
+
+  return copies
+}
+
+function selectSummaryModelId(models: AiModelCandidate[]): string {
+  const preferredModel = models.find(m => m._id === PREFERRED_MODEL_ID)
+  const gpt4Model = models.find(m => m.name.toLowerCase().includes('gpt-4'))
+  const selectedModel = preferredModel || gpt4Model || models[0]
+  return selectedModel._id
+}
+
+function buildAvatarByRecipientMap(
+  copiesToFetch: Array<{ recipientName: string; avatar?: string }>
+): Map<string, string> {
+  const avatarByRecipient = new Map<string, string>()
+  for (const info of copiesToFetch) {
+    if (info.avatar) {
+      avatarByRecipient.set(info.recipientName, info.avatar)
+    }
+  }
+  return avatarByRecipient
 }
 
 export interface ExcelCollectionSummaryResult {
@@ -90,23 +140,7 @@ export function useExcelCollectionSummary({
 
     try {
       const copiesToFetch = copyInfos.slice(0, MAX_COPIES)
-      const copies: Array<{ app: SpreadsheetApp; recipientName: string }> = []
-
-      for (const { copyAppId, recipientName } of copiesToFetch) {
-        const app = await SpreadsheetApiService.getApp(copyAppId)
-        if (!app) {
-          return fail(`Could not load response for ${recipientName}`)
-        }
-
-        if (!app.sheets?.length || !app.sheets.some(s => (s.data?.length ?? 0) > 0)) {
-          for (const sheet of app.sheets ?? []) {
-            const rows = await SpreadsheetApiService.getRows(copyAppId, sheet.id)
-            sheet.data = rows
-          }
-        }
-
-        copies.push({ app, recipientName })
-      }
+      const copies = await fetchCopiesForSummary(copiesToFetch)
 
       const formattedData = formatCopiesForPrompt(copies)
       const userPrompt = COLLECTION_SUMMARY_USER_PROMPT.replace('{formattedData}', formattedData)
@@ -126,10 +160,7 @@ export function useExcelCollectionSummary({
         return fail('No AI models available')
       }
 
-      const preferredModel = modelsResponse.data.find(m => m._id === PREFERRED_MODEL_ID)
-      const gpt4Model = modelsResponse.data.find(m => m.name.toLowerCase().includes('gpt-4'))
-      const selectedModel = preferredModel || gpt4Model || modelsResponse.data[0]
-      const modelId = selectedModel._id
+      const modelId = selectSummaryModelId(modelsResponse.data as AiModelCandidate[])
 
       const formData = new FormData()
       formData.append('model_id', modelId)
@@ -150,12 +181,7 @@ export function useExcelCollectionSummary({
         return fail('Failed to parse AI response')
       }
 
-      const avatarByRecipient = new Map<string, string>()
-      for (const info of copiesToFetch) {
-        if (info.avatar) {
-          avatarByRecipient.set(info.recipientName, info.avatar)
-        }
-      }
+      const avatarByRecipient = buildAvatarByRecipientMap(copiesToFetch)
 
       const enrichedPerRecipient = (parsed.perRecipient ?? []).map(item => ({
         recipientName: item.recipientName,

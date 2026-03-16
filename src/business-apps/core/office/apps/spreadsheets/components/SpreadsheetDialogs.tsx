@@ -35,6 +35,18 @@ import type { useVersioning } from '../../../../../platform/apps/shared/hooks/us
 import type { useComments } from '../../../../../platform/apps/shared/hooks/useComments'
 import type { usePublishing } from '../../../../../platform/apps/shared/hooks/usePublishing'
 
+const getEditableColumns = (columns: SpreadsheetColumn[], fallbackColumns: SpreadsheetColumn[]) =>
+  columns.length > 0 ? columns : fallbackColumns
+
+const updateColumnFieldById = (
+  columns: SpreadsheetColumn[],
+  columnId: string,
+  field: keyof SpreadsheetColumn,
+  value: unknown
+) => columns.map(c => (c.id === columnId ? { ...c, [field]: value } : c))
+
+const removeColumnById = (columns: SpreadsheetColumn[], columnId: string) => columns.filter(c => c.id !== columnId)
+
 export interface SpreadsheetDialogsProps {
   // Edit Row Dialog
   editingRow: Record<string, unknown> | null
@@ -155,11 +167,10 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
             ) : (
               columnsToEdit.map(column => {
                 const updateColumnField = (field: keyof SpreadsheetColumn, value: unknown) => {
-                  setEditingColumns(prev =>
-                    prev.length > 0
-                      ? prev.map(c => (c.id === column.id ? { ...c, [field]: value } : c))
-                      : activeSheetColumns.map(c => (c.id === column.id ? { ...c, [field]: value } : c))
-                  )
+                  setEditingColumns(prev => {
+                    const editableColumns = getEditableColumns(prev, activeSheetColumns)
+                    return updateColumnFieldById(editableColumns, column.id, field, value)
+                  })
                 }
 
                 return (
@@ -232,11 +243,10 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              setEditingColumns(prev =>
-                                prev.length > 0
-                                  ? prev.filter(c => c.id !== column.id)
-                                  : activeSheetColumns.filter(c => c.id !== column.id)
-                              )
+                              setEditingColumns(prev => {
+                                const editableColumns = getEditableColumns(prev, activeSheetColumns)
+                                return removeColumnById(editableColumns, column.id)
+                              })
                             }}
                             className="gba:text-destructive hover:gba:text-destructive"
                           >

@@ -98,7 +98,6 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
   rows,
   approvalConfig,
   currentStepIndex,
-  currentUserId: _currentUserId,
   canEdit,
   onApprove,
   onReject,
@@ -107,7 +106,6 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
 }) => {
   const isLineItemMode = approvalConfig.mode === 'line_item'
   const currentStep = approvalConfig.approvalSteps[currentStepIndex]
-  void _currentUserId
 
   // State
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())

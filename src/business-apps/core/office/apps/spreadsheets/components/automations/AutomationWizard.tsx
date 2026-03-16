@@ -572,72 +572,86 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     [name, automationType, hasConfiguredRecipients, formFields.length, selectedTemplateId]
   )
 
+  const validateTypeStep = useCallback(
+    (errors: string[]) => {
+      if (!automationType) {
+        errors.push('Please select a collection method')
+      }
+    },
+    [automationType]
+  )
+
+  const validateSetupStep = useCallback(
+    (errors: string[]) => {
+      if (!name.trim()) {
+        errors.push('Please enter an automation name')
+      }
+    },
+    [name]
+  )
+
+  const validateTriggerStep = useCallback(
+    (errors: string[]) => {
+      if (trigger === 'onFieldChange' && watchColumns.length === 0) {
+        errors.push('Please select at least one column to watch')
+      }
+    },
+    [trigger, watchColumns]
+  )
+
+  const validateWorkflowStep = useCallback(
+    (errors: string[]) => {
+      if (!name.trim()) {
+        errors.push('Please enter an automation name')
+      }
+      if (workflowSteps.length === 0 && approvalSteps.length === 0) {
+        errors.push('Please add at least one workflow step')
+      }
+    },
+    [name, workflowSteps.length, approvalSteps.length]
+  )
+
+  const validateConfigureStep = useCallback(
+    (errors: string[]) => {
+      if (!hasConfiguredRecipients()) errors.push('Please select who should receive this')
+      if (automationType === 'excel_collection' && !selectedTemplateId) {
+        errors.push('Please select a template spreadsheet')
+      }
+      if (automationType === 'bulk_collection' && formFields.length === 0) {
+        errors.push('Please add at least one form field to collect')
+      }
+    },
+    [hasConfiguredRecipients, automationType, selectedTemplateId, formFields.length]
+  )
+
+  const stepValidationHandlers: Partial<Record<WizardStep, (errors: string[]) => void>> = useMemo(
+    () => ({
+      type: validateTypeStep,
+      setup: validateSetupStep,
+      trigger: validateTriggerStep,
+      workflow: validateWorkflowStep,
+      configure: validateConfigureStep,
+      review: validateReviewStep
+    }),
+    [
+      validateTypeStep,
+      validateSetupStep,
+      validateTriggerStep,
+      validateWorkflowStep,
+      validateConfigureStep,
+      validateReviewStep
+    ]
+  )
+
   // Validation
   const validateCurrentStep = useCallback((): boolean => {
     const errors: string[] = []
-
-    switch (currentStep) {
-      case 'type':
-        if (!automationType) {
-          errors.push('Please select a collection method')
-        }
-        break
-
-      case 'setup':
-        // Bulk collection setup: name + trigger
-        if (!name.trim()) {
-          errors.push('Please enter an automation name')
-        }
-        break
-
-      case 'trigger':
-        if (trigger === 'onFieldChange' && watchColumns.length === 0) {
-          errors.push('Please select at least one column to watch')
-        }
-        break
-
-      case 'workflow':
-        if (!name.trim()) {
-          errors.push('Please enter an automation name')
-        }
-        if (workflowSteps.length === 0 && approvalSteps.length === 0) {
-          errors.push('Please add at least one workflow step')
-        }
-        break
-
-      case 'configure':
-        if (!hasConfiguredRecipients()) errors.push('Please select who should receive this')
-        if (automationType === 'excel_collection' && !selectedTemplateId) {
-          errors.push('Please select a template spreadsheet')
-        }
-        if (automationType === 'bulk_collection' && formFields.length === 0) {
-          errors.push('Please add at least one form field to collect')
-        }
-        break
-
-      case 'mapping':
-        // Mapping is optional
-        break
-
-      case 'review':
-        validateReviewStep(errors)
-        break
-    }
+    const validateStep = stepValidationHandlers[currentStep]
+    validateStep?.(errors)
 
     setValidationErrors(errors)
     return errors.length === 0
-  }, [
-    currentStep,
-    automationType,
-    hasConfiguredRecipients,
-    validateReviewStep,
-    trigger,
-    watchColumns,
-    name,
-    workflowSteps,
-    formFields,
-    selectedTemplateId
-  ])
+  }, [currentStep, stepValidationHandlers])
 
   // Navigation
   const canGoNext = useMemo(() => {
@@ -953,6 +967,375 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     [columns, updateColumnMapping]
   )
 
+  const renderWorkflowTypeSpecificConfiguration = () => (
+    <div className="gba:border-t gba:pt-6">
+      <h4 className="gba:font-semibold gba:text-foreground gba:mb-4 gba:flex gba:items-center gba:gap-2">
+        {automationType === 'row_workflow' && <FileSpreadsheet className="gba:w-4 gba:h-4" />}
+        {automationType === 'sheet_approval' && <ClipboardCheck className="gba:w-4 gba:h-4" />}
+        {automationType === 'line_approval' && <Zap className="gba:w-4 gba:h-4" />}
+        {automationType === 'bulk_collection' && <Users className="gba:w-4 gba:h-4" />}
+        Workflow Steps
+      </h4>
+
+      {automationType === 'row_workflow' && (
+        <div className="gba:space-y-4">
+          <p className="gba:text-sm gba:text-muted-foreground">
+            Each row triggers a workflow with these steps. Configure who handles each step.
+          </p>
+
+          <Card>
+            <CardContent className="gba:p-4">
+              <div className="gba:flex gba:items-start gba:justify-between">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:text-primary gba:font-medium gba:text-sm">
+                    1
+                  </div>
+                  <div>
+                    <div className="gba:font-medium">Review Row Data</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">Task • 24h deadline</div>
+                  </div>
+                </div>
+                <div className="gba:w-48">
+                  <Label className="gba:text-xs gba:text-muted-foreground">Assigned to</Label>
+                  <Select
+                    value={approvalSteps[0]?.assignee || 'initiator'}
+                    onValueChange={value => {
+                      const newSteps = [...approvalSteps]
+                      if (!newSteps[0]) newSteps[0] = { stepId: 'review', assignee: value }
+                      else newSteps[0].assignee = value
+                      setApprovalSteps(newSteps)
+                    }}
+                  >
+                    <SelectTrigger className="gba:mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent style={{ zIndex: 1000003 }}>
+                      <SelectItem value="initiator">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <User className="gba:w-3 gba:h-3" />
+                          Myself (initiator)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="manager">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <UserCheck className="gba:w-3 gba:h-3" />
+                          My Manager
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="column">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <FileSpreadsheet className="gba:w-3 gba:h-3" />
+                          From Column...
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {approvalSteps[0]?.assignee === 'column' && (
+                    <Select
+                      value={approvalSteps[0]?.assigneeColumn || ''}
+                      onValueChange={value => {
+                        const newSteps = [...approvalSteps]
+                        if (newSteps[0]) newSteps[0].assigneeColumn = value
+                        setApprovalSteps(newSteps)
+                      }}
+                    >
+                      <SelectTrigger className="gba:mt-2">
+                        <SelectValue placeholder="Select column..." />
+                      </SelectTrigger>
+                      <SelectContent style={{ zIndex: 1000003 }}>
+                        {columns
+                          .filter(c => c.type === 'user' || c.type === 'email' || c.type === 'text')
+                          .map(column => (
+                            <SelectItem key={column.id} value={column.id}>
+                              {column.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="gba:flex gba:justify-center">
+            <ArrowDown className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          </div>
+
+          <Card>
+            <CardContent className="gba:p-4">
+              <div className="gba:flex gba:items-start gba:justify-between">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:text-primary gba:font-medium gba:text-sm">
+                    2
+                  </div>
+                  <div>
+                    <div className="gba:font-medium">Process Row</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">Task • 48h deadline</div>
+                  </div>
+                </div>
+                <div className="gba:w-48">
+                  <Label className="gba:text-xs gba:text-muted-foreground">Assigned to</Label>
+                  <Select
+                    value={approvalSteps[1]?.assignee || 'initiator'}
+                    onValueChange={value => {
+                      const newSteps = [...approvalSteps]
+                      if (!newSteps[1]) newSteps[1] = { stepId: 'process', assignee: value }
+                      else newSteps[1].assignee = value
+                      setApprovalSteps(newSteps)
+                    }}
+                  >
+                    <SelectTrigger className="gba:mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent style={{ zIndex: 1000003 }}>
+                      <SelectItem value="initiator">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <User className="gba:w-3 gba:h-3" />
+                          Myself (initiator)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="manager">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <UserCheck className="gba:w-3 gba:h-3" />
+                          My Manager
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="column">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <FileSpreadsheet className="gba:w-3 gba:h-3" />
+                          From Column...
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {approvalSteps[1]?.assignee === 'column' && (
+                    <Select
+                      value={approvalSteps[1]?.assigneeColumn || ''}
+                      onValueChange={value => {
+                        const newSteps = [...approvalSteps]
+                        if (newSteps[1]) newSteps[1].assigneeColumn = value
+                        setApprovalSteps(newSteps)
+                      }}
+                    >
+                      <SelectTrigger className="gba:mt-2">
+                        <SelectValue placeholder="Select column..." />
+                      </SelectTrigger>
+                      <SelectContent style={{ zIndex: 1000003 }}>
+                        {columns
+                          .filter(c => c.type === 'user' || c.type === 'email' || c.type === 'text')
+                          .map(column => (
+                            <SelectItem key={column.id} value={column.id}>
+                              {column.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {automationType === 'sheet_approval' && (
+        <div className="gba:space-y-4">
+          <p className="gba:text-sm gba:text-muted-foreground">
+            The entire spreadsheet will be submitted for approval. Configure who reviews it.
+          </p>
+
+          <Card>
+            <CardContent className="gba:p-4">
+              <div className="gba:flex gba:items-start gba:justify-between">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-info/10 gba:flex gba:items-center gba:justify-center gba:text-info gba:font-medium gba:text-sm">
+                    1
+                  </div>
+                  <div>
+                    <div className="gba:font-medium">Submission Notification</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">Info • Automatic</div>
+                  </div>
+                </div>
+                <div className="gba:text-sm gba:text-muted-foreground gba:italic">Sent to submitter</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="gba:flex gba:justify-center">
+            <ArrowDown className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          </div>
+
+          <Card className="gba:border-primary/50">
+            <CardContent className="gba:p-4">
+              <div className="gba:flex gba:items-start gba:justify-between">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-warning/10 gba:flex gba:items-center gba:justify-center gba:text-warning gba:font-medium gba:text-sm">
+                    2
+                  </div>
+                  <div>
+                    <div className="gba:font-medium">Approve Spreadsheet</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">Approval • 3 day deadline</div>
+                  </div>
+                </div>
+                <div className="gba:w-48">
+                  <Label className="gba:text-xs gba:text-muted-foreground">Approver *</Label>
+                  <Select
+                    value={approvalSteps[0]?.assignee || ''}
+                    onValueChange={value => {
+                      const newSteps = [...approvalSteps]
+                      if (!newSteps[0]) newSteps[0] = { stepId: 'approve', assignee: value }
+                      else newSteps[0].assignee = value
+                      setApprovalSteps(newSteps)
+                    }}
+                  >
+                    <SelectTrigger className="gba:mt-1">
+                      <SelectValue placeholder="Who approves?" />
+                    </SelectTrigger>
+                    <SelectContent style={{ zIndex: 1000003 }}>
+                      <SelectItem value="manager">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <UserCheck className="gba:w-3 gba:h-3" />
+                          My Manager
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="specific">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <User className="gba:w-3 gba:h-3" />
+                          Specific Person...
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {approvalSteps[0]?.assignee === 'specific' && (
+                    <div className="gba:mt-2">
+                      <UserSelect
+                        accessToken={accessToken}
+                        value={approvalSteps[0]?.assigneeUserId || null}
+                        onValueChange={userId => {
+                          const newSteps = [...approvalSteps]
+                          if (!newSteps[0]) newSteps[0] = { stepId: 'approve', assignee: 'specific' }
+                          newSteps[0].assigneeUserId = userId || undefined
+                          setApprovalSteps(newSteps)
+                        }}
+                        placeholder="Search and select a person..."
+                        data-testid="sheet-approval-user-select"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {automationType === 'line_approval' && (
+        <div className="gba:space-y-4">
+          <p className="gba:text-sm gba:text-muted-foreground">
+            Each row is sent for individual approval. Configure who approves each line item.
+          </p>
+
+          <Card className="gba:border-primary/50">
+            <CardContent className="gba:p-4">
+              <div className="gba:flex gba:items-start gba:justify-between">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-warning/10 gba:flex gba:items-center gba:justify-center gba:text-warning gba:font-medium gba:text-sm">
+                    <RefreshCw className="gba:w-4 gba:h-4" />
+                  </div>
+                  <div>
+                    <div className="gba:font-medium">Approve Line Item</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">Per-row approval • 48h deadline</div>
+                  </div>
+                </div>
+                <div className="gba:w-48">
+                  <Label className="gba:text-xs gba:text-muted-foreground">Approver *</Label>
+                  <Select
+                    value={approvalSteps[0]?.assignee || ''}
+                    onValueChange={value => {
+                      const newSteps = [...approvalSteps]
+                      if (!newSteps[0]) newSteps[0] = { stepId: 'approve_line', assignee: value }
+                      else newSteps[0].assignee = value
+                      setApprovalSteps(newSteps)
+                    }}
+                  >
+                    <SelectTrigger className="gba:mt-1">
+                      <SelectValue placeholder="Who approves?" />
+                    </SelectTrigger>
+                    <SelectContent style={{ zIndex: 1000003 }}>
+                      <SelectItem value="manager">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <UserCheck className="gba:w-3 gba:h-3" />
+                          My Manager
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="column">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <FileSpreadsheet className="gba:w-3 gba:h-3" />
+                          From Column (per row)...
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="specific">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <User className="gba:w-3 gba:h-3" />
+                          Specific Person...
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {approvalSteps[0]?.assignee === 'column' && (
+                    <Select
+                      value={approvalSteps[0]?.assigneeColumn || ''}
+                      onValueChange={value => {
+                        const newSteps = [...approvalSteps]
+                        if (newSteps[0]) newSteps[0].assigneeColumn = value
+                        setApprovalSteps(newSteps)
+                      }}
+                    >
+                      <SelectTrigger className="gba:mt-2">
+                        <SelectValue placeholder="Select approver column..." />
+                      </SelectTrigger>
+                      <SelectContent style={{ zIndex: 1000003 }}>
+                        {columns
+                          .filter(c => c.type === 'user' || c.type === 'email' || c.type === 'text')
+                          .map(column => (
+                            <SelectItem key={column.id} value={column.id}>
+                              {column.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {approvalSteps[0]?.assignee === 'specific' && (
+                    <div className="gba:mt-2">
+                      <UserSelect
+                        accessToken={accessToken}
+                        value={approvalSteps[0]?.assigneeUserId || null}
+                        onValueChange={userId => {
+                          const newSteps = [...approvalSteps]
+                          if (!newSteps[0]) newSteps[0] = { stepId: 'approve_line', assignee: 'specific' }
+                          newSteps[0].assigneeUserId = userId || undefined
+                          setApprovalSteps(newSteps)
+                        }}
+                        placeholder="Search and select a person..."
+                        data-testid="line-approval-user-select"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="gba:p-3 gba:bg-muted/50 gba:rounded-lg gba:text-sm gba:text-muted-foreground">
+            <strong>Tip:</strong> Use "From Column" if each row has a different approver (e.g., department manager
+            stored in the row data).
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
   // Render step content
   const renderStepContent = () => {
     switch (currentStep) {
@@ -1198,372 +1581,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
             </div>
 
             {/* Type-specific Workflow Configuration - with assignee selection */}
-            <div className="gba:border-t gba:pt-6">
-              <h4 className="gba:font-semibold gba:text-foreground gba:mb-4 gba:flex gba:items-center gba:gap-2">
-                {automationType === 'row_workflow' && <FileSpreadsheet className="gba:w-4 gba:h-4" />}
-                {automationType === 'sheet_approval' && <ClipboardCheck className="gba:w-4 gba:h-4" />}
-                {automationType === 'line_approval' && <Zap className="gba:w-4 gba:h-4" />}
-                {automationType === 'bulk_collection' && <Users className="gba:w-4 gba:h-4" />}
-                Workflow Steps
-              </h4>
-
-              {automationType === 'row_workflow' && (
-                <div className="gba:space-y-4">
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    Each row triggers a workflow with these steps. Configure who handles each step.
-                  </p>
-
-                  <Card>
-                    <CardContent className="gba:p-4">
-                      <div className="gba:flex gba:items-start gba:justify-between">
-                        <div className="gba:flex gba:items-center gba:gap-3">
-                          <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:text-primary gba:font-medium gba:text-sm">
-                            1
-                          </div>
-                          <div>
-                            <div className="gba:font-medium">Review Row Data</div>
-                            <div className="gba:text-sm gba:text-muted-foreground">Task • 24h deadline</div>
-                          </div>
-                        </div>
-                        <div className="gba:w-48">
-                          <Label className="gba:text-xs gba:text-muted-foreground">Assigned to</Label>
-                          <Select
-                            value={approvalSteps[0]?.assignee || 'initiator'}
-                            onValueChange={value => {
-                              const newSteps = [...approvalSteps]
-                              if (!newSteps[0]) newSteps[0] = { stepId: 'review', assignee: value }
-                              else newSteps[0].assignee = value
-                              setApprovalSteps(newSteps)
-                            }}
-                          >
-                            <SelectTrigger className="gba:mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent style={{ zIndex: 1000003 }}>
-                              <SelectItem value="initiator">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <User className="gba:w-3 gba:h-3" />
-                                  Myself (initiator)
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="manager">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <UserCheck className="gba:w-3 gba:h-3" />
-                                  My Manager
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="column">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <FileSpreadsheet className="gba:w-3 gba:h-3" />
-                                  From Column...
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {approvalSteps[0]?.assignee === 'column' && (
-                            <Select
-                              value={approvalSteps[0]?.assigneeColumn || ''}
-                              onValueChange={value => {
-                                const newSteps = [...approvalSteps]
-                                if (newSteps[0]) newSteps[0].assigneeColumn = value
-                                setApprovalSteps(newSteps)
-                              }}
-                            >
-                              <SelectTrigger className="gba:mt-2">
-                                <SelectValue placeholder="Select column..." />
-                              </SelectTrigger>
-                              <SelectContent style={{ zIndex: 1000003 }}>
-                                {columns
-                                  .filter(c => c.type === 'user' || c.type === 'email' || c.type === 'text')
-                                  .map(column => (
-                                    <SelectItem key={column.id} value={column.id}>
-                                      {column.label}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="gba:flex gba:justify-center">
-                    <ArrowDown className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                  </div>
-
-                  <Card>
-                    <CardContent className="gba:p-4">
-                      <div className="gba:flex gba:items-start gba:justify-between">
-                        <div className="gba:flex gba:items-center gba:gap-3">
-                          <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:text-primary gba:font-medium gba:text-sm">
-                            2
-                          </div>
-                          <div>
-                            <div className="gba:font-medium">Process Row</div>
-                            <div className="gba:text-sm gba:text-muted-foreground">Task • 48h deadline</div>
-                          </div>
-                        </div>
-                        <div className="gba:w-48">
-                          <Label className="gba:text-xs gba:text-muted-foreground">Assigned to</Label>
-                          <Select
-                            value={approvalSteps[1]?.assignee || 'initiator'}
-                            onValueChange={value => {
-                              const newSteps = [...approvalSteps]
-                              if (!newSteps[1]) newSteps[1] = { stepId: 'process', assignee: value }
-                              else newSteps[1].assignee = value
-                              setApprovalSteps(newSteps)
-                            }}
-                          >
-                            <SelectTrigger className="gba:mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent style={{ zIndex: 1000003 }}>
-                              <SelectItem value="initiator">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <User className="gba:w-3 gba:h-3" />
-                                  Myself (initiator)
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="manager">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <UserCheck className="gba:w-3 gba:h-3" />
-                                  My Manager
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="column">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <FileSpreadsheet className="gba:w-3 gba:h-3" />
-                                  From Column...
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {approvalSteps[1]?.assignee === 'column' && (
-                            <Select
-                              value={approvalSteps[1]?.assigneeColumn || ''}
-                              onValueChange={value => {
-                                const newSteps = [...approvalSteps]
-                                if (newSteps[1]) newSteps[1].assigneeColumn = value
-                                setApprovalSteps(newSteps)
-                              }}
-                            >
-                              <SelectTrigger className="gba:mt-2">
-                                <SelectValue placeholder="Select column..." />
-                              </SelectTrigger>
-                              <SelectContent style={{ zIndex: 1000003 }}>
-                                {columns
-                                  .filter(c => c.type === 'user' || c.type === 'email' || c.type === 'text')
-                                  .map(column => (
-                                    <SelectItem key={column.id} value={column.id}>
-                                      {column.label}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {automationType === 'sheet_approval' && (
-                <div className="gba:space-y-4">
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    The entire spreadsheet will be submitted for approval. Configure who reviews it.
-                  </p>
-
-                  <Card>
-                    <CardContent className="gba:p-4">
-                      <div className="gba:flex gba:items-start gba:justify-between">
-                        <div className="gba:flex gba:items-center gba:gap-3">
-                          <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-info/10 gba:flex gba:items-center gba:justify-center gba:text-info gba:font-medium gba:text-sm">
-                            1
-                          </div>
-                          <div>
-                            <div className="gba:font-medium">Submission Notification</div>
-                            <div className="gba:text-sm gba:text-muted-foreground">Info • Automatic</div>
-                          </div>
-                        </div>
-                        <div className="gba:text-sm gba:text-muted-foreground gba:italic">Sent to submitter</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="gba:flex gba:justify-center">
-                    <ArrowDown className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                  </div>
-
-                  <Card className="gba:border-primary/50">
-                    <CardContent className="gba:p-4">
-                      <div className="gba:flex gba:items-start gba:justify-between">
-                        <div className="gba:flex gba:items-center gba:gap-3">
-                          <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-warning/10 gba:flex gba:items-center gba:justify-center gba:text-warning gba:font-medium gba:text-sm">
-                            2
-                          </div>
-                          <div>
-                            <div className="gba:font-medium">Approve Spreadsheet</div>
-                            <div className="gba:text-sm gba:text-muted-foreground">Approval • 3 day deadline</div>
-                          </div>
-                        </div>
-                        <div className="gba:w-48">
-                          <Label className="gba:text-xs gba:text-muted-foreground">Approver *</Label>
-                          <Select
-                            value={approvalSteps[0]?.assignee || ''}
-                            onValueChange={value => {
-                              const newSteps = [...approvalSteps]
-                              if (!newSteps[0]) newSteps[0] = { stepId: 'approve', assignee: value }
-                              else newSteps[0].assignee = value
-                              setApprovalSteps(newSteps)
-                            }}
-                          >
-                            <SelectTrigger className="gba:mt-1">
-                              <SelectValue placeholder="Who approves?" />
-                            </SelectTrigger>
-                            <SelectContent style={{ zIndex: 1000003 }}>
-                              <SelectItem value="manager">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <UserCheck className="gba:w-3 gba:h-3" />
-                                  My Manager
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="specific">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <User className="gba:w-3 gba:h-3" />
-                                  Specific Person...
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {approvalSteps[0]?.assignee === 'specific' && (
-                            <div className="gba:mt-2">
-                              <UserSelect
-                                accessToken={accessToken}
-                                value={approvalSteps[0]?.assigneeUserId || null}
-                                onValueChange={userId => {
-                                  const newSteps = [...approvalSteps]
-                                  if (!newSteps[0]) newSteps[0] = { stepId: 'approve', assignee: 'specific' }
-                                  newSteps[0].assigneeUserId = userId || undefined
-                                  setApprovalSteps(newSteps)
-                                }}
-                                placeholder="Search and select a person..."
-                                data-testid="sheet-approval-user-select"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {automationType === 'line_approval' && (
-                <div className="gba:space-y-4">
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    Each row is sent for individual approval. Configure who approves each line item.
-                  </p>
-
-                  <Card className="gba:border-primary/50">
-                    <CardContent className="gba:p-4">
-                      <div className="gba:flex gba:items-start gba:justify-between">
-                        <div className="gba:flex gba:items-center gba:gap-3">
-                          <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-warning/10 gba:flex gba:items-center gba:justify-center gba:text-warning gba:font-medium gba:text-sm">
-                            <RefreshCw className="gba:w-4 gba:h-4" />
-                          </div>
-                          <div>
-                            <div className="gba:font-medium">Approve Line Item</div>
-                            <div className="gba:text-sm gba:text-muted-foreground">Per-row approval • 48h deadline</div>
-                          </div>
-                        </div>
-                        <div className="gba:w-48">
-                          <Label className="gba:text-xs gba:text-muted-foreground">Approver *</Label>
-                          <Select
-                            value={approvalSteps[0]?.assignee || ''}
-                            onValueChange={value => {
-                              const newSteps = [...approvalSteps]
-                              if (!newSteps[0]) newSteps[0] = { stepId: 'approve_line', assignee: value }
-                              else newSteps[0].assignee = value
-                              setApprovalSteps(newSteps)
-                            }}
-                          >
-                            <SelectTrigger className="gba:mt-1">
-                              <SelectValue placeholder="Who approves?" />
-                            </SelectTrigger>
-                            <SelectContent style={{ zIndex: 1000003 }}>
-                              <SelectItem value="manager">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <UserCheck className="gba:w-3 gba:h-3" />
-                                  My Manager
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="column">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <FileSpreadsheet className="gba:w-3 gba:h-3" />
-                                  From Column (per row)...
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="specific">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <User className="gba:w-3 gba:h-3" />
-                                  Specific Person...
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {approvalSteps[0]?.assignee === 'column' && (
-                            <Select
-                              value={approvalSteps[0]?.assigneeColumn || ''}
-                              onValueChange={value => {
-                                const newSteps = [...approvalSteps]
-                                if (newSteps[0]) newSteps[0].assigneeColumn = value
-                                setApprovalSteps(newSteps)
-                              }}
-                            >
-                              <SelectTrigger className="gba:mt-2">
-                                <SelectValue placeholder="Select approver column..." />
-                              </SelectTrigger>
-                              <SelectContent style={{ zIndex: 1000003 }}>
-                                {columns
-                                  .filter(c => c.type === 'user' || c.type === 'email' || c.type === 'text')
-                                  .map(column => (
-                                    <SelectItem key={column.id} value={column.id}>
-                                      {column.label}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                          {approvalSteps[0]?.assignee === 'specific' && (
-                            <div className="gba:mt-2">
-                              <UserSelect
-                                accessToken={accessToken}
-                                value={approvalSteps[0]?.assigneeUserId || null}
-                                onValueChange={userId => {
-                                  const newSteps = [...approvalSteps]
-                                  if (!newSteps[0]) newSteps[0] = { stepId: 'approve_line', assignee: 'specific' }
-                                  newSteps[0].assigneeUserId = userId || undefined
-                                  setApprovalSteps(newSteps)
-                                }}
-                                placeholder="Search and select a person..."
-                                data-testid="line-approval-user-select"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="gba:p-3 gba:bg-muted/50 gba:rounded-lg gba:text-sm gba:text-muted-foreground">
-                    <strong>Tip:</strong> Use "From Column" if each row has a different approver (e.g., department
-                    manager stored in the row data).
-                  </div>
-                </div>
-              )}
-            </div>
+            {renderWorkflowTypeSpecificConfiguration()}
           </div>
         )
 

@@ -277,10 +277,10 @@ export class SpreadsheetAppService {
     try {
       const imported = JSON.parse(jsonData) as SpreadsheetApp
       // Reset IDs and timestamps
-      const { id, createdAt, updatedAt, ...appData } = imported
-      void id
-      void createdAt
-      void updatedAt
+      const appData: Partial<SpreadsheetApp> = { ...imported }
+      delete appData.id
+      delete appData.createdAt
+      delete appData.updatedAt
       return this.createApp({
         ...appData,
         status: 'draft'

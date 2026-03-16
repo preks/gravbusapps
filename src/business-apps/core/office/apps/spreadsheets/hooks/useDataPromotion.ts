@@ -44,6 +44,61 @@ export interface ValidationResult {
   warnings: string[]
 }
 
+const RESERVED_COLUMN_NAMES = new Set(['id', '_id', 'version', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy'])
+
+function validateBasicAppRequirements(app: SpreadsheetApp, errors: string[]): void {
+  if (!app.name || app.name.trim().length === 0) {
+    errors.push('App must have a name')
+  }
+
+  if (!app.sheets || app.sheets.length === 0) {
+    errors.push('App must have at least one sheet')
+  }
+}
+
+function validateSheetColumns(sheet: SpreadsheetSheet, errors: string[], warnings: string[]): void {
+  if (!sheet.columns || sheet.columns.length === 0) {
+    errors.push(`Sheet "${sheet.name}" must have at least one column`)
+    return
+  }
+
+  for (const col of sheet.columns) {
+    if (!col.name || col.name.trim().length === 0) {
+      errors.push(`Column in sheet "${sheet.name}" must have a name`)
+    }
+
+    if (RESERVED_COLUMN_NAMES.has(col.name.toLowerCase())) {
+      warnings.push(`Column "${col.name}" in sheet "${sheet.name}" uses a reserved name and will be renamed`)
+    }
+  }
+
+  const columnNames = sheet.columns.map(c => c.name.toLowerCase())
+  const duplicates = columnNames.filter((name, i) => columnNames.indexOf(name) !== i)
+  if (duplicates.length > 0) {
+    errors.push(`Sheet "${sheet.name}" has duplicate column names: ${[...new Set(duplicates)].join(', ')}`)
+  }
+}
+
+function validateSheetData(sheet: SpreadsheetSheet, warnings: string[]): void {
+  if (sheet.data.length === 0) {
+    warnings.push(`Sheet "${sheet.name}" has no data to migrate`)
+  }
+}
+
+function validateRelationships(app: SpreadsheetApp, errors: string[]): void {
+  for (const rel of app.relationships) {
+    const fromSheet = app.sheets.find(s => s.name === rel.fromSheet)
+    const toSheet = app.sheets.find(s => s.name === rel.toSheet)
+
+    if (!fromSheet) {
+      errors.push(`Relationship references non-existent sheet: ${rel.fromSheet}`)
+    }
+    if (!toSheet) {
+      errors.push(`Relationship references non-existent sheet: ${rel.toSheet}`)
+    }
+  }
+}
+
 /**
  * Hook for promoting spreadsheet apps to database entities
  */
@@ -64,59 +119,15 @@ export function useDataPromotion(accessToken: string): UseDataPromotionResult {
     const errors: string[] = []
     const warnings: string[] = []
 
-    // Check basic requirements
-    if (!app.name || app.name.trim().length === 0) {
-      errors.push('App must have a name')
-    }
-
-    if (!app.sheets || app.sheets.length === 0) {
-      errors.push('App must have at least one sheet')
-    }
+    validateBasicAppRequirements(app, errors)
 
     // Check each sheet
     for (const sheet of app.sheets) {
-      if (!sheet.columns || sheet.columns.length === 0) {
-        errors.push(`Sheet "${sheet.name}" must have at least one column`)
-      }
-
-      // Check for columns without valid names
-      for (const col of sheet.columns) {
-        if (!col.name || col.name.trim().length === 0) {
-          errors.push(`Column in sheet "${sheet.name}" must have a name`)
-        }
-
-        // Check for reserved column names
-        const reservedNames = ['id', '_id', 'version', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy']
-        if (reservedNames.includes(col.name.toLowerCase())) {
-          warnings.push(`Column "${col.name}" in sheet "${sheet.name}" uses a reserved name and will be renamed`)
-        }
-      }
-
-      // Check for duplicate column names
-      const columnNames = sheet.columns.map(c => c.name.toLowerCase())
-      const duplicates = columnNames.filter((name, i) => columnNames.indexOf(name) !== i)
-      if (duplicates.length > 0) {
-        errors.push(`Sheet "${sheet.name}" has duplicate column names: ${[...new Set(duplicates)].join(', ')}`)
-      }
-
-      // Check data validity
-      if (sheet.data.length === 0) {
-        warnings.push(`Sheet "${sheet.name}" has no data to migrate`)
-      }
+      validateSheetColumns(sheet, errors, warnings)
+      validateSheetData(sheet, warnings)
     }
 
-    // Check for relationships validity
-    for (const rel of app.relationships) {
-      const fromSheet = app.sheets.find(s => s.name === rel.fromSheet)
-      const toSheet = app.sheets.find(s => s.name === rel.toSheet)
-
-      if (!fromSheet) {
-        errors.push(`Relationship references non-existent sheet: ${rel.fromSheet}`)
-      }
-      if (!toSheet) {
-        errors.push(`Relationship references non-existent sheet: ${rel.toSheet}`)
-      }
-    }
+    validateRelationships(app, errors)
 
     return {
       isValid: errors.length === 0,

@@ -185,6 +185,194 @@ const buildColumnIdToNameMap = (automation: SpreadsheetAutomation): Map<string, 
   return columnIdToName
 }
 
+function hasCollectionRecipients(automation: SpreadsheetAutomation): boolean {
+  return (
+    (automation.collectionConfig?.recipients?.length ?? 0) > 0 ||
+    automation.collectionConfig?.recipientType === 'team' ||
+    automation.collectionConfig?.recipientType === 'department'
+  )
+}
+
+function mapRowsForAutomationRun(rows?: Array<{ id: string; cells: Record<string, unknown> }>) {
+  if (!rows?.length) return undefined
+  return rows.map(row => ({
+    rowId: row.id,
+    data: { _id: row.id, ...row.cells }
+  }))
+}
+
+function buildWorkflowLinks(
+  workflows: Array<{ rowId: string; workflowId: string; status: WorkflowRowLink['workflowStatus'] }>,
+  automationId: string,
+  executedAt: string,
+  totalSteps: number
+): WorkflowRowLink[] {
+  return workflows.map(wf => ({
+    rowId: wf.rowId,
+    workflowId: wf.workflowId,
+    workflowStatus: wf.status,
+    automationId,
+    startedAt: executedAt,
+    lastUpdatedAt: executedAt,
+    currentStepIndex: 0,
+    totalSteps
+  }))
+}
+
+async function buildInitialCollectionRows(params: {
+  automation: SpreadsheetAutomation
+  workflows: Array<{ rowId: string; workflowId: string }>
+  executedAt: string
+  accessToken: string
+}): Promise<Array<{ cells: Record<string, unknown>; metadata: Record<string, unknown> }>> {
+  const { automation, workflows, executedAt, accessToken } = params
+  const statusColumn = automation.workflowConfig.statusColumn
+  const trackingColumns = ensureRecipientTrackingColumns(
+    automation.collectionConfig?.trackingColumns || getDefaultTrackingColumns(),
+    automation.type === 'excel_collection' ? 'excel_collection' : 'bulk_collection'
+  )
+  const columnIdToName = buildColumnIdToNameMap(automation)
+  const recipientIds = workflows.map(wf => wf.rowId.replace('recipient_', ''))
+
+  graphQLClient.setAccessToken(accessToken)
+  const recipientDataMap = await fetchRecipientsData(graphQLClient, recipientIds)
+
+  return workflows.map(wf => {
+    const recipientId = wf.rowId.replace('recipient_', '')
+    const recipientData = recipientDataMap.get(recipientId)
+
+    const trackingValues = buildSentRowTrackingValues(
+      trackingColumns,
+      {
+        id: recipientId,
+        name: recipientData?.name,
+        email: recipientData?.email,
+        avatar: recipientData?.avatar
+      },
+      executedAt
+    )
+
+    const cells: Record<string, unknown> = {
+      ...trackingValues,
+      _workflow_id: wf.workflowId
+    }
+
+    if (statusColumn) {
+      const statusColumnName = columnIdToName.get(statusColumn) || statusColumn
+      cells[statusColumnName] = 'Sent'
+    }
+
+    return {
+      cells,
+      metadata: {
+        workflowId: wf.workflowId,
+        recipientId,
+        automationId: automation.id,
+        isBulkCollectionPending: true,
+        trackingColumns
+      }
+    }
+  })
+}
+
+function getStringFormValue(formData: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = formData[key]
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function filterNewCompletedResponses(
+  responses: Array<{ status: string; workflowId: string; responderId?: string }>,
+  shouldDedupeByMemory: boolean,
+  processedWorkflowIds: Set<string>
+): Array<{ status: string; workflowId: string; responderId?: string }> {
+  return responses.filter(r => {
+    if (r.status !== 'COMPLETED') return false
+    const normalizedWorkflowId = String(r.workflowId || '').trim()
+    const normalizedResponderId = String(r.responderId || '').trim()
+    if (!normalizedWorkflowId && !normalizedResponderId) return false
+    if (!shouldDedupeByMemory) return true
+    return normalizedWorkflowId ? !processedWorkflowIds.has(normalizedWorkflowId) : true
+  })
+}
+
+function buildRowUpdate(params: {
+  response: {
+    workflowId: string
+    responderId?: string
+    responderName?: string
+    responderEmail?: string
+    submittedAt?: string
+    formData: Record<string, unknown>
+  }
+  recipientData?: { name?: string; email?: string; avatar?: string }
+  trackingColumns: string[]
+  statusColumn?: string
+  columnIdToName: Map<string, string>
+  columnMappings?: Array<{
+    direction: string
+    workflowParameter: string
+    columnName: string
+  }>
+}): { workflowId: string; recipientId?: string; cells: Record<string, unknown> } {
+  const { response, recipientData, trackingColumns, statusColumn, columnIdToName, columnMappings } = params
+  const displayName =
+    response.responderName && response.responderName !== 'Unknown' ? response.responderName : recipientData?.name
+  const displayEmail = response.responderEmail ?? recipientData?.email
+
+  const copyAppId = getStringFormValue(response.formData, ['copyAppId', 'copy_app_id'])
+  const copyUrl = getStringFormValue(response.formData, ['copyUrl', 'copyURL', 'copyLink', 'copy_link'])
+
+  const trackingValues = buildCompletedRowTrackingValues(
+    trackingColumns,
+    {
+      id: response.responderId,
+      name: displayName,
+      email: displayEmail,
+      avatar: recipientData?.avatar
+    },
+    new Date().toISOString(),
+    response.submittedAt,
+    copyAppId,
+    copyUrl
+  )
+
+  const cells: Record<string, unknown> = { ...trackingValues }
+  if (statusColumn) {
+    const statusColumnName = columnIdToName.get(statusColumn) || statusColumn
+    cells[statusColumnName] = 'Completed'
+  }
+
+  if (columnMappings) {
+    for (const mapping of columnMappings) {
+      if (
+        mapping.direction === 'fromWorkflow' &&
+        response.formData[mapping.workflowParameter] &&
+        !isTrackingColumn(mapping.columnName)
+      ) {
+        cells[mapping.columnName] = response.formData[mapping.workflowParameter]
+      }
+    }
+  }
+
+  for (const [key, value] of Object.entries(response.formData)) {
+    const columnName = columnIdToName.get(key) || key
+    if (!cells[columnName] && columnName !== statusColumn && !isTrackingColumn(columnName)) {
+      cells[columnName] = value
+    }
+  }
+
+  return {
+    workflowId: String(response.workflowId || '').trim(),
+    recipientId: String(response.responderId || '').trim() || undefined,
+    cells
+  }
+}
+
 /**
  * useSpreadsheetAutomations Hook
  */
@@ -473,10 +661,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         // - bulk_collection / excel_collection: requires RECIPIENTS (not rows) - can run on empty sheets
         // - other types: require ROWS to process
         const isBulkCollection = isCollectionAutomation(automation)
-        const hasRecipients =
-          (automation.collectionConfig?.recipients?.length ?? 0) > 0 ||
-          automation.collectionConfig?.recipientType === 'team' ||
-          automation.collectionConfig?.recipientType === 'department'
+        const hasRecipients = hasCollectionRecipients(automation)
 
         if (!isBulkCollection && (!rows || rows.length === 0)) {
           // Update automation last run time anyway for UI feedback
@@ -502,15 +687,9 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         // - row_workflow/line_approval: execute per row
         // - bulk_collection: execute per recipient (not per row!)
         // - sheet_approval: execute once for entire sheet
-
         const result = await service.runAutomation({
           automation,
-          rows: rows?.length
-            ? rows.map(row => ({
-                rowId: row.id,
-                data: { _id: row.id, ...row.cells }
-              }))
-            : undefined,
+          rows: mapRowsForAutomationRun(rows),
           recipients: automation.collectionConfig?.recipients,
           spreadsheetId,
           sheetId,
@@ -521,16 +700,12 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
         // Update workflow links with new workflows
         if (result.workflows && result.workflows.length > 0) {
-          const newLinks: WorkflowRowLink[] = result.workflows.map(wf => ({
-            rowId: wf.rowId,
-            workflowId: wf.workflowId,
-            workflowStatus: wf.status,
+          const newLinks = buildWorkflowLinks(
+            result.workflows,
             automationId,
-            startedAt: executedAt,
-            lastUpdatedAt: executedAt,
-            currentStepIndex: 0,
-            totalSteps: automation.workflowConfig.dynamicTemplate?.steps?.length || 1
-          }))
+            executedAt,
+            automation.workflowConfig.dynamicTemplate?.steps?.length || 1
+          )
           setWorkflowLinks(prev => {
             // bulk/excel collection runs can execute without source sheet rows
             const processedRowIds = rows?.map(r => r.id) ?? []
@@ -542,56 +717,12 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           // For bulk_collection and excel_collection: create rows showing "Sent" status when automation starts.
           if (isCollectionAutomation(automation)) {
             if (onAddRowsRef.current) {
-              const statusColumn = automation.workflowConfig.statusColumn
-              const trackingColumns = ensureRecipientTrackingColumns(
-                automation.collectionConfig?.trackingColumns || getDefaultTrackingColumns(),
-                automation.type === 'excel_collection' ? 'excel_collection' : 'bulk_collection'
-              )
-
-              const columnIdToName = buildColumnIdToNameMap(automation)
-              const recipientIds = result.workflows.map(wf => wf.rowId.replace('recipient_', ''))
-
-              graphQLClient.setAccessToken(accessToken)
-              const recipientDataMap = await fetchRecipientsData(graphQLClient, recipientIds)
-
-              const initialRows = result.workflows.map(wf => {
-                const recipientId = wf.rowId.replace('recipient_', '')
-
-                const recipientData = recipientDataMap.get(recipientId)
-
-                const trackingValues = buildSentRowTrackingValues(
-                  trackingColumns,
-                  {
-                    id: recipientId,
-                    name: recipientData?.name,
-                    email: recipientData?.email,
-                    avatar: recipientData?.avatar
-                  },
-                  executedAt
-                )
-
-                const cells: Record<string, unknown> = {
-                  ...trackingValues,
-                  _workflow_id: wf.workflowId
-                }
-
-                if (statusColumn) {
-                  const statusColumnName = columnIdToName.get(statusColumn) || statusColumn
-                  cells[statusColumnName] = 'Sent'
-                }
-
-                return {
-                  cells,
-                  metadata: {
-                    workflowId: wf.workflowId,
-                    recipientId,
-                    automationId,
-                    isBulkCollectionPending: true,
-                    trackingColumns
-                  }
-                }
+              const initialRows = await buildInitialCollectionRows({
+                automation,
+                workflows: result.workflows,
+                executedAt,
+                accessToken
               })
-
               onAddRowsRef.current(initialRows)
             } else {
               console.error('[useSpreadsheetAutomations] ERROR: onAddRowsRef.current is not set!')
@@ -812,15 +943,11 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         // because row persistence can race/fail and we must keep retrying on every poll
         // until the report sheet is actually updated.
         const shouldDedupeByMemory = automation.type !== 'excel_collection'
-        const newResponses = responses.filter(r => {
-          if (r.status !== 'COMPLETED') return false
-          const normalizedWorkflowId = String(r.workflowId || '').trim()
-          const normalizedResponderId = String(r.responderId || '').trim()
-          // Without either identifier we cannot safely match rows and may create duplicates.
-          if (!normalizedWorkflowId && !normalizedResponderId) return false
-          if (!shouldDedupeByMemory) return true
-          return normalizedWorkflowId ? !processedWorkflowIdsRef.current.has(normalizedWorkflowId) : true
-        })
+        const newResponses = filterNewCompletedResponses(
+          responses,
+          shouldDedupeByMemory,
+          processedWorkflowIdsRef.current
+        )
 
         if (newResponses.length === 0) continue
 
@@ -841,73 +968,21 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         const columnIdToName = buildColumnIdToNameMap(automation)
         const rowUpdates = newResponses.map(response => {
           const recipientData = response.responderId ? recipientDataMap.get(response.responderId) : undefined
-          const displayName =
-            response.responderName && response.responderName !== 'Unknown'
-              ? response.responderName
-              : recipientData?.name
-          const displayEmail = response.responderEmail ?? recipientData?.email
-
-          // Build tracking column update values (include avatar for recipient_avatar column)
-          const copyAppId =
-            (response.formData?.copyAppId as string | undefined) ||
-            (response.formData?.copy_app_id as string | undefined)
-          const copyUrl =
-            (response.formData?.copyUrl as string | undefined) ||
-            (response.formData?.copyURL as string | undefined) ||
-            (response.formData?.copyLink as string | undefined) ||
-            (response.formData?.copy_link as string | undefined)
-          const trackingValues = buildCompletedRowTrackingValues(
-            trackingColumns,
-            {
-              id: response.responderId,
-              name: displayName,
-              email: displayEmail,
-              avatar: recipientData?.avatar
+          return buildRowUpdate({
+            response: {
+              workflowId: response.workflowId,
+              responderId: response.responderId,
+              responderName: response.responderName,
+              responderEmail: response.responderEmail,
+              submittedAt: response.submittedAt,
+              formData: response.formData
             },
-            new Date().toISOString(), // sentAt - will be overridden if _sent_at exists in row
-            response.submittedAt,
-            copyAppId,
-            copyUrl
-          )
-
-          const cells: Record<string, unknown> = {
-            ...trackingValues
-          }
-
-          // Set user's status column if configured (map ID to name)
-          if (statusColumn) {
-            const statusColumnName = columnIdToName.get(statusColumn) || statusColumn
-            cells[statusColumnName] = 'Completed'
-          }
-
-          // Map form data to configured columns using columnName (not columnId!)
-          // Never overwrite tracking columns (avatar, name, email, dates) - those come from our GraphQL fetch
-          if (automation.workflowConfig.columnMappings) {
-            for (const mapping of automation.workflowConfig.columnMappings) {
-              if (
-                mapping.direction === 'fromWorkflow' &&
-                response.formData[mapping.workflowParameter] &&
-                !isTrackingColumn(mapping.columnName)
-              ) {
-                cells[mapping.columnName] = response.formData[mapping.workflowParameter]
-              }
-            }
-          }
-
-          // Also copy any matching form data keys directly (this is the main data!)
-          // Form data keys are column IDs, but we need to map to column names
-          // Never overwrite tracking columns - workflow forms must not override avatar/name/email
-          for (const [key, value] of Object.entries(response.formData)) {
-            const columnName = columnIdToName.get(key) || key
-            if (!cells[columnName] && columnName !== statusColumn && !isTrackingColumn(columnName)) {
-              cells[columnName] = value
-            }
-          }
-          return {
-            workflowId: String(response.workflowId || '').trim(),
-            recipientId: String(response.responderId || '').trim() || undefined, // Include for matching by recipient when workflowId differs
-            cells
-          }
+            recipientData,
+            trackingColumns,
+            statusColumn,
+            columnIdToName,
+            columnMappings: automation.workflowConfig.columnMappings
+          })
         })
 
         // Mark as processed only for non-excel collection automations.

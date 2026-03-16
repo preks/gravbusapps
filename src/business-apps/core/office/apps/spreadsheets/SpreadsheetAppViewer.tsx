@@ -1731,6 +1731,97 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     handleCellChangeRef.current = handleCellChange
   }, [handleCellChange])
 
+  const flushPendingCellsForPersistedRow = useCallback(
+    async (persistedId: string, pending: Record<string, unknown>) => {
+      if (isOpsV2Enabled) {
+        const flushOp: SpreadsheetBatchOperation = {
+          operationId: createOperationId('set_range'),
+          type: 'set_range',
+          data: {
+            cells: Object.entries(pending).map(([columnName, value]) => ({
+              rowId: persistedId,
+              columnName,
+              value
+            }))
+          }
+        }
+        await applyBatchDirect([flushOp], 'set_range_flush')
+        return
+      }
+
+      await SpreadsheetApiService.updateRow(app.id, activeSheetId, persistedId, pending)
+    },
+    [activeSheetId, app.id, applyBatchDirect, createOperationId, isOpsV2Enabled]
+  )
+
+  const persistAddedRowsWithBatch = useCallback(
+    async (
+      rowPayloads: Record<string, unknown>[],
+      updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
+    ) => {
+      const op: SpreadsheetBatchOperation = {
+        operationId: createOperationId('add_rows'),
+        type: 'add_rows',
+        data: { rows: rowPayloads }
+      }
+      // Use applyBatchDirect: processUniverDataChange runs inside operationQueueRef,
+      // so calling persistOperationBatch here would deadlock (circular queue chain).
+      const result = await applyBatchDirect([op], 'add_rows')
+      const opResult = result.operationResults.find(r => r.operationId === op.operationId)
+      const returnedRows = Array.isArray(opResult?.result?.rows)
+        ? (opResult?.result?.rows as Array<Record<string, unknown>>)
+        : []
+      const { createdRows, flushCells } = buildCreatedRowsFromBatch(
+        rowPayloads,
+        returnedRows,
+        pendingClientRowUpdatesRef.current
+      )
+      updateLocalRowsAfterCreate(createdRows)
+
+      if (flushCells.length === 0) return
+
+      const flushOp: SpreadsheetBatchOperation = {
+        operationId: createOperationId('set_range'),
+        type: 'set_range',
+        data: { cells: flushCells }
+      }
+      await applyBatchDirect([flushOp], 'set_range_flush')
+    },
+    [applyBatchDirect, createOperationId]
+  )
+
+  const persistSingleAddedRow = useCallback(
+    async (
+      rowPayloads: Record<string, unknown>[],
+      updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
+    ) => {
+      const singlePayload = rowPayloads[0]
+      const singleClientRowId = String(singlePayload._clientRowId || '')
+      const saved = onRowAdd
+        ? await onRowAdd(app.id, activeSheetId, singlePayload)
+        : await SpreadsheetApiService.addRow(app.id, activeSheetId, singlePayload)
+      const persistedId = String(((saved as Record<string, unknown> | null)?.['_id'] as string | undefined) || '')
+      const pending = singleClientRowId ? pendingClientRowUpdatesRef.current.get(singleClientRowId) : undefined
+      if (singleClientRowId && pending) {
+        pendingClientRowUpdatesRef.current.delete(singleClientRowId)
+      }
+      const mergedPayload = pending ? { ...singlePayload, ...pending } : singlePayload
+      const createdRows: Record<string, unknown>[] = [{ ...mergedPayload, ...(saved || {}) }]
+      updateLocalRowsAfterCreate(createdRows)
+
+      // If we had pending pasted cell updates for this just-created row, persist them now.
+      if (pending && persistedId) {
+        await flushPendingCellsForPersistedRow(persistedId, pending)
+      }
+
+      if (!onRowAdd) {
+        const sheet = await SpreadsheetApiService.getSheet(app.id, activeSheetId)
+        if (sheet?.version != null) sheetVersionRef.current = Number(sheet.version)
+      }
+    },
+    [activeSheetId, app.id, flushPendingCellsForPersistedRow, onRowAdd]
+  )
+
   const processUniverDataChange = useCallback(async () => {
     const newData = latestUniverDataRef.current
     if (!newData || entityEnabled || !canEditWithLock) return
@@ -1755,74 +1846,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
     try {
       if (useBatchAddRows) {
-        const op: SpreadsheetBatchOperation = {
-          operationId: createOperationId('add_rows'),
-          type: 'add_rows',
-          data: { rows: rowPayloads }
-        }
-        // Use applyBatchDirect: processUniverDataChange runs inside operationQueueRef,
-        // so calling persistOperationBatch here would deadlock (circular queue chain).
-        const result = await applyBatchDirect([op], 'add_rows')
-        const opResult = result.operationResults.find(r => r.operationId === op.operationId)
-        const returnedRows = Array.isArray(opResult?.result?.rows)
-          ? (opResult?.result?.rows as Array<Record<string, unknown>>)
-          : []
-        const { createdRows, flushCells } = buildCreatedRowsFromBatch(
-          rowPayloads,
-          returnedRows,
-          pendingClientRowUpdatesRef.current
-        )
-        updateLocalRowsAfterCreate(createdRows)
-
-        if (flushCells.length > 0) {
-          const flushOp: SpreadsheetBatchOperation = {
-            operationId: createOperationId('set_range'),
-            type: 'set_range',
-            data: { cells: flushCells }
-          }
-          await applyBatchDirect([flushOp], 'set_range_flush')
-        }
+        await persistAddedRowsWithBatch(rowPayloads, updateLocalRowsAfterCreate)
         return
       }
 
-      const singlePayload = rowPayloads[0]
-      const singleClientRowId = String(singlePayload._clientRowId || '')
-      const saved = onRowAdd
-        ? await onRowAdd(app.id, activeSheetId, singlePayload)
-        : await SpreadsheetApiService.addRow(app.id, activeSheetId, singlePayload)
-      const persistedId = String(((saved as Record<string, unknown> | null)?.['_id'] as string | undefined) || '')
-      const pending = singleClientRowId ? pendingClientRowUpdatesRef.current.get(singleClientRowId) : undefined
-      if (singleClientRowId && pending) {
-        pendingClientRowUpdatesRef.current.delete(singleClientRowId)
-      }
-      const mergedPayload = pending ? { ...singlePayload, ...pending } : singlePayload
-      const createdRows: Record<string, unknown>[] = [{ ...mergedPayload, ...(saved || {}) }]
-      updateLocalRowsAfterCreate(createdRows)
-
-      // If we had pending pasted cell updates for this just-created row, persist them now.
-      if (pending && persistedId) {
-        if (isOpsV2Enabled) {
-          const flushOp: SpreadsheetBatchOperation = {
-            operationId: createOperationId('set_range'),
-            type: 'set_range',
-            data: {
-              cells: Object.entries(pending).map(([columnName, value]) => ({
-                rowId: persistedId,
-                columnName,
-                value
-              }))
-            }
-          }
-          await applyBatchDirect([flushOp], 'set_range_flush')
-        } else {
-          await SpreadsheetApiService.updateRow(app.id, activeSheetId, persistedId, pending)
-        }
-      }
-
-      if (!onRowAdd) {
-        const sheet = await SpreadsheetApiService.getSheet(app.id, activeSheetId)
-        if (sheet?.version != null) sheetVersionRef.current = Number(sheet.version)
-      }
+      await persistSingleAddedRow(rowPayloads, updateLocalRowsAfterCreate)
     } catch (error) {
       console.error('[SpreadsheetAppViewer] Failed to persist added rows:', error)
       if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
@@ -1841,6 +1869,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     localSheetDataRef,
     onDataChange,
     onRowAdd,
+    persistAddedRowsWithBatch,
+    persistSingleAddedRow,
     recoverFromVersionConflict,
     setLocalSheetData
   ])

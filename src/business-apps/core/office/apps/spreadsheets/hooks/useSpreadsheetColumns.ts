@@ -152,7 +152,6 @@ export function useSpreadsheetColumns({
             console.error(`[${handlerName}] onSheetUpdate failed:`, err)
           })
         if (options?.async) return promise
-        void promise
       } else if (appUpdate) {
         const updatedSheets = currentApp.sheets.map(sheet => {
           if (sheet.id === currentSheet.id) {

@@ -57,6 +57,13 @@ function extractCellFontColorHex(cell: ExcelJS.Cell): string | null {
   return normalizeColorToHex(color)
 }
 
+function extractCellFormula(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object' || !('formula' in value) || typeof value.formula !== 'string') {
+    return undefined
+  }
+  return value.formula.startsWith('=') ? value.formula : `=${value.formula}`
+}
+
 function mapHorizontalAlign(value: ExcelJS.Alignment['horizontal']): 0 | 1 | 2 | undefined {
   if (value === 'center' || value === 'centerContinuous' || value === 'distributed') return 1
   if (value === 'right' || value === 'fill' || value === 'justify') return 2
@@ -256,27 +263,23 @@ function buildStyledCellValue(cell: ExcelJS.Cell): unknown {
   const fontColorHex = extractCellFontColorHex(cell)
   if (fontColorHex) styleCell.fc = fontColorHex
 
-  if (cell.font?.bold) styleCell.bl = 1
-  if (cell.font?.italic) styleCell.it = 1
-  if (typeof cell.font?.name === 'string' && cell.font.name.trim()) styleCell.ff = cell.font.name
-  if (typeof cell.font?.size === 'number') styleCell.fs = cell.font.size
+  const font = cell.font
+  if (font?.bold) styleCell.bl = 1
+  if (font?.italic) styleCell.it = 1
+  if (typeof font?.name === 'string' && font.name.trim()) styleCell.ff = font.name
+  if (typeof font?.size === 'number') styleCell.fs = font.size
 
-  const ht = mapHorizontalAlign(cell.alignment?.horizontal)
+  const alignment = cell.alignment
+  const ht = mapHorizontalAlign(alignment?.horizontal)
   if (ht !== undefined) styleCell.ht = ht
 
-  const vt = mapVerticalAlign(cell.alignment?.vertical)
+  const vt = mapVerticalAlign(alignment?.vertical)
   if (vt !== undefined) styleCell.vt = vt
 
-  if (cell.alignment?.wrapText) styleCell.tb = 2
+  if (alignment?.wrapText) styleCell.tb = 2
 
-  if (
-    cell.value &&
-    typeof cell.value === 'object' &&
-    'formula' in cell.value &&
-    typeof cell.value.formula === 'string'
-  ) {
-    styleCell.f = cell.value.formula.startsWith('=') ? cell.value.formula : `=${cell.value.formula}`
-  }
+  const formula = extractCellFormula(cell.value)
+  if (formula) styleCell.f = formula
 
   if (Object.keys(styleCell).length === 0 && normalizedValue !== null && normalizedValue !== undefined) {
     return normalizedValue

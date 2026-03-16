@@ -123,14 +123,14 @@ function deriveCellMatrixFromRanges(
   }
 
   for (const range of ranges) {
-    for (let r = range.startRow; r <= range.endRow; r++) {
-      for (let c = range.startColumn; c <= range.endColumn; c++) {
+    for (let r = range.startRow; r <= range.endRow && !limitReached(); r++) {
+      for (let c = range.startColumn; c <= range.endColumn && !limitReached(); c++) {
         addCellValue(r, c)
-        if (limitReached()) break
       }
-      if (limitReached()) break
     }
-    if (limitReached()) break
+    if (limitReached()) {
+      break
+    }
   }
   return Object.keys(derived).length > 0 ? derived : undefined
 }

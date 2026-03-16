@@ -166,10 +166,45 @@ function formatAvatarUrl(src?: string): string | undefined {
   return src.startsWith('data:') ? src : `data:image/png;base64,${src}`
 }
 
+type TranslationFn = (key: string, vars?: Record<string, number>) => string
+
+function resolveCurrentUserName(userInfo?: SpreadsheetAppsHubProps['userInfo']): string | undefined {
+  if (userInfo?.employeeDetails?.firstName && userInfo?.employeeDetails?.lastName) {
+    return `${userInfo.employeeDetails.firstName} ${userInfo.employeeDetails.lastName}`
+  }
+  if (userInfo?.givenName && userInfo?.familyName) {
+    return `${userInfo.givenName} ${userInfo.familyName}`
+  }
+  return userInfo?.nickName || userInfo?.userName || undefined
+}
+
+function getSectionTitle(activeSection: SidebarSection, t: TranslationFn): string {
+  switch (activeSection) {
+    case 'home':
+      return t('section-home')
+    case 'my-files':
+      return t('section-my-spreadsheets')
+    case 'shared':
+      return t('section-shared-with-me')
+    case 'favorites':
+      return t('section-favorites')
+    case 'recent':
+      return t('section-recent')
+    case 'automations':
+      return t('section-automations')
+    case 'tasks':
+      return t('section-my-tasks')
+    case 'trash':
+      return t('section-trash')
+    default:
+      return t('section-spreadsheets')
+  }
+}
+
 /**
  * Format relative time
  */
-function formatRelativeTime(dateString: string, t: (key: string, vars?: Record<string, number>) => string): string {
+function formatRelativeTime(dateString: string, t: TranslationFn): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -192,7 +227,7 @@ function formatRelativeTime(dateString: string, t: (key: string, vars?: Record<s
 /**
  * Format date for table display
  */
-function formatDate(dateString: string, t: (key: string, vars?: Record<string, number>) => string): string {
+function formatDate(dateString: string, t: TranslationFn): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -842,50 +877,54 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [t]
   )
 
-  const renderCurrentView = () => {
-    if (currentView === 'viewer' && currentApp) {
+  const currentUserName = useMemo(() => resolveCurrentUserName(userInfo), [userInfo])
+
+  const handleOpenViewerEditor = useCallback(
+    (app: SpreadsheetApp) => {
+      setCurrentView('editor')
+      updateUrl(app.id, 'editor', app.filePath)
+    },
+    [updateUrl]
+  )
+
+  const handleAppRefreshNeeded = useCallback(
+    async (appId: string, newSheetId?: string) => {
+      const maxAttempts = 5
+      const retryDelayMs = 400
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const refreshed = await loadApp(appId)
+
+        // If no target sheet is provided, a single successful refresh is enough.
+        if (!newSheetId) return
+
+        const targetSheet = refreshed?.sheets?.find(s => s.id === newSheetId)
+        if (targetSheet && (targetSheet.data?.length ?? 0) > 0) {
+          return
+        }
+
+        // Wait briefly and retry to handle eventual consistency after row creation.
+        if (attempt < maxAttempts - 1) {
+          await new Promise(resolve => setTimeout(resolve, retryDelayMs))
+        }
+      }
+    },
+    [loadApp]
+  )
+
+  const renderViewerContent = useCallback(
+    (app: SpreadsheetApp) => {
       const canEdit = currentAppPermission === 'owner' || currentAppPermission === 'edit'
 
       return (
         <>
           <SpreadsheetAppViewer
-            app={currentApp}
+            app={app}
             onBack={handleBack}
-            onShare={() => handleShareApp(currentApp.id)}
-            onEdit={
-              canEdit
-                ? () => {
-                    setCurrentView('editor')
-                    updateUrl(currentApp.id, 'editor', currentApp.filePath)
-                  }
-                : undefined
-            }
+            onShare={() => handleShareApp(app.id)}
+            onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
-            onAppRefreshNeeded={
-              canEdit
-                ? async (appId: string, newSheetId?: string) => {
-                    const maxAttempts = 5
-                    const retryDelayMs = 400
-
-                    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-                      const refreshed = await loadApp(appId)
-
-                      // If no target sheet is provided, a single successful refresh is enough.
-                      if (!newSheetId) return
-
-                      const targetSheet = refreshed?.sheets?.find(s => s.id === newSheetId)
-                      if (targetSheet && (targetSheet.data?.length ?? 0) > 0) {
-                        return
-                      }
-
-                      // Wait briefly and retry to handle eventual consistency after row creation.
-                      if (attempt < maxAttempts - 1) {
-                        await new Promise(resolve => setTimeout(resolve, retryDelayMs))
-                      }
-                    }
-                  }
-                : undefined
-            }
+            onAppRefreshNeeded={canEdit ? handleAppRefreshNeeded : undefined}
             onSheetUpdate={canEdit ? updateSheet : undefined}
             onRowAdd={canEdit ? addRow : undefined}
             onRowUpdate={canEdit ? updateRow : undefined}
@@ -906,13 +945,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               appFilePath={selectedAppForShare.filePath || ''}
               accessToken={accessToken || ''}
               currentUserId={currentUserId}
-              currentUserName={
-                userInfo?.employeeDetails?.firstName && userInfo?.employeeDetails?.lastName
-                  ? `${userInfo.employeeDetails.firstName} ${userInfo.employeeDetails.lastName}`
-                  : userInfo?.givenName && userInfo?.familyName
-                    ? `${userInfo.givenName} ${userInfo.familyName}`
-                    : userInfo?.nickName || userInfo?.userName || undefined
-              }
+              currentUserName={currentUserName}
               isOwner={selectedAppForShare.isOwner !== false}
               sharedUsers={sharedUsers}
               onShare={handleShare}
@@ -922,9 +955,32 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           )}
         </>
       )
-    }
+    },
+    [
+      accessToken,
+      addRow,
+      currentAppPermission,
+      currentUserId,
+      currentUserName,
+      handleAppRefreshNeeded,
+      handleBack,
+      handleOpenViewerEditor,
+      handleRefreshShares,
+      handleShare,
+      handleShareApp,
+      handleUnshare,
+      selectedAppForShare,
+      setShareDialogOpen,
+      sharedUsers,
+      testId,
+      updateApp,
+      updateRow,
+      updateSheet
+    ]
+  )
 
-    if (currentView === 'editor' && currentApp) {
+  const renderEditorContent = useCallback(
+    (app: SpreadsheetApp) => {
       if (currentAppPermission !== 'owner' && currentAppPermission !== 'edit') {
         toast.error(t('toast-no-edit-permission'))
         handleBack()
@@ -933,7 +989,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
       return (
         <SpreadsheetAppEditor
-          app={currentApp}
+          app={app}
           onSave={handleSaveApp}
           onCancel={handleBack}
           accessToken={accessToken}
@@ -941,28 +997,17 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           data-testid={`${testId}-editor`}
         />
       )
+    },
+    [accessToken, currentAppPermission, currentUserId, handleBack, handleSaveApp, t, testId]
+  )
+
+  const renderCurrentView = () => {
+    if (currentView === 'viewer' && currentApp) {
+      return renderViewerContent(currentApp)
     }
-    const getSectionTitle = () => {
-      switch (activeSection) {
-        case 'home':
-          return t('section-home')
-        case 'my-files':
-          return t('section-my-spreadsheets')
-        case 'shared':
-          return t('section-shared-with-me')
-        case 'favorites':
-          return t('section-favorites')
-        case 'recent':
-          return t('section-recent')
-        case 'automations':
-          return t('section-automations')
-        case 'tasks':
-          return t('section-my-tasks')
-        case 'trash':
-          return t('section-trash')
-        default:
-          return t('section-spreadsheets')
-      }
+
+    if (currentView === 'editor' && currentApp) {
+      return renderEditorContent(currentApp)
     }
 
     return (
@@ -1317,7 +1362,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               <header className="gba:border-b gba:bg-card gba:flex-shrink-0">
                 {/* Breadcrumb */}
                 <div className="gba:px-6 gba:py-3 gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                  <span className="gba:font-medium gba:text-foreground">{getSectionTitle()}</span>
+                  <span className="gba:font-medium gba:text-foreground">{getSectionTitle(activeSection, t)}</span>
                 </div>
 
                 {/* Task status tabs */}
@@ -1978,13 +2023,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             appFilePath={selectedAppForShare.filePath || ''}
             accessToken={accessToken || ''}
             currentUserId={currentUserId}
-            currentUserName={
-              userInfo?.employeeDetails?.firstName && userInfo?.employeeDetails?.lastName
-                ? `${userInfo.employeeDetails.firstName} ${userInfo.employeeDetails.lastName}`
-                : userInfo?.givenName && userInfo?.familyName
-                  ? `${userInfo.givenName} ${userInfo.familyName}`
-                  : userInfo?.nickName || userInfo?.userName || undefined
-            }
+            currentUserName={currentUserName}
             isOwner={selectedAppForShare.isOwner !== false}
             sharedUsers={sharedUsers}
             onShare={handleShare}
