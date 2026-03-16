@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Badge, Button, Textarea, useTranslation } from '@newwork/nw-design-system'
+import { Badge, Button, Switch, Textarea, useTranslation } from '@newwork/nw-design-system'
 import type {
   EmailAssistantDraft,
   EmailAssistantFormality,
@@ -47,7 +47,6 @@ interface EmailAssistantPanelProps {
   onRejectPreview: () => void
   onRetry: () => void
   onCancel: (action: 'draft' | 'rewrite' | 'replySuggest' | 'temperatureCheck') => void
-  onApplyAlternative: (text: string) => void
   defaultAssistantExpanded?: boolean
   containerClassName?: string
   loadingClassName?: string
@@ -58,6 +57,14 @@ function riskVariant(risk: string): 'success' | 'warning' | 'destructive' {
   if (risk === 'high') return 'destructive'
   if (risk === 'medium') return 'warning'
   return 'success'
+}
+
+function formatFlagLabel(flagId: string): string {
+  return flagId
+    .split('_')
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
@@ -92,7 +99,6 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
   onRejectPreview,
   onRetry,
   onCancel,
-  onApplyAlternative,
   defaultAssistantExpanded = false,
   containerClassName,
   loadingClassName,
@@ -105,6 +111,14 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
   const [isInsightsExpanded, setIsInsightsExpanded] = useState(false)
   const [isRiskExpanded, setIsRiskExpanded] = useState(false)
   const shouldExpandContainer = isAdvancedExpanded || Boolean(previewDraft)
+  const controlBaseClassName =
+    'gba:bg-background/60 gba:text-foreground gba:border gba:border-input gba:placeholder:text-muted-foreground gba:focus-visible:ring-1 gba:focus-visible:ring-border'
+  const primaryActionButtonClassName =
+    'gba:bg-primary gba:text-primary-foreground gba:border gba:border-transparent hover:gba:bg-primary/90'
+  const secondaryActionButtonClassName =
+    'gba:bg-background/35 gba:text-foreground gba:border gba:border-border hover:gba:bg-background/55'
+  const ghostActionButtonClassName =
+    'gba:bg-transparent gba:text-muted-foreground hover:gba:bg-background/45 hover:gba:text-foreground'
 
   if (isCapabilitiesLoading) {
     return (
@@ -138,7 +152,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
         onClick={() => setIsAssistantExpanded(prev => !prev)}
         data-testid={`${testId}-assistant-toggle`}
       >
-        <p className="gba:text-sm gba:font-medium">{t('assistant-title')}</p>
+        <p className="gba:text-sm gba:font-medium gba:text-decorative-foreground">{t('assistant-title')}</p>
         <span className="gba:text-xs gba:text-muted-foreground">{isAssistantExpanded ? '▾' : '▸'}</span>
       </button>
 
@@ -149,7 +163,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
               value={bulletDraft}
               onChange={event => onBulletDraftChange(event.target.value)}
               placeholder={t('assistant-bullets-placeholder')}
-              className="gba:min-h-20"
+              className={`gba:min-h-20 ${controlBaseClassName}`}
               data-testid={`${testId}-bullet-draft`}
             />
             {isReplyMode && (
@@ -164,6 +178,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
               size="sm"
               onClick={onGenerateDraft}
               disabled={loading.draft}
+              className={primaryActionButtonClassName}
               data-testid={`${testId}-generate-draft`}
             >
               {isReplyMode ? t('assistant-generate-reply') : t('assistant-generate-draft')}
@@ -174,29 +189,30 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                 variant="outline"
                 onClick={onSuggestReply}
                 disabled={loading.replySuggest}
+                className={secondaryActionButtonClassName}
                 data-testid={`${testId}-suggest-reply`}
               >
                 {t('assistant-suggest-reply')}
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onRunTemperatureCheck}
-              disabled={loading.temperatureCheck}
-              data-testid={`${testId}-temperature-check-inline`}
-            >
-              {t('assistant-temperature-check')}
-            </Button>
-            {(loading.draft || loading.replySuggest || loading.temperatureCheck) && (
+            <div className="gba:ml-auto gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-xs gba:text-muted-foreground">{t('assistant-auto-temperature')}</span>
+              <Switch
+                id={`${testId}-auto-temperature`}
+                checked={autoTemperatureCheck}
+                onCheckedChange={onAutoTemperatureCheckChange}
+                data-testid={`${testId}-auto-temperature`}
+              />
+            </div>
+            {(loading.draft || loading.replySuggest) && (
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => {
                   if (loading.draft) onCancel('draft')
                   if (loading.replySuggest) onCancel('replySuggest')
-                  if (loading.temperatureCheck) onCancel('temperatureCheck')
                 }}
+                className={ghostActionButtonClassName}
                 data-testid={`${testId}-cancel-request`}
               >
                 {t('assistant-cancel')}
@@ -221,18 +237,18 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   value={replyIntent}
                   onChange={event => onReplyIntentChange(event.target.value)}
                   placeholder={t('assistant-reply-intent-placeholder')}
-                  className="gba:min-h-16"
+                  className={`gba:min-h-16 ${controlBaseClassName}`}
                   data-testid={`${testId}-reply-intent`}
                 />
               )}
 
               <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-                <label className="gba:text-xs gba:text-muted-foreground">
+                <label className="gba:text-xs ">
                   {t('assistant-tone')}
                   <select
                     value={tone}
                     onChange={event => onToneChange(event.target.value as EmailAssistantTone)}
-                    className="gba:mt-1 gba:w-full gba:h-8 gba:text-sm gba:bg-background gba:border gba:rounded gba:px-2"
+                    className={`gba:mt-1 gba:w-full gba:h-8 gba:text-sm gba:rounded gba:px-2 ${controlBaseClassName}`}
                     data-testid={`${testId}-tone`}
                   >
                     <option value="formal">{t('assistant-tone-formal')}</option>
@@ -242,12 +258,12 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                     <option value="concise">{t('assistant-tone-concise')}</option>
                   </select>
                 </label>
-                <label className="gba:text-xs gba:text-muted-foreground">
+                <label className="gba:text-xs ">
                   {t('assistant-formality')}
                   <select
                     value={formality}
                     onChange={event => onFormalityChange(event.target.value as EmailAssistantFormality)}
-                    className="gba:mt-1 gba:w-full gba:h-8 gba:text-sm gba:bg-background gba:border gba:rounded gba:px-2"
+                    className={`gba:mt-1 gba:w-full gba:h-8 gba:text-sm gba:rounded gba:px-2 ${controlBaseClassName}`}
                     data-testid={`${testId}-formality`}
                   >
                     <option value="formal">{t('assistant-formality-formal')}</option>
@@ -255,12 +271,12 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                     <option value="informal">{t('assistant-formality-informal')}</option>
                   </select>
                 </label>
-                <label className="gba:text-xs gba:text-muted-foreground">
+                <label className="gba:text-xs">
                   {t('assistant-length')}
                   <select
                     value={length}
                     onChange={event => onLengthChange(event.target.value as EmailAssistantLength)}
-                    className="gba:mt-1 gba:w-full gba:h-8 gba:text-sm gba:bg-background gba:border gba:rounded gba:px-2"
+                    className={`gba:mt-1 gba:w-full gba:h-8 gba:text-sm gba:rounded gba:px-2 ${controlBaseClassName}`}
                     data-testid={`${testId}-length`}
                   >
                     <option value="short">{t('assistant-length-short')}</option>
@@ -275,6 +291,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   size="sm"
                   variant="outline"
                   onClick={() => onRewrite('improve')}
+                  className={secondaryActionButtonClassName}
                   data-testid={`${testId}-rewrite-improve`}
                 >
                   {t('assistant-rewrite-improve')}
@@ -283,6 +300,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   size="sm"
                   variant="outline"
                   onClick={onRewriteFormal}
+                  className={secondaryActionButtonClassName}
                   data-testid={`${testId}-rewrite-make-formal`}
                 >
                   {t('assistant-rewrite-make-formal')}
@@ -291,6 +309,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   size="sm"
                   variant="outline"
                   onClick={onRewriteInformal}
+                  className={secondaryActionButtonClassName}
                   data-testid={`${testId}-rewrite-make-informal`}
                 >
                   {t('assistant-rewrite-make-informal')}
@@ -299,6 +318,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   size="sm"
                   variant="outline"
                   onClick={() => onRewrite('shorten')}
+                  className={secondaryActionButtonClassName}
                   data-testid={`${testId}-rewrite-shorten`}
                 >
                   {t('assistant-rewrite-shorten')}
@@ -307,9 +327,23 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   size="sm"
                   variant="outline"
                   onClick={() => onRewrite('expand')}
+                  className={secondaryActionButtonClassName}
                   data-testid={`${testId}-rewrite-expand`}
                 >
                   {t('assistant-rewrite-expand')}
+                </Button>
+              </div>
+
+              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onRunTemperatureCheck}
+                  disabled={loading.temperatureCheck}
+                  className={secondaryActionButtonClassName}
+                  data-testid={`${testId}-temperature-check-inline`}
+                >
+                  {t('assistant-temperature-check')}
                 </Button>
               </div>
 
@@ -318,7 +352,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   value={customInstruction}
                   onChange={event => onCustomInstructionChange(event.target.value)}
                   placeholder={t('assistant-custom-placeholder')}
-                  className="gba:flex-1 gba:h-8 gba:text-sm gba:bg-background gba:border gba:rounded gba:px-2"
+                  className={`gba:flex-1 gba:h-8 gba:text-sm gba:rounded gba:px-2 ${controlBaseClassName}`}
                   data-testid={`${testId}-custom-instruction`}
                 />
                 <Button
@@ -326,6 +360,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   variant="outline"
                   onClick={() => onRewrite('custom')}
                   disabled={!customInstruction.trim() || loading.rewrite}
+                  className={secondaryActionButtonClassName}
                   data-testid={`${testId}-rewrite-custom`}
                 >
                   {t('assistant-rewrite-custom')}
@@ -335,22 +370,13 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                     size="sm"
                     variant="ghost"
                     onClick={() => onCancel('rewrite')}
+                    className={ghostActionButtonClassName}
                     data-testid={`${testId}-cancel-rewrite`}
                   >
                     {t('assistant-cancel')}
                   </Button>
                 )}
               </div>
-
-              <label className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={autoTemperatureCheck}
-                  onChange={event => onAutoTemperatureCheckChange(event.target.checked)}
-                  data-testid={`${testId}-auto-temperature`}
-                />
-                {t('assistant-auto-temperature')}
-              </label>
             </>
           )}
 
@@ -360,7 +386,13 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
               data-testid={`${testId}-error`}
             >
               <span>{lastError}</span>
-              <Button size="sm" variant="ghost" onClick={onRetry} data-testid={`${testId}-retry`}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onRetry}
+                className={ghostActionButtonClassName}
+                data-testid={`${testId}-retry`}
+              >
                 {t('assistant-retry')}
               </Button>
             </div>
@@ -368,17 +400,28 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
 
           {previewDraft && (
             <div
-              className="gba:p-2 gba:rounded-md gba:bg-muted gba:space-y-2 gba:max-h-64 gba:overflow-y-auto"
+              className="gba:p-2 gba:rounded-md gba:border gba:border-input gba:bg-background/45 gba:space-y-2 gba:max-h-64 gba:overflow-y-auto"
               data-testid={`${testId}-preview`}
             >
               <p className="gba:text-xs gba:text-muted-foreground">{t('assistant-preview')}</p>
-              <p className="gba:text-sm gba:font-medium">{previewDraft.subject}</p>
-              <p className="gba:text-sm gba:whitespace-pre-wrap">{previewDraft.textBody}</p>
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">{previewDraft.subject}</p>
+              <p className="gba:text-sm gba:whitespace-pre-wrap gba:text-foreground">{previewDraft.textBody}</p>
               <div className="gba:flex gba:items-center gba:gap-2">
-                <Button size="sm" onClick={onAcceptPreview} data-testid={`${testId}-accept`}>
+                <Button
+                  size="sm"
+                  onClick={onAcceptPreview}
+                  className={primaryActionButtonClassName}
+                  data-testid={`${testId}-accept`}
+                >
                   {t('assistant-accept')}
                 </Button>
-                <Button size="sm" variant="outline" onClick={onRejectPreview} data-testid={`${testId}-reject`}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onRejectPreview}
+                  className={secondaryActionButtonClassName}
+                  data-testid={`${testId}-reject`}
+                >
                   {t('assistant-reject')}
                 </Button>
               </div>
@@ -388,14 +431,17 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
       )}
 
       {latestOutput?.insights && (
-        <div className="gba:p-2 gba:rounded-md gba:border gba:space-y-1" data-testid={`${testId}-insights`}>
+        <div
+          className="gba:p-2 gba:rounded-md gba:border gba:border-input gba:bg-background/35 gba:space-y-1"
+          data-testid={`${testId}-insights`}
+        >
           <button
             type="button"
             className="gba:w-full gba:flex gba:items-center gba:justify-between"
             onClick={() => setIsInsightsExpanded(prev => !prev)}
             data-testid={`${testId}-insights-toggle`}
           >
-            <p className="gba:text-xs gba:text-muted-foreground">{t('assistant-insights')}</p>
+            <p className="gba:text-xs">{t('assistant-insights')}</p>
             <span className="gba:text-xs gba:text-muted-foreground">{isInsightsExpanded ? '▾' : '▸'}</span>
           </button>
           {isInsightsExpanded && (
@@ -419,7 +465,10 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
       )}
 
       {latestOutput?.temperatureCheck && (
-        <div className="gba:p-2 gba:rounded-md gba:border gba:space-y-2" data-testid={`${testId}-temperature-block`}>
+        <div
+          className="gba:p-2 gba:rounded-md gba:border gba:border-input gba:bg-background/35 gba:space-y-2"
+          data-testid={`${testId}-temperature-block`}
+        >
           <button
             type="button"
             className="gba:w-full gba:flex gba:items-center gba:justify-between"
@@ -437,7 +486,21 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
           {isRiskExpanded && (
             <>
               {latestOutput.temperatureCheck.flags.length > 0 && (
-                <p className="gba:text-xs">{latestOutput.temperatureCheck.flags.join(', ')}</p>
+                <div className="gba:space-y-1">
+                  {latestOutput.temperatureCheck.flags.map(flagId => {
+                    const label = t(`assistant-flag-${flagId}-label`)
+                    const meaning = t(`assistant-flag-${flagId}-meaning`)
+                    const resolvedLabel = label === `assistant-flag-${flagId}-label` ? formatFlagLabel(flagId) : label
+                    const resolvedMeaning = meaning === `assistant-flag-${flagId}-meaning` ? '' : meaning
+
+                    return (
+                      <div key={flagId} className="gba:text-xs">
+                        <p className="gba:font-medium">{resolvedLabel}</p>
+                        {resolvedMeaning && <p className="gba:text-muted-foreground">{resolvedMeaning}</p>}
+                      </div>
+                    )
+                  })}
+                </div>
               )}
               {latestOutput.temperatureCheck.explanations.map((item, index) => (
                 <p key={`${item}-${index}`} className="gba:text-xs">
@@ -445,17 +508,9 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                 </p>
               ))}
               {latestOutput.temperatureCheck.alternatives.map((item, index) => (
-                <div key={`${item}-${index}`} className="gba:flex gba:items-center gba:gap-2">
-                  <p className="gba:text-xs gba:flex-1">{item}</p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onApplyAlternative(item)}
-                    data-testid={`${testId}-apply-alternative-${index}`}
-                  >
-                    {t('assistant-apply-alternative')}
-                  </Button>
-                </div>
+                <p key={`${item}-${index}`} className="gba:text-xs">
+                  {item}
+                </p>
               ))}
             </>
           )}

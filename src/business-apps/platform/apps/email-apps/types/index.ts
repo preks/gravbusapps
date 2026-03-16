@@ -249,3 +249,5 @@ export type {
   EmailAssistantPolicy,
   EmailAssistantPolicyUpdateRequest
 } from './emailAssistant.types'
+
+export type { ThreadComposeSurfaceProps, ThreadComposeDraftState, ThreadComposeController } from './threadCompose.types'

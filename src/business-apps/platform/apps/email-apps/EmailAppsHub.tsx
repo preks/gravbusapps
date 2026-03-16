@@ -17,7 +17,7 @@ import {
   EmailSidebar,
   EmailList,
   EmailReader,
-  EmailComposer,
+  EmailThreadComposeSurface,
   AccountSetupDialog,
   AccountManagementDialog,
   EmailEmptyState,
@@ -496,42 +496,43 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         folderName={currentFolderName}
       />
 
-      {/* Email Reader */}
-      <EmailReader
-        message={selectedMessage}
-        onCompose={handleCompose}
-        onDelete={deleteMessage}
-        onToggleStar={toggleStar}
-        onArchive={handleArchive}
-        onRefreshMessages={refreshMessages}
-        onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
-        accessToken={accessToken}
-        activeAccount={defaultAccount}
-        employeeId={userInfo?.employeeDetails?.employeeId}
-        threadEnabled={threadViewEnabled}
-        onToggleThreadView={() => {
-          setThreadViewEnabled(prev => {
-            const next = !prev
-            try {
-              localStorage.setItem('email-thread-view-enabled', String(next))
-            } catch {}
-            return next
-          })
-        }}
-      />
-
-      {/* Composer with auto-suggest */}
-      <EmailComposer
-        isOpen={isComposing}
-        onClose={() => setIsComposing(false)}
-        mode={composeMode}
-        replyToMessage={replyToMessage}
-        accounts={accounts}
-        defaultAccountId={defaultAccount?.id}
-        onSent={refreshMessages}
-        searchContacts={searchContacts}
-        onRecipientsUsed={handleRecipientsUsed}
-      />
+      {/* Email Reader / Inline Compose */}
+      {isComposing ? (
+        <EmailThreadComposeSurface
+          isOpen={isComposing}
+          onClose={() => setIsComposing(false)}
+          mode={composeMode}
+          replyToMessage={replyToMessage}
+          accounts={accounts}
+          defaultAccountId={defaultAccount?.id}
+          onSent={refreshMessages}
+          searchContacts={searchContacts}
+          onRecipientsUsed={handleRecipientsUsed}
+        />
+      ) : (
+        <EmailReader
+          message={selectedMessage}
+          onCompose={handleCompose}
+          onDelete={deleteMessage}
+          onToggleStar={toggleStar}
+          onArchive={handleArchive}
+          onRefreshMessages={refreshMessages}
+          onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
+          accessToken={accessToken}
+          activeAccount={defaultAccount}
+          employeeId={userInfo?.employeeDetails?.employeeId}
+          threadEnabled={threadViewEnabled}
+          onToggleThreadView={() => {
+            setThreadViewEnabled(prev => {
+              const next = !prev
+              try {
+                localStorage.setItem('email-thread-view-enabled', String(next))
+              } catch {}
+              return next
+            })
+          }}
+        />
+      )}
 
       {/* Account management dialog */}
       <AccountManagementDialog

@@ -76,8 +76,18 @@ export function useEmailAssistant(enabled: boolean) {
     })
   }, [])
 
-  const applyResponse = useCallback((response: EmailAssistantResponse) => {
-    setLatestOutput(previous => mergeAssistantResponse(previous, response))
+  const applyResponse = useCallback((action: AssistantAction, response: EmailAssistantResponse) => {
+    setLatestOutput(previous => {
+      const merged = mergeAssistantResponse(previous, response)
+
+      // Temperature-check responses often don't include insights.
+      // In that case, avoid showing stale insight data from older requests.
+      if (action === 'temperatureCheck' && response.insights === null) {
+        return { ...merged, insights: null }
+      }
+
+      return merged
+    })
     if (response.draft) {
       setPreviewDraft(response.draft)
     }
@@ -102,7 +112,7 @@ export function useEmailAssistant(enabled: boolean) {
 
       try {
         const response = await requestFn(controller.signal)
-        applyResponse(response)
+        applyResponse(action, response)
         setLastFailedAction(null)
         trackEmailAssistantEvent(`assistant.${action}` as const, {
           action,

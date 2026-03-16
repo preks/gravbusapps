@@ -594,7 +594,6 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
                 void retryLastAction()
               }}
               onCancel={cancelAction}
-              onApplyAlternative={alternative => setBody(alternative)}
               data-testid={`${testId}-assistant`}
             />
 
