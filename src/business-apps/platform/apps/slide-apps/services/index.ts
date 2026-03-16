@@ -19,10 +19,28 @@ export type {
   HistoricalMilestone,
   ChartDataSuggestion
 } from './SlideResearchService'
-export { SlideLayoutService } from './SlideLayoutService'
+export { SlideLayoutService, LAYOUT_PURPOSE_MAP } from './SlideLayoutService'
 export type { SlideLayoutType, SlideLayoutContent } from './SlideLayoutService'
 export { SlideVisualBuilders } from './SlideVisualBuilders'
 export { SlideImageService } from './SlideImageService'
 export type { ImageSearchResult, ImageSearchOptions } from './SlideImageService'
 export { SpeakerNotesService } from './SpeakerNotesService'
 export type { SpeakerNote, SpeakerNotesOptions } from './SpeakerNotesService'
+export {
+  SlideMetadataService,
+  PURPOSE_DEFINITIONS,
+  PURPOSE_ICONS,
+  getDefaultCapabilities,
+  getDefaultPosition,
+  getDefaultMaxUsage,
+  createDefaultMeta,
+  getAllPurposes,
+  getAllPositions,
+  inferPurposeFromSlide,
+  analyzeSlideContent,
+  findBestSlideForContent,
+  matchContentToTemplateSlides,
+  validateSlideMeta,
+  migrateLegacyTemplate
+} from './SlideMetadataService'
+export type { PurposeDefinition, ValidationResult, ContentAnalysis } from './SlideMetadataService'

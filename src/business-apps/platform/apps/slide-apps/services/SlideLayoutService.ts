@@ -35,7 +35,7 @@ import {
   createComparisonColumns,
   COLORS
 } from './SlideVisualBuilders'
-import type { BrandIdentity, LogoPosition, LogoSize } from '../types/template'
+import type { BrandIdentity, LogoPosition, LogoSize, SlidePurpose } from '../types/template'
 
 // Slide dimensions
 const SLIDE_WIDTH = 1280
@@ -398,6 +398,55 @@ export type SlideLayoutType =
   | 'dual-flow-comparison'
   | 'mobile-showcase'
   | 'numbered-features'
+
+/**
+ * Maps layout types to their default slide purposes
+ */
+export const LAYOUT_PURPOSE_MAP: Record<SlideLayoutType, SlidePurpose> = {
+  'title-cover': 'cover',
+  'branded-cover': 'cover',
+  'section-divider': 'section-divider',
+  agenda: 'agenda',
+  'executive-summary': 'content',
+  'key-metrics': 'data-viz',
+  bullets: 'bullets',
+  'icon-bullets': 'bullets',
+  'two-column': 'two-column',
+  'two-panel-features': 'two-column',
+  comparison: 'comparison',
+  'three-column-comparison': 'comparison',
+  'dual-flow-comparison': 'comparison',
+  'data-table': 'data-viz',
+  timeline: 'timeline',
+  roadmap: 'timeline',
+  'quadrant-matrix': 'data-viz',
+  'bar-chart': 'data-viz',
+  'pie-chart': 'data-viz',
+  'line-chart': 'data-viz',
+  'area-chart': 'data-viz',
+  'radar-chart': 'data-viz',
+  'metrics-dashboard': 'data-viz',
+  'key-takeaway': 'key-point',
+  statement: 'key-point',
+  'swot-analysis': 'process',
+  funnel: 'process',
+  pyramid: 'process',
+  'process-flow': 'process',
+  'architecture-diagram': 'process',
+  'layered-stack': 'process',
+  'module-architecture': 'process',
+  'icon-grid': 'content',
+  'feature-grid': 'content',
+  'product-grid': 'content',
+  'numbered-features': 'content',
+  'governance-badges': 'content',
+  'image-left': 'image-focus',
+  'image-right': 'image-focus',
+  'full-image': 'image-focus',
+  'mobile-showcase': 'image-focus',
+  quote: 'quote',
+  'thank-you': 'thank-you'
+}
 
 // Layout content interfaces
 export interface TitleCoverContent {

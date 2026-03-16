@@ -6,9 +6,89 @@
  * or seeded into the database.
  */
 
-import type { BrandIdentity, SlideTemplate } from '../types/template'
+import type { BrandIdentity, SlideTemplate, SlideTemplateMeta, TemplateHints } from '../types/template'
 import type { SlideData } from '../components/slideElements'
 import { getBrandedBackground } from '../components/slideElements'
+
+/**
+ * NEWWORK template slide metadata
+ */
+const NEWWORK_SLIDE_META: SlideTemplateMeta[] = [
+  {
+    purpose: 'cover',
+    position: 'first',
+    capabilities: {
+      title: true,
+      subtitle: true,
+      bullets: false,
+      image: false,
+      chart: false,
+      table: false,
+      icons: false,
+      multiColumn: false
+    },
+    maxUsage: 1,
+    contentHints: ['presentation title', 'subtitle', 'date', 'company name']
+  },
+  {
+    purpose: 'agenda',
+    position: 'early',
+    capabilities: {
+      title: true,
+      subtitle: false,
+      bullets: true,
+      maxBullets: 6,
+      image: false,
+      chart: false,
+      table: false,
+      icons: false,
+      multiColumn: false
+    },
+    maxUsage: 1,
+    contentHints: ['agenda items', 'overview', 'table of contents']
+  },
+  {
+    purpose: 'content',
+    position: 'any',
+    capabilities: {
+      title: true,
+      subtitle: false,
+      bullets: true,
+      maxBullets: 8,
+      image: true,
+      chart: false,
+      table: false,
+      icons: false,
+      multiColumn: false
+    },
+    contentHints: ['main content', 'body text', 'details']
+  },
+  {
+    purpose: 'thank-you',
+    position: 'last',
+    capabilities: {
+      title: true,
+      subtitle: true,
+      bullets: false,
+      image: false,
+      chart: false,
+      table: false,
+      icons: false,
+      multiColumn: false
+    },
+    maxUsage: 1,
+    contentHints: ['thank you', 'closing', 'contact information']
+  }
+]
+
+/**
+ * NEWWORK template hints
+ */
+const NEWWORK_TEMPLATE_HINTS: TemplateHints = {
+  recommendedSlideCount: { min: 5, max: 15 },
+  bestFor: ['corporate presentations', 'product demos', 'company overviews', 'sales pitches'],
+  tone: 'professional'
+}
 
 /**
  * NEWWORK brand identity configuration
@@ -276,6 +356,8 @@ export const NEWWORK_BRANDED_TEMPLATE: Partial<SlideTemplate> = {
   isPublic: true,
   isBranded: true,
   branding: NEWWORK_BRAND_IDENTITY,
+  slideMeta: NEWWORK_SLIDE_META,
+  templateHints: NEWWORK_TEMPLATE_HINTS,
   contentJson: {
     slides: [
       createNewworkCoverSlide(),
@@ -289,7 +371,9 @@ export const NEWWORK_BRANDED_TEMPLATE: Partial<SlideTemplate> = {
       category: 'branded',
       isPublic: true,
       isBranded: true,
-      branding: NEWWORK_BRAND_IDENTITY
+      branding: NEWWORK_BRAND_IDENTITY,
+      slideMeta: NEWWORK_SLIDE_META,
+      templateHints: NEWWORK_TEMPLATE_HINTS
     }
   }
 }

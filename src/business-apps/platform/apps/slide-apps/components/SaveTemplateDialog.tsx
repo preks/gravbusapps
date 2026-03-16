@@ -23,13 +23,29 @@ import {
   Switch,
   Separator,
   Spinner,
+  Badge,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { LayoutTemplate, Briefcase, Palette, Minimize2, Folder, Building2 } from 'lucide-react'
+import {
+  LayoutTemplate,
+  Briefcase,
+  Palette,
+  Minimize2,
+  Folder,
+  Building2,
+  ChevronDown,
+  Wand2,
+  Settings2
+} from 'lucide-react'
 import type { SlideData, SlideBackground } from './slideElements'
-import type { TemplateCategory, BrandIdentity } from '../types'
+import type { TemplateCategory, BrandIdentity, SlideTemplateMeta } from '../types'
 import { SlidesApiService } from '../services/SlidesApiService'
 import { gradientToCss } from './slideElements'
+import { inferPurposeFromSlide, createDefaultMeta, PURPOSE_DEFINITIONS } from '../services/SlideMetadataService'
+import { SlideMetaEditor } from './SlideMetaEditor'
 import translations from '../_i18n'
 
 const getBackgroundStyle = (background: SlideBackground): React.CSSProperties => {
@@ -99,6 +115,11 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
   const [brandCompanyName, setBrandCompanyName] = useState('')
   const [brandKeywords, setBrandKeywords] = useState('')
 
+  // Slide metadata
+  const [slideMeta, setSlideMeta] = useState<SlideTemplateMeta[]>([])
+  const [isInferring, setIsInferring] = useState(false)
+  const [expandedSlide, setExpandedSlide] = useState<number | null>(null)
+
   useEffect(() => {
     if (open) {
       setName('')
@@ -109,8 +130,52 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
       setError(null)
       setBrandCompanyName('')
       setBrandKeywords('')
+      setSlideMeta([])
+      setExpandedSlide(null)
+      setIsInferring(false)
     }
   }, [open])
+
+  // Auto-infer slide purposes when dialog opens
+  useEffect(() => {
+    if (open && slides.length > 0 && slideMeta.length === 0) {
+      handleAutoDetectAll()
+    }
+  }, [open, slides])
+
+  const handleAutoDetectAll = useCallback(async () => {
+    setIsInferring(true)
+    try {
+      const inferred = slides.map((slide, index) => {
+        const purpose = inferPurposeFromSlide(slide, index, slides.length)
+        return createDefaultMeta(purpose)
+      })
+      setSlideMeta(inferred)
+    } finally {
+      setIsInferring(false)
+    }
+  }, [slides])
+
+  const handleAutoDetectSlide = useCallback(
+    (index: number) => {
+      const slide = slides[index]
+      if (!slide) return
+      const purpose = inferPurposeFromSlide(slide, index, slides.length)
+      const newMeta = [...slideMeta]
+      newMeta[index] = createDefaultMeta(purpose)
+      setSlideMeta(newMeta)
+    },
+    [slides, slideMeta]
+  )
+
+  const handleSlideMetaChange = useCallback(
+    (index: number, meta: SlideTemplateMeta) => {
+      const newMeta = [...slideMeta]
+      newMeta[index] = meta
+      setSlideMeta(newMeta)
+    },
+    [slideMeta]
+  )
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) return
@@ -145,6 +210,7 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
         category,
         isPublic,
         branding,
+        slideMeta: slideMeta.length > 0 ? slideMeta : undefined,
         contentJson: {
           slides,
           themeId
@@ -171,6 +237,7 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
     brandKeywords,
     slides,
     themeId,
+    slideMeta,
     onSaved,
     onOpenChange,
     t
@@ -182,8 +249,11 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={isSaving ? undefined : onOpenChange}>
-      <DialogContent className="gba:max-w-lg gba:p-0 gba:gap-0 gba:overflow-hidden" data-testid={testId}>
-        <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4">
+      <DialogContent
+        className="gba:max-w-lg gba:max-h-[90vh] gba:p-0 gba:gap-0 gba:flex gba:flex-col"
+        data-testid={testId}
+      >
+        <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4 gba:flex-shrink-0">
           <DialogTitle className="gba:text-xl gba:font-semibold gba:tracking-tight gba:flex gba:items-center gba:gap-2">
             <LayoutTemplate className="gba:w-5 gba:h-5 gba:text-primary" />
             {t('template-save-title') || 'Save as Template'}
@@ -193,9 +263,9 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
           </p>
         </DialogHeader>
 
-        <Separator />
+        <Separator className="gba:flex-shrink-0" />
 
-        <div className="gba:px-6 gba:py-5 gba:space-y-5">
+        <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-6 gba:py-5 gba:space-y-5">
           {/* Slides Preview */}
           <div className="gba:space-y-2">
             <Label className="gba:text-sm gba:font-medium">
@@ -359,6 +429,121 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
             </div>
           )}
 
+          {/* Slide Roles Configuration */}
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="outline"
+                className="gba:w-full gba:justify-between"
+                disabled={isSaving}
+                data-testid={`${testId}-configure-slides-btn`}
+              >
+                <span className="gba:flex gba:items-center gba:gap-2">
+                  <Settings2 className="gba:w-4 gba:h-4" />
+                  {t('template-configure-slides') || 'Configure Slides'}
+                  {slideMeta.length > 0 && (
+                    <Badge variant="secondary" className="gba:text-xs">
+                      {t('template-structured-slides', { count: slideMeta.length }) ||
+                        `${slideMeta.length} slides defined`}
+                    </Badge>
+                  )}
+                </span>
+                <ChevronDown className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:transition-transform [[data-state=open]_&]:gba:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="gba:pt-4 gba:space-y-4">
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {t('template-slide-roles-desc') || 'Define what each slide is for'}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAutoDetectAll}
+                  disabled={isSaving || isInferring}
+                  data-testid={`${testId}-auto-detect-btn`}
+                >
+                  {isInferring ? (
+                    <>
+                      <Spinner className="gba:w-3 gba:h-3 gba:mr-1" />
+                      {t('template-inferring') || 'Detecting...'}
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="gba:w-3 gba:h-3 gba:mr-1" />
+                      {t('template-auto-detect-all') || 'Auto-detect All'}
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <div className="gba:space-y-2 gba:max-h-[280px] gba:overflow-y-auto gba:pr-1">
+                {slides.map((slide, index) => {
+                  const meta = slideMeta[index] || createDefaultMeta('content')
+                  const isExpanded = expandedSlide === index
+
+                  return (
+                    <div key={slide.id} className="gba:border gba:rounded-lg gba:overflow-hidden">
+                      <button
+                        type="button"
+                        className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:hover:bg-muted/50 gba:transition-colors"
+                        onClick={() => setExpandedSlide(isExpanded ? null : index)}
+                        disabled={isSaving}
+                      >
+                        {/* Thumbnail */}
+                        <div
+                          className="gba:flex-shrink-0 gba:rounded gba:border gba:overflow-hidden"
+                          style={{ width: 48, aspectRatio: '16/9' }}
+                        >
+                          <div
+                            className="gba:w-full gba:h-full"
+                            style={getBackgroundStyle(slide.background || { type: 'solid', color: '#ffffff' })}
+                          />
+                        </div>
+
+                        {/* Info */}
+                        <div className="gba:flex-1 gba:text-left gba:min-w-0">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <span className="gba:text-xs gba:font-medium">Slide {index + 1}</span>
+                            <Badge
+                              variant="outline"
+                              className="gba:text-[10px] gba:py-0"
+                              data-testid={`${testId}-slide-${index}-purpose-badge`}
+                            >
+                              {t(`slide-purpose-${meta.purpose}`) || PURPOSE_DEFINITIONS[meta.purpose].label}
+                            </Badge>
+                          </div>
+                          <p className="gba:text-[10px] gba:text-muted-foreground gba:truncate">
+                            {t(`slide-position-${meta.position}`) || meta.position}
+                            {meta.maxUsage && ` · Max ${meta.maxUsage}x`}
+                          </p>
+                        </div>
+
+                        <ChevronDown
+                          className={`gba:w-4 gba:h-4 gba:text-muted-foreground gba:transition-transform ${isExpanded ? 'gba:rotate-180' : ''}`}
+                        />
+                      </button>
+
+                      {isExpanded && (
+                        <div className="gba:border-t gba:p-3 gba:bg-muted/30">
+                          <SlideMetaEditor
+                            slideMeta={meta}
+                            slideIndex={index}
+                            slidePreview={slide}
+                            onChange={newMeta => handleSlideMetaChange(index, newMeta)}
+                            onAutoDetect={() => handleAutoDetectSlide(index)}
+                            disabled={isSaving}
+                            data-testid={`${testId}-slide-${index}-edit-btn`}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
           {/* Public Toggle */}
           <div className="gba:flex gba:items-center gba:justify-between gba:py-2">
             <div>
@@ -383,9 +568,9 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
           )}
         </div>
 
-        <Separator />
+        <Separator className="gba:flex-shrink-0" />
 
-        <DialogFooter className="gba:px-6 gba:py-4">
+        <DialogFooter className="gba:px-6 gba:py-4 gba:flex-shrink-0">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}

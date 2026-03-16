@@ -6,8 +6,19 @@
  */
 
 import React, { useRef, useState, useEffect } from 'react'
-import { Button, Badge, useTranslation } from '@newwork/nw-design-system'
-import { Briefcase, Palette, Minimize2, Folder, Trash2, Globe, Lock, MoreVertical, Building2 } from 'lucide-react'
+import { Button, Badge, useTranslation, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
+import {
+  Briefcase,
+  Palette,
+  Minimize2,
+  Folder,
+  Trash2,
+  Globe,
+  Lock,
+  MoreVertical,
+  Building2,
+  Sparkles
+} from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@newwork/nw-design-system'
 import type { SlideTemplateSummary, TemplateCategory } from '../types'
 import type { SlideData, SlideBackground } from './slideElements'
@@ -163,8 +174,8 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
           {template.slideCount} {template.slideCount === 1 ? 'slide' : 'slides'}
         </div>
 
-        {/* Visibility indicator */}
-        <div className="gba:absolute gba:top-2 gba:left-2">
+        {/* Visibility and structured metadata indicators */}
+        <div className="gba:absolute gba:top-2 gba:left-2 gba:flex gba:gap-1">
           {template.isPublic ? (
             <div className="gba:p-1 gba:rounded gba:bg-black/60" title={t('template-public') || 'Public'}>
               <Globe className="gba:w-3 gba:h-3 gba:text-white" />
@@ -173,6 +184,18 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
             <div className="gba:p-1 gba:rounded gba:bg-black/60" title={t('template-private') || 'Private'}>
               <Lock className="gba:w-3 gba:h-3 gba:text-white" />
             </div>
+          )}
+          {template.hasStructuredMeta && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="gba:p-1 gba:rounded gba:bg-primary/80" data-testid={`${testId}-structured-badge`}>
+                  <Sparkles className="gba:w-3 gba:h-3 gba:text-white" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{t('template-ai-optimized') || 'AI-optimized template'}</p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
 

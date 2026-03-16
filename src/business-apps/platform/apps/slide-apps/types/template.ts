@@ -10,6 +10,69 @@ import type { SlideData } from '../components/slideElements'
 export type TemplateCategory = 'business' | 'creative' | 'minimal' | 'custom' | 'branded'
 
 /**
+ * Slide purpose - semantic meaning of what the slide is for
+ */
+export type SlidePurpose =
+  | 'cover'
+  | 'agenda'
+  | 'section-divider'
+  | 'content'
+  | 'key-point'
+  | 'bullets'
+  | 'two-column'
+  | 'image-focus'
+  | 'data-viz'
+  | 'quote'
+  | 'timeline'
+  | 'comparison'
+  | 'team'
+  | 'process'
+  | 'conclusion'
+  | 'cta'
+  | 'thank-you'
+
+/**
+ * Position constraints for slide placement in presentation
+ */
+export type SlidePosition = 'first' | 'early' | 'middle' | 'late' | 'last' | 'any'
+
+/**
+ * Content capabilities that a slide template supports
+ */
+export interface SlideCapabilities {
+  title: boolean
+  subtitle: boolean
+  bullets: boolean
+  maxBullets?: number
+  image: boolean
+  chart: boolean
+  table: boolean
+  icons: boolean
+  multiColumn: boolean
+  columnCount?: number
+}
+
+/**
+ * Metadata for a single slide within a template
+ */
+export interface SlideTemplateMeta {
+  purpose: SlidePurpose
+  position: SlidePosition
+  capabilities: SlideCapabilities
+  maxUsage?: number
+  contentHints?: string[]
+}
+
+/**
+ * Template-level hints for AI generation
+ */
+export interface TemplateHints {
+  recommendedSlideCount?: { min: number; max: number }
+  bestFor?: string[]
+  tone?: 'professional' | 'creative' | 'minimal' | 'bold'
+}
+
+/**
  * Logo position options for branded templates
  */
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
@@ -85,6 +148,7 @@ export interface SlideTemplateSummary {
   isOwner?: boolean
   isBranded?: boolean
   branding?: BrandIdentity
+  hasStructuredMeta?: boolean
 }
 
 /**
@@ -97,6 +161,8 @@ export interface TemplateMeta {
   thumbnailUrl?: string
   isBranded?: boolean
   branding?: BrandIdentity
+  slideMeta?: SlideTemplateMeta[]
+  templateHints?: TemplateHints
 }
 
 /**
@@ -120,6 +186,8 @@ export interface SlideTemplate {
   isOwner?: boolean
   isBranded?: boolean
   branding?: BrandIdentity
+  slideMeta?: SlideTemplateMeta[]
+  templateHints?: TemplateHints
 }
 
 /**
@@ -136,6 +204,8 @@ export interface CreateTemplateRequest {
     _templateMeta?: TemplateMeta
   }
   branding?: BrandIdentity
+  slideMeta?: SlideTemplateMeta[]
+  templateHints?: TemplateHints
 }
 
 /**
@@ -152,6 +222,8 @@ export interface UpdateTemplateRequest {
     _templateMeta?: TemplateMeta
   }
   branding?: BrandIdentity
+  slideMeta?: SlideTemplateMeta[]
+  templateHints?: TemplateHints
 }
 
 /**

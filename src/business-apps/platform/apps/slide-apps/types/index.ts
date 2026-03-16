@@ -5,7 +5,12 @@ export type {
   SlideTemplate,
   CreateTemplateRequest,
   UpdateTemplateRequest,
-  TemplateFilters
+  TemplateFilters,
+  SlidePurpose,
+  SlidePosition,
+  SlideCapabilities,
+  SlideTemplateMeta,
+  TemplateHints
 } from './template'
 export type {
   PresentationAvailability,

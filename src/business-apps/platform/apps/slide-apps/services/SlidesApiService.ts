@@ -15,8 +15,11 @@ import type {
   CreateTemplateRequest,
   UpdateTemplateRequest,
   TemplateFilters,
-  BrandIdentity
+  BrandIdentity,
+  SlideTemplateMeta,
+  TemplateHints
 } from '../types'
+import { migrateLegacyTemplate } from './SlideMetadataService'
 import type { Version, FileLock, LockFileInput } from '../../shared/types/versioning'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
@@ -500,7 +503,8 @@ export const SlidesApiService = {
             isPublic: (meta.isPublic as boolean) || false,
             isOwner: item.isOwner as boolean | undefined,
             isBranded: meta.isBranded as boolean | undefined,
-            branding
+            branding,
+            hasStructuredMeta: Array.isArray(meta.slideMeta) && (meta.slideMeta as unknown[]).length > 0
           }
         })
     } catch (error) {
@@ -522,8 +526,10 @@ export const SlidesApiService = {
       }
 
       const branding = meta.branding as BrandIdentity | undefined
+      const slideMeta = meta.slideMeta as SlideTemplateMeta[] | undefined
+      const templateHints = meta.templateHints as TemplateHints | undefined
 
-      return {
+      let template: SlideTemplate = {
         id: api.id as string,
         name: api.title as string,
         description: api.description as string | undefined,
@@ -540,8 +546,18 @@ export const SlidesApiService = {
         isPublic: (meta.isPublic as boolean) || false,
         isOwner: api.isOwner as boolean | undefined,
         isBranded: meta.isBranded as boolean | undefined,
-        branding
+        branding,
+        slideMeta,
+        templateHints
       }
+
+      // Migrate legacy templates without slideMeta
+      if (!slideMeta || slideMeta.length === 0) {
+        template = migrateLegacyTemplate(template)
+        console.log('[SlidesApiService] Migrated legacy template:', id)
+      }
+
+      return template
     } catch (error) {
       console.error('[SlidesApiService] Failed to get template:', error)
       return null
@@ -558,7 +574,9 @@ export const SlidesApiService = {
           category: payload.category,
           isPublic: payload.isPublic,
           isBranded: !!payload.branding,
-          branding: payload.branding
+          branding: payload.branding,
+          slideMeta: payload.slideMeta,
+          templateHints: payload.templateHints
         }
       }
 
@@ -588,7 +606,9 @@ export const SlidesApiService = {
         updatedAt: created.updatedAt as string,
         createdBy: created.ownerId as string,
         isPublic: (meta.isPublic as boolean) || false,
-        isOwner: true
+        isOwner: true,
+        slideMeta: meta.slideMeta as SlideTemplateMeta[] | undefined,
+        templateHints: meta.templateHints as TemplateHints | undefined
       }
     } catch (error) {
       console.error('[SlidesApiService] Failed to create template:', error)

@@ -20,13 +20,30 @@ import {
   Badge,
   Alert,
   AlertDescription,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Building2, Plus, Eye, Save, LayoutTemplate, Settings, CheckCircle2, AlertCircle } from 'lucide-react'
+import {
+  Building2,
+  Plus,
+  Eye,
+  Save,
+  LayoutTemplate,
+  Settings,
+  CheckCircle2,
+  AlertCircle,
+  ChevronDown,
+  Wand2,
+  Sparkles
+} from 'lucide-react'
 import type { SlideData, SlideBackground } from './slideElements'
-import type { SlideTemplate, BrandIdentity, TemplateCategory } from '../types/template'
+import type { SlideTemplate, BrandIdentity, TemplateCategory, SlideTemplateMeta } from '../types/template'
 import { gradientToCss } from './slideElements'
 import { BrandSettingsDialog } from './BrandSettingsDialog'
+import { SlideMetaEditor } from './SlideMetaEditor'
+import { inferPurposeFromSlide, createDefaultMeta, PURPOSE_DEFINITIONS } from '../services/SlideMetadataService'
 import translations from '../_i18n'
 
 const getBackgroundStyle = (background: SlideBackground): React.CSSProperties => {
@@ -83,6 +100,9 @@ export const BrandedTemplateEditor: React.FC<BrandedTemplateEditorProps> = ({
   const [category, setCategory] = useState<TemplateCategory>('branded')
   const [isPublic, setIsPublic] = useState(false)
   const [branding, setBranding] = useState<BrandIdentity | null>(null)
+  const [slideMeta, setSlideMeta] = useState<SlideTemplateMeta[]>([])
+  const [expandedSlide, setExpandedSlide] = useState<number | null>(null)
+  const [isInferring, setIsInferring] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showBrandSettings, setShowBrandSettings] = useState(false)
@@ -94,14 +114,59 @@ export const BrandedTemplateEditor: React.FC<BrandedTemplateEditorProps> = ({
       setCategory(template.category || 'branded')
       setIsPublic(template.isPublic || false)
       setBranding(template.branding || template.contentJson?._templateMeta?.branding || null)
+      setSlideMeta(template.slideMeta || template.contentJson?._templateMeta?.slideMeta || [])
     } else {
       setName('')
       setDescription('')
       setCategory('branded')
       setIsPublic(false)
       setBranding(null)
+      setSlideMeta([])
     }
   }, [template])
+
+  // Auto-infer slide purposes when slides change and no metadata exists
+  useEffect(() => {
+    if (slides.length > 0 && slideMeta.length === 0) {
+      handleAutoDetectAll()
+    }
+  }, [slides])
+
+  const handleAutoDetectAll = useCallback(async () => {
+    setIsInferring(true)
+    try {
+      const inferred = slides.map((slide, index) => {
+        const purpose = inferPurposeFromSlide(slide, index, slides.length)
+        return createDefaultMeta(purpose)
+      })
+      setSlideMeta(inferred)
+    } finally {
+      setIsInferring(false)
+    }
+  }, [slides])
+
+  const handleAutoDetectSlide = useCallback(
+    (index: number) => {
+      if (slides[index]) {
+        const purpose = inferPurposeFromSlide(slides[index], index, slides.length)
+        const newMeta = createDefaultMeta(purpose)
+        setSlideMeta(prev => {
+          const updated = [...prev]
+          updated[index] = newMeta
+          return updated
+        })
+      }
+    },
+    [slides]
+  )
+
+  const handleSlideMetaChange = useCallback((index: number, newMeta: SlideTemplateMeta) => {
+    setSlideMeta(prev => {
+      const updated = [...prev]
+      updated[index] = newMeta
+      return updated
+    })
+  }, [])
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
@@ -123,6 +188,7 @@ export const BrandedTemplateEditor: React.FC<BrandedTemplateEditorProps> = ({
         description: description.trim() || undefined,
         category,
         isPublic,
+        slideMeta: slideMeta.length > 0 ? slideMeta : undefined,
         contentJson: {
           slides,
           themeId,
@@ -131,7 +197,8 @@ export const BrandedTemplateEditor: React.FC<BrandedTemplateEditorProps> = ({
             category,
             isPublic,
             isBranded: true,
-            branding
+            branding,
+            slideMeta: slideMeta.length > 0 ? slideMeta : undefined
           }
         },
         branding,
@@ -142,7 +209,7 @@ export const BrandedTemplateEditor: React.FC<BrandedTemplateEditorProps> = ({
     } finally {
       setIsSaving(false)
     }
-  }, [name, description, category, isPublic, branding, slides, themeId, onSave, t])
+  }, [name, description, category, isPublic, branding, slideMeta, slides, themeId, onSave, t])
 
   const handleBrandingUpdate = useCallback((newBranding: BrandIdentity) => {
     setBranding(newBranding)
@@ -287,6 +354,108 @@ export const BrandedTemplateEditor: React.FC<BrandedTemplateEditorProps> = ({
                     </div>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Slide Purpose Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="gba:flex gba:items-center gba:justify-between">
+                <span className="gba:flex gba:items-center gba:gap-2">
+                  <Sparkles className="gba:w-5 gba:h-5" />
+                  {t('template-slide-roles') || 'Slide Roles'}
+                </span>
+                {slideMeta.length > 0 && (
+                  <Badge variant="outline" className="gba:text-green-600">
+                    <CheckCircle2 className="gba:w-3 gba:h-3 gba:mr-1" />
+                    {slideMeta.length} {t('configured') || 'configured'}
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                {t('template-slide-roles-desc') ||
+                  'Define the purpose of each slide to help AI match content intelligently'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="gba:space-y-4">
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  {t('template-auto-detect-description') || 'AI will analyze slide content to suggest purposes'}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAutoDetectAll}
+                  disabled={isInferring || isSaving}
+                  data-testid={`${testId}-auto-detect-all`}
+                >
+                  {isInferring ? (
+                    <>
+                      <span className="gba:animate-spin gba:mr-2">⟳</span>
+                      {t('template-inferring') || 'Analyzing...'}
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                      {t('template-auto-detect-all') || 'Auto-detect All'}
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <div className="gba:space-y-2 gba:max-h-[400px] gba:overflow-y-auto gba:pr-1">
+                {slides.map((slide, index) => {
+                  const meta = slideMeta[index] || createDefaultMeta('content')
+                  const isExpanded = expandedSlide === index
+                  return (
+                    <Collapsible
+                      key={slide.id}
+                      open={isExpanded}
+                      onOpenChange={open => setExpandedSlide(open ? index : null)}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <button
+                          type="button"
+                          className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-lg gba:border gba:hover:bg-muted/50 gba:transition-colors gba:text-left"
+                          disabled={isSaving}
+                        >
+                          <div
+                            className="gba:w-16 gba:rounded gba:overflow-hidden gba:flex-shrink-0 gba:border"
+                            style={{ aspectRatio: '16/9' }}
+                          >
+                            <div
+                              className="gba:w-full gba:h-full"
+                              style={getBackgroundStyle(slide.background || { type: 'solid', color: '#ffffff' })}
+                            />
+                          </div>
+                          <div className="gba:flex-1 gba:min-w-0">
+                            <div className="gba:text-sm gba:font-medium">
+                              {t('template-slide-number', { number: index + 1 }) || `Slide ${index + 1}`}
+                            </div>
+                            <Badge variant="secondary" className="gba:text-xs gba:mt-1">
+                              {t(`slide-purpose-${meta.purpose}`) || PURPOSE_DEFINITIONS[meta.purpose].label}
+                            </Badge>
+                          </div>
+                          <ChevronDown
+                            className={`gba:w-4 gba:h-4 gba:text-muted-foreground gba:transition-transform ${isExpanded ? 'gba:rotate-180' : ''}`}
+                          />
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="gba:pt-2 gba:pl-4">
+                        <SlideMetaEditor
+                          slideMeta={meta}
+                          slideIndex={index}
+                          slidePreview={slide}
+                          onChange={newMeta => handleSlideMetaChange(index, newMeta)}
+                          onAutoDetect={() => handleAutoDetectSlide(index)}
+                          disabled={isSaving}
+                          data-testid={`${testId}-slide-${index}-meta-editor`}
+                        />
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )
+                })}
               </div>
             </CardContent>
           </Card>

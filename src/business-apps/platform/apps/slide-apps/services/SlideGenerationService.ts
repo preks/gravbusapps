@@ -28,7 +28,8 @@ import {
   getBrandColorsWithFallbacks,
   type BrandMatch
 } from './BrandMatchingService'
-import type { SlideTemplate, BrandColors } from '../types'
+import { analyzeSlideContent, findBestSlideForContent } from './SlideMetadataService'
+import type { SlideTemplate, BrandColors, SlideTemplateMeta } from '../types'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -714,16 +715,40 @@ function isTitleElement(el: SlideElement): boolean {
 /**
  * Populate template slides with AI-generated content
  * This preserves the template's visual design while replacing text content
- * If AI generates more slides than template has, template slides are repeated cyclically
+ * If template has slideMeta, uses intelligent matching; otherwise cycles through slides
  */
-function populateTemplateWithContent(templateSlides: SlideData[], aiSlides: BackendSlideSpec[]): SlideData[] {
+function populateTemplateWithContent(
+  templateSlides: SlideData[],
+  aiSlides: BackendSlideSpec[],
+  slideMeta?: SlideTemplateMeta[]
+): SlideData[] {
   if (templateSlides.length === 0) return []
 
-  // Generate slides for all AI content, cycling through template slides
+  // Track usage counts for maxUsage constraints
+  const usageCounts = new Map<number, number>()
+
+  // Generate slides for all AI content
   return aiSlides.map((aiContent, index) => {
-    // Use template slide cyclically (e.g., if template has 2 slides and AI has 5,
-    // use template[0], template[1], template[0], template[1], template[0])
-    const templateIndex = index % templateSlides.length
+    let templateIndex: number
+
+    // Use intelligent matching if slideMeta is available
+    if (slideMeta && slideMeta.length > 0) {
+      const layoutType = aiContent.layout || 'content'
+      const analysis = analyzeSlideContent(layoutType, index, aiSlides.length)
+      templateIndex = findBestSlideForContent(analysis, slideMeta, usageCounts)
+
+      // Update usage count
+      const currentUsage = usageCounts.get(templateIndex) || 0
+      usageCounts.set(templateIndex, currentUsage + 1)
+
+      console.log(
+        `[SlideGeneration] Matched content slide ${index} (${analysis.suggestedPurpose}) to template slide ${templateIndex}`
+      )
+    } else {
+      // Fallback: Use template slide cyclically
+      templateIndex = index % templateSlides.length
+    }
+
     const clonedSlide = cloneSlide(templateSlides[templateIndex])
 
     // Generate new ID for each cloned slide
@@ -1794,7 +1819,11 @@ export async function generateSlides(
   } else if (matchedTemplate && matchedTemplate.contentJson.slides.length > 0) {
     // For regular (non-branded) templates: use template slides as base
     // This preserves the template's visual design (backgrounds, layouts, element positions)
-    slides = populateTemplateWithContent(matchedTemplate.contentJson.slides, transformedSlides)
+    const templateSlideMeta = matchedTemplate.slideMeta || matchedTemplate.contentJson._templateMeta?.slideMeta
+    console.log(
+      `[SlideGeneration] Template has structured metadata: ${!!templateSlideMeta}, slides: ${matchedTemplate.contentJson.slides.length}`
+    )
+    slides = populateTemplateWithContent(matchedTemplate.contentJson.slides, transformedSlides, templateSlideMeta)
     console.log(`[SlideGeneration] Populated ${slides.length} template slides with AI content`)
   } else {
     // No template - generate slides from scratch using layout service
