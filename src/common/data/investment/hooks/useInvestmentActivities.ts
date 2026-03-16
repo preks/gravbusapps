@@ -39,12 +39,40 @@ export const useGetInvestmentActivities = (context: BusinessAppContextProps) => 
         ...variables
       }
 
+      // Build custom OR conditions for reference type filter
+      // Uses nested relationship paths (same pattern as useCustomerTasks)
+      const customConditions: Record<string, any>[] = []
+      if (variables.referenceTypes && variables.referenceTypes.length > 0) {
+        const referenceConditions = variables.referenceTypes
+          .map(type => {
+            switch (type) {
+              case 'account':
+                return { account: { id: { _neq: null } } }
+              case 'contact':
+                return { contact: { id: { _neq: null } } }
+              case 'investment':
+                return { investment: { id: { _neq: null } } }
+              case 'lead':
+                return { lead: { id: { _neq: null } } }
+              case 'opportunity':
+                return { opportunity: { id: { _neq: null } } }
+              default:
+                return null
+            }
+          })
+          .filter((c): c is Record<string, any> => c !== null)
+
+        if (referenceConditions.length > 0) {
+          customConditions.push({ _or: referenceConditions })
+        }
+      }
+
       // Use new WHERE/ORDER BY builders with fields mapping
-      const whereCondition = buildInvestmentActivityWhereCondition(queryVariables)
+      const whereCondition = buildInvestmentActivityWhereCondition(queryVariables, [], customConditions)
       const orderBy = buildInvestmentActivityOrderBy(variables.orderBy || [])
 
       const graphQLVariables: Record<string, any> = {
-        limit: Math.min(variables.limit || 50, 100),
+        limit: variables.limit || 50,
         offset: variables.offset || 0,
         where: whereCondition,
         orderBy: orderBy

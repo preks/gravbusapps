@@ -25,7 +25,7 @@ Successfully migrated from 25 standalone rule files to the centralized `@newwork
 ### After Migration
 
 - ✅ Rules synced from `@newwork/cursor-rules` package
-- ✅ Automatic sync on `npm install` via postinstall script
+- ✅ Automatic sync on `npm install` via `@newwork/cursor-rules` package postinstall
 - ✅ Version controlled via package.json dependency
 - ✅ Shared team commands: `/pr`, `/ticket`, `/commit`, `/review`
 - ✅ Rules generated (gitignored, not committed)
@@ -41,8 +41,8 @@ Successfully migrated from 25 standalone rule files to the centralized `@newwork
 
 ```javascript
 {
-  extends: ['@newwork/cursor-rules/presets/business-apps'],
-  modules: ['crm', 'hr', 'fin', 'mdm', 'irm'],
+  presetId: 'business-apps',
+  subscriptions: ['base', 'react', 'typescript', 'api', 'process', 'remote', 'crm', 'hr', 'fin'],
   variables: {
     projectName: 'gravity-business-apps',
     designSystemPackage: '@newwork/nw-design-system',
@@ -179,7 +179,7 @@ npm run rules:diff
 
 ### Automatic Sync
 
-Rules sync automatically on `npm install` via the postinstall script.
+Rules sync automatically on `npm install` via the `@newwork/cursor-rules` package postinstall script.
 
 ---
 
@@ -306,7 +306,7 @@ Remove these lines from `scripts` section:
 "rules:sync": "cursor-rules sync",
 "rules:validate": "cursor-rules validate",
 "rules:diff": "cursor-rules diff",
-"postinstall": "cursor-rules sync --silent"
+"postinstall": "newwork-git-hooks"
 ```
 
 ### Step 3: Restore Archived Rules

@@ -3,23 +3,76 @@
  * Fork: manage parallel branches via edges. Join: configure wait condition.
  */
 
-import React, { useCallback } from 'react'
-import {
-  Button,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Separator,
-  useTranslation
-} from '@newwork/nw-design-system'
+import React, { useCallback, useEffect, useMemo } from 'react'
+import { Button, Input, Label, Separator, useTranslation } from '@newwork/nw-design-system'
 import { GitFork, Merge, Plus, Trash2 } from 'lucide-react'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { JoinNodeConfig } from '../../types/studioTypes'
+
+function buildForwardAdjacency(
+  edges: Array<{ source: string; target: string; direction?: string }>
+): Map<string, string[]> {
+  const adjacency = new Map<string, string[]>()
+  for (const e of edges) {
+    if (String((e as any)?.direction ?? 'forward') !== 'forward') continue
+    const list = adjacency.get(e.source) ?? []
+    list.push(e.target)
+    adjacency.set(e.source, list)
+  }
+  return adjacency
+}
+
+function bfsDistance(adjacency: Map<string, string[]>, start: string, goal: string): number | null {
+  if (!start || !goal) return null
+  if (start === goal) return 0
+  const visited = new Set<string>([start])
+  const queue: Array<{ id: string; d: number }> = [{ id: start, d: 0 }]
+  while (queue.length) {
+    const cur = queue.shift()!
+    const next = adjacency.get(cur.id) ?? []
+    for (const n of next) {
+      if (!n || visited.has(n)) continue
+      if (n === goal) return cur.d + 1
+      visited.add(n)
+      queue.push({ id: n, d: cur.d + 1 })
+    }
+  }
+  return null
+}
+
+function inferForkReferenceForJoin(
+  joinId: string,
+  forks: Array<{ id: string }>,
+  edges: Array<{ source: string; target: string; direction?: string }>
+): string | null {
+  const adjacency = buildForwardAdjacency(edges)
+  const candidates: Array<{ forkId: string; score: number }> = []
+
+  for (const fork of forks) {
+    const branchStarts = edges
+      .filter(e => e.source === fork.id && String((e as any)?.direction ?? 'forward') === 'forward')
+      .map(e => e.target)
+      .filter(Boolean)
+
+    // A fork without at least two branch starts isn't meaningful.
+    if (branchStarts.length < 2) continue
+
+    const distances = branchStarts.map(s => bfsDistance(adjacency, s, joinId))
+    if (distances.some(d => d === null)) continue
+
+    // Prefer the fork whose branches converge "closest" to this join.
+    const score = Math.max(...(distances as number[]))
+    candidates.push({ forkId: fork.id, score })
+  }
+
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => a.score - b.score || a.forkId.localeCompare(b.forkId))
+
+  // If the best score ties with the next, it's ambiguous -> don't guess.
+  if (candidates.length > 1 && candidates[0].score === candidates[1].score) return null
+  return candidates[0].forkId
+}
 
 interface ForkConfigPanelProps {
   nodeId: string
@@ -138,8 +191,40 @@ export const JoinConfigPanel: React.FC<JoinConfigPanelProps> = ({
   const { t } = useTranslation(translations)
   const updateNodeConfig = useFlowStudioStore(s => s.updateNodeConfig)
   const nodes = useFlowStudioStore(s => s.nodes)
+  const edges = useFlowStudioStore(s => s.edges)
 
-  const forkNodes = nodes.filter(n => n.type === 'fork')
+  const forkNodes = useMemo(() => nodes.filter(n => n.type === 'fork'), [nodes])
+  const selectedFork =
+    forkNodes.find(n => n.id === config.forkReference) ?? (forkNodes.length === 1 ? forkNodes[0] : null)
+
+  // Normalize: Conductor currently supports ALL-only semantics in our generator.
+  useEffect(() => {
+    if (config.joinCondition !== 'ALL') {
+      updateNodeConfig(nodeId, { joinCondition: 'ALL' })
+    }
+  }, [config.joinCondition, nodeId, updateNodeConfig])
+
+  // Auto-wire fork reference when only one fork exists.
+  useEffect(() => {
+    if (!config.forkReference && forkNodes.length === 1) {
+      updateNodeConfig(nodeId, { forkReference: forkNodes[0].id })
+    }
+  }, [config.forkReference, forkNodes, nodeId, updateNodeConfig])
+
+  // Auto-derive fork reference from graph connections when possible.
+  useEffect(() => {
+    const derived = inferForkReferenceForJoin(
+      nodeId,
+      forkNodes.map(f => ({ id: f.id })),
+      edges
+    )
+    if (!derived) return
+    if (config.forkReference !== derived) {
+      updateNodeConfig(nodeId, { forkReference: derived })
+    }
+  }, [config.forkReference, edges, forkNodes, nodeId, updateNodeConfig])
+
+  const forkLinkingOk = Boolean(String(config.forkReference || '').trim() && selectedFork)
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4 gba:bg-background" data-testid={testId}>
@@ -153,35 +238,22 @@ export const JoinConfigPanel: React.FC<JoinConfigPanelProps> = ({
       <div className="gba:flex gba:flex-col gba:gap-4 gba:px-5 gba:pb-5">
         <div className="gba:flex gba:flex-col gba:gap-1.5">
           <Label className="gba:text-xs gba:font-semibold gba:text-foreground">{t('join-condition')}</Label>
-          <Select
-            value={config.joinCondition}
-            onValueChange={v => updateNodeConfig(nodeId, { joinCondition: v as 'ALL' | 'ANY' })}
+          <div
+            className="gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-sm gba:text-foreground"
+            data-testid={`${testId}-condition`}
           >
-            <SelectTrigger data-testid={`${testId}-condition`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">{t('join-wait-all')}</SelectItem>
-              <SelectItem value="ANY">{t('join-wait-any')}</SelectItem>
-            </SelectContent>
-          </Select>
+            {t('join-wait-all')}
+          </div>
+          <p className="gba:text-xs gba:text-muted-foreground">
+            This merge waits until all parallel branches have finished before continuing.
+          </p>
         </div>
 
-        <div className="gba:flex gba:flex-col gba:gap-1.5">
-          <Label className="gba:text-xs gba:font-medium">Fork Reference</Label>
-          <Select value={config.forkReference} onValueChange={v => updateNodeConfig(nodeId, { forkReference: v })}>
-            <SelectTrigger data-testid={`${testId}-fork-ref`}>
-              <SelectValue placeholder="Select matching fork" />
-            </SelectTrigger>
-            <SelectContent>
-              {forkNodes.map(n => (
-                <SelectItem key={n.id} value={n.id}>
-                  {n.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!forkLinkingOk ? (
+          <p className="gba:text-xs gba:text-destructive" data-testid={`${testId}-fork-ref-warning`}>
+            This merge is not linked to a parallel split yet. Connect the split branches into this merge.
+          </p>
+        ) : null}
       </div>
     </div>
   )

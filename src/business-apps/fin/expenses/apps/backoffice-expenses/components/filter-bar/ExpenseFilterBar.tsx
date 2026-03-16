@@ -1,9 +1,19 @@
-import React, { useState } from 'react'
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import React, { useMemo, useState } from 'react'
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFilterData, type OrganizationalUnit, type Currency } from '../../hooks/useFilterData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getActiveStructureDepartmentOptions } from '../../utils/departmentOptions'
+import { filterOptionsByName } from '../../hooks/queryFilterUtils'
+import translations from '../../_i18n'
 
 export interface FilterOptions {
   department?: string
@@ -35,9 +45,11 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
   filterData: propsFilterData,
   'data-testid': dataTestId = 'expense-filter-bar'
 }) => {
+  const { t } = useTranslation(translations)
+
   // ⚡ PERFORMANCE: Use filter data from parent if provided, otherwise fetch locally
   // Parent (Dashboard) now ensures this component only renders with valid accessToken
-  const localFilterData = useFilterData({ accessToken })
+  const localFilterData = useFilterData({ accessToken: propsFilterData ? null : accessToken })
   const filterData = propsFilterData || localFilterData
   const { organizationalUnits, currencies, loading: filterDataLoading } = filterData
 
@@ -51,25 +63,35 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
 
   // Use parent's filters if provided, otherwise use internal state
   const filters = currentFilters || internalFilters
+  const [departmentSearch, setDepartmentSearch] = useState('')
+  const departmentOptions = useMemo(
+    () => getActiveStructureDepartmentOptions(organizationalUnits),
+    [organizationalUnits]
+  )
+  const filteredOrganizationalUnits = useMemo(
+    () => filterOptionsByName(departmentOptions, departmentSearch),
+    [departmentOptions, departmentSearch]
+  )
 
   // ⚡ REMOVED: Automatic currency setting to prevent override of user selections
   // The dashboard will handle all currency initialization
 
+  const toParentFilters = (value: FilterOptions): FilterOptions => ({
+    ...value,
+    department: value.department === 'all' ? '' : value.department,
+    currency: value.currency === 'all' ? '' : value.currency
+  })
+
+  const applyFilters = (nextFilters: FilterOptions) => {
+    if (!currentFilters) {
+      setInternalFilters(nextFilters)
+    }
+    onFiltersChange(toParentFilters(nextFilters))
+  }
+
   const handleFilterChange = (key: keyof FilterOptions, value: string) => {
     const newFilters = { ...filters, [key]: value } as FilterOptions
-
-    // Update internal state if not controlled by parent
-    if (!currentFilters) {
-      setInternalFilters(newFilters)
-    }
-
-    // Convert "all" values to empty strings for the parent component
-    const filtersForParent = {
-      ...newFilters,
-      department: newFilters.department === 'all' ? '' : newFilters.department,
-      currency: newFilters.currency === 'all' ? '' : newFilters.currency
-    }
-    onFiltersChange(filtersForParent)
+    applyFilters(newFilters)
   }
 
   const clearFilter = (filterKey: keyof FilterOptions) => {
@@ -90,92 +112,115 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
         delete newFilters[filterKey]
     }
 
-    // Update internal state if not controlled by parent
-    if (!currentFilters) {
-      setInternalFilters(newFilters)
-    }
-
-    // Convert "all" values to empty strings for the parent component
-    const filtersForParent = {
-      ...newFilters,
-      department: newFilters.department === 'all' ? '' : newFilters.department,
-      currency: newFilters.currency === 'all' ? '' : newFilters.currency
-    }
-    onFiltersChange(filtersForParent)
+    applyFilters(newFilters)
   }
+  const renderClearFilterButton = (config: { shouldShow: boolean; onClick: () => void; testId: string }) => {
+    if (!config.shouldShow) return null
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={config.onClick}
+        className="gba:ml-1 gba:p-1 gba:h-6 gba:w-6 gba:min-w-0"
+        data-testid={config.testId}
+      >
+        <X className="gba:h-3 gba:w-3" />
+      </Button>
+    )
+  }
+  const getSelectPlaceholder = (ftlKey: string) => {
+    if (filterDataLoading) {
+      return t('common-loading')
+    }
+    return t(ftlKey)
+  }
+  const renderSelectFilter = (config: {
+    wrapperTestId: string
+    value: string
+    onValueChange: (value: string) => void
+    triggerClassName: string
+    selectPlaceholder: string
+    content: React.ReactNode
+    clearButton: {
+      shouldShow: boolean
+      onClick: () => void
+      testId: string
+    }
+  }) => (
+    <div className="gba:relative gba:flex gba:items-center" data-testid={config.wrapperTestId}>
+      <Select
+        value={config.value}
+        onValueChange={config.onValueChange}
+        disabled={filterDataLoading}
+        data-testid={config.wrapperTestId.replace('-wrapper', '-select')}
+      >
+        <SelectTrigger className={config.triggerClassName}>
+          <SelectValue placeholder={config.selectPlaceholder} />
+        </SelectTrigger>
+        <SelectContent>{config.content}</SelectContent>
+      </Select>
+      {renderClearFilterButton(config.clearButton)}
+    </div>
+  )
+  const createClearButtonConfig = (filterKey: keyof FilterOptions, shouldShow: boolean, testId: string) => ({
+    shouldShow,
+    onClick: () => clearFilter(filterKey),
+    testId
+  })
 
   return (
     <div className="gba:flex gba:items-center gba:gap-4 gba:py-2" data-testid={dataTestId}>
       {/* Filters - Horizontal Layout */}
       <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1">
-        {/* Department Filter */}
-        <div className="gba:relative gba:flex gba:items-center">
-          <Select
-            value={filters.department || ''}
-            onValueChange={value => handleFilterChange('department', value)}
-            disabled={filterDataLoading}
-            data-testid="department-filter-select"
-          >
-            <SelectTrigger className="gba:w-[180px] gba:border-border">
-              <SelectValue
-                placeholder={
-                  filterDataLoading
-                    ? 'Loading...'
-                    : getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_list.expense_request_filter.expense_department_title',
-                        'Filter by department'
-                      )
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
+        {renderSelectFilter({
+          wrapperTestId: 'department-filter-wrapper',
+          value: filters.department || 'all',
+          onValueChange: value => {
+            handleFilterChange('department', value)
+            setDepartmentSearch('')
+          },
+          triggerClassName: 'gba:w-[220px] gba:border-border',
+          selectPlaceholder: getSelectPlaceholder('filter-department'),
+          content: (
+            <>
+              <div className="gba:p-2">
+                <input
+                  type="text"
+                  value={departmentSearch}
+                  onChange={event => setDepartmentSearch(event.target.value)}
+                  placeholder={t('filter-search-departments')}
+                  className="gba:w-full gba:h-8 gba:rounded gba:border gba:border-input gba:px-2 gba:text-sm"
+                  data-testid="department-filter-search-input"
+                />
+              </div>
               <SelectItem value="all" data-testid="department-filter-option-all">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.expense_request_filter.all_departments',
-                  'All Departments'
-                )}
+                {t('filter-all-departments')}
               </SelectItem>
-              {organizationalUnits.map(orgUnit => (
+              {filteredOrganizationalUnits.map(orgUnit => (
                 <SelectItem key={orgUnit.id} value={orgUnit.id} data-testid={`department-filter-option-${orgUnit.id}`}>
-                  {orgUnit.displayName || orgUnit.name}
+                  {orgUnit.name}
                 </SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-          {filters.department && filters.department !== 'all' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => clearFilter('department')}
-              className="gba:ml-1 gba:p-1 gba:h-6 gba:w-6 gba:min-w-0"
-              data-testid="clear-department-filter"
-            >
-              <X className="gba:h-3 gba:w-3" />
-            </Button>
-          )}
-        </div>
+            </>
+          ),
+          clearButton: {
+            shouldShow: Boolean(filters.department && filters.department !== 'all'),
+            onClick: () => {
+              clearFilter('department')
+              setDepartmentSearch('')
+            },
+            testId: 'clear-department-filter'
+          }
+        })}
 
-        {/* Currency Filter */}
-        <div className="gba:relative gba:flex gba:items-center">
-          <Select
-            value={filters.currency || ''}
-            onValueChange={value => handleFilterChange('currency', value)}
-            disabled={filterDataLoading}
-            data-testid="currency-filter-select"
-          >
-            <SelectTrigger className="gba:w-[140px] gba:border-border">
-              <SelectValue
-                placeholder={
-                  filterDataLoading
-                    ? 'Loading...'
-                    : getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_list.expense_request_filter.filter_by_currency',
-                        'Filter by Currency'
-                      )
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
+        {renderSelectFilter({
+          wrapperTestId: 'currency-filter-wrapper',
+          value: filters.currency || '',
+          onValueChange: value => handleFilterChange('currency', value),
+          triggerClassName: 'gba:w-[140px] gba:border-border',
+          selectPlaceholder: getSelectPlaceholder('filter-currency'),
+          content: (
+            <>
               {currencies.map(currency => (
                 <SelectItem
                   key={currency.currencyRef}
@@ -185,59 +230,40 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
                   {currency.code}
                 </SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-          {filters.currency && filters.currency !== '' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => clearFilter('currency')}
-              className="gba:ml-1 gba:p-1 gba:h-6 gba:w-6 gba:min-w-0"
-              data-testid="clear-currency-filter"
-            >
-              <X className="gba:h-3 gba:w-3" />
-            </Button>
-          )}
-        </div>
+            </>
+          ),
+          clearButton: createClearButtonConfig(
+            'currency',
+            Boolean(filters.currency && filters.currency !== ''),
+            'clear-currency-filter'
+          )
+        })}
 
-        {/* Period Filter */}
-        <div className="gba:relative gba:flex gba:items-center">
-          <Select
-            value={filters.period || ''}
-            onValueChange={value => handleFilterChange('period', value)}
-            disabled={filterDataLoading}
-            data-testid="period-filter-select"
-          >
-            <SelectTrigger className="gba:w-[140px] gba:border-border">
-              <SelectValue placeholder={filterDataLoading ? 'Loading...' : 'Filter by period'} />
-            </SelectTrigger>
-            <SelectContent>
+        {renderSelectFilter({
+          wrapperTestId: 'period-filter-wrapper',
+          value: filters.period || '',
+          onValueChange: value => handleFilterChange('period', value),
+          triggerClassName: 'gba:w-[140px] gba:border-border',
+          selectPlaceholder: getSelectPlaceholder('filter-by-period'),
+          content: (
+            <>
               <SelectItem value="monthly" data-testid="period-filter-option-monthly">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly', 'Monthly')}
+                {t('filter-period-monthly')}
               </SelectItem>
               <SelectItem value="quarterly" data-testid="period-filter-option-quarterly">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:cards.quartely', 'Quarterly')}
+                {t('filter-period-quarterly')}
               </SelectItem>
               <SelectItem value="yearly" data-testid="period-filter-option-yearly">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_calculation_rule_details.mileage_rule_list.mileage_expense_module.rule_period_yearly',
-                  'Yearly'
-                )}
+                {t('filter-period-yearly')}
               </SelectItem>
-            </SelectContent>
-          </Select>
-          {filters.period && filters.period !== 'monthly' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => clearFilter('period')}
-              className="gba:ml-1 gba:p-1 gba:h-6 gba:w-6 gba:min-w-0"
-              data-testid="clear-period-filter"
-            >
-              <X className="gba:h-3 gba:w-3" />
-            </Button>
-          )}
-        </div>
+            </>
+          ),
+          clearButton: createClearButtonConfig(
+            'period',
+            Boolean(filters.period && filters.period !== 'monthly'),
+            'clear-period-filter'
+          )
+        })}
       </div>
     </div>
   )

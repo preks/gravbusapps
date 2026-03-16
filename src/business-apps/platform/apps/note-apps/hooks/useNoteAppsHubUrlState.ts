@@ -43,6 +43,8 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
+  const initialNoteIdRef = useRef(getUrlParams().noteId)
+  const initialViewRef = useRef(getUrlParams().view)
 
   const updateUrl = useCallback(
     (noteId: string | null, view?: HubView) => {
@@ -81,16 +83,24 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
   }, []) // Run only on mount
 
   // Load note from URL on mount.
+  // Uses initialNoteIdRef as fallback since parent effects may clear URL params.
   useEffect(() => {
-    const { noteId, view } = getUrlParams()
+    const urlParams = getUrlParams()
+    const noteId = urlParams.noteId || initialNoteIdRef.current
+    const view = urlParams.view || initialViewRef.current
     if (!noteId) return
     if (currentNoteId) return
     if (isLoadingNote) return
     if (loadAttemptedRef.current === noteId) return
 
     loadAttemptedRef.current = noteId
+    initialNoteIdRef.current = null
+    initialViewRef.current = null
     loadNoteById(noteId).then(note => {
-      if (!note) return
+      if (!note) {
+        loadAttemptedRef.current = null
+        return
+      }
       setSelectedNoteId(noteId)
       setCurrentView(view === 'editor' ? 'editor' : 'editor')
     })
@@ -101,10 +111,10 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
     const referrer = document.referrer
     const urlParams = new URLSearchParams(window.location.search)
     cameFromDeskRef.current =
-      referrer.includes('/platform/apps/desk') ||
       referrer.includes('/platform/every-office') ||
       referrer.includes('?app=platform/apps/desk') ||
       referrer.includes('?app=platform/apps/every-office') ||
+      referrer.includes('?app=core/office/apps/office-launcher') ||
       urlParams.get('from') === 'desk'
 
     if (cameFromDeskRef.current && currentView === 'list') {
@@ -130,7 +140,7 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
           const spaceReturnUrl = sessionStorage.getItem('space_return_url')
           if (spaceReturnUrl) {
             sessionStorage.removeItem('space_return_url')
-            window.location.href = spaceReturnUrl
+            navigateTo(spaceReturnUrl)
             return
           }
         } catch (e) {
@@ -142,11 +152,8 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
         const urlParams = new URLSearchParams(window.location.search)
         const spaceId = urlParams.get('spaceId')
         if (spaceId) {
-          const isProduction = process.env.NODE_ENV === 'production'
-          const spaceUrl = isProduction
-            ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
-            : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
-          window.location.href = spaceUrl
+          const spaceUrl = `/platform/every-office/spaces?spaceId=${encodeURIComponent(spaceId)}`
+          navigateTo(spaceUrl)
           return
         }
       }

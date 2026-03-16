@@ -153,6 +153,7 @@ export const formatDate = (
 
     // Map common keys to Intl options
     const toLocale = (opts: Intl.DateTimeFormatOptions) => date.toLocaleDateString(locale, opts)
+    const toLocaleString = (opts: Intl.DateTimeFormatOptions) => date.toLocaleString(locale, opts)
 
     switch (format) {
       case 'date.short':
@@ -163,6 +164,9 @@ export const formatDate = (
         return toLocale({ year: 'numeric', month: 'short', day: '2-digit' })
       case 'date.long':
         return toLocale({ year: 'numeric', month: 'long', day: '2-digit' })
+      case 'datetime.short':
+      case 'dateTime.short':
+        return toLocaleString({ dateStyle: 'short', timeStyle: 'short' })
       case 'fullDateTime.ISO':
         return date.toISOString()
       default:

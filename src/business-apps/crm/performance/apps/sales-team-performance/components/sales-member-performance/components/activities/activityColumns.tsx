@@ -20,15 +20,15 @@ import { formatDate } from '@/common/utils/windowUtils'
 const getActivityTypeIcon = (type: string) => {
   switch (type) {
     case 'Call':
-      return <PhoneIcon size={16} className="gba:text-success" />
+      return <PhoneIcon size={16} className="gba:text-foreground" />
     case 'Email':
-      return <EnvelopeIcon size={16} className="gba:text-primary" />
+      return <EnvelopeIcon size={16} />
     case 'Meeting':
-      return <UsersIcon size={16} className="gba:text-warning" />
+      return <UsersIcon size={16} />
     case 'Task':
-      return <ListChecksIcon size={16} className="gba:text-accent" />
+      return <ListChecksIcon size={16} />
     default:
-      return <ListChecksIcon size={16} className="gba:text-muted-foreground" />
+      return <ListChecksIcon size={16} />
   }
 }
 

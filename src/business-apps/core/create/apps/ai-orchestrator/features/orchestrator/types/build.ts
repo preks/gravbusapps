@@ -56,6 +56,8 @@ export interface AppMetadata {
 export interface BuildPlan {
   jobId: string
   originalPrompt: string
+  sessionId?: string // Orchestrator session ID for chat history and namespace
+  repoId?: string // Repository ID for the orchestrator session
   analysis: BuildAnalysis
   userSummary?: UserSummary
   components: ComponentSpec[]
@@ -64,4 +66,8 @@ export interface BuildPlan {
   createdAt: string
   status: BuildStatus
   appMetadata?: AppMetadata
+  currentPhase?: string
+  /** Orchestrator session context persisted by backend (optional for older plans). */
+  sessionId?: string
+  repoId?: string
 }

@@ -88,7 +88,6 @@ import { ShareDocumentDialog } from './components/ShareDocumentDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import type { PagedDocumentEditorRef } from './components/PagedDocumentEditor'
 import { DocumentAppsHubEditorView } from './components/DocumentAppsHubEditorView'
-import { ExternalDocumentImportSheet } from './components/external-import'
 
 // Hooks
 import { useDocumentApps } from './hooks/useDocumentApps'
@@ -96,9 +95,7 @@ import { useDocumentTemplates } from './hooks/useDocumentTemplates'
 
 import { useDocumentAppsHubUserLookup } from './hooks/useDocumentAppsHubUserLookup'
 import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites'
-import { useDocumentAppsHubFiltering } from './hooks/useDocumentAppsHubFiltering'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
-import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 
 // Entities / context
@@ -201,7 +198,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
   const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false)
-  const [importSheetOpen, setImportSheetOpen] = useState(false)
   const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
   const [createWithAiDialogOpen, setCreateWithAiDialogOpen] = useState(false)
   const [createWithAiTitle, setCreateWithAiTitle] = useState('Untitled Document')
@@ -257,6 +253,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     error: documentsError,
     storageMode,
     currentDocumentPermission,
+    pageMeta,
     loadDocument,
     createDocument,
     updateDocument,
@@ -294,28 +291,59 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     localStorage.setItem('document-hub-sidebar-collapsed', String(isSidebarCollapsed))
   }, [isSidebarCollapsed])
 
+  // Map frontend sort names to backend field names
+  const sortByMap: Record<string, 'createdAt' | 'updatedAt' | 'title'> = {
+    created: 'createdAt',
+    modified: 'updatedAt',
+    name: 'title'
+  }
+
+  // Drive server-side queries when section, search, sort, or page changes
+  const serverPageRef = useRef(1)
+  const PAGE_SIZE = 20
+
+  const fetchPage = useCallback(
+    (page: number) => {
+      serverPageRef.current = page
+      refreshDocuments({
+        section: activeSection === 'templates' ? undefined : activeSection,
+        favoriteIds: activeSection === 'favorites' ? [...favorites].join(',') : undefined,
+        search: searchQuery || undefined,
+        page,
+        limit: PAGE_SIZE,
+        sortBy: sortByMap[sortBy] ?? 'updatedAt',
+        sortOrder: sortOrder === 'asc' ? 'ASC' : 'DESC'
+      })
+    },
+    [activeSection, favorites, searchQuery, sortBy, sortOrder, refreshDocuments]
+  )
+
+  useEffect(() => {
+    if (activeSection !== 'templates') {
+      fetchPage(1)
+    }
+  }, [activeSection, searchQuery, sortBy, sortOrder, favorites, fetchPage])
+
+  const goToPage = useCallback((page: number) => fetchPage(page), [fetchPage])
+
+  // Server-driven pagination values
+  const paginatedDocuments = documents
+  const filteredDocuments = documents
+  const currentPage = pageMeta.page
+  const totalPages = pageMeta.totalPages
+  const totalItems = pageMeta.total
+  const pageSize = pageMeta.limit
+
+  const sharedDocuments = useMemo(() => documents.filter(d => d.isShared === true), [documents])
+
+  const hubLookupDocuments =
+    currentView === 'list' && activeSection !== 'templates' && viewLayout === 'list' ? paginatedDocuments : []
+
   const { ownerInfoMap, sharedUsersMap, refreshSharedUsersForDocument } = useDocumentAppsHubUserLookup({
     accessToken,
-    documents
+    documents: hubLookupDocuments,
+    loadSharedUsers: hubLookupDocuments.length > 0
   })
-
-  const { sharedDocuments, filteredDocuments } = useDocumentAppsHubFiltering({
-    documents,
-    activeSection,
-    favorites,
-    searchQuery,
-    sortBy,
-    sortOrder
-  })
-
-  const {
-    paginatedItems: paginatedDocuments,
-    currentPage,
-    totalPages,
-    totalItems,
-    goToPage,
-    pageSize
-  } = useHubPagination({ items: filteredDocuments, pageSize: 20 })
 
   /**
    * Handle Word file parsed from uploader
@@ -800,17 +828,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   <div className="gba:text-xs gba:text-muted-foreground">
                     {t('menu-new-create-template-description')}
                   </div>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setImportSheetOpen(true)}
-                data-testid="document-apps-hub-new-import-external"
-              >
-                <Database className="gba:w-4 gba:h-4 gba:mr-2 gba:text-teal-500" />
-                <div>
-                  <div className="gba:font-medium">Import external documents</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Confluence, SharePoint, Drive, S3</div>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -1816,15 +1833,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* External Document Import Sheet */}
-      <ExternalDocumentImportSheet
-        open={importSheetOpen}
-        onOpenChange={setImportSheetOpen}
-        accessToken={accessToken}
-        onAfterImport={() => refreshDocuments()}
-        data-testid={`${testId}-import-external`}
-      />
     </div>
   )
 }

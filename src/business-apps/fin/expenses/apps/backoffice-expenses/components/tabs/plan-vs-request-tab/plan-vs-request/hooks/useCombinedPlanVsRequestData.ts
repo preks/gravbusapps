@@ -222,13 +222,13 @@ export const useCombinedPlanVsRequestData = ({
       // Generate the combined query
       const query = generateCombinedPlanVsRequestQuery(selectedDepartment, requestTypes)
 
-      // Prepare variables
       const variables: Record<string, any> = {
         currency: currencyRef,
         startDate: dateRanges.startDate,
         endDate: dateRanges.endDate,
         previousStartDate: dateRanges.previousStartDate,
-        previousEndDate: dateRanges.previousEndDate
+        previousEndDate: dateRanges.previousEndDate,
+        currentDate: dayjs().format('YYYY-MM-DDT00:00:00')
       }
 
       if (selectedDepartment) {
@@ -246,8 +246,7 @@ export const useCombinedPlanVsRequestData = ({
       const categoryMap = processCategoryData(response?.currentPeriodCategories, response?.previousPeriodCategories)
       const categoryStats = buildCategoryStats(categoryMap)
 
-      // Process overdue plans count
-      const overduePlansCount = response?.overduePlans?.length || 0
+      const overduePlansCount = response?.overduePlans?.aggregate?.count || 0
 
       // Process most used currency using helper
       const mostUsedCurrency = processMostUsedCurrency(response?.currencyUsage)

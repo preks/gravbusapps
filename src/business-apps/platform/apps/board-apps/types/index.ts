@@ -43,6 +43,8 @@ export type {
   KanbanViewConfig,
   CalendarViewConfig,
   TimelineViewConfig,
+  DependencyType,
+  DependencyMeta,
   FormViewConfig,
   DashboardViewConfig,
   DashboardWidget,

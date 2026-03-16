@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   FunctionsServiceClient,
   type LatestFunctionItem,
-  type ConnectorKind
+  type ConnectorKind,
+  type FunctionConnectionBinding
 } from '@/common/network/functions/FunctionsServiceClient'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type {
   FunctionAssistantDraftResponse,
   FunctionAssistantExistingSnapshot,
@@ -38,6 +40,7 @@ export interface UseFunctionEditorStateArgs {
 
 export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionEditorStateArgs) {
   const client = useMemo(() => new FunctionsServiceClient(accessToken), [accessToken])
+  const promptManagerClient = usePromptManagerClient(accessToken)
 
   // Core fields
   const [name, setName] = useState('')
@@ -54,6 +57,9 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
 
   // Settings/Config key-value pairs
   const [configKeys, setConfigKeys] = useState<ConfigRow[]>([{ key: '', value: '' }])
+  const [connectionOptions, setConnectionOptions] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null)
+  const [isLoadingConnections, setIsLoadingConnections] = useState(false)
 
   // Assistant
   const [assistantOpen, setAssistantOpen] = useState(true)
@@ -127,6 +133,9 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     if (!func?.id) return
     try {
       const data = await client.getFunction(func.id)
+      if (data.metadata?.connectionBinding?.connectionId) {
+        setSelectedConnectionId(data.metadata.connectionBinding.connectionId)
+      }
       if (data.version?.source) {
         setSource(data.version.source)
       }
@@ -144,6 +153,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       setWorkflowEnabled(func.workflowEnabled ?? false)
       setConnectorEnabled(func.connectorEnabled ?? false)
       setConnectorKind(func.connectorKind ?? null)
+      setSelectedConnectionId(func.connectionBinding?.connectionId ?? null)
 
       if (func.config && Object.keys(func.config).length > 0) {
         setConfigKeys(Object.entries(func.config).map(([key, value]) => ({ key, value })))
@@ -164,6 +174,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       setWorkflowEnabled(false)
       setConnectorEnabled(false)
       setConnectorKind(null)
+      setSelectedConnectionId(null)
       setSource(
         `module.exports.handler = async (event) => {\n  // Your function code here\n  return { result: 'success' };\n};`
       )
@@ -172,6 +183,39 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       setConfigKeys([{ key: '', value: '' }])
     }
   }, [mode, func?.id])
+
+  useEffect(() => {
+    const loadConnections = async () => {
+      if (!connectorEnabled || !connectorKind) {
+        setConnectionOptions([])
+        setIsLoadingConnections(false)
+        return
+      }
+      setIsLoadingConnections(true)
+      try {
+        const result = await promptManagerClient.getExternalConnections({
+          kind: connectorKind,
+          consumerType: 'function',
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true
+        })
+        setConnectionOptions(
+          (result.data || [])
+            .map(item => ({
+              id: item.connectionId || item.connection_id || '',
+              name: item.name
+            }))
+            .filter(option => option.id)
+        )
+      } catch {
+        setConnectionOptions([])
+      } finally {
+        setIsLoadingConnections(false)
+      }
+    }
+    void loadConnections()
+  }, [promptManagerClient, connectorEnabled, connectorKind])
 
   const assistantMode: FunctionAssistantMode = mode === 'edit' ? 'refine' : 'create'
 
@@ -301,6 +345,10 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
 
       const config = buildConfigObject(configKeys)
 
+      const connectionBinding: FunctionConnectionBinding | null = selectedConnectionId
+        ? { connectionId: selectedConnectionId }
+        : null
+
       if (mode === 'create') {
         await client.createFunctionWithVersion({
           name: name.trim(),
@@ -310,6 +358,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
           connectorEnabled,
           connectorKind: connectorEnabled ? connectorKind || 'structured' : null,
           config,
+          connectionBinding,
           firstVersion: { source: source.trim(), inputSchema: inputSchemaObj, outputSchema: outputSchemaObj }
         })
       } else if (func?.id) {
@@ -319,7 +368,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
           workflowEnabled,
           connectorEnabled,
           connectorKind: connectorEnabled ? connectorKind || 'structured' : null,
-          config
+          config,
+          connectionBinding
         })
 
         const latestVersion = func.latestVersion?.version || 0
@@ -409,12 +459,16 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     }
 
     const config = buildConfigObject(configKeys)
+    const connectionBinding: FunctionConnectionBinding | null = selectedConnectionId
+      ? { connectionId: selectedConnectionId }
+      : null
     return await client.testFunction({
       source: source.trim(),
       payload,
       inputSchema: inputSchemaObj,
       outputSchema: outputSchemaObj,
-      config
+      config,
+      connectionBinding
     })
   }
 
@@ -448,6 +502,10 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     setOutputSchema,
     configKeys,
     setConfigKeys,
+    connectionOptions,
+    selectedConnectionId,
+    setSelectedConnectionId,
+    isLoadingConnections,
 
     isValid,
     isSaving,

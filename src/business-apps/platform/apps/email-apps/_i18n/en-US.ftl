@@ -23,6 +23,7 @@ list-context-labels = Labels
 list-context-reply = Reply
 list-context-reply-all = Reply all
 list-context-forward = Forward
+list-context-chat-with-user = Chat with user
 list-context-mark-read = Mark as read
 list-context-mark-unread = Mark as unread
 list-context-archive = Archive

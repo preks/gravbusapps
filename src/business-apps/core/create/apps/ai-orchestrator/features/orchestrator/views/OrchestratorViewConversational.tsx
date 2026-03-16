@@ -7,150 +7,46 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useOrchestratorClient } from '../hooks/useOrchestratorClient'
-import type { OrchestratorState } from '../hooks/useOrchestratorState'
 import { useBuildProgress } from '../hooks/useBuildProgress'
 import { useOrchestratorState } from '../hooks/useOrchestratorState'
 import { useOrchestratorHandlers } from '../hooks/useOrchestratorHandlers'
 import { useOrchestratorEffects } from '../hooks/useOrchestratorEffects'
 import { useCreateChat } from '../hooks/useCreateChat'
-import type { BuildPlan, OrchestratorViewState } from '../types'
-import type { CreateChatMessage } from '../types/chat'
-import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
-import type { ChatMessage as BuilderChatMessage } from '@/common/network/ai/builder/BuilderClient'
+import { useOrchestratorRestore } from '../hooks/useOrchestratorRestore'
+import { useOrchestratorConversationalEffects } from '../hooks/useOrchestratorConversationalEffects'
 import {
   parseFixAssistantFromStream,
   parseRefineAssistantFromStream,
   type AssistantStreamPartial
 } from '../utils/orchestratorStreamParsers'
+import { fromPersistedChatMessages } from '../utils/chatMessageConversion'
+import {
+  canShowExistingBuild,
+  createFallbackCompletedSnapshot,
+  extractSessionContextFromPlan,
+  isValidOrchestratorViewState,
+  resetOrchestratorState
+} from '../utils/orchestratorSessionUtils'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { env } from '@/common/env/EnvUtils'
 import { IdleCanvas } from '../components/layouts'
 import { CreateLayout } from '../components/layouts/CreateLayout'
 import { CreateAgentChat } from '../components/chat/CreateAgentChat'
 import { CreateSessionSidebar } from '../components/chat/CreateSessionSidebar'
-import { OrchestratorCanvasContent } from './OrchestratorCanvasContent.tsx'
+import { OrchestratorCanvasContent } from './OrchestratorCanvasContent'
+import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import { useListPlans } from '../hooks/useListPlans'
-import { useCachedPlans } from '../hooks/useCachedPlans'
+import { useOrchestratorSidebar } from '../hooks/useOrchestratorSidebar'
 import { SessionSwitchOverlay } from '../components/widgets/SessionSwitchOverlay'
-
-const ORCHESTRATOR_SYSTEM_AUTHOR = 'orchestrator-system'
-
-function extractSessionContextFromPlan(plan: BuildPlan): { sessionId: string; repoId: string } | null {
-  const componentWithSession = plan.components.find(
-    component =>
-      typeof component.metadata?.sessionId === 'string' &&
-      component.metadata.sessionId.length > 0 &&
-      typeof component.metadata?.repoId === 'string' &&
-      component.metadata.repoId.length > 0
-  )
-
-  if (!componentWithSession) return null
-  return {
-    sessionId: componentWithSession.metadata?.sessionId as string,
-    repoId: componentWithSession.metadata?.repoId as string
-  }
-}
-
-function toPersistedChatMessages(messages: CreateChatMessage[]): BuilderChatMessage[] {
-  return messages.map(message => {
-    const m = message as CreateChatMessage & Partial<BuilderChatMessage>
-    const isSystem = message.role === 'system' || message.messageType === 'system'
-    return {
-      role: message.role === 'user' ? 'user' : 'assistant',
-      content: message.content,
-      toolCalls: m.toolCalls,
-      thinkingLog: m.thinkingLog,
-      thinkingCollapsed: m.thinkingCollapsed,
-      blocks: m.blocks,
-      createdBy: isSystem ? ORCHESTRATOR_SYSTEM_AUTHOR : m.createdBy,
-      editHistory: m.editHistory,
-      messageId: message.id,
-      createdAt: message.createdAt,
-      serverCreatedAt: m.serverCreatedAt
-    }
-  })
-}
-
-function deriveRoleFromMessage(message: BuilderChatMessage): CreateChatMessage['role'] {
-  if (message.role === 'user') return 'user'
-  const isSystem = message.role === 'assistant' && message.createdBy === ORCHESTRATOR_SYSTEM_AUTHOR
-  return isSystem ? 'system' : 'assistant'
-}
-
-function deriveMessageType(role: CreateChatMessage['role']): CreateChatMessage['messageType'] {
-  if (role === 'user') return 'prompt'
-  if (role === 'system') return 'system'
-  return 'general'
-}
-
-function fromPersistedChatMessages(messages: BuilderChatMessage[]): CreateChatMessage[] {
-  return messages.map(message => {
-    const role = deriveRoleFromMessage(message)
-    return {
-      id: message.messageId || crypto.randomUUID(),
-      role,
-      content: message.content || '',
-      createdAt: message.serverCreatedAt || message.createdAt || new Date().toISOString(),
-      messageType: deriveMessageType(role),
-      toolCalls: message.toolCalls,
-      thinkingLog: message.thinkingLog,
-      thinkingCollapsed: message.thinkingCollapsed,
-      blocks: message.blocks,
-      createdBy: message.createdBy,
-      editHistory: message.editHistory,
-      serverCreatedAt: message.serverCreatedAt
-    }
-  })
-}
-
-interface ResetOrchestratorStateOptions {
-  chatSaveTimeoutRef: React.MutableRefObject<number | null>
-  chat: { resetMessages: () => void }
-  buildProgress: { resetProgress: () => void }
-  orchestratorClient: { clearPlan: () => void }
-  state: OrchestratorState
-  lastChatStateRef: React.MutableRefObject<string | null>
-  lastUiCheckpointKeyRef: React.MutableRefObject<string | null>
-}
-
-function resetOrchestratorState(options: ResetOrchestratorStateOptions): void {
-  if (options.chatSaveTimeoutRef.current !== null) {
-    globalThis.window.clearTimeout(options.chatSaveTimeoutRef.current)
-    options.chatSaveTimeoutRef.current = null
-  }
-  options.chat.resetMessages()
-  options.buildProgress.resetProgress()
-  options.orchestratorClient.clearPlan()
-  options.state.setViewState('idle')
-  options.state.setChatActive(false)
-  options.state.setUserPrompt('')
-  options.state.setBuildLogs([])
-  options.state.setThinkingSteps([])
-  options.state.setBuildDuration(0)
-  options.state.setCapturedBuildError(null)
-  options.state.loggedPhasesRef.current.clear()
-  options.state.lastCompletedCountRef.current = 0
-  options.state.hasTriggeredInitialAnalysis.current = false
-  options.lastChatStateRef.current = null
-  options.lastUiCheckpointKeyRef.current = null
-}
-
-function isValidOrchestratorViewState(value: unknown): value is OrchestratorViewState {
-  return (
-    value === 'idle' ||
-    value === 'analyzing' ||
-    value === 'review' ||
-    value === 'discovering' ||
-    value === 'building' ||
-    value === 'wiring' ||
-    value === 'complete' ||
-    value === 'error'
-  )
-}
+import { ImportFolderNewAppDialog } from '@/common/components/ai-builder/import-new-app/ImportFolderNewAppDialog'
+import type { BuildPlan } from '../types/build'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
   userInfo?: any
   initialPrompt?: string
   initialJobId?: string
+  initialSessionId?: string
   onBack?: () => void
   onComplete?: (success: boolean) => void
   'data-testid'?: string
@@ -161,6 +57,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   userInfo,
   initialPrompt = '',
   initialJobId,
+  initialSessionId,
   onBack,
   onComplete,
   'data-testid': testId = 'orchestrator-conversational'
@@ -172,32 +69,58 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     currentPlan,
     lastSessionId,
     lastRepoId,
+    setCurrentPlanSnapshot,
     setSessionFromBuild,
     refreshPlan,
     listDraftCheckpoints,
     restoreDraftCheckpoint,
+    resolveDraftCheckpointByMessage,
     createDraftCheckpoint
   } = orchestratorClient
 
-  // Preview refresh token — bumped when AI fix modifies screen code
   const [previewRefreshToken, setPreviewRefreshToken] = useState(0)
-
-  // Store builder identity from session
-  const [builtBy, setBuiltBy] = useState<any>(null)
-  const [builtByLoading, setBuiltByLoading] = useState(false)
-
-  // Track which state transitions we already posted chat messages for
+  const [isRestoringMessageId, setIsRestoringMessageId] = useState<string | null>(null)
+  const [isSavingVersion, setIsSavingVersion] = useState(false)
+  const [isImportingFolder, setIsImportingFolder] = useState(false)
+  const [importNewAppDialogOpen, setImportNewAppDialogOpen] = useState(false)
+  const [lastCompletedPlanSnapshot, setLastCompletedPlanSnapshot] = useState<BuildPlan | null>(null)
+  const [reviewCanvasMode, setReviewCanvasMode] = useState<'plan' | 'currentBuild'>('plan')
+  const [pendingImportFiles, setPendingImportFiles] = useState<File[] | null>(null)
+  const [importTargetPath, setImportTargetPath] = useState('')
+  const [importResourceUrl, setImportResourceUrl] = useState('')
+  const [importDialogError, setImportDialogError] = useState<string | null>(null)
   const lastChatStateRef = useRef<string | null>(null)
-
-  // Prevents the viewState effect from adding messages mid-restore (race condition guard)
   const isRestoringSessionRef = useRef(false)
-
-  // Track session restoration loading state for UI feedback
-  const [isRestoringSession, setIsRestoringSession] = useState(false)
-  const [restoreComplete, setRestoreComplete] = useState(false)
   const chatSaveTimeoutRef = useRef<number | null>(null)
   const lastUiCheckpointKeyRef = useRef<string | null>(null)
   const initialRestoreKeyRef = useRef<string | null>(null)
+  const pendingAnalyzeAssistantRef = useRef<string | null>(null)
+  const snapshotLookupKeyRef = useRef<string | null>(null)
+
+  const clearCompletedPlanSnapshot = useCallback(() => {
+    setLastCompletedPlanSnapshot(null)
+    setReviewCanvasMode('plan')
+  }, [])
+
+  const rememberCompletedPlanSnapshot = useCallback((plan: BuildPlan | null) => {
+    if (!canShowExistingBuild(plan)) return false
+    setLastCompletedPlanSnapshot(plan)
+    return true
+  }, [])
+
+  const showExistingBuild = useCallback(() => {
+    setReviewCanvasMode('currentBuild')
+  }, [])
+
+  const showReviewPlan = useCallback(() => {
+    setReviewCanvasMode('plan')
+  }, [])
+
+  const { data: recentPlans } = useListPlans({
+    accessToken,
+    params: { limit: 8, offset: 0, sort: '-createdAt' },
+    enabled: !!accessToken
+  })
 
   const buildProgress = useBuildProgress({
     client: orchestratorClient.client,
@@ -221,7 +144,13 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       const meta = event.metadata as { sessionId?: string; repoId?: string } | undefined
       setSessionFromBuild(meta?.sessionId, meta?.repoId)
       if (event.jobId) {
-        refreshPlan(event.jobId).catch(() => {})
+        refreshPlan(event.jobId)
+          .then(plan => {
+            if (rememberCompletedPlanSnapshot(plan)) {
+              setReviewCanvasMode('plan')
+            }
+          })
+          .catch(() => {})
       }
     },
     onComponentUpdate: orchestratorClient.updateComponentProperties
@@ -233,7 +162,10 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     buildProgress,
     userInfo,
     onComplete,
-    onBack
+    onBack,
+    onAnalyzeAssistantResponse: content => {
+      pendingAnalyzeAssistantRef.current = content
+    }
   })
 
   const { completedPhases } = useOrchestratorEffects({
@@ -245,42 +177,73 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   } as Parameters<typeof useOrchestratorEffects>[0])
 
   const handleRefineSend = useCallback(
-    async (feedback: string, onPartial?: (partial: AssistantStreamPartial) => void) => {
+    async (
+      feedback: string,
+      onPartial?: (partial: AssistantStreamPartial) => void,
+      conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+    ) => {
       const plan = currentPlan
       if (!plan?.jobId) {
         throw new Error('No active plan available for refinement')
       }
-
-      const stream = await orchestratorClient.refinePlanStream(plan.jobId, { feedback })
+      const stream = await orchestratorClient.refinePlanStream(plan.jobId, { feedback, conversationHistory })
       const assistantMessage = await parseRefineAssistantFromStream(stream, onPartial)
       await refreshPlan(plan.jobId)
       return { assistantMessage }
     },
-    [currentPlan, orchestratorClient.refinePlanStream, parseRefineAssistantFromStream, refreshPlan]
+    [currentPlan, orchestratorClient.refinePlanStream, refreshPlan]
   )
 
-  // --- Fix send handler (routes to AI builder for screen fixes) ---
   const handleFixSend = useCallback(
-    async (prompt: string, onPartial?: (partial: AssistantStreamPartial) => void) => {
+    async (
+      prompt: string,
+      onPartial?: (partial: AssistantStreamPartial) => void,
+      conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+    ) => {
       const sessionId = lastSessionId
       const repoId = lastRepoId
       if (!sessionId || !repoId) {
         throw new Error('No session available for AI fix')
       }
-
-      const stream = await builderClient.queryCode(repoId, prompt, [], true, true, sessionId, 'claude')
-      const { assistantMessage, hasMutation } = await parseFixAssistantFromStream(stream, onPartial)
-
+      const stream = await orchestratorClient.client.streamTurnRaw({
+        intent: 'auto',
+        scope: 'orchestrator_full',
+        prompt,
+        jobId: currentPlan?.jobId,
+        sessionId,
+        repoId,
+        conversationHistory,
+        createdBy: userInfo
+      })
+      const { assistantMessage, hasMutation, hasPlanUpdate, planJobId } = await parseFixAssistantFromStream(
+        stream,
+        onPartial
+      )
       if (hasMutation) {
         setPreviewRefreshToken(prev => prev + 1)
       }
-
+      if (hasPlanUpdate) {
+        const targetJobId = planJobId || currentPlan?.jobId
+        if (targetJobId) {
+          const refreshedPlan = await refreshPlan(targetJobId)
+          if (!refreshedPlan) {
+            return { assistantMessage }
+          }
+          const nextViewState =
+            refreshedPlan.status === 'completed' && refreshedPlan.currentPhase !== 'awaiting_change_decision'
+              ? 'complete'
+              : 'review'
+          if (rememberCompletedPlanSnapshot(refreshedPlan)) {
+            setReviewCanvasMode('plan')
+          }
+          state.setViewState(nextViewState)
+        }
+      }
       return { assistantMessage }
     },
-    [builderClient, lastSessionId, lastRepoId, parseFixAssistantFromStream]
+    [currentPlan?.jobId, lastSessionId, lastRepoId, orchestratorClient.client, refreshPlan, state, userInfo]
   )
 
-  // --- Chat integration ---
   const chat = useCreateChat({
     viewState: state.viewState,
     onRefine: handlers.handleRefine,
@@ -290,83 +253,199 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     userInfo
   })
 
-  // --- Shared session restore logic (used on mount and when selecting from history) ---
-  const resolveViewStateFromCheckpoint = useCallback(
-    async (
-      sessionContext: { sessionId: string; repoId: string },
-      plan: NonNullable<Awaited<ReturnType<typeof refreshPlan>>>,
-      fallback: OrchestratorViewState
-    ): Promise<OrchestratorViewState> => {
-      try {
-        const checkpoints = await listDraftCheckpoints({
-          jobId: plan.jobId,
-          sessionId: sessionContext.sessionId,
-          limit: 1
-        })
-        const latestCheckpoint = checkpoints[0]
-        if (!latestCheckpoint) return fallback
-        const restored = await restoreDraftCheckpoint(latestCheckpoint.checkpointId, sessionContext.sessionId)
-        const checkpointViewState = restored.checkpoint?.snapshot?.viewState
-        return isValidOrchestratorViewState(checkpointViewState) ? checkpointViewState : fallback
-      } catch {
-        return fallback
+  const { applyRestoredPlan } = useOrchestratorRestore({
+    listDraftCheckpoints,
+    builderClient,
+    chat,
+    state,
+    setSessionFromBuild,
+    lastChatStateRef,
+    onCompletedPlanRestored: plan => {
+      if (rememberCompletedPlanSnapshot(plan)) {
+        setReviewCanvasMode('plan')
       }
-    },
-    [listDraftCheckpoints, restoreDraftCheckpoint]
-  )
+    }
+  })
 
-  const applyRestoredPlan = useCallback(
-    async (plan: NonNullable<Awaited<ReturnType<typeof refreshPlan>>>) => {
-      const alreadyBuilt =
-        plan.status === 'completed' || plan.components.some(c => c.status === 'completed' || c.status === 'reused')
-      const sessionContext = extractSessionContextFromPlan(plan)
-      if (sessionContext) {
-        setSessionFromBuild(sessionContext.sessionId, sessionContext.repoId)
-      }
+  const { builtBy, builtByLoading, isRestoringSession, setIsRestoringSession, setRestoreComplete } =
+    useOrchestratorConversationalEffects({
+      state,
+      chat,
+      currentPlan,
+      initialJobId,
+      lastSessionId,
+      lastRepoId,
+      builderClient,
+      createDraftCheckpoint,
+      isRestoringSessionRef,
+      lastChatStateRef,
+      lastUiCheckpointKeyRef,
+      chatSaveTimeoutRef
+    })
 
-      const baseViewState: OrchestratorViewState = alreadyBuilt ? 'complete' : 'review'
-      const resolvedViewState = sessionContext
-        ? await resolveViewStateFromCheckpoint(sessionContext, plan, baseViewState)
-        : baseViewState
+  const { sidebarOpen, plans, plansLoading, refetchPlans, handleOpenHistory, handleSelectSession, handleCloseSidebar } =
+    useOrchestratorSidebar({
+      accessToken,
+      state,
+      refreshPlan,
+      applyRestoredPlan,
+      chat,
+      isRestoringSessionRef,
+      setIsRestoringSession,
+      setRestoreComplete
+    })
 
-      let loadedHistory = false
-      if (sessionContext) {
-        try {
-          const history = await builderClient.loadChatHistory(sessionContext.repoId, sessionContext.sessionId)
-          if (history.length > 0) {
-            chat.replaceMessages(fromPersistedChatMessages(history))
-            loadedHistory = true
-          }
-        } catch {
-          // Chat hydration is best-effort.
+  const findMatchingCompletedSnapshotPlan = useCallback(
+    (sessionContext: { sessionId: string; repoId: string }, activeJobId?: string | null) => {
+      const candidatePlans = [...plans, ...recentPlans, ...(currentPlan ? [currentPlan] : [])]
+      const seenJobIds = new Set<string>()
+
+      for (const plan of candidatePlans) {
+        if (!plan?.jobId || seenJobIds.has(plan.jobId)) continue
+        seenJobIds.add(plan.jobId)
+
+        const planSessionContext = extractSessionContextFromPlan(plan)
+        if (!planSessionContext) continue
+        if (
+          planSessionContext.sessionId !== sessionContext.sessionId ||
+          planSessionContext.repoId !== sessionContext.repoId
+        ) {
+          continue
+        }
+        if (activeJobId && plan.jobId === activeJobId && !canShowExistingBuild(plan)) {
+          continue
+        }
+        if (canShowExistingBuild(plan)) {
+          return plan
         }
       }
 
-      if (!loadedHistory && plan.originalPrompt) {
-        chat.addUserMessage(plan.originalPrompt, 'prompt', { createdBy: userInfo?.id })
-      }
-
-      lastChatStateRef.current = loadedHistory ? `${resolvedViewState}:${plan.jobId}` : null
-      state.setChatActive(true)
-      state.setViewState(resolvedViewState)
+      return null
     },
-    [chat, state, builderClient, setSessionFromBuild, resolveViewStateFromCheckpoint, userInfo?.id]
+    [currentPlan, plans, recentPlans]
   )
 
-  // Keep ?jobId= in sync with the active plan so page refresh restores the session
+  const resolveHistoricalCompletedSnapshot = useCallback(
+    async (plan: BuildPlan) => {
+      const sessionContext = extractSessionContextFromPlan(plan)
+      if (!sessionContext) return null
+
+      const checkpoints = await listDraftCheckpoints({
+        jobId: plan.jobId,
+        sessionId: sessionContext.sessionId,
+        limit: 20
+      }).catch(() => [])
+
+      const hasCompletedCheckpoint = checkpoints.some(checkpoint => checkpoint.snapshot?.viewState === 'complete')
+      if (!hasCompletedCheckpoint) return null
+
+      return createFallbackCompletedSnapshot(plan)
+    },
+    [listDraftCheckpoints]
+  )
+
+  const resolveSessionBackedCompletedSnapshot = useCallback(
+    async (plan: BuildPlan) => {
+      const sessionContext = extractSessionContextFromPlan(plan)
+      if (!sessionContext) return null
+
+      const sessionResponse = await builderClient.getSession(sessionContext.sessionId).catch(() => null)
+      const session = sessionResponse?.session
+      if (!session || (!session.targetPath && !session.resourceUrl)) {
+        return null
+      }
+
+      const fallbackPlan = createFallbackCompletedSnapshot(plan)
+      if (!fallbackPlan) return null
+
+      return {
+        ...fallbackPlan,
+        components: fallbackPlan.components.map(component => {
+          if (component.type !== 'screen') {
+            return component
+          }
+
+          return {
+            ...component,
+            resourceUrl: component.resourceUrl ?? session.resourceUrl ?? undefined,
+            metadata: {
+              ...component.metadata,
+              resourceUrl: component.metadata?.resourceUrl ?? session.resourceUrl ?? undefined
+            }
+          }
+        })
+      }
+    },
+    [builderClient]
+  )
+
   useEffect(() => {
-    const jobId = currentPlan?.jobId ?? null
-    const urlParams = new URLSearchParams(globalThis.location.search)
-    if (jobId) {
-      urlParams.set('jobId', jobId)
-    } else {
-      urlParams.delete('jobId')
+    if (state.viewState === 'review' && currentPlan?.currentPhase === 'awaiting_change_decision') {
+      setReviewCanvasMode('plan')
     }
-    const newUrl = urlParams.toString()
-      ? `${globalThis.location.pathname}?${urlParams.toString()}`
-      : globalThis.location.pathname
-    globalThis.history.replaceState({}, '', newUrl)
-  }, [currentPlan?.jobId])
+  }, [currentPlan, state.viewState])
+
+  useEffect(() => {
+    if (state.viewState !== 'review' || lastCompletedPlanSnapshot) {
+      snapshotLookupKeyRef.current = null
+      return
+    }
+
+    const sessionContext =
+      (currentPlan && extractSessionContextFromPlan(currentPlan)) ??
+      (lastSessionId && lastRepoId ? { sessionId: lastSessionId, repoId: lastRepoId } : null)
+    if (!sessionContext) return
+
+    const lookupKey = `${sessionContext.sessionId}:${sessionContext.repoId}:${currentPlan?.jobId ?? ''}`
+    if (snapshotLookupKeyRef.current === lookupKey) return
+
+    const candidatePlan = findMatchingCompletedSnapshotPlan(sessionContext, currentPlan?.jobId)
+    snapshotLookupKeyRef.current = lookupKey
+    void (async () => {
+      try {
+        const hydratedCandidatePlan = candidatePlan ? await refreshPlan(candidatePlan.jobId) : null
+        const fallbackPlan =
+          hydratedCandidatePlan ??
+          candidatePlan ??
+          (currentPlan ? await resolveHistoricalCompletedSnapshot(currentPlan) : null) ??
+          (currentPlan ? await resolveSessionBackedCompletedSnapshot(currentPlan) : null)
+
+        if (!rememberCompletedPlanSnapshot(fallbackPlan)) {
+          snapshotLookupKeyRef.current = null
+        }
+      } catch {
+        snapshotLookupKeyRef.current = null
+      }
+    })()
+  }, [
+    currentPlan,
+    findMatchingCompletedSnapshotPlan,
+    lastCompletedPlanSnapshot,
+    lastRepoId,
+    lastSessionId,
+    refreshPlan,
+    resolveHistoricalCompletedSnapshot,
+    resolveSessionBackedCompletedSnapshot,
+    rememberCompletedPlanSnapshot,
+    state.viewState
+  ])
+
+  useEffect(() => {
+    if (!lastCompletedPlanSnapshot) return
+
+    const snapshotContext = extractSessionContextFromPlan(lastCompletedPlanSnapshot)
+    const currentPlanContext = currentPlan ? extractSessionContextFromPlan(currentPlan) : null
+    const activeContext =
+      currentPlanContext ?? (lastSessionId && lastRepoId ? { sessionId: lastSessionId, repoId: lastRepoId } : null)
+
+    if (
+      !snapshotContext ||
+      snapshotContext.sessionId !== activeContext?.sessionId ||
+      snapshotContext.repoId !== activeContext?.repoId
+    ) {
+      clearCompletedPlanSnapshot()
+    }
+  }, [clearCompletedPlanSnapshot, currentPlan, lastCompletedPlanSnapshot, lastRepoId, lastSessionId])
 
   useEffect(() => {
     if (!initialJobId || !accessToken) return
@@ -387,151 +466,32 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
         await applyRestoredPlan(plan)
         setRestoreComplete(true)
       } catch {
-        // Ignore restore errors and keep idle state fallback.
         isRestoringSessionRef.current = false
         setIsRestoringSession(false)
       }
     })()
-  }, [initialJobId, accessToken, refreshPlan, applyRestoredPlan])
-
-  // Hide overlay only when restore is complete AND builtBy (session + photo) has finished loading
-  useEffect(() => {
-    if (restoreComplete && !builtByLoading) {
-      isRestoringSessionRef.current = false
-      setIsRestoringSession(false)
-      setRestoreComplete(false)
-    }
-  }, [restoreComplete, builtByLoading])
+  }, [initialJobId, accessToken, refreshPlan, applyRestoredPlan, setIsRestoringSession, setRestoreComplete])
 
   const handleIdleSubmit = useCallback(
     async (prompt: string) => {
+      clearCompletedPlanSnapshot()
       state.setChatActive(true)
       chat.addUserMessage(prompt, 'prompt', { createdBy: userInfo?.id })
-      chat.addAssistantMessage('Analyzing your request and planning the solution...', 'system')
-      await handlers.handleAnalyze(prompt)
+      try {
+        await handlers.handleAnalyze(prompt)
+        const assistantResponse = pendingAnalyzeAssistantRef.current?.trim()
+        if (assistantResponse) {
+          chat.addAssistantMessage(assistantResponse)
+        }
+      } finally {
+        pendingAnalyzeAssistantRef.current = null
+      }
     },
-    [handlers, state, chat, userInfo?.id]
+    [clearCompletedPlanSnapshot, handlers, state, chat, userInfo?.id]
   )
 
-  // Post contextual chat messages on state transitions (deduplicated via ref)
-  const viewState = state.viewState
-  const planJobId = currentPlan?.jobId
-  const planTitle = currentPlan?.userSummary?.title
-
-  useEffect(() => {
-    if (isRestoringSessionRef.current) return
-    const stateKey = `${viewState}:${planJobId ?? ''}`
-    if (stateKey === lastChatStateRef.current) return
-    lastChatStateRef.current = stateKey
-
-    if (viewState === 'review' && planTitle) {
-      chat.addAssistantMessage(
-        `Your build plan is ready: **${planTitle}**. ` +
-          'Review it on the canvas, then tell me to refine it or say "build" to start.'
-      )
-    } else if (viewState === 'building') {
-      chat.addSystemMessage('Build started. Watch the progress on the canvas.')
-    } else if (viewState === 'complete') {
-      chat.addAssistantMessage(
-        'Build complete! The screen preview is on the canvas. ' + 'You can ask me to make changes or fixes from here.'
-      )
-    }
-  }, [viewState, planJobId, planTitle, chat])
-
-  // Persist chat history for the active draft session so refresh restores the full timeline.
-  useEffect(() => {
-    const sessionId = lastSessionId
-    const repoId = lastRepoId
-    if (!sessionId || !repoId) return
-    if (isRestoringSessionRef.current) return
-    if (chat.messages.length === 0) return
-
-    if (chatSaveTimeoutRef.current !== null) {
-      globalThis.window.clearTimeout(chatSaveTimeoutRef.current)
-    }
-
-    chatSaveTimeoutRef.current = globalThis.window.setTimeout(() => {
-      const persisted = toPersistedChatMessages(chat.messages)
-      void builderClient.saveChatHistory(repoId, sessionId, persisted)
-    }, 700)
-
-    return () => {
-      if (chatSaveTimeoutRef.current !== null) {
-        globalThis.window.clearTimeout(chatSaveTimeoutRef.current)
-        chatSaveTimeoutRef.current = null
-      }
-    }
-  }, [chat.messages, lastSessionId, lastRepoId, builderClient])
-
-  // Fetch session builder info when sessionId is available
-  useEffect(() => {
-    const sessionId = lastSessionId
-    if (!sessionId) {
-      setBuiltBy(null)
-      setBuiltByLoading(false)
-      return
-    }
-
-    // Clear previous builtBy immediately to avoid showing wrong avatar when switching sessions
-    setBuiltBy(null)
-    setBuiltByLoading(true)
-
-    let cancelled = false
-    builderClient
-      .getSession(sessionId)
-      .then(response => {
-        if (!cancelled && response.success && response.session) {
-          setBuiltBy(response.session.createdBy)
-        } else if (!cancelled) {
-          setBuiltBy(null)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setBuiltBy(null)
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setBuiltByLoading(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [lastSessionId, builderClient])
-
-  // Create lightweight UI checkpoints on major state transitions with chat pointer metadata.
-  useEffect(() => {
-    const jobId = currentPlan?.jobId
-    const sessionId = lastSessionId
-    if (!jobId || !sessionId) return
-    if (isRestoringSessionRef.current) return
-    if (!(viewState === 'review' || viewState === 'building' || viewState === 'complete' || viewState === 'error')) {
-      return
-    }
-
-    const phaseKey = `${jobId}:${sessionId}:${viewState}`
-    if (phaseKey === lastUiCheckpointKeyRef.current) return
-    lastUiCheckpointKeyRef.current = phaseKey
-
-    const latestMessage = chat.messages[chat.messages.length - 1]
-    void createDraftCheckpoint({
-      jobId,
-      sessionId,
-      repoId: lastRepoId ?? undefined,
-      name: `ui_${viewState}`,
-      chatCheckpointMessageId: latestMessage?.id,
-      snapshot: {
-        viewState,
-        messageCount: chat.messages.length,
-        latestMessageRole: latestMessage?.role
-      }
-    })
-  }, [viewState, chat.messages, createDraftCheckpoint, currentPlan?.jobId, lastSessionId, lastRepoId])
-
   const handleNewSession = useCallback(() => {
+    clearCompletedPlanSnapshot()
     resetOrchestratorState({
       chatSaveTimeoutRef,
       chat,
@@ -541,137 +501,894 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       lastChatStateRef,
       lastUiCheckpointKeyRef
     })
-  }, [chat, buildProgress, orchestratorClient, state])
+  }, [chat, buildProgress, clearCompletedPlanSnapshot, orchestratorClient, state])
 
-  // --- Recent plans for idle screen ---
-  const { data: recentPlans } = useListPlans({
-    accessToken,
-    params: { limit: 8, offset: 0, sort: '-createdAt' },
-    enabled: !!accessToken
-  })
+  const buildDefaultResourceUrl = useCallback((targetPath: string): string => {
+    const normalized = targetPath.replace(/^\/+|\/+$/g, '')
+    const slug = normalized.split('/').filter(Boolean).pop() || normalized
+    return `/platform/generated/${slug}`
+  }, [])
 
-  // --- Session history sidebar ---
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const {
-    data: plans,
-    loading: plansLoading,
-    refetch: refetchPlans
-  } = useCachedPlans({
-    accessToken,
-    enabled: sidebarOpen
-  })
+  const formatAppNameFromTargetPath = useCallback((targetPath: string): string => {
+    const slug = targetPath.split('/').filter(Boolean).pop() || targetPath
+    const cleaned = slug.replace(/[^a-zA-Z0-9-_ ]/g, '')
+    return (
+      cleaned
+        .split(/[-_\s]+/)
+        .filter(Boolean)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ') || 'Imported App'
+    )
+  }, [])
 
-  const handleOpenHistory = useCallback(() => {
-    if (!state.chatActive) {
-      state.setChatActive(true)
-    }
-    setSidebarOpen(true)
-    refetchPlans()
-  }, [refetchPlans, state])
-
-  const handleSelectSession = useCallback(
-    async (jobId: string) => {
-      setSidebarOpen(false)
-      isRestoringSessionRef.current = true
-      setIsRestoringSession(true)
-      chat.resetMessages()
-
-      let appliedPlan = false
-      try {
-        const plan = await refreshPlan(jobId)
-        if (!plan) {
-          return
-        }
-        await applyRestoredPlan(plan)
-        appliedPlan = true
-        setRestoreComplete(true)
-      } finally {
-        if (!appliedPlan) {
-          isRestoringSessionRef.current = false
-          setIsRestoringSession(false)
+  const buildImportedSessionPlan = useCallback(
+    (input: {
+      sessionId: string
+      repoId: string
+      targetPath: string
+      resourceUrl?: string | null
+      createdAt?: string | null
+    }): BuildPlan => {
+      const appName = formatAppNameFromTargetPath(input.targetPath)
+      const effectiveResourceUrl = input.resourceUrl || buildDefaultResourceUrl(input.targetPath)
+      return {
+        jobId: '',
+        originalPrompt: `Imported app from ${input.targetPath}`,
+        sessionId: input.sessionId,
+        repoId: input.repoId,
+        analysis: {
+          summary: `Imported existing app at ${input.targetPath}`,
+          intent: 'Imported app session',
+          complexity: 'moderate',
+          requiresDataModel: false,
+          requiresFunctions: false,
+          requiresAgents: false,
+          requiresFlows: false,
+          requiresScreens: true,
+          notes: ['Session imported from local folder; no plan generated automatically.']
+        },
+        userSummary: {
+          title: appName,
+          whatYouGet: ['Existing app code imported into a new isolated session'],
+          whatYouCanDo: ['Preview current UI', 'Import updates', 'Continue iterative AI fixes'],
+          businessValue: 'Start from a real baseline app without forcing an initial planning cycle.',
+          estimatedTime: 'Ready now'
+        },
+        components: [
+          {
+            id: `imported-screen-${input.sessionId}`,
+            type: 'screen',
+            name: appName.replace(/\s+/g, ''),
+            description: `Imported screen for ${appName}`,
+            status: 'completed',
+            dependencies: [],
+            screenSpec: {
+              screenType: 'dashboard',
+              name: appName.replace(/\s+/g, ''),
+              title: appName,
+              description: `Imported from ${input.targetPath}`
+            },
+            resourceUrl: effectiveResourceUrl,
+            metadata: {
+              sessionId: input.sessionId,
+              repoId: input.repoId,
+              resourceUrl: effectiveResourceUrl
+            }
+          }
+        ],
+        estimatedDurationSeconds: 0,
+        createdAt: input.createdAt || new Date().toISOString(),
+        status: 'completed',
+        currentPhase: 'complete',
+        appMetadata: {
+          name: appName,
+          icon: 'LayoutDashboard',
+          description: `Imported app from ${input.targetPath}`,
+          longDescription: 'Imported existing app session. Plan generation is optional and user-initiated.',
+          category: 'Imported App',
+          tags: ['imported'],
+          version: '1.0.0'
         }
       }
     },
-    [chat, refreshPlan, applyRestoredPlan]
+    [buildDefaultResourceUrl, formatAppNameFromTargetPath]
   )
 
-  // --- Idle: full-screen (square top so banner has no top border radius) ---
+  const openImportedSession = useCallback(
+    async (input: {
+      sessionId: string
+      repoId: string
+      targetPath: string
+      resourceUrl?: string | null
+      createdAt?: string | null
+      announce?: boolean
+    }) => {
+      const importedPlan = buildImportedSessionPlan(input)
+      setCurrentPlanSnapshot(importedPlan)
+      setSessionFromBuild(input.sessionId, input.repoId)
+      rememberCompletedPlanSnapshot(importedPlan)
+      setReviewCanvasMode('plan')
+      state.setViewState('complete')
+      state.setChatActive(true)
+      state.setUserPrompt('')
+
+      const persistedHistory = await builderClient.loadChatHistory(input.repoId, input.sessionId).catch(() => null)
+      if (Array.isArray(persistedHistory) && persistedHistory.length > 0) {
+        chat.replaceMessages(fromPersistedChatMessages(persistedHistory))
+      } else {
+        chat.resetMessages()
+      }
+
+      if (input.announce !== false) {
+        chat.addSystemMessage(
+          `Imported app ready. Viewing current state from ${input.targetPath}. No plan was generated automatically.`
+        )
+      }
+      setPreviewRefreshToken(prev => prev + 1)
+    },
+    [
+      buildImportedSessionPlan,
+      builderClient,
+      chat,
+      rememberCompletedPlanSnapshot,
+      setCurrentPlanSnapshot,
+      setSessionFromBuild,
+      state
+    ]
+  )
+
+  useEffect(() => {
+    if (initialJobId || !initialSessionId || !accessToken) return
+    const restoreKey = `session:${initialSessionId}:${accessToken}`
+    if (initialRestoreKeyRef.current === restoreKey) return
+    initialRestoreKeyRef.current = restoreKey
+
+    isRestoringSessionRef.current = true
+    setIsRestoringSession(true)
+    ;(async () => {
+      try {
+        const sessionResponse = await builderClient.getSession(initialSessionId)
+        const session = sessionResponse?.session
+        if (!session?.repoId || !session.targetPath) {
+          throw new Error('Session context is incomplete for imported app preview.')
+        }
+        await openImportedSession({
+          sessionId: session.sessionId,
+          repoId: session.repoId,
+          targetPath: session.targetPath,
+          resourceUrl: session.resourceUrl,
+          createdAt: session.createdAt,
+          announce: false
+        })
+        setRestoreComplete(true)
+      } catch {
+        isRestoringSessionRef.current = false
+        setIsRestoringSession(false)
+      }
+    })()
+  }, [
+    accessToken,
+    builderClient,
+    initialJobId,
+    initialSessionId,
+    openImportedSession,
+    setIsRestoringSession,
+    setRestoreComplete
+  ])
+
+  const resolveSessionDetails = useCallback(async (): Promise<{
+    targetPath: string | null
+    resourceUrl: string | null
+  }> => {
+    if (!lastSessionId) {
+      return { targetPath: null, resourceUrl: null }
+    }
+    try {
+      const sessionResponse = await builderClient.getSession(lastSessionId)
+      return {
+        targetPath: sessionResponse?.session?.targetPath ?? null,
+        resourceUrl: sessionResponse?.session?.resourceUrl ?? null
+      }
+    } catch {
+      return { targetPath: null, resourceUrl: null }
+    }
+  }, [builderClient, lastSessionId])
+
+  const resolveSessionTargetPath = useCallback(async (): Promise<string | null> => {
+    const details = await resolveSessionDetails()
+    return details.targetPath
+  }, [resolveSessionDetails])
+
+  const reloadChatHistory = useCallback(async () => {
+    if (!lastSessionId || !lastRepoId) return
+    const history = await builderClient.loadChatHistory(lastRepoId, lastSessionId)
+    chat.replaceMessages(fromPersistedChatMessages(history))
+  }, [builderClient, chat, lastRepoId, lastSessionId])
+
+  const deriveViewStateFromPlan = useCallback((planLike: typeof currentPlan): 'review' | 'complete' => {
+    if (!planLike) return 'review'
+    if (planLike.currentPhase === 'awaiting_change_decision') return 'review'
+    const isComplete = planLike.status === 'completed' && planLike.currentPhase !== 'awaiting_change_decision'
+    return isComplete ? 'complete' : 'review'
+  }, [])
+
+  const normalizeCheckpointViewState = useCallback(
+    (
+      checkpoint: { snapshot?: Record<string, unknown> } | null,
+      restoredPlan: typeof currentPlan
+    ): 'review' | 'complete' | 'error' => {
+      const derivedFromPlan = deriveViewStateFromPlan(restoredPlan)
+      const rawViewState = checkpoint?.snapshot?.viewState
+      if (!isValidOrchestratorViewState(rawViewState)) {
+        return derivedFromPlan
+      }
+
+      // Plan state is authoritative for review/complete after refresh/restore.
+      // Keep explicit error checkpoints only when the plan is not already complete.
+      if (rawViewState === 'error' && derivedFromPlan !== 'complete') {
+        return 'error'
+      }
+      return derivedFromPlan
+    },
+    [deriveViewStateFromPlan]
+  )
+
+  const resolveDraftCheckpointForMessage = useCallback(
+    async (messageId: string) => {
+      if (!messageId || !lastSessionId) return null
+      return resolveDraftCheckpointByMessage({
+        sessionId: lastSessionId,
+        chatCheckpointMessageId: messageId,
+        jobId: currentPlan?.jobId ?? undefined
+      })
+    },
+    [currentPlan?.jobId, lastSessionId, resolveDraftCheckpointByMessage]
+  )
+
+  const applyPlanSnapshotRestoreForMessage = useCallback(
+    async (messageId: string) => {
+      const checkpoint = await resolveDraftCheckpointForMessage(messageId)
+      if (!checkpoint || !lastSessionId) {
+        return { checkpoint: null, restoredPlan: null as typeof currentPlan }
+      }
+
+      const restoreResult = await restoreDraftCheckpoint(checkpoint.checkpointId, lastSessionId, true)
+      const restoredCheckpoint = restoreResult?.checkpoint ?? checkpoint
+      const restoredCheckpointJobId = typeof restoredCheckpoint?.jobId === 'string' ? restoredCheckpoint.jobId : null
+      const checkpointJobId = typeof checkpoint.jobId === 'string' ? checkpoint.jobId : null
+      const restoredJobId = restoredCheckpointJobId ?? checkpointJobId
+      const restoredPlan = restoredJobId ? await refreshPlan(restoredJobId) : null
+
+      if (restoredCheckpoint?.sessionId || restoredCheckpoint?.repoId) {
+        setSessionFromBuild(
+          typeof restoredCheckpoint?.sessionId === 'string' ? restoredCheckpoint.sessionId : undefined,
+          typeof restoredCheckpoint?.repoId === 'string' ? restoredCheckpoint.repoId : undefined
+        )
+      }
+
+      return {
+        checkpoint: restoredCheckpoint as { snapshot?: Record<string, unknown>; jobId?: string } | null,
+        restoredPlan
+      }
+    },
+    [lastSessionId, refreshPlan, resolveDraftCheckpointForMessage, restoreDraftCheckpoint, setSessionFromBuild]
+  )
+
+  const handleRestoreAssistantMessage = useCallback(
+    async (message: { id: string }) => {
+      if (!lastSessionId || !lastRepoId || !message?.id) return
+      setIsRestoringMessageId(message.id)
+      try {
+        const targetPath = await resolveSessionTargetPath()
+        if (targetPath) {
+          await builderClient.restoreToMessage({
+            repoId: lastRepoId,
+            sessionId: lastSessionId,
+            targetPath,
+            messageId: message.id,
+            restoreChat: true
+          })
+          setPreviewRefreshToken(prev => prev + 1)
+        } else {
+          await builderClient.trimChatHistory(lastRepoId, lastSessionId, message.id)
+        }
+
+        const { checkpoint, restoredPlan } = await applyPlanSnapshotRestoreForMessage(message.id)
+        await reloadChatHistory()
+
+        let latestPlan = restoredPlan
+        if (!latestPlan && typeof checkpoint?.jobId === 'string') {
+          latestPlan = await refreshPlan(checkpoint.jobId)
+        }
+        if (!latestPlan && currentPlan?.jobId) {
+          latestPlan = await refreshPlan(currentPlan.jobId)
+        }
+        if (!latestPlan) {
+          latestPlan = currentPlan
+        }
+        const nextViewState = normalizeCheckpointViewState(checkpoint, latestPlan)
+        state.setViewState(nextViewState)
+        state.setChatActive(true)
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Restore failed'
+        chat.addSystemMessage(`Restore failed: ${errorMessage}`)
+      } finally {
+        setIsRestoringMessageId(null)
+      }
+    },
+    [
+      builderClient,
+      chat,
+      applyPlanSnapshotRestoreForMessage,
+      currentPlan?.jobId,
+      lastRepoId,
+      lastSessionId,
+      normalizeCheckpointViewState,
+      refreshPlan,
+      reloadChatHistory,
+      resolveSessionTargetPath,
+      state
+    ]
+  )
+
+  const handleEditMessage = useCallback(
+    async (message: { id: string }, nextContent: string) => {
+      const trimmed = nextContent.trim()
+      if (!lastSessionId || !lastRepoId || !message?.id || !trimmed) return
+
+      const historySnapshot = chat.messages
+      const targetIndex = historySnapshot.findIndex(item => item.id === message.id)
+      if (targetIndex < 0) return
+      const previousAssistant = historySnapshot
+        .slice(0, targetIndex)
+        .reverse()
+        .find(item => item.role === 'assistant')
+
+      setIsRestoringMessageId(message.id)
+      try {
+        let restoredCheckpoint: { snapshot?: Record<string, unknown>; jobId?: string } | null = null
+        let restoredPlan: typeof currentPlan = null
+        const targetPath = await resolveSessionTargetPath()
+        if (targetPath) {
+          if (previousAssistant?.id) {
+            await builderClient.restoreToMessage({
+              repoId: lastRepoId,
+              sessionId: lastSessionId,
+              targetPath,
+              messageId: previousAssistant.id,
+              restoreChat: true
+            })
+          } else {
+            await builderClient.restoreToInitial({
+              repoId: lastRepoId,
+              sessionId: lastSessionId,
+              targetPath,
+              restoreChat: true
+            })
+          }
+          setPreviewRefreshToken(prev => prev + 1)
+        } else if (previousAssistant?.id) {
+          await builderClient.trimChatHistory(lastRepoId, lastSessionId, previousAssistant.id)
+        } else {
+          await builderClient.clearChatHistory(lastRepoId, lastSessionId)
+        }
+
+        if (previousAssistant?.id) {
+          const planRestore = await applyPlanSnapshotRestoreForMessage(previousAssistant.id)
+          restoredCheckpoint = planRestore.checkpoint as { snapshot?: Record<string, unknown>; jobId?: string } | null
+          restoredPlan = planRestore.restoredPlan
+        }
+
+        await reloadChatHistory()
+
+        if (!previousAssistant?.id) {
+          state.setViewState('analyzing')
+          state.setChatActive(true)
+          state.setUserPrompt(trimmed)
+          chat.addUserMessage(trimmed, 'prompt', { createdBy: userInfo?.id })
+          try {
+            await handlers.handleAnalyze(trimmed)
+            const assistantResponse = pendingAnalyzeAssistantRef.current?.trim()
+            if (assistantResponse) {
+              chat.addAssistantMessage(assistantResponse)
+            }
+          } finally {
+            pendingAnalyzeAssistantRef.current = null
+          }
+          return
+        }
+
+        let latestPlan = restoredPlan
+        if (!latestPlan && typeof restoredCheckpoint?.jobId === 'string') {
+          latestPlan = await refreshPlan(restoredCheckpoint.jobId)
+        }
+        if (!latestPlan && currentPlan?.jobId) {
+          latestPlan = await refreshPlan(currentPlan.jobId)
+        }
+        if (!latestPlan) {
+          latestPlan = currentPlan
+        }
+        const nextViewState = normalizeCheckpointViewState(restoredCheckpoint, latestPlan)
+        state.setViewState(nextViewState)
+        state.setChatActive(true)
+        chat.editAndResendMessage(message.id, trimmed, userInfo?.id, nextViewState)
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Edit failed'
+        chat.addSystemMessage(`Edit failed: ${errorMessage}`)
+      } finally {
+        setIsRestoringMessageId(null)
+      }
+    },
+    [
+      builderClient,
+      chat,
+      applyPlanSnapshotRestoreForMessage,
+      currentPlan?.jobId,
+      handlers,
+      lastRepoId,
+      lastSessionId,
+      normalizeCheckpointViewState,
+      refreshPlan,
+      reloadChatHistory,
+      resolveSessionTargetPath,
+      state,
+      userInfo?.id
+    ]
+  )
+
+  const captureVersionForCurrentSession = useCallback(
+    async (options?: { silent?: boolean; versionNote?: string }) => {
+      const sessionId = lastSessionId
+      const repoId = lastRepoId ?? currentPlan?.repoId ?? null
+      if (!sessionId || !repoId) {
+        throw new Error('No active app session available to version.')
+      }
+
+      const details = await resolveSessionDetails()
+      if (!details.targetPath) {
+        throw new Error('Target path is not available for this session.')
+      }
+
+      const resourceUrl = details.resourceUrl || buildDefaultResourceUrl(details.targetPath)
+
+      const version = await builderClient.captureSessionVersion({
+        repoId,
+        sessionId,
+        targetPath: details.targetPath,
+        resourceUrl,
+        versionNote: options?.versionNote ?? 'Manual version save'
+      })
+
+      if (!options?.silent) {
+        chat.addSystemMessage(`Version saved: v${version.versionMajor}.${version.versionMinor}`)
+      }
+
+      return {
+        version,
+        sessionId,
+        targetPath: details.targetPath
+      }
+    },
+    [
+      buildDefaultResourceUrl,
+      builderClient,
+      chat,
+      currentPlan?.repoId,
+      lastRepoId,
+      lastSessionId,
+      resolveSessionDetails
+    ]
+  )
+
+  const handleSaveVersion = useCallback(async () => {
+    setIsSavingVersion(true)
+    try {
+      await captureVersionForCurrentSession()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save version.'
+      chat.addSystemMessage(message)
+    } finally {
+      setIsSavingVersion(false)
+    }
+  }, [captureVersionForCurrentSession, chat])
+
+  const handleDownloadPackage = useCallback(async () => {
+    const sessionId = lastSessionId
+    const repoId = lastRepoId ?? currentPlan?.repoId ?? null
+    if (!sessionId || !repoId) {
+      chat.addSystemMessage('No active app session available for package download.')
+      return
+    }
+
+    const { targetPath } = await resolveSessionDetails()
+    if (!targetPath) {
+      chat.addSystemMessage('Target path is not available for this session.')
+      return
+    }
+
+    try {
+      const { version: latest } = await captureVersionForCurrentSession({
+        silent: true,
+        versionNote: 'Download package capture'
+      })
+      const blob = await builderClient.downloadVersionPackage(latest.id)
+      const safeTargetPath = targetPath.replace(/[\\/]/g, '-').replace(/[^a-zA-Z0-9._-]/g, '_')
+      const filename = `ai-builder-${safeTargetPath}-v${latest.versionMajor}.${latest.versionMinor}.zip`
+      const blobUrl = URL.createObjectURL(blob)
+      try {
+        const link = Object.assign(document.createElement('a'), {
+          href: blobUrl,
+          download: filename
+        })
+        link.click()
+      } finally {
+        URL.revokeObjectURL(blobUrl)
+      }
+
+      chat.addSystemMessage(`Downloaded app package: ${filename}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to download app package.'
+      chat.addSystemMessage(message)
+    }
+  }, [
+    builderClient,
+    captureVersionForCurrentSession,
+    chat,
+    currentPlan?.repoId,
+    lastRepoId,
+    lastSessionId,
+    resolveSessionDetails
+  ])
+
+  const toSessionUser = useCallback(() => {
+    return {
+      id: String(userInfo?.id ?? 'unknown-user'),
+      employeeId: String(userInfo?.employeeId ?? ''),
+      firstName: String(userInfo?.firstName ?? userInfo?.givenName ?? ''),
+      lastName: String(userInfo?.lastName ?? userInfo?.familyName ?? ''),
+      displayName: String(userInfo?.displayName ?? userInfo?.name ?? 'Unknown User'),
+      email: typeof userInfo?.email === 'string' ? userInfo.email : undefined,
+      pictureThumbnail:
+        typeof userInfo?.pictureThumbnail === 'string'
+          ? userInfo.pictureThumbnail
+          : typeof userInfo?.picture === 'string'
+            ? userInfo.picture
+            : undefined,
+      consentToStorePii: Boolean(userInfo?.consentToStorePii)
+    }
+  }, [userInfo])
+
+  const resolveRepoIdForImport = useCallback(async (): Promise<string | null> => {
+    let repoId =
+      lastRepoId ??
+      currentPlan?.repoId ??
+      recentPlans?.find(plan => typeof plan.repoId === 'string' && plan.repoId.trim().length > 0)?.repoId ??
+      null
+    if (!repoId) {
+      const appConfig = await builderClient.fetchAppConfig().catch(() => null)
+      repoId = appConfig?.repositoryId || null
+    }
+    return repoId
+  }, [builderClient, currentPlan?.repoId, lastRepoId, recentPlans])
+
+  const resetImportNewAppDialog = useCallback(() => {
+    setImportNewAppDialogOpen(false)
+    setPendingImportFiles(null)
+    setImportDialogError(null)
+    setImportTargetPath('')
+    setImportResourceUrl('')
+  }, [])
+
+  const syncUrlToImportedSession = useCallback((sessionId: string) => {
+    const params = new URLSearchParams(globalThis.location.search)
+    params.set('sessionId', sessionId)
+    params.delete('jobId')
+    const nextUrl = params.toString()
+      ? `${globalThis.location.pathname}?${params.toString()}`
+      : globalThis.location.pathname
+    globalThis.history.replaceState({}, '', nextUrl)
+  }, [])
+
+  const handleImportFolderFromScreenBuilder = useCallback(
+    async (files: File[], mode: 'update' | 'new') => {
+      if (!Array.isArray(files) || files.length === 0) return
+
+      if (mode === 'new') {
+        const firstPath = files[0].webkitRelativePath || files[0].name || 'imported-app'
+        const defaultTargetPath = firstPath.split('/').filter(Boolean)[0]?.trim().replace(/\s+/g, '-') || 'imported-app'
+        setPendingImportFiles(files)
+        setImportTargetPath(defaultTargetPath)
+        setImportResourceUrl(buildDefaultResourceUrl(defaultTargetPath))
+        setImportDialogError(null)
+        setImportNewAppDialogOpen(true)
+        return
+      }
+
+      setIsImportingFolder(true)
+      try {
+        const repoId = await resolveRepoIdForImport()
+        if (!repoId) {
+          throw new Error('No repository is available for folder import.')
+        }
+        if (!lastSessionId) {
+          throw new Error('No active session is available to update.')
+        }
+
+        const details = await resolveSessionDetails()
+        if (!details.targetPath) {
+          throw new Error('Target path is missing for the active session.')
+        }
+
+        const resourceUrl = details.resourceUrl || buildDefaultResourceUrl(details.targetPath)
+
+        await builderClient.importFolderSnapshot({
+          files,
+          sessionId: lastSessionId,
+          repoId,
+          targetPath: details.targetPath,
+          resourceUrl,
+          applyToCache: true,
+          versionNote: 'Imported folder snapshot (screen builder update)',
+          createdBy: toSessionUser(),
+          importMode: 'update'
+        })
+
+        if (currentPlan?.jobId) {
+          await refreshPlan(currentPlan.jobId)
+        }
+        setPreviewRefreshToken(prev => prev + 1)
+        chat.addSystemMessage('Folder imported successfully. Existing app session was updated.')
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to import folder.'
+        chat.addSystemMessage(message)
+      } finally {
+        setIsImportingFolder(false)
+      }
+    },
+    [
+      buildDefaultResourceUrl,
+      builderClient,
+      chat,
+      currentPlan?.jobId,
+      lastSessionId,
+      refreshPlan,
+      resolveRepoIdForImport,
+      resolveSessionDetails,
+      toSessionUser
+    ]
+  )
+
+  const handleConfirmImportFolderAsNewApp = useCallback(async () => {
+    if (!pendingImportFiles || pendingImportFiles.length === 0) return
+    const normalizedTargetPath = importTargetPath.trim().replace(/^\/+|\/+$/g, '')
+    if (!normalizedTargetPath) {
+      setImportDialogError('Target path is required.')
+      return
+    }
+
+    const repoId = await resolveRepoIdForImport()
+    if (!repoId) {
+      setImportDialogError('No repository is available for folder import.')
+      return
+    }
+
+    const rawResourceUrl = importResourceUrl.trim()
+    const resourceUrl = rawResourceUrl
+      ? rawResourceUrl.startsWith('/')
+        ? rawResourceUrl
+        : `/${rawResourceUrl}`
+      : buildDefaultResourceUrl(normalizedTargetPath)
+
+    setIsImportingFolder(true)
+    setImportDialogError(null)
+    try {
+      const createdBy = toSessionUser()
+      const newSession = await builderClient.saveSession({
+        repoId,
+        targetPath: normalizedTargetPath,
+        resourceUrl,
+        fileCount: 0,
+        description: `Imported from local folder (${normalizedTargetPath})`,
+        createdBy
+      })
+
+      await builderClient.importFolderSnapshot({
+        files: pendingImportFiles,
+        sessionId: newSession.sessionId,
+        repoId,
+        targetPath: normalizedTargetPath,
+        resourceUrl,
+        applyToCache: true,
+        versionNote: 'Imported folder snapshot (screen builder new app)',
+        createdBy,
+        importMode: 'new'
+      })
+      syncUrlToImportedSession(newSession.sessionId)
+      await openImportedSession({
+        sessionId: newSession.sessionId,
+        repoId,
+        targetPath: normalizedTargetPath,
+        resourceUrl,
+        createdAt: new Date().toISOString(),
+        announce: true
+      })
+      resetImportNewAppDialog()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to import folder.'
+      setImportDialogError(message)
+      chat.addSystemMessage(message)
+    } finally {
+      setIsImportingFolder(false)
+    }
+  }, [
+    pendingImportFiles,
+    importTargetPath,
+    resolveRepoIdForImport,
+    importResourceUrl,
+    buildDefaultResourceUrl,
+    toSessionUser,
+    builderClient,
+    openImportedSession,
+    resetImportNewAppDialog,
+    syncUrlToImportedSession,
+    chat
+  ])
+
+  const handlePublishWithChat = useCallback(async () => {
+    const result = await orchestratorClient.publishApp()
+    if (result.success) {
+      const toPlatformPublishUrl = (resourceUrl: string): string | null => {
+        const raw = resourceUrl.trim()
+        if (!raw) return null
+        if (/^https?:\/\//i.test(raw)) return raw
+
+        const baseUrl = (env('NEXT_PUBLIC_BASE_URL') || globalThis.window?.location?.origin || '').replace(/\/+$/, '')
+        if (!baseUrl) return null
+
+        const normalizedPath = raw.startsWith('/') ? raw : `/${raw}`
+        let platformPath = normalizedPath
+        if (!normalizedPath.startsWith('/platform/')) {
+          if (normalizedPath.startsWith('/apps/')) {
+            platformPath = `/platform/generated${normalizedPath}`
+          } else {
+            platformPath = `/platform/generated/apps/${normalizedPath.replace(/^\/+/, '')}`
+          }
+        }
+        return `${baseUrl}${platformPath}`
+      }
+
+      const lines = [result.message || 'Publish completed successfully.']
+      const publishUrl = result.resourceUrl ? toPlatformPublishUrl(result.resourceUrl) : null
+      if (publishUrl) {
+        lines.push(`Open app: ${publishUrl}`)
+      } else if (result.resourceUrl) {
+        // Best effort fallback for malformed resource URLs.
+        lines.push(`Open app: ${buildPlatformUrl(result.resourceUrl)}`)
+      } else if (result.azureUrl) {
+        // Only fall back to CDN when platform URL is unavailable.
+        lines.push(`Open app (CDN fallback): ${result.azureUrl}`)
+      }
+      chat.addAssistantMessage(lines.join('\n'))
+      return
+    }
+
+    chat.addSystemMessage(`Publish failed: ${result.message || 'Unknown publish error'}`)
+  }, [chat, orchestratorClient])
+
+  const importNewAppDialog = (
+    <ImportFolderNewAppDialog
+      open={importNewAppDialogOpen}
+      onOpenChange={open => {
+        if (!open && !isImportingFolder) {
+          resetImportNewAppDialog()
+          return
+        }
+        setImportNewAppDialogOpen(open)
+      }}
+      title="Import Folder as New App"
+      description="Create a new AI Builder app from a local folder and open it in complete preview mode."
+      targetPath={importTargetPath}
+      onTargetPathChange={setImportTargetPath}
+      resourceUrl={importResourceUrl}
+      onResourceUrlChange={setImportResourceUrl}
+      confirmLabel="Create"
+      isSubmitting={isImportingFolder}
+      errorMessage={importDialogError}
+      onConfirm={handleConfirmImportFolderAsNewApp}
+    />
+  )
+
   if (!state.chatActive && state.viewState === 'idle' && !sidebarOpen) {
     return (
-      <div
-        className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:rounded-t-none"
-        data-testid={testId}
-      >
-        <IdleCanvas
-          onSubmit={handleIdleSubmit}
-          isLoading={orchestratorClient.isAnalyzing}
-          onOpenHistory={handleOpenHistory}
-          recentPlans={recentPlans}
-          onSelectSession={handleSelectSession}
-        />
-      </div>
+      <>
+        <div
+          className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:rounded-t-none"
+          data-testid={testId}
+        >
+          <IdleCanvas
+            onSubmit={handleIdleSubmit}
+            isLoading={orchestratorClient.isAnalyzing}
+            onOpenHistory={handleOpenHistory}
+            recentPlans={recentPlans}
+            onSelectSession={handleSelectSession}
+            onImportFolderAsNewApp={files => handleImportFolderFromScreenBuilder(files, 'new')}
+            isImportingFolderAsNewApp={isImportingFolder}
+          />
+        </div>
+        {importNewAppDialog}
+      </>
     )
   }
 
-  // --- Chat + Canvas layout ---
   return (
-    <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:relative" data-testid={testId}>
-      {/* Session restoration loading overlay */}
-      {isRestoringSession && <SessionSwitchOverlay />}
+    <>
+      <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:relative" data-testid={testId}>
+        {isRestoringSession && <SessionSwitchOverlay />}
 
-      <CreateLayout
-        sidebarOpen={sidebarOpen}
-        sidebar={
-          <CreateSessionSidebar
-            plans={plans}
-            currentPlanId={currentPlan?.jobId}
-            loading={plansLoading}
-            onSelectSession={handleSelectSession}
-            onClose={() => {
-              setSidebarOpen(false)
-              if (chat.messages.length === 0) {
-                state.setChatActive(false)
+        <CreateLayout
+          sidebarOpen={sidebarOpen}
+          sidebar={
+            <CreateSessionSidebar
+              plans={plans}
+              currentPlanId={currentPlan?.jobId}
+              loading={plansLoading}
+              onSelectSession={handleSelectSession}
+              onClose={handleCloseSidebar}
+              accessToken={accessToken}
+              onRefresh={refetchPlans}
+            />
+          }
+          chatPanel={
+            <CreateAgentChat
+              messages={chat.messages}
+              isProcessing={
+                chat.isProcessing ||
+                orchestratorClient.isAnalyzing ||
+                orchestratorClient.isRefining ||
+                buildProgress.isBuilding
               }
-            }}
-            accessToken={accessToken}
-            onRefresh={refetchPlans}
-          />
-        }
-        chatPanel={
-          <CreateAgentChat
-            messages={chat.messages}
-            isProcessing={
-              chat.isProcessing ||
-              orchestratorClient.isAnalyzing ||
-              orchestratorClient.isRefining ||
-              buildProgress.isBuilding
-            }
-            onSend={chat.handleSend}
-            onNewSession={handleNewSession}
-            onOpenHistory={handleOpenHistory}
-            userInfo={userInfo}
-            builtBy={builtBy}
-            builtByLoading={builtByLoading}
-            accessToken={accessToken}
-          />
-        }
-        canvasPanel={
-          <OrchestratorCanvasContent
-            state={state}
-            orchestratorClient={orchestratorClient}
-            buildProgress={buildProgress}
-            handlers={handlers}
-            completedPhases={completedPhases}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            builtBy={builtBy}
-            builtByLoading={builtByLoading}
-            previewRefreshToken={previewRefreshToken}
-            isRestoringSession={isRestoringSession}
-          />
-        }
-      />
-    </div>
+              onSend={chat.handleSend}
+              onEditMessage={handleEditMessage}
+              onRestoreMessage={handleRestoreAssistantMessage}
+              isRestoringMessageId={isRestoringMessageId}
+              onNewSession={handleNewSession}
+              onOpenHistory={handleOpenHistory}
+              userInfo={userInfo}
+              builtBy={builtBy}
+              builtByLoading={builtByLoading}
+              accessToken={accessToken}
+            />
+          }
+          canvasPanel={
+            <OrchestratorCanvasContent
+              state={state}
+              orchestratorClient={orchestratorClient}
+              buildProgress={buildProgress}
+              handlers={handlers}
+              completedPhases={completedPhases}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              builtBy={builtBy}
+              builtByLoading={builtByLoading}
+              previewRefreshToken={previewRefreshToken}
+              isRestoringSession={isRestoringSession}
+              onPublish={handlePublishWithChat}
+              onSaveVersion={handleSaveVersion}
+              isSavingVersion={isSavingVersion}
+              onDownloadPackage={handleDownloadPackage}
+              onImportFolder={handleImportFolderFromScreenBuilder}
+              isImportingFolder={isImportingFolder}
+              reviewCanvasMode={reviewCanvasMode}
+              completedBuildSnapshot={lastCompletedPlanSnapshot}
+              canShowExistingBuild={canShowExistingBuild(lastCompletedPlanSnapshot)}
+              onShowExistingBuild={showExistingBuild}
+              onShowReviewPlan={showReviewPlan}
+            />
+          }
+        />
+      </div>
+      {importNewAppDialog}
+    </>
   )
 }
 

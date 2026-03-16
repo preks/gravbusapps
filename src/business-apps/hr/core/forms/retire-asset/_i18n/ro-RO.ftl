@@ -27,6 +27,8 @@ disposal-reason-placeholder = Scrieți un motiv...
 
 # Responsible
 responsible-person = Persoană responsabilă
+select-responsible-person = Selectați persoana
+select-performed-by = Selectați persoana
 
 # Sanitization
 data-sanitization-required = Sanitizare date necesară?

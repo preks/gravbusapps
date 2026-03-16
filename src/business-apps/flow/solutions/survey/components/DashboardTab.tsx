@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Button } from '@newwork/nw-design-system'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { ClipboardList, MessageSquare, Clock, ArrowLeft, Users, Target, CheckCircle2 } from 'lucide-react'
+import { FlowDetailView } from '@/common/components/flow/flow-detail'
+import { ClipboardList, MessageSquare, ArrowLeft, Users, CheckCircle2 } from 'lucide-react'
 import { SurveyDataService, SurveyFlow, StepSegment } from '../services/SurveyDataService'
-import { FlowDetailView } from '@/business-apps/flow/common/components/flow-detail'
 import { FlowSummaryCard } from '@/business-apps/flow/common/components/flow-summary-card/FlowSummaryCard'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -61,19 +61,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = context => {
 
   // Calculate statistics from flow data (ignore analytics for now since it's misleading)
   const totalSurveys = surveyFlows.length
-  const activeSurveys = surveyFlows.filter(f => f.status === 'RUNNING' || f.status === 'PENDING').length
-  const completedSurveys = surveyFlows.filter(f => f.status === 'COMPLETED').length
-
-  // Response rate based on actual task completion within surveys
-  let totalTasks = 0
-  let completedTasksAcrossAllSurveys = 0
-  surveyFlows.forEach(flow => {
-    totalTasks += flow.totalTasks || 0
-    completedTasksAcrossAllSurveys += flow.completedTasks || 0
-  })
-
-  const responseRate = totalTasks > 0 ? Math.round((completedTasksAcrossAllSurveys / totalTasks) * 100) : 0
-
   // Calculate total participants from flow data
   const totalParticipants = surveyFlows.reduce((sum, flow) => {
     return sum + (flow.participantCount || 1)

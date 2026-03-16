@@ -30,6 +30,27 @@ export interface ChatMessageToolCall {
   progressLines?: string[]
 }
 
+export interface DecisionOptionChoice {
+  id: string
+  title: string
+  description: string
+  riskLevel?: 'low' | 'medium' | 'high'
+  destructive?: boolean
+  requiresExplicitConsent?: boolean
+}
+
+export interface DecisionToolDescriptor {
+  name: string
+  description: string
+}
+
+export interface DecisionPromptState {
+  decisionId?: string
+  riskSummary?: string
+  options: DecisionOptionChoice[]
+  availableTools?: DecisionToolDescriptor[]
+}
+
 export interface CreateChatMessage {
   id: string
   role: ChatMessageRole
@@ -41,6 +62,7 @@ export interface CreateChatMessage {
   thinkingLog?: string
   thinkingCollapsed?: boolean
   blocks?: ChatMessageBlock[]
+  decisionPrompt?: DecisionPromptState
   createdBy?: string
   editHistory?: Array<{
     userId: string
@@ -57,6 +79,7 @@ export type CanvasTab =
   | 'functions'
   | 'task-expert'
   | 'flow'
+  | 'agent-mesh'
   | 'about'
 
 export interface CanvasTabInfo {
@@ -65,13 +88,13 @@ export interface CanvasTabInfo {
 }
 
 export const CANVAS_TABS: CanvasTabInfo[] = [
-  { id: 'build-plan', label: 'Build Plan' },
+  { id: 'build-plan', label: 'Overview' },
   { id: 'screen', label: 'Screen' },
   { id: 'data-model', label: 'Data Model' },
   { id: 'functions', label: 'Functions' },
   { id: 'task-expert', label: 'Task Expert' },
+  { id: 'agent-mesh', label: 'Agent Mesh' },
   { id: 'flow', label: 'Flow' },
-  { id: 'data-flow', label: 'Architecture' },
   { id: 'about', label: 'About' }
 ]
 
@@ -85,7 +108,6 @@ export function getVisibleCanvasTabs(components: ComponentSpec[]): CanvasTabInfo
   const hasFunction = components.some(c => c.type === 'function')
   const hasAgent = components.some(c => c.type === 'agent')
   const hasFlow = components.some(c => c.type === 'flow')
-  const hasAnyComponent = components.length > 0
 
   return CANVAS_TABS.filter(tab => {
     switch (tab.id) {
@@ -102,8 +124,8 @@ export function getVisibleCanvasTabs(components: ComponentSpec[]): CanvasTabInfo
         return hasAgent
       case 'flow':
         return hasFlow
-      case 'data-flow':
-        return hasAnyComponent
+      case 'agent-mesh':
+        return false
       default:
         return true
     }

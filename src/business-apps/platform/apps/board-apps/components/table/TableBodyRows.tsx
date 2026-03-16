@@ -60,6 +60,250 @@ function stepStatusBadgeVariant(status: string) {
   }
 }
 
+interface MemoizedRowProps {
+  row: BoardRow
+  rowIndex: number
+  boardId: string
+  sheetId: string
+  columns: BoardColumn[]
+  isHighlighted: boolean
+  selectedCell: { rowId: string; colName: string } | null
+  editingCell: { rowId: string; colName: string } | null
+  editInitialKey?: string
+  onCellClick: (rowIndex: number, colIndex: number) => void
+  onStartEdit: (rowId: string, colName: string, currentValue: unknown, initial?: string) => void
+  onUpdateCell?: (rowId: string, columnName: string, value: unknown, extraData?: Record<string, unknown>) => Promise<void>
+  onDeleteRow?: (rowId: string) => void
+  onRowClick?: (row: BoardRow) => void
+  onSaveEdit: (rowId: string, colName: string, newValue: unknown, extraData?: Record<string, unknown>) => void
+  onCancelEdit: () => void
+  onMoveNext: () => void
+  expanded: boolean
+  hasFlowId: boolean
+  subRowState?: { isLoading: boolean; subRows: FlowSubRow[] }
+  onToggleFlowExpand?: (row: BoardRow) => void
+  peopleLookup?: Map<string, import('../../types/columns').SelectOption>
+  testId: string
+}
+
+const MemoizedRow = React.memo<MemoizedRowProps>(({
+  row, rowIndex, boardId, sheetId, columns,
+  isHighlighted, selectedCell, editingCell, editInitialKey,
+  onCellClick, onStartEdit, onUpdateCell, onDeleteRow, onRowClick,
+  onSaveEdit, onCancelEdit, onMoveNext,
+  expanded, hasFlowId, subRowState, onToggleFlowExpand,
+  peopleLookup, testId
+}) => {
+  return (
+    <React.Fragment>
+      <tr
+        className={`gba:transition-colors gba:group ${
+          isHighlighted ? 'gba:bg-primary/10 gba:animate-pulse' : 'gba:hover:bg-muted/20'
+        }`}
+        data-testid={`${testId}-row-${row.id}`}
+      >
+        {columns.map((col, colIndex) => {
+          const isEditing = editingCell?.rowId === row.id && editingCell?.colName === col.name
+          const isSelected = selectedCell?.rowId === row.id && selectedCell?.colName === col.name && !isEditing
+
+          return (
+            <CellContextMenu
+              key={col.id || col.name}
+              value={row.data[col.name]}
+              onEdit={() => onStartEdit(row.id, col.name, row.data[col.name])}
+              onClear={onUpdateCell ? () => void onUpdateCell(row.id, col.name, null) : () => {}}
+              onOpenRowPage={onRowClick ? () => onRowClick(row) : undefined}
+              onDeleteRow={onDeleteRow ? () => onDeleteRow(row.id) : undefined}
+              data-testid={`${testId}-ctx-${row.id}-${col.name}`}
+            >
+              <td
+                className={`gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r gba:truncate gba:w-40 ${
+                  isSelected ? 'gba:ring-2 gba:ring-primary gba:ring-inset gba:bg-primary/5' : ''
+                } ${onUpdateCell ? 'gba:cursor-cell' : ''}`}
+                onClick={() => onCellClick(rowIndex, colIndex)}
+                data-testid={`${testId}-cell-${row.id}-${col.name}`}
+              >
+                {isEditing ? (
+                  col.type === 'relation' && col.relationConfig && onUpdateCell ? (
+                    <RelationPicker
+                      config={col.relationConfig}
+                      selectedIds={
+                        Array.isArray(row.data[col.name])
+                          ? ((row.data[col.name] as unknown[]).filter(x => typeof x === 'string') as string[])
+                          : []
+                      }
+                      onChange={async (ids, labels, statuses) => {
+                        try {
+                          await onUpdateCell(row.id, col.name, ids, {
+                            [`_rel_${col.name}`]: labels,
+                            [`_rel_${col.name}_status`]: statuses
+                          })
+                        } catch {
+                          toast.error('Failed to save')
+                        }
+                        onCancelEdit()
+                      }}
+                      data-testid={`${testId}-relation-${row.id}-${col.name}`}
+                    />
+                  ) : (
+                    <CellEditor
+                      column={col}
+                      value={row.data[col.name]}
+                      initialKey={editInitialKey}
+                      boardId={boardId}
+                      sheetId={sheetId}
+                      onSave={async newValue => {
+                        if (col.type === 'people' && col.selectOptions?.length) {
+                          const label = col.selectOptions.find(o => o.value === String(newValue))?.label
+                          onSaveEdit(
+                            row.id,
+                            col.name,
+                            newValue,
+                            label ? { [`_people_${col.name}`]: label } : undefined
+                          )
+                        } else {
+                          onSaveEdit(row.id, col.name, newValue)
+                        }
+                      }}
+                      onCancel={onCancelEdit}
+                      onMoveNext={onMoveNext}
+                    />
+                  )
+                ) : (
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    {colIndex === 0 && hasFlowId && onToggleFlowExpand && (
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation()
+                          onToggleFlowExpand(row)
+                        }}
+                        className="gba:flex-shrink-0 gba:p-0.5 gba:rounded gba:hover:bg-muted/60 gba:transition-colors gba:mr-0.5"
+                        data-testid={`${testId}-expand-${row.id}`}
+                      >
+                        {expanded ? (
+                          <ChevronDown className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
+                        )}
+                      </button>
+                    )}
+                    <span className={`gba:flex-1 gba:truncate ${colIndex === 0 ? 'gba:font-medium' : ''}`}>
+                      {isUserColumn(col.name) && typeof row.data[col.name] === 'string' && row.data[col.name] ? (
+                        <UserDisplay
+                          userId={row.data[col.name] as string}
+                          lookup={peopleLookup}
+                          fallbackId={row.data[`${col.name}Id`] as string | undefined}
+                        />
+                      ) : (
+                        <CellRenderer
+                          value={row.data[col.name]}
+                          type={col.type}
+                          columnName={col.name}
+                          options={col.selectOptions}
+                          isPrimary={!!col.isPrimary}
+                          rowData={row.data}
+                          relationConfig={col.relationConfig}
+                        />
+                      )}
+                    </span>
+                    {colIndex === 0 && onRowClick && (
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation()
+                          onRowClick(row)
+                        }}
+                        className="gba:flex-shrink-0 gba:p-0.5 gba:rounded gba:hover:bg-muted/60 gba:transition-colors"
+                        data-testid={`${testId}-open-row-${row.id}`}
+                      >
+                        {(row.data as Record<string, unknown>)._rowPage ? (
+                          <FileText className="gba:w-3.5 gba:h-3.5 gba:text-primary/60 gba:hover:text-primary" />
+                        ) : (
+                          <FilePlus className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground/30 gba:hover:text-primary" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </td>
+            </CellContextMenu>
+          )
+        })}
+      </tr>
+
+      {expanded &&
+        subRowState &&
+        (subRowState.isLoading ? (
+          <tr data-testid={`${testId}-subrows-loading-${row.id}`}>
+            <td colSpan={columns.length} className="gba:px-4 gba:py-2 gba:border-b gba:bg-muted/10">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:pl-6">
+                <Spinner size="sm" />
+                <span className="gba:text-xs gba:text-muted-foreground">Loading steps...</span>
+              </div>
+            </td>
+          </tr>
+        ) : subRowState.subRows.length === 0 ? (
+          <tr data-testid={`${testId}-subrows-empty-${row.id}`}>
+            <td colSpan={columns.length} className="gba:px-4 gba:py-2 gba:border-b gba:bg-muted/10">
+              <span className="gba:text-xs gba:text-muted-foreground gba:pl-6">No steps found</span>
+            </td>
+          </tr>
+        ) : (
+          subRowState.subRows.map(sub => (
+            <tr
+              key={sub.id}
+              className="gba:bg-muted/10 gba:hover:bg-muted/20 gba:transition-colors"
+              data-testid={`${testId}-subrow-${sub.id}`}
+            >
+              {columns.map((col, colIndex) => (
+                <td
+                  key={col.id || col.name}
+                  className="gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r gba:truncate gba:w-40"
+                >
+                  {colIndex === 0 ? (
+                    <div className="gba:flex gba:items-center gba:gap-1.5 gba:pl-7">
+                      <div className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-border gba:flex-shrink-0" />
+                      <span className="gba:text-xs gba:text-foreground gba:truncate">{sub.step.title}</span>
+                      <Badge
+                        variant={stepStatusBadgeVariant(sub.step.status)}
+                        className="gba:text-[9px] gba:flex-shrink-0"
+                      >
+                        {sub.step.status}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <span className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                      <SubRowCellValue col={col} step={sub.step} peopleLookup={peopleLookup} />
+                    </span>
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))
+        ))}
+    </React.Fragment>
+  )
+}, (prev, next) => {
+  if (prev.row.id !== next.row.id) return false
+  if (prev.row.data !== next.row.data) return false
+  if (prev.isHighlighted !== next.isHighlighted) return false
+  if (prev.expanded !== next.expanded) return false
+  if (prev.rowIndex !== next.rowIndex) return false
+  const prevSelRow = prev.selectedCell?.rowId === prev.row.id
+  const nextSelRow = next.selectedCell?.rowId === next.row.id
+  if (prevSelRow !== nextSelRow) return false
+  if (prevSelRow && nextSelRow && prev.selectedCell?.colName !== next.selectedCell?.colName) return false
+  const prevEditRow = prev.editingCell?.rowId === prev.row.id
+  const nextEditRow = next.editingCell?.rowId === next.row.id
+  if (prevEditRow !== nextEditRow) return false
+  if (prevEditRow && nextEditRow && prev.editingCell?.colName !== next.editingCell?.colName) return false
+  if (prev.columns !== next.columns) return false
+  return true
+})
+
+MemoizedRow.displayName = 'MemoizedRow'
+
 export const TableBodyRows: React.FC<TableBodyRowsProps> = ({
   boardId,
   sheetId,
@@ -89,199 +333,36 @@ export const TableBodyRows: React.FC<TableBodyRowsProps> = ({
     <tbody>
       {displayRows.map((row, rowIndex) => {
         const hasFlowId = Boolean(row.data.flowId && typeof row.data.flowId === 'string')
-        const expanded = hasFlowId && isFlowExpanded?.(row.id)
+        const expanded = hasFlowId && isFlowExpanded?.(row.id) || false
         const subRowState = expanded ? getFlowSubRows?.(row.id) : undefined
 
         return (
-          <React.Fragment key={row.id}>
-            <tr
-              className={`gba:transition-colors gba:group ${
-                activeHighlight === row.id ? 'gba:bg-primary/10 gba:animate-pulse' : 'gba:hover:bg-muted/20'
-              }`}
-              data-testid={`${testId}-row-${row.id}`}
-            >
-              {columns.map((col, colIndex) => {
-                const isEditing = editingCell?.rowId === row.id && editingCell?.colName === col.name
-                const isSelected = selectedCell?.rowId === row.id && selectedCell?.colName === col.name && !isEditing
-
-                return (
-                  <CellContextMenu
-                    key={col.id || col.name}
-                    value={row.data[col.name]}
-                    onEdit={() => onStartEdit(row.id, col.name, row.data[col.name])}
-                    onClear={onUpdateCell ? () => void onUpdateCell(row.id, col.name, null) : () => {}}
-                    onOpenRowPage={onRowClick ? () => onRowClick(row) : undefined}
-                    onDeleteRow={onDeleteRow ? () => onDeleteRow(row.id) : undefined}
-                    data-testid={`${testId}-ctx-${row.id}-${col.name}`}
-                  >
-                    <td
-                      className={`gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r gba:truncate gba:w-40 ${
-                        isSelected ? 'gba:ring-2 gba:ring-primary gba:ring-inset gba:bg-primary/5' : ''
-                      } ${onUpdateCell ? 'gba:cursor-cell' : ''}`}
-                      onClick={() => onCellClick(rowIndex, colIndex)}
-                      data-testid={`${testId}-cell-${row.id}-${col.name}`}
-                    >
-                      {isEditing ? (
-                        col.type === 'relation' && col.relationConfig && onUpdateCell ? (
-                          <RelationPicker
-                            config={col.relationConfig}
-                            selectedIds={
-                              Array.isArray(row.data[col.name])
-                                ? ((row.data[col.name] as unknown[]).filter(x => typeof x === 'string') as string[])
-                                : []
-                            }
-                            onChange={async (ids, labels, statuses) => {
-                              try {
-                                await onUpdateCell(row.id, col.name, ids, {
-                                  [`_rel_${col.name}`]: labels,
-                                  [`_rel_${col.name}_status`]: statuses
-                                })
-                              } catch {
-                                toast.error('Failed to save')
-                              }
-                              onCancelEdit()
-                            }}
-                            data-testid={`${testId}-relation-${row.id}-${col.name}`}
-                          />
-                        ) : (
-                          <CellEditor
-                            column={col}
-                            value={row.data[col.name]}
-                            initialKey={editInitialKey}
-                            boardId={boardId}
-                            sheetId={sheetId}
-                            onSave={async newValue => {
-                              if (col.type === 'people' && col.selectOptions?.length) {
-                                const label = col.selectOptions.find(o => o.value === String(newValue))?.label
-                                onSaveEdit(
-                                  row.id,
-                                  col.name,
-                                  newValue,
-                                  label ? { [`_people_${col.name}`]: label } : undefined
-                                )
-                              } else {
-                                onSaveEdit(row.id, col.name, newValue)
-                              }
-                            }}
-                            onCancel={onCancelEdit}
-                            onMoveNext={onMoveNext}
-                          />
-                        )
-                      ) : (
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          {colIndex === 0 && hasFlowId && onToggleFlowExpand && (
-                            <button
-                              type="button"
-                              onClick={e => {
-                                e.stopPropagation()
-                                onToggleFlowExpand(row)
-                              }}
-                              className="gba:flex-shrink-0 gba:p-0.5 gba:rounded gba:hover:bg-muted/60 gba:transition-colors gba:mr-0.5"
-                              data-testid={`${testId}-expand-${row.id}`}
-                            >
-                              {expanded ? (
-                                <ChevronDown className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
-                              ) : (
-                                <ChevronRight className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
-                              )}
-                            </button>
-                          )}
-                          <span className={`gba:flex-1 gba:truncate ${colIndex === 0 ? 'gba:font-medium' : ''}`}>
-                            {isUserColumn(col.name) && typeof row.data[col.name] === 'string' && row.data[col.name] ? (
-                              <UserDisplay
-                                userId={row.data[col.name] as string}
-                                lookup={peopleLookup}
-                                fallbackId={row.data[`${col.name}Id`] as string | undefined}
-                              />
-                            ) : (
-                              <CellRenderer
-                                value={row.data[col.name]}
-                                type={col.type}
-                                columnName={col.name}
-                                options={col.selectOptions}
-                                isPrimary={!!col.isPrimary}
-                                rowData={row.data}
-                                relationConfig={col.relationConfig}
-                              />
-                            )}
-                          </span>
-                          {colIndex === 0 && onRowClick && (
-                            <button
-                              type="button"
-                              onClick={e => {
-                                e.stopPropagation()
-                                onRowClick(row)
-                              }}
-                              className="gba:flex-shrink-0 gba:p-0.5 gba:rounded gba:hover:bg-muted/60 gba:transition-colors"
-                              data-testid={`${testId}-open-row-${row.id}`}
-                            >
-                              {(row.data as Record<string, unknown>)._rowPage ? (
-                                <FileText className="gba:w-3.5 gba:h-3.5 gba:text-primary/60 gba:hover:text-primary" />
-                              ) : (
-                                <FilePlus className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground/30 gba:hover:text-primary" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </CellContextMenu>
-                )
-              })}
-            </tr>
-
-            {/* Expanded flow sub-rows (steps) */}
-            {expanded &&
-              subRowState &&
-              (subRowState.isLoading ? (
-                <tr data-testid={`${testId}-subrows-loading-${row.id}`}>
-                  <td colSpan={columns.length} className="gba:px-4 gba:py-2 gba:border-b gba:bg-muted/10">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:pl-6">
-                      <Spinner size="sm" />
-                      <span className="gba:text-xs gba:text-muted-foreground">Loading steps...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : subRowState.subRows.length === 0 ? (
-                <tr data-testid={`${testId}-subrows-empty-${row.id}`}>
-                  <td colSpan={columns.length} className="gba:px-4 gba:py-2 gba:border-b gba:bg-muted/10">
-                    <span className="gba:text-xs gba:text-muted-foreground gba:pl-6">No steps found</span>
-                  </td>
-                </tr>
-              ) : (
-                subRowState.subRows.map(sub => (
-                  <tr
-                    key={sub.id}
-                    className="gba:bg-muted/10 gba:hover:bg-muted/20 gba:transition-colors"
-                    data-testid={`${testId}-subrow-${sub.id}`}
-                  >
-                    {columns.map((col, colIndex) => (
-                      <td
-                        key={col.id || col.name}
-                        className="gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r gba:truncate gba:w-40"
-                      >
-                        {colIndex === 0 ? (
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:pl-7">
-                            <div className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-border gba:flex-shrink-0" />
-                            <span className="gba:text-xs gba:text-foreground gba:truncate">{sub.step.title}</span>
-                            <Badge
-                              variant={stepStatusBadgeVariant(sub.step.status)}
-                              className="gba:text-[9px] gba:flex-shrink-0"
-                            >
-                              {sub.step.status}
-                            </Badge>
-                          </div>
-                        ) : (
-                          <span className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                            <SubRowCellValue col={col} step={sub.step} peopleLookup={peopleLookup} />
-                          </span>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ))}
-          </React.Fragment>
+          <MemoizedRow
+            key={row.id}
+            row={row}
+            rowIndex={rowIndex}
+            boardId={boardId}
+            sheetId={sheetId}
+            columns={columns}
+            isHighlighted={activeHighlight === row.id}
+            selectedCell={selectedCell}
+            editingCell={editingCell}
+            editInitialKey={editInitialKey}
+            onCellClick={onCellClick}
+            onStartEdit={onStartEdit}
+            onUpdateCell={onUpdateCell}
+            onDeleteRow={onDeleteRow}
+            onRowClick={onRowClick}
+            onSaveEdit={onSaveEdit}
+            onCancelEdit={onCancelEdit}
+            onMoveNext={onMoveNext}
+            expanded={expanded}
+            hasFlowId={hasFlowId}
+            subRowState={subRowState}
+            onToggleFlowExpand={onToggleFlowExpand}
+            peopleLookup={peopleLookup}
+            testId={testId}
+          />
         )
       })}
 

@@ -1,5 +1,7 @@
 export enum AssetStatus {
   AVAILABLE = 'AVAILABLE_ASSET',
+  /** Asset is allocated but awaiting employee acknowledgment; moves to ALLOCATED after acknowledge. */
+  PENDING = 'PENDING_ASSET',
   ALLOCATED = 'ALLOCATED_ASSET',
   UNDER_REPAIR = 'IN_REPAIR_ASSET',
   RETIRED = 'RETIRED_ASSET'

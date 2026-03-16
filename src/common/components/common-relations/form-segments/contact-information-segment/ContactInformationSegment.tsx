@@ -19,6 +19,8 @@ import translations from './_i18n'
 interface ContactInformationSegmentProps {
   // Business app context for EmployeeSelect
   businessAppContext?: BusinessAppContextProps
+  // Account contacts from loaded entity (with nested account) for display - same pattern as account form
+  accountContacts?: any[]
   // Owner employee from contact data (to display immediately)
   ownerEmployee?: any
   // Entity ID (contact ID for edit mode)
@@ -42,6 +44,7 @@ interface ContactInformationSegmentProps {
 
 const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
   businessAppContext,
+  accountContacts,
   ownerEmployee,
   entityId,
   useAccounts,
@@ -256,11 +259,11 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
               accountIdFieldName="accountId"
               accountTypeFieldName="contactType"
               typeMode="contactType"
+              accountContacts={accountContacts}
               accounts={accountOptions}
               accountsLoading={useAccounts.loading}
               accountsError={useAccounts.error}
               searchAccounts={searchAccounts}
-              accountContacts={form.watch('accountContacts') || []}
               dataTestId="contact-information-segment-accounts"
             />
           </FormControl>

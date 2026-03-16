@@ -12,8 +12,10 @@ import {
   AvatarFallback,
   Sheet,
   SheetContent,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
+import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
 import { ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
@@ -57,6 +59,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     }),
     [props.accessToken, props.userInfo]
   )
+
+  // Pre-register common advance payment details bundle so the details sidebar shows translated labels on first render
+  useTranslation(advancePaymentDetailsTranslations)
 
   // Deterministic scroll target for pagination (top of table)
   const tableTopRef = useRef<HTMLDivElement | null>(null)

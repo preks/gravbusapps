@@ -131,7 +131,7 @@ export const BuildTile: React.FC<BuildTileProps> = ({ tile, 'data-testid': testI
             <Progress value={progressPercent} className="gba:mt-1 gba:h-1.5 [&>div]:gba:bg-foreground" />
           )}
           <div className="gba:mt-1 gba:flex gba:items-center gba:justify-between gba:gap-2 gba:leading-none">
-            <div className="gba:flex gba:items-center gba:gap-1 gba:overflow-hidden">
+            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:min-w-0">
               <span
                 className={cn(
                   'gba:text-[9px] gba:px-1 gba:py-0.5 gba:rounded gba:border gba:whitespace-nowrap',

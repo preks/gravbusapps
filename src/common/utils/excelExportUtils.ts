@@ -8,6 +8,7 @@
 
 import ExcelJS from 'exceljs'
 import { sanitizeFilename } from '@/common/utils/textUtils'
+import dayjs from 'dayjs'
 
 // ---------------------------------------------------------------------------
 // Cell formatting
@@ -129,5 +130,59 @@ export const downloadExcelWorkbook = async (workbook: ExcelJS.Workbook, filename
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   })
+  triggerDownload(blob, filename)
+}
+
+// ---------------------------------------------------------------------------
+// Shared export date formatter
+// ---------------------------------------------------------------------------
+
+/**
+ * Formats a date string as `DD-MMM-YYYY` (e.g. "25-Feb-2026").
+ * Fixed-width format avoids Excel "########" column-too-narrow issues
+ * and is less likely to be auto-converted to a date serial by Excel.
+ */
+export const formatExportDate = (value?: string | null): string => {
+  if (!value) return '-'
+  const parsed = dayjs(value)
+  return parsed.isValid() ? parsed.format('DD-MMM-YYYY') : '-'
+}
+
+// ---------------------------------------------------------------------------
+// Shared CSV helpers (used by useActivityExport, useTaskExport, etc.)
+// ---------------------------------------------------------------------------
+
+/** Removes newline characters from a string so CSV cells stay single-line. */
+export const sanitizeExportText = (value: string): string => value.replace(/[\r\n]+/g, ' ').trim()
+
+/** Escapes a value for CSV: wraps in quotes when it contains commas or quotes. */
+export const escapeCsvValue = (value: string): string => {
+  const sanitized = sanitizeExportText(value)
+  const needsQuotes = /[",]/.test(sanitized)
+  const out = sanitized.replace(/"/g, '""')
+  return needsQuotes ? `"${out}"` : out
+}
+
+/**
+ * Escapes a single CSV cell.
+ * Date columns are wrapped in `="value"` so Excel treats them as plain text
+ * and never auto-converts them to date serials (which would cause "########").
+ */
+export const escapeCsvCell = (key: string, value: string, dateColumnKeys: Set<string>): string => {
+  if (dateColumnKeys.has(key) && value !== '-') return `="${value}"`
+  return escapeCsvValue(value)
+}
+
+/** Generates and triggers a CSV download from structured row data. */
+export const downloadCsvData = (
+  data: Record<string, string>[],
+  columns: readonly { key: string; title: string }[],
+  filename: string,
+  dateColumnKeys: Set<string>
+): void => {
+  const header = columns.map(c => escapeCsvValue(c.title))
+  const rows = data.map(row => columns.map(c => escapeCsvCell(c.key, formatCellValue(row[c.key]), dateColumnKeys)))
+  const csvContent = '\uFEFF' + [header.join(','), ...rows.map(r => r.join(','))].join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   triggerDownload(blob, filename)
 }

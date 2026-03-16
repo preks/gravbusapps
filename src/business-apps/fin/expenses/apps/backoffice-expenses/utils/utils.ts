@@ -5,7 +5,7 @@
  * @date 2025-06-05
  */
 
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+export type TranslateFn = (key: string, vars?: Record<string, unknown>) => string
 
 /**
  * Enum representing the technical statuses for expenses
@@ -37,88 +37,81 @@ export interface StatusDisplayConfig {
 /**
  * Maps technical expense request statuses to user-friendly display configurations
  * @param status - The technical status from the API
+ * @param t - Translation function
  * @returns StatusDisplayConfig with label and styling information
  */
-export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayConfig => {
+export const getExpenseRequestStatusDisplay = (status: string, t: TranslateFn): StatusDisplayConfig => {
   switch (status) {
     case ExpenseStatus.CREATED:
+    default:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
+        label: t('status-draft'),
         badgeVariant: 'offline'
       }
 
     case ExpenseStatus.PREPARED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+        label: t('status-prepared'),
         badgeVariant: 'offline'
       }
 
     case ExpenseStatus.ASSIGNED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
+        label: t('status-assigned'),
         badgeVariant: 'info'
       }
 
     case ExpenseStatus.PENDING:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
+        label: t('status-in-approval'),
         badgeVariant: 'info'
       }
 
     case ExpenseStatus.APPROVED:
       return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.verification_required',
-          'Verification Required'
-        ),
-        badgeVariant: 'warning'
-      }
-
-    case ExpenseStatus.VERIFIED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booking_required', 'Booking Required'),
+        label: t('status-verification-required'),
         badgeVariant: 'warning'
       }
 
     case ExpenseStatus.BOOKED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transfer_required', 'Transfer Required'),
+        label: t('status-transfer-required'),
+        badgeVariant: 'warning'
+      }
+
+    case ExpenseStatus.VERIFIED:
+      return {
+        label: t('status-booking-required'),
         badgeVariant: 'warning'
       }
 
     case ExpenseStatus.CLOSED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
+        label: t('status-closed'),
         badgeVariant: 'success'
       }
 
     case ExpenseStatus.PAID:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
+        label: t('status-paid'),
         badgeVariant: 'success'
       }
     case ExpenseStatus.REJECTED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
+        label: t('status-revision-required'),
         badgeVariant: 'warning'
       }
 
     case ExpenseStatus.DISCARDED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.discarded', 'Discarded'),
+        label: t('status-discarded'),
         badgeVariant: 'offline'
       }
 
     case ExpenseStatus.TRANSFERRED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred'),
+        label: t('status-transferred'),
         badgeVariant: 'success'
-      }
-
-    default:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        badgeVariant: 'offline'
       }
   }
 }
@@ -126,105 +119,68 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
 /**
  * Maps technical advance payment statuses to user-friendly display configurations
  * @param status - The technical status from the API
+ * @param t - Translation function
  * @returns StatusDisplayConfig with label and styling information
  */
-export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayConfig => {
+export const getAdvancePaymentStatusDisplay = (status: string, t: TranslateFn): StatusDisplayConfig => {
   switch (status) {
     case ExpenseStatus.PENDING:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
+        label: t('status-in-approval'),
         badgeVariant: 'info'
       }
     case ExpenseStatus.APPROVED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
+        label: t('status-approved'),
         badgeVariant: 'success'
       }
     case ExpenseStatus.BOOKED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transfer_required', 'Transfer Required'),
+        label: t('status-transfer-required'),
         badgeVariant: 'warning'
       }
     case ExpenseStatus.PREPARED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+        label: t('status-prepared'),
         badgeVariant: 'offline'
       }
     case ExpenseStatus.REJECTED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        badgeVariant: 'destructive'
+        label: t('status-revision-required'),
+        badgeVariant: 'warning'
+      }
+    case ExpenseStatus.RETURNED:
+      return {
+        label: t('status-returned'),
+        badgeVariant: 'warning'
       }
     case ExpenseStatus.TRANSFERRED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.payment_required', 'Payment Required'),
+        label: t('status-payment-required'),
         badgeVariant: 'warning'
       }
     case ExpenseStatus.VERIFIED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booking_required', 'Booking Required'),
+        label: t('status-booking-required'),
         badgeVariant: 'warning'
       }
     case ExpenseStatus.PAID:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
+        label: t('status-paid'),
         badgeVariant: 'success'
       }
     default:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
+        label: t('status-draft'),
         badgeVariant: 'offline'
       }
   }
 }
 
 /**
- * Determines the fiscal year date range based on current date
- * Assumes fiscal year is calendar year (Jan 1 - Dec 31)
- *
- * @returns Object with start and end dates of the current fiscal year
+ * Backoffice report hook expects plan/request/advance status mappers.
+ * For plan reports we keep the same label mapping as request statuses.
  */
-export const getCurrentFiscalYearRange = () => {
-  const today = new Date()
-  const currentYear = today.getFullYear()
-
-  const fiscalYearStart = new Date(`${currentYear}-01-01T00:00:00.000Z`)
-  const fiscalYearEnd = new Date(`${currentYear}-12-31T23:59:59.999Z`)
-
-  return {
-    start: fiscalYearStart,
-    end: fiscalYearEnd,
-    startISOString: fiscalYearStart.toISOString(),
-    endISOString: fiscalYearEnd.toISOString(),
-    year: currentYear
-  }
-}
-
-/**
- * Formats a date string to YYYY-MM-DD format
- *
- * @param dateString - ISO date string
- * @returns Formatted date string
- */
-export const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  return dateString.split('T')[0]
-}
-
-/**
- * Determines if an expense request is part of the YTD calculation
- *
- * @param expense - Expense data object
- * @returns Boolean indicating if expense is part of YTD
- */
-export const isExpenseInYTD = (expense: any) => {
-  const fiscalYear = getCurrentFiscalYearRange()
-  const expenseDate = new Date(expense.date)
-
-  return (
-    expenseDate >= fiscalYear.start &&
-    expenseDate <= fiscalYear.end &&
-    expense.status.toLowerCase() === 'paid' &&
-    expense.currency === 'EUR'
-  )
+export const getExpensePlanStatusDisplay = (status: string, t: TranslateFn): StatusDisplayConfig => {
+  return getExpenseRequestStatusDisplay(status, t)
 }

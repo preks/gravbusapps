@@ -53,18 +53,7 @@ export const accountSchema = z.object({
         version: z.number().optional(),
         accountId: z.string().optional(),
         contactId: z.string().optional(),
-        contactType: z.string().nullable().optional(),
-        contact: z
-          .object({
-            id: z.string(),
-            fullName: z.string().optional(),
-            firstName: z.string().optional(),
-            lastName: z.string().optional(),
-            pictureThumbnail: z.string().nullable().optional(),
-            jobPosition: z.string().nullable().optional(),
-            department: z.string().nullable().optional()
-          })
-          .optional()
+        contactType: z.string().nullable().optional()
       })
     )
     .optional()

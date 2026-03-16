@@ -187,7 +187,12 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
 function formatValue(raw: unknown, type: string): string {
   if (raw === null || raw === undefined) return ''
   if (typeof raw === 'boolean') return raw ? 'Yes' : 'No'
-  if (Array.isArray(raw)) return raw.map(v => String(v)).join(', ')
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    try { return JSON.stringify(raw) } catch { return '' }
+  }
+  if (Array.isArray(raw)) return raw.map(v =>
+    v !== null && typeof v === 'object' ? ((() => { try { return JSON.stringify(v) } catch { return '' } })()) : String(v)
+  ).join(', ')
   if (type === 'date' || type === 'datetime') {
     const d = new Date(String(raw))
     return isNaN(d.getTime())

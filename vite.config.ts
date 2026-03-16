@@ -579,6 +579,11 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         code += '}\n\n'
         code += '// Export the screens map for debugging\n'
         code += 'export { availableScreens };\n'
+        code += '\n'
+        code += '// HMR: accept updates so new/updated dynamic chunks do not trigger full page reload (localhost dev)\n'
+        code += 'if (import.meta.hot) {\n'
+        code += '  import.meta.hot.accept();\n'
+        code += '}\n'
 
         console.log('[Dynamic Screen Loader] Created virtual module for on-demand screen loading')
         return code
@@ -642,6 +647,28 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         console.error('[inline-worklet] ❌ Failed to compile worklet:', error)
         throw error
       }
+    }
+  }
+
+  // SPA history fallback: serve index.html for path-based platform URLs so /platform/* works in dev
+  const spaHistoryFallbackPlugin = {
+    name: 'spa-history-fallback',
+    configureServer(server: any) {
+      const handler = (req: any, res: any, next: () => void) => {
+        if (req.method !== 'GET') return next()
+        const rawUrl = req.url || ''
+        const qIndex = rawUrl.indexOf('?')
+        const pathPart = qIndex >= 0 ? rawUrl.slice(0, qIndex) : rawUrl
+        const queryPart = qIndex >= 0 ? rawUrl.slice(qIndex) : ''
+        const isNonRootPath = pathPart && pathPart !== '/'
+        const isStaticAsset =
+          pathPart.includes('.') || pathPart.startsWith('/@') || pathPart.startsWith('/node_modules')
+        if (isNonRootPath && !isStaticAsset) {
+          req.url = '/' + queryPart
+        }
+        next()
+      }
+      server.middlewares.stack.unshift({ route: '', handle: handler })
     }
   }
 
@@ -990,6 +1017,7 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
       // Let Vite automatically handle all other dependencies including React, antd, etc.
     },
     plugins: [
+      ...(command === 'serve' ? [spaHistoryFallbackPlugin] : []),
       react(),
       tailwindCSS(),
       // Virtual module plugin for the wrapped entries
@@ -1034,7 +1062,7 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
         cssFileName: 'main'
       },
       minify: isProduction ? 'esbuild' : false, // Ensure minification for production
-      reportCompressedSize: isUnversionedBuild && isSingleBuild ? true : false,
+      reportCompressedSize: false,
       // Enable CSS processing
       css: {
         devSourcemap: true

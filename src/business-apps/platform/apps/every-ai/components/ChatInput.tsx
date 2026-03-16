@@ -5,6 +5,7 @@ import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '
 import { VoiceModeButton } from './voice/VoiceModeButton'
 import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
+import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
 
 // Detect if running on a mobile device with camera capabilities
 function useIsMobileWithCamera(): boolean {
@@ -43,8 +44,14 @@ function shouldSendMessage(params: { disabled?: boolean; value: string; fileCoun
   return { canSend: true, trimmed }
 }
 
+interface MentionPayload {
+  id: string
+  type: string
+  display: string
+}
+
 interface ChatInputProps {
-  onSend: (text: string, files: File[], isThinking: boolean, isSearching: boolean) => void
+  onSend: (text: string, files: File[], isThinking: boolean, isSearching: boolean, mentions?: MentionPayload[]) => void
   onClear: () => void
   disabled?: boolean
   className?: string
@@ -112,6 +119,29 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const isTypingInContentEditableRef = useRef(false)
   const isMobileWithCamera = useIsMobileWithCamera()
 
+  // Document search for @mentions
+  const searchDocuments = useCallback(
+    async (query: string): Promise<EntityReference[]> => {
+      if (!accessToken) return []
+      DocumentApiService.setAccessToken(accessToken)
+      const docs = await DocumentApiService.listDocuments({
+        search: query || undefined,
+        limit: 5,
+        includeShared: true
+      })
+      const lowerQuery = query.toLowerCase()
+      return docs
+        .filter(doc => !query || (doc.title || '').toLowerCase().includes(lowerQuery))
+        .map(doc => ({
+          id: doc.id,
+          type: 'document' as const,
+          name: doc.title || 'Untitled Document',
+          subtitle: `Document${doc.status ? ` • ${doc.status}` : ''}`
+        }))
+    },
+    [accessToken]
+  )
+
   // Entity mentions hook
   const {
     entities,
@@ -123,22 +153,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     clearMentions,
     closeMention,
     removeMention
-  } = useEntityMentions(accessToken, { insertionMode: 'markdown_link' })
+  } = useEntityMentions(accessToken, { insertionMode: 'markdown_link', searchDocuments })
 
   const handleSend = useCallback(() => {
     const { canSend, trimmed } = shouldSendMessage({ disabled, value, fileCount: files.length })
     if (!canSend) return
+    const mentionPayloads: MentionPayload[] = selectedEntities.map(e => ({
+      id: e.id,
+      type: e.type,
+      display: e.name
+    }))
     onSend(
       trimmed,
       files.map(f => f.file),
       false,
-      isSearching
+      isSearching,
+      mentionPayloads.length > 0 ? mentionPayloads : undefined
     )
     setValue('')
     clearFiles()
     setIsSearching(false)
     clearMentions()
-  }, [value, files, onSend, clearFiles, disabled, isSearching, clearMentions])
+  }, [value, files, onSend, clearFiles, disabled, isSearching, clearMentions, selectedEntities])
 
   const pickFiles = useCallback(
     (list: FileList | null) => {
@@ -198,7 +234,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
       const escapedMentionName = mention.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      html += `<span contenteditable="false" class="mention-badge gba:inline-flex gba:align-middle gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-primary/25 gba:bg-primary/10 gba:px-1.5 gba:py-0 gba:leading-none gba:text-xs gba:text-primary" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" data-mention-markdown="${escapedMarkdown}">${escapedMentionName}</span>`
+      html += `<span contenteditable="false" class="mention-badge gba:inline-flex gba:align-middle gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-primary/25 gba:bg-primary/10 gba:px-1.5 gba:py-0 gba:leading-none" style="color: #007BA7; font-family: inherit; font-size: inherit; font-weight: inherit;" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" data-mention-markdown="${escapedMarkdown}">${escapedMentionName}</span>`
       lastIndex = mention.endIndex
     }
 

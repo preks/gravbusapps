@@ -17,6 +17,7 @@ import type {
   RefinePlanRequest,
   DraftCheckpoint,
   CreateDraftCheckpointRequest,
+  ResolveDraftCheckpointByMessageParams,
   RestoreDraftCheckpointResponse
 } from '../types/api'
 
@@ -24,9 +25,11 @@ type OrchestratorClientWithStreaming = OrchestratorClient & {
   analyzeStream: (request: AnalyzeRequest, onEvent?: (event: AnalyzeStreamEvent) => void) => Promise<AnalyzeResponse>
   createDraftCheckpoint: (request: CreateDraftCheckpointRequest) => Promise<DraftCheckpoint>
   listDraftCheckpoints: (params: { jobId?: string; sessionId?: string; limit?: number }) => Promise<DraftCheckpoint[]>
+  resolveDraftCheckpointByMessage: (params: ResolveDraftCheckpointByMessageParams) => Promise<DraftCheckpoint | null>
   restoreDraftCheckpoint: (request: {
     checkpointId: string
     sessionId?: string
+    applyPlanSnapshot?: boolean
   }) => Promise<RestoreDraftCheckpointResponse>
   refinePlanStream: (jobId: string, request: RefinePlanRequest) => Promise<ReadableStream<Uint8Array>>
 }
@@ -51,6 +54,7 @@ export interface UseOrchestratorClientResult {
   isPublishing: boolean
   publishError: string | null
   publishSuccess: boolean
+  lastPublishResult: { message?: string; resourceUrl?: string; azureUrl?: string } | null
 
   // Methods
   analyze: (prompt: string, context?: Record<string, unknown>) => Promise<AnalyzeResponse>
@@ -70,11 +74,18 @@ export interface UseOrchestratorClientResult {
   cancelBuild: (jobId: string) => Promise<void>
   createDraftCheckpoint: (request: CreateDraftCheckpointRequest) => Promise<DraftCheckpoint>
   listDraftCheckpoints: (params: { jobId?: string; sessionId?: string; limit?: number }) => Promise<DraftCheckpoint[]>
-  restoreDraftCheckpoint: (checkpointId: string, sessionId?: string) => Promise<RestoreDraftCheckpointResponse>
+  resolveDraftCheckpointByMessage: (params: ResolveDraftCheckpointByMessageParams) => Promise<DraftCheckpoint | null>
+  restoreDraftCheckpoint: (
+    checkpointId: string,
+    sessionId?: string,
+    applyPlanSnapshot?: boolean
+  ) => Promise<RestoreDraftCheckpointResponse>
   /** Publish the built app screens using the session from the last build */
-  publishApp: () => Promise<void>
+  publishApp: () => Promise<{ success: boolean; message?: string; resourceUrl?: string; azureUrl?: string }>
   clearPlan: () => void
   clearRefinementSummary: () => void
+  /** Explicitly set current plan snapshot (used for imported-session bootstrap flows). */
+  setCurrentPlanSnapshot: (plan: BuildPlan | null) => void
   /** Store session from build_complete event so refine/execute-again can send it */
   setSessionFromBuild: (sessionId: string | undefined, repoId: string | undefined) => void
   updateComponentProperties: (
@@ -110,6 +121,11 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   const [isPublishing, setIsPublishing] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
   const [publishSuccess, setPublishSuccess] = useState(false)
+  const [lastPublishResult, setLastPublishResult] = useState<{
+    message?: string
+    resourceUrl?: string
+    azureUrl?: string
+  } | null>(null)
 
   // Create memoized client
   const client = useMemo(() => new OrchestratorClient(accessToken) as OrchestratorClientWithStreaming, [accessToken])
@@ -118,6 +134,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   useEffect(() => {
     setPublishSuccess(false)
     setPublishError(null)
+    setLastPublishResult(null)
   }, [currentPlan?.jobId])
 
   /**
@@ -171,7 +188,18 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
       setLastContext(context)
 
       try {
-        const request: AnalyzeRequest = { prompt, context }
+        // Extract createdBy from context if provided
+        const createdBy = context?.createdBy as AnalyzeRequest['createdBy'] | undefined
+        const filteredContext = context ? { ...context } : undefined
+        if (filteredContext) {
+          delete filteredContext.createdBy
+        }
+
+        const request: AnalyzeRequest = {
+          prompt,
+          context: Object.keys(filteredContext || {}).length > 0 ? filteredContext : undefined,
+          createdBy
+        }
         const response = await client.analyzeStream(request, onEvent)
 
         if (response.success && response.plan) {
@@ -336,8 +364,19 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   )
 
   const restoreDraftCheckpoint = useCallback(
-    async (checkpointId: string, sessionId?: string): Promise<RestoreDraftCheckpointResponse> => {
-      return client.restoreDraftCheckpoint({ checkpointId, sessionId })
+    async (
+      checkpointId: string,
+      sessionId?: string,
+      applyPlanSnapshot?: boolean
+    ): Promise<RestoreDraftCheckpointResponse> => {
+      return client.restoreDraftCheckpoint({ checkpointId, sessionId, applyPlanSnapshot })
+    },
+    [client]
+  )
+
+  const resolveDraftCheckpointByMessage = useCallback(
+    async (params: ResolveDraftCheckpointByMessageParams): Promise<DraftCheckpoint | null> => {
+      return client.resolveDraftCheckpointByMessage(params)
     },
     [client]
   )
@@ -356,6 +395,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     setLastRepoId(null)
     setPublishSuccess(false)
     setPublishError(null)
+    setLastPublishResult(null)
   }, [])
 
   /**
@@ -367,38 +407,57 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     setLastRepoId(repoId ?? null)
     setPublishSuccess(false)
     setPublishError(null)
+    setLastPublishResult(null)
   }, [])
 
   /**
    * Publish the app using the session from the last build
    */
-  const publishApp = useCallback(async (): Promise<void> => {
+  const publishApp = useCallback(async (): Promise<{
+    success: boolean
+    message?: string
+    resourceUrl?: string
+    azureUrl?: string
+  }> => {
     if (!lastRepoId || !lastSessionId) {
       setPublishError('No build session available to publish. Please build first.')
-      return
+      return { success: false, message: 'No build session available to publish. Please build first.' }
     }
     setIsPublishing(true)
     setPublishError(null)
     setPublishSuccess(false)
+    setLastPublishResult(null)
     try {
-      const result = await client.publishApp(lastRepoId, lastSessionId)
+      const result = await client.publishApp(lastRepoId, lastSessionId, currentPlan?.jobId)
       if (result.success) {
         setPublishSuccess(true)
+        setLastPublishResult({
+          message: result.message,
+          resourceUrl: result.resourceUrl,
+          azureUrl: result.azureUrl
+        })
       } else {
         setPublishError(result.message || 'Publish failed')
       }
+      return result
     } catch (error) {
-      setPublishError(error instanceof Error ? error.message : 'Publish failed')
+      const errorMessage = error instanceof Error ? error.message : 'Publish failed'
+      setPublishError(errorMessage)
+      return { success: false, message: errorMessage }
     } finally {
       setIsPublishing(false)
     }
-  }, [client, lastRepoId, lastSessionId])
+  }, [client, lastRepoId, lastSessionId, currentPlan?.jobId])
 
   /**
    * Clear refinement summary
    */
   const clearRefinementSummary = useCallback(() => {
     setRefinementSummary(null)
+  }, [])
+
+  const setCurrentPlanSnapshot = useCallback((plan: BuildPlan | null) => {
+    setCurrentPlan(plan)
   }, [])
 
   /**
@@ -451,6 +510,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     isPublishing,
     publishError,
     publishSuccess,
+    lastPublishResult,
     analyze,
     analyzeStream,
     reanalyze,
@@ -462,10 +522,12 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     cancelBuild,
     createDraftCheckpoint,
     listDraftCheckpoints,
+    resolveDraftCheckpointByMessage,
     restoreDraftCheckpoint,
     publishApp,
     clearPlan,
     clearRefinementSummary,
+    setCurrentPlanSnapshot,
     setSessionFromBuild,
     updateComponentProperties,
     client

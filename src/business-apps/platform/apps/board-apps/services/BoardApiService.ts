@@ -897,8 +897,10 @@ export const BoardApiService = {
       mode: 'replace' | 'append' | 'merge'
       mergeKey?: string
       autoColumns?: boolean
+      selectedFields?: string[]
+      dryRun?: boolean
     }
-  ): Promise<{ synced: number; deleted: number; fetched: number } | null> {
+  ): Promise<{ synced: number; deleted: number; fetched: number; previewRecords?: Record<string, unknown>[] } | null> {
     const humanizeFlowName = (raw: string) =>
       raw
         .replace(/^flow_/, '')
@@ -962,6 +964,9 @@ export const BoardApiService = {
                 priority: t.priority ?? '',
                 customStatus: t.customStatus ?? '',
                 dueDate: t.dueDate ?? '',
+                scheduledAt: t.scheduledAt ?? '',
+                completedAt: t.completedAt ?? '',
+                stepIndex: t.stepIndex ?? '',
                 assignedTo: t.assignedTo ?? '',
                 claimedBy: t.claimedBy ?? '',
                 assignmentStatus: t.assignmentStatus ?? '',
@@ -992,6 +997,9 @@ export const BoardApiService = {
             priority: t.priority ?? '',
             customStatus: t.customStatus ?? '',
             dueDate: t.dueDate ?? '',
+            scheduledAt: t.scheduledAt ?? '',
+            completedAt: t.completedAt ?? '',
+            stepIndex: t.stepIndex ?? '',
             assignedTo: t.assignedTo ?? '',
             claimedBy: t.claimedBy ?? '',
             assignmentStatus: t.assignmentStatus ?? '',
@@ -1005,9 +1013,27 @@ export const BoardApiService = {
         records = records.slice(0, requestedLimit)
       }
 
+      if (dto.selectedFields?.length) {
+        const keep = new Set(dto.selectedFields)
+        const pk = dto.flowEntity === 'flows' ? 'flowId' : 'taskId'
+        keep.add('id')
+        keep.add(pk)
+        records = records.map(rec => {
+          const filtered: Record<string, unknown> = {}
+          for (const k of Object.keys(rec)) {
+            if (keep.has(k)) filtered[k] = rec[k]
+          }
+          return filtered
+        })
+      }
+
       console.log(`[BoardSync:FlowEngine] Fetched ${records.length} ${dto.flowEntity} records`)
 
       if (records.length === 0) return { synced: 0, deleted: 0, fetched: 0 }
+
+      if (dto.dryRun) {
+        return { synced: 0, deleted: 0, fetched: records.length, previewRecords: records.slice(0, 20) }
+      }
 
       const primaryKey = dto.flowEntity === 'flows' ? 'flowId' : 'taskId'
 
@@ -1057,7 +1083,7 @@ export const BoardApiService = {
       await apiRequest('/sharing', {
         method: 'POST',
         body: JSON.stringify({
-          entityType: 'board',
+          entityType: 'spreadsheet_app',
           entityId: boardId,
           recipients: shares.map(s => ({ userId: s.userId, permission: s.permission }))
         })
@@ -1071,7 +1097,7 @@ export const BoardApiService = {
 
   async getBoardSharedUsers(boardId: string): Promise<BoardShare[]> {
     try {
-      const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/board/${boardId}`)
+      const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/spreadsheet_app/${boardId}`)
       return (shares || []).map(s => ({
         id: s.id as string,
         userId: s.userId as string,
@@ -1138,6 +1164,7 @@ export const BoardApiService = {
     boardId: string,
     sheetId: string,
     connectorId: string,
+    connectionId?: string,
     query?: Record<string, unknown>,
     limit?: number
   ): Promise<{
@@ -1148,7 +1175,7 @@ export const BoardApiService = {
     try {
       return await apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/preview`, {
         method: 'POST',
-        body: JSON.stringify({ connectorId, query, limit })
+        body: JSON.stringify({ connectorId, connectionId, query, limit })
       })
     } catch (err) {
       console.error('External preview failed:', err instanceof Error ? err.message : err)
@@ -1163,6 +1190,7 @@ export const BoardApiService = {
       connectorId: string
       connectorName: string
       connectorDescription?: string
+      connectionId?: string
       query?: Record<string, unknown>
       selectedFields?: string[]
       limit?: number

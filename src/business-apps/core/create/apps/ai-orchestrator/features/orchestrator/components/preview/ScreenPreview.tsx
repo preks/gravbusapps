@@ -6,6 +6,7 @@ import React, { useMemo, useEffect, useRef } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, cn } from '@newwork/nw-design-system'
 import { AlertCircle, ExternalLink } from 'lucide-react'
 import { PreviewSandbox, type PreviewSandboxHandle } from '@/common/components/ai-builder/sandbox/PreviewSandbox'
+import { DebouncedResizeContainer } from './DebouncedResizeContainer'
 import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import type { ComponentSpec } from '../../types'
 import { ScreenBuildingLoader } from '../widgets/ScreenBuildingLoader'
@@ -91,18 +92,20 @@ export const ScreenPreview: React.FC<ScreenPreviewProps> = ({
       ) : (
         <div
           className={cn(
-            'gba:flex-1 gba:min-h-0 gba:bg-card gba:overflow-hidden gba:transition-opacity gba:duration-300',
+            'gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:bg-card gba:overflow-hidden gba:transition-opacity gba:duration-300',
             isFixWorking && 'gba:opacity-70'
           )}
         >
-          <PreviewSandbox
-            ref={previewRef}
-            repoId={component.metadata!.repoId!}
-            sessionId={component.metadata!.sessionId!}
-            previewAppName={component.screenSpec?.name || component.name.replace(/\s+/g, '')}
-            accessToken={accessToken}
-            userInfo={userInfo}
-          />
+          <DebouncedResizeContainer className="gba:flex-1 gba:min-h-0">
+            <PreviewSandbox
+              ref={previewRef}
+              repoId={component.metadata!.repoId!}
+              sessionId={component.metadata!.sessionId!}
+              previewAppName={component.screenSpec?.name || component.name.replace(/\s+/g, '')}
+              accessToken={accessToken}
+              userInfo={userInfo}
+            />
+          </DebouncedResizeContainer>
         </div>
       )}
     </div>

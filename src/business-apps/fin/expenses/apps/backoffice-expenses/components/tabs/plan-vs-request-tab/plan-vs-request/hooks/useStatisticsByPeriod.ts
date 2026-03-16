@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -11,6 +10,8 @@ import {
   generateQuarterlyExpenseStatisticsQuery,
   QueryWithVariables
 } from '../queries/getStatisticsByPeriod'
+import { useLoadingErrorDataState } from './useLoadingErrorDataState'
+import { PeriodStatisticsHookParams } from './statisticsHookParams'
 
 // Initialize dayjs plugins
 dayjs.extend(weekday)
@@ -40,6 +41,13 @@ interface DateRange {
   currentQuarter?: number
 }
 
+const extractMonthTotals = (response: Record<string, any>, month: number) => {
+  return {
+    monthPlanTotal: response[`plan_month_${month}`]?.aggregate?.sum?.totalAmount || 0,
+    monthRequestTotal: response[`request_month_${month}`]?.aggregate?.sum?.reimbursableAmount || 0
+  }
+}
+
 const calculateDateRange = (period: 'month' | 'quarter' | 'year'): DateRange => {
   const now = dayjs()
 
@@ -52,23 +60,13 @@ const calculateDateRange = (period: 'month' | 'quarter' | 'year'): DateRange => 
 
     case 'quarter': {
       const currentMonth = now.month()
-      let currentQuarter: number
-      let startDate: string
-      let endDate: string
-
-      if (currentMonth >= 0 && currentMonth <= 3) {
-        currentQuarter = 1
-        startDate = now.month(0).startOf('month').format('YYYY-MM-DDT00:00:00')
-        endDate = now.month(3).endOf('month').format('YYYY-MM-DDT23:59:59')
-      } else if (currentMonth >= 4 && currentMonth <= 7) {
-        currentQuarter = 2
-        startDate = now.month(4).startOf('month').format('YYYY-MM-DDT00:00:00')
-        endDate = now.month(7).endOf('month').format('YYYY-MM-DDT23:59:59')
-      } else {
-        currentQuarter = 3
-        startDate = now.month(8).startOf('month').format('YYYY-MM-DDT00:00:00')
-        endDate = now.month(11).endOf('month').format('YYYY-MM-DDT23:59:59')
-      }
+      const currentQuarter = Math.floor(currentMonth / 3) + 1
+      const quarterStartMonth = (currentQuarter - 1) * 3
+      const startDate = now.month(quarterStartMonth).startOf('month').format('YYYY-MM-DDT00:00:00')
+      const endDate = now
+        .month(quarterStartMonth + 2)
+        .endOf('month')
+        .format('YYYY-MM-DDT23:59:59')
 
       return { startDate, endDate, currentQuarter }
     }
@@ -93,15 +91,8 @@ export const useStatisticsByPeriod = ({
   currencyRef,
   selectedDepartment,
   isActive = true // ⚡ PERFORMANCE: Only fetch when active
-}: BusinessAppContextProps & {
-  period: 'month' | 'quarter' | 'year'
-  currencyRef?: string
-  selectedDepartment?: string
-  isActive?: boolean
-}) => {
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [data, setData] = useState<PeriodStatisticsData>({
+}: PeriodStatisticsHookParams) => {
+  const { loading, setLoading, error, setError, data, setData } = useLoadingErrorDataState<PeriodStatisticsData>({
     expensePlanTotal: 0,
     expenseRequestTotal: 0
   })
@@ -118,7 +109,7 @@ export const useStatisticsByPeriod = ({
       const response = await client.request(monthlyQuery, {
         startDate,
         endDate,
-        currency: currencyRef || 'Currency:v1:RON',
+        currency: currencyRef || 'Currency:v1:EUR',
         ...(includeDepartment ? { selectedDepartment } : {})
       })
 
@@ -184,7 +175,7 @@ export const useStatisticsByPeriod = ({
 
         // Execute the consolidated query with date variables
         const response = await client.request(yearlyQuery, {
-          currency: currencyRef ?? 'Currency:v1:RON',
+          currency: currencyRef ?? 'Currency:v1:EUR',
           ...(includeDepartment ? { selectedDepartment } : {}),
           ...dateVariables // ✅ Include computed date range variables
         })
@@ -199,8 +190,7 @@ export const useStatisticsByPeriod = ({
           const monthDate = dayjs().year(year).month(month)
           const monthName = monthDate.format('MMM') // Short month name
 
-          const monthPlanTotal = response[`plan_month_${month}`]?.aggregate?.sum?.totalAmount || 0
-          const monthRequestTotal = response[`request_month_${month}`]?.aggregate?.sum?.reimbursableAmount || 0
+          const { monthPlanTotal, monthRequestTotal } = extractMonthTotals(response, month)
 
           yearTotalPlan += monthPlanTotal
           yearTotalRequest += monthRequestTotal
@@ -232,9 +222,8 @@ export const useStatisticsByPeriod = ({
     // Helper function to fetch monthly breakdown data for quarter period
     const fetchMonthlyBreakdownForQuarter = async (quarterNumber: number) => {
       try {
-        // Calculate quarter months (our custom quarters)
-        const startMonth = (quarterNumber - 1) * 4 // 0, 4, or 8
-        const endMonth = startMonth + 3 // 3, 7, or 11
+        const startMonth = (quarterNumber - 1) * 3
+        const endMonth = startMonth + 2
 
         // Get the current year
         const year = dayjs().year()
@@ -246,7 +235,7 @@ export const useStatisticsByPeriod = ({
 
         // Execute the consolidated query with date variables
         const response = await client.request(quarterlyQuery, {
-          currency: currencyRef ?? 'Currency:v1:RON',
+          currency: currencyRef ?? 'Currency:v1:EUR',
           ...(includeDepartment ? { selectedDepartment } : {}),
           ...dateVariables // ✅ Include computed date range variables
         })
@@ -260,8 +249,7 @@ export const useStatisticsByPeriod = ({
           const monthDate = dayjs().year(year).month(month)
           const monthName = monthDate.format('MMM') // Short month name
 
-          const monthPlanTotal = response[`plan_month_${month}`]?.aggregate?.sum?.totalAmount || 0
-          const monthRequestTotal = response[`request_month_${month}`]?.aggregate?.sum?.reimbursableAmount || 0
+          const { monthPlanTotal, monthRequestTotal } = extractMonthTotals(response, month)
 
           quarterTotalPlan += monthPlanTotal
           quarterTotalRequest += monthRequestTotal
