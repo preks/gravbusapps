@@ -3,11 +3,12 @@ import fs from 'fs'
 const ENV_FILE = '.env'
 const ENV_EXAMPLE_FILE = '.env.example'
 const ENV_BACKUP_FILE = '.env.bak'
+const SECRETS_FILE = '.secrets'
 
 const KEY_LINE_REGEX = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/
 const TOKEN_KEY_REGEX = /(TOKEN|KEY|SECRET|PASSWORD|SAS)/i
 const URL_KEY_REGEX = /(URL|ENDPOINT|_API_)/i
-const PLACEHOLDER_VALUE_REGEX = /^<[^>]+>$/
+const PLACEHOLDER_VALUE_REGEX = /^(?:<[^>]+>|(["'])<[^>]+>\1)$/
 
 function splitLines(content) {
   return content.split(/\r?\n/)
@@ -74,44 +75,146 @@ function parseEnvEntries(envContent) {
     entries.set(assignment.key, {
       key: assignment.key,
       value,
-      comment,
-      originalLine: line
+      comment
     })
   }
 
   return entries
 }
 
-function getExistingKeys(envContent) {
-  const keys = new Set()
+function readFileIfExists(filePath) {
+  if (!fs.existsSync(filePath)) return ''
+  return fs.readFileSync(filePath, 'utf8')
+}
 
-  for (const line of splitLines(envContent)) {
-    const assignment = parseAssignmentLine(line)
-    if (assignment) keys.add(assignment.key)
-  }
+function readEnvEntries(filePath) {
+  return parseEnvEntries(readFileIfExists(filePath))
+}
 
-  return keys
+function isPlaceholderValue(value) {
+  return PLACEHOLDER_VALUE_REGEX.test(value.trim())
 }
 
 function classifyKey(key, exampleValue) {
   if (TOKEN_KEY_REGEX.test(key)) return 'token'
   if (URL_KEY_REGEX.test(key)) return 'url'
-  if (PLACEHOLDER_VALUE_REGEX.test(exampleValue.trim())) return 'token'
+  if (isPlaceholderValue(exampleValue)) return 'token'
   return 'other'
 }
 
-function shouldReuseBackupValue(key, exampleValue, shouldResetTokens, shouldResetUrls) {
-  const keyCategory = classifyKey(key, exampleValue)
-
-  if (keyCategory === 'token') return !shouldResetTokens
-  if (keyCategory === 'url') return !shouldResetUrls
-
-  return false
+function isSecretBackedKey(key, exampleEntries) {
+  const exampleEntry = exampleEntries.get(key)
+  return Boolean(exampleEntry) && classifyKey(key, exampleEntry.value) === 'token'
 }
 
 function buildAssignmentLine(key, value, comment) {
   if (!comment) return `${key}=${value}`
   return `${key}=${value} ${comment}`
+}
+
+function writeSecretsFile(exampleEntries, envEntries) {
+  const secretLines = []
+
+  for (const [key, exampleEntry] of exampleEntries) {
+    if (classifyKey(key, exampleEntry.value) !== 'token') continue
+    const envEntry = envEntries.get(key)
+    if (!envEntry) continue
+    secretLines.push(buildAssignmentLine(key, envEntry.value, ''))
+  }
+
+  if (secretLines.length === 0) return 0
+
+  fs.writeFileSync(SECRETS_FILE, `${secretLines.join('\n')}\n`)
+  return secretLines.length
+}
+
+function ensureSecretsFile(exampleEntries, envEntries) {
+  if (fs.existsSync(SECRETS_FILE)) {
+    return {
+      secretEntries: readEnvEntries(SECRETS_FILE),
+      createdSecretCount: 0
+    }
+  }
+
+  const createdSecretCount = writeSecretsFile(exampleEntries, envEntries)
+
+  return {
+    secretEntries: createdSecretCount > 0 ? readEnvEntries(SECRETS_FILE) : new Map(),
+    createdSecretCount
+  }
+}
+
+function resolveExampleValue(key, exampleEntries, secretEntries) {
+  const exampleEntry = exampleEntries.get(key)
+  if (!exampleEntry) return ''
+
+  if (isSecretBackedKey(key, exampleEntries)) {
+    return secretEntries.get(key)?.value ?? exampleEntry.value
+  }
+
+  return exampleEntry.value
+}
+
+function shouldHydrateSecretValue(currentValue) {
+  const normalizedCurrentValue = currentValue.trim()
+  return normalizedCurrentValue === '' || isPlaceholderValue(normalizedCurrentValue)
+}
+
+function buildExampleEnvContent(
+  exampleContent,
+  exampleEntries,
+  preservedEntries,
+  secretEntries,
+  shouldResetTokens,
+  shouldResetUrls
+) {
+  let preservedTokenCount = 0
+  let preservedUrlCount = 0
+  let reappliedSecretCount = 0
+
+  const rebuiltLines = splitLines(exampleContent).map(line => {
+    const assignment = parseAssignmentLine(line)
+    if (!assignment) return line
+
+    const exampleEntry = exampleEntries.get(assignment.key)
+    if (!exampleEntry) return line
+
+    const keyCategory = classifyKey(assignment.key, exampleEntry.value)
+
+    if (keyCategory === 'token') {
+      const preservedEntry = preservedEntries.get(assignment.key)
+      const secretEntry = secretEntries.get(assignment.key)
+
+      if (preservedEntry && !shouldResetTokens) {
+        preservedTokenCount += 1
+        return buildAssignmentLine(assignment.key, preservedEntry.value, exampleEntry.comment)
+      }
+
+      if (secretEntry) {
+        reappliedSecretCount += 1
+        return buildAssignmentLine(assignment.key, secretEntry.value, exampleEntry.comment)
+      }
+
+      return buildAssignmentLine(assignment.key, exampleEntry.value, exampleEntry.comment)
+    }
+
+    if (keyCategory === 'url' && !shouldResetUrls) {
+      const preservedEntry = preservedEntries.get(assignment.key)
+      if (preservedEntry) {
+        preservedUrlCount += 1
+        return buildAssignmentLine(assignment.key, preservedEntry.value, exampleEntry.comment)
+      }
+    }
+
+    return buildAssignmentLine(assignment.key, exampleEntry.value, exampleEntry.comment)
+  })
+
+  return {
+    content: `${rebuiltLines.join('\n')}\n`,
+    preservedTokenCount,
+    preservedUrlCount,
+    reappliedSecretCount
+  }
 }
 
 function isEnabledNpmConfigFlag(flagName) {
@@ -124,28 +227,71 @@ function hasFlag(scriptArguments, flagNames) {
   return flagNames.some(flagName => scriptArguments.has(`--${flagName}`) || isEnabledNpmConfigFlag(flagName))
 }
 
-function appendMissingKeys() {
+function syncEnv() {
+  const exampleContent = fs.readFileSync(ENV_EXAMPLE_FILE, 'utf8')
+  const exampleEntries = parseEnvEntries(exampleContent)
+  const envEntries = readEnvEntries(ENV_FILE)
+  const { secretEntries, createdSecretCount } = ensureSecretsFile(exampleEntries, envEntries)
+
   if (!fs.existsSync(ENV_FILE)) {
-    fs.copyFileSync(ENV_EXAMPLE_FILE, ENV_FILE)
-    console.log('Created .env from .env.example. Please review and adjust values.')
+    const { content, reappliedSecretCount } = buildExampleEnvContent(
+      exampleContent,
+      exampleEntries,
+      new Map(),
+      secretEntries,
+      false,
+      false
+    )
+    fs.writeFileSync(ENV_FILE, content)
+
+    const logParts = ['Created .env from .env.example.']
+    if (createdSecretCount > 0) logParts.push(`Created .secrets with ${createdSecretCount} value(s).`)
+    if (reappliedSecretCount > 0)
+      logParts.push(`Reapplied ${reappliedSecretCount} placeholder-backed value(s) from .secrets.`)
+    console.log(logParts.join(' '))
     return
   }
 
-  const envContent = fs.readFileSync(ENV_FILE, 'utf8')
-  const exampleContent = fs.readFileSync(ENV_EXAMPLE_FILE, 'utf8')
-  const existingKeys = getExistingKeys(envContent)
+  const envContent = readFileIfExists(ENV_FILE)
   const exampleLines = splitLines(exampleContent)
+  const existingKeys = new Set(envEntries.keys())
+  let synchronizedSecretCount = 0
 
+  const synchronizedLines = splitLines(envContent).map(line => {
+    const assignment = parseAssignmentLine(line)
+    if (!assignment || !isSecretBackedKey(assignment.key, exampleEntries)) return line
+
+    const secretEntry = secretEntries.get(assignment.key)
+    if (!secretEntry) return line
+
+    const { value: currentValue, comment } = splitValueAndComment(assignment.rawValue)
+    if (!shouldHydrateSecretValue(currentValue)) return line
+
+    const nextLine = buildAssignmentLine(assignment.key, secretEntry.value, comment)
+
+    if (nextLine !== line) synchronizedSecretCount += 1
+    return nextLine
+  })
+
+  let nextEnvContent = synchronizedLines.join('\n')
   let pendingCommentLines = []
   const linesToAppend = []
+  let addedCount = 0
 
   for (const line of exampleLines) {
     const assignment = parseAssignmentLine(line)
 
     if (assignment) {
       if (!existingKeys.has(assignment.key)) {
-        linesToAppend.push(...pendingCommentLines, line)
+        const exampleEntry = exampleEntries.get(assignment.key)
+        const nextLine = buildAssignmentLine(
+          assignment.key,
+          resolveExampleValue(assignment.key, exampleEntries, secretEntries),
+          exampleEntry?.comment ?? ''
+        )
+        linesToAppend.push(...pendingCommentLines, nextLine)
         existingKeys.add(assignment.key)
+        addedCount += 1
       }
       pendingCommentLines = []
       continue
@@ -159,21 +305,50 @@ function appendMissingKeys() {
     pendingCommentLines = []
   }
 
-  if (linesToAppend.length === 0) return
+  if (linesToAppend.length > 0) {
+    const suffix = nextEnvContent === '' || nextEnvContent.endsWith('\n') ? '' : '\n'
+    nextEnvContent = `${nextEnvContent}${suffix}${linesToAppend.join('\n')}\n`
+  }
 
-  const suffix = envContent.endsWith('\n') ? '' : '\n'
-  fs.appendFileSync(ENV_FILE, suffix + linesToAppend.join('\n') + '\n')
+  if (nextEnvContent !== envContent) {
+    fs.writeFileSync(ENV_FILE, nextEnvContent)
+  }
 
-  const addedCount = linesToAppend.filter(line => KEY_LINE_REGEX.test(line)).length
-  console.log(`Updated .env: added ${addedCount} variable(s) from .env.example. Please review and adjust values.`)
+  if (createdSecretCount === 0 && synchronizedSecretCount === 0 && addedCount === 0) return
+
+  const logParts = []
+  if (createdSecretCount > 0) logParts.push(`Created .secrets with ${createdSecretCount} value(s).`)
+  if (synchronizedSecretCount > 0) {
+    logParts.push(`Synchronized ${synchronizedSecretCount} placeholder-backed value(s) from .secrets.`)
+  }
+  if (addedCount > 0) logParts.push(`Added ${addedCount} variable(s) from .env.example.`)
+  console.log(logParts.join(' '))
 }
 
 function resetEnv(shouldResetTokens, shouldResetUrls) {
   const exampleContent = fs.readFileSync(ENV_EXAMPLE_FILE, 'utf8')
+  const exampleEntries = parseEnvEntries(exampleContent)
+  const envEntries = readEnvEntries(ENV_FILE)
+  const { secretEntries, createdSecretCount } = ensureSecretsFile(exampleEntries, envEntries)
 
   if (!fs.existsSync(ENV_FILE)) {
-    fs.writeFileSync(ENV_FILE, exampleContent)
-    console.log('Created .env from .env.example. No existing .env found to preserve.')
+    const { content, reappliedSecretCount } = buildExampleEnvContent(
+      exampleContent,
+      exampleEntries,
+      new Map(),
+      secretEntries,
+      shouldResetTokens,
+      shouldResetUrls
+    )
+    fs.writeFileSync(ENV_FILE, content)
+
+    const logParts = ['Created .env from .env.example.']
+    if (createdSecretCount > 0) logParts.push(`Created .secrets with ${createdSecretCount} value(s).`)
+    if (reappliedSecretCount > 0) {
+      logParts.push(`Reapplied ${reappliedSecretCount} placeholder-backed value(s) from .secrets.`)
+    }
+    if (shouldResetTokens) logParts.push('`--token` resolves placeholder-backed values from .secrets.')
+    console.log(logParts.join(' '))
     return
   }
 
@@ -184,37 +359,26 @@ function resetEnv(shouldResetTokens, shouldResetUrls) {
     fs.copyFileSync(ENV_FILE, ENV_BACKUP_FILE)
     backupWasCreated = true
 
-    const backupContent = fs.readFileSync(ENV_BACKUP_FILE, 'utf8')
-    const exampleEntries = parseEnvEntries(exampleContent)
-    const backupEntries = parseEnvEntries(backupContent)
-    const exampleLines = splitLines(exampleContent)
-
-    let preservedValueCount = 0
-    const rebuiltEnvLines = exampleLines.map(line => {
-      const assignment = parseAssignmentLine(line)
-      if (!assignment) return line
-
-      const exampleEntry = exampleEntries.get(assignment.key)
-      const backupEntry = backupEntries.get(assignment.key)
-
-      if (!exampleEntry) return line
-
-      const shouldPreserveBackupValue =
-        backupEntry && shouldReuseBackupValue(assignment.key, exampleEntry.value, shouldResetTokens, shouldResetUrls)
-
-      const valueToUse = shouldPreserveBackupValue ? backupEntry.value : exampleEntry.value
-
-      if (shouldPreserveBackupValue) preservedValueCount += 1
-
-      return buildAssignmentLine(assignment.key, valueToUse, exampleEntry.comment)
-    })
-    fs.writeFileSync(ENV_FILE, `${rebuiltEnvLines.join('\n')}\n`)
+    const backupEntries = readEnvEntries(ENV_BACKUP_FILE)
+    const { content, preservedTokenCount, preservedUrlCount, reappliedSecretCount } = buildExampleEnvContent(
+      exampleContent,
+      exampleEntries,
+      backupEntries,
+      secretEntries,
+      shouldResetTokens,
+      shouldResetUrls
+    )
+    fs.writeFileSync(ENV_FILE, content)
 
     shouldDeleteBackup = true
     const removedVariableCount = Array.from(backupEntries.keys()).filter(key => !exampleEntries.has(key)).length
-    console.log(
-      `Reset .env from .env.example. Preserved ${preservedValueCount} value(s) and removed ${removedVariableCount} custom variable(s).`
+    const logParts = []
+    if (createdSecretCount > 0) logParts.push(`Created .secrets with ${createdSecretCount} value(s).`)
+    logParts.push(
+      `Reset .env from .env.example. Preserved ${preservedTokenCount} token value(s), reapplied ${reappliedSecretCount} placeholder-backed value(s) from .secrets, preserved ${preservedUrlCount} URL value(s), and removed ${removedVariableCount} custom variable(s).`
     )
+    if (shouldResetTokens) logParts.push('`--token` resolves placeholder-backed values from .secrets.')
+    console.log(logParts.join(' '))
   } finally {
     if (backupWasCreated && shouldDeleteBackup && fs.existsSync(ENV_BACKUP_FILE)) {
       fs.unlinkSync(ENV_BACKUP_FILE)
@@ -235,7 +399,7 @@ function run() {
     return
   }
 
-  appendMissingKeys()
+  syncEnv()
 }
 
 try {
