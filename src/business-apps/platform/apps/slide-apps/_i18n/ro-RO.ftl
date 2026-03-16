@@ -1,3 +1,14 @@
+# Hero
+slh-parent-label = Every Office
+slh-title = Prezentări
+slh-tabs-aria-label = Secțiuni prezentări
+slh-tab-my-slides = Prezentările mele
+slh-tab-shared = Partajate
+slh-tab-favorites = Favorite
+slh-tab-recent = Recente
+slh-tab-archived = Arhivate
+slh-refresh = Reîmprospătează
+
 sidebar-back-to-desk = Înapoi la birou
 sidebar-expand = Extinde panoul lateral
 sidebar-collapse = Restrânge panoul lateral
