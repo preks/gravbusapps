@@ -212,6 +212,8 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       context={context}
       config={config}
       dataTestId="investment-task-view"
+      enableExport
+      exportFilenamePrefix="irm-tasks"
     />
   )
 }
