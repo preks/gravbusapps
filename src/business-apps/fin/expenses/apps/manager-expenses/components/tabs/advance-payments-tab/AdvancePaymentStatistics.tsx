@@ -3,7 +3,6 @@ import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from '../../
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { CurrencyDollarIcon, ClockIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useCurrencyStore } from '../../../store/useCurrencyStore'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 
 interface AdvancePaymentStatisticsProps {
@@ -11,7 +10,10 @@ interface AdvancePaymentStatisticsProps {
   statsLoading: boolean
   statsError: Error | null
   fetchAdvancePaymentStatistics: () => Promise<void>
-  currencyFilter: string | null
+  /** Selected currency filter from the tab (for list). */
+  currencyFilter?: string | null
+  /** Currency used for formatting stats card amounts (e.g. selected or most-used). */
+  displayCurrency?: string | null
 }
 
 const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
@@ -19,12 +21,10 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   statsLoading,
   statsError,
   fetchAdvancePaymentStatistics,
-  currencyFilter
+  currencyFilter,
+  displayCurrency: displayCurrencyProp
 }) => {
-  // Use currencyFilter from tab (synced with selected filter) instead of global store
-  const { primaryCurrency } = useCurrencyStore()
-  // Fallback to primaryCurrency if currencyFilter is not set
-  const effectiveCurrency = currencyFilter || primaryCurrency
+  const displayCurrency = displayCurrencyProp ?? currencyFilter ?? 'EUR'
 
   // Transform the stats data into widgets format (memoized to avoid infinite effect loops)
   const widgets: WidgetItem[] = useMemo(() => {
@@ -37,8 +37,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           'Total Advance Payments'
         ),
         value: advancePaymentStats.sumAmount
-          ? formatCurrencyDisplay(advancePaymentStats.sumAmount, effectiveCurrency)
-          : formatCurrencyDisplay(0, effectiveCurrency),
+          ? formatCurrencyDisplay(advancePaymentStats.sumAmount, displayCurrency)
+          : formatCurrencyDisplay(0, displayCurrency),
         prefix: <CurrencyDollarIcon size={16} />,
         color: 'var(--nw-success)',
         valueIsString: true,
@@ -54,8 +54,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           'Pending Amount'
         ),
         value: advancePaymentStats.pendingAmount
-          ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, effectiveCurrency)
-          : formatCurrencyDisplay(0, effectiveCurrency),
+          ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, displayCurrency)
+          : formatCurrencyDisplay(0, displayCurrency),
         prefix: <ClockIcon size={16} />,
         color: 'var(--nw-destructive)',
         valueIsString: true,
@@ -65,7 +65,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         )
       }
     ]
-  }, [advancePaymentStats, effectiveCurrency])
+  }, [advancePaymentStats, displayCurrency])
 
   return (
     <WidgetGroup

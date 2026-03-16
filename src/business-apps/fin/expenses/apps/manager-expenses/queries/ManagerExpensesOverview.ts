@@ -15,6 +15,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     $planCurrencyWhere: ExpensePlanBoolExp = {},
     $planStatsCurrencyWhere: ExpensePlanBoolExp = {},
     $payCurrencyWhere: AdvancePaymentBoolExp = {},
+    $payStatsCurrencyWhere: AdvancePaymentBoolExp = {},
     $reqStatusWhere: ExpenseRequestBoolExp = {},
     $planStatusWhere: ExpensePlanBoolExp = {},
     $payStatusWhere: AdvancePaymentBoolExp = {},
@@ -436,20 +437,25 @@ export const MANAGER_EXPENSES_OVERVIEW = `
       }
     }
 
-    # Advance payments statistics (total and pending) - currency filtered
+    # Advance payments statistics (total and pending) - stats currency (e.g. selected currency for cards)
     AllPaymentsAggregate: AdvancePaymentAggregate(
       where: {
-        isDeleted: { _eq: false },
-        expensePlan: { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
-        currencyRef: { _eq: $currencyRef }
+        _and: [
+          $payStatsCurrencyWhere,
+          { isDeleted: { _eq: false } },
+          { expensePlan: { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } } }
+        ]
       }
     ) { aggregate { count sum { amount } } }
 
     PendingPaymentsAggregate: AdvancePaymentAggregate(
       where: {
-        isDeleted: { _eq: false }, status: { _eq: "PENDING" },
-        expensePlan: { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
-        currencyRef: { _eq: $currencyRef }
+        _and: [
+          $payStatsCurrencyWhere,
+          { isDeleted: { _eq: false } },
+          { status: { _eq: "PENDING" } },
+          { expensePlan: { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } } }
+        ]
       }
     ) { aggregate { count sum { amount } } }
   }

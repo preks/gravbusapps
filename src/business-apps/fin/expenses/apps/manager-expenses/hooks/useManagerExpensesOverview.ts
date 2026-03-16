@@ -15,6 +15,8 @@ export interface UseManagerExpensesOverviewParams {
   currencyRef?: string | null
   /** When set, plan card stats use this currency (e.g. most-used when list shows All). Falls back to currencyRef. */
   planStatsCurrencyRef?: string | null
+  /** When set, payment card stats use this currency. Falls back to currencyRef. */
+  payStatsCurrencyRef?: string | null
   searchTerm?: string | null
   // Windows for aggregates/trends
   monthStart?: string | null // ISO timestamp
@@ -278,12 +280,14 @@ function buildRequestDateWhereClause(params: UseManagerExpensesOverviewParams): 
 function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Record<string, unknown> {
   const currencyRef = params.currencyRef || null
   const planStatsCurrencyRef = params.planStatsCurrencyRef ?? currencyRef
+  const payStatsCurrencyRef = params.payStatsCurrencyRef ?? currencyRef
   const searchTerm = buildSearchPattern(params.searchTerm)
 
   const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
   const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
   const planStatsCurrencyWhere = planStatsCurrencyRef ? { currencyRef: { _eq: planStatsCurrencyRef } } : {}
   const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const payStatsCurrencyWhere = payStatsCurrencyRef ? { currencyRef: { _eq: payStatsCurrencyRef } } : {}
 
   return {
     managerId: params.managerId,
@@ -305,6 +309,7 @@ function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Recor
     planCurrencyWhere,
     planStatsCurrencyWhere,
     payCurrencyWhere,
+    payStatsCurrencyWhere,
     planDateWhere: buildPlanDateWhereClause(params),
     reqDateWhere: buildRequestDateWhereClause(params),
     reqStatusWhere: buildRequestStatusWhere(params.requestsStatus),
@@ -488,6 +493,7 @@ export const useManagerExpensesOverview = (
     params.managerId,
     params.currencyRef,
     params.planStatsCurrencyRef,
+    params.payStatsCurrencyRef,
     params.searchTerm,
     params.requests?.limit,
     params.requests?.offset,

@@ -131,6 +131,12 @@ const ENTITY_OVERRIDES: {
   }
 }
 
+// Advance payment: same labels as backoffice (Transfer Required / Payment Required)
+const ADVANCE_LABEL_OVERRIDES: Partial<Record<StatusKey, { i18nKey: string; fallback: string }>> = {
+  BOOKED: { i18nKey: 'lowcoder:expense_statuses.transfer_required', fallback: 'Transfer Required' },
+  TRANSFERRED: { i18nKey: 'lowcoder:expense_statuses.payment_required', fallback: 'Payment Required' }
+}
+
 /**
  * Generic status-to-display mapper with per-entity overrides.
  */
@@ -149,7 +155,9 @@ export const getEntityStatusDisplay = (entity: 'plan' | 'request' | 'advance', s
 
   const overrideType = ENTITY_OVERRIDES[entity]?.[normalized as StatusKey]
   const type = overrideType || base.defaultType
-  const label = getTranslationFromI18nKeyAndLabel(base.i18nKey, base.fallback)
+  const labelOverride = entity === 'advance' ? ADVANCE_LABEL_OVERRIDES[normalized as StatusKey] : undefined
+  const { i18nKey, fallback } = labelOverride ?? base
+  const label = getTranslationFromI18nKeyAndLabel(i18nKey, fallback)
   const badgeVariant = STATUS_COLORS[normalized] || 'outline'
   return { label, type, badgeVariant }
 }
