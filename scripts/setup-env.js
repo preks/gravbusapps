@@ -160,7 +160,15 @@ function shouldHydrateSecretValue(currentValue) {
   return normalizedCurrentValue === '' || isPlaceholderValue(normalizedCurrentValue)
 }
 
-function buildExampleEnvContent(exampleContent, exampleEntries, preservedEntries, secretEntries, shouldResetUrls) {
+function buildExampleEnvContent(
+  exampleContent,
+  exampleEntries,
+  preservedEntries,
+  secretEntries,
+  shouldResetTokens,
+  shouldResetUrls
+) {
+  let preservedTokenCount = 0
   let preservedUrlCount = 0
   let reappliedSecretCount = 0
 
@@ -174,7 +182,14 @@ function buildExampleEnvContent(exampleContent, exampleEntries, preservedEntries
     const keyCategory = classifyKey(assignment.key, exampleEntry.value)
 
     if (keyCategory === 'token') {
+      const preservedEntry = preservedEntries.get(assignment.key)
       const secretEntry = secretEntries.get(assignment.key)
+
+      if (preservedEntry && !shouldResetTokens) {
+        preservedTokenCount += 1
+        return buildAssignmentLine(assignment.key, preservedEntry.value, exampleEntry.comment)
+      }
+
       if (secretEntry) {
         reappliedSecretCount += 1
         return buildAssignmentLine(assignment.key, secretEntry.value, exampleEntry.comment)
@@ -196,6 +211,7 @@ function buildExampleEnvContent(exampleContent, exampleEntries, preservedEntries
 
   return {
     content: `${rebuiltLines.join('\n')}\n`,
+    preservedTokenCount,
     preservedUrlCount,
     reappliedSecretCount
   }
@@ -223,6 +239,7 @@ function syncEnv() {
       exampleEntries,
       new Map(),
       secretEntries,
+      false,
       false
     )
     fs.writeFileSync(ENV_FILE, content)
@@ -320,6 +337,7 @@ function resetEnv(shouldResetTokens, shouldResetUrls) {
       exampleEntries,
       new Map(),
       secretEntries,
+      shouldResetTokens,
       shouldResetUrls
     )
     fs.writeFileSync(ENV_FILE, content)
@@ -342,11 +360,12 @@ function resetEnv(shouldResetTokens, shouldResetUrls) {
     backupWasCreated = true
 
     const backupEntries = readEnvEntries(ENV_BACKUP_FILE)
-    const { content, preservedUrlCount, reappliedSecretCount } = buildExampleEnvContent(
+    const { content, preservedTokenCount, preservedUrlCount, reappliedSecretCount } = buildExampleEnvContent(
       exampleContent,
       exampleEntries,
       backupEntries,
       secretEntries,
+      shouldResetTokens,
       shouldResetUrls
     )
     fs.writeFileSync(ENV_FILE, content)
@@ -356,7 +375,7 @@ function resetEnv(shouldResetTokens, shouldResetUrls) {
     const logParts = []
     if (createdSecretCount > 0) logParts.push(`Created .secrets with ${createdSecretCount} value(s).`)
     logParts.push(
-      `Reset .env from .env.example. Reapplied ${reappliedSecretCount} placeholder-backed value(s) from .secrets, preserved ${preservedUrlCount} URL value(s), and removed ${removedVariableCount} custom variable(s).`
+      `Reset .env from .env.example. Preserved ${preservedTokenCount} token value(s), reapplied ${reappliedSecretCount} placeholder-backed value(s) from .secrets, preserved ${preservedUrlCount} URL value(s), and removed ${removedVariableCount} custom variable(s).`
     )
     if (shouldResetTokens) logParts.push('`--token` resolves placeholder-backed values from .secrets.')
     console.log(logParts.join(' '))
