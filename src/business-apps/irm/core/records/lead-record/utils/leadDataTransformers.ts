@@ -131,6 +131,26 @@ export function buildInvestmentContactFromLead(lead: InvestmentLead | any): Inve
     } as CommunicationChannel)
   }
 
+  if (lead.secondaryNumber) {
+    communicationChannels.push({
+      value: lead.secondaryNumber,
+      communicationChannel: {
+        code: CommunicationChannelCode.MOBILE,
+        type: CommunicationChannelType.TEL
+      }
+    } as CommunicationChannel)
+  }
+
+  if (lead.linkedinUrl) {
+    communicationChannels.push({
+      value: lead.linkedinUrl,
+      communicationChannel: {
+        code: CommunicationChannelCode.LINKEDIN,
+        type: CommunicationChannelType.URL
+      }
+    } as CommunicationChannel)
+  }
+
   return {
     id: lead.id || `lead-contact-${Date.now()}`, // Temporary ID for lead contacts
     firstName: lead.firstName || '',
