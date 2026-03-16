@@ -148,17 +148,29 @@ const calculateRequestedDaysWithBreakdown = (
   }
 }
 
-const buildInsufficientBalanceMessage = (
-  roundedRequestedDays: number,
-  effectiveAvailable: number,
-  measurement: string | undefined,
-  holidaysToUse: HolidayEntry[],
-  newStartDate: Date,
-  newEndDate: Date,
-  requestedDays: number,
-  workingHours: WorkingHours | null,
+type BuildBalanceMessageArgs = {
+  roundedRequestedDays: number
+  effectiveAvailable: number
+  measurement: string | undefined
+  holidaysToUse: HolidayEntry[]
+  newStartDate: Date
+  newEndDate: Date
+  requestedDays: number
+  workingHours: WorkingHours | null
   t: (key: string, values?: Record<string, unknown>) => string
-): string => {
+}
+
+const buildInsufficientBalanceMessage = ({
+  roundedRequestedDays,
+  effectiveAvailable,
+  measurement,
+  holidaysToUse,
+  newStartDate,
+  newEndDate,
+  requestedDays,
+  workingHours,
+  t
+}: BuildBalanceMessageArgs): string => {
   const insufficientBalanceLabel = t('create-absence-insufficient-balance')
   const requestedLabel = t('create-absence-requested')
   const availableLabel = t('create-absence-available')
@@ -528,7 +540,7 @@ export const useAbsenceValidation = ({
       const { effectiveAvailable, totalBalance, approvedBalance, pendingBalance } = balanceDetails
 
       if (roundedRequestedDays > effectiveAvailable) {
-        const message = buildInsufficientBalanceMessage(
+        const message = buildInsufficientBalanceMessage({
           roundedRequestedDays,
           effectiveAvailable,
           measurement,
@@ -538,7 +550,7 @@ export const useAbsenceValidation = ({
           requestedDays,
           workingHours,
           t
-        )
+        })
         errors.push({
           type: 'balance',
           message,
