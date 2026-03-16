@@ -1,6 +1,6 @@
 import type { Extension } from '@tiptap/core'
 import type { HeaderFooterEditorType, PageFormat, PagesOptions, PagesStorage } from './types'
-import { getHeaderFooterExtensions, getPageSpacerHeight, resolveDisplayContent } from './utils'
+import { getHeaderFooterExtensions, getPageLayoutHeights, getPageSpacerHeight, resolveDisplayContent } from './utils'
 
 const STYLE_ATTR = 'data-rm-pages-style'
 
@@ -36,6 +36,16 @@ export function ensurePagesStyles(targetDocument: Document) {
       clear: both;
       width: 0;
       height: 0;
+      overflow: visible;
+    }
+    .rm-pages-root .rm-page-body-layer {
+      position: absolute;
+      left: calc(-1 * var(--rm-page-margin-left));
+      width: calc(var(--rm-page-width) + var(--rm-page-margin-left) + var(--rm-page-margin-right));
+      box-sizing: border-box;
+      pointer-events: none;
+      background: transparent;
+      z-index: 1;
     }
     .rm-pages-root .breaker {
       position: relative;
@@ -63,8 +73,10 @@ export function ensurePagesStyles(targetDocument: Document) {
       width: 100%;
       box-sizing: border-box;
       overflow: hidden;
+      background: inherit;
       color: #5f6368;
       user-select: none;
+      -webkit-user-select: none;
     }
     .rm-pages-root .rm-first-page-header {
       width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
@@ -81,7 +93,7 @@ export function ensurePagesStyles(targetDocument: Document) {
       width: 100%;
       box-sizing: border-box;
       overflow: hidden;
-      background: transparent;
+      background: inherit;
       color: #202124;
       font: inherit;
       padding-left: var(--rm-page-margin-left);
@@ -107,6 +119,7 @@ export function ensurePagesStyles(targetDocument: Document) {
       overflow: hidden;
       pointer-events: none;
       user-select: none;
+      -webkit-user-select: none;
     }
     .rm-pages-root .rm-page-header-content[data-rm-empty="true"]::before,
     .rm-pages-root .rm-page-footer-content[data-rm-empty="true"]::before {
@@ -252,6 +265,7 @@ export function applyRootStyles(targetNode: HTMLElement, pageFormat: PageFormat,
   targetNode.style.paddingLeft = `${pageFormat.margins.left}px`
   targetNode.style.paddingRight = `${pageFormat.margins.right}px`
   targetNode.style.border = `1px solid ${options.pageBreakBackground ?? '#f3f4f6'}`
+  targetNode.style.setProperty('--rm-page-width', `${pageFormat.width}px`)
   targetNode.style.setProperty('--rm-page-margin-top', `${pageFormat.margins.top}px`)
   targetNode.style.setProperty('--rm-page-margin-bottom', `${pageFormat.margins.bottom}px`)
   targetNode.style.setProperty('--rm-page-margin-left', `${pageFormat.margins.left}px`)
@@ -280,6 +294,13 @@ export function refreshPageMinHeight(targetNode: HTMLElement) {
 }
 
 function blockInactiveRegionSelection(event: MouseEvent, region: HTMLElement) {
+  if (region.dataset.rmOverlayActive === 'true') return
+
+  event.preventDefault()
+  event.stopPropagation()
+}
+
+function blockInactiveRegionInteraction(event: Event, region: HTMLElement) {
   if (region.dataset.rmOverlayActive === 'true') return
 
   event.preventDefault()
@@ -323,18 +344,22 @@ export function createHeaderFooterRegion(params: {
   region.dataset.rmPageNumber = String(pageNumber)
   region.dataset.rmEditorType = type
   region.dataset.rmEditable = 'true'
+  region.setAttribute('contenteditable', 'false')
 
   const inner = document.createElement('div')
   inner.className = type === 'header' ? 'rm-page-header' : 'rm-page-footer'
+  inner.setAttribute('contenteditable', 'false')
 
   const content = document.createElement('div')
   content.className = type === 'header' ? 'rm-page-header-content' : 'rm-page-footer-content'
   content.innerHTML = displayContent.html ?? ''
   content.dataset.rmEmpty = isEmptyHeaderFooterHtml(displayContent.html) ? 'true' : 'false'
   content.dataset.rmPlaceholder = type === 'header' ? uiLabels.headerLabel : uiLabels.footerLabel
+  content.setAttribute('contenteditable', 'false')
 
   const meta = document.createElement('div')
   meta.className = `rm-page-region-meta rm-page-region-meta-${type}`
+  meta.setAttribute('contenteditable', 'false')
 
   const label = document.createElement('span')
   label.className = 'rm-page-region-label'
@@ -355,6 +380,9 @@ export function createHeaderFooterRegion(params: {
 
   region.addEventListener('mousedown', event => {
     blockInactiveRegionSelection(event, region)
+  })
+  region.addEventListener('selectstart', event => {
+    blockInactiveRegionInteraction(event, region)
   })
 
   region.addEventListener('dblclick', event => {
@@ -390,6 +418,7 @@ export function createPageBreakElement(params: {
 
   const page = document.createElement('div')
   page.className = 'page'
+  page.dataset.rmPageNumber = String(pageNumber)
   page.style.setProperty(
     'margin-top',
     `var(--rm-page-content-${pageNumber}, ${getPageSpacerHeight(
@@ -400,6 +429,20 @@ export function createPageBreakElement(params: {
       options.footerHeight
     )}px)`
   )
+
+  const defaultBodyHeight = getPageLayoutHeights(
+    pageFormat,
+    storage,
+    options.headerHeight,
+    options.footerHeight
+  ).bodyHeight
+  const bodyLayer = document.createElement('div')
+  bodyLayer.className = 'rm-page-body-layer'
+  bodyLayer.dataset.rmPageBody = 'true'
+  bodyLayer.dataset.rmPageNumber = String(pageNumber)
+  bodyLayer.style.height = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
+  bodyLayer.style.top = `calc(-1 * var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px))`
+  page.appendChild(bodyLayer)
 
   const breaker = document.createElement('div')
   breaker.className = 'breaker'

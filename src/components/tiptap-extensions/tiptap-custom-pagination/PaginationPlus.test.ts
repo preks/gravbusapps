@@ -9,7 +9,7 @@ import {
   ensurePagesStyles
 } from './dom'
 import { PAGE_FORMATS } from './constants'
-import { Pages } from './PaginationPlus'
+import { getPageBodyBands, Pages, resolvePaginationBodyClick } from './PaginationPlus'
 import type { PagesOptions } from './types'
 import {
   calculatePageCount,
@@ -45,6 +45,20 @@ function createOptions(overrides: Partial<PagesOptions> = {}): PagesOptions {
     differentOddEven: false,
     ...overrides
   }
+}
+
+function mockRect(element: HTMLElement, rect: { top: number; bottom: number; left?: number; right?: number }) {
+  element.getBoundingClientRect = jest.fn(() => ({
+    x: rect.left ?? 0,
+    y: rect.top,
+    top: rect.top,
+    right: rect.right ?? 500,
+    bottom: rect.bottom,
+    left: rect.left ?? 0,
+    width: (rect.right ?? 500) - (rect.left ?? 0),
+    height: rect.bottom - rect.top,
+    toJSON: () => ({})
+  })) as any
 }
 
 describe('Pages extension helpers', () => {
@@ -156,6 +170,89 @@ describe('Pages extension helpers', () => {
     expect(calculatePageCount({ dom: root } as any, TEST_PAGE_FORMAT, 32)).toBe(2)
   })
 
+  it('uses the caret line box when it extends below the last content element', () => {
+    const root = document.createElement('div')
+    const paragraph = document.createElement('p')
+    const wrapper = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const breaker = document.createElement('div')
+
+    wrapper.dataset.rmPagination = 'true'
+    pageBreak.className = 'rm-page-break'
+    breaker.className = 'breaker'
+    pageBreak.appendChild(breaker)
+    wrapper.appendChild(pageBreak)
+    root.append(paragraph, wrapper)
+
+    root.getBoundingClientRect = jest.fn(() => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      width: 0,
+      height: 0,
+      toJSON: () => ({})
+    })) as any
+
+    Object.defineProperty(paragraph, 'offsetTop', {
+      value: 520,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'offsetHeight', {
+      value: 0,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'clientHeight', {
+      value: 0,
+      configurable: true
+    })
+    Object.defineProperty(paragraph, 'scrollHeight', {
+      value: 0,
+      configurable: true
+    })
+
+    Object.defineProperty(breaker, 'offsetTop', {
+      value: 540,
+      configurable: true
+    })
+    Object.defineProperty(breaker, 'offsetHeight', {
+      value: 0,
+      configurable: true
+    })
+    Object.defineProperty(breaker, 'clientHeight', {
+      value: 0,
+      configurable: true
+    })
+    Object.defineProperty(breaker, 'scrollHeight', {
+      value: 0,
+      configurable: true
+    })
+
+    const view = {
+      dom: root,
+      scrollDOM: root,
+      state: {
+        selection: {
+          from: 1,
+          to: 1
+        },
+        doc: {
+          childCount: 2
+        }
+      },
+      coordsAtPos: jest.fn(() => ({
+        left: 0,
+        right: 0,
+        top: 548,
+        bottom: 580
+      }))
+    } as any
+
+    expect(calculatePageCount(view, TEST_PAGE_FORMAT, 32)).toBe(2)
+  })
+
   it('renders header and footer reserved spacing in the shell styles', () => {
     ensurePagesStyles(document)
 
@@ -163,6 +260,7 @@ describe('Pages extension helpers', () => {
 
     expect(style?.textContent).toContain('user-select: none;')
     expect(style?.textContent).toContain('pointer-events: none;')
+    expect(style?.textContent).toContain('background: inherit;')
   })
 
   it('prevents inactive header regions from falling through to body selection', () => {
@@ -183,6 +281,27 @@ describe('Pages extension helpers', () => {
     region.dispatchEvent(event)
 
     expect(event.defaultPrevented).toBe(true)
+  })
+
+  it('prevents selectstart inside inactive header regions', () => {
+    const options = createOptions()
+    const storage = createStorageFromOptions(options)
+
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 2,
+      pageFormat: storage.pageFormat,
+      options,
+      storage,
+      extensions: [StarterKit]
+    })
+
+    const event = new Event('selectstart', { bubbles: true, cancelable: true })
+    region.dispatchEvent(event)
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(region.getAttribute('contenteditable')).toBe('false')
   })
 
   it('prevents page gaps from placing the body cursor', () => {
@@ -235,6 +354,302 @@ describe('Pages extension helpers', () => {
       clientX: 24,
       clientY: 48
     })
+  })
+
+  it('derives page body bands from the rendered pagination chrome', () => {
+    const root = document.createElement('div')
+    const firstBodyLayer = document.createElement('div')
+    const secondBodyLayer = document.createElement('div')
+
+    firstBodyLayer.className = 'rm-page-body-layer'
+    firstBodyLayer.dataset.rmPageNumber = '1'
+    secondBodyLayer.className = 'rm-page-body-layer'
+    secondBodyLayer.dataset.rmPageNumber = '2'
+    root.append(firstBodyLayer, secondBodyLayer)
+
+    mockRect(firstBodyLayer, { top: 80, bottom: 520 })
+    mockRect(secondBodyLayer, { top: 640, bottom: 1080 })
+
+    expect(getPageBodyBands(root)).toEqual([
+      { pageNumber: 1, left: 0, right: 500, top: 80, bottom: 520 },
+      { pageNumber: 2, left: 0, right: 500, top: 640, bottom: 1080 }
+    ])
+  })
+
+  it('clamps empty body clicks to a valid same-page caret position', () => {
+    const root = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    root.append(bodyLayer)
+
+    mockRect(root, { top: 0, bottom: 900 })
+    mockRect(bodyLayer, { top: 80, bottom: 520 })
+
+    const view = {
+      dom: root,
+      posAtCoords: jest.fn(({ top }: { left: number; top: number }) => {
+        if (top <= 200) return { pos: 5, inside: -1 }
+        return { pos: 20, inside: -1 }
+      }),
+      coordsAtPos: jest.fn((pos: number) => {
+        if (pos === 5) return { left: 0, right: 0, top: 120, bottom: 140 }
+        return { left: 0, right: 0, top: 560, bottom: 590 }
+      }),
+      state: {
+        doc: {
+          resolve: jest.fn((position: number) => {
+            if (position === 5) {
+              return {
+                parent: {
+                  type: { name: 'paragraph' },
+                  content: { size: 4 }
+                },
+                parentOffset: 2,
+                nodeBefore: {
+                  type: { name: 'text' },
+                  content: { size: 0 }
+                },
+                nodeAfter: {
+                  type: { name: 'text' },
+                  content: { size: 0 }
+                }
+              }
+            }
+
+            return {
+              parent: {
+                type: { name: 'paragraph' },
+                content: { size: 0 }
+              },
+              parentOffset: 0,
+              nodeBefore: null,
+              nodeAfter: null
+            }
+          })
+        }
+      }
+    } as any
+
+    expect(resolvePaginationBodyClick(view, 120, 500)).toEqual({
+      action: 'set',
+      position: 5
+    })
+  })
+
+  it('allows clicks that resolve inside paragraph text', () => {
+    const root = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    root.append(bodyLayer)
+
+    mockRect(bodyLayer, { top: 80, bottom: 520 })
+
+    const view = {
+      dom: root,
+      posAtCoords: jest.fn(() => ({ pos: 15, inside: -1 })),
+      coordsAtPos: jest.fn(() => ({ left: 140, right: 140, top: 200, bottom: 220 })),
+      state: {
+        doc: {
+          resolve: jest.fn(() => ({
+            parent: {
+              type: { name: 'paragraph' },
+              content: { size: 6 }
+            },
+            parentOffset: 3,
+            nodeBefore: { type: { name: 'text' }, content: { size: 0 } },
+            nodeAfter: { type: { name: 'text' }, content: { size: 0 } }
+          }))
+        }
+      }
+    } as any
+
+    expect(resolvePaginationBodyClick(view, 140, 210)).toEqual({
+      action: 'allow'
+    })
+  })
+
+  it('re-anchors clicks at paragraph boundaries next to empty paragraphs', () => {
+    const root = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    root.append(bodyLayer)
+
+    mockRect(bodyLayer, { top: 80, bottom: 520 })
+
+    const resolve = jest.fn((position: number) => {
+      if (position === 10) {
+        return {
+          parent: {
+            type: { name: 'paragraph' },
+            content: { size: 4 }
+          },
+          parentOffset: 0,
+          nodeBefore: {
+            type: { name: 'paragraph' },
+            content: { size: 0 }
+          },
+          nodeAfter: {
+            type: { name: 'text' },
+            content: { size: 0 }
+          }
+        }
+      }
+
+      return {
+        parent: {
+          type: { name: 'paragraph' },
+          content: { size: 4 }
+        },
+        parentOffset: 2,
+        nodeBefore: {
+          type: { name: 'text' },
+          content: { size: 0 }
+        },
+        nodeAfter: {
+          type: { name: 'text' },
+          content: { size: 0 }
+        }
+      }
+    })
+
+    const view = {
+      dom: root,
+      posAtCoords: jest.fn(({ top }: { left: number; top: number }) => {
+        if (top === 200) return { pos: 10, inside: -1 }
+        return { pos: 12, inside: -1 }
+      }),
+      coordsAtPos: jest.fn((position: number) => {
+        if (position === 10) return { left: 100, right: 100, top: 200, bottom: 220 }
+        return { left: 145, right: 145, top: 202, bottom: 222 }
+      }),
+      state: {
+        doc: {
+          resolve
+        }
+      }
+    } as any
+
+    expect(resolvePaginationBodyClick(view, 140, 200)).toEqual({
+      action: 'set',
+      position: 12
+    })
+  })
+
+  it('re-anchors clicks that resolve into empty paragraph runs', () => {
+    const root = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    root.append(bodyLayer)
+
+    mockRect(bodyLayer, { top: 80, bottom: 520 })
+
+    const resolve = jest.fn((position: number) => {
+      if (position === 20) {
+        return {
+          parent: {
+            type: { name: 'paragraph' },
+            content: { size: 0 }
+          },
+          parentOffset: 0,
+          nodeBefore: null,
+          nodeAfter: null
+        }
+      }
+
+      return {
+        parent: {
+          type: { name: 'paragraph' },
+          content: { size: 4 }
+        },
+        parentOffset: 2,
+        nodeBefore: {
+          type: { name: 'text' },
+          content: { size: 0 }
+        },
+        nodeAfter: {
+          type: { name: 'text' },
+          content: { size: 0 }
+        }
+      }
+    })
+
+    const view = {
+      dom: root,
+      posAtCoords: jest.fn(({ top }: { left: number; top: number }) => {
+        if (top === 210) return { pos: 20, inside: -1 }
+        return { pos: 22, inside: -1 }
+      }),
+      coordsAtPos: jest.fn((position: number) => {
+        if (position === 20) return { left: 90, right: 90, top: 210, bottom: 230 }
+        return { left: 145, right: 145, top: 212, bottom: 232 }
+      }),
+      state: {
+        doc: {
+          resolve
+        }
+      }
+    } as any
+
+    expect(resolvePaginationBodyClick(view, 140, 210)).toEqual({
+      action: 'set',
+      position: 22
+    })
+  })
+
+  it('blocks clicks that land outside all page body bands', () => {
+    const root = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    root.append(bodyLayer)
+
+    mockRect(root, { top: 0, bottom: 900 })
+    mockRect(bodyLayer, { top: 80, bottom: 520 })
+
+    const view = {
+      dom: root,
+      posAtCoords: jest.fn(),
+      coordsAtPos: jest.fn()
+    } as any
+
+    expect(resolvePaginationBodyClick(view, 120, 600)).toEqual({
+      action: 'block'
+    })
+  })
+
+  it('renders a real page body layer for each page break', () => {
+    const options = createOptions({
+      headerTopMargin: 12,
+      footerBottomMargin: 16
+    })
+    const storage = createStorageFromOptions(options)
+    const expectedBodyHeight = getPageLayoutHeights(
+      storage.pageFormat,
+      storage,
+      options.headerHeight,
+      options.footerHeight
+    ).bodyHeight
+
+    const pageBreak = createPageBreakElement({
+      pageNumber: 1,
+      totalPages: 2,
+      pageFormat: storage.pageFormat,
+      options,
+      storage,
+      extensions: [StarterKit]
+    })
+
+    const page = pageBreak.querySelector('.page') as HTMLElement | null
+    const bodyLayer = pageBreak.querySelector('.rm-page-body-layer[data-rm-page-number="1"]') as HTMLElement | null
+
+    expect(page?.dataset.rmPageNumber).toBe('1')
+    expect(bodyLayer).not.toBeNull()
+    expect(bodyLayer?.dataset.rmPageBody).toBe('true')
+    expect(expectedBodyHeight).toBeGreaterThan(0)
   })
 
   it('ignores pagination helper widgets when measuring blank content', () => {

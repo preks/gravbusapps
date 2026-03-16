@@ -432,6 +432,7 @@ function isPaginationMeasurementHelper(element: Element): boolean {
 
   return (
     element.classList.contains('ProseMirror-widget') ||
+    element.classList.contains('rm-page-body-layer') ||
     element.classList.contains('rm-first-page-header') ||
     element.classList.contains('rm-page-break') ||
     element.classList.contains('rm-page-spacer') ||
@@ -480,6 +481,26 @@ function getElementBottom(element: HTMLElement): number {
   return element.offsetTop + layoutHeight
 }
 
+function getSelectionBottom(view: EditorView): number {
+  const selection = (view as EditorView & { state?: { selection?: { from: number; to: number } } }).state?.selection
+  if (!selection) return 0
+
+  const positions = selection.from === selection.to ? [selection.from] : [selection.from, selection.to]
+  const editorRect = view.dom.getBoundingClientRect()
+  let selectionBottom = 0
+
+  for (const position of positions) {
+    try {
+      const coords = view.coordsAtPos(position)
+      selectionBottom = Math.max(selectionBottom, coords.bottom - editorRect.top + view.dom.scrollTop)
+    } catch {
+      // Ignore positions that cannot be resolved while the DOM is updating.
+    }
+  }
+
+  return selectionBottom
+}
+
 function getPageBodyHeightForCount(
   pageFormat: PageFormat,
   layoutOptions: PageCountLayoutOptions,
@@ -525,16 +546,20 @@ export function calculatePageCount(
   const paginationElement = editorDom.querySelector('[data-rm-pagination]')
   const currentPageCount = getExistingPageCount(view)
   const lastContentElement = getLastContentElement(editorDom)
+  const selectionBottom = getSelectionBottom(view)
+  const measuredBottom = lastContentElement
+    ? Math.max(getElementBottom(lastContentElement), selectionBottom)
+    : selectionBottom
   const pageContentHeight = getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
 
   if (paginationElement) {
     const lastPageBreak = paginationElement.lastElementChild?.querySelector('.breaker') as HTMLElement | null
 
-    if (!lastContentElement || !lastPageBreak) {
+    if ((!lastContentElement && selectionBottom <= 0) || !lastPageBreak) {
       return Math.max(1, currentPageCount)
     }
 
-    const lastPageGap = getElementBottom(lastContentElement) - getElementBottom(lastPageBreak)
+    const lastPageGap = measuredBottom - getElementBottom(lastPageBreak)
 
     if (lastPageGap > 0) {
       return currentPageCount + Math.ceil(lastPageGap / pageContentHeight)
@@ -550,9 +575,9 @@ export function calculatePageCount(
     return Math.max(1, currentPageCount)
   }
 
-  if (!lastContentElement) return 1
+  if (!lastContentElement && selectionBottom <= 0) return 1
 
-  const editorHeight = Math.max(getElementBottom(lastContentElement), 1)
+  const editorHeight = Math.max(measuredBottom, 1)
   const initialPageContentHeight = getPageBodyHeightForCount(pageFormat, layoutOptions, 1)
   return Math.max(1, Math.ceil(editorHeight / Math.max(1, initialPageContentHeight)))
 }

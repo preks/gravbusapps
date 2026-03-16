@@ -1,6 +1,6 @@
 import { Editor, Extension } from '@tiptap/core'
 import type { Node as PMNode } from 'prosemirror-model'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import {
   AddMarkStep,
   AttrStep,
@@ -83,6 +83,7 @@ function applyMeasuredPageHeightsToView(view: EditorView, storage: PagesStorage,
     const layout = getPageLayoutHeights(storage.pageFormat, storage, headerHeight, footerHeight)
 
     smallestBodyHeight = Math.min(smallestBodyHeight, layout.bodyHeight)
+    view.dom.style.setProperty(`--rm-page-body-${pageNumber}`, `${layout.bodyHeight}px`)
     view.dom.style.setProperty(
       `--rm-page-content-${pageNumber}`,
       `${getPageSpacerHeight(storage.pageFormat, storage, pageNumber, headerHeight, footerHeight)}px`
@@ -124,6 +125,178 @@ function getMeasuredPageCount(
     defaultHeaderHeight: options.headerHeight,
     defaultFooterHeight: options.footerHeight
   })
+}
+
+interface PageBodyBand {
+  pageNumber: number
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
+
+type PaginationBodyClickResolution = { action: 'allow' } | { action: 'block' } | { action: 'set'; position: number }
+
+export function getPageBodyBands(editorDom: HTMLElement): PageBodyBand[] {
+  return Array.from(editorDom.querySelectorAll('.rm-page-body-layer[data-rm-page-number]'))
+    .filter((element): element is HTMLElement => element instanceof HTMLElement)
+    .map(element => {
+      const rect = element.getBoundingClientRect()
+      return {
+        pageNumber: Number(element.dataset.rmPageNumber ?? '0'),
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom
+      }
+    })
+    .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
+    .sort((left, right) => left.pageNumber - right.pageNumber)
+}
+
+function isCaretRectWithinBand(
+  caretRect: ReturnType<EditorView['coordsAtPos']>,
+  bodyBand: PageBodyBand,
+  tolerance = 1
+) {
+  return caretRect.top >= bodyBand.top - tolerance && caretRect.bottom <= bodyBand.bottom + tolerance
+}
+
+function getPositionAtCoords(view: EditorView, left: number, top: number) {
+  try {
+    return view.posAtCoords({ left, top })?.pos ?? null
+  } catch {
+    return null
+  }
+}
+
+function getCaretRectAtPosition(view: EditorView, position: number) {
+  try {
+    return view.coordsAtPos(position)
+  } catch {
+    return null
+  }
+}
+
+function resolveDocumentPosition(view: EditorView, position: number) {
+  try {
+    return view.state.doc.resolve(position)
+  } catch {
+    return null
+  }
+}
+
+function isParagraphNodeEmpty(node: PMNode | null | undefined) {
+  return !!node && node.type.name === 'paragraph' && node.content.size === 0
+}
+
+function isStableBodyPosition(
+  view: EditorView,
+  bodyBand: PageBodyBand,
+  position: number,
+  clickX: number,
+  clickY: number
+) {
+  const caretRect = getCaretRectAtPosition(view, position)
+  if (!caretRect || !isCaretRectWithinBand(caretRect, bodyBand)) return false
+
+  const resolvedPosition = resolveDocumentPosition(view, position)
+  if (!resolvedPosition) return false
+
+  const lineHeight = Math.max(1, caretRect.bottom - caretRect.top)
+  const verticalTolerance = Math.max(6, Math.min(24, lineHeight))
+  if (clickY < caretRect.top - verticalTolerance || clickY > caretRect.bottom + verticalTolerance) {
+    return false
+  }
+
+  if (resolvedPosition.parent.type.name !== 'paragraph') {
+    return true
+  }
+
+  if (resolvedPosition.parent.content.size === 0) {
+    return false
+  }
+
+  const isParagraphBoundary =
+    resolvedPosition.parentOffset === 0 || resolvedPosition.parentOffset === resolvedPosition.parent.content.size
+
+  if (!isParagraphBoundary) {
+    return true
+  }
+
+  if (isParagraphNodeEmpty(resolvedPosition.nodeBefore) || isParagraphNodeEmpty(resolvedPosition.nodeAfter)) {
+    return false
+  }
+
+  const boundaryX = resolvedPosition.parentOffset === 0 ? caretRect.left : caretRect.right
+  const horizontalTolerance = Math.max(8, Math.min(24, lineHeight))
+  return Math.abs(clickX - boundaryX) <= horizontalTolerance
+}
+
+function findClampedBodyPosition(view: EditorView, bodyBand: PageBodyBand, clickX: number, clickY: number) {
+  const minY = bodyBand.top + 1
+  const maxY = Math.max(minY, bodyBand.bottom - 1)
+  const clampedY = Math.min(Math.max(clickY, minY), maxY)
+  const minX = bodyBand.left + 1
+  const maxX = Math.max(minX, bodyBand.right - 1)
+  const clampedX = Math.min(Math.max(clickX, minX), maxX)
+  const middleX = Math.round((bodyBand.left + bodyBand.right) / 2)
+  const probeXs = Array.from(
+    new Set([clampedX, minX + 12, middleX, maxX - 12].map(value => Math.min(Math.max(value, minX), maxX)))
+  )
+  const probeYs: number[] = []
+  const step = 18
+
+  for (let delta = 0; delta <= bodyBand.bottom - bodyBand.top; delta += step) {
+    const downward = Math.min(clampedY + delta, maxY)
+    const upward = Math.max(clampedY - delta, minY)
+    if (!probeYs.includes(downward)) probeYs.push(downward)
+    if (!probeYs.includes(upward)) probeYs.push(upward)
+  }
+
+  let bestCandidate: { position: number; score: number } | null = null
+
+  for (const probeY of probeYs) {
+    for (const probeX of probeXs) {
+      const position = getPositionAtCoords(view, probeX, probeY)
+      if (position == null) continue
+      if (!isStableBodyPosition(view, bodyBand, position, probeX, probeY)) continue
+
+      const caretRect = getCaretRectAtPosition(view, position)
+      if (!caretRect) continue
+
+      const caretCenterY = (caretRect.top + caretRect.bottom) / 2
+      const score = Math.abs(caretCenterY - clickY) + Math.abs(probeX - clickX) * 0.1
+
+      if (!bestCandidate || score < bestCandidate.score) {
+        bestCandidate = { position, score }
+      }
+    }
+  }
+
+  return bestCandidate?.position ?? null
+}
+
+export function resolvePaginationBodyClick(
+  view: EditorView,
+  clientX: number,
+  clientY: number
+): PaginationBodyClickResolution {
+  const bodyBands = getPageBodyBands(view.dom)
+  if (!bodyBands.length) return { action: 'allow' }
+
+  const bodyBand = bodyBands.find(band => clientY >= band.top && clientY <= band.bottom)
+  if (!bodyBand) return { action: 'block' }
+
+  const initialPosition = getPositionAtCoords(view, clientX, clientY)
+  if (initialPosition != null) {
+    if (isStableBodyPosition(view, bodyBand, initialPosition, clientX, clientY)) {
+      return { action: 'allow' }
+    }
+  }
+
+  const clampedPosition = findClampedBodyPosition(view, bodyBand, clientX, clientY)
+  return clampedPosition == null ? { action: 'block' } : { action: 'set', position: clampedPosition }
 }
 
 declare module '@tiptap/core' {
@@ -372,6 +545,29 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         props: {
           decorations(state) {
             return paginationKey.getState(state) ?? DecorationSet.empty
+          },
+          handleDOMEvents: {
+            mousedown: (view, event) => {
+              const mouseEvent = event as MouseEvent
+              if (mouseEvent.defaultPrevented) return false
+              if (mouseEvent.button !== 0) return false
+              if (mouseEvent.metaKey || mouseEvent.ctrlKey || mouseEvent.altKey || mouseEvent.shiftKey) return false
+              if (this.storage.activeEditorType !== null) return false
+
+              const resolution = resolvePaginationBodyClick(view, mouseEvent.clientX, mouseEvent.clientY)
+              if (resolution.action === 'allow') return false
+
+              mouseEvent.preventDefault()
+              mouseEvent.stopPropagation()
+
+              if (resolution.action === 'set') {
+                const selection = TextSelection.create(view.state.doc, resolution.position)
+                view.dispatch(view.state.tr.setSelection(selection))
+                view.focus()
+              }
+
+              return true
+            }
           }
         },
         view: () => ({
