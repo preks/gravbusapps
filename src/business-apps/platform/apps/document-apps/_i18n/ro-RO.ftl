@@ -559,8 +559,11 @@ editor-page-of = Pagina { $current } din { $total }
 editor-user-fallback = Utilizator
 editor-header-footer-editing-header = Editați antetul pe pagina { $page }
 editor-header-footer-editing-footer = Editați subsolul pe pagina { $page }
-editor-header-footer-mode-description = Acțiunile din bara de instrumente se aplică antetului sau subsolului activ până când închideți acest mod.
-editor-header-footer-close = Închideți antetul și subsolul
+editor-header-footer-mode-description = Acțiunile din bara de instrumente se aplică antetului sau subsolului activ.
+editor-header-footer-close = Gata
+editor-header-footer-label-header = Antet
+editor-header-footer-label-footer = Subsol
+editor-header-footer-double-click = Faceți dublu clic pentru editare
 
 # Template fields panel
 template-fields-insert = Inserați câmp

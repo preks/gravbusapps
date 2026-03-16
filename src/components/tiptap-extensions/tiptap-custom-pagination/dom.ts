@@ -4,6 +4,10 @@ import { getHeaderFooterExtensions, getPageSpacerHeight, resolveDisplayContent }
 
 const STYLE_ATTR = 'data-rm-pages-style'
 
+function isEmptyHeaderFooterHtml(html: string | null | undefined) {
+  return !html || html.replace(/<[^>]*>/g, '').trim() === ''
+}
+
 export function ensurePagesStyles(targetDocument: Document) {
   if (targetDocument.head.querySelector(`[${STYLE_ATTR}]`)) return
 
@@ -59,26 +63,39 @@ export function ensurePagesStyles(targetDocument: Document) {
       width: 100%;
       box-sizing: border-box;
       overflow: hidden;
+      color: #5f6368;
+    }
+    .rm-pages-root .rm-first-page-header {
+      width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
+      margin-left: calc(-1 * var(--rm-page-margin-left));
+      margin-right: calc(-1 * var(--rm-page-margin-right));
+      z-index: 2;
     }
     .rm-pages-root .rm-page-header,
     .rm-pages-root .rm-page-footer {
       position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
       width: 100%;
       box-sizing: border-box;
       overflow: hidden;
       background: transparent;
-      color: inherit;
+      color: #202124;
       font: inherit;
+      padding-left: var(--rm-page-margin-left);
+      padding-right: var(--rm-page-margin-right);
+      padding-bottom: 0;
     }
     .rm-pages-root .rm-page-header {
+      justify-content: flex-start;
       padding-top: var(--rm-page-margin-top);
-      padding-bottom: var(--rm-header-top-margin);
-      max-height: calc((var(--rm-page-height) * 0.45) - var(--rm-page-margin-top) - var(--rm-header-top-margin));
+      padding-bottom: 0;
     }
     .rm-pages-root .rm-page-footer {
-      padding-top: var(--rm-footer-bottom-margin);
+      justify-content: flex-end;
+      padding-top: 0;
       padding-bottom: var(--rm-page-margin-bottom);
-      max-height: calc((var(--rm-page-height) * 0.45) - var(--rm-footer-bottom-margin) - var(--rm-page-margin-bottom));
     }
     .rm-pages-root .rm-page-header-content,
     .rm-pages-root .rm-page-footer-content {
@@ -88,6 +105,38 @@ export function ensurePagesStyles(targetDocument: Document) {
       word-break: break-word;
       overflow: hidden;
     }
+    .rm-pages-root .rm-page-header-content[data-rm-empty="true"]::before,
+    .rm-pages-root .rm-page-footer-content[data-rm-empty="true"]::before {
+      content: attr(data-rm-placeholder);
+      color: #9aa0a6;
+    }
+    .rm-pages-root .rm-page-region-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 20px;
+      color: #5f6368;
+      font-size: 11px;
+      line-height: 16px;
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-page-region-meta-header {
+      border-bottom: 1px solid #e8eaed;
+      padding-bottom: 4px;
+    }
+    .rm-pages-root .rm-page-region-meta-footer {
+      border-top: 1px solid #e8eaed;
+      padding-top: 4px;
+    }
+    .rm-pages-root .rm-page-region-label {
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+    .rm-pages-root .rm-page-region-hint {
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
     .rm-pages-root .rm-page-header-region[data-rm-editable="true"],
     .rm-pages-root .rm-page-footer-region[data-rm-editable="true"],
     .rm-pages-root .rm-first-page-header[data-rm-editable="true"] {
@@ -96,42 +145,80 @@ export function ensurePagesStyles(targetDocument: Document) {
     .rm-pages-root .rm-page-header-region[data-rm-editable="true"]:hover,
     .rm-pages-root .rm-page-footer-region[data-rm-editable="true"]:hover,
     .rm-pages-root .rm-first-page-header[data-rm-editable="true"]:hover {
-      background: rgba(99, 102, 241, 0.06);
+      background: transparent;
+    }
+    .rm-pages-root .rm-page-header-region[data-rm-editable="true"]:hover .rm-page-region-hint,
+    .rm-pages-root .rm-page-footer-region[data-rm-editable="true"]:hover .rm-page-region-hint,
+    .rm-pages-root .rm-first-page-header[data-rm-editable="true"]:hover .rm-page-region-hint {
+      opacity: 1;
     }
     .rm-pages-root .rm-page-overlay {
       position: absolute;
       inset: 0;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      padding: 8px;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.98);
+      background: transparent;
       z-index: 5;
     }
+    .rm-pages-root .rm-page-overlay[data-rm-overlay-type="header"] {
+      border-bottom: 0;
+    }
+    .rm-pages-root .rm-page-overlay[data-rm-overlay-type="footer"] {
+      border-top: 0;
+    }
+    .rm-pages-root .rm-page-overlay-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 0 8px;
+      border-bottom: 1px solid rgba(95, 99, 104, 0.16);
+    }
     .rm-pages-root .rm-page-overlay-label {
-      align-self: flex-start;
-      padding: 2px 8px;
-      border-radius: 999px;
+      font-size: 11px;
+      line-height: 16px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #5f6368;
+    }
+    .rm-pages-root .rm-page-overlay-close {
+      border: 0;
+      background: transparent;
+      color: var(--rm-overlay-accent, #1a73e8);
+      font: inherit;
       font-size: 12px;
-      line-height: 18px;
-      color: #fff;
-      background: var(--rm-overlay-accent, #6366f1);
+      line-height: 16px;
+      font-weight: 500;
+      padding: 4px 0;
+      cursor: pointer;
+    }
+    .rm-pages-root .rm-page-overlay-close:hover {
+      text-decoration: underline;
     }
     .rm-pages-root .rm-page-overlay-editor {
       flex: 1;
       min-height: 0;
       overflow: auto;
       box-sizing: border-box;
-      border: 2px solid var(--rm-overlay-accent, #6366f1);
-      border-radius: 8px;
-      background: #fff;
-      padding: 8px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      padding: 8px 0 0;
       caret-color: var(--rm-overlay-accent, #6366f1);
     }
     .rm-pages-root .rm-page-overlay-editor .ProseMirror {
       min-height: 100%;
       outline: none;
+    }
+    .rm-pages-root .rm-page-overlay[data-rm-overlay-type="header"] .rm-page-overlay-editor .ProseMirror {
+      border-bottom: 1px solid #e8eaed;
+      padding-bottom: 4px;
+    }
+    .rm-pages-root .rm-page-overlay[data-rm-overlay-type="footer"] .rm-page-overlay-editor .ProseMirror {
+      border-top: 1px solid #e8eaed;
+      padding-top: 4px;
     }
   `
   targetDocument.head.appendChild(style)
@@ -182,6 +269,11 @@ export function createHeaderFooterRegion(params: {
   firstPage?: boolean
 }): HTMLElement {
   const { type, pageNumber, totalPages, options, storage, extensions, onOpenEditor, firstPage } = params
+  const uiLabels = {
+    headerLabel: options.uiLabels?.headerLabel ?? 'Header',
+    footerLabel: options.uiLabels?.footerLabel ?? 'Footer',
+    doubleClickHint: options.uiLabels?.doubleClickHint ?? 'Double-click to edit'
+  }
   const displayContent = resolveDisplayContent(
     storage,
     options,
@@ -204,8 +296,27 @@ export function createHeaderFooterRegion(params: {
   const content = document.createElement('div')
   content.className = type === 'header' ? 'rm-page-header-content' : 'rm-page-footer-content'
   content.innerHTML = displayContent.html ?? ''
+  content.dataset.rmEmpty = isEmptyHeaderFooterHtml(displayContent.html) ? 'true' : 'false'
+  content.dataset.rmPlaceholder = type === 'header' ? uiLabels.headerLabel : uiLabels.footerLabel
 
-  inner.appendChild(content)
+  const meta = document.createElement('div')
+  meta.className = `rm-page-region-meta rm-page-region-meta-${type}`
+
+  const label = document.createElement('span')
+  label.className = 'rm-page-region-label'
+  label.textContent = type === 'header' ? uiLabels.headerLabel : uiLabels.footerLabel
+
+  const hint = document.createElement('span')
+  hint.className = 'rm-page-region-hint'
+  hint.textContent = uiLabels.doubleClickHint
+
+  meta.append(label, hint)
+
+  if (type === 'header') {
+    inner.append(content, meta)
+  } else {
+    inner.append(meta, content)
+  }
   region.appendChild(inner)
 
   region.addEventListener('dblclick', event => {

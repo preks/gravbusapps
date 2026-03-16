@@ -259,6 +259,20 @@ describe('Pages extension helpers', () => {
     expect(reducedBodyPageCount).toBeGreaterThan(baselinePageCount)
   })
 
+  it('does not cap measured header and footer heights', () => {
+    const options = createOptions({
+      headerTopMargin: 12,
+      footerBottomMargin: 16
+    })
+    const storage = createStorageFromOptions(options)
+
+    const layout = getPageLayoutHeights(storage.pageFormat, storage, 260, 180)
+
+    expect(layout.measuredHeaderHeight).toBe(260)
+    expect(layout.measuredFooterHeight).toBe(180)
+    expect(layout.bodyHeight).toBe(72)
+  })
+
   it('measures header and footer content from the rendered regions', () => {
     const root = document.createElement('div')
     const options = createOptions({

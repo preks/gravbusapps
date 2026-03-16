@@ -564,8 +564,11 @@ editor-page-of = Page { $current } of { $total }
 editor-user-fallback = User
 editor-header-footer-editing-header = Editing header on page { $page }
 editor-header-footer-editing-footer = Editing footer on page { $page }
-editor-header-footer-mode-description = Toolbar actions apply to the active header or footer until you close this mode.
-editor-header-footer-close = Close header and footer
+editor-header-footer-mode-description = Toolbar actions apply to the active header or footer.
+editor-header-footer-close = Done
+editor-header-footer-label-header = Header
+editor-header-footer-label-footer = Footer
+editor-header-footer-double-click = Double-click to edit
 
 # Template fields panel
 template-fields-insert = Insert field

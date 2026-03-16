@@ -1,4 +1,4 @@
-import { Extension } from '@tiptap/core'
+import { Editor, Extension } from '@tiptap/core'
 import type { Node as PMNode } from 'prosemirror-model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import {
@@ -65,6 +65,11 @@ function getOverlayManager(editor: object, create: () => HeaderFooterOverlayMana
   const next = create()
   overlayManagers.set(editor, next)
   return next
+}
+
+function getMountedEditorView(editor: Editor): EditorView | null {
+  const candidate = (editor as unknown as { editorView?: EditorView | null }).editorView
+  return candidate ?? null
 }
 
 function applyMeasuredPageHeightsToView(view: EditorView, storage: PagesStorage, options: PagesOptions) {
@@ -269,21 +274,28 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         options,
         extensions: getHeaderFooterExtensions(options.headerFooterExtensions),
         onUpdate: () => {
-          const measured = applyMeasuredPageHeightsToView(editor.view, storage, options)
+          const mountedView = getMountedEditorView(editor)
+          if (!mountedView) return
+
+          const measured = applyMeasuredPageHeightsToView(mountedView, storage, options)
           measuredHeaderHeights = measured.headerHeights
           measuredFooterHeights = measured.footerHeights
-          const currentPageCount = Math.max(1, getExistingPageCount(editor.view) || storage.pageCount)
-          const measuredPageCount = getMeasuredPageCount(editor.view, storage, options, measured)
+          const currentPageCount = Math.max(1, getExistingPageCount(mountedView) || storage.pageCount)
+          const measuredPageCount = getMeasuredPageCount(mountedView, storage, options, measured)
           storage.pageCount = currentPageCount
 
           if (measuredPageCount !== currentPageCount) {
             storage.pageCount = measuredPageCount
-            queueRefresh(editor.view)
+            queueRefresh(mountedView)
           }
 
-          refreshPageMinHeight(editor.view.dom)
+          refreshPageMinHeight(mountedView.dom)
         },
-        onClose: () => requestRefresh(editor.view)
+        onClose: () => {
+          const mountedView = getMountedEditorView(editor)
+          if (!mountedView) return
+          requestRefresh(mountedView)
+        }
       })
     }
 
@@ -416,9 +428,12 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       const storage = editor.storage.pages as PagesStorage
       const options = getRuntimeOptions(editor, extensionOptions)
       syncStorageFromOptions(storage, options)
-      applyRootStyles(editor.view.dom, storage.pageFormat, options)
       syncEditorStorage(editor as unknown as { storage: Record<string, unknown> }, storage)
-      editor.view.dispatch(editor.state.tr.setMeta(REFRESH_META, true))
+      const view = getMountedEditorView(editor)
+      if (!view) return true
+
+      applyRootStyles(view.dom, storage.pageFormat, options)
+      view.dispatch(editor.state.tr.setMeta(REFRESH_META, true))
       return true
     }
 
@@ -439,9 +454,11 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       const options = getRuntimeOptions(editor, extensionOptions)
       const totalPages = storage.getPageCount()
       if (pageNumber < 1 || pageNumber > totalPages) return false
+      const view = getMountedEditorView(editor)
+      if (!view) return false
 
       const selector = `[data-rm-editor-type="${type}"][data-rm-page-number="${pageNumber}"]`
-      const target = editor.view.dom.querySelector(selector) as HTMLElement | null
+      const target = view.dom.querySelector(selector) as HTMLElement | null
       if (!target) return false
 
       const overlayManager = getOverlayManager(
@@ -463,9 +480,12 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         options,
         extensions: getHeaderFooterExtensions(options.headerFooterExtensions),
         onUpdate: () => {
-          const measured = applyMeasuredPageHeightsToView(editor.view, storage, options)
-          const currentPageCount = Math.max(1, getExistingPageCount(editor.view) || storage.pageCount)
-          const measuredPageCount = getMeasuredPageCount(editor.view, storage, options, measured)
+          const mountedView = getMountedEditorView(editor)
+          if (!mountedView) return
+
+          const measured = applyMeasuredPageHeightsToView(mountedView, storage, options)
+          const currentPageCount = Math.max(1, getExistingPageCount(mountedView) || storage.pageCount)
+          const measuredPageCount = getMeasuredPageCount(mountedView, storage, options, measured)
           storage.pageCount = currentPageCount
 
           if (measuredPageCount !== currentPageCount) {
@@ -474,7 +494,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             return
           }
 
-          refreshPageMinHeight(editor.view.dom)
+          refreshPageMinHeight(mountedView.dom)
         },
         onClose: () => refresh(editor)
       })

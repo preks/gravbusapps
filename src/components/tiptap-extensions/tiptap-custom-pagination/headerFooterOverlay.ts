@@ -2,6 +2,10 @@ import { Editor, type Extension } from '@tiptap/core'
 import type { HeaderFooterEditorType, PagesHeaderFooter, PagesOptions, PagesStorage, PageVariantKey } from './types'
 import { getHeaderFooterExtensions, resolveVariantForPage, setStoredVariantContent } from './utils'
 
+function isEmptyHeaderFooterHtml(html: string) {
+  return html.replace(/<[^>]*>/g, '').trim() === ''
+}
+
 interface OpenOverlayParams {
   type: HeaderFooterEditorType
   pageNumber: number
@@ -38,8 +42,9 @@ export class HeaderFooterOverlayManager {
 
     const { target, type, pageNumber, initialContent, storage, options } = params
     const overlay = document.createElement('div')
-    const label = document.createElement('div')
     const editorHost = document.createElement('div')
+    const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
+    const visibleContent = target.querySelector(contentSelector) as HTMLElement | null
     const variant = resolveVariantForPage(pageNumber, options)
     const accentColor =
       type === 'header'
@@ -47,11 +52,24 @@ export class HeaderFooterOverlayManager {
         : (options.footerAccentColor ?? options.accentColor ?? '#6366f1')
 
     overlay.className = 'rm-page-overlay'
+    overlay.dataset.rmOverlayType = type
     overlay.style.setProperty('--rm-overlay-accent', accentColor)
-    label.className = 'rm-page-overlay-label'
-    label.textContent = type === 'header' ? 'Header' : 'Footer'
     editorHost.className = 'rm-page-overlay-editor'
-    overlay.append(label, editorHost)
+    if (visibleContent) {
+      const targetRect = target.getBoundingClientRect()
+      const contentRect = visibleContent.getBoundingClientRect()
+      const topInset = Math.max(0, contentRect.top - targetRect.top)
+      const leftInset = Math.max(0, contentRect.left - targetRect.left)
+      const rightInset = Math.max(0, targetRect.right - contentRect.right)
+      const bottomInset = type === 'footer' ? Math.max(0, targetRect.bottom - contentRect.bottom) : 0
+
+      overlay.style.top = `${topInset}px`
+      overlay.style.left = `${leftInset}px`
+      overlay.style.right = `${rightInset}px`
+      overlay.style.bottom = `${bottomInset}px`
+    }
+    target.dataset.rmOverlayActive = 'true'
+    overlay.append(editorHost)
     target.appendChild(overlay)
 
     const previousEditable = this.hostEditor.isEditable
@@ -73,10 +91,9 @@ export class HeaderFooterOverlayManager {
         json
       })
 
-      const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
-      const visibleContent = target.querySelector(contentSelector) as HTMLElement | null
       if (visibleContent) {
         visibleContent.innerHTML = html
+        visibleContent.dataset.rmEmpty = isEmptyHeaderFooterHtml(html) ? 'true' : 'false'
       }
 
       params.onUpdate?.()
@@ -128,6 +145,7 @@ export class HeaderFooterOverlayManager {
       overlayEditor.off('update', syncOverlayContentToStorage)
       overlayEditor.destroy()
       overlay.remove()
+      delete target.dataset.rmOverlayActive
       this.hostEditor.setEditable(previousEditable, false)
       params.onClose()
     }

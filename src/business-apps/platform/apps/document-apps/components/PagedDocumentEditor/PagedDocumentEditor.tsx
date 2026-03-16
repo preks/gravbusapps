@@ -1405,6 +1405,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   headerAccentColor: pagesFormattingConfig.headerAccentColor,
                   footerAccentColor: pagesFormattingConfig.footerAccentColor,
                   headerFooterExtensions,
+                  uiLabels: {
+                    headerLabel: t('editor-header-footer-label-header'),
+                    footerLabel: t('editor-header-footer-label-footer'),
+                    doubleClickHint: t('editor-header-footer-double-click'),
+                    doneLabel: t('editor-header-footer-close')
+                  },
                   onActiveEditorChange: handlePagesActiveEditorChange,
                   onDblClickHeaderFooterPreventClose: event =>
                     editorChromeRef.current?.contains(event.target as Node) ?? false
@@ -2609,10 +2615,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           {headerExtra && <div className="gba:px-4 gba:pb-2">{headerExtra}</div>}
 
           {isHeaderFooterEditing && (
-            <div className="gba:px-4 gba:pb-2">
-              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:rounded-md gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
-                <div className="gba:flex gba:flex-col">
-                  <span className="gba:text-sm gba:font-medium">
+            <div className="gba:border-t gba:bg-muted/20 gba:px-4 gba:py-1.5">
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+                <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
+                  <span className="gba:h-2 gba:w-2 gba:flex-shrink-0 gba:rounded-full gba:bg-primary/70" />
+                  <span className="gba:truncate gba:text-sm gba:font-medium gba:text-foreground">
                     {pagesEditorState.activeEditorType === 'header'
                       ? t('editor-header-footer-editing-header', {
                           page: pagesEditorState.activePageNumber ?? 1
@@ -2621,14 +2628,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                           page: pagesEditorState.activePageNumber ?? 1
                         })}
                   </span>
-                  <span className="gba:text-xs gba:text-muted-foreground">
+                  <span className="gba:hidden lg:gba:inline gba:truncate">
                     {t('editor-header-footer-mode-description')}
                   </span>
                 </div>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
+                  className="gba:h-8 gba:px-2 gba:text-primary hover:gba:text-primary"
                   onClick={() => editor?.commands.closeHeaderFooterEditors()}
                   data-testid="document-header-footer-close-mode"
                 >

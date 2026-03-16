@@ -45,6 +45,13 @@ export interface ActivePagesEditorState {
   activePageNumber: number | null
 }
 
+export interface PagesUiLabels {
+  headerLabel: string
+  footerLabel: string
+  doubleClickHint: string
+  doneLabel: string
+}
+
 export interface PagesOptionUpdates {
   pageFormat?: PageFormatInput
   header?: PagesHeaderFooterSource
@@ -91,6 +98,7 @@ export interface PagesOptions {
   footerAccentColor?: string
   onPageFormatChange?: (pageFormat: PageFormat) => void
   onActiveEditorChange?: (state: ActivePagesEditorState) => void
+  uiLabels?: Partial<PagesUiLabels>
 }
 
 export interface PagesStorage {

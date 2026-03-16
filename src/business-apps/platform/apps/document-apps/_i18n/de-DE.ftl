@@ -559,8 +559,11 @@ editor-page-of = Seite { $current } von { $total }
 editor-user-fallback = Benutzer
 editor-header-footer-editing-header = Kopfzeile auf Seite { $page } bearbeiten
 editor-header-footer-editing-footer = Fußzeile auf Seite { $page } bearbeiten
-editor-header-footer-mode-description = Werkzeugleisten-Aktionen gelten für die aktive Kopf- oder Fußzeile, bis Sie diesen Modus schließen.
-editor-header-footer-close = Kopf- und Fußzeile schließen
+editor-header-footer-mode-description = Werkzeugleisten-Aktionen gelten für die aktive Kopf- oder Fußzeile.
+editor-header-footer-close = Fertig
+editor-header-footer-label-header = Kopfzeile
+editor-header-footer-label-footer = Fußzeile
+editor-header-footer-double-click = Doppelklicken zum Bearbeiten
 
 # Template fields panel
 template-fields-insert = Feld einfügen

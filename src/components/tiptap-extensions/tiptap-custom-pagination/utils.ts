@@ -298,40 +298,43 @@ function clampToNonNegative(value: number): number {
 function readMeasuredElementHeight(element: HTMLElement | null): number {
   if (!element) return 0
 
-  const rectHeight = typeof element.getBoundingClientRect === 'function' ? element.getBoundingClientRect().height : 0
-  return Math.max(element.scrollHeight, element.clientHeight, element.offsetHeight, rectHeight, 0)
-}
+  let contentRectHeight = 0
+  if (typeof document !== 'undefined' && typeof document.createRange === 'function') {
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    if (typeof range.getBoundingClientRect === 'function') {
+      contentRectHeight = range.getBoundingClientRect().height
+    }
+  }
 
-export function getMaxHeaderContentHeight(
-  pageFormat: PageFormat,
-  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>
-): number {
-  return clampToNonNegative(Math.floor(pageFormat.height * 0.45) - pageFormat.margins.top - storage.headerTopMargin)
-}
+  const firstChild = element.firstElementChild as HTMLElement | null
+  const lastChild = element.lastElementChild as HTMLElement | null
+  const childrenRectHeight =
+    firstChild && lastChild
+      ? Math.max(0, lastChild.getBoundingClientRect().bottom - firstChild.getBoundingClientRect().top)
+      : 0
 
-export function getMaxFooterContentHeight(
-  pageFormat: PageFormat,
-  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>
-): number {
-  return clampToNonNegative(
-    Math.floor(pageFormat.height * 0.45) - pageFormat.margins.bottom - storage.footerBottomMargin
-  )
+  if (contentRectHeight > 0 || childrenRectHeight > 0) {
+    return Math.max(contentRectHeight, childrenRectHeight)
+  }
+
+  return Math.max(element.scrollHeight, element.clientHeight, element.offsetHeight, 0)
 }
 
 function clampHeaderContentHeight(
-  pageFormat: PageFormat,
-  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>,
+  _pageFormat: PageFormat,
+  _storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>,
   height: number
 ): number {
-  return Math.min(clampToNonNegative(height), getMaxHeaderContentHeight(pageFormat, storage))
+  return clampToNonNegative(height)
 }
 
 function clampFooterContentHeight(
-  pageFormat: PageFormat,
-  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>,
+  _pageFormat: PageFormat,
+  _storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>,
   height: number
 ): number {
-  return Math.min(clampToNonNegative(height), getMaxFooterContentHeight(pageFormat, storage))
+  return clampToNonNegative(height)
 }
 
 export function getPageLayoutHeights(
