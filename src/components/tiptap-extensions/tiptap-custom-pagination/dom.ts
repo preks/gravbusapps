@@ -1,6 +1,6 @@
 import type { Extension } from '@tiptap/core'
 import type { HeaderFooterEditorType, PageFormat, PagesOptions, PagesStorage } from './types'
-import { getHeaderFooterExtensions, resolveDisplayContent } from './utils'
+import { getHeaderFooterExtensions, getPageContentHeight, resolveDisplayContent } from './utils'
 
 const STYLE_ATTR = 'data-rm-pages-style'
 
@@ -20,6 +20,13 @@ export function ensurePagesStyles(targetDocument: Document) {
       position: relative;
     }
     .rm-pages-root .rm-page-spacer {
+      position: relative;
+      float: left;
+      clear: both;
+      width: 0;
+      height: 0;
+    }
+    .rm-pages-root .page {
       position: relative;
       float: left;
       clear: both;
@@ -227,9 +234,10 @@ export function createPageBreakElement(params: {
   const pageContainer = document.createElement('div')
   pageContainer.className = 'rm-page-break'
 
-  const pageSpacer = document.createElement('div')
-  pageSpacer.className = 'rm-page-spacer'
-  pageSpacer.style.marginTop = `${pageFormat.height - pageFormat.margins.bottom}px`
+  const page = document.createElement('div')
+  page.className = 'page'
+  page.style.marginTop =
+    pageNumber === 1 ? `${pageFormat.height - pageFormat.margins.bottom}px` : `${getPageContentHeight(pageFormat)}px`
 
   const breaker = document.createElement('div')
   breaker.className = 'breaker'
@@ -261,7 +269,7 @@ export function createPageBreakElement(params: {
   })
 
   breaker.append(footer, pageGap, nextHeader)
-  pageContainer.append(pageSpacer, breaker)
+  pageContainer.append(page, breaker)
 
   return pageContainer
 }

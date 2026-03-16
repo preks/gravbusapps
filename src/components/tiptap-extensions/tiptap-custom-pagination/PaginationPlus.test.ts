@@ -99,6 +99,12 @@ describe('Pages extension helpers', () => {
 
     expect(wrapper.children).toHaveLength(2)
     expect(wrapper.querySelectorAll('.breaker')).toHaveLength(2)
+    expect((wrapper.querySelector('.rm-page-break:nth-child(1) > .page') as HTMLElement | null)?.style.marginTop).toBe(
+      `${storage.pageFormat.height - storage.pageFormat.margins.bottom}px`
+    )
+    expect((wrapper.querySelector('.rm-page-break:nth-child(2) > .page') as HTMLElement | null)?.style.marginTop).toBe(
+      `${storage.pageFormat.height - storage.pageFormat.margins.top - storage.pageFormat.margins.bottom}px`
+    )
   })
 
   it('ignores pagination helper widgets when measuring blank content', () => {
