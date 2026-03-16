@@ -116,7 +116,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
       }
     }
 
-    const getMetricVariant = (score: number): 'secondary' | 'success' | 'warning' => {
+    const getScoreVariant = (score: number): 'secondary' | 'success' | 'warning' => {
       if (score >= 80) return 'success'
       if (score >= 60) return 'secondary'
       return 'warning'
@@ -142,12 +142,6 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
         icon: 'gba:text-success-foreground',
         badgeVariant: 'success' as const
       }
-    }
-
-    const getScoreVariant = (score: number): 'success' | 'secondary' | 'warning' => {
-      if (score >= 80) return 'success'
-      if (score >= 60) return 'secondary'
-      return 'warning'
     }
 
     return createPortal(
@@ -268,13 +262,13 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                 {analyze.result && (
                   <div className="gba:space-y-4">
                     <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-                      <Badge variant={getMetricVariant(analyze.result.metrics.completeness)}>
+                      <Badge variant={getScoreVariant(analyze.result.metrics.completeness)}>
                         Completeness: {analyze.result.metrics.completeness}
                       </Badge>
-                      <Badge variant={getMetricVariant(analyze.result.metrics.consistency)}>
+                      <Badge variant={getScoreVariant(analyze.result.metrics.consistency)}>
                         Consistency: {analyze.result.metrics.consistency}
                       </Badge>
-                      <Badge variant={getMetricVariant(analyze.result.metrics.validity)}>
+                      <Badge variant={getScoreVariant(analyze.result.metrics.validity)}>
                         Validity: {analyze.result.metrics.validity}
                       </Badge>
                     </div>

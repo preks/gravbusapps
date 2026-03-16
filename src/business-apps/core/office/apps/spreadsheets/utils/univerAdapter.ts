@@ -163,7 +163,7 @@ function toFormulaCell(obj: Record<string, unknown>): UniverCellData | null {
 function toImageUrl(raw: string): string {
   const trimmed = raw.trim()
   const isHttpImage = /^https?:\/\//i.test(trimmed)
-  const isDataImage = /^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(trimmed)
+  const isDataImage = /^data:image\/[a-z0-9.+-]+;base64,/i.test(trimmed)
   const looksLikeRawBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(trimmed) && trimmed.length > 100
   if (isHttpImage || isDataImage) return trimmed
   if (looksLikeRawBase64) return `data:image/jpeg;base64,${trimmed}`

@@ -1515,17 +1515,14 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     // Track "active sheet" based on pointer/focus so we can hijack shortcuts even when
     // Univer's canvas selection doesn't move DOM focus (common in published embeds).
     useEffect(() => {
-      const onPointerDownCapture = (e: PointerEvent) => {
+      const updateInteractionActive = (target: EventTarget | null) => {
         const container = containerRef.current
         if (!container) return
-        isSheetInteractionActiveRef.current = e.target instanceof Node && container.contains(e.target)
+        isSheetInteractionActiveRef.current = target instanceof Node && container.contains(target)
       }
 
-      const onFocusInCapture = (e: FocusEvent) => {
-        const container = containerRef.current
-        if (!container) return
-        isSheetInteractionActiveRef.current = e.target instanceof Node && container.contains(e.target)
-      }
+      const onPointerDownCapture = (e: PointerEvent) => updateInteractionActive(e.target)
+      const onFocusInCapture = (e: FocusEvent) => updateInteractionActive(e.target)
 
       globalThis.addEventListener('pointerdown', onPointerDownCapture, true)
       globalThis.addEventListener('focusin', onFocusInCapture, true)
