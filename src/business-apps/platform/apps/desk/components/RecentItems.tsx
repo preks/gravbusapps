@@ -82,7 +82,7 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
   'data-testid': testId = 'desk-recent'
 }) => {
   const { t } = useTranslation(deskTranslations)
-  const typeConfig = React.useMemo(() => getTypeConfig(t), [t])
+  const typeConfig = getTypeConfig(t)
   const isSearchMode = Boolean(searchQuery.trim())
 
   return (

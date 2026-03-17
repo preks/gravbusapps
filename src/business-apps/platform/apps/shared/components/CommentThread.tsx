@@ -110,6 +110,8 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   const isOwnComment = currentUserId && comment.createdBy === currentUserId
   const isResolved = !!comment.resolvedAt
   const isInlineComment = comment.type === 'inline' || comment.type === 'selection'
+  const isCellComment = comment.type === 'cell'
+  const hasCellReference = isCellComment && comment.cellReference
 
   const handleResolveAndUnhighlight = async () => {
     await onResolve()
@@ -176,6 +178,19 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
             )}
           </div>
 
+          {/* Cell reference for spreadsheet comments - display only (setSelection causes page refresh) */}
+          {hasCellReference && (
+            <div className="gba:mb-2 gba:flex gba:items-center gba:gap-1.5">
+              <Badge
+                variant="outline"
+                className="gba:text-xs gba:font-mono gba:bg-muted/50"
+                data-testid={`${testId}-cell-ref-${comment.id}`}
+              >
+                Cell {comment.cellReference}
+              </Badge>
+            </div>
+          )}
+
           {/* Inline comment reference */}
           {isInlineComment && comment.selectedText && (
             <button
@@ -217,7 +232,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
               <MoreVertical className="gba:h-4 gba:w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="gba:w-48">
+          <DropdownMenuContent align="end" side="left" className="gba:w-48" style={{ zIndex: 1100 }}>
             {!isResolved && (
               <DropdownMenuItem onClick={() => setShowReplyInput(!showReplyInput)}>
                 <Reply className="gba:h-4 gba:w-4 gba:mr-2" />

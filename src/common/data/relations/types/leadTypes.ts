@@ -46,6 +46,8 @@ export interface Lead extends BaseEntity {
   ownerEmployee?: Employee // IRM / CRM
   ownerEmployeeId?: string // IRM / CRM
   phoneNumber?: string // IRM / CRM
+  secondaryNumber?: string // IRM / CRM
+  linkedinUrl?: string // IRM / CRM
   jobPosition?: string // IRM / CRM
   postalCode?: string // IRM / CRM
   region?: CatalogEntry // IRM / CRM
@@ -106,6 +108,8 @@ export const LeadFields = {
   ownerEmployee: 'ownerEmployee',
   ownerEmployeeId: 'ownerEmployeeId',
   phoneNumber: 'phoneNumber',
+  secondaryNumber: 'secondaryNumber',
+  linkedinUrl: 'linkedinUrl',
   jobPosition: 'position',
   postalCode: 'postalCode',
   region: 'region',
@@ -249,6 +253,8 @@ export const createLeadDescriptors = (fields: Record<keyof typeof LeadFields, st
     type: 'text'
   },
   { key: 'phoneNumber', searchPaths: [fields.phoneNumber], sortPath: fields.phoneNumber, type: 'text' },
+  { key: 'secondaryNumber', searchPaths: [fields.secondaryNumber], sortPath: fields.secondaryNumber, type: 'text' },
+  { key: 'linkedinUrl', searchPaths: [fields.linkedinUrl], sortPath: fields.linkedinUrl, type: 'text' },
   { key: 'jobPosition', searchPaths: [fields.jobPosition], sortPath: fields.jobPosition, type: 'text' },
   { key: 'postalCode', searchPaths: [fields.postalCode], sortPath: fields.postalCode, type: 'text' },
   {
@@ -373,7 +379,7 @@ export const createLeadDescriptors = (fields: Record<keyof typeof LeadFields, st
   // Composite display columns
   {
     key: 'communicationChannels',
-    searchPaths: [fields.email, fields.phoneNumber, fields.companyWebsite],
+    searchPaths: [fields.email, fields.phoneNumber, fields.secondaryNumber, fields.linkedinUrl, fields.companyWebsite],
     enableSort: false,
     type: 'text'
   }
@@ -418,6 +424,8 @@ export const leadFormFields = {
   locality: 'locality',
   ownerEmployeeId: 'ownerEmployee',
   phoneNumber: 'phoneNumber',
+  secondaryNumber: 'secondaryNumber',
+  linkedinUrl: 'linkedinUrl',
   jobPosition: 'position',
   postalCode: 'postalCode',
   regionRef: 'regionRef',

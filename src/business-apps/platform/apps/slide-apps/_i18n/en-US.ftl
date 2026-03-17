@@ -1,3 +1,14 @@
+# Hero
+slh-parent-label = Every Office
+slh-title = Slides
+slh-tabs-aria-label = Slide sections
+slh-tab-my-slides = My Slides
+slh-tab-shared = Shared
+slh-tab-favorites = Favorites
+slh-tab-recent = Recent
+slh-tab-archived = Archived
+slh-refresh = Refresh
+
 sidebar-back-to-desk = Back to Desk
 sidebar-expand = Expand sidebar
 sidebar-collapse = Collapse sidebar
