@@ -38,6 +38,7 @@ adjust-salary-duplicate-month-warning = A salary adjustment already exists for t
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Assign Employee Salary
+assign-salary-no-employment-region-warning = An employment region must be set for this employee to ensure correct currency and compliance. Please set the employment region in the employee record.
 assign-salary-type = Compensation Type
 assign-salary-type-required = Compensation type is required. Please select a compensation type.
 assign-salary-type-yearly-monthly = Monthly Salary
@@ -93,6 +94,7 @@ action-enter-placeholder = Please Enter
 
 # Form Title
 form-title = Grant Employee Bonus
+grant-bonus-no-employment-region-warning = An employment region must be set for this employee to ensure correct currency and compliance. Please set the employment region in the employee record.
 
 # Form Actions
 action-cancel = Cancel
