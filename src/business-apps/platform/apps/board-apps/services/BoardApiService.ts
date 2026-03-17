@@ -500,6 +500,19 @@ export const BoardApiService = {
     }
   },
 
+  async reorderRow(
+    boardId: string,
+    sheetId: string,
+    rowId: string,
+    afterRowId: string | null,
+    beforeRowId: string | null
+  ): Promise<void> {
+    await apiRequest(`/boards/${boardId}/sheets/${sheetId}/rows/reorder`, {
+      method: 'POST',
+      body: JSON.stringify({ rowId, afterRowId, beforeRowId })
+    })
+  },
+
   async getRowPage(
     boardId: string,
     sheetId: string,

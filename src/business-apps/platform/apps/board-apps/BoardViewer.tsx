@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo, useImperativeHandle, forwardRef, useRef } from 'react'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, toast } from '@newwork/nw-design-system'
 import type { Board, BoardSheet, BoardRow, BoardQuickFilter } from './types'
 import { RowPagePanel } from './components/RowPagePanel'
 import { BoardViewContent } from './components/BoardViewContent'
@@ -738,6 +738,20 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                 onAddQuickFilter={canEdit ? addQuickFilter : undefined}
                 onRenameQuickFilter={canEdit ? renameQuickFilter : undefined}
                 onDeleteQuickFilter={canEdit ? deleteQuickFilter : undefined}
+                onReorderRow={
+                  canEdit
+                    ? async (rowId, afterRowId, beforeRowId) => {
+                        try {
+                          await BoardApiService.reorderRow(board.id, activeSheet!.id, rowId, afterRowId, beforeRowId)
+                          if (onLoadRows) {
+                            void onLoadRows(board.id, activeSheet!.id)
+                          }
+                        } catch {
+                          toast.error('Failed to reorder row')
+                        }
+                      }
+                    : undefined
+                }
                 peopleLookup={peopleLookup}
                 testId={`${testId}-${viewType}`}
               />
