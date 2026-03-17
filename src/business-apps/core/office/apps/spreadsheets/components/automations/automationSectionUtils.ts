@@ -302,7 +302,10 @@ export function getAutomationTypeLabel(type: AutomationType, t: (key: string) =>
   return t(keyMap[type] || type)
 }
 
-export function formatRelativeTime(dateString: string, t: (key: string) => string): string {
+export function formatRelativeTime(
+  dateString: string,
+  t: (key: string, vars?: Record<string, unknown>) => string
+): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -311,9 +314,9 @@ export function formatRelativeTime(dateString: string, t: (key: string) => strin
   const diffDays = Math.floor(diffMs / 86400000)
 
   if (diffMins < 1) return t('automations-time-just-now')
-  if (diffMins < 60) return t('automations-time-min-ago')
-  if (diffHours < 24) return t('automations-time-hours-ago')
-  if (diffDays < 7) return t('automations-time-days-ago')
+  if (diffMins < 60) return t('automations-time-min-ago', { count: diffMins })
+  if (diffHours < 24) return t('automations-time-hours-ago', { count: diffHours })
+  if (diffDays < 7) return t('automations-time-days-ago', { count: diffDays })
   return date.toLocaleDateString()
 }
 
