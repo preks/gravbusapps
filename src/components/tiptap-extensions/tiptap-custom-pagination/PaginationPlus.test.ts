@@ -14,6 +14,7 @@ import type { PagesOptions } from './types'
 import {
   calculatePageCount,
   createStorageFromOptions,
+  findMergeableTableFragments,
   findOverflowingTableSplit,
   getPageLayoutHeights,
   getPageSpacerHeight,
@@ -412,7 +413,74 @@ describe('Pages extension helpers', () => {
 
     expect(findOverflowingTableSplit(view)).toEqual({
       tablePos: 1,
-      splitRowIndex: 1
+      splitRowIndex: 2
+    })
+  })
+
+  it('finds mergeable pagination table fragments on the same page', () => {
+    const root = document.createElement('div')
+    root.getBoundingClientRect = jest.fn(() => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 500,
+      bottom: 500,
+      left: 0,
+      width: 500,
+      height: 500,
+      toJSON: () => ({})
+    })) as any
+
+    const firstBand = document.createElement('div')
+    firstBand.className = 'rm-page-body-layer'
+    firstBand.dataset.rmPageNumber = '1'
+    mockRect(firstBand, { top: 0, bottom: 100 })
+
+    const secondBand = document.createElement('div')
+    secondBand.className = 'rm-page-body-layer'
+    secondBand.dataset.rmPageNumber = '2'
+    mockRect(secondBand, { top: 120, bottom: 260 })
+
+    const firstTable = document.createElement('table')
+    mockRect(firstTable, { top: 140, bottom: 170 })
+
+    const secondTable = document.createElement('table')
+    mockRect(secondTable, { top: 180, bottom: 210 })
+
+    root.append(firstBand, secondBand, firstTable, secondTable)
+
+    const firstTableNode = {
+      type: { name: 'table' },
+      attrs: { paginationSplitId: 'pagination-split-1' },
+      nodeSize: 10
+    } as any
+    const secondTableNode = {
+      type: { name: 'table' },
+      attrs: { paginationSplitId: 'pagination-split-1' },
+      nodeSize: 8
+    } as any
+
+    const view = {
+      dom: root,
+      state: {
+        doc: {
+          descendants: (callback: (node: typeof firstTableNode, pos: number) => void) => {
+            callback(firstTableNode, 1)
+            callback(secondTableNode, 11)
+          }
+        }
+      },
+      nodeDOM: jest.fn((pos: number) => {
+        if (pos === 1) return firstTable
+        if (pos === 11) return secondTable
+        return null
+      })
+    } as any
+
+    expect(findMergeableTableFragments(view)).toEqual({
+      firstTablePos: 1,
+      secondTablePos: 11,
+      paginationSplitId: 'pagination-split-1'
     })
   })
 

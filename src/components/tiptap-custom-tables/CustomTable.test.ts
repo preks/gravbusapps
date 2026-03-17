@@ -1,7 +1,7 @@
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { Table, TableCell, TableHeader, TableRow } from './index'
-import { splitTableAtRow } from './tableSelectionUtils'
+import { mergeAdjacentPaginationTables, splitTableAtRow } from './tableSelectionUtils'
 
 function createEditor(content = '<p>Hello</p>') {
   const element = document.createElement('div')
@@ -141,7 +141,7 @@ describe('CustomTable', () => {
     element.remove()
   })
 
-  it('splits overflowing tables into continuation tables with repeated header rows', () => {
+  it('splits overflowing tables into continuation tables without duplicating the header row', () => {
     const { editor, element } = createEditor()
 
     editor.commands.insertTable({ rows: 4, cols: 2, withHeaderRow: true })
@@ -170,9 +170,36 @@ describe('CustomTable', () => {
       tableWidth: '14cm',
       tableAlign: 'center'
     })
+    expect(tables[0].attrs.paginationSplitId).toBeTruthy()
+    expect(tables[1].attrs.paginationSplitId).toBe(tables[0].attrs.paginationSplitId)
     expect(tables[0].content).toHaveLength(2)
-    expect(tables[1].content).toHaveLength(3)
-    expect(tables[1].content?.[0].content?.every(cell => cell.type === 'tableHeader')).toBe(true)
+    expect(tables[1].content).toHaveLength(2)
+    expect(tables[1].content?.[0].content?.every(cell => cell.type === 'tableCell')).toBe(true)
+
+    editor.destroy()
+    element.remove()
+  })
+
+  it('merges adjacent pagination table fragments back into a single table', () => {
+    const { editor, element } = createEditor()
+
+    editor.commands.insertTable({ rows: 4, cols: 2, withHeaderRow: true })
+
+    const tablePos = findFirstTablePos(editor)
+    expect(tablePos).not.toBeNull()
+
+    const splitTr = editor.state.tr
+    expect(splitTableAtRow(editor.state, splitTr, tablePos as number, 2)).toBe(true)
+    editor.view.dispatch(splitTr)
+
+    const mergedTr = editor.state.tr
+    expect(mergeAdjacentPaginationTables(editor.state, mergedTr, tablePos as number)).toBe(true)
+    editor.view.dispatch(mergedTr)
+
+    const tables = editor.getJSON().content?.filter(node => node.type === 'table') ?? []
+
+    expect(tables).toHaveLength(1)
+    expect(tables[0].content).toHaveLength(4)
 
     editor.destroy()
     element.remove()

@@ -156,6 +156,19 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
             style: getTableStyle(width, align, mode)
           }
         }
+      },
+      paginationSplitId: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-pagination-split-id'),
+        renderHTML: attributes => {
+          if (typeof attributes.paginationSplitId !== 'string' || attributes.paginationSplitId.length === 0) {
+            return {}
+          }
+
+          return {
+            'data-pagination-split-id': attributes.paginationSplitId
+          }
+        }
       }
     }
   },

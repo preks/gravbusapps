@@ -29,6 +29,7 @@ import type {
 import {
   calculatePageCount,
   createStorageFromOptions,
+  findMergeableTableFragments,
   findOverflowingTableSplit,
   getHeaderFooterExtensions,
   getInitialEditorContent,
@@ -39,7 +40,7 @@ import {
   resolvePageFormat,
   syncStorageFromOptions
 } from './utils'
-import { splitTableAtRow } from '@/components/tiptap-custom-tables/tableSelectionUtils'
+import { mergeAdjacentPaginationTables, splitTableAtRow } from '@/components/tiptap-custom-tables/tableSelectionUtils'
 
 const REFRESH_META = 'RM_PAGES_REFRESH'
 const paginationKey = new PluginKey<DecorationSet>('rm-pages-pagination')
@@ -409,7 +410,10 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     let measuredHeaderHeights = new Map<number, number>()
     let measuredFooterHeights = new Map<number, number>()
     let refreshQueued = false
+    let tableMergeQueued = false
     let tableSplitQueued = false
+    let queuedTableMergeKey: string | null = null
+    let rejectedTableMergeKey: string | null = null
     let queuedTableSplitKey: string | null = null
     let rejectedTableSplitKey: string | null = null
     let lastKnownDoc: PMNode | null = null
@@ -462,6 +466,42 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
 
         queuedTableSplitKey = null
         rejectedTableSplitKey = null
+        view.dispatch(tr)
+      })
+    }
+
+    const queueTableMerge = (view: EditorView, expectedCandidateKey: string) => {
+      if (tableMergeQueued) return
+      tableMergeQueued = true
+      queuedTableMergeKey = expectedCandidateKey
+
+      requestAnimationFrame(() => {
+        tableMergeQueued = false
+        if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
+
+        const candidate = findMergeableTableFragments(view)
+        if (!candidate) {
+          queuedTableMergeKey = null
+          rejectedTableMergeKey = null
+          return
+        }
+
+        const candidateKey = `${candidate.paginationSplitId}:${candidate.firstTablePos}:${candidate.secondTablePos}`
+        if (queuedTableMergeKey !== null && candidateKey !== queuedTableMergeKey) {
+          queuedTableMergeKey = null
+        }
+
+        const tr = view.state.tr
+        const didMerge = mergeAdjacentPaginationTables(view.state, tr, candidate.firstTablePos)
+
+        if (!didMerge) {
+          queuedTableMergeKey = candidateKey
+          rejectedTableMergeKey = candidateKey
+          return
+        }
+
+        queuedTableMergeKey = null
+        rejectedTableMergeKey = null
         view.dispatch(tr)
       })
     }
@@ -627,6 +667,8 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             const currentDoc = updatedView.state.doc
 
             if (lastKnownDoc !== null && currentDoc !== lastKnownDoc) {
+              queuedTableMergeKey = null
+              rejectedTableMergeKey = null
               queuedTableSplitKey = null
               rejectedTableSplitKey = null
             }
@@ -635,6 +677,25 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             storage.pageCount = currentPageCount
 
             if (storage.activeEditorType === null) {
+              const mergeCandidate = findMergeableTableFragments(updatedView)
+              const mergeCandidateKey = mergeCandidate
+                ? `${mergeCandidate.paginationSplitId}:${mergeCandidate.firstTablePos}:${mergeCandidate.secondTablePos}`
+                : null
+
+              if (
+                mergeCandidateKey !== null &&
+                mergeCandidateKey !== rejectedTableMergeKey &&
+                mergeCandidateKey !== queuedTableMergeKey
+              ) {
+                queueTableMerge(updatedView, mergeCandidateKey)
+                return
+              }
+
+              if (mergeCandidateKey === null) {
+                queuedTableMergeKey = null
+                rejectedTableMergeKey = null
+              }
+
               const candidate = findOverflowingTableSplit(updatedView)
               const candidateKey = candidate ? `${candidate.tablePos}:${candidate.splitRowIndex}` : null
 

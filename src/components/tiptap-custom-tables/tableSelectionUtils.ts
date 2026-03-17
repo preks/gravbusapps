@@ -11,6 +11,12 @@ export interface TableContext {
   columnIndex: number
 }
 
+interface SplitTableOptions {
+  repeatHeaderRow?: boolean
+}
+
+let paginationSplitIdCounter = 0
+
 interface RowInfo {
   node: ProseMirrorNode
   offset: number
@@ -59,7 +65,22 @@ function cloneNode(node: ProseMirrorNode) {
   return node.type.create(node.attrs, node.content, node.marks)
 }
 
-export function splitTableAtRow(state: EditorState, tr: Transaction, tablePos: number, splitRowIndex: number) {
+function getPaginationSplitId(table: ProseMirrorNode) {
+  if (typeof table.attrs.paginationSplitId === 'string' && table.attrs.paginationSplitId.length > 0) {
+    return table.attrs.paginationSplitId
+  }
+
+  paginationSplitIdCounter += 1
+  return `pagination-split-${paginationSplitIdCounter}`
+}
+
+export function splitTableAtRow(
+  state: EditorState,
+  tr: Transaction,
+  tablePos: number,
+  splitRowIndex: number,
+  options: SplitTableOptions = {}
+) {
   const table = state.doc.nodeAt(tablePos)
   if (!table || table.type.name !== 'table') return false
   if (splitRowIndex <= 0 || splitRowIndex >= table.childCount) return false
@@ -73,12 +94,52 @@ export function splitTableAtRow(state: EditorState, tr: Transaction, tablePos: n
   const remainingRows = rows.slice(safeSplitIndex).map(cloneNode)
   if (!firstRows.length || !remainingRows.length) return false
 
-  const repeatHeaderRow = isHeaderRow(rows[0])
+  const paginationSplitId = getPaginationSplitId(table)
+  const repeatHeaderRow = options.repeatHeaderRow === true && isHeaderRow(rows[0])
   const continuationRows = repeatHeaderRow ? [cloneNode(rows[0]), ...remainingRows] : remainingRows
-  const leadingTable = table.type.create(table.attrs, Fragment.fromArray(firstRows), table.marks)
-  const continuationTable = table.type.create(table.attrs, Fragment.fromArray(continuationRows), table.marks)
+  const leadingTableAttrs = {
+    ...table.attrs,
+    paginationSplitId
+  }
+  const continuationTableAttrs = {
+    ...table.attrs,
+    paginationSplitId
+  }
+  const leadingTable = table.type.create(leadingTableAttrs, Fragment.fromArray(firstRows), table.marks)
+  const continuationTable = table.type.create(continuationTableAttrs, Fragment.fromArray(continuationRows), table.marks)
 
   tr.replaceWith(tablePos, tablePos + table.nodeSize, Fragment.fromArray([leadingTable, continuationTable]))
+  return true
+}
+
+export function mergeAdjacentPaginationTables(state: EditorState, tr: Transaction, firstTablePos: number) {
+  const firstTable = state.doc.nodeAt(firstTablePos)
+  if (!firstTable || firstTable.type.name !== 'table') return false
+
+  const secondTablePos = firstTablePos + firstTable.nodeSize
+  const secondTable = state.doc.nodeAt(secondTablePos)
+  if (!secondTable || secondTable.type.name !== 'table') return false
+
+  const firstSplitId = firstTable.attrs.paginationSplitId
+  const secondSplitId = secondTable.attrs.paginationSplitId
+  if (
+    typeof firstSplitId !== 'string' ||
+    firstSplitId.length === 0 ||
+    typeof secondSplitId !== 'string' ||
+    secondSplitId !== firstSplitId
+  ) {
+    return false
+  }
+
+  const firstRows = getTableRows(firstTable).map(cloneNode)
+  const secondRows = getTableRows(secondTable)
+  const trailingRows = secondRows.slice(isHeaderRow(firstRows[0]) && isHeaderRow(secondRows[0]) ? 1 : 0).map(cloneNode)
+  const mergedRows = [...firstRows, ...trailingRows]
+
+  if (!mergedRows.length) return false
+
+  const mergedTable = firstTable.type.create(firstTable.attrs, Fragment.fromArray(mergedRows), firstTable.marks)
+  tr.replaceWith(firstTablePos, secondTablePos + secondTable.nodeSize, mergedTable)
   return true
 }
 

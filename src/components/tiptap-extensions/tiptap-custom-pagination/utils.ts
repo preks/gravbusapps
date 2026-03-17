@@ -35,6 +35,12 @@ export interface TableOverflowSplitCandidate {
   splitRowIndex: number
 }
 
+export interface MergeableTableFragmentsCandidate {
+  firstTablePos: number
+  secondTablePos: number
+  paginationSplitId: string
+}
+
 const PAGE_VARIANT_FIELDS = {
   header: {
     default: ['headerHTML', 'headerJSON'],
@@ -529,6 +535,15 @@ function getPreviousContentElement(element: HTMLElement): HTMLElement | null {
   return null
 }
 
+function getElementMarginTop(element: HTMLElement): number {
+  if (typeof window === 'undefined') return 0
+
+  const computedStyle = window.getComputedStyle(element)
+  const marginTop = Number.parseFloat(computedStyle.marginTop ?? '')
+
+  return Number.isFinite(marginTop) ? marginTop : 0
+}
+
 function getBandIndexForOffset(
   bodyBands: Array<{ pageNumber: number; top: number; bottom: number }>,
   offset: number,
@@ -565,29 +580,26 @@ function getSplitIndexForPushedTable(
   if (!(previousContentElement instanceof HTMLElement)) return null
 
   const previousContentBottom = getElementBottomInEditor(view.dom, previousContentElement)
-  const availableTop = previousContentBottom
+  const availableTop = previousContentBottom + getElementMarginTop(tableDom)
   const availableHeight = previousBand.bottom - availableTop
   if (availableHeight <= tolerance) return null
 
   let splitIndex: number | null = null
-  let consumedHeight = 0
 
   tableNode.forEach((_, rowOffset, rowIndex) => {
-    if (splitIndex !== null) return
-
     const rowPosition = tablePos + 1 + rowOffset
     const rowDom = view.nodeDOM(rowPosition)
     if (!(rowDom instanceof HTMLTableRowElement)) return
 
-    const rowTop = getElementTopInEditor(view.dom, rowDom)
     const rowBottom = getElementBottomInEditor(view.dom, rowDom)
-    const rowHeight = Math.max(0, rowBottom - rowTop)
+    const rowHeight = Math.max(0, rowBottom - getElementTopInEditor(view.dom, rowDom))
+    const consumedHeight = Math.max(0, rowBottom - tableTop)
 
     if (rowHeight >= availableHeight - tolerance) return
-    consumedHeight += rowHeight
 
     if (consumedHeight <= availableHeight + tolerance) {
       splitIndex = rowIndex + 1
+      return
     }
   })
 
@@ -661,6 +673,67 @@ export function findOverflowingTableSplit(view: EditorView): TableOverflowSplitC
         splitRowIndex: safeSplitIndex
       }
     })
+
+    return !candidate
+  })
+
+  return candidate
+}
+
+export function findMergeableTableFragments(view: EditorView): MergeableTableFragmentsCandidate | null {
+  const bodyBands = getPageBodyBandsForMeasurement(view.dom)
+  if (!bodyBands.length) return null
+
+  const tolerance = 1
+  let previousTable: {
+    node: ProseMirrorNode
+    pos: number
+    paginationSplitId: string
+    bandIndex: number
+  } | null = null
+  let candidate: MergeableTableFragmentsCandidate | null = null
+
+  ;(view.state.doc as ProseMirrorNode).descendants((node, pos) => {
+    if (candidate || node.type.name !== 'table') return !candidate
+
+    const paginationSplitId =
+      typeof node.attrs.paginationSplitId === 'string' && node.attrs.paginationSplitId.length > 0
+        ? node.attrs.paginationSplitId
+        : null
+
+    if (!paginationSplitId) {
+      previousTable = null
+      return !candidate
+    }
+
+    const tableDom = view.nodeDOM(pos)
+    if (!(tableDom instanceof HTMLElement)) {
+      previousTable = null
+      return !candidate
+    }
+
+    const bandIndex = getBandIndexForOffset(bodyBands, getElementTopInEditor(view.dom, tableDom), tolerance)
+
+    if (
+      previousTable &&
+      previousTable.paginationSplitId === paginationSplitId &&
+      pos === previousTable.pos + previousTable.node.nodeSize &&
+      bandIndex === previousTable.bandIndex
+    ) {
+      candidate = {
+        firstTablePos: previousTable.pos,
+        secondTablePos: pos,
+        paginationSplitId
+      }
+      return !candidate
+    }
+
+    previousTable = {
+      node,
+      pos,
+      paginationSplitId,
+      bandIndex
+    }
 
     return !candidate
   })
