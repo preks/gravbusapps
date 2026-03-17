@@ -170,6 +170,9 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   const canEdit =
     !board.permission || board.permission === 'owner' || board.permission === 'edit' || board.permission === 'admin'
 
+  const [rowOverride, setRowOverride] = useState<BoardRow[] | null>(null)
+  const effectiveRows = rowOverride ?? rows
+
   const [activeRow, setActiveRow] = useState<BoardRow | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -290,7 +293,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   const navigateToRow = useCallback(
     (targetSheetId: string, rowId: string, position?: number) => {
       const effectiveSheetId = targetSheetId || activeSheetId
-      const rowInMemory = rows.some(r => r.id === rowId)
+      const rowInMemory = effectiveRows.some(r => r.id === rowId)
       const isKanban = activeView?.type === 'kanban'
 
       if (!rowInMemory && isKanban) {
@@ -498,6 +501,10 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   }, [activeSheet, board.id, isKanbanView, onReloadBoard, onLoadRows])
 
   useEffect(() => {
+    setRowOverride(null)
+  }, [rows])
+
+  useEffect(() => {
     setActiveRow(null)
   }, [activeSheetId])
 
@@ -640,7 +647,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                 scrollParent={isKanbanView ? scrollParent : undefined}
                 view={activeView}
                 sheet={enrichedSheet!}
-                rows={rows}
+                rows={effectiveRows}
                 accessToken={accessToken}
                 boardId={board.id}
                 sheetId={activeSheet!.id}
@@ -741,12 +748,22 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                 onReorderRow={
                   canEdit
                     ? async (rowId, afterRowId, beforeRowId) => {
+                        const current = rowOverride ?? rows
+                        const fromIdx = current.findIndex(r => r.id === rowId)
+                        if (fromIdx === -1) return
+                        const without = current.filter(r => r.id !== rowId)
+                        let insertIdx = 0
+                        if (afterRowId) {
+                          const ai = without.findIndex(r => r.id === afterRowId)
+                          if (ai !== -1) insertIdx = ai + 1
+                        }
+                        const next = [...without]
+                        next.splice(insertIdx, 0, current[fromIdx])
+                        setRowOverride(next)
                         try {
                           await BoardApiService.reorderRow(board.id, activeSheet!.id, rowId, afterRowId, beforeRowId)
-                          if (onLoadRows) {
-                            void onLoadRows(board.id, activeSheet!.id)
-                          }
                         } catch {
+                          setRowOverride(null)
                           toast.error('Failed to reorder row')
                         }
                       }
@@ -783,7 +800,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         onNextPage={() => setPage(p => Math.min(totalPages, p + 1))}
         onAddRow={canEdit && onCreateRow ? handleAddRow : undefined}
         hidePagination
-        loadedRows={rows.length}
+        loadedRows={effectiveRows.length}
         testId={testId}
       />
 
@@ -791,7 +808,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         board={board}
         accessToken={accessToken}
         activeSheet={activeSheet || null}
-        rows={rows}
+        rows={effectiveRows}
         page={page}
         onReloadBoard={onReloadBoard}
         onLoadRows={onLoadRows}
@@ -820,7 +837,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
           sheetId={activeSheet.id}
           accessToken={accessToken}
           existingColumns={activeSheet.columns}
-          existingRows={rows}
+          existingRows={effectiveRows}
           onSheetUpdate={
             onSheetUpdate
               ? async (bId, sId, updates) => {
