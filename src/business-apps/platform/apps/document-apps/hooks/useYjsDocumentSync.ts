@@ -11,7 +11,7 @@ import type { Socket } from 'socket.io-client'
 import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
 import { DocumentApiService } from '../services/DocumentApiService'
 import type { DocumentFormatting } from '../types'
-import { isEffectivelyEmptyDocumentHtml } from '../utils/documentContentUtils'
+import { isEffectivelyEmptyDocumentHtml, normalizeDocumentHtmlForEditor } from '../utils/documentContentUtils'
 
 const SNAPSHOT_SAVE_DELAY_MS = 2000
 
@@ -142,7 +142,7 @@ export function useYjsDocumentSync({
         if (!wasEditable) {
           ed.setEditable(true)
         }
-        ed.commands.setContent(html || '<p></p>', true)
+        ed.commands.setContent(normalizeDocumentHtmlForEditor(html || '<p></p>'), true)
         await new Promise(resolve => setTimeout(resolve, 100))
       },
       onLocalDocumentChange: () => {

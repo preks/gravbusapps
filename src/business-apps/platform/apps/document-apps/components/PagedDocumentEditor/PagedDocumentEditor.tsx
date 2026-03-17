@@ -78,6 +78,7 @@ import {
   DEFAULT_PAGE_COLOR
 } from '../../utils/pageLayoutUtils'
 import { isAllowedHref, escapeHtmlAttr, escapeHtmlText } from '../../utils/linkUtils'
+import { normalizeDocumentHtmlForEditor } from '../../utils/documentContentUtils'
 import {
   useDocumentEditorAvatars,
   useYjsDocumentSync,
@@ -946,10 +947,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       return () => formattingYMap.unobserve(handler)
     }, [document?.id, formattingYMap])
 
-    const editorContent = React.useMemo(
-      () => document?.content || initialContent || '<p></p>',
-      [document?.content, initialContent]
-    )
+    const editorContent = React.useMemo(() => {
+      const rawContent = document?.content || initialContent || '<p></p>'
+      return normalizeDocumentHtmlForEditor(rawContent)
+    }, [document?.content, initialContent])
     const editorEditable = React.useMemo(
       () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
       [isReadOnly, document?.id, isYjsSynced, fileLock.canEdit]
@@ -2161,6 +2162,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         const scrollContainer = editorContainerRef.current
         const scrollTopBefore = scrollContainer?.scrollTop ?? 0
         const wasEditable = editor.isEditable
+        const normalizedHtml = normalizeDocumentHtmlForEditor(html)
 
         try {
           suppressYjsSnapshotSaveRef.current = true
@@ -2173,10 +2175,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             editor.setEditable(true)
           }
 
-          editor.commands.setContent(html, { emitUpdate: true })
+          editor.commands.setContent(normalizedHtml, { emitUpdate: true })
           await new Promise(resolve => setTimeout(resolve, 0))
 
-          const applied = areHtmlSemanticallyEquivalent(editor.getHTML(), html)
+          const applied = areHtmlSemanticallyEquivalent(editor.getHTML(), normalizedHtml)
 
           if (applied) {
             setHasUnsavedChanges(false)
@@ -3111,7 +3113,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               const success = await versioning.restoreVersion(versionNumber)
 
               if (success && editor && versionData.content) {
-                editor.commands.setContent(versionData.content)
+                editor.commands.setContent(normalizeDocumentHtmlForEditor(versionData.content))
                 setTitle(versionData.title)
                 setHasUnsavedChanges(false)
                 setLastSaved(new Date())
