@@ -35,6 +35,17 @@ section-my-tasks = My tasks
 section-trash = Trash
 section-spreadsheets = Spreadsheets
 
+# Hero section
+sh-parent-label = Every Office
+sh-title = Spreadsheets
+sh-tabs-aria-label = Spreadsheet sections
+sh-tab-my-files = My Spreadsheets
+sh-tab-shared = Shared with me
+sh-tab-tasks = My tasks
+sh-tab-recent = Recent
+sh-tab-automations = Automations
+sh-tab-favorites = Favorites
+
 # Upload view
 upload-cancel = Cancel
 upload-title = Upload Excel File
@@ -402,3 +413,36 @@ shared-comment-cancel = Cancel
 shared-comment-send = Send
 shared-comment-sending = Sending...
 shared-comment-send-hint = ⌘+Enter to send
+
+# Automations section (hub-level view)
+sa-retry = Retry
+sa-refresh = Refresh
+sa-back = Back
+sa-view = View
+sa-stop = Stop
+sa-run-again = Run again
+sa-run-history = Run history
+sa-run-details = Run details
+sa-in-progress = In progress
+sa-progress = Progress
+sa-recipients = Recipients
+sa-recent-runs = Recent runs
+sa-no-runs = No runs yet
+sa-no-runs-hint = Run this automation to see execution history here.
+sa-no-submissions = No submission data available
+sa-select-run-hint = Select a run to see recipient details.
+sa-completed-at = Completed at
+sa-open-file = Open file
+sa-na = N/A
+sa-started = Started
+sa-status-completed = Completed
+sa-status-sent = Sent
+sa-stat-collections = Spreadsheet collections
+sa-stat-total-runs = Total runs
+sa-filter-all = All
+sa-filter-collection = Spreadsheet collection
+sa-filter-form = Form collection
+sa-error-no-token = Access token not available
+sa-error-load = Failed to load automations
+sa-error-run = Failed to run automation
+sa-error-stop = Failed to stop run
