@@ -1,5 +1,5 @@
 /**
- * Insert tab content: Link, Image, Table, Page break.
+ * Insert actions rendered inside the compact toolbar surface.
  */
 
 import React, { useCallback } from 'react'

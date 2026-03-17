@@ -47,7 +47,6 @@ import {
   AvatarImage,
   AvatarFallback,
   AiButton,
-  Switch,
   useTranslation
 } from '@newwork/nw-design-system'
 import {
@@ -60,12 +59,8 @@ import {
   FileDown,
   BookTemplate,
   Send,
-  ZoomIn,
-  ZoomOut,
   LayoutPanelLeft,
   ChevronRight,
-  ChevronDown,
-  Search,
   UserCheck,
   AlertCircle,
   XCircle,
@@ -74,8 +69,7 @@ import {
   Unlock,
   MessageSquare,
   Upload,
-  Wand2,
-  RefreshCw
+  Wand2
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document, DocumentApprovalRequest, DocumentFormatting, DocumentPagesFormatting } from '../../types'
@@ -122,7 +116,6 @@ import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
 import { CheckpointDialog } from '../../../shared/components/CheckpointDialog'
-import { AutoSaveIndicator } from '../../../shared/components/AutoSaveIndicator'
 import { StatusBadge } from '../../../shared/components/StatusBadge'
 import { PublishDialog } from '../../../shared/components/PublishDialog'
 import { CommentPanel } from '../../../shared/components/CommentPanel'
@@ -134,6 +127,7 @@ import { LinkDialog, type LinkDialogInitialValues, type LinkDialogMode } from '.
 import { LinkBubbleMenu } from './LinkBubbleMenu'
 import { InsertImageDialog } from './InsertImageDialog'
 import { NavigationPanel } from './NavigationPanel'
+import { DocumentBottomBar } from './DocumentBottomBar'
 import { useEditorImageHandlers } from './hooks/useEditorImageHandlers'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
@@ -715,8 +709,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [linkDialogInsertWithNoSelection, setLinkDialogInsertWithNoSelection] = useState(false)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     type RightSidebar = 'closed' | 'comments' | 'ai'
+    type NavigationPanelTab = 'headings' | 'find' | 'replace'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
+    const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
     const [pendingSelection, setPendingSelection] = useState<{
@@ -1837,6 +1833,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [buildPersistedFormatting, document?.id, formattingYMap, isYjsSynced, onPersistFormatting]
     )
 
+    const openNavigationPanelTab = useCallback(
+      (tab: NavigationPanelTab) => {
+        setNavigationPanelTab(tab)
+        setShowNavigationPanel(true)
+      },
+      [setShowNavigationPanel]
+    )
+
     const openLinkDialog = useCallback(() => {
       if (!activeEditor) return
       const { from, to } = activeEditor.state.selection
@@ -2056,10 +2060,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setZoom(prev => Math.max(prev - 10, 50))
     }, [])
 
-    const handleZoomReset = useCallback(() => {
-      setZoom(100)
-    }, [])
-
     const getCurrentEditorSelectionContext = useCallback(() => {
       if (!editor) return { text: '', html: '' }
       const { from, to } = editor.state.selection
@@ -2094,9 +2094,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const handleAiEditClick = useCallback(() => {
       if (!document?.id) return
 
-      const useLegacyPanel =
-        globalThis.window !== undefined && globalThis.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
-      if (useLegacyPanel) {
+      const useDialogEntrypoint =
+        globalThis.window !== undefined && globalThis.localStorage.getItem('document-ai-edit-entrypoint') === 'dialog'
+      if (!useDialogEntrypoint) {
         setRightSidebar(prev => (prev === 'ai' ? 'closed' : 'ai'))
         return
       }
@@ -2305,7 +2305,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             headerToolbarRef.current = node
             editorChromeRef.current = node
           }}
-          className="gba:border-b gba:bg-card gba:shadow-sm"
+          className="gba:border-b gba:border-border/50 gba:bg-background"
         >
           <div className="gba:px-4 gba:py-3">
             <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
@@ -2322,8 +2322,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 </Button>
 
                 <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0 gba:flex-1">
-                  <div className="gba:w-10 gba:h-10 gba:shrink-0 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                    <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
+                  <div className="gba:relative gba:flex-shrink-0">
+                    <div className="gba:flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-primary/70 gba:shadow-sm">
+                      <FileText className="gba:h-4 gba:w-4 gba:text-primary-foreground" />
+                    </div>
                   </div>
                   <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-1">
                     <Input
@@ -2334,20 +2336,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                       onBlur={handleTitleBlur}
                       placeholder={t('editor-title-placeholder')}
                       disabled={isReadOnly}
-                      className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:min-w-0 gba:w-full gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
+                      className="gba:h-auto gba:min-w-0 gba:w-full gba:border-0 gba:bg-transparent gba:p-0 gba:text-base gba:font-semibold focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
                     />
-                    <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                      <span>{t('editor-word-count', { count: wordCount })}</span>
-                      <span>•</span>
-                      <span>{t('editor-character-count', { count: charCount })}</span>
-                      <span>•</span>
-                      <span>
-                        {t('editor-page-of', {
-                          current: pagesEditorState.activePageNumber ?? Math.min(currentPage, pageCount),
-                          total: pageCount
-                        })}
-                      </span>
-                    </div>
                   </div>
                 </div>
 
@@ -2374,38 +2364,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
                 <Separator orientation="vertical" className="gba:h-6" />
 
-                {/* Zoom controls */}
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleZoomOut}
-                    title={t('editor-zoom-out')}
-                    className="gba:h-8 gba:w-8"
-                  >
-                    <ZoomOut className="gba:w-4 gba:h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleZoomReset}
-                    className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
-                  >
-                    {zoom}%
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleZoomIn}
-                    title={t('editor-zoom-in')}
-                    className="gba:h-8 gba:w-8"
-                  >
-                    <ZoomIn className="gba:w-4 gba:h-4" />
-                  </Button>
-                </div>
-
-                <Separator orientation="vertical" className="gba:h-6" />
-
                 {/* For new documents, show prominent save button */}
                 {!document?.id && !isReadOnly && (
                   <Button
@@ -2421,29 +2379,22 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   </Button>
                 )}
 
-                {/* Versioning Features - Clean & Compact (for existing documents) */}
+                {document?.id && !isReadOnly && (
+                  <Button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    variant="ghost"
+                    size="sm"
+                    title={isSaving ? t('editor-saving') : t('editor-save-document')}
+                    data-testid="save-document-button"
+                    className="gba:h-8"
+                  >
+                    <Save className="gba:w-4 gba:h-4" />
+                  </Button>
+                )}
+
                 {document?.id && (
                   <>
-                    {/* Current checkpoint label + checkpoint button (save status is in header) */}
-                    <AutoSaveIndicator
-                      isSaving={versioning.isSaving}
-                      lastSaveTime={versioning.lastSaveTime}
-                      hasUnsavedChanges={versioning.hasUnsavedChanges}
-                      currentVersion={(() => {
-                        const latestCheckpoint = versioning.versions.find(v => v.isCheckpoint)
-                        return latestCheckpoint
-                          ? {
-                              version: latestCheckpoint.version,
-                              changeDescription: latestCheckpoint.changeDescription
-                            }
-                          : null
-                      })()}
-                      showVersionOnly
-                      onVersionClick={() => setShowVersionHistory(true)}
-                      onManualSave={() => setShowCheckpointDialog(true)}
-                      data-testid="auto-save-indicator"
-                    />
-
                     {/* Comments button */}
                     <Button
                       variant={rightSidebar === 'comments' ? 'default' : 'ghost'}
@@ -2473,32 +2424,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     <StatusBadge status={publishing.metadata?.status || 'draft'} />
                   </>
                 )}
-
-                <Separator orientation="vertical" className="gba:h-6" />
-
-                {/* Word-style floating Find / Navigation button (icon + label + chevron) */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNavigationPanel(prev => !prev)}
-                  title={t('navigation-panel-title')}
-                  data-testid="navigation-panel-toggle"
-                  className={`gba:rounded-full gba:px-3 gba:gap-1.5 gba:text-foreground ${showNavigationPanel ? 'gba:bg-muted/50' : ''}`}
-                >
-                  <Search className="gba:w-4 gba:h-4 gba:text-foreground" aria-hidden />
-                  <span>{t('navigation-panel-find-tab')}</span>
-                  <ChevronDown className="gba:w-4 gba:h-4 gba:text-foreground" aria-hidden />
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPageSetupDialog(true)}
-                  data-testid="page-setup-button"
-                >
-                  <LayoutPanelLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('page-setup-title')}
-                </Button>
 
                 {/* Document Actions Menu (includes Export) */}
                 {document?.id && (
@@ -2535,6 +2460,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                         <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
                         {t('editor-publish')}
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowPageSetupDialog(true)} data-testid="page-setup-button">
+                        <LayoutPanelLeft className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('page-setup-title')}
+                      </DropdownMenuItem>
                       {onSaveAsTemplate && (
                         <DropdownMenuItem onClick={() => editor && onSaveAsTemplate(title, editor.getHTML())}>
                           <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -2568,36 +2497,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 )}
 
                 {document?.id && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void syncEditorFromLatestDocument()}
-                    title="Reload latest document content"
-                    data-testid="reload-document-button"
-                  >
-                    <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Reload
-                  </Button>
-                )}
-
-                {/* AI Editor button (same style as notes Transform) */}
-                {document?.id && autocompleteRolloutEnabled && (
-                  <div
-                    className="gba:flex gba:items-center gba:gap-2 gba:px-2"
-                    data-testid="document-autocomplete-toggle"
-                  >
-                    <span className="gba:text-xs gba:text-muted-foreground">Autocomplete</span>
-                    <Switch
-                      checked={isAutocompleteToggleEnabled}
-                      onCheckedChange={checked => {
-                        setIsAutocompleteToggleEnabled(checked)
-                        clearAutocompleteSuggestion()
-                      }}
-                    />
-                  </div>
-                )}
-
-                {document?.id && (
                   <AiButton
                     size="sm"
                     showIcon
@@ -2613,10 +2512,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             </div>
           </div>
 
-          {headerExtra && <div className="gba:px-4 gba:pb-2">{headerExtra}</div>}
+          {headerExtra && <div className="gba:px-4 gba:pb-3">{headerExtra}</div>}
 
           {isHeaderFooterEditing && (
-            <div className="gba:border-t gba:bg-muted/20 gba:px-4 gba:py-1.5">
+            <div className="gba:border-t gba:border-border/50 gba:bg-muted/20 gba:px-4 gba:py-1.5">
               <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
                 <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
                   <span className="gba:h-2 gba:w-2 gba:flex-shrink-0 gba:rounded-full gba:bg-primary/70" />
@@ -2647,11 +2546,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             </div>
           )}
 
-          {/* Toolbar */}
           <EditorToolbar
             editor={activeEditor}
             onOpenLinkDialog={openLinkDialog}
             onOpenInsertImageDialog={() => setShowInsertImageDialog(true)}
+            onOpenFind={() => openNavigationPanelTab('find')}
+            onOpenReplace={() => openNavigationPanelTab('replace')}
             data-testid={`${testId}-toolbar`}
           />
         </div>
@@ -2662,6 +2562,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
               <NavigationPanel
                 editor={editor}
+                requestedTab={navigationPanelTab}
                 onClose={() => {
                   setShowNavigationPanel(false)
                   editor?.commands.clearSearchHighlights?.()
@@ -2676,7 +2577,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => setShowNavigationPanel(true)}
+                onClick={() => openNavigationPanelTab('headings')}
                 title={t('navigation-panel-show')}
                 aria-label={t('navigation-panel-show')}
                 data-testid="navigation-panel-expand"
@@ -2720,6 +2621,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             </div>
           </div>
         </div>
+
+        <DocumentBottomBar
+          zoom={zoom}
+          wordCount={wordCount}
+          charCount={charCount}
+          currentPage={pagesEditorState.activePageNumber ?? Math.min(currentPage, pageCount)}
+          pageCount={pageCount}
+          onZoomOut={handleZoomOut}
+          onZoomChange={setZoom}
+          onZoomIn={handleZoomIn}
+          data-testid={`${testId}-bottom-bar`}
+        />
 
         {document?.id && showAiInstructionDialog && (
           <div className="gba:absolute gba:top-24 gba:right-6 gba:z-30 gba:pointer-events-none">

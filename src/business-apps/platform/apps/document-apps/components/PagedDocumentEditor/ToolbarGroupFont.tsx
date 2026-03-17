@@ -30,6 +30,7 @@ import translations from '../../_i18n'
 import {
   ToolbarButton,
   RibbonGroup,
+  DEFAULT_FONT_FAMILY,
   FONT_FAMILY_KEYS,
   FONT_FAMILIES,
   FONT_SIZES,
@@ -59,9 +60,9 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
   const getCurrentFont = (): { label: string; value: string } => {
     const fontFamily = editor.getAttributes('textStyle').fontFamily as string | undefined
     const value = fontFamily?.trim() ?? ''
-    const label =
-      value && FONT_FAMILY_KEYS[value] != null ? t(FONT_FAMILY_KEYS[value]) : value || t('editor-font-default')
-    return { label, value }
+    const effectiveValue = value || DEFAULT_FONT_FAMILY
+    const label = FONT_FAMILY_KEYS[value] != null ? t(FONT_FAMILY_KEYS[value]) : effectiveValue
+    return { label, value: effectiveValue }
   }
 
   const getCurrentFontSize = (): string => {
@@ -98,13 +99,16 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="gba:h-8 gba:min-w-[100px] gba:justify-between"
+            className="gba:h-8 gba:w-[140px] gba:justify-between gba:border-border/70 gba:bg-background"
             data-testid="editor-toolbar-font"
           >
             <Type className="gba:h-3 gba:w-3 gba:mr-1" />
-            <span className="gba:text-xs gba:truncate" style={{ fontFamily: currentFont.value || 'inherit' }}>
+            <span
+              className="gba:min-w-0 gba:flex-1 gba:text-xs gba:truncate gba:text-left"
+              style={{ fontFamily: currentFont.value }}
+            >
               {currentFont.label}
             </span>
             <ChevronDown className="gba:h-3 gba:w-3 gba:ml-1" />
@@ -118,15 +122,15 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
                 if (value) editor.chain().focus().setFontFamily(value).run()
                 else editor.chain().focus().unsetFontFamily().run()
               }}
-              style={{ fontFamily: value || 'inherit' }}
+              style={{ fontFamily: value || DEFAULT_FONT_FAMILY }}
             >
-              {t(FONT_FAMILY_KEYS[value] ?? 'editor-font-default')}
+              {t(FONT_FAMILY_KEYS[value] ?? 'editor-font-times')}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
       <div
-        className="gba:flex gba:items-center gba:h-8 gba:border gba:rounded-md gba:border-border gba:overflow-hidden gba:min-w-0"
+        className="gba:flex gba:min-w-0 gba:items-center gba:h-8 gba:overflow-hidden gba:rounded-md gba:border gba:border-border/70 gba:bg-background"
         data-testid="editor-toolbar-font-size"
       >
         <Input
@@ -153,7 +157,7 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
             <Button
               variant="ghost"
               size="sm"
-              className="gba:h-8 gba:w-7 gba:p-0 gba:rounded-none gba:border-l gba:border-border"
+              className="gba:h-8 gba:w-7 gba:rounded-none gba:border-l gba:border-border/70 gba:p-0"
             >
               <ChevronDown className="gba:h-3 gba:w-3" />
             </Button>
@@ -217,7 +221,11 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
       </ToolbarButton>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gba:h-8 gba:w-8 gba:border-border/70 gba:bg-background gba:p-0"
+          >
             <Palette className="gba:h-4 gba:w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -247,7 +255,11 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
       </DropdownMenu>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gba:h-8 gba:w-8 gba:border-border/70 gba:bg-background gba:p-0"
+          >
             <Highlighter className="gba:h-4 gba:w-4" />
           </Button>
         </DropdownMenuTrigger>

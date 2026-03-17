@@ -312,6 +312,16 @@ ai-edit-fast-mode = Fast mode (Groq)
 ai-edit-smart-mode = Smart mode (OpenAI)
 ai-edit-smart = Smart
 ai-edit-fast = Fast
+ai-edit-instruction-label = Instruction
+ai-edit-ctrl-enter-hint = Press Ctrl+Enter to generate
+ai-edit-generate-preview = Generate preview
+ai-edit-selected-text = Selected text
+ai-edit-clear-selection-title = Clear selection
+ai-edit-generating = Generating…
+ai-edit-discard = Discard
+ai-edit-undo = Undo
+ai-edit-new = New
+ai-edit-active = (active)
 
 # Quill/Editor heading labels (for picker)
 editor-heading-normal = Normal
@@ -340,6 +350,7 @@ editor-toolbar-align-center = Align Center
 editor-toolbar-align-right = Align Right
 editor-toolbar-justify = Justify
 editor-dictate-tooltip = Dictate text with your voice
+editor-dictate-label = Dictate
 editor-dictate-listening = Listening…
 editor-dictate-unavailable = Voice input unavailable
 editor-dictate-hint = Click to start voice input
@@ -366,6 +377,10 @@ editor-toolbar-insert-table = Insert Table
 editor-toolbar-page-break = Insert Page Break (Ctrl+Enter)
 editor-toolbar-clear-formatting = Clear Formatting
 editor-toolbar-font = Font
+editor-toolbar-select-all = Select all
+editor-toolbar-paste = Paste
+editor-toolbar-paste-text-only = Paste Text Only
+editor-toolbar-paste-merge-formatting = Paste With Merge Formatting
 editor-font-default = Default
 editor-font-arial = Arial
 editor-font-times = Times New Roman
@@ -388,7 +403,7 @@ editor-toolbar-link-prompt = URL
 editor-toolbar-image-prompt = Image URL
 
 # Ribbon tabs and groups
-editor-ribbon-tab-home = Home
+editor-ribbon-tab-home = Start
 editor-ribbon-tab-insert = Insert
 editor-ribbon-group-clipboard = Clipboard
 editor-ribbon-group-font = Font
@@ -502,8 +517,6 @@ navigation-panel-show = Show Navigation Pane
 
 # Page setup dialog
 page-setup-title = Page setup
-page-setup-tab-pages = Pages
-page-setup-tab-pageless = Pageless
 page-setup-apply-to = Apply to
 page-setup-entire-document = Entire document
 page-setup-orientation = Orientation
@@ -516,8 +529,6 @@ page-setup-margin-top = Top
 page-setup-margin-bottom = Bottom
 page-setup-margin-left = Left
 page-setup-margin-right = Right
-page-setup-use-pageless = Use pageless
-page-setup-pageless-description = Show document as one continuous page without page breaks.
 page-setup-cancel = Cancel
 page-setup-ok = OK
 page-size-a4 = A4
