@@ -56,6 +56,7 @@ export interface BoardViewContentProps {
   onAddQuickFilter?: (qf: BoardQuickFilter) => void
   onRenameQuickFilter?: (id: string, name: string) => void
   onDeleteQuickFilter?: (id: string) => void
+  onReorderRow?: (rowId: string, afterRowId: string | null, beforeRowId: string | null) => Promise<void>
   peopleLookup?: Map<string, import('../types/columns').SelectOption>
   testId: string
 }
@@ -93,6 +94,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
   onAddQuickFilter,
   onRenameQuickFilter,
   onDeleteQuickFilter,
+  onReorderRow,
   peopleLookup,
   testId
 }) => {
@@ -177,6 +179,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
             onAddQuickFilter={onAddQuickFilter}
             onRenameQuickFilter={onRenameQuickFilter}
             onDeleteQuickFilter={onDeleteQuickFilter}
+            onReorderRow={onReorderRow}
             peopleLookup={peopleLookup}
             testId={testId}
           />

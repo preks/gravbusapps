@@ -1,24 +1,24 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Spinner, TimelineLayout, Button, Alert, EmptyState } from '@newwork/nw-design-system'
-import {
-  PhoneIcon,
-  EnvelopeIcon,
-  CalendarBlankIcon,
-  UserIcon,
-  PlusIcon,
-  DotsThreeVerticalIcon
-} from '@phosphor-icons/react'
+import { Spinner, TimelineLayout, Button, Alert, EmptyState, useTranslation } from '@newwork/nw-design-system'
+import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon, PlusIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { AppActionProvider } from '@/components/app-action-provider/AppActionProvider'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { toISOFormat } from '@/common/utils/dateFormatter'
+import translations from './_i18n'
 import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
+import { ActivityInput } from './ActivityInput'
 import { ActivityEmailBody } from './ActivityEmailBody'
+import { AppAction } from '@/components/app-action'
+import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
 export type ActivityDocument = {
   id: string
@@ -61,6 +61,17 @@ export interface ActivitySectionProps extends BusinessAppContextProps {
   activityEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   className?: string
   alignment?: 'left' | 'right'
+  /** Catalog identifier for activity type (e.g. from customerCatalogs or investmentCatalogs). */
+  activityTypeCatalog?: string
+  /** Optional payload builder; when set, quick-add submit passes built payload to executeAction instead of raw form shape. */
+  buildActivityPayload?: (activity: Record<string, any>) => Record<string, any>
+  accountId?: string
+  contactId?: string
+  opportunityId?: string
+  leadId?: string
+  investmentId?: string
+  /** Optional pre-submit handler (e.g. uploads _pendingFiles and returns data with documents). When set, called before buildActivityPayload/executeAction. */
+  preSubmit?: (data: Record<string, any>) => Promise<Record<string, any>>
 }
 
 // Standard React component that can be used with SectionWrapper
@@ -73,11 +84,121 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     activitiesError = null,
     onReloadActivities,
     activityEntityActionProps,
+    activitySectionActionProps,
     className,
-    alignment = 'left'
+    alignment = 'left',
+    activityTypeCatalog,
+    buildActivityPayload,
+    accountId,
+    contactId,
+    opportunityId,
+    leadId,
+    investmentId
   } = props
 
+  const { t } = useTranslation(translations)
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const [ownerPrefill, setOwnerPrefill] = useState<
+    Array<{
+      id: string
+      displayName: string
+      userId?: string
+      pictureThumbnail?: string
+      organizationalUnitName?: string
+      jobPositionName?: string
+    }>
+  >([])
+
   const currentEmployeeId = userInfo?.employeeDetails?.employeeId
+
+  // Employee search for owner selection
+  const {
+    employees,
+    loading: employeesLoading,
+    search,
+    hydrateById,
+    hasMore,
+    loadMore
+  } = useEmployeeSearch(accessToken)
+
+  // Prefill current user as default owner
+  useEffect(() => {
+    const employeeId = props.userInfo?.employeeDetails?.employeeId
+    if (!employeeId) return
+
+    const displayName =
+      `${props.userInfo?.employeeDetails?.firstName || ''} ${props.userInfo?.employeeDetails?.lastName || ''}`.trim() ||
+      props.userInfo?.userName ||
+      'Current User'
+
+    // Set basic prefill immediately
+    setOwnerPrefill([
+      {
+        id: employeeId,
+        displayName,
+        organizationalUnitName: props.userInfo?.employeeDetails?.organizationalUnit?.name
+      }
+    ])
+
+    // Hydrate to get full details (picture, job position)
+    hydrateById(employeeId)
+
+    // Trigger initial search to load all employees
+    search('')
+  }, [
+    props.userInfo?.employeeDetails?.employeeId,
+    props.userInfo?.employeeDetails?.firstName,
+    props.userInfo?.employeeDetails?.lastName,
+    search,
+    hydrateById
+  ])
+
+  // Merge prefilled owner with employees (employees from hook already include hydrated data)
+  const mergedEmployees = useMemo(() => {
+    const map = new Map<string, any>()
+    // Add prefill first (will be overwritten by full data from employees)
+    for (const o of ownerPrefill) {
+      map.set(o.id, o)
+    }
+    // Add/override with full employee data
+    for (const e of employees) {
+      map.set(e.id, e)
+    }
+    return Array.from(map.values())
+  }, [ownerPrefill, employees])
+
+  // Form schema for quick add
+  const quickActivitySchema = z.object({
+    details: z.object({
+      title: z.string().min(1, 'Title is required'),
+      description: z.string().optional()
+    }),
+    activityTypeRef: z.string().min(1, 'Activity type is required'),
+    occurredAt: z.string().min(1, 'Date & time is required'),
+    ownerEmployeeId: z.string().min(1, 'Owner is required'),
+    _pendingFiles: z.array(z.any()).optional()
+  })
+
+  const form = useForm({
+    resolver: zodResolver(quickActivitySchema),
+    defaultValues: {
+      details: { title: '', description: '' },
+      activityTypeRef: '',
+      occurredAt: new Date().toISOString().slice(0, 16),
+      ownerEmployeeId: props.userInfo?.employeeDetails?.employeeId || '',
+      _pendingFiles: [] as File[]
+    }
+  })
+
+  // Reset datetime field when showQuickAdd opens
+  useEffect(() => {
+    if (showQuickAdd) {
+      form.setValue('occurredAt', new Date().toISOString().slice(0, 16))
+      if (props.userInfo?.employeeDetails?.employeeId) {
+        form.setValue('ownerEmployeeId', props.userInfo.employeeDetails.employeeId)
+      }
+    }
+  }, [showQuickAdd, form, props.userInfo])
 
   // Process activities - map from Activity to ActivityItem
   const processedActivities = useMemo(() => {
@@ -148,13 +269,11 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
       return (
         <Alert variant="destructive" data-testid="activity-error-alert">
           <div>
-            <strong>
-              {getTranslationFromI18nKeyAndLabel('crm.activities.errorTitle', 'Error loading activities')}
-            </strong>
+            <strong>{t('activities-errorTitle')}</strong>
             <div>{activitiesError}</div>
             {onReloadActivities && (
               <Button variant="secondary" size="sm" onClick={onReloadActivities} data-testid="activity-retry-button">
-                {getTranslationFromI18nKeyAndLabel('crm.common.retry', 'Retry')}
+                {t('common-retry')}
               </Button>
             )}
           </div>
@@ -167,7 +286,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
         <EmptyState
           type="no-data"
           title="No Activities"
-          description="No activities yet. Create your first activity."
+          description={t('activities-emptyState')}
           data-testid="activity-section-empty-state"
         />
       )
@@ -182,7 +301,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
           const emailMessageId = activity.emailMessageId
 
           const activityActions = activityEntityActionProps ? (
-            <AppActionMenu
+            <AppAction
+              variant="list-item"
               accessToken={accessToken}
               contextsArray={activityEntityActionProps.contextsArray}
               externalContextData={{
@@ -191,16 +311,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
                 activityType: activity.activityType?.value
               }}
               prefixDataTestId={`${activityEntityActionProps.prefixDataTestId}-${activity.id}`}
-              deferMainContextRequestsUntilClick={true}
-              emptyStateBehavior="enable"
-            >
-              <div
-                className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"
-                data-testid={`activity-menu-${activity.id}`}
-              >
-                <DotsThreeVerticalIcon size={16} />
-              </div>
-            </AppActionMenu>
+            />
           ) : null
 
           return {
@@ -273,6 +384,85 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
 
   return (
     <div data-testid="activity-section-new-content" className={className}>
+      {activitySectionActionProps && !activitiesLoading && !activitiesError && (
+        <div className="gba:mb-4">
+          <AppActionProvider
+            accessToken={accessToken}
+            contextsArray={activitySectionActionProps.contextsArray}
+            externalContextData={activitySectionActionProps.externalContextData}
+            prefixDataTestId={activitySectionActionProps.prefixDataTestId}
+            onSuccess={() => {
+              form.reset({
+                details: { title: '', description: '' },
+                activityTypeRef: '',
+                occurredAt: new Date().toISOString().slice(0, 16),
+                ownerEmployeeId: props.userInfo?.employeeDetails?.employeeId || '',
+                _pendingFiles: [] as File[]
+              })
+              setShowQuickAdd(false)
+            }}
+            onError={(error: Error) => {
+              console.error('Failed to create activity:', error)
+            }}
+            transformData={
+              buildActivityPayload
+                ? (data: any) => data
+                : (data: any) =>
+                    ({
+                      title: data.details.title,
+                      description: data.details.description,
+                      activityTypeRef: data.activityTypeRef,
+                      occurredAt: toISOFormat(data.occurredAt) || new Date().toISOString(),
+                      ownerEmployeeId: data.ownerEmployeeId
+                    }) as Record<string, unknown>
+            }
+          >
+            {({ executeAction, isProcessing }) => {
+              const handleSubmit = async (data: any) => {
+                const mapped = {
+                  title: data.details.title,
+                  description: data.details.description,
+                  activityTypeRef: data.activityTypeRef,
+                  occurredAt: toISOFormat(data.occurredAt) || new Date().toISOString(),
+                  ownerEmployeeId: data.ownerEmployeeId,
+                  _pendingFiles: data._pendingFiles && data._pendingFiles.length > 0 ? data._pendingFiles : undefined,
+                  ...(leadId && { leadId }),
+                  ...(accountId && { accountId }),
+                  ...(contactId && { contactId }),
+                  ...(opportunityId && { opportunityId }),
+                  ...(investmentId && { investmentId })
+                }
+                let toBuild: Record<string, any> = mapped
+                if (props.preSubmit && mapped._pendingFiles?.length) {
+                  toBuild = await props.preSubmit(mapped)
+                }
+                const payload = buildActivityPayload ? buildActivityPayload(toBuild) : toBuild
+                if (payload && '_pendingFiles' in payload) {
+                  delete payload._pendingFiles
+                }
+                await executeAction(payload)
+              }
+              return (
+                <ActivityInput
+                  form={form}
+                  accessToken={accessToken}
+                  employees={mergedEmployees}
+                  employeesLoading={employeesLoading}
+                  onEmployeeSearch={search}
+                  employeesHasMore={hasMore}
+                  onEmployeeLoadMore={loadMore}
+                  onSubmit={handleSubmit}
+                  isProcessing={isProcessing}
+                  showQuickAdd={showQuickAdd}
+                  onShowQuickAddChange={setShowQuickAdd}
+                  activityTypeCatalog={activityTypeCatalog}
+                  schema={quickActivitySchema}
+                />
+              )
+            }}
+          </AppActionProvider>
+        </div>
+      )}
       {renderContent()}
     </div>
   )

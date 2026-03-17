@@ -3,6 +3,7 @@ import { PageLayout } from '@newwork/nw-design-system'
 import { MegaphoneIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogSettings } from '@/common/components/common-relations/setting-pages/hooks/useCatalogSettings'
+import { CAMPAIGN_TYPE } from '@/common/data/customer/constants/customerCatalogs'
 import { CatalogTab } from '@/common/components/common-relations/setting-pages/components/CatalogTab'
 
 export interface CampaignDataPageProps extends BusinessAppContextProps {
@@ -14,7 +15,7 @@ export interface CampaignDataPageProps extends BusinessAppContextProps {
 const DATA_TEST_ID = 'CustomerCampaignDataPage'
 
 const CampaignDataPage: React.FC<CampaignDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const campaignTypes = useCatalogSettings(context, 'CustomerCampaignType:v1')
+  const campaignTypes = useCatalogSettings(context, CAMPAIGN_TYPE)
 
   return (
     <PageLayout

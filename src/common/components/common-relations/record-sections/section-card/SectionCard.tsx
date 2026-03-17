@@ -297,11 +297,11 @@ const SectionWrapper = <T = Record<string, any>,>({
       </CardHeader>
       <CardContent className="gba:overflow-auto gba:flex-1 gba:relative">
         {sections.map(section => {
-          if (activeTab !== section.id) return null
           const currentPageIndex = carouselStates[section.id] || 0
           const sectionInfo = getSectionInfo(section, currentPageIndex)
+          const isActive = activeTab === section.id
           return (
-            <div key={section.id} className="gba:h-full">
+            <div key={section.id} className={`gba:h-full ${isActive ? '' : 'gba:hidden'}`} aria-hidden={!isActive}>
               {sectionInfo.content}
             </div>
           )

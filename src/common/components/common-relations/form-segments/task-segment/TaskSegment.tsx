@@ -103,7 +103,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   accessToken,
   businessAppContext,
   assignedEmployee,
-  multiAssigneeMode = true, // Multi-assignee support is now the default
+  multiAssigneeMode = false, // Single assignee (EmployeeSelect) for normal tasks; set true for approval tasks (MultiEmployeeSelect)
   assignedEmployees = [],
   entityId,
   typeCatalog,
@@ -547,7 +547,7 @@ const buildTaskSegmentSchema = (options?: {
   const requireAssignee = options?.requireAssignee !== false
   const requireEntity = options?.requireEntity !== false
   const requireType = options?.requireType !== false
-  const multiAssigneeMode = options?.multiAssigneeMode !== false // Multi-assignee is now the default
+  const multiAssigneeMode = options?.multiAssigneeMode === true // Single assignee by default; multi only for approval tasks
 
   const baseSchema = {
     name: z.string().min(1, 'Name is required'),

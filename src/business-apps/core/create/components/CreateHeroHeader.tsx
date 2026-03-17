@@ -2,13 +2,7 @@ import React from 'react'
 import { Badge, Button } from '@newwork/nw-design-system'
 import { ArrowLeft } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
-
-// Video background - same logic as FlowStudio
-const hostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
-const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 
 export type CreateHeroBadge = {
   label: string
@@ -49,31 +43,8 @@ export const CreateHeroHeader: React.FC<CreateHeroHeaderProps> = ({
       className={['gba:relative gba:overflow-hidden gba:shrink-0', className].filter(Boolean).join(' ')}
       data-testid={testId}
     >
-      {useVideo ? (
-        <video
-          src={HERO_VIDEO_SRC}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-          className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-          aria-hidden
-          data-testid={`${testId}-video`}
-        />
-      ) : (
-        <SpaceHeroBackground />
-      )}
-
-      {/* eslint-disable newwork-local/no-hardcoded-colors */}
-      <div
-        className="gba:absolute gba:inset-0 gba:pointer-events-none"
-        style={{
-          background: 'linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)'
-        }}
-        aria-hidden
-      />
-      {/* eslint-enable newwork-local/no-hardcoded-colors */}
+      <PremiumHeroBackground data-testid={`${testId}-background`} />
+      <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
       <div className={`gba:relative gba:px-6 ${isLarge ? 'gba:py-8' : 'gba:py-5'}`}>
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">

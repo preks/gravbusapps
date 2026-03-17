@@ -23,6 +23,7 @@ import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { APPROVAL_TASK_TYPE_REF } from '@/common/data/customer/constants/customerConstants'
 import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
 import { StatusProgression } from './components/StatusProgression'
@@ -344,8 +345,8 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         leadId,
-        typeRef: 'SalesTaskType:v1:APPROVAL',
-        salesTask: { lead: leadId, type: 'SalesTaskType:v1:APPROVAL' }
+        typeRef: APPROVAL_TASK_TYPE_REF,
+        salesTask: { lead: leadId, type: APPROVAL_TASK_TYPE_REF }
       },
       prefixDataTestId: 'lead-approval',
       emptyStateBehavior: 'enable' as const
