@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { Badge, Button, Switch, Textarea, useTranslation } from '@newwork/nw-design-system'
+import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react'
+import { Loader2 } from 'lucide-react'
 import type {
   EmailAssistantDraft,
   EmailAssistantFormality,
@@ -48,6 +50,8 @@ interface EmailAssistantPanelProps {
   onRetry: () => void
   onCancel: (action: 'draft' | 'rewrite' | 'replySuggest' | 'temperatureCheck') => void
   defaultAssistantExpanded?: boolean
+  showInternalHeaderToggle?: boolean
+  enableInternalScrollClamp?: boolean
   containerClassName?: string
   loadingClassName?: string
   'data-testid'?: string
@@ -100,6 +104,8 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
   onRetry,
   onCancel,
   defaultAssistantExpanded = false,
+  showInternalHeaderToggle = true,
+  enableInternalScrollClamp = true,
   containerClassName,
   loadingClassName,
   'data-testid': testId = 'email-assistant-panel'
@@ -110,15 +116,18 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
   const [isAssistantExpanded, setIsAssistantExpanded] = useState(defaultAssistantExpanded)
   const [isInsightsExpanded, setIsInsightsExpanded] = useState(false)
   const [isRiskExpanded, setIsRiskExpanded] = useState(false)
-  const shouldExpandContainer = isAdvancedExpanded || Boolean(previewDraft)
+  const shouldExpandContainer = !enableInternalScrollClamp || isAdvancedExpanded || Boolean(previewDraft)
+  const isDraftRunning = loading.draft || loading.replySuggest
+  const isContentVisible = showInternalHeaderToggle ? isAssistantExpanded : true
+  const sectionCardClassName = 'gba:rounded-md gba:border gba:border-input gba:bg-background/40 gba:p-3 gba:space-y-3'
   const controlBaseClassName =
-    'gba:bg-background/60 gba:text-foreground gba:border gba:border-input gba:placeholder:text-muted-foreground gba:focus-visible:ring-1 gba:focus-visible:ring-border'
+    'gba:bg-background gba:border gba:border-input gba:text-foreground gba:placeholder:text-muted-foreground gba:rounded-md focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-border/60'
   const primaryActionButtonClassName =
-    'gba:bg-primary gba:text-primary-foreground gba:border gba:border-transparent hover:gba:bg-primary/90'
+    'gba:min-w-32 gba:bg-primary gba:text-primary-foreground gba:border gba:border-transparent hover:gba:bg-primary/90'
   const secondaryActionButtonClassName =
-    'gba:bg-background/35 gba:text-foreground gba:border gba:border-border hover:gba:bg-background/55'
+    'gba:bg-background gba:text-foreground gba:border gba:border-border hover:gba:bg-muted/45'
   const ghostActionButtonClassName =
-    'gba:bg-transparent gba:text-muted-foreground hover:gba:bg-background/45 hover:gba:text-foreground'
+    'gba:bg-transparent gba:text-muted-foreground hover:gba:bg-muted/35 hover:gba:text-foreground'
 
   if (isCapabilitiesLoading) {
     return (
@@ -138,7 +147,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
   return (
     <div
       className={[
-        'gba:mt-3 gba:p-3 gba:rounded-lg gba:border gba:space-y-3',
+        'gba:mt-3 gba:p-4 gba:rounded-lg gba:border gba:bg-card/60 gba:space-y-4',
         shouldExpandContainer ? 'gba:max-h-none gba:overflow-visible' : 'gba:max-h-96 gba:overflow-y-auto',
         containerClassName
       ]
@@ -146,94 +155,112 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
         .join(' ')}
       data-testid={testId}
     >
-      <button
-        type="button"
-        className="gba:w-full gba:flex gba:items-center gba:justify-between"
-        onClick={() => setIsAssistantExpanded(prev => !prev)}
-        data-testid={`${testId}-assistant-toggle`}
-      >
-        <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('assistant-title')}</p>
-        <span className="gba:text-xs gba:text-muted-foreground">{isAssistantExpanded ? '▾' : '▸'}</span>
-      </button>
+      {showInternalHeaderToggle && (
+        <button
+          type="button"
+          className="gba:w-full gba:flex gba:items-center gba:justify-between gba:rounded-md gba:px-2 gba:py-1.5 hover:gba:bg-muted/40 gba:transition-colors"
+          onClick={() => setIsAssistantExpanded(prev => !prev)}
+          data-testid={`${testId}-assistant-toggle`}
+        >
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('assistant-title')}</p>
+          {isAssistantExpanded ? (
+            <CaretDownIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          ) : (
+            <CaretRightIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          )}
+        </button>
+      )}
 
-      {isAssistantExpanded && (
+      {isContentVisible && (
         <>
-          <div className="gba:space-y-1">
-            <Textarea
-              value={bulletDraft}
-              onChange={event => onBulletDraftChange(event.target.value)}
-              placeholder={t('assistant-bullets-placeholder')}
-              className={`gba:min-h-20 ${controlBaseClassName}`}
-              data-testid={`${testId}-bullet-draft`}
-            />
-            {isReplyMode && (
-              <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-bullet-hint`}>
-                {t('assistant-bullets-hint')}
-              </p>
-            )}
-          </div>
-
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-            <Button
-              size="sm"
-              onClick={onGenerateDraft}
-              disabled={loading.draft}
-              className={primaryActionButtonClassName}
-              data-testid={`${testId}-generate-draft`}
-            >
-              {isReplyMode ? t('assistant-generate-reply') : t('assistant-generate-draft')}
-            </Button>
-            {isReplyMode && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onSuggestReply}
-                disabled={loading.replySuggest}
-                className={secondaryActionButtonClassName}
-                data-testid={`${testId}-suggest-reply`}
-              >
-                {t('assistant-suggest-reply')}
-              </Button>
-            )}
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Switch
-                id={`${testId}-auto-temperature`}
-                checked={autoTemperatureCheck}
-                onCheckedChange={onAutoTemperatureCheckChange}
-                data-testid={`${testId}-auto-temperature`}
+          <div className={sectionCardClassName}>
+            <div className="gba:space-y-1">
+              <Textarea
+                value={bulletDraft}
+                onChange={event => onBulletDraftChange(event.target.value)}
+                placeholder={t('assistant-bullets-placeholder')}
+                className={`gba:min-h-20 ${controlBaseClassName}`}
+                data-testid={`${testId}-bullet-draft`}
               />
-              <span className="gba:text-xs gba:text-muted-foreground gba:text-left">
-                {t('assistant-auto-temperature')}
-              </span>
+              {isReplyMode && (
+                <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-bullet-hint`}>
+                  {t('assistant-bullets-hint')}
+                </p>
+              )}
             </div>
-            {(loading.draft || loading.replySuggest) && (
+
+            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:pt-1">
               <Button
                 size="sm"
-                variant="ghost"
-                onClick={() => {
-                  if (loading.draft) onCancel('draft')
-                  if (loading.replySuggest) onCancel('replySuggest')
-                }}
-                className={ghostActionButtonClassName}
-                data-testid={`${testId}-cancel-request`}
+                onClick={onGenerateDraft}
+                disabled={loading.draft}
+                className={primaryActionButtonClassName}
+                data-testid={`${testId}-generate-draft`}
               >
-                {t('assistant-cancel')}
+                {isReplyMode ? t('assistant-generate-reply') : t('assistant-generate-draft')}
               </Button>
-            )}
+              {isReplyMode && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onSuggestReply}
+                  disabled={loading.replySuggest}
+                  className={secondaryActionButtonClassName}
+                  data-testid={`${testId}-suggest-reply`}
+                >
+                  {t('assistant-suggest-reply')}
+                </Button>
+              )}
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Switch
+                  id={`${testId}-auto-temperature`}
+                  checked={autoTemperatureCheck}
+                  onCheckedChange={onAutoTemperatureCheckChange}
+                  data-testid={`${testId}-auto-temperature`}
+                />
+                <span className="gba:text-xs gba:text-muted-foreground gba:text-left">
+                  {t('assistant-auto-temperature')}
+                </span>
+              </div>
+              {(loading.draft || loading.replySuggest) && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    if (loading.draft) onCancel('draft')
+                    if (loading.replySuggest) onCancel('replySuggest')
+                  }}
+                  className={ghostActionButtonClassName}
+                  data-testid={`${testId}-cancel-request`}
+                >
+                  {t('assistant-cancel')}
+                </Button>
+              )}
+              {isDraftRunning && (
+                <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
+                  <Loader2 className="gba:w-3.5 gba:h-3.5 gba:animate-spin" />
+                  <span>{t('assistant-loading-capabilities')}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <button
             type="button"
-            className="gba:w-full gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground"
+            className="gba:w-full gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground gba:rounded-md gba:px-2 gba:py-1.5 hover:gba:bg-muted/40 gba:transition-colors"
             onClick={() => setIsAdvancedExpanded(prev => !prev)}
             data-testid={`${testId}-advanced-toggle`}
           >
             <span>{isAdvancedExpanded ? t('assistant-advanced-hide') : t('assistant-advanced-show')}</span>
-            <span>{isAdvancedExpanded ? '▾' : '▸'}</span>
+            {isAdvancedExpanded ? (
+              <CaretDownIcon className="gba:w-4 gba:h-4" />
+            ) : (
+              <CaretRightIcon className="gba:w-4 gba:h-4" />
+            )}
           </button>
 
           {isAdvancedExpanded && (
-            <>
+            <div className={sectionCardClassName}>
               {isReplyMode && (
                 <Textarea
                   value={replyIntent}
@@ -245,12 +272,12 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
               )}
 
               <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-                <label className="gba:text-xs ">
+                <label className="gba:text-xs">
                   {t('assistant-tone')}
                   <select
                     value={tone}
                     onChange={event => onToneChange(event.target.value as EmailAssistantTone)}
-                    className={`gba:mt-1 gba:w-full gba:h-8 gba:text-sm gba:rounded gba:px-2 ${controlBaseClassName}`}
+                    className={`gba:mt-1 gba:w-full gba:h-9 gba:text-sm gba:px-2 ${controlBaseClassName}`}
                     data-testid={`${testId}-tone`}
                   >
                     <option value="formal">{t('assistant-tone-formal')}</option>
@@ -260,12 +287,12 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                     <option value="concise">{t('assistant-tone-concise')}</option>
                   </select>
                 </label>
-                <label className="gba:text-xs ">
+                <label className="gba:text-xs">
                   {t('assistant-formality')}
                   <select
                     value={formality}
                     onChange={event => onFormalityChange(event.target.value as EmailAssistantFormality)}
-                    className={`gba:mt-1 gba:w-full gba:h-8 gba:text-sm gba:rounded gba:px-2 ${controlBaseClassName}`}
+                    className={`gba:mt-1 gba:w-full gba:h-9 gba:text-sm gba:px-2 ${controlBaseClassName}`}
                     data-testid={`${testId}-formality`}
                   >
                     <option value="formal">{t('assistant-formality-formal')}</option>
@@ -278,7 +305,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   <select
                     value={length}
                     onChange={event => onLengthChange(event.target.value as EmailAssistantLength)}
-                    className={`gba:mt-1 gba:w-full gba:h-8 gba:text-sm gba:rounded gba:px-2 ${controlBaseClassName}`}
+                    className={`gba:mt-1 gba:w-full gba:h-9 gba:text-sm gba:px-2 ${controlBaseClassName}`}
                     data-testid={`${testId}-length`}
                   >
                     <option value="short">{t('assistant-length-short')}</option>
@@ -288,7 +315,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                 </label>
               </div>
 
-              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:pt-1">
                 <Button
                   size="sm"
                   variant="outline"
@@ -336,7 +363,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                 </Button>
               </div>
 
-              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:pt-1">
                 <Button
                   size="sm"
                   variant="outline"
@@ -347,6 +374,12 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                 >
                   {t('assistant-temperature-check')}
                 </Button>
+                {loading.temperatureCheck && (
+                  <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
+                    <Loader2 className="gba:w-3.5 gba:h-3.5 gba:animate-spin" />
+                    <span>{t('assistant-risk-label')}</span>
+                  </div>
+                )}
               </div>
 
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -354,7 +387,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   value={customInstruction}
                   onChange={event => onCustomInstructionChange(event.target.value)}
                   placeholder={t('assistant-custom-placeholder')}
-                  className={`gba:flex-1 gba:h-8 gba:text-sm gba:rounded gba:px-2 ${controlBaseClassName}`}
+                  className={`gba:flex-1 gba:h-9 gba:text-sm gba:px-2 ${controlBaseClassName}`}
                   data-testid={`${testId}-custom-instruction`}
                 />
                 <Button
@@ -368,23 +401,29 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                   {t('assistant-rewrite-custom')}
                 </Button>
                 {loading.rewrite && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onCancel('rewrite')}
-                    className={ghostActionButtonClassName}
-                    data-testid={`${testId}-cancel-rewrite`}
-                  >
-                    {t('assistant-cancel')}
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onCancel('rewrite')}
+                      className={ghostActionButtonClassName}
+                      data-testid={`${testId}-cancel-rewrite`}
+                    >
+                      {t('assistant-cancel')}
+                    </Button>
+                    <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
+                      <Loader2 className="gba:w-3.5 gba:h-3.5 gba:animate-spin" />
+                      <span>{t('assistant-rewrite-custom')}</span>
+                    </div>
+                  </>
                 )}
               </div>
-            </>
+            </div>
           )}
 
           {lastError && (
             <div
-              className="gba:p-2 gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:text-xs gba:flex gba:items-center gba:justify-between gba:gap-2"
+              className="gba:p-2.5 gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:text-xs gba:flex gba:items-center gba:justify-between gba:gap-2"
               data-testid={`${testId}-error`}
             >
               <span>{lastError}</span>
@@ -402,13 +441,13 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
 
           {previewDraft && (
             <div
-              className="gba:p-2 gba:rounded-md gba:border gba:border-input gba:bg-background/45 gba:space-y-2 gba:max-h-96 gba:overflow-y-auto"
+              className="gba:p-3 gba:rounded-md gba:border gba:border-input gba:bg-background/55 gba:space-y-2.5 gba:max-h-96 gba:overflow-y-auto"
               data-testid={`${testId}-preview`}
             >
               <p className="gba:text-xs gba:text-muted-foreground">{t('assistant-preview')}</p>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">{previewDraft.subject}</p>
               <p className="gba:text-sm gba:whitespace-pre-wrap gba:text-foreground">{previewDraft.textBody}</p>
-              <div className="gba:flex gba:items-center gba:gap-2">
+              <div className="gba:sticky gba:bottom-0 gba:flex gba:items-center gba:gap-2 gba:pt-2 gba:border-t gba:border-input/70 gba:bg-background/95">
                 <Button
                   size="sm"
                   onClick={onAcceptPreview}
@@ -433,18 +472,19 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
       )}
 
       {latestOutput?.insights && (
-        <div
-          className="gba:p-2 gba:rounded-md gba:border gba:border-input gba:bg-background/35 gba:space-y-1"
-          data-testid={`${testId}-insights`}
-        >
+        <div className={`${sectionCardClassName} gba:space-y-2`} data-testid={`${testId}-insights`}>
           <button
             type="button"
-            className="gba:w-full gba:flex gba:items-center gba:justify-between"
+            className="gba:w-full gba:flex gba:items-center gba:justify-between gba:rounded-md gba:px-2 gba:py-1.5 hover:gba:bg-muted/35 gba:transition-colors"
             onClick={() => setIsInsightsExpanded(prev => !prev)}
             data-testid={`${testId}-insights-toggle`}
           >
-            <p className="gba:text-xs">{t('assistant-insights')}</p>
-            <span className="gba:text-xs gba:text-muted-foreground">{isInsightsExpanded ? '▾' : '▸'}</span>
+            <p className="gba:text-xs gba:font-medium">{t('assistant-insights')}</p>
+            {isInsightsExpanded ? (
+              <CaretDownIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+            ) : (
+              <CaretRightIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+            )}
           </button>
           {isInsightsExpanded && (
             <>
@@ -467,13 +507,10 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
       )}
 
       {latestOutput?.temperatureCheck && (
-        <div
-          className="gba:p-2 gba:rounded-md gba:border gba:border-input gba:bg-background/35 gba:space-y-2"
-          data-testid={`${testId}-temperature-block`}
-        >
+        <div className={`${sectionCardClassName} gba:space-y-2`} data-testid={`${testId}-temperature-block`}>
           <button
             type="button"
-            className="gba:w-full gba:flex gba:items-center gba:justify-between"
+            className="gba:w-full gba:flex gba:items-center gba:justify-between gba:rounded-md gba:px-2 gba:py-1.5 hover:gba:bg-muted/35 gba:transition-colors"
             onClick={() => setIsRiskExpanded(prev => !prev)}
             data-testid={`${testId}-risk-toggle`}
           >
@@ -483,7 +520,11 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                 {latestOutput.temperatureCheck.riskLevel}
               </Badge>
             </div>
-            <span className="gba:text-xs gba:text-muted-foreground">{isRiskExpanded ? '▾' : '▸'}</span>
+            {isRiskExpanded ? (
+              <CaretDownIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+            ) : (
+              <CaretRightIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+            )}
           </button>
           {isRiskExpanded && (
             <>

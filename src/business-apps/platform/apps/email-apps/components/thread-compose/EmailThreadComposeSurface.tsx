@@ -135,10 +135,10 @@ export const EmailThreadComposeSurface: React.FC<ThreadComposeSurfaceProps> = ({
 
           {isAssistantPanelOpen && (controller.assistant.isEnabled || controller.assistant.isCapabilitiesLoading) && (
             <div
-              className="gba:w-96 gba:max-w-1/2 gba:min-w-80 gba:min-h-0 gba:border gba:rounded-lg gba:bg-card gba:flex gba:flex-col"
+              className="gba:w-96 gba:max-w-1/2 gba:min-w-80 gba:min-h-0 gba:border gba:rounded-lg gba:bg-card/80 gba:flex gba:flex-col gba:overflow-hidden"
               data-testid={`${testId}-assistant-panel-shell`}
             >
-              <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:border-b">
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <SparkleIcon className="gba:w-4 gba:h-4 gba:text-foreground" weight="fill" />
                   <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('assistant-title')}</p>
@@ -155,7 +155,7 @@ export const EmailThreadComposeSurface: React.FC<ThreadComposeSurfaceProps> = ({
                 </Button>
               </div>
 
-              <div className="gba:min-h-0 gba:overflow-y-auto">
+              <div className="gba:min-h-0 gba:overflow-y-auto gba:bg-background/20">
                 <EmailAssistantPanel
                   isEnabled={controller.assistant.isEnabled}
                   isCapabilitiesLoading={controller.assistant.isCapabilitiesLoading}
@@ -205,8 +205,10 @@ export const EmailThreadComposeSurface: React.FC<ThreadComposeSurfaceProps> = ({
                   }}
                   onCancel={controller.assistant.cancelAction}
                   defaultAssistantExpanded
-                  containerClassName="gba:mt-0 gba:border-0 gba:rounded-none"
-                  loadingClassName="gba:mt-0 gba:border-0 gba:rounded-none"
+                  showInternalHeaderToggle={false}
+                  enableInternalScrollClamp={false}
+                  containerClassName="gba:mt-0 gba:border-0 gba:rounded-none gba:bg-transparent"
+                  loadingClassName="gba:mt-0 gba:border-0 gba:rounded-none gba:bg-transparent"
                   data-testid={`${testId}-assistant`}
                 />
               </div>
