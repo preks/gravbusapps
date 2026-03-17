@@ -1633,7 +1633,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         clearTimeout(pendingCellPersistTimeoutRef.current)
         pendingCellPersistTimeoutRef.current = null
       }
-      await chainOnOperationQueue(operationQueueRef, flushPendingCellChanges)
+      let flushFailed = false
+      try {
+        await chainOnOperationQueue(operationQueueRef, flushPendingCellChanges)
+      } catch (error) {
+        flushFailed = true
+        console.warn('[SpreadsheetAppViewer] Checkpoint flush failed; continuing with live snapshot', error)
+      }
 
       // Step 2: grab the live Univer snapshot and pass it directly to createVersion.
       // univerSnapshots is keyed by sheetId so multi-sheet apps work correctly.
@@ -1642,7 +1648,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         [activeSheetId]: liveSnapshot
       }
 
-      return versioning.createCheckpoint(description, { univerSnapshots })
+      const checkpoint = await versioning.createCheckpoint(description, { univerSnapshots })
+      if (checkpoint && flushFailed) {
+        toast.error('Checkpoint saved, but some pending edits may not be included.')
+      }
+      return checkpoint
     },
     [activeSheetId, flushPendingCellChanges, versioning]
   )
