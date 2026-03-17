@@ -46,7 +46,6 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps>(
       accessToken,
       initialEmployee,
       autoSelect,
-      closeOnSelect = true,
       employees: manualEmployees,
       onSearch: manualOnSearch,
       loading: manualLoading,
@@ -141,7 +140,6 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps>(
         hasMore={Boolean(hasMore)}
         data-testid={dataTestId}
         align="start"
-        closeOnSelect={closeOnSelect}
         {...rest}
       />
     )

@@ -152,7 +152,6 @@ export const FlowDataSourceMultiSelect: React.FC<FlowDataSourceMultiSelectProps>
         hasMore={Boolean(hasMore)}
         data-testid={`${testId}-picker`}
         align="start"
-        closeOnSelect={false}
         disabled={isDisabled}
       />
     </div>
