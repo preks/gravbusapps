@@ -437,12 +437,13 @@ export const MANAGER_EXPENSES_OVERVIEW = `
       }
     }
 
-    # Advance payments statistics (total and pending) - stats currency (e.g. selected currency for cards)
+    # Advance payments statistics: first card = paid/closed only, second = pending
     AllPaymentsAggregate: AdvancePaymentAggregate(
       where: {
         _and: [
           $payStatsCurrencyWhere,
           { isDeleted: { _eq: false } },
+          { status: { _in: ["PAID", "TRANSFERRED"] } },
           { expensePlan: { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } } }
         ]
       }

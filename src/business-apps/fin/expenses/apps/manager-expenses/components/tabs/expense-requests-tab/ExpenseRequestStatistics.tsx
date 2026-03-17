@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from 'react'
 import { ExpenseRequestStatisticsData } from '../../../hooks/useGetExpenseRequests'
-import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { WidgetItem } from '@/components/widget-group'
+import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -153,31 +154,12 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     [requestStats, selectedFilters, displayCurrency, handleCardClick]
   )
 
-  // Handle widget clicks from WidgetGroup
-  const handleWidgetClick = useCallback(
-    (widgetKey: string) => {
-      switch (widgetKey) {
-        case 'pending-requests':
-          handleCardClick('PENDING')
-          break
-        case 'total-requests-submitted':
-          handleCardClick('', true) // Use multi-filter mode
-          break
-
-        default:
-          break
-      }
-    },
-    [handleCardClick]
-  )
-
   return (
-    <WidgetGroup
+    <ManagerClickableWidgetGroup
       widgets={widgets}
       isLoading={requestStatsLoading}
       error={requestStatsError ? 'Failed to load statistics' : undefined}
       onRetry={fetchRequestStatistics}
-      onWidgetClick={handleWidgetClick}
       skeletonCount={4}
       emptyText={getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.no_expense_request_statistics_available',

@@ -175,6 +175,23 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
   getEntityStatusDisplay('advance', status)
 
 /**
+ * Returns the label for advance payment status filter chips (e.g. "In Approval (Pending)").
+ * Single source of truth for status filter labels; use in tabs and filter hooks (DRY).
+ */
+export function getAdvancePaymentStatusFilterLabel(status: string): string {
+  const statusConfig = getAdvancePaymentStatusDisplay(status)
+  if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+    return statusConfig.label
+  }
+  const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
+  const translatedStatus = getTranslationFromI18nKeyAndLabel(
+    `lowcoder:expense_statuses.${status.toLowerCase()}`,
+    formattedStatus
+  )
+  return `${statusConfig.label} (${translatedStatus})`
+}
+
+/**
  * Type guard to check if error has a message property
  */
 const isErrorWithMessage = (err: unknown): err is { message: string } => {

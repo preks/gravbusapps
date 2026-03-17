@@ -4,7 +4,7 @@ import { DataDisplay } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { advancePaymentFilterStatuses } from '../../../hooks/availableFilterStatuses'
-import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../../../utils'
+import { ExpenseStatus, getAdvancePaymentStatusFilterLabel } from '../../../utils'
 import AdvancePaymentStatistics from './AdvancePaymentStatistics'
 import AdvancePaymentsTable from './AdvancePaymentsTable'
 import AdvancePaymentDetails from './AdvancePaymentDetails'
@@ -13,6 +13,7 @@ import { CurrencyDropdown } from '../../../common/components/CurrencyDropdown'
 import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
 import { useAdvancePaymentsOverviewData } from '../../../hooks/useAdvancePaymentsOverviewData'
 import { createAdvancePaymentFilterConfig } from './config/advancePaymentFilterConfig'
+import { buildAdvancePaymentOrderBy } from './config/advancePaymentOrderBy'
 import { advancePaymentSortableColumns } from './config/advancePaymentSortableColumns'
 import { advancePaymentAvailableColumns } from './config/advancePaymentAvailableColumns'
 import type { AdvancePayment } from '../../../hooks/useMainViewAdvancePayments'
@@ -31,6 +32,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
   const [searchTerm, setSearchTerm] = useState('')
+  /** Default filter "In Approval (Pending)" is linked to the second (Pending) card; chip and card stay in sync. */
   const [statusFilter, setStatusFilter] = useState<string[]>([ExpenseStatus.PENDING])
   const [primaryCurrency, setCurrencyFilter] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState(20)
@@ -47,28 +49,10 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   }>({ field: 'createdAt', order: 'DESC' })
   const [selectedPayment, setSelectedPayment] = useState<AdvancePayment | null>(null)
 
-  const payOrderBy = useMemo(() => {
-    if (!sorting.field || !sorting.order) return [{ createdAt: 'DESC' } as const]
-    const dir = sorting.order
-    switch (sorting.field) {
-      case 'expensePlan.title':
-        return [{ expensePlan: { title: dir } } as any]
-      case 'expensePlan.startDate':
-        return [{ expensePlan: { startDate: dir } } as any]
-      case 'expensePlan.endDate':
-        return [{ expensePlan: { endDate: dir } } as any]
-      case 'expensePlan.employee.fullName':
-        return [{ expensePlan: { employee: { fullName: dir } } } as any]
-      case 'createdAt':
-        return [{ createdAt: dir } as any]
-      case 'amount':
-        return [{ amount: dir } as any]
-      case 'status':
-        return [{ status: dir } as any]
-      default:
-        return [{ createdAt: 'DESC' } as any]
-    }
-  }, [sorting.field, sorting.order])
+  const payOrderBy = useMemo(
+    () => buildAdvancePaymentOrderBy(sorting.field, sorting.order),
+    [sorting.field, sorting.order]
+  )
 
   const { payStats, statsLoading, statsError, advancePayments, paymentsLoading, paymentsError, totalCount, refetch } =
     useAdvancePaymentsOverviewData(props, {
@@ -91,23 +75,10 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     }
   }, [primaryCurrency, mostUsedCurrency])
 
-  const filterLabelMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const status of advancePaymentFilterStatuses) {
-      const statusConfig = getAdvancePaymentStatusDisplay(status)
-      if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
-        map[status] = statusConfig.label
-      } else {
-        const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
-        const translatedStatus = getTranslationFromI18nKeyAndLabel(
-          `lowcoder:expense_statuses.${status.toLowerCase()}`,
-          formattedStatus
-        )
-        map[status] = `${statusConfig.label} (${translatedStatus})`
-      }
-    }
-    return map
-  }, [])
+  const filterLabelMap = useMemo(
+    () => Object.fromEntries(advancePaymentFilterStatuses.map(s => [s, getAdvancePaymentStatusFilterLabel(s)])),
+    []
+  )
 
   const filterConfiguration = useMemo(
     () =>
@@ -151,6 +122,17 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     setStatusFilter(statusIds)
     setCurrentPage(1)
   }, [])
+
+  const handleStatsFilterChange = useCallback(
+    (statuses: string[]) => {
+      setStatusFilter(statuses)
+      if (!primaryCurrency && mostUsedCurrency) {
+        setCurrencyFilter(mostUsedCurrency)
+      }
+      setCurrentPage(1)
+    },
+    [primaryCurrency, mostUsedCurrency]
+  )
 
   const handleCurrencyChange = useCallback((code: string | null) => {
     setCurrencyFilter(code)
@@ -210,6 +192,8 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
           fetchAdvancePaymentStatistics={refetch}
           currencyFilter={primaryCurrency}
           displayCurrency={displayCurrencyCode}
+          activeFilter={statusFilter}
+          onFilterChange={handleStatsFilterChange}
         />
       </div>
 

@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react'
-import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { WidgetItem } from '@/components/widget-group'
+import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
 import { CalendarIcon, CurrencyDollarIcon, FileTextIcon } from '@phosphor-icons/react'
 import { ExpenseStatus } from '../../../utils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
@@ -45,46 +46,6 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       }
     },
     [activeFilter, onFilterChange]
-  )
-
-  // Handle widget clicks from WidgetGroup
-  const handleWidgetClick = useCallback(
-    (widgetKey: string) => {
-      switch (widgetKey) {
-        case 'pending-approval':
-          handleCardClick(ExpenseStatus.PENDING)
-          break
-        case 'total-plans': {
-          // "Submitted" plans (CREATED/DISCARDED are hidden from Plans tab)
-          const submittedStatuses = [
-            ExpenseStatus.PREPARED,
-            ExpenseStatus.ASSIGNED,
-            ExpenseStatus.PENDING,
-            ExpenseStatus.APPROVED,
-            ExpenseStatus.VERIFIED,
-            ExpenseStatus.BOOKED,
-            ExpenseStatus.PAID,
-            ExpenseStatus.CLOSED,
-            ExpenseStatus.TRANSFERRED
-          ]
-          const isTotalPlansFilterActive =
-            activeFilter?.length === 9 && submittedStatuses.every(status => activeFilter.includes(status))
-
-          if (isTotalPlansFilterActive) {
-            onFilterChange(null)
-          } else {
-            onFilterChange(submittedStatuses)
-          }
-          break
-        }
-        case 'total-amount':
-          // No filtering for total amount card
-          break
-        default:
-          break
-      }
-    },
-    [activeFilter, onFilterChange, handleCardClick]
   )
 
   // Transform the stats data into widgets format
@@ -190,7 +151,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
   }, [planStats, activeFilter, handleCardClick, displayCurrency])
 
   return (
-    <WidgetGroup
+    <ManagerClickableWidgetGroup
       widgets={widgets}
       isLoading={statsLoading}
       error={statsError ? 'Failed to load statistics' : undefined}
@@ -202,7 +163,6 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       )}
       cardBackground="transparent"
       className="gba:py-0 gba:bg-transparent"
-      onWidgetClick={handleWidgetClick}
       hoverable={true}
       data-testid="expense-plans-stats"
     />
