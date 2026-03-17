@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Button, Spinner, toast } from '@newwork/nw-design-system'
 import { X, FileText } from 'lucide-react'
 import DOMPurify from 'dompurify'
@@ -9,8 +10,10 @@ import { RowPageProperties } from './RowPageProperties'
 import { RowPageEditor } from './RowPageEditor'
 import { useRowPageEditor } from './useRowPageEditor'
 import { useRowPageCover } from './useRowPageCover'
+import { useRowPageCollaboration } from './useRowPageCollaboration'
 import { SaveIndicator } from './SaveIndicator'
 import { encodeMetaIntoHtml, decodeMetaFromHtml } from './rowPageMeta'
+import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
 
 export interface RowPagePanelProps {
   boardId: string
@@ -39,16 +42,34 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
+  const [collabChangeSeq, setCollabChangeSeq] = useState(0)
   const [localTitle, setLocalTitle] = useState('')
   const [pageIcon, setPageIcon] = useState<string | null>(null)
 
   const markDirty = useCallback(() => setIsDirty(true), [])
+  const editorRef = useRef<import('@tiptap/react').Editor | null>(null)
+
+  const handleLocalCollabChange = useCallback(() => {
+    setCollabChangeSeq(prev => prev + 1)
+  }, [])
+
+  const { ydoc, awareness, participants, isYjsSynced, isCollaborationConnected } = useRowPageCollaboration({
+    noteId,
+    accessToken,
+    editorRef,
+    onLocalDocumentChange: handleLocalCollabChange
+  })
+  const metaYMap = useMemo(() => ydoc.getMap<unknown>('documentMeta'), [ydoc])
 
   const { editor, setContent, getHTML, insertImageViaFilePicker } = useRowPageEditor({
     accessToken,
     documentId: noteId,
-    onDirty: markDirty
+    onDirty: markDirty,
+    ydoc: noteId ? ydoc : null,
+    awareness: noteId ? awareness : null
   })
+
+  editorRef.current = editor
 
   const { coverImage, displayCover, setCover, loadCover, pickCoverFile, isUploadingCover } = useRowPageCover({
     accessToken,
@@ -100,10 +121,11 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
     return () => {
       cancelled = true
     }
-  }, [boardId, sheetId, row.id, columns, row.data, onPageCreated, loadCover])
+  }, [boardId, sheetId, row.id, onPageCreated, loadCover])
 
   useEffect(() => {
-    if (!noteId || pageContent === null) return
+    if (noteId) return
+    if (pageContent === null) return
     setContent(DOMPurify.sanitize(pageContent) || '')
     setIsDirty(false)
   }, [noteId, pageContent, setContent])
@@ -133,6 +155,9 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
     try {
       const editorHtml = getHTML()
       const title = localTitle.trim() || pageTitle || rowTitle
+      if (isYjsSynced) {
+        metaYMap.set('title', title)
+      }
       const contentWithMeta = encodeMetaIntoHtml(editorHtml, {
         icon: pageIcon,
         coverImage
@@ -160,6 +185,8 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
     row.id,
     handleCreatePage,
     getHTML,
+    isYjsSynced,
+    metaYMap,
     pageIcon,
     coverImage
   ])
@@ -177,54 +204,155 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
   }, [noteId, handleSave])
 
   useEffect(() => {
-    if (!isDirty || !noteId || !editor) return
+    if (!isDirty || !noteId || !editor || isYjsSynced) return
     const t = setTimeout(() => void handleSave(), 3000)
     return () => clearTimeout(t)
-  }, [isDirty, noteId, editor, handleSave])
+  }, [isDirty, noteId, editor, handleSave, isYjsSynced])
+
+  useEffect(() => {
+    if (!noteId || !isYjsSynced) return
+    if (metaYMap.get('title')) return
+    const initial = (localTitle || pageTitle || rowTitle || '').trim()
+    if (!initial) return
+    metaYMap.set('title', initial)
+  }, [noteId, isYjsSynced, metaYMap, localTitle, pageTitle, rowTitle])
+
+  useEffect(() => {
+    if (!noteId || !isYjsSynced) return
+
+    const applyFromYjs = () => {
+      const next = metaYMap.get('title')
+      if (typeof next !== 'string') return
+      setLocalTitle(prev => (prev === next ? prev : next))
+      setPageTitle(prev => (prev === next ? prev : next))
+    }
+
+    applyFromYjs()
+    const handler = () => applyFromYjs()
+    metaYMap.observe(handler)
+    return () => metaYMap.unobserve(handler)
+  }, [noteId, isYjsSynced, metaYMap])
+
+  useEffect(() => {
+    if (!isYjsSynced || !noteId || !editor) return
+    if (collabChangeSeq === 0) return
+    const t = setTimeout(() => void handleSave(), 1500)
+    return () => clearTimeout(t)
+  }, [collabChangeSeq, isYjsSynced, noteId, editor, handleSave])
+
+  useEffect(() => {
+    if (!isYjsSynced || !isDirty || !noteId || !editor) return
+    const t = setTimeout(() => void handleSave(), 1500)
+    return () => clearTimeout(t)
+  }, [isYjsSynced, isDirty, noteId, editor, handleSave, localTitle, pageIcon, coverImage])
 
   const handleClose = useCallback(async () => {
     if (isDirty && noteId && editor && !isSaving) await handleSave()
     onClose()
   }, [isDirty, noteId, editor, isSaving, handleSave, onClose])
 
-  const handleTitleChange = useCallback((value: string) => {
-    setLocalTitle(value)
-    setIsDirty(true)
-  }, [])
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setLocalTitle(value)
+      if (isYjsSynced) {
+        metaYMap.set('title', value)
+      }
+      setIsDirty(true)
+    },
+    [isYjsSynced, metaYMap]
+  )
 
   const handleIconChange = useCallback((emoji: string | null) => {
     setPageIcon(emoji)
     setIsDirty(true)
   }, [])
 
-  return (
+  const portalRef = useRef<HTMLDivElement | null>(null)
+  if (!portalRef.current) {
+    const el = document.createElement('div')
+    el.id = 'row-page-drawer-portal'
+    document.body.appendChild(el)
+    portalRef.current = el
+  }
+  useEffect(() => {
+    return () => {
+      portalRef.current?.remove()
+      portalRef.current = null
+    }
+  }, [])
+
+  return createPortal(
     <>
+      <style>{`
+        @keyframes rowPageSlideIn {
+          from { transform: translateX(100%); opacity: 0.5; }
+          to   { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes rowPageFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        body > [data-radix-popper-content-wrapper] {
+          z-index: 2147483647 !important;
+        }
+        .EmojiPickerReact {
+          z-index: 2147483647 !important;
+        }
+      `}</style>
+
+      {/* Backdrop — subtle dim, no blur */}
       <div
-        className="gba:fixed gba:inset-0 gba:bg-background/60 gba:backdrop-blur-sm gba:z-50 gba:animate-in gba:fade-in-0 gba:duration-200"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 2147483640,
+          backgroundColor: 'var(--nw-color-background)',
+          opacity: 0.18,
+          animation: 'rowPageFadeIn 250ms ease-out'
+        }}
         onClick={handleClose}
         data-testid={`${testId}-backdrop`}
       />
 
+      {/* Drawer panel */}
       <div
-        className="gba:fixed gba:inset-4 gba:md:inset-x-16 gba:md:inset-y-6 gba:lg:inset-x-32 gba:lg:inset-y-8 gba:bg-card gba:rounded-xl gba:border gba:shadow-2xl gba:z-50 gba:flex gba:flex-col gba:overflow-hidden gba:animate-in gba:fade-in-0 gba:zoom-in-95 gba:duration-200"
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: 'min(800px, 100vw)',
+          zIndex: 2147483641,
+          animation: 'rowPageSlideIn 300ms cubic-bezier(0.32, 0.72, 0, 1)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          boxShadow: '-8px 0 30px rgba(0, 0, 0, 0.15)'
+        }}
+        className="gba:bg-card gba:border-l"
         data-testid={testId}
       >
-        <header className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2 gba:flex-shrink-0">
+        {/* Drawer header */}
+        <header className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2 gba:flex-shrink-0 gba:border-b gba:border-border/40">
           <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
             <SaveIndicator isDirty={isDirty} isSaving={isSaving} hasPage={!!noteId} />
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleClose}
-            className="gba:h-8 gba:w-8 gba:rounded-lg gba:hover:bg-muted"
-            data-testid={`${testId}-close`}
-          >
-            <X className="gba:w-4 gba:h-4" />
-          </Button>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {participants.length > 0 && <PresenceIndicator participants={participants} size="sm" />}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleClose}
+              className="gba:h-8 gba:w-8 gba:rounded-lg gba:hover:bg-muted"
+              data-testid={`${testId}-close`}
+            >
+              <X className="gba:w-4 gba:h-4" />
+            </Button>
+          </div>
         </header>
 
-        <div className="gba:flex-1 gba:overflow-auto">
+        {/* Drawer body */}
+        <div style={{ flex: '1 1 auto', overflowY: 'auto' }}>
           {isLoading ? (
             <div className="gba:flex gba:justify-center gba:py-24">
               <Spinner />
@@ -245,7 +373,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
 
               <RowPageProperties row={row} columns={columns} data-testid={`${testId}-properties`} />
 
-              <div className="gba:max-w-2xl gba:mx-auto gba:px-8 gba:pb-16">
+              <div className="gba:mx-auto gba:px-8 gba:pb-16" style={{ maxWidth: 680 }}>
                 <RowPageEditor
                   editor={editor}
                   onInsertImage={insertImageViaFilePicker}
@@ -271,12 +399,25 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
           )}
         </div>
 
-        <footer className="gba:border-t gba:px-4 gba:py-1.5 gba:flex gba:items-center gba:justify-end gba:flex-shrink-0 gba:bg-muted/5">
+        {/* Drawer footer */}
+        <footer className="gba:border-t gba:px-4 gba:py-1.5 gba:flex gba:items-center gba:justify-between gba:flex-shrink-0 gba:bg-muted/5">
+          <span className="gba:text-[11px] gba:text-muted-foreground/40">
+            {isYjsSynced && isCollaborationConnected ? 'Collaborative editing' : ''}
+          </span>
           <span className="gba:text-[11px] gba:text-muted-foreground/40 gba:tabular-nums">
-            {isDirty ? 'Saving...' : noteId ? 'Saved' : ''}
+            {isYjsSynced
+              ? isCollaborationConnected
+                ? 'Synced'
+                : 'Offline'
+              : isDirty
+                ? 'Saving...'
+                : noteId
+                  ? 'Saved'
+                  : ''}
           </span>
         </footer>
       </div>
-    </>
+    </>,
+    portalRef.current
   )
 }

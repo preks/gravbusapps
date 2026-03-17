@@ -62,6 +62,9 @@ export interface BoardTableViewProps {
   onDeleteQuickFilter?: (id: string) => void
   onReorderRow?: (rowId: string, afterRowId: string | null, beforeRowId: string | null) => Promise<void>
   peopleLookup?: Map<string, import('../types/columns').SelectOption>
+  focusedCells?: Map<string, import('../hooks/useBoardPresence').CellPresenceEntry>
+  onCellFocus?: (rowId: string, columnId: string) => void
+  onCellBlur?: () => void
   testId: string
 }
 
@@ -92,6 +95,9 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   onDeleteQuickFilter,
   onReorderRow,
   peopleLookup,
+  focusedCells,
+  onCellFocus,
+  onCellBlur,
   testId
 }) => {
   const virtuosoRef = useRef<TableVirtuosoHandle>(null)
@@ -333,6 +339,16 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
     onLoadMore()
   }, [onLoadMore, rowsLoading, rows.length, rowsTotalProp])
 
+  // ── Cell presence emission ──────────────────────────────────────────────
+
+  useEffect(() => {
+    if (selectedCell && onCellFocus) {
+      onCellFocus(selectedCell.rowId, selectedCell.colName)
+    } else if (!selectedCell && onCellBlur) {
+      onCellBlur()
+    }
+  }, [selectedCell, onCellFocus, onCellBlur])
+
   // ── Virtuoso context ────────────────────────────────────────────────────
 
   const virtuosoContext: VirtuosoContext = useMemo(
@@ -360,6 +376,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
       getFlowSubRows: hasFlowRows ? flowExpand.getSubRows : undefined,
       onToggleFlowExpand: hasFlowRows ? row => void flowExpand.toggleExpand(row) : undefined,
       peopleLookup,
+      focusedCells,
       testId,
       onAddRow: onAddRow ? handleQuickAddRow : undefined
     }),
@@ -386,6 +403,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
       hasFlowRows,
       flowExpand,
       peopleLookup,
+      focusedCells,
       testId,
       onAddRow,
       handleQuickAddRow
@@ -470,7 +488,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   )
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid={testId}>
+    <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid={testId}>
       <FilterSortToolbar
         columns={columns}
         filters={fs.filters}

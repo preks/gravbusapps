@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useMemo, useEffect } from 'react'
 import { useEditor, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -9,16 +9,23 @@ import { Highlight } from '@tiptap/extension-highlight'
 import { Typography } from '@tiptap/extension-typography'
 import { TaskList } from '@tiptap/extension-task-list'
 import { TaskItem } from '@tiptap/extension-task-item'
+import Collaboration from '@tiptap/extension-collaboration'
+import { createYjsCursorExtension } from '@/business-apps/platform/apps/document-apps/components/PagedDocumentEditor/extensions/YjsCursor'
 import { DocumentImage } from '@/business-apps/platform/apps/document-apps/components/PagedDocumentEditor/extensions/DocumentImage'
 import { uploadDocumentImage } from '@/business-apps/platform/apps/document-apps/services/DocumentImageUploadService'
+import type * as Y from 'yjs'
+import type { Awareness } from 'y-protocols/awareness'
 
 export interface UseRowPageEditorOptions {
   accessToken: string
   documentId: string | null
   onDirty: () => void
+  ydoc?: Y.Doc | null
+  awareness?: Awareness | null
 }
 
-export function useRowPageEditor({ accessToken, documentId, onDirty }: UseRowPageEditorOptions) {
+export function useRowPageEditor({ accessToken, documentId, onDirty, ydoc, awareness }: UseRowPageEditorOptions) {
+  const isCollaborationMode = Boolean(ydoc && awareness)
   const isSettingContentRef = useRef(false)
   const editorRef = useRef<Editor | null>(null)
   const accessTokenRef = useRef(accessToken)
@@ -76,56 +83,71 @@ export function useRowPageEditor({ accessToken, documentId, onDirty }: UseRowPag
     }
   }, [])
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-      Placeholder.configure({ placeholder: 'Type / for commands...' }),
-      Underline,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Link.configure({ openOnClick: false, autolink: true }),
-      Highlight.configure({ multicolor: false }),
-      Typography,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      DocumentImage.configure({ getAccessToken: () => accessTokenRef.current })
-    ],
-    content: '',
-    onUpdate: () => {
-      if (!isSettingContentRef.current) onDirty()
-    },
-    editorProps: {
-      attributes: {
-        class: 'gba:outline-none'
+  const collaborationExtension = useMemo(() => (ydoc ? Collaboration.configure({ document: ydoc }) : null), [ydoc])
+  const yjsCursorExtension = useMemo(() => (awareness ? createYjsCursorExtension(awareness) : null), [awareness])
+
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({
+          heading: { levels: [1, 2, 3] },
+          ...(isCollaborationMode ? { history: false, undoRedo: false } : {}),
+          link: false,
+          underline: false
+        } as any),
+        Placeholder.configure({ placeholder: 'Type / for commands...' }),
+        Underline,
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
+        Link.configure({ openOnClick: false, autolink: true }),
+        Highlight.configure({ multicolor: false }),
+        Typography,
+        TaskList,
+        TaskItem.configure({ nested: true }),
+        DocumentImage.configure({ getAccessToken: () => accessTokenRef.current }),
+        ...(collaborationExtension ? [collaborationExtension] : []),
+        ...(yjsCursorExtension ? [yjsCursorExtension] : [])
+      ],
+      content: isCollaborationMode ? '<p></p>' : '<p></p>',
+      onUpdate: () => {
+        if (!isSettingContentRef.current && !isCollaborationMode) onDirty()
       },
-      handlePaste: (_view, event) => {
-        const items = event.clipboardData?.items
-        if (!items) return false
-        for (const item of items) {
-          if (item.type.includes('image')) {
-            const file = item.getAsFile()
-            if (file) {
-              event.preventDefault()
-              void uploadAndInsert(file)
-              return true
+      editorProps: {
+        attributes: {
+          class: 'gba:outline-none'
+        },
+        handlePaste: (_view, event) => {
+          const items = event.clipboardData?.items
+          if (!items) return false
+          for (const item of items) {
+            if (item.type.includes('image')) {
+              const file = item.getAsFile()
+              if (file) {
+                event.preventDefault()
+                void uploadAndInsert(file)
+                return true
+              }
             }
           }
+          return false
+        },
+        handleDrop: (view, event, _slice, moved) => {
+          if (moved) return false
+          const files = event.dataTransfer?.files
+          const imageFiles = files ? Array.from(files).filter(f => f.type.startsWith('image/')) : []
+          if (imageFiles.length === 0) return false
+          event.preventDefault()
+          const coords = view.posAtCoords({ left: event.clientX, top: event.clientY })
+          void uploadAndInsertMultiple(imageFiles, coords?.pos ?? null)
+          return true
         }
-        return false
-      },
-      handleDrop: (view, event, _slice, moved) => {
-        if (moved) return false
-        const files = event.dataTransfer?.files
-        const imageFiles = files ? Array.from(files).filter(f => f.type.startsWith('image/')) : []
-        if (imageFiles.length === 0) return false
-        event.preventDefault()
-        const coords = view.posAtCoords({ left: event.clientX, top: event.clientY })
-        void uploadAndInsertMultiple(imageFiles, coords?.pos ?? null)
-        return true
       }
-    }
-  })
+    },
+    [isCollaborationMode, collaborationExtension, yjsCursorExtension]
+  )
 
-  editorRef.current = editor
+  useEffect(() => {
+    editorRef.current = editor
+  }, [editor])
 
   const setContent = useCallback(
     (html: string) => {

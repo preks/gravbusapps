@@ -14,13 +14,27 @@ export type BoardRealtimeEventType =
   | 'row.created'
   | 'row.updated'
   | 'row.deleted'
+  | 'row.reordered'
   | 'column.updated'
+  | 'sheet.updated'
   | 'view.updated'
   | 'group.updated'
   | 'sheet.externalSync.progress'
   | 'sheet.externalSync.completed'
   | 'sheet.externalSync.failed'
   | 'sheet.externalSync.cancelled'
+
+export interface BoardRealtimeRowPayload {
+  id: string
+  data: Record<string, unknown>
+  position?: number
+  sortKey?: string
+  groupId?: string | null
+  parentRowId?: string | null
+  createdBy?: string
+  createdAt?: string
+  updatedAt?: string
+}
 
 export interface BoardRealtimeEvent {
   type: BoardRealtimeEventType
@@ -37,6 +51,8 @@ export interface BoardRealtimeEvent {
   error?: string
   data?: Record<string, unknown>
   actorUserId?: string
+  row?: BoardRealtimeRowPayload
+  columns?: unknown[]
   timestamp: string
 }
 
@@ -51,6 +67,7 @@ export interface UseBoardRealtimeReturn {
   isConnected: boolean
   enable: () => void
   disable: () => void
+  socket: Socket | null
 }
 
 export function useBoardRealtime({
@@ -109,7 +126,7 @@ export function useBoardRealtime({
   const enable = useCallback(() => setIsEnabled(true), [])
   const disable = useCallback(() => setIsEnabled(false), [])
 
-  return { isConnected, enable, disable }
+  return { isConnected, enable, disable, socket: socketRef.current }
 }
 
 /**
