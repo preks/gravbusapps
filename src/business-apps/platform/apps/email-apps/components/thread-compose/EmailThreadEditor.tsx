@@ -18,6 +18,7 @@ interface EmailThreadEditorProps {
     onDrop: (event: React.DragEvent) => void
   }
   afterSubjectSlot?: React.ReactNode
+  belowBodySlot?: React.ReactNode
   'data-testid'?: string
 }
 
@@ -31,6 +32,7 @@ export const EmailThreadEditor: React.FC<EmailThreadEditorProps> = ({
   isDragging,
   dragHandlers,
   afterSubjectSlot,
+  belowBodySlot,
   'data-testid': testId = 'email-thread-editor'
 }) => {
   const { t } = useTranslation(translations)
@@ -70,6 +72,8 @@ export const EmailThreadEditor: React.FC<EmailThreadEditorProps> = ({
         className="gba:min-h-48 gba:text-sm"
         data-testid={`${testId}-body`}
       />
+
+      {belowBodySlot}
 
       {signatureHtml && (
         <div className="gba:pt-2 gba:border-t gba:border-dashed gba:border-muted-foreground/30">

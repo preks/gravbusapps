@@ -152,7 +152,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
         onClick={() => setIsAssistantExpanded(prev => !prev)}
         data-testid={`${testId}-assistant-toggle`}
       >
-        <p className="gba:text-sm gba:font-medium gba:text-decorative-foreground">{t('assistant-title')}</p>
+        <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('assistant-title')}</p>
         <span className="gba:text-xs gba:text-muted-foreground">{isAssistantExpanded ? '▾' : '▸'}</span>
       </button>
 
@@ -195,14 +195,16 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
                 {t('assistant-suggest-reply')}
               </Button>
             )}
-            <div className="gba:ml-auto gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-xs gba:text-muted-foreground">{t('assistant-auto-temperature')}</span>
+            <div className="gba:flex gba:items-center gba:gap-2">
               <Switch
                 id={`${testId}-auto-temperature`}
                 checked={autoTemperatureCheck}
                 onCheckedChange={onAutoTemperatureCheckChange}
                 data-testid={`${testId}-auto-temperature`}
               />
+              <span className="gba:text-xs gba:text-muted-foreground gba:text-left">
+                {t('assistant-auto-temperature')}
+              </span>
             </div>
             {(loading.draft || loading.replySuggest) && (
               <Button
@@ -400,7 +402,7 @@ export const EmailAssistantPanel: React.FC<EmailAssistantPanelProps> = ({
 
           {previewDraft && (
             <div
-              className="gba:p-2 gba:rounded-md gba:border gba:border-input gba:bg-background/45 gba:space-y-2 gba:max-h-64 gba:overflow-y-auto"
+              className="gba:p-2 gba:rounded-md gba:border gba:border-input gba:bg-background/45 gba:space-y-2 gba:max-h-96 gba:overflow-y-auto"
               data-testid={`${testId}-preview`}
             >
               <p className="gba:text-xs gba:text-muted-foreground">{t('assistant-preview')}</p>

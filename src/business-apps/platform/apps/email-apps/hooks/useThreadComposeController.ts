@@ -31,24 +31,46 @@ interface UseThreadComposeControllerOptions {
   t: (key: string, vars?: Record<string, string | number>) => string
 }
 
-function normalizeReplyGreeting(textBody: string, recipientName?: string): string {
-  const cleanedName = recipientName?.trim()
-  if (!cleanedName || !textBody.trim()) return textBody
+function normalizeGeneratedDraftText(
+  textBody: string,
+  options: {
+    recipientName?: string
+    senderName?: string
+    useFullName?: boolean
+  }
+): string {
+  if (!textBody.trim()) return textBody
 
-  const lines = textBody.split('\n')
-  const firstLine = lines[0] || ''
-  const normalizedFirstLine = firstLine.trim().toLowerCase()
-  const isGenericGreeting =
-    normalizedFirstLine === 'hi team,' ||
-    normalizedFirstLine === 'hi team' ||
-    normalizedFirstLine === 'hello team,' ||
-    normalizedFirstLine === 'hello team' ||
-    normalizedFirstLine === 'dear team,' ||
-    normalizedFirstLine === 'dear team'
+  let normalizedText = textBody
+  const cleanedRecipientName = options.recipientName?.trim()
+  const cleanedSenderName = options.senderName?.trim()
 
-  if (!isGenericGreeting) return textBody
-  lines[0] = `Hi ${cleanedName},`
-  return lines.join('\n')
+  if (cleanedRecipientName) {
+    const lines = normalizedText.split('\n')
+    const firstLine = lines[0] || ''
+    const normalizedFirstLine = firstLine.trim().toLowerCase()
+    const isGenericGreeting =
+      normalizedFirstLine === 'hi team,' ||
+      normalizedFirstLine === 'hi team' ||
+      normalizedFirstLine === 'hello team,' ||
+      normalizedFirstLine === 'hello team' ||
+      normalizedFirstLine === 'dear team,' ||
+      normalizedFirstLine === 'dear team'
+
+    if (isGenericGreeting) {
+      lines[0] = `Hi ${cleanedRecipientName},`
+      normalizedText = lines.join('\n')
+    }
+  }
+
+  if (cleanedSenderName) {
+    const senderNameForPlaceholder = options.useFullName
+      ? cleanedSenderName
+      : cleanedSenderName.split(/\s+/).filter(Boolean)[0] || cleanedSenderName
+    normalizedText = normalizedText.replace(/\[\s*your name\s*\]/gi, senderNameForPlaceholder)
+  }
+
+  return normalizedText
 }
 
 export function useThreadComposeController({
@@ -211,8 +233,14 @@ export function useThreadComposeController({
         length: assistantLength
       })
       const recipientName = toRecipients[0]?.name || replyToMessage.fromAddress?.name
-      if (response?.draft?.textBody && recipientName) {
-        const normalizedTextBody = normalizeReplyGreeting(response.draft.textBody, recipientName)
+      const senderName = activeAccount?.displayName
+      const useFullName = assistantFormality === 'formal' && assistantTone === 'formal'
+      if (response?.draft?.textBody) {
+        const normalizedTextBody = normalizeGeneratedDraftText(response.draft.textBody, {
+          recipientName,
+          senderName,
+          useFullName
+        })
         if (normalizedTextBody !== response.draft.textBody) {
           setPreviewDraftOverride({ ...response.draft, textBody: normalizedTextBody })
         }
@@ -220,7 +248,7 @@ export function useThreadComposeController({
       return
     }
 
-    await generateDraft({
+    const response = await generateDraft({
       accountId,
       mode,
       bulletDraft: assistantBulletDraft,
@@ -228,6 +256,19 @@ export function useThreadComposeController({
       formality: assistantFormality,
       length: assistantLength
     })
+    const recipientName = toRecipients[0]?.name
+    const senderName = activeAccount?.displayName
+    const useFullName = assistantFormality === 'formal' && assistantTone === 'formal'
+    if (response?.draft?.textBody) {
+      const normalizedTextBody = normalizeGeneratedDraftText(response.draft.textBody, {
+        recipientName,
+        senderName,
+        useFullName
+      })
+      if (normalizedTextBody !== response.draft.textBody) {
+        setPreviewDraftOverride({ ...response.draft, textBody: normalizedTextBody })
+      }
+    }
   }, [
     accountId,
     mode,
@@ -238,6 +279,7 @@ export function useThreadComposeController({
     assistantFormality,
     assistantLength,
     toRecipients,
+    activeAccount,
     setPreviewDraftOverride,
     generateDraft,
     t
@@ -261,8 +303,14 @@ export function useThreadComposeController({
       length: assistantLength
     })
     const recipientName = toRecipients[0]?.name || replyToMessage.fromAddress?.name
-    if (response?.draft?.textBody && recipientName) {
-      const normalizedTextBody = normalizeReplyGreeting(response.draft.textBody, recipientName)
+    const senderName = activeAccount?.displayName
+    const useFullName = assistantFormality === 'formal' && assistantTone === 'formal'
+    if (response?.draft?.textBody) {
+      const normalizedTextBody = normalizeGeneratedDraftText(response.draft.textBody, {
+        recipientName,
+        senderName,
+        useFullName
+      })
       if (normalizedTextBody !== response.draft.textBody) {
         setPreviewDraftOverride({ ...response.draft, textBody: normalizedTextBody })
       }
@@ -276,6 +324,7 @@ export function useThreadComposeController({
     assistantFormality,
     assistantLength,
     setPreviewDraftOverride,
+    activeAccount,
     t,
     toRecipients
   ])
