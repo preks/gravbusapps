@@ -15,6 +15,13 @@ import { SaveIndicator } from './SaveIndicator'
 import { encodeMetaIntoHtml, decodeMetaFromHtml } from './rowPageMeta'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
 
+export interface RowPageCollabDebugState {
+  connected: boolean
+  yjsSynced: boolean
+  noteId: string | null
+  lastError: string | null
+}
+
 export interface RowPagePanelProps {
   boardId: string
   sheetId: string
@@ -23,6 +30,7 @@ export interface RowPagePanelProps {
   accessToken: string
   onClose: () => void
   onPageCreated?: (rowId: string) => void
+  onCollabDebugState?: (state: RowPageCollabDebugState) => void
   'data-testid'?: string
 }
 
@@ -34,6 +42,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
   accessToken,
   onClose,
   onPageCreated,
+  onCollabDebugState,
   'data-testid': testId = 'row-page-panel'
 }) => {
   const [pageContent, setPageContent] = useState<string | null>(null)
@@ -53,12 +62,13 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
     setCollabChangeSeq(prev => prev + 1)
   }, [])
 
-  const { ydoc, awareness, participants, isYjsSynced, isCollaborationConnected } = useRowPageCollaboration({
-    noteId,
-    accessToken,
-    editorRef,
-    onLocalDocumentChange: handleLocalCollabChange
-  })
+  const { ydoc, awareness, participants, isYjsSynced, isCollaborationConnected, lastSyncError } =
+    useRowPageCollaboration({
+      noteId,
+      accessToken,
+      editorRef,
+      onLocalDocumentChange: handleLocalCollabChange
+    })
   const metaYMap = useMemo(() => ydoc.getMap<unknown>('documentMeta'), [ydoc])
 
   const { editor, setContent, getHTML, insertImageViaFilePicker } = useRowPageEditor({
@@ -122,6 +132,15 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
       cancelled = true
     }
   }, [boardId, sheetId, row.id, onPageCreated, loadCover])
+
+  useEffect(() => {
+    onCollabDebugState?.({
+      connected: isCollaborationConnected,
+      yjsSynced: isYjsSynced,
+      noteId,
+      lastError: lastSyncError
+    })
+  }, [onCollabDebugState, isCollaborationConnected, isYjsSynced, noteId, lastSyncError])
 
   useEffect(() => {
     if (noteId) return
