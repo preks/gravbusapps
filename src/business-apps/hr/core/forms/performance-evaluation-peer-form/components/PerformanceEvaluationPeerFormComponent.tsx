@@ -23,7 +23,6 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
     employeesError,
     searchEmployees,
     onSubmit,
-    onCancel,
     employeeForHeader,
     employeeForHeaderLoading
   } = usePerformanceEvaluationPeerForm()
@@ -105,14 +104,6 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
       </div>
 
       <div className="gba:flex-shrink-0 gba:px-6 gba:py-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-        >
-          {t('cancel-button')}
-        </Button>
         <Button
           type="button"
           variant="default"
