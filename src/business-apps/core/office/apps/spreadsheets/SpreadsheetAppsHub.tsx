@@ -32,6 +32,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
   Checkbox,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
