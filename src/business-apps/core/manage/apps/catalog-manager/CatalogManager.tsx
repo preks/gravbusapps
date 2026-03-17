@@ -38,7 +38,7 @@ export const CatalogManager: React.FC<CatalogManagerProps> = context => {
     activeTabId: 'catalogs',
     catalogTabs: []
   })
-  const [error, setError] = useState<string | null>(null)
+  const [error] = useState<string | null>(null)
 
   // Load tabs from cache
   const loadTabsFromCache = useCallback((): CatalogTab[] => {
