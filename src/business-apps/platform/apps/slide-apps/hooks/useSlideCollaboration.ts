@@ -81,6 +81,16 @@ function slidesToYjs(slides: SlideData[], ySlides: Y.Array<Y.Map<any>>) {
     })
     ySlide.set('elements', yElements)
 
+    // Convert transition
+    if (slide.transition) {
+      const yTransition = new Y.Map()
+      yTransition.set('type', slide.transition.type)
+      yTransition.set('duration', slide.transition.duration)
+      yTransition.set('trigger', slide.transition.trigger)
+      yTransition.set('delay', slide.transition.delay)
+      ySlide.set('transition', yTransition)
+    }
+
     ySlides.push([ySlide])
   })
 }
@@ -123,6 +133,26 @@ function yjsToSlides(ySlides: Y.Array<Y.Map<any>>): SlideData[] {
         })
         slide.elements.push(element as AnySlideElement)
       })
+    }
+
+    // Parse transition (handle both Y.Map and plain object formats for backward compatibility)
+    const yTransition = ySlide.get('transition')
+    if (yTransition) {
+      if (yTransition instanceof Y.Map) {
+        slide.transition = {
+          type: yTransition.get('type') || 'none',
+          duration: yTransition.get('duration') || 500,
+          trigger: yTransition.get('trigger') || 'on-click',
+          delay: yTransition.get('delay') || 0
+        }
+      } else if (typeof yTransition === 'object') {
+        slide.transition = {
+          type: yTransition.type || 'none',
+          duration: yTransition.duration || 500,
+          trigger: yTransition.trigger || 'on-click',
+          delay: yTransition.delay || 0
+        }
+      }
     }
 
     slides.push(slide)
@@ -401,6 +431,12 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
             yElements.push([yElement])
           })
           ySlide.set('elements', yElements)
+        } else if (key === 'transition' && value) {
+          const yTransition = new Y.Map()
+          Object.entries(value).forEach(([trKey, trValue]) => {
+            if (trValue !== undefined) yTransition.set(trKey, trValue)
+          })
+          ySlide.set('transition', yTransition)
         } else if (value !== undefined) {
           ySlide.set(key, value)
         }
