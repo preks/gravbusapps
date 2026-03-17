@@ -779,6 +779,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                   sheetId={activeSheet!.id}
                   row={activeRow}
                   columns={activeSheet!.columns}
+                  accessToken={accessToken}
                   onClose={() => setActiveRow(null)}
                   onPageCreated={handlePageCreated}
                   data-testid={`${testId}-row-page`}
