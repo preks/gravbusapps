@@ -33,7 +33,36 @@ function isOwner(app: SpreadsheetAppSummary, currentUserId: string): boolean {
 }
 
 function isExcelCollectionCopy(app: SpreadsheetAppSummary): boolean {
-  return app.settings?.excel_collection_copy === true
+  const settings = app.settings && typeof app.settings === 'object' ? app.settings : {}
+  const settingsRecord = settings as Record<string, unknown>
+  const rootRecord = app as unknown as Record<string, unknown>
+
+  const isTruthyCopyFlag = (value: unknown): boolean => {
+    if (value === true) return true
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase()
+      return normalized === 'true' || normalized === '1' || normalized === 'yes'
+    }
+    if (typeof value === 'number') return value === 1
+    return false
+  }
+
+  if (
+    isTruthyCopyFlag(settingsRecord.excel_collection_copy) ||
+    isTruthyCopyFlag(settingsRecord.excelCollectionCopy) ||
+    isTruthyCopyFlag(rootRecord.excel_collection_copy)
+  ) {
+    return true
+  }
+
+  // Some environments may miss the explicit copy flag;
+  // these markers are set when collection copies are duplicated.
+  const hasCollectionCopyMarkers =
+    (typeof settingsRecord.parentAppId === 'string' && settingsRecord.parentAppId.length > 0) ||
+    (typeof settingsRecord.copyAppId === 'string' && settingsRecord.copyAppId.length > 0) ||
+    (typeof settingsRecord.automationRunId === 'string' && settingsRecord.automationRunId.length > 0)
+
+  return hasCollectionCopyMarkers
 }
 
 function hasContributorAccess(app: SpreadsheetAppSummary, currentUserId: string): boolean {
