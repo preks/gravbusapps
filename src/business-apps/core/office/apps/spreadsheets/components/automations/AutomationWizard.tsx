@@ -325,6 +325,19 @@ function getStepTitle(step: WizardStep): string {
   return step.replaceAll('_', ' ').replaceAll(/\b\w/g, c => c.toUpperCase())
 }
 
+function getAutomationTypeTitle(type: AutomationType | null): string {
+  const titles: Record<AutomationType, string> = {
+    row_workflow: 'Row Workflow',
+    bulk_collection: 'Form',
+    excel_collection: 'Spreadsheet template',
+    sheet_approval: 'Sheet Approval',
+    line_approval: 'Line Approval'
+  }
+
+  if (!type) return 'Not selected'
+  return titles[type] || type
+}
+
 /**
  * AutomationWizard Component
  */
@@ -2129,7 +2142,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                 <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                   <div>
                     <Label className="gba:text-xs gba:text-muted-foreground">Type</Label>
-                    <p className="gba:font-medium">{AUTOMATION_TYPES.find(t => t.type === automationType)?.title}</p>
+                    <p className="gba:font-medium">{getAutomationTypeTitle(automationType)}</p>
                   </div>
                   <div>
                     <Label className="gba:text-xs gba:text-muted-foreground">Trigger</Label>
