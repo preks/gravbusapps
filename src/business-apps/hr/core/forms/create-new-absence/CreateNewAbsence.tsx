@@ -26,6 +26,7 @@ import { GET_EMPLOYEE_DETAILS } from './queries/getEmployeeDetails'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAbsenceValidation } from './hooks/useAbsenceValidation'
+import { useAbsencePrevalidate } from './hooks/useAbsencePrevalidate'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useAbsenceTypesByGroup } from './hooks/useAbsenceTypesByGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -118,6 +119,19 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     endDate: formValuesState.endDate,
     context: props
   })
+
+  const prevalidateStartDateStr =
+    formValuesState.startDate == null ? null : dayjs(formValuesState.startDate).format('YYYY-MM-DD')
+  const prevalidateEndDateStr =
+    formValuesState.endDate == null ? null : dayjs(formValuesState.endDate).format('YYYY-MM-DD')
+  const prevalidate = useAbsencePrevalidate(
+    accessToken,
+    employeeId || undefined,
+    formValuesState.selectedType || undefined,
+    prevalidateStartDateStr,
+    prevalidateEndDateStr
+  )
+  const hasPrevalidateError = !!prevalidate.errorCode
 
   useEffect(() => {
     const start = formValuesState.startDate
@@ -383,7 +397,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               )
             : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')
         }
-        isSubmitDisabled={!isFormValid || isValidating || isCheckingBankHoliday}
+        isSubmitDisabled={!isFormValid || isValidating || isCheckingBankHoliday || hasPrevalidateError}
         submitEventType="pse_submit"
         cancelEventType="pse_abort"
         data-testid="create-new-absence-form"

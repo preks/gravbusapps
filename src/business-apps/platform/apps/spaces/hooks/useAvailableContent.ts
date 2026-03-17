@@ -73,39 +73,49 @@ export function useAvailableContent(
         setIsLoading(true)
         setError(null)
 
-        // Build search params
-        const searchParams = query.trim() ? `?search=${encodeURIComponent(query.trim())}` : ''
+        // Helper to paginate through an API (same pattern as useDocumentApps/useSpreadsheetApps)
+        const fetchAllPaginated = async (
+          basePath: string,
+          extraParams: Record<string, string> = {}
+        ): Promise<unknown[]> => {
+          const PAGE_SIZE = 100
+          let page = 1
+          let hasMore = true
+          const all: unknown[] = []
+          while (hasMore) {
+            const params = new URLSearchParams(extraParams)
+            params.set('page', String(page))
+            params.set('limit', String(PAGE_SIZE))
 
-        // Fetch user's owned content with optional search
-        const [docsRes, notesRes, sheetsRes] = await Promise.all([
-          fetch(`${API_URL}/documents${searchParams}`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
+            const res = await fetch(`${API_URL}${basePath}?${params.toString()}`, {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            })
+            if (!res.ok) break
+
+            const data = await res.json()
+            const items = Array.isArray(data) ? data : data?.items || data?.data || []
+            all.push(...items)
+            hasMore = items.length === PAGE_SIZE
+            if (data?.totalPages != null && page >= data.totalPages) break
+            page++
+          }
+          return all
+        }
+
+        const searchParam = query.trim()
+        const [docsData, notesData, sheetsData] = await Promise.all([
+          fetchAllPaginated('/documents', {
+            includeShared: 'false', // Add Content shows only owned items
+            ...(searchParam && { search: searchParam })
           }),
-          fetch(`${API_URL}/notes${searchParams}`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-          }),
-          fetch(`${API_URL}/spreadsheets${searchParams}`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-          })
+          fetchAllPaginated('/notes', searchParam ? { search: searchParam } : {}),
+          fetchAllPaginated('/spreadsheets', searchParam ? { search: searchParam } : {})
         ])
 
         // Check if this request is still the latest
         if (currentRequestId !== requestIdRef.current) {
           return // A newer request was made, ignore this result
         }
-
-        const [docsDataRaw, notesDataRaw, sheetsDataRaw] = await Promise.all([
-          docsRes.ok ? docsRes.json() : [],
-          notesRes.ok ? notesRes.json() : [],
-          sheetsRes.ok ? sheetsRes.json() : []
-        ])
-
-        // Ensure we have arrays (handle potential paginated responses)
-        const docsData = Array.isArray(docsDataRaw) ? docsDataRaw : docsDataRaw?.items || docsDataRaw?.data || []
-        const notesData = Array.isArray(notesDataRaw) ? notesDataRaw : notesDataRaw?.items || notesDataRaw?.data || []
-        const sheetsData = Array.isArray(sheetsDataRaw)
-          ? sheetsDataRaw
-          : sheetsDataRaw?.items || sheetsDataRaw?.data || []
 
         // Filter: only items the user OWNS and not already in a space
         // This is critical - you can only add your own content to a space

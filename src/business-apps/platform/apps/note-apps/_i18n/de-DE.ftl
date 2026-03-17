@@ -1,3 +1,14 @@
+# Hero
+nh-parent-label = Every Office
+nh-title = Notizen
+nh-tabs-aria-label = Notizbereiche
+nh-tab-my-notes = Meine Notizen
+nh-tab-shared = Geteilt
+nh-tab-pinned = Angepinnt
+nh-tab-recent = Zuletzt verwendet
+nh-tab-archived = Archiviert
+nh-refresh = Aktualisieren
+
 sidebar-back-to-desk = Zurück zum Schreibtisch
 sidebar-expand = Seitenleiste erweitern
 sidebar-collapse = Seitenleiste einklappen

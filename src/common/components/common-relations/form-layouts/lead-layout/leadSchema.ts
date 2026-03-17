@@ -18,6 +18,8 @@ export const leadSchema = z.object({
   sensitive: z.boolean().optional(),
   email: nullableString(),
   phoneNumber: nullableString(),
+  secondaryNumber: nullableString(),
+  linkedinUrl: nullableString(),
   academicTitleRef: nullableString(),
   jobPosition: nullableString(),
   legalFormRef: nullableString(),

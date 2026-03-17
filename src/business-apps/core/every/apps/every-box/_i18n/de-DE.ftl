@@ -212,6 +212,7 @@ task-details-add-comment = Kommentar hinzufügen
 task-details-optional = (Optional)
 task-details-comment-placeholder = Kommentar eingeben...
 task-details-blink-info = Dies ist eine schnelle Blink-Aufgabe. Sie können sie hier direkt abschließen.
+task-details-blink-instruction-hint = Öffnen Sie den Link unten, um Ihre zugewiesene Kopie zu öffnen, füllen Sie sie aus und kehren Sie hierher zurück, um abzuschließen.
 task-details-unknown = Unbekannt
 task-details-untitled = Aufgabe ohne Titel
 task-details-claim-coming = Übernahme-Funktion kommt bald
