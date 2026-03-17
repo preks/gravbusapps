@@ -23,8 +23,8 @@ import { ActivityEmailBody } from './ActivityEmailBody'
 export type ActivityDocument = {
   id: string
   name: string
-  mimeType?: string
-  fileSize?: number
+  mimeType?: string | null
+  fileSize?: number | null
   file?: string
   fileInfo?: FileInfo
 }
