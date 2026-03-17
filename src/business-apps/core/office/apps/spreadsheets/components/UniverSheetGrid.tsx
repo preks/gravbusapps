@@ -1604,6 +1604,38 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
     }, [])
 
+    const forwardReadOnlyOverlayWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+      // Keep the read-only overlay to block edits/clicks, but forward wheel/trackpad
+      // gestures so users can still navigate large sheets in view mode.
+      e.preventDefault()
+      e.stopPropagation()
+
+      const overlay = e.currentTarget
+      const previousPointerEvents = overlay.style.pointerEvents
+      overlay.style.pointerEvents = 'none'
+      const target = globalThis.document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
+      overlay.style.pointerEvents = previousPointerEvents
+
+      if (!target) return
+
+      target.dispatchEvent(
+        new WheelEvent('wheel', {
+          deltaX: e.deltaX,
+          deltaY: e.deltaY,
+          deltaZ: e.deltaZ,
+          deltaMode: e.deltaMode,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          altKey: e.altKey,
+          metaKey: e.metaKey,
+          bubbles: true,
+          cancelable: true
+        })
+      )
+    }, [])
+
     return (
       <div
         className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:overflow-hidden"
@@ -1615,6 +1647,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           <div
             data-testid="univer-readonly-overlay"
             className="gba:absolute gba:inset-0 gba:z-30 gba:cursor-not-allowed"
+            onWheel={forwardReadOnlyOverlayWheel}
             aria-hidden="true"
           />
         )}

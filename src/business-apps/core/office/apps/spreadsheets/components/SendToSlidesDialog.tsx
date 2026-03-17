@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogFooter,
   Button,
-  ScrollArea,
   Spinner
 } from '@newwork/nw-design-system'
 import { Presentation } from 'lucide-react'
@@ -124,7 +123,7 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="gba:max-w-md gba:max-h-[80vh] gba:flex gba:flex-col"
+        className="gba:max-w-md gba:max-h-[80vh] gba:overflow-hidden gba:flex gba:flex-col"
         style={{ zIndex: 1000003 }}
         data-testid={testId}
       >
@@ -137,34 +136,36 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
         <p className="gba:text-sm gba:text-muted-foreground">
           Choose a presentation. The chart will be added as a new slide.
         </p>
-        {loading && (
-          <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-            <Spinner className="gba:w-8 gba:h-8" />
-          </div>
-        )}
-        {!loading && error && <p className="gba:text-sm gba:text-destructive gba:py-4">{error}</p>}
-        {!loading && !error && slides.length === 0 && (
-          <p className="gba:text-sm gba:text-muted-foreground gba:py-4">No presentations found.</p>
-        )}
-        {!loading && !error && slides.length > 0 && (
-          <ScrollArea className="gba:max-h-[320px] gba:rounded-md gba:border gba:border-border">
-            <div className="gba:p-2 gba:space-y-1">
-              {slides.map(s => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setSelectedId(s.id)}
-                  className={`gba:w-full gba:text-left gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
-                    selectedId === s.id ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:hover:bg-muted/50'
-                  }`}
-                  data-testid={`${testId}-slide-${s.id}`}
-                >
-                  {s.title || 'Untitled presentation'}
-                </button>
-              ))}
+        <div className="gba:flex-1 gba:min-h-0">
+          {loading && (
+            <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+              <Spinner className="gba:w-8 gba:h-8" />
             </div>
-          </ScrollArea>
-        )}
+          )}
+          {!loading && error && <p className="gba:text-sm gba:text-destructive gba:py-4">{error}</p>}
+          {!loading && !error && slides.length === 0 && (
+            <p className="gba:text-sm gba:text-muted-foreground gba:py-4">No presentations found.</p>
+          )}
+          {!loading && !error && slides.length > 0 && (
+            <div className="gba:h-full gba:min-h-0 gba:overflow-y-auto gba:rounded-md gba:border gba:border-border">
+              <div className="gba:p-2 gba:space-y-1">
+                {slides.map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSelectedId(s.id)}
+                    className={`gba:w-full gba:text-left gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
+                      selectedId === s.id ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:hover:bg-muted/50'
+                    }`}
+                    data-testid={`${testId}-slide-${s.id}`}
+                  >
+                    {s.title || 'Untitled presentation'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={inserting}>
             Cancel

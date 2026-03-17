@@ -20,7 +20,6 @@ interface UseCatalogTableActionsProps {
 }
 
 export const useCatalogTableActions = ({
-  context: _context,
   catalog,
   state,
   setState,
