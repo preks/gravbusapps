@@ -450,6 +450,16 @@ link-dialog-remove-link = Eliminați linkul
 link-dialog-cancel = Anulare
 link-dialog-invalid-url = Introduceți o adresă URL validă.
 
+# Insert table dialog
+insert-table-dialog-title = Inserați tabel
+insert-table-dialog-rows = Rânduri
+insert-table-dialog-cols = Coloane
+insert-table-dialog-header-row = Folosiți primul rând ca antet
+insert-table-dialog-insert = Inserați
+insert-table-dialog-cancel = Anulare
+insert-table-dialog-rows-range = Rândurile trebuie să fie între { $min } și { $max }.
+insert-table-dialog-cols-range = Coloanele trebuie să fie între { $min } și { $max }.
+
 # Link bubble menu
 link-bubble-edit = Editare
 link-bubble-remove-link = Eliminați linkul
@@ -490,6 +500,7 @@ editor-approval-more = +{ $count } în plus { $count ->
 editor-document-menu = Document
 editor-version-history = Istoric versiuni
 editor-save-checkpoint = Salvați checkpoint
+editor-checkpoint-from-save = Salvat din editor
 editor-unlock-document = Deblocați documentul
 editor-lock-document = Blocați documentul
 editor-publish = Publicare...

@@ -126,6 +126,7 @@ import { PageSetupDialog } from './PageSetupDialog'
 import { LinkDialog, type LinkDialogInitialValues, type LinkDialogMode } from './LinkDialog'
 import { LinkBubbleMenu } from './LinkBubbleMenu'
 import { InsertImageDialog } from './InsertImageDialog'
+import { InsertTableDialog } from './InsertTableDialog'
 import { NavigationPanel } from './NavigationPanel'
 import { DocumentBottomBar } from './DocumentBottomBar'
 import { useEditorImageHandlers } from './hooks/useEditorImageHandlers'
@@ -703,6 +704,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showPublishDialog, setShowPublishDialog] = useState(false)
     const [showPageSetupDialog, setShowPageSetupDialog] = useState(false)
     const [showInsertImageDialog, setShowInsertImageDialog] = useState(false)
+    const [showInsertTableDialog, setShowInsertTableDialog] = useState(false)
     const [showLinkDialog, setShowLinkDialog] = useState(false)
     const [linkDialogMode, setLinkDialogMode] = useState<LinkDialogMode>('insert')
     const [linkDialogInitialValues, setLinkDialogInitialValues] = useState<LinkDialogInitialValues | undefined>()
@@ -1915,6 +1917,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         await onSave(nextTitle, content, formatting)
         setLastSaved(new Date())
         setHasUnsavedChanges(false)
+
+        // Same as Save Checkpoint: open the checkpoint modal so user can enter a description
+        if (document?.id) {
+          setShowCheckpointDialog(true)
+        }
       } catch (error) {
         console.error('[PagedDocumentEditor] Save failed:', error)
       } finally {
@@ -2550,6 +2557,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             editor={activeEditor}
             onOpenLinkDialog={openLinkDialog}
             onOpenInsertImageDialog={() => setShowInsertImageDialog(true)}
+            onOpenInsertTableDialog={() => setShowInsertTableDialog(true)}
             onOpenFind={() => openNavigationPanelTab('find')}
             onOpenReplace={() => openNavigationPanelTab('replace')}
             data-testid={`${testId}-toolbar`}
@@ -3156,6 +3164,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             documentId={document?.id ?? null}
             accessToken={accessToken}
             data-testid="document-insert-image-dialog"
+          />
+        )}
+
+        {showInsertTableDialog && activeEditor && (
+          <InsertTableDialog
+            open={showInsertTableDialog}
+            onOpenChange={setShowInsertTableDialog}
+            editor={activeEditor}
+            data-testid="document-insert-table-dialog"
           />
         )}
 

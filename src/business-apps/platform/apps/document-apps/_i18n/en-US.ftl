@@ -451,6 +451,16 @@ link-dialog-remove-link = Remove link
 link-dialog-cancel = Cancel
 link-dialog-invalid-url = Please enter a valid URL.
 
+# Insert table dialog
+insert-table-dialog-title = Insert Table
+insert-table-dialog-rows = Rows
+insert-table-dialog-cols = Columns
+insert-table-dialog-header-row = Use first row as header
+insert-table-dialog-insert = Insert
+insert-table-dialog-cancel = Cancel
+insert-table-dialog-rows-range = Rows must be between { $min } and { $max }.
+insert-table-dialog-cols-range = Columns must be between { $min } and { $max }.
+
 # Link bubble menu
 link-bubble-edit = Edit
 link-bubble-remove-link = Remove link
@@ -493,6 +503,7 @@ editor-approval-more = +{ $count } more { $count ->
 editor-document-menu = Document
 editor-version-history = Version History
 editor-save-checkpoint = Save Checkpoint
+editor-checkpoint-from-save = Saved from editor
 editor-unlock-document = Unlock Document
 editor-lock-document = Lock Document
 editor-publish = Publish...

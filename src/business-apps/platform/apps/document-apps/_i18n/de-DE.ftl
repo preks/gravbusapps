@@ -450,6 +450,16 @@ link-dialog-remove-link = Link entfernen
 link-dialog-cancel = Abbrechen
 link-dialog-invalid-url = Bitte geben Sie eine gültige URL ein.
 
+# Insert table dialog
+insert-table-dialog-title = Tabelle einfügen
+insert-table-dialog-rows = Zeilen
+insert-table-dialog-cols = Spalten
+insert-table-dialog-header-row = Erste Zeile als Kopfzeile verwenden
+insert-table-dialog-insert = Einfügen
+insert-table-dialog-cancel = Abbrechen
+insert-table-dialog-rows-range = Zeilen müssen zwischen { $min } und { $max } liegen.
+insert-table-dialog-cols-range = Spalten müssen zwischen { $min } und { $max } liegen.
+
 # Link bubble menu
 link-bubble-edit = Bearbeiten
 link-bubble-remove-link = Link entfernen
@@ -490,6 +500,7 @@ editor-approval-more = +{ $count } weitere { $count ->
 editor-document-menu = Dokument
 editor-version-history = Versionsverlauf
 editor-save-checkpoint = Checkpoint speichern
+editor-checkpoint-from-save = Aus Editor gespeichert
 editor-unlock-document = Dokument entsperren
 editor-lock-document = Dokument sperren
 editor-publish = Veröffentlichen...

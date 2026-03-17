@@ -13,6 +13,7 @@ interface InsertTabContentProps {
   editor: Editor
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
+  onOpenInsertTableDialog?: () => void
   onInsertPageBreak?: () => void
   testId?: string
 }
@@ -21,6 +22,7 @@ export function InsertTabContent({
   editor,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
+  onOpenInsertTableDialog,
   onInsertPageBreak,
   testId = 'editor-toolbar'
 }: Readonly<InsertTabContentProps>) {
@@ -51,8 +53,12 @@ export function InsertTabContent({
   }, [editor, t, onOpenInsertImageDialog])
 
   const insertTable = useCallback(() => {
-    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-  }, [editor])
+    if (onOpenInsertTableDialog) {
+      onOpenInsertTableDialog()
+    } else {
+      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+    }
+  }, [editor, onOpenInsertTableDialog])
 
   const insertPageBreak = useCallback(() => {
     editor.chain().focus().setPageBreak().run()
