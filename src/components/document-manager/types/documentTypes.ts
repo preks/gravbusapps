@@ -18,7 +18,7 @@ export interface Document {
   } | null
   file?: string | null
   mimeType?: string | null
-  fileSize?: number
+  fileSize?: number | null
   createdBy?: string | null
   format?: string | null
   parentDocument?: string | null

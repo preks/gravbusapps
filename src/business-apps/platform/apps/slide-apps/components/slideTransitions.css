@@ -1,0 +1,354 @@
+/**
+ * Slide Transitions - CSS animations for slide-to-slide transitions
+ */
+
+/* Scoped to transition container to avoid conflicts with other animations */
+.slide-transition-container {
+  --slide-transition-duration: 500ms;
+  --slide-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-transition-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.slide-transition-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+}
+
+.slide-transition-current {
+  z-index: 2;
+}
+
+.slide-transition-previous {
+  z-index: 1;
+}
+
+/* Fade Transition */
+.transition-fade-enter {
+  opacity: 0;
+  transition: opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-fade-enter-active {
+  opacity: 1;
+}
+
+.transition-fade-exit {
+  opacity: 1;
+  transition: opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-fade-exit-active {
+  opacity: 0;
+}
+
+/* Slide Left Transition */
+.transition-slide-left-enter {
+  transform: translateX(100%);
+  transition: transform var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-slide-left-enter-active {
+  transform: translateX(0);
+}
+
+.transition-slide-left-exit {
+  transform: translateX(0);
+  transition: transform var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-slide-left-exit-active {
+  transform: translateX(-100%);
+}
+
+/* Slide Right Transition */
+.transition-slide-right-enter {
+  transform: translateX(-100%);
+  transition: transform var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-slide-right-enter-active {
+  transform: translateX(0);
+}
+
+.transition-slide-right-exit {
+  transform: translateX(0);
+  transition: transform var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-slide-right-exit-active {
+  transform: translateX(100%);
+}
+
+/* Slide Up Transition */
+.transition-slide-up-enter {
+  transform: translateY(100%);
+  transition: transform var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-slide-up-enter-active {
+  transform: translateY(0);
+}
+
+.transition-slide-up-exit {
+  transform: translateY(0);
+  transition: transform var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-slide-up-exit-active {
+  transform: translateY(-100%);
+}
+
+/* Slide Down Transition */
+.transition-slide-down-enter {
+  transform: translateY(-100%);
+  transition: transform var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-slide-down-enter-active {
+  transform: translateY(0);
+}
+
+.transition-slide-down-exit {
+  transform: translateY(0);
+  transition: transform var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-slide-down-exit-active {
+  transform: translateY(100%);
+}
+
+/* Push Left Transition */
+.transition-push-left-enter {
+  transform: translateX(100%);
+  transition: transform var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-push-left-enter-active {
+  transform: translateX(0);
+}
+
+.transition-push-left-exit {
+  transform: translateX(0);
+  opacity: 1;
+  transition:
+    transform var(--slide-transition-duration) var(--slide-transition-easing),
+    opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-push-left-exit-active {
+  transform: translateX(-30%);
+  opacity: 0.5;
+}
+
+/* Push Right Transition */
+.transition-push-right-enter {
+  transform: translateX(-100%);
+  transition: transform var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-push-right-enter-active {
+  transform: translateX(0);
+}
+
+.transition-push-right-exit {
+  transform: translateX(0);
+  opacity: 1;
+  transition:
+    transform var(--slide-transition-duration) var(--slide-transition-easing),
+    opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-push-right-exit-active {
+  transform: translateX(30%);
+  opacity: 0.5;
+}
+
+/* Zoom In Transition */
+.transition-zoom-in-enter {
+  transform: scale(0.5);
+  opacity: 0;
+  transition:
+    transform var(--slide-transition-duration) var(--slide-transition-easing),
+    opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-zoom-in-enter-active {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.transition-zoom-in-exit {
+  transform: scale(1);
+  opacity: 1;
+  transition:
+    transform var(--slide-transition-duration) var(--slide-transition-easing),
+    opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-zoom-in-exit-active {
+  transform: scale(1.2);
+  opacity: 0;
+}
+
+/* Zoom Out Transition */
+.transition-zoom-out-enter {
+  transform: scale(1.5);
+  opacity: 0;
+  transition:
+    transform var(--slide-transition-duration) var(--slide-transition-easing),
+    opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-zoom-out-enter-active {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.transition-zoom-out-exit {
+  transform: scale(1);
+  opacity: 1;
+  transition:
+    transform var(--slide-transition-duration) var(--slide-transition-easing),
+    opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-zoom-out-exit-active {
+  transform: scale(0.5);
+  opacity: 0;
+}
+
+/* Flip Transition */
+.transition-flip-enter {
+  transform: perspective(1200px) rotateY(-90deg);
+  opacity: 0;
+  transition:
+    transform var(--slide-transition-duration) var(--slide-transition-easing),
+    opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-flip-enter-active {
+  transform: perspective(1200px) rotateY(0deg);
+  opacity: 1;
+}
+
+.transition-flip-exit {
+  transform: perspective(1200px) rotateY(0deg);
+  opacity: 1;
+  transition:
+    transform var(--slide-transition-duration) var(--slide-transition-easing),
+    opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-flip-exit-active {
+  transform: perspective(1200px) rotateY(90deg);
+  opacity: 0;
+}
+
+/* Cube Transition */
+.transition-cube-enter {
+  transform: perspective(1200px) rotateY(-90deg) translateZ(640px);
+  transform-origin: right center;
+  opacity: 0;
+  transition:
+    transform var(--slide-transition-duration) var(--slide-transition-easing),
+    opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-cube-enter-active {
+  transform: perspective(1200px) rotateY(0deg) translateZ(0);
+  transform-origin: right center;
+  opacity: 1;
+}
+
+.transition-cube-exit {
+  transform: perspective(1200px) rotateY(0deg) translateZ(0);
+  transform-origin: left center;
+  opacity: 1;
+  transition:
+    transform var(--slide-transition-duration) var(--slide-transition-easing),
+    opacity var(--slide-transition-duration) var(--slide-transition-easing);
+}
+
+.transition-cube-exit-active {
+  transform: perspective(1200px) rotateY(90deg) translateZ(640px);
+  transform-origin: left center;
+  opacity: 0;
+}
+
+/* Dissolve Transition */
+@keyframes dissolve-in {
+  0% {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes dissolve-out {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(10px);
+  }
+}
+
+.transition-dissolve-enter {
+  opacity: 0;
+  filter: blur(10px);
+}
+
+.transition-dissolve-enter-active {
+  animation: dissolve-in var(--slide-transition-duration) var(--slide-transition-easing) forwards;
+}
+
+.transition-dissolve-exit {
+  opacity: 1;
+  filter: blur(0);
+}
+
+.transition-dissolve-exit-active {
+  animation: dissolve-out var(--slide-transition-duration) var(--slide-transition-easing) forwards;
+}
+
+/* None Transition - instant switch */
+.transition-none-enter,
+.transition-none-enter-active,
+.transition-none-exit,
+.transition-none-exit-active {
+  transition: none;
+}
+
+/* GPU acceleration hints during transitions */
+.slide-transition-animating .slide-transition-slide {
+  will-change: transform, opacity;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .slide-transition-slide {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+
+  [class*='transition-'][class*='-enter'],
+  [class*='transition-'][class*='-exit'] {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

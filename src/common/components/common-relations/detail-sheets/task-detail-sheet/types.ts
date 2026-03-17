@@ -33,8 +33,8 @@ export interface TaskReference {
 export interface TaskDocument {
   id: string
   name: string
-  mimeType?: string
-  fileSize?: number
+  mimeType?: string | null
+  fileSize?: number | null
   version?: number
   description?: string
   documentGroupRef?: string

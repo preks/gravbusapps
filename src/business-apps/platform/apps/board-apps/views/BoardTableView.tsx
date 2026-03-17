@@ -5,6 +5,9 @@
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
 import { toast } from '@newwork/nw-design-system'
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import type { BoardRow, BoardColumn, BoardQuickFilter, ViewFilter, ViewSort, FilterConnector } from '../types'
 import { ColumnSettingsSheet } from '../components/columns/ColumnSettingsSheet'
 import { FilterSortToolbar } from '../components/table/FilterSortToolbar'
@@ -44,6 +47,7 @@ export interface BoardTableViewProps {
   onAddQuickFilter?: (qf: BoardQuickFilter) => void
   onRenameQuickFilter?: (id: string, name: string) => void
   onDeleteQuickFilter?: (id: string) => void
+  onReorderRow?: (rowId: string, afterRowId: string | null, beforeRowId: string | null) => Promise<void>
   peopleLookup?: Map<string, import('../types/columns').SelectOption>
   testId: string
 }
@@ -73,6 +77,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   onAddQuickFilter,
   onRenameQuickFilter,
   onDeleteQuickFilter,
+  onReorderRow,
   peopleLookup,
   testId
 }) => {
@@ -104,6 +109,32 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
     onServerParamsChange: onServerFilterChange
   })
   const displayRows = fs.filteredRows
+
+  const hasSortsOrFilters = fs.sorts.length > 0 || fs.filters.length > 0
+  const reorderEnabled = Boolean(onReorderRow) && !hasSortsOrFilters
+
+  const sortableIds = useMemo(() => displayRows.map(r => r.id), [displayRows])
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      if (!onReorderRow) return
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+
+      const oldIndex = displayRows.findIndex(r => r.id === active.id)
+      const newIndex = displayRows.findIndex(r => r.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+
+      const reordered = arrayMove(displayRows, oldIndex, newIndex)
+      const afterRowId = newIndex > 0 ? reordered[newIndex - 1].id : null
+      const beforeRowId = newIndex < reordered.length - 1 ? reordered[newIndex + 1].id : null
+
+      void onReorderRow(String(active.id), afterRowId, beforeRowId)
+    },
+    [onReorderRow, displayRows]
+  )
 
   const sortMap = useMemo(() => {
     const m = new Map<string, { direction: 'asc' | 'desc'; priority: number }>()
@@ -294,6 +325,56 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
       </div>
     )
 
+  const tableContent = (
+    <table className="gba:w-max gba:min-w-full gba:border-collapse gba:text-xs gba:table-fixed">
+      <TableHeader
+        columns={columns}
+        boardId={boardId}
+        sheetId={sheetId}
+        sortMap={sortMap}
+        sortCount={fs.sorts.length}
+        onToggleSort={fs.toggleColumnSort}
+        onUpdateColumn={onUpdateColumn}
+        onDeleteColumn={onDeleteColumn}
+        onAddColumn={onAddColumn}
+        reorderEnabled={reorderEnabled}
+        onOpenSettings={c => {
+          setSettingsColumn(c)
+          setSelectedCell(null)
+          setEditingCell(null)
+        }}
+        testId={testId}
+      />
+      <TableBodyRows
+        boardId={boardId}
+        sheetId={sheetId}
+        displayRows={displayRows}
+        totalRows={rows.length}
+        columns={columns}
+        activeHighlight={activeHighlight}
+        selectedCell={selectedCell}
+        editingCell={editingCell}
+        editInitialKey={editInitialKey}
+        onCellClick={handleCellClick}
+        onStartEdit={handleStartEdit}
+        onUpdateCell={onUpdateCell}
+        onDeleteRow={onDeleteRow}
+        onRowClick={onRowClick}
+        onSaveEdit={handleSaveEdit}
+        onCancelEdit={handleCancelEdit}
+        onMoveNext={() => moveSelection(1, 0)}
+        onAddRow={onAddRow ? handleQuickAddRow : undefined}
+        isFlowExpanded={hasFlowRows ? flowExpand.isExpanded : undefined}
+        getFlowSubRows={hasFlowRows ? flowExpand.getSubRows : undefined}
+        onToggleFlowExpand={hasFlowRows ? row => void flowExpand.toggleExpand(row) : undefined}
+        peopleLookup={peopleLookup}
+        reorderEnabled={reorderEnabled}
+        onMoveRow={onReorderRow}
+        testId={testId}
+      />
+    </table>
+  )
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid={testId}>
       <FilterSortToolbar
@@ -328,50 +409,15 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
         onKeyDown={handleGridKeyDown}
         className="gba:w-full gba:max-w-full gba:min-w-0 gba:flex-1 gba:overflow-auto gba:outline-none"
       >
-        <table className="gba:w-max gba:min-w-full gba:border-collapse gba:text-xs gba:table-fixed">
-          <TableHeader
-            columns={columns}
-            boardId={boardId}
-            sheetId={sheetId}
-            sortMap={sortMap}
-            sortCount={fs.sorts.length}
-            onToggleSort={fs.toggleColumnSort}
-            onUpdateColumn={onUpdateColumn}
-            onDeleteColumn={onDeleteColumn}
-            onAddColumn={onAddColumn}
-            onOpenSettings={c => {
-              setSettingsColumn(c)
-              setSelectedCell(null)
-              setEditingCell(null)
-            }}
-            testId={testId}
-          />
-          <TableBodyRows
-            boardId={boardId}
-            sheetId={sheetId}
-            displayRows={displayRows}
-            totalRows={rows.length}
-            columns={columns}
-            activeHighlight={activeHighlight}
-            selectedCell={selectedCell}
-            editingCell={editingCell}
-            editInitialKey={editInitialKey}
-            onCellClick={handleCellClick}
-            onStartEdit={handleStartEdit}
-            onUpdateCell={onUpdateCell}
-            onDeleteRow={onDeleteRow}
-            onRowClick={onRowClick}
-            onSaveEdit={handleSaveEdit}
-            onCancelEdit={handleCancelEdit}
-            onMoveNext={() => moveSelection(1, 0)}
-            onAddRow={onAddRow ? handleQuickAddRow : undefined}
-            isFlowExpanded={hasFlowRows ? flowExpand.isExpanded : undefined}
-            getFlowSubRows={hasFlowRows ? flowExpand.getSubRows : undefined}
-            onToggleFlowExpand={hasFlowRows ? row => void flowExpand.toggleExpand(row) : undefined}
-            peopleLookup={peopleLookup}
-            testId={testId}
-          />
-        </table>
+        {reorderEnabled ? (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+              {tableContent}
+            </SortableContext>
+          </DndContext>
+        ) : (
+          tableContent
+        )}
         {onLoadMore && rowsTotalProp != null && rows.length < rowsTotalProp && (
           <div
             className="gba:flex gba:items-center gba:justify-center gba:py-4 gba:sticky gba:left-0"

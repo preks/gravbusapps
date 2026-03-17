@@ -531,22 +531,15 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const initializeCostCenters = async (employeePosition: any, costCenterData: any) => {
     try {
       const updatedPositions = [...positions]
-      const employeePositionCostCenterId = employeePosition[0]?.costCenterId
-      const firstCostCenterId = costCenterData?.data?.userCostCenters?.[0]?.id
       const allCostCenters = costCenterData?.data?.userCostCenters || []
+      const employeePositionCostCenterId = employeePosition[0]?.costCenterId
+      const firstCostCenterId = allCostCenters[0]?.id
+      const isValidCostCenter = employeePositionCostCenterId && allCostCenters.some((c: any) => c.id === employeePositionCostCenterId)
 
-      // [DEBUG:costCenter] trace cost center initialization
-      console.log('[DEBUG:costCenter] employeePositionCostCenterId:', employeePositionCostCenterId)
-      console.log('[DEBUG:costCenter] firstCostCenterId:', firstCostCenterId)
-      console.log('[DEBUG:costCenter] available costCenters:', JSON.stringify(allCostCenters.map((c: any) => ({ id: c.id, name: c.name }))))
-
-      if (employeePositionCostCenterId) {
-        const matchFound = allCostCenters.some((c: any) => c.id === employeePositionCostCenterId)
-        console.log('[DEBUG:costCenter] using employeePositionCostCenterId, matchInList:', matchFound)
+      if (isValidCostCenter) {
         updatedPositions[0].costCenter = employeePositionCostCenterId
         setUserCostCenter(employeePositionCostCenterId)
       } else if (firstCostCenterId) {
-        console.log('[DEBUG:costCenter] using firstCostCenterId')
         updatedPositions[0].costCenter = firstCostCenterId
         setUserCostCenter(firstCostCenterId)
       }
@@ -606,12 +599,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           const structureId = employeePosition[0]?.structureId || ''
           const expenseIdValue = additionalData?.psi_taskPayload?.psi_initialParameters?.expenseId
 
-          // [DEBUG:fetchInitialData] trace cost center fetch
-          console.log('[DEBUG:fetchInitialData] employeePosition:', JSON.stringify(employeePosition.map((ep: any) => ({
-            id: ep.id, structureId: ep.structureId, costCenterId: ep.costCenterId
-          }))))
-          console.log('[DEBUG:fetchInitialData] structureId:', structureId)
-
           // Handle edit mode
           if (expenseIdValue) {
             await initializeEditMode(expenseIdValue)
@@ -625,7 +612,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
               variables: { structureId }
             })
             const userCostCenters = costCenterData?.data?.userCostCenters || []
-            console.log('[DEBUG:fetchInitialData] fetched costCenters:', JSON.stringify(userCostCenters.map((c: any) => ({ id: c.id, name: c.name }))))
             setCostCenters(userCostCenters)
           } catch {
             setCostCenters([])
@@ -781,12 +767,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const createPositionsFromReceipt = (data: any): ExpensePosition[] => {
     if (!data.items || data.items.length === 0) return []
 
-    const costCenterId = positions[0]?.costCenter || ''
-    // [DEBUG:createPositions] trace cost center and position creation
-    console.log('[DEBUG:createPositions] costCenterId from positions[0]:', costCenterId)
-    console.log('[DEBUG:createPositions] costCenters state:', JSON.stringify(costCenters.map(c => ({ id: c.id, name: c.name }))))
-    const costCenterMatch = costCenters.find(c => c.id === costCenterId)
-    console.log('[DEBUG:createPositions] costCenter match in list:', costCenterMatch ? costCenterMatch.name : 'NOT FOUND')
+    const rawCostCenterId = positions[0]?.costCenter || ''
+    const costCenterId = costCenters.some(c => c.id === rawCostCenterId)
+      ? rawCostCenterId
+      : costCenters[0]?.id || ''
 
     return data.items.map((item: any, index: number) => {
       const expenseGroupId = matchExpenseGroup(item)
@@ -882,19 +866,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
     try {
       const rawData = receiptData.data
-      // [DEBUG:setByReceipts] trace receipt processing
-      console.log('[DEBUG:setByReceipts] rawData items count:', rawData?.items?.length)
-      console.log('[DEBUG:setByReceipts] rawData items:', JSON.stringify(rawData?.items?.map((i: any) => ({
-        desc: i.description, total: i.totalPrice,
-        code: i.expenseDetails?.expenseCode, group: i.expenseDetails?.expenseGroupCode
-      }))))
-
       const data = normalizeReceiptData(rawData)
-      console.log('[DEBUG:setByReceipts] normalized items count:', data?.items?.length)
-      console.log('[DEBUG:setByReceipts] normalized items:', JSON.stringify(data?.items?.map((i: any) => ({
-        desc: i.description, total: i.totalPrice,
-        code: i.expenseDetails?.expenseCode, group: i.expenseDetails?.expenseGroupCode
-      }))))
 
       // Ensure we can validate against the configured request currency when provided
       if (
@@ -917,12 +889,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       // Process items and create positions
       const newPositions = createPositionsFromReceipt(data)
-      console.log('[DEBUG:setByReceipts] positions created:', newPositions.length,
-        'positions:', JSON.stringify(newPositions.map(p => ({
-          amount: p.amount, costCenter: p.costCenter,
-          expenseGroup: p.expenseGroup, expenseType: p.expenseType
-        }))))
-
       if (newPositions.length === 0) return
 
       setPositions(newPositions)
@@ -930,8 +896,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       // Fetch missing expense types asynchronously
       fetchMissingExpenseTypes(newPositions, data)
-    } catch (err) {
-      console.error('[DEBUG:setByReceipts] error:', err)
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
         'error'
