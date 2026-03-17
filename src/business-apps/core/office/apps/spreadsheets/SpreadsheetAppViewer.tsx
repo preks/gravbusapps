@@ -673,8 +673,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   'data-testid': testId = 'spreadsheet-app-viewer'
 }) => {
   type AnalyticsPanelTab = 'charts' | 'insights' | 'summary' | 'pivot'
-  type SheetsAITab = 'formula' | 'analyze' | 'chat' | 'review'
-  type AICapability = AnalyticsPanelTab | SheetsAITab
+  type SheetsAITab = 'formula' | 'analyze' | 'review' | 'insights'
+  type AICapability = 'charts' | SheetsAITab
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const sheetVersionRef = useRef<number>(0)
@@ -1039,9 +1039,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
   const handleOpenAICapability = useCallback((capability: AICapability) => {
-    const analyticsTabs = new Set<AnalyticsPanelTab>(['charts', 'pivot', 'insights', 'summary'])
-    if (analyticsTabs.has(capability as AnalyticsPanelTab)) {
-      setAnalyticsInitialTab(capability as AnalyticsPanelTab)
+    if (capability === 'charts') {
+      setAnalyticsInitialTab('charts')
       setIsSheetsAIOpen(false)
       setIsAutomationsOpen(false)
       setIsAnalyticsOpen(true)
