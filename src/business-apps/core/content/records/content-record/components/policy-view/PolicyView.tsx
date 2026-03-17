@@ -29,7 +29,7 @@ import {
   TrendingUp,
   Workflow
 } from 'lucide-react'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import type { ContentEntry } from '@/common/data/content/types/contentTypes'
 import type { DetectedLanguage, TranslatedTexts } from '@/common/components/content'
 import { ContentHtmlRenderer } from '../ContentHtmlRenderer'
@@ -46,13 +46,6 @@ import CreateExpertDialog from './components/CreateExpertDialog'
 import GenerateFlowDialog from './components/GenerateFlowDialog'
 import { usePolicySignals } from './hooks/usePolicySignals'
 
-// Video background – same source as EveryPagesHero / SpaceHero
-const hostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
-const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
-
-// Stable blue for primary action button (matches the hero video dominant hue)
 const HERO_BLUE = '#2563eb'
 
 type PolicyControlTab = 'policy' | 'execution'
@@ -300,36 +293,9 @@ export const PolicyView: React.FC<PolicyViewProps> = ({
 
   return (
     <div className="gba:overflow-y-auto gba:mb-6" data-testid="policy-view">
-      {/* ========== HERO HEADER (video / animated gradient background) ========== */}
       <div className="gba:relative gba:w-full gba:overflow-hidden" data-testid="policy-view-hero">
-        {/* Video or animated gradient – same as EveryPagesHero */}
-        {useVideo ? (
-          <video
-            src={HERO_VIDEO_SRC}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden
-            data-testid="policy-view-hero-video"
-          />
-        ) : (
-          <SpaceHeroBackground />
-        )}
-
-        {/* Dark overlay for text readability */}
-        {/* eslint-disable newwork-local/no-hardcoded-colors */}
-        <div
-          className="gba:absolute gba:inset-0 gba:pointer-events-none"
-          style={{
-            background:
-              'linear-gradient(105deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.18) 45%, transparent 65%)'
-          }}
-          aria-hidden
-        />
-        {/* eslint-enable newwork-local/no-hardcoded-colors */}
+        <PremiumHeroBackground data-testid="policy-view-hero-background" />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
         {/* Content – white text on video */}
         <div className="gba:relative gba:max-w-[1400px] gba:mx-auto gba:px-6 gba:py-12 gba:md:py-16">
