@@ -111,6 +111,19 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
 }) => {
   const { t } = useTranslation(translations)
 
+  const mergedTags = useMemo(() => {
+    const fromTask = (task?.tags ?? {}) as Record<string, unknown>
+    const fromSource = (task?.sourceMetadata?.tags ?? {}) as Record<string, unknown>
+    const fromWorkflow = ((task as unknown as { workflowMeta?: { tags?: Record<string, unknown> } })?.workflowMeta
+      ?.tags ?? {}) as Record<string, unknown>
+    return { ...fromSource, ...fromWorkflow, ...fromTask }
+  }, [task])
+
+  const taskAppTag = String(mergedTags.app ?? mergedTags.app_tag ?? '')
+  const taskAutomationType = String(mergedTags.automationType ?? mergedTags.automation_type ?? '')
+  const isSpreadsheetExcelCollectionTask =
+    taskAppTag === 'spreadsheet-automation' && taskAutomationType === 'excel_collection'
+
   const isTaskCompleted = task?.status === 'COMPLETED' || !!task?.completedAt
 
   // Auto-generate actions from task.availableActions if task is provided.
@@ -172,7 +185,7 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
 
     // canComplete - Complete task (or Approve/Acknowledge based on task type) - goes on RIGHT
     // Priority: 1. Approval (detected via multiple fields) 2. Acknowledge (detected via multiple fields) 3. Complete Task
-    if (task.availableActions.canComplete) {
+    if (task.availableActions.canComplete && !isSpreadsheetExcelCollectionTask) {
       const isApproval = isApprovalTask(task)
       const isAcknowledge = !isApproval && isAcknowledgementTask(task)
 
@@ -211,7 +224,7 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
     }
 
     return { leftActions: left, rightActions: right }
-  }, [task, actions, onTaskAction, isLoading, t, isTaskCompleted, children])
+  }, [task, actions, onTaskAction, isLoading, t, isTaskCompleted, children, isSpreadsheetExcelCollectionTask])
 
   // Combined actions for empty check
   const hasActions = leftActions.length > 0 || rightActions.length > 0

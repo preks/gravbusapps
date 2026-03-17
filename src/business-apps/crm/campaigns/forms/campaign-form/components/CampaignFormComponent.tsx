@@ -14,6 +14,7 @@ import { useForm } from 'react-hook-form'
 import { useCampaignFormContext } from '../context/CampaignFormContext'
 import type { CampaignFormValues } from '../types'
 import dayjs from 'dayjs'
+import { CAMPAIGN_TYPE } from '@/common/data/customer/constants/customerCatalogs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -97,7 +98,7 @@ const CampaignFormComponent: React.FC = () => {
                 </FormLabel>
                 <FormControl>
                   <CatalogSelect
-                    catalogIdentifier="CustomerCampaignType:v1"
+                    catalogIdentifier={CAMPAIGN_TYPE}
                     value={field.value || ''}
                     onValueChange={field.onChange}
                     data-testid="campaign-form-type-select"

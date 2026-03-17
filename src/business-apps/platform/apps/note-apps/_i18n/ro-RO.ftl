@@ -1,3 +1,14 @@
+# Hero
+nh-parent-label = Every Office
+nh-title = Notițe
+nh-tabs-aria-label = Secțiuni notițe
+nh-tab-my-notes = Notițele mele
+nh-tab-shared = Partajate
+nh-tab-pinned = Fixate
+nh-tab-recent = Recente
+nh-tab-archived = Arhivate
+nh-refresh = Reîmprospătează
+
 sidebar-back-to-desk = Înapoi la birou
 sidebar-expand = Extinde panoul lateral
 sidebar-collapse = Restrânge panoul lateral

@@ -78,8 +78,8 @@ export interface DocumentData {
     accessScope?: string
     uploadedAt?: string
   }
-  fileSize?: number // Derived from fileInfo.fileMetadata.size
-  mimeType?: string
+  fileSize?: number | null // Derived from fileInfo.fileMetadata.size
+  mimeType?: string | null
 }
 
 interface FormValues {
