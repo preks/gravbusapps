@@ -296,10 +296,14 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   // Dev deep-links may use path-based URLs without `?app=...` (e.g. copy/paste).
   // Infer the app from the pathname for a small set of known routes.
   const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
-  const inferredAppFromPath =
-    !appFromUrl && (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft'))
+  const inferredAppFromPath = !appFromUrl
+    ? pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft')
       ? 'flow/apps/creator'
-      : null
+      : pathname.startsWith('/platform/hr/absence/apps/AbsenceSetup') ||
+          pathname.startsWith('/platform/hr/absence/apps/absence-setup')
+        ? 'hr/absence/apps/absence-setup'
+        : null
+    : null
   const effectiveAppFromUrl = appFromUrl || inferredAppFromPath
 
   const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
