@@ -5,12 +5,12 @@
  */
 
 import React, { useState } from 'react'
-import { Button, Badge, ScrollArea, useTranslation } from '@newwork/nw-design-system'
+import { Button, Badge, useTranslation } from '@newwork/nw-design-system'
 import { MessageSquare, MessageCircle, CheckCircle, X } from 'lucide-react'
-import sharedTranslations from '../_i18n'
 import type { Comment } from '../types/versioning'
 import { CommentThread } from './CommentThread'
 import { CommentEditor } from './CommentEditor'
+import sharedTranslations from '../_i18n'
 
 export interface CommentPanelMessages {
   title?: string
@@ -23,6 +23,24 @@ export interface CommentPanelMessages {
   resolvedHere?: string
   loading?: string
   addPlaceholder?: string
+}
+
+export interface CommentPanelThreadMessages {
+  reply?: string
+  edit?: string
+  resolve?: string
+  delete?: string
+  resolved?: string
+  confirmDelete?: string
+  editPlaceholder?: string
+  replyPlaceholder?: string
+}
+
+export interface CommentPanelEditorMessages {
+  cancel?: string
+  send?: string
+  sending?: string
+  sendHint?: string
 }
 
 export interface CommentPanelProps {
@@ -42,8 +60,8 @@ export interface CommentPanelProps {
   onUnhighlight?: (commentId: string) => void
   onScrollToHighlight?: (commentId: string) => void
   messages?: CommentPanelMessages
-  threadMessages?: import('./CommentThread').CommentThreadMessages
-  editorMessages?: import('./CommentEditor').CommentEditorMessages
+  threadMessages?: CommentPanelThreadMessages
+  editorMessages?: CommentPanelEditorMessages
   'data-testid'?: string
 }
 
@@ -72,7 +90,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   'data-testid': testId = 'comment-panel'
 }) => {
   const { t } = useTranslation(sharedTranslations)
-  const defaultCommentPanelMessages = {
+  const defaultMessages: Required<CommentPanelMessages> = {
     title: t('comment-panel-title'),
     unresolvedCount: t('comment-panel-unresolved'),
     unresolvedTab: t('comment-panel-unresolved-tab'),
@@ -84,7 +102,8 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
     loading: t('comment-panel-loading'),
     addPlaceholder: t('comment-panel-add-placeholder')
   }
-  const messages = { ...defaultCommentPanelMessages, ...messagesProp }
+  const messages = { ...defaultMessages, ...messagesProp }
+
   const [activeTab, setActiveTab] = useState<'unresolved' | 'resolved'>('unresolved')
   const [isCreating, setIsCreating] = useState(false)
 
@@ -105,19 +124,21 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
 
   return (
     <div
-      className="gba:fixed gba:right-0 gba:bottom-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col"
+      className="gba:fixed gba:bottom-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col"
       style={{
         top: `${headerHeight}px`,
-        width: 480,
-        zIndex: 50,
+        right: 16,
+        bottom: 32,
+        width: 380,
+        zIndex: 1000,
         boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.08)'
       }}
       data-testid={testId}
     >
       {/* Modern Header */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:border-border/50 gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent">
-        <div className="gba:flex gba:items-center gba:gap-3">
-          <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+      <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:border-b gba:border-border/50 gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <div className="gba:w-7 gba:h-7 gba:rounded-md gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
             <MessageSquare className="gba:h-4 gba:w-4 gba:text-primary" />
           </div>
           <div>
@@ -141,10 +162,10 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
       </div>
 
       {/* Modern Tab Buttons */}
-      <div className="gba:flex gba:gap-1 gba:p-2 gba:bg-muted/30">
+      <div className="gba:flex gba:gap-1 gba:p-1 gba:bg-muted/30">
         <button
           onClick={() => setActiveTab('unresolved')}
-          className={`gba:flex-1 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:font-medium gba:transition-all ${
+          className={`gba:flex-1 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-3 gba:py-1.5 gba:rounded-lg gba:text-sm gba:font-medium gba:transition-all ${
             activeTab === 'unresolved'
               ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
               : 'gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-background/50'
@@ -164,7 +185,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
         </button>
         <button
           onClick={() => setActiveTab('resolved')}
-          className={`gba:flex-1 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:font-medium gba:transition-all ${
+          className={`gba:flex-1 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-3 gba:py-1.5 gba:rounded-lg gba:text-sm gba:font-medium gba:transition-all ${
             activeTab === 'resolved'
               ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
               : 'gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-background/50'
@@ -180,53 +201,51 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
       </div>
 
       {/* Content */}
-      <div className="gba:flex-1 gba:overflow-hidden">
-        <ScrollArea className="gba:h-full gba:px-6">
-          {isLoading ? (
-            <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-              <p className="gba:text-sm gba:text-muted-foreground">{messages.loading}</p>
+      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overflow-x-hidden gba:px-3 gba:pr-6">
+        {isLoading ? (
+          <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+            <p className="gba:text-sm gba:text-muted-foreground">{messages.loading}</p>
+          </div>
+        ) : displayComments.length === 0 ? (
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-6 gba:text-center">
+            <div className="gba:w-12 gba:h-12 gba:rounded-xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
+              {activeTab === 'unresolved' ? (
+                <MessageSquare className="gba:h-6 gba:w-6 gba:text-muted-foreground/50" />
+              ) : (
+                <CheckCircle className="gba:h-6 gba:w-6 gba:text-muted-foreground/50" />
+              )}
             </div>
-          ) : displayComments.length === 0 ? (
-            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:text-center">
-              <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-4">
-                {activeTab === 'unresolved' ? (
-                  <MessageSquare className="gba:h-8 gba:w-8 gba:text-muted-foreground/50" />
-                ) : (
-                  <CheckCircle className="gba:h-8 gba:w-8 gba:text-muted-foreground/50" />
-                )}
-              </div>
-              <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
-                {activeTab === 'unresolved' ? messages.allCaughtUp : messages.noResolved}
-              </p>
-              <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[200px]">
-                {activeTab === 'unresolved' ? messages.allResolved : messages.resolvedHere}
-              </p>
-            </div>
-          ) : (
-            <div className="gba:space-y-3 gba:py-4">
-              {displayComments.map(comment => (
-                <CommentThread
-                  key={comment.id}
-                  comment={comment}
-                  replies={comments.filter(c => c.parentId === comment.id)}
-                  onReply={content => onCreateComment(content, comment.id, currentUserName, currentUserAvatar)}
-                  onUpdate={content => onUpdateComment(comment.id, content)}
-                  onResolve={() => onResolveComment(comment.id)}
-                  onDelete={() => onDeleteComment(comment.id)}
-                  currentUserId={currentUserId}
-                  accessToken={accessToken}
-                  onUnhighlight={onUnhighlight}
-                  onScrollToHighlight={onScrollToHighlight}
-                  messages={threadMessages}
-                />
-              ))}
-            </div>
-          )}
-        </ScrollArea>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
+              {activeTab === 'unresolved' ? messages.allCaughtUp : messages.noResolved}
+            </p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[200px]">
+              {activeTab === 'unresolved' ? messages.allResolved : messages.resolvedHere}
+            </p>
+          </div>
+        ) : (
+          <div className="gba:space-y-2 gba:py-2">
+            {displayComments.map(comment => (
+              <CommentThread
+                key={comment.id}
+                comment={comment}
+                replies={comments.filter(c => c.parentId === comment.id)}
+                onReply={content => onCreateComment(content, comment.id, currentUserName, currentUserAvatar)}
+                onUpdate={content => onUpdateComment(comment.id, content)}
+                onResolve={() => onResolveComment(comment.id)}
+                onDelete={() => onDeleteComment(comment.id)}
+                currentUserId={currentUserId}
+                accessToken={accessToken}
+                onUnhighlight={onUnhighlight}
+                onScrollToHighlight={onScrollToHighlight}
+                messages={threadMessages}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* New comment input */}
-      <div className="gba:p-4 gba:border-t gba:border-border/50 gba:bg-muted/20">
+      {/* New comment input - flex-shrink-0 keeps footer at bottom */}
+      <div className="gba:flex-shrink-0 gba:p-2 gba:border-t gba:border-border/50 gba:bg-muted/20">
         <CommentEditor
           onSubmit={handleCreateComment}
           isSubmitting={isCreating}

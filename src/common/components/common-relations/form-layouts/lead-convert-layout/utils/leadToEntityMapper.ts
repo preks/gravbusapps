@@ -96,6 +96,22 @@ export function mapLeadToContact(leadData: Lead | Record<string, unknown> | null
     })
   }
 
+  if (communicationData.secondaryNumber) {
+    communicationChannels.push({
+      communicationChannelRef: `${COMMUNICATION_CHANNEL}:${CommunicationChannelCode.MOBILE}`,
+      value: communicationData.secondaryNumber,
+      valueExtension: undefined
+    })
+  }
+
+  if (communicationData.linkedinUrl) {
+    communicationChannels.push({
+      communicationChannelRef: `${COMMUNICATION_CHANNEL}:${CommunicationChannelCode.LINKEDIN}`,
+      value: communicationData.linkedinUrl,
+      valueExtension: undefined
+    })
+  }
+
   return {
     firstName: (leadData.firstName as string) || '',
     lastName: (leadData.lastName as string) || '',

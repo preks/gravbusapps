@@ -17,6 +17,8 @@ export const MyActivitiesTab: React.FC<BusinessAppContextProps> = context => {
       accessToken={context.accessToken}
       userInfo={context.userInfo}
       dataTestId="workspace-my-activities"
+      enableExport
+      exportFilenamePrefix="crm-my-activities"
     />
   )
 }

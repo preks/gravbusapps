@@ -7,14 +7,9 @@
 import React, { useCallback } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { HardDrive, Plus, ChevronRight, Layers } from 'lucide-react'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background/PremiumHeroBackground'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { DriveSection } from '../types/drive.types'
-
-const heroVideoUrl = import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = heroVideoUrl || (import.meta.env?.DEV ? localVideoUrl : false)
-const videoSrc = heroVideoUrl || localVideoUrl
 
 interface SectionTab {
   id: DriveSection
@@ -50,32 +45,8 @@ export const DriveHero: React.FC<DriveHeroProps> = ({
 
   return (
     <header className="gba:relative gba:overflow-hidden gba:flex-shrink-0" data-testid={testId}>
-      {/* Background – shared with Every Office */}
-      {useVideo ? (
-        <video
-          src={videoSrc}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-          className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-          aria-hidden
-        />
-      ) : (
-        <SpaceHeroBackground />
-      )}
-
-      {/* eslint-disable newwork-local/no-hardcoded-colors */}
-      <div
-        className="gba:absolute gba:inset-0 gba:pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.30) 60%, rgba(15, 23, 42, 0.50) 100%)'
-        }}
-        aria-hidden
-      />
-      {/* eslint-enable newwork-local/no-hardcoded-colors */}
+      <PremiumHeroBackground />
+      <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
       <div className="gba:relative gba:max-w-6xl gba:mx-auto gba:px-6 gba:pt-5 gba:pb-4">
         {/* Parent breadcrumb */}

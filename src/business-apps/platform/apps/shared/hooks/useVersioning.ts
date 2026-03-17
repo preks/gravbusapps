@@ -45,6 +45,7 @@ export interface UseVersioningOptions {
         content?: string
         changeDescription?: string
         isCheckpoint?: boolean
+        univerSnapshots?: Record<string, Record<string, unknown> | null>
       }
     ) => Promise<Version | null>
     listVersions: (id: string, page?: number, limit?: number) => Promise<Version[]>
@@ -90,7 +91,10 @@ export interface UseVersioningState {
 export interface UseVersioningActions {
   // Version management
   loadVersions: () => Promise<void>
-  createCheckpoint: (description?: string) => Promise<Version | null>
+  createCheckpoint: (
+    description?: string,
+    options?: { univerSnapshots?: Record<string, Record<string, unknown> | null> }
+  ) => Promise<Version | null>
   saveAutoVersion: () => Promise<Version | null>
   restoreVersion: (versionNumber: number) => Promise<boolean>
   deleteVersion: (versionNumber: number) => Promise<boolean>
@@ -189,13 +193,17 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
    * Create a manual checkpoint version
    */
   const createCheckpoint = useCallback(
-    async (description?: string): Promise<Version | null> => {
+    async (
+      description?: string,
+      options?: { univerSnapshots?: Record<string, Record<string, unknown> | null> }
+    ): Promise<Version | null> => {
       setState(prev => ({ ...prev, isSaving: true, error: null }))
 
       try {
         const version = await apiService.createVersion(entityId, {
           changeDescription: description,
-          isCheckpoint: true
+          isCheckpoint: true,
+          univerSnapshots: options?.univerSnapshots
         })
 
         if (version) {

@@ -248,6 +248,49 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
+  // Fetch all activities for export (uses current filter state, overrides limit/offset)
+  const fetchAllActivities = useCallback(
+    async (vars: { limit: number; offset?: number }) => {
+      if (!context.accessToken || !employeeId) return { activities: [] as CustomerActivity[], total: 0 }
+
+      const variables: CustomerActivityQueryVariables = {
+        limit: vars.limit,
+        offset: vars.offset || 0,
+        search: searchTerm.trim() || undefined,
+        ownerEmployeeIds: [employeeId],
+        orderBy: buildOrderByConfig(sorting)
+      }
+
+      applyActivityTypeFilter(variables, selectedFilters)
+      applyDateRangeFilters(variables, selectedFilters)
+
+      const query = buildCustomerActivityQuery()
+      let whereCondition = buildCustomerActivityWhereCondition(variables)
+      const orderBy = buildCustomerActivityOrderBy(variables.orderBy || [])
+
+      if (selectedFilters.referenceType?.length > 0) {
+        const orConditions = buildReferenceTypeFilter(selectedFilters.referenceType)
+        whereCondition = applyReferenceFilter(whereCondition, orConditions)
+      }
+
+      const result = await graphqlClient.request<{
+        SalesActivity: CustomerActivity[]
+        SalesActivityAggregate: { aggregate: { count: number } }
+      }>(query, {
+        limit: variables.limit,
+        offset: variables.offset,
+        where: whereCondition,
+        orderBy: orderBy
+      })
+
+      return {
+        activities: result.SalesActivity || [],
+        total: result.SalesActivityAggregate?.aggregate?.count || 0
+      }
+    },
+    [context.accessToken, employeeId, searchTerm, sorting, selectedFilters, graphqlClient]
+  )
+
   // Handle search change
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value)
@@ -332,6 +375,7 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     onKpiRetry: () => {
       void activityStatistics.refetch()
     },
+    fetchAllActivities,
     translations: {
       title: 'My Activities',
       searchPlaceholder: 'Search activities by title, type...'

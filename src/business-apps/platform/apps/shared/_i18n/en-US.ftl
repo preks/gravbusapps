@@ -143,7 +143,7 @@ dimension-location = Location
 dimension-legal-entity = Legal Entity
 dimension-capability = Capability
 
-# Synced missing keys
+# StatusBadge
 status-badge-archived = Archived
 status-badge-draft = Draft
 status-badge-in-review = In review

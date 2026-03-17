@@ -7,7 +7,6 @@
 import React, { useState } from 'react'
 import {
   Dialog,
-  useTranslation,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -17,16 +16,15 @@ import {
   Label
 } from '@newwork/nw-design-system'
 import { Save } from 'lucide-react'
-import sharedTranslations from '../_i18n'
 
 export interface CheckpointDialogMessages {
   title?: string
   descriptionLabel?: string
-  placeholder?: string
-  hint?: string
+  descriptionPlaceholder?: string
+  descriptionHint?: string
   cancel?: string
-  saving?: string
   save?: string
+  saving?: string
 }
 
 export interface CheckpointDialogProps {
@@ -34,6 +32,7 @@ export interface CheckpointDialogProps {
   onClose: () => void
   onSave: (description: string) => Promise<void>
   isSaving?: boolean
+  /** Optional translated strings */
   messages?: CheckpointDialogMessages
   'data-testid'?: string
 }
@@ -46,20 +45,10 @@ export const CheckpointDialog: React.FC<CheckpointDialogProps> = ({
   onClose,
   onSave,
   isSaving = false,
-  messages: messagesProp,
+  messages,
   'data-testid': testId = 'checkpoint-dialog'
 }) => {
-  const { t } = useTranslation(sharedTranslations)
-  const messages = {
-    title: t('checkpoint-dialog-title'),
-    descriptionLabel: t('checkpoint-dialog-description-label'),
-    placeholder: t('checkpoint-dialog-placeholder'),
-    hint: t('checkpoint-dialog-hint'),
-    cancel: t('checkpoint-dialog-cancel'),
-    saving: t('checkpoint-dialog-saving'),
-    save: t('checkpoint-dialog-save'),
-    ...(messagesProp || {})
-  }
+  const m = messages ?? {}
   const [description, setDescription] = useState('')
 
   const handleSave = async () => {
@@ -79,16 +68,16 @@ export const CheckpointDialog: React.FC<CheckpointDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Save className="gba:h-5 gba:w-5" />
-            {messages.title}
+            {m.title ?? 'Save Version Checkpoint'}
           </DialogTitle>
         </DialogHeader>
 
         <div className="gba:space-y-4 gba:py-4">
           <div className="gba:space-y-2">
-            <Label htmlFor="checkpoint-description">{messages.descriptionLabel}</Label>
+            <Label htmlFor="checkpoint-description">{m.descriptionLabel ?? 'Description (Optional)'}</Label>
             <Input
               id="checkpoint-description"
-              placeholder={messages.placeholder}
+              placeholder={m.descriptionPlaceholder ?? 'e.g., Added new section, Fixed typos, Major revision'}
               value={description}
               onChange={e => setDescription(e.target.value)}
               disabled={isSaving}
@@ -100,16 +89,18 @@ export const CheckpointDialog: React.FC<CheckpointDialogProps> = ({
                 }
               }}
             />
-            <p className="gba:text-sm gba:text-muted-foreground">{messages.hint}</p>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {m.descriptionHint ?? 'Add a description to help you remember what changed in this version.'}
+            </p>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel} disabled={isSaving} data-testid="checkpoint-cancel-button">
-            {messages.cancel}
+            {m.cancel ?? 'Cancel'}
           </Button>
           <Button onClick={handleSave} disabled={isSaving} data-testid="checkpoint-save-button">
-            {isSaving ? messages.saving : messages.save}
+            {isSaving ? (m.saving ?? 'Saving...') : (m.save ?? 'Save Checkpoint')}
           </Button>
         </DialogFooter>
       </DialogContent>

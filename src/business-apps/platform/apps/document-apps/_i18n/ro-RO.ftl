@@ -1,4 +1,16 @@
 # Sidebar
+# Hero
+dh-parent-label = Every Office
+dh-title = Documente
+dh-tabs-aria-label = Secțiuni documente
+dh-tab-my-documents = Documentele mele
+dh-tab-shared = Partajate
+dh-tab-templates = Șabloane
+dh-tab-favorites = Favorite
+dh-tab-recent = Recente
+dh-tab-archived = Arhivate
+
+# Sidebar (legacy)
 sidebar-back-to-desk = Înapoi la birou
 sidebar-expand = Extinde panoul lateral
 sidebar-collapse = Restrânge panoul lateral
@@ -33,7 +45,8 @@ menu-new-create-template-description = Creați un șablon nou
 
 # Header and list
 header-sort = Sortare
-header-search-placeholder = Căutare...
+header-search-placeholder = Caută documente...
+header-refresh = Reîmprospătează
 sort-name = Nume
 sort-modified = Modificat
 sort-created = Creat
