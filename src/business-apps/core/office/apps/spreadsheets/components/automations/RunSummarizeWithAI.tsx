@@ -36,7 +36,6 @@ interface RunSummarizeWithAIProps {
 }
 
 const MAX_COPIES = 20
-const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
 
 function extractAppIdFromUrl(url: string): string | null {
   try {
@@ -157,9 +156,8 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
         return
       }
 
-      const preferredModel = modelsResponse.data.find(m => m._id === PREFERRED_MODEL_ID)
       const gpt4Model = modelsResponse.data.find(m => m.name.toLowerCase().includes('gpt-4'))
-      const selectedModel = preferredModel ?? gpt4Model ?? modelsResponse.data[0]
+      const selectedModel = gpt4Model ?? modelsResponse.data[0]
 
       const formData = new FormData()
       formData.append('model_id', selectedModel._id)
