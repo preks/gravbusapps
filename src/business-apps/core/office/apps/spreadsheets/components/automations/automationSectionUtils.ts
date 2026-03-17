@@ -304,7 +304,7 @@ export function getAutomationTypeLabel(type: AutomationType, t: (key: string) =>
 
 export function formatRelativeTime(
   dateString: string,
-  t: (key: string, vars?: Record<string, number | string>) => string
+  t: (key: string, vars?: Record<string, unknown>) => string
 ): string {
   const date = new Date(dateString)
   const now = new Date()

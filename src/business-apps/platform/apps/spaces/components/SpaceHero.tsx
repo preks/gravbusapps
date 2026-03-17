@@ -7,14 +7,8 @@
 import React from 'react'
 import { Button, Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { ArrowLeft, Settings, Share2, Globe, Lock, Plus } from 'lucide-react'
-import { SpaceHeroBackground } from './SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import type { Space, SpaceMember } from '../types/space.types'
-
-const hostedVideoUrl =
-  typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
-const SPACE_HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
 export interface EnrichedSpaceMember extends SpaceMember {
   userName?: string
@@ -69,33 +63,9 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
 
   return (
     <div data-testid={testId}>
-      {/* Hero: video only when VITE_SPACE_HERO_VIDEO_URL is set (hosted); else canvas (avoids 404 on prod) */}
       <div className="gba:relative gba:overflow-hidden">
-        {useVideo ? (
-          <video
-            src={SPACE_HERO_VIDEO_SRC}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden
-            data-testid="space-hero-video"
-          />
-        ) : (
-          <SpaceHeroBackground />
-        )}
-        {/* Overlay for text readability */}
-        {/* eslint-disable newwork-local/no-hardcoded-colors */}
-        <div
-          className="gba:absolute gba:inset-0 gba:pointer-events-none"
-          style={{
-            background: `linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)`
-          }}
-          aria-hidden
-        />
-        {/* eslint-enable newwork-local/no-hardcoded-colors */}
+        <PremiumHeroBackground data-testid={`${testId}-background`} />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
         <div className="gba:relative gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8">
           {/* Top Navigation */}
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-12">

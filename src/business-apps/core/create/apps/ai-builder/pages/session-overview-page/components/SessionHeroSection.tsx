@@ -1,12 +1,6 @@
 import React from 'react'
 import { Sparkles } from 'lucide-react'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
-
-const aiBuilderHostedVideoUrl = import.meta !== undefined && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const aiBuilderLocalVideoUrl = '/space-hero-background.mp4'
-const aiBuilderUseVideo =
-  aiBuilderHostedVideoUrl || (import.meta !== undefined && import.meta.env?.DEV && aiBuilderLocalVideoUrl)
-const aiBuilderVideoSrc = aiBuilderHostedVideoUrl || aiBuilderLocalVideoUrl
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 
 interface SessionHeroSectionProps {
   'data-testid'?: string
@@ -17,31 +11,8 @@ export const SessionHeroSection: React.FC<SessionHeroSectionProps> = ({
 }) => {
   return (
     <section className="gba:relative gba:overflow-hidden gba:min-h-96" data-testid={testId}>
-      {/* Background - video or canvas */}
-      {aiBuilderUseVideo ? (
-        <video
-          src={aiBuilderVideoSrc}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-          className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-        />
-      ) : (
-        <SpaceHeroBackground />
-      )}
-
-      {/* Overlay for text readability */}
-      {/* eslint-disable newwork-local/no-hardcoded-colors */}
-      <div
-        className="gba:absolute gba:inset-0 gba:pointer-events-none"
-        style={{
-          background: `linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)`
-        }}
-        aria-hidden
-      />
-      {/* eslint-enable newwork-local/no-hardcoded-colors */}
+      <PremiumHeroBackground data-testid={`${testId}-background`} />
+      <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
       {/* Content */}
       <div className="gba:relative gba:py-12 gba:px-6 gba:max-w-4xl gba:mx-auto gba:text-center">

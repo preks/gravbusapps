@@ -21,6 +21,8 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
+import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
+import { TASK_TYPE, TASK_PRIORITY } from '@/common/data/investment/constants/investmentCatalogs'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 
 interface InvestmentPortalTasksProps {
@@ -197,6 +199,9 @@ const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmen
                 prefixDataTestId: 'investment-portal-task-entity',
                 emptyStateBehavior: 'enable'
               }}
+              typeCatalog={TASK_TYPE}
+              priorityCatalog={TASK_PRIORITY}
+              buildTaskPayload={buildInvestmentTaskPayload}
             />
           </TabsContent>
 
@@ -217,6 +222,9 @@ const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmen
                 prefixDataTestId: 'investment-portal-task-entity',
                 emptyStateBehavior: 'enable'
               }}
+              typeCatalog={TASK_TYPE}
+              priorityCatalog={TASK_PRIORITY}
+              buildTaskPayload={buildInvestmentTaskPayload}
             />
           </TabsContent>
         </Tabs>
