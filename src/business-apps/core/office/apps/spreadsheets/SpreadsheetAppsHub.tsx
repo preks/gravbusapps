@@ -218,6 +218,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Clear space return URL if not opened from a space
   useEffect(() => {
     try {
+      const { pathname, search, hash } = globalThis.window.location
+      // Backward compatibility: route old spreadsheet URL to the canonical every-office path.
+      if (pathname.startsWith('/platform/spreadsheets')) {
+        globalThis.window.location.replace(`/platform/every-office/spreadsheets${search}${hash}`)
+        return
+      }
       const params = new URLSearchParams(globalThis.window.location.search)
       const spaceId = params.get('spaceId')
       if (!spaceId) {

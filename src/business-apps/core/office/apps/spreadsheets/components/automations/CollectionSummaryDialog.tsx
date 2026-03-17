@@ -2,7 +2,7 @@
  * CollectionSummaryDialog Component
  *
  * Displays AI-generated executive summary and per-recipient breakdown
- * for Excel Collection submissions, with option to add to sheet.
+ * for Excel Collection submissions.
  * UI matches reference: AI icon in header, copy/discard/collapse actions.
  */
 
@@ -13,7 +13,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   Button,
   Card,
   CardContent,
@@ -52,7 +51,6 @@ export interface CollectionSummaryDialogProps {
   summary: ExcelCollectionSummaryResult | null
   isSummarizing: boolean
   error: string | null
-  onAddToSheet: () => void
   'data-testid'?: string
 }
 
@@ -62,7 +60,6 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
   summary,
   isSummarizing,
   error,
-  onAddToSheet,
   'data-testid': testId = 'collection-summary-dialog'
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -93,7 +90,10 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:flex gba:flex-col" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-2xl gba:h-[90vh] gba:max-h-[90vh] gba:overflow-hidden gba:flex gba:flex-col"
+        data-testid={testId}
+      >
         <DialogHeader className="gba:flex-row gba:items-center gba:justify-between gba:gap-4 gba:pr-2">
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-primary gba:text-primary-foreground">
@@ -161,7 +161,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
           )}
         </DialogHeader>
 
-        <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:gap-4">
+        <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:gap-4 gba:overflow-hidden">
           {isSummarizing && (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-12" data-testid={`${testId}-loading`}>
               <Spinner size="lg" />
@@ -178,7 +178,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
           )}
 
           {!isCollapsed && !isSummarizing && !error && summary && (
-            <div className="gba:flex-1 gba:h-0 gba:min-h-0 gba:overflow-y-auto gba:pr-2">
+            <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:pr-2">
               <div className="gba:space-y-4">
                 <Card variant="outlined">
                   <CardHeader>
@@ -252,20 +252,11 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
         </div>
 
         {!isSummarizing && summary && (
-          <DialogFooter>
+          <div className="gba:flex gba:justify-end gba:pt-1">
             <Button variant="outline" onClick={() => onOpenChange(false)} data-testid={`${testId}-close-button`}>
               Close
             </Button>
-            <Button
-              onClick={() => {
-                onAddToSheet()
-                onOpenChange(false)
-              }}
-              data-testid={`${testId}-add-to-sheet-button`}
-            >
-              Add to Sheet
-            </Button>
-          </DialogFooter>
+          </div>
         )}
       </DialogContent>
     </Dialog>
