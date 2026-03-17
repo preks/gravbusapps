@@ -1018,7 +1018,14 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
           {/* Automations View */}
           {currentView === 'list' && activeSection === 'automations' && (
-            <SpreadsheetAutomationsSection accessToken={accessToken} data-testid={`${testId}-automations-section`} />
+            <div className="gba:flex-1 gba:overflow-auto">
+              <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:py-5">
+                <SpreadsheetAutomationsSection
+                  accessToken={accessToken}
+                  data-testid={`${testId}-automations-section`}
+                />
+              </div>
+            </div>
           )}
 
           {/* List View */}
