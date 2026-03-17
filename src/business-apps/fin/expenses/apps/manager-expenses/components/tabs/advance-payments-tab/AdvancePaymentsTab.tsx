@@ -66,15 +66,6 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       payOrderBy
     })
 
-  const hasInitializedCurrency = useRef(false)
-  useEffect(() => {
-    if (hasInitializedCurrency.current) return
-    if (!primaryCurrency && mostUsedCurrency) {
-      hasInitializedCurrency.current = true
-      setCurrencyFilter(mostUsedCurrency)
-    }
-  }, [primaryCurrency, mostUsedCurrency])
-
   const filterLabelMap = useMemo(
     () => Object.fromEntries(advancePaymentFilterStatuses.map(s => [s, getAdvancePaymentStatusFilterLabel(s)])),
     []
@@ -88,6 +79,17 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       }),
     [filterLabelMap]
   )
+
+  // Initialize selector/filter with the most used currency once it becomes available.
+  // Keep one-time behavior so users can still select "All" afterwards.
+  const hasInitializedCurrency = useRef(false)
+  useEffect(() => {
+    if (hasInitializedCurrency.current) return
+    if (!primaryCurrency && mostUsedCurrency) {
+      setCurrencyFilter(mostUsedCurrency)
+      hasInitializedCurrency.current = true
+    }
+  }, [primaryCurrency, mostUsedCurrency])
 
   const filterSignature = useMemo(
     () => ({ searchTerm, statusFilter, primaryCurrency }),
