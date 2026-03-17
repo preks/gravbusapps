@@ -13,6 +13,7 @@ interface ProcessGetResponse {
 
 export interface UseEmployeeForPeerApproveHeaderReturn {
   employeeForHeader: EmployeeForHeader | null
+  evaluatedEmployeeId: string | null
   loading: boolean
   error: string | null
 }
@@ -97,6 +98,7 @@ export function useEmployeeForPeerApproveHeader(
 
   return {
     employeeForHeader,
+    evaluatedEmployeeId: employeeIdFromProcess,
     loading,
     error
   }
