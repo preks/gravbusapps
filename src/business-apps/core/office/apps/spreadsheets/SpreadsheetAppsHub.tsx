@@ -84,6 +84,7 @@ import { useSpreadsheetAppsHubUrlState } from './hooks/useSpreadsheetAppsHubUrlS
 import { useSpreadsheetAppsHubUserLookup } from './hooks/useSpreadsheetAppsHubUserLookup'
 import { useHubPagination } from '@/business-apps/platform/apps/shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
+import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
 
 // Services
 import { generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
@@ -727,11 +728,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       return
     }
 
-    // Default behavior inside spreadsheets: return to hub list.
-    setSelectedAppId(null)
-    setCurrentView('list')
-    updateUrl(null)
-  }, [updateUrl])
+    // Default behavior inside spreadsheets: navigate to spreadsheets hub route.
+    navigateTo(Navigation.OFFICE_SPREADSHEETS)
+  }, [])
 
   const handleStartUpload = useCallback(() => {
     setCurrentView('upload')
