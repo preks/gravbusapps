@@ -29,6 +29,11 @@ export interface MeasuredHeaderFooterHeights {
   footerHeights: Map<number, number>
 }
 
+export interface TableOverflowSplitCandidate {
+  tablePos: number
+  splitRowIndex: number
+}
+
 const PAGE_VARIANT_FIELDS = {
   header: {
     default: ['headerHTML', 'headerJSON'],
@@ -479,6 +484,95 @@ function getElementBottom(element: HTMLElement): number {
     trailingEmptyLineHeight
   )
   return element.offsetTop + layoutHeight
+}
+
+function getElementTopInEditor(editorDom: HTMLElement, element: HTMLElement): number {
+  const editorRect = editorDom.getBoundingClientRect()
+  const elementRect = element.getBoundingClientRect()
+  return elementRect.top - editorRect.top + editorDom.scrollTop
+}
+
+function getElementBottomInEditor(editorDom: HTMLElement, element: HTMLElement): number {
+  const editorRect = editorDom.getBoundingClientRect()
+  const elementRect = element.getBoundingClientRect()
+  return elementRect.bottom - editorRect.top + editorDom.scrollTop
+}
+
+function getPageBodyBandsForMeasurement(editorDom: HTMLElement) {
+  const editorRect = editorDom.getBoundingClientRect()
+
+  return Array.from(editorDom.querySelectorAll('.rm-page-body-layer[data-rm-page-number]'))
+    .filter((element): element is HTMLElement => element instanceof HTMLElement)
+    .map(element => {
+      const rect = element.getBoundingClientRect()
+      return {
+        pageNumber: Number(element.dataset.rmPageNumber ?? '0'),
+        top: rect.top - editorRect.top + editorDom.scrollTop,
+        bottom: rect.bottom - editorRect.top + editorDom.scrollTop
+      }
+    })
+    .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
+    .sort((left, right) => left.pageNumber - right.pageNumber)
+}
+
+function getTableColumnCount(tableNode: ProseMirrorNode) {
+  const firstRow = tableNode.firstChild
+  if (!firstRow) return 1
+
+  let columnCount = 0
+  firstRow.forEach(cellNode => {
+    columnCount += Math.max(1, Number(cellNode.attrs.colspan ?? 1))
+  })
+
+  return Math.max(1, columnCount)
+}
+
+export function findOverflowingTableSplit(view: EditorView): TableOverflowSplitCandidate | null {
+  const bodyBands = getPageBodyBandsForMeasurement(view.dom)
+  if (!bodyBands.length) return null
+
+  const tolerance = 1
+  let currentBandIndex = 0
+  let candidate: TableOverflowSplitCandidate | null = null
+
+  ;(view.state.doc as ProseMirrorNode).descendants((node, pos) => {
+    if (candidate || node.type.name !== 'table') return !candidate
+    if (node.childCount < 2 || getTableColumnCount(node) < 1) return false
+
+    node.forEach((_, rowOffset, rowIndex) => {
+      if (candidate) return
+      const rowPosition = pos + 1 + rowOffset
+      const rowDom = view.nodeDOM(rowPosition)
+      if (!(rowDom instanceof HTMLTableRowElement)) return
+
+      const rowTop = getElementTopInEditor(view.dom, rowDom)
+      const rowBottom = getElementBottomInEditor(view.dom, rowDom)
+      const rowHeight = Math.max(0, rowBottom - rowTop)
+
+      while (currentBandIndex < bodyBands.length - 1 && rowTop >= bodyBands[currentBandIndex].bottom - tolerance) {
+        currentBandIndex += 1
+      }
+
+      const currentBand = bodyBands[currentBandIndex]
+      const nextBand = bodyBands[currentBandIndex + 1]
+      if (!currentBand || !nextBand) return
+
+      const currentBandHeight = currentBand.bottom - currentBand.top
+      if (rowHeight >= currentBandHeight - tolerance) return
+      if (rowBottom <= currentBand.bottom + tolerance) return
+
+      if (rowIndex <= 0 || rowIndex >= node.childCount) return
+
+      candidate = {
+        tablePos: pos,
+        splitRowIndex: rowIndex
+      }
+    })
+
+    return !candidate
+  })
+
+  return candidate
 }
 
 function getSelectionBottom(view: EditorView): number {

@@ -29,6 +29,7 @@ import type {
 import {
   calculatePageCount,
   createStorageFromOptions,
+  findOverflowingTableSplit,
   getHeaderFooterExtensions,
   getInitialEditorContent,
   getPageLayoutHeights,
@@ -38,6 +39,7 @@ import {
   resolvePageFormat,
   syncStorageFromOptions
 } from './utils'
+import { splitTableAtRow } from '@/components/tiptap-custom-tables/tableSelectionUtils'
 
 const REFRESH_META = 'RM_PAGES_REFRESH'
 const paginationKey = new PluginKey<DecorationSet>('rm-pages-pagination')
@@ -407,6 +409,8 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     let measuredHeaderHeights = new Map<number, number>()
     let measuredFooterHeights = new Map<number, number>()
     let refreshQueued = false
+    let tableSplitQueued = false
+    let rejectedTableSplitKey: string | null = null
 
     const requestRefresh = (view: EditorView) => {
       const transaction = view.state.tr.setMeta(REFRESH_META, true)
@@ -421,6 +425,34 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         refreshQueued = false
         if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
         requestRefresh(view)
+      })
+    }
+
+    const queueTableSplit = (view: EditorView) => {
+      if (tableSplitQueued) return
+      tableSplitQueued = true
+
+      queueMicrotask(() => {
+        tableSplitQueued = false
+        if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
+
+        const candidate = findOverflowingTableSplit(view)
+        if (!candidate) {
+          rejectedTableSplitKey = null
+          return
+        }
+
+        const candidateKey = `${candidate.tablePos}:${candidate.splitRowIndex}`
+        const tr = view.state.tr
+        const didSplit = splitTableAtRow(view.state, tr, candidate.tablePos, candidate.splitRowIndex)
+
+        if (!didSplit) {
+          rejectedTableSplitKey = candidateKey
+          return
+        }
+
+        rejectedTableSplitKey = null
+        view.dispatch(tr)
       })
     }
 
@@ -589,6 +621,20 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
               if (storage.activeEditorType === null) {
                 queueRefresh(updatedView)
                 return
+              }
+            }
+
+            if (storage.activeEditorType === null) {
+              const candidate = findOverflowingTableSplit(updatedView)
+              const candidateKey = candidate ? `${candidate.tablePos}:${candidate.splitRowIndex}` : null
+
+              if (candidateKey !== null && candidateKey !== rejectedTableSplitKey) {
+                queueTableSplit(updatedView)
+                return
+              }
+
+              if (candidateKey === null) {
+                rejectedTableSplitKey = null
               }
             }
 

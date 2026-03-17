@@ -9,6 +9,7 @@ import React from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
+import { isEffectivelyEmptyDocumentHtml } from '../utils/documentContentUtils'
 import { PagedDocumentEditor } from './PagedDocumentEditor'
 import { PdfDocumentViewer } from './PdfDocumentViewer'
 import { TemplateFieldsPanel } from './TemplateFieldsPanel'
@@ -28,7 +29,7 @@ export interface DocumentAppsHubEditorViewProps {
   loadDocument: (id: string) => Promise<Document | null>
   updateDocument: (
     id: string,
-    updates: { title?: string; content?: string; formatting?: DocumentFormatting }
+    updates: { title?: string; content?: string; formatting?: DocumentFormatting; contentJson?: Record<string, never> }
   ) => Promise<Document | null>
   updateTemplate: (
     id: string,
@@ -175,7 +176,12 @@ export function DocumentAppsHubEditorView({
         key={currentDocument.id}
         document={currentDocument}
         onSave={async (title, content, formatting) => {
-          await updateDocument(currentDocument.id, { title, content, formatting })
+          await updateDocument(currentDocument.id, {
+            title,
+            content,
+            formatting,
+            ...(isEffectivelyEmptyDocumentHtml(content) ? { contentJson: {} } : {})
+          })
         }}
         onPersistFormatting={async formatting => {
           await updateDocument(currentDocument.id, { formatting })

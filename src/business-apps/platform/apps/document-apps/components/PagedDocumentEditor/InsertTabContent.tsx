@@ -5,9 +5,10 @@
 import React, { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { Link, Image, Table, SeparatorHorizontal } from 'lucide-react'
+import { Image, Link, SeparatorHorizontal, Table } from 'lucide-react'
 import translations from '../../_i18n'
 import { ToolbarButton, RibbonGroup } from './editorToolbarShared'
+import { TableToolsMenu } from './TableToolsMenu'
 
 interface InsertTabContentProps {
   editor: Editor
@@ -80,6 +81,7 @@ export function InsertTabContent({
       <ToolbarButton onClick={insertTable} tooltip={t('editor-toolbar-insert-table')}>
         <Table className="gba:h-4 gba:w-4" />
       </ToolbarButton>
+      <TableToolsMenu editor={editor} t={t} testId={testId} />
       <ToolbarButton onClick={insertPageBreak} tooltip={t('editor-toolbar-page-break')}>
         <SeparatorHorizontal className="gba:h-4 gba:w-4" />
       </ToolbarButton>

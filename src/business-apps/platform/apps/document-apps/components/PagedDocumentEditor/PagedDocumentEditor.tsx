@@ -20,10 +20,6 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
-import { Table } from '@tiptap/extension-table'
-import { TableRow } from '@tiptap/extension-table-row'
-import { TableCell } from '@tiptap/extension-table-cell'
-import { TableHeader } from '@tiptap/extension-table-header'
 import { FontFamily } from '@tiptap/extension-font-family'
 import { FontSize } from '@tiptap/extension-text-style/font-size'
 import { Subscript } from '@tiptap/extension-subscript'
@@ -114,6 +110,7 @@ import { openEveryAI } from '@/common/utils/openEveryAI'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
+import { Table, TableCell, TableHeader, TableRow } from '@/components/tiptap-custom-tables'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
 import { CheckpointDialog } from '../../../shared/components/CheckpointDialog'
 import { StatusBadge } from '../../../shared/components/StatusBadge'
@@ -1290,6 +1287,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }),
           Table.configure({
             resizable: true,
+            renderWrapper: true,
             HTMLAttributes: {
               class: 'editor-table'
             }
@@ -1358,6 +1356,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }),
           Table.configure({
             resizable: true,
+            renderWrapper: true,
             HTMLAttributes: {
               class: 'editor-table'
             }
@@ -2929,7 +2928,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .paged-document-editor .ProseMirror .tableWrapper {
           width: 100%;
           max-width: 100%;
-          overflow: hidden;
+          overflow: visible;
           margin: 16pt 0;
           border: 1pt solid #d0d0d0;
           border-radius: 4pt;
@@ -2938,10 +2937,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
         .paged-document-editor .ProseMirror table {
           border-collapse: collapse;
-          width: 100%;
           max-width: 100%;
           table-layout: fixed;
           margin: 0;
+          break-inside: auto;
+          page-break-inside: auto;
         }
 
         .paged-document-editor .ProseMirror td,
@@ -2964,6 +2964,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         /* Let header rows behave nicely in print/page flows */
         .paged-document-editor .ProseMirror thead {
           display: table-header-group;
+        }
+
+        .paged-document-editor .ProseMirror tr {
+          break-inside: avoid;
+          page-break-inside: avoid;
         }
 
         .paged-document-editor .ProseMirror hr {

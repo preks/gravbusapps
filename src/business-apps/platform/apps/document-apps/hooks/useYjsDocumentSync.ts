@@ -11,6 +11,7 @@ import type { Socket } from 'socket.io-client'
 import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
 import { DocumentApiService } from '../services/DocumentApiService'
 import type { DocumentFormatting } from '../types'
+import { isEffectivelyEmptyDocumentHtml } from '../utils/documentContentUtils'
 
 const SNAPSHOT_SAVE_DELAY_MS = 2000
 
@@ -62,11 +63,22 @@ export function useYjsDocumentSync({
 
       autoSaveTimeoutRef.current = setTimeout(() => {
         const html = currentEditor?.getHTML?.() || ''
-        DocumentApiService.updateDocument(
-          documentId,
-          { title, content: html, formatting: getFormattingForSave?.() },
-          { createVersion: false }
-        )
+        const updates: {
+          title: string
+          content: string
+          formatting?: DocumentFormatting
+          contentJson?: Record<string, never>
+        } = {
+          title,
+          content: html,
+          formatting: getFormattingForSave?.()
+        }
+
+        if (isEffectivelyEmptyDocumentHtml(html)) {
+          updates.contentJson = {}
+        }
+
+        DocumentApiService.updateDocument(documentId, updates, { createVersion: false })
           .then(() => {
             setLastSaved(new Date())
             setHasUnsavedChanges(false)
