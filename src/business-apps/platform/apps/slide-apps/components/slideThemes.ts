@@ -84,6 +84,56 @@ export const SLIDE_THEMES: SlideTheme[] = [
     }
   },
   {
+    id: 'newwork-dark',
+    name: 'NEWWORK Dark',
+    preview: { primary: '#e91e8c', secondary: '#f5a623', background: '#0a0a0a' },
+    theme: {
+      colors: {
+        primary: '#ffffff',
+        secondary: '#e91e8c',
+        tertiary: '#0a0a0a',
+        quaternary: '#f5a623'
+      },
+      fonts: {
+        header: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
+        text: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
+        monospace: '"Fira Code", "Monaco", monospace'
+      },
+      fontSizes: {
+        h1: '72px',
+        h2: '56px',
+        h3: '40px',
+        text: '32px',
+        monospace: '24px'
+      }
+    }
+  },
+  {
+    id: 'newwork-light',
+    name: 'NEWWORK Light',
+    preview: { primary: '#1e3a5f', secondary: '#e91e8c', background: '#ffffff' },
+    theme: {
+      colors: {
+        primary: '#1e3a5f',
+        secondary: '#e91e8c',
+        tertiary: '#ffffff',
+        quaternary: '#f5a623'
+      },
+      fonts: {
+        header: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
+        text: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
+        monospace: '"Fira Code", "Monaco", monospace'
+      },
+      fontSizes: {
+        h1: '72px',
+        h2: '56px',
+        h3: '40px',
+        text: '32px',
+        monospace: '24px'
+      }
+    }
+  },
+  {
     id: 'nature',
     name: 'Nature Green',
     preview: { primary: '#166534', secondary: '#22c55e', background: '#f0fdf4' },

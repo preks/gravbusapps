@@ -15,8 +15,8 @@ import type { Note } from '@/common/data/relations/types/noteTypes'
 export type NoteDocument = {
   id: string
   name: string
-  mimeType?: string
-  fileSize?: number
+  mimeType?: string | null
+  fileSize?: number | null
   file?: string
   fileInfo?: FileInfo
 }

@@ -35,6 +35,7 @@ import { useSanitizationMethodCatalog } from './hooks/useSanitizationMethodCatal
 import { useITAdminEmployees } from './hooks/useITAdminEmployees'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatDateForInput } from '@/business-apps/fin/expenses/apps/expense-settings/utils'
 import translations from './_i18n'
 
 type FormValues = {
@@ -496,7 +497,10 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
                       version: currentAssetVersion,
                       model: existingAsset.model,
                       serialNumber: existingAsset.serialNumber,
-                      acquisitionDate: existingAsset.acquisitionDate,
+                      acquisitionDate: existingAsset.acquisitionDate
+                        ? (formatDateForInput(existingAsset.acquisitionDate) ??
+                          existingAsset.acquisitionDate.slice(0, 10))
+                        : undefined,
                       warrantyPeriodMonths: existingAsset.warrantyPeriodMonths,
                       inventoryValue: existingAsset.inventoryValue ?? 0,
                       assetStatus: AssetStatus.RETIRED,
@@ -507,14 +511,20 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
                       notes: existingAsset.notes,
                       disposalStatus: 'RETIRED_DISPOSAL_STATUS',
                       disposalOutcomeRef: values.disposalOutcomeRef,
-                      disposalDate: values.disposalDate,
+                      disposalDate:
+                        (formatDateForInput(values.disposalDate) ?? values.disposalDate?.trim().slice(0, 10)) ||
+                        values.disposalDate,
                       disposalReason: values.disposalReason || undefined,
                       responsibleEmployee: values.responsibleEmployee || undefined,
                       requireSanitization: values.requireSanitization === 'yes',
                       sanitizationMethodRef:
                         values.requireSanitization === 'yes' ? values.sanitizationMethod : undefined,
                       sanitizationExecutionDate:
-                        values.requireSanitization === 'yes' ? values.sanitizationExecutionDate : undefined,
+                        values.requireSanitization === 'yes'
+                          ? (formatDateForInput(values.sanitizationExecutionDate) ??
+                            values.sanitizationExecutionDate?.trim().slice(0, 10) ??
+                            values.sanitizationExecutionDate)
+                          : undefined,
                       performerEmployee: values.requireSanitization === 'yes' ? values.performedBy : undefined
                     }
 

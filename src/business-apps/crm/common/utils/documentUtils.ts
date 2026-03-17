@@ -13,8 +13,8 @@ export interface CrmDocument {
   description?: string
   file?: string
   fileInfo?: any
-  mimeType?: string
-  fileSize?: number
+  mimeType?: string | null
+  fileSize?: number | null
   format?: string
   createdAt?: string
   createdBy?: string

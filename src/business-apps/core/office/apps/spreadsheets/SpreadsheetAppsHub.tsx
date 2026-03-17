@@ -44,14 +44,10 @@ import {
   Search,
   List,
   Upload,
-  Database,
   AlertCircle,
   FileText,
-  Home,
-  FolderClosed,
   Users,
   Star,
-  Clock,
   Trash2,
   MoreHorizontal,
   Share2,
@@ -64,17 +60,15 @@ import {
   X,
   LayoutGrid,
   User,
-  RefreshCw,
-  ChevronLeft,
-  PanelLeftClose,
-  PanelLeft,
-  Zap
+  RefreshCw
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getWorkEmailFromCommunication } from '@/common/data/employee/useEmployeeSearch'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
 
 // Components
+import { SpreadsheetHero } from './components/SpreadsheetHero'
+import type { SpreadsheetSection } from './components/SpreadsheetHero'
 import { ExcelUploader } from './components/ExcelUploader'
 import { PromoteToDatabaseModal } from './components/PromoteToDatabaseModal'
 import { SpreadsheetAppViewer } from './SpreadsheetAppViewer'
@@ -109,7 +103,7 @@ export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
 }
 
 type HubView = 'list' | 'upload' | 'viewer' | 'editor'
-type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'automations' | 'tasks' | 'trash'
+type SidebarSection = SpreadsheetSection
 
 const resolveCurrentUserId = (userInfo?: SpreadsheetAppsHubProps['userInfo']): string =>
   userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
@@ -134,24 +128,6 @@ function getInitials(name: string): string {
     .join('')
     .toUpperCase()
     .slice(0, 2)
-}
-
-function isOwner(app: SpreadsheetAppSummary, currentUserId: string): boolean {
-  if (app.createdBy) return app.createdBy === currentUserId
-  return app.isOwner === true
-}
-
-function isExcelCollectionCopy(app: SpreadsheetAppSummary): boolean {
-  return app.settings?.excel_collection_copy === true
-}
-
-function hasContributorAccess(app: SpreadsheetAppSummary, currentUserId: string): boolean {
-  if (isOwner(app, currentUserId)) return true
-  return app.permission === 'owner' || app.permission === 'edit' || app.permission === 'admin'
-}
-
-function isExcelCollectionTaskForCurrentUser(app: SpreadsheetAppSummary, currentUserId: string): boolean {
-  return isExcelCollectionCopy(app) && hasContributorAccess(app, currentUserId)
 }
 
 function isSubmittedExcelCollectionCopy(app: SpreadsheetAppSummary): boolean {
@@ -179,29 +155,6 @@ function resolveCurrentUserName(userInfo?: SpreadsheetAppsHubProps['userInfo']):
     return `${userInfo.givenName} ${userInfo.familyName}`
   }
   return userInfo?.nickName || userInfo?.userName || undefined
-}
-
-function getSectionTitle(activeSection: SidebarSection, t: TranslationFn): string {
-  switch (activeSection) {
-    case 'home':
-      return t('section-home')
-    case 'my-files':
-      return t('section-my-spreadsheets')
-    case 'shared':
-      return t('section-shared-with-me')
-    case 'favorites':
-      return t('section-favorites')
-    case 'recent':
-      return t('section-recent')
-    case 'automations':
-      return t('section-automations')
-    case 'tasks':
-      return t('section-my-tasks')
-    case 'trash':
-      return t('section-trash')
-    default:
-      return t('section-spreadsheets')
-  }
 }
 
 /**
@@ -262,7 +215,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
-  const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed'>('pending')
+  const [taskStatusFilter] = useState<'pending' | 'completed'>('pending')
 
   // Clear space return URL if not opened from a space
   useEffect(() => {
@@ -283,10 +236,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    const saved = localStorage.getItem('spreadsheet-hub-sidebar-collapsed')
-    return saved === 'true'
-  })
   const { favorites, setFavorites } = useSpreadsheetAppsHubFavorites()
 
   // Data state
@@ -331,7 +280,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     currentApp,
     isLoading: isLoadingApps,
     error: appsError,
-    storageMode,
     currentAppPermission,
     loadApp,
     createApp,
@@ -379,11 +327,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     }
   }, [activeSection, currentView, currentApp, updateUrl])
 
-  // Persist sidebar collapsed state
-  useEffect(() => {
-    localStorage.setItem('spreadsheet-hub-sidebar-collapsed', String(isSidebarCollapsed))
-  }, [isSidebarCollapsed])
-
   const { filteredApps } = useSpreadsheetAppsHubFiltering({
     apps,
     currentUserId,
@@ -393,20 +336,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     sortBy,
     sortOrder
   })
-  const sharedWithMeCount = apps.filter(
-    app => app.isShared && !isOwner(app, currentUserId) && !isExcelCollectionCopy(app)
-  ).length
-  const tasksCount = apps.filter(app => isExcelCollectionTaskForCurrentUser(app, currentUserId)).length
-
-  const pendingTasksCount = useMemo(
-    () => (activeSection === 'tasks' ? filteredApps.filter(app => !isSubmittedExcelCollectionCopy(app)).length : 0),
-    [activeSection, filteredApps]
-  )
-  const completedTasksCount = useMemo(
-    () => (activeSection === 'tasks' ? filteredApps.filter(app => isSubmittedExcelCollectionCopy(app)).length : 0),
-    [activeSection, filteredApps]
-  )
-
   const taskDisplayedApps = useMemo(
     () => filterTaskDisplayedApps(activeSection, taskStatusFilter, filteredApps),
     [activeSection, filteredApps, taskStatusFilter]
@@ -1013,312 +942,49 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       return renderEditorContent(currentApp)
     }
 
+    const heroNewButton = (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            className="gba:gap-1.5 gba:bg-white/15 gba:text-white gba:border gba:border-white/20 hover:gba:bg-white/25 gba:backdrop-blur-sm"
+            data-testid={`${testId}-hero-new-btn`}
+          >
+            <Plus className="gba:w-4 gba:h-4" />
+            {t('sidebar-new')}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="gba:w-56">
+          <DropdownMenuItem onClick={() => setIsCreateEmptyDialogOpen(true)}>
+            <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-emerald-500" />
+            <div>
+              <div className="gba:font-medium">{t('sidebar-blank-spreadsheet')}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('sidebar-blank-spreadsheet-desc')}</div>
+            </div>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleStartUpload}>
+            <Upload className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
+            <div>
+              <div className="gba:font-medium">{t('sidebar-upload-excel')}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('sidebar-upload-excel-desc')}</div>
+            </div>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+
     return (
-      <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
-        {/* Sidebar */}
-        <aside
-          className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-300 ${isSidebarCollapsed ? 'gba:w-16' : 'gba:w-60'}`}
-        >
-          {/* Logo / Brand */}
-          <div className={`gba:border-b ${isSidebarCollapsed ? 'gba:p-2' : 'gba:p-4'}`}>
-            {/* Back button and collapse toggle row */}
-            <div
-              className={`gba:flex gba:items-center gba:mb-2 ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:justify-between'}`}
-            >
-              <TooltipProvider>
-                {!isSidebarCollapsed && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => globalThis.history.back()}
-                        data-testid={`${testId}-back-to-desk`}
-                      >
-                        <ChevronLeft className="gba:w-4 gba:h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('sidebar-back-to-desk')}</TooltipContent>
-                  </Tooltip>
-                )}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      data-testid={`${testId}-toggle-sidebar`}
-                    >
-                      {isSidebarCollapsed ? (
-                        <PanelLeft className="gba:w-4 gba:h-4" />
-                      ) : (
-                        <PanelLeftClose className="gba:w-4 gba:h-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{isSidebarCollapsed ? t('sidebar-expand') : t('sidebar-collapse')}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-
-            {/* Brand section */}
-            {!isSidebarCollapsed && (
-              <div className="gba:flex gba:items-center gba:gap-3">
-                <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-emerald-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center">
-                  <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-white" />
-                </div>
-                <div>
-                  <h1 className="gba:font-semibold gba:text-foreground">{t('sidebar-brand-title')}</h1>
-                  <p className="gba:text-xs gba:text-muted-foreground">{t('sidebar-brand-subtitle')}</p>
-                </div>
-              </div>
-            )}
-            {isSidebarCollapsed && (
-              <div className="gba:flex gba:justify-center">
-                <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-emerald-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center">
-                  <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-white" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* New Button */}
-          <div className={isSidebarCollapsed ? 'gba:p-2' : 'gba:p-3'}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-600 gba:text-white hover:gba:from-emerald-600 hover:gba:to-teal-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
-                >
-                  <Plus className="gba:w-4 gba:h-4" />
-                  {!isSidebarCollapsed && t('sidebar-new')}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="gba:w-56">
-                <DropdownMenuItem onClick={() => setIsCreateEmptyDialogOpen(true)}>
-                  <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-emerald-500" />
-                  <div>
-                    <div className="gba:font-medium">{t('sidebar-blank-spreadsheet')}</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">{t('sidebar-blank-spreadsheet-desc')}</div>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleStartUpload}>
-                  <Upload className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
-                  <div>
-                    <div className="gba:font-medium">{t('sidebar-upload-excel')}</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">{t('sidebar-upload-excel-desc')}</div>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* Navigation */}
-          <nav className="gba:flex-1 gba:overflow-y-auto gba:px-2 gba:py-2">
-            <div className="gba:space-y-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('home')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'home'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <Home className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && t('sidebar-home')}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-home')}</TooltipContent>}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('my-files')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'my-files'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <FolderClosed className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && t('sidebar-my-spreadsheets')}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-my-spreadsheets')}</TooltipContent>}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('shared')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'shared'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <Users className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && (
-                        <>
-                          {t('sidebar-shared-with-me')}
-                          {sharedWithMeCount > 0 && (
-                            <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                              {sharedWithMeCount}
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && (
-                    <TooltipContent side="right">
-                      {t('sidebar-shared-with-me')} {sharedWithMeCount > 0 && `(${sharedWithMeCount})`}
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('tasks')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'tasks'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <List className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && (
-                        <>
-                          {t('sidebar-my-tasks')}
-                          {tasksCount > 0 && (
-                            <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                              {tasksCount}
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && (
-                    <TooltipContent side="right">
-                      {t('sidebar-my-tasks')} {tasksCount > 0 && `(${tasksCount})`}
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('recent')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'recent'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <Clock className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && t('sidebar-recent')}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-recent')}</TooltipContent>}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('automations')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'automations'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <Zap className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && t('sidebar-automations')}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-automations')}</TooltipContent>}
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setActiveSection('favorites')}
-                      className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                        activeSection === 'favorites'
-                          ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                          : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                      }`}
-                    >
-                      <Star className="gba:w-4 gba:h-4" />
-                      {!isSidebarCollapsed && t('sidebar-favorites')}
-                    </button>
-                  </TooltipTrigger>
-                  {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-favorites')}</TooltipContent>}
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-
-            {!isSidebarCollapsed && (
-              <div className="gba:mt-6 gba:pt-4 gba:border-t">
-                <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
-                  {t('sidebar-storage')}
-                </p>
-                <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                    <Database
-                      className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-emerald-500' : 'gba:text-amber-500'}`}
-                    />
-                    <span className="gba:text-xs gba:text-muted-foreground">
-                      {storageMode === 'database' ? t('sidebar-cloud-storage') : t('sidebar-local-storage')}
-                    </span>
-                  </div>
-                  <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                    <div
-                      className="gba:h-full gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-500 gba:rounded-full"
-                      style={{ width: `${Math.min((apps.length / 50) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
-                    {t('sidebar-spreadsheets-count', { count: apps.length })}
-                  </p>
-                </div>
-              </div>
-            )}
-            {isSidebarCollapsed && (
-              <div className="gba:mt-6 gba:pt-4 gba:border-t gba:flex gba:justify-center">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="gba:p-2">
-                        <Database
-                          className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-emerald-500' : 'gba:text-amber-500'}`}
-                        />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <div>
-                        <p className="gba:font-medium">
-                          {storageMode === 'database' ? t('sidebar-cloud-storage') : t('sidebar-local-storage')}
-                        </p>
-                        <p className="gba:text-xs gba:text-muted-foreground">
-                          {t('sidebar-spreadsheets-count', { count: apps.length })}
-                        </p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
-          </nav>
-        </aside>
+      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+        <SpreadsheetHero
+          activeSection={activeSection}
+          onSectionChange={s => setActiveSection(s)}
+          newButton={heroNewButton}
+          t={t}
+          data-testid={`${testId}-hero`}
+        />
 
         {/* Main Content */}
-        <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:overflow-hidden">
+        <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden">
           {/* Upload View */}
           {currentView === 'upload' && (
             <div className="gba:flex-1 gba:overflow-auto gba:p-8">
@@ -1355,492 +1021,606 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
           {/* Automations View */}
           {currentView === 'list' && activeSection === 'automations' && (
-            <SpreadsheetAutomationsSection accessToken={accessToken} data-testid={`${testId}-automations-section`} />
+            <div className="gba:flex-1 gba:overflow-auto">
+              <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:py-5">
+                <SpreadsheetAutomationsSection
+                  accessToken={accessToken}
+                  data-testid={`${testId}-automations-section`}
+                />
+              </div>
+            </div>
           )}
 
           {/* List View */}
           {currentView === 'list' && activeSection !== 'automations' && (
             <>
-              {/* Header / Toolbar */}
-              <header className="gba:border-b gba:bg-card gba:flex-shrink-0">
-                {/* Breadcrumb */}
-                <div className="gba:px-6 gba:py-3 gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                  <span className="gba:font-medium gba:text-foreground">{getSectionTitle(activeSection, t)}</span>
-                </div>
-
-                {/* Task status tabs */}
-                {activeSection === 'tasks' && (
-                  <div className="gba:px-6 gba:pb-2">
-                    <Tabs
-                      value={taskStatusFilter}
-                      onValueChange={v => setTaskStatusFilter(v as 'pending' | 'completed')}
-                    >
-                      <TabsList>
-                        <TabsTrigger value="pending" data-testid="spreadsheet-apps-hub-tasks-tab-pending">
-                          {t('tasks-pending')}
-                          {pendingTasksCount > 0 && (
-                            <Badge variant="secondary" className="gba:ml-1.5 gba:text-xs">
-                              {pendingTasksCount}
-                            </Badge>
-                          )}
-                        </TabsTrigger>
-                        <TabsTrigger value="completed" data-testid="spreadsheet-apps-hub-tasks-tab-completed">
-                          {t('tasks-completed')}
-                          {completedTasksCount > 0 && (
-                            <Badge variant="secondary" className="gba:ml-1.5 gba:text-xs">
-                              {completedTasksCount}
-                            </Badge>
-                          )}
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                )}
-
-                {/* Action Bar */}
-                <div className="gba:px-6 gba:py-2 gba:flex gba:items-center gba:justify-between gba:border-t gba:border-border/50">
-                  <div className="gba:flex gba:items-center gba:gap-1">
-                    {selectedApps.size > 0 ? (
-                      <>
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedApps(new Set())}>
-                          <X className="gba:w-4 gba:h-4 gba:mr-1" />
-                          {t('action-clear', { count: selectedApps.size })}
-                        </Button>
-                        <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-2" />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            selectedApps.forEach(id => handleShareApp(id))
-                          }}
-                        >
-                          <Share2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                          {t('action-share')}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            selectedApps.forEach(id => handleExportApp(id))
-                          }}
-                        >
-                          <Download className="gba:w-4 gba:h-4 gba:mr-1" />
-                          {t('action-download')}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gba:text-destructive"
-                          onClick={() => {
-                            if (confirm(t('action-delete-confirm', { count: selectedApps.size }))) {
-                              selectedApps.forEach(id => handleDeleteApp(id))
-                            }
-                          }}
-                        >
-                          <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                          {t('action-delete-spreadsheet')}
-                        </Button>
-                      </>
-                    ) : null}
-                  </div>
-
-                  <div className="gba:flex gba:items-center gba:gap-2">
+              {/* Content Area */}
+              <div className="gba:flex-1 gba:overflow-auto">
+                <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5">
+                  {/* Spotlight search bar */}
+                  <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
                     <div className="gba:relative">
-                      <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                      <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
                       <Input
                         placeholder={t('action-search-placeholder')}
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        className="gba:pl-9 gba:w-64 gba:h-9"
+                        className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
+                        data-testid={`${testId}-search-input`}
                       />
                     </div>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
+
+                    {/* Actions row */}
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      {selectedApps.size > 0 ? (
+                        <div className="gba:flex gba:items-center gba:gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gba:h-7 gba:text-xs"
+                            onClick={() => setSelectedApps(new Set())}
+                          >
+                            <X className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                            {t('action-clear', { count: selectedApps.size })}
+                          </Button>
+                          <div className="gba:w-px gba:h-4 gba:bg-border gba:mx-1" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gba:h-7 gba:text-xs"
+                            onClick={() => {
+                              selectedApps.forEach(id => handleShareApp(id))
+                            }}
+                          >
+                            <Share2 className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                            {t('action-share')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gba:h-7 gba:text-xs"
+                            onClick={() => {
+                              selectedApps.forEach(id => handleExportApp(id))
+                            }}
+                          >
+                            <Download className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                            {t('action-download')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gba:h-7 gba:text-xs gba:text-destructive"
+                            onClick={() => {
+                              if (confirm(t('action-delete-confirm', { count: selectedApps.size }))) {
+                                selectedApps.forEach(id => handleDeleteApp(id))
+                              }
+                            }}
+                          >
+                            <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                            {t('action-delete-spreadsheet')}
+                          </Button>
+                        </div>
+                      ) : (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => refreshApps()}
+                          className="gba:gap-1.5 gba:h-7 gba:text-xs"
                           data-testid="spreadsheet-apps-hub-refresh-button"
                         >
-                          <RefreshCw className="gba:w-4 gba:h-4" />
+                          <RefreshCw className="gba:w-3.5 gba:h-3.5" />
+                          {t('action-refresh')}
                         </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{t('action-refresh')}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <div className="gba:flex gba:items-center gba:border gba:rounded-md">
-                      <Button
-                        variant={viewLayout === 'list' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewLayout('list')}
-                        className="gba:rounded-r-none"
-                      >
-                        <List className="gba:w-4 gba:h-4" />
-                      </Button>
-                      <Button
-                        variant={viewLayout === 'grid' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewLayout('grid')}
-                        className="gba:rounded-l-none"
-                      >
-                        <LayoutGrid className="gba:w-4 gba:h-4" />
-                      </Button>
+                      )}
+
+                      <div className="gba:ml-auto gba:flex gba:items-center gba:gap-1.5">
+                        <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:p-0.5">
+                          <button
+                            onClick={() => setViewLayout('list')}
+                            className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'list' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                            data-testid={`${testId}-view-list`}
+                          >
+                            <List className="gba:w-3.5 gba:h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setViewLayout('grid')}
+                            className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'grid' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                            data-testid={`${testId}-view-grid`}
+                          >
+                            <LayoutGrid className="gba:w-3.5 gba:h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </header>
-
-              {/* Content Area */}
-              <div className="gba:flex-1 gba:overflow-auto">
-                {/* Loading state */}
-                {isLoadingApps && (
-                  <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
-                    <Spinner size="lg" />
-                  </div>
-                )}
-
-                {/* Error state */}
-                {appsError && (
-                  <div className="gba:p-6">
-                    <Card className="gba:p-6 gba:text-center">
-                      <AlertCircle className="gba:w-12 gba:h-12 gba:text-destructive gba:mx-auto gba:mb-4" />
-                      <p className="gba:text-destructive gba:mb-4">{appsError}</p>
-                      <Button variant="outline" onClick={() => refreshApps()} data-testid="spreadsheet-apps-hub-retry">
-                        <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Retry
-                      </Button>
-                    </Card>
-                  </div>
-                )}
-
-                {/* Empty state */}
-                {!isLoadingApps &&
-                  !appsError &&
-                  (activeSection === 'tasks' ? taskDisplayedApps : filteredApps).length === 0 && (
-                    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
-                      <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-emerald-500/20 gba:to-teal-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
-                        <FileSpreadsheet className="gba:w-12 gba:h-12 gba:text-emerald-500" />
-                      </div>
-                      <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
-                        {activeSection === 'favorites'
-                          ? t('empty-no-favorites')
-                          : activeSection === 'shared'
-                            ? t('empty-nothing-shared')
-                            : activeSection === 'tasks'
-                              ? taskStatusFilter === 'pending'
-                                ? t('empty-no-pending-tasks')
-                                : t('empty-no-completed-tasks')
-                              : t('empty-no-spreadsheets')}
-                      </h3>
-                      <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
-                        {activeSection === 'favorites'
-                          ? t('empty-favorites-hint')
-                          : activeSection === 'shared'
-                            ? t('empty-shared-hint')
-                            : activeSection === 'tasks'
-                              ? taskStatusFilter === 'pending'
-                                ? t('empty-tasks-pending-hint')
-                                : t('empty-tasks-completed-hint')
-                              : t('empty-get-started-hint')}
-                      </p>
-                      {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'tasks' && (
-                        <div className="gba:flex gba:gap-3">
-                          <Button onClick={() => setIsCreateEmptyDialogOpen(true)}>
-                            <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                            {t('action-create-spreadsheet')}
-                          </Button>
-                          <Button variant="outline" onClick={handleStartUpload}>
-                            <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-                            {t('action-upload-excel')}
-                          </Button>
-                        </div>
-                      )}
+                <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+                  {/* Loading state */}
+                  {isLoadingApps && (
+                    <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+                      <Spinner size="lg" />
                     </div>
                   )}
 
-                {/* List View */}
-                {!isLoadingApps &&
-                  (activeSection === 'tasks' ? taskDisplayedApps : filteredApps).length > 0 &&
-                  viewLayout === 'list' && (
-                    <div className="gba:w-full">
-                      {/* Table Header */}
-                      <div className="gba:sticky gba:top-0 gba:bg-muted/50 gba:border-b gba:z-10">
-                        <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
-                          <div className="gba:w-8 gba:flex-shrink-0">
-                            <Checkbox
-                              checked={selectedApps.size === paginatedApps.length && paginatedApps.length > 0}
-                              onCheckedChange={selectAllApps}
-                            />
+                  {/* Error state */}
+                  {appsError && (
+                    <div className="gba:p-6">
+                      <Card className="gba:p-6 gba:text-center">
+                        <AlertCircle className="gba:w-12 gba:h-12 gba:text-destructive gba:mx-auto gba:mb-4" />
+                        <p className="gba:text-destructive gba:mb-4">{appsError}</p>
+                        <Button
+                          variant="outline"
+                          onClick={() => refreshApps()}
+                          data-testid="spreadsheet-apps-hub-retry"
+                        >
+                          <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
+                          Retry
+                        </Button>
+                      </Card>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {!isLoadingApps &&
+                    !appsError &&
+                    (activeSection === 'tasks' ? taskDisplayedApps : filteredApps).length === 0 && (
+                      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
+                        <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-emerald-500/20 gba:to-teal-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
+                          <FileSpreadsheet className="gba:w-12 gba:h-12 gba:text-emerald-500" />
+                        </div>
+                        <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
+                          {activeSection === 'favorites'
+                            ? t('empty-no-favorites')
+                            : activeSection === 'shared'
+                              ? t('empty-nothing-shared')
+                              : activeSection === 'tasks'
+                                ? taskStatusFilter === 'pending'
+                                  ? t('empty-no-pending-tasks')
+                                  : t('empty-no-completed-tasks')
+                                : t('empty-no-spreadsheets')}
+                        </h3>
+                        <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
+                          {activeSection === 'favorites'
+                            ? t('empty-favorites-hint')
+                            : activeSection === 'shared'
+                              ? t('empty-shared-hint')
+                              : activeSection === 'tasks'
+                                ? taskStatusFilter === 'pending'
+                                  ? t('empty-tasks-pending-hint')
+                                  : t('empty-tasks-completed-hint')
+                                : t('empty-get-started-hint')}
+                        </p>
+                        {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'tasks' && (
+                          <div className="gba:flex gba:gap-3">
+                            <Button onClick={() => setIsCreateEmptyDialogOpen(true)}>
+                              <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+                              {t('action-create-spreadsheet')}
+                            </Button>
+                            <Button variant="outline" onClick={handleStartUpload}>
+                              <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
+                              {t('action-upload-excel')}
+                            </Button>
                           </div>
-                          <div className="gba:w-8 gba:flex-shrink-0" />
-                          <div
-                            className="gba:flex-1 gba:min-w-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => {
-                              setSortBy('name')
-                              setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault()
+                        )}
+                      </div>
+                    )}
+
+                  {/* List View */}
+                  {!isLoadingApps &&
+                    (activeSection === 'tasks' ? taskDisplayedApps : filteredApps).length > 0 &&
+                    viewLayout === 'list' && (
+                      <div className="gba:w-full">
+                        {/* Table Header */}
+                        <div className="gba:sticky gba:top-0 gba:bg-muted/50 gba:border-b gba:z-10">
+                          <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
+                            <div className="gba:w-8 gba:flex-shrink-0">
+                              <Checkbox
+                                checked={selectedApps.size === paginatedApps.length && paginatedApps.length > 0}
+                                onCheckedChange={selectAllApps}
+                              />
+                            </div>
+                            <div className="gba:w-8 gba:flex-shrink-0" />
+                            <div
+                              className="gba:flex-1 gba:min-w-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
                                 setSortBy('name')
                                 setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
-                              }
-                            }}
-                          >
-                            {t('action-sort-name')}
-                            {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
-                          </div>
-                          <div
-                            className="gba:w-36 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => {
-                              setSortBy('modified')
-                              setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault()
+                              }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setSortBy('name')
+                                  setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
+                                }
+                              }}
+                            >
+                              {t('action-sort-name')}
+                              {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                            </div>
+                            <div
+                              className="gba:w-36 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
                                 setSortBy('modified')
                                 setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
-                              }
-                            }}
-                          >
-                            {t('action-sort-modified')}
-                            {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
-                          </div>
-                          <div className="gba:w-40 gba:flex-shrink-0">{t('table-modified-by')}</div>
-                          <div
-                            className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => {
-                              setSortBy('created')
-                              setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault()
+                              }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setSortBy('modified')
+                                  setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
+                                }
+                              }}
+                            >
+                              {t('action-sort-modified')}
+                              {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                            </div>
+                            <div className="gba:w-40 gba:flex-shrink-0">{t('table-modified-by')}</div>
+                            <div
+                              className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
                                 setSortBy('created')
                                 setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
-                              }
-                            }}
-                          >
-                            {t('action-sort-created')}
-                            {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                              }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setSortBy('created')
+                                  setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
+                                }
+                              }}
+                            >
+                              {t('action-sort-created')}
+                              {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                            </div>
+                            <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">{t('table-rows')}</div>
+                            <div className="gba:w-10 gba:flex-shrink-0" />
                           </div>
-                          <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">{t('table-rows')}</div>
-                          <div className="gba:w-10 gba:flex-shrink-0" />
+                        </div>
+
+                        {/* Table Body */}
+                        <div className="gba:divide-y gba:divide-border">
+                          {paginatedApps.map(app => {
+                            const isOwner = app.isOwner ?? app.createdBy === currentUserId
+                            const isSelected = selectedApps.has(app.id)
+                            const isFavorite = favorites.has(app.id)
+                            const ownerInfo = app.createdBy ? ownerInfoMap.get(app.createdBy) : undefined
+                            const sharedWith = sharedUsersMap.get(app.id) || []
+
+                            return (
+                              <div
+                                key={app.id}
+                                className={`gba:flex gba:items-center gba:px-4 gba:py-3 gba:transition-colors gba:cursor-pointer ${
+                                  isSelected ? 'gba:bg-primary/5' : 'hover:gba:bg-muted/30'
+                                }`}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleOpenApp(app.id)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    handleOpenApp(app.id)
+                                  }
+                                }}
+                              >
+                                {/* Checkbox */}
+                                <div
+                                  className="gba:w-8 gba:flex-shrink-0"
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={e => e.stopPropagation()}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
+                                  }}
+                                >
+                                  <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectApp(app.id)} />
+                                </div>
+
+                                {/* Star */}
+                                <div className="gba:w-8 gba:flex-shrink-0">
+                                  <button
+                                    onClick={e => toggleFavorite(app.id, e)}
+                                    className={`gba:p-1 gba:rounded hover:gba:bg-muted ${isFavorite ? 'gba:text-amber-500' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                                  >
+                                    <Star className={`gba:w-4 gba:h-4 ${isFavorite ? 'gba:fill-current' : ''}`} />
+                                  </button>
+                                </div>
+
+                                {/* Name & Icon */}
+                                <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
+                                  <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-emerald-500/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+                                    {(() => {
+                                      const IconComponent = app.icon ? getIconByName(app.icon) : null
+                                      return IconComponent ? (
+                                        <IconComponent className="gba:w-5 gba:h-5 gba:text-emerald-600" />
+                                      ) : (
+                                        <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-emerald-600" />
+                                      )
+                                    })()}
+                                  </div>
+                                  <div className="gba:min-w-0">
+                                    <div className="gba:flex gba:items-center gba:gap-2">
+                                      <span className="gba:font-medium gba:text-foreground gba:truncate">
+                                        {app.name}
+                                      </span>
+                                      {activeSection === 'tasks' && isSubmittedExcelCollectionCopy(app) && (
+                                        <Badge variant="success" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+                                          {t('badge-submitted')}
+                                        </Badge>
+                                      )}
+                                      {app.isShared && !isOwner && (
+                                        <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+                                          {t('badge-shared')}
+                                        </Badge>
+                                      )}
+                                      {isOwner && sharedWith.length > 0 && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <button
+                                                onClick={e => {
+                                                  e.stopPropagation()
+                                                  handleManageShares(app.id)
+                                                }}
+                                                className="gba:flex gba:items-center gba:-space-x-1 hover:gba:opacity-80 gba:transition-opacity"
+                                              >
+                                                {sharedWith.slice(0, 3).map(user => (
+                                                  <Avatar
+                                                    key={user.userId}
+                                                    className="gba:w-5 gba:h-5 gba:border gba:border-background"
+                                                  >
+                                                    {user.avatar && <AvatarImage src={user.avatar} />}
+                                                    <AvatarFallback className="gba:text-[8px] gba:bg-muted">
+                                                      {user.name ? getInitials(user.name) : '?'}
+                                                    </AvatarFallback>
+                                                  </Avatar>
+                                                ))}
+                                                {sharedWith.length > 3 && (
+                                                  <div className="gba:w-5 gba:h-5 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-[8px] gba:border gba:border-background">
+                                                    +{sharedWith.length - 3}
+                                                  </div>
+                                                )}
+                                              </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p>{t('badge-shared-with', { count: sharedWith.length })}</p>
+                                              <p className="gba:text-xs gba:text-muted-foreground">
+                                                {t('badge-click-to-manage')}
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                    </div>
+                                    {app.description && (
+                                      <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                                        {app.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Modified */}
+                                <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
+                                  {formatDate(app.updatedAt, t)}
+                                </div>
+
+                                {/* Modified By */}
+                                <div className="gba:w-40 gba:flex-shrink-0">
+                                  <div className="gba:flex gba:items-center gba:gap-2">
+                                    <Avatar className="gba:w-6 gba:h-6">
+                                      {ownerInfo?.avatar && <AvatarImage src={ownerInfo.avatar} />}
+                                      <AvatarFallback className="gba:text-[10px] gba:bg-muted">
+                                        {ownerInfo?.name ? (
+                                          getInitials(ownerInfo.name)
+                                        ) : (
+                                          <User className="gba:w-3 gba:h-3" />
+                                        )}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
+                                      {ownerInfo?.name || t('table-unknown-owner')}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Created */}
+                                <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
+                                  {formatDate(app.createdAt, t)}
+                                </div>
+
+                                {/* Rows */}
+                                <div className="gba:w-20 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground gba:text-right">
+                                  {app.rowCount.toLocaleString()}
+                                </div>
+
+                                {/* Actions */}
+                                <div
+                                  className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
+                                        <MoreHorizontal className="gba:w-4 gba:h-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => handleOpenApp(app.id)}>
+                                        <Play className="gba:w-4 gba:h-4 gba:mr-2" />
+                                        {t('action-open')}
+                                      </DropdownMenuItem>
+                                      {isOwner && (
+                                        <DropdownMenuItem onClick={() => handleShareApp(app.id)}>
+                                          <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                          {t('action-share')}
+                                        </DropdownMenuItem>
+                                      )}
+                                      {isOwner && sharedWith.length > 0 && (
+                                        <DropdownMenuItem onClick={() => handleManageShares(app.id)}>
+                                          <Users className="gba:w-4 gba:h-4 gba:mr-2" />
+                                          {t('action-manage-sharing')}
+                                        </DropdownMenuItem>
+                                      )}
+                                      <DropdownMenuItem onClick={() => copyLink(app)}>
+                                        <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                        {t('action-copy-link')}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleExportApp(app.id)}>
+                                        <Download className="gba:w-4 gba:h-4 gba:mr-2" />
+                                        {t('action-download')}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => handleEditApp(app.id)}>
+                                        <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
+                                        {t('action-settings')}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleDuplicateApp(app.id)}>
+                                        <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
+                                        {t('action-duplicate')}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => toggleFavorite(app.id)}>
+                                        <Star
+                                          className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
+                                        />
+                                        {isFavorite ? t('action-remove-from-favorites') : t('action-add-to-favorites')}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        className="gba:text-destructive"
+                                        onClick={() => handleDeleteApp(app.id)}
+                                      >
+                                        <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                        {t('action-delete-spreadsheet')}
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
+                    )}
 
-                      {/* Table Body */}
-                      <div className="gba:divide-y gba:divide-border">
+                  {/* Grid View */}
+                  {!isLoadingApps &&
+                    (activeSection === 'tasks' ? taskDisplayedApps : filteredApps).length > 0 &&
+                    viewLayout === 'grid' && (
+                      <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
                         {paginatedApps.map(app => {
                           const isOwner = app.isOwner ?? app.createdBy === currentUserId
                           const isSelected = selectedApps.has(app.id)
                           const isFavorite = favorites.has(app.id)
-                          const ownerInfo = app.createdBy ? ownerInfoMap.get(app.createdBy) : undefined
-                          const sharedWith = sharedUsersMap.get(app.id) || []
 
                           return (
-                            <div
+                            <Card
                               key={app.id}
-                              className={`gba:flex gba:items-center gba:px-4 gba:py-3 gba:transition-colors gba:cursor-pointer ${
-                                isSelected ? 'gba:bg-primary/5' : 'hover:gba:bg-muted/30'
+                              className={`gba:group gba:cursor-pointer gba:transition-all hover:gba:shadow-lg ${
+                                isSelected ? 'gba:ring-2 gba:ring-primary' : ''
                               }`}
-                              role="button"
-                              tabIndex={0}
                               onClick={() => handleOpenApp(app.id)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault()
-                                  handleOpenApp(app.id)
-                                }
-                              }}
                             >
-                              {/* Checkbox */}
-                              <div
-                                className="gba:w-8 gba:flex-shrink-0"
-                                role="button"
-                                tabIndex={0}
-                                onClick={e => e.stopPropagation()}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
-                                }}
-                              >
-                                <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectApp(app.id)} />
-                              </div>
+                              {/* Preview area */}
+                              <div className="gba:relative gba:aspect-[4/3] gba:rounded-t-lg gba:overflow-hidden">
+                                <SpreadsheetPreviewThumbnail
+                                  app={app}
+                                  className="gba:absolute gba:inset-0"
+                                  data-testid={`${testId}-grid-preview-${app.id}`}
+                                />
 
-                              {/* Star */}
-                              <div className="gba:w-8 gba:flex-shrink-0">
+                                {/* Hover overlay */}
+                                <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />
+
+                                {/* Selection checkbox */}
+                                <div
+                                  className={`gba:absolute gba:top-2 gba:left-2 gba:opacity-0 group-hover:gba:opacity-100 ${isSelected ? 'gba:opacity-100' : ''} gba:transition-opacity`}
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => toggleSelectApp(app.id)}
+                                    className="gba:bg-background"
+                                  />
+                                </div>
+
+                                {/* Favorite star */}
                                 <button
+                                  className={`gba:absolute gba:top-2 gba:right-2 gba:p-1.5 gba:rounded-full gba:bg-background/80 gba:backdrop-blur-sm gba:opacity-0 group-hover:gba:opacity-100 ${isFavorite ? 'gba:opacity-100 gba:text-amber-500' : 'gba:text-muted-foreground hover:gba:text-foreground'} gba:transition-all`}
                                   onClick={e => toggleFavorite(app.id, e)}
-                                  className={`gba:p-1 gba:rounded hover:gba:bg-muted ${isFavorite ? 'gba:text-amber-500' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
                                 >
                                   <Star className={`gba:w-4 gba:h-4 ${isFavorite ? 'gba:fill-current' : ''}`} />
                                 </button>
+
+                                {/* {t('badge-shared')} badge */}
+                                {app.isShared && !isOwner && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]"
+                                  >
+                                    <Users className="gba:w-3 gba:h-3 gba:mr-1" />
+                                    {t('badge-shared')}
+                                  </Badge>
+                                )}
+                                {activeSection === 'tasks' && isSubmittedExcelCollectionCopy(app) && (
+                                  <Badge
+                                    variant="success"
+                                    className="gba:absolute gba:bottom-2 gba:right-2 gba:text-[10px]"
+                                  >
+                                    Submitted
+                                  </Badge>
+                                )}
                               </div>
 
-                              {/* Name & Icon */}
-                              <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
-                                <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-emerald-500/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                                  {(() => {
-                                    const IconComponent = app.icon ? getIconByName(app.icon) : null
-                                    return IconComponent ? (
-                                      <IconComponent className="gba:w-5 gba:h-5 gba:text-emerald-600" />
-                                    ) : (
-                                      <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-emerald-600" />
-                                    )
-                                  })()}
-                                </div>
-                                <div className="gba:min-w-0">
-                                  <div className="gba:flex gba:items-center gba:gap-2">
-                                    <span className="gba:font-medium gba:text-foreground gba:truncate">{app.name}</span>
-                                    {activeSection === 'tasks' && isSubmittedExcelCollectionCopy(app) && (
-                                      <Badge variant="success" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                        {t('badge-submitted')}
-                                      </Badge>
-                                    )}
-                                    {app.isShared && !isOwner && (
-                                      <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                        {t('badge-shared')}
-                                      </Badge>
-                                    )}
-                                    {isOwner && sharedWith.length > 0 && (
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <button
-                                              onClick={e => {
-                                                e.stopPropagation()
-                                                handleManageShares(app.id)
-                                              }}
-                                              className="gba:flex gba:items-center gba:-space-x-1 hover:gba:opacity-80 gba:transition-opacity"
-                                            >
-                                              {sharedWith.slice(0, 3).map(user => (
-                                                <Avatar
-                                                  key={user.userId}
-                                                  className="gba:w-5 gba:h-5 gba:border gba:border-background"
-                                                >
-                                                  {user.avatar && <AvatarImage src={user.avatar} />}
-                                                  <AvatarFallback className="gba:text-[8px] gba:bg-muted">
-                                                    {user.name ? getInitials(user.name) : '?'}
-                                                  </AvatarFallback>
-                                                </Avatar>
-                                              ))}
-                                              {sharedWith.length > 3 && (
-                                                <div className="gba:w-5 gba:h-5 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-[8px] gba:border gba:border-background">
-                                                  +{sharedWith.length - 3}
-                                                </div>
-                                              )}
-                                            </button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p>{t('badge-shared-with', { count: sharedWith.length })}</p>
-                                            <p className="gba:text-xs gba:text-muted-foreground">
-                                              {t('badge-click-to-manage')}
-                                            </p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    )}
-                                  </div>
-                                  {app.description && (
-                                    <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                                      {app.description}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Modified */}
-                              <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                                {formatDate(app.updatedAt, t)}
-                              </div>
-
-                              {/* Modified By */}
-                              <div className="gba:w-40 gba:flex-shrink-0">
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <Avatar className="gba:w-6 gba:h-6">
-                                    {ownerInfo?.avatar && <AvatarImage src={ownerInfo.avatar} />}
-                                    <AvatarFallback className="gba:text-[10px] gba:bg-muted">
-                                      {ownerInfo?.name ? (
-                                        getInitials(ownerInfo.name)
-                                      ) : (
-                                        <User className="gba:w-3 gba:h-3" />
-                                      )}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                                    {ownerInfo?.name || t('table-unknown-owner')}
+                              {/* Info */}
+                              <div className="gba:p-3">
+                                <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">
+                                  {app.name}
+                                </h3>
+                                <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
+                                  <span>{formatRelativeTime(app.updatedAt, t)}</span>
+                                  <span>
+                                    {app.rowCount} {t('rows-label')}
                                   </span>
                                 </div>
                               </div>
 
-                              {/* Created */}
-                              <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                                {formatDate(app.createdAt, t)}
-                              </div>
-
-                              {/* Rows */}
-                              <div className="gba:w-20 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground gba:text-right">
-                                {app.rowCount.toLocaleString()}
-                              </div>
-
-                              {/* Actions */}
+                              {/* Quick actions on hover */}
                               <div
-                                className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
+                                className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:p-2 gba:bg-gradient-to-t gba:from-background gba:via-background/95 gba:to-transparent gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:flex gba:justify-center gba:gap-1"
                                 onClick={e => e.stopPropagation()}
                               >
+                                <Button size="sm" variant="secondary" onClick={() => handleOpenApp(app.id)}>
+                                  {t('action-open')}
+                                </Button>
+                                {isOwner && (
+                                  <Button size="sm" variant="ghost" onClick={() => handleShareApp(app.id)}>
+                                    <Share2 className="gba:w-4 gba:h-4" />
+                                  </Button>
+                                )}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
+                                    <Button size="sm" variant="ghost">
                                       <MoreHorizontal className="gba:w-4 gba:h-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleOpenApp(app.id)}>
-                                      <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      {t('action-open')}
+                                    <DropdownMenuItem onClick={() => handleEditApp(app.id)}>
+                                      <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
+                                      Settings
                                     </DropdownMenuItem>
-                                    {isOwner && (
-                                      <DropdownMenuItem onClick={() => handleShareApp(app.id)}>
-                                        <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                        {t('action-share')}
-                                      </DropdownMenuItem>
-                                    )}
-                                    {isOwner && sharedWith.length > 0 && (
-                                      <DropdownMenuItem onClick={() => handleManageShares(app.id)}>
-                                        <Users className="gba:w-4 gba:h-4 gba:mr-2" />
-                                        {t('action-manage-sharing')}
-                                      </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuItem onClick={() => copyLink(app)}>
-                                      <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      {t('action-copy-link')}
+                                    <DropdownMenuItem onClick={() => handleDuplicateApp(app.id)}>
+                                      <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
+                                      Duplicate
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleExportApp(app.id)}>
                                       <Download className="gba:w-4 gba:h-4 gba:mr-2" />
                                       {t('action-download')}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => handleEditApp(app.id)}>
-                                      <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      {t('action-settings')}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDuplicateApp(app.id)}>
-                                      <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      {t('action-duplicate')}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => toggleFavorite(app.id)}>
-                                      <Star
-                                        className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
-                                      />
-                                      {isFavorite ? t('action-remove-from-favorites') : t('action-add-to-favorites')}
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
@@ -1853,141 +1633,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
-                            </div>
+                            </Card>
                           )
                         })}
                       </div>
-                    </div>
-                  )}
-
-                {/* Grid View */}
-                {!isLoadingApps &&
-                  (activeSection === 'tasks' ? taskDisplayedApps : filteredApps).length > 0 &&
-                  viewLayout === 'grid' && (
-                    <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
-                      {paginatedApps.map(app => {
-                        const isOwner = app.isOwner ?? app.createdBy === currentUserId
-                        const isSelected = selectedApps.has(app.id)
-                        const isFavorite = favorites.has(app.id)
-
-                        return (
-                          <Card
-                            key={app.id}
-                            className={`gba:group gba:cursor-pointer gba:transition-all hover:gba:shadow-lg ${
-                              isSelected ? 'gba:ring-2 gba:ring-primary' : ''
-                            }`}
-                            onClick={() => handleOpenApp(app.id)}
-                          >
-                            {/* Preview area */}
-                            <div className="gba:relative gba:aspect-[4/3] gba:rounded-t-lg gba:overflow-hidden">
-                              <SpreadsheetPreviewThumbnail
-                                app={app}
-                                className="gba:absolute gba:inset-0"
-                                data-testid={`${testId}-grid-preview-${app.id}`}
-                              />
-
-                              {/* Hover overlay */}
-                              <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />
-
-                              {/* Selection checkbox */}
-                              <div
-                                className={`gba:absolute gba:top-2 gba:left-2 gba:opacity-0 group-hover:gba:opacity-100 ${isSelected ? 'gba:opacity-100' : ''} gba:transition-opacity`}
-                                onClick={e => e.stopPropagation()}
-                              >
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => toggleSelectApp(app.id)}
-                                  className="gba:bg-background"
-                                />
-                              </div>
-
-                              {/* Favorite star */}
-                              <button
-                                className={`gba:absolute gba:top-2 gba:right-2 gba:p-1.5 gba:rounded-full gba:bg-background/80 gba:backdrop-blur-sm gba:opacity-0 group-hover:gba:opacity-100 ${isFavorite ? 'gba:opacity-100 gba:text-amber-500' : 'gba:text-muted-foreground hover:gba:text-foreground'} gba:transition-all`}
-                                onClick={e => toggleFavorite(app.id, e)}
-                              >
-                                <Star className={`gba:w-4 gba:h-4 ${isFavorite ? 'gba:fill-current' : ''}`} />
-                              </button>
-
-                              {/* {t('badge-shared')} badge */}
-                              {app.isShared && !isOwner && (
-                                <Badge
-                                  variant="secondary"
-                                  className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]"
-                                >
-                                  <Users className="gba:w-3 gba:h-3 gba:mr-1" />
-                                  {t('badge-shared')}
-                                </Badge>
-                              )}
-                              {activeSection === 'tasks' && isSubmittedExcelCollectionCopy(app) && (
-                                <Badge
-                                  variant="success"
-                                  className="gba:absolute gba:bottom-2 gba:right-2 gba:text-[10px]"
-                                >
-                                  Submitted
-                                </Badge>
-                              )}
-                            </div>
-
-                            {/* Info */}
-                            <div className="gba:p-3">
-                              <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">{app.name}</h3>
-                              <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                                <span>{formatRelativeTime(app.updatedAt, t)}</span>
-                                <span>
-                                  {app.rowCount} {t('rows-label')}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Quick actions on hover */}
-                            <div
-                              className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:p-2 gba:bg-gradient-to-t gba:from-background gba:via-background/95 gba:to-transparent gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:flex gba:justify-center gba:gap-1"
-                              onClick={e => e.stopPropagation()}
-                            >
-                              <Button size="sm" variant="secondary" onClick={() => handleOpenApp(app.id)}>
-                                {t('action-open')}
-                              </Button>
-                              {isOwner && (
-                                <Button size="sm" variant="ghost" onClick={() => handleShareApp(app.id)}>
-                                  <Share2 className="gba:w-4 gba:h-4" />
-                                </Button>
-                              )}
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button size="sm" variant="ghost">
-                                    <MoreHorizontal className="gba:w-4 gba:h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleEditApp(app.id)}>
-                                    <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                                    Settings
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDuplicateApp(app.id)}>
-                                    <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                                    Duplicate
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleExportApp(app.id)}>
-                                    <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                                    {t('action-download')}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="gba:text-destructive"
-                                    onClick={() => handleDeleteApp(app.id)}
-                                  >
-                                    <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                    {t('action-delete-spreadsheet')}
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </Card>
-                        )
-                      })}
-                    </div>
-                  )}
+                    )}
+                </div>
               </div>
 
               {/* Pagination */}

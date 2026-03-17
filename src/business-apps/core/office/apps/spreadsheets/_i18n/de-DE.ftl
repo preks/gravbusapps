@@ -35,6 +35,17 @@ section-my-tasks = Meine Aufgaben
 section-trash = Papierkorb
 section-spreadsheets = Tabellen
 
+# Hero section
+sh-parent-label = Every Office
+sh-title = Tabellen
+sh-tabs-aria-label = Tabellenbereiche
+sh-tab-my-files = Meine Tabellen
+sh-tab-shared = Mit mir geteilt
+sh-tab-tasks = Meine Aufgaben
+sh-tab-recent = Zuletzt verwendet
+sh-tab-automations = Automatisierungen
+sh-tab-favorites = Favoriten
+
 # Upload view
 upload-cancel = Abbrechen
 upload-title = Excel-Datei hochladen
@@ -402,3 +413,36 @@ shared-comment-cancel = Abbrechen
 shared-comment-send = Senden
 shared-comment-sending = Wird gesendet...
 shared-comment-send-hint = ⌘+Enter zum Senden
+
+# Automations section (hub-level view)
+sa-retry = Erneut versuchen
+sa-refresh = Aktualisieren
+sa-back = Zurück
+sa-view = Anzeigen
+sa-stop = Stoppen
+sa-run-again = Erneut ausführen
+sa-run-history = Ausführungsverlauf
+sa-run-details = Ausführungsdetails
+sa-in-progress = In Bearbeitung
+sa-progress = Fortschritt
+sa-recipients = Empfänger
+sa-recent-runs = Letzte Ausführungen
+sa-no-runs = Noch keine Ausführungen
+sa-no-runs-hint = Führe diese Automatisierung aus, um den Verlauf hier zu sehen.
+sa-no-submissions = Keine Einreichungsdaten verfügbar
+sa-select-run-hint = Wähle eine Ausführung, um Empfängerdetails zu sehen.
+sa-completed-at = Abgeschlossen am
+sa-open-file = Datei öffnen
+sa-na = k. A.
+sa-started = Gestartet
+sa-status-completed = Abgeschlossen
+sa-status-sent = Gesendet
+sa-stat-collections = Tabellen-Sammlungen
+sa-stat-total-runs = Ausführungen gesamt
+sa-filter-all = Alle
+sa-filter-collection = Tabellen-Sammlung
+sa-filter-form = Formular-Sammlung
+sa-error-no-token = Zugriffstoken nicht verfügbar
+sa-error-load = Automatisierungen konnten nicht geladen werden
+sa-error-run = Automatisierung konnte nicht ausgeführt werden
+sa-error-stop = Ausführung konnte nicht gestoppt werden

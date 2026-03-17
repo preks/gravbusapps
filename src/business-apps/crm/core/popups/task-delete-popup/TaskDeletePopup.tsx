@@ -255,14 +255,6 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
                     </Badge>
                   </p>
                 )}
-                {task.description && (
-                  <p className="gba:mt-1">
-                    <strong>{getTranslationFromI18nKeyAndLabel('common.description', 'Description')}:</strong>{' '}
-                    <Badge variant="outline" className="gba:ml-1">
-                      {task.description.length > 50 ? `${task.description.substring(0, 50)}...` : task.description}
-                    </Badge>
-                  </p>
-                )}
                 {task.type && (
                   <p className="gba:mt-1">
                     <strong>{getTranslationFromI18nKeyAndLabel('task.type', 'Type')}:</strong>{' '}

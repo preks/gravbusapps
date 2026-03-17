@@ -35,6 +35,17 @@ section-my-tasks = Sarcinile mele
 section-trash = Coș de gunoi
 section-spreadsheets = Foi de calcul
 
+# Hero section
+sh-parent-label = Every Office
+sh-title = Foi de calcul
+sh-tabs-aria-label = Secțiuni foi de calcul
+sh-tab-my-files = Foile mele
+sh-tab-shared = Partajate cu mine
+sh-tab-tasks = Sarcinile mele
+sh-tab-recent = Recente
+sh-tab-automations = Automatizări
+sh-tab-favorites = Favorite
+
 # Upload view
 upload-cancel = Anulare
 upload-title = Încarcă fișier Excel
@@ -402,3 +413,36 @@ shared-comment-sending = Se trimite...
 shared-comment-send-hint = ⌘+Enter pentru trimitere
 shared-comment-unresolved-tab = Nerezolvate
 shared-comment-resolved-tab = Rezolvate
+
+# Automations section (hub-level view)
+sa-retry = Reîncearcă
+sa-refresh = Actualizează
+sa-back = Înapoi
+sa-view = Vizualizare
+sa-stop = Oprire
+sa-run-again = Execută din nou
+sa-run-history = Istoric execuții
+sa-run-details = Detalii execuție
+sa-in-progress = În curs
+sa-progress = Progres
+sa-recipients = Destinatari
+sa-recent-runs = Execuții recente
+sa-no-runs = Nicio execuție încă
+sa-no-runs-hint = Execută această automatizare pentru a vedea istoricul aici.
+sa-no-submissions = Nicio submisie disponibilă
+sa-select-run-hint = Selectează o execuție pentru a vedea detaliile destinatarilor.
+sa-completed-at = Finalizat la
+sa-open-file = Deschide fișier
+sa-na = N/D
+sa-started = Început
+sa-status-completed = Finalizat
+sa-status-sent = Trimis
+sa-stat-collections = Colecții de foi
+sa-stat-total-runs = Execuții totale
+sa-filter-all = Toate
+sa-filter-collection = Colecție foi de calcul
+sa-filter-form = Colecție formular
+sa-error-no-token = Token de acces indisponibil
+sa-error-load = Nu s-au putut încărca automatizările
+sa-error-run = Nu s-a putut executa automatizarea
+sa-error-stop = Nu s-a putut opri execuția

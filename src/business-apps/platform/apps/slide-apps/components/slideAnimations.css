@@ -1,0 +1,250 @@
+/* AI Presentation Assist - Effect Animations */
+
+/* Base effect wrapper - preserves element transforms */
+.effect-wrapper {
+  position: relative;
+  z-index: var(--effect-z-index, auto);
+}
+
+/* Highlight: Yellow background pulse */
+.effect-highlight {
+  animation: effect-highlight var(--effect-duration, 1.5s) ease-out forwards;
+}
+.effect-highlight-subtle {
+  --highlight-opacity: 0.25;
+}
+.effect-highlight-normal {
+  --highlight-opacity: 0.4;
+}
+.effect-highlight-strong {
+  --highlight-opacity: 0.6;
+}
+
+@keyframes effect-highlight {
+  0% {
+    background-color: transparent;
+  }
+  15% {
+    background-color: rgba(255, 235, 59, var(--highlight-opacity, 0.4));
+  }
+  85% {
+    background-color: rgba(255, 235, 59, var(--highlight-opacity, 0.4));
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Underline: Animated line drawing */
+.effect-underline {
+  position: relative;
+}
+.effect-underline::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: effect-underline var(--effect-duration, 1.5s) ease-out forwards;
+}
+.effect-underline-subtle::after {
+  height: 2px;
+}
+.effect-underline-normal::after {
+  height: 3px;
+}
+.effect-underline-strong::after {
+  height: 4px;
+}
+
+@keyframes effect-underline {
+  0% {
+    transform: scaleX(0);
+  }
+  20% {
+    transform: scaleX(1);
+  }
+  80% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+/* Magnify: Scale up preserving position */
+.effect-magnify {
+  animation: effect-magnify var(--effect-duration, 1.5s) ease-out forwards;
+  transform-origin: center center;
+}
+.effect-magnify-subtle {
+  --magnify-scale: 1.08;
+}
+.effect-magnify-normal {
+  --magnify-scale: 1.15;
+}
+.effect-magnify-strong {
+  --magnify-scale: 1.25;
+}
+
+@keyframes effect-magnify {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  25%,
+  75% {
+    transform: scale(var(--magnify-scale, 1.15));
+  }
+}
+
+/* Glow: Box shadow pulse */
+.effect-glow {
+  animation: effect-glow var(--effect-duration, 1.5s) ease-out forwards;
+}
+.effect-glow-subtle {
+  --glow-spread: 3px;
+  --glow-blur: 10px;
+  --glow-opacity: 0.3;
+}
+.effect-glow-normal {
+  --glow-spread: 5px;
+  --glow-blur: 20px;
+  --glow-opacity: 0.5;
+}
+.effect-glow-strong {
+  --glow-spread: 8px;
+  --glow-blur: 30px;
+  --glow-opacity: 0.7;
+}
+
+@keyframes effect-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+  25%,
+  75% {
+    box-shadow: 0 0 var(--glow-blur, 20px) var(--glow-spread, 5px) rgba(59, 130, 246, var(--glow-opacity, 0.5));
+  }
+}
+
+/* Bounce: Subtle Y-axis movement */
+.effect-bounce {
+  animation: effect-bounce var(--effect-duration, 1.5s) ease-out forwards;
+}
+.effect-bounce-subtle {
+  --bounce-height: -4px;
+  --bounce-secondary: -2px;
+}
+.effect-bounce-normal {
+  --bounce-height: -8px;
+  --bounce-secondary: -4px;
+}
+.effect-bounce-strong {
+  --bounce-height: -12px;
+  --bounce-secondary: -6px;
+}
+
+@keyframes effect-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  20% {
+    transform: translateY(var(--bounce-height, -8px));
+  }
+  40% {
+    transform: translateY(0);
+  }
+  60% {
+    transform: translateY(var(--bounce-secondary, -4px));
+  }
+  80% {
+    transform: translateY(0);
+  }
+}
+
+/* Spotlight: Element stays, others dim */
+.effect-spotlight-active {
+  position: relative;
+  z-index: 100;
+}
+.effect-spotlight-dimmed {
+  opacity: 0.3;
+  transition: opacity 0.3s ease-out;
+}
+.effect-spotlight-restored {
+  opacity: 1;
+  transition: opacity 0.3s ease-out;
+}
+
+/* Pulse: Opacity breathing */
+.effect-pulse {
+  animation: effect-pulse var(--effect-duration, 1.5s) ease-in-out forwards;
+}
+.effect-pulse-subtle {
+  --pulse-min-opacity: 0.7;
+}
+.effect-pulse-normal {
+  --pulse-min-opacity: 0.5;
+}
+.effect-pulse-strong {
+  --pulse-min-opacity: 0.3;
+}
+
+@keyframes effect-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: var(--pulse-min-opacity, 0.5);
+  }
+}
+
+/* Reduced motion: Respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  .effect-highlight,
+  .effect-underline::after,
+  .effect-magnify,
+  .effect-glow,
+  .effect-bounce,
+  .effect-pulse {
+    animation: none;
+  }
+
+  /* Static fallback for reduced motion */
+  .effect-highlight {
+    background-color: rgba(255, 235, 59, 0.3);
+  }
+  .effect-underline::after {
+    transform: scaleX(1);
+  }
+  .effect-magnify {
+    transform: scale(1.05);
+  }
+  .effect-glow {
+    box-shadow: 0 0 10px 2px rgba(59, 130, 246, 0.3);
+  }
+  .effect-spotlight-dimmed {
+    opacity: 0.5;
+  }
+}
+
+/* Effect cleanup - remove all effect classes */
+.effect-cleared {
+  animation: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+.effect-cleared::after {
+  animation: none !important;
+  transform: scaleX(0) !important;
+}

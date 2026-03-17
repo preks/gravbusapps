@@ -5,7 +5,21 @@
  * Follows the same pattern as DocumentApiService.
  */
 
-import type { Slide, SlideSummary, SlidePermission, SlideStatus } from '../types'
+import type {
+  Slide,
+  SlideSummary,
+  SlidePermission,
+  SlideStatus,
+  SlideTemplate,
+  SlideTemplateSummary,
+  CreateTemplateRequest,
+  UpdateTemplateRequest,
+  TemplateFilters,
+  BrandIdentity,
+  SlideTemplateMeta,
+  TemplateHints
+} from '../types'
+import { migrateLegacyTemplate } from './SlideMetadataService'
 import type { Version, FileLock, LockFileInput } from '../../shared/types/versioning'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
@@ -430,6 +444,257 @@ export const SlidesApiService = {
       console.error('[SlidesApiService] Failed to force unlock:', error)
       return false
     }
+  },
+
+  // ============ Templates ============
+  // Templates are stored as regular slides with contentJson._templateMeta containing metadata
+  // This allows us to use the existing slides API without requiring backend changes
+
+  async listTemplates(filters?: TemplateFilters): Promise<SlideTemplateSummary[]> {
+    try {
+      const params = new URLSearchParams()
+      if (filters?.search) params.set('search', filters.search)
+      params.set('includeShared', 'true')
+
+      const queryString = params.toString()
+      const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(
+        `/slides${queryString ? `?${queryString}` : ''}`
+      )
+
+      // Filter to only templates (identified by _templateMeta in contentJson)
+      return response.items
+        .filter(item => {
+          const contentJson = item.contentJson as Record<string, unknown> | undefined
+          const meta = contentJson?._templateMeta as Record<string, unknown> | undefined
+          if (!meta?.isTemplate) return false
+
+          // Apply category filter
+          if (filters?.category && meta.category !== filters.category) return false
+
+          // Apply isPublic filter
+          if (filters?.isPublic !== undefined && meta.isPublic !== filters.isPublic) return false
+
+          // Apply createdBy filter (my templates)
+          if (filters?.createdBy === 'me' && !item.isOwner) return false
+
+          // Apply isBranded filter
+          if (filters?.isBranded !== undefined) {
+            const hasBranding = meta.branding && (meta.branding as Record<string, unknown>).keywords
+            if (filters.isBranded && !hasBranding) return false
+            if (!filters.isBranded && hasBranding) return false
+          }
+
+          return true
+        })
+        .map(item => {
+          const contentJson = (item.contentJson as Record<string, unknown>) || {}
+          const meta = (contentJson._templateMeta as Record<string, unknown>) || {}
+          const branding = meta.branding as BrandIdentity | undefined
+          return {
+            id: item.id as string,
+            name: item.title as string,
+            description: item.description as string | undefined,
+            category: (meta.category as SlideTemplateSummary['category']) || 'custom',
+            thumbnailUrl: meta.thumbnailUrl as string | undefined,
+            slideCount: (contentJson.slides as unknown[])?.length || 1,
+            createdAt: item.createdAt as string,
+            updatedAt: item.updatedAt as string,
+            createdBy: item.ownerId as string,
+            isPublic: (meta.isPublic as boolean) || false,
+            isOwner: item.isOwner as boolean | undefined,
+            isBranded: meta.isBranded as boolean | undefined,
+            branding,
+            hasStructuredMeta: Array.isArray(meta.slideMeta) && (meta.slideMeta as unknown[]).length > 0
+          }
+        })
+    } catch (error) {
+      console.error('[SlidesApiService] Failed to list templates:', error)
+      return []
+    }
+  },
+
+  async getTemplate(id: string): Promise<SlideTemplate | null> {
+    try {
+      const api = await apiRequest<Record<string, unknown>>(`/slides/${id}`)
+      const contentJson = (api.contentJson as Record<string, unknown>) || {}
+      const meta = (contentJson._templateMeta as Record<string, unknown>) || {}
+
+      // Verify it's actually a template
+      if (!meta.isTemplate) {
+        console.warn('[SlidesApiService] Requested slide is not a template:', id)
+        return null
+      }
+
+      const branding = meta.branding as BrandIdentity | undefined
+      const slideMeta = meta.slideMeta as SlideTemplateMeta[] | undefined
+      const templateHints = meta.templateHints as TemplateHints | undefined
+
+      let template: SlideTemplate = {
+        id: api.id as string,
+        name: api.title as string,
+        description: api.description as string | undefined,
+        category: (meta.category as SlideTemplate['category']) || 'custom',
+        thumbnailUrl: meta.thumbnailUrl as string | undefined,
+        contentJson: {
+          slides: contentJson.slides as SlideTemplate['contentJson']['slides'],
+          themeId: contentJson.themeId as string,
+          _templateMeta: meta as SlideTemplate['contentJson']['_templateMeta']
+        },
+        createdAt: api.createdAt as string,
+        updatedAt: api.updatedAt as string,
+        createdBy: api.ownerId as string,
+        isPublic: (meta.isPublic as boolean) || false,
+        isOwner: api.isOwner as boolean | undefined,
+        isBranded: meta.isBranded as boolean | undefined,
+        branding,
+        slideMeta,
+        templateHints
+      }
+
+      // Migrate legacy templates without slideMeta
+      if (!slideMeta || slideMeta.length === 0) {
+        template = migrateLegacyTemplate(template)
+        console.log('[SlidesApiService] Migrated legacy template:', id)
+      }
+
+      return template
+    } catch (error) {
+      console.error('[SlidesApiService] Failed to get template:', error)
+      return null
+    }
+  },
+
+  async createTemplate(payload: CreateTemplateRequest): Promise<SlideTemplate | null> {
+    try {
+      // Store template metadata inside contentJson._templateMeta
+      const contentJsonWithMeta = {
+        ...payload.contentJson,
+        _templateMeta: {
+          isTemplate: true,
+          category: payload.category,
+          isPublic: payload.isPublic,
+          isBranded: !!payload.branding,
+          branding: payload.branding,
+          slideMeta: payload.slideMeta,
+          templateHints: payload.templateHints
+        }
+      }
+
+      const created = await apiRequest<Record<string, unknown>>('/slides', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: payload.name,
+          description: payload.description,
+          contentJson: contentJsonWithMeta
+        })
+      })
+
+      const contentJson = (created.contentJson as Record<string, unknown>) || {}
+      const meta = (contentJson._templateMeta as Record<string, unknown>) || {}
+
+      return {
+        id: created.id as string,
+        name: created.title as string,
+        description: created.description as string | undefined,
+        category: (meta.category as SlideTemplate['category']) || 'custom',
+        thumbnailUrl: meta.thumbnailUrl as string | undefined,
+        contentJson: {
+          slides: contentJson.slides as SlideTemplate['contentJson']['slides'],
+          themeId: contentJson.themeId as string
+        },
+        createdAt: created.createdAt as string,
+        updatedAt: created.updatedAt as string,
+        createdBy: created.ownerId as string,
+        isPublic: (meta.isPublic as boolean) || false,
+        isOwner: true,
+        slideMeta: meta.slideMeta as SlideTemplateMeta[] | undefined,
+        templateHints: meta.templateHints as TemplateHints | undefined
+      }
+    } catch (error) {
+      console.error('[SlidesApiService] Failed to create template:', error)
+      return null
+    }
+  },
+
+  async updateTemplate(id: string, updates: UpdateTemplateRequest): Promise<SlideTemplate | null> {
+    try {
+      const current = await this.getTemplate(id)
+      if (!current) return null
+
+      const payload: Record<string, unknown> = {}
+      if (updates.name !== undefined) payload.title = updates.name
+      if (updates.description !== undefined) payload.description = updates.description
+
+      // Update contentJson with metadata preserved
+      const newContentJson = updates.contentJson ?? current.contentJson
+      payload.contentJson = {
+        ...newContentJson,
+        _templateMeta: {
+          isTemplate: true,
+          category: updates.category ?? current.category,
+          isPublic: updates.isPublic ?? current.isPublic,
+          isBranded: updates.branding ? true : current.isBranded,
+          branding: updates.branding ?? current.branding
+        }
+      }
+
+      const updated = await apiRequest<Record<string, unknown>>(`/slides/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      })
+
+      const contentJson = (updated.contentJson as Record<string, unknown>) || {}
+      const meta = (contentJson._templateMeta as Record<string, unknown>) || {}
+
+      return {
+        id: updated.id as string,
+        name: updated.title as string,
+        description: updated.description as string | undefined,
+        category: (meta.category as SlideTemplate['category']) || 'custom',
+        thumbnailUrl: meta.thumbnailUrl as string | undefined,
+        contentJson: {
+          slides: contentJson.slides as SlideTemplate['contentJson']['slides'],
+          themeId: contentJson.themeId as string
+        },
+        createdAt: updated.createdAt as string,
+        updatedAt: updated.updatedAt as string,
+        createdBy: updated.ownerId as string,
+        isPublic: (meta.isPublic as boolean) || false,
+        isOwner: updated.isOwner as boolean | undefined
+      }
+    } catch (error) {
+      console.error('[SlidesApiService] Failed to update template:', error)
+      return null
+    }
+  },
+
+  async deleteTemplate(id: string): Promise<boolean> {
+    try {
+      await apiRequest(`/slides/${id}`, { method: 'DELETE' })
+      return true
+    } catch (error) {
+      console.error('[SlidesApiService] Failed to delete template:', error)
+      return false
+    }
+  },
+
+  /**
+   * List only branded templates (templates with branding configuration)
+   */
+  async listBrandedTemplates(): Promise<SlideTemplate[]> {
+    const templates = await this.listTemplates({ isBranded: true, includeShared: true } as TemplateFilters & {
+      includeShared?: boolean
+    })
+    const fullTemplates: SlideTemplate[] = []
+
+    for (const summary of templates) {
+      const full = await this.getTemplate(summary.id)
+      if (full) {
+        fullTemplates.push(full)
+      }
+    }
+
+    return fullTemplates
   }
 }
 

@@ -98,8 +98,8 @@ export interface ActivitySegmentProps {
     id: string
     name?: string
     version?: number
-    mimeType?: string
-    fileSize?: number
+    mimeType?: string | null
+    fileSize?: number | null
     fileInfo?: any
   }>
   onDocumentRemove?: (documentId: string) => void
