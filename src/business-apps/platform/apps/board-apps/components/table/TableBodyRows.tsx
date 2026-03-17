@@ -180,16 +180,18 @@ export function renderRowCells(index: number, row: BoardRow, ctx: VirtuosoContex
             data-testid={`${ctx.testId}-ctx-${row.id}-${col.name}`}
           >
             <td
-              className={`gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r gba:truncate gba:w-40 gba:relative ${
-                isSelected ? 'gba:ring-2 gba:ring-primary gba:ring-inset gba:bg-primary/5' : ''
-              } ${presence ? 'gba:ring-2 gba:ring-inset' : ''} ${ctx.onUpdateCell ? 'gba:cursor-cell' : ''}`}
+              className={`gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r gba:w-40 gba:relative ${
+                presence ? 'gba:overflow-visible' : 'gba:truncate'
+              } ${isSelected ? 'gba:ring-2 gba:ring-primary gba:ring-inset gba:bg-primary/5' : ''} ${
+                presence ? 'gba:ring-2 gba:ring-inset' : ''
+              } ${ctx.onUpdateCell ? 'gba:cursor-cell' : ''}`}
               style={presence ? ({ '--tw-ring-color': presence.userColor } as React.CSSProperties) : undefined}
               onClick={() => ctx.onCellClick(index, colIndex)}
               data-testid={`${ctx.testId}-cell-${row.id}-${col.name}`}
             >
               {presence && (
                 <span
-                  className="gba:absolute gba:-top-2.5 gba:left-1 gba:text-[10px] gba:leading-none gba:px-1 gba:py-0.5 gba:rounded gba:text-white gba:whitespace-nowrap gba:z-10 gba:pointer-events-none"
+                  className="gba:absolute gba:-top-2.5 gba:left-1 gba:text-[10px] gba:leading-none gba:px-1 gba:py-0.5 gba:rounded gba:text-white gba:whitespace-nowrap gba:z-[9999] gba:pointer-events-none"
                   style={{ backgroundColor: presence.userColor }}
                 >
                   {presence.userName}
@@ -273,7 +275,7 @@ function DisplayContent({
 }) {
   const expanded = hasFlowId && ctx.isFlowExpanded?.(row.id)
   return (
-    <div className="gba:flex gba:items-center gba:gap-1">
+    <div className="gba:flex gba:items-center gba:gap-1 gba:w-full gba:overflow-hidden">
       {colIndex === 0 && hasFlowId && ctx.onToggleFlowExpand && (
         <button
           type="button"
