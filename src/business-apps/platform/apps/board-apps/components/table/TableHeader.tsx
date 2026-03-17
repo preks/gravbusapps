@@ -20,6 +20,7 @@ interface TableHeaderProps {
   onDeleteColumn?: (columnId: string) => void
   onAddColumn?: (column: BoardColumn) => void
   onOpenSettings: (col: BoardColumn) => void
+  reorderEnabled?: boolean
   testId: string
 }
 
@@ -33,12 +34,14 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
   onUpdateColumn,
   onDeleteColumn,
   onAddColumn,
+  reorderEnabled,
   onOpenSettings,
   testId
 }) => {
   return (
     <thead className="gba:sticky gba:top-0 gba:z-10">
       <tr className="gba:bg-muted/60">
+        {reorderEnabled && <th className="gba:w-7 gba:p-0 gba:border-0 gba:bg-transparent" />}
         {columns.map(col => {
           const sortInfo = sortMap.get(col.name)
           return (
