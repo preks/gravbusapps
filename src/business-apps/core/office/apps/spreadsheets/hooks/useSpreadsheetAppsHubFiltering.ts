@@ -67,7 +67,13 @@ function isExcelCollectionCopy(app: SpreadsheetAppSummary): boolean {
 
 function hasContributorAccess(app: SpreadsheetAppSummary, currentUserId: string): boolean {
   if (isOwner(app, currentUserId)) return true
-  return app.permission === 'owner' || app.permission === 'edit' || app.permission === 'admin'
+  return (
+    app.permission === 'owner' ||
+    app.permission === 'admin' ||
+    app.permission === 'edit' ||
+    app.permission === 'view' ||
+    app.isShared === true
+  )
 }
 
 function isExcelCollectionTaskForCurrentUser(app: SpreadsheetAppSummary, currentUserId: string): boolean {

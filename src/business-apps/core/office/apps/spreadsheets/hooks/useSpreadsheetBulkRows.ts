@@ -7,7 +7,7 @@
 
 import { useCallback, useRef } from 'react'
 import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn } from '../types'
-import { isTrackingColumn } from '../utils/trackingColumns'
+import { isTrackingColumn, getTrackingColumnDefaultWidth } from '../utils/trackingColumns'
 import { TRACKING_COLUMNS } from '../components/automations/TrackingColumnsConfig'
 
 // Internal metadata fields to skip (not user-visible columns)
@@ -52,6 +52,12 @@ type HandleAddRowsFn = (rows: Array<{ cells: Record<string, unknown>; metadata?:
 type HandleUpdateRowsFn = (
   updates: Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
 ) => void
+
+const AUTO_FIT_MIN_WIDTH = 80
+const AUTO_FIT_MAX_WIDTH = 560
+const AUTO_FIT_CHAR_PX = 8
+const AUTO_FIT_CELL_PADDING = 32
+const AUTO_FIT_SAMPLE_LIMIT = 2000
 
 /**
  * Collect field names from row data, filtering out internal metadata
@@ -117,6 +123,8 @@ function createColumnsForFields(newFieldNames: string[]): SpreadsheetColumn[] {
         .replaceAll(/\b\w/g, l => l.toUpperCase())
     }
 
+    const trackingWidth = trackingCol ? getTrackingColumnDefaultWidth(trackingCol.id) : undefined
+
     return {
       id:
         fieldName.startsWith('col_') || fieldName === '__new__' || fieldName.startsWith('_')
@@ -125,6 +133,7 @@ function createColumnsForFields(newFieldNames: string[]): SpreadsheetColumn[] {
       name: fieldName,
       label,
       type: colType,
+      width: trackingWidth,
       isVisible: true,
       isEditable: !trackingCol,
       isRequired: false,
@@ -173,6 +182,73 @@ function mapCellsToColumnNames(
   return mappedCells
 }
 
+function getCellDisplayText(value: unknown): string {
+  if (value === undefined || value === null) return ''
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => getCellDisplayText(item)).join(', ')
+  }
+  if (typeof value === 'object') {
+    const objectValue = value as Record<string, unknown>
+    if (typeof objectValue.v === 'string' || typeof objectValue.v === 'number') return String(objectValue.v)
+    if (typeof objectValue.m === 'string' || typeof objectValue.m === 'number') return String(objectValue.m)
+    if (typeof objectValue.f === 'string') return objectValue.f
+  }
+  return ''
+}
+
+function clampWidth(width: number): number {
+  return Math.min(AUTO_FIT_MAX_WIDTH, Math.max(AUTO_FIT_MIN_WIDTH, width))
+}
+
+function estimateWidthFromText(text: string): number {
+  const normalizedLength = text.replaceAll(/\s+/g, ' ').trim().length
+  if (normalizedLength <= 0) return AUTO_FIT_MIN_WIDTH
+  return clampWidth(Math.ceil(normalizedLength * AUTO_FIT_CHAR_PX + AUTO_FIT_CELL_PADDING))
+}
+
+function applyDynamicColumnWidths(
+  columns: SpreadsheetColumn[],
+  rows: Record<string, unknown>[]
+): { columns: SpreadsheetColumn[]; changed: boolean } {
+  const sampleRows = rows.slice(0, AUTO_FIT_SAMPLE_LIMIT)
+  let changed = false
+
+  const nextColumns = columns.map(column => {
+    // Keep avatar/image columns compact.
+    if (column.type === 'image') {
+      const targetWidth = 40
+      const currentWidth = typeof column.width === 'number' ? column.width : 0
+      if (currentWidth >= targetWidth) return column
+      changed = true
+      return { ...column, width: targetWidth }
+    }
+
+    let widest = estimateWidthFromText(column.label || column.name || '')
+
+    for (const row of sampleRows) {
+      const value = row[column.name] ?? row[column.id]
+      const text = getCellDisplayText(value)
+      if (!text) continue
+      widest = Math.max(widest, estimateWidthFromText(text))
+      if (widest >= AUTO_FIT_MAX_WIDTH) break
+    }
+
+    const currentWidth = typeof column.width === 'number' ? column.width : 0
+    // Only widen automatically, never shrink user-resized columns.
+    if (widest > currentWidth) {
+      changed = true
+      return { ...column, width: widest }
+    }
+
+    return column
+  })
+
+  return { columns: nextColumns, changed }
+}
+
 function createTrackingHeaderRow(updatedColumns: SpreadsheetColumn[]): Record<string, unknown> {
   return updatedColumns.reduce<Record<string, unknown>>(
     (acc, col) => {
@@ -181,7 +257,12 @@ function createTrackingHeaderRow(updatedColumns: SpreadsheetColumn[]): Record<st
       }
       return acc
     },
-    { _id: `tmp_header_${crypto.randomUUID()}`, _isTrackingHeader: true }
+    {
+      _id: `tmp_header_${crypto.randomUUID()}`,
+      _isTrackingHeader: true,
+      // Keep enough height for wrapped multi-word tracking headers.
+      _height: 42
+    }
   )
 }
 
@@ -449,15 +530,15 @@ function insertTrackingHeaderIfNeeded(
 }
 
 function persistColumnChanges(params: {
-  newColumns: SpreadsheetColumn[]
+  shouldPersistColumns: boolean
   onSheetUpdate?: (appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>) => Promise<unknown>
   onAppUpdate?: (app: SpreadsheetApp) => void
   app: SpreadsheetApp
   activeSheet: SpreadsheetSheet
   updatedColumns: SpreadsheetColumn[]
 }): void {
-  const { newColumns, onSheetUpdate, onAppUpdate, app, activeSheet, updatedColumns } = params
-  if (newColumns.length === 0) return
+  const { shouldPersistColumns, onSheetUpdate, onAppUpdate, app, activeSheet, updatedColumns } = params
+  if (!shouldPersistColumns) return
   if (onSheetUpdate) {
     Promise.resolve(onSheetUpdate(app.id, activeSheet.id, { columns: updatedColumns })).catch(err =>
       console.error('[handleUpdateRows] onSheetUpdate failed:', err)
@@ -651,20 +732,21 @@ export function useSpreadsheetBulkRows({
       // Update local data
       const currentData = localSheetDataRef.current
       const newData = [...currentData, ...(headerRow ? [headerRow] : []), ...newRows]
+      const { columns: autoSizedColumns, changed: autoWidthChanged } = applyDynamicColumnWidths(updatedColumns, newData)
       localSheetDataRef.current = newData
       setLocalSheetData(newData)
 
       // Persist changes
       // NOTE: `onAppUpdate` does not persist sheet row data in database-backed mode.
       // Prefer sheet/row persistence callbacks so collection report rows survive refresh.
-      if (newColumns.length > 0) {
+      if (newColumns.length > 0 || autoWidthChanged) {
         if (onSheetUpdate) {
-          Promise.resolve(onSheetUpdate(app.id, activeSheet.id, { columns: updatedColumns })).catch(err =>
+          Promise.resolve(onSheetUpdate(app.id, activeSheet.id, { columns: autoSizedColumns })).catch(err =>
             console.error('[handleAddRows] onSheetUpdate failed:', err)
           )
         } else if (onAppUpdate) {
           const updatedSheets = app.sheets.map(sheet =>
-            sheet.id === activeSheet.id ? { ...sheet, columns: updatedColumns } : sheet
+            sheet.id === activeSheet.id ? { ...sheet, columns: autoSizedColumns } : sheet
           )
           onAppUpdate({ ...app, sheets: updatedSheets })
         }
@@ -777,13 +859,21 @@ export function useSpreadsheetBulkRows({
       const addedRows = insertTrackingHeaderIfNeeded(baseAddedRows, updatedColumns, localSheetDataRef.current)
 
       const newData = matchCount > 0 || addedRows.length > 0 ? [...updatedExisting, ...addedRows] : updatedExisting
+      const { columns: autoSizedColumns, changed: autoWidthChanged } = applyDynamicColumnWidths(updatedColumns, newData)
 
-      if (matchCount === 0 && addedRows.length === 0 && newColumns.length === 0) return
+      if (matchCount === 0 && addedRows.length === 0 && newColumns.length === 0 && !autoWidthChanged) return
 
       localSheetDataRef.current = newData
       setLocalSheetData(newData)
 
-      persistColumnChanges({ newColumns, onSheetUpdate, onAppUpdate, app, activeSheet, updatedColumns })
+      persistColumnChanges({
+        shouldPersistColumns: newColumns.length > 0 || autoWidthChanged,
+        onSheetUpdate,
+        onAppUpdate,
+        app,
+        activeSheet,
+        updatedColumns: autoSizedColumns
+      })
       if (matchCount > 0 && onRowUpdate) {
         persistMatchedRowUpdates({
           updates,
