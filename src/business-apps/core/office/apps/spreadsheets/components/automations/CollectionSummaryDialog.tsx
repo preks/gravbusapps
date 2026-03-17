@@ -20,7 +20,6 @@ import {
   CardHeader,
   CardTitle,
   Spinner,
-  ScrollArea,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -179,8 +178,8 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
           )}
 
           {!isCollapsed && !isSummarizing && !error && summary && (
-            <ScrollArea className="gba:flex-1 gba:min-h-0">
-              <div className="gba:space-y-4 gba:pr-4">
+            <div className="gba:flex-1 gba:h-0 gba:min-h-0 gba:overflow-y-auto gba:pr-2">
+              <div className="gba:space-y-4">
                 <Card variant="outlined">
                   <CardHeader>
                     <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
@@ -248,7 +247,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
                   </CardContent>
                 </Card>
               </div>
-            </ScrollArea>
+            </div>
           )}
         </div>
 

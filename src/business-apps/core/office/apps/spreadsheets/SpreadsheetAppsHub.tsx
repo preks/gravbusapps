@@ -32,9 +32,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
   Checkbox,
-  Tabs,
-  TabsList,
-  TabsTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
@@ -730,8 +727,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       return
     }
 
-    globalThis.history.back()
-  }, [])
+    // Default behavior inside spreadsheets: return to hub list.
+    setSelectedAppId(null)
+    setCurrentView('list')
+    updateUrl(null)
+  }, [updateUrl])
 
   const handleStartUpload = useCallback(() => {
     setCurrentView('upload')
