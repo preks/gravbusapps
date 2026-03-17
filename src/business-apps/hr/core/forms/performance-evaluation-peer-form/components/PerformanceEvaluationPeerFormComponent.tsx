@@ -10,6 +10,8 @@ import MultiEmployeeSelectionModal, {
 import translations from '../_i18n'
 
 const prefixDataTestId = 'PerformanceEvaluationPeerForm'
+const MIN_PEERS = 3
+const MAX_PEERS = 5
 
 const PerformanceEvaluationPeerFormComponent: React.FC = () => {
   const { t } = useTranslation(translations)
@@ -46,8 +48,10 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
     setIsModalOpen(false)
   }
 
-  const hasPeers = (formValues.peerEmployeeIds?.length ?? 0) > 0
-  const isSubmitDisabled = isLoading || !hasPeers
+  const peerCount = formValues.peerEmployeeIds?.length ?? 0
+  const hasPeers = peerCount > 0
+  const hasMinPeers = peerCount >= MIN_PEERS
+  const isSubmitDisabled = isLoading || !hasMinPeers
 
   const peerNames = formValues.peerEmployeeNames ?? []
   const peerIds = formValues.peerEmployeeIds ?? []
@@ -86,6 +90,9 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
               {t('select-peers')}
             </Button>
           </div>
+          <p className="gba:text-xs gba:text-muted-foreground gba:m-0">
+            {t('peers-hint', { min: MIN_PEERS, max: MAX_PEERS })}
+          </p>
           {peerNames.length > 0 ? (
             <ul className="gba:space-y-2 gba:list-none gba:p-0 gba:m-0">
               {peerNames.map((name, index) => (
@@ -100,6 +107,14 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
             </ul>
           ) : (
             <p className="gba:text-sm gba:text-muted-foreground">{t('select-peers-placeholder')}</p>
+          )}
+          {hasPeers && !hasMinPeers && (
+            <p
+              className="gba:text-xs gba:text-destructive gba:m-0"
+              data-testid={formatDataTestId(prefixDataTestId, 'MinPeersError')}
+            >
+              {t('peers-min-error', { min: MIN_PEERS })}
+            </p>
           )}
         </div>
       </div>
@@ -140,6 +155,8 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
         onSearch={searchEmployees}
         initialSelectedIds={formValues.peerEmployeeIds ?? []}
         onConfirm={handleConfirmPeers}
+        maxSelection={MAX_PEERS}
+        selectionCountLabel={t('peers-selection-count', { count: peerCount, max: MAX_PEERS })}
       />
     </div>
   )
