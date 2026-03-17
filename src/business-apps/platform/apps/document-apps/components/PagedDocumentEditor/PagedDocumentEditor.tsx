@@ -91,6 +91,7 @@ import {
   type PaginationPlusStorage as PagesStorage
 } from '@/components/tiptap-extensions/tiptap-custom-pagination'
 import { LineAndParagraphSpacing } from './extensions/LineAndParagraphSpacing'
+import { ParagraphIndent } from './extensions/ParagraphIndent'
 import { DocumentImage, PageBreak, SearchHighlight } from './extensions'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
@@ -1265,6 +1266,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           LineAndParagraphSpacing.configure({
             types: ['heading', 'paragraph']
           }),
+          ParagraphIndent,
           Underline,
           TextStyle,
           Color,
@@ -1334,6 +1336,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           LineAndParagraphSpacing.configure({
             types: ['heading', 'paragraph']
           }),
+          ParagraphIndent,
           Underline,
           TextStyle,
           Color,
@@ -2926,20 +2929,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
         /* Tables: print-first (no horizontal scrolling) */
         .paged-document-editor .ProseMirror .tableWrapper {
-          width: 100%;
-          max-width: 100%;
           overflow: visible;
-          margin: 16pt 0;
-          border: 1pt solid #d0d0d0;
-          border-radius: 4pt;
-          background: #fff;
+          margin: 0;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
         }
 
         .paged-document-editor .ProseMirror table {
           border-collapse: collapse;
           max-width: 100%;
           table-layout: fixed;
-          margin: 0;
+          margin: 16pt 0;
+          background: #fff;
+          border: 1pt solid #d0d0d0;
+          border-radius: 4pt;
           break-inside: auto;
           page-break-inside: auto;
         }

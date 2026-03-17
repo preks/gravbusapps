@@ -1,6 +1,7 @@
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { TableMap, cellAround } from '@tiptap/pm/tables'
 import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { findSafeSplitRow, getTableRows, isHeaderRow, rowHasMergedCells } from './tablePaginationUtils'
 
 export interface TableContext {
   table: ProseMirrorNode
@@ -58,56 +59,18 @@ function cloneNode(node: ProseMirrorNode) {
   return node.type.create(node.attrs, node.content, node.marks)
 }
 
-function rowHasMergedCells(row: ProseMirrorNode) {
-  let hasMergedCells = false
-
-  row.forEach(cellNode => {
-    if ((cellNode.attrs.colspan ?? 1) > 1 || (cellNode.attrs.rowspan ?? 1) > 1) {
-      hasMergedCells = true
-    }
-  })
-
-  return hasMergedCells
-}
-
-function tableHasMergedCells(table: ProseMirrorNode) {
-  let hasMergedCells = false
-
-  table.forEach(rowNode => {
-    if (rowHasMergedCells(rowNode)) {
-      hasMergedCells = true
-    }
-  })
-
-  return hasMergedCells
-}
-
-function isHeaderRow(row: ProseMirrorNode) {
-  if (row.childCount === 0) return false
-
-  let headerCellCount = 0
-  row.forEach(cellNode => {
-    if (cellNode.type.name === 'tableHeader') {
-      headerCellCount += 1
-    }
-  })
-
-  return headerCellCount === row.childCount
-}
-
 export function splitTableAtRow(state: EditorState, tr: Transaction, tablePos: number, splitRowIndex: number) {
   const table = state.doc.nodeAt(tablePos)
   if (!table || table.type.name !== 'table') return false
   if (splitRowIndex <= 0 || splitRowIndex >= table.childCount) return false
-  if (tableHasMergedCells(table)) return false
 
-  const rows: ProseMirrorNode[] = []
-  table.forEach(rowNode => {
-    rows.push(rowNode)
-  })
+  const safeSplitIndex = findSafeSplitRow(table, splitRowIndex)
+  if (safeSplitIndex < 1) return false
 
-  const firstRows = rows.slice(0, splitRowIndex).map(cloneNode)
-  const remainingRows = rows.slice(splitRowIndex).map(cloneNode)
+  const rows = getTableRows(table)
+
+  const firstRows = rows.slice(0, safeSplitIndex).map(cloneNode)
+  const remainingRows = rows.slice(safeSplitIndex).map(cloneNode)
   if (!firstRows.length || !remainingRows.length) return false
 
   const repeatHeaderRow = isHeaderRow(rows[0])

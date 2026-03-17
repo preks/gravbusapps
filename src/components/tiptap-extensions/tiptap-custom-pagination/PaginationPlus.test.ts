@@ -331,6 +331,91 @@ describe('Pages extension helpers', () => {
     })
   })
 
+  it('finds a split candidate when a whole table is pushed to the next page', () => {
+    const root = document.createElement('div')
+    root.getBoundingClientRect = jest.fn(() => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 500,
+      bottom: 500,
+      left: 0,
+      width: 500,
+      height: 500,
+      toJSON: () => ({})
+    })) as any
+
+    const firstBand = document.createElement('div')
+    firstBand.className = 'rm-page-body-layer'
+    firstBand.dataset.rmPageNumber = '1'
+    mockRect(firstBand, { top: 0, bottom: 100 })
+
+    const secondBand = document.createElement('div')
+    secondBand.className = 'rm-page-body-layer'
+    secondBand.dataset.rmPageNumber = '2'
+    mockRect(secondBand, { top: 120, bottom: 220 })
+
+    const paragraph = document.createElement('p')
+    mockRect(paragraph, { top: 0, bottom: 20 })
+
+    const table = document.createElement('table')
+    mockRect(table, { top: 120, bottom: 210 })
+
+    const firstRow = document.createElement('tr')
+    mockRect(firstRow, { top: 120, bottom: 150 })
+
+    const secondRow = document.createElement('tr')
+    mockRect(secondRow, { top: 150, bottom: 180 })
+
+    const thirdRow = document.createElement('tr')
+    mockRect(thirdRow, { top: 180, bottom: 210 })
+
+    root.append(firstBand, secondBand, paragraph, table)
+
+    const rowPositions = new Map<number, HTMLElement>([
+      [1, table],
+      [2, firstRow],
+      [7, secondRow],
+      [12, thirdRow]
+    ])
+
+    const rowCell = { attrs: { colspan: 1, rowspan: 1 } } as any
+    const rowNode = {
+      attrs: {},
+      forEach: (callback: (node: typeof rowCell, offset: number, index: number) => void) => {
+        callback(rowCell, 0, 0)
+        callback(rowCell, 1, 1)
+      }
+    } as any
+    const tableNode = {
+      type: { name: 'table' },
+      childCount: 3,
+      firstChild: rowNode,
+      forEach: (callback: (node: typeof rowNode, offset: number, index: number) => void) => {
+        callback(rowNode, 0, 0)
+        callback(rowNode, 5, 1)
+        callback(rowNode, 10, 2)
+      }
+    } as any
+
+    const view = {
+      dom: root,
+      state: {
+        doc: {
+          descendants: (callback: (node: typeof tableNode, pos: number) => void) => {
+            callback(tableNode, 1)
+          }
+        }
+      },
+      nodeDOM: jest.fn((pos: number) => rowPositions.get(pos) ?? null)
+    } as any
+
+    expect(findOverflowingTableSplit(view)).toEqual({
+      tablePos: 1,
+      splitRowIndex: 1
+    })
+  })
+
   it('skips split candidates for rows taller than the page body', () => {
     const root = document.createElement('div')
     root.getBoundingClientRect = jest.fn(() => ({

@@ -2,6 +2,7 @@ import { Editor, type Extension, type JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { EditorView } from '@tiptap/pm/view'
+import { findSafeSplitRow } from '@/components/tiptap-custom-tables/tablePaginationUtils'
 import { PAGE_FORMATS, PAGE_SIZES, type PageSize } from './constants'
 import type {
   BuiltInPageFormatName,
@@ -515,6 +516,84 @@ function getPageBodyBandsForMeasurement(editorDom: HTMLElement) {
     .sort((left, right) => left.pageNumber - right.pageNumber)
 }
 
+function getPreviousContentElement(element: HTMLElement): HTMLElement | null {
+  let previous = element.previousElementSibling
+
+  while (previous) {
+    if (!isPaginationMeasurementHelper(previous) && previous instanceof HTMLElement) {
+      return previous
+    }
+    previous = previous.previousElementSibling
+  }
+
+  return null
+}
+
+function getBandIndexForOffset(
+  bodyBands: Array<{ pageNumber: number; top: number; bottom: number }>,
+  offset: number,
+  tolerance: number
+) {
+  let bandIndex = 0
+
+  while (bandIndex < bodyBands.length - 1 && offset >= bodyBands[bandIndex].bottom - tolerance) {
+    bandIndex += 1
+  }
+
+  return bandIndex
+}
+
+function getSplitIndexForPushedTable(
+  view: EditorView,
+  tableNode: ProseMirrorNode,
+  tablePos: number,
+  bodyBands: Array<{ pageNumber: number; top: number; bottom: number }>,
+  tolerance: number
+) {
+  const tableDom = view.nodeDOM(tablePos)
+  if (!(tableDom instanceof HTMLElement)) return null
+
+  const tableTop = getElementTopInEditor(view.dom, tableDom)
+  const tableBandIndex = getBandIndexForOffset(bodyBands, tableTop, tolerance)
+  if (tableBandIndex <= 0 || tableBandIndex >= bodyBands.length) return null
+
+  const currentBand = bodyBands[tableBandIndex]
+  const previousBand = bodyBands[tableBandIndex - 1]
+  if (!currentBand || !previousBand) return null
+
+  const previousContentElement = getPreviousContentElement(tableDom)
+  if (!(previousContentElement instanceof HTMLElement)) return null
+
+  const previousContentBottom = getElementBottomInEditor(view.dom, previousContentElement)
+  const availableTop = previousContentBottom
+  const availableHeight = previousBand.bottom - availableTop
+  if (availableHeight <= tolerance) return null
+
+  let splitIndex: number | null = null
+  let consumedHeight = 0
+
+  tableNode.forEach((_, rowOffset, rowIndex) => {
+    if (splitIndex !== null) return
+
+    const rowPosition = tablePos + 1 + rowOffset
+    const rowDom = view.nodeDOM(rowPosition)
+    if (!(rowDom instanceof HTMLTableRowElement)) return
+
+    const rowTop = getElementTopInEditor(view.dom, rowDom)
+    const rowBottom = getElementBottomInEditor(view.dom, rowDom)
+    const rowHeight = Math.max(0, rowBottom - rowTop)
+
+    if (rowHeight >= availableHeight - tolerance) return
+    consumedHeight += rowHeight
+
+    if (consumedHeight <= availableHeight + tolerance) {
+      splitIndex = rowIndex + 1
+    }
+  })
+
+  return splitIndex
+}
+
 function getTableColumnCount(tableNode: ProseMirrorNode) {
   const firstRow = tableNode.firstChild
   if (!firstRow) return 1
@@ -532,12 +611,25 @@ export function findOverflowingTableSplit(view: EditorView): TableOverflowSplitC
   if (!bodyBands.length) return null
 
   const tolerance = 1
-  let currentBandIndex = 0
   let candidate: TableOverflowSplitCandidate | null = null
 
   ;(view.state.doc as ProseMirrorNode).descendants((node, pos) => {
     if (candidate || node.type.name !== 'table') return !candidate
     if (node.childCount < 2 || getTableColumnCount(node) < 1) return false
+
+    const pushedSplitIndex = getSplitIndexForPushedTable(view, node, pos, bodyBands, tolerance)
+    if (pushedSplitIndex !== null) {
+      const safeSplitIndex = findSafeSplitRow(node, pushedSplitIndex)
+      if (safeSplitIndex >= 1 && safeSplitIndex < node.childCount) {
+        candidate = {
+          tablePos: pos,
+          splitRowIndex: safeSplitIndex
+        }
+      }
+      return !candidate
+    }
+
+    let currentBandIndex = 0
 
     node.forEach((_, rowOffset, rowIndex) => {
       if (candidate) return
@@ -549,9 +641,7 @@ export function findOverflowingTableSplit(view: EditorView): TableOverflowSplitC
       const rowBottom = getElementBottomInEditor(view.dom, rowDom)
       const rowHeight = Math.max(0, rowBottom - rowTop)
 
-      while (currentBandIndex < bodyBands.length - 1 && rowTop >= bodyBands[currentBandIndex].bottom - tolerance) {
-        currentBandIndex += 1
-      }
+      currentBandIndex = getBandIndexForOffset(bodyBands, rowTop, tolerance)
 
       const currentBand = bodyBands[currentBandIndex]
       const nextBand = bodyBands[currentBandIndex + 1]
@@ -563,9 +653,12 @@ export function findOverflowingTableSplit(view: EditorView): TableOverflowSplitC
 
       if (rowIndex <= 0 || rowIndex >= node.childCount) return
 
+      const safeSplitIndex = findSafeSplitRow(node, rowIndex)
+      if (safeSplitIndex < 1 || safeSplitIndex >= node.childCount) return
+
       candidate = {
         tablePos: pos,
-        splitRowIndex: rowIndex
+        splitRowIndex: safeSplitIndex
       }
     })
 

@@ -410,7 +410,9 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     let measuredFooterHeights = new Map<number, number>()
     let refreshQueued = false
     let tableSplitQueued = false
+    let queuedTableSplitKey: string | null = null
     let rejectedTableSplitKey: string | null = null
+    let lastKnownDoc: PMNode | null = null
 
     const requestRefresh = (view: EditorView) => {
       const transaction = view.state.tr.setMeta(REFRESH_META, true)
@@ -421,36 +423,44 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       if (refreshQueued) return
       refreshQueued = true
 
-      queueMicrotask(() => {
+      requestAnimationFrame(() => {
         refreshQueued = false
         if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
         requestRefresh(view)
       })
     }
 
-    const queueTableSplit = (view: EditorView) => {
+    const queueTableSplit = (view: EditorView, expectedCandidateKey: string) => {
       if (tableSplitQueued) return
       tableSplitQueued = true
+      queuedTableSplitKey = expectedCandidateKey
 
-      queueMicrotask(() => {
+      requestAnimationFrame(() => {
         tableSplitQueued = false
         if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
 
         const candidate = findOverflowingTableSplit(view)
         if (!candidate) {
+          queuedTableSplitKey = null
           rejectedTableSplitKey = null
           return
         }
 
         const candidateKey = `${candidate.tablePos}:${candidate.splitRowIndex}`
+        if (queuedTableSplitKey !== null && candidateKey !== queuedTableSplitKey) {
+          queuedTableSplitKey = null
+        }
+
         const tr = view.state.tr
         const didSplit = splitTableAtRow(view.state, tr, candidate.tablePos, candidate.splitRowIndex)
 
         if (!didSplit) {
+          queuedTableSplitKey = candidateKey
           rejectedTableSplitKey = candidateKey
           return
         }
 
+        queuedTableSplitKey = null
         rejectedTableSplitKey = null
         view.dispatch(tr)
       })
@@ -614,27 +624,40 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
 
             const currentPageCount = Math.max(1, getExistingPageCount(updatedView) || storage.pageCount)
             const measuredPageCount = getMeasuredPageCount(updatedView, storage, options, measured)
+            const currentDoc = updatedView.state.doc
+
+            if (lastKnownDoc !== null && currentDoc !== lastKnownDoc) {
+              queuedTableSplitKey = null
+              rejectedTableSplitKey = null
+            }
+            lastKnownDoc = currentDoc
 
             storage.pageCount = currentPageCount
-            if (measuredPageCount !== currentPageCount) {
-              storage.pageCount = measuredPageCount
-              if (storage.activeEditorType === null) {
-                queueRefresh(updatedView)
-                return
-              }
-            }
 
             if (storage.activeEditorType === null) {
               const candidate = findOverflowingTableSplit(updatedView)
               const candidateKey = candidate ? `${candidate.tablePos}:${candidate.splitRowIndex}` : null
 
-              if (candidateKey !== null && candidateKey !== rejectedTableSplitKey) {
-                queueTableSplit(updatedView)
+              if (
+                candidateKey !== null &&
+                candidateKey !== rejectedTableSplitKey &&
+                candidateKey !== queuedTableSplitKey
+              ) {
+                queueTableSplit(updatedView, candidateKey)
                 return
               }
 
               if (candidateKey === null) {
+                queuedTableSplitKey = null
                 rejectedTableSplitKey = null
+              }
+            }
+
+            if (measuredPageCount !== currentPageCount) {
+              storage.pageCount = measuredPageCount
+              if (storage.activeEditorType === null) {
+                queueRefresh(updatedView)
+                return
               }
             }
 

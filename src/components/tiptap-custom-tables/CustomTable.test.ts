@@ -105,7 +105,7 @@ describe('CustomTable', () => {
     element.remove()
   })
 
-  it('applies width and alignment styles to the editable table wrapper', () => {
+  it('applies width and alignment styles to the editable table element', () => {
     const { editor, element } = createEditor()
 
     editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: true })
@@ -116,15 +116,14 @@ describe('CustomTable', () => {
     ).setTableLayout({ width: '320pt', align: 'right', mode: 'manual' })
 
     const wrapper = element.querySelector('.tableWrapper') as HTMLDivElement | null
-    const table = wrapper?.querySelector('table') as HTMLTableElement | null
+    const table = element.querySelector('table') as HTMLTableElement | null
 
-    expect(wrapper).not.toBeNull()
-    expect(wrapper?.dataset.tableWidth).toBe('320pt')
-    expect(wrapper?.dataset.tableAlign).toBe('right')
-    expect(wrapper?.style.width).toBe('320pt')
-    expect(wrapper?.style.marginLeft).toBe('auto')
+    expect(wrapper).toBeNull()
     expect(table?.dataset.tableWidth).toBe('320pt')
     expect(table?.dataset.tableAlign).toBe('right')
+    expect(table?.style.width).toBe('320pt')
+    expect(table?.style.marginLeft).toBe('auto')
+    expect(table?.style.marginRight).toBe('0px')
 
     editor.destroy()
     element.remove()
@@ -179,7 +178,7 @@ describe('CustomTable', () => {
     element.remove()
   })
 
-  it('refuses to split tables with merged cells', () => {
+  it('allows splitting tables with colspan-only cells', () => {
     const content = {
       type: 'doc',
       content: [
@@ -197,6 +196,74 @@ describe('CustomTable', () => {
                 {
                   type: 'tableHeader',
                   attrs: { colspan: 2, rowspan: 1, colwidth: null },
+                  content: [{ type: 'paragraph' }]
+                }
+              ]
+            },
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableCell',
+                  attrs: { colspan: 1, rowspan: 1, colwidth: null },
+                  content: [{ type: 'paragraph' }]
+                },
+                {
+                  type: 'tableCell',
+                  attrs: { colspan: 1, rowspan: 1, colwidth: null },
+                  content: [{ type: 'paragraph' }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    const { editor, element } = createEditor(content as any)
+
+    const tablePos = findFirstTablePos(editor)
+    expect(tablePos).not.toBeNull()
+
+    const tr = editor.state.tr
+    expect(splitTableAtRow(editor.state, tr, tablePos as number, 1)).toBe(true)
+
+    editor.destroy()
+    element.remove()
+  })
+
+  it('refuses to split tables across a rowspan', () => {
+    const content = {
+      type: 'doc',
+      content: [
+        {
+          type: 'table',
+          attrs: {
+            tableWidth: '100%',
+            tableAlign: 'left',
+            tableWidthMode: 'manual'
+          },
+          content: [
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableHeader',
+                  attrs: { colspan: 1, rowspan: 2, colwidth: null },
+                  content: [{ type: 'paragraph' }]
+                },
+                {
+                  type: 'tableHeader',
+                  attrs: { colspan: 1, rowspan: 1, colwidth: null },
+                  content: [{ type: 'paragraph' }]
+                }
+              ]
+            },
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableCell',
+                  attrs: { colspan: 1, rowspan: 1, colwidth: null },
                   content: [{ type: 'paragraph' }]
                 }
               ]
