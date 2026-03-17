@@ -38,6 +38,8 @@ export interface UseFileLockOptions {
     forceUnlock?: (id: string) => Promise<boolean>
   }
   autoRefreshInterval?: number // ms, default 5000 (5 seconds)
+  /** When true, editing stays blocked until first lock check finishes. */
+  blockEditingUntilLockResolved?: boolean
   onLockAcquired?: (lock: FileLock) => void
   onLockReleased?: () => void
   onLockExpired?: () => void
@@ -77,6 +79,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
     currentUserId,
     apiService,
     autoRefreshInterval = 5000,
+    blockEditingUntilLockResolved = false,
     onLockAcquired,
     onLockReleased,
     onLockExpired,
@@ -91,11 +94,15 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
     isUnlocking: false,
     isChecking: false,
     error: null,
-    canEdit: true,
+    canEdit: !blockEditingUntilLockResolved,
     isLockedByMe: false
   })
 
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const onLockExpiredRef = useRef(onLockExpired)
+  const onErrorRef = useRef(onError)
+  onLockExpiredRef.current = onLockExpired
+  onErrorRef.current = onError
 
   /**
    * Check current lock status
@@ -111,7 +118,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
     try {
       const lock = await apiService.getLockStatus(entityId)
       if (isExpired(lock)) {
-        onLockExpired?.()
+        onLockExpiredRef.current?.()
         setState(prev => ({
           ...prev,
           lock: markUnlocked(lock),
@@ -139,11 +146,12 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
         isChecking: false
       }))
 
-      if (onError) {
-        onError(error instanceof Error ? error : new Error(errorMessage))
+      const errFn = onErrorRef.current
+      if (errFn) {
+        errFn(error instanceof Error ? error : new Error(errorMessage))
       }
     }
-  }, [entityId, currentUserId, apiService, onLockExpired, onError, t])
+  }, [entityId, currentUserId, apiService, t])
 
   /**
    * Acquire a lock on the file
@@ -158,9 +166,12 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
       setState(prev => ({ ...prev, isLocking: true, error: null }))
 
       try {
+        // Guard against accidentally passing React events from click handlers.
+        const safeReason = typeof reason === 'string' ? reason : undefined
+        const safeDurationMinutes = typeof durationMinutes === 'number' ? durationMinutes : undefined
         const lock = await apiService.lockFile(entityId, {
-          reason,
-          durationMinutes
+          reason: safeReason,
+          durationMinutes: safeDurationMinutes
         })
 
         if (lock) {

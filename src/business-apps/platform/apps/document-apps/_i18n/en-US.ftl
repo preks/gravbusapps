@@ -1,4 +1,15 @@
-# Sidebar
+# Hero
+dh-parent-label = Every Office
+dh-title = Documents
+dh-tabs-aria-label = Document sections
+dh-tab-my-documents = My Documents
+dh-tab-shared = Shared
+dh-tab-templates = Templates
+dh-tab-favorites = Favorites
+dh-tab-recent = Recent
+dh-tab-archived = Archived
+
+# Sidebar (legacy keys kept for compatibility)
 sidebar-back-to-desk = Back to Desk
 sidebar-expand = Expand sidebar
 sidebar-collapse = Collapse sidebar
@@ -33,7 +44,8 @@ menu-new-create-template-description = Create a new template
 
 # Header and list
 header-sort = Sort
-header-search-placeholder = Search...
+header-search-placeholder = Search documents...
+header-refresh = Refresh
 sort-name = Name
 sort-modified = Modified
 sort-created = Created

@@ -1,3 +1,14 @@
+# Hero
+nh-parent-label = Every Office
+nh-title = Notes
+nh-tabs-aria-label = Note sections
+nh-tab-my-notes = My Notes
+nh-tab-shared = Shared
+nh-tab-pinned = Pinned
+nh-tab-recent = Recent
+nh-tab-archived = Archived
+nh-refresh = Refresh
+
 sidebar-back-to-desk = Back to Desk
 sidebar-expand = Expand sidebar
 sidebar-collapse = Collapse sidebar

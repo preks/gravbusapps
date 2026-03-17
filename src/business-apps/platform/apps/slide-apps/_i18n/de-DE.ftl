@@ -1,3 +1,14 @@
+# Hero
+slh-parent-label = Every Office
+slh-title = Folien
+slh-tabs-aria-label = Folienbereiche
+slh-tab-my-slides = Meine Folien
+slh-tab-shared = Geteilt
+slh-tab-favorites = Favoriten
+slh-tab-recent = Zuletzt verwendet
+slh-tab-archived = Archiviert
+slh-refresh = Aktualisieren
+
 sidebar-back-to-desk = Zurück zum Schreibtisch
 sidebar-expand = Seitenleiste erweitern
 sidebar-collapse = Seitenleiste einklappen
