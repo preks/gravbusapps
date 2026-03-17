@@ -47,4 +47,4 @@ export interface SpreadsheetAutomationsSectionProps {
   'data-testid'?: string
 }
 
-export type TranslateFn = (key: string) => string
+export type TranslateFn = (key: string, vars?: Record<string, unknown>) => string
