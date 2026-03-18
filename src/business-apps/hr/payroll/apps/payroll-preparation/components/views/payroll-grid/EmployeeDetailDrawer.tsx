@@ -38,7 +38,7 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
   const openIssues = employee.issues.filter(i => i.status === 'open')
 
   return (
-    <div className="gba:fixed gba:inset-y-0 gba:right-0 gba:w-[480px] gba:bg-background gba:shadow-2xl gba:z-50 gba:overflow-y-auto gba:border-l gba:border-border">
+    <div className="gba:fixed gba:top-12 gba:bottom-0 gba:right-0 gba:w-[480px] gba:bg-background gba:shadow-2xl gba:z-50 gba:overflow-y-auto gba:border-l gba:border-border">
       <div className="gba:sticky gba:top-0 gba:bg-background gba:z-10 gba:border-b gba:border-border gba:px-6 gba:py-4">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-3">
