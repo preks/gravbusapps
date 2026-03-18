@@ -135,7 +135,8 @@ export function useDocumentAppsHubUserLookup(params: {
             userName:
               emp?.displayName ||
               `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim() ||
-              `User ${uid.slice(0, 8)}...`
+              `User ${uid.slice(0, 8)}...`,
+            userAvatar: toAvatarDataUrl(emp?.pictureThumbnail)
           } as SharedUserInfo
         })
       }

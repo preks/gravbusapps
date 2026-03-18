@@ -32,6 +32,8 @@ comment-panel-no-resolved = Keine gelösten Kommentare
 comment-panel-resolved-here = Gelöste Kommentare werden hier angezeigt
 comment-panel-loading = Kommentare werden geladen...
 comment-panel-add-placeholder = Kommentar hinzufügen...
+comment-panel-no-comments = Noch keine Kommentare
+comment-panel-no-comments-hint = Unten einen Kommentar hinzufügen, um zu starten
 
 # LockControls
 lock-file-locked = Datei ist gesperrt
