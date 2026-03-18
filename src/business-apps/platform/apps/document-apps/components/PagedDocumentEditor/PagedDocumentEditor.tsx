@@ -68,7 +68,13 @@ import {
   Wand2
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { Document, DocumentApprovalRequest, DocumentFormatting, DocumentPagesFormatting } from '../../types'
+import type {
+  Document,
+  DocumentApprovalRequest,
+  DocumentFormatting,
+  DocumentPagesFormatting,
+  PageNumberAlignment
+} from '../../types'
 import {
   getPaginationConfigFromFormatting,
   getPagesConfigFromFormatting,
@@ -120,6 +126,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { Table, TableCell, TableHeader, TableRow } from '@/components/tiptap-extensions/tiptap-custom-tables'
+import { handleTiptapTabKey } from '@/components/tiptap-extensions/tiptapTabKeyHandler'
 import type { CustomImageAttributes } from '@/components/tiptap-extensions/tiptap-custom-image'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
 import { CheckpointDialog } from '../../../shared/components/CheckpointDialog'
@@ -133,8 +140,15 @@ import { PageSetupDialog } from './PageSetupDialog'
 import { LinkDialog, type LinkDialogInitialValues, type LinkDialogMode } from './LinkDialog'
 import { LinkBubbleMenu } from './LinkBubbleMenu'
 import { ImageSettingsSidebar, type SelectedImageSidebarState } from './ImageSettingsSidebar'
+import { HeaderFooterSettingsSidebar } from './HeaderFooterSettingsSidebar'
 import { InsertImageDialog } from './InsertImageDialog'
 import { InsertTableDialog } from './InsertTableDialog'
+import { PageNumbersDialog } from './PageNumbersDialog'
+import {
+  applyPageNumberPlacement,
+  mergePagesFormattingAfterPageNumbersApply,
+  type ApplyPageNumberPlacementParams
+} from './applyPageNumberPlacement'
 import { NavigationPanel } from './NavigationPanel'
 import { DocumentBottomBar } from './DocumentBottomBar'
 import { useEditorImageHandlers } from './hooks/useEditorImageHandlers'
@@ -160,6 +174,9 @@ const CLOSED_IMAGE_SIDEBAR: SelectedImageSidebarState = {
   nodeSize: null,
   attrs: null
 }
+
+/** Matches fixed Image / header-footer sidebars so the canvas clears the overlay */
+const DOCUMENT_EDITOR_RIGHT_SIDEBAR_WIDTH_PX = 360
 
 function getSelectedImageState(editor: TiptapEditor): Omit<SelectedImageSidebarState, 'open' | 'editor'> | null {
   const { selection } = editor.state
@@ -694,44 +711,6 @@ function renderSaveStatus(
   return null
 }
 
-interface TabKeyEditorRef {
-  state: { selection: { $from: { depth: number; node: (d: number) => { type: { name: string } } } } }
-  commands: {
-    goToPreviousCell: () => void
-    goToNextCell: () => boolean
-    insertContent: (c: string) => void
-  }
-  chain: () => { addRowAfter: () => { goToNextCell: () => { run: () => void } } }
-}
-
-/** Tab key handler for editor: table cell navigation or insert tab. Extracted to keep component complexity low. */
-function handleTabKeyInPagedEditor(event: KeyboardEvent, editorRef: React.RefObject<TabKeyEditorRef | null>): boolean {
-  if (event.key !== 'Tab') return false
-  event.preventDefault()
-  const ed = editorRef.current
-  if (!ed) return true
-  const $from = ed.state.selection.$from
-  let inTableCell = false
-  for (let d = $from.depth; d > 0; d--) {
-    const nodeName = $from.node(d).type.name
-    if (nodeName === 'tableCell' || nodeName === 'tableHeader') {
-      inTableCell = true
-      break
-    }
-  }
-  if (inTableCell) {
-    if (event.shiftKey) {
-      ed.commands.goToPreviousCell()
-    } else {
-      const moved = ed.commands.goToNextCell()
-      if (!moved) ed.chain().addRowAfter().goToNextCell().run()
-    }
-  } else if (!event.shiftKey) {
-    ed.commands.insertContent('\t')
-  }
-  return true
-}
-
 function getSpaceIdFromWindow(): string | null {
   if (globalThis.window === undefined) return null
   return new URLSearchParams(globalThis.window.location.search).get('spaceId')
@@ -791,6 +770,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [isSaving, setIsSaving] = useState(false)
     const [lastSaved, setLastSaved] = useState<Date | null>(document ? new Date(document.updatedAt) : null)
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+    const [pageNumbersDialogOpen, setPageNumbersDialogOpen] = useState(false)
     const [isExporting, setIsExporting] = useState(false)
     const [zoom, setZoom] = useState(100)
     const [pageCount, setPageCount] = useState(1)
@@ -863,6 +843,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
+    const [showBodyWhileEditingHeaderFooter, setShowBodyWhileEditingHeaderFooter] = useState(true)
     const replaceImagePosRef = useRef<number | null>(null)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
     const [pendingSelection, setPendingSelection] = useState<{
@@ -907,7 +888,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       return collapseWhitespaceLinear(parsed.body.textContent || '')
     }, [aiSelectionSnapshot, aiSelectionSnapshotHtml])
     const hasLongAiSelectionPreview = aiSelectionPreviewText.length > 220
-    const imageSidebarRightOffset = rightSidebar === 'comments' ? 412 : rightSidebar === 'ai' ? 496 : 16
+    const documentRightPanelOffset = rightSidebar === 'comments' ? 412 : rightSidebar === 'ai' ? 496 : 16
+    const showHeaderFooterSidebar =
+      isHeaderFooterEditing &&
+      pagesEditorState.activeEditor != null &&
+      !(selectedImageSidebar.open && selectedImageSidebar.editor === pagesEditorState.activeEditor)
+
+    const documentEditorRightReservePx =
+      showHeaderFooterSidebar ||
+      (selectedImageSidebar.open && selectedImageSidebar.pos != null && selectedImageSidebar.attrs != null)
+        ? DOCUMENT_EDITOR_RIGHT_SIDEBAR_WIDTH_PX + documentRightPanelOffset
+        : undefined
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -991,6 +982,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       apiService: DocumentApiService
     })
 
+    const layoutFormattingRef = useRef(layoutFormatting)
+    layoutFormattingRef.current = layoutFormatting
+
     const getPagesStorageSnapshot = useCallback((): PagesStorage | null => {
       const editorInstance = editorRef.current as { storage?: { pages?: PagesStorage } } | null
       return editorInstance?.storage?.pages ?? null
@@ -998,8 +992,60 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const getPersistedPagesFormatting = useCallback(
       (fallback?: DocumentPagesFormatting): DocumentPagesFormatting | undefined => {
+        const fb = normalizeStoredPagesFormatting(fallback)
         const pagesFromEditor = readPagesFormattingFromStorage(getPagesStorageSnapshot())
-        return pagesFromEditor ?? normalizeStoredPagesFormatting(fallback)
+        if (!pagesFromEditor) {
+          if (import.meta.env.DEV) {
+            console.info('[document-pages-debug] persist pages (no editor HTML snapshot)', {
+              fallbackPages: fb
+            })
+          }
+          return fb
+        }
+        if (!fb) {
+          if (import.meta.env.DEV) {
+            console.info('[document-pages-debug] persist pages (editor only)', {
+              pagesFromEditor
+            })
+          }
+          return pagesFromEditor
+        }
+        /** Null header/footer in storage means "cleared / use options" — do not wipe explicit fallback (e.g. `{page}` from Page Numbers). */
+        const merged = {
+          ...fb,
+          ...pagesFromEditor,
+          header: pagesFromEditor.header ?? fb.header,
+          footer: pagesFromEditor.footer ?? fb.footer,
+          headerFirstPage: pagesFromEditor.headerFirstPage ?? fb.headerFirstPage,
+          footerFirstPage: pagesFromEditor.footerFirstPage ?? fb.footerFirstPage,
+          headerOdd: pagesFromEditor.headerOdd ?? fb.headerOdd,
+          headerEven: pagesFromEditor.headerEven ?? fb.headerEven,
+          footerOdd: pagesFromEditor.footerOdd ?? fb.footerOdd,
+          footerEven: pagesFromEditor.footerEven ?? fb.footerEven,
+          pageNumberNumeralStyle: fb.pageNumberNumeralStyle,
+          pageNumberStartAt: fb.pageNumberStartAt,
+          pageNumberAlignment: fb.pageNumberAlignment,
+          pageNumberRegion: fb.pageNumberRegion
+        }
+        if (import.meta.env.DEV) {
+          console.info('[document-pages-debug] persist pages merge', {
+            fallbackSnippet: {
+              footer: fb.footer,
+              header: fb.header,
+              pageNumberNumeralStyle: fb.pageNumberNumeralStyle
+            },
+            fromEditorSnippet: {
+              footer: pagesFromEditor.footer,
+              header: pagesFromEditor.header
+            },
+            mergedSnippet: {
+              footer: merged.footer,
+              header: merged.header,
+              pageNumberNumeralStyle: merged.pageNumberNumeralStyle
+            }
+          })
+        }
+        return merged
       },
       [getPagesStorageSnapshot]
     )
@@ -1579,7 +1625,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   },
                   onActiveEditorChange: handlePagesActiveEditorChange,
                   onDblClickHeaderFooterPreventClose: event =>
-                    (event.target instanceof Node && editorChromeRef.current?.contains(event.target)) ?? false
+                    (event.target instanceof Node && editorChromeRef.current?.contains(event.target)) ?? false,
+                  documentTitle: (document?.title || initialTitle || '').trim(),
+                  pageNumberNumeralStyle: pagesFormattingConfig.pageNumberNumeralStyle,
+                  pageNumberStartAt: pagesFormattingConfig.pageNumberStartAt,
+                  pageNumberAlignment: pagesFormattingConfig.pageNumberAlignment
                 })
               ]
             : []),
@@ -1627,7 +1677,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               return true
             }
 
-            return handleTabKeyInPagedEditor(event, editorRef)
+            return handleTiptapTabKey(event, editorRef.current)
           }
         },
         onUpdate: () => {
@@ -1840,6 +1890,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           return
         }
 
+        if (target.closest('[data-testid="document-header-footer-settings-sidebar"]')) {
+          return
+        }
+
         if (target.closest('[data-testid="document-editor-image-anchor"]')) {
           return
         }
@@ -1882,7 +1936,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         footerBottomMargin: pagesFormattingConfig.footerBottomMargin,
         accentColor: pagesFormattingConfig.accentColor,
         headerAccentColor: pagesFormattingConfig.headerAccentColor,
-        footerAccentColor: pagesFormattingConfig.footerAccentColor
+        footerAccentColor: pagesFormattingConfig.footerAccentColor,
+        pageNumberNumeralStyle: pagesFormattingConfig.pageNumberNumeralStyle,
+        pageNumberStartAt: pagesFormattingConfig.pageNumberStartAt,
+        pageNumberAlignment: pagesFormattingConfig.pageNumberAlignment
       })
     }, [
       editor,
@@ -1907,8 +1964,23 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       pagesFormattingConfig.headerEven,
       pagesFormattingConfig.headerFirstPage,
       pagesFormattingConfig.headerOdd,
-      pagesFormattingConfig.headerAccentColor
+      pagesFormattingConfig.headerAccentColor,
+      pagesFormattingConfig.pageNumberNumeralStyle,
+      pagesFormattingConfig.pageNumberStartAt,
+      pagesFormattingConfig.pageNumberAlignment
     ])
+
+    useEffect(() => {
+      if (!editor) return
+      const resolvedTitle =
+        title.trim() ||
+        (typeof document?.title === 'string' ? document.title.trim() : '') ||
+        (typeof initialTitle === 'string' ? initialTitle.trim() : '') ||
+        ''
+      ;(editor.commands as { setPaginationDocumentTitle?: (s: string) => boolean }).setPaginationDocumentTitle?.(
+        resolvedTitle
+      )
+    }, [editor, title, document?.title, initialTitle, isYjsSynced])
 
     const previousPagesEditorTypeRef = useRef<ActivePagesEditorState['activeEditorType']>(null)
 
@@ -2196,6 +2268,62 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       },
       [buildPersistedFormatting, document?.id, formattingYMap, isYjsSynced, onPersistFormatting]
     )
+
+    const handlePageNumbersApply = useCallback(
+      (params: ApplyPageNumberPlacementParams) => {
+        const ed = editorRef.current
+        if (!ed) return
+        const cmds = ed.commands as { closeHeaderFooterEditors?: () => boolean }
+        cmds.closeHeaderFooterEditors?.()
+        const cmdOk = applyPageNumberPlacement(ed, params)
+        const merged = mergePagesFormattingAfterPageNumbersApply(layoutFormattingRef.current.pages, params)
+        const lf = layoutFormattingRef.current
+        const nextFormatting: DocumentFormatting = { ...lf, pages: merged }
+        const persisted = buildPersistedFormatting(nextFormatting, merged)
+        if (import.meta.env.DEV) {
+          const snap = getPagesStorageSnapshot()
+          console.info('[document-pages-debug] Page Numbers OK', {
+            setPagesOptionsReturned: cmdOk,
+            params,
+            mergedPagesFromMergeFn: merged,
+            persistedFormattingPages: persisted.pages,
+            editorStorageFooterHTML: snap?.footerHTML,
+            editorStorageFooterHasJSON: Boolean(snap?.footerJSON)
+          })
+        }
+        handlePageSetupApply(persisted)
+        setHasUnsavedChanges(true)
+      },
+      [buildPersistedFormatting, getPagesStorageSnapshot, handlePageSetupApply]
+    )
+
+    const handleQuickPageNumberPlacement = useCallback(
+      (position: 'header' | 'footer', alignment: PageNumberAlignment) => {
+        const p = normalizeStoredPagesFormatting(layoutFormattingRef.current.pages) ?? {}
+        const showOnFirstPage =
+          !p.differentFirstPage ||
+          Boolean(((position === 'header' ? p.headerFirstPage : p.footerFirstPage) ?? '').includes('{page}'))
+        handlePageNumbersApply({
+          position,
+          alignment,
+          showOnFirstPage,
+          numeralStyle: p.pageNumberNumeralStyle ?? 'decimal',
+          startAt: p.pageNumberStartAt ?? 1
+        })
+      },
+      [handlePageNumbersApply]
+    )
+
+    const persistPagesFromEditor = useCallback(() => {
+      const ed = editorRef.current as { storage?: { pages?: PagesStorage } } | null
+      if (!ed?.storage?.pages) return
+      const pagesFromEd = readPagesFormattingFromStorage(ed.storage.pages)
+      if (!pagesFromEd) return
+      const lf = layoutFormattingRef.current
+      const mergedPages = { ...(lf.pages ?? {}), ...pagesFromEd }
+      const merged: DocumentFormatting = { ...lf, pages: mergedPages }
+      handlePageSetupApply(buildPersistedFormatting(merged, mergedPages))
+    }, [buildPersistedFormatting, handlePageSetupApply])
 
     const openNavigationPanelTab = useCallback(
       (tab: NavigationPanelTab) => {
@@ -2925,43 +3053,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
           {headerExtra && <div className="gba:px-4 gba:pb-3">{headerExtra}</div>}
 
-          {isHeaderFooterEditing && (
-            <div className="gba:border-t gba:border-border/50 gba:bg-muted/20 gba:px-4 gba:py-1.5">
-              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-                <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-                  <span className="gba:h-2 gba:w-2 gba:flex-shrink-0 gba:rounded-full gba:bg-primary/70" />
-                  <span className="gba:truncate gba:text-sm gba:font-medium gba:text-foreground">
-                    {pagesEditorState.activeEditorType === 'header'
-                      ? t('editor-header-footer-editing-header', {
-                          page: pagesEditorState.activePageNumber ?? 1
-                        })
-                      : t('editor-header-footer-editing-footer', {
-                          page: pagesEditorState.activePageNumber ?? 1
-                        })}
-                  </span>
-                  <span className="gba:hidden lg:gba:inline gba:truncate">
-                    {t('editor-header-footer-mode-description')}
-                  </span>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="gba:h-8 gba:px-2 gba:text-primary hover:gba:text-primary"
-                  onClick={() => editor?.commands.closeHeaderFooterEditors()}
-                  data-testid="document-header-footer-close-mode"
-                >
-                  {t('editor-header-footer-close')}
-                </Button>
-              </div>
-            </div>
-          )}
-
           <EditorToolbar
             editor={activeEditor}
             onOpenLinkDialog={openLinkDialog}
             onOpenInsertImageDialog={openInsertImageDialog}
             onOpenInsertTableDialog={() => setShowInsertTableDialog(true)}
+            onOpenPageNumbersDialog={editor ? () => setPageNumbersDialogOpen(true) : undefined}
             onOpenFind={() => openNavigationPanelTab('find')}
             onOpenReplace={() => openNavigationPanelTab('replace')}
             data-testid={`${testId}-toolbar`}
@@ -3007,7 +3104,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           {/* Editor Area with Page Layout - background matches page gap for consistent document canvas */}
           <div
             ref={editorContainerRef}
-            className="gba:flex-1 gba:overflow-auto gba:min-w-0 document-editor-viewport"
+            className={`gba:flex-1 gba:overflow-auto gba:min-w-0 document-editor-viewport ${
+              isHeaderFooterEditing && !showBodyWhileEditingHeaderFooter
+                ? '[&_.rm-page-body-layer]:opacity-40 [&_.rm-page-body-layer]:pointer-events-none [&_.rm-page-body-layer]:select-none'
+                : ''
+            }`}
+            style={documentEditorRightReservePx != null ? { paddingRight: documentEditorRightReservePx } : undefined}
             onScroll={handleScroll}
           >
             <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
@@ -3611,6 +3713,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           />
         )}
 
+        {editor && (
+          <PageNumbersDialog
+            open={pageNumbersDialogOpen}
+            onOpenChange={setPageNumbersDialogOpen}
+            pages={layoutFormatting.pages}
+            onApply={handlePageNumbersApply}
+            data-testid="document-page-numbers-dialog"
+          />
+        )}
+
         {showLinkDialog && (
           <LinkDialog
             open={showLinkDialog}
@@ -3764,12 +3876,61 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           />
         )}
 
+        {showHeaderFooterSidebar && editor && pagesEditorState.activeEditor && pagesEditorState.activeEditorType && (
+          <HeaderFooterSettingsSidebar
+            editor={editor}
+            overlayEditor={pagesEditorState.activeEditor}
+            type={pagesEditorState.activeEditorType}
+            pageNumber={pagesEditorState.activePageNumber ?? 1}
+            differentFirstPage={pagesFormattingConfig.differentFirstPage}
+            differentOddEven={pagesFormattingConfig.differentOddEven}
+            headerTopMarginPx={
+              pagesFormattingConfig.headerTopMargin ??
+              (paginationConfig ? Math.round(paginationConfig.marginTop / 2) : 48)
+            }
+            footerBottomMarginPx={
+              pagesFormattingConfig.footerBottomMargin ??
+              (paginationConfig ? Math.round(paginationConfig.marginBottom / 2) : 48)
+            }
+            marginUnit={resolvedLayout.marginUnit}
+            showDocumentBody={showBodyWhileEditingHeaderFooter}
+            onShowDocumentBodyChange={setShowBodyWhileEditingHeaderFooter}
+            onPersistPagesFromEditor={persistPagesFromEditor}
+            onOpenPageNumbers={() => {
+              editor.commands.closeHeaderFooterEditors()
+              setPageNumbersDialogOpen(true)
+            }}
+            onQuickPageNumberPlacement={handleQuickPageNumberPlacement}
+            headerHeight={measuredHeaderHeight || 120}
+            rightOffset={documentRightPanelOffset}
+            onClose={() => {
+              editor.commands.closeHeaderFooterEditors()
+            }}
+            data-testid="document-header-footer-settings-sidebar"
+          />
+        )}
+
         {(selectedImageSidebar.editor || activeEditor) && (
           <ImageSettingsSidebar
             editor={selectedImageSidebar.editor || activeEditor}
             image={selectedImageSidebar}
+            contextSubtitle={
+              selectedImageSidebar.open &&
+              editor &&
+              selectedImageSidebar.editor &&
+              selectedImageSidebar.editor !== editor &&
+              pagesEditorState.activeEditorType === 'header'
+                ? t('image-sidebar-in-header-context')
+                : selectedImageSidebar.open &&
+                    editor &&
+                    selectedImageSidebar.editor &&
+                    selectedImageSidebar.editor !== editor &&
+                    pagesEditorState.activeEditorType === 'footer'
+                  ? t('image-sidebar-in-footer-context')
+                  : undefined
+            }
             headerHeight={measuredHeaderHeight || 120}
-            rightOffset={imageSidebarRightOffset}
+            rightOffset={documentRightPanelOffset}
             onClose={closeImageSettingsSidebar}
             onReplace={openReplaceImageDialog}
             data-testid="document-image-settings-sidebar"

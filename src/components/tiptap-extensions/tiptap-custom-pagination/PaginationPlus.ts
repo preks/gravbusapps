@@ -536,6 +536,7 @@ declare module '@tiptap/core' {
       setAccentColor: (color: string) => ReturnType
       setHeaderAccentColor: (color: string) => ReturnType
       setFooterAccentColor: (color: string) => ReturnType
+      setPaginationDocumentTitle: (title: string) => ReturnType
     }
   }
 
@@ -572,7 +573,10 @@ const defaultOptions: PagesOptions = {
   footer: '{page}',
   differentFirstPage: false,
   differentOddEven: false,
-  accentColor: '#6366f1'
+  accentColor: '#6366f1',
+  documentTitle: '',
+  pageNumberNumeralStyle: 'decimal',
+  pageNumberStartAt: 1
 }
 
 export const Pages = Extension.create<PagesOptions, PagesStorage>({
@@ -1173,9 +1177,46 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
 
     const applyOptionUpdates = (editor: typeof this.editor, updates: PagesOptionUpdates) => {
       const options = getRuntimeOptions(editor, extensionOptions)
+      const storage = editor.storage.pages
+
+      /** Clears overlay-persisted header/footer so new option templates (e.g. `{page}`) render. */
+      const resetStoredHeaderFooter = () => {
+        if (updates.header !== undefined) {
+          storage.headerHTML = null
+          storage.headerJSON = null
+        }
+        if (updates.footer !== undefined) {
+          storage.footerHTML = null
+          storage.footerJSON = null
+        }
+        if (updates.headerFirstPage !== undefined) {
+          storage.headerFirstPageHTML = null
+          storage.headerFirstPageJSON = null
+        }
+        if (updates.footerFirstPage !== undefined) {
+          storage.footerFirstPageHTML = null
+          storage.footerFirstPageJSON = null
+        }
+        if (updates.headerOdd !== undefined) {
+          storage.headerOddHTML = null
+          storage.headerOddJSON = null
+        }
+        if (updates.headerEven !== undefined) {
+          storage.headerEvenHTML = null
+          storage.headerEvenJSON = null
+        }
+        if (updates.footerOdd !== undefined) {
+          storage.footerOddHTML = null
+          storage.footerOddJSON = null
+        }
+        if (updates.footerEven !== undefined) {
+          storage.footerEvenHTML = null
+          storage.footerEvenJSON = null
+        }
+      }
+      resetStoredHeaderFooter()
 
       if (updates.pageFormat !== undefined) {
-        const storage = editor.storage.pages
         options.pageFormat = updates.pageFormat
         storage.pageFormat = resolvePageFormat(updates.pageFormat)
         syncEditorStorage(editor as unknown as { storage: Record<string, unknown> }, storage)
@@ -1196,6 +1237,10 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       if (updates.accentColor !== undefined) options.accentColor = updates.accentColor
       if (updates.headerAccentColor !== undefined) options.headerAccentColor = updates.headerAccentColor
       if (updates.footerAccentColor !== undefined) options.footerAccentColor = updates.footerAccentColor
+      if (updates.documentTitle !== undefined) options.documentTitle = updates.documentTitle
+      if (updates.pageNumberNumeralStyle !== undefined) options.pageNumberNumeralStyle = updates.pageNumberNumeralStyle
+      if (updates.pageNumberStartAt !== undefined) options.pageNumberStartAt = updates.pageNumberStartAt
+      if (updates.pageNumberAlignment !== undefined) options.pageNumberAlignment = updates.pageNumberAlignment
     }
 
     return {
@@ -1244,6 +1289,12 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         margin =>
         ({ editor }) => {
           applyOptionUpdates(editor, { footerBottomMargin: margin })
+          return refresh(editor)
+        },
+      setPaginationDocumentTitle:
+        title =>
+        ({ editor }) => {
+          applyOptionUpdates(editor, { documentTitle: title })
           return refresh(editor)
         },
       setDifferentFirstPage:

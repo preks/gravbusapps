@@ -4,7 +4,13 @@
 
 import { PAGE_FORMATS } from '@/components/tiptap-extensions/tiptap-custom-pagination'
 import type { PageFormat } from '@/components/tiptap-extensions/tiptap-custom-pagination'
-import type { DocumentFormatting, DocumentPagesFormatting, PageSizeId } from '../types/document'
+import type {
+  DocumentFormatting,
+  DocumentPagesFormatting,
+  PageNumberAlignment,
+  PageNumberNumeralStyle,
+  PageSizeId
+} from '../types/document'
 
 /** 96 DPI: 1 cm = 96/2.54 px */
 export const CM_TO_PX = 96 / 2.54
@@ -148,6 +154,10 @@ export interface DocumentPagesConfig {
   accentColor?: string
   headerAccentColor?: string
   footerAccentColor?: string
+  pageNumberNumeralStyle: PageNumberNumeralStyle
+  pageNumberStartAt: number
+  pageNumberAlignment?: PageNumberAlignment
+  pageNumberRegion?: 'header' | 'footer'
 }
 
 export function getPagesConfigFromFormatting(formatting?: DocumentFormatting | null): DocumentPagesConfig {
@@ -170,7 +180,11 @@ export function getPagesConfigFromFormatting(formatting?: DocumentFormatting | n
     footerBottomMargin: pages.footerBottomMargin,
     accentColor: pages.accentColor,
     headerAccentColor: pages.headerAccentColor,
-    footerAccentColor: pages.footerAccentColor
+    footerAccentColor: pages.footerAccentColor,
+    pageNumberNumeralStyle: pages.pageNumberNumeralStyle ?? 'decimal',
+    pageNumberStartAt: pages.pageNumberStartAt ?? 1,
+    pageNumberAlignment: pages.pageNumberAlignment,
+    pageNumberRegion: pages.pageNumberRegion
   }
 }
 
@@ -194,7 +208,11 @@ export function normalizeStoredPagesFormatting(pages?: DocumentPagesFormatting):
     footerBottomMargin: pages.footerBottomMargin,
     accentColor: pages.accentColor,
     headerAccentColor: pages.headerAccentColor,
-    footerAccentColor: pages.footerAccentColor
+    footerAccentColor: pages.footerAccentColor,
+    pageNumberNumeralStyle: pages.pageNumberNumeralStyle ?? 'decimal',
+    pageNumberStartAt: pages.pageNumberStartAt ?? 1,
+    pageNumberAlignment: pages.pageNumberAlignment,
+    pageNumberRegion: pages.pageNumberRegion
   }
 
   return normalized

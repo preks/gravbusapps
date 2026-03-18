@@ -12,6 +12,7 @@ import type {
   HeaderFooterEditorType,
   PageFormat,
   PageFormatInput,
+  PageNumberNumeralStyle,
   PagesHeaderFooter,
   PagesHeaderFooterSource,
   PagesOptions,
@@ -132,12 +133,87 @@ export function cloneJSONValue<T>(value: T): T {
   return value == null ? value : JSON.parse(JSON.stringify(value))
 }
 
-export function replaceTemplateTokens(template: string, page: number, total: number): string {
-  return template.replace(/\{page\}/g, String(page)).replace(/\{total\}/g, String(total))
+function escapeHtmlTextForHeaderFooter(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-export function replaceTokensInJSONContent(content: JSONContent, page: number, total: number): JSONContent {
-  return walkAndReplaceStrings(cloneJSONValue(content), value => replaceTemplateTokens(value, page, total))
+function toRomanNumeral(n: number): string {
+  if (n < 1 || n > 3999) return String(n)
+  const values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+  const symbols = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I']
+  let result = ''
+  let num = n
+  for (let i = 0; i < values.length; i++) {
+    while (num >= values[i]) {
+      result += symbols[i]
+      num -= values[i]
+    }
+  }
+  return result
+}
+
+function toAlphaNumeral(n: number, upper: boolean): string {
+  if (n < 1) return String(n)
+  let s = ''
+  let x = n
+  const base = upper ? 65 : 97
+  while (x > 0) {
+    x -= 1
+    s = String.fromCharCode(base + (x % 26)) + s
+    x = Math.floor(x / 26)
+  }
+  return s
+}
+
+export function formatPageNumeral(displayIndex: number, style: PageNumberNumeralStyle): string {
+  const n = Math.max(1, Math.floor(displayIndex) || 1)
+  switch (style) {
+    case 'lowerRoman':
+      return toRomanNumeral(n).toLowerCase()
+    case 'upperRoman':
+      return toRomanNumeral(n)
+    case 'lowerAlpha':
+      return toAlphaNumeral(n, false)
+    case 'upperAlpha':
+      return toAlphaNumeral(n, true)
+    default:
+      return String(n)
+  }
+}
+
+export function physicalPageToDisplayedPage(physicalPage: number, startAt: number): number {
+  const s = Math.max(1, Math.floor(startAt) || 1)
+  return Math.max(1, physicalPage - 1 + s)
+}
+
+export function replaceTemplateTokens(
+  template: string,
+  physicalPage: number,
+  total: number,
+  documentTitle = '',
+  numeral?: { style?: PageNumberNumeralStyle; startAt?: number }
+): string {
+  const safeTitle = escapeHtmlTextForHeaderFooter(documentTitle)
+  const style = numeral?.style ?? 'decimal'
+  const startAt = numeral?.startAt ?? 1
+  const displayed = physicalPageToDisplayedPage(physicalPage, startAt)
+  const pageStr = escapeHtmlTextForHeaderFooter(formatPageNumeral(displayed, style))
+  return template
+    .replace(/\{page\}/g, pageStr)
+    .replace(/\{total\}/g, String(total))
+    .replace(/\{title\}/g, safeTitle)
+}
+
+export function replaceTokensInJSONContent(
+  content: JSONContent,
+  physicalPage: number,
+  total: number,
+  documentTitle = '',
+  numeral?: { style?: PageNumberNumeralStyle; startAt?: number }
+): JSONContent {
+  return walkAndReplaceStrings(cloneJSONValue(content), value =>
+    replaceTemplateTokens(value, physicalPage, total, documentTitle, numeral)
+  )
 }
 
 function walkAndReplaceStrings(value: unknown, replacer: (value: string) => string): any {
@@ -195,23 +271,32 @@ export function setStoredVariantContent(
   storage[jsonKey] = content.json
 }
 
+function pageNumeralFromOptions(options: PagesOptions) {
+  return {
+    style: options.pageNumberNumeralStyle ?? 'decimal',
+    startAt: options.pageNumberStartAt ?? 1
+  }
+}
+
 export function buildRenderableContent(
   source: PagesHeaderFooterSource | undefined,
   page: number,
   total: number,
-  extensions: Extension[]
+  extensions: Extension[],
+  documentTitle: string,
+  numeral?: { style?: PageNumberNumeralStyle; startAt?: number }
 ): StoredHeaderFooterContent {
   if (!source) return { html: '', json: null }
 
   const resolved = typeof source === 'function' ? source(page, total) : source
   if (typeof resolved === 'string') {
     return {
-      html: replaceTemplateTokens(resolved, page, total),
+      html: replaceTemplateTokens(resolved, page, total, documentTitle, numeral),
       json: null
     }
   }
 
-  const json = replaceTokensInJSONContent(resolved, page, total)
+  const json = replaceTokensInJSONContent(resolved, page, total, documentTitle, numeral)
   return {
     html: renderJSONContentToHTML(json, extensions),
     json
@@ -226,11 +311,13 @@ export function resolveDisplayContent(
   total: number,
   extensions: Extension[]
 ): StoredHeaderFooterContent {
+  const documentTitle = options.documentTitle ?? ''
+  const numeral = pageNumeralFromOptions(options)
   const variant = resolveVariantForPage(page, options)
   const stored = getStoredVariantContent(storage, type, variant)
 
   if (stored.json) {
-    const json = replaceTokensInJSONContent(stored.json, page, total)
+    const json = replaceTokensInJSONContent(stored.json, page, total, documentTitle, numeral)
     return {
       html: renderJSONContentToHTML(json, extensions),
       json
@@ -239,12 +326,19 @@ export function resolveDisplayContent(
 
   if (stored.html !== null) {
     return {
-      html: replaceTemplateTokens(stored.html, page, total),
+      html: replaceTemplateTokens(stored.html, page, total, documentTitle, numeral),
       json: null
     }
   }
 
-  return buildRenderableContent(getConfiguredVariantContent(options, type, variant), page, total, extensions)
+  return buildRenderableContent(
+    getConfiguredVariantContent(options, type, variant),
+    page,
+    total,
+    extensions,
+    documentTitle,
+    numeral
+  )
 }
 
 export function getInitialEditorContent(

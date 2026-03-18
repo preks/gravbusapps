@@ -34,6 +34,8 @@ export interface SelectedImageSidebarState {
 export interface ImageSettingsSidebarProps {
   editor: Editor | null
   image: SelectedImageSidebarState
+  /** Shown under the title when the image lives in header/footer overlay */
+  contextSubtitle?: string
   headerHeight?: number
   rightOffset?: number
   onClose: () => void
@@ -53,6 +55,7 @@ function preventEditorBlurOnMouseDown(event: React.MouseEvent<HTMLElement>) {
 export function ImageSettingsSidebar({
   editor,
   image,
+  contextSubtitle,
   headerHeight = 120,
   rightOffset = 16,
   onClose,
@@ -110,6 +113,11 @@ export function ImageSettingsSidebar({
       <div className="gba:flex gba:items-center gba:px-4 gba:py-3 gba:border-b gba:border-border/50 gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent">
         <div className="gba:min-w-0">
           <h3 className="gba:text-sm gba:font-semibold">{t('image-sidebar-title')}</h3>
+          {contextSubtitle ? (
+            <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-context-subtitle`}>
+              {contextSubtitle}
+            </p>
+          ) : null}
         </div>
       </div>
 

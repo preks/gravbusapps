@@ -1,5 +1,9 @@
 import type { Editor, Extension, JSONContent } from '@tiptap/core'
 
+export type PageNumberNumeralStyle = 'decimal' | 'lowerRoman' | 'upperRoman' | 'lowerAlpha' | 'upperAlpha'
+
+export type PageNumberAlignment = 'left' | 'center' | 'right' | 'inside' | 'outside'
+
 export type PageNumber = number
 
 export type BuiltInPageFormatName = 'A4' | 'A3' | 'A5' | 'Letter' | 'Legal' | 'Tabloid'
@@ -70,6 +74,11 @@ export interface PagesOptionUpdates {
   accentColor?: string
   headerAccentColor?: string
   footerAccentColor?: string
+  /** Resolved at display time for `{title}` in headers/footers */
+  documentTitle?: string
+  pageNumberNumeralStyle?: PageNumberNumeralStyle
+  pageNumberStartAt?: number
+  pageNumberAlignment?: PageNumberAlignment
 }
 
 export interface PagesOptions {
@@ -100,6 +109,11 @@ export interface PagesOptions {
   onPageFormatChange?: (pageFormat: PageFormat) => void
   onActiveEditorChange?: (state: ActivePagesEditorState) => void
   uiLabels?: Partial<PagesUiLabels>
+  /** Current document title; substitutes `{title}` when rendering headers/footers */
+  documentTitle?: string
+  pageNumberNumeralStyle?: PageNumberNumeralStyle
+  pageNumberStartAt?: number
+  pageNumberAlignment?: PageNumberAlignment
 }
 
 export interface PagesStorage {

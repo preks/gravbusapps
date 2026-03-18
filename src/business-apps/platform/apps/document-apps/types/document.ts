@@ -38,6 +38,10 @@ export interface DocumentFileInfo {
  */
 export type PageSizeId = 'A4' | 'A3' | 'A5' | 'LETTER' | 'LEGAL' | 'TABLOID'
 
+export type PageNumberNumeralStyle = 'decimal' | 'lowerRoman' | 'upperRoman' | 'lowerAlpha' | 'upperAlpha'
+
+export type PageNumberAlignment = 'left' | 'center' | 'right' | 'inside' | 'outside'
+
 export interface DocumentPagesFormatting {
   differentFirstPage?: boolean
   differentOddEven?: boolean
@@ -56,6 +60,11 @@ export interface DocumentPagesFormatting {
   accentColor?: string
   headerAccentColor?: string
   footerAccentColor?: string
+  pageNumberNumeralStyle?: PageNumberNumeralStyle
+  pageNumberStartAt?: number
+  pageNumberAlignment?: PageNumberAlignment
+  /** Last region chosen in Page Numbers dialog (header vs footer). */
+  pageNumberRegion?: 'header' | 'footer'
 }
 
 /**

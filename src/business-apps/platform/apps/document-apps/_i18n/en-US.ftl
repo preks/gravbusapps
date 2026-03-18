@@ -672,6 +672,48 @@ editor-header-footer-label-footer = Footer
 editor-header-footer-double-click = Double-click to edit
 editor-header-footer-double-click-exit = Double-click outside to exit
 
+header-footer-sidebar-description = Edit in the page area. Use the toolbar for text, images, and tables.
+header-footer-sidebar-editing-label = Editing
+header-footer-sidebar-close-editing = Close header & footer
+header-footer-sidebar-page-number = Page number
+header-footer-sidebar-insert-page-field = Page number field
+header-footer-sidebar-insert-total-field = Page count field
+header-footer-sidebar-date-time = Date & time
+header-footer-sidebar-field-title = Document title
+header-footer-sidebar-diff-first = Different first page
+header-footer-sidebar-diff-oddeven = Different odd & even
+header-footer-sidebar-show-body = Show document text
+header-footer-sidebar-header-from-top = Header from top
+header-footer-sidebar-footer-from-bottom = Footer from bottom
+header-footer-sidebar-unit-cm = cm
+header-footer-sidebar-unit-in = in
+header-footer-sidebar-preset-blank = Empty
+header-footer-sidebar-preset-header-title-left = Blank (left)
+header-footer-sidebar-preset-header-title-center = Blank (center)
+header-footer-sidebar-preset-header-page-right = Page # (right)
+header-footer-sidebar-preset-footer-page-center = Page # (center)
+header-footer-sidebar-preset-footer-page-total = Page X of Y
+header-footer-sidebar-preset-footer-page-right = Page # (right)
+header-footer-sidebar-date-dialog-title = Date and time
+header-footer-sidebar-date-insert = Insert
+header-footer-sidebar-date-locale-short = Short date
+header-footer-sidebar-date-locale-long = Long date
+header-footer-sidebar-date-iso = ISO date (YYYY-MM-DD)
+header-footer-sidebar-date-option-datetime = Date and time
+header-footer-sidebar-section-layout = Layout & presets
+header-footer-sidebar-section-insert = Insert
+header-footer-sidebar-section-options = Options
+header-footer-sidebar-section-position = Position
+header-footer-sidebar-zone-uniform-header = Same header on all pages
+header-footer-sidebar-zone-uniform-footer = Same footer on all pages
+header-footer-sidebar-zone-first = First page only
+header-footer-sidebar-zone-from-page-two = From page 2 onward (shared)
+header-footer-sidebar-zone-odd = Odd-numbered pages
+header-footer-sidebar-zone-even = Even-numbered pages
+
+image-sidebar-in-header-context = Image in header
+image-sidebar-in-footer-context = Image in footer
+
 # Template fields panel
 template-fields-insert = Insert field
 template-fields-search-placeholder = Search entities...
@@ -854,3 +896,35 @@ template-field-approval-date = Approval date
 template-field-supervisor-name = Supervisor name
 template-field-unknown-entity = Unknown entity: { $key }
 template-field-unknown-error = Unknown error
+
+# Page numbers (Word-like)
+page-numbers-dialog-title = Page numbers
+page-numbers-dialog-warning = Applying replaces the chosen header or footer area with a single page number line.
+page-numbers-position = Position
+page-numbers-position-header = Top of page (header)
+page-numbers-position-footer = Bottom of page (footer)
+page-numbers-alignment = Alignment
+header-footer-sidebar-pn-bottom-page = Bottom of page (footer)
+header-footer-sidebar-pn-top-page = Top of page (header)
+header-footer-sidebar-pn-header-band-hint = Page # on its own line above your header text. Outside/Inside = outer or gutter side on odd/even pages (same as Word), not outside the header band.
+page-numbers-align-left = Left
+page-numbers-align-center = Center
+page-numbers-align-right = Right
+page-numbers-align-inside = Inside
+page-numbers-align-outside = Outside
+page-numbers-align-facing-hint = Facing pages: Outside = flush on the outer edge; Inside = inset toward the gutter (odd vs even page).
+page-numbers-show-on-first = Show number on first page
+page-numbers-preview = Preview
+page-numbers-format-button = Format…
+page-numbers-ok = OK
+page-numbers-format-title = Page number format
+page-numbers-format-numeral-style = Number format
+page-numbers-format-style-decimal = 1, 2, 3, …
+page-numbers-format-style-lower-roman = i, ii, iii, …
+page-numbers-format-style-upper-roman = I, II, III, …
+page-numbers-format-style-lower-alpha = a, b, c, …
+page-numbers-format-style-upper-alpha = A, B, C, …
+page-numbers-format-start-at = Start at
+page-numbers-format-ok = OK
+editor-toolbar-page-numbers = Page numbers…
+header-footer-sidebar-page-numbers-dialog = Page numbers…

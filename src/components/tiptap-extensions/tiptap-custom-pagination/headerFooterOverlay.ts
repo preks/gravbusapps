@@ -1,7 +1,13 @@
 import { Editor, type Extension } from '@tiptap/core'
+import { handleTiptapTabKey } from '../tiptapTabKeyHandler'
 import type { HeaderFooterEditorType, PagesHeaderFooter, PagesOptions, PagesStorage, PageVariantKey } from './types'
 import { renderHeaderFooterDisplayContent } from './dom'
-import { getHeaderFooterExtensions, resolveVariantForPage, setStoredVariantContent } from './utils'
+import {
+  getHeaderFooterExtensions,
+  replaceTemplateTokens,
+  resolveVariantForPage,
+  setStoredVariantContent
+} from './utils'
 
 interface OpenOverlayParams {
   type: HeaderFooterEditorType
@@ -90,12 +96,28 @@ export class HeaderFooterOverlayManager {
     const previousEditable = this.hostEditor.isEditable
     this.hostEditor.setEditable(false, false)
 
+    const overlayEditorRef: { current: Editor | null } = { current: null }
     const overlayEditor = new Editor({
       element: editorHost,
       extensions: getHeaderFooterExtensions(params.extensions),
       content: initialContent,
-      editable: true
+      editable: true,
+      editorProps: {
+        handleKeyDown(_view, event) {
+          return handleTiptapTabKey(event, overlayEditorRef.current)
+        }
+      }
     })
+    overlayEditorRef.current = overlayEditor
+
+    const htmlForVisibleRegion = (rawHtml: string) => {
+      const total = Math.max(1, storage.pageCount)
+      const documentTitle = this.getOptions().documentTitle ?? ''
+      return replaceTemplateTokens(rawHtml, pageNumber, total, documentTitle, {
+        style: this.getOptions().pageNumberNumeralStyle ?? 'decimal',
+        startAt: this.getOptions().pageNumberStartAt ?? 1
+      })
+    }
 
     const syncOverlayContentToStorage = () => {
       const html = overlayEditor.getHTML()
@@ -107,7 +129,7 @@ export class HeaderFooterOverlayManager {
       })
 
       if (visibleContent) {
-        renderHeaderFooterDisplayContent(visibleContent, html, placeholderLabel)
+        renderHeaderFooterDisplayContent(visibleContent, htmlForVisibleRegion(html), placeholderLabel)
       }
 
       params.onUpdate?.()
@@ -162,7 +184,7 @@ export class HeaderFooterOverlayManager {
       const finalHtml = overlayEditor.getHTML()
       overlayEditor.destroy()
       if (visibleContent) {
-        renderHeaderFooterDisplayContent(visibleContent, finalHtml, placeholderLabel)
+        renderHeaderFooterDisplayContent(visibleContent, htmlForVisibleRegion(finalHtml), placeholderLabel)
       }
       overlay.remove()
       delete target.dataset.rmOverlayActive
