@@ -54,13 +54,14 @@ const GET_EMPLOYEES_BY_USER_IDS = `
   }
 `
 
-function buildName(m: { givenName?: string; familyName?: string; name?: string }): string {
-  if (m.givenName != null || m.familyName != null) {
-    return [m.givenName, m.familyName].filter(Boolean).join(' ').trim()
+const GET_EMPLOYEES_BY_IDS = `
+  query GetEmployeesByIds($employeeIds: [uuid!]) {
+    Employee(where: { id: { _in: $employeeIds }, isDeleted: { _eq: false } }) {
+      id
+      displayName
+    }
   }
-  if (typeof m.name === 'string' && m.name.trim()) return m.name.trim()
-  return 'Unknown'
-}
+`
 
 function sortByFirstNameAsc(options: ITAdminEmployeeOption[]): ITAdminEmployeeOption[] {
   return [...options].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
@@ -117,10 +118,17 @@ export function useITAdminEmployees(accessToken: string, currentUserEmployeeId?:
             const withEmployeeId = members.filter((m: any) => m.employeeId)
             const userIdsOnly = members.filter((m: any) => !m.employeeId).map((m: any) => m.id)
 
-            list = withEmployeeId.map((m: any) => ({
-              id: m.employeeId,
-              name: buildName(m)
-            }))
+            if (withEmployeeId.length > 0) {
+              const employeeIds = withEmployeeId.map((m: any) => m.employeeId)
+              const byIdResult = await graphqlClient.request<{ Employee: any[] }>(GET_EMPLOYEES_BY_IDS, {
+                employeeIds
+              })
+              const nonDeletedFromGroup = (byIdResult?.Employee ?? []).map((e: any) => ({
+                id: e.id,
+                name: e.displayName || 'Unknown'
+              }))
+              list = list.concat(nonDeletedFromGroup)
+            }
 
             if (userIdsOnly.length > 0) {
               const empResult = await graphqlClient.request<{ Employee: any[] }>(GET_EMPLOYEES_BY_USER_IDS, {
