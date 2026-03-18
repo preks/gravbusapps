@@ -23,6 +23,7 @@ import { useEntityDataSource } from './hooks/useEntityDataSource'
 import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
 import { useSpreadsheetBulkRows } from './hooks/useSpreadsheetBulkRows'
 import { useSpreadsheetColumns } from './hooks/useSpreadsheetColumns'
+import { useVersionUserDisplays } from '@/business-apps/platform/apps/document-apps/hooks/useVersionUserDisplays'
 
 import { useVersioning } from '@/business-apps/platform/apps/shared/hooks/useVersioning'
 import { useComments } from '@/business-apps/platform/apps/shared/hooks/useComments'
@@ -337,10 +338,22 @@ const buildCreatedRowsFromBatch = (
   flushCells: Array<{ rowId: string; columnName: string; value: unknown }>
 } => {
   const flushCells: Array<{ rowId: string; columnName: string; value: unknown }> = []
+  const persistedIdByClientRowId = new Map<string, string>()
+  returnedRows.forEach(entry => {
+    const persistedId = entry.id
+    if (typeof persistedId !== 'string' || !persistedId) return
+    const data = entry.data
+    if (!data || typeof data !== 'object') return
+    const clientRowId = (data as Record<string, unknown>)._clientRowId
+    if (typeof clientRowId === 'string' && clientRowId) {
+      persistedIdByClientRowId.set(clientRowId, persistedId)
+    }
+  })
   const createdRows = rowPayloads.map((rowPayload, index) => {
-    const persisted = returnedRows[index] || {}
-    const persistedId = persisted.id as string | undefined
     const clientRowId = String(rowPayload._clientRowId || '')
+    const persistedId =
+      (clientRowId ? persistedIdByClientRowId.get(clientRowId) : undefined) ??
+      (returnedRows[index]?.id as string | undefined)
     const pending = clientRowId ? pendingUpdates.get(clientRowId) : undefined
     if (clientRowId && pending) {
       pendingUpdates.delete(clientRowId)
@@ -687,7 +700,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const operationQueueRef = useRef<Promise<void>>(Promise.resolve())
   const pendingClientRowUpdatesRef = useRef<Map<string, Record<string, unknown>>>(new Map())
   const pendingCellChangesRef = useRef<Array<{ rowId: string; columnName: string; value: unknown }>>([])
-  const isApplyingRemoteRef = useRef(false)
   const pendingCellPersistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const persistenceTriggeredSnapshotTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const enqueueSnapshotCheckpointRef = useRef<(() => Promise<void>) | null>(null)
@@ -882,6 +894,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     autoSaveInterval: 30000,
     onVersionRestored: handleVersionRestored
   })
+  const versionUserDisplayMap = useVersionUserDisplays(versioning.versions, accessToken)
 
   const comments = useComments({
     entityId: app.id,
@@ -1145,10 +1158,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // --- Collaboration (header presence + Univer grid operations/cursors) ---
   const handleCollaborationOperation = useCallback(
     (payload: { operation: { type: string; data?: unknown }; version?: number }) => {
-      const incomingVersion = Number(payload.version)
-      if (Number.isFinite(incomingVersion) && incomingVersion > sheetVersionRef.current) {
-        sheetVersionRef.current = incomingVersion
-      }
       const operation = payload.operation
       if (operation.type === 'dimension_sync') {
         const d = operation.data as CellDimensionsPayload | undefined
@@ -1179,11 +1188,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       onDataChange?.(activeSheetId, nextLocal)
 
       if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
-        isApplyingRemoteRef.current = true
         spreadsheetGridRef.current?.applyRemoteCellUpdate(rowIndex, colIndex, d.value)
-        setTimeout(() => {
-          isApplyingRemoteRef.current = false
-        }, 75)
       }
     },
     [activeSheetId, localSheetDataRef, onDataChange, resolveRemoteCellCoordinates, setLocalSheetData]
@@ -1219,7 +1224,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onSheetUpdate,
     isCollaborationConnected: collaboration.isCollaborationConnected,
     emitOperation: op => {
-      collaboration.emitOperation(op as any).catch(() => undefined)
+      collaboration.emitOperation(op as any)
     }
   })
 
@@ -1665,34 +1670,32 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (cells.length === 0) return
 
       pendingCellChangesRef.current.push(...cells)
-      if (!isApplyingRemoteRef.current) {
-        const firstCell = cells[0]
-        if (firstCell) {
-          const ctx = createUniverConversionContext(activeSheet.columns, localSheetDataRef.current)
-          const rowIndex = ctx.rowIdToIndex.get(String(firstCell.rowId))
-          const colIndex =
-            activeSheet.columns.findIndex(c => c.name === firstCell.columnName) >= 0
-              ? activeSheet.columns.findIndex(c => c.name === firstCell.columnName)
-              : (ctx.columnIdToIndex.get(String(firstCell.columnName)) ?? -1)
-          if (rowIndex !== undefined && colIndex >= 0) {
-            collaboration.emitCursor({ path: [`row:${rowIndex}`, `col:${colIndex}`] })
-          }
+      const firstCell = cells[0]
+      if (firstCell) {
+        const ctx = createUniverConversionContext(activeSheet.columns, localSheetDataRef.current)
+        const rowIndex = ctx.rowIdToIndex.get(String(firstCell.rowId))
+        const colIndex =
+          activeSheet.columns.findIndex(c => c.name === firstCell.columnName) >= 0
+            ? activeSheet.columns.findIndex(c => c.name === firstCell.columnName)
+            : (ctx.columnIdToIndex.get(String(firstCell.columnName)) ?? -1)
+        if (rowIndex !== undefined && colIndex >= 0) {
+          collaboration.emitCursor({ path: [`row:${rowIndex}`, `col:${colIndex}`] })
         }
-        cells.forEach(cell => {
-          const backendRowId = getBackendRowIdForUiRowId(String(cell.rowId))
-          if (!backendRowId) return
-          collaboration.emitOperation({
-            type: 'cell_update',
-            data: {
-              sheetId: activeSheetId,
-              rowId: backendRowId,
-              column: cell.columnName,
-              value: cell.value
-            },
-            broadcastOnly: true
-          } as any)
-        })
       }
+      cells.forEach(cell => {
+        const backendRowId = getBackendRowIdForUiRowId(String(cell.rowId))
+        if (!backendRowId) return
+        collaboration.emitOperation({
+          type: 'cell_update',
+          data: {
+            sheetId: activeSheetId,
+            rowId: backendRowId,
+            column: cell.columnName,
+            value: cell.value
+          },
+          broadcastOnly: true
+        } as any)
+      })
       debugLog('cells queued', {
         addedCells: cells.length,
         queuedCells: pendingCellChangesRef.current.length
@@ -2395,6 +2398,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }}
         showVersionHistory={showVersionHistory}
         setShowVersionHistory={setShowVersionHistory}
+        versionUserDisplayMap={versionUserDisplayMap}
         versioning={{ ...versioning, createCheckpoint: createCheckpointWithFlush } as any}
         handleRestoreVersion={versioning.restoreVersion as any}
         showCheckpointDialog={showCheckpointDialog}

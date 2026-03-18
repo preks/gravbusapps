@@ -28,6 +28,47 @@ const CURSOR_OVERLAY_COL_WIDTH_PX = 73
 const CURSOR_OVERLAY_HEADER_HEIGHT_PX = 28
 const CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX = 48
 const UNIVER_COMMAND_TYPE_MUTATION = 2
+const REMOTE_ECHO_SUPPRESSION_TTL_MS = 800
+
+type RemoteEchoSuppressionEntry = {
+  expiresAt: number
+  signature: string
+}
+
+function normalizeValueForEchoSignature(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed.startsWith('=')) return { f: trimmed }
+    return value
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+  const obj = value as Record<string, unknown>
+  if (typeof obj.f === 'string') {
+    const trimmed = obj.f.trim()
+    return { f: trimmed.startsWith('=') ? trimmed : `=${trimmed}` }
+  }
+  if (obj.v !== undefined) return obj.v
+  if (obj.m !== undefined) return obj.m
+  return value
+}
+
+function toEchoSignature(value: unknown): string {
+  const normalized = normalizeValueForEchoSignature(value)
+  if (normalized === undefined) return 'u:'
+  if (normalized === null) return 'n:'
+  if (typeof normalized === 'string') return `s:${normalized}`
+  if (typeof normalized === 'number') return `d:${normalized}`
+  if (typeof normalized === 'boolean') return `b:${normalized ? 1 : 0}`
+  try {
+    return `j:${JSON.stringify(normalized)}`
+  } catch {
+    return `x:${String(normalized)}`
+  }
+}
+
+function remoteEchoKey(row: number, col: number): string {
+  return `${row}:${col}`
+}
 
 function parseCursorPath(path?: string[]): { row: number; col: number } | null {
   if (!path || path.length === 0) return null
@@ -190,24 +231,27 @@ function collectChangedCells(params: {
   ctx: ConversionContext
   rowOffset: number
   colOffset: number
+  shouldSuppress?: (rowIndex: number, colIndex: number, value: unknown) => boolean
 }): Array<{ rowId: string; columnName: string; value: unknown }> {
-  const { cellValue, ctx, rowOffset, colOffset } = params
+  const { cellValue, ctx, rowOffset, colOffset, shouldSuppress } = params
   const changedCells: Array<{ rowId: string; columnName: string; value: unknown }> = []
   for (const rowKey of Object.keys(cellValue)) {
     const rowIndex = Number(rowKey)
     if (Number.isNaN(rowIndex)) continue
     const rowCells = cellValue[rowIndex]
     if (!rowCells || typeof rowCells !== 'object') continue
-    const rowId = ctx.rowIndexToId.get(rowIndex + rowOffset)
+    const globalRowIndex = rowIndex + rowOffset
+    const rowId = ctx.rowIndexToId.get(globalRowIndex)
     if (rowId === undefined) continue
 
     for (const colKey of Object.keys(rowCells)) {
       const colIndex = Number(colKey)
       if (Number.isNaN(colIndex)) continue
-      const columnName =
-        ctx.columnIndexToName.get(colIndex + colOffset) ?? ctx.columnIndexToId.get(colIndex + colOffset)
+      const globalColIndex = colIndex + colOffset
+      const columnName = ctx.columnIndexToName.get(globalColIndex) ?? ctx.columnIndexToId.get(globalColIndex)
       if (columnName === undefined) continue
       const cell = rowCells[colIndex]
+      if (shouldSuppress?.(globalRowIndex, globalColIndex, cell) === true) continue
       changedCells.push({ rowId, columnName, value: cell ?? { v: '' } })
     }
   }
@@ -624,7 +668,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     // Needed for published screens where the host app may register global shortcuts (e.g. Cmd+B).
     const isSheetInteractionActiveRef = useRef<boolean>(false)
     const univerAPIRef = useRef<ReturnType<typeof createUniver>['univerAPI'] | null>(null)
-    const isLocalEditRef = useRef(false)
+    const remoteEchoSuppressionRef = useRef<Map<string, RemoteEchoSuppressionEntry>>(new Map())
     const isDirtyRef = useRef(false)
     const hasEditedRef = useRef(false)
     const snapshotRequestInFlightRef = useRef<Promise<void> | null>(null)
@@ -914,20 +958,24 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown) => {
       const api = univerAPIRef.current
       if (!api) return
+      const expiresAt = Date.now() + REMOTE_ECHO_SUPPRESSION_TTL_MS
+      const key = remoteEchoKey(rowIndex, colIndex)
+      remoteEchoSuppressionRef.current.set(key, { expiresAt, signature: toEchoSignature(value) })
+      globalThis.setTimeout(() => {
+        const current = remoteEchoSuppressionRef.current.get(key)
+        if (current?.expiresAt === expiresAt) {
+          remoteEchoSuppressionRef.current.delete(key)
+        }
+      }, REMOTE_ECHO_SUPPRESSION_TTL_MS + 50)
       try {
-        isLocalEditRef.current = true
         const workbook = api.getActiveWorkbook()
         if (!workbook) return
         const worksheet = workbook.getActiveSheet()
         if (!worksheet) return
         const range = worksheet.getRange(rowIndex, colIndex)
-        if (range) range.setValue(value as string | number | boolean)
+        if (range) range.setValue(value as any)
       } catch (e) {
         console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
-      } finally {
-        setTimeout(() => {
-          isLocalEditRef.current = false
-        }, 50)
       }
     }, [])
 
@@ -1359,7 +1407,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
         }) => {
           if (readOnlyRef.current) return
-          if (isLocalEditRef.current) return
           const payload = params?.payload
           let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
           if (!cellValue) {
@@ -1375,6 +1422,42 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           // Paste/edit mutations can use different internal command ids across Univer versions.
           // Persist whenever mutation payload carries concrete cell values.
           if (!cellValue) return
+          const range = payload?.params?.range?.[0] ?? params.effectedRanges?.[0]?.getRange?.()
+          const { rowOffset, colOffset } = resolveCellOffsets(range, cellValue)
+          const now = Date.now()
+          const shouldSuppress = (globalRowIndex: number, globalColIndex: number, value: unknown): boolean => {
+            const key = remoteEchoKey(globalRowIndex, globalColIndex)
+            const entry = remoteEchoSuppressionRef.current.get(key)
+            if (!entry) return false
+            if (now > entry.expiresAt) {
+              remoteEchoSuppressionRef.current.delete(key)
+              return false
+            }
+            return entry.signature === toEchoSignature(value)
+          }
+
+          let hasNonSuppressedCell = false
+          for (const rowKey of Object.keys(cellValue)) {
+            const rowIndex = Number(rowKey)
+            if (Number.isNaN(rowIndex)) continue
+            const rowCells = cellValue[rowIndex]
+            if (!rowCells || typeof rowCells !== 'object') continue
+            const globalRowIndex = rowIndex + rowOffset
+            for (const colKey of Object.keys(rowCells)) {
+              const colIndex = Number(colKey)
+              if (Number.isNaN(colIndex)) continue
+              const globalColIndex = colIndex + colOffset
+              const cell = rowCells[colIndex]
+              if (!shouldSuppress(globalRowIndex, globalColIndex, cell)) {
+                hasNonSuppressedCell = true
+                break
+              }
+            }
+            if (hasNonSuppressedCell) break
+          }
+
+          if (!hasNonSuppressedCell) return
+
           isDirtyRef.current = true
           hasEditedRef.current = true
           scheduleSnapshotCheckpoint()
@@ -1386,9 +1469,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           } = callbacksRef.current
           if (!ctxBefore) return
           const currentData = propsRef.current.data
-
-          const range = payload?.params?.range?.[0] ?? params.effectedRanges?.[0]?.getRange?.()
-          const { rowOffset, colOffset } = resolveCellOffsets(range, cellValue)
           const newRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
           if (newRowIndices.length > 0 && onDataChangeCb) {
             const newRows = buildNewRowsFromCellMatrix({
@@ -1407,7 +1487,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
 
           const ctx = contextRef.current ?? ctxBefore
-          const changedCells = collectChangedCells({ cellValue, ctx, rowOffset, colOffset })
+          const changedCells = collectChangedCells({ cellValue, ctx, rowOffset, colOffset, shouldSuppress })
 
           if (changedCells.length > 0 && onCellsChangeCb) {
             onCellsChangeCb(changedCells)

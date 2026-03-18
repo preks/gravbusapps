@@ -72,6 +72,13 @@ const automationDebug = (...args: unknown[]) => {
 
 const TRUTHY_STRING_VALUES = new Set(['true', '1', 'yes'])
 
+const maskIdentifier = (value: string | null | undefined): string => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return 'n/a'
+  if (normalized.length <= 8) return normalized
+  return `${normalized.slice(0, 4)}...${normalized.slice(-4)}`
+}
+
 /**
  * Parameters for executing a workflow for a single row
  */
@@ -635,7 +642,20 @@ export class SpreadsheetAutomationService {
       }
 
       const result = await response.json()
-      return this.mapExcelCollectionRunResult(result, recipients.length, executedAt, wasCreated ? backendId : undefined)
+      const mapped = this.mapExcelCollectionRunResult(
+        result,
+        recipients.length,
+        executedAt,
+        wasCreated ? backendId : undefined
+      )
+      console.info('[SpreadsheetAutomationService] Excel collection run result', {
+        automationId: maskIdentifier(backendId),
+        recipients: recipients.length,
+        workflowCount: mapped.workflows?.length || 0,
+        failedCount: mapped.failedRows?.length || 0,
+        success: mapped.success
+      })
+      return mapped
     } catch (error) {
       console.error('[SpreadsheetAutomationService] Excel collection execution error:', error)
       return {
