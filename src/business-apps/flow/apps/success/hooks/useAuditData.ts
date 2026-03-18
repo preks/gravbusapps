@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 export interface AuditLogEntry {
@@ -87,6 +87,18 @@ export const useAuditLogs = (filters: AuditFilters, accessToken: string) => {
   const [error, setError] = useState<Error | null>(null)
 
   const API_BASE = getFlowEngineApiBaseUrl()
+  const filtersKey = JSON.stringify(filters)
+  const queryString = useMemo(() => {
+    const queryParams = new URLSearchParams()
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value.toString())
+      }
+    })
+
+    return queryParams.toString()
+  }, [filtersKey])
 
   const fetchAuditLogs = useCallback(async () => {
     if (!accessToken) return
@@ -95,22 +107,12 @@ export const useAuditLogs = (filters: AuditFilters, accessToken: string) => {
     setError(null)
 
     try {
-      console.log('Fetching audit logs with filters:', filters)
-
-      // Build query string
-      const queryParams = new URLSearchParams()
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          queryParams.append(key, value.toString())
-        }
-      })
-
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`
       }
 
-      const response = await fetch(`${API_BASE}/audit/logs?${queryParams.toString()}`, { headers })
+      const response = await fetch(`${API_BASE}/audit/logs?${queryString}`, { headers })
 
       if (!response.ok) {
         throw new Error(`Failed to fetch audit logs: ${response.status} ${response.statusText}`)
@@ -120,17 +122,17 @@ export const useAuditLogs = (filters: AuditFilters, accessToken: string) => {
 
       if (result.status === 'success') {
         setData(result.data)
-        console.log('Successfully fetched audit logs:', result.data)
       } else {
         throw new Error(result.message || 'Failed to fetch audit logs')
       }
     } catch (err) {
-      console.error('Error fetching audit logs:', err)
-      setError(err instanceof Error ? err : new Error('Unknown error'))
+      const normalizedError = err instanceof Error ? err : new Error('Unknown error')
+      console.error('Error fetching audit logs:', normalizedError.message)
+      setError(normalizedError)
     } finally {
       setIsLoading(false)
     }
-  }, [filters, accessToken, API_BASE])
+  }, [accessToken, API_BASE, queryString])
 
   useEffect(() => {
     fetchAuditLogs()
@@ -159,8 +161,6 @@ export const useAuditFilterOptions = (accessToken: string) => {
     setError(null)
 
     try {
-      console.log('Fetching audit filter options')
-
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`
@@ -176,13 +176,13 @@ export const useAuditFilterOptions = (accessToken: string) => {
 
       if (result.status === 'success') {
         setData(result.data)
-        console.log('Successfully fetched filter options:', result.data)
       } else {
         throw new Error(result.message || 'Failed to fetch filter options')
       }
     } catch (err) {
-      console.error('Error fetching filter options:', err)
-      setError(err instanceof Error ? err : new Error('Unknown error'))
+      const normalizedError = err instanceof Error ? err : new Error('Unknown error')
+      console.error('Error fetching filter options:', normalizedError.message)
+      setError(normalizedError)
     } finally {
       setIsLoading(false)
     }
@@ -207,8 +207,6 @@ export const exportAuditLogs = async (
   accessToken: string
 ): Promise<void> => {
   try {
-    console.log('Exporting audit logs:', { filters, format })
-
     const API_BASE = getFlowEngineApiBaseUrl()
 
     // Build query string
@@ -249,10 +247,9 @@ export const exportAuditLogs = async (
     link.download = filename
     link.click()
     window.URL.revokeObjectURL(url)
-
-    console.log('Successfully exported audit logs:', filename)
   } catch (err) {
-    console.error('Error exporting audit logs:', err)
-    throw err
+    const normalizedError = err instanceof Error ? err : new Error('Unknown error')
+    console.error('Error exporting audit logs:', normalizedError.message)
+    throw normalizedError
   }
 }

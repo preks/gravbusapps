@@ -30,6 +30,7 @@ export enum InputType {
 
 export enum AssignmentMode {
   CLAIM = 'CLAIM',
+  ASSIGN_SINGLE = 'ASSIGN_SINGLE',
   ASSIGN = 'ASSIGN',
   ASSIGN_DEFERRED = 'ASSIGN_DEFERRED'
 }

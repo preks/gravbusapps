@@ -155,10 +155,13 @@ const InvestmentDeletePopup: React.FC<InvestmentDeletePopupProps> = ({ initialVa
   // Handle process completion - redirect to investment management
   const handleProcessCompletion = (detail: { resolution?: 'success' | 'failure' } | null) => {
     if (detail?.resolution === 'success') {
-      // Small delay to ensure the popup closes properly before navigation
-      setTimeout(() => {
-        navigateTo('/platform/irm/investment-management?view=investments')
-      }, 100)
+      const investmentManagementPath = '/platform/irm/investment-management'
+      const isAlreadyOnInvestmentManagement = globalThis.location.pathname.startsWith(investmentManagementPath)
+      if (!isAlreadyOnInvestmentManagement) {
+        setTimeout(() => {
+          navigateTo('/platform/irm/investment-management?view=investments')
+        }, 100)
+      }
     }
   }
 

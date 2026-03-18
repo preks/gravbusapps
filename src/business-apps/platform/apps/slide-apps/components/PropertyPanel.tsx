@@ -2,7 +2,7 @@
  * PropertyPanel - Styling panel for selected elements
  */
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   Button,
   Input,
@@ -36,7 +36,8 @@ import {
   MoveDown,
   RotateCcw,
   ChevronDown,
-  Palette
+  Palette,
+  Upload
 } from 'lucide-react'
 import type {
   AnySlideElement,
@@ -44,11 +45,83 @@ import type {
   ShapeElement,
   ImageElement,
   VideoElement,
-  GradientConfig
+  ChartElement,
+  ChartType,
+  GradientConfig,
+  SlideTransition,
+  SlideTransitionType,
+  TransitionTrigger
 } from './slideElements'
-import { FONT_FAMILIES, FONT_SIZES, COLOR_PRESETS, PRESET_GRADIENTS, gradientToCss } from './slideElements'
+import {
+  FONT_FAMILIES,
+  FONT_SIZES,
+  COLOR_PRESETS,
+  PRESET_GRADIENTS,
+  CHART_TYPES,
+  gradientToCss,
+  DEFAULT_TRANSITION
+} from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
+import { TransitionPreview } from './TransitionPreview'
 import translations from '../_i18n'
+
+/**
+ * Sanitizes a URL to prevent XSS attacks in img src attributes.
+ * Only allows safe protocols: https, http, data:image, blob, and relative paths.
+ */
+function sanitizeImageUrl(url: string | undefined): string {
+  if (!url) return ''
+
+  const trimmedUrl = url.trim()
+  if (!trimmedUrl) return ''
+
+  // Allow relative paths
+  if (trimmedUrl.startsWith('/') || trimmedUrl.startsWith('./') || trimmedUrl.startsWith('../')) {
+    return trimmedUrl
+  }
+
+  // Allow blob URLs (from file uploads)
+  if (trimmedUrl.startsWith('blob:')) {
+    return trimmedUrl
+  }
+
+  // Allow data URLs but only for images
+  if (trimmedUrl.startsWith('data:')) {
+    if (trimmedUrl.startsWith('data:image/')) {
+      return trimmedUrl
+    }
+    return ''
+  }
+
+  // Allow http/https URLs
+  try {
+    const parsedUrl = new URL(trimmedUrl)
+    if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+      return trimmedUrl
+    }
+  } catch {
+    // Invalid URL format
+    return ''
+  }
+
+  return ''
+}
+
+const TRANSITION_TYPES: { value: SlideTransitionType; label: string }[] = [
+  { value: 'none', label: 'transition-none' },
+  { value: 'fade', label: 'transition-fade' },
+  { value: 'slide-left', label: 'transition-slide-left' },
+  { value: 'slide-right', label: 'transition-slide-right' },
+  { value: 'slide-up', label: 'transition-slide-up' },
+  { value: 'slide-down', label: 'transition-slide-down' },
+  { value: 'push-left', label: 'transition-push-left' },
+  { value: 'push-right', label: 'transition-push-right' },
+  { value: 'zoom-in', label: 'transition-zoom-in' },
+  { value: 'zoom-out', label: 'transition-zoom-out' },
+  { value: 'flip', label: 'transition-flip' },
+  { value: 'cube', label: 'transition-cube' },
+  { value: 'dissolve', label: 'transition-dissolve' }
+]
 
 interface PropertyPanelProps {
   element: AnySlideElement | null
@@ -57,6 +130,8 @@ interface PropertyPanelProps {
   onDuplicate: () => void
   onBringForward: () => void
   onSendBackward: () => void
+  slideTransition?: SlideTransition
+  onSlideTransitionChange?: (transition: SlideTransition) => void
 }
 
 export const PropertyPanel: React.FC<PropertyPanelProps> = ({
@@ -65,15 +140,135 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onDelete,
   onDuplicate,
   onBringForward,
-  onSendBackward
+  onSendBackward,
+  slideTransition,
+  onSlideTransitionChange
 }) => {
   const { t } = useTranslation(translations)
   const [showGradientBuilder, setShowGradientBuilder] = useState(false)
+  const replaceImageInputRef = useRef<HTMLInputElement>(null)
+
+  const currentTransition = slideTransition || DEFAULT_TRANSITION
+
+  const handleTransitionChange = (updates: Partial<SlideTransition>) => {
+    if (onSlideTransitionChange) {
+      onSlideTransitionChange({ ...currentTransition, ...updates })
+    }
+  }
+
+  const handleReplaceImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      onUpdate({ src: reader.result as string })
+    }
+    reader.readAsDataURL(file)
+
+    if (replaceImageInputRef.current) {
+      replaceImageInputRef.current.value = ''
+    }
+  }
 
   if (!element) {
     return (
-      <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-        <p className="gba:text-sm">{t('props-select-element')}</p>
+      <div className="gba:p-4 gba:space-y-4">
+        <div className="gba:text-center gba:text-muted-foreground gba:mb-4">
+          <p className="gba:text-sm">{t('props-select-element')}</p>
+        </div>
+
+        {onSlideTransitionChange && (
+          <>
+            <Separator />
+
+            <Collapsible defaultOpen>
+              <CollapsibleTrigger className="gba:flex gba:w-full gba:items-center gba:justify-between gba:py-2">
+                <Label className="gba:text-xs gba:font-semibold">{t('transition-title')}</Label>
+                <ChevronDown className="gba:h-4 gba:w-4" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="gba:space-y-4 gba:pt-2">
+                {/* Transition Type */}
+                <div>
+                  <Label className="gba:text-xs gba:mb-1 gba:block">{t('transition-type')}</Label>
+                  <Select
+                    value={currentTransition.type}
+                    onValueChange={(value: SlideTransitionType) => handleTransitionChange({ type: value })}
+                  >
+                    <SelectTrigger className="gba:text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TRANSITION_TYPES.map(tt => (
+                        <SelectItem key={tt.value} value={tt.value}>
+                          {t(tt.label)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                    <Label className="gba:text-xs">{t('transition-duration')}</Label>
+                    <span className="gba:text-xs gba:text-muted-foreground">{currentTransition.duration}ms</span>
+                  </div>
+                  <Slider
+                    value={[currentTransition.duration]}
+                    min={300}
+                    max={3000}
+                    step={100}
+                    onValueChange={([value]) => handleTransitionChange({ duration: value })}
+                    disabled={currentTransition.type === 'none'}
+                  />
+                </div>
+
+                {/* Trigger */}
+                <div>
+                  <Label className="gba:text-xs gba:mb-1 gba:block">{t('transition-trigger')}</Label>
+                  <Select
+                    value={currentTransition.trigger}
+                    onValueChange={(value: TransitionTrigger) => handleTransitionChange({ trigger: value })}
+                    disabled={currentTransition.type === 'none'}
+                  >
+                    <SelectTrigger className="gba:text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="on-click">{t('transition-trigger-click')}</SelectItem>
+                      <SelectItem value="auto">{t('transition-trigger-auto')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Delay (only for auto trigger) */}
+                {currentTransition.trigger === 'auto' && (
+                  <div>
+                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                      <Label className="gba:text-xs">{t('transition-delay')}</Label>
+                      <span className="gba:text-xs gba:text-muted-foreground">{currentTransition.delay}ms</span>
+                    </div>
+                    <Slider
+                      value={[currentTransition.delay]}
+                      min={0}
+                      max={5000}
+                      step={100}
+                      onValueChange={([value]) => handleTransitionChange({ delay: value })}
+                      disabled={currentTransition.type === 'none'}
+                    />
+                  </div>
+                )}
+
+                {/* Preview */}
+                <div>
+                  <Label className="gba:text-xs gba:mb-2 gba:block">{t('transition-preview')}</Label>
+                  <TransitionPreview transition={currentTransition} />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </>
+        )}
       </div>
     )
   }
@@ -82,6 +277,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   const shapeElement = element.type === 'shape' ? (element as ShapeElement) : null
   const imageElement = element.type === 'image' ? (element as ImageElement) : null
   const videoElement = element.type === 'video' ? (element as VideoElement) : null
+  const chartElement = element.type === 'chart' ? (element as ChartElement) : null
 
   const ColorPicker = ({
     value,
@@ -529,6 +725,57 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* IMAGE PROPERTIES */}
       {imageElement && (
         <div className="gba:space-y-4">
+          {/* Image Source */}
+          <div className="gba:space-y-3">
+            <Label className="gba:text-xs gba:font-semibold">{t('props-image-source')}</Label>
+
+            {/* Current image preview */}
+            <div className="gba:w-full gba:h-20 gba:rounded gba:overflow-hidden gba:bg-muted gba:border">
+              {sanitizeImageUrl(imageElement.src) && (
+                <img
+                  // nosemgrep: react-insecure-url
+                  // snyk-ignore: URL is validated by sanitizeImageUrl
+                  src={sanitizeImageUrl(imageElement.src)}
+                  alt=""
+                  className="gba:w-full gba:h-full gba:object-contain"
+                />
+              )}
+            </div>
+
+            {/* Replace image button */}
+            <div className="gba:flex gba:gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => replaceImageInputRef.current?.click()}
+                className="gba:text-xs"
+              >
+                <Upload className="gba:w-3 gba:h-3 gba:mr-1" />
+                {t('props-replace-image')}
+              </Button>
+              <input
+                ref={replaceImageInputRef}
+                type="file"
+                accept="image/*"
+                className="gba:hidden"
+                onChange={handleReplaceImage}
+              />
+            </div>
+
+            {/* Alt text */}
+            <div>
+              <Label className="gba:text-xs">{t('props-alt-text')}</Label>
+              <Input
+                value={imageElement.alt}
+                onChange={e => onUpdate({ alt: e.target.value })}
+                placeholder={t('props-alt-text-placeholder')}
+                className="gba:mt-1 gba:text-xs"
+              />
+            </div>
+          </div>
+
+          <Separator />
+
           <Label className="gba:text-xs gba:font-semibold">{t('props-image-styling')}</Label>
 
           {/* Object Fit */}
@@ -654,6 +901,88 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between">
             <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
             <Switch checked={videoElement.shadow} onCheckedChange={shadow => onUpdate({ shadow })} />
+          </div>
+        </div>
+      )}
+
+      {/* CHART PROPERTIES */}
+      {chartElement && (
+        <div className="gba:space-y-4">
+          <Label className="gba:text-xs gba:font-semibold">{t('props-chart-settings')}</Label>
+
+          {/* Chart Title */}
+          <div>
+            <Label className="gba:text-xs">{t('props-chart-title')}</Label>
+            <Input
+              value={chartElement.title}
+              onChange={e => onUpdate({ title: e.target.value })}
+              placeholder={t('props-chart-title-placeholder')}
+              className="gba:mt-1 gba:text-xs"
+            />
+          </div>
+
+          {/* Chart Type */}
+          <div>
+            <Label className="gba:text-xs">{t('props-chart-type')}</Label>
+            <Select value={chartElement.chartType} onValueChange={(value: ChartType) => onUpdate({ chartType: value })}>
+              <SelectTrigger className="gba:text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CHART_TYPES.map(ct => (
+                  <SelectItem key={ct.value} value={ct.value}>
+                    {ct.icon} {ct.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* Chart Display Options */}
+          <Label className="gba:text-xs gba:font-semibold">{t('props-chart-display')}</Label>
+
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-show-legend')}</Label>
+            <Switch checked={chartElement.showLegend} onCheckedChange={showLegend => onUpdate({ showLegend })} />
+          </div>
+
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-show-grid')}</Label>
+            <Switch checked={chartElement.showGrid} onCheckedChange={showGrid => onUpdate({ showGrid })} />
+          </div>
+
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label className="gba:text-xs">{t('props-show-tooltip')}</Label>
+            <Switch checked={chartElement.showTooltip} onCheckedChange={showTooltip => onUpdate({ showTooltip })} />
+          </div>
+
+          <Separator />
+
+          {/* Chart Styling */}
+          <Label className="gba:text-xs gba:font-semibold">{t('props-chart-styling')}</Label>
+
+          {/* Background Color */}
+          <ColorPicker
+            value={chartElement.backgroundColor}
+            onChange={backgroundColor => onUpdate({ backgroundColor })}
+            label={t('props-background-color')}
+          />
+
+          {/* Border Radius */}
+          <div>
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+              <Label className="gba:text-xs">{t('props-border-radius')}</Label>
+              <span className="gba:text-xs gba:text-muted-foreground">{chartElement.borderRadius}px</span>
+            </div>
+            <Slider
+              value={[chartElement.borderRadius]}
+              min={0}
+              max={24}
+              step={1}
+              onValueChange={([value]) => onUpdate({ borderRadius: value })}
+            />
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { DriveApiService } from '../services/DriveApiService'
 import { buildDocxBlob, sanitizeDocxFilename } from '@/business-apps/platform/apps/document-apps/utils/docxExport'
 import { downloadNote } from '@/business-apps/platform/apps/note-apps/utils/noteExportUtils'
-import { exportSheetToExcel } from '@/business-apps/platform/apps/spreadsheet-apps/utils/exportUtils'
+import { exportSheetToExcel } from '@/business-apps/core/office/apps/spreadsheets/utils/exportUtils'
 import { exportToPptx } from '@/business-apps/platform/apps/slide-apps/utils/exportUtils'
 import { getThemeById } from '@/business-apps/platform/apps/slide-apps/components/slideThemes'
 import type { DriveItem } from '../types/drive.types'

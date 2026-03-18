@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent, Spinner, useTranslation } from '@newwork/nw-design-system'
-import { IdentificationCardIcon, BriefcaseIcon, FilesIcon, ClockCounterClockwiseIcon, NotebookIcon } from '@phosphor-icons/react'
+import {
+  IdentificationCardIcon,
+  BriefcaseIcon,
+  FilesIcon,
+  ClockCounterClockwiseIcon,
+  NotebookIcon
+} from '@phosphor-icons/react'
 import DetailsTab from './DetailsTab'
 import EmploymentTab from './EmploymentTab'
 import ChangeLogTab from './ChangeLogTab'
@@ -280,6 +286,9 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
                 accessToken={accessToken}
                 employeeId={employeeId}
                 userInfo={userInfo}
+                showChangeTaxDetailsButton={
+                  !employeeRecordAllHrBackoffice.loading && employeeRecordAllHrBackoffice.hasPermission === true
+                }
               />
             )}
           </TabsContent>

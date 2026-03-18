@@ -1,13 +1,12 @@
 'use client'
 
 import React from 'react'
-import { Button, Card, Alert, Icon, useTranslation } from '@newwork/nw-design-system'
+import { Button, Card, Alert, useTranslation } from '@newwork/nw-design-system'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import { TimeEntriesTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/TimeEntriesTable'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PencilIcon } from '@phosphor-icons/react'
 import { exportTimeHistoryPdf } from '../utils/exportTimeHistoryPdf'
 import timeTrackingTranslations from '../_i18n'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -205,13 +204,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
           prefixDataTestId="my-time-history-request-correction"
           accessToken={accessToken}
         >
-          <>
-            <Icon icon={PencilIcon} />
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:time_tracking.actions.request_correction',
-              'Request Correction'
-            )}
-          </>
+          {t('manual_entry')}
         </AppAction>
       </div>
 

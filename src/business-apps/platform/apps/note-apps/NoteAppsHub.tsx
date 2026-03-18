@@ -2,7 +2,7 @@
  * NoteAppsHub Component
  *
  * The main entry point for the Notes application.
- * Modern OneDrive-inspired design with sidebar navigation.
+ * Hero-based layout with section tabs replacing the sidebar.
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
@@ -40,12 +40,8 @@ import {
   FileText,
   MoreHorizontal,
   Star,
-  Clock,
   Trash2,
-  Home,
-  FolderClosed,
   ArrowUpDown,
-  Check,
   RefreshCw,
   Copy,
   Share2,
@@ -53,15 +49,14 @@ import {
   User,
   LayoutGrid,
   PenTool,
-  ChevronLeft,
-  PanelLeftClose,
-  PanelLeft,
-  Database
+  SortAsc,
+  SortDesc
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
+import { NoteHero } from './components/NoteHero'
+import type { NoteSection } from './components/NoteHero'
 import { type SharedUserInfo } from './components/NotePreviewCard'
 import { NoteEditor } from './NoteEditor'
 import { HandwritingNote } from './components/HandwritingNote'
@@ -90,7 +85,7 @@ export interface NoteAppsHubProps extends BusinessAppContextProps {
 }
 
 type HubView = 'list' | 'editor'
-type SidebarSection = 'home' | 'my-notes' | 'shared' | 'pinned' | 'recent' | 'archived'
+type SidebarSection = NoteSection
 
 /** Get initials from a name */
 function getInitials(name: string): string {
@@ -159,10 +154,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    const saved = localStorage.getItem('note-hub-sidebar-collapsed')
-    return saved === 'true'
-  })
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem('note-favorites')
@@ -236,11 +227,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       updateUrl(null)
     }
   }, [activeSection, currentView, selectedNoteId, updateUrl])
-
-  // Persist sidebar collapsed state
-  useEffect(() => {
-    localStorage.setItem('note-hub-sidebar-collapsed', String(isSidebarCollapsed))
-  }, [isSidebarCollapsed])
 
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
@@ -674,26 +660,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleCreateNew])
 
-  // Get section title
-  const getSectionTitle = () => {
-    switch (activeSection) {
-      case 'home':
-        return t('sidebar-home')
-      case 'my-notes':
-        return t('sidebar-my-items')
-      case 'shared':
-        return t('sidebar-shared')
-      case 'pinned':
-        return t('sidebar-pinned')
-      case 'recent':
-        return t('sidebar-recent')
-      case 'archived':
-        return t('sidebar-archived')
-      default:
-        return t('sidebar-brand-title')
-    }
-  }
-
   // Render editor view
   if (currentView === 'editor' && currentNote) {
     // IMPORTANT: Default to 'owner' if permission is null/undefined (means user owns the note)
@@ -838,756 +804,538 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     )
   }
 
+  const heroNewButton = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          className="gba:gap-1.5 gba:bg-white/15 gba:text-white gba:border gba:border-white/20 hover:gba:bg-white/25 gba:backdrop-blur-sm"
+          data-testid={`${testId}-hero-new-btn`}
+        >
+          <Plus className="gba:w-4 gba:h-4" />
+          {t('sidebar-new')}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="gba:w-56">
+        <DropdownMenuItem onClick={() => handleCreateNew()}>
+          <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-amber-500" />
+          <div>
+            <div className="gba:font-medium">{t('menu-new-text-title')}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-text-description')}</div>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleCreateNew({ noteType: 'handwriting', paperStyle: 'lined' })}>
+          <PenTool className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
+          <div>
+            <div className="gba:font-medium">{t('menu-new-handwriting-title')}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-handwriting-description')}</div>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => handleCreateNew({ color: 'yellow' })}>
+          <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
+          <div>
+            <div className="gba:font-medium">{t('menu-new-template-title')}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-template-description')}</div>
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
   return (
-    <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
-      {/* Sidebar */}
-      <aside
-        className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-300 ${isSidebarCollapsed ? 'gba:w-16' : 'gba:w-60'}`}
-      >
-        {/* Logo / Brand */}
-        <div className={`gba:border-b ${isSidebarCollapsed ? 'gba:p-2' : 'gba:p-4'}`}>
-          {/* Back button and collapse toggle row */}
-          <div
-            className={`gba:flex gba:items-center gba:mb-2 ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:justify-between'}`}
-          >
-            <TooltipProvider>
-              {!isSidebarCollapsed && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
+    <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+      <NoteHero
+        activeSection={activeSection}
+        onSectionChange={s => setActiveSection(s as SidebarSection)}
+        newButton={heroNewButton}
+        t={t}
+        data-testid={`${testId}-hero`}
+      />
+
+      <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden">
+        {/* Content Area */}
+        <div className="gba:flex-1 gba:overflow-auto">
+          <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5">
+            {/* Spotlight search bar */}
+            <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
+              <div className="gba:relative">
+                <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
+                <Input
+                  placeholder={t('header-search-placeholder')}
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
+                  data-testid={`${testId}-search-input`}
+                />
+              </div>
+
+              {/* Actions row */}
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {selectedNotes.size > 0 ? (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedNotes(new Set())}>
+                      {t('label-shared')} ({selectedNotes.size})
+                    </Button>
+                    <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
                     <Button
                       variant="ghost"
-                      size="icon"
-                      onClick={() => navigateTo('/platform/every-office')}
-                      data-testid={`${testId}-back-to-desk`}
+                      size="sm"
+                      className="gba:text-destructive"
+                      onClick={() => {
+                        if (confirm(t('confirm-delete'))) {
+                          selectedNotes.forEach(id => handleDeleteNote(id))
+                        }
+                      }}
                     >
-                      <ChevronLeft className="gba:w-4 gba:h-4" />
+                      <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                      {t('menu-delete')}
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('sidebar-back-to-desk')}</TooltipContent>
-                </Tooltip>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                    data-testid={`${testId}-toggle-sidebar`}
-                  >
-                    {isSidebarCollapsed ? (
-                      <PanelLeft className="gba:w-4 gba:h-4" />
-                    ) : (
-                      <PanelLeftClose className="gba:w-4 gba:h-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{isSidebarCollapsed ? t('sidebar-expand') : t('sidebar-collapse')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-
-          {/* Brand section */}
-          {!isSidebarCollapsed && (
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
-                <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
-              </div>
-              <div>
-                <h1 className="gba:font-semibold gba:text-foreground">{t('sidebar-brand-title')}</h1>
-                <p className="gba:text-xs gba:text-muted-foreground">{t('sidebar-brand-subtitle')}</p>
-              </div>
-            </div>
-          )}
-          {isSidebarCollapsed && (
-            <div className="gba:flex gba:justify-center">
-              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
-                <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* New Button */}
-        <div className={isSidebarCollapsed ? 'gba:p-2' : 'gba:p-3'}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-600 gba:text-white hover:gba:from-amber-600 hover:gba:to-orange-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
-              >
-                <Plus className="gba:w-4 gba:h-4" />
-                {!isSidebarCollapsed && t('sidebar-new')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="gba:w-56">
-              <DropdownMenuItem onClick={() => handleCreateNew()}>
-                <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-amber-500" />
-                <div>
-                  <div className="gba:font-medium">{t('menu-new-text-title')}</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-text-description')}</div>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleCreateNew({ noteType: 'handwriting', paperStyle: 'lined' })}>
-                <PenTool className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
-                <div>
-                  <div className="gba:font-medium">{t('menu-new-handwriting-title')}</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-handwriting-description')}</div>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleCreateNew({ color: 'yellow' })}>
-                <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
-                <div>
-                  <div className="gba:font-medium">{t('menu-new-template-title')}</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-template-description')}</div>
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Navigation */}
-        <nav className="gba:flex-1 gba:overflow-y-auto gba:px-2 gba:py-2">
-          <div className="gba:space-y-1">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setActiveSection('home')}
-                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                      activeSection === 'home'
-                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                    }`}
-                  >
-                    <Home className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && t('sidebar-home')}
-                  </button>
-                </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-home')}</TooltipContent>}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setActiveSection('my-notes')}
-                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                      activeSection === 'my-notes'
-                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                    }`}
-                  >
-                    <FolderClosed className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && t('sidebar-my-items')}
-                  </button>
-                </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-my-items')}</TooltipContent>}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setActiveSection('shared')}
-                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                      activeSection === 'shared'
-                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                    }`}
-                  >
-                    <Users className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && (
-                      <>
-                        {t('sidebar-shared')}
-                        {sharedNotes.length > 0 && (
-                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                            {sharedNotes.length}
-                          </Badge>
-                        )}
-                      </>
-                    )}
-                  </button>
-                </TooltipTrigger>
-                {isSidebarCollapsed && (
-                  <TooltipContent side="right">
-                    {t('sidebar-shared')} {sharedNotes.length > 0 && `(${sharedNotes.length})`}
-                  </TooltipContent>
-                )}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setActiveSection('pinned')}
-                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                      activeSection === 'pinned'
-                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                    }`}
-                  >
-                    <Pin className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && (
-                      <>
-                        {t('sidebar-pinned')}
-                        {pinnedNotes.length > 0 && (
-                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                            {pinnedNotes.length}
-                          </Badge>
-                        )}
-                      </>
-                    )}
-                  </button>
-                </TooltipTrigger>
-                {isSidebarCollapsed && (
-                  <TooltipContent side="right">
-                    {t('sidebar-pinned')} {pinnedNotes.length > 0 && `(${pinnedNotes.length})`}
-                  </TooltipContent>
-                )}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setActiveSection('recent')}
-                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                      activeSection === 'recent'
-                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                    }`}
-                  >
-                    <Clock className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && t('sidebar-recent')}
-                  </button>
-                </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-recent')}</TooltipContent>}
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setActiveSection('archived')}
-                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
-                      activeSection === 'archived'
-                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-                    }`}
-                  >
-                    <Archive className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && t('sidebar-archived')}
-                  </button>
-                </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-archived')}</TooltipContent>}
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-
-          {!isSidebarCollapsed && (
-            <div className="gba:mt-6 gba:pt-4 gba:border-t">
-              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
-                {t('sidebar-storage')}
-              </p>
-              <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                  <Database className="gba:w-4 gba:h-4 gba:text-amber-500" />
-                  <span className="gba:text-xs gba:text-muted-foreground">{t('sidebar-storage-cloud')}</span>
-                </div>
-                <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                  <div
-                    className="gba:h-full gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-500 gba:rounded-full"
-                    style={{ width: `${Math.min((notes.length / 50) * 100, 100)}%` }}
-                  />
-                </div>
-                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
-                  {t('sidebar-storage-notes', { count: notes.length })}
-                </p>
-              </div>
-            </div>
-          )}
-          {isSidebarCollapsed && (
-            <div className="gba:mt-6 gba:pt-4 gba:border-t gba:flex gba:justify-center">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="gba:p-2">
-                      <Database className="gba:w-4 gba:h-4 gba:text-amber-500" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <div>
-                      <p className="gba:font-medium">{t('sidebar-storage-cloud')}</p>
-                      <p className="gba:text-xs gba:text-muted-foreground">
-                        {t('sidebar-storage-notes', { count: notes.length })}
-                      </p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          )}
-        </nav>
-      </aside>
-
-      {/* Main Content */}
-      <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:overflow-hidden">
-        {/* Header */}
-        <header className="gba:border-b gba:bg-card">
-          <div className="gba:px-6 gba:py-4">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:flex gba:items-center gba:gap-4">
-                <h2 className="gba:text-xl gba:font-semibold">{getSectionTitle()}</h2>
-                {filteredNotes.length > 0 && (
+                  </>
+                ) : (
                   <>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="gba:gap-1">
-                          <ArrowUpDown className="gba:w-4 gba:h-4" />
-                          {t('header-sort')}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSortBy('name')
-                            setSortOrder('asc')
-                          }}
-                        >
-                          {sortBy === 'name' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                          {t('sort-name')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSortBy('modified')
-                            setSortOrder('desc')
-                          }}
-                        >
-                          {sortBy === 'modified' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                          {t('sort-modified')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSortBy('created')
-                            setSortOrder('desc')
-                          }}
-                        >
-                          {sortBy === 'created' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                          {t('sort-created')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button variant="ghost" size="sm" onClick={() => refreshNotes()}>
-                      <RefreshCw className="gba:w-4 gba:h-4" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => refreshNotes()}
+                      className="gba:gap-1.5 gba:h-7 gba:text-xs"
+                      data-testid={`${testId}-refresh`}
+                    >
+                      <RefreshCw className="gba:w-3.5 gba:h-3.5" />
+                      {t('nh-refresh')}
                     </Button>
+
+                    <div className="gba:ml-auto gba:flex gba:items-center gba:gap-1.5">
+                      {/* Sort controls pill */}
+                      <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:px-1 gba:py-0.5">
+                        <select
+                          value={sortBy}
+                          onChange={e => setSortBy(e.target.value as 'name' | 'modified' | 'created')}
+                          className="gba:text-xs gba:bg-transparent gba:border-0 gba:pr-1 gba:py-0.5 gba:text-muted-foreground gba:cursor-pointer focus:gba:outline-none"
+                          data-testid={`${testId}-sort-select`}
+                        >
+                          <option value="modified">{t('sort-modified')}</option>
+                          <option value="name">{t('sort-name')}</option>
+                          <option value="created">{t('sort-created')}</option>
+                        </select>
+                        <div className="gba:w-px gba:h-4 gba:bg-border/50" />
+                        <button
+                          onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                          className="gba:p-1 gba:rounded hover:gba:bg-accent gba:text-muted-foreground gba:transition-colors"
+                          data-testid={`${testId}-sort-order`}
+                        >
+                          {sortOrder === 'asc' ? (
+                            <SortAsc className="gba:w-3.5 gba:h-3.5" />
+                          ) : (
+                            <SortDesc className="gba:w-3.5 gba:h-3.5" />
+                          )}
+                        </button>
+                      </div>
+
+                      {/* View mode toggle pill */}
+                      <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:p-0.5">
+                        <button
+                          onClick={() => setViewLayout('list')}
+                          className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'list' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                          data-testid={`${testId}-view-list`}
+                        >
+                          <List className="gba:w-3.5 gba:h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setViewLayout('grid')}
+                          className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'grid' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                          data-testid={`${testId}-view-grid`}
+                        >
+                          <LayoutGrid className="gba:w-3.5 gba:h-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
-
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <div className="gba:relative">
-                  <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                  <Input
-                    placeholder={t('header-search-placeholder')}
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="gba:pl-9 gba:w-64 gba:h-9"
-                  />
-                </div>
-                <div className="gba:flex gba:items-center gba:border gba:rounded-md">
-                  <Button
-                    variant={viewLayout === 'list' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewLayout('list')}
-                    className="gba:rounded-r-none"
-                  >
-                    <List className="gba:w-4 gba:h-4" />
-                  </Button>
-                  <Button
-                    variant={viewLayout === 'grid' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewLayout('grid')}
-                    className="gba:rounded-l-none"
-                  >
-                    <LayoutGrid className="gba:w-4 gba:h-4" />
-                  </Button>
-                </div>
-              </div>
             </div>
           </div>
-        </header>
 
-        {/* Content Area */}
-        <div className="gba:flex-1 gba:overflow-auto">
-          {/* Loading state */}
-          {isLoadingNotes && (
-            <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
-              <Spinner size="lg" />
-            </div>
-          )}
-
-          {/* Error state */}
-          {notesError && (
-            <div className="gba:p-6">
-              <Card className="gba:p-6 gba:text-center">
-                <p className="gba:text-destructive">{notesError}</p>
-              </Card>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!isLoadingNotes && !notesError && filteredNotes.length === 0 && (
-            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
-              <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-amber-500/20 gba:to-orange-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
-                <StickyNote className="gba:w-12 gba:h-12 gba:text-amber-500" />
+          <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+            {/* Loading state */}
+            {isLoadingNotes && (
+              <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+                <Spinner size="lg" />
               </div>
-              <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
-                {activeSection === 'pinned'
-                  ? t('empty-pinned-title')
-                  : activeSection === 'shared'
-                    ? t('empty-shared-title')
-                    : activeSection === 'archived'
-                      ? t('empty-archived-title')
-                      : t('empty-default-title')}
-              </h3>
-              <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
-                {activeSection === 'pinned'
-                  ? t('empty-pinned-description')
-                  : activeSection === 'shared'
-                    ? t('empty-shared-description')
-                    : activeSection === 'archived'
-                      ? t('empty-archived-description')
-                      : t('empty-default-description')}
-              </p>
-              {activeSection !== 'pinned' && activeSection !== 'shared' && activeSection !== 'archived' && (
-                <Button onClick={() => handleCreateNew()}>
-                  <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('empty-create-note')}
-                </Button>
-              )}
-            </div>
-          )}
+            )}
 
-          {/* List View */}
-          {!isLoadingNotes && filteredNotes.length > 0 && viewLayout === 'list' && (
-            <div className="gba:w-full">
-              {/* Table Header */}
-              <div className="gba:sticky gba:top-0 gba:bg-muted/50 gba:border-b gba:z-10">
-                <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
-                  <div className="gba:w-8 gba:flex-shrink-0">
-                    <Checkbox
-                      checked={selectedNotes.size === paginatedNotes.length && paginatedNotes.length > 0}
-                      onCheckedChange={selectAllNotes}
-                    />
+            {/* Error state */}
+            {notesError && (
+              <div className="gba:p-6">
+                <Card className="gba:p-6 gba:text-center">
+                  <p className="gba:text-destructive">{notesError}</p>
+                </Card>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!isLoadingNotes && !notesError && filteredNotes.length === 0 && (
+              <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
+                <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-amber-500/20 gba:to-orange-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
+                  <StickyNote className="gba:w-12 gba:h-12 gba:text-amber-500" />
+                </div>
+                <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
+                  {activeSection === 'pinned'
+                    ? t('empty-pinned-title')
+                    : activeSection === 'shared'
+                      ? t('empty-shared-title')
+                      : activeSection === 'archived'
+                        ? t('empty-archived-title')
+                        : t('empty-default-title')}
+                </h3>
+                <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
+                  {activeSection === 'pinned'
+                    ? t('empty-pinned-description')
+                    : activeSection === 'shared'
+                      ? t('empty-shared-description')
+                      : activeSection === 'archived'
+                        ? t('empty-archived-description')
+                        : t('empty-default-description')}
+                </p>
+                {activeSection !== 'pinned' && activeSection !== 'shared' && activeSection !== 'archived' && (
+                  <Button onClick={() => handleCreateNew()}>
+                    <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('empty-create-note')}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* List View */}
+            {!isLoadingNotes && filteredNotes.length > 0 && viewLayout === 'list' && (
+              <div className="gba:w-full">
+                {/* Table Header */}
+                <div className="gba:sticky gba:top-0 gba:bg-muted/50 gba:border-b gba:z-10">
+                  <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
+                    <div className="gba:w-8 gba:flex-shrink-0">
+                      <Checkbox
+                        checked={selectedNotes.size === paginatedNotes.length && paginatedNotes.length > 0}
+                        onCheckedChange={selectAllNotes}
+                      />
+                    </div>
+                    <div className="gba:w-8 gba:flex-shrink-0" />
+                    <div
+                      className="gba:flex-1 gba:min-w-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
+                      onClick={() => {
+                        setSortBy('name')
+                        setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
+                      }}
+                    >
+                      {t('sort-name')}
+                      {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                    </div>
+                    <div
+                      className="gba:w-36 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
+                      onClick={() => {
+                        setSortBy('modified')
+                        setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
+                      }}
+                    >
+                      {t('sort-modified')}
+                      {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                    </div>
+                    <div className="gba:w-40 gba:flex-shrink-0">{t('table-owner')}</div>
+                    <div
+                      className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
+                      onClick={() => {
+                        setSortBy('created')
+                        setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
+                      }}
+                    >
+                      {t('sort-created')}
+                      {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                    </div>
+                    <div className="gba:w-10 gba:flex-shrink-0" />
                   </div>
-                  <div className="gba:w-8 gba:flex-shrink-0" />
-                  <div
-                    className="gba:flex-1 gba:min-w-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                    onClick={() => {
-                      setSortBy('name')
-                      setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
-                    }}
-                  >
-                    {t('sort-name')}
-                    {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
-                  </div>
-                  <div
-                    className="gba:w-36 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                    onClick={() => {
-                      setSortBy('modified')
-                      setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
-                    }}
-                  >
-                    {t('sort-modified')}
-                    {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
-                  </div>
-                  <div className="gba:w-40 gba:flex-shrink-0">{t('table-owner')}</div>
-                  <div
-                    className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                    onClick={() => {
-                      setSortBy('created')
-                      setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
-                    }}
-                  >
-                    {t('sort-created')}
-                    {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
-                  </div>
-                  <div className="gba:w-10 gba:flex-shrink-0" />
+                </div>
+
+                {/* Table Body */}
+                <div className="gba:divide-y gba:divide-border">
+                  {paginatedNotes.map(note => {
+                    const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
+                    const isSelected = selectedNotes.has(note.id)
+                    const isFavorite = favorites.has(note.id)
+                    const ownerInfo = note.ownerId ? ownerInfoMap.get(note.ownerId) : undefined
+                    const sharedWith = sharedUsersMap[note.id] || []
+
+                    return (
+                      <div
+                        key={note.id}
+                        className={`gba:flex gba:items-center gba:px-4 gba:py-3 gba:transition-colors gba:cursor-pointer ${
+                          isSelected ? 'gba:bg-primary/5' : 'hover:gba:bg-muted/30'
+                        }`}
+                        onClick={() => handleOpenNote(note.id)}
+                      >
+                        {/* Checkbox */}
+                        <div className="gba:w-8 gba:flex-shrink-0" onClick={e => e.stopPropagation()}>
+                          <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectNote(note.id)} />
+                        </div>
+
+                        {/* Star */}
+                        <div className="gba:w-8 gba:flex-shrink-0">
+                          <button
+                            onClick={e => toggleFavorite(note.id, e)}
+                            className={`gba:p-1 gba:rounded hover:gba:bg-muted ${isFavorite ? 'gba:text-amber-500' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                          >
+                            <Star className={`gba:w-4 gba:h-4 ${isFavorite ? 'gba:fill-current' : ''}`} />
+                          </button>
+                        </div>
+
+                        {/* Name & Icon */}
+                        <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
+                          <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-amber-500/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+                            {note.noteType === 'handwriting' ||
+                            (note.contentJson as { _noteType?: string } | undefined)?._noteType === 'handwriting' ? (
+                              <PenTool className="gba:w-5 gba:h-5 gba:text-amber-600" />
+                            ) : (
+                              <span className="gba:text-lg">{note.icon || '📝'}</span>
+                            )}
+                          </div>
+                          <div className="gba:min-w-0">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <span className="gba:font-medium gba:text-foreground gba:truncate">
+                                {note.title || t('title-untitled')}
+                              </span>
+                              {note.isPinned && <Pin className="gba:w-3 gba:h-3 gba:text-amber-500" />}
+                              {note.isShared && !isOwner && (
+                                <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+                                  {t('label-shared')}
+                                </Badge>
+                              )}
+                              {isOwner && sharedWith.length > 0 && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          handleShareNote(note.id)
+                                        }}
+                                        className="gba:flex gba:items-center gba:-space-x-1 hover:gba:opacity-80 gba:transition-opacity"
+                                      >
+                                        {sharedWith.slice(0, 3).map(user => (
+                                          <Avatar
+                                            key={user.userId}
+                                            className="gba:w-5 gba:h-5 gba:border gba:border-background"
+                                          >
+                                            {user.userAvatar && <AvatarImage src={user.userAvatar} />}
+                                            <AvatarFallback className="gba:text-[8px] gba:bg-muted">
+                                              {user.userName ? getInitials(user.userName) : '?'}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                        ))}
+                                        {sharedWith.length > 3 && (
+                                          <div className="gba:w-5 gba:h-5 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-[8px] gba:border gba:border-background">
+                                            +{sharedWith.length - 3}
+                                          </div>
+                                        )}
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{t('shared-with-count', { count: sharedWith.length })}</p>
+                                      <p className="gba:text-xs gba:text-muted-foreground">
+                                        {t('shared-click-manage')}
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
+                            {note.preview && (
+                              <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{note.preview}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Modified */}
+                        <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
+                          {formatDate(note.updatedAt, t)}
+                        </div>
+
+                        {/* Owner */}
+                        <div className="gba:w-40 gba:flex-shrink-0">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <Avatar className="gba:w-6 gba:h-6">
+                              {ownerInfo?.avatar && <AvatarImage src={ownerInfo.avatar} />}
+                              <AvatarFallback className="gba:text-[10px] gba:bg-muted">
+                                {ownerInfo?.name ? getInitials(ownerInfo.name) : <User className="gba:w-3 gba:h-3" />}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
+                              {isOwner ? t('owner-you') : ownerInfo?.name || t('owner-unknown')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Created */}
+                        <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
+                          {formatDate(note.createdAt, t)}
+                        </div>
+
+                        {/* Actions */}
+                        <div
+                          className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
+                                <MoreHorizontal className="gba:w-4 gba:h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleOpenNote(note.id)}>
+                                <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
+                                {t('menu-open')}
+                              </DropdownMenuItem>
+                              {isOwner && (
+                                <DropdownMenuItem onClick={() => handleShareNote(note.id)}>
+                                  <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                  {t('menu-share')}
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => copyLink(note)}>
+                                <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                {t('menu-copy-link')}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDuplicateNote(note.id)}>
+                                <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
+                                {t('menu-duplicate')}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleTogglePin(note.id)}>
+                                <Pin
+                                  className={`gba:w-4 gba:h-4 gba:mr-2 ${note.isPinned ? 'gba:fill-current gba:text-amber-500' : ''}`}
+                                />
+                                {note.isPinned ? t('menu-unpin') : t('menu-pin')}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => toggleFavorite(note.id)}>
+                                <Star
+                                  className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
+                                />
+                                {isFavorite ? t('menu-remove-favorite') : t('menu-add-favorite')}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleArchiveNote(note.id)}>
+                                <Archive className="gba:w-4 gba:h-4 gba:mr-2" />
+                                {t('menu-archive')}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="gba:text-destructive"
+                                onClick={() => handleDeleteNote(note.id)}
+                              >
+                                <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                {t('menu-delete')}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
+            )}
 
-              {/* Table Body */}
-              <div className="gba:divide-y gba:divide-border">
+            {/* Grid View */}
+            {!isLoadingNotes && filteredNotes.length > 0 && viewLayout === 'grid' && (
+              <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
                 {paginatedNotes.map(note => {
                   const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
                   const isSelected = selectedNotes.has(note.id)
                   const isFavorite = favorites.has(note.id)
-                  const ownerInfo = note.ownerId ? ownerInfoMap.get(note.ownerId) : undefined
-                  const sharedWith = sharedUsersMap[note.id] || []
 
                   return (
-                    <div
+                    <Card
                       key={note.id}
-                      className={`gba:flex gba:items-center gba:px-4 gba:py-3 gba:transition-colors gba:cursor-pointer ${
-                        isSelected ? 'gba:bg-primary/5' : 'hover:gba:bg-muted/30'
+                      className={`gba:group gba:cursor-pointer gba:transition-all hover:gba:shadow-lg ${
+                        isSelected ? 'gba:ring-2 gba:ring-primary' : ''
                       }`}
                       onClick={() => handleOpenNote(note.id)}
                     >
-                      {/* Checkbox */}
-                      <div className="gba:w-8 gba:flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectNote(note.id)} />
-                      </div>
+                      {/* Preview area */}
+                      <div className="gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:from-amber-500/10 gba:to-orange-500/10 gba:flex gba:items-center gba:justify-center gba:rounded-t-lg">
+                        {note.noteType === 'handwriting' ||
+                        (note.contentJson as { _noteType?: string } | undefined)?._noteType === 'handwriting' ? (
+                          <PenTool className="gba:w-12 gba:h-12 gba:text-amber-600" />
+                        ) : (
+                          <span className="gba:text-4xl">{note.icon || '📝'}</span>
+                        )}
 
-                      {/* Star */}
-                      <div className="gba:w-8 gba:flex-shrink-0">
+                        {/* Hover overlay */}
+                        <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />
+
+                        {/* Selection checkbox */}
+                        <div
+                          className={`gba:absolute gba:top-2 gba:left-2 gba:opacity-0 group-hover:gba:opacity-100 ${isSelected ? 'gba:opacity-100' : ''} gba:transition-opacity`}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSelectNote(note.id)}
+                            className="gba:bg-background"
+                          />
+                        </div>
+
+                        {/* Favorite star */}
                         <button
+                          className={`gba:absolute gba:top-2 gba:right-2 gba:p-1.5 gba:rounded-full gba:bg-background/80 gba:backdrop-blur-sm gba:opacity-0 group-hover:gba:opacity-100 ${isFavorite ? 'gba:opacity-100 gba:text-amber-500' : 'gba:text-muted-foreground hover:gba:text-foreground'} gba:transition-all`}
                           onClick={e => toggleFavorite(note.id, e)}
-                          className={`gba:p-1 gba:rounded hover:gba:bg-muted ${isFavorite ? 'gba:text-amber-500' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
                         >
                           <Star className={`gba:w-4 gba:h-4 ${isFavorite ? 'gba:fill-current' : ''}`} />
                         </button>
+
+                        {/* Pinned badge */}
+                        {note.isPinned && (
+                          <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
+                            <Pin className="gba:w-3 gba:h-3 gba:mr-1" />
+                            {t('sidebar-pinned')}
+                          </Badge>
+                        )}
+
+                        {/* Shared badge */}
+                        {note.isShared && !isOwner && (
+                          <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
+                            <Users className="gba:w-3 gba:h-3 gba:mr-1" />
+                            {t('label-shared')}
+                          </Badge>
+                        )}
                       </div>
 
-                      {/* Name & Icon */}
-                      <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
-                        <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-amber-500/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                          {note.noteType === 'handwriting' ||
-                          (note.contentJson as { _noteType?: string } | undefined)?._noteType === 'handwriting' ? (
-                            <PenTool className="gba:w-5 gba:h-5 gba:text-amber-600" />
-                          ) : (
-                            <span className="gba:text-lg">{note.icon || '📝'}</span>
-                          )}
-                        </div>
-                        <div className="gba:min-w-0">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <span className="gba:font-medium gba:text-foreground gba:truncate">
-                              {note.title || t('title-untitled')}
-                            </span>
-                            {note.isPinned && <Pin className="gba:w-3 gba:h-3 gba:text-amber-500" />}
-                            {note.isShared && !isOwner && (
-                              <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                {t('label-shared')}
-                              </Badge>
-                            )}
-                            {isOwner && sharedWith.length > 0 && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={e => {
-                                        e.stopPropagation()
-                                        handleShareNote(note.id)
-                                      }}
-                                      className="gba:flex gba:items-center gba:-space-x-1 hover:gba:opacity-80 gba:transition-opacity"
-                                    >
-                                      {sharedWith.slice(0, 3).map(user => (
-                                        <Avatar
-                                          key={user.userId}
-                                          className="gba:w-5 gba:h-5 gba:border gba:border-background"
-                                        >
-                                          {user.userAvatar && <AvatarImage src={user.userAvatar} />}
-                                          <AvatarFallback className="gba:text-[8px] gba:bg-muted">
-                                            {user.userName ? getInitials(user.userName) : '?'}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                      ))}
-                                      {sharedWith.length > 3 && (
-                                        <div className="gba:w-5 gba:h-5 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-[8px] gba:border gba:border-background">
-                                          +{sharedWith.length - 3}
-                                        </div>
-                                      )}
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>{t('shared-with-count', { count: sharedWith.length })}</p>
-                                    <p className="gba:text-xs gba:text-muted-foreground">{t('shared-click-manage')}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-                          </div>
-                          {note.preview && (
-                            <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{note.preview}</p>
-                          )}
+                      {/* Info */}
+                      <div className="gba:p-3">
+                        <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">
+                          {note.title || t('title-untitled')}
+                        </h3>
+                        <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
+                          <span>{formatRelativeTime(note.updatedAt, t)}</span>
                         </div>
                       </div>
-
-                      {/* Modified */}
-                      <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                        {formatDate(note.updatedAt, t)}
-                      </div>
-
-                      {/* Owner */}
-                      <div className="gba:w-40 gba:flex-shrink-0">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Avatar className="gba:w-6 gba:h-6">
-                            {ownerInfo?.avatar && <AvatarImage src={ownerInfo.avatar} />}
-                            <AvatarFallback className="gba:text-[10px] gba:bg-muted">
-                              {ownerInfo?.name ? getInitials(ownerInfo.name) : <User className="gba:w-3 gba:h-3" />}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                            {isOwner ? t('owner-you') : ownerInfo?.name || t('owner-unknown')}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Created */}
-                      <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                        {formatDate(note.createdAt, t)}
-                      </div>
-
-                      {/* Actions */}
-                      <div
-                        className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
-                              <MoreHorizontal className="gba:w-4 gba:h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleOpenNote(note.id)}>
-                              <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                              {t('menu-open')}
-                            </DropdownMenuItem>
-                            {isOwner && (
-                              <DropdownMenuItem onClick={() => handleShareNote(note.id)}>
-                                <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                {t('menu-share')}
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem onClick={() => copyLink(note)}>
-                              <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                              {t('menu-copy-link')}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDuplicateNote(note.id)}>
-                              <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                              {t('menu-duplicate')}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleTogglePin(note.id)}>
-                              <Pin
-                                className={`gba:w-4 gba:h-4 gba:mr-2 ${note.isPinned ? 'gba:fill-current gba:text-amber-500' : ''}`}
-                              />
-                              {note.isPinned ? t('menu-unpin') : t('menu-pin')}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toggleFavorite(note.id)}>
-                              <Star
-                                className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
-                              />
-                              {isFavorite ? t('menu-remove-favorite') : t('menu-add-favorite')}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleArchiveNote(note.id)}>
-                              <Archive className="gba:w-4 gba:h-4 gba:mr-2" />
-                              {t('menu-archive')}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="gba:text-destructive"
-                              onClick={() => handleDeleteNote(note.id)}
-                            >
-                              <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                              {t('menu-delete')}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
+                    </Card>
                   )
                 })}
               </div>
-            </div>
-          )}
-
-          {/* Grid View */}
-          {!isLoadingNotes && filteredNotes.length > 0 && viewLayout === 'grid' && (
-            <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
-              {paginatedNotes.map(note => {
-                const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
-                const isSelected = selectedNotes.has(note.id)
-                const isFavorite = favorites.has(note.id)
-
-                return (
-                  <Card
-                    key={note.id}
-                    className={`gba:group gba:cursor-pointer gba:transition-all hover:gba:shadow-lg ${
-                      isSelected ? 'gba:ring-2 gba:ring-primary' : ''
-                    }`}
-                    onClick={() => handleOpenNote(note.id)}
-                  >
-                    {/* Preview area */}
-                    <div className="gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:from-amber-500/10 gba:to-orange-500/10 gba:flex gba:items-center gba:justify-center gba:rounded-t-lg">
-                      {note.noteType === 'handwriting' ||
-                      (note.contentJson as { _noteType?: string } | undefined)?._noteType === 'handwriting' ? (
-                        <PenTool className="gba:w-12 gba:h-12 gba:text-amber-600" />
-                      ) : (
-                        <span className="gba:text-4xl">{note.icon || '📝'}</span>
-                      )}
-
-                      {/* Hover overlay */}
-                      <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />
-
-                      {/* Selection checkbox */}
-                      <div
-                        className={`gba:absolute gba:top-2 gba:left-2 gba:opacity-0 group-hover:gba:opacity-100 ${isSelected ? 'gba:opacity-100' : ''} gba:transition-opacity`}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleSelectNote(note.id)}
-                          className="gba:bg-background"
-                        />
-                      </div>
-
-                      {/* Favorite star */}
-                      <button
-                        className={`gba:absolute gba:top-2 gba:right-2 gba:p-1.5 gba:rounded-full gba:bg-background/80 gba:backdrop-blur-sm gba:opacity-0 group-hover:gba:opacity-100 ${isFavorite ? 'gba:opacity-100 gba:text-amber-500' : 'gba:text-muted-foreground hover:gba:text-foreground'} gba:transition-all`}
-                        onClick={e => toggleFavorite(note.id, e)}
-                      >
-                        <Star className={`gba:w-4 gba:h-4 ${isFavorite ? 'gba:fill-current' : ''}`} />
-                      </button>
-
-                      {/* Pinned badge */}
-                      {note.isPinned && (
-                        <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
-                          <Pin className="gba:w-3 gba:h-3 gba:mr-1" />
-                          {t('sidebar-pinned')}
-                        </Badge>
-                      )}
-
-                      {/* Shared badge */}
-                      {note.isShared && !isOwner && (
-                        <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
-                          <Users className="gba:w-3 gba:h-3 gba:mr-1" />
-                          {t('label-shared')}
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="gba:p-3">
-                      <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">
-                        {note.title || t('title-untitled')}
-                      </h3>
-                      <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                        <span>{formatRelativeTime(note.updatedAt, t)}</span>
-                      </div>
-                    </div>
-                  </Card>
-                )
-              })}
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Pagination */}
         {!isLoadingNotes && filteredNotes.length > 0 && (
-          <HubPaginationFooter
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            pageSize={pageSize}
-            onPageChange={goToPage}
-            data-testid={`${testId}-pagination`}
-          />
+          <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+            <HubPaginationFooter
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={goToPage}
+              data-testid={`${testId}-pagination`}
+            />
+          </div>
         )}
       </main>
 

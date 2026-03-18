@@ -15,5 +15,6 @@ export type {
   ExpressionSuggestionItem,
   ExpressionSuggestionCategory,
   ExpressionPillData,
-  ExpressionEditorProps
+  ExpressionEditorProps,
+  ExpressionEditorHandle
 } from './types/expressionTypes'

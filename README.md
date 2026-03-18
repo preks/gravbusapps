@@ -42,14 +42,15 @@ This project uses the `@newwork/cursor-rules` package for centralized AI rules a
 
 ### Automatic Sync
 
-Rules are automatically synced from the package on `npm install` via the postinstall script. No manual action required.
+Rules are automatically synced from `@newwork/cursor-rules` on `npm install` via the package's own postinstall hook.
+This repo's `postinstall` only configures Git hooks via `newwork-git-hooks`.
 
 ### Configuration
 
 Rule configuration is in `cursor-rules.config.cjs`:
 
-- **Preset**: `business-apps`
-- **Modules**: CRM, HR, FIN, MDM, IRM
+- **Preset ID**: `business-apps`
+- **Subscriptions**: `base`, `react`, `typescript`, `api`, `process`, `remote`, `crm`, `hr`, `fin`
 - **Tailwind Prefix**: `gba:`
 - **Design System**: `@newwork/nw-design-system`
 

@@ -1,3 +1,14 @@
+# Hero
+slh-parent-label = Every Office
+slh-title = Prezentări
+slh-tabs-aria-label = Secțiuni prezentări
+slh-tab-my-slides = Prezentările mele
+slh-tab-shared = Partajate
+slh-tab-favorites = Favorite
+slh-tab-recent = Recente
+slh-tab-archived = Arhivate
+slh-refresh = Reîmprospătează
+
 sidebar-back-to-desk = Înapoi la birou
 sidebar-expand = Extinde panoul lateral
 sidebar-collapse = Restrânge panoul lateral
@@ -65,6 +76,8 @@ toast-favorite-removed = Eliminat din favorite
 toast-favorite-added = Adăugat la favorite
 toast-imported-slides = Importate { $count } slide-uri
 toast-import-failed = Import PowerPoint eșuat
+toast-template-matched = Se folosește șablonul: { $name }
+toast-template-applied = Șablon aplicat
 
 # Editor
 editor-slide-saved = Slide salvat
@@ -133,6 +146,7 @@ editor-add = Adăugare
 editor-duplicate-slide = Duplicare slide
 editor-delete-slide = Ștergere slide
 editor-properties = Proprietăți
+editor-show-properties = Afișare Proprietăți
 editor-select-element = Selectați un element pentru a edita proprietățile
 editor-edit-text = Editare text
 editor-done = Gata
@@ -275,14 +289,47 @@ generate-references-optional = (opțional)
 generate-additional-instructions = Instrucțiuni suplimentare
 generate-requirements-placeholder = Includeți cronologie, text minim per slide, pași următori la final...
 generate-failed = Generare eșuată
+generate-error-validation-hint = Vă rugăm să verificați datele introduse și să încercați din nou.
 generate-research = Cercetare
 generate-generate = Generare
 generate-validate = Validare
 generate-cancel = Anulare
 generate-button = Generare
 generate-generating = Se generează...
+generate-creating-slides = Se creează prezentarea
+generate-ai-working = AI creează slide-uri profesionale...
+generate-use-template = Folosește șablon
+generate-clear-template = Șterge selecția șablonului
+generate-advanced-options = Opțiuni avansate
+generate-style = Stil
+generate-style-professional = Profesional
+generate-style-creative = Creativ
+generate-style-minimal = Minimal
+generate-style-bold = Îndrăzneț
+generate-density = Densitatea conținutului
+generate-density-detailed = Detaliat
+generate-density-balanced = Echilibrat
+generate-density-visual = Vizual
+generate-audience = Public țintă
+generate-audience-executive = Executiv
+generate-audience-technical = Tehnic
+generate-audience-sales = Vânzări
+generate-audience-general = General
+generate-theme-preference = Temă
+generate-theme-auto = Auto
+generate-theme-auto-desc = Detectare automată a temei din materialele de referință
+generate-theme-dark = Întunecată
+generate-theme-dark-desc = Folosește tema întunecată cu text deschis
+generate-theme-light = Deschisă
+generate-theme-light-desc = Folosește tema deschisă cu text închis
+generate-theme-branded = Marcă
+generate-theme-branded-desc = Folosește tema de marcă NEWWORK
+generate-extract-style = Extrage stilul din referințe
 generate-toast-success = Prezentare generată!
 generate-toast-description = Creat { $count } slide-uri
+generate-brand-detected = Brand detectat
+generate-brand-detected-desc = Șablonul de brand va fi aplicat automat
+generate-brand-dismiss = Utilizați alt șablon
 
 # Version History
 version-history-title = Istoric versiuni
@@ -364,6 +411,7 @@ attachment-no-spreadsheets = Niciun tabel disponibil
 attachment-no-slides = Niciun slide disponibil
 attachment-max-references = Maximum { $count } referințe permise
 attachment-helper = Opțional, atașați documente, note sau alt conținut ca referință pentru AI
+attachment-open-new-tab = Deschide în filă nouă
 
 # Gradient Builder
 gradient-quick-presets = Gradienturi rapide
@@ -421,12 +469,16 @@ progress-research-complete = Cercetare completă!
 progress-generating = Prezentarea se generează...
 progress-web-search-failed = Căutarea web a eșuat, continuăm fără date de cercetare
 progress-building = Slide-urile se construiesc...
+progress-checking-templates = Se caută șabloane potrivite...
+progress-using-template = Se folosește șablonul: { $templateName }
+progress-loading-references = Se încarcă materialele de referință...
 
 # SlideGenerationService fallbacks
 generation-option-a = Opțiunea A
 generation-option-b = Opțiunea B
 generation-unknown = Necunoscut
 generation-thank-you = Mulțumim
+generation-agenda = Agendă
 
 # usePowerPointParser
 parser-invalid-type = Tip de fișier invalid. Încărcați un fișier .pptx (PowerPoint 2007 sau mai nou).
@@ -453,3 +505,288 @@ theme-gradient = Gradient Violet
 editor-export-pdf = Exportă ca PDF
 version-load-failed = Nu s-au putut încărca versiunile
 version-number = Versiunea { $number }
+
+# Refine Slide
+refine-button-label = Rafinează
+refine-title = Rafinează slide
+refine-description = Descrieți cum doriți să îmbunătățiți acest slide
+refine-current-slide = Slide curent
+refine-instructions = Ce doriți să schimbați?
+refine-instructions-placeholder = ex., Adăugați un grafic de tip pie, simplificați punctele, faceți-l mai vizual...
+refine-web-search = Caută pe web date actualizate
+refine-web-search-desc = Găsește statistici și informații actuale
+refine-failed = Rafinarea a eșuat
+refine-analyzing = Se analizează slide-ul curent...
+refine-refining = Se rafinează slide-ul...
+refine-building = Se construiește slide-ul rafinat...
+refine-preview = Previzualizare slide rafinat
+refine-cancel = Anulează
+refine-apply = Aplică modificările
+refine-button = Rafinează slide
+refine-refining-button = Se rafinează...
+editor-slide-refined = Slide rafinat cu succes
+
+# Templates
+template-save-button = Salvează ca șablon
+template-save-title = Salvează ca șablon
+template-save-description = Salvează slide-urile curente ca șablon reutilizabil
+template-slides-preview = Slide-uri
+template-name-label = Nume șablon
+template-name-placeholder = ex., Șablon prezentare vânzări
+template-description-label = Descriere
+template-description-placeholder = Descrieți când să utilizați acest șablon...
+template-category-label = Categorie
+template-category-business = Business
+template-category-creative = Creativ
+template-category-minimal = Minimal
+template-category-custom = Personalizat
+template-public-label = Partajează cu organizația
+template-public-description = Fă acest șablon disponibil pentru toți utilizatorii
+template-cancel = Anulează
+template-save-btn = Salvează șablon
+template-saving = Se salvează...
+template-save-error = Nu s-a putut salva șablonul
+template-saved-title = Șablon salvat
+template-saved-description = Șablonul a fost salvat cu succes
+
+template-brand-settings = Setări de brand
+template-brand-company = Nume companie
+template-brand-company-placeholder = ex. NEWWORK
+template-brand-company-required = Numele companiei este obligatoriu pentru șabloanele de brand
+template-brand-keywords = Cuvinte cheie de detectare
+template-brand-keywords-placeholder = ex. newwork, gravity, everyoffice
+template-brand-keywords-help = Cuvinte cheie separate prin virgulă pentru detectarea automată a acestui brand în subiectele prezentărilor
+
+template-browse-button = Șabloane
+template-browser-title = Browser șabloane
+template-browser-description = Alegeți un șablon pentru prezentarea dvs.
+template-tab-all = Toate
+template-category-branded = Șabloane de brand
+template-tab-my-templates = Șabloanele mele
+template-search-placeholder = Caută șabloane...
+template-loading = Se încarcă șabloanele...
+template-empty-title = Niciun șablon găsit
+template-empty-search = Încercați un alt termen de căutare
+template-empty-description = Creați primul șablon pentru a începe
+template-selected = Selectat
+template-select-hint = Selectați un șablon pentru a continua
+template-apply-btn = Folosește șablon
+template-applying = Se aplică...
+template-applied-title = Șablon aplicat
+template-applied-description = Șablonul a fost adăugat la prezentarea dvs.
+
+template-public = Public
+template-private = Privat
+template-ai-optimized = Șablon optimizat AI cu scopuri definite pentru slide-uri
+template-delete = Șterge
+template-delete-confirm = Ștergeți acest șablon?
+template-delete-title = Ștergere șablon
+template-delete-message = Sunteți sigur că doriți să ștergeți „{ $name }"? Această acțiune nu poate fi anulată.
+template-deleted-title = Șablon șters
+template-deleted-description = „{ $name }" a fost șters.
+template-delete-error-title = Ștergere eșuată
+template-delete-error-description = Șablonul nu a putut fi șters. Vă rugăm să încercați din nou.
+
+# Voice Input
+editor-voice-listening = Ascultare... Vorbiți acum
+editor-voice-not-supported = Introducerea vocală nu este suportată în acest browser
+editor-voice-start = Pornește introducerea vocală
+editor-voice-stop = Oprește introducerea vocală
+editor-voice-recognizing = Se recunoaște
+editor-voice-recording = Înregistrare...
+editor-voice-hint = Sfat: Apăsați "Introducere vocală" pentru a dicta
+editor-text-placeholder = Introduceți textul aici...
+
+# Spell Check
+spell-check-button = Verificare ortografică
+spell-check-panel-title = Verificare ortografică și gramaticală
+spell-check-checking = Se verifică...
+spell-check-recheck = Verifică din nou
+spell-check-no-issues = Nicio problemă găsită
+spell-check-all-good = Tot textul este corect!
+spell-check-not-checked = Apăsați pentru a verifica prezentarea
+spell-check-click-to-start = Apăsați butonul de mai sus pentru a începe verificarea
+spell-check-issues-found = { $count ->
+    [one] { $count } problemă găsită
+    [few] { $count } probleme găsite
+   *[other] { $count } de probleme găsite
+}
+spell-check-slide = Slide { $number }
+spell-check-accept = Acceptă
+spell-check-ignore = Ignoră
+spell-check-ignore-all = Ignoră toate
+spell-check-suggestion = Sugestie:
+spell-check-add-to-dictionary = Adaugă în dicționar
+spell-check-error = Verificarea ortografică a eșuat. Asigurați-vă că Document Reviewer este configurat.
+spell-check-browser-mode = Folosind verificare de bază (bazată pe dicționar)
+
+# Hyperlinks
+link-add = Adaugă link
+link-edit = Editează link
+link-remove = Elimină link
+link-url-label = URL
+link-url-placeholder = https://exemplu.ro
+link-url-required = URL este obligatoriu
+link-url-invalid = URL invalid
+link-click-to-open = Click pentru a deschide
+link-selected-text = Text selectat
+link-cancel = Anulează
+link-update = Actualizează
+link-add-btn = Adaugă link
+
+# Tranziții Slide
+transition-title = Tranziție Slide
+transition-type = Tip
+transition-none = Fără
+transition-fade = Estompare
+transition-slide-left = Glisare stânga
+transition-slide-right = Glisare dreapta
+transition-slide-up = Glisare sus
+transition-slide-down = Glisare jos
+transition-push-left = Împinge stânga
+transition-push-right = Împinge dreapta
+transition-zoom-in = Mărire
+transition-zoom-out = Micșorare
+transition-flip = Întoarcere
+transition-cube = Cub
+transition-dissolve = Dizolvare
+transition-duration = Durată
+transition-trigger = Declanșator
+transition-trigger-click = La click
+transition-trigger-auto = Automat
+transition-delay = Întârziere
+transition-preview = Previzualizare
+
+# Bară de instrumente Panglică
+ribbon-tab-home = Pornire
+ribbon-tab-insert = Inserare
+ribbon-tab-slideshow = Prezentare
+ribbon-aria-label = Bara de instrumente editor slide
+
+# Indicii bara de instrumente
+toolbar-select-element-hint = Selectați un element pentru formatare
+toolbar-video-hint = Folosiți panoul de proprietăți pentru a edita video
+toolbar-code-hint = Folosiți panoul de proprietăți pentru a edita codul
+toolbar-multi-hint = { $count } elemente selectate
+
+# Etichete de formatare
+editor-undo = Anulare
+editor-redo = Refacere
+editor-copy = Copiere
+editor-paste = Lipire
+editor-bold = Îngroșat
+editor-italic = Înclinat
+editor-underline = Subliniat
+editor-strikethrough = Tăiat
+editor-align-left = Aliniere stânga
+editor-align-center = Aliniere centru
+editor-align-right = Aliniere dreapta
+editor-text-color = Culoare text
+editor-link = Link
+editor-code-placeholder = // Cod aici
+
+# Grupuri tab Inserare
+insert-elements-group = Elemente
+insert-media-group = Media
+insert-templates-group = Șabloane
+insert-ai-group = Instrumente AI
+
+# Tab Prezentare
+slideshow-start-group = Pornire
+slideshow-broadcast-group = Transmitere
+slideshow-view-group = Vizualizare
+slideshow-export-group = Export
+slideshow-present = Prezentare
+slideshow-presenter-view = Vizualizare prezentator
+slideshow-present-window = Prezintă în fereastră
+slideshow-cast = Proiectează pe ecran
+slideshow-cast-connecting = Se conectează...
+slideshow-speaker-notes = Note prezentator
+slideshow-transitions = Tranziții
+slideshow-save-now = Salvează acum
+slideshow-export-pptx = Export PPTX
+slideshow-export-pdf = Export PDF
+
+# Scopuri Slide
+slide-purpose-cover = Copertă
+slide-purpose-cover-desc = Slide de titlu și introducere
+slide-purpose-agenda = Agendă
+slide-purpose-agenda-desc = Cuprins sau prezentare generală
+slide-purpose-section-divider = Separator secțiune
+slide-purpose-section-divider-desc = Separator între secțiuni
+slide-purpose-content = Conținut
+slide-purpose-content-desc = Slide de conținut general
+slide-purpose-key-point = Punct cheie
+slide-purpose-key-point-desc = Mesaj important singular
+slide-purpose-bullets = Listă cu puncte
+slide-purpose-bullets-desc = Listă de puncte
+slide-purpose-two-column = Două coloane
+slide-purpose-two-column-desc = Conținut alăturat
+slide-purpose-image-focus = Focus imagine
+slide-purpose-image-focus-desc = Imagine cu legendă
+slide-purpose-data-viz = Date și grafice
+slide-purpose-data-viz-desc = Grafice, statistici, metrici
+slide-purpose-quote = Citat
+slide-purpose-quote-desc = Testimonial sau citat
+slide-purpose-timeline = Cronologie
+slide-purpose-timeline-desc = Conținut cronologic
+slide-purpose-comparison = Comparație
+slide-purpose-comparison-desc = Înainte/după sau versus
+slide-purpose-team = Echipă
+slide-purpose-team-desc = Membri echipă
+slide-purpose-process = Proces
+slide-purpose-process-desc = Pași sau flux de lucru
+slide-purpose-conclusion = Concluzie
+slide-purpose-conclusion-desc = Rezumat sau concluzii
+slide-purpose-cta = Apel la acțiune
+slide-purpose-cta-desc = Slide de apel la acțiune
+slide-purpose-thank-you = Mulțumim
+slide-purpose-thank-you-desc = Slide de încheiere
+
+# Poziții Slide
+slide-position-first = Prima
+slide-position-first-desc = Primul slide al prezentării
+slide-position-early = Început
+slide-position-early-desc = Aproape de început
+slide-position-middle = Mijloc
+slide-position-middle-desc = Secțiunea din mijloc
+slide-position-late = Sfârșit
+slide-position-late-desc = Aproape de final
+slide-position-last = Ultima
+slide-position-last-desc = Ultimul slide
+slide-position-any = Oriunde
+slide-position-any-desc = Poate apărea oriunde
+
+# Interfață metadate slide
+template-slide-roles = Roluri slide
+template-slide-roles-desc = Definiți scopul fiecărui slide
+template-slide-purpose = Scop slide
+template-slide-position = Poziție
+template-slide-max-usage = Utilizare maximă
+template-slide-max-usage-hint = De câte ori AI poate folosi acest slide (gol = nelimitat)
+template-slide-capabilities = Capabilități
+template-slide-content-hints = Indicii conținut
+template-slide-content-hints-placeholder = Cuvinte cheie pentru a ajuta AI să potrivească conținutul...
+template-auto-detect = Detectare automată
+template-auto-detect-all = Detectează toate
+template-auto-detect-desc = Deduceți automat scopurile din conținutul slide-ului
+template-reset-defaults = Resetare la implicit
+template-structured = Structurat
+template-structured-slides = { $count } slide-uri definite
+template-configure-slides = Configurare slide-uri
+template-cap-title = Titlu
+template-cap-subtitle = Subtitlu
+template-cap-bullets = Puncte
+template-cap-max-bullets = Max puncte
+template-cap-image = Imagine
+template-cap-chart = Grafic
+template-cap-table = Tabel
+template-cap-icons = Icoane
+template-cap-multi-column = Multi-coloană
+template-cap-column-count = Coloane
+template-hints-placeholder = Adăugați indicii de conținut...
+template-hints-help = Cuvinte cheie pentru a ajuta AI să potrivească conținutul
+template-purpose-help = Definiți scopul acestui slide
+template-inferring = Se detectează scopurile slide-urilor...
+template-inference-complete = Scopurile slide-urilor detectate
+template-inference-failed = Scopurile nu au putut fi detectate automat

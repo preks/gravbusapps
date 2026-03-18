@@ -119,17 +119,6 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
               {(kpis.daysSinceGiven == null || kpis.daysSinceGiven > 30) && (
                 <li className="gba:space-y-1.5">
                   <p className="gba:mt-0.5">{t('feedback-hub-suggested-no-given')}</p>
-                  <AppAction
-                    variant="update-primary"
-                    contexts={[
-                      { context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }
-                    ]}
-                    prefixDataTestId="suggested-give-feedback"
-                    accessToken={accessToken}
-                    autoExecute={true}
-                  >
-                    {t('feedback-hub-give-feedback')}
-                  </AppAction>
                 </li>
               )}
               {pendingRequestsCount === 0 &&

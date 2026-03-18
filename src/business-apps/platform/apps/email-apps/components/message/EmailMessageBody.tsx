@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react'
+import DOMPurify from 'dompurify'
 
 interface EmailMessageBodyProps {
   messageId: string
@@ -19,7 +20,10 @@ export const EmailMessageBody: React.FC<EmailMessageBodyProps> = ({
 
   useEffect(() => {
     if (bodyRef.current && htmlBody) {
-      bodyRef.current.innerHTML = htmlBody
+      const sanitizedBody = DOMPurify.sanitize(htmlBody, {
+        FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'embed', 'link', 'meta', 'base']
+      })
+      bodyRef.current.innerHTML = sanitizedBody
     }
   }, [htmlBody])
 

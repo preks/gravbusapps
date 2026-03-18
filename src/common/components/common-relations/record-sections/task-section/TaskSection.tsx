@@ -7,9 +7,12 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-  EmptyState
+  EmptyState,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { AppActionProvider } from '@/components/app-action-provider/AppActionProvider'
+import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
@@ -32,11 +35,15 @@ import {
   CalendarCheck
 } from '@phosphor-icons/react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FileInfo } from '@/common/types/FileTypes'
+import translations from './_i18n'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { Task as BaseTask, TaskAssignee } from '@/common/data/relations/types/taskTypes'
 import { transformTaskOrApproval } from './utils/taskMappers'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { TaskInput } from './TaskInput'
 import { DocuSignSignatureModal } from '@/common/components/docusign/DocuSignSignatureModal'
 import { type InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
 import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusign/utils/investmentTaskMapper'
@@ -55,8 +62,8 @@ export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
 export type TaskDocument = {
   id: string
   name: string
-  mimeType?: string
-  fileSize?: number
+  mimeType?: string | null
+  fileSize?: number | null
   file?: string
   version?: number
   description?: string
@@ -138,6 +145,20 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   sectionTitle?: string
   buildReferenceUrl?: (reference: TaskReference) => string
   refetch?: () => void
+  /** Catalog identifier for task type (e.g. from customerCatalogs or investmentCatalogs). */
+  typeCatalog?: string
+  /** Catalog identifier for task priority (e.g. from customerCatalogs or investmentCatalogs). */
+  priorityCatalog?: string
+  /** Optional payload builder; when set, quick-add submit passes built payload to executeAction instead of raw form data. */
+  buildTaskPayload?: (task: Record<string, any>) => Record<string, any>
+  /** When true, this section is the Approval Task tab: quick-add hides type selection and uses multi-assignee. */
+  isApprovalTaskSection?: boolean
+  /** Default task type ref for approval quick-add (e.g. from customerConstants/investmentConstants APPROVAL_TASK_TYPE_REF). Used when isApprovalTaskSection is true. */
+  approvalTaskTypeRef?: string
+  /** Default task status ref for quick-add (e.g. SalesTaskStatus:v1:IN_PROGRESS or InvestmentTaskStatus:v1:IN_PROGRESS). Required by the Kogito process statusCheckGateway. */
+  defaultTaskStatusRef?: string
+  /** Optional pre-submit handler (e.g. uploads _pendingFiles and returns data with documents). When set, called before buildTaskPayload/executeAction so files are included like in full forms. */
+  preSubmit?: (data: Record<string, any>) => Promise<Record<string, any>>
 }
 
 const TaskSection: React.FC<TaskSectionProps> = ({
@@ -146,9 +167,23 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   additionalData,
   tasks: rawTasks,
   taskEntityActionProps,
+  taskActionProps,
+  preSubmit,
   refetch,
-  buildReferenceUrl
+  buildReferenceUrl,
+  typeCatalog,
+  priorityCatalog,
+  buildTaskPayload,
+  isApprovalTaskSection = false,
+  approvalTaskTypeRef,
+  defaultTaskStatusRef,
+  accountId,
+  contactId,
+  opportunityId,
+  leadId,
+  investmentId
 }) => {
+  const { t } = useTranslation(translations)
   const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
 
   useEffect(() => {
@@ -213,21 +248,92 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           opportunity: task.opportunity,
           investment: (task as any).investment
         },
-        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
+        t('tasks-untitled')
       )
       return {
         ...transformed,
         rawTask: task
       }
     })
-  }, [rawTasks, statusVersion])
+  }, [rawTasks, statusVersion, t])
+
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const [assigneePrefill, setAssigneePrefill] = useState<
+    Array<{
+      id: string
+      displayName: string
+      userId?: string
+      pictureThumbnail?: string
+      organizationalUnitName?: string
+      jobPositionName?: string
+    }>
+  >([])
   const [isDocuSignOpen, setIsDocuSignOpen] = useState(false)
   const [docuSignDocs, setDocuSignDocs] = useState<TaskDocument[]>([])
   const [docuSignAssignedUserId, setDocuSignAssignedUserId] = useState<string | undefined>(undefined)
   const [docuSignTask, setDocuSignTask] = useState<Task | null>(null)
   const [docuSignTaskFormData, setDocuSignTaskFormData] = useState<Partial<InvestmentTask> | null>(null)
   const [docuSignFocusReferral, setDocuSignFocusReferral] = useState(false)
+
+  // Employee search for assignee selection
+  const {
+    employees,
+    loading: employeesLoading,
+    search,
+    hydrateById,
+    hasMore,
+    loadMore
+  } = useEmployeeSearch(accessToken)
+
+  // Prefill current user as default assignee
+  React.useEffect(() => {
+    const employeeId = userInfo?.employeeDetails?.employeeId
+    if (!employeeId) return
+
+    const displayName =
+      `${userInfo?.employeeDetails?.firstName || ''} ${userInfo?.employeeDetails?.lastName || ''}`.trim() ||
+      userInfo?.userName ||
+      'Current User'
+
+    // Set basic prefill immediately
+    setAssigneePrefill([
+      {
+        id: employeeId,
+        displayName,
+        organizationalUnitName: userInfo?.employeeDetails?.organizationalUnit?.name
+      }
+    ])
+
+    // Hydrate to get full details (picture, job position)
+    hydrateById(employeeId)
+
+    // Trigger initial search to load all employees
+    search('')
+  }, [
+    userInfo?.employeeDetails?.employeeId,
+    userInfo?.employeeDetails?.firstName,
+    userInfo?.employeeDetails?.lastName,
+    userInfo?.userName,
+    userInfo?.employeeDetails?.organizationalUnit?.name,
+    search,
+    hydrateById
+  ])
+
+  // Merge prefilled assignee with employees (employees from hook already include hydrated data)
+  const mergedEmployees = React.useMemo(() => {
+    const map = new Map<string, any>()
+    // Add prefill first (will be overwritten by full data from employees)
+    for (const o of assigneePrefill) {
+      map.set(o.id, o)
+    }
+    // Add/override with full employee data
+    for (const e of employees) {
+      map.set(e.id, e)
+    }
+    return Array.from(map.values())
+  }, [assigneePrefill, employees])
+
   const businessAppContext = useMemo(
     () => ({
       accessToken,
@@ -236,6 +342,49 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     }),
     [accessToken, userInfo, additionalData]
   )
+
+  // Form schema for quick add
+  const defaultAssigneeIds = useMemo(
+    () => (userInfo?.employeeDetails?.employeeId ? [userInfo.employeeDetails.employeeId] : []),
+    [userInfo?.employeeDetails?.employeeId]
+  )
+  const quickTaskSchema = useMemo(
+    () =>
+      z.object({
+        task: z.object({
+          title: z.string().min(1, 'Title is required'),
+          description: z.string().optional()
+        }),
+        taskTypeRef: isApprovalTaskSection ? z.string().optional() : z.string().min(1, 'Task type is required'),
+        taskPriorityRef: z.string().min(1, 'Priority is required'),
+        taskTiming: z.enum(['DEADLINE', 'SCHEDULED']),
+        assignedEmployeeIds: z.array(z.string()).min(1, 'At least one assignee is required'),
+        deadline: z.string().optional(),
+        _pendingFiles: z.array(z.any()).optional()
+      }),
+    [isApprovalTaskSection]
+  )
+
+  const defaultTaskTypeRef = isApprovalTaskSection ? (approvalTaskTypeRef ?? '') : ''
+  const form = useForm({
+    resolver: zodResolver(quickTaskSchema),
+    defaultValues: {
+      task: { title: '', description: '' },
+      taskTypeRef: defaultTaskTypeRef,
+      taskPriorityRef: '',
+      taskTiming: 'DEADLINE' as const,
+      assignedEmployeeIds: defaultAssigneeIds,
+      deadline: '',
+      _pendingFiles: [] as File[]
+    }
+  })
+
+  // Keep approval task type default in sync when approvalTaskTypeRef is set after mount
+  useEffect(() => {
+    if (isApprovalTaskSection && approvalTaskTypeRef) {
+      form.setValue('taskTypeRef', approvalTaskTypeRef)
+    }
+  }, [isApprovalTaskSection, approvalTaskTypeRef, form])
 
   // Handle document download
   const handleDocumentClick = async (document: TaskDocument, e: React.MouseEvent) => {
@@ -440,6 +589,91 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   return (
     <>
       <div data-testid="task-section">
+        {/* Quick Add Task */}
+        {taskActionProps && (
+          <div className="gba:mb-6">
+            <AppActionProvider
+              accessToken={accessToken}
+              contextsArray={taskActionProps.contextsArray}
+              externalContextData={taskActionProps.externalContextData}
+              prefixDataTestId={taskActionProps.prefixDataTestId}
+              onSuccess={() => {
+                form.reset({
+                  task: { title: '', description: '' },
+                  taskTypeRef: defaultTaskTypeRef,
+                  taskPriorityRef: '',
+                  taskTiming: 'DEADLINE',
+                  assignedEmployeeIds: defaultAssigneeIds,
+                  deadline: '',
+                  _pendingFiles: [] as File[]
+                })
+                setShowQuickAdd(false)
+              }}
+              onError={error => {
+                console.error('Failed to create task:', error)
+              }}
+              transformData={data => data}
+            >
+              {({ executeAction, isProcessing }) => {
+                const handleQuickAddSubmit = async (data: any) => {
+                  const task: Partial<BaseTask> & Record<string, any> = {
+                    name: data.task.title,
+                    description: data.task.description,
+                    taskTypeRef: isApprovalTaskSection ? data.taskTypeRef || approvalTaskTypeRef : data.taskTypeRef,
+                    taskPriorityRef: data.taskPriorityRef,
+                    taskStatusRef: defaultTaskStatusRef,
+                    taskTiming: data.taskTiming || 'DEADLINE',
+                    dueDate: data.deadline || undefined,
+                    taskAssignees: (data.assignedEmployeeIds || []).map((id: string) => ({
+                      assignedEmployeeId: id
+                    })),
+                    _creatorEmployee: userInfo?.id ? { userId: userInfo.id } : undefined,
+                    creatorUserId: userInfo?.id,
+                    _pendingFiles: data._pendingFiles && data._pendingFiles.length > 0 ? data._pendingFiles : undefined,
+                    ...(leadId && { leadId }),
+                    ...(accountId && { accountId }),
+                    ...(contactId && { contactId }),
+                    ...(opportunityId && { opportunityId }),
+                    ...(investmentId && { investmentId })
+                  }
+                  let toBuild: Record<string, any> = task
+                  if (preSubmit && task._pendingFiles?.length) {
+                    toBuild = await preSubmit(task)
+                  }
+                  const payload = buildTaskPayload ? buildTaskPayload(toBuild) : toBuild
+                  if (payload && '_pendingFiles' in payload) {
+                    delete payload._pendingFiles
+                  }
+                  await executeAction(payload)
+                }
+                return (
+                  <TaskInput
+                    form={form}
+                    accessToken={accessToken}
+                    employees={mergedEmployees}
+                    employeesLoading={employeesLoading}
+                    onSearch={search}
+                    hasMore={hasMore}
+                    onLoadMore={loadMore}
+                    onSubmit={handleQuickAddSubmit}
+                    isProcessing={isProcessing}
+                    showQuickAdd={showQuickAdd}
+                    onShowQuickAddChange={setShowQuickAdd}
+                    typeCatalog={typeCatalog}
+                    priorityCatalog={priorityCatalog}
+                    hideTypeSelection={isApprovalTaskSection}
+                    typeCatalogConfig={
+                      isApprovalTaskSection ? undefined : { code: { mode: 'omit', values: ['APPROVAL'] } }
+                    }
+                    multiAssigneeMode={isApprovalTaskSection}
+                    schema={quickTaskSchema}
+                  />
+                )
+              }}
+            </AppActionProvider>
+          </div>
+        )}
+
         {tasks && tasks.length > 0 ? (
           <TooltipProvider>
             <TimelineLayout
@@ -637,7 +871,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           <EmptyState
             type="no-data"
             title="No Tasks"
-            description={getTranslationFromI18nKeyAndLabel('tasks.emptyState', 'No tasks yet. Create your first task.')}
+            description={t('tasks-emptyState')}
             data-testid="task-section-empty-state"
           />
         )}

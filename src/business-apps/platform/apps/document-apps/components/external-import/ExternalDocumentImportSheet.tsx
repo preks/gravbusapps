@@ -44,6 +44,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
   const [previewItems, setPreviewItems] = useState<UnstructuredPreviewItem[]>([])
   const [estimatedTotal, setEstimatedTotal] = useState<number | undefined>()
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   const [limit, setLimit] = useState(100)
   const [keepConnected, setKeepConnected] = useState(false)
@@ -76,10 +77,16 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
     setIsLoadingConnectors(true)
     setConnectorError(null)
     try {
-      const [allConnectors, activeConnections] = await Promise.all([
+      const [allConnectors, activeConnections, mcpConns] = await Promise.all([
         DocumentExternalSourceService.listConnectors(),
         pmClientRef.current.getExternalConnections({
           kind: 'unstructured',
+          consumerType: 'document_import',
+          limit: 100,
+          offset: 0
+        }),
+        pmClientRef.current.getExternalConnections({
+          kind: 'mcp',
           consumerType: 'document_import',
           limit: 100,
           offset: 0
@@ -89,7 +96,20 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
         (activeConnections.data || []).map(c => (c as any).connector_id || (c as any).connectorId || '').filter(Boolean)
       )
       const filtered = allConnectors.filter(c => activeConnectorIds.has(c.name))
-      setConnectors(filtered)
+
+      const mcpAsConnectors: UnstructuredConnectorSummary[] = (mcpConns.data || []).map(c => {
+        const connId = (c as any).connection_id || (c as any).connectionId || ''
+        return {
+          id: connId,
+          name: c.name || connId,
+          description: c.description ?? null,
+          connectorEnabled: true,
+          config: { __kind: 'mcp' },
+          latestVersion: { version: 1, inputSchema: {}, outputSchema: {}, createdAt: '' }
+        }
+      })
+
+      setConnectors([...filtered, ...mcpAsConnectors])
     } catch {
       setConnectorError('Failed to load connectors')
     } finally {
@@ -103,6 +123,9 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
     }
   }, [open, step, loadConnectors])
 
+  const isMcpConnector = (c: UnstructuredConnectorSummary | null) =>
+    (c as any)?.config?.__kind === 'mcp'
+
   useEffect(() => {
     const loadSharedConnections = async () => {
       if (!selectedConnector) {
@@ -111,6 +134,15 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
         setSharedConnectionsError(null)
         return
       }
+
+      if (isMcpConnector(selectedConnector)) {
+        setSharedConnections([])
+        setSelectedConnectionId(selectedConnector.id)
+        setSharedConnectionsError(null)
+        setIsLoadingSharedConnections(false)
+        return
+      }
+
       setIsLoadingSharedConnections(true)
       setSharedConnectionsError(null)
       try {
@@ -144,6 +176,9 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
   const handlePreview = useCallback(async () => {
     if (!selectedConnector) return
     setIsLoadingPreview(true)
+    setPreviewError(null)
+    setPreviewItems([])
+    setEstimatedTotal(undefined)
     setStep('preview')
     try {
       const result = await DocumentExternalSourceService.preview(
@@ -157,9 +192,10 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
         toast.error('Preview failed')
         setStep('select')
       }
-    } catch {
-      toast.error('Preview failed')
-      setStep('select')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Preview failed'
+      setPreviewError(message)
+      toast.error(message)
     } finally {
       setIsLoadingPreview(false)
     }
@@ -255,6 +291,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
     setSharedConnectionsError(null)
     setPreviewItems([])
     setEstimatedTotal(undefined)
+    setPreviewError(null)
     setRunId(null)
     setRunStatus('queued')
     setTotalDiscovered(0)
@@ -321,6 +358,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
               items={previewItems}
               estimatedTotal={estimatedTotal}
               isLoading={isLoadingPreview}
+              error={previewError}
               onBack={() => setStep('select')}
               onNext={() => setStep('config')}
               data-testid={`${testId}-preview`}

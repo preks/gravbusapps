@@ -5,9 +5,8 @@
  */
 
 import React, { useState } from 'react'
-import { Button, Textarea, useTranslation } from '@newwork/nw-design-system'
+import { Button, Textarea } from '@newwork/nw-design-system'
 import { Send } from 'lucide-react'
-import sharedTranslations from '../_i18n'
 
 export interface CommentEditorMessages {
   cancel?: string
@@ -29,30 +28,34 @@ export interface CommentEditorProps {
 /**
  * Simple comment editor with textarea
  */
+const DEFAULT_EDITOR_MESSAGES: Required<CommentEditorMessages> = {
+  cancel: 'Cancel',
+  send: 'Send',
+  sending: 'Sending...',
+  sendHint: '⌘+Enter to send'
+}
+
 export const CommentEditor: React.FC<CommentEditorProps> = ({
   initialValue = '',
   onSubmit,
   onCancel,
   isSubmitting = false,
-  placeholder,
+  placeholder = 'Write a comment...',
   messages: messagesProp,
   'data-testid': testId = 'comment-editor'
 }) => {
-  const { t } = useTranslation(sharedTranslations)
-  const defaultCommentEditorMessages = {
-    cancel: t('comment-editor-cancel'),
-    send: t('comment-editor-send'),
-    sending: t('comment-editor-sending'),
-    sendHint: t('comment-editor-send-hint')
-  }
-  const messages = { ...defaultCommentEditorMessages, ...messagesProp }
-  const resolvedPlaceholder = placeholder ?? t('comment-editor-placeholder-default')
+  const m = { ...DEFAULT_EDITOR_MESSAGES, ...messagesProp }
   const [content, setContent] = useState(initialValue)
 
-  const handleSubmit = async () => {
-    if (content.trim()) {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (!content.trim()) return
+    if (isSubmitting) return
+    try {
       await onSubmit(content.trim())
       setContent('')
+    } catch {
+      // Keep content so user can retry; parent should show error feedback
     }
   }
 
@@ -64,7 +67,7 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
-      handleSubmit()
+      void handleSubmit()
     }
     if (e.key === 'Escape' && onCancel) {
       e.preventDefault()
@@ -72,45 +75,48 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
     }
   }
 
+  const canSubmit = !!content.trim() && !isSubmitting
+
   return (
-    <div className="gba:space-y-3" data-testid={testId}>
+    <form
+      onSubmit={e => {
+        e.preventDefault()
+        void handleSubmit(e)
+      }}
+      className="gba:flex gba:flex-col gba:gap-2"
+      data-testid={testId}
+    >
       <Textarea
         value={content}
         onChange={e => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={resolvedPlaceholder}
-        rows={3}
+        placeholder={placeholder}
+        rows={2}
         disabled={isSubmitting}
-        className="gba:resize-none gba:text-sm gba:border-border/50 focus-visible:gba:ring-primary/20"
+        className="gba:resize-none gba:text-sm gba:border-border/50 focus-visible:gba:ring-primary/20 gba:min-h-[56px] gba:max-h-28 gba:overflow-y-auto"
         data-testid={`${testId}-textarea`}
       />
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-        <p className="gba:text-xs gba:text-muted-foreground gba:flex-1">{messages.sendHint}</p>
-        <div className="gba:flex gba:gap-1.5">
+      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:w-full">
+        <span className="gba:text-xs gba:text-muted-foreground gba:shrink-0">{m.sendHint}</span>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
           {onCancel && (
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={handleCancel}
               disabled={isSubmitting}
               data-testid={`${testId}-cancel`}
-              className="gba:h-8"
             >
-              {messages.cancel}
+              {m.cancel}
             </Button>
           )}
-          <Button
-            size="sm"
-            onClick={handleSubmit}
-            disabled={!content.trim() || isSubmitting}
-            data-testid={`${testId}-submit`}
-            className="gba:h-8 gba:px-3"
-          >
-            <Send className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
-            {isSubmitting ? messages.sending : messages.send}
+          <Button type="submit" variant="default" size="sm" disabled={!canSubmit} data-testid={`${testId}-submit`}>
+            <Send className="gba:h-3.5 gba:w-3.5" aria-hidden />
+            {isSubmitting ? m.sending : m.send}
           </Button>
         </div>
       </div>
-    </div>
+    </form>
   )
 }

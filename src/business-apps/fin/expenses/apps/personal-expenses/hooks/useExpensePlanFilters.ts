@@ -446,9 +446,13 @@ export const useExpensePlanFilters = () => {
     handleFilterChange,
     clearFilters: clearAllFilters,
     getFilters,
+    startDateRange,
     setStartDateRange,
+    endDateRange,
     setEndDateRange,
+    planDateRange,
     setPlanDateRange,
+    effectiveDateRange,
     setEffectiveDateRange,
     addFilter: handleFilterChange, // Add this for compatibility
     removeFilter // Use the enhanced removeFilter

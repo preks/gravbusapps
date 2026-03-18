@@ -12,19 +12,20 @@ import {
 } from '@newwork/nw-design-system'
 import {
   UserIcon,
-  PhoneIcon,
-  EnvelopeIcon,
-  UsersIcon,
-  ListChecksIcon,
   TargetIcon,
   HandshakeIcon,
   BuildingIcon,
-  CalendarBlankIcon as CalendarIcon
+  CalendarBlankIcon as CalendarIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  UsersIcon,
+  ListChecksIcon
 } from '@phosphor-icons/react'
 import type { TeamSalesActivity } from '@/business-apps/crm/performance/apps/sales-team-performance/components/team-performance-view/hooks/useTeamActivitiesData'
 import {
   getEntityName,
   getEntityType,
+  getEntityTypeFromIds,
   getActivityTypeVariant
 } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityHelpers'
 import {
@@ -134,15 +135,15 @@ const DateCell: React.FC<{ occurredAt?: string; createdAt?: string }> = ({ occur
 const getActivityTypeIcon = (type: string) => {
   switch (type) {
     case 'Call':
-      return <PhoneIcon className="gba:h-4 gba:w-4 gba:text-success" />
+      return <PhoneIcon size={16} className="gba:text-foreground" />
     case 'Email':
-      return <EnvelopeIcon className="gba:h-4 gba:w-4 gba:text-primary" />
+      return <EnvelopeIcon size={16} />
     case 'Meeting':
-      return <UsersIcon className="gba:h-4 gba:w-4 gba:text-warning" />
+      return <UsersIcon size={16} />
     case 'Task':
-      return <ListChecksIcon className="gba:h-4 gba:w-4 gba:text-accent" />
+      return <ListChecksIcon size={16} />
     default:
-      return <ListChecksIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+      return <ListChecksIcon size={16} />
   }
 }
 
@@ -162,18 +163,18 @@ const getEntityTypeIcon = (entityType: string) => {
   }
 }
 
-// Handle entity reference clicks
+// Handle entity reference clicks — navigate by ID alone so records with missing data still work
 const handleEntityReferenceClick = (activity: TeamSalesActivity) => {
-  if (activity.accountId && activity.account) {
+  if (activity.accountId) {
     const url = buildPlatformUrl('/platform/crm/account-record', { accountId: activity.accountId })
     navigateTo(url)
-  } else if (activity.contactId && activity.contact) {
+  } else if (activity.contactId) {
     const url = buildPlatformUrl('/platform/crm/contact-record', { contactId: activity.contactId })
     navigateTo(url)
-  } else if (activity.leadId && activity.lead) {
+  } else if (activity.leadId) {
     const url = buildPlatformUrl('/platform/crm/lead-record', { leadId: activity.leadId })
     navigateTo(url)
-  } else if (activity.opportunityId && activity.opportunity) {
+  } else if (activity.opportunityId) {
     const url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: activity.opportunityId })
     navigateTo(url)
   }
@@ -288,6 +289,11 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
       const entityName = getEntityName(activity)
       const entityType = getEntityType(activity)
 
+      // When the entity JOIN returned no name (deleted/inaccessible record),
+      // fall back to ID-based type so we still show the correct label and allow navigation.
+      const resolvedType = entityType === 'No reference' ? getEntityTypeFromIds(activity) : entityType
+      const resolvedName = entityName === 'No reference' ? null : entityName
+
       const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation()
         handleEntityReferenceClick(activity)
@@ -296,15 +302,19 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
       return (
         <button
           type="button"
-          className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer gba:hover:bg-accent gba:px-3 gba:py-2 gba:rounded gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:w-fit"
+          className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer gba:hover:bg-accent gba:px-3 gba:py-2 gba:rounded gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:w-full gba:max-w-[200px] gba:overflow-hidden"
           onClick={handleClick}
         >
-          <span className="gba:text-sm gba:font-medium gba:text-primary" title={entityName}>
-            {entityName}
-          </span>
+          {resolvedName ? (
+            <span className="gba:text-sm gba:font-medium gba:text-primary gba:truncate" title={resolvedName}>
+              {resolvedName}
+            </span>
+          ) : (
+            <span className="gba:text-sm gba:italic gba:text-muted-foreground">Unnamed {resolvedType}</span>
+          )}
           <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
-            {getEntityTypeIcon(entityType)}
-            <span>{entityType}</span>
+            {getEntityTypeIcon(resolvedType)}
+            <span>{resolvedType}</span>
           </div>
         </button>
       )
@@ -318,11 +328,17 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
     size: 150,
     cell: ({ row }) => {
       const type = row.original.activityType?.value || 'Other'
+      const isCall = type === 'Call'
       return (
-        <Badge variant={getActivityTypeVariant(type)} className="gba:gap-1.5">
-          {getActivityTypeIcon(type)}
-          <span>{type}</span>
-        </Badge>
+        <div className="gba:flex gba:items-center">
+          <Badge
+            variant={getActivityTypeVariant(type)}
+            className={`gba:gap-1.5${isCall ? ' gba:text-foreground' : ''}`}
+          >
+            {getActivityTypeIcon(type)}
+            <span>{type}</span>
+          </Badge>
+        </div>
       )
     }
   },
@@ -346,9 +362,13 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
         )
       }
       return (
-        <span className="gba:text-sm" data-testid={`activity360-title-${activityId}`}>
+        <div
+          className="gba:font-medium gba:text-sm gba:truncate gba:max-w-[250px]"
+          data-testid={`activity360-title-${activityId}`}
+          title={title}
+        >
           {title}
-        </span>
+        </div>
       )
     }
   }

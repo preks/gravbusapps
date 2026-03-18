@@ -47,7 +47,7 @@ import 'dayjs/locale/es'
 import 'dayjs/locale/it'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { UnifiedTask } from '../types'
-import { env } from '@/common/env/EnvUtils'
+import { getCflowEndpoint } from '../../every-api/utils/config'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskDetailFooter } from './TaskDetailFooter'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
@@ -478,6 +478,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   ])
 
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
+  const taskAppTag =
+    task.tags?.app ||
+    task.sourceMetadata?.tags?.app ||
+    task.workflowMeta?.tags?.app ||
+    (task.sourceMetadata as any)?.app
+  const isMarkdownMessageTask = taskAppTag === 'scheduled_task' || taskAppTag === 'spreadsheet-automation'
   // Check both task.tags and sourceMetadata.tags for glossary request detection
   const isGlossaryRequestTask =
     task.source === 'cflow' &&
@@ -665,7 +671,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   }
 
   // Helper: Complete task action
-  const handleCompleteTask = async (flowEngineApi: string) => {
+  const handleCompleteTask = async () => {
     // Validate form data before submission
     const validation = validateFormData()
     if (!validation.isValid) {
@@ -688,7 +694,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       ...(showComment && comment?.trim() ? { comment: comment.trim() } : {})
     }
 
-    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
+    const base = getCflowEndpoint()
+    const response = await fetch(`${base}/api/tasks/${task.id}/complete`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -723,14 +730,15 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   }
 
   // Helper: Reject task action
-  const handleRejectTask = async (flowEngineApi: string, data?: any) => {
+  const handleRejectTask = async (data?: any) => {
     const rejectRequestBody = {
       userId: userId,
       rejectionComment: comment || data?.comment || '',
       comment: comment || data?.comment || ''
     }
 
-    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/reject`, {
+    const base = getCflowEndpoint()
+    const response = await fetch(`${base}/api/tasks/${task.id}/reject`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -766,8 +774,9 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   }
 
   // Helper: Claim task action
-  const handleClaimTask = async (flowEngineApi: string) => {
-    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/claim`, {
+  const handleClaimTask = async () => {
+    const base = getCflowEndpoint()
+    const response = await fetch(`${base}/api/tasks/${task.id}/claim`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -788,8 +797,9 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   }
 
   // Helper: Unclaim task action
-  const handleUnclaimTask = async (flowEngineApi: string) => {
-    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/unclaim`, {
+  const handleUnclaimTask = async () => {
+    const base = getCflowEndpoint()
+    const response = await fetch(`${base}/api/tasks/${task.id}/unclaim`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -816,28 +826,22 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       return
     }
 
-    const flowEngineApi = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-
     setIsCompleting(true)
     try {
-      switch (action) {
-        case 'claim':
-          await handleClaimTask(flowEngineApi)
-          break
-        case 'complete':
-          await handleCompleteTask(flowEngineApi)
-          break
-        case 'reject':
-          await handleRejectTask(flowEngineApi, data)
-          break
-        case 'reassign':
+      const actionHandlers: Record<string, () => Promise<void>> = {
+        claim: handleClaimTask,
+        complete: handleCompleteTask,
+        reject: () => handleRejectTask(data),
+        reassign: async () => {
           toast.info(t('task-details-reassign-coming'))
-          break
-        case 'unclaim':
-          await handleUnclaimTask(flowEngineApi)
-          break
-        default:
-          toast.warning(t('task-details-unknown-action', { action }))
+        },
+        unclaim: handleUnclaimTask
+      }
+      const handler = actionHandlers[action]
+      if (!handler) {
+        toast.warning(t('task-details-unknown-action', { action }))
+      } else {
+        await handler()
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('task-details-action-failed', { action })
@@ -1098,58 +1102,87 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </Card>
           )}
 
+          {/* Task instruction message - above links, dark and prominent */}
+          {(task.message || task.description) && (
+            <div className="gba:space-y-3">
+              {isMarkdownMessageTask ? (
+                <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+              ) : (
+                <p className="gba:text-base gba:leading-relaxed gba:font-medium gba:text-foreground">
+                  {task.message || task.description}
+                </p>
+              )}
+              {/* Blue hint explaining what to do */}
+              {!isCompleted && (otherLinks.length > 0 || documentLinks.length > 0) && (
+                <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-info-secondary gba:p-4">
+                  <Info className="gba:h-5 gba:w-5 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
+                  <p className="gba:text-sm gba:leading-relaxed gba:text-info-secondary-foreground">
+                    {t('task-details-blink-instruction-hint', {
+                      defaultValue:
+                        'Open the link below to access your assigned copy, complete it, and return here to submit.'
+                    })}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Entity Reference (if linked to an entity) */}
           {entityType && entityId && entityName && (
-            <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-              <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
-                {t('task-details-related-to')}
-              </div>
-              <a
-                href={entityDisplayUrl || '#'}
-                onClick={e => {
-                  e.preventDefault()
-                  if (entityDisplayUrl) {
-                    navigateTo(entityDisplayUrl)
-                  }
-                }}
-                className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
-                data-testid="task-entity-reference-link"
-              >
-                <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
-                <Badge variant="outline" className="gba:text-xs">
-                  {entityType}
-                </Badge>
-                <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">{entityName}</span>
-                <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
-              </a>
-            </div>
+            <Card variant="outlined" className="gba:border-primary/20 gba:bg-muted/20">
+              <CardContent className="gba:pt-4">
+                <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                  {t('task-details-related-to')}
+                </div>
+                <a
+                  href={entityDisplayUrl || '#'}
+                  onClick={e => {
+                    e.preventDefault()
+                    if (entityDisplayUrl) {
+                      navigateTo(entityDisplayUrl)
+                    }
+                  }}
+                  className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
+                  data-testid="task-entity-reference-link"
+                >
+                  <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
+                  <Badge variant="outline" className="gba:text-xs">
+                    {entityType}
+                  </Badge>
+                  <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">{entityName}</span>
+                  <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
+                </a>
+              </CardContent>
+            </Card>
           )}
 
           {/* Document Attachments (if any) */}
           {documentLinks.length > 0 && (
-            <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-              <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
-                {t('task-details-attachments', { count: documentLinks.length })}
-              </div>
-              <div className="gba:space-y-2">
-                {documentLinks.map(link => (
-                  <a
-                    key={link.url || link.name}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                    data-testid={`task-document-link-${link.name}`}
-                  >
-                    <FileText className="gba:h-4 gba:w-4 gba:text-blue-500 gba:shrink-0" />
-                    <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
-                      {link.name}
-                    </span>
-                    <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-                  </a>
-                ))}
-              </div>
-            </div>
+            <Card variant="outlined" className="gba:border-primary/20 gba:bg-muted/30">
+              <CardContent className="gba:pt-4">
+                <div className="gba:text-xs gba:text-primary gba:mb-3 gba:font-semibold">
+                  {t('task-details-attachments', { count: documentLinks.length })}
+                </div>
+                <div className="gba:space-y-2">
+                  {documentLinks.map(link => (
+                    <a
+                      key={link.url || link.name}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
+                      data-testid={`task-document-link-${link.name}`}
+                    >
+                      <FileText className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
+                      <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
+                        {link.name}
+                      </span>
+                      <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Other Links / Meeting Links (meeting-invite: only external:meeting) */}

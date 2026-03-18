@@ -4,7 +4,16 @@ import { User, Calendar } from 'lucide-react'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import dayjs from 'dayjs'
-import { PhoneIcon, EnvelopeIcon, UsersIcon, ListChecksIcon, UserIcon, BuildingIcon, TargetIcon, HandshakeIcon } from '@phosphor-icons/react'
+import {
+  PhoneIcon,
+  EnvelopeIcon,
+  UsersIcon,
+  ListChecksIcon,
+  UserIcon,
+  BuildingIcon,
+  TargetIcon,
+  HandshakeIcon
+} from '@phosphor-icons/react'
 // Format date helper
 const formatDateDisplay = (date: string | Date | undefined): string => {
   if (!date) return '-'
@@ -13,19 +22,19 @@ const formatDateDisplay = (date: string | Date | undefined): string => {
   return d.format('MMM D, YYYY')
 }
 
-// Get activity type icon
+// Get activity type icon — no colour classes; inherits black from badge override
 const getActivityTypeIcon = (type: string) => {
   switch (type) {
     case 'Call':
-      return <PhoneIcon size={16} className="gba:text-success" />
+      return <PhoneIcon size={16} />
     case 'Email':
       return <EnvelopeIcon size={16} />
     case 'Meeting':
-      return <UsersIcon size={16} className="gba:text-warning" />
+      return <UsersIcon size={16} />
     case 'Task':
-      return <ListChecksIcon size={16} className="gba:text-accent" />
+      return <ListChecksIcon size={16} />
     default:
-      return <ListChecksIcon size={16} className="gba:text-muted-foreground" />
+      return <ListChecksIcon size={16} />
   }
 }
 
@@ -226,8 +235,8 @@ export const createActivityColumns = (config: ActivityColumnsConfig = {}): Colum
       cell: ({ row }) => {
         const title = safeString(row.original.title)
         return (
-          <div className="gba:flex gba:flex-col gba:gap-1">
-            <span className="gba:text-sm gba:font-medium" title={title}>
+          <div className="gba:flex gba:flex-col gba:gap-1 gba:overflow-hidden gba:max-w-[250px]">
+            <span className="gba:text-sm gba:font-medium gba:truncate" title={title}>
               {title || '-'}
             </span>
             {row.original.description && (
@@ -247,7 +256,7 @@ export const createActivityColumns = (config: ActivityColumnsConfig = {}): Colum
       cell: ({ row }) => {
         const type = row.original.activityType?.value || 'Other'
         return (
-          <Badge variant={getActivityTypeVariant(type)} className="gba:gap-1.5">
+          <Badge variant={getActivityTypeVariant(type)} className="gba:gap-1.5 gba:!text-black">
             {getActivityTypeIcon(type)}
             <span>{type}</span>
           </Badge>
@@ -287,10 +296,13 @@ export const createActivityColumns = (config: ActivityColumnsConfig = {}): Colum
         return (
           <button
             type="button"
-            className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:w-full"
+            className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:overflow-hidden gba:max-w-[200px]"
             onClick={handleClick}
           >
-            <span className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline" title={entityName}>
+            <span
+              className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline gba:truncate"
+              title={entityName}
+            >
               {entityName}
             </span>
             <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">

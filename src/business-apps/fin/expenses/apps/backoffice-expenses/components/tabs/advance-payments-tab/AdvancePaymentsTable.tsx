@@ -28,6 +28,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from '../../../_i18n'
+import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -54,6 +55,8 @@ interface AdvancePaymentsTableProps extends BusinessAppContextProps {
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const { search, onSearchChange, ...context } = props
   const { t } = useTranslation(translations)
+  // Pre-register common advance payment details bundle so the details sidebar shows translated labels on first render
+  useTranslation(advancePaymentDetailsTranslations)
 
   const [searchText, setSearchText] = useState(search ?? '')
   const [currentPage, setCurrentPage] = useState(1)

@@ -5,6 +5,11 @@
  */
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import { normalizeLabels, normalizeLabelObjects, normalizeAddLabelInputs } from '../utils/labelUtils'
+import {
+  parseEmailAssistantCapabilities,
+  parseEmailAssistantPolicy,
+  parseEmailAssistantResponse
+} from '../utils/emailAssistantParsers'
 import type {
   EmailAccount,
   EmailFolder,
@@ -17,7 +22,15 @@ import type {
   CreateEmailAccountRequest,
   SendEmailRequest,
   ExternalCalendarEvent,
-  ThreadSummaryResult
+  ThreadSummaryResult,
+  EmailAssistantCapabilities,
+  EmailAssistantDraftRequest,
+  EmailAssistantPolicy,
+  EmailAssistantPolicyUpdateRequest,
+  EmailAssistantReplySuggestRequest,
+  EmailAssistantResponse,
+  EmailAssistantRewriteRequest,
+  EmailAssistantTemperatureCheckRequest
 } from '../types'
 
 const API_URL = getDocumentServiceApiUrl()
@@ -293,6 +306,81 @@ export const EmailApiService = {
   async getCalendarEvents(accountId: string, startDate: string, endDate: string): Promise<ExternalCalendarEvent[]> {
     const params = new URLSearchParams({ startDate, endDate })
     return apiRequest<ExternalCalendarEvent[]>(`/emails/accounts/${accountId}/calendar/events?${params.toString()}`)
+  },
+
+  // ============ Assistant ============
+  async getAssistantCapabilities(options?: { signal?: AbortSignal }): Promise<EmailAssistantCapabilities> {
+    const response = await apiRequest<unknown>('/emails/assistant/capabilities', {
+      signal: options?.signal
+    })
+    return parseEmailAssistantCapabilities(response)
+  },
+
+  async generateAssistantDraft(
+    data: EmailAssistantDraftRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<EmailAssistantResponse> {
+    const response = await apiRequest<unknown>('/emails/assistant/draft', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      signal: options?.signal
+    })
+    return parseEmailAssistantResponse(response)
+  },
+
+  async rewriteAssistantDraft(
+    data: EmailAssistantRewriteRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<EmailAssistantResponse> {
+    const response = await apiRequest<unknown>('/emails/assistant/rewrite', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      signal: options?.signal
+    })
+    return parseEmailAssistantResponse(response)
+  },
+
+  async runAssistantTemperatureCheck(
+    data: EmailAssistantTemperatureCheckRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<EmailAssistantResponse> {
+    const response = await apiRequest<unknown>('/emails/assistant/temperature-check', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      signal: options?.signal
+    })
+    return parseEmailAssistantResponse(response)
+  },
+
+  async suggestAssistantReply(
+    data: EmailAssistantReplySuggestRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<EmailAssistantResponse> {
+    const response = await apiRequest<unknown>('/emails/assistant/reply-suggest', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      signal: options?.signal
+    })
+    return parseEmailAssistantResponse(response)
+  },
+
+  async getAssistantPolicy(options?: { signal?: AbortSignal }): Promise<EmailAssistantPolicy> {
+    const response = await apiRequest<unknown>('/emails/assistant/policy', {
+      signal: options?.signal
+    })
+    return parseEmailAssistantPolicy(response)
+  },
+
+  async updateAssistantPolicy(
+    data: EmailAssistantPolicyUpdateRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<EmailAssistantPolicy> {
+    const response = await apiRequest<unknown>('/emails/assistant/policy', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      signal: options?.signal
+    })
+    return parseEmailAssistantPolicy(response)
   }
 }
 

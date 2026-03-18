@@ -500,6 +500,19 @@ export const BoardApiService = {
     }
   },
 
+  async reorderRow(
+    boardId: string,
+    sheetId: string,
+    rowId: string,
+    afterRowId: string | null,
+    beforeRowId: string | null
+  ): Promise<void> {
+    await apiRequest(`/boards/${boardId}/sheets/${sheetId}/rows/reorder`, {
+      method: 'POST',
+      body: JSON.stringify({ rowId, afterRowId, beforeRowId })
+    })
+  },
+
   async getRowPage(
     boardId: string,
     sheetId: string,
@@ -1083,7 +1096,7 @@ export const BoardApiService = {
       await apiRequest('/sharing', {
         method: 'POST',
         body: JSON.stringify({
-          entityType: 'board',
+          entityType: 'spreadsheet_app',
           entityId: boardId,
           recipients: shares.map(s => ({ userId: s.userId, permission: s.permission }))
         })
@@ -1097,7 +1110,7 @@ export const BoardApiService = {
 
   async getBoardSharedUsers(boardId: string): Promise<BoardShare[]> {
     try {
-      const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/board/${boardId}`)
+      const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/spreadsheet_app/${boardId}`)
       return (shares || []).map(s => ({
         id: s.id as string,
         userId: s.userId as string,

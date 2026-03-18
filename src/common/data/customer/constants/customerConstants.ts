@@ -4,6 +4,10 @@ import {
   FILE_CONTEXT as BASE_CONTEXT
 } from '@/common/data/relations/constants/relationConstants'
 import type { CustomerReferenceEntityType } from '../utils/referenceEntityUtils'
+import { TASK_TYPE } from './customerCatalogs'
+
+/** Approval task type ref derived from task type catalog (TASK_TYPE + ":APPROVAL"). */
+export const APPROVAL_TASK_TYPE_REF = `${TASK_TYPE}:APPROVAL`
 
 export const APP_NAME = 'customerRelations'
 export const FILE_ENTITY = {

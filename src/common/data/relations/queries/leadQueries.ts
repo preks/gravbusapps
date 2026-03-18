@@ -145,6 +145,8 @@ export const buildLeadQuery = (
         ${entityFields.legalFormRef}
         ${entityFields.ownerEmployeeId}
         ${entityFields.phoneNumber}
+        ${entityFields.secondaryNumber}
+        ${entityFields.linkedinUrl}
         ${entityFields.jobPosition}
         ${entityFields.postalCode}
         ${entityFields.region} {
@@ -264,6 +266,8 @@ export const buildLeadByIdQuery = (
         ${entityFields.legalFormRef}
         ${entityFields.ownerEmployeeId}
         ${entityFields.phoneNumber}
+        ${entityFields.secondaryNumber}
+        ${entityFields.linkedinUrl}
         ${entityFields.jobPosition}
         ${entityFields.postalCode}
         ${entityFields.region} {

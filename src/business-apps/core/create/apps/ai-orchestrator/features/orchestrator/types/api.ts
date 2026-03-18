@@ -11,6 +11,10 @@ export interface AnalyzeRequest {
   prompt: string
   context?: Record<string, unknown>
   answers?: Record<string, string>
+  /** Optional existing session context to create a plan against an already prepared app session. */
+  sessionId?: string
+  /** Optional existing repository context paired with sessionId. */
+  repoId?: string
   /** Builder identity (user who initiated the build) */
   createdBy?: {
     id: string
