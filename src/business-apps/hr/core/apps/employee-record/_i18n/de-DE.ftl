@@ -288,7 +288,7 @@ error-end-date-after-start-date = Enddatum muss am oder nach dem Startdatum der 
 
 # Employee Record - Notifications
 notification-address-updated-success = Adressänderungen zur Genehmigung an die Personalabteilung gesendet.
-notification-bank-account-updated-success = Änderungen der Bankverbindung zur Genehmigung an die Personalabteilung gesendet.
+notification-bank-account-updated-success = Die Aktualisierungen des Bankkontos sind abgeschlossen.
 notification-personal-data-updated-success = Änderungen an den persönlichen Daten zur Genehmigung an die Personalabteilung gesendet.
 notification-communication-updated-success = Änderungen an den Kommunikationsdaten zur Genehmigung an die Personalabteilung gesendet.
 notification-profile-picture-updated-success = Änderungen am Profilbild zur Genehmigung an die Personalabteilung gesendet.

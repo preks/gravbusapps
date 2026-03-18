@@ -29,6 +29,7 @@ import {
 export interface NavigationPanelProps {
   readonly editor: Editor | null
   readonly onClose: () => void
+  readonly requestedTab?: NavTab
   readonly 'data-testid'?: string
 }
 
@@ -61,9 +62,14 @@ function SnippetWithHighlight({
   )
 }
 
-export function NavigationPanel({ editor, onClose, 'data-testid': testId = 'navigation-panel' }: NavigationPanelProps) {
+export function NavigationPanel({
+  editor,
+  onClose,
+  requestedTab = 'headings',
+  'data-testid': testId = 'navigation-panel'
+}: NavigationPanelProps) {
   const { t } = useTranslation(translations)
-  const [activeTab, setActiveTab] = useState<NavTab>('headings')
+  const [activeTab, setActiveTab] = useState<NavTab>(requestedTab)
   const [searchTerm, setSearchTerm] = useState('')
   const [replaceTerm, setReplaceTerm] = useState('')
   const [caseSensitive, setCaseSensitive] = useState(false)
@@ -89,6 +95,10 @@ export function NavigationPanel({ editor, onClose, 'data-testid': testId = 'navi
       snippet: getMatchSnippet(doc, m.from, m.to)
     }))
   }, [editor, editor?.state.doc, matches])
+
+  useEffect(() => {
+    setActiveTab(requestedTab)
+  }, [requestedTab])
 
   useEffect(() => {
     setSelectedMatchIndex(0)

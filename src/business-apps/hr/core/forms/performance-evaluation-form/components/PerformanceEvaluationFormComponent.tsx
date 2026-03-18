@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
 import {
+  AiButton,
   Button,
   Label,
   Spinner,
@@ -12,7 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { StarIcon, CaretDownIcon } from '@phosphor-icons/react'
+import { StarIcon } from '@phosphor-icons/react'
+import { Wand2 } from 'lucide-react'
 import { usePerformanceEvaluationForm } from '../context/PerformanceEvaluationFormContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { EmployeeSelect } from '@/components/employee-select'
@@ -33,7 +35,6 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     isLoading,
     error,
     onSubmit,
-    onCancel,
     employees,
     employeesLoading,
     employeesError,
@@ -264,55 +265,54 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
                     data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-CommentInput`)}
                     className="gba:min-h-[80px] gba:w-full gba:resize-y"
                   />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="default"
-                        disabled={!topic.comment?.trim() || textTransformationLoading}
-                        className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
-                        data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-TextTool`)}
-                      >
-                        <span>
-                          {textTransformationLoading ? (
-                            <Spinner size="sm" />
-                          ) : (
-                            t('text-tool', { defaultValue: 'Text Tool' })
-                          )}
-                        </span>
-                        <CaretDownIcon size={16} className="gba:h-4 gba:w-4 gba:opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
-                      <DropdownMenuItem
-                        className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                        onClick={async () => {
-                          const result = await transformCommentText(topic.comment ?? '', 'formalize')
-                          if (result != null) updateTopic(topic.id, { comment: result })
-                        }}
-                      >
-                        {t('text-tool-formalize', { defaultValue: 'Formalize' })}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                        onClick={async () => {
-                          const result = await transformCommentText(topic.comment ?? '', 'translate', 'en')
-                          if (result != null) updateTopic(topic.id, { comment: result })
-                        }}
-                      >
-                        {t('text-tool-translate', { defaultValue: 'Translate' })}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                        onClick={async () => {
-                          const result = await transformCommentText(topic.comment ?? '', 'shorten')
-                          if (result != null) updateTopic(topic.id, { comment: result })
-                        }}
-                      >
-                        {t('text-tool-shorten', { defaultValue: 'Shorten' })}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="gba:flex gba:justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <AiButton
+                          size="sm"
+                          showIcon
+                          icon={
+                            textTransformationLoading ? (
+                              <Spinner className="gba:w-4 gba:h-4" />
+                            ) : (
+                              <Wand2 className="gba:w-4 gba:h-4" />
+                            )
+                          }
+                          iconPosition="before"
+                          disabled={!topic.comment?.trim() || textTransformationLoading}
+                          data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-TextTool`)}
+                        >
+                          {t('text-tool')}
+                        </AiButton>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            const result = await transformCommentText(topic.comment ?? '', 'formalize')
+                            if (result != null) updateTopic(topic.id, { comment: result })
+                          }}
+                        >
+                          {t('text-tool-formalize')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            const result = await transformCommentText(topic.comment ?? '', 'translate', 'en')
+                            if (result != null) updateTopic(topic.id, { comment: result })
+                          }}
+                        >
+                          {t('text-tool-translate')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            const result = await transformCommentText(topic.comment ?? '', 'shorten')
+                            if (result != null) updateTopic(topic.id, { comment: result })
+                          }}
+                        >
+                          {t('text-tool-shorten')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </div>
             )
@@ -367,51 +367,54 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
             className="gba:min-h-[120px] gba:w-full gba:resize-y"
             data-testid={formatDataTestId(prefixDataTestId, 'GeneralComments')}
           />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="default"
-                disabled={!(formValues.comments ?? '').trim() || textTransformationLoading}
-                className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
-                data-testid={formatDataTestId(prefixDataTestId, 'GeneralCommentsTextTool')}
-              >
-                <span>
-                  {textTransformationLoading ? <Spinner size="sm" /> : t('text-tool', { defaultValue: 'Text Tool' })}
-                </span>
-                <CaretDownIcon size={16} className="gba:h-4 gba:w-4 gba:opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
-              <DropdownMenuItem
-                className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                onClick={async () => {
-                  const result = await transformCommentText(formValues.comments ?? '', 'formalize')
-                  if (result != null) setFormValues({ comments: result })
-                }}
-              >
-                {t('text-tool-formalize', { defaultValue: 'Formalize' })}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                onClick={async () => {
-                  const result = await transformCommentText(formValues.comments ?? '', 'translate', 'en')
-                  if (result != null) setFormValues({ comments: result })
-                }}
-              >
-                {t('text-tool-translate', { defaultValue: 'Translate' })}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                onClick={async () => {
-                  const result = await transformCommentText(formValues.comments ?? '', 'shorten')
-                  if (result != null) setFormValues({ comments: result })
-                }}
-              >
-                {t('text-tool-shorten', { defaultValue: 'Shorten' })}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="gba:flex gba:justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <AiButton
+                  size="sm"
+                  showIcon
+                  icon={
+                    textTransformationLoading ? (
+                      <Spinner className="gba:w-4 gba:h-4" />
+                    ) : (
+                      <Wand2 className="gba:w-4 gba:h-4" />
+                    )
+                  }
+                  iconPosition="before"
+                  disabled={!(formValues.comments ?? '').trim() || textTransformationLoading}
+                  data-testid={formatDataTestId(prefixDataTestId, 'GeneralCommentsTextTool')}
+                >
+                  {t('text-tool')}
+                </AiButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const result = await transformCommentText(formValues.comments ?? '', 'formalize')
+                    if (result != null) setFormValues({ comments: result })
+                  }}
+                >
+                  {t('text-tool-formalize')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const result = await transformCommentText(formValues.comments ?? '', 'translate', 'en')
+                    if (result != null) setFormValues({ comments: result })
+                  }}
+                >
+                  {t('text-tool-translate')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const result = await transformCommentText(formValues.comments ?? '', 'shorten')
+                    if (result != null) setFormValues({ comments: result })
+                  }}
+                >
+                  {t('text-tool-shorten')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Error Display */}
@@ -429,16 +432,6 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
 
       {/* Action Buttons - Fixed at bottom */}
       <div className="gba:flex-shrink-0 gba:px-6 gba:py-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end gba:bg-white">
-        {!isRequestedEvaluationFlow && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-          >
-            {t('cancel-button')}
-          </Button>
-        )}
         <Button
           type="button"
           variant="default"

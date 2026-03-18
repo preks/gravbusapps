@@ -75,7 +75,7 @@ export const evaluateDisplayCondition = (condition: any, formData: Record<string
  * Check if field is a searchable UUID field (for entity selection)
  */
 export const isSearchableUuidField = (fieldName: string, schema: any): boolean => {
-  const employeeTimeFields = ['substituteEmployee', 'approverId']
+  const employeeTimeFields = ['substituteEmployee', 'approverId', 'employee']
   const crmFields = ['ownerEmployee', 'account', 'contact', 'lead', 'opportunity', 'assignedEmployee']
   const irmFields = ['ownerEmployee', 'investmentAccount', 'contact']
   const searchableUuidFields = [...employeeTimeFields, ...crmFields, ...irmFields]
