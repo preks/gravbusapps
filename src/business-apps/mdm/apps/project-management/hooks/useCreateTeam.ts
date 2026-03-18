@@ -1,10 +1,7 @@
 import { useState, useCallback } from 'react'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { Project, ProjectStatusUI } from '../types'
 import { toast } from '@newwork/nw-design-system'
-
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 // Transform UI status to BE status
 const transformUIStatusToBE = (status: ProjectStatusUI): string => {
@@ -51,7 +48,7 @@ interface CreateTeamResult {
  * If the project has a manager assigned, automatically adds them to the team
  */
 export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreateTeamProps): CreateTeamResult => {
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const [isCreatingTeam, setIsCreatingTeam] = useState(false)
 
   /**
@@ -69,14 +66,14 @@ export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreate
         }
       ]
 
-      await restClient.post('/employee-assignments/matrix-unit', assignmentPayload, {
+      await orgchartClient.assignEmployeesToMatrixUnit(assignmentPayload, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       })
     },
-    [restClient, accessToken, structureId]
+    [orgchartClient, accessToken, structureId]
   )
 
   const createTeamForProject = useCallback(
@@ -92,13 +89,9 @@ export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreate
         }
 
         // Create matrix team
-        const teamResponse = await restClient.post<{ id: string } | { data: { id: string } }>(
-          '/matrix-units',
-          teamData,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` }
-          }
-        )
+        const teamResponse = await orgchartClient.createMatrixUnit(teamData, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
 
         // Extract matrix unit ID from response (handle different response formats)
         const matrixUnitId = (teamResponse as { id: string }).id || (teamResponse as { data: { id: string } }).data?.id
@@ -127,7 +120,7 @@ export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreate
           matrixUnitId: matrixUnitId
         }
 
-        await restClient.put(`/projects/${project.id}`, projectUpdateData, {
+        await orgchartClient.updateProject(project.id, projectUpdateData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
 
@@ -150,7 +143,7 @@ export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreate
         setIsCreatingTeam(false)
       }
     },
-    [accessToken, structureId, restClient, onSuccess, assignEmployeeToTeam]
+    [accessToken, structureId, orgchartClient, onSuccess, assignEmployeeToTeam]
   )
 
   return {

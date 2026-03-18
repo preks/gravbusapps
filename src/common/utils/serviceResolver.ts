@@ -138,8 +138,7 @@ export const NAVIGATION_API_URL = resolveServiceUrl('NEXT_PUBLIC_NAVIGATION_API_
   servicePath: '/navigation',
   apiPath: '/api/v1'
 })
-// TODO: Temporary altered
-export const ORGCHART_API_URL = resolveServiceUrl('NEXT_PUBLIC_ORGCHART_API_URL_TEMP', {
+export const ORGCHART_API_URL = resolveServiceUrl('NEXT_PUBLIC_ORGCHART_API_URL', {
   servicePath: '/orgchart',
   apiPath: '/api/v1'
 })

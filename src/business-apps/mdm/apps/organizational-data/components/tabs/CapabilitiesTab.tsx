@@ -33,8 +33,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
 import CapabilityForm from '@/business-apps/mdm/forms/capability-form'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 export interface CapabilityExtended {
   id: string
@@ -75,13 +74,12 @@ export interface CapabilitiesTabProps extends BusinessAppContextProps {
 }
 
 const DATA_TEST_ID_PREFIX = 'CapabilitiesTab'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 const CapabilitiesTab: React.FC<CapabilitiesTabProps> = context => {
   const { t } = useTranslation()
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   const { capabilities, layers, isLoading, error, refetch, totalCount, structureId } = useCapabilities(context)
 
@@ -109,7 +107,7 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = context => {
   const handleDelete = async (capability: Capability | undefined) => {
     if (!capability) return
 
-    await restClient.delete(`/capabilities/${capability.id}`, {
+    await orgchartClient.deleteCapability(capability.id, {
       headers: { Authorization: `Bearer ${context.accessToken}` }
     })
 
