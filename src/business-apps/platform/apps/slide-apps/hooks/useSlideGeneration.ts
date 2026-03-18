@@ -8,16 +8,27 @@
 
 import { useState, useCallback } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { SlideGenerationService, type GenerationOptions } from '../services'
+import {
+  SlideGenerationService,
+  parseGenerationError,
+  type GenerationOptions,
+  type SlideGenerationErrorDetails
+} from '../services'
 import type { SlideData } from '../components/slideElements'
 import translations from '../_i18n'
 
 export type GenerationPhase = 'idle' | 'research' | 'generation' | 'validation' | 'complete'
 
+export interface MatchedTemplateInfo {
+  id: string
+  name: string
+  themeId?: string
+}
+
 export interface UseSlideGenerationOptions {
   accessToken: string
-  onSuccess?: (slides: SlideData[], title: string, sources?: string[]) => void
-  onError?: (error: string) => void
+  onSuccess?: (slides: SlideData[], title: string, sources?: string[], matchedTemplate?: MatchedTemplateInfo) => void
+  onError?: (error: string, details?: SlideGenerationErrorDetails) => void
 }
 
 export interface UseSlideGenerationResult {
@@ -27,10 +38,14 @@ export interface UseSlideGenerationResult {
   phase: GenerationPhase
   /** Error message if generation failed */
   error: string | null
+  /** Structured error details if generation failed */
+  errorDetails: SlideGenerationErrorDetails | null
   /** Progress message for user feedback */
   progressMessage: string | null
   /** Sources found during research (if web search was enabled) */
   sources: string[] | null
+  /** Matched template info (if template matching found a match) */
+  matchedTemplate: MatchedTemplateInfo | null
   /** Start the generation process */
   generate: (options: GenerationOptions) => Promise<void>
   /** Reset state */
@@ -46,26 +61,36 @@ export function useSlideGeneration({
   const [isGenerating, setIsGenerating] = useState(false)
   const [phase, setPhase] = useState<GenerationPhase>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [errorDetails, setErrorDetails] = useState<SlideGenerationErrorDetails | null>(null)
   const [progressMessage, setProgressMessage] = useState<string | null>(null)
   const [sources, setSources] = useState<string[] | null>(null)
+  const [matchedTemplate, setMatchedTemplate] = useState<MatchedTemplateInfo | null>(null)
 
   const generate = useCallback(
     async (options: GenerationOptions) => {
       if (!accessToken) {
         const errMsg = t('progress-auth-required')
+        const details: SlideGenerationErrorDetails = {
+          statusCode: 401,
+          errorType: 'auth',
+          userMessage: errMsg,
+          technicalMessage: 'No access token provided'
+        }
         setError(errMsg)
-        onError?.(errMsg)
+        setErrorDetails(details)
+        onError?.(errMsg, details)
         return
       }
 
       setIsGenerating(true)
       setError(null)
+      setErrorDetails(null)
       setSources(null)
+      setMatchedTemplate(null)
       setPhase('idle')
       setProgressMessage(t('progress-preparing'))
 
       try {
-        // Progress callback from the service (message = i18n key)
         const onProgress = (
           phaseType: 'research' | 'generation' | 'validation',
           message: string,
@@ -84,31 +109,34 @@ export function useSlideGeneration({
           onProgress
         )
 
-        // Store sources if found
         if (result.sources && result.sources.length > 0) {
           setSources(result.sources)
+        }
+
+        if (result.matchedTemplate) {
+          setMatchedTemplate(result.matchedTemplate)
         }
 
         setPhase('complete')
         setProgressMessage(t('progress-ready'))
 
-        // Brief delay to show completion state
         await new Promise(resolve => setTimeout(resolve, 300))
 
         setProgressMessage(null)
         setIsGenerating(false)
 
-        onSuccess?.(result.slides, result.title, result.sources)
+        onSuccess?.(result.slides, result.title, result.sources, result.matchedTemplate)
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : t('progress-generate-failed')
         console.error('[useSlideGeneration] Generation failed:', err)
 
-        setError(errorMessage)
+        const details = parseGenerationError(err)
+        setError(details.userMessage)
+        setErrorDetails(details)
         setProgressMessage(null)
         setPhase('idle')
         setIsGenerating(false)
 
-        onError?.(errorMessage)
+        onError?.(details.userMessage, details)
       }
     },
     [accessToken, onSuccess, onError, t]
@@ -118,16 +146,20 @@ export function useSlideGeneration({
     setIsGenerating(false)
     setPhase('idle')
     setError(null)
+    setErrorDetails(null)
     setProgressMessage(null)
     setSources(null)
+    setMatchedTemplate(null)
   }, [])
 
   return {
     isGenerating,
     phase,
     error,
+    errorDetails,
     progressMessage,
     sources,
+    matchedTemplate,
     generate,
     reset
   }

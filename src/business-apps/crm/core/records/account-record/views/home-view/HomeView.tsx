@@ -14,6 +14,19 @@ import ActivitySection from '@/common/components/common-relations/record-section
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/customer/constants/customerCatalogs'
+import {
+  APPROVAL_TASK_TYPE_REF,
+  FILE_CONTEXT,
+  APP_NAME,
+  getFileEntityFromType
+} from '@/common/data/customer/constants/customerConstants'
+import { buildCustomerTaskPayload } from '@/common/data/customer/types/customerTaskTypes'
+import { buildCustomerActivityPayload } from '@/common/data/customer/types/customerActivityTypes'
+import { buildCustomerNotePayload } from '@/common/data/customer/types/customerNoteTypes'
+import { getReferenceEntityType } from '@/common/data/customer/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
 
 interface HomeViewProps extends BusinessAppContextProps {
   accountId: string
@@ -21,6 +34,46 @@ interface HomeViewProps extends BusinessAppContextProps {
 }
 
 const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props }) => {
+  const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient]
+  )
+  const activityPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      entityId: accountId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient, accountId]
+  )
+  const notePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      entityId: accountId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false
+    }),
+    [props.userInfo, fileClient, accountId]
+  )
+
   // Data fetching hooks for CRM customer sections
   const { fetchCustomerActivitiesByAccountId } = useCustomerActivities(props)
   const { fetchCustomerTasksByAccountId } = useCustomerTasks(props)
@@ -76,13 +129,13 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
 
       // Separate regular tasks from approvals based on type catalog entry
       const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.type?.code || ''
-        const taskTypeValue = task?.type?.value || ''
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
         return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
       })
       const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.type?.code || ''
-        const taskTypeValue = task?.type?.value || ''
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
@@ -172,8 +225,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
       contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         accountId,
-        typeRef: 'SalesTaskType:v1:APPROVAL',
-        salesTask: { account: accountId, type: 'SalesTaskType:v1:APPROVAL' }
+        typeRef: APPROVAL_TASK_TYPE_REF,
+        salesTask: { account: accountId, type: APPROVAL_TASK_TYPE_REF }
       },
       prefixDataTestId: 'account-approval',
       emptyStateBehavior: 'enable' as const
@@ -280,13 +333,17 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: ActivitySection,
             props: {
               ...props,
+              accountId,
               activities: activities,
               activitiesLoading: sectionsLoading,
               activitiesError: sectionsError,
               onReloadActivities: loadSectionData,
               alignment: 'right',
               activitySectionActionProps: activityActionProps,
-              activityEntityActionProps: activityEntityActionProps
+              activityEntityActionProps: activityEntityActionProps,
+              activityTypeCatalog: ACTIVITY_TYPE,
+              buildActivityPayload: buildCustomerActivityPayload,
+              preSubmit: activityPreSubmit
             }
           },
           {
@@ -294,9 +351,12 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: NoteSection,
             props: {
               ...props,
+              accountId,
               notes: notes,
               noteActionProps: noteActionProps,
               noteEntityActionProps: noteEntityActionProps,
+              buildNotePayload: buildCustomerNotePayload,
+              preSubmit: notePreSubmit,
               'data-testid': 'account-notes-section'
             }
           }
@@ -313,10 +373,16 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: TaskSection,
             props: {
               ...props,
+              accountId,
               buildReferenceUrl,
               tasks: tasks,
               taskActionProps: taskActionProps,
-              taskEntityActionProps: taskEntityActionProps
+              taskEntityActionProps: taskEntityActionProps,
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildCustomerTaskPayload,
+              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           },
           {
@@ -324,11 +390,19 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: TaskSection,
             props: {
               ...props,
+              accountId,
               sectionTitle: 'Approval Tasks',
               buildReferenceUrl,
               tasks: approvals,
               taskEntityActionProps: approvalEntityActionProps,
-              taskActionProps: approvalActionProps
+              taskActionProps: approvalActionProps,
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildCustomerTaskPayload,
+              isApprovalTaskSection: true,
+              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           }
         ]}

@@ -21,6 +21,7 @@ import NoteSection from '@/common/components/common-relations/record-sections/no
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
 import { FileTextIcon, UsersIcon, BuildingIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
@@ -638,7 +639,8 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                         externalContextData: { ...entityIds },
                         prefixDataTestId: 'record-example-activity-entity',
                         emptyStateBehavior: 'enable'
-                      }
+                      },
+                      activityTypeCatalog: ACTIVITY_TYPE
                     }
                   }
                 ]}
@@ -830,7 +832,9 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                         externalContextData: { ...entityIds },
                         prefixDataTestId: 'record-example-task-entity',
                         emptyStateBehavior: 'enable'
-                      }
+                      },
+                      typeCatalog: TASK_TYPE,
+                      priorityCatalog: TASK_PRIORITY
                     }
                   }
                 ]}

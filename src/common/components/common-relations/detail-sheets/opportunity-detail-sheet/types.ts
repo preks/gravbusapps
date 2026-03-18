@@ -43,8 +43,8 @@ export interface OpportunityContact {
 export interface OpportunityDocument {
   id: string
   name: string
-  mimeType?: string
-  fileSize?: number
+  mimeType?: string | null
+  fileSize?: number | null
   fileInfo?: any
 }
 

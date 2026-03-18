@@ -8,7 +8,6 @@
 import React, { useState, useCallback } from 'react'
 import { AiButton, Spinner } from '@newwork/nw-design-system'
 import { Sparkles } from 'lucide-react'
-import { toast } from 'sonner'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { SpreadsheetApiService } from '../../services/SpreadsheetApiService'
 import {
@@ -221,9 +220,6 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
         isSummarizing={isSummarizing}
         error={error}
         data-testid={`${testId}-summary-dialog`}
-        onAddToSheet={() => {
-          toast.info('Add to Sheet is available from the spreadsheet report view.')
-        }}
       />
     </>
   )

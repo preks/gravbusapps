@@ -17,7 +17,7 @@ import {
   EmailSidebar,
   EmailList,
   EmailReader,
-  EmailComposer,
+  EmailThreadComposeSurface,
   AccountSetupDialog,
   AccountManagementDialog,
   EmailEmptyState,
@@ -164,6 +164,13 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       return false
     }
   })
+  const [assistantEnabled, setAssistantEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('email-assistant-enabled') === 'true'
+    } catch {
+      return false
+    }
+  })
 
   // Compose state
   const [isComposing, setIsComposing] = useState(false)
@@ -276,6 +283,32 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       }
     },
     [folders, moveToFolder, t]
+  )
+
+  const inboxFolderId = folders.find(f => f.type === 'inbox')?.id
+  const isTrashView = !starredOnly && folders.find(f => f.id === selectedFolderId)?.type === 'trash'
+
+  const handleRestore = useCallback(
+    async (id: string, options?: { silent?: boolean }) => {
+      if (!inboxFolderId) {
+        if (!options?.silent) {
+          toast.error(t('toast-restore-failed'))
+        }
+        return
+      }
+      try {
+        await moveToFolder(id, inboxFolderId)
+        if (!options?.silent) {
+          toast.success(t('toast-restored'))
+        }
+      } catch {
+        if (!options?.silent) {
+          toast.error(t('toast-restore-failed'))
+        }
+        throw new Error('restore-failed')
+      }
+    },
+    [inboxFolderId, moveToFolder, t]
   )
 
   const handleBack = useCallback(() => {
@@ -490,48 +523,54 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onToggleRead={handleToggleReadFromList}
         onArchive={handleArchive}
         onDelete={deleteMessage}
+        onRestore={handleRestore}
+        isTrashView={isTrashView}
         onRefresh={refreshMessages}
         onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
         onLoadMore={loadMore}
         folderName={currentFolderName}
       />
 
-      {/* Email Reader */}
-      <EmailReader
-        message={selectedMessage}
-        onCompose={handleCompose}
-        onDelete={deleteMessage}
-        onToggleStar={toggleStar}
-        onArchive={handleArchive}
-        onRefreshMessages={refreshMessages}
-        onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
-        accessToken={accessToken}
-        activeAccount={defaultAccount}
-        employeeId={userInfo?.employeeDetails?.employeeId}
-        threadEnabled={threadViewEnabled}
-        onToggleThreadView={() => {
-          setThreadViewEnabled(prev => {
-            const next = !prev
-            try {
-              localStorage.setItem('email-thread-view-enabled', String(next))
-            } catch {}
-            return next
-          })
-        }}
-      />
-
-      {/* Composer with auto-suggest */}
-      <EmailComposer
-        isOpen={isComposing}
-        onClose={() => setIsComposing(false)}
-        mode={composeMode}
-        replyToMessage={replyToMessage}
-        accounts={accounts}
-        defaultAccountId={defaultAccount?.id}
-        onSent={refreshMessages}
-        searchContacts={searchContacts}
-        onRecipientsUsed={handleRecipientsUsed}
-      />
+      {/* Email Reader / Inline Compose */}
+      {isComposing ? (
+        <EmailThreadComposeSurface
+          isOpen={isComposing}
+          onClose={() => setIsComposing(false)}
+          mode={composeMode}
+          replyToMessage={replyToMessage}
+          accounts={accounts}
+          defaultAccountId={defaultAccount?.id}
+          onSent={refreshMessages}
+          searchContacts={searchContacts}
+          onRecipientsUsed={handleRecipientsUsed}
+          assistantEnabled={assistantEnabled}
+        />
+      ) : (
+        <EmailReader
+          message={selectedMessage}
+          onCompose={handleCompose}
+          onDelete={deleteMessage}
+          onToggleStar={toggleStar}
+          onArchive={handleArchive}
+          onRestore={handleRestore}
+          isTrashView={isTrashView}
+          onRefreshMessages={refreshMessages}
+          onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
+          accessToken={accessToken}
+          activeAccount={defaultAccount}
+          employeeId={userInfo?.employeeDetails?.employeeId}
+          threadEnabled={threadViewEnabled}
+          onToggleThreadView={() => {
+            setThreadViewEnabled(prev => {
+              const next = !prev
+              try {
+                localStorage.setItem('email-thread-view-enabled', String(next))
+              } catch {}
+              return next
+            })
+          }}
+        />
+      )}
 
       {/* Account management dialog */}
       <AccountManagementDialog
@@ -545,6 +584,16 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
             const next = !prev
             try {
               localStorage.setItem('email-thread-view-enabled', String(next))
+            } catch {}
+            return next
+          })
+        }}
+        assistantEnabled={assistantEnabled}
+        onToggleAssistantEnabled={() => {
+          setAssistantEnabled(prev => {
+            const next = !prev
+            try {
+              localStorage.setItem('email-assistant-enabled', String(next))
             } catch {}
             return next
           })

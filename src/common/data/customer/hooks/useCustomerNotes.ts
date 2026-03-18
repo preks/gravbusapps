@@ -36,8 +36,8 @@ export interface CustomerNote {
     name?: string
     file?: string
     fileInfo?: any
-    mimeType?: string
-    fileSize?: number
+    mimeType?: string | null
+    fileSize?: number | null
   }>
 }
 

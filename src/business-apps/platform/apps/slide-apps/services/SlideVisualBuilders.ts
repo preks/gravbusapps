@@ -7,7 +7,12 @@
 
 import type { SlideTheme } from '../components/slideThemes'
 import type { AnySlideElement, Position, Size } from '../components/slideElements'
-import { createTextElement, createShapeElement, createTableElement } from '../components/slideElements'
+import {
+  createTextElement,
+  createShapeElement,
+  createTableElement,
+  createIconElement
+} from '../components/slideElements'
 
 // Slide dimensions
 const SLIDE_WIDTH = 1280
@@ -50,6 +55,7 @@ interface MetricCardParams {
   color?: string
   theme?: SlideTheme
   zIndex?: number
+  isDark?: boolean
 }
 
 /**
@@ -66,11 +72,19 @@ export function createMetricCard(params: MetricCardParams): AnySlideElement[] {
     width = 280,
     height = 160,
     color = COLORS.primary,
-    zIndex = 1
+    zIndex = 1,
+    isDark = false
   } = params
 
   const elements: AnySlideElement[] = []
   const cardId = `metric-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+  // Theme-aware colors
+  const bgColor = isDark ? 'rgba(255, 255, 255, 0.05)' : '#ffffff'
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.1)' : COLORS.border
+  const textColor = isDark ? '#ffffff' : COLORS.dark
+  const mutedTextColor = isDark ? 'rgba(255, 255, 255, 0.6)' : COLORS.muted
+  const accentColor = isDark ? '#e91e8c' : color
 
   // Card background
   elements.push(
@@ -78,8 +92,8 @@ export function createMetricCard(params: MetricCardParams): AnySlideElement[] {
       id: `${cardId}-bg`,
       position,
       size: { width, height },
-      fill: '#ffffff',
-      strokeColor: COLORS.border,
+      fill: bgColor,
+      strokeColor: borderColor,
       strokeWidth: 1,
       cornerRadius: 12,
       zIndex
@@ -92,7 +106,7 @@ export function createMetricCard(params: MetricCardParams): AnySlideElement[] {
       id: `${cardId}-accent`,
       position: { x: position.x, y: position.y },
       size: { width, height: 6 },
-      fill: color,
+      fill: accentColor,
       cornerRadius: 12,
       zIndex: zIndex + 1
     })
@@ -109,7 +123,7 @@ export function createMetricCard(params: MetricCardParams): AnySlideElement[] {
       fontWeight: 'bold',
       textAlign: 'left',
       verticalAlign: 'middle',
-      color: COLORS.dark,
+      color: textColor,
       zIndex: zIndex + 2
     })
   )
@@ -125,7 +139,7 @@ export function createMetricCard(params: MetricCardParams): AnySlideElement[] {
       fontWeight: 'normal',
       textAlign: 'left',
       verticalAlign: 'top',
-      color: COLORS.muted,
+      color: mutedTextColor,
       zIndex: zIndex + 2
     })
   )
@@ -163,7 +177,7 @@ export function createMetricCard(params: MetricCardParams): AnySlideElement[] {
         fontWeight: 'normal',
         textAlign: 'left',
         verticalAlign: 'bottom',
-        color: COLORS.muted,
+        color: mutedTextColor,
         zIndex: zIndex + 2
       })
     )
@@ -185,13 +199,14 @@ interface MetricRowParams {
   cardWidth?: number
   source?: string
   zIndex?: number
+  isDark?: boolean
 }
 
 /**
  * Create a row of metric cards (3-4 cards in a row)
  */
 export function createMetricRow(params: MetricRowParams): AnySlideElement[] {
-  const { metrics, position, spacing = 20, cardWidth = 280, source, zIndex = 1 } = params
+  const { metrics, position, spacing = 20, cardWidth = 280, source, zIndex = 1, isDark = false } = params
 
   const elements: AnySlideElement[] = []
   const count = Math.min(metrics.length, 4)
@@ -208,7 +223,8 @@ export function createMetricRow(params: MetricRowParams): AnySlideElement[] {
       width: actualWidth,
       source: index === 0 ? source : undefined,
       color: metric.color || CHART_COLORS[index % CHART_COLORS.length],
-      zIndex: zIndex + index * 5
+      zIndex: zIndex + index * 5,
+      isDark
     })
     elements.push(...cardElements)
   })
@@ -1213,6 +1229,176 @@ export function createLineChart(params: LineChartParams): AnySlideElement[] {
   return elements
 }
 
+interface FeatureGridParams {
+  features: Array<{
+    name: string
+    description: string
+    icon: string
+  }>
+  position: Position
+  size: Size
+  columns?: 2 | 3
+  color?: string
+  zIndex?: number
+}
+
+/**
+ * Create a feature grid with icons
+ */
+export function createFeatureGrid(params: FeatureGridParams): AnySlideElement[] {
+  const { features, position, size, columns = 2, color = COLORS.primary, zIndex = 1 } = params
+
+  const elements: AnySlideElement[] = []
+  const gridId = `feature-grid-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+  const colWidth = size.width / columns
+  const rowHeight = 100
+  const padding = 20
+
+  features.forEach((feature, index) => {
+    const col = index % columns
+    const row = Math.floor(index / columns)
+    const x = position.x + col * colWidth + padding
+    const y = position.y + row * rowHeight
+
+    // Icon
+    elements.push(
+      createIconElement(feature.icon || 'file-text', {
+        id: `${gridId}-icon-${index}`,
+        position: { x, y },
+        size: { width: 28, height: 28 },
+        color,
+        zIndex: zIndex + 1
+      })
+    )
+
+    // Feature name
+    elements.push(
+      createTextElement({
+        id: `${gridId}-name-${index}`,
+        content: feature.name,
+        position: { x: x + 36, y },
+        size: { width: colWidth - 60, height: 28 },
+        fontSize: 16,
+        fontWeight: 'bold',
+        textAlign: 'left',
+        verticalAlign: 'middle',
+        color,
+        zIndex: zIndex + 1
+      })
+    )
+
+    // Feature description
+    elements.push(
+      createTextElement({
+        id: `${gridId}-desc-${index}`,
+        content: feature.description,
+        position: { x: x + 36, y: y + 30 },
+        size: { width: colWidth - 60, height: 50 },
+        fontSize: 12,
+        fontWeight: 'normal',
+        textAlign: 'left',
+        verticalAlign: 'top',
+        color: COLORS.muted,
+        zIndex: zIndex + 1
+      })
+    )
+  })
+
+  return elements
+}
+
+interface IconListParams {
+  items: Array<{
+    text: string
+    icon?: string
+  }>
+  position: Position
+  width: number
+  itemHeight?: number
+  bulletStyle?: 'arrow' | 'check' | 'circle' | 'icon'
+  color?: string
+  textColor?: string
+  zIndex?: number
+}
+
+/**
+ * Create a bullet list with icons or custom markers
+ */
+export function createIconList(params: IconListParams): AnySlideElement[] {
+  const {
+    items,
+    position,
+    width,
+    itemHeight = 50,
+    bulletStyle = 'arrow',
+    color = COLORS.primary,
+    textColor = COLORS.dark,
+    zIndex = 1
+  } = params
+
+  const elements: AnySlideElement[] = []
+  const listId = `icon-list-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+  const bulletMarkers: Record<string, string> = {
+    arrow: '→',
+    check: '✓',
+    circle: '●'
+  }
+
+  items.forEach((item, index) => {
+    const y = position.y + index * itemHeight
+
+    if (bulletStyle === 'icon' && item.icon) {
+      // Use icon
+      elements.push(
+        createIconElement(item.icon, {
+          id: `${listId}-icon-${index}`,
+          position: { x: position.x, y: y + 6 },
+          size: { width: 24, height: 24 },
+          color,
+          zIndex: zIndex + 1
+        })
+      )
+    } else {
+      // Use text marker
+      const marker = bulletMarkers[bulletStyle] || '→'
+      elements.push(
+        createTextElement({
+          id: `${listId}-marker-${index}`,
+          content: marker,
+          position: { x: position.x, y },
+          size: { width: 30, height: 36 },
+          fontSize: 20,
+          fontWeight: 'bold',
+          textAlign: 'left',
+          verticalAlign: 'middle',
+          color,
+          zIndex: zIndex + 1
+        })
+      )
+    }
+
+    // Item text
+    elements.push(
+      createTextElement({
+        id: `${listId}-text-${index}`,
+        content: item.text,
+        position: { x: position.x + 40, y },
+        size: { width: width - 50, height: 36 },
+        fontSize: 20,
+        fontWeight: 'normal',
+        textAlign: 'left',
+        verticalAlign: 'middle',
+        color: textColor,
+        zIndex: zIndex + 1
+      })
+    )
+  })
+
+  return elements
+}
+
 // Export all builders
 export const SlideVisualBuilders = {
   createMetricCard,
@@ -1225,6 +1411,8 @@ export const SlideVisualBuilders = {
   createLineChart,
   createProcessFlow,
   createComparisonColumns,
+  createFeatureGrid,
+  createIconList,
   CHART_COLORS,
   COLORS
 }

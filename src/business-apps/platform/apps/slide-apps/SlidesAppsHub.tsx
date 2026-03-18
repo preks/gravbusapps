@@ -66,7 +66,15 @@ import {
   type SlideHubSortBy,
   type SlideHubSortOrder
 } from './hooks'
-import { SlideEditor, ShareSlideDialog, ManageSharesDialog, PowerPointUploader } from './components'
+import {
+  SlideEditor,
+  ShareSlideDialog,
+  ManageSharesDialog,
+  PowerPointUploader,
+  TemplateBrowserDialog,
+  CastReceiver
+} from './components'
+import type { SlideData } from './components/slideElements'
 import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import type { SlideSummary } from './types'
@@ -168,6 +176,11 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [slideForManageShares, setSlideForManageShares] = useState<string | null>(null)
   const [showImportDialog, setShowImportDialog] = useState(false)
+  const [showTemplateBrowserDialog, setShowTemplateBrowserDialog] = useState(false)
+  const [pendingTemplateSlides, setPendingTemplateSlides] = useState<{
+    slides: SlideData[]
+    themeId: string
+  } | null>(null)
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
@@ -210,6 +223,9 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     pageSize
   } = useHubPagination({ items: filteredSlides, pageSize: 20 })
 
+  // Track if initial URL load has been processed
+  const [initialUrlProcessed, setInitialUrlProcessed] = useState(false)
+
   const { updateUrl, resetLoadAttempt } = useSlidesHubUrlState({
     currentView,
     currentSlideId: selectedSlideId,
@@ -218,15 +234,18 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     setCurrentView,
     setSelectedSlideId,
     activeSection,
-    setActiveSection
+    setActiveSection,
+    onInitialLoadComplete: () => setInitialUrlProcessed(true)
   })
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
+  // Only run after initial URL processing is complete to avoid clearing slideId on refresh
   useEffect(() => {
+    if (!initialUrlProcessed) return
     if (currentView === 'list' && !selectedSlideId) {
       updateUrl(null)
     }
-  }, [activeSection, currentView, selectedSlideId, updateUrl])
+  }, [activeSection, currentView, selectedSlideId, updateUrl, initialUrlProcessed])
 
   /** Create new blank slide */
   const handleCreateNew = useCallback(async () => {
@@ -238,6 +257,31 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       loadSlide(created.id)
     }
   }, [createSlide, loadSlide, updateUrl, t])
+
+  /** Handle template selection from template browser */
+  const handleTemplateSelected = useCallback(
+    async (templateSlides: SlideData[], themeId: string) => {
+      // Close the template browser dialog
+      setShowTemplateBrowserDialog(false)
+
+      // Create a new slide
+      const created = await createSlide({ title: t('title-untitled-slide') })
+      if (created) {
+        // Store the pending template to apply when editor loads
+        setPendingTemplateSlides({ slides: templateSlides, themeId })
+        setSelectedSlideId(created.id)
+        setCurrentView('editor')
+        updateUrl(created.id, 'editor')
+        loadSlide(created.id)
+      }
+    },
+    [createSlide, loadSlide, updateUrl, t]
+  )
+
+  /** Clear pending template after it's been applied */
+  const handleInitialTemplateApplied = useCallback(() => {
+    setPendingTemplateSlides(null)
+  }, [])
 
   /** Open a slide */
   const handleOpenSlide = useCallback(
@@ -410,6 +454,38 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     [createSlide, loadSlide, updateUrl, t]
   )
 
+  // Check if this is a cast receiver view (standalone page for external display)
+  // localStorage flag survives authentication redirects. Use useState with lazy initializer
+  // to avoid consuming the flag during React's double-mount in strict mode.
+  const [isCastReceiver] = useState(() => {
+    try {
+      // Check localStorage first (survives auth redirects)
+      const localStorageFlag = localStorage.getItem('slides-cast-receiver-mode')
+      if (localStorageFlag === 'true') {
+        // Immediately clear to prevent other windows from picking it up
+        localStorage.removeItem('slides-cast-receiver-mode')
+        return true
+      }
+      // Fallback: check hash and query param
+      const hash = globalThis.window.location.hash
+      if (hash === '#cast-receiver') {
+        return true
+      }
+      const params = new URLSearchParams(globalThis.window.location.search)
+      if (params.get('view') === 'cast-receiver') {
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
+  })
+
+  // Render cast receiver (standalone full-screen view for external displays)
+  if (isCastReceiver) {
+    return <CastReceiver data-testid={`${testId}-cast-receiver`} />
+  }
+
   // Render editor view
   if (currentView === 'editor' && selectedSlideId && currentSlide) {
     return (
@@ -419,6 +495,8 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         accessToken={accessToken}
         userInfo={userInfo}
         onBack={handleBack}
+        initialTemplate={pendingTemplateSlides ?? undefined}
+        onInitialTemplateApplied={handleInitialTemplateApplied}
         data-testid={`${testId}-editor`}
       />
     )
@@ -444,7 +522,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-blank-description')}</div>
           </div>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleCreateNew}>
+        <DropdownMenuItem onClick={() => setShowTemplateBrowserDialog(true)}>
           <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
           <div>
             <div className="gba:font-medium">{t('menu-new-template-title')}</div>
@@ -996,6 +1074,14 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           />
         </DialogContent>
       </Dialog>
+
+      {/* Template Browser Dialog */}
+      <TemplateBrowserDialog
+        open={showTemplateBrowserDialog}
+        onOpenChange={setShowTemplateBrowserDialog}
+        onApplyTemplate={handleTemplateSelected}
+        data-testid={`${testId}-template-browser`}
+      />
     </div>
   )
 }

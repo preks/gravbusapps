@@ -19,15 +19,9 @@ export const CostCenterField: React.FC<CostCenterFieldProps> = ({
   isProcessingFiles,
   onChange
 }) => {
-  // [DEBUG:CostCenterField] trace render values
-  const resolvedName = value ? costCenters.find(c => c.id === value)?.name : undefined
-  console.log(`[DEBUG:CostCenterField] index=${index} value=${value} resolvedName=${resolvedName} costCentersCount=${costCenters.length}`)
-
-  const resolvedValue = value
-    ? {
-        id: value,
-        name: costCenters.find(c => c.id === value)?.name || value
-      }
+  const matchedCenter = value ? costCenters.find(c => c.id === value) : undefined
+  const resolvedValue = matchedCenter
+    ? { id: matchedCenter.id, name: matchedCenter.name }
     : undefined
 
   return (

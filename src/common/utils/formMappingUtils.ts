@@ -123,12 +123,18 @@ const mapToFormValuesRecursive = <TEntity extends Record<string, any>, TSchema e
   transformations?: Partial<Record<string, (value: any) => any>>,
   defaultValues?: Partial<z.infer<TSchema>>
 ): Partial<z.infer<TSchema>> => {
-  if (!entity) {
-    return defaultValues || {}
-  }
-
   const schemaKeys = Object.keys(schema.shape)
   const result: any = { ...defaultValues }
+  const isEmptyEntity = !entity || Object.keys(entity).length === 0
+
+  if (isEmptyEntity) {
+    for (const key of schemaKeys) {
+      if (result[key] === undefined && unwrapZodType(schema.shape[key]) instanceof z.ZodString) {
+        result[key] = ''
+      }
+    }
+    return result
+  }
 
   for (const key of schemaKeys) {
     if (key in entity) {
@@ -136,6 +142,8 @@ const mapToFormValuesRecursive = <TEntity extends Record<string, any>, TSchema e
       const schemaField = schema.shape[key]
       const transformedValue = transformFieldValue(value, key, schemaField, transformations)
       result[key] = transformedValue
+    } else if (result[key] === undefined && unwrapZodType(schema.shape[key]) instanceof z.ZodString) {
+      result[key] = ''
     }
   }
 
