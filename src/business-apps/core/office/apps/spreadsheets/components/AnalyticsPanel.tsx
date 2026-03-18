@@ -454,6 +454,21 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 }) {
   const memoizedEngineRef = useRef(createAnalyticsMemo())
   const [activeTab, setActiveTab] = useState('charts')
+  const panelTitle = useMemo(() => {
+    switch (activeTab) {
+      case 'charts':
+        return 'Generate charts'
+      case 'insights':
+        return 'AI insights'
+      case 'summary':
+        return 'AI summary'
+      case 'pivot':
+        return 'Pivot table'
+      default:
+        return 'AI Analytics'
+    }
+  }, [activeTab])
+  const showTabs = initialTab !== 'charts'
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab)
@@ -472,7 +487,6 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
   const [chartType, setChartType] = useState<AnalyticsChartType>('line')
   const [chartXAxis, setChartXAxis] = useState<string>(columns[0]?.name ?? '')
   const [chartYAxis, setChartYAxis] = useState<string[]>([])
-  const [chartColorPalette, setChartColorPalette] = useState<'newwork-brand'>('newwork-brand')
   const [chartAggregation, setChartAggregation] = useState<AnalyticsAggregation>('sum')
   const [showLegend, setShowLegend] = useState(true)
   const [showGrid, setShowGrid] = useState(true)
@@ -772,7 +786,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
   return createPortal(
     <div className="gba:fixed gba:inset-0" style={{ zIndex: 999999 }} data-testid={testId}>
       <div
-        className="gba:absolute gba:inset-0 gba:bg-black/30 gba:backdrop-blur-[2px] gba:transition-opacity"
+        className="gba:absolute gba:inset-0 gba:bg-transparent"
         role="button"
         tabIndex={0}
         aria-label="Close panel"
@@ -783,16 +797,24 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
         style={{ zIndex: 999999 }}
       />
       <div
-        className="gba:absolute gba:top-0 gba:right-0 gba:bottom-0 gba:w-[560px] gba:max-w-[90vw] gba:bg-background gba:border-l gba:border-border/50 gba:overflow-hidden gba:flex gba:flex-col"
-        style={{ zIndex: 1000000, boxShadow: '-8px 0 32px rgba(0,0,0,0.12)' }}
+        className="gba:fixed gba:bottom-0 gba:bg-background gba:border-l gba:border-border/50 gba:overflow-hidden gba:flex gba:flex-col"
+        style={{
+          top: 100,
+          right: 16,
+          bottom: 32,
+          width: 380,
+          maxWidth: '95vw',
+          zIndex: 1000000,
+          boxShadow: '-4px 0 24px rgba(0,0,0,0.08)'
+        }}
       >
-        <div className="gba:flex gba:items-center gba:justify-between gba:px-5 gba:py-3.5 gba:border-b gba:border-border/50 gba:bg-gradient-to-r gba:from-muted/30 gba:to-transparent">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:w-9 gba:h-9 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary/20 gba:to-primary/5 gba:flex gba:items-center gba:justify-center gba:border gba:border-primary/20">
-              <BarChart3 className="gba:w-4.5 gba:h-4.5 gba:text-primary" />
+        <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:border-b gba:border-border/50 gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <div className="gba:w-7 gba:h-7 gba:rounded-md gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+              <BarChart3 className="gba:h-4 gba:w-4 gba:text-primary" />
             </div>
             <div>
-              <h2 className="gba:text-base gba:font-semibold gba:text-foreground">AI Analytics</h2>
+              <h2 className="gba:font-semibold gba:text-sm">{panelTitle}</h2>
               <p className="gba:text-xs gba:text-muted-foreground">
                 {`${analyticsRows.length} rows x ${columns.length} cols`}
               </p>
@@ -802,28 +824,39 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="gba:h-8 gba:w-8 gba:p-0 gba:rounded-full gba:hover:bg-muted"
+            className="gba:h-8 gba:w-8 gba:p-0 gba:rounded-full hover:gba:bg-muted"
           >
             <X className="gba:w-4 gba:h-4" />
           </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0">
-          <div className="gba:px-5 gba:pt-4 gba:pb-2 gba:border-b gba:border-border/40">
-            <TabsList className="gba:w-full">
-              <TabsTrigger value="charts" className="gba:flex-1">
-                Charts
-              </TabsTrigger>
-              <TabsTrigger value="insights" className="gba:flex-1">
-                Insights
-              </TabsTrigger>
-              <TabsTrigger value="summary" className="gba:flex-1">
-                Summary
-              </TabsTrigger>
-            </TabsList>
-          </div>
+          {showTabs && (
+            <div className="gba:flex gba:gap-1 gba:p-1 gba:bg-muted/30">
+              <TabsList className="gba:w-full gba:h-auto gba:bg-transparent gba:p-0 gba:gap-1">
+                <TabsTrigger
+                  value="charts"
+                  className="gba:flex-1 gba:rounded-lg gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:transition-all data-[state=active]:gba:bg-background data-[state=active]:gba:text-foreground data-[state=active]:gba:shadow-sm data-[state=inactive]:gba:text-muted-foreground data-[state=inactive]:hover:gba:text-foreground data-[state=inactive]:hover:gba:bg-background/50"
+                >
+                  Charts
+                </TabsTrigger>
+                <TabsTrigger
+                  value="insights"
+                  className="gba:flex-1 gba:rounded-lg gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:transition-all data-[state=active]:gba:bg-background data-[state=active]:gba:text-foreground data-[state=active]:gba:shadow-sm data-[state=inactive]:gba:text-muted-foreground data-[state=inactive]:hover:gba:text-foreground data-[state=inactive]:hover:gba:bg-background/50"
+                >
+                  Insights
+                </TabsTrigger>
+                <TabsTrigger
+                  value="summary"
+                  className="gba:flex-1 gba:rounded-lg gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:transition-all data-[state=active]:gba:bg-background data-[state=active]:gba:text-foreground data-[state=active]:gba:shadow-sm data-[state=inactive]:gba:text-muted-foreground data-[state=inactive]:hover:gba:text-foreground data-[state=inactive]:hover:gba:bg-background/50"
+                >
+                  Summary
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          )}
 
-          <div className="gba:flex-1 gba:overflow-auto gba:p-5">
+          <div className="gba:flex-1 gba:overflow-auto gba:p-3">
             <TabsContent value="pivot" className="gba:space-y-4">
               <div className="gba:grid gba:grid-cols-1 gba:gap-3">
                 <label className="gba:text-xs gba:text-muted-foreground">
@@ -925,15 +958,15 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
               )}
             </TabsContent>
 
-            <TabsContent value="charts" className="gba:space-y-4">
-              <div className="gba:border gba:border-primary/20 gba:bg-primary/5 gba:rounded-md gba:p-3">
-                <p className="gba:text-sm gba:text-primary">
+            <TabsContent value="charts" className="gba:space-y-5">
+              <div className="gba:border gba:border-primary/20 gba:bg-primary/5 gba:rounded-md gba:p-3.5">
+                <p className="gba:text-xs gba:leading-relaxed gba:text-primary">
                   Visualize your data and optionally send the chart to a Slides presentation.
                 </p>
               </div>
 
-              <div className="gba:grid gba:grid-cols-1 gba:gap-3">
-                <label className="gba:text-xs gba:text-muted-foreground">
+              <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+                <label className="gba:text-[11px] gba:leading-relaxed gba:text-muted-foreground">
                   Chart Type
                   <div className="gba:mt-1 gba:grid gba:grid-cols-5 gba:gap-1">
                     {(['bar', 'line', 'pie', 'area', 'scatter'] as const).map(type => (
@@ -941,6 +974,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                         key={type}
                         variant={chartType === type ? 'default' : 'secondary'}
                         size="sm"
+                        className="gba:h-8 gba:px-2 gba:text-[11px]"
                         onClick={() => setChartType(type)}
                       >
                         {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -949,7 +983,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                   </div>
                 </label>
 
-                <label className="gba:text-xs gba:text-muted-foreground">
+                <label className="gba:text-[11px] gba:leading-relaxed gba:text-muted-foreground">
                   X-Axis (Categories)
                   <select
                     className="gba:mt-1 gba:w-full gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
@@ -975,7 +1009,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                   </div>
                 </label>
 
-                <label className="gba:text-xs gba:text-muted-foreground">
+                <label className="gba:text-[11px] gba:leading-relaxed gba:text-muted-foreground">
                   Y-Axis (Values)
                   <div className="gba:mt-1 gba:flex gba:flex-wrap gba:gap-1">
                     {chartableValueColumns.length > 0 ? (
@@ -988,6 +1022,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                               key={col.id}
                               variant={active ? 'default' : 'secondary'}
                               size="sm"
+                              className="gba:h-8 gba:px-2 gba:text-[11px]"
                               onClick={() => handleToggleChartYAxis(col.name)}
                             >
                               {getColumnHeader(col)}
@@ -1011,7 +1046,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                   </div>
                 </label>
 
-                <label className="gba:text-xs gba:text-muted-foreground">
+                <label className="gba:text-[11px] gba:leading-relaxed gba:text-muted-foreground">
                   Aggregation
                   <select
                     className="gba:mt-1 gba:w-full gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
@@ -1027,16 +1062,6 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 </label>
 
                 <div className="gba:space-y-2">
-                  <label className="gba:text-xs gba:text-muted-foreground">
-                    Colors
-                    <select
-                      className="gba:mt-1 gba:w-full gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
-                      value={chartColorPalette}
-                      onChange={e => setChartColorPalette(e.target.value as 'newwork-brand')}
-                    >
-                      <option value="newwork-brand">NEWWORK Brand</option>
-                    </select>
-                  </label>
                   <div className="gba:flex gba:items-center gba:gap-4">
                     <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:cursor-pointer">
                       <Checkbox checked={showLegend} onCheckedChange={v => setShowLegend(v === true)} />

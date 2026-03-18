@@ -8,8 +8,6 @@ import {
   parseSheetsAIReviewResponse
 } from '../prompts/sheets-ai-review'
 
-const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
-
 interface UseSheetsAIReviewParams {
   accessToken: string
   sheetName: string
@@ -94,9 +92,7 @@ export const useSheetsAIReview = ({
         returnTotalRecords: false
       })
       const selectedModel =
-        modelsResponse.data?.find(model => model._id === PREFERRED_MODEL_ID) ??
-        modelsResponse.data?.find(model => model.name.toLowerCase().includes('gpt-4')) ??
-        modelsResponse.data?.[0]
+        modelsResponse.data?.find(model => model.name.toLowerCase().includes('gpt-4')) ?? modelsResponse.data?.[0]
       if (!selectedModel) throw new Error('No AI models available')
 
       const formData = new FormData()

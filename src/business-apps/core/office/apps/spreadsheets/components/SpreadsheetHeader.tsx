@@ -11,8 +11,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
 import {
@@ -27,7 +25,6 @@ import {
   BarChart3,
   Sparkles,
   Sigma,
-  MessageCircle,
   ClipboardCheck
 } from 'lucide-react'
 import { getIconByName } from '../utils/appIcons'
@@ -101,9 +98,7 @@ function EditingToolbar({
   showComments: boolean
   setShowComments: (show: boolean) => void
   unresolvedCommentCount: number
-  onOpenAICapability: (
-    capability: 'charts' | 'pivot' | 'insights' | 'summary' | 'formula' | 'analyze' | 'chat' | 'review'
-  ) => void
+  onOpenAICapability: (capability: 'charts' | 'insights' | 'formula' | 'analyze' | 'review') => void
   fileLock: {
     lock: { isLocked: boolean; lockedByName?: string } | null
     isLockedByMe: boolean
@@ -147,12 +142,7 @@ function EditingToolbar({
             AI Analytics
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="gba:min-w-[280px]">
-          <DropdownMenuLabel>Data actions</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => onOpenAICapability('analyze')}>
-            <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
-            Analyze data
-          </DropdownMenuItem>
+        <DropdownMenuContent align="end" className="gba:min-w-[220px]">
           <DropdownMenuItem onClick={() => onOpenAICapability('charts')}>
             <BarChart3 className="gba:w-4 gba:h-4 gba:mr-2" />
             Generate charts
@@ -161,24 +151,17 @@ function EditingToolbar({
             <Sigma className="gba:w-4 gba:h-4 gba:mr-2" />
             Generate a formula
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>AI assistants</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => onOpenAICapability('chat')}>
-            <MessageCircle className="gba:w-4 gba:h-4 gba:mr-2" />
-            Chat with data
+          <DropdownMenuItem onClick={() => onOpenAICapability('analyze')}>
+            <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
+            Analyze data
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onOpenAICapability('review')}>
             <ClipboardCheck className="gba:w-4 gba:h-4 gba:mr-2" />
             Smart review
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => onOpenAICapability('insights')}>
             <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
             AI insights
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onOpenAICapability('summary')}>
-            <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
-            AI summary
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -282,9 +265,7 @@ export interface SpreadsheetHeaderProps {
   }
 
   // Actions
-  onOpenAICapability: (
-    capability: 'charts' | 'pivot' | 'insights' | 'summary' | 'formula' | 'analyze' | 'chat' | 'review'
-  ) => void
+  onOpenAICapability: (capability: 'charts' | 'insights' | 'formula' | 'analyze' | 'review') => void
   onShare?: () => void
   onOpenAnalytics: () => void
   onOpenAutomations: () => void

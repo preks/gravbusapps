@@ -99,9 +99,7 @@ const getAuthToken = (): string | null => {
 // API request helper
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken()
-  const method = (options.method || 'GET').toUpperCase()
-  const shouldUseKeepAlive =
-    globalThis.window !== undefined && method !== 'GET' && method !== 'HEAD' && options.keepalive === undefined
+  const shouldUseKeepAlive = options.keepalive === true
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',

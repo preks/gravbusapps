@@ -1,15 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
-import {
-  Card,
-  CardContent,
-  Button,
-  Input,
-  Skeleton,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { Card, CardContent, Button, Input, Skeleton, useTranslation } from '@newwork/nw-design-system'
 import { Zap, Search, RefreshCw, XCircle } from 'lucide-react'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import translations from '../../_i18n'
@@ -29,7 +19,6 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeTab, setActiveTab] = useState('all')
   const [selectedAutomation, setSelectedAutomation] = useState<AutomationWithRuns | null>(null)
   const [runningAutomations, setRunningAutomations] = useState<Set<string>>(new Set())
   const [stoppingRuns, setStoppingRuns] = useState<Set<string>>(new Set())
@@ -75,6 +64,17 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
     fetchAutomations()
   }, [fetchAutomations])
 
+  const getLatestAutomationTimestamp = useCallback((automation: AutomationWithRuns): number => {
+    const latestRun = automation.recentRuns?.[0]
+    const candidates = [latestRun?.startedAt, latestRun?.createdAt, automation.updatedAt, automation.createdAt]
+    const validTimestamps = candidates
+      .map(value => (value ? new Date(value).getTime() : Number.NaN))
+      .filter(value => Number.isFinite(value))
+
+    if (validTimestamps.length === 0) return 0
+    return Math.max(...validTimestamps)
+  }, [])
+
   const filteredAutomations = useMemo(() => {
     let filtered = automations
 
@@ -85,12 +85,8 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
       )
     }
 
-    if (activeTab !== 'all') {
-      filtered = filtered.filter(a => a.type === activeTab)
-    }
-
-    return filtered
-  }, [automations, searchQuery, activeTab])
+    return [...filtered].sort((a, b) => getLatestAutomationTimestamp(b) - getLatestAutomationTimestamp(a))
+  }, [automations, searchQuery, getLatestAutomationTimestamp])
 
   const handleRunAutomation = useCallback(
     async (automation: AutomationWithRuns) => {
@@ -293,14 +289,6 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
             className="gba:pl-10"
           />
         </div>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="all">{t('sa-filter-all')}</TabsTrigger>
-            <TabsTrigger value="excel_collection">{t('sa-filter-collection')}</TabsTrigger>
-            <TabsTrigger value="bulk_collection">{t('sa-filter-form')}</TabsTrigger>
-            <TabsTrigger value="row_workflow">{t('automation-type-row-workflow')}</TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
 
       <div className="gba:flex-1 gba:overflow-auto gba:p-6">

@@ -27,7 +27,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ArrowLeft, ListPlus, Workflow } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import translations from './_i18n'
 import { FlowStudioCanvas } from './components/canvas/FlowStudioCanvas'
 import { NodeContextMenu } from './components/shared/NodeContextMenu'
@@ -39,12 +39,6 @@ import type { DesignerMode } from './types/studioTypes'
 import { FlowStudioListView } from './views/FlowStudioListView'
 
 import { useFlowStudioClient } from './hooks/useFlowStudioClient'
-
-// Video background - same logic as EveryPagesHero and SpaceHero
-const hostedVideoUrl = import.meta?.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (import.meta !== undefined && import.meta.env?.DEV && localVideoUrl)
-const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
 const FLOW_ID_PARAM = 'flowId'
 const UNTITLED_FLOW_NAME = 'Untitled Flow'
@@ -303,37 +297,9 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background" data-testid={testId}>
-      {/* Hero header with video / animated gradient background */}
       <div className="gba:relative gba:overflow-hidden gba:shrink-0" data-testid={`${testId}-hero`}>
-        {/* Video background when available, otherwise canvas animation */}
-        {useVideo ? (
-          <video
-            src={HERO_VIDEO_SRC}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden="true"
-            tabIndex={-1}
-            data-testid={`${testId}-hero-video`}
-          />
-        ) : (
-          <SpaceHeroBackground />
-        )}
-
-        {/* Dark overlay for text readability */}
-        {/* eslint-disable newwork-local/no-hardcoded-colors */}
-        <div
-          className="gba:absolute gba:inset-0 gba:pointer-events-none"
-          style={{
-            background:
-              'linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)'
-          }}
-          aria-hidden
-        />
-        {/* eslint-enable newwork-local/no-hardcoded-colors */}
+        <PremiumHeroBackground data-testid={`${testId}-hero-background`} />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
         {/* Content */}
         <div className="gba:relative gba:px-6 gba:py-5">
