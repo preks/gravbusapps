@@ -889,16 +889,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     apiService: SpreadsheetApiService
   })
 
-  const fileLock = useFileLock({
-    entityId: app.id,
-    entityType: 'spreadsheet_app',
-    currentUserId: userId,
-    apiService: SpreadsheetApiService,
-    autoRefreshInterval: 1000,
-    blockEditingUntilLockResolved: true
-  })
-  const canEditWithLock = isEditing && !entityEnabled && fileLock.canEdit
-
   const publishing = usePublishing({
     entityId: app.id,
     entityType: 'spreadsheet_app',
@@ -1204,6 +1194,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     accessToken,
     onOperationReceived: handleCollaborationOperation
   })
+
+  const fileLock = useFileLock({
+    entityId: app.id,
+    entityType: 'spreadsheet_app',
+    currentUserId: userId,
+    apiService: SpreadsheetApiService,
+    // Keep a low-frequency polling fallback; primary updates are socket-driven.
+    autoRefreshInterval: 15000,
+    realtimeSocket: collaboration.socket,
+    blockEditingUntilLockResolved: true
+  })
+  const canEditWithLock = isEditing && !entityEnabled && fileLock.canEdit
 
   // --- Column handling (includes auto-add for Univer grid) ---
   const handleCellChangeRef = useRef<(rowId: string, columnName: string, value: unknown) => void>(() => {})
