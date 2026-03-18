@@ -33,8 +33,8 @@ export interface DocumentSegmentProps {
   existingFileInfo?: {
     id?: string
     name?: string
-    fileSize?: number
-    mimeType?: string
+    fileSize?: number | null
+    mimeType?: string | null
   } | null
 
   // AI Classification

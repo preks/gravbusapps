@@ -118,6 +118,7 @@ benefit-details-end-date = Enddatum
 benefit-details-notes = Notizen
 benefit-details-justification = Begründung
 benefit-details-available-providers = Verfügbare Anbieter
+benefit-details-choose-provider = Anbieter wählen
 benefit-details-additional-info = Zusätzliche Informationen
 benefit-details-value = Wert
 benefit-details-no-value-info = Detaillierte Wertinformationen werden nach Beantragung dieser Leistung festgelegt.

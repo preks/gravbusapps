@@ -12,7 +12,20 @@ import ActivitySection from '@/common/components/common-relations/record-section
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
+import {
+  APPROVAL_TASK_TYPE_REF,
+  FILE_CONTEXT,
+  APP_NAME,
+  getFileEntityFromType
+} from '@/common/data/investment/constants/investmentConstants'
+import { getReferenceEntityType } from '@/common/data/investment/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
+import { buildInvestmentActivityPayload } from '@/common/data/investment/types/investmentActivityTypes'
+import { buildInvestmentNotePayload } from '@/common/data/investment/types/investmentNoteTypes'
 
 interface InvestmentHomeTabProps extends BusinessAppContextProps {
   investmentId: string
@@ -20,6 +33,47 @@ interface InvestmentHomeTabProps extends BusinessAppContextProps {
 }
 
 export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investmentId, investment, ...context }) => {
+  const fileClient = useFileClient({ accessToken: context.accessToken, userInfo: context.userInfo })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: context.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      entityId: investmentId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [context.userInfo, fileClient, investmentId]
+  )
+  const activityPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: context.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      entityId: investmentId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [context.userInfo, fileClient, investmentId]
+  )
+  const notePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: context.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      entityId: investmentId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false
+    }),
+    [context.userInfo, fileClient, investmentId]
+  )
+
   // Real data state
   const [tasks, setTasks] = useState<any[]>([])
   const [activities, setActivities] = useState<any[]>([])
@@ -270,13 +324,24 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: ActivitySection,
             props: {
               ...context,
+              investmentId,
               activities: activities,
               activitiesLoading: activitiesLoading,
               activitiesError: activitiesError,
               onReloadActivities: loadActivities,
               activitySectionActionProps: {
                 contextsArray: [FlowContextName.investmentActivityCreate],
-                externalContextData: { investmentId },
+                externalContextData: {
+                  investmentId,
+                  ...(context.userInfo?.employeeDetails?.employeeId && {
+                    ownerEmployeeId: context.userInfo.employeeDetails.employeeId
+                  }),
+                  ...(context.userInfo?.id && {
+                    employeeId: context.userInfo.id,
+                    userId: context.userInfo.id,
+                    employeeDetails: { userId: context.userInfo.id }
+                  })
+                },
                 prefixDataTestId: 'investment-activity',
                 emptyStateBehavior: 'enable'
               },
@@ -285,7 +350,11 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                 externalContextData: { investmentId },
                 prefixDataTestId: 'investment-activity-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              activityTypeCatalog: ACTIVITY_TYPE,
+              buildActivityPayload: buildInvestmentActivityPayload,
+              alignment: 'right',
+              preSubmit: activityPreSubmit
             }
           },
           {
@@ -293,6 +362,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: NoteSection,
             props: {
               ...context,
+              investmentId,
               notes: notes,
               noteActionProps: {
                 contextsArray: [FlowContextName.investmentNoteCreate],
@@ -305,7 +375,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                 externalContextData: { investmentId },
                 prefixDataTestId: 'investment-note-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              buildNotePayload: buildInvestmentNotePayload,
+              preSubmit: notePreSubmit
             }
           }
         ]}
@@ -321,6 +393,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: TaskSection,
             props: {
               ...context,
+              investmentId,
               buildReferenceUrl,
               tasks: tasks,
               taskActionProps: {
@@ -334,7 +407,12 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                 externalContextData: { investmentId },
                 prefixDataTestId: 'investment-task-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildInvestmentTaskPayload,
+              defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           },
           {
@@ -343,14 +421,15 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             props: {
               ...context,
               sectionTitle: 'Approval Tasks',
+              investmentId,
               buildReferenceUrl,
               tasks: approvals,
               taskActionProps: {
                 contextsArray: [FlowContextName.investmentTaskCreate],
                 externalContextData: {
                   investmentId,
-                  typeRef: 'InvestmentTaskType:v1:APPROVAL',
-                  investmentTask: { investment: investmentId, type: 'InvestmentTaskType:v1:APPROVAL' }
+                  typeRef: APPROVAL_TASK_TYPE_REF,
+                  investmentTask: { investment: investmentId, type: APPROVAL_TASK_TYPE_REF }
                 },
                 prefixDataTestId: 'investment-approval',
                 emptyStateBehavior: 'enable'
@@ -360,7 +439,14 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                 externalContextData: { investmentId },
                 prefixDataTestId: 'investment-approval-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildInvestmentTaskPayload,
+              isApprovalTaskSection: true,
+              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+              defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           }
         ]}

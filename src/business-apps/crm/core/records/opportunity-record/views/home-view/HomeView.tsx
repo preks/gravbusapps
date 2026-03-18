@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
@@ -10,6 +10,19 @@ import NoteSection from '@/common/components/common-relations/record-sections/no
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/customer/constants/customerCatalogs'
+import {
+  APPROVAL_TASK_TYPE_REF,
+  FILE_CONTEXT,
+  APP_NAME,
+  getFileEntityFromType
+} from '@/common/data/customer/constants/customerConstants'
+import { buildCustomerTaskPayload } from '@/common/data/customer/types/customerTaskTypes'
+import { buildCustomerActivityPayload } from '@/common/data/customer/types/customerActivityTypes'
+import { buildCustomerNotePayload } from '@/common/data/customer/types/customerNoteTypes'
+import { getReferenceEntityType } from '@/common/data/customer/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
 
 interface HomeViewProps extends BusinessAppContextProps {
   opportunityId: string
@@ -56,6 +69,46 @@ export const HomeView: React.FC<HomeViewProps> = ({
   accessToken,
   ...props
 }) => {
+  const fileClient = useFileClient({ accessToken, userInfo: props.userInfo })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient]
+  )
+  const activityPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      entityId: opportunityId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient, opportunityId]
+  )
+  const notePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      entityId: opportunityId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false
+    }),
+    [props.userInfo, fileClient, opportunityId]
+  )
+
   return (
     <>
       {/* Account Information - 1/4 width */}
@@ -190,7 +243,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: { opportunityId },
                 prefixDataTestId: 'opportunity-task-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildCustomerTaskPayload,
+              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           },
           {
@@ -214,12 +272,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: {
                   opportunityId,
                   opportunity: opportunityId,
-                  typeRef: 'SalesTaskType:v1:APPROVAL',
-                  salesTask: { opportunity: opportunityId, type: 'SalesTaskType:v1:APPROVAL' }
+                  typeRef: APPROVAL_TASK_TYPE_REF,
+                  salesTask: { opportunity: opportunityId, type: APPROVAL_TASK_TYPE_REF }
                 },
                 prefixDataTestId: 'opportunity-approvals',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildCustomerTaskPayload,
+              isApprovalTaskSection: true,
+              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           }
         ]}
@@ -236,6 +301,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
+              opportunityId,
               activities: activities,
               activitiesLoading: activitiesLoading,
               activitiesError: activitiesError,
@@ -259,7 +325,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: { opportunityId },
                 prefixDataTestId: 'opportunity-activity-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              activityTypeCatalog: ACTIVITY_TYPE,
+              buildActivityPayload: buildCustomerActivityPayload,
+              alignment: 'right',
+              preSubmit: activityPreSubmit
             }
           },
           {
@@ -268,6 +338,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
+              opportunityId,
               notes: notes,
               noteActionProps: {
                 contextsArray: [FlowContextName.customerNoteCreate],
@@ -280,7 +351,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: { opportunityId },
                 prefixDataTestId: 'opportunity-note-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              buildNotePayload: buildCustomerNotePayload,
+              preSubmit: notePreSubmit
             }
           }
         ]}

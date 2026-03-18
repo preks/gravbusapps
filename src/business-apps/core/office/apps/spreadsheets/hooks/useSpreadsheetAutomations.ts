@@ -324,8 +324,21 @@ function buildRowUpdate(params: {
     response.responderName && response.responderName !== 'Unknown' ? response.responderName : recipientData?.name
   const displayEmail = response.responderEmail ?? recipientData?.email
 
-  const copyAppId = getStringFormValue(response.formData, ['copyAppId', 'copy_app_id'])
-  const copyUrl = getStringFormValue(response.formData, ['copyUrl', 'copyURL', 'copyLink', 'copy_link'])
+  const copyAppId = getStringFormValue(response.formData, [
+    'copyAppId',
+    'copy_app_id',
+    'appId',
+    'copySpreadsheetId',
+    'copy_spreadsheet_id'
+  ])
+  const copyUrl = getStringFormValue(response.formData, [
+    'copyUrl',
+    'copyURL',
+    'copyLink',
+    'copy_link',
+    'spreadsheetUrl',
+    'spreadsheet_url'
+  ])
 
   const trackingValues = buildCompletedRowTrackingValues(
     trackingColumns,
@@ -966,12 +979,28 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         const statusColumn = automation.workflowConfig.statusColumn
 
         const columnIdToName = buildColumnIdToNameMap(automation)
+        const recipientIdByWorkflowId = new Map(
+          workflowLinks
+            .filter(link => link.automationId === automation.id)
+            .map(link => {
+              const rawRowId = String(link.rowId || '')
+              const normalizedRecipientId = rawRowId.startsWith('recipient_')
+                ? rawRowId.slice('recipient_'.length)
+                : rawRowId
+              return [String(link.workflowId || '').trim(), normalizedRecipientId]
+            })
+            .filter(([workflowId, recipientId]) => workflowId.length > 0 && recipientId.length > 0)
+        )
         const rowUpdates = newResponses.map(response => {
-          const recipientData = response.responderId ? recipientDataMap.get(response.responderId) : undefined
+          const normalizedWorkflowId = String(response.workflowId || '').trim()
+          const normalizedResponderId = String(response.responderId || '').trim()
+          const fallbackRecipientId = recipientIdByWorkflowId.get(normalizedWorkflowId)
+          const effectiveResponderId = normalizedResponderId || fallbackRecipientId || ''
+          const recipientData = effectiveResponderId ? recipientDataMap.get(effectiveResponderId) : undefined
           return buildRowUpdate({
             response: {
-              workflowId: response.workflowId,
-              responderId: response.responderId,
+              workflowId: normalizedWorkflowId,
+              responderId: effectiveResponderId,
               responderName: response.responderName,
               responderEmail: response.responderEmail,
               submittedAt: response.submittedAt,
@@ -1013,7 +1042,15 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         console.error('[useSpreadsheetAutomations] Error fetching bulk collection responses:', err)
       }
     }
-  }, [automations, spreadsheetId, sheetId, accessToken, resolveExcelCollectionAutomationId, updateAutomation])
+  }, [
+    automations,
+    spreadsheetId,
+    sheetId,
+    accessToken,
+    resolveExcelCollectionAutomationId,
+    updateAutomation,
+    workflowLinks
+  ])
 
   // Poll for bulk collection responses
   useEffect(() => {

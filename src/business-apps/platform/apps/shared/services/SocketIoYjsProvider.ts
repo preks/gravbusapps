@@ -68,6 +68,8 @@ export interface SocketIoYjsProviderOptions {
     fragmentContent: unknown
   }) => Promise<void> | void
   onLocalDocumentChange?: () => void
+  onRemoteDocumentChange?: () => void
+  onRemoteAwarenessChange?: () => void
   /** Resolve before first apply of doc/awareness state so the editor view can mount. */
   onBeforeFirstSync?: () => Promise<void>
 }
@@ -101,6 +103,8 @@ export class SocketIoYjsProvider {
     fragmentContent: unknown
   }) => Promise<void> | void
   private onLocalDocumentChange?: () => void
+  private onRemoteDocumentChange?: () => void
+  private onRemoteAwarenessChange?: () => void
   private readonly onBeforeFirstSync?: () => Promise<void>
   private hasWaitedForReady = false
 
@@ -116,6 +120,8 @@ export class SocketIoYjsProvider {
     this.onBootstrapRequired = options.onBootstrapRequired
     this.onReadyStateApplied = options.onReadyStateApplied
     this.onLocalDocumentChange = options.onLocalDocumentChange
+    this.onRemoteDocumentChange = options.onRemoteDocumentChange
+    this.onRemoteAwarenessChange = options.onRemoteAwarenessChange
     this.onBeforeFirstSync = options.onBeforeFirstSync
   }
 
@@ -202,8 +208,19 @@ export class SocketIoYjsProvider {
     }
   }
 
+  private static readonly PERMANENT_ERROR_PATTERNS = ['access', 'forbidden', 'not found', 'permission', 'unauthorized']
+
+  private isPermanentError(error: string): boolean {
+    const lower = error.toLowerCase()
+    return SocketIoYjsProvider.PERMANENT_ERROR_PATTERNS.some(p => lower.includes(p))
+  }
+
   private handleSyncFailure(response: Extract<YjsSyncResponse, { success: false }>) {
     console.error('[SocketIoYjsProvider] Sync failed:', response.error)
+    if (this.isPermanentError(response.error)) {
+      console.warn('[SocketIoYjsProvider] Permanent error, will not retry')
+      return
+    }
     this.scheduleSyncRetry()
   }
 
@@ -308,6 +325,7 @@ export class SocketIoYjsProvider {
     try {
       const stateBytes = base64ToUint8Array(stateBase64)
       Y.applyUpdate(this.ydoc, stateBytes, 'remote')
+      this.onRemoteDocumentChange?.()
 
       const fragment = this.ydoc.getXmlFragment('default')
       const fragmentContent = fragment.toJSON()
@@ -327,6 +345,7 @@ export class SocketIoYjsProvider {
   private applyAwarenessState(updateBase64: string) {
     try {
       applyAwarenessUpdate(this.awareness, base64ToUint8Array(updateBase64), 'remote')
+      this.onRemoteAwarenessChange?.()
     } catch (error) {
       console.error('[SocketIoYjsProvider] Failed applying awareness state:', error)
     }

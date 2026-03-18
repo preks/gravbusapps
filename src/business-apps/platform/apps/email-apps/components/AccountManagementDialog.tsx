@@ -45,6 +45,8 @@ interface AccountManagementDialogProps {
   onOpenAdminSettings?: () => void
   threadViewEnabled?: boolean
   onToggleThreadView?: () => void
+  assistantEnabled?: boolean
+  onToggleAssistantEnabled?: () => void
   'data-testid'?: string
 }
 
@@ -57,6 +59,8 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
   onOpenAdminSettings,
   threadViewEnabled = false,
   onToggleThreadView,
+  assistantEnabled = false,
+  onToggleAssistantEnabled,
   'data-testid': testId = 'account-management'
 }) => {
   const { t } = useTranslation(translations)
@@ -65,6 +69,10 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
 
   const handleToggleThreadView = () => {
     onToggleThreadView?.()
+  }
+
+  const handleToggleAssistantEnabled = () => {
+    onToggleAssistantEnabled?.()
   }
 
   const handleReconnect = async (account: EmailAccount) => {
@@ -160,6 +168,18 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
               checked={threadViewEnabled}
               onCheckedChange={handleToggleThreadView}
               data-testid={`${testId}-thread-toggle`}
+            />
+          </div>
+          <div className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:px-4 gba:rounded-lg gba:border gba:bg-card">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <MessageSquare className="gba:w-4 gba:h-4 gba:text-info" />
+              <span className="gba:text-sm gba:text-foreground">{t('account-mgmt-assistant-toggle')}</span>
+              <span className="gba:text-xs gba:text-muted-foreground">{t('account-mgmt-assistant-toggle-desc')}</span>
+            </div>
+            <Switch
+              checked={assistantEnabled}
+              onCheckedChange={handleToggleAssistantEnabled}
+              data-testid={`${testId}-assistant-toggle`}
             />
           </div>
 

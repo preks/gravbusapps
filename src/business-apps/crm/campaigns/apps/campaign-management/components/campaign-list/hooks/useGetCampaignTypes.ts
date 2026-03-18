@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CAMPAIGN_TYPE } from '@/common/data/customer/constants/customerCatalogs'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 export interface CampaignTypeOption {
@@ -9,8 +10,7 @@ export interface CampaignTypeOption {
   code?: string
 }
 
-export const CAMPAIGN_TYPE_CATALOG = 'SalesCampaignType'
-export const CAMPAIGN_TYPE_VERSION = 'v1'
+const [campaignTypeCatalogIdentifier, campaignTypeCatalogVersion = 'v1'] = CAMPAIGN_TYPE.split(':')
 
 export const useGetCampaignTypes = (
   context: BusinessAppContextProps,
@@ -37,8 +37,8 @@ export const useGetCampaignTypes = (
     try {
       const response = await catalogClient.getCatalogEntriesList(
         {
-          catalogIdentifier: CAMPAIGN_TYPE_CATALOG,
-          version: CAMPAIGN_TYPE_VERSION
+          catalogIdentifier: campaignTypeCatalogIdentifier,
+          version: campaignTypeCatalogVersion
         },
         {
           limit,

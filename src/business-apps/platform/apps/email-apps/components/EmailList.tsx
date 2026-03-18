@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { Spinner, Button, useTranslation } from '@newwork/nw-design-system'
-import { AlertCircle, Trash2, MailOpen, Mail } from 'lucide-react'
+import { AlertCircle, Trash2, MailOpen, Mail, Undo2 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { normalizeLabelName, normalizeLabelObjects } from '../utils/labelUtils'
 import { formatEmailDate } from '../utils/emailListFormatting'
@@ -31,6 +31,8 @@ interface EmailListProps {
   onToggleRead?: (messageId: string, isRead: boolean) => void
   onArchive?: (messageId: string) => void
   onDelete?: (messageId: string) => void
+  onRestore?: (messageId: string, options?: { silent?: boolean }) => Promise<void> | void
+  isTrashView?: boolean
   onRefresh: () => void
   onMessageLabelsUpdated?: (messageId: string, labels?: EmailLabel[]) => Promise<void> | void
   onLoadMore?: () => void
@@ -59,6 +61,8 @@ export const EmailList: React.FC<EmailListProps> = ({
   onToggleRead,
   onArchive,
   onDelete,
+  onRestore,
+  isTrashView = false,
   onRefresh,
   onMessageLabelsUpdated,
   onLoadMore,
@@ -138,6 +142,23 @@ export const EmailList: React.FC<EmailListProps> = ({
       setIsBulkAction(false)
     }
   }, [selectedIds, onRefresh, t])
+
+  const handleBulkRestore = useCallback(async () => {
+    if (selectedIds.size === 0 || !onRestore) return
+    setIsBulkAction(true)
+    try {
+      for (const id of selectedIds) {
+        await onRestore(id, { silent: true })
+      }
+      toast.success(t('list-toast-restored', { count: selectedIds.size }))
+      setSelectedIds(new Set())
+      onRefresh()
+    } catch {
+      toast.error(t('list-toast-restore-failed'))
+    } finally {
+      setIsBulkAction(false)
+    }
+  }, [selectedIds, onRefresh, onRestore, t])
 
   const hasBulkSelection = selectedIds.size > 0
   const remaining = Math.max(total - messages.length, 0)
@@ -340,6 +361,19 @@ export const EmailList: React.FC<EmailListProps> = ({
             <Trash2 className="gba:w-3 gba:h-3 gba:mr-1" />
             {t('menu-delete')}
           </Button>
+          {isTrashView && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBulkRestore}
+              disabled={isBulkAction || !onRestore}
+              className="gba:h-7 gba:text-xs"
+              data-testid={`${testId}-bulk-restore`}
+            >
+              <Undo2 className="gba:w-3 gba:h-3 gba:mr-1" />
+              {t('menu-restore')}
+            </Button>
+          )}
         </div>
       )}
 
@@ -376,6 +410,8 @@ export const EmailList: React.FC<EmailListProps> = ({
               onToggleRead={() => onToggleRead?.(msg.id, !msg.isRead)}
               onArchive={() => onArchive?.(msg.id)}
               onDelete={() => onDelete?.(msg.id)}
+              onRestore={() => onRestore?.(msg.id)}
+              isTrashView={isTrashView}
               onAddLabels={labels => handleAddLabelsFromContextMenu(msg.id, labels)}
               onRemoveLabel={label => handleRemoveLabelFromContextMenu(msg.id, label)}
               testId={`${testId}-item-${msg.id}`}
