@@ -6,7 +6,7 @@ import { PerformanceEvaluationPeerApproveFormProps } from './types'
 
 const PerformanceEvaluationPeerApprove: React.FC<
   BusinessAppContextProps & PerformanceEvaluationPeerApproveFormProps
-> = ({ onSubmit = async () => {}, onCancel = async () => {}, accessToken, userInfo, additionalData }) => {
+> = ({ onSubmit = async () => {}, accessToken, userInfo, additionalData }) => {
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
@@ -24,11 +24,7 @@ const PerformanceEvaluationPeerApprove: React.FC<
   }
 
   return (
-    <PerformanceEvaluationPeerApproveProvider
-      businessAppContext={businessAppContext}
-      onSubmit={onSubmit}
-      onCancel={onCancel}
-    >
+    <PerformanceEvaluationPeerApproveProvider businessAppContext={businessAppContext} onSubmit={onSubmit}>
       <PerformanceEvaluationPeerApproveComponent />
     </PerformanceEvaluationPeerApproveProvider>
   )

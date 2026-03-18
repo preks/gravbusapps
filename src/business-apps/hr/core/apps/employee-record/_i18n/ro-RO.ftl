@@ -118,6 +118,7 @@ benefit-details-end-date = Data de încheiere
 benefit-details-notes = Note
 benefit-details-justification = Justificare
 benefit-details-available-providers = Furnizori disponibili
+benefit-details-choose-provider = Alege furnizorul
 benefit-details-additional-info = Informații suplimentare
 benefit-details-value = Valoare
 benefit-details-no-value-info = Informațiile detaliate despre valoare vor fi determinate după solicitarea acestui beneficiu.
@@ -286,8 +287,8 @@ error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau m
 error-end-date-after-start-date = Data de încheiere trebuie să fie în sau după data de început a beneficiului
 
 # Employee Record - Notifications
-notification-address-updated-success = Actualizările adresei au fost trimise spre aprobare departamentului HR.
-notification-bank-account-updated-success = Actualizările contului bancar au fost trimise spre aprobare departamentului HR.
+notification-address-updated-success = Actualizările adresei sunt finalizate
+notification-bank-account-updated-success = Actualizările contului bancar sunt finalizate.
 notification-personal-data-updated-success = Actualizările datelor personale au fost trimise spre aprobare departamentului HR.
 notification-communication-updated-success = Actualizările detaliilor de comunicare au fost trimise spre aprobare departamentului HR.
 notification-profile-picture-updated-success = Actualizările fotografiei de profil au fost trimise spre aprobare departamentului HR.

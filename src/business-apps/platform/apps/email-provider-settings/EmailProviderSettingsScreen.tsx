@@ -9,29 +9,45 @@ import { Button } from '@newwork/nw-design-system'
 import { ChevronLeft, Loader2, AlertTriangle, Mail } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { useProviderSettings } from './hooks/useProviderSettings'
+import { useAssistantPolicySettings } from './hooks/useAssistantPolicySettings'
 import { ProviderSettingsCard } from './components/ProviderSettingsCard'
 import { ImapSmtpSettingsCard } from './components/ImapSmtpSettingsCard'
+import { AssistantPolicyCard } from './components/AssistantPolicyCard'
 
 export interface EmailProviderSettingsScreenProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type ProviderTab = 'microsoft' | 'google' | 'imap_smtp'
+type ProviderTab = 'microsoft' | 'google' | 'imap_smtp' | 'assistant_policy'
 
 const TABS: { key: ProviderTab; label: string }[] = [
   { key: 'microsoft', label: 'Microsoft 365' },
   { key: 'google', label: 'Google / Gmail' },
-  { key: 'imap_smtp', label: 'IMAP / SMTP' }
+  { key: 'imap_smtp', label: 'IMAP / SMTP' },
+  { key: 'assistant_policy', label: 'Assistant Policy' }
 ]
 
 const REDIRECT_URI = typeof window !== 'undefined' ? `${window.location.origin}/platform/mail/oauth/callback` : ''
 
 export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenProps> = ({
   accessToken,
+  userInfo,
   'data-testid': testId = 'email-provider-settings'
 }) => {
   const { settings, isLoading, error, saveSettings } = useProviderSettings(accessToken)
+  const {
+    policy,
+    isLoading: isPolicyLoading,
+    isSaving: isPolicySaving,
+    error: policyError,
+    savePolicy
+  } = useAssistantPolicySettings(accessToken)
   const [activeTab, setActiveTab] = useState<ProviderTab>('microsoft')
+  const isAdminUser = Boolean(
+    (userInfo as { role?: string; roles?: string[] } | undefined)?.role === 'admin' ||
+      (userInfo as { role?: string; roles?: string[] } | undefined)?.roles?.includes('admin')
+  )
+  const visibleTabs = isAdminUser ? TABS : TABS.filter(tab => tab.key !== 'assistant_policy')
 
   const activeSettings = settings.find(s => s.provider === activeTab)
 
@@ -66,7 +82,7 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
       {/* Provider tabs */}
       <div className="gba:border-b gba:bg-card gba:px-6">
         <div className="gba:flex gba:gap-1">
-          {TABS.map(tab => {
+          {visibleTabs.map(tab => {
             const isActive = activeTab === tab.key
             const providerSettings = settings.find(s => s.provider === tab.key)
             return (
@@ -81,7 +97,7 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
                 data-testid={`${testId}-tab-${tab.key}`}
               >
                 {tab.label}
-                {providerSettings?.isEnabled && (
+                {providerSettings?.isEnabled && tab.key !== 'assistant_policy' && (
                   <span className="gba:ml-2 gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:inline-block" />
                 )}
               </button>
@@ -99,14 +115,14 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
             </div>
           )}
 
-          {error && (
+          {(error || policyError) && (
             <div className="gba:flex gba:items-center gba:gap-3 gba:p-4 gba:rounded-lg gba:bg-destructive-secondary gba:text-destructive-secondary-foreground">
               <AlertTriangle className="gba:w-5 gba:h-5 gba:flex-shrink-0" />
-              <p className="gba:text-sm">{error}</p>
+              <p className="gba:text-sm">{error || policyError}</p>
             </div>
           )}
 
-          {!isLoading && activeTab !== 'imap_smtp' && (
+          {!isLoading && activeTab !== 'imap_smtp' && activeTab !== 'assistant_policy' && (
             <ProviderSettingsCard
               provider={activeTab}
               existingSettings={activeSettings}
@@ -124,8 +140,17 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
             />
           )}
 
+          {!isPolicyLoading && activeTab === 'assistant_policy' && (
+            <AssistantPolicyCard
+              policy={policy}
+              isSaving={isPolicySaving}
+              onSave={savePolicy}
+              data-testid={`${testId}-assistant-policy`}
+            />
+          )}
+
           {/* Setup guide */}
-          {!isLoading && <SetupGuide activeTab={activeTab} />}
+          {!isLoading && activeTab !== 'assistant_policy' && <SetupGuide activeTab={activeTab} />}
         </div>
       </div>
     </div>
@@ -134,7 +159,7 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
 
 /** Contextual setup guide shown below the active provider tab */
 function SetupGuide({ activeTab }: { activeTab: ProviderTab }) {
-  const guides: Record<ProviderTab, { title: string; steps: string[] }> = {
+  const guides: Record<Exclude<ProviderTab, 'assistant_policy'>, { title: string; steps: string[] }> = {
     microsoft: {
       title: 'Microsoft Setup Guide',
       steps: [
@@ -168,7 +193,7 @@ function SetupGuide({ activeTab }: { activeTab: ProviderTab }) {
     }
   }
 
-  const guide = guides[activeTab]
+  const guide = guides[activeTab as Exclude<ProviderTab, 'assistant_policy'>]
 
   return (
     <div className="gba:p-4 gba:rounded-lg gba:bg-info-secondary gba:text-info-secondary-foreground">

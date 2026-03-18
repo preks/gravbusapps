@@ -9,6 +9,5 @@ replace-with-label = Ersetzen durch
 replace-with-placeholder = Behalten oder anderen Mitarbeiter wählen...
 reject-comment-label = Kommentar (optional, bei Ablehnung)
 reject-comment-placeholder = Kommentar bei Ablehnung hinzufügen...
-cancel-button = Abbrechen
 reject-button = Ablehnen
 approve-button = Genehmigen

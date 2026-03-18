@@ -32,6 +32,8 @@ comment-panel-no-resolved = No resolved comments
 comment-panel-resolved-here = Resolved comments will appear here
 comment-panel-loading = Loading comments...
 comment-panel-add-placeholder = Add a comment...
+comment-panel-no-comments = No comments yet
+comment-panel-no-comments-hint = Add one below to start a thread
 
 # LockControls
 lock-file-locked = File is locked

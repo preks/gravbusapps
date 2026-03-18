@@ -97,8 +97,13 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
           throw new Error('No AI models available. Using local analysis.')
         }
 
+        // Preferred model ID for spreadsheet analysis
+        const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
+
+        // Try to find the preferred model, otherwise fall back to GPT-4 or first available
+        const preferredModel = modelsResponse.data.find(m => m._id === PREFERRED_MODEL_ID)
         const gpt4Model = modelsResponse.data.find(m => m.name.toLowerCase().includes('gpt-4'))
-        const selectedModel = gpt4Model || modelsResponse.data[0]
+        const selectedModel = preferredModel || gpt4Model || modelsResponse.data[0]
         const modelId = selectedModel._id
 
         setState(prev => ({ ...prev, progress: 40 }))

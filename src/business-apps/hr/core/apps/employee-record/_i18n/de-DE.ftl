@@ -118,6 +118,7 @@ benefit-details-end-date = Enddatum
 benefit-details-notes = Notizen
 benefit-details-justification = Begründung
 benefit-details-available-providers = Verfügbare Anbieter
+benefit-details-choose-provider = Anbieter wählen
 benefit-details-additional-info = Zusätzliche Informationen
 benefit-details-value = Wert
 benefit-details-no-value-info = Detaillierte Wertinformationen werden nach Beantragung dieser Leistung festgelegt.
@@ -286,8 +287,8 @@ error-end-date-today-or-later = Enddatum muss heute oder später sein
 error-end-date-after-start-date = Enddatum muss am oder nach dem Startdatum der Leistung liegen
 
 # Employee Record - Notifications
-notification-address-updated-success = Adressänderungen zur Genehmigung an die Personalabteilung gesendet.
-notification-bank-account-updated-success = Änderungen der Bankverbindung zur Genehmigung an die Personalabteilung gesendet.
+notification-address-updated-success = Die Adressaktualisierungen sind abgeschlossen.
+notification-bank-account-updated-success = Die Aktualisierungen des Bankkontos sind abgeschlossen.
 notification-personal-data-updated-success = Änderungen an den persönlichen Daten zur Genehmigung an die Personalabteilung gesendet.
 notification-communication-updated-success = Änderungen an den Kommunikationsdaten zur Genehmigung an die Personalabteilung gesendet.
 notification-profile-picture-updated-success = Änderungen am Profilbild zur Genehmigung an die Personalabteilung gesendet.

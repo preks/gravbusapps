@@ -146,11 +146,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
   return (
     <div
-      className={`gba:rounded-xl gba:border gba:p-4 gba:transition-all ${
-        isResolved
-          ? 'gba:border-success/30 gba:bg-success/5'
-          : 'gba:border-border/50 gba:bg-card/50 hover:gba:border-border hover:gba:shadow-sm'
-      }`}
+      className="gba:rounded-xl gba:border gba:border-border/50 gba:bg-card/50 gba:p-4 gba:transition-all hover:gba:border-border hover:gba:shadow-sm"
       data-testid={`${testId}-${comment.id}`}
     >
       {/* Comment header */}
