@@ -13,12 +13,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import {
   GET_COMBINED_DASHBOARD_STATS_MONTHLY,
-  GET_COMBINED_DASHBOARD_STATS_QUARTERLY,
-  GET_COMBINED_DASHBOARD_STATS_YEARLY,
-  GET_DASHBOARD_MONTHLY_TRENDS
+  GET_COMBINED_DASHBOARD_STATS_QUARTERLY
 } from '../queries/combinedDashboard.queries'
 import { DashboardStats } from '../types'
 
@@ -30,6 +29,37 @@ interface UseDashboardStatsResult {
 }
 
 const EMPTY_FILTERS: { currency?: string; department?: string; period?: string } = {}
+const YEARLY_PERIOD_AND_YTD_QUERY = 'getExpensesPeriodAndYtdKpis'
+const YEARLY_WORKFLOW_QUERY = 'getExpenseWorkflowKpis'
+const YEARLY_PLAN_ACTUAL_QUERY_NO_DEPT = 'getExpensePlanActualKpisNoDept'
+const YEARLY_PLAN_ACTUAL_QUERY_BY_DEPT = 'getExpensePlanActualKpisByDept'
+const MONTHLY_TRENDS_TIMESERIES_QUERY = 'getDashboardMonthlyTrends'
+type YearlyKpiCategory =
+  | 'currentYearExpensesComparison'
+  | 'previousYearExpensesComparison'
+  | 'currentYearExpenses'
+  | 'previousYearExpenses'
+  | 'transferRequired'
+  | 'pendingRequests'
+  | 'avgSpendPerTrip'
+  | 'advancePaymentsApproved'
+  | 'actualExpenses'
+  | 'plannedExpenses'
+type DatasetKpiRow = {
+  category?: string
+  value?: number
+  count?: number
+}
+type MonthlyTrendRow = {
+  category?: string
+  value?: number
+  count?: number
+  item_count?: number
+  date_category?: string
+  month_start?: string
+  month_end?: string
+  month_label?: string
+}
 
 export const useDashboardStats = ({
   accessToken,
@@ -93,6 +123,7 @@ export const useDashboardStats = ({
   // Dashboard is the default tab, so it loads before accessToken might be ready
   // Guard in fetchEssentialStats prevents requests when accessToken is empty
   const client = useGraphqlClient(accessToken || '')
+  const datasetClient = useQueryExecutionClient(accessToken || '', Services.EMPLOYEE_EXPENSE)
 
   const calculateDateRanges = useCallback(() => {
     const now = new Date()
@@ -172,16 +203,6 @@ export const useDashboardStats = ({
     }
   }, [])
 
-  const buildMonthTrendVars = useCallback((currentYear: number) => {
-    const pad = (n: number) => String(n).padStart(2, '0')
-    const vars: Record<string, string> = {}
-    for (let i = 0; i < 12; i++) {
-      vars[`m${i + 1}Start`] = `${currentYear}-${pad(i + 1)}-01T00:00:00`
-      vars[`m${i + 1}End`] = i < 11 ? `${currentYear}-${pad(i + 2)}-01T00:00:00` : `${currentYear + 1}-01-01T00:00:00`
-    }
-    return vars
-  }, [])
-
   const executeKpiQuery = useCallback(
     async (
       period: string,
@@ -190,13 +211,46 @@ export const useDashboardStats = ({
       dateRanges: ReturnType<typeof calculateDateRanges>
     ) => {
       const hasDepartment = !!selectedDepartment
-      let query
-      let variables: any
+      const toAggregate = (value: number, count: number, sumKey: 'reimbursableAmount' | 'amount' | 'totalAmount') => {
+        return {
+          aggregate: {
+            count,
+            sum: {
+              [sumKey]: value
+            }
+          }
+        }
+      }
+      const asNumber = (val: unknown) => (typeof val === 'number' && Number.isFinite(val) ? val : 0)
+      const toCategoryMap = (rows: DatasetKpiRow[]): Record<YearlyKpiCategory, { value: number; count: number }> => {
+        const initial = {
+          currentYearExpensesComparison: { value: 0, count: 0 },
+          previousYearExpensesComparison: { value: 0, count: 0 },
+          currentYearExpenses: { value: 0, count: 0 },
+          previousYearExpenses: { value: 0, count: 0 },
+          transferRequired: { value: 0, count: 0 },
+          pendingRequests: { value: 0, count: 0 },
+          avgSpendPerTrip: { value: 0, count: 0 },
+          advancePaymentsApproved: { value: 0, count: 0 },
+          actualExpenses: { value: 0, count: 0 },
+          plannedExpenses: { value: 0, count: 0 }
+        }
+        for (const row of rows) {
+          const key = row?.category as YearlyKpiCategory | undefined
+          if (key && key in initial) {
+            initial[key] = {
+              value: asNumber(row?.value),
+              count: asNumber(row?.count)
+            }
+          }
+        }
+        return initial
+      }
 
       if (period === 'yearly') {
-        query = GET_COMBINED_DASHBOARD_STATS_YEARLY(hasDepartment)
         const prevY = dateRanges.currentYear - 1
-        variables = {
+        const periodAndYtdParams: Record<string, string | number | boolean> = {
+          selectedDepartment: selectedDepartment ?? 'null',
           selectedCurrency,
           currentYearStart: dateRanges.startOfYearTs,
           currentYearEnd: dateRanges.endOfYearTs,
@@ -205,9 +259,87 @@ export const useDashboardStats = ({
           currentYTD: dateRanges.currentYTD,
           previousYTD: dateRanges.previousYTD
         }
+        const workflowParams: Record<string, string | number | boolean> = {
+          selectedDepartment: selectedDepartment ?? 'null',
+          selectedCurrency,
+          currentYearStart: dateRanges.startOfYearTs,
+          currentYearEnd: dateRanges.endOfYearTs
+        }
+        const planActualQueryName = hasDepartment ? YEARLY_PLAN_ACTUAL_QUERY_BY_DEPT : YEARLY_PLAN_ACTUAL_QUERY_NO_DEPT
+        const planActualParams: Record<string, string | number | boolean> = {
+          selectedCurrency,
+          currentYearStart: dateRanges.startOfYearTs,
+          currentYearEnd: dateRanges.endOfYearTs
+        }
+        if (hasDepartment && selectedDepartment) {
+          planActualParams.selectedDepartment = selectedDepartment
+        }
+        const [periodAndYtdResponse, workflowResponse, planActualResponse] = await Promise.all([
+          datasetClient.executeQuery(YEARLY_PERIOD_AND_YTD_QUERY, QueryType.DATASET, periodAndYtdParams),
+          datasetClient.executeQuery(YEARLY_WORKFLOW_QUERY, QueryType.DATASET, workflowParams),
+          datasetClient.executeQuery(planActualQueryName, QueryType.DATASET, planActualParams)
+        ])
+        const rows = [
+          ...(Array.isArray(periodAndYtdResponse?.data) ? periodAndYtdResponse.data : []),
+          ...(Array.isArray(workflowResponse?.data) ? workflowResponse.data : []),
+          ...(Array.isArray(planActualResponse?.data) ? planActualResponse.data : [])
+        ] as DatasetKpiRow[]
+        const yearlyMap = toCategoryMap(rows)
+
+        return {
+          currentYearExpensesComparison: toAggregate(
+            yearlyMap.currentYearExpensesComparison.value,
+            yearlyMap.currentYearExpensesComparison.count,
+            'reimbursableAmount'
+          ),
+          previousYearExpensesComparison: toAggregate(
+            yearlyMap.previousYearExpensesComparison.value,
+            yearlyMap.previousYearExpensesComparison.count,
+            'reimbursableAmount'
+          ),
+          currentYearExpenses: toAggregate(
+            yearlyMap.currentYearExpenses.value,
+            yearlyMap.currentYearExpenses.count,
+            'reimbursableAmount'
+          ),
+          previousYearExpenses: toAggregate(
+            yearlyMap.previousYearExpenses.value,
+            yearlyMap.previousYearExpenses.count,
+            'reimbursableAmount'
+          ),
+          transferRequired: toAggregate(
+            yearlyMap.transferRequired.value,
+            yearlyMap.transferRequired.count,
+            'reimbursableAmount'
+          ),
+          pendingRequests: {
+            aggregate: {
+              count: yearlyMap.pendingRequests.count
+            }
+          },
+          avgSpendPerTrip: {
+            aggregate: {
+              avg: {
+                reimbursableAmount: yearlyMap.avgSpendPerTrip.value
+              },
+              count: yearlyMap.avgSpendPerTrip.count
+            }
+          },
+          advancePaymentsApproved: toAggregate(
+            yearlyMap.advancePaymentsApproved.value,
+            yearlyMap.advancePaymentsApproved.count,
+            'amount'
+          ),
+          actualExpenses: toAggregate(
+            yearlyMap.actualExpenses.value,
+            yearlyMap.actualExpenses.count,
+            'reimbursableAmount'
+          ),
+          plannedExpenses: toAggregate(yearlyMap.plannedExpenses.value, yearlyMap.plannedExpenses.count, 'totalAmount')
+        }
       } else if (period === 'quarterly') {
-        query = GET_COMBINED_DASHBOARD_STATS_QUARTERLY(hasDepartment)
-        variables = {
+        const query = GET_COMBINED_DASHBOARD_STATS_QUARTERLY(hasDepartment)
+        const variables: any = {
           selectedCurrency,
           currentQuarterStart: dateRanges.quarterStart,
           currentQuarterEnd: dateRanges.quarterEnd,
@@ -221,9 +353,14 @@ export const useDashboardStats = ({
           previousYearStart: dateRanges.previousYearStart,
           previousYTD: dateRanges.previousYTD
         }
+        if (hasDepartment) {
+          variables.selectedDepartment = selectedDepartment
+        }
+        const result = await client.request(query, variables)
+        return result
       } else {
-        query = GET_COMBINED_DASHBOARD_STATS_MONTHLY(hasDepartment)
-        variables = {
+        const query = GET_COMBINED_DASHBOARD_STATS_MONTHLY(hasDepartment)
+        const variables: any = {
           selectedCurrency,
           currentMonthStart: dateRanges.currentMonthStart,
           currentMonthEnd: dateRanges.currentMonthEnd,
@@ -236,33 +373,28 @@ export const useDashboardStats = ({
           previousYearStart: dateRanges.previousYearStart,
           previousYTD: dateRanges.previousYTD
         }
+        if (hasDepartment) {
+          variables.selectedDepartment = selectedDepartment
+        }
+        const result = await client.request(query, variables)
+        return result
       }
-
-      if (hasDepartment) {
-        variables.selectedDepartment = selectedDepartment
-      }
-
-      const result = await client.request(query, variables)
-      return result
     },
-    [client]
+    [client, datasetClient]
   )
 
   const executeTrendsQuery = useCallback(
     async (selectedCurrency: string, selectedDepartment: string | null, currentYear: number) => {
-      const hasDepartment = !!selectedDepartment
-      const variables: any = {
+      const variables: Record<string, string | number | boolean> = {
+        selectedDepartment: selectedDepartment ?? 'null',
         selectedCurrency,
-        ...buildMonthTrendVars(currentYear)
+        rangeStart: `${currentYear}-01-01T00:00:00`,
+        rangeEnd: `${currentYear + 1}-01-01T00:00:00`
       }
-      if (hasDepartment) {
-        variables.selectedDepartment = selectedDepartment
-      }
-
-      const result = await client.request(GET_DASHBOARD_MONTHLY_TRENDS(hasDepartment), variables)
+      const result = await datasetClient.executeQuery(MONTHLY_TRENDS_TIMESERIES_QUERY, QueryType.DATASET, variables)
       return result
     },
-    [client, buildMonthTrendVars]
+    [datasetClient]
   )
 
   const calculatePercentChange = useCallback((currentValue: number, previousValue: number) => {
@@ -314,14 +446,29 @@ export const useDashboardStats = ({
         executeTrendsQuery(selectedCurrency, selectedDepartment, dateRanges.currentYear)
       ])
 
-      const monthlyTrendsResponse = Array.from({ length: 12 }, (_, index) => {
-        const itemAggKey = `m${index + 1}_item` as keyof typeof trendsResponse
-        return {
-          itemAgg: trendsResponse[itemAggKey]
-        } as any
-      })
-
       const safeNum = (val: any): number => val ?? 0
+      const trendRows = (
+        Array.isArray((trendsResponse as any)?.data) ? (trendsResponse as any).data : []
+      ) as MonthlyTrendRow[]
+      const monthlyTrendsByMonth = new Map<number, MonthlyTrendRow>()
+      for (const row of trendRows) {
+        const monthStart = row?.month_start ?? row?.date_category
+        if (typeof monthStart === 'string' && monthStart.length >= 7) {
+          const parsedMonth = Number(monthStart.slice(5, 7))
+          if (Number.isFinite(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12) {
+            monthlyTrendsByMonth.set(parsedMonth, row)
+            continue
+          }
+        }
+        const category = row?.category ?? ''
+        const match = /^m(\d{1,2})$/.exec(category)
+        if (match) {
+          const parsedMonth = Number(match[1])
+          if (Number.isFinite(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12) {
+            monthlyTrendsByMonth.set(parsedMonth, row)
+          }
+        }
+      }
 
       const getPeriodAgg = (current: boolean) => {
         if (activePeriod === 'yearly') {
@@ -358,12 +505,21 @@ export const useDashboardStats = ({
           previousTotalAmount: safeNum(combinedResponse?.previousYearExpenses?.aggregate?.sum?.reimbursableAmount),
           previousCount: safeNum(combinedResponse?.previousYearExpenses?.aggregate?.count)
         },
-        monthlyTrends: monthlyTrendsResponse.map((response: any, index: number) => ({
-          month: index + 1,
-          monthName: new Date(dateRanges.currentYear, index).toLocaleString('default', { month: 'short' }),
-          totalAmount: safeNum(response?.itemAgg?.aggregate?.sum?.reimbursableAmount),
-          count: safeNum(response?.itemAgg?.aggregate?.count)
-        })),
+        monthlyTrends: Array.from({ length: 12 }, (_, index) => {
+          const month = index + 1
+          const row = monthlyTrendsByMonth.get(month)
+          const fallbackMonthName = new Date(dateRanges.currentYear, index).toLocaleString('default', {
+            month: 'short'
+          })
+          const rowMonthName =
+            typeof row?.month_label === 'string' && row.month_label.trim() !== '' ? row.month_label : fallbackMonthName
+          return {
+            month,
+            monthName: rowMonthName,
+            totalAmount: safeNum(row?.value),
+            count: safeNum(row?.item_count ?? row?.count)
+          }
+        }),
         monthlySpendComparison: {
           currentMonthTotal: safeNum(currentComparisonAgg?.aggregate?.sum?.reimbursableAmount),
           previousMonthTotal: safeNum(previousComparisonAgg?.aggregate?.sum?.reimbursableAmount),

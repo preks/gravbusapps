@@ -16,34 +16,6 @@ const getAdvancePaymentDeptFilter = (hasDepartment: boolean) =>
     ? ',\n          { expensePlan: { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } } }'
     : ''
 
-const MONTH_TREND_VARS = Array.from(
-  { length: 12 },
-  (_, i) => `$m${i + 1}Start: timestamp!, $m${i + 1}End: timestamp!`
-).join(', ')
-
-const buildMonthlyTrendsSubqueries = (hasDepartment: boolean) =>
-  Array.from({ length: 12 }, (_, i) => {
-    const idx = i + 1
-    return `    m${idx}_item: ExpenseItemAggregate(
-      where: {
-        _and: [
-          { status: { _in: ["PAID", "CLOSED"] } },
-          { currencyRef: { _eq: $selectedCurrency } },
-          { isDeleted: { _eq: false } },
-          { _or: [
-            { _and: [
-              { expenseDate: { _gte: $m${idx}Start, _lt: $m${idx}End } },
-              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
-            ] },
-            { _and: [
-              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $m${idx}Start, _lt: $m${idx}End } } }
-            ] }
-          ] }${getDeptFilter(hasDepartment)}
-        ]
-      }
-    ) { aggregate { count sum { reimbursableAmount } } }`
-  }).join('\n\n')
-
 /**
  * KPI-only dashboard query for MONTHLY period (trends fetched separately in parallel)
  */
@@ -877,18 +849,5 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
         }
       }
     }
-  }
-`
-
-/**
- * Separate query for monthly trends — runs in parallel with KPI query.
- * Shared across all period modes (monthly/quarterly/yearly) since trends always show full year.
- */
-export const GET_DASHBOARD_MONTHLY_TRENDS = (hasDepartment: boolean) => `
-  query GetDashboardMonthlyTrends(
-    $selectedCurrency: String!${hasDepartment ? ',\n    $selectedDepartment: uuid!' : ''},
-    ${MONTH_TREND_VARS}
-  ) {
-${buildMonthlyTrendsSubqueries(hasDepartment)}
   }
 `
