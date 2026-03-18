@@ -2,10 +2,11 @@ import React, { useCallback, useMemo } from 'react'
 import { WidgetItem } from '@/components/widget-group'
 import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
 import { CalendarIcon, CurrencyDollarIcon, FileTextIcon } from '@phosphor-icons/react'
+import { CurrencyPrefix } from '../../../common/components/CurrencyPrefix'
 import { ExpenseStatus } from '../../../utils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans' // Assuming this type is exported from your hook
+import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans'
 
 export interface ExpensePlanStatisticsProps {
   planStats: ExpensePlanStatistics | null
@@ -60,12 +61,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'Pending Approval'
         ),
         value: planStats.pendingCount.toString(),
-        prefix: (
-          <span className="gba:flex gba:items-center gba:gap-1.5">
-            <CalendarIcon size={16} />
-            <span className="gba:font-medium">{displayCurrency}</span>
-          </span>
-        ),
+        prefix: <CurrencyPrefix icon={CalendarIcon} currency={displayCurrency} />,
         color: 'var(--nw-warning)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
@@ -82,12 +78,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'Total Plans (Submitted)'
         ),
         value: planStats.totalCount.toString(),
-        prefix: (
-          <span className="gba:flex gba:items-center gba:gap-1.5">
-            <FileTextIcon size={16} />
-            <span className="gba:font-medium">{displayCurrency}</span>
-          </span>
-        ),
+        prefix: <CurrencyPrefix icon={FileTextIcon} currency={displayCurrency} />,
         color: 'var(--nw-primary)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(

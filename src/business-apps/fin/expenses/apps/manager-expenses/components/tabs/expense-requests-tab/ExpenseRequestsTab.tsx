@@ -39,7 +39,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
 
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string[]>(['PENDING'])
-  const [primaryCurrency, setCurrencyFilter] = useState<string | null>(null)
+  const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null)
   const [requestTypeFilter, setRequestTypeFilter] = useState<string[]>([])
   const [effectiveDateRange, setEffectiveDateRange] = useState<DateRange>(null)
   const [requestDateRange, setRequestDateRange] = useState<DateRange>(null)
@@ -60,11 +60,11 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const hasInitializedCurrency = useRef(false)
   useEffect(() => {
     if (hasInitializedCurrency.current) return
-    if (!primaryCurrency && mostUsedCurrency) {
-      setCurrencyFilter(mostUsedCurrency)
+    if (mostUsedCurrency) {
+      setSelectedCurrency(mostUsedCurrency)
       hasInitializedCurrency.current = true
     }
-  }, [primaryCurrency, mostUsedCurrency])
+  }, [mostUsedCurrency])
 
   const reqOrderBy = useMemo(
     () => buildExpenseRequestOrderBy(sorting.field, sorting.order),
@@ -82,7 +82,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     refetch
   } = useExpenseRequestsOverviewData(props, {
     managerId,
-    primaryCurrency,
+    primaryCurrency: selectedCurrency,
+    mostUsedCurrency,
     searchTerm,
     statusFilter,
     requestTypeFilter,
@@ -117,7 +118,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     () => ({
       searchTerm,
       statusFilter,
-      primaryCurrency,
+      selectedCurrency,
       effectiveDateRange,
       requestDateRange,
       startDateRange,
@@ -127,7 +128,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     [
       searchTerm,
       statusFilter,
-      primaryCurrency,
+      selectedCurrency,
       effectiveDateRange,
       requestDateRange,
       startDateRange,
@@ -183,22 +184,18 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     setCurrentPage(1)
   }, [])
 
-  const handleStatsFilterChange = useCallback((statuses: string[]) => {
-    setCurrencyFilter(null)
+  const handleStatsFilterChange = useCallback((statuses: string[], currency: string) => {
+    setSelectedCurrency(currency)
     setStatusFilter(statuses)
     setCurrentPage(1)
   }, [])
 
-  const clearCurrencyFilter = useCallback(() => {
-    setCurrencyFilter(null)
-  }, [])
-
   const handleCurrencyChange = useCallback((code: string | null) => {
-    setCurrencyFilter(code)
+    setSelectedCurrency(code)
     setCurrentPage(1)
   }, [])
 
-  const displayCurrency = primaryCurrency ?? mostUsedCurrency ?? 'EUR'
+  const displayCurrency = selectedCurrency ?? mostUsedCurrency ?? 'EUR'
 
   const filtersObject = useMemo((): Record<string, unknown> => {
     const obj: Record<string, unknown> = {}
@@ -247,12 +244,12 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     () => (
       <CurrencyDropdown
         availableCurrencies={availableCurrencies}
-        selectedCurrency={primaryCurrency}
+        selectedCurrency={selectedCurrency}
         onCurrencyChange={handleCurrencyChange}
         testIdPrefix="expense-requests"
       />
     ),
-    [availableCurrencies, primaryCurrency, handleCurrencyChange]
+    [availableCurrencies, selectedCurrency, handleCurrencyChange]
   )
 
   return (
@@ -263,9 +260,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
           requestStatsLoading={statsLoading}
           requestStatsError={statsError?.message ?? null}
           fetchRequestStatistics={refetch}
-          currencyFilter={primaryCurrency}
           displayCurrency={displayCurrency}
-          clearCurrencyFilter={clearCurrencyFilter}
           activeFilter={statusFilter}
           onFilterChange={handleStatsFilterChange}
         />
@@ -317,7 +312,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
           loading={requestsLoading}
           error={requestsError}
           totalCount={totalCount}
-          currencyFilter={primaryCurrency}
+          currencyFilter={selectedCurrency}
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
           sorting={sortingState}

@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react'
 import { ExpenseRequestStatisticsData } from '../../../hooks/useGetExpenseRequests'
 import { WidgetItem } from '@/components/widget-group'
 import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
+import { CurrencyPrefix } from '../../../common/components/CurrencyPrefix'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -12,11 +13,9 @@ interface ExpenseRequestStatisticsProps {
   requestStatsLoading: boolean
   requestStatsError: string | null
   fetchRequestStatistics: () => Promise<void>
-  currencyFilter?: string | null
   displayCurrency?: string | null
-  clearCurrencyFilter: () => void
   activeFilter?: string[]
-  onFilterChange?: (statuses: string[]) => void
+  onFilterChange?: (statuses: string[], currency: string) => void
 }
 
 const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
@@ -24,27 +23,24 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   requestStatsLoading,
   requestStatsError,
   fetchRequestStatistics,
-  currencyFilter,
   displayCurrency: displayCurrencyProp,
-  clearCurrencyFilter,
   activeFilter = [],
   onFilterChange
 }) => {
-  const displayCurrency = displayCurrencyProp ?? currencyFilter ?? 'EUR'
+  const displayCurrency = displayCurrencyProp ?? 'EUR'
 
   const handleCardClick = useCallback(
     (filterKey: string, isMultiFilter: boolean = false) => {
-      clearCurrencyFilter()
       if (!onFilterChange) return
       if (isMultiFilter) {
         const allActive = SUBMITTED_STATUSES.every(s => activeFilter.includes(s))
-        onFilterChange(allActive ? [] : [...SUBMITTED_STATUSES])
+        onFilterChange(allActive ? [] : [...SUBMITTED_STATUSES], displayCurrency)
       } else {
         const isActive = activeFilter.includes(filterKey)
-        onFilterChange(isActive ? [] : [filterKey])
+        onFilterChange(isActive ? [] : [filterKey], displayCurrency)
       }
     },
-    [clearCurrencyFilter, onFilterChange, activeFilter]
+    [onFilterChange, activeFilter, displayCurrency]
   )
 
   const isPendingActive = activeFilter.length === 1 && activeFilter[0] === 'PENDING'
@@ -60,7 +56,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
                 'lowcoder:absence_management_hub_manager.pending_requests_btn',
                 'Pending Requests'
               ),
-              value: requestStats.pendingCount,
+              value: requestStats.pendingCount.toString(),
+              prefix: <CurrencyPrefix currency={displayCurrency} />,
+              valueIsString: true,
               color: isPendingActive ? 'var(--nw-primary)' : 'var(--nw-warning)',
               description: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval',
@@ -89,7 +87,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
                 'lowcoder:team_expenses_page.expense_requests_tab.total_requests_submitted',
                 'Total Requests Submitted'
               ),
-              value: requestStats.totalRequestsSubmitted,
+              value: requestStats.totalRequestsSubmitted.toString(),
+              prefix: <CurrencyPrefix currency={displayCurrency} />,
+              valueIsString: true,
               color: 'var(--nw-primary)',
               description: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests',

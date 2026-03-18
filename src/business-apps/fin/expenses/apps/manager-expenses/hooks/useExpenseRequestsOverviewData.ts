@@ -8,6 +8,8 @@ import dayjs from 'dayjs'
 export interface ExpenseRequestsOverviewDataParams {
   managerId: string
   primaryCurrency: string | null
+  /** Most-used currency for card stats when primaryCurrency is null (All). */
+  mostUsedCurrency: string | null
   searchTerm: string
   statusFilter: string[]
   requestTypeFilter: string[]
@@ -42,6 +44,7 @@ export function useExpenseRequestsOverviewData(
   const {
     managerId,
     primaryCurrency,
+    mostUsedCurrency,
     searchTerm,
     statusFilter,
     requestTypeFilter,
@@ -59,6 +62,12 @@ export function useExpenseRequestsOverviewData(
     [primaryCurrency]
   )
 
+  const statsCurrency = primaryCurrency ?? mostUsedCurrency
+  const reqStatsCurrencyRef = useMemo(
+    () => (statsCurrency ? standardizeCurrencyRef(statsCurrency) : undefined),
+    [statsCurrency]
+  )
+
   const requestsEffectiveDateRange = useMemo(() => convertDateRangeToGraphQL(effectiveDateRange), [effectiveDateRange])
   const requestsRequestDateRange = useMemo(() => convertDateRangeToGraphQL(requestDateRange), [requestDateRange])
   const requestsStartDateRange = useMemo(() => convertDateRangeToGraphQL(startDateRange), [startDateRange])
@@ -73,6 +82,7 @@ export function useExpenseRequestsOverviewData(
     () => ({
       managerId,
       currencyRef,
+      reqStatsCurrencyRef,
       searchTerm,
       requests: requestsParams,
       requestsStatus: statusFilter.length > 0 ? statusFilter : undefined,
@@ -87,6 +97,7 @@ export function useExpenseRequestsOverviewData(
     [
       managerId,
       currencyRef,
+      reqStatsCurrencyRef,
       searchTerm,
       requestsParams,
       statusFilter,
@@ -104,7 +115,7 @@ export function useExpenseRequestsOverviewData(
   const requestStats = useMemo((): RequestStats | null => {
     if (!overview.data) return lastValidStatsRef.current
     const newStats: RequestStats = {
-      pendingCount: overview.data.pendingRequestsAll ?? 0,
+      pendingCount: overview.data.requestPendingCount ?? 0,
       pendingAmount: overview.data.requestPendingAmount ?? 0,
       totalRequestsSubmitted: overview.data.requestSubmittedCount ?? 0,
       totalSubmittedAmount: overview.data.requestSubmittedAmount ?? 0
@@ -112,7 +123,7 @@ export function useExpenseRequestsOverviewData(
     lastValidStatsRef.current = newStats
     return newStats
   }, [
-    overview.data?.pendingRequestsAll,
+    overview.data?.requestPendingCount,
     overview.data?.requestPendingAmount,
     overview.data?.requestSubmittedCount,
     overview.data?.requestSubmittedAmount

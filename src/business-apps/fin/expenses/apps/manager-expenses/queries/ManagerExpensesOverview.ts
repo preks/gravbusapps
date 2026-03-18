@@ -12,6 +12,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     $payLimit: Int! = 20, $payOffset: Int! = 0, $payOrderBy: [AdvancePaymentOrderBy!] = [{ createdAt: DESC }],
     $monthStart: timestamp, $monthEnd: timestamp, $yearStart: timestamp,
     $reqCurrencyWhere: ExpenseRequestBoolExp = {},
+    $reqStatsCurrencyWhere: ExpenseRequestBoolExp = {},
     $planCurrencyWhere: ExpensePlanBoolExp = {},
     $planStatsCurrencyWhere: ExpensePlanBoolExp = {},
     $payCurrencyWhere: AdvancePaymentBoolExp = {},
@@ -169,11 +170,11 @@ export const MANAGER_EXPENSES_OVERVIEW = `
       }
     ) { aggregate { sum { totalAmount } } }
 
-    # Requests statistics (pending and submitted) - currency filtered
+    # Requests statistics (pending and submitted) - use reqStatsCurrencyWhere so cards show most-used when list shows All
     RequestsPendingCountAggregate: ExpenseRequestAggregate(
       where: {
         _and: [
-          $reqCurrencyWhere,
+          $reqStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _eq: "PENDING" } },
           { isDeleted: { _eq: false } }
@@ -184,7 +185,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     RequestsPendingAmountAggregate: ExpenseRequestAggregate(
       where: {
         _and: [
-          $reqCurrencyWhere,
+          $reqStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _eq: "PENDING" } },
           { isDeleted: { _eq: false } }
@@ -195,7 +196,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     RequestsSubmittedCountAggregate: ExpenseRequestAggregate(
       where: {
         _and: [
-          $reqCurrencyWhere,
+          $reqStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _in: ["PENDING","APPROVED","VERIFIED","BOOKED","TRANSFERRED"] } },
           { isDeleted: { _eq: false } }
@@ -206,7 +207,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     RequestsSubmittedAmountAggregate: ExpenseRequestAggregate(
       where: {
         _and: [
-          $reqCurrencyWhere,
+          $reqStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _in: ["PENDING","APPROVED","VERIFIED","BOOKED","TRANSFERRED"] } },
           { isDeleted: { _eq: false } }
