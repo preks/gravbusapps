@@ -47,8 +47,8 @@ export const NoteTreeQuickAccess: React.FC<NoteTreeQuickAccessProps> = ({
             onClick={() => onSectionChange(item.id)}
             className={`gba:flex gba:items-center gba:gap-2.5 gba:w-full gba:py-1.5 gba:px-2.5 gba:rounded-lg gba:text-left gba:transition-colors gba:duration-150 gba:text-[13px] ${
               isActive
-                ? 'gba:bg-sidebar-accent gba:text-sidebar-accent-foreground gba:font-medium'
-                : 'gba:text-muted-foreground hover:gba:bg-sidebar-accent/50 hover:gba:text-sidebar-foreground'
+                ? 'gba:bg-white/15 gba:text-white gba:font-medium'
+                : 'gba:text-white/60 hover:gba:bg-white/10 hover:gba:text-white'
             }`}
             data-testid={`qa-${item.id}`}
           >

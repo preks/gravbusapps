@@ -343,19 +343,13 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                       )}
 
                       {/* Icon */}
-                      <div
-                        className={`gba:w-9 gba:h-9 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 ${
-                          isNoteFolder
-                            ? 'gba:bg-primary/8'
-                            : 'gba:bg-gradient-to-br gba:from-primary/10 gba:to-primary/5'
-                        }`}
-                      >
+                      <div className="gba:w-9 gba:h-9 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:bg-card-decorative">
                         {isNoteFolder ? (
-                          <Folder className="gba:w-4 gba:h-4 gba:text-primary" />
+                          <Folder className="gba:w-4 gba:h-4 gba:text-decorative-foreground" />
                         ) : isHandwriting ? (
-                          <PenTool className="gba:w-4 gba:h-4 gba:text-primary/70" />
+                          <PenTool className="gba:w-4 gba:h-4 gba:text-decorative-foreground" />
                         ) : (
-                          <FileText className="gba:w-4 gba:h-4 gba:text-primary/70" />
+                          <FileText className="gba:w-4 gba:h-4 gba:text-decorative-foreground" />
                         )}
                       </div>
 
