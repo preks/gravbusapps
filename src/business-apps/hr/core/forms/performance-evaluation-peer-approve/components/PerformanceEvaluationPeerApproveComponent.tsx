@@ -82,19 +82,14 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
   const isBusy = isLoading || approving || peersLoading
 
   return (
-    <div
-      className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-white"
-      data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-    >
-      <div className="gba:flex-shrink-0">
-        <FormHeader
-          title={t('header-title')}
-          flowIconUrl={flowIconUrl}
-          employee={employeeForHeaderLoading ? null : (employeeForHeader ?? undefined)}
-        />
-      </div>
+    <div className="gba:w-full gba:bg-white" data-testid={formatDataTestId(prefixDataTestId, 'Container')}>
+      <FormHeader
+        title={t('header-title')}
+        flowIconUrl={flowIconUrl}
+        employee={employeeForHeaderLoading ? null : (employeeForHeader ?? undefined)}
+      />
 
-      <div className="gba:flex-1 gba:px-6 gba:py-6 gba:space-y-4 gba:overflow-auto">
+      <div className="gba:px-6 gba:py-6 gba:space-y-4">
         {error && (
           <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'ErrorAlert')}>
             <AlertDescription>{error}</AlertDescription>
@@ -199,7 +194,7 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
                   </ul>
                 )}
 
-                <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t gba:border-border">
                   <p className="gba:text-xs gba:text-muted-foreground gba:m-0">
                     {t('peers-count', { count: totalPeerCount, min: MIN_PEERS, max: MAX_PEERS })}
                   </p>
@@ -229,7 +224,7 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
         </Card>
       </div>
 
-      <div className="gba:flex-shrink-0 gba:px-6 gba:py-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
+      <div className="gba:px-6 gba:py-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
         <Button
           type="button"
           variant="default"
