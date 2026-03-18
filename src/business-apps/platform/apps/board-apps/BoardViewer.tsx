@@ -23,8 +23,6 @@ import { FlowEngineDataSheet } from './components/flow-engine/FlowEngineDataShee
 import { ExternalDataSheet } from './components/external-data/ExternalDataSheet'
 import { BoardApiService } from './services/BoardApiService'
 import { useDashboardData } from './hooks/useDashboardData'
-import { CollaborationDebugPanel } from './components/CollaborationDebugPanel'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import { usePeopleColumnOptions } from './hooks/usePeopleColumnOptions'
 import type { ServerFilterParams } from './hooks/useTableFilterSort'
 
@@ -185,12 +183,6 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   const effectiveRows = rowOverride ?? rows
 
   const [activeRow, setActiveRow] = useState<BoardRow | null>(null)
-  const [rowPageCollabDebug, setRowPageCollabDebug] = useState<{
-    connected: boolean
-    yjsSynced: boolean
-    noteId: string | null
-    lastError: string | null
-  } | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isAddViewOpen, setIsAddViewOpen] = useState(false)
@@ -436,7 +428,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     }
   }, [activeSheet, board.id, isKanbanView, onLoadRows])
 
-  const { socket: boardSocket, isConnected: boardsConnected } = useBoardRealtime({
+  const { socket: boardSocket } = useBoardRealtime({
     boardId: board.id,
     accessToken,
     enabled: liveEnabled,
@@ -849,12 +841,8 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                   row={activeRow}
                   columns={activeSheet!.columns}
                   accessToken={accessToken}
-                  onClose={() => {
-                    setActiveRow(null)
-                    setRowPageCollabDebug(null)
-                  }}
+                  onClose={() => setActiveRow(null)}
                   onPageCreated={handlePageCreated}
-                  onCollabDebugState={setRowPageCollabDebug}
                   data-testid={`${testId}-row-page`}
                 />
               )}
@@ -876,16 +864,6 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         hidePagination
         loadedRows={effectiveRows.length}
         testId={testId}
-      />
-
-      <CollaborationDebugPanel
-        boardsConnected={boardsConnected}
-        liveEnabled={liveEnabled}
-        docServiceUrl={getDocumentServiceApiUrl()}
-        rowPageCollabConnected={rowPageCollabDebug?.connected}
-        rowPageYjsSynced={rowPageCollabDebug?.yjsSynced}
-        rowPageNoteId={rowPageCollabDebug?.noteId}
-        lastError={rowPageCollabDebug?.lastError ?? undefined}
       />
 
       <BoardViewerOverlays

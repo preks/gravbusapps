@@ -28,7 +28,6 @@ export interface UseRowPageCollaborationReturn {
   participants: DocumentParticipant[]
   isYjsSynced: boolean
   isCollaborationConnected: boolean
-  lastSyncError: string | null
 }
 
 function safeParseJwtPayload(token: string): {
@@ -61,7 +60,6 @@ export function useRowPageCollaboration({
   const ydoc = useMemo(() => new Y.Doc(), [noteId])
   const awareness = useMemo(() => new Awareness(ydoc), [ydoc])
   const [isYjsSynced, setIsYjsSynced] = useState(false)
-  const [lastSyncError, setLastSyncError] = useState<string | null>(null)
   const yjsProviderRef = useRef<SocketIoYjsProvider | null>(null)
   const currentUser = useMemo(() => safeParseJwtPayload(accessToken), [accessToken])
   const graphqlClient = useGraphQLClient(accessToken)
@@ -218,7 +216,6 @@ export function useRowPageCollaboration({
       onLocalDocumentChange,
       onRemoteDocumentChange: forceEditorViewRefresh,
       onRemoteAwarenessChange: forceEditorViewRefresh,
-      onSyncError: setLastSyncError,
       onBootstrapRequired: async (html: string) => {
         const start = Date.now()
         while (!editorRef.current && Date.now() - start < 5000) {
@@ -238,7 +235,6 @@ export function useRowPageCollaboration({
       provider.destroy()
       yjsProviderRef.current = null
       setIsYjsSynced(false)
-      setLastSyncError(null)
     }
   }, [
     noteId,
@@ -288,5 +284,5 @@ export function useRowPageCollaboration({
     }
   }, [noteId, isYjsSynced, currentUser, awareness, participants, editorRef, currentUserName, currentUserAvatar])
 
-  return { ydoc, awareness, participants, isYjsSynced, isCollaborationConnected, lastSyncError }
+  return { ydoc, awareness, participants, isYjsSynced, isCollaborationConnected }
 }

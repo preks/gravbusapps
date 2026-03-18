@@ -66,8 +66,6 @@ export interface SocketIoYjsProviderOptions {
   onRemoteAwarenessChange?: () => void
   /** Resolve before first apply of doc/awareness state so the editor view can mount. */
   onBeforeFirstSync?: () => Promise<void>
-  /** Called when sync fails (for debug UI) */
-  onSyncError?: (error: string) => void
 }
 
 /**
@@ -96,7 +94,6 @@ export class SocketIoYjsProvider {
   private onRemoteDocumentChange?: () => void
   private onRemoteAwarenessChange?: () => void
   private readonly onBeforeFirstSync?: () => Promise<void>
-  private onSyncError?: (error: string) => void
   private hasWaitedForReady = false
 
   private retrySyncTimeout: number | null = null
@@ -113,7 +110,6 @@ export class SocketIoYjsProvider {
     this.onRemoteDocumentChange = options.onRemoteDocumentChange
     this.onRemoteAwarenessChange = options.onRemoteAwarenessChange
     this.onBeforeFirstSync = options.onBeforeFirstSync
-    this.onSyncError = options.onSyncError
   }
 
   private async waitReadyIfNeeded(): Promise<void> {
@@ -208,7 +204,6 @@ export class SocketIoYjsProvider {
 
   private handleSyncFailure(response: Extract<YjsSyncResponse, { success: false }>) {
     console.error('[SocketIoYjsProvider] Sync failed:', response.error)
-    this.onSyncError?.(response.error)
     if (this.isPermanentError(response.error)) {
       console.warn('[SocketIoYjsProvider] Permanent error, will not retry')
       return
