@@ -111,6 +111,7 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
   }, [employeeAddresses])
 
   const defaultsAppliedRef = useRef(false)
+  const initialFormValuesRef = useRef<BankAccountFormValues | null>(null)
   useEffect(() => {
     if (defaultsAppliedRef.current) return
     if (!catalogCountries?.length) return
@@ -145,6 +146,7 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
     } as any
 
     form.reset(presetValues)
+    initialFormValuesRef.current = { ...presetValues }
     defaultsAppliedRef.current = true
   }, [catalogCountries, existingAccount, primaryAddress, data?.employee, form])
 
@@ -165,8 +167,8 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
 
   const watchedValues = form.watch()
   const isUnchangedExisting = useMemo(
-    () => isUnchangedExistingBankAccount(form, existingAccount),
-    [existingAccount, watchedValues, form]
+    () => (existingAccount ? isUnchangedExistingBankAccount(form, initialFormValuesRef.current, isUS) : false),
+    [existingAccount, watchedValues, form, isUS]
   )
 
   const hasValidationErrors = Object.keys((form.formState as any)?.errors ?? {}).length > 0
