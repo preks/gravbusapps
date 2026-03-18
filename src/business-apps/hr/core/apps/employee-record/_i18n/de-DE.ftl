@@ -287,7 +287,7 @@ error-end-date-today-or-later = Enddatum muss heute oder später sein
 error-end-date-after-start-date = Enddatum muss am oder nach dem Startdatum der Leistung liegen
 
 # Employee Record - Notifications
-notification-address-updated-success = Adressänderungen zur Genehmigung an die Personalabteilung gesendet.
+notification-address-updated-success = Die Adressaktualisierungen sind abgeschlossen.
 notification-bank-account-updated-success = Die Aktualisierungen des Bankkontos sind abgeschlossen.
 notification-personal-data-updated-success = Änderungen an den persönlichen Daten zur Genehmigung an die Personalabteilung gesendet.
 notification-communication-updated-success = Änderungen an den Kommunikationsdaten zur Genehmigung an die Personalabteilung gesendet.

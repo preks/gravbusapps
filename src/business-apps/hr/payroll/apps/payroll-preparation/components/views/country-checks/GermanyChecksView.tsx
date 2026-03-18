@@ -27,8 +27,8 @@ export const GermanyChecksView: React.FC<GermanyChecksViewProps> = ({ employees,
         </div>
       </Card>
 
-      <Card className="gba:overflow-hidden">
-        <div className="gba:overflow-x-auto">
+      <Card className="gba:overflow-hidden gba:bg-transparent gba:shadow-none gba:border-none gba:pt-2">
+        <div className="gba:overflow-x-auto gba:bg-card gba:rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
@@ -56,7 +56,7 @@ export const GermanyChecksView: React.FC<GermanyChecksViewProps> = ({ employees,
                         <div className="gba:w-7 gba:h-7 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
                           {emp.pictureThumbnail ? (
                             <img
-                              src={emp.pictureThumbnail}
+                              src={`data:image/jpeg;base64,${emp.pictureThumbnail}`}
                               alt=""
                               className="gba:w-7 gba:h-7 gba:rounded-full gba:object-cover"
                             />
