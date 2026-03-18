@@ -47,11 +47,11 @@ export const PayrollRunSelector: React.FC<PayrollRunSelectorProps> = ({
   }
 
   const handleMonthChange = (value: string) => {
-    setMonth(parseInt(value, 10), selectedYear)
+    setMonth(Number.parseInt(value, 10), selectedYear)
   }
 
   const handleYearChange = (value: string) => {
-    setMonth(selectedMonth, parseInt(value, 10))
+    setMonth(selectedMonth, Number.parseInt(value, 10))
   }
 
   return (

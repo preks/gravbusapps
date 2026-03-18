@@ -18,7 +18,7 @@ interface PayrollGridFiltersProps {
 }
 
 export const PayrollGridFilters: React.FC<PayrollGridFiltersProps> = ({ filters, onFiltersChange, employees, t }) => {
-  const departments = [...new Set(employees.map(e => e.department).filter(Boolean))].sort()
+  const departments = [...new Set(employees.map(e => e.department).filter(Boolean))].sort((a, b) => a.localeCompare(b))
 
   const updateFilter = (key: keyof FilterState, value: string | boolean) => {
     onFiltersChange({ ...filters, [key]: value })

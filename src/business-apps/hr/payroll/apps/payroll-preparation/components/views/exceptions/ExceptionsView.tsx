@@ -24,6 +24,17 @@ const CATEGORY_LABELS: Record<IssueCategory, string> = {
   invalid_effective_dates: 'Invalid Effective Dates'
 }
 
+const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
+  switch (severity) {
+    case 'blocker':
+      return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
+    case 'warning':
+      return <WarningCircleIcon size={16} weight="fill" className="gba:text-warning" />
+    case 'info':
+      return <InfoIcon size={16} weight="fill" className="gba:text-primary" />
+  }
+}
+
 interface IssueWithEmployee extends PayrollIssue {
   employeeName: string
   employeeCode: string
@@ -102,17 +113,6 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
         navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'details' }))
     }
   }, [])
-
-  const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
-    switch (severity) {
-      case 'blocker':
-        return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
-      case 'warning':
-        return <WarningCircleIcon size={16} weight="fill" className="gba:text-warning" />
-      case 'info':
-        return <InfoIcon size={16} weight="fill" className="gba:text-primary" />
-    }
-  }
 
   return (
     <div className="gba:space-y-6">
