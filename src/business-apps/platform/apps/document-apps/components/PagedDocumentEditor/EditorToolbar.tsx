@@ -1,7 +1,5 @@
 /**
- * EditorToolbar Component
- *
- * Word-like ribbon (Home + Insert tabs) for the PagedDocumentEditor
+ * Compact spreadsheet-inspired toolbar for the PagedDocumentEditor,
  * with voice input and visualizer.
  */
 
@@ -17,6 +15,9 @@ interface EditorToolbarProps {
   onInsertPageBreak?: () => void
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
+  onOpenInsertTableDialog?: () => void
+  onOpenFind?: () => void
+  onOpenReplace?: () => void
   'data-testid'?: string
 }
 
@@ -25,6 +26,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onInsertPageBreak,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
+  onOpenInsertTableDialog,
+  onOpenFind,
+  onOpenReplace,
   'data-testid': testId = 'editor-toolbar'
 }) => {
   const { locale } = useTranslation(translations)
@@ -120,6 +124,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           onInsertPageBreak={onInsertPageBreak}
           onOpenLinkDialog={onOpenLinkDialog}
           onOpenInsertImageDialog={onOpenInsertImageDialog}
+          onOpenInsertTableDialog={onOpenInsertTableDialog}
+          onOpenFind={onOpenFind}
+          onOpenReplace={onOpenReplace}
           voiceProps={voiceProps}
           data-testid={testId}
         />

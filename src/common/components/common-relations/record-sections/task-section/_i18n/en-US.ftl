@@ -1,0 +1,17 @@
+# Task Section & Quick-Add
+tasks-untitled = Untitled Task
+tasks-emptyState = No tasks yet. Create your first task.
+tasks-addQuick = Quick Add Task
+tasks-assignee = Assignee
+tasks-selectAssignee = Select...
+tasks-type = Type
+tasks-priority = Priority
+tasks-timingType = Timing
+tasks-pleaseSelect = Select...
+tasks-deadline = Deadline
+tasks-taskDetails = Task
+tasks-documents = Documents
+tasks-quickAddPlaceholder = Task Title...
+tasks-descriptionPlaceholder = Description...
+common-creating = Creating...
+tasks-create = Create

@@ -19,16 +19,16 @@ export interface SharedConnectionOption {
 }
 
 const connectorNameToProviderId: Record<string, string> = {
-  'nw-connector-google-drive': 'anypoint-connect.google-drive',
-  'nw-connector-confluence': 'anypoint-connect.confluence',
-  'nw-connector-onedrive': 'anypoint-connect.onedrive',
-  'nw-connector-sharepoint': 'anypoint-connect.sharepoint',
-  'nw-connector-s3': 'anypoint-connect.s3',
-  'nw-connector-notion': 'anypoint-connect.notion',
-  'nw-connector-dropbox': 'anypoint-connect.dropbox',
-  'nw-connector-box': 'anypoint-connect.box',
-  'nw-connector-azure-blob': 'anypoint-connect.azure-blob',
-  'nw-connector-gcs': 'anypoint-connect.gcs'
+  'nw-connector-google-drive': 'data-bridge.google-drive',
+  'nw-connector-confluence': 'data-bridge.confluence',
+  'nw-connector-onedrive': 'data-bridge.onedrive',
+  'nw-connector-sharepoint': 'data-bridge.sharepoint',
+  'nw-connector-s3': 'data-bridge.s3',
+  'nw-connector-notion': 'data-bridge.notion',
+  'nw-connector-dropbox': 'data-bridge.dropbox',
+  'nw-connector-box': 'data-bridge.box',
+  'nw-connector-azure-blob': 'data-bridge.azure-blob',
+  'nw-connector-gcs': 'data-bridge.gcs'
 }
 
 const connectorDisplayName: Record<string, string> = {
@@ -141,7 +141,7 @@ export const UnstructuredConnectorSelector: React.FC<UnstructuredConnectorSelect
         })}
       </div>
 
-      {selectedId && onConnectionChange ? (
+      {selectedId && onConnectionChange && (isLoadingConnections || connectionOptions.length > 0) ? (
         <div className="gba:space-y-2">
           <Label className="gba:text-xs">Shared connection</Label>
           <Select

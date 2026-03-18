@@ -182,8 +182,6 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
     setCurrentPage(1)
   }, [])
 
-  useEffect(() => setCurrentPage(1), [assets.length])
-
   const compareValues = (a: any, b: any): number => {
     const aStr = String(a).toLowerCase()
     const bStr = String(b).toLowerCase()
@@ -201,10 +199,14 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
     return null
   }
 
+  const safeAssets = useMemo(() => assets.filter((a): a is EmployeeAsset => a != null && a.asset != null), [assets])
+
+  useEffect(() => setCurrentPage(1), [safeAssets.length])
+
   const sortedAssets = useMemo(() => {
-    if (!sortField) return assets
+    if (!sortField) return safeAssets
     const today = dayjs().startOf('day')
-    return [...assets].sort((a, b) => {
+    return [...safeAssets].sort((a, b) => {
       switch (sortField) {
         case 'category':
           return compareValues(
@@ -258,7 +260,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
           return 0
       }
     })
-  }, [assets, sortField, sortOrder, conditionLookup])
+  }, [safeAssets, sortField, sortOrder, conditionLookup])
 
   const paginatedAssets = useMemo(
     () => sortedAssets.slice((currentPage - 1) * pageSize, currentPage * pageSize),
@@ -267,17 +269,17 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
 
   const stats = useMemo(
     () => ({
-      total: assets.length,
-      inUse: assets.filter(isCurrentlyInUse).length,
-      inRepair: assets.filter(isInRepair).length,
-      handedOver: assets.filter(a => {
+      total: safeAssets.length,
+      inUse: safeAssets.filter(isCurrentlyInUse).length,
+      inRepair: safeAssets.filter(isInRepair).length,
+      handedOver: safeAssets.filter(a => {
         const today = dayjs().startOf('day')
         const endDate = a.endDate ? dayjs(a.endDate).startOf('day') : null
         const assignmentEnded = !!endDate?.isSameOrBefore(today)
         return assignmentEnded && a.asset.assetStatus !== AssetStatus.UNDER_REPAIR
       }).length
     }),
-    [assets]
+    [safeAssets]
   )
 
   if (isLoading)
@@ -302,7 +304,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
       </Card>
     )
 
-  if (assets.length === 0)
+  if (safeAssets.length === 0)
     return (
       <div className="gba:space-y-6" data-testid="assets-tab-content">
         <Card data-testid="assets-empty-state">
@@ -495,13 +497,13 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
         </CardContent>
       </Card>
 
-      {assets.some(a => a.notes) && (
+      {safeAssets.some(a => a.notes) && (
         <Card data-testid="assets-notes-card">
           <CardHeader>
             <CardTitle>{t('assets-assignment-notes')}</CardTitle>
           </CardHeader>
           <CardContent className="gba:space-y-4">
-            {assets
+            {safeAssets
               .filter(asset => asset.notes)
               .map(asset => (
                 <div

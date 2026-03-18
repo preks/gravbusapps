@@ -1,11 +1,43 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import { UserIcon, TargetIcon, HandshakeIcon, BuildingIcon, CalendarIcon } from '@phosphor-icons/react'
+import {
+  UserIcon,
+  TargetIcon,
+  HandshakeIcon,
+  BuildingIcon,
+  CalendarBlankIcon as CalendarIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  UsersIcon,
+  ListChecksIcon
+} from '@phosphor-icons/react'
 import type { TeamSalesActivity } from '../hooks/useTeamActivitiesData'
 import type { SalesTeamMember } from '../../sales-members-list/types'
-import { getEntityName, getEntityType, getActivityTypeVariant, safeString } from '../../../utils/activityHelpers'
+import {
+  getEntityName,
+  getEntityType,
+  getEntityTypeFromIds,
+  getActivityTypeVariant,
+  safeString
+} from '../../../utils/activityHelpers'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatDate } from '@/common/utils/windowUtils'
+
+// Get activity type icon (Lucide icons specific to this component)
+const getActivityTypeIcon = (type: string) => {
+  switch (type) {
+    case 'Call':
+      return <PhoneIcon className="gba:h-4 gba:w-4 gba:text-foreground" />
+    case 'Email':
+      return <EnvelopeIcon className="gba:h-4 gba:w-4" />
+    case 'Meeting':
+      return <UsersIcon className="gba:h-4 gba:w-4" />
+    case 'Task':
+      return <ListChecksIcon className="gba:h-4 gba:w-4" />
+    default:
+      return <ListChecksIcon className="gba:h-4 gba:w-4" />
+  }
+}
 
 // Get entity type icon (Lucide icons specific to this component)
 const getEntityTypeIcon = (entityType: string) => {
@@ -32,16 +64,16 @@ const getTeamMemberForActivity = (activity: TeamSalesActivity, teamMembers: Sale
 
 // Helper function to handle entity reference clicks
 const handleEntityReferenceClick = (activity: TeamSalesActivity) => {
-  if (activity.accountId && activity.account) {
+  if (activity.accountId) {
     const url = buildPlatformUrl('/platform/crm/account-record', { accountId: activity.accountId })
     navigateTo(url)
-  } else if (activity.contactId && activity.contact) {
+  } else if (activity.contactId) {
     const url = buildPlatformUrl('/platform/crm/contact-record', { contactId: activity.contactId })
     navigateTo(url)
-  } else if (activity.leadId && activity.lead) {
+  } else if (activity.leadId) {
     const url = buildPlatformUrl('/platform/crm/lead-record', { leadId: activity.leadId })
     navigateTo(url)
-  } else if (activity.opportunityId && activity.opportunity) {
+  } else if (activity.opportunityId) {
     const url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: activity.opportunityId })
     navigateTo(url)
   }
@@ -135,10 +167,12 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
     size: 150,
     cell: ({ row }) => {
       const type = row.original.activityType?.value || 'Other'
+      const isCall = type === 'Call'
       return (
-        <div className="gba:flex gba:items-center">
-          <Badge variant={getActivityTypeVariant(type)}>{type}</Badge>
-        </div>
+        <Badge variant={getActivityTypeVariant(type)} className={`gba:gap-1.5${isCall ? ' gba:text-foreground' : ''}`}>
+          {getActivityTypeIcon(type)}
+          <span>{type}</span>
+        </Badge>
       )
     }
   },
@@ -150,18 +184,19 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
     enableSorting: false,
     cell: ({ row }) => {
       const activity = row.original
-      const entityName = getEntityName(activity)
-      const entityType = getEntityType(activity)
+      const isUnlinked = !activity.accountId && !activity.contactId && !activity.leadId && !activity.opportunityId
 
-      // Check if we have actual reference data (not just IDs)
-      const hasReference = entityName !== 'No reference' && entityType !== 'No reference'
-
-      // If no reference, show simple text ONCE
-      if (!hasReference) {
+      if (isUnlinked) {
         return <span className="gba:text-sm gba:text-muted-foreground gba:italic">No reference</span>
       }
 
-      // If we have a reference, show clickable button with name and type
+      const entityName = getEntityName(activity)
+      const entityType = getEntityType(activity)
+
+      // Fall back to ID-based type when the joined entity has no resolvable name
+      const resolvedType = entityType === 'No reference' ? getEntityTypeFromIds(activity) : entityType
+      const resolvedName = entityName === 'No reference' ? null : entityName
+
       const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation()
         handleEntityReferenceClick(activity)
@@ -170,15 +205,21 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
       return (
         <button
           type="button"
-          className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer gba:hover:bg-accent gba:px-3 gba:py-2 gba:rounded gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:w-fit"
+          className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer gba:hover:bg-accent gba:px-3 gba:py-2 gba:rounded gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:overflow-hidden gba:max-w-[200px]"
           onClick={handleClick}
         >
-          <span className="gba:text-sm gba:font-medium gba:text-primary" title={entityName}>
-            {entityName}
-          </span>
+          {resolvedName ? (
+            <span className="gba:text-sm gba:font-medium gba:text-primary gba:truncate" title={resolvedName}>
+              {resolvedName}
+            </span>
+          ) : (
+            <span className="gba:text-sm gba:italic gba:text-muted-foreground gba:truncate">
+              Unnamed {resolvedType}
+            </span>
+          )}
           <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
-            {getEntityTypeIcon(entityType)}
-            <span>{entityType}</span>
+            {getEntityTypeIcon(resolvedType)}
+            <span>{resolvedType}</span>
           </div>
         </button>
       )

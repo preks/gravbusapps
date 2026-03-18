@@ -1,5 +1,5 @@
 import React from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { FileTextIcon } from '@phosphor-icons/react'
 export interface Language {
   code: string
@@ -87,7 +87,7 @@ export const translateText = async (request: TranslationRequest, accessToken: st
 
   try {
     // Use the official FlowBot endpoint from the documentation
-    const baseUrl = env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || 'https://newwork-dev.newwork.com'
+    const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/translation/translate_texts`
 
     const apiRequest: TranslationApiRequest = {
@@ -151,7 +151,7 @@ export const translateMultipleTexts = async (
 
   try {
     // Use the official FlowBot endpoint from the documentation
-    const baseUrl = env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || 'https://newwork-dev.newwork.com'
+    const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/translation/translate_texts`
 
     const apiRequest: TranslationApiRequest = {

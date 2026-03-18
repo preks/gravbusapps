@@ -10,7 +10,8 @@ import {
   ListIcon,
   MegaphoneIcon,
   HouseIcon,
-  BriefcaseIcon
+  BriefcaseIcon,
+  BellIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { LeadView } from './views/lead-view'
@@ -23,6 +24,7 @@ import { useSalesDashboard } from './views/dashboard-view/hooks/useSalesDashboar
 import { DateRange } from '@/common/components/common-relations/view-layouts/dashboard-layout/types/dashboardTypes'
 import { CampaignManagement } from '@/business-apps/crm/campaigns/apps/campaign-management'
 import { TaskView } from './views/task-view'
+import { ActivityView } from './views/activity-view'
 import { WorkspaceView } from './views/workspace-view'
 import { MODULE_COLORS } from '@/common/constants/ui'
 
@@ -32,6 +34,7 @@ const moduleColor = MODULE_COLORS.CRM
 const CUSTOMER_VIEW_KEYS = [
   'dashboard',
   'personal',
+  'activities',
   'tasks',
   'leads',
   'accounts',
@@ -65,6 +68,11 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
       key: 'personal',
       icon: <BriefcaseIcon />,
       label: 'My Workspace'
+    },
+    {
+      key: 'activities',
+      icon: <BellIcon />,
+      label: 'Activities'
     },
     {
       key: 'tasks',
@@ -273,6 +281,12 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
         return (
           <div data-testid="personal-workspace-tab-content">
             <WorkspaceView {...context} />
+          </div>
+        )
+      case 'activities':
+        return (
+          <div data-testid="activities-tab-content">
+            <ActivityView {...context} />
           </div>
         )
       case 'tasks':

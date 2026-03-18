@@ -13,19 +13,28 @@ export interface UseNoteAppsHubUrlStateParams {
   setSelectedNoteId: (id: string | null) => void
   activeSection: SidebarSection
   setActiveSection: (section: SidebarSection) => void
+  treeParentId?: string | null
+  setTreeParentId?: (id: string | null) => void
 }
 
 export interface UseNoteAppsHubUrlStateReturn {
   updateUrl: (noteId: string | null, view?: HubView) => void
   resetLoadAttempt: () => void
+  initialParentId: string | null
 }
 
-function getUrlParams(): { noteId: string | null; view: HubView | null; section: SidebarSection | null } {
+function getUrlParams(): {
+  noteId: string | null
+  view: HubView | null
+  section: SidebarSection | null
+  parentId: string | null
+} {
   const urlParams = new URLSearchParams(window.location.search)
   return {
     noteId: urlParams.get('noteId'),
     view: (urlParams.get('view') as HubView | null) || null,
-    section: (urlParams.get('section') as SidebarSection | null) || null
+    section: (urlParams.get('section') as SidebarSection | null) || null,
+    parentId: urlParams.get('parentId')
   }
 }
 
@@ -43,8 +52,10 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
-  const initialNoteIdRef = useRef(getUrlParams().noteId)
-  const initialViewRef = useRef(getUrlParams().view)
+  const initialUrlParams = useRef(getUrlParams())
+  const initialNoteIdRef = useRef(initialUrlParams.current.noteId)
+  const initialViewRef = useRef(initialUrlParams.current.view)
+  const initialParentId = initialUrlParams.current.parentId
 
   const updateUrl = useCallback(
     (noteId: string | null, view?: HubView) => {
@@ -56,18 +67,22 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
         urlParams.delete('noteId')
         urlParams.delete('view')
       }
-      // Always preserve section in URL (even when no note is selected)
       if (activeSection && activeSection !== 'my-notes') {
         urlParams.set('section', activeSection)
       } else {
         urlParams.delete('section')
       }
+      if (params.treeParentId) {
+        urlParams.set('parentId', params.treeParentId)
+      } else {
+        urlParams.delete('parentId')
+      }
       const newUrl = urlParams.toString()
         ? `${window.location.pathname}?${urlParams.toString()}`
         : window.location.pathname
-      window.history.pushState({ noteId, view, section: activeSection }, '', newUrl)
+      window.history.pushState({ noteId, view, section: activeSection, parentId: params.treeParentId }, '', newUrl)
     },
-    [activeSection]
+    [activeSection, params.treeParentId]
   )
 
   const resetLoadAttempt = useCallback(() => {
@@ -185,5 +200,5 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
     return () => window.removeEventListener('popstate', handlePopState)
   }, [currentView, loadNoteById, setCurrentView, setSelectedNoteId, setActiveSection])
 
-  return { updateUrl, resetLoadAttempt }
+  return { updateUrl, resetLoadAttempt, initialParentId }
 }

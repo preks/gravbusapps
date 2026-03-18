@@ -19,6 +19,19 @@ import ActivitySection from '@/common/components/common-relations/record-section
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
+import {
+  APPROVAL_TASK_TYPE_REF,
+  FILE_CONTEXT,
+  APP_NAME,
+  getFileEntityFromType
+} from '@/common/data/investment/constants/investmentConstants'
+import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
+import { buildInvestmentActivityPayload } from '@/common/data/investment/types/investmentActivityTypes'
+import { buildInvestmentNotePayload } from '@/common/data/investment/types/investmentNoteTypes'
+import { getReferenceEntityType } from '@/common/data/investment/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
 
 interface HomeViewProps extends BusinessAppContextProps {
   contactId: string
@@ -26,6 +39,46 @@ interface HomeViewProps extends BusinessAppContextProps {
 }
 
 const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props }) => {
+  const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient]
+  )
+  const activityPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      entityId: contactId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient, contactId]
+  )
+  const notePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      entityId: contactId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false
+    }),
+    [props.userInfo, fileClient, contactId]
+  )
+
   // Data fetching hooks for sections
   const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId(props)
   const { fetchInvestmentNotesByContactId } = useGetInvestmentNotesByContactId(props)
@@ -231,6 +284,7 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
             component: TaskSection,
             props: {
               ...props,
+              contactId,
               buildReferenceUrl,
               tasks: tasks,
               taskActionProps: {
@@ -244,7 +298,12 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
                 externalContextData: { contactId },
                 prefixDataTestId: 'contact-task-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildInvestmentTaskPayload,
+              defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           },
           {
@@ -252,6 +311,7 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
             component: TaskSection,
             props: {
               ...props,
+              contactId,
               sectionTitle: 'Approval Tasks',
               buildReferenceUrl,
               tasks: approvals,
@@ -266,12 +326,19 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
                 externalContextData: {
                   contactId,
                   contact: contactId,
-                  typeRef: 'InvestmentTaskType:v1:APPROVAL',
-                  investmentTask: { contact: contactId, type: 'InvestmentTaskType:v1:APPROVAL' }
+                  typeRef: APPROVAL_TASK_TYPE_REF,
+                  investmentTask: { contact: contactId, type: APPROVAL_TASK_TYPE_REF }
                 },
                 prefixDataTestId: 'contact-approvals',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              typeCatalog: TASK_TYPE,
+              isApprovalTaskSection: true,
+              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+              defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildInvestmentTaskPayload,
+              preSubmit: taskPreSubmit
             }
           }
         ]}
@@ -287,20 +354,37 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
             component: ActivitySection,
             props: {
               ...props,
+              contactId,
               activities: activities,
               activitiesLoading: sectionsLoading,
               activitiesError: sectionsError,
               onReloadActivities: loadSectionData,
               activitySectionActionProps: {
                 contextsArray: [FlowContextName.investmentActivityCreate],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-activities'
+                externalContextData: {
+                  contactId,
+                  ...(props.userInfo?.employeeDetails?.employeeId && {
+                    ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+                  }),
+                  ...(props.userInfo?.id && {
+                    employeeId: props.userInfo.id,
+                    userId: props.userInfo.id,
+                    employeeDetails: { userId: props.userInfo.id }
+                  })
+                },
+                prefixDataTestId: 'contact-activities',
+                emptyStateBehavior: 'enable'
               },
               activityEntityActionProps: {
                 contextsArray: [FlowContextName.investmentActivityEntity],
                 externalContextData: { contactId },
-                prefixDataTestId: 'contact-activity-entity'
-              }
+                prefixDataTestId: 'contact-activity-entity',
+                emptyStateBehavior: 'enable'
+              },
+              activityTypeCatalog: ACTIVITY_TYPE,
+              buildActivityPayload: buildInvestmentActivityPayload,
+              alignment: 'right',
+              preSubmit: activityPreSubmit
             }
           },
           {
@@ -308,6 +392,7 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
             component: NoteSection as React.ComponentType<any>,
             props: {
               ...props,
+              contactId,
               notes: notes,
               noteActionProps: {
                 contextsArray: [FlowContextName.investmentNoteCreate],
@@ -320,7 +405,9 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
                 externalContextData: { contactId },
                 prefixDataTestId: 'contact-note-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              buildNotePayload: buildInvestmentNotePayload,
+              preSubmit: notePreSubmit
             }
           }
         ]}

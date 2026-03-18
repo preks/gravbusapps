@@ -1101,7 +1101,9 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
           'react',
           'react-dom',
           'react/jsx-runtime',
-          'react-router-dom'
+          'react-router-dom',
+          '@univerjs/preset-sheets-core',
+          '@univerjs/presets'
         ],
         output: {
           globals: {
@@ -1119,7 +1121,9 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
             '@newwork/gravity-ui-catalog': 'GravityUICatalog',
             'class-variance-authority': 'classVarianceAuthority',
             'lucide-react': 'lucideReact',
-            'react-router-dom': 'reactRouterDom'
+            'react-router-dom': 'reactRouterDom',
+            '@univerjs/preset-sheets-core': 'univerjsPresetSheetsCore',
+            '@univerjs/presets': 'univerjsPresets'
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.

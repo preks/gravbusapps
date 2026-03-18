@@ -19,13 +19,13 @@ export interface Document extends BaseEntity {
   expirationDate?: string // IRM | CRM
   file?: string // TODO deprecated
   fileInfo?: any // IRM | CRM
-  fileSize?: number // TODO deprecated
+  fileSize?: number | null // TODO deprecated
   folder?: boolean // IRM | CRM
   id: string // IRM | CRM
   lead?: any // IRM | CRM
   leadId?: string // IRM | CRM
   mandatory?: boolean // IRM | CRM
-  mimeType?: string // TODO deprecated
+  mimeType?: string | null // TODO deprecated
   name?: string // IRM | CRM
   note?: any // IRM | CRM
   noteId?: string // IRM | CRM
