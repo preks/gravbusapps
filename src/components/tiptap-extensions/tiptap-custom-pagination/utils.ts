@@ -2,7 +2,7 @@ import { Editor, type Extension, type JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { EditorView } from '@tiptap/pm/view'
-import { findSafeSplitRow } from '@/components/tiptap-custom-tables/tablePaginationUtils'
+import { findSafeSplitRow, getTableRows } from '@/components/tiptap-custom-tables/tablePaginationUtils'
 import { PAGE_FORMATS, PAGE_SIZES, type PageSize } from './constants'
 import type {
   BuiltInPageFormatName,
@@ -23,6 +23,7 @@ interface PageCountLayoutOptions {
   footerHeights?: Map<number, number>
   defaultHeaderHeight?: number
   defaultFooterHeight?: number
+  onDebug?: (info: PageCountDebugInfo) => void
 }
 
 export interface MeasuredHeaderFooterHeights {
@@ -39,6 +40,26 @@ export interface MergeableTableFragmentsCandidate {
   firstTablePos: number
   secondTablePos: number
   paginationSplitId: string
+}
+
+export interface PageCountDebugInfo {
+  reason: 'empty-doc' | 'existing-no-op' | 'add-pages' | 'keep-existing' | 'remove-pages' | 'initial-count'
+  hasPaginationElement: boolean
+  currentPageCount: number
+  resultPageCount: number
+  contentBottom: number | null
+  selectionBottom: number
+  measuredBottom: number
+  pageContentHeight: number
+  lastPageBreakBottom: number | null
+  lastPageGap: number | null
+  lowerBound: number | null
+}
+
+interface TableRowEntry {
+  node: ProseMirrorNode
+  rowIndex: number
+  rowPos: number
 }
 
 const PAGE_VARIANT_FIELDS = {
@@ -465,7 +486,7 @@ function getLastContentElement(editorDom: HTMLElement): HTMLElement | null {
   return null
 }
 
-function getElementBottom(element: HTMLElement): number {
+function getElementLayoutHeight(element: HTMLElement): number {
   const rectHeight = typeof element.getBoundingClientRect === 'function' ? element.getBoundingClientRect().height : 0
   const measuredContentHeight = readMeasuredElementHeight(element)
   let trailingEmptyLineHeight = 0
@@ -482,7 +503,7 @@ function getElementBottom(element: HTMLElement): number {
         : 0
   }
 
-  const layoutHeight = Math.max(
+  return Math.max(
     element.offsetHeight,
     element.clientHeight,
     element.scrollHeight,
@@ -490,7 +511,6 @@ function getElementBottom(element: HTMLElement): number {
     measuredContentHeight,
     trailingEmptyLineHeight
   )
-  return element.offsetTop + layoutHeight
 }
 
 function getElementTopInEditor(editorDom: HTMLElement, element: HTMLElement): number {
@@ -503,6 +523,14 @@ function getElementBottomInEditor(editorDom: HTMLElement, element: HTMLElement):
   const editorRect = editorDom.getBoundingClientRect()
   const elementRect = element.getBoundingClientRect()
   return elementRect.bottom - editorRect.top + editorDom.scrollTop
+}
+
+function getMeasuredElementBottomInEditor(editorDom: HTMLElement, element: HTMLElement): number {
+  const layoutHeight = getElementLayoutHeight(element)
+  return Math.max(
+    getElementBottomInEditor(editorDom, element),
+    getElementTopInEditor(editorDom, element) + layoutHeight
+  )
 }
 
 function getPageBodyBandsForMeasurement(editorDom: HTMLElement) {
@@ -535,6 +563,15 @@ function getPreviousContentElement(element: HTMLElement): HTMLElement | null {
   return null
 }
 
+function getTableMeasurementElement(element: HTMLElement): HTMLElement {
+  if (!element.classList.contains('tableWrapper')) {
+    return element
+  }
+
+  const tableElement = Array.from(element.children).find(child => child instanceof HTMLTableElement)
+  return tableElement instanceof HTMLElement ? tableElement : element
+}
+
 function getElementMarginTop(element: HTMLElement): number {
   if (typeof window === 'undefined') return 0
 
@@ -542,6 +579,19 @@ function getElementMarginTop(element: HTMLElement): number {
   const marginTop = Number.parseFloat(computedStyle.marginTop ?? '')
 
   return Number.isFinite(marginTop) ? marginTop : 0
+}
+
+function getElementMarginBottom(element: HTMLElement): number {
+  if (typeof window === 'undefined') return 0
+
+  const computedStyle = window.getComputedStyle(element)
+  const marginBottom = Number.parseFloat(computedStyle.marginBottom ?? '')
+
+  return Number.isFinite(marginBottom) ? marginBottom : 0
+}
+
+function getCollapsedBlockGap(previousElement: HTMLElement, nextElement: HTMLElement): number {
+  return Math.max(getElementMarginBottom(previousElement), getElementMarginTop(nextElement))
 }
 
 function getBandIndexForOffset(
@@ -558,6 +608,10 @@ function getBandIndexForOffset(
   return bandIndex
 }
 
+function isOffsetWithinBand(band: { top: number; bottom: number }, offset: number, tolerance: number) {
+  return offset >= band.top - tolerance && offset <= band.bottom + tolerance
+}
+
 function getSplitIndexForPushedTable(
   view: EditorView,
   tableNode: ProseMirrorNode,
@@ -568,7 +622,8 @@ function getSplitIndexForPushedTable(
   const tableDom = view.nodeDOM(tablePos)
   if (!(tableDom instanceof HTMLElement)) return null
 
-  const tableTop = getElementTopInEditor(view.dom, tableDom)
+  const tableMeasurementElement = getTableMeasurementElement(tableDom)
+  const tableTop = getElementTopInEditor(view.dom, tableMeasurementElement)
   const tableBandIndex = getBandIndexForOffset(bodyBands, tableTop, tolerance)
   if (tableBandIndex <= 0 || tableBandIndex >= bodyBands.length) return null
 
@@ -579,16 +634,20 @@ function getSplitIndexForPushedTable(
   const previousContentElement = getPreviousContentElement(tableDom)
   if (!(previousContentElement instanceof HTMLElement)) return null
 
-  const previousContentBottom = getElementBottomInEditor(view.dom, previousContentElement)
-  const availableTop = previousContentBottom + getElementMarginTop(tableDom)
+  const previousContentBottom = getMeasuredElementBottomInEditor(view.dom, previousContentElement)
+  if (!isOffsetWithinBand(previousBand, previousContentBottom, tolerance)) return null
+
+  const availableTop = previousContentBottom + getCollapsedBlockGap(previousContentElement, tableMeasurementElement)
   const availableHeight = previousBand.bottom - availableTop
   if (availableHeight <= tolerance) return null
 
+  const rowEntries = getTableRowEntries(tableNode, tablePos)
+  if (rowEntries.length < 2) return null
+
   let splitIndex: number | null = null
 
-  tableNode.forEach((_, rowOffset, rowIndex) => {
-    const rowPosition = tablePos + 1 + rowOffset
-    const rowDom = view.nodeDOM(rowPosition)
+  rowEntries.forEach(rowEntry => {
+    const rowDom = view.nodeDOM(rowEntry.rowPos)
     if (!(rowDom instanceof HTMLTableRowElement)) return
 
     const rowBottom = getElementBottomInEditor(view.dom, rowDom)
@@ -598,16 +657,48 @@ function getSplitIndexForPushedTable(
     if (rowHeight >= availableHeight - tolerance) return
 
     if (consumedHeight <= availableHeight + tolerance) {
-      splitIndex = rowIndex + 1
+      splitIndex = rowEntry.rowIndex + 1
       return
     }
   })
 
+  if (splitIndex === null || splitIndex >= rowEntries.length) return null
+
   return splitIndex
 }
 
+function getTableRowEntries(tableNode: ProseMirrorNode, tablePos: number): TableRowEntry[] {
+  const rows: TableRowEntry[] = []
+
+  tableNode.forEach((childNode, childOffset) => {
+    if (!childNode.type || childNode.type.name === 'tableRow') {
+      rows.push({
+        node: childNode,
+        rowIndex: rows.length,
+        rowPos: tablePos + 1 + childOffset
+      })
+      return
+    }
+
+    if (childNode.type.name !== 'tableRowGroup') return
+
+    const rowGroupPos = tablePos + 1 + childOffset
+    childNode.forEach((rowNode, rowOffset) => {
+      if (rowNode.type && rowNode.type.name !== 'tableRow') return
+
+      rows.push({
+        node: rowNode,
+        rowIndex: rows.length,
+        rowPos: rowGroupPos + 1 + rowOffset
+      })
+    })
+  })
+
+  return rows
+}
+
 function getTableColumnCount(tableNode: ProseMirrorNode) {
-  const firstRow = tableNode.firstChild
+  const firstRow = getTableRows(tableNode)[0]
   if (!firstRow) return 1
 
   let columnCount = 0
@@ -624,30 +715,46 @@ export function findOverflowingTableSplit(view: EditorView): TableOverflowSplitC
 
   const tolerance = 1
   let candidate: TableOverflowSplitCandidate | null = null
+  const tables: Array<{ node: ProseMirrorNode; pos: number }> = []
 
   ;(view.state.doc as ProseMirrorNode).descendants((node, pos) => {
-    if (candidate || node.type.name !== 'table') return !candidate
-    if (node.childCount < 2 || getTableColumnCount(node) < 1) return false
+    if (node.type.name === 'table') {
+      tables.push({ node, pos })
+      return false
+    }
+
+    return true
+  })
+
+  tables.forEach(({ node, pos }) => {
+    const rowEntries = getTableRowEntries(node, pos)
+    const columnCount = getTableColumnCount(node)
+
+    if (rowEntries.length < 2 || columnCount < 1) {
+      return
+    }
 
     const pushedSplitIndex = getSplitIndexForPushedTable(view, node, pos, bodyBands, tolerance)
+
     if (pushedSplitIndex !== null) {
       const safeSplitIndex = findSafeSplitRow(node, pushedSplitIndex)
-      if (safeSplitIndex >= 1 && safeSplitIndex < node.childCount) {
-        candidate = {
-          tablePos: pos,
-          splitRowIndex: safeSplitIndex
+
+      if (safeSplitIndex >= 1 && safeSplitIndex < rowEntries.length) {
+        if (candidate === null) {
+          candidate = {
+            tablePos: pos,
+            splitRowIndex: safeSplitIndex
+          }
         }
       }
-      return !candidate
+      return
     }
 
     let currentBandIndex = 0
 
-    node.forEach((_, rowOffset, rowIndex) => {
-      if (candidate) return
-      const rowPosition = pos + 1 + rowOffset
-      const rowDom = view.nodeDOM(rowPosition)
-      if (!(rowDom instanceof HTMLTableRowElement)) return
+    for (const rowEntry of rowEntries) {
+      const rowDom = view.nodeDOM(rowEntry.rowPos)
+      if (!(rowDom instanceof HTMLTableRowElement)) continue
 
       const rowTop = getElementTopInEditor(view.dom, rowDom)
       const rowBottom = getElementBottomInEditor(view.dom, rowDom)
@@ -656,25 +763,28 @@ export function findOverflowingTableSplit(view: EditorView): TableOverflowSplitC
       currentBandIndex = getBandIndexForOffset(bodyBands, rowTop, tolerance)
 
       const currentBand = bodyBands[currentBandIndex]
-      const nextBand = bodyBands[currentBandIndex + 1]
-      if (!currentBand || !nextBand) return
+      if (!currentBand) continue
+      const resolvedCurrentBandHeight = currentBand.bottom - currentBand.top
 
-      const currentBandHeight = currentBand.bottom - currentBand.top
-      if (rowHeight >= currentBandHeight - tolerance) return
-      if (rowBottom <= currentBand.bottom + tolerance) return
+      if (rowHeight >= resolvedCurrentBandHeight - tolerance) continue
+      if (rowBottom <= currentBand.bottom + tolerance) continue
+      if (rowEntry.rowIndex <= 0 || rowEntry.rowIndex >= rowEntries.length) continue
 
-      if (rowIndex <= 0 || rowIndex >= node.childCount) return
+      const safeSplitIndex = findSafeSplitRow(node, rowEntry.rowIndex)
 
-      const safeSplitIndex = findSafeSplitRow(node, rowIndex)
-      if (safeSplitIndex < 1 || safeSplitIndex >= node.childCount) return
-
-      candidate = {
-        tablePos: pos,
-        splitRowIndex: safeSplitIndex
+      if (safeSplitIndex < 1 || safeSplitIndex >= rowEntries.length) {
+        break
       }
-    })
 
-    return !candidate
+      if (candidate === null) {
+        candidate = {
+          tablePos: pos,
+          splitRowIndex: safeSplitIndex
+        }
+      }
+
+      break
+    }
   })
 
   return candidate
@@ -712,7 +822,12 @@ export function findMergeableTableFragments(view: EditorView): MergeableTableFra
       return !candidate
     }
 
-    const bandIndex = getBandIndexForOffset(bodyBands, getElementTopInEditor(view.dom, tableDom), tolerance)
+    const tableMeasurementElement = getTableMeasurementElement(tableDom)
+    const bandIndex = getBandIndexForOffset(
+      bodyBands,
+      getElementTopInEditor(view.dom, tableMeasurementElement),
+      tolerance
+    )
 
     if (
       previousTable &&
@@ -799,6 +914,19 @@ export function calculatePageCount(
   layoutOptions: PageCountLayoutOptions = {}
 ): number {
   if (isEffectivelyEmptyDocument((view as EditorView & { state?: { doc?: ProseMirrorNode } }).state?.doc)) {
+    layoutOptions.onDebug?.({
+      reason: 'empty-doc',
+      hasPaginationElement: false,
+      currentPageCount: 0,
+      resultPageCount: 1,
+      contentBottom: null,
+      selectionBottom: 0,
+      measuredBottom: 0,
+      pageContentHeight: getPageBodyHeightForCount(pageFormat, layoutOptions, 1),
+      lastPageBreakBottom: null,
+      lastPageGap: null,
+      lowerBound: null
+    })
     return 1
   }
 
@@ -807,37 +935,137 @@ export function calculatePageCount(
   const currentPageCount = getExistingPageCount(view)
   const lastContentElement = getLastContentElement(editorDom)
   const selectionBottom = getSelectionBottom(view)
-  const measuredBottom = lastContentElement
-    ? Math.max(getElementBottom(lastContentElement), selectionBottom)
-    : selectionBottom
+  const contentBottom = lastContentElement ? getMeasuredElementBottomInEditor(editorDom, lastContentElement) : null
+  const measuredBottom = contentBottom !== null ? Math.max(contentBottom, selectionBottom) : selectionBottom
   const pageContentHeight = getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
 
   if (paginationElement) {
     const lastPageBreak = paginationElement.lastElementChild?.querySelector('.breaker') as HTMLElement | null
 
     if ((!lastContentElement && selectionBottom <= 0) || !lastPageBreak) {
-      return Math.max(1, currentPageCount)
+      const resultPageCount = Math.max(1, currentPageCount)
+      layoutOptions.onDebug?.({
+        reason: 'existing-no-op',
+        hasPaginationElement: true,
+        currentPageCount,
+        resultPageCount,
+        contentBottom,
+        selectionBottom,
+        measuredBottom,
+        pageContentHeight,
+        lastPageBreakBottom: lastPageBreak ? getMeasuredElementBottomInEditor(editorDom, lastPageBreak) : null,
+        lastPageGap: null,
+        lowerBound: null
+      })
+      return resultPageCount
     }
 
-    const lastPageGap = measuredBottom - getElementBottom(lastPageBreak)
+    const lastPageBreakBottom = getMeasuredElementBottomInEditor(editorDom, lastPageBreak)
+    const lastPageGap = measuredBottom - lastPageBreakBottom
 
     if (lastPageGap > 0) {
-      return currentPageCount + Math.ceil(lastPageGap / pageContentHeight)
+      const resultPageCount = currentPageCount + Math.ceil(lastPageGap / pageContentHeight)
+      layoutOptions.onDebug?.({
+        reason: 'add-pages',
+        hasPaginationElement: true,
+        currentPageCount,
+        resultPageCount,
+        contentBottom,
+        selectionBottom,
+        measuredBottom,
+        pageContentHeight,
+        lastPageBreakBottom,
+        lastPageGap,
+        lowerBound: -(pageFormat.height - 10)
+      })
+      return resultPageCount
     }
 
     const lowerBound = -(pageFormat.height - 10)
-    if (lastPageGap > lowerBound && lastPageGap < -10) return currentPageCount
+    if (lastPageGap > lowerBound && lastPageGap < -10) {
+      layoutOptions.onDebug?.({
+        reason: 'keep-existing',
+        hasPaginationElement: true,
+        currentPageCount,
+        resultPageCount: currentPageCount,
+        contentBottom,
+        selectionBottom,
+        measuredBottom,
+        pageContentHeight,
+        lastPageBreakBottom,
+        lastPageGap,
+        lowerBound
+      })
+      return currentPageCount
+    }
     if (lastPageGap < lowerBound) {
       const removePage = Math.floor(lastPageGap / (pageFormat.height + pageGap))
-      return Math.max(1, currentPageCount + removePage)
+      const resultPageCount = Math.max(1, currentPageCount + removePage)
+      layoutOptions.onDebug?.({
+        reason: 'remove-pages',
+        hasPaginationElement: true,
+        currentPageCount,
+        resultPageCount,
+        contentBottom,
+        selectionBottom,
+        measuredBottom,
+        pageContentHeight,
+        lastPageBreakBottom,
+        lastPageGap,
+        lowerBound
+      })
+      return resultPageCount
     }
 
-    return Math.max(1, currentPageCount)
+    const resultPageCount = Math.max(1, currentPageCount)
+    layoutOptions.onDebug?.({
+      reason: 'keep-existing',
+      hasPaginationElement: true,
+      currentPageCount,
+      resultPageCount,
+      contentBottom,
+      selectionBottom,
+      measuredBottom,
+      pageContentHeight,
+      lastPageBreakBottom,
+      lastPageGap,
+      lowerBound
+    })
+    return resultPageCount
   }
 
-  if (!lastContentElement && selectionBottom <= 0) return 1
+  if (!lastContentElement && selectionBottom <= 0) {
+    layoutOptions.onDebug?.({
+      reason: 'initial-count',
+      hasPaginationElement: false,
+      currentPageCount,
+      resultPageCount: 1,
+      contentBottom,
+      selectionBottom,
+      measuredBottom,
+      pageContentHeight,
+      lastPageBreakBottom: null,
+      lastPageGap: null,
+      lowerBound: null
+    })
+    return 1
+  }
 
   const editorHeight = Math.max(measuredBottom, 1)
   const initialPageContentHeight = getPageBodyHeightForCount(pageFormat, layoutOptions, 1)
-  return Math.max(1, Math.ceil(editorHeight / Math.max(1, initialPageContentHeight)))
+  const resultPageCount = Math.max(1, Math.ceil(editorHeight / Math.max(1, initialPageContentHeight)))
+  layoutOptions.onDebug?.({
+    reason: 'initial-count',
+    hasPaginationElement: false,
+    currentPageCount,
+    resultPageCount,
+    contentBottom,
+    selectionBottom,
+    measuredBottom,
+    pageContentHeight: initialPageContentHeight,
+    lastPageBreakBottom: null,
+    lastPageGap: null,
+    lowerBound: null
+  })
+  return resultPageCount
 }

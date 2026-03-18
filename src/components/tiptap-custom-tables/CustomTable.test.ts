@@ -205,6 +205,71 @@ describe('CustomTable', () => {
     element.remove()
   })
 
+  it('generates a fresh pagination split id for orphaned table fragments', () => {
+    const content = {
+      type: 'doc',
+      content: [
+        {
+          type: 'table',
+          attrs: {
+            tableWidth: '100%',
+            tableAlign: 'left',
+            tableWidthMode: 'manual',
+            paginationSplitId: 'stale-split-id'
+          },
+          content: [
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableHeader',
+                  attrs: { colspan: 1, rowspan: 1, colwidth: null },
+                  content: [{ type: 'paragraph' }]
+                }
+              ]
+            },
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableCell',
+                  attrs: { colspan: 1, rowspan: 1, colwidth: null },
+                  content: [{ type: 'paragraph' }]
+                }
+              ]
+            },
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableCell',
+                  attrs: { colspan: 1, rowspan: 1, colwidth: null },
+                  content: [{ type: 'paragraph' }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    const { editor, element } = createEditor(content as any)
+
+    const tablePos = findFirstTablePos(editor)
+    expect(tablePos).not.toBeNull()
+
+    const tr = editor.state.tr
+    expect(splitTableAtRow(editor.state, tr, tablePos as number, 2)).toBe(true)
+    editor.view.dispatch(tr)
+
+    const tables = editor.getJSON().content?.filter(node => node.type === 'table') ?? []
+    expect(tables).toHaveLength(2)
+    expect(tables[0].attrs.paginationSplitId).not.toBe('stale-split-id')
+    expect(tables[1].attrs.paginationSplitId).toBe(tables[0].attrs.paginationSplitId)
+
+    editor.destroy()
+    element.remove()
+  })
+
   it('allows splitting tables with colspan-only cells', () => {
     const content = {
       type: 'doc',

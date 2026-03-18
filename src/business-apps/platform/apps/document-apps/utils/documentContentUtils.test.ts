@@ -1,7 +1,8 @@
 import {
   containsCustomDocumentTags,
   isEffectivelyEmptyDocumentHtml,
-  normalizeDocumentHtmlForEditor
+  normalizeDocumentHtmlForEditor,
+  sanitizePaginationRuntimeHtml
 } from './documentContentUtils'
 
 describe('documentContentUtils', () => {
@@ -56,5 +57,27 @@ describe('documentContentUtils', () => {
     expect(normalized).toContain(
       '<p><span data-comment-id="comment-1" data-comment-type="inline" data-created-at="2026-02-24T10:32:55.413Z" data-created-by="user-1">Marked text</span></p>'
     )
+  })
+
+  it('merges adjacent pagination table fragments and strips runtime attrs from html', () => {
+    const sanitized = sanitizePaginationRuntimeHtml(
+      '<table data-pagination-split-id="pagination-split-9"><tbody><tr><td><p>First</p></td></tr></tbody></table><table data-pagination-split-id="pagination-split-9"><tbody><tr><td><p>Second</p></td></tr></tbody></table>'
+    )
+
+    expect(sanitized).toContain(
+      '<table><tbody><tr><td><p>First</p></td></tr></tbody><tbody><tr><td><p>Second</p></td></tr></tbody></table>'
+    )
+    expect(sanitized).not.toContain('pagination-split-9')
+  })
+
+  it('merges custom document table fragments before editor normalization', () => {
+    const normalized = normalizeDocumentHtmlForEditor(
+      '<table paginationSplitId="pagination-split-4"><tablerow><tablecell colspan="1" rowspan="1"><paragraph>First</paragraph></tablecell></tablerow></table><table paginationSplitId="pagination-split-4"><tablerow><tablecell colspan="1" rowspan="1"><paragraph>Second</paragraph></tablecell></tablerow></table>'
+    )
+
+    expect(normalized).toContain(
+      '<table><tbody><tr><td colspan="1" rowspan="1"><p>First</p></td></tr><tr><td colspan="1" rowspan="1"><p>Second</p></td></tr></tbody></table>'
+    )
+    expect(normalized).not.toContain('pagination-split-4')
   })
 })

@@ -36,6 +36,7 @@ import {
   getPageLayoutHeights,
   getPageSpacerHeight,
   getExistingPageCount,
+  type PageCountDebugInfo,
   measureHeaderFooterContentHeights,
   resolvePageFormat,
   syncStorageFromOptions
@@ -43,10 +44,12 @@ import {
 import { mergeAdjacentPaginationTables, splitTableAtRow } from '@/components/tiptap-custom-tables/tableSelectionUtils'
 
 const REFRESH_META = 'RM_PAGES_REFRESH'
+const PAGINATION_OWNED_DOC_CHANGE_META = 'RM_PAGES_OWNED_DOC_CHANGE'
 const paginationKey = new PluginKey<DecorationSet>('rm-pages-pagination')
 const hardBreakKey = new PluginKey<DecorationSet>('rm-pages-hard-breaks')
 const overlayManagers = new WeakMap<object, HeaderFooterOverlayManager>()
 const runtimeOptions = new WeakMap<object, PagesOptions>()
+const hydrationOwnedDocChanges = new WeakMap<object, number>()
 
 function getRuntimeOptions(editor: object, fallback: PagesOptions): PagesOptions {
   const existing = runtimeOptions.get(editor)
@@ -119,14 +122,16 @@ function getMeasuredPageCount(
   view: EditorView,
   storage: PagesStorage,
   options: PagesOptions,
-  measured: ReturnType<typeof applyMeasuredPageHeightsToView>
+  measured: ReturnType<typeof applyMeasuredPageHeightsToView>,
+  onDebug?: (info: PageCountDebugInfo) => void
 ) {
   return calculatePageCount(view, storage.pageFormat, options.pageGap, {
     storage,
     headerHeights: measured.headerHeights,
     footerHeights: measured.footerHeights,
     defaultHeaderHeight: options.headerHeight,
-    defaultFooterHeight: options.footerHeight
+    defaultFooterHeight: options.footerHeight,
+    onDebug
   })
 }
 
@@ -139,6 +144,208 @@ interface PageBodyBand {
 }
 
 type PaginationBodyClickResolution = { action: 'allow' } | { action: 'block' } | { action: 'set'; position: number }
+
+interface AddPagesMeasurementSnapshot {
+  currentPageCount: number
+  measuredPageCount: number
+  lastPageGap: number
+  pageContentHeight: number
+}
+
+interface RunawayPageGrowthCheck {
+  shouldStabilize: boolean
+  actualGapShrink: number | null
+  expectedGapShrink: number | null
+  gapShrinkRatio: number | null
+}
+
+interface RunawayPageGrowthResolution {
+  effectivePageCount: number
+  cappedPageCount: number | null
+  suppressionActive: boolean
+  runawayPageGrowthCheck: RunawayPageGrowthCheck
+}
+
+interface TablePaginationHeuristicsResolution {
+  allowMerge: boolean
+  allowSplit: boolean
+}
+
+type DocChangeOrigin = 'external' | 'pagination-owned' | 'hydration-owned' | null
+
+const MIN_EXPECTED_GAP_SHRINK_RATIO = 0.5
+
+const NO_RUNAWAY_PAGE_GROWTH_CHECK: RunawayPageGrowthCheck = {
+  shouldStabilize: false,
+  actualGapShrink: null,
+  expectedGapShrink: null,
+  gapShrinkRatio: null
+}
+
+function toAddPagesMeasurementSnapshot(
+  currentPageCount: number,
+  measuredPageCount: number,
+  info: PageCountDebugInfo | null
+): AddPagesMeasurementSnapshot | null {
+  if (info?.reason !== 'add-pages' || info.lastPageGap === null || measuredPageCount <= currentPageCount) {
+    return null
+  }
+
+  return {
+    currentPageCount,
+    measuredPageCount,
+    lastPageGap: info.lastPageGap,
+    pageContentHeight: info.pageContentHeight
+  }
+}
+
+export function detectRunawayPageGrowth(
+  previous: AddPagesMeasurementSnapshot | null,
+  currentPageCount: number,
+  measuredPageCount: number,
+  info: PageCountDebugInfo | null
+): RunawayPageGrowthCheck {
+  if (
+    previous === null ||
+    previous.measuredPageCount !== currentPageCount ||
+    info?.reason !== 'add-pages' ||
+    info.lastPageGap === null ||
+    measuredPageCount <= currentPageCount
+  ) {
+    return NO_RUNAWAY_PAGE_GROWTH_CHECK
+  }
+
+  const addedPages = previous.measuredPageCount - previous.currentPageCount
+  if (addedPages <= 0 || previous.pageContentHeight <= 0) {
+    return NO_RUNAWAY_PAGE_GROWTH_CHECK
+  }
+
+  const expectedGapShrink = addedPages * previous.pageContentHeight
+  const actualGapShrink = previous.lastPageGap - info.lastPageGap
+  const gapShrinkRatio = actualGapShrink / expectedGapShrink
+
+  return {
+    shouldStabilize: gapShrinkRatio < MIN_EXPECTED_GAP_SHRINK_RATIO,
+    actualGapShrink,
+    expectedGapShrink,
+    gapShrinkRatio
+  }
+}
+
+function applyRunawayPageGrowthCap(
+  measuredPageCount: number,
+  info: PageCountDebugInfo | null,
+  cappedPageCount: number | null
+) {
+  if (cappedPageCount === null || info?.reason !== 'add-pages') {
+    return measuredPageCount
+  }
+
+  return Math.min(measuredPageCount, cappedPageCount)
+}
+
+export function resolveRunawayPageGrowth(
+  previousMeasurement: AddPagesMeasurementSnapshot | null,
+  cappedPageCount: number | null,
+  currentPageCount: number,
+  measuredPageCount: number,
+  info: PageCountDebugInfo | null,
+  docChangedSinceLastUpdate: boolean,
+  resetDueToDocChange: boolean
+): RunawayPageGrowthResolution {
+  if (resetDueToDocChange) {
+    return {
+      effectivePageCount: measuredPageCount,
+      cappedPageCount: null,
+      suppressionActive: false,
+      runawayPageGrowthCheck: NO_RUNAWAY_PAGE_GROWTH_CHECK
+    }
+  }
+
+  if (docChangedSinceLastUpdate) {
+    const nextCappedPageCount =
+      cappedPageCount !== null && info?.reason === 'add-pages' && measuredPageCount > cappedPageCount
+        ? cappedPageCount
+        : null
+
+    return {
+      effectivePageCount: applyRunawayPageGrowthCap(measuredPageCount, info, nextCappedPageCount),
+      cappedPageCount: nextCappedPageCount,
+      suppressionActive: nextCappedPageCount !== null,
+      runawayPageGrowthCheck: NO_RUNAWAY_PAGE_GROWTH_CHECK
+    }
+  }
+
+  let nextCappedPageCount = cappedPageCount
+  if (nextCappedPageCount !== null && (info?.reason !== 'add-pages' || measuredPageCount <= nextCappedPageCount)) {
+    nextCappedPageCount = null
+  }
+
+  if (nextCappedPageCount !== null) {
+    return {
+      effectivePageCount: applyRunawayPageGrowthCap(measuredPageCount, info, nextCappedPageCount),
+      cappedPageCount: nextCappedPageCount,
+      suppressionActive: true,
+      runawayPageGrowthCheck: NO_RUNAWAY_PAGE_GROWTH_CHECK
+    }
+  }
+
+  const runawayPageGrowthCheck = detectRunawayPageGrowth(previousMeasurement, currentPageCount, measuredPageCount, info)
+
+  if (!runawayPageGrowthCheck.shouldStabilize) {
+    return {
+      effectivePageCount: measuredPageCount,
+      cappedPageCount: null,
+      suppressionActive: false,
+      runawayPageGrowthCheck
+    }
+  }
+
+  return {
+    effectivePageCount: currentPageCount,
+    cappedPageCount: currentPageCount,
+    suppressionActive: true,
+    runawayPageGrowthCheck
+  }
+}
+
+export function resolveTablePaginationHeuristics(
+  docChangedSinceLastUpdate: boolean,
+  cappedPageCount: number | null,
+  hasActiveEditor: boolean
+): TablePaginationHeuristicsResolution {
+  if (docChangedSinceLastUpdate || hasActiveEditor) {
+    return {
+      allowMerge: false,
+      allowSplit: false
+    }
+  }
+
+  return {
+    allowMerge: cappedPageCount === null,
+    allowSplit: true
+  }
+}
+
+export function markNextPaginationHydrationDocChange(editor: object) {
+  const currentCount = hydrationOwnedDocChanges.get(editor) ?? 0
+  hydrationOwnedDocChanges.set(editor, currentCount + 1)
+}
+
+function consumePaginationHydrationDocChange(editor: object) {
+  const currentCount = hydrationOwnedDocChanges.get(editor) ?? 0
+  if (currentCount <= 0) {
+    return false
+  }
+
+  if (currentCount === 1) {
+    hydrationOwnedDocChanges.delete(editor)
+  } else {
+    hydrationOwnedDocChanges.set(editor, currentCount - 1)
+  }
+
+  return true
+}
 
 export function getPageBodyBands(editorDom: HTMLElement): PageBodyBand[] {
   return Array.from(editorDom.querySelectorAll('.rm-page-body-layer[data-rm-page-number]'))
@@ -416,7 +623,12 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     let rejectedTableMergeKey: string | null = null
     let queuedTableSplitKey: string | null = null
     let rejectedTableSplitKey: string | null = null
+    let retriedTableSplitKey: string | null = null
+    let prioritizeTableSplitAfterRefresh = false
     let lastKnownDoc: PMNode | null = null
+    let lastDocChangeOrigin: DocChangeOrigin = null
+    let previousAddPagesMeasurement: AddPagesMeasurementSnapshot | null = null
+    let runawayGrowthCapPageCount: number | null = null
 
     const requestRefresh = (view: EditorView) => {
       const transaction = view.state.tr.setMeta(REFRESH_META, true)
@@ -447,6 +659,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         if (!candidate) {
           queuedTableSplitKey = null
           rejectedTableSplitKey = null
+          retriedTableSplitKey = null
           return
         }
 
@@ -454,18 +667,30 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         if (queuedTableSplitKey !== null && candidateKey !== queuedTableSplitKey) {
           queuedTableSplitKey = null
         }
+        if (retriedTableSplitKey !== null && candidateKey !== retriedTableSplitKey) {
+          retriedTableSplitKey = null
+        }
 
-        const tr = view.state.tr
+        const tr = view.state.tr.setMeta(PAGINATION_OWNED_DOC_CHANGE_META, true)
         const didSplit = splitTableAtRow(view.state, tr, candidate.tablePos, candidate.splitRowIndex)
 
         if (!didSplit) {
+          if (retriedTableSplitKey !== candidateKey) {
+            queuedTableSplitKey = null
+            retriedTableSplitKey = candidateKey
+            queueRefresh(view)
+            return
+          }
+
           queuedTableSplitKey = candidateKey
           rejectedTableSplitKey = candidateKey
+          retriedTableSplitKey = null
           return
         }
 
         queuedTableSplitKey = null
         rejectedTableSplitKey = null
+        retriedTableSplitKey = null
         view.dispatch(tr)
       })
     }
@@ -491,7 +716,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           queuedTableMergeKey = null
         }
 
-        const tr = view.state.tr
+        const tr = view.state.tr.setMeta(PAGINATION_OWNED_DOC_CHANGE_META, true)
         const didMerge = mergeAdjacentPaginationTables(view.state, tr, candidate.firstTablePos)
 
         if (!didMerge) {
@@ -542,7 +767,15 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           measuredHeaderHeights = measured.headerHeights
           measuredFooterHeights = measured.footerHeights
           const currentPageCount = Math.max(1, getExistingPageCount(mountedView) || storage.pageCount)
-          const measuredPageCount = getMeasuredPageCount(mountedView, storage, options, measured)
+          let pageCountDebugInfo: PageCountDebugInfo | null = null
+          const rawMeasuredPageCount = getMeasuredPageCount(mountedView, storage, options, measured, info => {
+            pageCountDebugInfo = info
+          })
+          const measuredPageCount = applyRunawayPageGrowthCap(
+            rawMeasuredPageCount,
+            pageCountDebugInfo,
+            runawayGrowthCapPageCount
+          )
           storage.pageCount = currentPageCount
 
           if (measuredPageCount !== currentPageCount) {
@@ -568,13 +801,18 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             const storage = this.storage
             const options = getRuntimeOptions(editor, extensionOptions)
             syncStorageFromOptions(storage, options)
-            const totalPages = calculatePageCount(view, storage.pageFormat, options.pageGap, {
+            let pageCountDebugInfo: PageCountDebugInfo | null = null
+            const rawTotalPages = calculatePageCount(view, storage.pageFormat, options.pageGap, {
               storage,
               headerHeights: measuredHeaderHeights,
               footerHeights: measuredFooterHeights,
               defaultHeaderHeight: options.headerHeight,
-              defaultFooterHeight: options.footerHeight
+              defaultFooterHeight: options.footerHeight,
+              onDebug: info => {
+                pageCountDebugInfo = info
+              }
             })
+            const totalPages = applyRunawayPageGrowthCap(rawTotalPages, pageCountDebugInfo, runawayGrowthCapPageCount)
             storage.pageCount = totalPages
 
             return createPaginationWrapper({
@@ -593,16 +831,27 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           view => {
             const storage = this.storage
             const options = getRuntimeOptions(editor, extensionOptions)
-            const totalPages = Math.max(
-              storage.pageCount,
-              calculatePageCount(view, storage.pageFormat, options.pageGap, {
-                storage,
-                headerHeights: measuredHeaderHeights,
-                footerHeights: measuredFooterHeights,
-                defaultHeaderHeight: options.headerHeight,
-                defaultFooterHeight: options.footerHeight
-              })
+            let pageCountDebugInfo: PageCountDebugInfo | null = null
+            const rawTotalPages = calculatePageCount(view, storage.pageFormat, options.pageGap, {
+              storage,
+              headerHeights: measuredHeaderHeights,
+              footerHeights: measuredFooterHeights,
+              defaultHeaderHeight: options.headerHeight,
+              defaultFooterHeight: options.footerHeight,
+              onDebug: info => {
+                pageCountDebugInfo = info
+              }
+            })
+            const cappedTotalPages = applyRunawayPageGrowthCap(
+              rawTotalPages,
+              pageCountDebugInfo,
+              runawayGrowthCapPageCount
             )
+            const storedPageCount =
+              runawayGrowthCapPageCount === null
+                ? storage.pageCount
+                : Math.min(storage.pageCount, runawayGrowthCapPageCount)
+            const totalPages = Math.max(storedPageCount, cappedTotalPages)
 
             return createFirstPageHeader({
               totalPages,
@@ -622,7 +871,21 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         key: paginationKey,
         state: {
           init: () => buildPageDecorations(),
-          apply: (tr, oldValue) => (tr.docChanged || tr.getMeta(REFRESH_META) ? buildPageDecorations() : oldValue)
+          apply: (tr, oldValue) => {
+            if (tr.docChanged) {
+              if (tr.getMeta(PAGINATION_OWNED_DOC_CHANGE_META) === true) {
+                lastDocChangeOrigin = 'pagination-owned'
+              } else if (consumePaginationHydrationDocChange(editor)) {
+                lastDocChangeOrigin = 'hydration-owned'
+              } else {
+                lastDocChangeOrigin = 'external'
+              }
+            } else if (tr.getMeta(REFRESH_META)) {
+              lastDocChangeOrigin = null
+            }
+
+            return tr.docChanged || tr.getMeta(REFRESH_META) ? buildPageDecorations() : oldValue
+          }
         },
         props: {
           decorations(state) {
@@ -663,20 +926,102 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             measuredFooterHeights = measured.footerHeights
 
             const currentPageCount = Math.max(1, getExistingPageCount(updatedView) || storage.pageCount)
-            const measuredPageCount = getMeasuredPageCount(updatedView, storage, options, measured)
+            let pageCountDebugInfo: PageCountDebugInfo | null = null
+            const rawMeasuredPageCount = getMeasuredPageCount(updatedView, storage, options, measured, info => {
+              pageCountDebugInfo = info
+            })
             const currentDoc = updatedView.state.doc
+            const docChangedSinceLastUpdate = lastKnownDoc !== null && currentDoc !== lastKnownDoc
+            const paginationOwnedDocChange = docChangedSinceLastUpdate && lastDocChangeOrigin === 'pagination-owned'
+            const hydrationOwnedDocChange = docChangedSinceLastUpdate && lastDocChangeOrigin === 'hydration-owned'
+            const externalDocChange = docChangedSinceLastUpdate && !paginationOwnedDocChange && !hydrationOwnedDocChange
+            const runawayPageGrowthResolution = resolveRunawayPageGrowth(
+              previousAddPagesMeasurement,
+              runawayGrowthCapPageCount,
+              currentPageCount,
+              rawMeasuredPageCount,
+              pageCountDebugInfo,
+              docChangedSinceLastUpdate,
+              externalDocChange
+            )
+            const measuredPageCount = runawayPageGrowthResolution.effectivePageCount
 
-            if (lastKnownDoc !== null && currentDoc !== lastKnownDoc) {
+            if (docChangedSinceLastUpdate) {
               queuedTableMergeKey = null
               rejectedTableMergeKey = null
               queuedTableSplitKey = null
               rejectedTableSplitKey = null
+              retriedTableSplitKey = null
+              prioritizeTableSplitAfterRefresh = false
+              previousAddPagesMeasurement = null
+              if (externalDocChange) {
+                runawayGrowthCapPageCount = null
+              }
             }
             lastKnownDoc = currentDoc
+            runawayGrowthCapPageCount = runawayPageGrowthResolution.cappedPageCount
 
             storage.pageCount = currentPageCount
+            const nextAddPagesMeasurement = toAddPagesMeasurementSnapshot(
+              currentPageCount,
+              rawMeasuredPageCount,
+              pageCountDebugInfo
+            )
 
-            if (storage.activeEditorType === null) {
+            // Rebuild the page decoration layout before attempting table split/merge decisions.
+            // Without this guard, split/merge heuristics can run against stale page bands from the
+            // previous render and immediately oscillate between both operations.
+            if (measuredPageCount !== currentPageCount) {
+              storage.pageCount = measuredPageCount
+              previousAddPagesMeasurement = runawayGrowthCapPageCount === null ? nextAddPagesMeasurement : null
+              if (storage.activeEditorType === null) {
+                prioritizeTableSplitAfterRefresh = true
+                queueRefresh(updatedView)
+                return
+              }
+            }
+
+            previousAddPagesMeasurement = runawayGrowthCapPageCount === null ? nextAddPagesMeasurement : null
+
+            const tablePaginationHeuristics = resolveTablePaginationHeuristics(
+              docChangedSinceLastUpdate,
+              runawayGrowthCapPageCount,
+              storage.activeEditorType !== null
+            )
+            const shouldPrioritizeTableSplit = prioritizeTableSplitAfterRefresh && tablePaginationHeuristics.allowSplit
+
+            const tryQueueTableSplit = () => {
+              const candidate = findOverflowingTableSplit(updatedView)
+              const candidateKey = candidate ? `${candidate.tablePos}:${candidate.splitRowIndex}` : null
+
+              if (
+                candidateKey !== null &&
+                candidateKey !== rejectedTableSplitKey &&
+                candidateKey !== queuedTableSplitKey
+              ) {
+                queueTableSplit(updatedView, candidateKey)
+                return true
+              }
+
+              if (candidateKey === null) {
+                queuedTableSplitKey = null
+                rejectedTableSplitKey = null
+                retriedTableSplitKey = null
+              }
+
+              return false
+            }
+
+            // Skip merge on active runaway suppression to avoid re-inflating the layout,
+            // but still allow a safe split so pushed tables can consume the remaining page body.
+            if (shouldPrioritizeTableSplit) {
+              prioritizeTableSplitAfterRefresh = false
+              if (tryQueueTableSplit()) {
+                return
+              }
+            }
+
+            if (tablePaginationHeuristics.allowMerge) {
               const mergeCandidate = findMergeableTableFragments(updatedView)
               const mergeCandidateKey = mergeCandidate
                 ? `${mergeCandidate.paginationSplitId}:${mergeCandidate.firstTablePos}:${mergeCandidate.secondTablePos}`
@@ -695,29 +1040,13 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
                 queuedTableMergeKey = null
                 rejectedTableMergeKey = null
               }
-
-              const candidate = findOverflowingTableSplit(updatedView)
-              const candidateKey = candidate ? `${candidate.tablePos}:${candidate.splitRowIndex}` : null
-
-              if (
-                candidateKey !== null &&
-                candidateKey !== rejectedTableSplitKey &&
-                candidateKey !== queuedTableSplitKey
-              ) {
-                queueTableSplit(updatedView, candidateKey)
-                return
-              }
-
-              if (candidateKey === null) {
-                queuedTableSplitKey = null
-                rejectedTableSplitKey = null
-              }
+            } else if (!docChangedSinceLastUpdate) {
+              queuedTableMergeKey = null
+              rejectedTableMergeKey = null
             }
 
-            if (measuredPageCount !== currentPageCount) {
-              storage.pageCount = measuredPageCount
-              if (storage.activeEditorType === null) {
-                queueRefresh(updatedView)
+            if (tablePaginationHeuristics.allowSplit && !shouldPrioritizeTableSplit) {
+              if (tryQueueTableSplit()) {
                 return
               }
             }

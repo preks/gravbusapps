@@ -62,8 +62,99 @@ const PRESERVED_HTML_TAGS = new Set([
   'ul'
 ])
 
+const PAGINATION_SPLIT_ATTRIBUTE_PATTERN = /\b(?:paginationSplitId|data-pagination-split-id)=/i
+const TABLE_SECTION_TAG_NAMES = new Set(['tbody', 'thead', 'tfoot', 'tr', 'tablerow'])
+
 function getAttributeValue(element: Element, name: string): string | null {
   return element.getAttribute(name) ?? element.getAttribute(name.toLowerCase())
+}
+
+function getPaginationSplitId(element: Element): string | null {
+  return (
+    getAttributeValue(element, 'paginationSplitId') ??
+    getAttributeValue(element, 'data-pagination-split-id') ??
+    getAttributeValue(element, 'dataPaginationSplitId')
+  )
+}
+
+function removePaginationRuntimeAttributes(element: Element) {
+  element.removeAttribute('paginationSplitId')
+  element.removeAttribute('paginationsplitid')
+  element.removeAttribute('data-pagination-split-id')
+  element.removeAttribute('dataPaginationSplitId')
+}
+
+function isWhitespaceTextNode(node: Node): boolean {
+  return node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim().length === 0
+}
+
+function getAdjacentTableSibling(node: Node): Element | null {
+  let sibling = node.nextSibling
+
+  while (sibling) {
+    if (isWhitespaceTextNode(sibling)) {
+      sibling = sibling.nextSibling
+      continue
+    }
+
+    if (sibling.nodeType !== Node.ELEMENT_NODE) {
+      return null
+    }
+
+    const siblingElement = sibling as Element
+    return siblingElement.tagName.toLowerCase() === 'table' ? siblingElement : null
+  }
+
+  return null
+}
+
+function mergeTableContentInto(targetTable: Element, continuationTable: Element) {
+  Array.from(continuationTable.childNodes).forEach(childNode => {
+    if (childNode.nodeType === Node.ELEMENT_NODE) {
+      const childElement = childNode as Element
+      if (!TABLE_SECTION_TAG_NAMES.has(childElement.tagName.toLowerCase())) {
+        return
+      }
+    } else if (isWhitespaceTextNode(childNode)) {
+      return
+    }
+
+    targetTable.appendChild(childNode)
+  })
+}
+
+function mergeAdjacentPaginationTables(root: Element | DocumentFragment) {
+  let childNode = root.firstChild
+
+  while (childNode) {
+    const nextNode = childNode.nextSibling
+
+    if (childNode.nodeType === Node.ELEMENT_NODE) {
+      const childElement = childNode as Element
+      mergeAdjacentPaginationTables(childElement)
+
+      if (childElement.tagName.toLowerCase() === 'table') {
+        let continuationTable = getAdjacentTableSibling(childElement)
+
+        while (continuationTable) {
+          const currentSplitId = getPaginationSplitId(childElement)
+          const continuationSplitId = getPaginationSplitId(continuationTable)
+
+          if (!currentSplitId || currentSplitId !== continuationSplitId) {
+            break
+          }
+
+          mergeTableContentInto(childElement, continuationTable)
+          continuationTable.remove()
+          continuationTable = getAdjacentTableSibling(childElement)
+        }
+      }
+
+      removePaginationRuntimeAttributes(childElement)
+    }
+
+    childNode = nextNode
+  }
 }
 
 function escapeBareAmpersands(input: string): string {
@@ -273,8 +364,8 @@ export function containsCustomDocumentTags(html: string): boolean {
   return CUSTOM_DOCUMENT_TAG_PATTERN.test(html)
 }
 
-export function normalizeDocumentHtmlForEditor(html: string): string {
-  if (!html.trim() || !containsCustomDocumentTags(html)) {
+export function sanitizePaginationRuntimeHtml(html: string): string {
+  if (!html.trim() || !PAGINATION_SPLIT_ATTRIBUTE_PATTERN.test(html)) {
     return html
   }
 
@@ -283,18 +374,59 @@ export function normalizeDocumentHtmlForEditor(html: string): string {
       return html
     }
 
+    if (containsCustomDocumentTags(html)) {
+      const parser = new globalThis.DOMParser()
+      const wrappedXml = `<document-content-root>${escapeBareAmpersands(html)}</document-content-root>`
+      let parsed = parser.parseFromString(wrappedXml, 'application/xml')
+      let sourceRoot: Element | null = parsed.documentElement
+
+      if (parsed.getElementsByTagName('parsererror').length > 0 || sourceRoot.tagName === 'parsererror') {
+        parsed = parser.parseFromString(`<div data-document-content-root>${html}</div>`, 'text/html')
+        sourceRoot = parsed.body.firstElementChild
+      }
+
+      if (!sourceRoot) {
+        return html
+      }
+
+      mergeAdjacentPaginationTables(sourceRoot)
+      const outputRoot = globalThis.document.createElement('div')
+      appendConvertedChildren(sourceRoot, outputRoot, globalThis.document)
+      return outputRoot.innerHTML.trim() || '<p></p>'
+    }
+
+    const doc = new globalThis.DOMParser().parseFromString(html, 'text/html')
+    mergeAdjacentPaginationTables(doc.body)
+    return doc.body.innerHTML.trim() || '<p></p>'
+  } catch {
+    return html
+  }
+}
+
+export function normalizeDocumentHtmlForEditor(html: string): string {
+  const sanitizedHtml = sanitizePaginationRuntimeHtml(html)
+
+  if (!sanitizedHtml.trim() || !containsCustomDocumentTags(sanitizedHtml)) {
+    return sanitizedHtml
+  }
+
+  try {
+    if (typeof globalThis.DOMParser === 'undefined' || typeof globalThis.document === 'undefined') {
+      return sanitizedHtml
+    }
+
     const parser = new globalThis.DOMParser()
-    const wrappedXml = `<document-content-root>${escapeBareAmpersands(html)}</document-content-root>`
+    const wrappedXml = `<document-content-root>${escapeBareAmpersands(sanitizedHtml)}</document-content-root>`
     let parsed = parser.parseFromString(wrappedXml, 'application/xml')
     let sourceRoot: Element | null = parsed.documentElement
 
     if (parsed.getElementsByTagName('parsererror').length > 0 || sourceRoot.tagName === 'parsererror') {
-      parsed = parser.parseFromString(`<div data-document-content-root>${html}</div>`, 'text/html')
+      parsed = parser.parseFromString(`<div data-document-content-root>${sanitizedHtml}</div>`, 'text/html')
       sourceRoot = parsed.body.firstElementChild
     }
 
     if (!sourceRoot) {
-      return html
+      return sanitizedHtml
     }
 
     const outputRoot = globalThis.document.createElement('div')
@@ -302,7 +434,7 @@ export function normalizeDocumentHtmlForEditor(html: string): string {
 
     return outputRoot.innerHTML.trim() || '<p></p>'
   } catch {
-    return html
+    return sanitizedHtml
   }
 }
 

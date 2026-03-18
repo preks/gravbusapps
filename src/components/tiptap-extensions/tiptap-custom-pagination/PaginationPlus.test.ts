@@ -9,7 +9,14 @@ import {
   ensurePagesStyles
 } from './dom'
 import { PAGE_FORMATS } from './constants'
-import { getPageBodyBands, Pages, resolvePaginationBodyClick } from './PaginationPlus'
+import {
+  detectRunawayPageGrowth,
+  getPageBodyBands,
+  Pages,
+  resolvePaginationBodyClick,
+  resolveRunawayPageGrowth,
+  resolveTablePaginationHeuristics
+} from './PaginationPlus'
 import type { PagesOptions } from './types'
 import {
   calculatePageCount,
@@ -94,6 +101,8 @@ describe('Pages extension helpers', () => {
     const root = document.createElement('div')
     const paragraph = document.createElement('p')
     root.appendChild(paragraph)
+    mockRect(root, { top: 0, bottom: 2000 })
+    mockRect(paragraph, { top: 1500, bottom: 1620 })
 
     Object.defineProperty(paragraph, 'offsetTop', {
       value: 1500,
@@ -140,6 +149,7 @@ describe('Pages extension helpers', () => {
     trailingBreak.className = 'ProseMirror-trailingBreak'
     paragraph.appendChild(trailingBreak)
     root.appendChild(paragraph)
+    mockRect(root, { top: 0, bottom: 800 })
 
     Object.defineProperty(paragraph, 'offsetTop', {
       value: 520,
@@ -185,6 +195,8 @@ describe('Pages extension helpers', () => {
     pageBreak.appendChild(breaker)
     wrapper.appendChild(pageBreak)
     root.append(paragraph, wrapper)
+    mockRect(paragraph, { top: 520, bottom: 520 })
+    mockRect(breaker, { top: 540, bottom: 540 })
 
     root.getBoundingClientRect = jest.fn(() => ({
       x: 0,
@@ -253,6 +265,76 @@ describe('Pages extension helpers', () => {
     } as any
 
     expect(calculatePageCount(view, TEST_PAGE_FORMAT, 32)).toBe(2)
+  })
+
+  it('uses rect-relative measurements for paginated tables instead of offsetTop drift', () => {
+    const root = document.createElement('div')
+    const table = document.createElement('table')
+    const wrapper = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const breaker = document.createElement('div')
+
+    wrapper.dataset.rmPagination = 'true'
+    pageBreak.className = 'rm-page-break'
+    breaker.className = 'breaker'
+    pageBreak.appendChild(breaker)
+    wrapper.appendChild(pageBreak)
+    root.append(table, wrapper)
+
+    mockRect(root, { top: 0, bottom: 2000 })
+    mockRect(table, { top: 520, bottom: 620 })
+    mockRect(breaker, { top: 700, bottom: 700 })
+
+    Object.defineProperty(table, 'offsetTop', {
+      value: 12000,
+      configurable: true
+    })
+    Object.defineProperty(table, 'offsetHeight', {
+      value: 100,
+      configurable: true
+    })
+    Object.defineProperty(table, 'clientHeight', {
+      value: 100,
+      configurable: true
+    })
+    Object.defineProperty(table, 'scrollHeight', {
+      value: 100,
+      configurable: true
+    })
+
+    Object.defineProperty(breaker, 'offsetTop', {
+      value: 700,
+      configurable: true
+    })
+    Object.defineProperty(breaker, 'offsetHeight', {
+      value: 0,
+      configurable: true
+    })
+    Object.defineProperty(breaker, 'clientHeight', {
+      value: 0,
+      configurable: true
+    })
+    Object.defineProperty(breaker, 'scrollHeight', {
+      value: 0,
+      configurable: true
+    })
+
+    const view = {
+      dom: root,
+      state: {
+        doc: {
+          childCount: 1
+        }
+      },
+      coordsAtPos: jest.fn(() => ({
+        left: 0,
+        right: 0,
+        top: 620,
+        bottom: 620
+      }))
+    } as any
+
+    expect(calculatePageCount(view, TEST_PAGE_FORMAT, 32)).toBe(1)
   })
 
   it('finds the first overflowing table split candidate', () => {
@@ -332,6 +414,92 @@ describe('Pages extension helpers', () => {
     })
   })
 
+  it('finds a split candidate for tables whose rows are nested in a row group', () => {
+    const root = document.createElement('div')
+    root.getBoundingClientRect = jest.fn(() => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 500,
+      bottom: 400,
+      left: 0,
+      width: 500,
+      height: 400,
+      toJSON: () => ({})
+    })) as any
+
+    const firstBand = document.createElement('div')
+    firstBand.className = 'rm-page-body-layer'
+    firstBand.dataset.rmPageNumber = '1'
+    mockRect(firstBand, { top: 0, bottom: 100 })
+
+    const secondBand = document.createElement('div')
+    secondBand.className = 'rm-page-body-layer'
+    secondBand.dataset.rmPageNumber = '2'
+    mockRect(secondBand, { top: 120, bottom: 220 })
+
+    root.append(firstBand, secondBand)
+
+    const firstRow = document.createElement('tr')
+    mockRect(firstRow, { top: 20, bottom: 50 })
+
+    const secondRow = document.createElement('tr')
+    mockRect(secondRow, { top: 50, bottom: 80 })
+
+    const thirdRow = document.createElement('tr')
+    mockRect(thirdRow, { top: 80, bottom: 110 })
+
+    const rowPositions = new Map<number, HTMLTableRowElement>([
+      [3, firstRow],
+      [8, secondRow],
+      [13, thirdRow]
+    ])
+
+    const rowCell = { attrs: { colspan: 1 } } as any
+    const rowNode = {
+      type: { name: 'tableRow' },
+      attrs: {},
+      forEach: (callback: (node: typeof rowCell, offset: number, index: number) => void) => {
+        callback(rowCell, 0, 0)
+        callback(rowCell, 1, 1)
+      }
+    } as any
+    const rowGroupNode = {
+      type: { name: 'tableRowGroup' },
+      childCount: 3,
+      forEach: (callback: (node: typeof rowNode, offset: number, index: number) => void) => {
+        callback(rowNode, 0, 0)
+        callback(rowNode, 5, 1)
+        callback(rowNode, 10, 2)
+      }
+    } as any
+    const tableNode = {
+      type: { name: 'table' },
+      childCount: 1,
+      firstChild: rowGroupNode,
+      forEach: (callback: (node: typeof rowGroupNode, offset: number, index: number) => void) => {
+        callback(rowGroupNode, 0, 0)
+      }
+    } as any
+
+    const view = {
+      dom: root,
+      state: {
+        doc: {
+          descendants: (callback: (node: typeof tableNode, pos: number) => void) => {
+            callback(tableNode, 1)
+          }
+        }
+      },
+      nodeDOM: jest.fn((pos: number) => rowPositions.get(pos) ?? null)
+    } as any
+
+    expect(findOverflowingTableSplit(view)).toEqual({
+      tablePos: 1,
+      splitRowIndex: 2
+    })
+  })
+
   it('finds a split candidate when a whole table is pushed to the next page', () => {
     const root = document.createElement('div')
     root.getBoundingClientRect = jest.fn(() => ({
@@ -375,6 +543,382 @@ describe('Pages extension helpers', () => {
 
     const rowPositions = new Map<number, HTMLElement>([
       [1, table],
+      [2, firstRow],
+      [7, secondRow],
+      [12, thirdRow]
+    ])
+
+    const rowCell = { attrs: { colspan: 1, rowspan: 1 } } as any
+    const rowNode = {
+      attrs: {},
+      forEach: (callback: (node: typeof rowCell, offset: number, index: number) => void) => {
+        callback(rowCell, 0, 0)
+        callback(rowCell, 1, 1)
+      }
+    } as any
+    const tableNode = {
+      type: { name: 'table' },
+      childCount: 3,
+      firstChild: rowNode,
+      forEach: (callback: (node: typeof rowNode, offset: number, index: number) => void) => {
+        callback(rowNode, 0, 0)
+        callback(rowNode, 5, 1)
+        callback(rowNode, 10, 2)
+      }
+    } as any
+
+    const view = {
+      dom: root,
+      state: {
+        doc: {
+          descendants: (callback: (node: typeof tableNode, pos: number) => void) => {
+            callback(tableNode, 1)
+          }
+        }
+      },
+      nodeDOM: jest.fn((pos: number) => rowPositions.get(pos) ?? null)
+    } as any
+
+    expect(findOverflowingTableSplit(view)).toEqual({
+      tablePos: 1,
+      splitRowIndex: 2
+    })
+  })
+
+  it('finds a split candidate when rows overflow the last rendered band', () => {
+    const root = document.createElement('div')
+    root.getBoundingClientRect = jest.fn(() => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 500,
+      bottom: 500,
+      left: 0,
+      width: 500,
+      height: 500,
+      toJSON: () => ({})
+    })) as any
+
+    const firstBand = document.createElement('div')
+    firstBand.className = 'rm-page-body-layer'
+    firstBand.dataset.rmPageNumber = '1'
+    mockRect(firstBand, { top: 0, bottom: 100 })
+
+    const secondBand = document.createElement('div')
+    secondBand.className = 'rm-page-body-layer'
+    secondBand.dataset.rmPageNumber = '2'
+    mockRect(secondBand, { top: 120, bottom: 220 })
+
+    const table = document.createElement('table')
+    mockRect(table, { top: 150, bottom: 240 })
+
+    const firstRow = document.createElement('tr')
+    mockRect(firstRow, { top: 150, bottom: 180 })
+
+    const secondRow = document.createElement('tr')
+    mockRect(secondRow, { top: 180, bottom: 210 })
+
+    const thirdRow = document.createElement('tr')
+    mockRect(thirdRow, { top: 210, bottom: 240 })
+
+    root.append(firstBand, secondBand, table)
+
+    const rowPositions = new Map<number, HTMLElement>([
+      [1, table],
+      [2, firstRow],
+      [7, secondRow],
+      [12, thirdRow]
+    ])
+
+    const rowCell = { attrs: { colspan: 1, rowspan: 1 } } as any
+    const rowNode = {
+      attrs: {},
+      forEach: (callback: (node: typeof rowCell, offset: number, index: number) => void) => {
+        callback(rowCell, 0, 0)
+        callback(rowCell, 1, 1)
+      }
+    } as any
+    const tableNode = {
+      type: { name: 'table' },
+      childCount: 3,
+      firstChild: rowNode,
+      forEach: (callback: (node: typeof rowNode, offset: number, index: number) => void) => {
+        callback(rowNode, 0, 0)
+        callback(rowNode, 5, 1)
+        callback(rowNode, 10, 2)
+      }
+    } as any
+
+    const view = {
+      dom: root,
+      state: {
+        doc: {
+          descendants: (callback: (node: typeof tableNode, pos: number) => void) => {
+            callback(tableNode, 1)
+          }
+        }
+      },
+      nodeDOM: jest.fn((pos: number) => rowPositions.get(pos) ?? null)
+    } as any
+
+    expect(findOverflowingTableSplit(view)).toEqual({
+      tablePos: 1,
+      splitRowIndex: 2
+    })
+  })
+
+  it('uses the measured previous block height for paragraph-to-table split detection', () => {
+    const root = document.createElement('div')
+    root.getBoundingClientRect = jest.fn(() => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 500,
+      bottom: 500,
+      left: 0,
+      width: 500,
+      height: 500,
+      toJSON: () => ({})
+    })) as any
+
+    const firstBand = document.createElement('div')
+    firstBand.className = 'rm-page-body-layer'
+    firstBand.dataset.rmPageNumber = '1'
+    mockRect(firstBand, { top: 0, bottom: 100 })
+
+    const secondBand = document.createElement('div')
+    secondBand.className = 'rm-page-body-layer'
+    secondBand.dataset.rmPageNumber = '2'
+    mockRect(secondBand, { top: 120, bottom: 220 })
+
+    const paragraph = document.createElement('p')
+    mockRect(paragraph, { top: 0, bottom: 20 })
+    Object.defineProperty(paragraph, 'offsetHeight', { value: 42, configurable: true })
+    Object.defineProperty(paragraph, 'clientHeight', { value: 42, configurable: true })
+    Object.defineProperty(paragraph, 'scrollHeight', { value: 42, configurable: true })
+
+    const pageSpacer = document.createElement('div')
+    pageSpacer.className = 'rm-page-spacer'
+    mockRect(pageSpacer, { top: 100, bottom: 100 })
+
+    const breaker = document.createElement('div')
+    breaker.className = 'breaker'
+    mockRect(breaker, { top: 100, bottom: 120 })
+
+    const table = document.createElement('table')
+    table.style.marginTop = '0px'
+    mockRect(table, { top: 120, bottom: 180 })
+
+    const firstRow = document.createElement('tr')
+    mockRect(firstRow, { top: 120, bottom: 140 })
+
+    const secondRow = document.createElement('tr')
+    mockRect(secondRow, { top: 140, bottom: 160 })
+
+    const thirdRow = document.createElement('tr')
+    mockRect(thirdRow, { top: 160, bottom: 180 })
+
+    root.append(firstBand, secondBand, paragraph, pageSpacer, breaker, table)
+
+    const rowPositions = new Map<number, HTMLElement>([
+      [1, table],
+      [2, firstRow],
+      [7, secondRow],
+      [12, thirdRow]
+    ])
+
+    const rowCell = { attrs: { colspan: 1, rowspan: 1 } } as any
+    const rowNode = {
+      attrs: {},
+      forEach: (callback: (node: typeof rowCell, offset: number, index: number) => void) => {
+        callback(rowCell, 0, 0)
+        callback(rowCell, 1, 1)
+      }
+    } as any
+    const tableNode = {
+      type: { name: 'table' },
+      childCount: 3,
+      firstChild: rowNode,
+      forEach: (callback: (node: typeof rowNode, offset: number, index: number) => void) => {
+        callback(rowNode, 0, 0)
+        callback(rowNode, 5, 1)
+        callback(rowNode, 10, 2)
+      }
+    } as any
+
+    const view = {
+      dom: root,
+      state: {
+        doc: {
+          descendants: (callback: (node: typeof tableNode, pos: number) => void) => {
+            callback(tableNode, 1)
+          }
+        }
+      },
+      nodeDOM: jest.fn((pos: number) => rowPositions.get(pos) ?? null)
+    } as any
+
+    expect(findOverflowingTableSplit(view)).toEqual({
+      tablePos: 1,
+      splitRowIndex: 2
+    })
+  })
+
+  it('falls back to overflow detection when pushed-table context comes from an earlier band', () => {
+    const root = document.createElement('div')
+    root.getBoundingClientRect = jest.fn(() => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 500,
+      bottom: 600,
+      left: 0,
+      width: 500,
+      height: 600,
+      toJSON: () => ({})
+    })) as any
+
+    const firstBand = document.createElement('div')
+    firstBand.className = 'rm-page-body-layer'
+    firstBand.dataset.rmPageNumber = '1'
+    mockRect(firstBand, { top: 0, bottom: 100 })
+
+    const secondBand = document.createElement('div')
+    secondBand.className = 'rm-page-body-layer'
+    secondBand.dataset.rmPageNumber = '2'
+    mockRect(secondBand, { top: 120, bottom: 220 })
+
+    const thirdBand = document.createElement('div')
+    thirdBand.className = 'rm-page-body-layer'
+    thirdBand.dataset.rmPageNumber = '3'
+    mockRect(thirdBand, { top: 240, bottom: 340 })
+
+    const fourthBand = document.createElement('div')
+    fourthBand.className = 'rm-page-body-layer'
+    fourthBand.dataset.rmPageNumber = '4'
+    mockRect(fourthBand, { top: 360, bottom: 460 })
+
+    const paragraph = document.createElement('p')
+    mockRect(paragraph, { top: 0, bottom: 40 })
+    Object.defineProperty(paragraph, 'offsetHeight', { value: 40, configurable: true })
+    Object.defineProperty(paragraph, 'clientHeight', { value: 40, configurable: true })
+    Object.defineProperty(paragraph, 'scrollHeight', { value: 40, configurable: true })
+
+    const pageSpacer = document.createElement('div')
+    pageSpacer.className = 'rm-page-spacer'
+    mockRect(pageSpacer, { top: 100, bottom: 100 })
+
+    const breaker = document.createElement('div')
+    breaker.className = 'breaker'
+    mockRect(breaker, { top: 100, bottom: 240 })
+
+    const table = document.createElement('table')
+    table.style.marginTop = '0px'
+    mockRect(table, { top: 260, bottom: 370 })
+
+    const firstRow = document.createElement('tr')
+    mockRect(firstRow, { top: 260, bottom: 295 })
+
+    const secondRow = document.createElement('tr')
+    mockRect(secondRow, { top: 295, bottom: 330 })
+
+    const thirdRow = document.createElement('tr')
+    mockRect(thirdRow, { top: 330, bottom: 370 })
+
+    root.append(firstBand, secondBand, thirdBand, fourthBand, paragraph, pageSpacer, breaker, table)
+
+    const rowPositions = new Map<number, HTMLElement>([
+      [1, table],
+      [2, firstRow],
+      [7, secondRow],
+      [12, thirdRow]
+    ])
+
+    const rowCell = { attrs: { colspan: 1, rowspan: 1 } } as any
+    const rowNode = {
+      attrs: {},
+      forEach: (callback: (node: typeof rowCell, offset: number, index: number) => void) => {
+        callback(rowCell, 0, 0)
+        callback(rowCell, 1, 1)
+      }
+    } as any
+    const tableNode = {
+      type: { name: 'table' },
+      childCount: 3,
+      firstChild: rowNode,
+      forEach: (callback: (node: typeof rowNode, offset: number, index: number) => void) => {
+        callback(rowNode, 0, 0)
+        callback(rowNode, 5, 1)
+        callback(rowNode, 10, 2)
+      }
+    } as any
+
+    const view = {
+      dom: root,
+      state: {
+        doc: {
+          descendants: (callback: (node: typeof tableNode, pos: number) => void) => {
+            callback(tableNode, 1)
+          }
+        }
+      },
+      nodeDOM: jest.fn((pos: number) => rowPositions.get(pos) ?? null)
+    } as any
+
+    expect(findOverflowingTableSplit(view)).toEqual({
+      tablePos: 1,
+      splitRowIndex: 2
+    })
+  })
+
+  it('finds a split candidate when table nodeDOM is a wrapper', () => {
+    const root = document.createElement('div')
+    root.getBoundingClientRect = jest.fn(() => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 500,
+      bottom: 500,
+      left: 0,
+      width: 500,
+      height: 500,
+      toJSON: () => ({})
+    })) as any
+
+    const firstBand = document.createElement('div')
+    firstBand.className = 'rm-page-body-layer'
+    firstBand.dataset.rmPageNumber = '1'
+    mockRect(firstBand, { top: 0, bottom: 100 })
+
+    const secondBand = document.createElement('div')
+    secondBand.className = 'rm-page-body-layer'
+    secondBand.dataset.rmPageNumber = '2'
+    mockRect(secondBand, { top: 120, bottom: 220 })
+
+    const paragraph = document.createElement('p')
+    mockRect(paragraph, { top: 0, bottom: 20 })
+
+    const tableWrapper = document.createElement('div')
+    tableWrapper.className = 'tableWrapper'
+    mockRect(tableWrapper, { top: 120, bottom: 210 })
+
+    const table = document.createElement('table')
+    mockRect(table, { top: 136, bottom: 226 })
+    tableWrapper.appendChild(table)
+
+    const firstRow = document.createElement('tr')
+    mockRect(firstRow, { top: 136, bottom: 166 })
+
+    const secondRow = document.createElement('tr')
+    mockRect(secondRow, { top: 166, bottom: 196 })
+
+    const thirdRow = document.createElement('tr')
+    mockRect(thirdRow, { top: 196, bottom: 226 })
+
+    root.append(firstBand, secondBand, paragraph, tableWrapper)
+
+    const rowPositions = new Map<number, HTMLElement>([
+      [1, tableWrapper],
       [2, firstRow],
       [7, secondRow],
       [12, thirdRow]
@@ -959,6 +1503,9 @@ describe('Pages extension helpers', () => {
     firstPageHeader.className = 'rm-first-page-header'
 
     root.append(paragraph, wrapper, firstPageHeader)
+    mockRect(root, { top: 0, bottom: 1000 })
+    mockRect(paragraph, { top: 0, bottom: 24 })
+    mockRect(breaker, { top: 900, bottom: 900 })
 
     Object.defineProperty(paragraph, 'offsetTop', {
       value: 0,
@@ -1072,6 +1619,8 @@ describe('Pages extension helpers', () => {
     const root = document.createElement('div')
     const paragraph = document.createElement('p')
     root.appendChild(paragraph)
+    mockRect(root, { top: 0, bottom: 2000 })
+    mockRect(paragraph, { top: 1500, bottom: 1620 })
 
     Object.defineProperty(paragraph, 'offsetTop', {
       value: 1500,
@@ -1120,6 +1669,201 @@ describe('Pages extension helpers', () => {
     expect(layout.measuredHeaderHeight).toBe(260)
     expect(layout.measuredFooterHeight).toBe(180)
     expect(layout.bodyHeight).toBe(232)
+  })
+
+  it('stabilizes runaway add-pages growth when the gap barely shrinks after a refresh', () => {
+    expect(
+      detectRunawayPageGrowth(
+        {
+          currentPageCount: 1,
+          measuredPageCount: 11,
+          lastPageGap: 8602.7359375,
+          pageContentHeight: 931
+        },
+        11,
+        19,
+        {
+          reason: 'add-pages',
+          hasPaginationElement: true,
+          currentPageCount: 11,
+          resultPageCount: 19,
+          contentBottom: 20385.8359375,
+          selectionBottom: 177.3984375,
+          measuredBottom: 20385.8359375,
+          pageContentHeight: 931,
+          lastPageBreakBottom: 13505.3671875,
+          lastPageGap: 6880.46875,
+          lowerBound: -1113
+        }
+      ).shouldStabilize
+    ).toBe(true)
+  })
+
+  it('keeps legitimate add-pages growth when the previous refresh absorbed the gap', () => {
+    expect(
+      detectRunawayPageGrowth(
+        {
+          currentPageCount: 1,
+          measuredPageCount: 10,
+          lastPageGap: 8145.8359375,
+          pageContentHeight: 931
+        },
+        10,
+        11,
+        {
+          reason: 'add-pages',
+          hasPaginationElement: true,
+          currentPageCount: 10,
+          resultPageCount: 11,
+          contentBottom: 12471.3984375,
+          selectionBottom: 177.3984375,
+          measuredBottom: 12471.3984375,
+          pageContentHeight: 931,
+          lastPageBreakBottom: 12434.640625,
+          lastPageGap: 36.7578125,
+          lowerBound: -1113
+        }
+      ).shouldStabilize
+    ).toBe(false)
+  })
+
+  it('keeps the runaway growth cap active across identical add-pages updates', () => {
+    const repeatedRunawayDebugInfo = {
+      reason: 'add-pages',
+      hasPaginationElement: true,
+      currentPageCount: 11,
+      resultPageCount: 19,
+      contentBottom: 20385.8359375,
+      selectionBottom: 177.3984375,
+      measuredBottom: 20385.8359375,
+      pageContentHeight: 931,
+      lastPageBreakBottom: 13505.3671875,
+      lastPageGap: 6880.46875,
+      lowerBound: -1113
+    } as const
+
+    const firstResolution = resolveRunawayPageGrowth(
+      {
+        currentPageCount: 1,
+        measuredPageCount: 11,
+        lastPageGap: 8602.7359375,
+        pageContentHeight: 931
+      },
+      null,
+      11,
+      19,
+      repeatedRunawayDebugInfo,
+      false,
+      false
+    )
+
+    expect(firstResolution.runawayPageGrowthCheck.shouldStabilize).toBe(true)
+    expect(firstResolution.cappedPageCount).toBe(11)
+    expect(firstResolution.effectivePageCount).toBe(11)
+    expect(firstResolution.suppressionActive).toBe(true)
+
+    const secondResolution = resolveRunawayPageGrowth(
+      null,
+      firstResolution.cappedPageCount,
+      11,
+      19,
+      repeatedRunawayDebugInfo,
+      false,
+      false
+    )
+
+    expect(secondResolution.runawayPageGrowthCheck.shouldStabilize).toBe(false)
+    expect(secondResolution.cappedPageCount).toBe(11)
+    expect(secondResolution.effectivePageCount).toBe(11)
+    expect(secondResolution.suppressionActive).toBe(true)
+  })
+
+  it('keeps the runaway growth cap through pagination-owned doc changes', () => {
+    const repeatedRunawayDebugInfo = {
+      reason: 'add-pages',
+      hasPaginationElement: true,
+      currentPageCount: 19,
+      resultPageCount: 27,
+      contentBottom: 30256.2109375,
+      selectionBottom: 30255.609375,
+      measuredBottom: 30256.2109375,
+      pageContentHeight: 931,
+      lastPageBreakBottom: 23375.7421875,
+      lastPageGap: 6880.46875,
+      lowerBound: -1113
+    } as const
+
+    const resolution = resolveRunawayPageGrowth(null, 19, 19, 27, repeatedRunawayDebugInfo, true, false)
+
+    expect(resolution.runawayPageGrowthCheck.shouldStabilize).toBe(false)
+    expect(resolution.cappedPageCount).toBe(19)
+    expect(resolution.effectivePageCount).toBe(19)
+    expect(resolution.suppressionActive).toBe(true)
+  })
+
+  it('keeps the runaway growth cap through hydration-owned doc changes', () => {
+    const repeatedRunawayDebugInfo = {
+      reason: 'add-pages',
+      hasPaginationElement: true,
+      currentPageCount: 19,
+      resultPageCount: 27,
+      contentBottom: 30256.2109375,
+      selectionBottom: 30255.609375,
+      measuredBottom: 30256.2109375,
+      pageContentHeight: 931,
+      lastPageBreakBottom: 23375.7421875,
+      lastPageGap: 6880.46875,
+      lowerBound: -1113
+    } as const
+
+    const resolution = resolveRunawayPageGrowth(null, 19, 19, 27, repeatedRunawayDebugInfo, true, false)
+
+    expect(resolution.runawayPageGrowthCheck.shouldStabilize).toBe(false)
+    expect(resolution.cappedPageCount).toBe(19)
+    expect(resolution.effectivePageCount).toBe(19)
+    expect(resolution.suppressionActive).toBe(true)
+  })
+
+  it('resets the runaway growth cap when a non-pagination doc change occurs', () => {
+    const repeatedRunawayDebugInfo = {
+      reason: 'add-pages',
+      hasPaginationElement: true,
+      currentPageCount: 19,
+      resultPageCount: 27,
+      contentBottom: 30256.2109375,
+      selectionBottom: 30255.609375,
+      measuredBottom: 30256.2109375,
+      pageContentHeight: 931,
+      lastPageBreakBottom: 23375.7421875,
+      lastPageGap: 6880.46875,
+      lowerBound: -1113
+    } as const
+
+    const resolution = resolveRunawayPageGrowth(null, 19, 19, 27, repeatedRunawayDebugInfo, true, true)
+
+    expect(resolution.runawayPageGrowthCheck.shouldStabilize).toBe(false)
+    expect(resolution.cappedPageCount).toBeNull()
+    expect(resolution.effectivePageCount).toBe(27)
+    expect(resolution.suppressionActive).toBe(false)
+  })
+
+  it('allows table split but blocks merge while the runaway cap is active', () => {
+    expect(resolveTablePaginationHeuristics(false, 11, false)).toEqual({
+      allowMerge: false,
+      allowSplit: true
+    })
+  })
+
+  it('blocks all table heuristics during doc changes or active overlay editing', () => {
+    expect(resolveTablePaginationHeuristics(true, 11, false)).toEqual({
+      allowMerge: false,
+      allowSplit: false
+    })
+
+    expect(resolveTablePaginationHeuristics(false, null, true)).toEqual({
+      allowMerge: false,
+      allowSplit: false
+    })
   })
 
   it('measures header and footer shell height from the rendered regions', () => {

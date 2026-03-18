@@ -65,9 +65,36 @@ function cloneNode(node: ProseMirrorNode) {
   return node.type.create(node.attrs, node.content, node.marks)
 }
 
-function getPaginationSplitId(table: ProseMirrorNode) {
+function getAdjacentTableFragment(
+  state: EditorState,
+  tablePos: number,
+  direction: 'previous' | 'next'
+): ProseMirrorNode | null {
+  const $tablePos = state.doc.resolve(tablePos)
+  const parent = $tablePos.node($tablePos.depth)
+  const tableIndex = $tablePos.index($tablePos.depth)
+  const adjacentIndex = direction === 'previous' ? tableIndex - 1 : tableIndex + 1
+
+  if (adjacentIndex < 0 || adjacentIndex >= parent.childCount) {
+    return null
+  }
+
+  const adjacentNode = parent.child(adjacentIndex)
+  return adjacentNode.type.name === 'table' ? adjacentNode : null
+}
+
+function getPaginationSplitId(state: EditorState, table: ProseMirrorNode, tablePos: number) {
   if (typeof table.attrs.paginationSplitId === 'string' && table.attrs.paginationSplitId.length > 0) {
-    return table.attrs.paginationSplitId
+    const existingSplitId = table.attrs.paginationSplitId
+    const previousFragment = getAdjacentTableFragment(state, tablePos, 'previous')
+    const nextFragment = getAdjacentTableFragment(state, tablePos, 'next')
+    const hasAdjacentFragment = [previousFragment, nextFragment].some(
+      fragment => fragment?.attrs.paginationSplitId === existingSplitId
+    )
+
+    if (hasAdjacentFragment) {
+      return existingSplitId
+    }
   }
 
   paginationSplitIdCounter += 1
@@ -94,7 +121,7 @@ export function splitTableAtRow(
   const remainingRows = rows.slice(safeSplitIndex).map(cloneNode)
   if (!firstRows.length || !remainingRows.length) return false
 
-  const paginationSplitId = getPaginationSplitId(table)
+  const paginationSplitId = getPaginationSplitId(state, table, tablePos)
   const repeatHeaderRow = options.repeatHeaderRow === true && isHeaderRow(rows[0])
   const continuationRows = repeatHeaderRow ? [cloneNode(rows[0]), ...remainingRows] : remainingRows
   const leadingTableAttrs = {

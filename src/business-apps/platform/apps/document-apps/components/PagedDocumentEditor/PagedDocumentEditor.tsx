@@ -78,7 +78,7 @@ import {
   DEFAULT_PAGE_COLOR
 } from '../../utils/pageLayoutUtils'
 import { isAllowedHref, escapeHtmlAttr, escapeHtmlText } from '../../utils/linkUtils'
-import { normalizeDocumentHtmlForEditor } from '../../utils/documentContentUtils'
+import { normalizeDocumentHtmlForEditor, sanitizePaginationRuntimeHtml } from '../../utils/documentContentUtils'
 import {
   useDocumentEditorAvatars,
   useYjsDocumentSync,
@@ -88,6 +88,7 @@ import {
 import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
 import {
   Pages,
+  markNextPaginationHydrationDocChange,
   type ActivePagesEditorState,
   type PaginationPlusStorage as PagesStorage
 } from '@/components/tiptap-extensions/tiptap-custom-pagination'
@@ -143,6 +144,27 @@ const CURRENT_SELECTION_PLUGIN_KEY = new PluginKey('documentCurrentSelectionHigh
 const AUTOCOMPLETE_DEBOUNCE_MS = 350
 const AUTOCOMPLETE_ROLLOUT_STORAGE_KEY = 'document-autocomplete-rollout'
 const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
+const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
+
+function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean {
+  if (typeof globalThis.window === 'undefined') return false
+
+  const searchParams = new URLSearchParams(globalThis.window.location.search)
+  const queryValue = searchParams.get(searchParam)
+  if (queryValue !== null) {
+    return ['1', 'true', 'yes', 'on'].includes(queryValue.toLowerCase())
+  }
+
+  try {
+    return isTruthyFlag(globalThis.localStorage.getItem(storageKey))
+  } catch {
+    return false
+  }
+}
+
+function isDocumentPaginationDisabled(): boolean {
+  return readDocumentDebugFlag('disableDocumentPagination', DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY)
+}
 
 function isTruthyFlag(value: string | null | undefined): boolean {
   if (!value) return false
@@ -673,6 +695,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const isPageless = resolvedLayout.pageless
     const pageColor = resolvedLayout.pageColor ?? DEFAULT_PAGE_COLOR
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
+    const paginationDebugDisabled = useMemo(() => isDocumentPaginationDisabled(), [])
 
     useEffect(() => {
       const sourceFormatting = document?.formatting ?? initialFormatting
@@ -1290,7 +1313,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }),
           Table.configure({
             resizable: true,
-            renderWrapper: true,
+            renderWrapper: false,
             HTMLAttributes: {
               class: 'editor-table'
             }
@@ -1360,7 +1383,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }),
           Table.configure({
             resizable: true,
-            renderWrapper: true,
+            renderWrapper: false,
             HTMLAttributes: {
               class: 'editor-table'
             }
@@ -1382,7 +1405,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }),
           PageBreak,
           SearchHighlight,
-          ...(paginationConfig
+          ...(paginationConfig && !paginationDebugDisabled
             ? [
                 Pages.configure({
                   pageFormat: paginationConfig.pageFormat,
@@ -1479,20 +1502,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [
         document?.id,
         ydoc,
-        editorContent,
-        editorEditable,
         isCollaborationMode,
         t,
         isPageless,
         accessToken,
         imageHandlers.handlePaste,
-        imageHandlers.handleDrop,
-        paginationConfig?.pageWidth,
-        paginationConfig?.pageHeight,
-        paginationConfig?.marginTop,
-        paginationConfig?.marginBottom,
-        paginationConfig?.marginLeft,
-        paginationConfig?.marginRight
+        imageHandlers.handleDrop
       ]
     )
 
@@ -1516,6 +1531,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       const commands = editor.commands as typeof editor.commands & Record<string, (...args: any[]) => boolean>
       commands.setPagesOptions?.({
+        pageFormat: paginationConfig.pageFormat,
         differentFirstPage: pagesFormattingConfig.differentFirstPage,
         differentOddEven: pagesFormattingConfig.differentOddEven,
         header: pagesFormattingConfig.header,
@@ -1534,6 +1550,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       })
     }, [
       editor,
+      paginationConfig?.pageFormat.name,
+      paginationConfig?.pageFormat.width,
+      paginationConfig?.pageFormat.height,
+      paginationConfig?.pageFormat.margins.top,
+      paginationConfig?.pageFormat.margins.right,
+      paginationConfig?.pageFormat.margins.bottom,
+      paginationConfig?.pageFormat.margins.left,
       pagesFormattingConfig.accentColor,
       pagesFormattingConfig.differentFirstPage,
       pagesFormattingConfig.differentOddEven,
@@ -1915,7 +1938,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           metaYMap.set('title', nextTitle.trim())
         }
 
-        const content = editor.getHTML()
+        const content = sanitizePaginationRuntimeHtml(editor.getHTML())
         const formatting = buildPersistedFormatting(layoutFormatting)
         await onSave(nextTitle, content, formatting)
         setLastSaved(new Date())
@@ -2161,7 +2184,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         if (!editor) return false
         const scrollContainer = editorContainerRef.current
         const scrollTopBefore = scrollContainer?.scrollTop ?? 0
-        const wasEditable = editor.isEditable
         const normalizedHtml = normalizeDocumentHtmlForEditor(html)
 
         try {
@@ -2171,14 +2193,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             fragment.delete(0, fragment.length)
           })
 
-          if (!wasEditable) {
-            editor.setEditable(true)
-          }
-
+          markNextPaginationHydrationDocChange(editor)
           editor.commands.setContent(normalizedHtml, { emitUpdate: true })
           await new Promise(resolve => setTimeout(resolve, 0))
 
-          const applied = areHtmlSemanticallyEquivalent(editor.getHTML(), normalizedHtml)
+          const applied = areHtmlSemanticallyEquivalent(sanitizePaginationRuntimeHtml(editor.getHTML()), normalizedHtml)
 
           if (applied) {
             setHasUnsavedChanges(false)
@@ -2188,9 +2207,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }
           return applied
         } finally {
-          if (!wasEditable) {
-            editor.setEditable(false)
-          }
           setTimeout(() => {
             suppressYjsSnapshotSaveRef.current = false
           }, 1500)
@@ -2210,8 +2226,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       try {
         const latest = await DocumentApiService.getDocument(document.id, { fresh: true })
         if (!latest?.content) return false
-        const currentHtml = editor.getHTML()
-        if (areHtmlSemanticallyEquivalent(latest.content, currentHtml)) return false
+        const latestHtml = normalizeDocumentHtmlForEditor(latest.content)
+        const currentHtml = sanitizePaginationRuntimeHtml(editor.getHTML())
+        if (areHtmlSemanticallyEquivalent(latestHtml, currentHtml)) return false
         return await applyLatestDocumentContent(latest.content, latest.updatedAt)
       } catch (error) {
         console.warn('[PagedDocumentEditor] Failed syncing document after AI edit', error)
@@ -2476,7 +2493,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                         {t('page-setup-title')}
                       </DropdownMenuItem>
                       {onSaveAsTemplate && (
-                        <DropdownMenuItem onClick={() => editor && onSaveAsTemplate(title, editor.getHTML())}>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            editor && onSaveAsTemplate(title, sanitizePaginationRuntimeHtml(editor.getHTML()))
+                          }
+                        >
                           <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
                           {t('editor-save-template')}
                         </DropdownMenuItem>
@@ -3113,6 +3134,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               const success = await versioning.restoreVersion(versionNumber)
 
               if (success && editor && versionData.content) {
+                markNextPaginationHydrationDocChange(editor)
                 editor.commands.setContent(normalizeDocumentHtmlForEditor(versionData.content))
                 setTitle(versionData.title)
                 setHasUnsavedChanges(false)
