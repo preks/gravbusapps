@@ -156,6 +156,11 @@ function formatRelativeTime(
   return date.toLocaleDateString()
 }
 
+function safeCount(value: unknown): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 /**
  * AutomationCard Component
  */
@@ -224,7 +229,7 @@ const AutomationCard: React.FC<AutomationCardProps> = ({
                 )}
                 <span className="gba:flex gba:items-center gba:gap-1">
                   <History className="gba:w-3 gba:h-3" />
-                  {t('automations-hub-executions-count', { count: automation.runCount })}
+                  {t('automations-hub-executions-count', { count: safeCount(automation.runCount) })}
                 </span>
                 {activeWorkflows > 0 && (
                   <span className="gba:flex gba:items-center gba:gap-1 gba:text-info">
@@ -448,7 +453,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
   // Stats
   const stats = useMemo(() => {
     const enabled = automations.filter(a => a.isEnabled).length
-    const totalExecutions = automations.reduce((sum, a) => sum + a.runCount, 0)
+    const totalExecutions = automations.reduce((sum, a) => sum + safeCount(a.runCount), 0)
     const activeWorkflows = workflowLinks.filter(
       l => l.workflowStatus === 'RUNNING' || l.workflowStatus === 'PENDING'
     ).length

@@ -10,7 +10,20 @@ import { TRACKING_COLUMNS, getTrackingColumnDefinitions } from '../components/au
 import { getSpreadsheetBasePath } from './spreadsheetPaths'
 import { normalizeImageSrc } from './normalizeImageSrc'
 
-const DEFAULT_TRACKING_STATUS_WIDTH = 56
+const TRACKING_COLUMN_WIDTHS: Record<string, number> = {
+  recipient_avatar: 40,
+  recipient_name: 180,
+  recipient_email: 220,
+  sent_at: 180,
+  responded_at: 180,
+  response_time: 140,
+  workflow_status: 140,
+  copy_link: 140
+}
+
+export function getTrackingColumnDefaultWidth(columnId: string): number | undefined {
+  return TRACKING_COLUMN_WIDTHS[columnId]
+}
 
 /**
  * Create SpreadsheetColumn definitions for selected tracking columns
@@ -26,8 +39,7 @@ export function createTrackingColumnDefinitions(
     name: def.name,
     label: def.label,
     type: getColumnTypeForTracking(def.id),
-    // Keep status pills compact by default; users can expand via header auto-fit.
-    width: def.id === 'workflow_status' ? DEFAULT_TRACKING_STATUS_WIDTH : undefined,
+    width: getTrackingColumnDefaultWidth(def.id),
     isVisible: true,
     isEditable: false, // Tracking columns are read-only
     isRequired: false,
@@ -65,6 +77,12 @@ export interface RecipientInfo {
   avatar?: string
 }
 
+function resolveRecipientAvatar(recipientInfo: RecipientInfo): string | undefined {
+  const normalized = normalizeImageSrc(recipientInfo.avatar)
+  if (normalized) return normalized
+  return undefined
+}
+
 /**
  * Build tracking column values for a "Sent" row (before response)
  */
@@ -81,10 +99,9 @@ export function buildSentRowTrackingValues(
 
     switch (colId) {
       case 'recipient_avatar':
-        // Only set when we have an avatar URL
-        if (recipientInfo.avatar) {
-          const normalized = normalizeImageSrc(recipientInfo.avatar)
-          if (normalized) values[def.name] = normalized
+        {
+          const resolvedAvatar = resolveRecipientAvatar(recipientInfo)
+          if (resolvedAvatar) values[def.name] = resolvedAvatar
         }
         break
       case 'recipient_name':
@@ -132,11 +149,9 @@ export function buildCompletedRowTrackingValues(
 
     switch (colId) {
       case 'recipient_avatar':
-        // Only set when we have an avatar URL - avoids overwriting existing avatar
-        // with empty when responderId doesn't match GraphQL (e.g. aggregate-bulk format)
-        if (recipientInfo.avatar) {
-          const normalized = normalizeImageSrc(recipientInfo.avatar)
-          if (normalized) values[def.name] = normalized
+        {
+          const resolvedAvatar = resolveRecipientAvatar(recipientInfo)
+          if (resolvedAvatar) values[def.name] = resolvedAvatar
         }
         break
       case 'recipient_name':

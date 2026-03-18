@@ -84,6 +84,7 @@ import { useSpreadsheetAppsHubUrlState } from './hooks/useSpreadsheetAppsHubUrlS
 import { useSpreadsheetAppsHubUserLookup } from './hooks/useSpreadsheetAppsHubUserLookup'
 import { useHubPagination } from '@/business-apps/platform/apps/shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
+import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
 
 // Services
 import { generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
@@ -217,6 +218,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Clear space return URL if not opened from a space
   useEffect(() => {
     try {
+      const { pathname, search, hash } = globalThis.window.location
+      // Backward compatibility: route old spreadsheet URL to the canonical every-office path.
+      if (pathname.startsWith('/platform/spreadsheets')) {
+        globalThis.window.location.replace(`/platform/every-office/spreadsheets${search}${hash}`)
+        return
+      }
       const params = new URLSearchParams(globalThis.window.location.search)
       const spaceId = params.get('spaceId')
       if (!spaceId) {
@@ -727,7 +734,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       return
     }
 
-    globalThis.history.back()
+    // Default behavior inside spreadsheets: navigate to spreadsheets hub route.
+    navigateTo(Navigation.OFFICE_SPREADSHEETS)
   }, [])
 
   const handleStartUpload = useCallback(() => {
