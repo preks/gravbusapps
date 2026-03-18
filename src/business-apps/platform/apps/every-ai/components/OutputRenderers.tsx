@@ -14,7 +14,11 @@ import type {
   CalendarViewData,
   EntityData,
   FlowProposalOutput,
-  ConversationTurn
+  ConversationTurn,
+  DocumentStreamChunkOutput,
+  DocumentStreamCompleteOutput,
+  DocumentStreamErrorOutput,
+  DocumentStreamStartOutput
 } from '../types/models'
 import DynamicFormDisplay from './DynamicFormDisplay'
 // Standardized entity card
@@ -231,6 +235,68 @@ export const ToolOutput: React.FC<{ name: string; reason?: string }> = ({ name, 
     <div className="gba:text-xs gba:text-muted-foreground gba:font-medium gba:italic" data-testid="tool-output">
       {displayText}
     </div>
+  )
+}
+
+export const DocumentStreamStartDisplay: React.FC<{ data: DocumentStreamStartOutput }> = ({ data }) => {
+  return (
+    <div
+      className="gba:text-xs gba:text-muted-foreground gba:font-medium gba:italic"
+      data-testid="document-stream-start"
+    >
+      Generating {data.mode === 'selection' ? 'selection update' : 'document update'}...
+    </div>
+  )
+}
+
+export const DocumentStreamChunkDisplay: React.FC<{ data: DocumentStreamChunkOutput; accessToken: string }> = ({
+  data,
+  accessToken
+}) => {
+  return (
+    <Card className="gba:border gba:border-ai/30 gba:bg-ai-secondary/20" data-testid="document-stream-chunk">
+      <CardContent className="gba:p-4">
+        <MarkdownWithChipsRenderer
+          content={data.chunk}
+          accessToken={accessToken}
+          variant="ai"
+          renderHttpLinksAsChips={false}
+        />
+      </CardContent>
+    </Card>
+  )
+}
+
+export const DocumentStreamCompleteDisplay: React.FC<{ data: DocumentStreamCompleteOutput }> = ({ data }) => {
+  return (
+    <Card
+      className="gba:border gba:border-success/40 gba:bg-success-secondary/20"
+      data-testid="document-stream-complete"
+    >
+      <CardContent className="gba:p-4 gba:text-sm gba:text-foreground">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+          <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="fill" />
+          <span className="gba:font-semibold">
+            {data.changed ? 'Document updated successfully' : 'No content changes were required'}
+          </span>
+        </div>
+        <div className="gba:text-muted-foreground">{data.change_summary}</div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export const DocumentStreamErrorDisplay: React.FC<{ data: DocumentStreamErrorOutput }> = ({ data }) => {
+  return (
+    <Card
+      className="gba:border gba:border-destructive/40 gba:bg-destructive-secondary/20"
+      data-testid="document-stream-error"
+    >
+      <CardContent className="gba:p-4">
+        <div className="gba:text-sm gba:font-semibold gba:text-destructive gba:mb-1">Document stream failed</div>
+        <div className="gba:text-sm gba:text-foreground">{data.message}</div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -1005,6 +1071,14 @@ export const OutputItemRenderer: React.FC<{
       return <AnswerOutputRenderer data={item} accessToken={accessToken} sessionId={sessionId} />
     case 'tool':
       return <ToolOutput name={item.name} reason={item.reason} />
+    case 'document_stream_start':
+      return <DocumentStreamStartDisplay data={item} />
+    case 'document_stream_chunk':
+      return <DocumentStreamChunkDisplay data={item} accessToken={accessToken} />
+    case 'document_stream_complete':
+      return <DocumentStreamCompleteDisplay data={item} />
+    case 'document_stream_error':
+      return <DocumentStreamErrorDisplay data={item} />
     case 'loading':
       return <LoadingDisplay onCancel={onCancelGeneration} />
     case 'error':

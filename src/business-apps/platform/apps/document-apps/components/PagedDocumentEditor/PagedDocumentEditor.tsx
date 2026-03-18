@@ -484,6 +484,50 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       DocumentApiService.setAccessToken(accessTokenProp || null)
     }, [accessTokenProp])
 
+    useEffect(() => {
+      if (!document?.id) return
+
+      type FlowbotDocumentStreamCompleteDetail = {
+        documentId?: string
+        mode?: 'document' | 'selection'
+        changed?: boolean
+        changeSummary?: string
+      }
+
+      const handleFlowbotDocumentStreamComplete = async (evt: Event) => {
+        const customEvent = evt as CustomEvent<FlowbotDocumentStreamCompleteDetail>
+        const targetDocumentId = customEvent.detail?.documentId
+        if (!targetDocumentId || targetDocumentId !== document.id) return
+
+        try {
+          const latest = await DocumentApiService.getDocument(document.id)
+          if (!latest || !editorRef.current) return
+
+          const nextTitle = latest.title || title
+          setTitle(nextTitle)
+
+          const latestHtml = latest.content || '<p></p>'
+          const currentHtml = editorRef.current.getHTML?.() || ''
+          if (latestHtml && latestHtml !== currentHtml) {
+            editorRef.current.commands?.setContent?.(latestHtml)
+          }
+
+          setLastSaved(new Date())
+          setHasUnsavedChanges(false)
+          if (document.id) {
+            void versioning.loadVersions()
+          }
+        } catch (error) {
+          console.error('[PagedDocumentEditor] Failed to refresh document after stream commit:', error)
+        }
+      }
+
+      globalThis.window.addEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
+      return () => {
+        globalThis.window.removeEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
+      }
+    }, [document?.id, title, versioning])
+
     const resolvedLayout = resolvePageLayout(layoutFormatting)
     const paginationConfig = getPaginationConfigFromFormatting(layoutFormatting)
     const isPageless = resolvedLayout.pageless

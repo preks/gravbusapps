@@ -987,6 +987,23 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
             try {
               const newOutput = JSON.parse(data) as OutputItem
               appendOutputItemToLastAgentTurn(newOutput)
+              if (
+                newOutput.type === 'document_stream_complete' &&
+                typeof window !== 'undefined' &&
+                typeof newOutput.document_id === 'string' &&
+                newOutput.document_id
+              ) {
+                window.dispatchEvent(
+                  new CustomEvent('flowbot:document-stream-complete', {
+                    detail: {
+                      documentId: newOutput.document_id,
+                      mode: newOutput.mode,
+                      changed: newOutput.changed,
+                      changeSummary: newOutput.change_summary
+                    }
+                  })
+                )
+              }
               if (newOutput.type !== 'tool') {
                 pruneEphemeralOutputsFromLastAgentTurn()
               }
