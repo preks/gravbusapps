@@ -65,6 +65,9 @@ export const Navigation = {
   CONTENT_ENTRY_RECORD: `${NAVIGATION_BASE_PATH}/content/intranet/content-record`,
   CONTENT_MANAGER: `${NAVIGATION_BASE_PATH}/content/manager`,
 
+  // Manage
+  MANAGE_CATALOGS: `${NAVIGATION_BASE_PATH}/catalog-manager`,
+
   // Platform
   PLATFORM_TASK_MANAGER: `${NAVIGATION_BASE_PATH}/task-manager`,
   PLATFORM_TEAM_CHAT: `${NAVIGATION_BASE_PATH}/chat`,
@@ -164,6 +167,9 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CONTENT_PORTAL]: 'core/content/apps/content-portal',
   [Navigation.CONTENT_ENTRY_RECORD]: 'core/content/records/content-record',
   [Navigation.CONTENT_MANAGER]: 'core/content/apps/content-manager',
+
+  // Manage
+  [Navigation.MANAGE_CATALOGS]: 'core/manage/apps/catalog-manager',
 
   // Platform
   [Navigation.PLATFORM_TASK_MANAGER]: 'core/every/apps/every-box',

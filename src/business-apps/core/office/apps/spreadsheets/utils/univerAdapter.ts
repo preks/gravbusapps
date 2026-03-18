@@ -130,6 +130,33 @@ function isAvatarColumn(column: SpreadsheetColumn): boolean {
   )
 }
 
+function getInitials(value: string): string {
+  const normalized = value.trim()
+  if (!normalized) return 'U'
+  const parts = normalized.split(/[\s._-]+/).filter(Boolean)
+  if (parts.length === 0) return 'U'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase()
+}
+
+function buildAvatarPlaceholderUrl(row: Record<string, unknown>): string | null {
+  const fromName = row._recipient_name ?? row.recipient_name
+  const fromEmail = row._recipient_email ?? row.recipient_email
+  const base =
+    (typeof fromName === 'string' && fromName.trim()) || (typeof fromEmail === 'string' && fromEmail.trim()) || ''
+  if (!base) return null
+  const initials = getInitials(base)
+  const params = new URLSearchParams({
+    name: initials,
+    size: '64',
+    rounded: 'true',
+    background: 'E5E7EB',
+    color: '374151',
+    format: 'png'
+  })
+  return `https://ui-avatars.com/api/?${params.toString()}`
+}
+
 function isLinkColumn(column: SpreadsheetColumn): boolean {
   const normalizedName = normalizeColumnToken(String(column.name || ''))
   const normalizedId = normalizeColumnToken(String(column.id || ''))
@@ -261,17 +288,31 @@ const UNIVER_DEFAULT_ROW_HEIGHT = 23
 const UNIVER_ROW_HEADER_WIDTH = 46
 const UNIVER_COLUMN_HEADER_HEIGHT = 20
 const AVATAR_COL_WIDTH = 40
+const TRACKING_HEADER_WRAP_STYLE = { tb: 2, bl: 1 }
 
 function buildRowCells(
   row: Record<string, unknown>,
   visibleColumns: SpreadsheetColumn[]
 ): Record<number, UniverCellData> {
   const rowCells: Record<number, UniverCellData> = {}
+  const isTrackingHeaderRow = row._isTrackingHeader === true
   for (let colIndex = 0; colIndex < visibleColumns.length; colIndex++) {
     const col = visibleColumns[colIndex]
     const raw = getCellValue(row, col)
-    const cell = toUniverCellData(raw, col)
-    if (cell) rowCells[colIndex] = cell
+    let cell = toUniverCellData(raw, col)
+    if (!cell && isAvatarColumn(col)) {
+      const placeholderUrl = buildAvatarPlaceholderUrl(row)
+      if (placeholderUrl) {
+        cell = toUniverCellData(placeholderUrl, col)
+      }
+    }
+    if (!cell) continue
+    if (isTrackingHeaderRow) {
+      const existingStyle =
+        cell.s && typeof cell.s === 'object' ? (cell.s as Record<string, unknown>) : ({} as Record<string, unknown>)
+      cell.s = { ...existingStyle, ...TRACKING_HEADER_WRAP_STYLE }
+    }
+    rowCells[colIndex] = cell
   }
   return rowCells
 }

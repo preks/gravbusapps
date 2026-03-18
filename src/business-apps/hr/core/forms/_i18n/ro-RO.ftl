@@ -35,6 +35,7 @@ adjust-salary-duplicate-month-warning = Există deja o ajustare salarială pentr
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Atribuire salariu angajat
+assign-salary-no-employment-region-warning = Trebuie setată o regiune de angajare pentru acest angajat pentru a asigura moneda corectă și conformitatea. Vă rugăm să setați regiunea de angajare în fișa angajatului.
 assign-salary-type = Tip compensație
 assign-salary-type-required = Tipul compensației este obligatoriu. Vă rugăm să selectați un tip de compensație.
 assign-salary-type-yearly-monthly = Salariu lunar
@@ -90,6 +91,7 @@ action-enter-placeholder = Vă rugăm să introduceți
 
 # Form Title
 form-title = Acordă bonus angajat
+grant-bonus-no-employment-region-warning = Trebuie setată o regiune de angajare pentru acest angajat pentru a asigura moneda corectă și conformitatea. Vă rugăm să setați regiunea de angajare în fișa angajatului.
 
 # Form Actions
 action-cancel = Anulează

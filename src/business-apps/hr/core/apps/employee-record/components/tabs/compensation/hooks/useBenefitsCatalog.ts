@@ -4,15 +4,14 @@ import {
   GET_EMPLOYEE_BENEFITS_FOR_CATALOG,
   GET_EMPLOYEE_REGION_ID,
   GET_REGION_COUNTRY_ID,
-  GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS,
-  GET_BENEFIT_TYPES_WITH_TRANSLATIONS,
-  GET_BENEFIT_TYPES_WITH_TRANSLATIONS_EXCLUDE_HR_BACKOFFICE
+  GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS
 } from '../queries/benefitCatalogQueries'
 import { BENEFIT_TYPE_CATALOG, BENEFIT_TYPE_VERSION } from '../constants/benefitCatalogConstants'
 import {
   BenefitCatalogItem,
   BenefitsCatalogData,
   CatalogBenefitEntry,
+  ProviderEntry,
   GraphQLBenefitTypesResponse,
   GraphQLEmployeeBenefitsResponse,
   GraphQLCatalogEntry,
@@ -38,11 +37,7 @@ import { BenefitStatus, isBenefitActive, isBenefitScheduledForStart } from '../t
  * @param employeeId - The employee ID
  * @param accessToken - Access token for API authentication
  */
-export const useBenefitsCatalog = (
-  employeeId: string,
-  accessToken: string,
-  options?: { excludeHrBackoffice?: boolean }
-) => {
+export const useBenefitsCatalog = (employeeId: string, accessToken: string) => {
   const [catalogData, setCatalogData] = useState<BenefitsCatalogData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -104,8 +99,9 @@ export const useBenefitsCatalog = (
   const mergeBenefitData = useCallback(
     (catalogEntries: CatalogBenefitEntry[], employeeBenefits: EmployeeBenefit[]): BenefitCatalogItem[] => {
       return catalogEntries.map(catalogEntry => {
-        // Find ALL employee benefits for this benefit type (there can be multiple due to history)
-        const matchingBenefits = employeeBenefits.filter(eb => eb.benefitTypeRef === catalogEntry.id)
+        // Match by this entry's id or any merged catalog ids (same benefit type shown once)
+        const typeIds = catalogEntry.catalogIds ?? [catalogEntry.id]
+        const matchingBenefits = employeeBenefits.filter(eb => typeIds.includes(eb.benefitTypeRef))
 
         // Check if there's a pending request for this benefit type
         // Only count PENDING_COMPENSATION status (cancelled requests are naturally excluded)
@@ -234,27 +230,28 @@ export const useBenefitsCatalog = (
       // Resolve employee country from employment region
       const countryId = await getEmployeeCountryId()
 
-      // Choose catalog query: prefer country-filtered when available
-      const catalogQuery =
-        countryId != null
-          ? GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS
-          : options?.excludeHrBackoffice
-            ? GET_BENEFIT_TYPES_WITH_TRANSLATIONS_EXCLUDE_HR_BACKOFFICE
-            : GET_BENEFIT_TYPES_WITH_TRANSLATIONS
+      // When no employment region (no country), do not show any benefits — avoid showing full unfiltered catalog (e.g. all German + Romanian benefits)
+      if (countryId == null) {
+        setCatalogData({
+          catalogBenefits: [],
+          activeBenefitsCount: 0,
+          scheduledBenefitsCount: 0,
+          availableBenefitsCount: 0,
+          totalBenefitsCount: 0
+        })
+        setLoading(false)
+        return
+      }
 
-      const catalogVariables =
-        countryId != null
-          ? {
-              catalogIdentifier: BENEFIT_TYPE_CATALOG,
-              catalogVersion: BENEFIT_TYPE_VERSION,
-              countryId
-            }
-          : {
-              catalogIdentifier: BENEFIT_TYPE_CATALOG,
-              catalogVersion: BENEFIT_TYPE_VERSION
-            }
+      // Catalog is always filtered by employee's country (from employment region)
+      const catalogQuery = GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS
+      const catalogVariables = {
+        catalogIdentifier: BENEFIT_TYPE_CATALOG,
+        catalogVersion: BENEFIT_TYPE_VERSION,
+        countryId
+      }
 
-      // Fetch catalog entries (filtered by country when available) in parallel with employee benefits
+      // Fetch catalog entries (filtered by country) in parallel with employee benefits
       const [catalogResult, employeeResult] = await Promise.all([
         graphqlClient.request<GraphQLBenefitTypesResponse>(catalogQuery, catalogVariables),
         employeeBenefitsPromise
@@ -305,8 +302,35 @@ export const useBenefitsCatalog = (
       }
       const filteredCatalogEntries = (catalogEntries || []).filter(entry => !isParentGroup(entry))
 
-      // Merge data using filtered catalog entries
-      const mergedBenefits = mergeBenefitData(filteredCatalogEntries, employeeBenefits)
+      // Deduplicate by benefit type (code): show one card per type, merge providers from all catalog entries with same code
+      const byCode = new Map<string, CatalogBenefitEntry[]>()
+      for (const entry of filteredCatalogEntries) {
+        const code = entry.code || entry.id
+        if (!byCode.has(code)) byCode.set(code, [])
+        byCode.get(code)!.push(entry)
+      }
+      const dedupedCatalogEntries: CatalogBenefitEntry[] = []
+      for (const [, entries] of byCode) {
+        const sorted = [...entries].sort((a, b) => a.displayOrder - b.displayOrder)
+        const primary = sorted[0]
+        const catalogIds = sorted.map(e => e.id)
+        const providerById = new Map<string, ProviderEntry>()
+        for (const e of sorted) {
+          for (const child of e.childEntries || []) {
+            providerById.set(child.id, child)
+          }
+        }
+        dedupedCatalogEntries.push({
+          ...primary,
+          id: primary.id,
+          catalogIds: catalogIds.length > 1 ? catalogIds : undefined,
+          childEntries: Array.from(providerById.values())
+        })
+      }
+      dedupedCatalogEntries.sort((a, b) => a.displayOrder - b.displayOrder)
+
+      // Merge data using deduplicated catalog entries (one per benefit type)
+      const mergedBenefits = mergeBenefitData(dedupedCatalogEntries, employeeBenefits)
 
       // Calculate statistics
       const activeBenefitsCount = mergedBenefits.filter(b => b.isActive).length
@@ -328,15 +352,7 @@ export const useBenefitsCatalog = (
     } finally {
       setLoading(false)
     }
-  }, [
-    employeeId,
-    accessToken,
-    graphqlClient,
-    mergeBenefitData,
-    transformEmployeeBenefit,
-    getEmployeeCountryId,
-    options?.excludeHrBackoffice
-  ])
+  }, [employeeId, accessToken, graphqlClient, mergeBenefitData, transformEmployeeBenefit, getEmployeeCountryId])
 
   useEffect(() => {
     fetchBenefitsCatalog()

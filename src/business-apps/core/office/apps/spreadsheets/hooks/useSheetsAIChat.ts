@@ -3,8 +3,6 @@ import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePr
 import type { SpreadsheetColumn } from '../types'
 import { SHEETS_AI_CHAT_SYSTEM_PROMPT, buildSheetsAIChatUserPrompt } from '../prompts/sheets-ai-chat'
 
-const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
-
 export interface SheetsAIChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -61,9 +59,7 @@ export const useSheetsAIChat = ({
           returnTotalRecords: false
         })
         const selectedModel =
-          modelsResponse.data?.find(model => model._id === PREFERRED_MODEL_ID) ??
-          modelsResponse.data?.find(model => model.name.toLowerCase().includes('gpt-4')) ??
-          modelsResponse.data?.[0]
+          modelsResponse.data?.find(model => model.name.toLowerCase().includes('gpt-4')) ?? modelsResponse.data?.[0]
         if (!selectedModel) throw new Error('No AI models available')
 
         const formData = new FormData()

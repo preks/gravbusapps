@@ -2,7 +2,14 @@ import React, { useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import { LocalizationProvider, useTranslation, type SupportedLocale } from '@newwork/nw-design-system'
+import {
+  Alert,
+  AlertDescription,
+  LocalizationProvider,
+  useTranslation,
+  type SupportedLocale
+} from '@newwork/nw-design-system'
+import { WarningCircleIcon } from '@phosphor-icons/react'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { GrantEmployeeBonusProvider, useGrantEmployeeBonus } from './GrantEmployeeBonusContext'
 import { useForm } from 'react-hook-form'
@@ -26,7 +33,12 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
     [data]
   )
 
-  // Get currency from employee bank account - memoize to prevent form resets
+  // Only show warning when we've resolved and there is no region (undefined = still loading)
+  const hasEmploymentRegion = useMemo(
+    () => (data?.hasEmploymentRegion !== undefined ? data.hasEmploymentRegion : true),
+    [data?.hasEmploymentRegion]
+  )
+  // Currency: from employment region country first, then bank account (only when region is set)
   const employeeCurrency = useMemo(() => data?.employeeCurrency, [data])
   const currencyRef = useMemo(() => employeeCurrency?.currencyRef || '', [employeeCurrency?.currencyRef])
   const currencyDisplay = useMemo(() => {
@@ -139,6 +151,18 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
         }
       />
 
+      {!hasEmploymentRegion && (
+        <Alert variant="default" className="gba:mb-4" data-testid="grant-bonus-no-region-warning">
+          <WarningCircleIcon className="gba:h-4 gba:w-4" />
+          <AlertDescription>
+            {t('grant-bonus-no-employment-region-warning', {
+              defaultValue:
+                'An employment region must be set for this employee to ensure correct currency and compliance. Please set the employment region in the employee record.'
+            })}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div
         className="gba:flex gba:flex-col gba:[&>div[data-testid='grant-employee-bonus']]:pt-0!"
         data-testid="grant-employee-bonus-form-content"
@@ -151,7 +175,7 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
           cancelEventType="pse_abort"
           cancelButtonText={t('action-cancel')}
           submitButtonText={t('action-submit')}
-          isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
+          isSubmitDisabled={!form.formState.isValid || isUnchangedNow || data?.hasEmploymentRegion !== true}
           // Shows cancel button - default cancelEventType="pse_abort" handles process abort
           onCancel={() => {
             markAsCancelled()

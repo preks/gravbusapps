@@ -8,8 +8,12 @@ import {
   CURRENCY_CATALOG_QUERY,
   EMPLOYEE_WORKING_CONDITION_QUERY,
   EMPLOYEE_WORKING_HOURS_QUERY,
-  EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY
+  EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY,
+  GET_EMPLOYEE_REGION_ID,
+  GET_REGION_COUNTRY_ID,
+  GET_COUNTRY_OBJECT_VALUE
 } from './AdjustEmployeeSalaryQueries'
+import { fetchCountryCurrency } from '../request-employee-benefit/utils/fetchCountryCurrency'
 import type {
   AdjustEmployeeSalaryContextData,
   EmployeeDataResponse,
@@ -119,6 +123,30 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
       // Extract bank account currency (first record if exists)
       const bankAccountCurrency = bankAccountData?.EmployeeBankAccount?.[0]?.currencyRef || null
 
+      // Resolve currency from employment region's country (for preset in assign mode)
+      let countryCurrencyRef: string | null = null
+      let hasEmploymentRegion = false
+      try {
+        const regionRes = await graphqlClient.request<{
+          Employee?: Array<{ workingCondition?: Array<{ region?: { id: string } }> }>
+        }>(GET_EMPLOYEE_REGION_ID, { employeeId })
+        const regionId = regionRes?.Employee?.[0]?.workingCondition?.[0]?.region?.id
+        hasEmploymentRegion = Boolean(regionId)
+        if (regionId) {
+          const countryRes = await graphqlClient.request<{ CatalogEntry?: Array<{ additionalValue3?: string }> }>(
+            GET_REGION_COUNTRY_ID,
+            { regionId }
+          )
+          const countryId = countryRes?.CatalogEntry?.[0]?.additionalValue3
+          if (countryId) {
+            const countryCurrency = await fetchCountryCurrency(graphqlClient, countryId, GET_COUNTRY_OBJECT_VALUE)
+            countryCurrencyRef = countryCurrency.currencyRef
+          }
+        }
+      } catch {
+        // Non-fatal: leave countryCurrencyRef null, hasEmploymentRegion stays false
+      }
+
       // Map currency catalog entries to CurrencyOption format
       const currencies: CurrencyOption[] = (currencyCatalog?.CatalogEntry || [])
         .map(entry => ({
@@ -144,7 +172,9 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
         formMode,
         hireDate,
         weeklyHours,
-        bankAccountCurrency
+        bankAccountCurrency,
+        countryCurrencyRef,
+        hasEmploymentRegion
       })
       setIsLoading(false)
     } catch (e: any) {
