@@ -88,15 +88,17 @@ const toYearlyCategoryMap = (rows: DatasetKpiRow[]): YearlyKpiMap => {
     actualExpenses: { value: 0, count: 0 },
     plannedExpenses: { value: 0, count: 0 }
   }
+  const isYearlyKpiCategory = (value: string): value is YearlyKpiCategory => value in initial
   const normalizeYearlyCategory = (category?: string): YearlyKpiCategory | undefined => {
     if (!category) return undefined
-    const categoryMap: Record<string, YearlyKpiCategory> = {
+    const categoryMap: Partial<Record<string, YearlyKpiCategory>> = {
       currentPeriodExpensesComparison: 'currentYearExpensesComparison',
       previousPeriodExpensesComparison: 'previousYearExpensesComparison',
       currentYtdExpenses: 'currentYearExpenses',
       previousYtdExpenses: 'previousYearExpenses'
     }
-    return (categoryMap[category] ?? category) as YearlyKpiCategory
+    const normalized = categoryMap[category] ?? category
+    return isYearlyKpiCategory(normalized) ? normalized : undefined
   }
 
   for (const row of rows) {
@@ -133,6 +135,92 @@ const mapTrendsByMonth = (rows: MonthlyTrendRow[]): Map<number, MonthlyTrendRow>
   }
   return monthlyTrendsByMonth
 }
+
+type KpiMetric = { value: number; count: number }
+type NonYearlyKpiMetrics = {
+  currentPeriod: KpiMetric
+  previousPeriod: KpiMetric
+  currentYtd: KpiMetric
+  previousYtd: KpiMetric
+  transferRequired: KpiMetric
+  pendingRequests: KpiMetric
+  avgSpendPerTrip: KpiMetric
+  advancePaymentsApproved: KpiMetric
+  actualExpenses: KpiMetric
+  plannedExpenses: KpiMetric
+  comparisonCurrent: KpiMetric
+  comparisonPrevious: KpiMetric
+}
+
+const getMetricFromRows = (rows: DatasetKpiRow[], category: string): KpiMetric => {
+  const row = rows.find(item => item?.category === category)
+  return {
+    value: asNumber(row?.value),
+    count: asNumber(row?.count)
+  }
+}
+
+const buildNonYearlyKpiMetrics = (rows: DatasetKpiRow[]): NonYearlyKpiMetrics => ({
+  currentPeriod: getMetricFromRows(rows, 'currentPeriodExpensesComparison'),
+  previousPeriod: getMetricFromRows(rows, 'previousPeriodExpensesComparison'),
+  currentYtd: getMetricFromRows(rows, 'currentYtdExpenses'),
+  previousYtd: getMetricFromRows(rows, 'previousYtdExpenses'),
+  transferRequired: getMetricFromRows(rows, 'transferRequired'),
+  pendingRequests: getMetricFromRows(rows, 'pendingRequests'),
+  avgSpendPerTrip: getMetricFromRows(rows, 'avgSpendPerTrip'),
+  advancePaymentsApproved: getMetricFromRows(rows, 'advancePaymentsApproved'),
+  actualExpenses: getMetricFromRows(rows, 'actualExpenses'),
+  plannedExpenses: getMetricFromRows(rows, 'plannedExpenses'),
+  comparisonCurrent: getMetricFromRows(rows, 'currentComparisonExpenses'),
+  comparisonPrevious: getMetricFromRows(rows, 'previousComparisonExpenses')
+})
+
+const buildBaseNonYearlyKpiResponse = (metrics: NonYearlyKpiMetrics) => ({
+  currentYearExpenses: toAggregate(metrics.currentYtd.value, metrics.currentYtd.count, 'reimbursableAmount'),
+  previousYearExpenses: toAggregate(metrics.previousYtd.value, metrics.previousYtd.count, 'reimbursableAmount'),
+  transferRequired: toAggregate(metrics.transferRequired.value, metrics.transferRequired.count, 'reimbursableAmount'),
+  pendingRequests: { aggregate: { count: metrics.pendingRequests.count } },
+  avgSpendPerTrip: {
+    aggregate: {
+      avg: { reimbursableAmount: metrics.avgSpendPerTrip.value },
+      count: metrics.avgSpendPerTrip.count
+    }
+  },
+  advancePaymentsApproved: toAggregate(
+    metrics.advancePaymentsApproved.value,
+    metrics.advancePaymentsApproved.count,
+    'amount'
+  ),
+  actualExpenses: toAggregate(metrics.actualExpenses.value, metrics.actualExpenses.count, 'reimbursableAmount'),
+  plannedExpenses: toAggregate(metrics.plannedExpenses.value, metrics.plannedExpenses.count, 'totalAmount')
+})
+
+const buildQuarterlyKpiResponse = (metrics: NonYearlyKpiMetrics) => ({
+  ...buildBaseNonYearlyKpiResponse(metrics),
+  currentQTDExpenses: toAggregate(
+    metrics.comparisonCurrent.value,
+    metrics.comparisonCurrent.count,
+    'reimbursableAmount'
+  ),
+  previousQTDExpenses: toAggregate(
+    metrics.comparisonPrevious.value,
+    metrics.comparisonPrevious.count,
+    'reimbursableAmount'
+  ),
+  currentQuarterExpenses: toAggregate(metrics.currentPeriod.value, metrics.currentPeriod.count, 'reimbursableAmount'),
+  previousQuarterExpenses: toAggregate(metrics.previousPeriod.value, metrics.previousPeriod.count, 'reimbursableAmount')
+})
+
+const buildMonthlyKpiResponse = (metrics: NonYearlyKpiMetrics) => ({
+  ...buildBaseNonYearlyKpiResponse(metrics),
+  currentMonthExpenses: toAggregate(metrics.currentPeriod.value, metrics.currentPeriod.count, 'reimbursableAmount'),
+  previousMonthExpenses: toAggregate(metrics.previousPeriod.value, metrics.previousPeriod.count, 'reimbursableAmount'),
+  sameMonthLastYearExpenses: toAggregate(
+    metrics.comparisonPrevious.value,
+    metrics.comparisonPrevious.count,
+    'reimbursableAmount'
+  )
+})
 
 export const useDashboardStats = ({
   accessToken,
@@ -405,16 +493,17 @@ export const useDashboardStats = ({
       }
 
       const hasDepartment = !!selectedDepartment
-      const currentPeriodStart = period === 'quarterly' ? dateRanges.quarterStart : dateRanges.currentMonthStart
-      const currentPeriodEnd = period === 'quarterly' ? dateRanges.quarterEnd : dateRanges.currentMonthEnd
-      const previousPeriodStart =
-        period === 'quarterly' ? dateRanges.previousQuarterStart : dateRanges.previousMonthStart
-      const previousPeriodEnd = period === 'quarterly' ? dateRanges.previousQuarterEnd : dateRanges.previousMonthEnd
-      const currentComparisonStart = period === 'quarterly' ? dateRanges.quarterStart : dateRanges.currentMonthStart
-      const currentComparisonEnd = period === 'quarterly' ? dateRanges.currentQTD : dateRanges.currentMonthEnd
-      const previousComparisonStart =
-        period === 'quarterly' ? dateRanges.sameQuarterLastYearStart : dateRanges.sameMonthLastYearStart
-      const previousComparisonEnd = period === 'quarterly' ? dateRanges.previousQTD : dateRanges.sameMonthLastYearEnd
+      const isQuarterly = period === 'quarterly'
+      const currentPeriodStart = isQuarterly ? dateRanges.quarterStart : dateRanges.currentMonthStart
+      const currentPeriodEnd = isQuarterly ? dateRanges.quarterEnd : dateRanges.currentMonthEnd
+      const previousPeriodStart = isQuarterly ? dateRanges.previousQuarterStart : dateRanges.previousMonthStart
+      const previousPeriodEnd = isQuarterly ? dateRanges.previousQuarterEnd : dateRanges.previousMonthEnd
+      const currentComparisonStart = isQuarterly ? dateRanges.quarterStart : dateRanges.currentMonthStart
+      const currentComparisonEnd = isQuarterly ? dateRanges.currentQTD : dateRanges.currentMonthEnd
+      const previousComparisonStart = isQuarterly
+        ? dateRanges.sameQuarterLastYearStart
+        : dateRanges.sameMonthLastYearStart
+      const previousComparisonEnd = isQuarterly ? dateRanges.previousQTD : dateRanges.sameMonthLastYearEnd
 
       const periodAndYtdParams: Record<string, QueryParamValue> = {
         selectedDepartment: selectedDepartment ?? 'null',
@@ -438,10 +527,8 @@ export const useDashboardStats = ({
       const planActualParams: Record<string, QueryParamValue> = {
         selectedCurrency,
         currentPeriodStart,
-        currentPeriodEnd
-      }
-      if (hasDepartment && selectedDepartment) {
-        planActualParams.selectedDepartment = selectedDepartment
+        currentPeriodEnd,
+        ...(hasDepartment && selectedDepartment ? { selectedDepartment } : {})
       }
       const comparisonParams: Record<string, QueryParamValue> = {
         selectedDepartment: selectedDepartment ?? 'null',
@@ -466,70 +553,8 @@ export const useDashboardStats = ({
         ...(Array.isArray(comparisonResponse?.data) ? comparisonResponse.data : [])
       ] as DatasetKpiRow[]
 
-      const getMetric = (category: string) => {
-        const row = rows.find(item => item?.category === category)
-        return {
-          value: asNumber(row?.value),
-          count: asNumber(row?.count)
-        }
-      }
-      const currentPeriod = getMetric('currentPeriodExpensesComparison')
-      const previousPeriod = getMetric('previousPeriodExpensesComparison')
-      const currentYtd = getMetric('currentYtdExpenses')
-      const previousYtd = getMetric('previousYtdExpenses')
-      const transferRequired = getMetric('transferRequired')
-      const pendingRequests = getMetric('pendingRequests')
-      const avgSpendPerTrip = getMetric('avgSpendPerTrip')
-      const advancePaymentsApproved = getMetric('advancePaymentsApproved')
-      const actualExpenses = getMetric('actualExpenses')
-      const plannedExpenses = getMetric('plannedExpenses')
-      const comparisonCurrent = getMetric('currentComparisonExpenses')
-      const comparisonPrevious = getMetric('previousComparisonExpenses')
-
-      if (period === 'quarterly') {
-        return {
-          currentQTDExpenses: toAggregate(comparisonCurrent.value, comparisonCurrent.count, 'reimbursableAmount'),
-          previousQTDExpenses: toAggregate(comparisonPrevious.value, comparisonPrevious.count, 'reimbursableAmount'),
-          currentQuarterExpenses: toAggregate(currentPeriod.value, currentPeriod.count, 'reimbursableAmount'),
-          previousQuarterExpenses: toAggregate(previousPeriod.value, previousPeriod.count, 'reimbursableAmount'),
-          currentYearExpenses: toAggregate(currentYtd.value, currentYtd.count, 'reimbursableAmount'),
-          previousYearExpenses: toAggregate(previousYtd.value, previousYtd.count, 'reimbursableAmount'),
-          transferRequired: toAggregate(transferRequired.value, transferRequired.count, 'reimbursableAmount'),
-          pendingRequests: { aggregate: { count: pendingRequests.count } },
-          avgSpendPerTrip: {
-            aggregate: {
-              avg: { reimbursableAmount: avgSpendPerTrip.value },
-              count: avgSpendPerTrip.count
-            }
-          },
-          advancePaymentsApproved: toAggregate(advancePaymentsApproved.value, advancePaymentsApproved.count, 'amount'),
-          actualExpenses: toAggregate(actualExpenses.value, actualExpenses.count, 'reimbursableAmount'),
-          plannedExpenses: toAggregate(plannedExpenses.value, plannedExpenses.count, 'totalAmount')
-        }
-      }
-
-      return {
-        currentMonthExpenses: toAggregate(currentPeriod.value, currentPeriod.count, 'reimbursableAmount'),
-        previousMonthExpenses: toAggregate(previousPeriod.value, previousPeriod.count, 'reimbursableAmount'),
-        sameMonthLastYearExpenses: toAggregate(
-          comparisonPrevious.value,
-          comparisonPrevious.count,
-          'reimbursableAmount'
-        ),
-        currentYearExpenses: toAggregate(currentYtd.value, currentYtd.count, 'reimbursableAmount'),
-        previousYearExpenses: toAggregate(previousYtd.value, previousYtd.count, 'reimbursableAmount'),
-        transferRequired: toAggregate(transferRequired.value, transferRequired.count, 'reimbursableAmount'),
-        pendingRequests: { aggregate: { count: pendingRequests.count } },
-        avgSpendPerTrip: {
-          aggregate: {
-            avg: { reimbursableAmount: avgSpendPerTrip.value },
-            count: avgSpendPerTrip.count
-          }
-        },
-        advancePaymentsApproved: toAggregate(advancePaymentsApproved.value, advancePaymentsApproved.count, 'amount'),
-        actualExpenses: toAggregate(actualExpenses.value, actualExpenses.count, 'reimbursableAmount'),
-        plannedExpenses: toAggregate(plannedExpenses.value, plannedExpenses.count, 'totalAmount')
-      }
+      const metrics = buildNonYearlyKpiMetrics(rows)
+      return isQuarterly ? buildQuarterlyKpiResponse(metrics) : buildMonthlyKpiResponse(metrics)
     },
     [datasetClient, executeYearlyKpiQuery]
   )
