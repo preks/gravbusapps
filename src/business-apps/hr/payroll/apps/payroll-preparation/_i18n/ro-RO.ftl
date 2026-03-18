@@ -50,6 +50,13 @@ summary-excluded = Excluși
 summary-blockers = Blocaje Deschise
 summary-changed = Modificați
 
+label-company = Companie:
+label-month = Luna:
+label-year = Anul:
+label-readiness = Pregătire:
+label-department = Departament:
+label-severity = Severitate:
+label-category = Categorie:
 select-company = Selectează Compania
 select-month = Selectează Luna
 no-company-selected = Selectați o companie și o lună pentru a începe pregătirea salarizării.

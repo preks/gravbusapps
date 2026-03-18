@@ -50,6 +50,13 @@ summary-excluded = Excluded
 summary-blockers = Open Blockers
 summary-changed = Changed
 
+label-company = Company:
+label-month = Month:
+label-year = Year:
+label-readiness = Readiness:
+label-department = Department:
+label-severity = Severity:
+label-category = Category:
 select-company = Select Company
 select-month = Select Month
 no-company-selected = Please select a company and month to begin payroll preparation.

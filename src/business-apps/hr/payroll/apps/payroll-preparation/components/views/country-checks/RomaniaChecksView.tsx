@@ -27,8 +27,8 @@ export const RomaniaChecksView: React.FC<RomaniaChecksViewProps> = ({ employees,
         </div>
       </Card>
 
-      <Card className="gba:overflow-hidden">
-        <div className="gba:overflow-x-auto">
+      <Card className="gba:overflow-hidden gba:bg-transparent gba:shadow-none gba:border-none gba:pt-2">
+        <div className="gba:overflow-x-auto gba:bg-card gba:rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
