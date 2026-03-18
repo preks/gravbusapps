@@ -41,7 +41,10 @@ import {
   resolvePageFormat,
   syncStorageFromOptions
 } from './utils'
-import { mergeAdjacentPaginationTables, splitTableAtRow } from '@/components/tiptap-custom-tables/tableSelectionUtils'
+import {
+  mergeAdjacentPaginationTables,
+  splitTableAtRow
+} from '@/components/tiptap-extensions/tiptap-custom-tables/tableSelectionUtils'
 
 const REFRESH_META = 'RM_PAGES_REFRESH'
 const PAGINATION_OWNED_DOC_CHANGE_META = 'RM_PAGES_OWNED_DOC_CHANGE'

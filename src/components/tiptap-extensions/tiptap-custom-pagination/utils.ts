@@ -2,7 +2,10 @@ import { Editor, type Extension, type JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { EditorView } from '@tiptap/pm/view'
-import { findSafeSplitRow, getTableRows } from '@/components/tiptap-custom-tables/tablePaginationUtils'
+import {
+  findSafeSplitRow,
+  getTableRows
+} from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationUtils'
 import { PAGE_FORMATS, PAGE_SIZES, type PageSize } from './constants'
 import type {
   BuiltInPageFormatName,

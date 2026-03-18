@@ -2,7 +2,7 @@
  * Insert actions rendered inside the compact toolbar surface.
  */
 
-import React, { useCallback } from 'react'
+import { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Image, Link, SeparatorHorizontal, Table } from 'lucide-react'
