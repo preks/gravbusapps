@@ -285,6 +285,32 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     [folders, moveToFolder, t]
   )
 
+  const inboxFolderId = folders.find(f => f.type === 'inbox')?.id
+  const isTrashView = !starredOnly && folders.find(f => f.id === selectedFolderId)?.type === 'trash'
+
+  const handleRestore = useCallback(
+    async (id: string, options?: { silent?: boolean }) => {
+      if (!inboxFolderId) {
+        if (!options?.silent) {
+          toast.error(t('toast-restore-failed'))
+        }
+        return
+      }
+      try {
+        await moveToFolder(id, inboxFolderId)
+        if (!options?.silent) {
+          toast.success(t('toast-restored'))
+        }
+      } catch {
+        if (!options?.silent) {
+          toast.error(t('toast-restore-failed'))
+        }
+        throw new Error('restore-failed')
+      }
+    },
+    [inboxFolderId, moveToFolder, t]
+  )
+
   const handleBack = useCallback(() => {
     navigateTo('/platform/every-office')
   }, [])
@@ -497,6 +523,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onToggleRead={handleToggleReadFromList}
         onArchive={handleArchive}
         onDelete={deleteMessage}
+        onRestore={handleRestore}
+        isTrashView={isTrashView}
         onRefresh={refreshMessages}
         onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
         onLoadMore={loadMore}
@@ -524,6 +552,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
           onDelete={deleteMessage}
           onToggleStar={toggleStar}
           onArchive={handleArchive}
+          onRestore={handleRestore}
+          isTrashView={isTrashView}
           onRefreshMessages={refreshMessages}
           onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
           accessToken={accessToken}

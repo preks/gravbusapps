@@ -22,7 +22,8 @@ import {
   ChevronDown,
   Reply,
   ReplyAll,
-  Forward
+  Forward,
+  Undo2
 } from 'lucide-react'
 import { getLabelChipClassName } from '../utils/labelUtils'
 import { getDisplayName } from '../utils/emailListFormatting'
@@ -46,6 +47,8 @@ interface EmailListItemProps {
   onToggleRead?: () => void
   onArchive?: () => void
   onDelete?: () => void
+  onRestore?: () => void
+  isTrashView?: boolean
   onAddLabels: (labels: AddLabelInput[]) => Promise<EmailLabel[] | null>
   onRemoveLabel: (label: string) => Promise<EmailLabel[] | null>
   testId: string
@@ -68,6 +71,8 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
   onToggleRead,
   onArchive,
   onDelete,
+  onRestore,
+  isTrashView = false,
   onAddLabels,
   onRemoveLabel,
   testId,
@@ -308,6 +313,16 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
           <Archive className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
           {t('list-context-archive')}
         </ContextMenuItem>
+        {isTrashView && (
+          <ContextMenuItem
+            onSelect={() => onRestore?.()}
+            disabled={!onRestore}
+            data-testid={`${testId}-context-restore`}
+          >
+            <Undo2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+            {t('list-context-restore')}
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onSelect={() => onDelete?.()}
           disabled={!onDelete}
