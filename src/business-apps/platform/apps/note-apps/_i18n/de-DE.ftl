@@ -13,6 +13,8 @@ sidebar-back-to-desk = Zurück zum Schreibtisch
 sidebar-expand = Seitenleiste erweitern
 sidebar-collapse = Seitenleiste einklappen
 sidebar-brand-title = Notizen
+sidebar-section-notes = Notizen
+sidebar-section-recent = Kürzlich
 sidebar-brand-subtitle = NEWWORK Apps
 sidebar-new = Neu
 sidebar-home = Startseite
@@ -29,6 +31,8 @@ menu-new-text-title = Textnotiz
 menu-new-text-description = Mit Tastatur eingeben
 menu-new-handwriting-title = Handschriftliche Notiz
 menu-new-handwriting-description = Mit Apple Pencil schreiben
+menu-new-folder-title = Neuer Ordner
+menu-new-folder-description = Notizen in Gruppen organisieren
 menu-new-template-title = Aus Vorlage
 menu-new-template-description = Vorlage auswählen
 
@@ -60,6 +64,8 @@ menu-add-favorite = Zu Favoriten hinzufügen
 menu-archive = Archivieren
 menu-delete = Löschen
 
+bulk-selected = {$count} ausgewählt
+
 owner-you = Sie
 owner-unknown = Unbekannt
 title-untitled-note = Unbenannte Notiz
@@ -80,6 +86,10 @@ toast-link-copied = Link in Zwischenablage kopiert
 toast-favorite-removed = Aus Favoriten entfernt
 toast-favorite-added = Zu Favoriten hinzugefügt
 toast-text-note-created = Textnotiz erstellt
+toast-folder-created = Ordner erstellt
+toast-note-moved = Notiz in Ordner verschoben
+toast-move-failed = Notiz konnte nicht verschoben werden
+folder-new-folder-name = Neuer Ordner
 
 # Relative time
 time-just-now = Gerade eben

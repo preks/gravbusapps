@@ -13,6 +13,8 @@ sidebar-back-to-desk = Înapoi la birou
 sidebar-expand = Extinde panoul lateral
 sidebar-collapse = Restrânge panoul lateral
 sidebar-brand-title = Note
+sidebar-section-notes = Note
+sidebar-section-recent = Recente
 sidebar-brand-subtitle = NEWWORK Apps
 sidebar-new = Nou
 sidebar-home = Acasă
@@ -59,6 +61,8 @@ menu-remove-favorite = Eliminați din favorite
 menu-add-favorite = Adăugați la favorite
 menu-archive = Arhivare
 menu-delete = Ștergere
+
+bulk-selected = {$count} selectate
 
 owner-you = Dvs.
 owner-unknown = Necunoscut
