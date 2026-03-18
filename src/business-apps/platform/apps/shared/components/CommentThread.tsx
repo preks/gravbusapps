@@ -113,8 +113,11 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   const isCellComment = comment.type === 'cell'
   const hasCellReference = isCellComment && comment.cellReference
 
-  const handleResolve = async () => {
+  const handleResolveAndUnhighlight = async () => {
     await onResolve()
+    if (isInlineComment && onUnhighlight) {
+      onUnhighlight(comment.id)
+    }
   }
 
   const handleDeleteAndUnhighlight = async () => {
@@ -239,7 +242,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
               </DropdownMenuItem>
             )}
             {!isResolved && (
-              <DropdownMenuItem onClick={handleResolve}>
+              <DropdownMenuItem onClick={handleResolveAndUnhighlight}>
                 <CheckCircle className="gba:h-4 gba:w-4 gba:mr-2" />
                 {messages.resolve}
               </DropdownMenuItem>

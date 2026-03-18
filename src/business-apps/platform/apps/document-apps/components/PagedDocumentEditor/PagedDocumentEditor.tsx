@@ -79,6 +79,7 @@ import {
 } from '../../utils/pageLayoutUtils'
 import { isAllowedHref, escapeHtmlAttr, escapeHtmlText } from '../../utils/linkUtils'
 import { normalizeDocumentHtmlForEditor, sanitizePaginationRuntimeHtml } from '../../utils/documentContentUtils'
+import { computePanelCommentAnchor, type PanelCommentAnchor } from '../../utils/commentPanelAnchor'
 import {
   useDocumentEditorAvatars,
   useYjsDocumentSync,
@@ -831,6 +832,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [aiInstruction, setAiInstruction] = useState('')
     const [aiSelectionSnapshot, setAiSelectionSnapshot] = useState('')
     const [aiSelectionSnapshotHtml, setAiSelectionSnapshotHtml] = useState('')
+    const panelCommentAnchorRef = useRef<PanelCommentAnchor | null>(null)
+    const activeEditorRef = useRef<ReturnType<typeof useEditor> | null>(null)
     const everyAiFallbackPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const suppressYjsSnapshotSaveRef = useRef(false)
     const [isAutocompleteToggleEnabled, setIsAutocompleteToggleEnabled] = useState(false)
@@ -1601,6 +1604,35 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [editor])
 
     const activeEditor = (pagesEditorState.activeEditor as typeof editor | null) ?? editor
+
+    useEffect(() => {
+      activeEditorRef.current = activeEditor
+    }, [activeEditor])
+
+    useEffect(() => {
+      if (!editor) return
+      const editors: NonNullable<typeof editor>[] = []
+      if (editor) editors.push(editor)
+      if (activeEditor && activeEditor !== editor) editors.push(activeEditor)
+
+      const sync = (ed: NonNullable<typeof editor>) => {
+        const next = computePanelCommentAnchor(ed)
+        panelCommentAnchorRef.current = next
+      }
+
+      const subs: { ed: NonNullable<typeof editor>; fn: () => void }[] = []
+      for (const ed of editors) {
+        const fn = () => sync(ed)
+        ed.on('selectionUpdate', fn)
+        subs.push({ ed, fn })
+      }
+      return () => {
+        for (const { ed, fn } of subs) {
+          ed.off('selectionUpdate', fn)
+        }
+      }
+    }, [editor, activeEditor])
+
     const pagesOptionsSyncEditorRef = useRef<typeof editor | null>(null)
 
     useEffect(() => {
@@ -2509,6 +2541,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     <Button
                       variant={rightSidebar === 'comments' ? 'default' : 'ghost'}
                       size="sm"
+                      onPointerDownCapture={() => {
+                        if (rightSidebar === 'comments') return
+                        const ed = activeEditorRef.current ?? editorRef.current
+                        if (ed && !ed.isDestroyed) {
+                          panelCommentAnchorRef.current = computePanelCommentAnchor(ed)
+                        }
+                      }}
                       onClick={() => setRightSidebar(prev => (prev === 'comments' ? 'closed' : 'comments'))}
                       title={t('editor-comments-title')}
                       data-testid="comments-button"
@@ -3337,10 +3376,63 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             unresolvedCount={comments.unresolvedCount}
             isLoading={comments.isLoading}
             onCreateComment={async (content, parentId) => {
+              if (parentId) {
+                await comments.createComment({
+                  type: 'document',
+                  content,
+                  parentId,
+                  createdByName: currentUserName || undefined,
+                  createdByAvatar: currentUserAvatar || undefined
+                })
+                return
+              }
+
+              const anchor = panelCommentAnchorRef.current
+              const ed = anchor?.editor
+              const docSize = ed && !ed.isDestroyed ? ed.state.doc.content.size : 0
+              const hasAnchor =
+                anchor && ed && !ed.isDestroyed && anchor.from < anchor.to && anchor.from >= 0 && anchor.to <= docSize
+
+              if (hasAnchor && ed) {
+                const from = Math.max(0, Math.min(anchor.from, docSize))
+                const to = Math.max(from, Math.min(anchor.to, docSize))
+                if (to <= from) {
+                  await comments.createComment({
+                    type: 'document',
+                    content,
+                    createdByName: currentUserName || undefined,
+                    createdByAvatar: currentUserAvatar || undefined
+                  })
+                  return
+                }
+                const selectedText = anchor.selectedText?.trim() || ed.state.doc.textBetween(from, to, '\n', ' ')
+                const comment = await comments.createComment({
+                  type: 'inline',
+                  content,
+                  selectionStart: from,
+                  selectionEnd: to,
+                  selectedText,
+                  createdByName: currentUserName || undefined,
+                  createdByAvatar: currentUserAvatar || undefined
+                })
+                if (comment) {
+                  ed.chain()
+                    .focus()
+                    .setTextSelection({ from, to })
+                    .setInlineComment({
+                      commentId: comment.id,
+                      commentType: 'inline',
+                      createdBy: currentUserId || '',
+                      createdAt: comment.createdAt
+                    })
+                    .run()
+                }
+                return
+              }
+
               await comments.createComment({
-                type: parentId ? 'document' : 'document',
+                type: 'document',
                 content,
-                parentId,
                 createdByName: currentUserName || undefined,
                 createdByAvatar: currentUserAvatar || undefined
               })
