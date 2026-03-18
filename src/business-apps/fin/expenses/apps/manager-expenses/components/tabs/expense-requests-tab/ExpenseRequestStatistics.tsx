@@ -5,16 +5,18 @@ import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
+const SUBMITTED_STATUSES = ['PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED']
+
 interface ExpenseRequestStatisticsProps {
   requestStats: ExpenseRequestStatisticsData | null
   requestStatsLoading: boolean
   requestStatsError: string | null
   fetchRequestStatistics: () => Promise<void>
   currencyFilter?: string | null
-  /** Clears the currency selection so the table shows all currencies. */
+  displayCurrency?: string | null
   clearCurrencyFilter: () => void
-  setFilters: (filters: string[]) => void
-  selectedFilters: string[]
+  activeFilter?: string[]
+  onFilterChange?: (statuses: string[]) => void
 }
 
 const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
@@ -23,61 +25,30 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   requestStatsError,
   fetchRequestStatistics,
   currencyFilter,
+  displayCurrency: displayCurrencyProp,
   clearCurrencyFilter,
-  setFilters,
-  selectedFilters
+  activeFilter = [],
+  onFilterChange
 }) => {
-  const displayCurrency = currencyFilter || 'EUR'
+  const displayCurrency = displayCurrencyProp ?? currencyFilter ?? 'EUR'
 
-  // Helper: Toggle multi-filter set (e.g., all submitted statuses)
-  const handleMultiFilterToggle = useCallback(
-    (filtersToToggle: string[]) => {
-      // Check if all filters in the set are currently active
-      const allFiltersActive = filtersToToggle.every(filter => selectedFilters.includes(filter))
-
-      if (allFiltersActive) {
-        // All filters are active, remove all of them - set to empty array
-        setFilters([])
-      } else {
-        // Not all filters are active - we want to set exactly these filters
-        // Use setFilters to set the final state in one update (prevents duplicates)
-        setFilters(filtersToToggle)
-      }
-    },
-    [selectedFilters, setFilters]
-  )
-
-  // Helper: Toggle single filter (exclusive selection)
-  const handleSingleFilterToggle = useCallback(
-    (filterKey: string) => {
-      if (selectedFilters.includes(filterKey)) {
-        // Filter is active, remove it - set to empty array
-        setFilters([])
-      } else {
-        // Filter is not active - we want only this filter active
-        // Use setFilters to set exactly this filter in one update
-        setFilters([filterKey])
-      }
-    },
-    [selectedFilters, setFilters]
-  )
-
-  // Handle card click functionality with proper filtering logic
   const handleCardClick = useCallback(
     (filterKey: string, isMultiFilter: boolean = false) => {
-      // Cards show currency-agnostic totals, so when drilling down we must ensure
-      // the table also shows all currencies (otherwise card count != table count).
       clearCurrencyFilter()
-
+      if (!onFilterChange) return
       if (isMultiFilter) {
-        const filtersToToggle = ['PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED']
-        handleMultiFilterToggle(filtersToToggle)
+        const allActive = SUBMITTED_STATUSES.every(s => activeFilter.includes(s))
+        onFilterChange(allActive ? [] : [...SUBMITTED_STATUSES])
       } else {
-        handleSingleFilterToggle(filterKey)
+        const isActive = activeFilter.includes(filterKey)
+        onFilterChange(isActive ? [] : [filterKey])
       }
     },
-    [clearCurrencyFilter, handleMultiFilterToggle, handleSingleFilterToggle]
+    [clearCurrencyFilter, onFilterChange, activeFilter]
   )
+
+  const isPendingActive = activeFilter.length === 1 && activeFilter[0] === 'PENDING'
+  const isSubmittedActive = SUBMITTED_STATUSES.every(s => activeFilter.includes(s))
 
   const widgets: WidgetItem[] = useMemo(
     () =>
@@ -90,13 +61,12 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
                 'Pending Requests'
               ),
               value: requestStats.pendingCount,
-              color: selectedFilters.includes('PENDING') ? 'var(--nw-primary)' : 'var(--nw-warning)',
-
+              color: isPendingActive ? 'var(--nw-primary)' : 'var(--nw-warning)',
               description: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval',
                 'Waiting for approval'
               ),
-              active: selectedFilters.includes('PENDING'),
+              active: isPendingActive,
               onClick: () => handleCardClick('PENDING')
             },
             {
@@ -107,7 +77,6 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
               ),
               value: formatCurrencyDisplay(requestStats.pendingAmount || 0, displayCurrency),
               color: 'var(--nw-success)',
-
               description: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds',
                 'Total Pending Reimbursement'
@@ -122,15 +91,11 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
               ),
               value: requestStats.totalRequestsSubmitted,
               color: 'var(--nw-primary)',
-
               description: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests',
                 'All Submitted Requests'
               ),
-              active: (() => {
-                const multiFilters = ['PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED']
-                return multiFilters.every(filter => selectedFilters.includes(filter))
-              })(),
+              active: isSubmittedActive,
               onClick: () => handleCardClick('', true)
             },
             {
@@ -140,18 +105,17 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
                 'Total Submitted Amount'
               ),
               value: formatCurrencyDisplay(requestStats.totalSubmittedAmount || 0, displayCurrency),
-              color: selectedFilters.length === 0 ? 'var(--nw-primary)' : 'var(--nw-accent)',
-
+              color: activeFilter.length === 0 ? 'var(--nw-primary)' : 'var(--nw-accent)',
               description: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests',
                 'All Expense Requests'
               ),
               valueIsString: true,
-              active: selectedFilters.length === 0
+              active: activeFilter.length === 0
             }
           ]
         : [],
-    [requestStats, selectedFilters, displayCurrency, handleCardClick]
+    [requestStats, activeFilter, displayCurrency, handleCardClick, isPendingActive, isSubmittedActive]
   )
 
   return (

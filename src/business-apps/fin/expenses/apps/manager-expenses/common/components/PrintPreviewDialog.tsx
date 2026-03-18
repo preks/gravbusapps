@@ -9,7 +9,11 @@ export interface PrintPreviewDialogProps {
   loading: boolean
   pdfUrl: string
   testIdPrefix: string
+  /** Optional override for the no-document details message (e.g. "expense request" vs "expense plan"). */
+  noDocumentDetailsMessage?: string
 }
+
+const DEFAULT_NO_DOCUMENT_DETAILS = 'This expense plan does not have an associated document to print.'
 
 export const PrintPreviewDialog = React.memo(function PrintPreviewDialog({
   open,
@@ -17,8 +21,12 @@ export const PrintPreviewDialog = React.memo(function PrintPreviewDialog({
   title,
   loading,
   pdfUrl,
-  testIdPrefix
+  testIdPrefix,
+  noDocumentDetailsMessage
 }: PrintPreviewDialogProps) {
+  const noDocumentMessage =
+    noDocumentDetailsMessage ??
+    getTranslationFromI18nKeyAndLabel('lowcoder:print.no_document_details', DEFAULT_NO_DOCUMENT_DETAILS)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -44,12 +52,7 @@ export const PrintPreviewDialog = React.memo(function PrintPreviewDialog({
             <div className="gba:text-muted-foreground gba:mb-4">
               {getTranslationFromI18nKeyAndLabel('lowcoder:print.no_document', 'No document available for printing')}
             </div>
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:print.no_document_details',
-                'This expense plan does not have an associated document to print.'
-              )}
-            </div>
+            <div className="gba:text-sm gba:text-muted-foreground">{noDocumentMessage}</div>
           </div>
         )}
       </DialogContent>
