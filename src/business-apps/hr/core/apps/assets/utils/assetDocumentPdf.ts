@@ -36,7 +36,7 @@ const LABELS = {
   valid: 'Valid',
   expired: 'Expired',
   notes: 'Notes',
-  allocationHistory: 'Allocation History',
+  allocationHistory: 'ALLOCATION HISTORY',
   allocationHistoryEmpty: 'No allocation history available for this asset.',
   notAvailable: 'N/A',
   present: 'Present',
@@ -159,6 +159,7 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
   const { doc, promise } = createPdfDoc()
   const margin = 40
   const pageWidth = doc.page.width - margin * 2
+  const sectionGap = 24
   let y = margin
 
   const isDisposalCertificate = asset.assetStatus === AssetStatus.RETIRED
@@ -194,7 +195,7 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
     doc.text(`${labels.issueDate}: ${issueDateDisplay}`, margin, y, { width: pageWidth })
     y += 14
     doc.text(`${labels.status}: Retired`, margin, y, { width: pageWidth })
-    y += 24
+    y += sectionGap
 
     // ASSET IDENTIFICATION
     doc.fontSize(12).font('Helvetica-Bold').text(labels.assetIdentification, margin, y)
@@ -209,7 +210,7 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
     doc.text(`${labels.serialNumber}: ${serialDisplay}`, margin, y, { width: pageWidth })
     y += 14
     doc.text(`${labels.previousCustodian}: ${previousCustodianDisplay}`, margin, y, { width: pageWidth })
-    y += 24
+    y += sectionGap
 
     // DATA SANITIZATION DETAILS
     doc.fontSize(12).font('Helvetica-Bold').text(labels.dataSanitizationDetails, margin, y)
@@ -223,7 +224,7 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
     const sanitizationMethodDisplay =
       getCatalogValue(asset.sanitizationMethod) || asset.sanitizationMethodRef || labels.notAvailable
     doc.text(`${labels.sanitizationMethod}: ${sanitizationMethodDisplay}`, margin, y, { width: pageWidth })
-    y += 24
+    y += sectionGap
 
     // DISPOSAL STATUS & LOGISTICS
     doc.fontSize(12).font('Helvetica-Bold').text(labels.disposalStatusLogistics, margin, y)
@@ -232,8 +233,7 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
     const disposalTypeDisplay =
       getCatalogValue(asset.disposalOutcome) || asset.disposalOutcomeRef || labels.notAvailable
     doc.text(`${labels.disposalType}: ${disposalTypeDisplay}`, margin, y, { width: pageWidth })
-    y += 24
-    y += 24
+    y += sectionGap
     doc.fontSize(12).font('Helvetica-Bold').text(labels.allocationHistory, margin, y)
     y += 18
   } else {
@@ -361,7 +361,7 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
   }
 
   if (isDisposalCertificate) {
-    y += 24
+    y += sectionGap
     doc.fontSize(12).font('Helvetica-Bold').text(labels.authorizationSignOff, margin, y)
     y += 18
     doc.fontSize(10).font('Helvetica')
