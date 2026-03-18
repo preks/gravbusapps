@@ -31,24 +31,22 @@ import {
 } from '@newwork/nw-design-system'
 import CardTabHeaderComponent from '../../../generic-components/card'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import DepartmentForm from '@/business-apps/mdm/forms/department-form'
 import { Department } from '../../types'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 export interface DepartmentsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
 const DATA_TEST_ID_PREFIX = 'DepartmentsTab'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 const DepartmentsTab: React.FC<DepartmentsTabProps> = context => {
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   const { rootDepartments, allDepartments, isLoading, error, refetch, totalDepartments, structureId } =
     useDepartments(context)
@@ -222,7 +220,7 @@ const DepartmentsTab: React.FC<DepartmentsTabProps> = context => {
   )
 
   const handleDeleteDepartment = async (department: Department) => {
-    await restClient.delete(`/organizational-units/${department.id}`, {
+    await orgchartClient.deleteOrganizationalUnit(department.id, {
       headers: { Authorization: `Bearer ${context.accessToken}` }
     })
 

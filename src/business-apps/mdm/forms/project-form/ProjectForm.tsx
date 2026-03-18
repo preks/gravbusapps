@@ -26,8 +26,6 @@ import {
   Icon
 } from '@newwork/nw-design-system'
 import { WarningIcon } from '@phosphor-icons/react'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import type { Project } from '../../apps/project-management/types'
 import { ProjectStatusBE, ProjectStatusUI } from '../../apps/project-management/types'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -40,6 +38,7 @@ import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useFormContext, ControllerRenderProps } from 'react-hook-form'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 const DATA_TEST_ID_PREFIX = 'ProjectForm'
 
@@ -203,8 +202,6 @@ const ConfirmStatusDialog: React.FC<ConfirmStatusDialogProps> = ({
     </Dialog>
   )
 }
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
-
 // Helper function to transform UI status to BE status
 const transformUIStatusToBE = (uiStatus: ProjectStatusUI): ProjectStatusBE => {
   switch (uiStatus) {
@@ -362,7 +359,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
   onProjectClosed
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const { t } = useTranslation('master-data')
   const customerRelationsEnabled = useFeature<boolean>(Feature.CRM.CustomerRelations.Key)
 
@@ -458,11 +455,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
       }
 
       if (project) {
-        await restClient.put(`/projects/${project.id}`, projectData, {
+        await orgchartClient.updateProject(project.id, projectData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       } else {
-        await restClient.post(`/projects`, projectData, {
+        await orgchartClient.createProject(projectData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       }

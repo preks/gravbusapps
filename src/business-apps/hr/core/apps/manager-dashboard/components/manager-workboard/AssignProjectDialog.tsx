@@ -18,11 +18,12 @@ import {
   toast
 } from '@newwork/nw-design-system'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { Search, AlertCircle } from 'lucide-react'
 import { ProjectStatusBE, ProjectStatusUI } from '@/business-apps/mdm/apps/project-management/types'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 interface Project {
   id: string
@@ -85,7 +86,7 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
   >([])
 
   const graphqlClient = useGraphqlClient(accessToken)
-  const restClientOrgchart = useRestClient(env('NEXT_PUBLIC_ORGCHART_API_URL') + '/orgchart/api/v1')
+  const orgchartClient = useOrgchartClient(accessToken)
   const restClientEmployeeProcess = useRestClient(env('NEXT_PUBLIC_BASE_URL') + '/processes/employee')
   const structureId = getCurrentActiveStructureId()
 
@@ -276,7 +277,7 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
         percentage: allocationValue
       }
 
-      await restClientOrgchart.post('/employee-assignments/matrix-unit', [assignPayload], {
+      await orgchartClient.assignEmployeesToMatrixUnit([assignPayload], {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
@@ -321,7 +322,7 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
     accessToken,
     workingHoursData,
     existingAssignments,
-    restClientOrgchart,
+    orgchartClient,
     restClientEmployeeProcess,
     onSuccess,
     onOpenChange

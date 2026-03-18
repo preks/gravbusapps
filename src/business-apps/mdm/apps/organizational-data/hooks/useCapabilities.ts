@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { Capability, CapabilityLayer } from '../components/tabs/CapabilitiesTab'
-import { env } from '@/common/env/EnvUtils'
-
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 // Interface for raw API data
 export interface CapabilityData {
@@ -46,14 +44,14 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
   const [capabilityGroups, setCapabilityGroups] = useState<CapabilityGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const structureId = useRef<string>(context.additionalData?.structureId || 'active')
+  const structureId = useRef<string>(getCurrentActiveStructureId() ?? '')
 
   // Pagination state
   const [totalCount, setTotalCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(DEFAULT_PAGE)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   // Transform API capability data to UI-friendly Capability interface
   const transformCapability = (
@@ -80,14 +78,17 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
         if (!structureId) {
           throw new Error('Structure ID is required to fetch capabilities')
         }
-        const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
-          params: {
+        const getStructureResponse = await orgchartClient.getStructure(
+          structureId.current,
+          {
             nodeType: 'cost_center'
           },
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`
+          {
+            headers: {
+              Authorization: `Bearer ${context.accessToken}`
+            }
           }
-        })
+        )
         structureId.current = getStructureResponse.structure.structureId
 
         const params: Record<string, string | number> = {
@@ -98,8 +99,7 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
           params.offset = offset
         }
 
-        const response = await restClient.get<PaginatedCapabilityData>('/capabilities', {
-          params,
+        const response = await orgchartClient.getCapabilities(params, {
           headers: {
             Authorization: `Bearer ${context.accessToken}`
           }
@@ -130,24 +130,23 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
         throw new Error('Failed to fetch capabilities from orgchart API')
       }
     },
-    [context.accessToken, restClient]
+    [context.accessToken, orgchartClient]
   )
 
   const fetchCapabilityLayers = useCallback(
     async (limit?: number, offset?: number): Promise<{ layers: CapabilityLayer[] }> => {
       try {
         // Get structureId from additionalData or use default
-        const structureId = context.additionalData?.structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+        const resolvedStructureId = structureId.current
 
-        if (!structureId) {
+        if (!resolvedStructureId) {
           throw new Error('Structure ID is required to fetch capabilities')
         }
 
         const params: Record<string, string | number> = {
-          structureId: structureId
+          structureId: resolvedStructureId
         }
 
-        // Add pagination params if provided
         if (limit !== undefined) {
           params.limit = limit
         }
@@ -155,20 +154,15 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
           params.offset = offset
         }
 
-        const response = await restClient.get<CapabilityLayer[]>('/capabilities/layers', {
-          params,
+        const response = await orgchartClient.getCapabilityLayers(params, {
           headers: {
             Authorization: `Bearer ${context.accessToken}`
           }
         })
 
-        // Extract capabilities and total count from the paginated response
-        const layersResponse = response
-
-        // Handle the response format with data and paging properties
-        if (layersResponse) {
+        if (response) {
           return {
-            layers: layersResponse as CapabilityLayer[]
+            layers: response as CapabilityLayer[]
           }
         }
 
@@ -180,24 +174,22 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
         throw new Error('Failed to fetch capabilities from orgchart API')
       }
     },
-    [context.accessToken, context.additionalData?.structureId, restClient]
+    [context.accessToken, orgchartClient]
   )
 
   const fetchCapabilityGroups = useCallback(
     async (limit?: number, offset?: number): Promise<{ groups: CapabilityGroup[] }> => {
       try {
-        // Get structureId from additionalData or use default
-        const structureId = context.additionalData?.structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+        const resolvedStructureId = structureId.current
 
-        if (!structureId) {
+        if (!resolvedStructureId) {
           throw new Error('Structure ID is required to fetch capability groups')
         }
 
         const params: Record<string, string | number> = {
-          structureId: structureId
+          structureId: resolvedStructureId
         }
 
-        // Add pagination params if provided
         if (limit !== undefined) {
           params.limit = limit
         }
@@ -205,20 +197,15 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
           params.offset = offset
         }
 
-        const response = await restClient.get<CapabilityGroup[]>('/capabilities/groups', {
-          params,
+        const response = await orgchartClient.getCapabilityGroups(params, {
           headers: {
             Authorization: `Bearer ${context.accessToken}`
           }
         })
 
-        // Extract groups from the response
-        const groupsResponse = response
-
-        // Handle the response format
-        if (groupsResponse) {
+        if (response) {
           return {
-            groups: groupsResponse as CapabilityGroup[]
+            groups: response as CapabilityGroup[]
           }
         }
 
@@ -230,7 +217,7 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
         throw new Error('Failed to fetch capability groups from orgchart API')
       }
     },
-    [context.accessToken, context.additionalData?.structureId, restClient]
+    [context.accessToken, orgchartClient]
   )
 
   // Load data with pagination

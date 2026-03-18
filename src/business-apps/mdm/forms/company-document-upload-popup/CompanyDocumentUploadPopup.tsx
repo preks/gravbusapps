@@ -21,12 +21,11 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { CatalogSelect } from '@/components/catalog-select'
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { env } from '@/common/env/EnvUtils'
 import type { Company } from '@/common/data/orgchart/types/companyTypes'
 import translations from './_i18n'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 export interface CompanyDocumentUploadPopupProps {
   open: boolean
@@ -73,7 +72,7 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
   const [folders, setFolders] = useState<{ id: string; name: string }[]>([])
   const [loadingFolders, setLoadingFolders] = useState(false)
 
-  const restClient = useRestClient(env('NEXT_PUBLIC_ORGCHART_API_URL'))
+  const orgchartClient = useOrgchartClient(accessToken)
   const fileClient = useFileClient({ accessToken } as any)
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -250,7 +249,7 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
       const payload = buildCompanyPayloadWithDocument(newDocument)
 
       // Submit to API - PUT to company endpoint with complete payload
-      await restClient.put(`/orgchart/api/v1/companies/${companyId}`, payload, {
+      await orgchartClient.updateCompany(companyId, payload, {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
 

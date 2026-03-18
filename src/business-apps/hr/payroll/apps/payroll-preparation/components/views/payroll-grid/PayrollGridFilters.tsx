@@ -25,7 +25,7 @@ export const PayrollGridFilters: React.FC<PayrollGridFiltersProps> = ({ filters,
   }
 
   return (
-    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap gba:mb-4">
+    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
       <div className="gba:relative gba:flex-1 gba:min-w-[200px] gba:max-w-[320px]">
         <MagnifyingGlassIcon
           size={16}
@@ -43,36 +43,46 @@ export const PayrollGridFilters: React.FC<PayrollGridFiltersProps> = ({ filters,
         <FunnelIcon size={16} />
       </div>
 
-      <div className="gba:min-w-[150px]">
-        <Select value={filters.readinessStatus} onValueChange={(val: string) => updateFilter('readinessStatus', val)}>
-          <SelectTrigger>
-            <SelectValue placeholder={t('filter-readiness')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('filter-all')}</SelectItem>
-            <SelectItem value="ready">{t('readiness-ready')}</SelectItem>
-            <SelectItem value="warning">{t('readiness-warning')}</SelectItem>
-            <SelectItem value="blocked">{t('readiness-blocked')}</SelectItem>
-            <SelectItem value="excluded">{t('readiness-excluded')}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {departments.length > 0 && (
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+          {t('label-readiness')}
+        </span>
         <div className="gba:min-w-[150px]">
-          <Select value={filters.department} onValueChange={(val: string) => updateFilter('department', val)}>
+          <Select value={filters.readinessStatus} onValueChange={(val: string) => updateFilter('readinessStatus', val)}>
             <SelectTrigger>
-              <SelectValue placeholder={t('filter-department')} />
+              <SelectValue placeholder={t('filter-readiness')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('filter-all')}</SelectItem>
-              {departments.map(dept => (
-                <SelectItem key={dept} value={dept}>
-                  {dept}
-                </SelectItem>
-              ))}
+              <SelectItem value="ready">{t('readiness-ready')}</SelectItem>
+              <SelectItem value="warning">{t('readiness-warning')}</SelectItem>
+              <SelectItem value="blocked">{t('readiness-blocked')}</SelectItem>
+              <SelectItem value="excluded">{t('readiness-excluded')}</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      {departments.length > 0 && (
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+            {t('label-department')}
+          </span>
+          <div className="gba:min-w-[150px]">
+            <Select value={filters.department} onValueChange={(val: string) => updateFilter('department', val)}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('filter-department')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('filter-all')}</SelectItem>
+                {departments.map(dept => (
+                  <SelectItem key={dept} value={dept}>
+                    {dept}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       )}
 

@@ -1,83 +1,28 @@
-/**
- * NoteAppsHub Component
- *
- * The main entry point for the Notes application.
- * Hero-based layout with section tabs replacing the sidebar.
- */
-
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import {
-  Card,
-  Button,
-  Input,
-  Spinner,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  Badge,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-  Checkbox,
-  useTranslation
-} from '@newwork/nw-design-system'
-import {
-  StickyNote,
-  Plus,
-  Search,
-  List,
-  Pin,
-  Archive,
-  Users,
-  Sparkles,
-  FileText,
-  MoreHorizontal,
-  Star,
-  Trash2,
-  ArrowUpDown,
-  RefreshCw,
-  Copy,
-  Share2,
-  Link2,
-  User,
-  LayoutGrid,
-  PenTool,
-  SortAsc,
-  SortDesc
-} from 'lucide-react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-
-// Components
-import { NoteHero } from './components/NoteHero'
-import type { NoteSection } from './components/NoteHero'
-import { type SharedUserInfo } from './components/NotePreviewCard'
-import { NoteEditor } from './NoteEditor'
-import { HandwritingNote } from './components/HandwritingNote'
-import { ShareNoteDialog, type SharedNoteUser } from './components/ShareNoteDialog'
-import type { PaperStyle, StrokeData } from './components/handwriting'
-
-// Hooks
-import { useNotes } from './hooks/useNotes'
-import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
-import { useHubPagination } from '../shared/hooks/useHubPagination'
-import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
-
-// GraphQL
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 
-// Services
-import { NoteApiService } from './services/NoteApiService'
+import { NoteTreeSidebar } from './components/NoteTreeSidebar'
+import { NoteContentArea } from './components/NoteContentArea'
+import { NoteEditor } from './NoteEditor'
+import { HandwritingNote } from './components/HandwritingNote'
+import { ShareNoteDialog, type SharedNoteUser } from './components/ShareNoteDialog'
+import type { QuickAccessSection } from './components/NoteTreeQuickAccess'
+import type { PaperStyle, StrokeData } from './components/handwriting'
 
-// Types
-import type { NoteSummary, CreateNoteInput, NoteColor } from './types'
+import { useNotes } from './hooks/useNotes'
+import { useNoteTree } from './hooks/useNoteTree'
+import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
+import { useResizableSidebar } from './hooks/useResizableSidebar'
+import { useNoteTreeDragDrop } from './hooks/useNoteTreeDragDrop'
+import { useHubPagination } from '../shared/hooks/useHubPagination'
+import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
+
+import { NoteApiService } from './services/NoteApiService'
+import type { NoteSummary, CreateNoteInput, NoteColor, NoteTreeNode } from './types'
 import translations from './_i18n'
 
 export interface NoteAppsHubProps extends BusinessAppContextProps {
@@ -85,60 +30,16 @@ export interface NoteAppsHubProps extends BusinessAppContextProps {
 }
 
 type HubView = 'list' | 'editor'
-type SidebarSection = NoteSection
 
-/** Get initials from a name */
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map(part => part[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
+const QUICK_ACCESS_TO_SECTION: Record<QuickAccessSection, string> = {
+  'all-notes': 'my-notes',
+  favorites: 'home',
+  pinned: 'pinned',
+  shared: 'shared',
+  recent: 'recent',
+  archived: 'archived'
 }
 
-/**
- * Format date for table display
- */
-function formatDate(dateString: string, t: (key: string, vars?: Record<string, unknown>) => string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  }
-  if (diffDays === 1) return t('time-yesterday')
-  if (diffDays < 7) return t('time-days-ago-plural', { count: diffDays })
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-  })
-}
-
-/**
- * Format relative time
- */
-function formatRelativeTime(dateString: string, t: (key: string, vars?: Record<string, unknown>) => string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffMins < 1) return t('time-just-now')
-  if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
-  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
-  if (diffDays < 7) return t('time-days-ago', { count: diffDays })
-  return date.toLocaleDateString()
-}
-
-/**
- * NoteAppsHub Component
- */
 export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   accessToken,
   userInfo,
@@ -150,10 +51,13 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeSection, setActiveSection] = useState<SidebarSection>('my-notes')
+  const [activeQuickAccess, setActiveQuickAccess] = useState<QuickAccessSection | null>('all-notes')
+  const [activeSection, setActiveSection] = useState<string>('my-notes')
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
+  const [folderBreadcrumbs, setFolderBreadcrumbs] = useState<Array<{ id: string; title: string }>>([])
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem('note-favorites')
@@ -163,32 +67,25 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     }
   })
 
-  // Clear space return URL if not opened from a space
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(globalThis.window.location.search)
-      const spaceId = params.get('spaceId')
-      if (!spaceId) {
-        // Note opened from hub, not from a space - clear any stale return URL
-        sessionStorage.removeItem('space_return_url')
-      }
-    } catch (e) {
-      console.warn('Failed to check/clear space_return_url:', e)
-    }
-  }, [])
-
-  // Data state
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
-  const [sharedUsersMap] = useState<Record<string, SharedUserInfo[]>>({})
   const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
 
-  // Share dialog state
+  // Share dialog
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [noteToShare, setNoteToShare] = useState<NoteSummary | null>(null)
   const [shareDialogSharedUsers, setShareDialogSharedUsers] = useState<SharedNoteUser[]>([])
 
-  // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+
+  // Clear space return URL if not opened from a space
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(globalThis.window.location.search)
+      if (!params.get('spaceId')) sessionStorage.removeItem('space_return_url')
+    } catch {
+      // ignore
+    }
+  }, [])
 
   // Hooks
   const {
@@ -210,6 +107,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     getSharedUsers
   } = useNotes({ accessToken, userId: currentUserId, translate: t })
 
+  const noteTree = useNoteTree({ autoLoad: true, t })
+
   const { updateUrl, resetLoadAttempt } = useNoteAppsHubUrlState({
     currentView,
     currentNoteId: selectedNoteId,
@@ -217,41 +116,40 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     loadNoteById: loadNote,
     setCurrentView,
     setSelectedNoteId,
-    activeSection,
+    activeSection: activeSection as any,
     setActiveSection
   })
 
-  // Update URL whenever activeSection changes (when user clicks sidebar)
-  useEffect(() => {
-    if (currentView === 'list' && !selectedNoteId) {
-      updateUrl(null)
-    }
-  }, [activeSection, currentView, selectedNoteId, updateUrl])
+  const sidebar = useResizableSidebar()
+
+  const dragDrop = useNoteTreeDragDrop({
+    flatNodes: noteTree.flatNodes,
+    expandedIds: noteTree.expandedIds,
+    onMoveNode: noteTree.moveNodeOptimistic,
+    toggleExpand: noteTree.toggleExpand
+  })
 
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
 
-  // Save favorites to localStorage
+  // Persist favorites
   useEffect(() => {
     localStorage.setItem('note-favorites', JSON.stringify(Array.from(favorites)))
   }, [favorites])
 
-  // Fetch owner info for notes - match spreadsheet pattern
+  // Fetch owner info
   const loadingOwnerInfoRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (!graphqlClient) return
-
-    const loadOwnerInfo = async () => {
-      for (const note of notes) {
-        const ownerId = note.ownerId
-        if (!ownerId || ownerInfoMap.has(ownerId) || loadingOwnerInfoRef.current.has(ownerId)) continue
-        loadingOwnerInfoRef.current.add(ownerId)
-
-        try {
-          const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(ownerId)
-          const result = await graphqlClient.request<{
-            Employee: Array<{ displayName: string; pictureThumbnail?: string }>
-          }>(query)
+    for (const note of notes) {
+      const ownerId = note.ownerId
+      if (!ownerId || ownerInfoMap.has(ownerId) || loadingOwnerInfoRef.current.has(ownerId)) continue
+      loadingOwnerInfoRef.current.add(ownerId)
+      graphqlClient
+        .request<{ Employee: Array<{ displayName: string; pictureThumbnail?: string }> }>(
+          GET_EMPLOYEE_LIGHT_BY_USER_ID(ownerId)
+        )
+        .then(result => {
           const emp = result.Employee?.[0]
           setOwnerInfoMap(prev =>
             new Map(prev).set(ownerId, {
@@ -263,110 +161,127 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                 : undefined
             })
           )
-        } catch {
-          // Ignore errors - just show fallback
-          setOwnerInfoMap(prev =>
-            new Map(prev).set(ownerId, {
-              name: `User ${ownerId.slice(0, 8)}`
-            })
-          )
-        } finally {
-          loadingOwnerInfoRef.current.delete(ownerId)
-        }
-      }
+        })
+        .catch(() => {
+          setOwnerInfoMap(prev => new Map(prev).set(ownerId, { name: `User ${ownerId.slice(0, 8)}` }))
+        })
+        .finally(() => loadingOwnerInfoRef.current.delete(ownerId))
     }
-
-    loadOwnerInfo()
   }, [notes, graphqlClient, ownerInfoMap])
 
-  // Separate notes into categories
+  // Categorise notes
   const { myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes } = useMemo(() => {
     const my: NoteSummary[] = []
     const shared: NoteSummary[] = []
     const pinned: NoteSummary[] = []
     const archived: NoteSummary[] = []
-    const recent: NoteSummary[] = []
-
-    // Sort by updatedAt for recent
     const sortedByDate = [...notes].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    const recentSet = new Set(sortedByDate.slice(0, 10).map(n => n.id))
+    const recentIds = new Set(sortedByDate.slice(0, 10).map(n => n.id))
+    const recent: NoteSummary[] = []
 
     notes.forEach(note => {
       if (note.isArchived) {
         archived.push(note)
         return
       }
-      if (note.isPinned) {
-        pinned.push(note)
-      }
-      if (recentSet.has(note.id)) {
-        recent.push(note)
-      }
+      if (note.isPinned) pinned.push(note)
+      if (recentIds.has(note.id)) recent.push(note)
       const isSharedWithMe = note.isShared === true || (note.ownerId !== currentUserId && note.permission !== 'owner')
-      if (isSharedWithMe) {
-        shared.push(note)
-      } else {
-        my.push(note)
-      }
+      if (isSharedWithMe) shared.push(note)
+      else my.push(note)
     })
-
     return { myNotes: my, sharedNotes: shared, pinnedNotes: pinned, archivedNotes: archived, recentNotes: recent }
   }, [notes, currentUserId])
 
-  // Filter and sort notes based on current section
-  const filteredNotes = useMemo(() => {
-    let baseNotes: NoteSummary[] = []
+  // Quick access counts — count all actual notes (not folders) across all nesting levels
+  const isFolder = (n: NoteSummary) => n.icon === '📁'
+  const quickAccessCounts = useMemo(
+    () => ({
+      'all-notes': myNotes.filter(n => !isFolder(n)).length + sharedNotes.filter(n => !isFolder(n)).length,
+      favorites: Array.from(favorites).filter(id => notes.some(n => n.id === id && !isFolder(n))).length,
+      pinned: pinnedNotes.filter(n => !isFolder(n)).length,
+      shared: sharedNotes.filter(n => !isFolder(n)).length,
+      recent: recentNotes.filter(n => !isFolder(n)).length,
+      archived: archivedNotes.filter(n => !isFolder(n)).length
+    }),
+    [myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes, favorites, notes]
+  )
 
+  // Filter + sort notes
+  const filteredNotes = useMemo(() => {
+    let base: NoteSummary[] = []
     switch (activeSection) {
-      case 'home':
-        baseNotes = [...myNotes, ...sharedNotes]
-        break
       case 'pinned':
-        baseNotes = pinnedNotes
+        base = pinnedNotes
         break
       case 'shared':
-        baseNotes = sharedNotes
+        base = sharedNotes
         break
       case 'archived':
-        baseNotes = archivedNotes
+        base = archivedNotes
         break
       case 'recent':
-        baseNotes = recentNotes
+        base = recentNotes
+        break
+      case 'home':
+        base = [...myNotes, ...sharedNotes]
         break
       default:
-        baseNotes = myNotes
+        base = myNotes
     }
 
-    // Filter by search
+    if (activeQuickAccess === 'favorites') {
+      base = base.filter(n => favorites.has(n.id))
+    }
+
+    if (currentFolderId) {
+      base = base.filter(n => n.parentId === currentFolderId)
+    } else if (activeSection === 'my-notes' || activeSection === 'home') {
+      base = base.filter(n => !n.parentId)
+    }
+
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      baseNotes = baseNotes.filter(
-        note =>
-          note.title?.toLowerCase().includes(query) ||
-          note.preview?.toLowerCase().includes(query) ||
-          note.tags?.some(tag => tag.toLowerCase().includes(query))
+      const q = searchQuery.toLowerCase()
+      base = base.filter(
+        n =>
+          n.title?.toLowerCase().includes(q) ||
+          n.preview?.toLowerCase().includes(q) ||
+          n.tags?.some(tag => tag.toLowerCase().includes(q))
       )
     }
 
-    // Sort
-    baseNotes.sort((a, b) => {
-      let comparison = 0
+    const isFolder = (n: NoteSummary) => n.icon === '📁'
+    base.sort((a, b) => {
+      if (isFolder(a) !== isFolder(b)) return isFolder(a) ? -1 : 1
+      let cmp = 0
       switch (sortBy) {
         case 'name':
-          comparison = (a.title || '').localeCompare(b.title || '')
+          cmp = (a.title || '').localeCompare(b.title || '')
           break
         case 'modified':
-          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          cmp = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           break
         case 'created':
-          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          cmp = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           break
       }
-      return sortOrder === 'asc' ? -comparison : comparison
+      return sortOrder === 'asc' ? -cmp : cmp
     })
-
-    return baseNotes
-  }, [myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes, activeSection, searchQuery, sortBy, sortOrder])
+    return base
+  }, [
+    myNotes,
+    sharedNotes,
+    pinnedNotes,
+    archivedNotes,
+    recentNotes,
+    activeSection,
+    activeQuickAccess,
+    searchQuery,
+    sortBy,
+    sortOrder,
+    favorites,
+    currentFolderId
+  ])
 
   const {
     paginatedItems: paginatedNotes,
@@ -377,97 +292,163 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     pageSize
   } = useHubPagination({ items: filteredNotes, pageSize: 20 })
 
-  /**
-   * Create new note
-   */
+  // Handlers
   const handleCreateNew = useCallback(
-    async (options?: { color?: NoteColor; noteType?: 'text' | 'handwriting'; paperStyle?: PaperStyle }) => {
+    async (options?: {
+      color?: NoteColor
+      noteType?: 'text' | 'handwriting'
+      paperStyle?: PaperStyle
+      parentId?: string
+    }) => {
       const input: CreateNoteInput = {
         title: '',
         content: '<p></p>',
-        color: options?.color
+        color: options?.color,
+        parentId: options?.parentId
       }
-
-      // For handwriting notes, store noteType and paperStyle in contentJson
       if (options?.noteType === 'handwriting') {
-        ;(input as CreateNoteInput & { contentJson?: unknown }).contentJson = {
+        ;(input as any).contentJson = {
           _noteType: 'handwriting',
           _paperStyle: options.paperStyle || 'lined',
           strokes: []
         }
       }
-
       const newNote = await createNote(input)
-
       if (newNote) {
+        await loadNote(newNote.id)
         setSelectedNoteId(newNote.id)
+        noteTree.setSelectedId(newNote.id)
         setCurrentView('editor')
         updateUrl(newNote.id, 'editor')
+        noteTree.loadTree()
       }
     },
-    [createNote, updateUrl]
+    [createNote, loadNote, updateUrl, noteTree]
   )
 
-  /**
-   * Open a note
-   */
+  const handleCreateFolder = useCallback(async () => {
+    const input: CreateNoteInput = {
+      title: t('folder-new-folder-name'),
+      content: '',
+      icon: '📁',
+      parentId: currentFolderId || undefined
+    }
+    const folder = await createNote(input)
+    if (folder) {
+      toast.success(t('toast-folder-created'))
+      refreshNotes()
+      noteTree.loadTree()
+    }
+  }, [createNote, t, noteTree, currentFolderId, refreshNotes])
+
   const handleOpenNote = useCallback(
     async (id: string) => {
       const note = await loadNote(id)
       if (note) {
         setSelectedNoteId(id)
+        noteTree.setSelectedId(id)
         setCurrentView('editor')
         updateUrl(id, 'editor')
       }
     },
-    [loadNote, updateUrl]
+    [loadNote, updateUrl, noteTree]
   )
 
-  /**
-   * Handle delete note
-   */
+  const handleOpenFolder = useCallback(
+    (folderId: string) => {
+      const folder = notes.find(n => n.id === folderId)
+      if (folder) {
+        setFolderBreadcrumbs(prev => [...prev, { id: folderId, title: folder.title || t('folder-new-folder-name') }])
+        setCurrentFolderId(folderId)
+      }
+    },
+    [notes, t]
+  )
+
+  const handleBreadcrumbNav = useCallback(
+    (id: string | null) => {
+      if (!id) {
+        setCurrentFolderId(null)
+        setFolderBreadcrumbs([])
+        return
+      }
+      const idx = folderBreadcrumbs.findIndex(b => b.id === id)
+      if (idx >= 0) {
+        setFolderBreadcrumbs(prev => prev.slice(0, idx + 1))
+        setCurrentFolderId(id)
+      }
+    },
+    [folderBreadcrumbs]
+  )
+
+  const handleMoveToFolder = useCallback(
+    async (noteId: string, folderId: string) => {
+      try {
+        await NoteApiService.moveNote(noteId, { parentId: folderId, position: 0 })
+        toast.success(t('toast-note-moved'))
+        refreshNotes()
+        noteTree.loadTree()
+      } catch (err) {
+        console.error('Move to folder failed:', err)
+        toast.error(t('toast-move-failed'))
+      }
+    },
+    [refreshNotes, noteTree, t]
+  )
+
+  const handleRenameNote = useCallback(
+    async (noteId: string, newTitle: string) => {
+      try {
+        await NoteApiService.updateNote(noteId, { title: newTitle })
+        noteTree.updateNodeTitleOptimistic(noteId, newTitle)
+        refreshNotes()
+      } catch (err) {
+        console.error('Rename failed:', err)
+        toast.error(t('toast-move-failed'))
+      }
+    },
+    [noteTree, refreshNotes, t]
+  )
+
   const handleDeleteNote = useCallback(
     async (id: string) => {
       if (confirm(t('confirm-delete'))) {
         const success = await deleteNote(id)
-        if (success && selectedNoteId === id) {
-          setSelectedNoteId(null)
-          setCurrentView('list')
-          updateUrl(null)
+        if (success) {
+          noteTree.removeNodeOptimistic(id)
+          if (selectedNoteId === id) {
+            setSelectedNoteId(null)
+            setCurrentView('list')
+            updateUrl(null)
+          }
         }
       }
     },
-    [deleteNote, selectedNoteId, updateUrl, t]
+    [deleteNote, selectedNoteId, updateUrl, t, noteTree]
   )
 
-  /**
-   * Handle duplicate note
-   */
   const handleDuplicateNote = useCallback(
     async (id: string) => {
       await duplicateNote(id)
       toast.success(t('toast-note-duplicated'))
+      noteTree.loadTree()
     },
-    [duplicateNote, t]
+    [duplicateNote, t, noteTree]
   )
 
-  /**
-   * Handle toggle pin
-   */
   const handleTogglePin = useCallback(
     async (id: string) => {
+      const note = notes.find(n => n.id === id)
+      const wasPinned = note?.isPinned
       const success = await togglePin(id)
       if (success) {
-        const note = notes.find(n => n.id === id)
-        toast.success(note?.isPinned ? t('toast-note-unpinned') : t('toast-note-pinned'))
+        toast.success(wasPinned ? t('toast-note-unpinned') : t('toast-note-pinned'))
+        noteTree.loadTree()
       }
     },
-    [togglePin, notes, t]
+    [togglePin, notes, t, noteTree]
   )
 
-  /**
-   * Handle archive note
-   */
   const handleArchiveNote = useCallback(
     async (id: string) => {
       const success = await archiveNote(id)
@@ -482,11 +463,35 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     [archiveNote, selectedNoteId, t]
   )
 
-  /**
-   * Go back to list or return URL
-   */
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedNotes.size === 0) return
+    if (!confirm(t('confirm-delete'))) return
+    const ids = Array.from(selectedNotes)
+    for (const id of ids) {
+      await deleteNote(id)
+      noteTree.removeNodeOptimistic(id)
+    }
+    setSelectedNotes(new Set())
+  }, [selectedNotes, deleteNote, noteTree, t])
+
+  const handleBulkPin = useCallback(async () => {
+    const ids = Array.from(selectedNotes)
+    for (const id of ids) await togglePin(id)
+    noteTree.loadTree()
+    setSelectedNotes(new Set())
+  }, [selectedNotes, togglePin, noteTree])
+
+  const handleBulkArchive = useCallback(async () => {
+    const ids = Array.from(selectedNotes)
+    for (const id of ids) await archiveNote(id)
+    setSelectedNotes(new Set())
+  }, [selectedNotes, archiveNote])
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedNotes(new Set())
+  }, [])
+
   const handleBack = useCallback(() => {
-    // Check if there's a space return URL in sessionStorage (takes priority)
     try {
       const spaceReturnUrl = sessionStorage.getItem('space_return_url')
       if (spaceReturnUrl) {
@@ -494,21 +499,15 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         globalThis.window.location.href = spaceReturnUrl
         return
       }
-    } catch (e) {
-      console.warn('Failed to read space_return_url from sessionStorage:', e)
+    } catch {
+      /* ignore */
     }
-
-    // Fallback: Check if there's a returnUrl parameter
     const params = new URLSearchParams(globalThis.window.location.search)
     const returnUrl = params.get('returnUrl')
-
     if (returnUrl) {
-      // Navigate back to the specified URL (e.g., space)
       globalThis.window.location.href = returnUrl
       return
     }
-
-    // Otherwise, go back to the list view
     clearCurrentNote()
     resetLoadAttempt()
     setSelectedNoteId(null)
@@ -516,9 +515,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     updateUrl(null)
   }, [clearCurrentNote, resetLoadAttempt, updateUrl])
 
-  /**
-   * Toggle favorite
-   */
   const toggleFavorite = useCallback(
     (id: string, e?: React.MouseEvent) => {
       e?.stopPropagation()
@@ -537,36 +533,20 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     [t]
   )
 
-  /**
-   * Toggle select note
-   */
   const toggleSelectNote = useCallback((id: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
     setSelectedNotes(prev => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }, [])
 
-  /**
-   * Select all notes
-   */
   const selectAllNotes = useCallback(() => {
-    if (selectedNotes.size === filteredNotes.length) {
-      setSelectedNotes(new Set())
-    } else {
-      setSelectedNotes(new Set(filteredNotes.map(n => n.id)))
-    }
-  }, [selectedNotes.size, filteredNotes])
+    setSelectedNotes(prev => (prev.size === filteredNotes.length ? new Set() : new Set(filteredNotes.map(n => n.id))))
+  }, [filteredNotes])
 
-  /**
-   * Copy link
-   */
   const copyLink = useCallback(
     (note: NoteSummary) => {
       const url = new URL(window.location.href)
@@ -578,96 +558,161 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     [t]
   )
 
-  /**
-   * Handle share note - open dialog
-   */
   const handleShareNote = useCallback(
     async (id: string) => {
       const note = notes.find(n => n.id === id)
       if (!note) return
-
       setNoteToShare(note)
-
-      // Load shared users for this note
       try {
-        const sharedUsers = await getSharedUsers(id)
-        setShareDialogSharedUsers(sharedUsers || [])
-      } catch (err) {
-        console.error('Failed to load shared users:', err)
+        setShareDialogSharedUsers((await getSharedUsers(id)) || [])
+      } catch {
         setShareDialogSharedUsers([])
       }
-
       setShareDialogOpen(true)
     },
     [notes, getSharedUsers]
   )
 
-  /**
-   * Handle share submission
-   */
   const handleShareSubmit = useCallback(
     async (userIds: string[], permission: 'view' | 'edit' | 'comment') => {
       if (!noteToShare) return false
-      const success = await shareNote(
+      return shareNote(
         noteToShare.id,
         userIds.map(userId => ({ userId, permission }))
       )
-      return success
     },
     [noteToShare, shareNote]
   )
 
-  /**
-   * Handle unshare
-   */
   const handleUnshare = useCallback(
     async (userId: string, shareId?: string) => {
       if (!noteToShare || !accessToken) return false
       try {
         await NoteApiService.revokeShareById(accessToken, noteToShare.id, shareId || userId)
         return true
-      } catch (err) {
-        console.error('Failed to unshare:', err)
+      } catch {
         return false
       }
     },
     [noteToShare, accessToken]
   )
 
-  /**
-   * Refresh shares for dialog
-   */
   const refreshShares = useCallback(async () => {
     if (!noteToShare) return
     try {
-      const sharedUsers = await getSharedUsers(noteToShare.id)
-      setShareDialogSharedUsers(sharedUsers || [])
-    } catch (err) {
-      console.error('Failed to refresh shares:', err)
+      setShareDialogSharedUsers((await getSharedUsers(noteToShare.id)) || [])
+    } catch {
+      /* ignore */
     }
   }, [noteToShare, getSharedUsers])
 
-  // Keyboard shortcut for new note
+  const handleQuickAccessChange = useCallback(
+    (section: QuickAccessSection) => {
+      setActiveQuickAccess(section)
+      const mapped = QUICK_ACCESS_TO_SECTION[section] || 'my-notes'
+      setActiveSection(mapped)
+      noteTree.setSelectedId(null)
+      setCurrentFolderId(null)
+      setFolderBreadcrumbs([])
+      if (currentView === 'editor') {
+        clearCurrentNote()
+        setSelectedNoteId(null)
+        setCurrentView('list')
+        updateUrl(null)
+      }
+    },
+    [currentView, clearCurrentNote, updateUrl, noteTree]
+  )
+
+  const handleTreeSelect = useCallback(
+    (id: string) => {
+      noteTree.setSelectedId(id)
+      handleOpenNote(id)
+    },
+    [noteTree, handleOpenNote]
+  )
+
+  const handleTitleChanged = useCallback(
+    (noteId: string, newTitle: string) => {
+      noteTree.updateNodeTitleOptimistic(noteId, newTitle)
+      refreshNotes()
+    },
+    [noteTree, refreshNotes]
+  )
+
+  const handleContentSaved = useCallback(
+    (noteId: string) => {
+      noteTree.bumpNodeTimestamp(noteId)
+    },
+    [noteTree]
+  )
+
+  const breadcrumbs = useMemo(() => {
+    if (currentView === 'list' && folderBreadcrumbs.length > 0) {
+      return folderBreadcrumbs.map(b => ({
+        id: b.id,
+        title: b.title,
+        children: [] as NoteTreeNode[],
+        depth: 0,
+        position: 0,
+        ownerId: '',
+        createdAt: '',
+        updatedAt: '',
+        isPinned: false,
+        isArchived: false
+      })) as NoteTreeNode[]
+    }
+    if (!noteTree.selectedId) return []
+    return noteTree.getParentChain(noteTree.selectedId)
+  }, [noteTree, currentView, folderBreadcrumbs])
+
+  // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
         e.preventDefault()
         handleCreateNew()
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault()
+        sidebar.toggleCollapsed()
+      }
     }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleCreateNew, sidebar])
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleCreateNew])
+  // Reusable sidebar element for both editor and list views
+  const sidebarElement = !sidebar.isCollapsed ? (
+    <NoteTreeSidebar
+      width={sidebar.width}
+      isResizing={sidebar.isResizing}
+      tree={noteTree.tree}
+      expandedIds={noteTree.expandedIds}
+      selectedId={noteTree.selectedId}
+      isLoadingTree={noteTree.isLoading}
+      activeQuickAccess={activeQuickAccess}
+      quickAccessCounts={quickAccessCounts}
+      searchQuery={searchQuery}
+      dragDrop={dragDrop}
+      onSearchChange={setSearchQuery}
+      onQuickAccessChange={handleQuickAccessChange}
+      onSelectNode={handleTreeSelect}
+      onToggleExpand={noteTree.toggleExpand}
+      onCreateNote={opts => handleCreateNew(opts)}
+      onCreateFolder={handleCreateFolder}
+      onDelete={handleDeleteNote}
+      onTogglePin={handleTogglePin}
+      onCollapse={sidebar.toggleCollapsed}
+      onResizeStart={sidebar.handleMouseDown}
+    />
+  ) : null
 
-  // Render editor view
+  // Editor view
   if (currentView === 'editor' && currentNote) {
-    // IMPORTANT: Default to 'owner' if permission is null/undefined (means user owns the note)
     const effectivePermission = currentNotePermission || 'owner'
     const canEdit = effectivePermission === 'owner' || effectivePermission === 'edit'
     const isOwner = currentNote.ownerId === currentUserId || effectivePermission === 'owner'
-
-    // Check if this is a handwriting note
     const contentJson = currentNote.contentJson as
       | {
           _noteType?: string
@@ -680,69 +725,53 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       | undefined
     const noteType = currentNote.noteType || contentJson?._noteType || 'text'
 
-    console.log('[NoteAppsHub] Editor permissions:', {
-      currentNotePermission,
-      effectivePermission,
-      canEdit,
-      isOwner,
-      noteOwnerId: currentNote.ownerId,
-      currentUserId,
-      noteType
-    })
-
-    // Render HandwritingNote for handwriting notes
     if (noteType === 'handwriting') {
       return (
-        <>
-          <HandwritingNote
-            noteId={currentNote.id}
-            title={currentNote.title}
-            initialStrokes={contentJson?.strokes || []}
-            initialPaperStyle={contentJson?._paperStyle || 'lined'}
-            initialSummary={contentJson?._summary || null}
-            initialTranslations={(contentJson?._translation as any[]) || []}
-            initialActionItemFlows={(contentJson?.actionItemFlows as any[]) || []}
-            onPersist={async ({ title, strokes, paperStyle, summary, translations, actionItemFlows }) => {
-              await updateNote(currentNote.id, {
-                title,
-                contentJson: {
-                  _noteType: 'handwriting',
-                  _paperStyle: paperStyle,
-                  strokes,
-                  ...(summary ? { _summary: summary } : {}),
-                  ...(translations.length > 0 ? { _translation: translations } : {}),
-                  ...(actionItemFlows.length > 0 ? { actionItemFlows } : {})
-                }
-              })
-            }}
-            onBack={handleBack}
-            onConvertToText={async text => {
-              // Convert handwriting note to text note
-              await updateNote(currentNote.id, {
-                title: currentNote.title,
-                content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`,
-                contentJson: { _noteType: 'text' }
-              })
-              // Refresh the current note to switch to text editor
-              loadNote(currentNote.id)
-            }}
-            onCreateTextNote={async (text, title) => {
-              // Create a new text note from handwriting
-              const input: CreateNoteInput = {
-                title,
-                content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`
-              }
-              const newNote = await createNote(input)
-              if (newNote) {
-                toast.success(t('toast-text-note-created'))
-              }
-            }}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            data-testid={`${testId}-handwriting-editor`}
-          />
-
-          {/* Share dialog must also be mounted in editor view */}
+        <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
+          {sidebarElement}
+          <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0">
+            <HandwritingNote
+              key={currentNote.id}
+              noteId={currentNote.id}
+              title={currentNote.title}
+              initialStrokes={contentJson?.strokes || []}
+              initialPaperStyle={contentJson?._paperStyle || 'lined'}
+              initialSummary={contentJson?._summary || null}
+              initialTranslations={(contentJson?._translation as any[]) || []}
+              initialActionItemFlows={(contentJson?.actionItemFlows as any[]) || []}
+              onPersist={async ({ title, strokes, paperStyle, summary, translations, actionItemFlows }) => {
+                await updateNote(currentNote.id, {
+                  title,
+                  contentJson: {
+                    _noteType: 'handwriting',
+                    _paperStyle: paperStyle,
+                    strokes,
+                    ...(summary ? { _summary: summary } : {}),
+                    ...(translations.length > 0 ? { _translation: translations } : {}),
+                    ...(actionItemFlows.length > 0 ? { actionItemFlows } : {})
+                  }
+                })
+              }}
+              onBack={handleBack}
+              onConvertToText={async text => {
+                await updateNote(currentNote.id, {
+                  title: currentNote.title,
+                  content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`,
+                  contentJson: { _noteType: 'text' }
+                })
+                loadNote(currentNote.id)
+              }}
+              onCreateTextNote={async (text, title) => {
+                const newNote = await createNote({ title, content: `<p>${text.replace(/\n/g, '</p><p>')}</p>` })
+                if (newNote) toast.success(t('toast-text-note-created'))
+              }}
+              isSidebarCollapsed={sidebar.isCollapsed}
+              onToggleSidebar={sidebar.toggleCollapsed}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              data-testid={`${testId}-handwriting-editor`}
+            />
+          </div>
           {noteToShare && (
             <ShareNoteDialog
               open={shareDialogOpen}
@@ -759,31 +788,36 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
               onRefreshShares={refreshShares}
             />
           )}
-        </>
+        </div>
       )
     }
 
-    // Render NoteEditor for text notes
     return (
-      <>
-        <NoteEditor
-          note={currentNote}
-          onSave={async (title, content, contentJson) => {
-            await updateNote(currentNote.id, { title, content, contentJson })
-          }}
-          onBack={handleBack}
-          onTogglePin={() => handleTogglePin(currentNote.id)}
-          onArchive={() => handleArchiveNote(currentNote.id)}
-          onDelete={() => handleDeleteNote(currentNote.id)}
-          onShare={isOwner ? () => handleShareNote(currentNote.id) : undefined}
-          onDuplicate={() => handleDuplicateNote(currentNote.id)}
-          isReadOnly={!canEdit}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          data-testid={`${testId}-editor`}
-        />
-
-        {/* Share dialog must also be mounted in editor view */}
+      <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
+        {sidebarElement}
+        <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0">
+          <NoteEditor
+            key={currentNote.id}
+            note={currentNote}
+            onSave={async (title, content, contentJson) => {
+              await updateNote(currentNote.id, { title, content, contentJson })
+            }}
+            onBack={handleBack}
+            onTogglePin={() => handleTogglePin(currentNote.id)}
+            onArchive={() => handleArchiveNote(currentNote.id)}
+            onDelete={() => handleDeleteNote(currentNote.id)}
+            onShare={isOwner ? () => handleShareNote(currentNote.id) : undefined}
+            onDuplicate={() => handleDuplicateNote(currentNote.id)}
+            isReadOnly={!canEdit}
+            isSidebarCollapsed={sidebar.isCollapsed}
+            onToggleSidebar={sidebar.toggleCollapsed}
+            onTitleChanged={handleTitleChanged}
+            onContentSaved={handleContentSaved}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            data-testid={`${testId}-editor`}
+          />
+        </div>
         {noteToShare && (
           <ShareNoteDialog
             open={shareDialogOpen}
@@ -800,544 +834,76 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             onRefreshShares={refreshShares}
           />
         )}
-      </>
+      </div>
     )
   }
 
-  const heroNewButton = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          size="sm"
-          className="gba:gap-1.5 gba:bg-white/15 gba:text-white gba:border gba:border-white/20 hover:gba:bg-white/25 gba:backdrop-blur-sm"
-          data-testid={`${testId}-hero-new-btn`}
-        >
-          <Plus className="gba:w-4 gba:h-4" />
-          {t('sidebar-new')}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="gba:w-56">
-        <DropdownMenuItem onClick={() => handleCreateNew()}>
-          <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-amber-500" />
-          <div>
-            <div className="gba:font-medium">{t('menu-new-text-title')}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-text-description')}</div>
-          </div>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleCreateNew({ noteType: 'handwriting', paperStyle: 'lined' })}>
-          <PenTool className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
-          <div>
-            <div className="gba:font-medium">{t('menu-new-handwriting-title')}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-handwriting-description')}</div>
-          </div>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => handleCreateNew({ color: 'yellow' })}>
-          <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
-          <div>
-            <div className="gba:font-medium">{t('menu-new-template-title')}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-template-description')}</div>
-          </div>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-
+  // List view: sidebar + content
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
-      <NoteHero
+    <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
+      {sidebarElement}
+
+      {/* Content */}
+      <NoteContentArea
+        notes={paginatedNotes}
+        breadcrumbs={breadcrumbs}
+        viewLayout={viewLayout}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        isLoading={isLoadingNotes}
+        error={notesError}
+        isSidebarCollapsed={sidebar.isCollapsed}
+        currentUserId={currentUserId}
+        selectedNotes={selectedNotes}
+        favorites={favorites}
+        ownerInfoMap={ownerInfoMap}
         activeSection={activeSection}
-        onSectionChange={s => setActiveSection(s as SidebarSection)}
-        newButton={heroNewButton}
-        t={t}
-        data-testid={`${testId}-hero`}
+        onViewLayoutChange={setViewLayout}
+        onSortByChange={setSortBy}
+        onSortOrderToggle={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+        onBreadcrumbClick={handleBreadcrumbNav}
+        onToggleSidebar={sidebar.toggleCollapsed}
+        onCreateNote={opts => handleCreateNew({ ...opts, parentId: currentFolderId || undefined })}
+        onCreateFolder={handleCreateFolder}
+        onRefresh={() => {
+          refreshNotes()
+          noteTree.loadTree()
+        }}
+        onOpenNote={handleOpenNote}
+        onOpenFolder={handleOpenFolder}
+        onDeleteNote={handleDeleteNote}
+        onDuplicateNote={handleDuplicateNote}
+        onTogglePin={handleTogglePin}
+        onArchiveNote={handleArchiveNote}
+        onShareNote={handleShareNote}
+        onCopyLink={copyLink}
+        onToggleFavorite={toggleFavorite}
+        onToggleSelect={toggleSelectNote}
+        onSelectAll={selectAllNotes}
+        onBulkDelete={handleBulkDelete}
+        onBulkPin={handleBulkPin}
+        onBulkArchive={handleBulkArchive}
+        onClearSelection={handleClearSelection}
+        onMoveToFolder={handleMoveToFolder}
+        onRenameNote={handleRenameNote}
       />
 
-      <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden">
-        {/* Content Area */}
-        <div className="gba:flex-1 gba:overflow-auto">
-          <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5">
-            {/* Spotlight search bar */}
-            <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
-              <div className="gba:relative">
-                <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
-                <Input
-                  placeholder={t('header-search-placeholder')}
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"
-                  data-testid={`${testId}-search-input`}
-                />
-              </div>
-
-              {/* Actions row */}
-              <div className="gba:flex gba:items-center gba:gap-2">
-                {selectedNotes.size > 0 ? (
-                  <>
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedNotes(new Set())}>
-                      {t('label-shared')} ({selectedNotes.size})
-                    </Button>
-                    <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gba:text-destructive"
-                      onClick={() => {
-                        if (confirm(t('confirm-delete'))) {
-                          selectedNotes.forEach(id => handleDeleteNote(id))
-                        }
-                      }}
-                    >
-                      <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                      {t('menu-delete')}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => refreshNotes()}
-                      className="gba:gap-1.5 gba:h-7 gba:text-xs"
-                      data-testid={`${testId}-refresh`}
-                    >
-                      <RefreshCw className="gba:w-3.5 gba:h-3.5" />
-                      {t('nh-refresh')}
-                    </Button>
-
-                    <div className="gba:ml-auto gba:flex gba:items-center gba:gap-1.5">
-                      {/* Sort controls pill */}
-                      <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:px-1 gba:py-0.5">
-                        <select
-                          value={sortBy}
-                          onChange={e => setSortBy(e.target.value as 'name' | 'modified' | 'created')}
-                          className="gba:text-xs gba:bg-transparent gba:border-0 gba:pr-1 gba:py-0.5 gba:text-muted-foreground gba:cursor-pointer focus:gba:outline-none"
-                          data-testid={`${testId}-sort-select`}
-                        >
-                          <option value="modified">{t('sort-modified')}</option>
-                          <option value="name">{t('sort-name')}</option>
-                          <option value="created">{t('sort-created')}</option>
-                        </select>
-                        <div className="gba:w-px gba:h-4 gba:bg-border/50" />
-                        <button
-                          onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
-                          className="gba:p-1 gba:rounded hover:gba:bg-accent gba:text-muted-foreground gba:transition-colors"
-                          data-testid={`${testId}-sort-order`}
-                        >
-                          {sortOrder === 'asc' ? (
-                            <SortAsc className="gba:w-3.5 gba:h-3.5" />
-                          ) : (
-                            <SortDesc className="gba:w-3.5 gba:h-3.5" />
-                          )}
-                        </button>
-                      </div>
-
-                      {/* View mode toggle pill */}
-                      <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:p-0.5">
-                        <button
-                          onClick={() => setViewLayout('list')}
-                          className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'list' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
-                          data-testid={`${testId}-view-list`}
-                        >
-                          <List className="gba:w-3.5 gba:h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setViewLayout('grid')}
-                          className={`gba:p-1 gba:rounded gba:transition-colors ${viewLayout === 'grid' ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
-                          data-testid={`${testId}-view-grid`}
-                        >
-                          <LayoutGrid className="gba:w-3.5 gba:h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
-            {/* Loading state */}
-            {isLoadingNotes && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
-                <Spinner size="lg" />
-              </div>
-            )}
-
-            {/* Error state */}
-            {notesError && (
-              <div className="gba:p-6">
-                <Card className="gba:p-6 gba:text-center">
-                  <p className="gba:text-destructive">{notesError}</p>
-                </Card>
-              </div>
-            )}
-
-            {/* Empty state */}
-            {!isLoadingNotes && !notesError && filteredNotes.length === 0 && (
-              <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
-                <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-amber-500/20 gba:to-orange-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
-                  <StickyNote className="gba:w-12 gba:h-12 gba:text-amber-500" />
-                </div>
-                <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
-                  {activeSection === 'pinned'
-                    ? t('empty-pinned-title')
-                    : activeSection === 'shared'
-                      ? t('empty-shared-title')
-                      : activeSection === 'archived'
-                        ? t('empty-archived-title')
-                        : t('empty-default-title')}
-                </h3>
-                <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
-                  {activeSection === 'pinned'
-                    ? t('empty-pinned-description')
-                    : activeSection === 'shared'
-                      ? t('empty-shared-description')
-                      : activeSection === 'archived'
-                        ? t('empty-archived-description')
-                        : t('empty-default-description')}
-                </p>
-                {activeSection !== 'pinned' && activeSection !== 'shared' && activeSection !== 'archived' && (
-                  <Button onClick={() => handleCreateNew()}>
-                    <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('empty-create-note')}
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {/* List View */}
-            {!isLoadingNotes && filteredNotes.length > 0 && viewLayout === 'list' && (
-              <div className="gba:w-full">
-                {/* Table Header */}
-                <div className="gba:sticky gba:top-0 gba:bg-muted/50 gba:border-b gba:z-10">
-                  <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
-                    <div className="gba:w-8 gba:flex-shrink-0">
-                      <Checkbox
-                        checked={selectedNotes.size === paginatedNotes.length && paginatedNotes.length > 0}
-                        onCheckedChange={selectAllNotes}
-                      />
-                    </div>
-                    <div className="gba:w-8 gba:flex-shrink-0" />
-                    <div
-                      className="gba:flex-1 gba:min-w-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                      onClick={() => {
-                        setSortBy('name')
-                        setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
-                      }}
-                    >
-                      {t('sort-name')}
-                      {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
-                    </div>
-                    <div
-                      className="gba:w-36 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                      onClick={() => {
-                        setSortBy('modified')
-                        setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
-                      }}
-                    >
-                      {t('sort-modified')}
-                      {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
-                    </div>
-                    <div className="gba:w-40 gba:flex-shrink-0">{t('table-owner')}</div>
-                    <div
-                      className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                      onClick={() => {
-                        setSortBy('created')
-                        setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
-                      }}
-                    >
-                      {t('sort-created')}
-                      {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
-                    </div>
-                    <div className="gba:w-10 gba:flex-shrink-0" />
-                  </div>
-                </div>
-
-                {/* Table Body */}
-                <div className="gba:divide-y gba:divide-border">
-                  {paginatedNotes.map(note => {
-                    const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
-                    const isSelected = selectedNotes.has(note.id)
-                    const isFavorite = favorites.has(note.id)
-                    const ownerInfo = note.ownerId ? ownerInfoMap.get(note.ownerId) : undefined
-                    const sharedWith = sharedUsersMap[note.id] || []
-
-                    return (
-                      <div
-                        key={note.id}
-                        className={`gba:flex gba:items-center gba:px-4 gba:py-3 gba:transition-colors gba:cursor-pointer ${
-                          isSelected ? 'gba:bg-primary/5' : 'hover:gba:bg-muted/30'
-                        }`}
-                        onClick={() => handleOpenNote(note.id)}
-                      >
-                        {/* Checkbox */}
-                        <div className="gba:w-8 gba:flex-shrink-0" onClick={e => e.stopPropagation()}>
-                          <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectNote(note.id)} />
-                        </div>
-
-                        {/* Star */}
-                        <div className="gba:w-8 gba:flex-shrink-0">
-                          <button
-                            onClick={e => toggleFavorite(note.id, e)}
-                            className={`gba:p-1 gba:rounded hover:gba:bg-muted ${isFavorite ? 'gba:text-amber-500' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
-                          >
-                            <Star className={`gba:w-4 gba:h-4 ${isFavorite ? 'gba:fill-current' : ''}`} />
-                          </button>
-                        </div>
-
-                        {/* Name & Icon */}
-                        <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
-                          <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-amber-500/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                            {note.noteType === 'handwriting' ||
-                            (note.contentJson as { _noteType?: string } | undefined)?._noteType === 'handwriting' ? (
-                              <PenTool className="gba:w-5 gba:h-5 gba:text-amber-600" />
-                            ) : (
-                              <span className="gba:text-lg">{note.icon || '📝'}</span>
-                            )}
-                          </div>
-                          <div className="gba:min-w-0">
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <span className="gba:font-medium gba:text-foreground gba:truncate">
-                                {note.title || t('title-untitled')}
-                              </span>
-                              {note.isPinned && <Pin className="gba:w-3 gba:h-3 gba:text-amber-500" />}
-                              {note.isShared && !isOwner && (
-                                <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                  {t('label-shared')}
-                                </Badge>
-                              )}
-                              {isOwner && sharedWith.length > 0 && (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <button
-                                        onClick={e => {
-                                          e.stopPropagation()
-                                          handleShareNote(note.id)
-                                        }}
-                                        className="gba:flex gba:items-center gba:-space-x-1 hover:gba:opacity-80 gba:transition-opacity"
-                                      >
-                                        {sharedWith.slice(0, 3).map(user => (
-                                          <Avatar
-                                            key={user.userId}
-                                            className="gba:w-5 gba:h-5 gba:border gba:border-background"
-                                          >
-                                            {user.userAvatar && <AvatarImage src={user.userAvatar} />}
-                                            <AvatarFallback className="gba:text-[8px] gba:bg-muted">
-                                              {user.userName ? getInitials(user.userName) : '?'}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                        ))}
-                                        {sharedWith.length > 3 && (
-                                          <div className="gba:w-5 gba:h-5 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-[8px] gba:border gba:border-background">
-                                            +{sharedWith.length - 3}
-                                          </div>
-                                        )}
-                                      </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>{t('shared-with-count', { count: sharedWith.length })}</p>
-                                      <p className="gba:text-xs gba:text-muted-foreground">
-                                        {t('shared-click-manage')}
-                                      </p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              )}
-                            </div>
-                            {note.preview && (
-                              <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{note.preview}</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Modified */}
-                        <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                          {formatDate(note.updatedAt, t)}
-                        </div>
-
-                        {/* Owner */}
-                        <div className="gba:w-40 gba:flex-shrink-0">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Avatar className="gba:w-6 gba:h-6">
-                              {ownerInfo?.avatar && <AvatarImage src={ownerInfo.avatar} />}
-                              <AvatarFallback className="gba:text-[10px] gba:bg-muted">
-                                {ownerInfo?.name ? getInitials(ownerInfo.name) : <User className="gba:w-3 gba:h-3" />}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                              {isOwner ? t('owner-you') : ownerInfo?.name || t('owner-unknown')}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Created */}
-                        <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                          {formatDate(note.createdAt, t)}
-                        </div>
-
-                        {/* Actions */}
-                        <div
-                          className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
-                                <MoreHorizontal className="gba:w-4 gba:h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleOpenNote(note.id)}>
-                                <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                                {t('menu-open')}
-                              </DropdownMenuItem>
-                              {isOwner && (
-                                <DropdownMenuItem onClick={() => handleShareNote(note.id)}>
-                                  <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  {t('menu-share')}
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem onClick={() => copyLink(note)}>
-                                <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                {t('menu-copy-link')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDuplicateNote(note.id)}>
-                                <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                                {t('menu-duplicate')}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleTogglePin(note.id)}>
-                                <Pin
-                                  className={`gba:w-4 gba:h-4 gba:mr-2 ${note.isPinned ? 'gba:fill-current gba:text-amber-500' : ''}`}
-                                />
-                                {note.isPinned ? t('menu-unpin') : t('menu-pin')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => toggleFavorite(note.id)}>
-                                <Star
-                                  className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
-                                />
-                                {isFavorite ? t('menu-remove-favorite') : t('menu-add-favorite')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleArchiveNote(note.id)}>
-                                <Archive className="gba:w-4 gba:h-4 gba:mr-2" />
-                                {t('menu-archive')}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="gba:text-destructive"
-                                onClick={() => handleDeleteNote(note.id)}
-                              >
-                                <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                {t('menu-delete')}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Grid View */}
-            {!isLoadingNotes && filteredNotes.length > 0 && viewLayout === 'grid' && (
-              <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
-                {paginatedNotes.map(note => {
-                  const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
-                  const isSelected = selectedNotes.has(note.id)
-                  const isFavorite = favorites.has(note.id)
-
-                  return (
-                    <Card
-                      key={note.id}
-                      className={`gba:group gba:cursor-pointer gba:transition-all hover:gba:shadow-lg ${
-                        isSelected ? 'gba:ring-2 gba:ring-primary' : ''
-                      }`}
-                      onClick={() => handleOpenNote(note.id)}
-                    >
-                      {/* Preview area */}
-                      <div className="gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:from-amber-500/10 gba:to-orange-500/10 gba:flex gba:items-center gba:justify-center gba:rounded-t-lg">
-                        {note.noteType === 'handwriting' ||
-                        (note.contentJson as { _noteType?: string } | undefined)?._noteType === 'handwriting' ? (
-                          <PenTool className="gba:w-12 gba:h-12 gba:text-amber-600" />
-                        ) : (
-                          <span className="gba:text-4xl">{note.icon || '📝'}</span>
-                        )}
-
-                        {/* Hover overlay */}
-                        <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />
-
-                        {/* Selection checkbox */}
-                        <div
-                          className={`gba:absolute gba:top-2 gba:left-2 gba:opacity-0 group-hover:gba:opacity-100 ${isSelected ? 'gba:opacity-100' : ''} gba:transition-opacity`}
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleSelectNote(note.id)}
-                            className="gba:bg-background"
-                          />
-                        </div>
-
-                        {/* Favorite star */}
-                        <button
-                          className={`gba:absolute gba:top-2 gba:right-2 gba:p-1.5 gba:rounded-full gba:bg-background/80 gba:backdrop-blur-sm gba:opacity-0 group-hover:gba:opacity-100 ${isFavorite ? 'gba:opacity-100 gba:text-amber-500' : 'gba:text-muted-foreground hover:gba:text-foreground'} gba:transition-all`}
-                          onClick={e => toggleFavorite(note.id, e)}
-                        >
-                          <Star className={`gba:w-4 gba:h-4 ${isFavorite ? 'gba:fill-current' : ''}`} />
-                        </button>
-
-                        {/* Pinned badge */}
-                        {note.isPinned && (
-                          <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
-                            <Pin className="gba:w-3 gba:h-3 gba:mr-1" />
-                            {t('sidebar-pinned')}
-                          </Badge>
-                        )}
-
-                        {/* Shared badge */}
-                        {note.isShared && !isOwner && (
-                          <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
-                            <Users className="gba:w-3 gba:h-3 gba:mr-1" />
-                            {t('label-shared')}
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Info */}
-                      <div className="gba:p-3">
-                        <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">
-                          {note.title || t('title-untitled')}
-                        </h3>
-                        <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                          <span>{formatRelativeTime(note.updatedAt, t)}</span>
-                        </div>
-                      </div>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+      {/* Pagination */}
+      {!isLoadingNotes && filteredNotes.length > 0 && (
+        <div
+          className="gba:absolute gba:bottom-0 gba:right-0 gba:left-0"
+          style={!sidebar.isCollapsed ? { marginLeft: `${sidebar.width}px` } : undefined}
+        >
+          <HubPaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={goToPage}
+            data-testid={`${testId}-pagination`}
+          />
         </div>
-
-        {/* Pagination */}
-        {!isLoadingNotes && filteredNotes.length > 0 && (
-          <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
-            <HubPaginationFooter
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={totalItems}
-              pageSize={pageSize}
-              onPageChange={goToPage}
-              data-testid={`${testId}-pagination`}
-            />
-          </div>
-        )}
-      </main>
+      )}
 
       {/* Share Dialog */}
       {noteToShare && (

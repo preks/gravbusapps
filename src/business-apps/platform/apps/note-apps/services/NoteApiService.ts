@@ -30,34 +30,14 @@ import type {
   LockFileInput,
   PublishInput
 } from '../../shared/types/versioning'
-import { env } from '@/common/env/EnvUtils'
+import { getDocumentServiceApiUrl } from '../../shared/utils/documentServiceUrl'
 
-// Get the API URL from environment or default to dev environment
 const getApiUrl = (): string => {
-  // Check for explicit environment variable first (Vite env var)
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL) {
-    return import.meta.env.VITE_DOCUMENT_SERVICE_URL
+  try {
+    return getDocumentServiceApiUrl()
+  } catch {
+    return 'http://localhost:3002/api/v1'
   }
-
-  // If platform is running on localhost, connect to DEV environment
-  // This handles the case where UI is loaded from CDN but platform is running locally
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname
-    const isLocalHost = host === 'localhost' || host === '127.0.0.1'
-    if (isLocalHost) {
-      return 'https://newwork-dev.newwork.com/document/api/v1'
-    }
-  }
-
-  // Try to get base URL from environment and construct document-service URL
-  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
-  if (baseUrl) {
-    const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-    return `${trimmed}/document/api/v1`
-  }
-
-  // Default to dev environment
-  return 'https://newwork-dev.newwork.com/document/api/v1'
 }
 
 // Lazy-loaded API URL to avoid module load issues on iPad/Safari
@@ -221,14 +201,23 @@ function mapApiNoteToSummary(apiNote: Record<string, unknown>): NoteSummary {
   }
 }
 
+// Sort: pinned first, then most recently edited
+function sortByRecent(nodes: NoteTreeNode[]): NoteTreeNode[] {
+  return [...nodes].sort((a, b) => {
+    if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  })
+}
+
 // Convert note tree to NoteTreeNode format
 function buildNoteTree(notes: Note[], depth = 0): NoteTreeNode[] {
-  return notes.map(note => ({
+  const mapped = notes.map(note => ({
     ...mapApiNoteToSummary(note as unknown as Record<string, unknown>),
     children: note.children ? buildNoteTree(note.children, depth + 1) : [],
     depth,
     isExpanded: false
   }))
+  return sortByRecent(mapped)
 }
 
 /**
@@ -273,9 +262,16 @@ export const NoteApiService = {
       totalPages: number
     }>(endpoint)
 
+    const items = response.items
+      .filter(item => {
+        const type = item.type as string | undefined
+        return !type || type === 'note'
+      })
+      .map(mapApiNoteToSummary)
+
     return {
-      items: response.items.map(mapApiNoteToSummary),
-      total: response.total,
+      items,
+      total: items.length,
       page: response.page,
       limit: response.limit,
       totalPages: response.totalPages
@@ -289,7 +285,7 @@ export const NoteApiService = {
     debugLog('getNoteTree')
 
     const response = await apiRequest<Record<string, unknown>[]>('/notes/tree')
-    const notes = response.map(mapApiNoteToNote)
+    const notes = response.filter(item => !item.type || item.type === 'note').map(mapApiNoteToNote)
     return buildNoteTree(notes)
   },
 

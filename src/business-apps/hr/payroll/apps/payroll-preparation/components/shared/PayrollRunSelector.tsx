@@ -56,49 +56,62 @@ export const PayrollRunSelector: React.FC<PayrollRunSelectorProps> = ({
 
   return (
     <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
-      <div className="gba:min-w-[240px]">
-        <Select value={selectedCompanyId || ''} onValueChange={handleCompanyChange}>
-          <SelectTrigger>
-            <SelectValue placeholder={companiesLoading ? t('loading') : t('select-company')} />
-          </SelectTrigger>
-          <SelectContent>
-            {companies.map(company => (
-              <SelectItem key={company.id} value={company.id}>
-                {company.countryCode ? `${company.name} (${company.countryCode})` : company.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+          {t('label-company')}
+        </span>
+        <div className="gba:min-w-[240px]">
+          <Select value={selectedCompanyId || ''} onValueChange={handleCompanyChange}>
+            <SelectTrigger>
+              <SelectValue placeholder={companiesLoading ? t('loading') : t('select-company')} />
+            </SelectTrigger>
+            <SelectContent>
+              {companies.map(company => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.countryCode ? `${company.name} (${company.countryCode})` : company.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div className="gba:min-w-[140px]">
-        <Select value={String(selectedMonth)} onValueChange={handleMonthChange}>
-          <SelectTrigger>
-            <SelectValue placeholder={t('select-month')} />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTHS.map(m => (
-              <SelectItem key={m.value} value={String(m.value)}>
-                {m.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+          {t('label-month')}
+        </span>
+        <div className="gba:min-w-[140px]">
+          <Select value={String(selectedMonth)} onValueChange={handleMonthChange}>
+            <SelectTrigger>
+              <SelectValue placeholder={t('select-month')} />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map(m => (
+                <SelectItem key={m.value} value={String(m.value)}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div className="gba:min-w-[100px]">
-        <Select value={String(selectedYear)} onValueChange={handleYearChange}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {getYearOptions().map(y => (
-              <SelectItem key={y} value={String(y)}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">{t('label-year')}</span>
+        <div className="gba:min-w-[100px]">
+          <Select value={String(selectedYear)} onValueChange={handleYearChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {getYearOptions().map(y => (
+                <SelectItem key={y} value={String(y)}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
   )

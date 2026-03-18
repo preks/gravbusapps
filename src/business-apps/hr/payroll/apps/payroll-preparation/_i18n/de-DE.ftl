@@ -50,6 +50,13 @@ summary-excluded = Ausgeschlossen
 summary-blockers = Offene Blocker
 summary-changed = Geändert
 
+label-company = Unternehmen:
+label-month = Monat:
+label-year = Jahr:
+label-readiness = Bereitschaft:
+label-department = Abteilung:
+label-severity = Schweregrad:
+label-category = Kategorie:
 select-company = Unternehmen auswählen
 select-month = Monat auswählen
 no-company-selected = Bitte wählen Sie ein Unternehmen und einen Monat, um die Gehaltsabrechnung vorzubereiten.

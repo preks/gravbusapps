@@ -43,13 +43,16 @@ interface TransformMenuProps {
    * - text: hides those options (they don't make sense for typed notes)
    */
   mode?: 'handwriting' | 'text'
+  /** When true, renders a compact icon-only button */
+  compact?: boolean
 }
 
 export const TransformMenu: React.FC<TransformMenuProps> = ({
   onTransform,
   isProcessing = false,
   disabled = false,
-  mode = 'handwriting'
+  mode = 'handwriting',
+  compact = false
 }) => {
   const { t } = useTranslation(translations)
   const [open, setOpen] = useState(false)
@@ -62,16 +65,28 @@ export const TransformMenu: React.FC<TransformMenuProps> = ({
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <AiButton
-          size="sm"
-          disabled={disabled || isProcessing}
-          showIcon
-          icon={isProcessing ? <Spinner className="gba:w-4 gba:h-4" /> : <Wand2 className="gba:w-4 gba:h-4" />}
-          iconPosition="before"
-          data-testid="note-transform-button"
-        >
-          {t('transform-label')}
-        </AiButton>
+        {compact ? (
+          <AiButton
+            size="iconSm"
+            disabled={disabled || isProcessing}
+            showIcon
+            icon={
+              isProcessing ? <Spinner className="gba:w-3.5 gba:h-3.5" /> : <Sparkles className="gba:w-3.5 gba:h-3.5" />
+            }
+            data-testid="note-transform-button"
+          />
+        ) : (
+          <AiButton
+            size="sm"
+            disabled={disabled || isProcessing}
+            showIcon
+            icon={isProcessing ? <Spinner className="gba:w-4 gba:h-4" /> : <Wand2 className="gba:w-4 gba:h-4" />}
+            iconPosition="before"
+            data-testid="note-transform-button"
+          >
+            {t('transform-label')}
+          </AiButton>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="gba:w-56">
         {mode === 'handwriting' && (

@@ -36,6 +36,10 @@ export interface UseNoteTreeReturn {
 
   // Tree Operations
   moveNode: (nodeId: string, targetParentId: string | null, position: number) => Promise<boolean>
+  moveNodeOptimistic: (nodeId: string, targetParentId: string | null, position: number) => Promise<boolean>
+  removeNodeOptimistic: (nodeId: string) => void
+  updateNodeTitleOptimistic: (nodeId: string, title: string) => void
+  bumpNodeTimestamp: (nodeId: string) => void
   findNode: (id: string) => NoteTreeNode | null
   getParentChain: (id: string) => NoteTreeNode[]
   getChildren: (parentId: string | null) => NoteTreeNode[]
@@ -66,6 +70,54 @@ function findNodeInTree(nodes: NoteTreeNode[], id: string): NoteTreeNode | null 
     }
   }
   return null
+}
+
+/**
+ * Remove a node from the tree (returns a new tree array).
+ */
+function removeFromTree(nodes: NoteTreeNode[], id: string): NoteTreeNode[] {
+  return nodes
+    .filter(n => n.id !== id)
+    .map(n => ({
+      ...n,
+      children: removeFromTree(n.children, id)
+    }))
+}
+
+/**
+ * Apply an optimistic move: extract the node, then insert it at (targetParentId, position).
+ */
+function applyMoveOptimistic(
+  tree: NoteTreeNode[],
+  nodeId: string,
+  targetParentId: string | null,
+  position: number
+): NoteTreeNode[] {
+  const node = findNodeInTree(tree, nodeId)
+  if (!node) return tree
+
+  const movedNode: NoteTreeNode = { ...node, parentId: targetParentId ?? undefined }
+  const treeWithout = removeFromTree(tree, nodeId)
+
+  if (!targetParentId) {
+    const updated = [...treeWithout]
+    const insertAt = Math.min(position, updated.length)
+    updated.splice(insertAt, 0, { ...movedNode, depth: 0, children: movedNode.children })
+    return updated
+  }
+
+  const insertInto = (nodes: NoteTreeNode[], depth: number): NoteTreeNode[] =>
+    nodes.map(n => {
+      if (n.id === targetParentId) {
+        const children = [...n.children]
+        const insertAt = Math.min(position, children.length)
+        children.splice(insertAt, 0, { ...movedNode, depth: depth + 1, children: movedNode.children })
+        return { ...n, children }
+      }
+      return { ...n, children: insertInto(n.children, depth + 1) }
+    })
+
+  return insertInto(treeWithout, 0)
 }
 
 /**
@@ -149,7 +201,7 @@ export function useNoteTree(options: UseNoteTreeOptions = {}): UseNoteTreeReturn
   }, [])
 
   /**
-   * Move a node to new parent/position
+   * Move a node to new parent/position (waits for server before updating UI)
    */
   const moveNode = useCallback(
     async (nodeId: string, targetParentId: string | null, position: number): Promise<boolean> => {
@@ -161,7 +213,6 @@ export function useNoteTree(options: UseNoteTreeOptions = {}): UseNoteTreeReturn
 
         const note = await NoteApiService.moveNote(nodeId, move)
         if (note) {
-          // Reload tree to reflect changes
           await loadTree()
           return true
         }
@@ -173,6 +224,63 @@ export function useNoteTree(options: UseNoteTreeOptions = {}): UseNoteTreeReturn
     },
     [loadTree]
   )
+
+  /**
+   * Move a node optimistically: update the local tree first, then persist.
+   * Rolls back on failure.
+   */
+  const moveNodeOptimistic = useCallback(
+    async (nodeId: string, targetParentId: string | null, position: number): Promise<boolean> => {
+      const snapshot = tree
+
+      setTree(prev => applyMoveOptimistic(prev, nodeId, targetParentId, position))
+
+      try {
+        const move: MoveNoteInput = { parentId: targetParentId, position }
+        const result = await NoteApiService.moveNote(nodeId, move)
+        if (!result) {
+          setTree(snapshot)
+          return false
+        }
+        await loadTree()
+        return true
+      } catch (err) {
+        console.error('[useNoteTree] Optimistic move failed, rolling back:', err)
+        setTree(snapshot)
+        return false
+      }
+    },
+    [tree, loadTree]
+  )
+
+  /**
+   * Remove a node from the local tree without server call (for delete flows).
+   */
+  const removeNodeOptimistic = useCallback((nodeId: string) => {
+    setTree(prev => removeFromTree(prev, nodeId))
+  }, [])
+
+  const updateNodeTitleOptimistic = useCallback((nodeId: string, title: string) => {
+    const now = new Date().toISOString()
+    const updateTitle = (nodes: NoteTreeNode[]): NoteTreeNode[] =>
+      nodes.map(n => {
+        if (n.id === nodeId) return { ...n, title, updatedAt: now }
+        if (n.children.length > 0) return { ...n, children: updateTitle(n.children) }
+        return n
+      })
+    setTree(prev => updateTitle(prev))
+  }, [])
+
+  const bumpNodeTimestamp = useCallback((nodeId: string) => {
+    const now = new Date().toISOString()
+    const bump = (nodes: NoteTreeNode[]): NoteTreeNode[] =>
+      nodes.map(n => {
+        if (n.id === nodeId) return { ...n, updatedAt: now }
+        if (n.children.length > 0) return { ...n, children: bump(n.children) }
+        return n
+      })
+    setTree(prev => bump(prev))
+  }, [])
 
   /**
    * Find node by ID
@@ -235,6 +343,10 @@ export function useNoteTree(options: UseNoteTreeOptions = {}): UseNoteTreeReturn
 
     // Tree Operations
     moveNode,
+    moveNodeOptimistic,
+    removeNodeOptimistic,
+    updateNodeTitleOptimistic,
+    bumpNodeTimestamp,
     findNode,
     getParentChain,
     getChildren
