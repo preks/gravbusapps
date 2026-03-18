@@ -24,6 +24,16 @@ import { DashboardStats } from '../types'
 interface UseDashboardStatsResult {
   stats: DashboardStats
   loading: boolean
+  loadingBySection: {
+    core: boolean
+    trends: boolean
+    planActual: boolean
+  }
+  errorsBySection: {
+    core: Error | null
+    trends: Error | null
+    planActual: Error | null
+  }
   error: Error | null
   refetch: () => void
 }
@@ -33,7 +43,7 @@ const YEARLY_PERIOD_AND_YTD_QUERY = 'getExpensesPeriodAndYtdKpis'
 const YEARLY_WORKFLOW_QUERY = 'getExpenseWorkflowKpis'
 const YEARLY_PLAN_ACTUAL_QUERY_NO_DEPT = 'getExpensePlanActualKpisNoDept'
 const YEARLY_PLAN_ACTUAL_QUERY_BY_DEPT = 'getExpensePlanActualKpisByDept'
-const MONTHLY_TRENDS_TIMESERIES_QUERY = 'getDashboardMonthlyTrends'
+const MONTHLY_TRENDS_QUERY = 'getDashboardMonthlyTrends'
 type YearlyKpiCategory =
   | 'currentYearExpensesComparison'
   | 'previousYearExpensesComparison'
@@ -113,6 +123,20 @@ export const useDashboardStats = ({
     }
   })
   const [loading, setLoading] = useState(true)
+  const [loadingBySection, setLoadingBySection] = useState({
+    core: true,
+    trends: true,
+    planActual: false
+  })
+  const [errorsBySection, setErrorsBySection] = useState<{
+    core: Error | null
+    trends: Error | null
+    planActual: Error | null
+  }>({
+    core: null,
+    trends: null,
+    planActual: null
+  })
   const [error, setError] = useState<Error | null>(null)
 
   // Request deduplication using refs
@@ -208,7 +232,8 @@ export const useDashboardStats = ({
       period: string,
       selectedCurrency: string,
       selectedDepartment: string | null,
-      dateRanges: ReturnType<typeof calculateDateRanges>
+      dateRanges: ReturnType<typeof calculateDateRanges>,
+      includePlanActual = true
     ) => {
       const hasDepartment = !!selectedDepartment
       const toAggregate = (value: number, count: number, sumKey: 'reimbursableAmount' | 'amount' | 'totalAmount') => {
@@ -277,7 +302,9 @@ export const useDashboardStats = ({
         const [periodAndYtdResponse, workflowResponse, planActualResponse] = await Promise.all([
           datasetClient.executeQuery(YEARLY_PERIOD_AND_YTD_QUERY, QueryType.DATASET, periodAndYtdParams),
           datasetClient.executeQuery(YEARLY_WORKFLOW_QUERY, QueryType.DATASET, workflowParams),
-          datasetClient.executeQuery(planActualQueryName, QueryType.DATASET, planActualParams)
+          includePlanActual
+            ? datasetClient.executeQuery(planActualQueryName, QueryType.DATASET, planActualParams)
+            : null
         ])
         const rows = [
           ...(Array.isArray(periodAndYtdResponse?.data) ? periodAndYtdResponse.data : []),
@@ -383,6 +410,46 @@ export const useDashboardStats = ({
     [client, datasetClient]
   )
 
+  const executeYearlyPlanActualQuery = useCallback(
+    async (
+      selectedCurrency: string,
+      selectedDepartment: string | null,
+      dateRanges: ReturnType<typeof calculateDateRanges>
+    ) => {
+      const hasDepartment = !!selectedDepartment
+      const planActualQueryName = hasDepartment ? YEARLY_PLAN_ACTUAL_QUERY_BY_DEPT : YEARLY_PLAN_ACTUAL_QUERY_NO_DEPT
+      const planActualParams: Record<string, string | number | boolean> = {
+        selectedCurrency,
+        currentYearStart: dateRanges.startOfYearTs,
+        currentYearEnd: dateRanges.endOfYearTs
+      }
+      if (hasDepartment && selectedDepartment) {
+        planActualParams.selectedDepartment = selectedDepartment
+      }
+
+      const response = await datasetClient.executeQuery(planActualQueryName, QueryType.DATASET, planActualParams)
+      const asNumber = (val: unknown) => (typeof val === 'number' && Number.isFinite(val) ? val : 0)
+      const rows = (Array.isArray(response?.data) ? response.data : []) as DatasetKpiRow[]
+      const getRow = (category: YearlyKpiCategory) => rows.find(row => row?.category === category)
+
+      return {
+        advancePaymentsApproved: {
+          value: asNumber(getRow('advancePaymentsApproved')?.value),
+          count: asNumber(getRow('advancePaymentsApproved')?.count)
+        },
+        actualExpenses: {
+          value: asNumber(getRow('actualExpenses')?.value),
+          count: asNumber(getRow('actualExpenses')?.count)
+        },
+        plannedExpenses: {
+          value: asNumber(getRow('plannedExpenses')?.value),
+          count: asNumber(getRow('plannedExpenses')?.count)
+        }
+      }
+    },
+    [datasetClient]
+  )
+
   const executeTrendsQuery = useCallback(
     async (selectedCurrency: string, selectedDepartment: string | null, currentYear: number) => {
       const variables: Record<string, string | number | boolean> = {
@@ -391,7 +458,7 @@ export const useDashboardStats = ({
         rangeStart: `${currentYear}-01-01T00:00:00`,
         rangeEnd: `${currentYear + 1}-01-01T00:00:00`
       }
-      const result = await datasetClient.executeQuery(MONTHLY_TRENDS_TIMESERIES_QUERY, QueryType.DATASET, variables)
+      const result = await datasetClient.executeQuery(MONTHLY_TRENDS_QUERY, QueryType.DATASET, variables)
       return result
     },
     [datasetClient]
@@ -431,6 +498,11 @@ export const useDashboardStats = ({
 
     setLoading(true)
     setError(null)
+    setErrorsBySection({
+      core: null,
+      trends: null,
+      planActual: null
+    })
 
     try {
       // Calculate all date ranges using extracted helper
@@ -440,142 +512,256 @@ export const useDashboardStats = ({
       const selectedDepartment = filters.department?.trim() && filters.department !== 'all' ? filters.department : null
 
       const activePeriod = filters.period || 'yearly'
+      setLoadingBySection({
+        core: true,
+        trends: true,
+        planActual: activePeriod === 'yearly'
+      })
 
-      const [combinedResponse, trendsResponse] = await Promise.all([
-        executeKpiQuery(activePeriod, selectedCurrency, selectedDepartment, dateRanges),
-        executeTrendsQuery(selectedCurrency, selectedDepartment, dateRanges.currentYear)
-      ])
-
+      const requestKeySnapshot = requestKey
       const safeNum = (val: any): number => val ?? 0
-      const trendRows = (
-        Array.isArray((trendsResponse as any)?.data) ? (trendsResponse as any).data : []
-      ) as MonthlyTrendRow[]
-      const monthlyTrendsByMonth = new Map<number, MonthlyTrendRow>()
-      for (const row of trendRows) {
-        const monthStart = row?.month_start ?? row?.date_category
-        if (typeof monthStart === 'string' && monthStart.length >= 7) {
-          const parsedMonth = Number(monthStart.slice(5, 7))
-          if (Number.isFinite(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12) {
-            monthlyTrendsByMonth.set(parsedMonth, row)
-            continue
+      let remainingInitialTasks = 2
+      const completeInitialTask = () => {
+        remainingInitialTasks -= 1
+        if (remainingInitialTasks <= 0) {
+          setLoading(false)
+          isLoadingRef.current = false
+        }
+      }
+
+      void executeKpiQuery(activePeriod, selectedCurrency, selectedDepartment, dateRanges, activePeriod !== 'yearly')
+        .then(combinedResponse => {
+          if (lastRequestKey.current !== requestKeySnapshot) {
+            return
           }
-        }
-        const category = row?.category ?? ''
-        const match = /^m(\d{1,2})$/.exec(category)
-        if (match) {
-          const parsedMonth = Number(match[1])
-          if (Number.isFinite(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12) {
-            monthlyTrendsByMonth.set(parsedMonth, row)
+
+          const getPeriodAgg = (current: boolean) => {
+            if (activePeriod === 'yearly') {
+              return current ? combinedResponse?.currentYearExpenses : combinedResponse?.previousYearExpenses
+            }
+            if (activePeriod === 'quarterly') {
+              return current ? combinedResponse?.currentQTDExpenses : combinedResponse?.previousQTDExpenses
+            }
+            return current ? combinedResponse?.currentMonthExpenses : combinedResponse?.sameMonthLastYearExpenses
           }
-        }
-      }
 
-      const getPeriodAgg = (current: boolean) => {
-        if (activePeriod === 'yearly') {
-          return current ? combinedResponse?.currentYearExpenses : combinedResponse?.previousYearExpenses
-        }
-        if (activePeriod === 'quarterly') {
-          return current ? combinedResponse?.currentQTDExpenses : combinedResponse?.previousQTDExpenses
-        }
-        return current ? combinedResponse?.currentMonthExpenses : combinedResponse?.sameMonthLastYearExpenses
-      }
+          const getComparisonAgg = (current: boolean) => {
+            if (activePeriod === 'yearly') {
+              return current
+                ? combinedResponse?.currentYearExpensesComparison
+                : combinedResponse?.previousYearExpensesComparison
+            }
+            if (activePeriod === 'quarterly') {
+              return current ? combinedResponse?.currentQuarterExpenses : combinedResponse?.previousQuarterExpenses
+            }
+            return current ? combinedResponse?.currentMonthExpenses : combinedResponse?.previousMonthExpenses
+          }
 
-      const getComparisonAgg = (current: boolean) => {
-        if (activePeriod === 'yearly') {
-          return current
-            ? combinedResponse?.currentYearExpensesComparison
-            : combinedResponse?.previousYearExpensesComparison
-        }
-        if (activePeriod === 'quarterly') {
-          return current ? combinedResponse?.currentQuarterExpenses : combinedResponse?.previousQuarterExpenses
-        }
-        return current ? combinedResponse?.currentMonthExpenses : combinedResponse?.previousMonthExpenses
-      }
+          const currentPeriodAgg = getPeriodAgg(true)
+          const previousPeriodAgg = getPeriodAgg(false)
+          const currentComparisonAgg = getComparisonAgg(true)
+          const previousComparisonAgg = getComparisonAgg(false)
 
-      const currentPeriodAgg = getPeriodAgg(true)
-      const previousPeriodAgg = getPeriodAgg(false)
-      const currentComparisonAgg = getComparisonAgg(true)
-      const previousComparisonAgg = getComparisonAgg(false)
+          const monthlyComparison = {
+            currentMonthTotal: safeNum(currentComparisonAgg?.aggregate?.sum?.reimbursableAmount),
+            previousMonthTotal: safeNum(previousComparisonAgg?.aggregate?.sum?.reimbursableAmount),
+            currentMonthCount: safeNum(currentComparisonAgg?.aggregate?.count),
+            previousMonthCount: safeNum(previousComparisonAgg?.aggregate?.count),
+            percentChange: null as number | null,
+            isIncrease: false
+          }
+          const monthlyChange = calculatePercentChange(
+            monthlyComparison.currentMonthTotal,
+            monthlyComparison.previousMonthTotal
+          )
+          monthlyComparison.percentChange = monthlyChange.percentChange
+          monthlyComparison.isIncrease = monthlyChange.isIncrease
 
-      // Process combined response into dashboard stats
-      const processedStats: DashboardStats = {
-        ytdStats: {
-          totalAmount: safeNum(combinedResponse?.currentYearExpenses?.aggregate?.sum?.reimbursableAmount),
-          count: safeNum(combinedResponse?.currentYearExpenses?.aggregate?.count),
-          previousTotalAmount: safeNum(combinedResponse?.previousYearExpenses?.aggregate?.sum?.reimbursableAmount),
-          previousCount: safeNum(combinedResponse?.previousYearExpenses?.aggregate?.count)
-        },
-        monthlyTrends: Array.from({ length: 12 }, (_, index) => {
-          const month = index + 1
-          const row = monthlyTrendsByMonth.get(month)
-          const fallbackMonthName = new Date(dateRanges.currentYear, index).toLocaleString('default', {
-            month: 'short'
+          const totalCompanySpend = {
+            currentPeriodTotal: safeNum(currentPeriodAgg?.aggregate?.sum?.reimbursableAmount),
+            previousPeriodTotal: safeNum(previousPeriodAgg?.aggregate?.sum?.reimbursableAmount),
+            currentPeriodCount: safeNum(currentPeriodAgg?.aggregate?.count),
+            previousPeriodCount: safeNum(previousPeriodAgg?.aggregate?.count),
+            percentChange: null as number | null,
+            isIncrease: false
+          }
+          const companyChange = calculatePercentChange(
+            totalCompanySpend.currentPeriodTotal,
+            totalCompanySpend.previousPeriodTotal
+          )
+          totalCompanySpend.percentChange = companyChange.percentChange
+          totalCompanySpend.isIncrease = companyChange.isIncrease
+
+          setStats(prev => ({
+            ...prev,
+            ytdStats: {
+              totalAmount: safeNum(combinedResponse?.currentYearExpenses?.aggregate?.sum?.reimbursableAmount),
+              count: safeNum(combinedResponse?.currentYearExpenses?.aggregate?.count),
+              previousTotalAmount: safeNum(combinedResponse?.previousYearExpenses?.aggregate?.sum?.reimbursableAmount),
+              previousCount: safeNum(combinedResponse?.previousYearExpenses?.aggregate?.count)
+            },
+            monthlySpendComparison: monthlyComparison,
+            transferRequired: safeNum(combinedResponse?.transferRequired?.aggregate?.sum?.reimbursableAmount),
+            pendingRequestsCount: safeNum(combinedResponse?.pendingRequests?.aggregate?.count),
+            avgSpendPerTrip: safeNum(combinedResponse?.avgSpendPerTrip?.aggregate?.avg?.reimbursableAmount),
+            totalCompanySpend,
+            advancePaymentsApproved:
+              activePeriod === 'yearly'
+                ? prev.advancePaymentsApproved
+                : {
+                    count: safeNum(combinedResponse?.advancePaymentsApproved?.aggregate?.count),
+                    totalAmount: safeNum(combinedResponse?.advancePaymentsApproved?.aggregate?.sum?.amount)
+                  },
+            actualVsPlanned:
+              activePeriod === 'yearly'
+                ? prev.actualVsPlanned
+                : {
+                    actualExpenses: {
+                      totalAmount: safeNum(combinedResponse?.actualExpenses?.aggregate?.sum?.reimbursableAmount),
+                      count: safeNum(combinedResponse?.actualExpenses?.aggregate?.count)
+                    },
+                    plannedExpenses: {
+                      totalAmount: safeNum(combinedResponse?.plannedExpenses?.aggregate?.sum?.totalAmount),
+                      count: safeNum(combinedResponse?.plannedExpenses?.aggregate?.count)
+                    }
+                  }
+          }))
+          setLoadingBySection(prev => ({
+            ...prev,
+            core: false,
+            planActual: activePeriod === 'yearly' ? prev.planActual : false
+          }))
+
+          if (activePeriod === 'yearly') {
+            void executeYearlyPlanActualQuery(selectedCurrency, selectedDepartment, dateRanges)
+              .then(planActual => {
+                if (lastRequestKey.current !== requestKeySnapshot) {
+                  return
+                }
+                setStats(prev => ({
+                  ...prev,
+                  advancePaymentsApproved: {
+                    count: planActual.advancePaymentsApproved.count,
+                    totalAmount: planActual.advancePaymentsApproved.value
+                  },
+                  actualVsPlanned: {
+                    actualExpenses: {
+                      totalAmount: planActual.actualExpenses.value,
+                      count: planActual.actualExpenses.count
+                    },
+                    plannedExpenses: {
+                      totalAmount: planActual.plannedExpenses.value,
+                      count: planActual.plannedExpenses.count
+                    }
+                  }
+                }))
+              })
+              .catch(() => {
+                if (lastRequestKey.current !== requestKeySnapshot) {
+                  return
+                }
+                setErrorsBySection(prev => ({
+                  ...prev,
+                  planActual: new Error('Failed to load actual vs planned metrics')
+                }))
+              })
+              .finally(() => {
+                if (lastRequestKey.current !== requestKeySnapshot) {
+                  return
+                }
+                setLoadingBySection(prev => ({ ...prev, planActual: false }))
+              })
+          }
+        })
+        .catch(err => {
+          if (lastRequestKey.current !== requestKeySnapshot) {
+            return
+          }
+          const sectionError = err instanceof Error ? err : new Error('Failed to fetch dashboard stats')
+          setError(sectionError)
+          setErrorsBySection(prev => ({ ...prev, core: sectionError }))
+          setLoadingBySection(prev => ({ ...prev, core: false, planActual: false }))
+        })
+        .finally(() => {
+          if (lastRequestKey.current !== requestKeySnapshot) {
+            return
+          }
+          completeInitialTask()
+        })
+
+      void executeTrendsQuery(selectedCurrency, selectedDepartment, dateRanges.currentYear)
+        .then(trendsResponse => {
+          if (lastRequestKey.current !== requestKeySnapshot) {
+            return
+          }
+
+          const trendRows = (
+            Array.isArray((trendsResponse as any)?.data) ? (trendsResponse as any).data : []
+          ) as MonthlyTrendRow[]
+          const monthlyTrendsByMonth = new Map<number, MonthlyTrendRow>()
+          for (const row of trendRows) {
+            const monthStart = row?.month_start ?? row?.date_category
+            if (typeof monthStart === 'string' && monthStart.length >= 7) {
+              const parsedMonth = Number(monthStart.slice(5, 7))
+              if (Number.isFinite(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12) {
+                monthlyTrendsByMonth.set(parsedMonth, row)
+                continue
+              }
+            }
+            const category = row?.category ?? ''
+            const match = /^m(\d{1,2})$/.exec(category)
+            if (match) {
+              const parsedMonth = Number(match[1])
+              if (Number.isFinite(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12) {
+                monthlyTrendsByMonth.set(parsedMonth, row)
+              }
+            }
+          }
+
+          const monthlyTrends = Array.from({ length: 12 }, (_, index) => {
+            const month = index + 1
+            const row = monthlyTrendsByMonth.get(month)
+            const fallbackMonthName = new Date(dateRanges.currentYear, index).toLocaleString('default', {
+              month: 'short'
+            })
+            const rowMonthName =
+              typeof row?.month_label === 'string' && row.month_label.trim() !== ''
+                ? row.month_label
+                : fallbackMonthName
+            return {
+              month,
+              monthName: rowMonthName,
+              totalAmount: safeNum(row?.value),
+              count: safeNum(row?.item_count ?? row?.count)
+            }
           })
-          const rowMonthName =
-            typeof row?.month_label === 'string' && row.month_label.trim() !== '' ? row.month_label : fallbackMonthName
-          return {
-            month,
-            monthName: rowMonthName,
-            totalAmount: safeNum(row?.value),
-            count: safeNum(row?.item_count ?? row?.count)
+          setStats(prev => ({ ...prev, monthlyTrends }))
+          setLoadingBySection(prev => ({ ...prev, trends: false }))
+        })
+        .catch(err => {
+          if (lastRequestKey.current !== requestKeySnapshot) {
+            return
           }
-        }),
-        monthlySpendComparison: {
-          currentMonthTotal: safeNum(currentComparisonAgg?.aggregate?.sum?.reimbursableAmount),
-          previousMonthTotal: safeNum(previousComparisonAgg?.aggregate?.sum?.reimbursableAmount),
-          currentMonthCount: safeNum(currentComparisonAgg?.aggregate?.count),
-          previousMonthCount: safeNum(previousComparisonAgg?.aggregate?.count),
-          percentChange: null,
-          isIncrease: false
-        },
-        transferRequired: safeNum(combinedResponse?.transferRequired?.aggregate?.sum?.reimbursableAmount),
-        pendingRequestsCount: safeNum(combinedResponse?.pendingRequests?.aggregate?.count),
-        avgSpendPerTrip: safeNum(combinedResponse?.avgSpendPerTrip?.aggregate?.avg?.reimbursableAmount),
-        travelExpensesCount: 0,
-        advancePaymentsApproved: {
-          count: safeNum(combinedResponse?.advancePaymentsApproved?.aggregate?.count),
-          totalAmount: safeNum(combinedResponse?.advancePaymentsApproved?.aggregate?.sum?.amount)
-        },
-        totalCompanySpend: {
-          currentPeriodTotal: safeNum(currentPeriodAgg?.aggregate?.sum?.reimbursableAmount),
-          previousPeriodTotal: safeNum(previousPeriodAgg?.aggregate?.sum?.reimbursableAmount),
-          currentPeriodCount: safeNum(currentPeriodAgg?.aggregate?.count),
-          previousPeriodCount: safeNum(previousPeriodAgg?.aggregate?.count),
-          percentChange: null,
-          isIncrease: false
-        },
-        actualVsPlanned: {
-          actualExpenses: {
-            totalAmount: safeNum(combinedResponse?.actualExpenses?.aggregate?.sum?.reimbursableAmount),
-            count: safeNum(combinedResponse?.actualExpenses?.aggregate?.count)
-          },
-          plannedExpenses: {
-            totalAmount: safeNum(combinedResponse?.plannedExpenses?.aggregate?.sum?.totalAmount),
-            count: safeNum(combinedResponse?.plannedExpenses?.aggregate?.count)
+          const sectionError = err instanceof Error ? err : new Error('Failed to fetch dashboard trends')
+          setErrorsBySection(prev => ({ ...prev, trends: sectionError }))
+          setLoadingBySection(prev => ({ ...prev, trends: false }))
+        })
+        .finally(() => {
+          if (lastRequestKey.current !== requestKeySnapshot) {
+            return
           }
-        }
-      }
-
-      const monthlyChange = calculatePercentChange(
-        processedStats.monthlySpendComparison.currentMonthTotal,
-        processedStats.monthlySpendComparison.previousMonthTotal
-      )
-      processedStats.monthlySpendComparison.percentChange = monthlyChange.percentChange
-      processedStats.monthlySpendComparison.isIncrease = monthlyChange.isIncrease
-
-      const companyChange = calculatePercentChange(
-        processedStats.totalCompanySpend.currentPeriodTotal,
-        processedStats.totalCompanySpend.previousPeriodTotal
-      )
-      processedStats.totalCompanySpend.percentChange = companyChange.percentChange
-      processedStats.totalCompanySpend.isIncrease = companyChange.isIncrease
-
-      setStats(processedStats)
+          completeInitialTask()
+        })
+      return
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch dashboard stats'))
-    } finally {
+      const sectionError = err instanceof Error ? err : new Error('Failed to fetch dashboard stats')
+      setError(sectionError)
+      setErrorsBySection(prev => ({ ...prev, core: sectionError }))
+      setLoadingBySection(prev => ({ ...prev, core: false, trends: false, planActual: false }))
       setLoading(false)
       isLoadingRef.current = false
+    } finally {
+      // Loading is resolved by async branch completions above.
     }
   }, [
     accessToken,
@@ -585,6 +771,7 @@ export const useDashboardStats = ({
     filters.department,
     calculateDateRanges,
     executeKpiQuery,
+    executeYearlyPlanActualQuery,
     executeTrendsQuery,
     calculatePercentChange
   ])
@@ -597,7 +784,7 @@ export const useDashboardStats = ({
     }
   }, [fetchEssentialStats, isActive, accessToken])
 
-  return { stats, loading, error, refetch: fetchEssentialStats }
+  return { stats, loading, loadingBySection, errorsBySection, error, refetch: fetchEssentialStats }
 }
 
 export default useDashboardStats
