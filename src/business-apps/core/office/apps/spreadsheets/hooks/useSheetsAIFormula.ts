@@ -10,6 +10,8 @@ import {
   parseSheetsAIFormulaResponse
 } from '../prompts/sheets-ai-formula'
 
+const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
+
 export interface UseSheetsAIFormulaParams {
   accessToken: string
   columns: SpreadsheetColumn[]
@@ -94,7 +96,9 @@ export const useSheetsAIFormula = ({
         returnTotalRecords: false
       })
       const selectedModel =
-        modelsResponse.data?.find(model => model.name.toLowerCase().includes('gpt-4')) ?? modelsResponse.data?.[0]
+        modelsResponse.data?.find(model => model._id === PREFERRED_MODEL_ID) ??
+        modelsResponse.data?.find(model => model.name.toLowerCase().includes('gpt-4')) ??
+        modelsResponse.data?.[0]
       if (!selectedModel) throw new Error('No AI models available')
 
       const formData = new FormData()
