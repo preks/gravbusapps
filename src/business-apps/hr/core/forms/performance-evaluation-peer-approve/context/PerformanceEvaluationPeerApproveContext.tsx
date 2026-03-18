@@ -26,7 +26,6 @@ interface PerformanceEvaluationPeerApproveContextType {
   clearError: () => void
   onApprove: () => Promise<void>
   onReject: (comment?: string) => Promise<void>
-  onCancel: () => Promise<void>
   businessAppContext: BusinessAppContextProps
   employeeForHeader: EmployeeForHeader | null
   employeeForHeaderLoading: boolean
@@ -59,7 +58,6 @@ interface PerformanceEvaluationPeerApproveProviderProps {
   children: ReactNode
   businessAppContext: BusinessAppContextProps
   onSubmit?: (values: PerformanceEvaluationPeerApproveFormValues) => Promise<void>
-  onCancel?: () => Promise<void>
 }
 
 function getNominatedPeersFromPayload(ad: Record<string, unknown> | undefined): NominatedPeer[] {
@@ -94,8 +92,7 @@ function getNominatedPeersFromPayload(ad: Record<string, unknown> | undefined): 
 export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvaluationPeerApproveProviderProps> = ({
   children,
   businessAppContext,
-  onSubmit = async () => {},
-  onCancel = async () => {}
+  onSubmit = async () => {}
 }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -207,15 +204,6 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
     [nominatedPeers, onSubmit, buildPeerApprovalPayload]
   )
 
-  const handleCancel = useCallback(async () => {
-    try {
-      dispatchProcessContinueEvent('pse_abort', {})
-      await onCancel()
-    } catch {
-      // ignore
-    }
-  }, [onCancel])
-
   const searchReplacementEmployees = useCallback(
     async (search: string) => {
       await fetchStructureEmployees(search)
@@ -248,7 +236,6 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       clearError,
       onApprove: handleApprove,
       onReject: handleReject,
-      onCancel: handleCancel,
       businessAppContext,
       employeeForHeader,
       employeeForHeaderLoading,
@@ -267,7 +254,6 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       clearError,
       handleApprove,
       handleReject,
-      handleCancel,
       businessAppContext,
       employeeForHeader,
       employeeForHeaderLoading,

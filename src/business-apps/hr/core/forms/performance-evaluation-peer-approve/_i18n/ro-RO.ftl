@@ -9,6 +9,5 @@ replace-with-label = Înlocuie cu
 replace-with-placeholder = Păstrați sau selectați alt angajat...
 reject-comment-label = Comentariu (opțional, la respingere)
 reject-comment-placeholder = Adăugați un comentariu dacă respingeți...
-cancel-button = Anulare
 reject-button = Respingere
 approve-button = Aprobare

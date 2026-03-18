@@ -9,6 +9,5 @@ replace-with-label = Replace with
 replace-with-placeholder = Keep or select another employee...
 reject-comment-label = Comment (optional, for rejection)
 reject-comment-placeholder = Add a comment if rejecting...
-cancel-button = Cancel
 reject-button = Reject
 approve-button = Approve

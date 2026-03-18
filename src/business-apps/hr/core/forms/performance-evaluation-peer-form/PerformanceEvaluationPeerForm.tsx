@@ -7,7 +7,6 @@ import { PerformanceEvaluationPeerFormProps } from './types'
 const PerformanceEvaluationPeerForm: React.FC<BusinessAppContextProps & PerformanceEvaluationPeerFormProps> = ({
   initialValues = {},
   onSubmit = async () => {},
-  onCancel = async () => {},
   accessToken,
   userInfo,
   additionalData
@@ -33,7 +32,6 @@ const PerformanceEvaluationPeerForm: React.FC<BusinessAppContextProps & Performa
       businessAppContext={businessAppContext}
       initialValues={initialValues}
       onSubmit={onSubmit}
-      onCancel={onCancel}
     >
       <PerformanceEvaluationPeerFormComponent />
     </PerformanceEvaluationPeerFormProvider>
