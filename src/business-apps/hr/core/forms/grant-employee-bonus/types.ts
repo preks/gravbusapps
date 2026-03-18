@@ -16,6 +16,10 @@ export interface GrantEmployeeBonusContextData {
   employee: EmployeeDataResponse | null
   catalogs: CatalogsDataResponse | null
   employeeCurrency: EmployeeBankAccountCurrency | null
+  /** Currency from employee's employment region country; used as default when set */
+  countryCurrencyRef: string | null
+  /** Whether the employee has an employment region set; undefined until region has been resolved */
+  hasEmploymentRegion?: boolean
 }
 
 export interface EmployeeDataResponse {

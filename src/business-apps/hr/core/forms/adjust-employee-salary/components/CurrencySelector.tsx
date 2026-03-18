@@ -36,9 +36,13 @@ const CurrencySelector: React.FC<CurrencySelectorProps> = ({ control, currencies
         required: t('assign-salary-currency-required')
       }}
       render={({ field }) => {
-        // Find selected currency for display
+        // Find selected currency for display (avoid "RON - RON" when code and value are the same)
         const selectedCurrency = currencies.find(c => c.id === field.value)
-        const displayValue = selectedCurrency ? `${selectedCurrency.code} - ${selectedCurrency.value}` : ''
+        const displayValue = selectedCurrency
+          ? selectedCurrency.code === selectedCurrency.value
+            ? selectedCurrency.code
+            : `${selectedCurrency.code} - ${selectedCurrency.value}`
+          : ''
 
         return (
           <FormItem>
@@ -75,7 +79,7 @@ const CurrencySelector: React.FC<CurrencySelectorProps> = ({ control, currencies
                       value={currency.id}
                       data-testid={`assign-employee-salary-currency-option-${currency.code}`}
                     >
-                      {currency.code} - {currency.value}
+                      {currency.code === currency.value ? currency.code : `${currency.code} - ${currency.value}`}
                     </SelectItem>
                   ))}
                 </SelectContent>

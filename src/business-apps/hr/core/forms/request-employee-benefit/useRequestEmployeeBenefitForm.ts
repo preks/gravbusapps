@@ -74,15 +74,21 @@ export const useRequestEmployeeBenefitForm = ({
     }
   }, [startDate])
 
-  // Auto-select first provider if available (from either benefitProviders or selectedBenefit.availableProviders)
+  // Initialize provider: prefer selection from modal (selectedBenefit.providerRef), then first from benefitProviders or availableProviders
   useEffect(() => {
+    const fromModal = selectedBenefit?.providerRef
+    const providerIds = benefitProviders.map(p => p.id)
+    const fromAvailable = selectedBenefit?.availableProviders?.map(p => p.id) ?? []
+    const validIds = new Set([...providerIds, ...fromAvailable])
+
+    if (fromModal && validIds.has(fromModal)) {
+      setProvider(fromModal)
+      return
+    }
     if (!provider) {
-      // Try benefitProviders first (from context)
       if (benefitProviders.length > 0) {
         setProvider(benefitProviders[0].id)
-      }
-      // Fallback to selectedBenefit.availableProviders
-      else if (selectedBenefit?.availableProviders && selectedBenefit.availableProviders.length > 0) {
+      } else if (selectedBenefit?.availableProviders && selectedBenefit.availableProviders.length > 0) {
         setProvider(selectedBenefit.availableProviders[0].id)
       }
     }
