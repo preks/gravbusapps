@@ -30,8 +30,18 @@ type ParticipantEventData = {
   avatar?: string
 }
 
-type CursorEventData = { userId: string; position: DocumentParticipant['cursor'] }
-type SelectionEventData = { userId: string; selection: DocumentParticipant['selection'] }
+type CursorEventData = {
+  userId: string
+  userName?: string
+  userColor?: string
+  position: DocumentParticipant['cursor']
+}
+type SelectionEventData = {
+  userId: string
+  userName?: string
+  userColor?: string
+  selection: DocumentParticipant['selection']
+}
 
 function mapSocketParticipantToParticipant(p: SocketParticipant): DocumentParticipant {
   return {
@@ -66,15 +76,49 @@ function removeParticipant(prev: DocumentParticipant[], userId: string): Documen
 }
 
 function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventData): DocumentParticipant[] {
-  return prev.map(p => (p.userId === data.userId ? { ...p, cursor: data.position, lastActiveAt: new Date() } : p))
+  let found = false
+  const next = prev.map(p => {
+    if (p.userId !== data.userId) return p
+    found = true
+    return { ...p, cursor: data.position, lastActiveAt: new Date() }
+  })
+  if (found) return next
+  return [
+    ...next,
+    {
+      userId: data.userId,
+      userName: data.userName || 'User',
+      userColor: data.userColor || '#4ECDC4',
+      socketId: '',
+      cursor: data.position,
+      lastActiveAt: new Date()
+    }
+  ]
 }
 
 function updateParticipantSelection(prev: DocumentParticipant[], data: SelectionEventData): DocumentParticipant[] {
-  return prev.map(p => (p.userId === data.userId ? { ...p, selection: data.selection, lastActiveAt: new Date() } : p))
+  let found = false
+  const next = prev.map(p => {
+    if (p.userId !== data.userId) return p
+    found = true
+    return { ...p, selection: data.selection, lastActiveAt: new Date() }
+  })
+  if (found) return next
+  return [
+    ...next,
+    {
+      userId: data.userId,
+      userName: data.userName || 'User',
+      userColor: data.userColor || '#4ECDC4',
+      socketId: '',
+      selection: data.selection,
+      lastActiveAt: new Date()
+    }
+  ]
 }
 
 export interface UseCollaborationOptions {
-  entityType: 'document' | 'spreadsheet' | 'note' | 'slide'
+  entityType: 'document' | 'spreadsheet' | 'note'
   entityId: string
   enabled?: boolean
   accessToken?: string
@@ -212,6 +256,10 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     // Setup event listeners
     client.getSocket()?.on('connect', handleConnect)
     client.getSocket()?.on('disconnect', handleDisconnect)
+    // Avoid missing a fast initial connect before listeners are attached.
+    if (client.getSocket()?.connected) {
+      handleConnect()
+    }
 
     // Handle user joined
     const handleUserJoined = (data: ParticipantEventData) => {
@@ -229,7 +277,6 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
 
     // Handle operation applied
     const handleOperationApplied = (data: Parameters<NonNullable<typeof onOperationReceived>>[0]) => {
-      console.log('[useCollaboration] Operation applied:', data)
       onOperationReceived?.(data)
     }
     client.onOperationApplied(handleOperationApplied)
@@ -265,6 +312,10 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
         console.warn('[useCollaboration] Cannot emit operation: not connected')
         return
       }
+      if (!hasJoinedRef.current) {
+        clientRef.current.joinDocument(entityType, entityId)
+        hasJoinedRef.current = true
+      }
 
       clientRef.current.sendDocumentOperation(entityType, entityId, operation)
     },
@@ -275,6 +326,10 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   const emitCursor = useCallback(
     (position: { line?: number; column?: number; offset?: number; path?: string[] }) => {
       if (!clientRef.current?.isConnected()) return
+      if (!hasJoinedRef.current) {
+        clientRef.current.joinDocument(entityType, entityId)
+        hasJoinedRef.current = true
+      }
 
       clientRef.current.sendCursorMove(entityType, entityId, position)
     },

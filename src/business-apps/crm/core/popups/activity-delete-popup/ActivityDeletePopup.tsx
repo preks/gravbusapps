@@ -199,16 +199,6 @@ const ActivityDeletePopup: React.FC<ActivityDeletePopupProps> = ({ initialValues
                     {activity.title}
                   </Badge>
                 </p>
-                {activity.description && (
-                  <p className="gba:mt-1">
-                    <strong>{getTranslationFromI18nKeyAndLabel('common.description', 'Description')}:</strong>{' '}
-                    <Badge variant="outline" className="gba:ml-1">
-                      {activity.description.length > 50
-                        ? `${activity.description.substring(0, 50)}...`
-                        : activity.description}
-                    </Badge>
-                  </p>
-                )}
                 {activity.activityType && (
                   <p className="gba:mt-1">
                     <strong>{getTranslationFromI18nKeyAndLabel('activity.type', 'Type')}:</strong>{' '}

@@ -19,3 +19,9 @@ export const ANNUAL_REVENUE = 'AccountAnnualRevenueBand:v1'
 export const OPPORTUNITY_FORECAST = 'CustomerOpportunityForecast:v1'
 export const ACCOUNT_PRIORITY = 'CustomerAccountPriority:v1'
 export const CUSTOMER_ACCOUNT_TYPE = 'CustomerAccountType:v1'
+export const CAMPAIGN_TYPE = 'CustomerCampaignType:v1'
+
+// Task and activity catalogs (CRM)
+export const TASK_TYPE = 'SalesTaskType:v1'
+export const TASK_PRIORITY = 'SalesTaskPriority:v1'
+export const ACTIVITY_TYPE = 'SalesActivityType:v1'

@@ -256,7 +256,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
     }
   }, [entityListKey, isConnected, fetchPresence, limitedResults])
 
-  const typeConfig = useMemo(() => getTypeConfig(t), [t])
+  const typeConfig = getTypeConfig(t)
 
   // Group results by type
   const groupedResults = useMemo(() => {

@@ -1,6 +1,7 @@
 import { env } from '@/common/env/EnvUtils'
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { RestClient } from '@/common/network/rest/RestClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 // --- Types (minimal, aligned with prompt-manager.openapi.json) ---
 export interface Paging {
@@ -573,30 +574,20 @@ export interface AIServicePage {
 // --- Client ---
 export class PromptManagerClient extends RestClient {
   constructor() {
-    // Follow the same pattern as other clients: use specific API URL or fallback to BASE_URL
-    // Priority: NEXT_PUBLIC_PROMPT_MANAGER_API_URL (incl. local override) >
-    //           localhost default (when running on localhost) >
-    //           NEXT_PUBLIC_BASE_URL/prompt-manager >
-    //           localhost
-    let url = env('NEXT_PUBLIC_PROMPT_MANAGER_API_URL')
-    // Prefer localhost when the app runs locally and no explicit URL is set
-    if (!url && typeof window !== 'undefined') {
-      const host = window.location.hostname
-      if (host === 'localhost' || host === '127.0.0.1') {
-        url = 'http://localhost:8000'
-      }
-    }
-    if (!url) {
-      const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? ''
-      url = baseUrl ? `${baseUrl}/prompt-manager` : 'http://localhost:8000'
+    // Route through FlowBot's prompt-manager (same as feedback/performance-evaluation forms).
+    // Priority: NEXT_PUBLIC_PROMPT_MANAGER_API_URL (explicit override) >
+    //           flowbot base + /flowbot/prompt-manager
+    const explicit = env('NEXT_PUBLIC_PROMPT_MANAGER_API_URL')
+    if (explicit) {
+      let url = explicit
+      if (url.endsWith('/')) url = url.slice(0, -1)
+      super(url, {})
+      return
     }
 
-    // Ensure URL doesn't end with slash (RestClient handles this)
-    if (url.endsWith('/')) {
-      url = url.slice(0, -1)
-    }
-
-    super(url, {})
+    const flowbotBase = resolveFlowbotBaseUrl()
+    const url = flowbotBase ? `${flowbotBase}/flowbot/prompt-manager` : 'http://localhost:8000/flowbot/prompt-manager'
+    super(url.endsWith('/') ? url.slice(0, -1) : url, {})
   }
 
   private normalizeAccessToken(accessToken: unknown): string | null {

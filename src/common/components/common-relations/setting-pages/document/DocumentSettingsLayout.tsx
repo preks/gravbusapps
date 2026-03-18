@@ -33,6 +33,12 @@ export interface DocumentSettingsConfig {
   dataTestIdPrefix: string
   headerTitle?: string
   headerDescription?: string
+  groupLabel?: string
+  typeLabel?: string
+  filterGroupsByParentCode?: {
+    catalog: string
+    code: string
+  }
 }
 
 export interface DocumentSettingsLayoutProps extends BusinessAppContextProps {
@@ -52,6 +58,17 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
   // Call hooks internally
   const groups = useCatalogSettings(context, config.groupCatalog)
   const types = useCatalogSettings(context, config.typeCatalog)
+  // Load parent catalog when group filtering is configured (empty string is a no-op)
+  const parentFilterCatalog = useCatalogSettings(context, config.filterGroupsByParentCode?.catalog ?? '')
+
+  // Resolve parent entry ID from the parent catalog, then filter groups to only those children
+  const parentFilterId = config.filterGroupsByParentCode
+    ? parentFilterCatalog.items.find(e => e.code === config.filterGroupsByParentCode!.code)?.id
+    : undefined
+
+  const filteredGroupItems = parentFilterId
+    ? groups.items.filter(g => g.parentEntryId === parentFilterId)
+    : groups.items
 
   const [selectedGroup, setSelectedGroup] = useState<CatalogItem | null>(null)
   const [groupSearchTerm, setGroupSearchTerm] = useState('')
@@ -73,10 +90,10 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
 
   // Auto-select first group on load
   React.useEffect(() => {
-    if (groups.items.length > 0 && !selectedGroup) {
-      setSelectedGroup(groups.items[0])
+    if (filteredGroupItems.length > 0 && !selectedGroup) {
+      setSelectedGroup(filteredGroupItems[0])
     }
-  }, [groups.items, selectedGroup])
+  }, [filteredGroupItems, selectedGroup])
 
   const handleGroupSelect = useCallback((group: CatalogItem) => {
     setSelectedGroup(group)
@@ -150,8 +167,8 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
     }
   }
 
-  // Filter groups by search
-  const filteredGroups = groups.items.filter(group => {
+  // Filter groups by search (applied on top of any parent-entry filter)
+  const filteredGroups = filteredGroupItems.filter(group => {
     if (!groupSearchTerm) return true
     const lowerSearch = groupSearchTerm.toLowerCase()
     return group.code.toLowerCase().includes(lowerSearch) || group.value.toLowerCase().includes(lowerSearch)
@@ -199,9 +216,13 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
               <TableRow>
                 <TableCell colSpan={5} className="gba:text-center gba:py-8">
                   <EmptyState
-                    title={typeSearchTerm ? 'No types found' : 'No document types'}
+                    title={
+                      typeSearchTerm ? 'No types found' : `No ${config.typeLabel?.toLowerCase() || 'document types'}`
+                    }
                     description={
-                      typeSearchTerm ? 'Try adjusting your search terms' : 'Click "Add Type" to create a document type'
+                      typeSearchTerm
+                        ? 'Try adjusting your search terms'
+                        : `Click "Add ${config.typeLabel || 'Type'}" to create a ${config.typeLabel?.toLowerCase() || 'document type'}`
                     }
                   />
                 </TableCell>
@@ -286,7 +307,9 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
         <div className="gba:w-80 gba:flex-shrink-0">
           <Card>
             <div className="gba:p-4 gba:border-b gba:flex gba:items-center gba:justify-between">
-              <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Document Groups</h3>
+              <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">
+                {config.groupLabel || 'Document Groups'}
+              </h3>
               <Button
                 size="sm"
                 onClick={() => handleOpenDialog('group')}
@@ -308,7 +331,11 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
               {filteredGroups.length === 0 ? (
                 <div className="gba:p-4">
                   <EmptyState
-                    title={groupSearchTerm ? 'No groups found' : 'No document groups'}
+                    title={
+                      groupSearchTerm
+                        ? 'No groups found'
+                        : `No ${config.groupLabel?.toLowerCase() || 'document groups'}`
+                    }
                     description={groupSearchTerm ? 'Try adjusting your search' : 'Click + to add a group'}
                   />
                 </div>
@@ -377,14 +404,16 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
               <div className="gba:flex gba:justify-between gba:items-center">
                 <div>
                   <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{selectedGroup.value}</h2>
-                  <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">Manage document types for this group</p>
+                  <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
+                    Manage {config.typeLabel?.toLowerCase() || 'document types'} for this group
+                  </p>
                 </div>
                 <Button
                   onClick={() => handleOpenDialog('type')}
                   data-testid={`${config.dataTestIdPrefix}-${DATA_TEST_ID}-add-type-button`}
                 >
                   <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Add Type
+                  Add {config.typeLabel || 'Type'}
                 </Button>
               </div>
 
@@ -393,8 +422,8 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
           ) : (
             <div className="gba:py-12">
               <EmptyState
-                title="Select a document group"
-                description="Choose a document group from the sidebar to view and manage its types"
+                title={`Select a ${config.groupLabel?.toLowerCase().replace(/s$/, '') || 'document group'}`}
+                description={`Choose a ${config.groupLabel?.toLowerCase().replace(/s$/, '') || 'document group'} from the sidebar to view and manage its ${config.typeLabel?.toLowerCase() || 'types'}`}
               />
             </div>
           )}
@@ -406,7 +435,10 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
         <DialogContent data-testid={`${config.dataTestIdPrefix}-${DATA_TEST_ID}-dialog`}>
           <DialogHeader>
             <DialogTitle>
-              {editingItem ? 'Edit' : 'Add'} {dialogMode === 'group' ? 'Document Group' : 'Document Type'}
+              {editingItem ? 'Edit' : 'Add'}{' '}
+              {dialogMode === 'group'
+                ? config.groupLabel?.replace(/s$/, '') || 'Document Group'
+                : config.typeLabel?.replace(/s$/, '') || 'Document Type'}
             </DialogTitle>
           </DialogHeader>
 

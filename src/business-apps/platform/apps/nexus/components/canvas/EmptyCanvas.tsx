@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@newwork/nw-design-system'
 import { MessageSquare, FileText, BarChart3, Presentation, Database, ArrowRight, Sparkles } from 'lucide-react'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 
 interface EmptyCanvasProps {
   /** Called when the user wants to just open the chat (no text) */
@@ -9,12 +9,6 @@ interface EmptyCanvasProps {
   onSuggestionClick: (prompt: string) => void
   testId?: string
 }
-
-// Video background — same approach as EveryOneHero
-const hostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
-const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
 const suggestions = [
   {
@@ -82,33 +76,9 @@ const GlassCard = ({
 export const EmptyCanvas = ({ onOpenChat, onSuggestionClick, testId = 'nexus-empty-canvas' }: EmptyCanvasProps) => {
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:overflow-auto" data-testid={testId}>
-      {/* Hero Banner — same style as EveryOne dashboard */}
       <div className="gba:relative gba:overflow-hidden gba:flex-shrink-0">
-        {useVideo ? (
-          <video
-            src={HERO_VIDEO_SRC}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden
-          />
-        ) : (
-          <SpaceHeroBackground />
-        )}
-
-        {/* Dark overlay for readability */}
-        {/* eslint-disable newwork-local/no-hardcoded-colors */}
-        <div
-          className="gba:absolute gba:inset-0 gba:pointer-events-none"
-          style={{
-            background: `linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)`
-          }}
-          aria-hidden
-        />
-        {/* eslint-enable newwork-local/no-hardcoded-colors */}
+        <PremiumHeroBackground data-testid={`${testId}-background`} />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
         {/* Hero content */}
         <div className="gba:relative gba:px-8 gba:py-8">

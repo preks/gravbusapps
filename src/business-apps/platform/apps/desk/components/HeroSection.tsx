@@ -7,23 +7,20 @@
 import React, { useCallback, type LucideIcon } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Layers, FileText, FileSpreadsheet, StickyNote, Presentation, HardDrive, Users, Mail } from 'lucide-react'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background/PremiumHeroBackground'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import deskTranslations from '../_i18n'
-
-const deskHostedVideoUrl = import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const deskLocalVideoUrl = '/space-hero-background.mp4'
-const deskUseVideo = deskHostedVideoUrl || (import.meta.env?.DEV ? deskLocalVideoUrl : false)
-const deskVideoSrc = deskHostedVideoUrl || deskLocalVideoUrl
 
 interface AppNavItem {
   id: string
   labelKey: string
   icon: LucideIcon
   path: string
+  highlight?: boolean
 }
 
 const APP_NAV_ITEMS: AppNavItem[] = [
+  { id: 'drive', labelKey: 'hero-nav-drive', icon: HardDrive, path: '/platform/every-office/drive', highlight: true },
   { id: 'documents', labelKey: 'hero-nav-documents', icon: FileText, path: '/platform/every-office/documents' },
   {
     id: 'spreadsheets',
@@ -33,7 +30,6 @@ const APP_NAV_ITEMS: AppNavItem[] = [
   },
   { id: 'notes', labelKey: 'hero-nav-notes', icon: StickyNote, path: '/platform/every-office/notes' },
   { id: 'slides', labelKey: 'hero-nav-slides', icon: Presentation, path: '/platform/every-office/slides' },
-  { id: 'drive', labelKey: 'hero-nav-drive', icon: HardDrive, path: '/platform/every-office/drive' },
   { id: 'spaces', labelKey: 'hero-nav-spaces', icon: Users, path: '/platform/every-office/spaces' },
   { id: 'emails', labelKey: 'hero-nav-emails', icon: Mail, path: '/platform/every-office/emails' }
 ]
@@ -51,29 +47,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
 
   return (
     <section className="gba:relative gba:overflow-hidden" data-testid={testId}>
-      {deskUseVideo ? (
-        <video
-          src={deskVideoSrc}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-          className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-          aria-hidden
-        />
-      ) : (
-        <SpaceHeroBackground />
-      )}
-      {/* eslint-disable newwork-local/no-hardcoded-colors */}
-      <div
-        className="gba:absolute gba:inset-0 gba:pointer-events-none"
-        style={{
-          background: `linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)`
-        }}
-        aria-hidden
-      />
-      {/* eslint-enable newwork-local/no-hardcoded-colors */}
+      <PremiumHeroBackground />
+      <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
       <div className="gba:relative gba:py-12 gba:px-6 gba:max-w-4xl gba:mx-auto gba:text-center">
         <div className="gba:mb-6" data-testid={`${testId}-logo`}>
@@ -134,6 +109,7 @@ interface HeroAppIconProps {
 
 const HeroAppIcon: React.FC<HeroAppIconProps> = ({ item, label, onClick, 'data-testid': iconTestId }) => {
   const Icon = item.icon
+  const hl = item.highlight
   return (
     <button
       type="button"
@@ -141,10 +117,27 @@ const HeroAppIcon: React.FC<HeroAppIconProps> = ({ item, label, onClick, 'data-t
       className="gba:group gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:outline-none gba:p-0"
       data-testid={iconTestId}
     >
-      <span className="gba:relative gba:flex gba:items-center gba:justify-center gba:w-11 gba:h-11 gba:sm:w-12 gba:sm:h-12 gba:rounded-xl gba:bg-white/10 gba:border gba:border-white/15 gba:backdrop-blur-sm gba:transition-all gba:duration-200 group-hover:gba:bg-white/20 group-hover:gba:border-white/30 group-hover:gba:scale-110 group-focus-visible:gba:ring-2 group-focus-visible:gba:ring-white/50 group-focus-visible:gba:ring-offset-2 group-focus-visible:gba:ring-offset-transparent">
-        <Icon className="gba:w-5 gba:h-5 gba:text-white/80 gba:transition-colors gba:duration-200 group-hover:gba:text-white" />
+      <span
+        className={[
+          'gba:relative gba:flex gba:items-center gba:justify-center gba:w-11 gba:h-11 gba:sm:w-12 gba:sm:h-12 gba:rounded-xl gba:border gba:backdrop-blur-sm gba:transition-all gba:duration-200 group-hover:gba:scale-110 group-focus-visible:gba:ring-2 group-focus-visible:gba:ring-offset-2 group-focus-visible:gba:ring-offset-transparent',
+          hl
+            ? 'gba:bg-primary/25 gba:border-primary/40 gba:shadow-[0_0_12px_rgba(59,130,246,0.25)] group-hover:gba:bg-primary/35 group-hover:gba:border-primary/50 group-focus-visible:gba:ring-primary/50'
+            : 'gba:bg-white/10 gba:border-white/15 group-hover:gba:bg-white/20 group-hover:gba:border-white/30 group-focus-visible:gba:ring-white/50'
+        ].join(' ')}
+      >
+        <Icon
+          className={[
+            'gba:w-5 gba:h-5 gba:transition-colors gba:duration-200',
+            hl ? 'gba:text-white group-hover:gba:text-white' : 'gba:text-white/80 group-hover:gba:text-white'
+          ].join(' ')}
+        />
       </span>
-      <span className="gba:text-[11px] gba:font-medium gba:text-white/50 gba:transition-colors gba:duration-200 group-hover:gba:text-white/90 gba:tracking-wide">
+      <span
+        className={[
+          'gba:text-[11px] gba:font-medium gba:transition-colors gba:duration-200 gba:tracking-wide',
+          hl ? 'gba:text-white/70 group-hover:gba:text-white' : 'gba:text-white/50 group-hover:gba:text-white/90'
+        ].join(' ')}
+      >
         {label}
       </span>
     </button>

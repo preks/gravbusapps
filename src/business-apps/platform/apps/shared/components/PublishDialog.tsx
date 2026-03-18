@@ -7,7 +7,6 @@
 import React, { useState } from 'react'
 import {
   Dialog,
-  useTranslation,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -19,18 +18,17 @@ import {
   Checkbox
 } from '@newwork/nw-design-system'
 import { CheckCircle, AlertCircle } from 'lucide-react'
-import sharedTranslations from '../_i18n'
 
 export interface PublishDialogMessages {
   title?: string
-  info?: string
+  alert?: string
   notesLabel?: string
   notesPlaceholder?: string
   notesHint?: string
-  createCheckpoint?: string
+  createCheckpointLabel?: string
   cancel?: string
+  confirm?: string
   publishing?: string
-  publish?: string
 }
 
 export interface PublishDialogProps {
@@ -39,6 +37,7 @@ export interface PublishDialogProps {
   onPublish: (publishNotes?: string, createCheckpoint?: boolean) => Promise<void>
   isPublishing?: boolean
   entityType: 'document' | 'note' | 'spreadsheet'
+  /** Optional translated strings */
   messages?: PublishDialogMessages
   'data-testid'?: string
 }
@@ -52,30 +51,14 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
   onPublish,
   isPublishing = false,
   entityType,
-  messages: messagesProp,
+  messages,
   'data-testid': testId = 'publish-dialog'
 }) => {
-  const { t } = useTranslation(sharedTranslations)
-  const entityLabel =
-    entityType === 'spreadsheet'
-      ? t('publish-dialog-entity-spreadsheet')
-      : entityType === 'note'
-        ? t('publish-dialog-entity-note')
-        : t('publish-dialog-entity-document')
-  const defaultMessages = {
-    title: t('publish-dialog-title', { entityType: entityLabel }),
-    info: t('publish-dialog-info', { entityType: entityLabel }),
-    notesLabel: t('publish-dialog-notes-label'),
-    notesPlaceholder: t('publish-dialog-notes-placeholder'),
-    notesHint: t('publish-dialog-notes-hint'),
-    createCheckpoint: t('publish-dialog-create-checkpoint'),
-    cancel: t('publish-dialog-cancel'),
-    publishing: t('publish-dialog-publishing'),
-    publish: t('publish-dialog-publish')
-  }
-  const messages = { ...defaultMessages, ...(messagesProp || {}) }
   const [publishNotes, setPublishNotes] = useState('')
   const [createCheckpoint, setCreateCheckpoint] = useState(true)
+
+  const m = messages ?? {}
+  const entityLabel = entityType === 'spreadsheet' ? 'spreadsheet app' : entityType
 
   const handlePublish = async () => {
     await onPublish(publishNotes || undefined, createCheckpoint)
@@ -94,28 +77,32 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <CheckCircle className="gba:h-5 gba:w-5" />
-            {messages.title}
+            {m.title ?? `Publish ${entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1)}`}
           </DialogTitle>
         </DialogHeader>
 
         <div className="gba:space-y-4 gba:py-4">
           <Alert variant="info">
             <AlertCircle className="gba:h-4 gba:w-4" />
-            <p className="gba:text-sm">{messages.info}</p>
+            <p className="gba:text-sm">
+              {m.alert ?? `Publishing will make this ${entityLabel} publicly available and mark it as final.`}
+            </p>
           </Alert>
 
           <div className="gba:space-y-2">
-            <Label htmlFor="publish-notes">{messages.notesLabel}</Label>
+            <Label htmlFor="publish-notes">{m.notesLabel ?? 'Publishing Notes (Optional)'}</Label>
             <Textarea
               id="publish-notes"
-              placeholder={messages.notesPlaceholder}
+              placeholder={m.notesPlaceholder ?? 'e.g., Final version ready for distribution, Approved by team'}
               value={publishNotes}
               onChange={e => setPublishNotes(e.target.value)}
               disabled={isPublishing}
               rows={3}
               data-testid="publish-notes-textarea"
             />
-            <p className="gba:text-sm gba:text-muted-foreground">{messages.notesHint}</p>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {m.notesHint ?? 'Add notes about this publication for future reference.'}
+            </p>
           </div>
 
           <div className="gba:flex gba:items-center gba:space-x-2">
@@ -127,17 +114,17 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
               data-testid="create-checkpoint-checkbox"
             />
             <Label htmlFor="create-checkpoint" className="gba:text-sm gba:font-normal gba:cursor-pointer">
-              {messages.createCheckpoint}
+              {m.createCheckpointLabel ?? 'Create version checkpoint when publishing'}
             </Label>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel} disabled={isPublishing} data-testid="publish-cancel-button">
-            {messages.cancel}
+            {m.cancel ?? 'Cancel'}
           </Button>
           <Button onClick={handlePublish} disabled={isPublishing} data-testid="publish-confirm-button">
-            {isPublishing ? messages.publishing : messages.publish}
+            {isPublishing ? (m.publishing ?? 'Publishing...') : (m.confirm ?? 'Publish')}
           </Button>
         </DialogFooter>
       </DialogContent>

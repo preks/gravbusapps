@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import {
   type InvestmentActivity,
   INVESTMENT_ACTIVITY_DESCRIPTORS
@@ -249,6 +250,49 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
+  // Fetch all activities for export (uses current filter state, overrides limit/offset)
+  const fetchAllActivities = useCallback(
+    async (vars: { limit: number; offset?: number }) => {
+      if (!context.accessToken || !employeeId) return { activities: [] as InvestmentActivity[], total: 0 }
+
+      const variables: InvestmentActivityQueryVariables = {
+        limit: vars.limit,
+        offset: vars.offset || 0,
+        search: searchTerm.trim() || undefined,
+        ownerEmployeeIds: [employeeId],
+        orderBy: buildOrderByConfig(sorting)
+      }
+
+      applyActivityTypeFilter(variables, selectedFilters)
+      applyDateRangeFilters(variables, selectedFilters)
+
+      const query = buildInvestmentActivityQuery()
+      let whereCondition = buildInvestmentActivityWhereCondition(variables)
+      const orderBy = buildInvestmentActivityOrderBy(variables.orderBy || [])
+
+      if (selectedFilters.referenceType?.length > 0) {
+        const orConditions = buildReferenceTypeFilter(selectedFilters.referenceType)
+        whereCondition = applyReferenceFilter(whereCondition, orConditions)
+      }
+
+      const result = await graphqlClient.request<{
+        InvestmentActivity: InvestmentActivity[]
+        InvestmentActivityAggregate: { aggregate: { count: number } }
+      }>(query, {
+        limit: variables.limit,
+        offset: variables.offset,
+        where: whereCondition,
+        orderBy: orderBy
+      })
+
+      return {
+        activities: result.InvestmentActivity || [],
+        total: result.InvestmentActivityAggregate?.aggregate?.count || 0
+      }
+    },
+    [context.accessToken, employeeId, searchTerm, sorting, selectedFilters, graphqlClient]
+  )
+
   // Handle search change
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value)
@@ -297,6 +341,22 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     filterConfiguration: dynamicFilterConfig,
     createContext: FlowContextName.investmentActivityCreate,
     rowActionsContextArray: [FlowContextName.investmentActivityEntity],
+    buildReferenceUrl: (entityType: string, entityId: string) => {
+      switch (entityType) {
+        case 'lead':
+          return buildPlatformUrl('/platform/irm/lead-record', { leadId: entityId })
+        case 'account':
+          return buildPlatformUrl('/platform/irm/account-record', { accountId: entityId })
+        case 'contact':
+          return buildPlatformUrl('/platform/irm/contact-record', { contactId: entityId })
+        case 'opportunity':
+          return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: entityId })
+        case 'investment':
+          return buildPlatformUrl('/platform/irm/investment-record', { investmentId: entityId })
+        default:
+          return ''
+      }
+    },
     buildRowActionsExternalContextData: (row: { original: InvestmentActivity }) => {
       const externalContextData: Record<string, string> = {
         activityId: row.original.id
@@ -320,6 +380,7 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     onKpiRetry: () => {
       void activityStatistics.refetch()
     },
+    fetchAllActivities,
     translations: {
       title: 'My Activities',
       searchPlaceholder: 'Search activities by title, type...'

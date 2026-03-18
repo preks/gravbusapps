@@ -531,10 +531,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const initializeCostCenters = async (employeePosition: any, costCenterData: any) => {
     try {
       const updatedPositions = [...positions]
+      const allCostCenters = costCenterData?.data?.userCostCenters || []
       const employeePositionCostCenterId = employeePosition[0]?.costCenterId
-      const firstCostCenterId = costCenterData?.data?.userCostCenters?.[0]?.id
+      const firstCostCenterId = allCostCenters[0]?.id
+      const isValidCostCenter = employeePositionCostCenterId && allCostCenters.some((c: any) => c.id === employeePositionCostCenterId)
 
-      if (employeePositionCostCenterId) {
+      if (isValidCostCenter) {
         updatedPositions[0].costCenter = employeePositionCostCenterId
         setUserCostCenter(employeePositionCostCenterId)
       } else if (firstCostCenterId) {
@@ -765,7 +767,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const createPositionsFromReceipt = (data: any): ExpensePosition[] => {
     if (!data.items || data.items.length === 0) return []
 
-    const costCenterId = positions[0]?.costCenter || ''
+    const rawCostCenterId = positions[0]?.costCenter || ''
+    const costCenterId = costCenters.some(c => c.id === rawCostCenterId)
+      ? rawCostCenterId
+      : costCenters[0]?.id || ''
 
     return data.items.map((item: any, index: number) => {
       const expenseGroupId = matchExpenseGroup(item)

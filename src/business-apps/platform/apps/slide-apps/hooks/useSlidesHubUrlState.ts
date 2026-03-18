@@ -13,6 +13,7 @@ export interface UseSlidesHubUrlStateParams {
   setSelectedSlideId: (id: string | null) => void
   activeSection: SidebarSection
   setActiveSection: (section: SidebarSection) => void
+  onInitialLoadComplete?: () => void
 }
 
 export interface UseSlidesHubUrlStateReturn {
@@ -38,11 +39,13 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
     setCurrentView,
     setSelectedSlideId,
     activeSection,
-    setActiveSection
+    setActiveSection,
+    onInitialLoadComplete
   } = params
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
+  const initialLoadCompleteRef = useRef(false)
   const initialSlideIdRef = useRef(getUrlParams().slideId)
   const initialViewRef = useRef(getUrlParams().view)
 
@@ -88,7 +91,16 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
     const urlParams = getUrlParams()
     const slideId = urlParams.slideId || initialSlideIdRef.current
     const view = urlParams.view || initialViewRef.current
-    if (!slideId) return
+
+    // No slideId in URL - mark as complete immediately
+    if (!slideId) {
+      if (!initialLoadCompleteRef.current) {
+        initialLoadCompleteRef.current = true
+        onInitialLoadComplete?.()
+      }
+      return
+    }
+
     if (currentSlideId) return
     if (isLoadingSlide) return
     if (loadAttemptedRef.current === slideId) return
@@ -97,6 +109,10 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
     initialSlideIdRef.current = null
     initialViewRef.current = null
     loadSlideById(slideId).then(slide => {
+      if (!initialLoadCompleteRef.current) {
+        initialLoadCompleteRef.current = true
+        onInitialLoadComplete?.()
+      }
       if (!slide) {
         loadAttemptedRef.current = null
         return
@@ -104,7 +120,7 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
       setSelectedSlideId(slideId)
       setCurrentView(view === 'editor' ? 'editor' : 'editor')
     })
-  }, [currentSlideId, isLoadingSlide, loadSlideById, setCurrentView, setSelectedSlideId])
+  }, [currentSlideId, isLoadingSlide, loadSlideById, setCurrentView, setSelectedSlideId, onInitialLoadComplete])
 
   // Track if we came from desk
   useEffect(() => {
