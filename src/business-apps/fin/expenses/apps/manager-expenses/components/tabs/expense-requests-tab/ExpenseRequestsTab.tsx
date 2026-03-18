@@ -3,8 +3,9 @@ import type { SortingState } from '@tanstack/react-table'
 import { DataDisplay } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters'
 import { requestFilterStatuses } from '../../../hooks/availableFilterStatuses'
+import { useExpenseRequestCurrencies } from '../../../hooks/useExpenseRequestCurrencies'
+import { getExpenseRequestStatusDisplay } from '../../../utils'
 import ExpenseRequestStatistics from './ExpenseRequestStatistics'
 import ExpenseRequestsTable from './ExpenseRequestsTable'
 import ExpenseRequestDetails from './ExpenseRequestDetails'
@@ -20,6 +21,8 @@ import type { ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
 
 export type ExpenseRequestsTabProps = BusinessAppContextProps
 
+type DateRange = [Date | null, Date | null] | null
+
 const DEFAULT_VISIBLE_COLUMN_IDS = [
   'title',
   'planCode',
@@ -34,40 +37,34 @@ const DEFAULT_VISIBLE_COLUMN_IDS = [
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
-  const {
-    search: searchTerm,
-    setSearch: setSearchTerm,
-    debouncedSearch,
-    selectedFilters,
-    setFilters,
-    primaryCurrency,
-    setCurrencyFilter,
-    mostUsedCurrency,
-    availableCurrencies,
-    filterLabelMap,
-    effectiveDateRange,
-    setEffectiveDateRange,
-    requestDateRange,
-    setRequestDateRange,
-    startDateRange,
-    setStartDateRange,
-    endDateRange,
-    setEndDateRange,
-    requestTypeFilter,
-    setRequestTypeFilter
-  } = useExpenseRequestFilters({
-    accessToken: props.accessToken,
-    managerId,
-    userInfo: props.userInfo
-  })
-
-  const DEFAULT_SORT = useMemo(() => ({ field: 'requestDate' as const, order: 'DESC' as const }), [])
-
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string[]>(['PENDING'])
+  const [primaryCurrency, setCurrencyFilter] = useState<string | null>(null)
+  const [requestTypeFilter, setRequestTypeFilter] = useState<string[]>([])
+  const [effectiveDateRange, setEffectiveDateRange] = useState<DateRange>(null)
+  const [requestDateRange, setRequestDateRange] = useState<DateRange>(null)
+  const [startDateRange, setStartDateRange] = useState<DateRange>(null)
+  const [endDateRange, setEndDateRange] = useState<DateRange>(null)
   const [pageSize, setPageSize] = useState(20)
   const [currentPage, setCurrentPage] = useState(1)
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...DEFAULT_VISIBLE_COLUMN_IDS])
+  const DEFAULT_SORT = useMemo(() => ({ field: 'requestDate' as const, order: 'DESC' as const }), [])
   const [sorting, setSorting] = useState<{ field: string | null; order: 'ASC' | 'DESC' | null }>(DEFAULT_SORT)
   const [selectedRequest, setSelectedRequest] = useState<ExpenseRequest | null>(null)
+
+  const { availableCurrencies, mostUsedCurrency } = useExpenseRequestCurrencies(
+    { accessToken: props.accessToken, userInfo: props.userInfo },
+    managerId
+  )
+
+  const hasInitializedCurrency = useRef(false)
+  useEffect(() => {
+    if (hasInitializedCurrency.current) return
+    if (!primaryCurrency && mostUsedCurrency) {
+      setCurrencyFilter(mostUsedCurrency)
+      hasInitializedCurrency.current = true
+    }
+  }, [primaryCurrency, mostUsedCurrency])
 
   const reqOrderBy = useMemo(
     () => buildExpenseRequestOrderBy(sorting.field, sorting.order),
@@ -86,8 +83,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   } = useExpenseRequestsOverviewData(props, {
     managerId,
     primaryCurrency,
-    searchTerm: debouncedSearch,
-    statusFilter: selectedFilters,
+    searchTerm,
+    statusFilter,
     requestTypeFilter,
     effectiveDateRange,
     requestDateRange,
@@ -98,6 +95,20 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     reqOrderBy
   })
 
+  const filterLabelMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const status of requestFilterStatuses) {
+      const config = getExpenseRequestStatusDisplay(status)
+      map[status] = config.label
+    }
+    map['ExpenseRequestType:v1:EXPENSES'] = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:personal_expenses.expense',
+      'Expense'
+    )
+    map['ExpenseRequestType:v1:TRIP'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+    return map
+  }, [])
+
   const filterConfiguration = useMemo(
     () => createExpenseRequestFilterConfig({ statusOptions: requestFilterStatuses, filterLabelMap }),
     [filterLabelMap]
@@ -105,8 +116,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
 
   const filterSignature = useMemo(
     () => ({
-      searchTerm: debouncedSearch,
-      selectedFilters,
+      searchTerm,
+      statusFilter,
       primaryCurrency,
       effectiveDateRange,
       requestDateRange,
@@ -115,8 +126,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       requestTypeFilter
     }),
     [
-      debouncedSearch,
-      selectedFilters,
+      searchTerm,
+      statusFilter,
       primaryCurrency,
       effectiveDateRange,
       requestDateRange,
@@ -156,55 +167,43 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     [DEFAULT_SORT, sorting.field]
   )
 
-  const handleSearchChange = useCallback(
-    (search: string) => {
-      setSearchTerm(search)
-      setCurrentPage(1)
-    },
-    [setSearchTerm]
-  )
+  const handleSearchChange = useCallback((search: string) => {
+    setSearchTerm(search)
+    setCurrentPage(1)
+  }, [])
 
-  const handleFilterChangeFromDisplay = useCallback(
-    (filters: Record<string, unknown>) => {
-      const statusIds = (filters.statusIds as string[] | undefined) || []
-      const requestTypeIds = (filters.requestTypeIds as string[] | undefined) || []
-      setFilters(statusIds)
-      setRequestTypeFilter(requestTypeIds)
-      applyDateRangeFromFilter(filters.effectiveDateRange, setEffectiveDateRange)
-      applyDateRangeFromFilter(filters.requestDateRange, setRequestDateRange)
-      applyDateRangeFromFilter(filters.startDateRange, setStartDateRange)
-      applyDateRangeFromFilter(filters.endDateRange, setEndDateRange)
-      setCurrentPage(1)
-    },
-    [setFilters, setRequestTypeFilter, setEffectiveDateRange, setRequestDateRange, setStartDateRange, setEndDateRange]
-  )
+  const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
+    const statusIds = (filters.statusIds as string[] | undefined) || []
+    const requestTypeIds = (filters.requestTypeIds as string[] | undefined) || []
+    setStatusFilter(statusIds)
+    setRequestTypeFilter(requestTypeIds)
+    applyDateRangeFromFilter(filters.effectiveDateRange, setEffectiveDateRange)
+    applyDateRangeFromFilter(filters.requestDateRange, setRequestDateRange)
+    applyDateRangeFromFilter(filters.startDateRange, setStartDateRange)
+    applyDateRangeFromFilter(filters.endDateRange, setEndDateRange)
+    setCurrentPage(1)
+  }, [])
 
-  const handleStatsFilterChange = useCallback(
-    (statuses: string[]) => {
-      setCurrencyFilter(null)
-      setFilters(statuses)
-      setCurrentPage(1)
-    },
-    [setCurrencyFilter, setFilters]
-  )
+  const handleStatsFilterChange = useCallback((statuses: string[]) => {
+    setCurrencyFilter(null)
+    setStatusFilter(statuses)
+    setCurrentPage(1)
+  }, [])
 
   const clearCurrencyFilter = useCallback(() => {
     setCurrencyFilter(null)
-  }, [setCurrencyFilter])
+  }, [])
 
-  const handleCurrencyChange = useCallback(
-    (code: string | null) => {
-      setCurrencyFilter(code)
-      setCurrentPage(1)
-    },
-    [setCurrencyFilter]
-  )
+  const handleCurrencyChange = useCallback((code: string | null) => {
+    setCurrencyFilter(code)
+    setCurrentPage(1)
+  }, [])
 
   const displayCurrency = primaryCurrency ?? mostUsedCurrency ?? 'EUR'
 
   const filtersObject = useMemo((): Record<string, unknown> => {
     const obj: Record<string, unknown> = {}
-    if (selectedFilters.length > 0) obj.statusIds = selectedFilters
+    if (statusFilter.length > 0) obj.statusIds = statusFilter
     if (requestTypeFilter.length > 0) obj.requestTypeIds = requestTypeFilter
     const effectiveStr = formatDateRangeForChip(effectiveDateRange)
     if (effectiveStr) obj.effectiveDateRange = effectiveStr
@@ -215,11 +214,11 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     const endStr = formatDateRangeForChip(endDateRange)
     if (endStr) obj.endDateRange = endStr
     return obj
-  }, [selectedFilters, requestTypeFilter, effectiveDateRange, requestDateRange, startDateRange, endDateRange])
+  }, [statusFilter, requestTypeFilter, effectiveDateRange, requestDateRange, startDateRange, endDateRange])
 
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (searchTerm || '').trim() !== ''
-    const hasStatus = selectedFilters.length > 0
+    const hasStatus = statusFilter.length > 0
     const hasRequestType = requestTypeFilter.length > 0
     const hasDate =
       effectiveDateRange?.[0] ||
@@ -231,15 +230,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       endDateRange?.[0] ||
       endDateRange?.[1]
     return hasSearch || hasStatus || hasRequestType || !!hasDate
-  }, [
-    searchTerm,
-    selectedFilters,
-    requestTypeFilter,
-    effectiveDateRange,
-    requestDateRange,
-    startDateRange,
-    endDateRange
-  ])
+  }, [searchTerm, statusFilter, requestTypeFilter, effectiveDateRange, requestDateRange, startDateRange, endDateRange])
 
   const emptyMessage = hasActiveFilters
     ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data available')
@@ -265,8 +256,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     [availableCurrencies, primaryCurrency, handleCurrencyChange]
   )
 
-  const requestsErrorAsError = requestsError
-
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-requests-tab-container">
       <div className="gba:mb-6">
@@ -278,7 +267,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
           currencyFilter={primaryCurrency}
           displayCurrency={displayCurrency}
           clearCurrencyFilter={clearCurrencyFilter}
-          activeFilter={selectedFilters}
+          activeFilter={statusFilter}
           onFilterChange={handleStatsFilterChange}
         />
       </div>
@@ -327,7 +316,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
           userInfo={props.userInfo}
           expenseRequests={expenseRequests}
           loading={requestsLoading}
-          error={requestsErrorAsError}
+          error={requestsError}
           totalCount={totalCount}
           currencyFilter={primaryCurrency}
           currentPage={currentPage}
