@@ -4,7 +4,7 @@ import { ExpensePlan } from './useMainViewExpensePlans'
 import { useManagerExpensesOverview } from './useManagerExpensesOverview'
 import { standardizeCurrencyRef, extractCurrencyCode } from '../utils/currencyUtils'
 import { PLAN_TAB_HIDDEN_STATUSES } from '../constants/expenseStatus'
-import dayjs from 'dayjs'
+import { convertDateRangeToGraphQL } from '../utils/dateUtils'
 
 export interface ExpensePlansOverviewDataParams {
   managerId: string
@@ -27,14 +27,6 @@ export interface PlanStats {
   sumTotalAmount: number
   pendingCount: number
   pendingAmount: number
-}
-
-function convertDateRangeToGraphQL(dateRange: [Date | null, Date | null] | null) {
-  if (!dateRange || (!dateRange[0] && !dateRange[1])) return null
-  return {
-    from: dateRange[0] ? dayjs(dateRange[0]).startOf('day').format('YYYY-MM-DD HH:mm:ss') : null,
-    to: dateRange[1] ? dayjs(dateRange[1]).endOf('day').format('YYYY-MM-DD HH:mm:ss') : null
-  }
 }
 
 export function useExpensePlansOverviewData(context: BusinessAppContextProps, params: ExpensePlansOverviewDataParams) {

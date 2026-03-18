@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { ExpenseRequest } from './useGetExpenseRequests'
 import { useManagerExpensesOverview } from './useManagerExpensesOverview'
 import { standardizeCurrencyRef, extractCurrencyCode } from '../utils/currencyUtils'
-import dayjs from 'dayjs'
+import { convertDateRangeToGraphQL } from '../utils/dateUtils'
 
 export interface ExpenseRequestsOverviewDataParams {
   managerId: string
@@ -27,14 +27,6 @@ export interface RequestStats {
   pendingAmount: number
   totalRequestsSubmitted: number
   totalSubmittedAmount: number
-}
-
-function convertDateRangeToGraphQL(dateRange: [Date | null, Date | null] | null) {
-  if (!dateRange || (!dateRange[0] && !dateRange[1])) return null
-  return {
-    from: dateRange[0] ? dayjs(dateRange[0]).startOf('day').format('YYYY-MM-DD HH:mm:ss') : null,
-    to: dateRange[1] ? dayjs(dateRange[1]).endOf('day').format('YYYY-MM-DD HH:mm:ss') : null
-  }
 }
 
 export function useExpenseRequestsOverviewData(
