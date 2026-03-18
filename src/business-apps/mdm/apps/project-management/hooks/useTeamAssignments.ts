@@ -1,9 +1,9 @@
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { env } from '@/common/env/EnvUtils'
 import { useCallback } from 'react'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { useRestClient } from '@/common/network/rest/useRestClient'
 
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 const EMPLOYEES_BASE_URL = `${env('NEXT_PUBLIC_BASE_URL')}/processes/employee`
 
 export interface TeamEmployee {
@@ -71,7 +71,7 @@ export interface AssignEmployeePayload {
  * Hook for managing team employee assignments
  */
 export const useTeamAssignments = (accessToken: string) => {
-  const restClientOrgchart = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const restClientEmployees = useRestClient(EMPLOYEES_BASE_URL)
   const graphqlClient = useGraphqlClient(accessToken)
 
@@ -183,7 +183,7 @@ export const useTeamAssignments = (accessToken: string) => {
           percentage: employee.percentage
         }))
 
-        const response = await restClientOrgchart.post(`/employee-assignments/matrix-unit`, formattedPayload, {
+        const response = await orgchartClient.assignEmployeesToMatrixUnit(formattedPayload, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
@@ -222,7 +222,7 @@ export const useTeamAssignments = (accessToken: string) => {
         throw error
       }
     },
-    [restClientOrgchart, restClientEmployees, accessToken]
+    [orgchartClient, restClientEmployees, accessToken]
   )
 
   /**
@@ -400,12 +400,9 @@ export const useTeamAssignments = (accessToken: string) => {
       await updateEmployeeTotalAllocation(employee)
 
       // Delete the assignment
-      const response = await restClientOrgchart.delete(
-        `/employee-assignments/matrix-unit/${employee.teamAssignmentId}`,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        }
-      )
+      const response = await orgchartClient.deleteMatrixUnitEmployeeAssignment(String(employee.teamAssignmentId), {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
       return response
     } catch (error) {
       console.error('Error removing employee from team:', error)

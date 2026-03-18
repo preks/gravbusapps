@@ -15,8 +15,16 @@ export interface EmployeeForHeader {
   jobTitle?: string
 }
 
+export const MIN_PEERS = 3
+export const MAX_PEERS = 5
+
 /** Map peer id -> replacement employee id when manager chooses a different employee. */
 export type PeerReplacements = Record<string, string | null>
+
+export interface AdditionalPeerSlot {
+  slotId: string
+  employeeId: string | null
+}
 
 interface PerformanceEvaluationPeerApproveContextType {
   nominatedPeers: NominatedPeer[]
@@ -29,10 +37,19 @@ interface PerformanceEvaluationPeerApproveContextType {
   businessAppContext: BusinessAppContextProps
   employeeForHeader: EmployeeForHeader | null
   employeeForHeaderLoading: boolean
-  /** Manager can replace a nominated peer with another employee; key = peer id, value = replacement employee id */
   peerReplacements: PeerReplacements
   setPeerReplacement: (peerId: string, replacementEmployeeId: string | null) => void
-  /** For replacement dropdown: employees from structure, search, loading */
+  removedPeerIds: Set<string>
+  removeNominatedPeer: (peerId: string) => void
+  restoreNominatedPeer: (peerId: string) => void
+  additionalSlots: AdditionalPeerSlot[]
+  addPeerSlot: () => void
+  removePeerSlot: (slotId: string) => void
+  setAdditionalPeerEmployee: (slotId: string, employeeId: string | null) => void
+  totalPeerCount: number
+  canAddPeers: boolean
+  canRemovePeers: boolean
+  isValid: boolean
   replacementEmployees: Array<{
     id: string
     name: string
@@ -89,6 +106,8 @@ function getNominatedPeersFromPayload(ad: Record<string, unknown> | undefined): 
   }))
 }
 
+let slotCounter = 0
+
 export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvaluationPeerApproveProviderProps> = ({
   children,
   businessAppContext,
@@ -97,11 +116,14 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [peerReplacements, setPeerReplacements] = useState<PeerReplacements>({})
+  const [removedPeerIds, setRemovedPeerIds] = useState<Set<string>>(new Set())
+  const [additionalSlots, setAdditionalSlots] = useState<AdditionalPeerSlot[]>([])
 
   const ad = businessAppContext?.additionalData as Record<string, unknown> | undefined
 
   const {
     employeeForHeader,
+    evaluatedEmployeeId,
     loading: employeeForHeaderLoading,
     error: employeeForHeaderError
   } = useEmployeeForPeerApproveHeader(businessAppContext?.accessToken, ad)
@@ -118,7 +140,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
     isLoading: replacementEmployeesLoading,
     fetchStructureEmployees,
     getEmployeeById: getStructureEmployeeById
-  } = useStructureEmployees(businessAppContext?.accessToken ?? '', true)
+  } = useStructureEmployees(businessAppContext?.accessToken ?? '', true, evaluatedEmployeeId ?? undefined)
 
   const nominatedPeersRaw = useMemo(
     () => (peersFromProcess.length > 0 ? peersFromProcess : peersFromPayload),
@@ -135,6 +157,18 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       })),
     [nominatedPeersRaw, displayNames]
   )
+
+  const activeNominatedPeers = useMemo(
+    () => nominatedPeers.filter(p => !removedPeerIds.has(p.id)),
+    [nominatedPeers, removedPeerIds]
+  )
+
+  const totalPeerCount = activeNominatedPeers.length + additionalSlots.length
+  const canAddPeers = totalPeerCount < MAX_PEERS
+  const canRemovePeers = totalPeerCount > MIN_PEERS
+  const allAdditionalSlotsFilled = additionalSlots.every(s => s.employeeId != null)
+  const isValid = totalPeerCount >= MIN_PEERS && totalPeerCount <= MAX_PEERS && allAdditionalSlotsFilled
+
   const resolvedError = error ?? peersError ?? employeeForHeaderError
   const peersLoadingResolved = peersLoading || (peerIds.length > 0 && namesLoading)
 
@@ -152,20 +186,61 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
     })
   }, [])
 
+  const removeNominatedPeer = useCallback((peerId: string) => {
+    setRemovedPeerIds(prev => new Set([...prev, peerId]))
+    setPeerReplacements(prev => {
+      const next = { ...prev }
+      delete next[peerId]
+      return next
+    })
+  }, [])
+
+  const restoreNominatedPeer = useCallback((peerId: string) => {
+    setRemovedPeerIds(prev => {
+      const next = new Set(prev)
+      next.delete(peerId)
+      return next
+    })
+  }, [])
+
+  const addPeerSlot = useCallback(() => {
+    slotCounter += 1
+    setAdditionalSlots(prev => [...prev, { slotId: `slot-${slotCounter}`, employeeId: null }])
+  }, [])
+
+  const removePeerSlot = useCallback((slotId: string) => {
+    setAdditionalSlots(prev => prev.filter(s => s.slotId !== slotId))
+  }, [])
+
+  const setAdditionalPeerEmployee = useCallback((slotId: string, employeeId: string | null) => {
+    setAdditionalSlots(prev => prev.map(s => (s.slotId === slotId ? { ...s, employeeId } : s)))
+  }, [])
+
   const buildPeerApprovalPayload = useCallback(
-    (approved: boolean) => ({
-      peerApprovalRequest: {
-        decisions: nominatedPeers.map(p => {
-          const replacementId = peerReplacements[p.id]
-          return {
-            employeeId: p.id,
-            approved,
-            ...(replacementId ? { replacementEmployeeId: replacementId } : {})
-          }
-        })
+    (approved: boolean) => {
+      const nominatedDecisions = activeNominatedPeers.map(p => {
+        const replacementId = peerReplacements[p.id]
+        return {
+          employeeId: p.id,
+          approved,
+          ...(replacementId ? { replacementEmployeeId: replacementId } : {})
+        }
+      })
+
+      const additionalDecisions = additionalSlots
+        .filter(s => s.employeeId != null)
+        .map(s => ({
+          employeeId: s.employeeId as string,
+          approved
+        }))
+
+      return {
+        peerApprovalRequest: {
+          decisions: [...nominatedDecisions, ...additionalDecisions]
+        }
       }
-    }),
-    [nominatedPeers, peerReplacements]
+    },
+    [activeNominatedPeers, peerReplacements, additionalSlots]
   )
 
   const handleApprove = useCallback(async () => {
@@ -174,7 +249,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       setError(null)
       dispatchProcessContinueEvent('pse_submit', buildPeerApprovalPayload(true))
       await onSubmit({
-        nominatedPeers,
+        nominatedPeers: activeNominatedPeers,
         approved: true
       })
     } catch (err) {
@@ -182,7 +257,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
     } finally {
       setIsLoading(false)
     }
-  }, [nominatedPeers, onSubmit, buildPeerApprovalPayload])
+  }, [activeNominatedPeers, onSubmit, buildPeerApprovalPayload])
 
   const handleReject = useCallback(
     async (comment?: string) => {
@@ -191,7 +266,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
         setError(null)
         dispatchProcessContinueEvent('pse_submit', buildPeerApprovalPayload(false))
         await onSubmit({
-          nominatedPeers,
+          nominatedPeers: activeNominatedPeers,
           approved: false,
           comment
         })
@@ -201,7 +276,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
         setIsLoading(false)
       }
     },
-    [nominatedPeers, onSubmit, buildPeerApprovalPayload]
+    [activeNominatedPeers, onSubmit, buildPeerApprovalPayload]
   )
 
   const searchReplacementEmployees = useCallback(
@@ -229,7 +304,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
 
   const value = useMemo<PerformanceEvaluationPeerApproveContextType>(
     () => ({
-      nominatedPeers,
+      nominatedPeers: activeNominatedPeers,
       peersLoading: peersLoadingResolved,
       isLoading,
       error: resolvedError,
@@ -241,13 +316,24 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       employeeForHeaderLoading,
       peerReplacements,
       setPeerReplacement,
+      removedPeerIds,
+      removeNominatedPeer,
+      restoreNominatedPeer,
+      additionalSlots,
+      addPeerSlot,
+      removePeerSlot,
+      setAdditionalPeerEmployee,
+      totalPeerCount,
+      canAddPeers,
+      canRemovePeers,
+      isValid,
       replacementEmployees: structureEmployees,
       replacementEmployeesLoading,
       searchReplacementEmployees,
       getReplacementEmployeeById
     }),
     [
-      nominatedPeers,
+      activeNominatedPeers,
       peersLoadingResolved,
       isLoading,
       resolvedError,
@@ -259,6 +345,17 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       employeeForHeaderLoading,
       peerReplacements,
       setPeerReplacement,
+      removedPeerIds,
+      removeNominatedPeer,
+      restoreNominatedPeer,
+      additionalSlots,
+      addPeerSlot,
+      removePeerSlot,
+      setAdditionalPeerEmployee,
+      totalPeerCount,
+      canAddPeers,
+      canRemovePeers,
+      isValid,
       structureEmployees,
       replacementEmployeesLoading,
       searchReplacementEmployees,

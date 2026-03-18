@@ -4,6 +4,7 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { Project, ProjectData, ProjectStatusBE, ProjectStatusUI, ProjectTypeBE } from '../types'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 // Default pagination values
 const DEFAULT_PAGE_SIZE = 10
@@ -14,19 +15,6 @@ export const getDateLocaleFromLanguage = (lang: string | undefined): string => {
   if (lang == null || lang === '') return 'en-US'
   const map: Record<string, string> = { en: 'en-US', de: 'de-DE', ro: 'ro-RO' }
   return map[lang] ?? map[lang.split('-')[0]] ?? 'en-US'
-}
-
-// GraphQL query to get active structure ID
-export const GET_ACTIVE_STRUCTURE = (): string => {
-  return `query getActiveStructure {
-    Structure(where: {isActive: {_eq: true}}, limit: 1) {
-      id
-    }
-  }`
-}
-
-interface ActiveStructureResponse {
-  Structure?: Array<{ id: string }>
 }
 
 // GraphQL query builder for projects with pagination
@@ -305,7 +293,7 @@ export const useProjects = (
   const [accounts, setAccounts] = useState<Account[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const structureId = useRef<string>(context.additionalData?.structureId || '')
+  const structureId = useRef<string>(getCurrentActiveStructureId() ?? '')
   const accountsFetched = useRef<boolean>(false)
   const [searchTerm, setSearchTerm] = useState<string>('')
 
@@ -317,31 +305,25 @@ export const useProjects = (
   const graphqlClient = useGraphqlClient(context.accessToken)
   const customerRelationsEnabled = useFeature<boolean>(Feature.CRM.CustomerRelations.Key)
 
-  // Fetch structure ID only if not already cached
-  const fetchStructureId = useCallback(async (): Promise<string> => {
-    // If we already have a valid structureId, return it
+  const fetchStructureId = useCallback((): string => {
     if (structureId.current && structureId.current.length > 0) {
       return structureId.current
     }
 
-    // Fetch active structure ID using GraphQL
-    const structureQuery = GET_ACTIVE_STRUCTURE()
-    const structureResult = await graphqlClient.request<ActiveStructureResponse>(structureQuery)
-
-    if (!structureResult.Structure || structureResult.Structure.length === 0) {
+    const activeId = getCurrentActiveStructureId()
+    if (!activeId) {
       throw new Error('No active structure found')
     }
 
-    structureId.current = structureResult.Structure[0].id
+    structureId.current = activeId
     return structureId.current
-  }, [graphqlClient])
+  }, [])
 
   // Fetch projects using GraphQL with pagination
   const fetchProjects = useCallback(
     async (limit: number, offset: number, search?: string): Promise<{ projects: Project[]; totalCount: number }> => {
       try {
-        // Get structure ID (cached or fetched)
-        const activeStructureId = await fetchStructureId()
+        const activeStructureId = fetchStructureId()
 
         const query = buildProjectsQuery(Boolean(search), onlyActiveProjects, customerRelationsEnabled)
         const variables = buildProjectsQueryVariables(activeStructureId, limit, offset, search, onlyActiveProjects)
