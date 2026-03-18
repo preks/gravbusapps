@@ -1,18 +1,13 @@
 import React from 'react'
 import { Sparkles, ArrowLeft } from 'lucide-react'
 import { Badge, Button } from '@newwork/nw-design-system'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SessionDetailHeroProps {
   onBackToSessions: () => void
   'data-testid'?: string
 }
-
-const hostedVideoUrl = import.meta !== undefined && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (import.meta !== undefined && import.meta.env?.DEV && localVideoUrl)
-const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
 export const SessionDetailHero: React.FC<SessionDetailHeroProps> = ({
   onBackToSessions,
@@ -21,30 +16,8 @@ export const SessionDetailHero: React.FC<SessionDetailHeroProps> = ({
   return (
     <div data-testid={testId} className="gba:w-full gba:h-[180px] gba:shrink-0">
       <div className="gba:relative gba:overflow-hidden gba:h-full">
-        {useVideo ? (
-          <video
-            src={HERO_VIDEO_SRC}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            data-testid={`${testId}-video`}
-          />
-        ) : (
-          <SpaceHeroBackground />
-        )}
-
-        {/* eslint-disable newwork-local/no-hardcoded-colors */}
-        <div
-          className="gba:absolute gba:inset-0 gba:pointer-events-none"
-          style={{
-            background: `linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)`
-          }}
-          aria-hidden
-        />
-        {/* eslint-enable newwork-local/no-hardcoded-colors */}
+        <PremiumHeroBackground data-testid={`${testId}-background`} />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
         <div className="gba:relative gba:h-full gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-6 gba:flex gba:flex-col gba:justify-between">
           <div>

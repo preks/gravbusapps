@@ -118,6 +118,7 @@ benefit-details-end-date = Data de încheiere
 benefit-details-notes = Note
 benefit-details-justification = Justificare
 benefit-details-available-providers = Furnizori disponibili
+benefit-details-choose-provider = Alege furnizorul
 benefit-details-additional-info = Informații suplimentare
 benefit-details-value = Valoare
 benefit-details-no-value-info = Informațiile detaliate despre valoare vor fi determinate după solicitarea acestui beneficiu.

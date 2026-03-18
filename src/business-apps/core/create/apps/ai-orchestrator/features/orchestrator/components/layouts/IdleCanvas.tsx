@@ -18,7 +18,7 @@ import {
   Upload
 } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import type { BuildPlan } from '../../types'
 
@@ -75,8 +75,6 @@ const gradientBorderStyles = `
     z-index: 3;
   }
 `
-
-const HERO_VIDEO_URL = import.meta.env?.VITE_SPACE_HERO_VIDEO_URL || ''
 
 export interface IdleCanvasProps {
   onSubmit?: (prompt: string) => void
@@ -165,28 +163,8 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
     <div className="gba:flex gba:flex-col gba:h-full gba:overflow-auto" data-testid={testId}>
       {/* Hero Banner */}
       <section className="gba:relative gba:overflow-hidden gba:shrink-0 gba:min-h-80" data-testid={`${testId}-hero`}>
-        {/* Background */}
-        {HERO_VIDEO_URL ? (
-          <video
-            src={HERO_VIDEO_URL}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden="true"
-            data-testid={`${testId}-hero-video`}
-          />
-        ) : (
-          <SpaceHeroBackground />
-        )}
-
-        {/* Overlay */}
-        <div
-          className="gba:absolute gba:inset-0 gba:pointer-events-none gba:bg-linear-to-br gba:from-foreground/40 gba:via-foreground/10 gba:to-transparent"
-          aria-hidden
-        />
+        <PremiumHeroBackground data-testid={`${testId}-hero-background`} />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
         {/* Centered hero content */}
         <div className="gba:relative gba:py-12 gba:px-6 gba:max-w-4xl gba:mx-auto gba:text-center">

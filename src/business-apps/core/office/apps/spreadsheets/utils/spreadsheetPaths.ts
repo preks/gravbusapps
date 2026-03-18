@@ -1,10 +1,11 @@
 /**
  * Environment-aware spreadsheet app base paths.
- * Production/dev (newwork-dev, prod): /platform/spreadsheets
+ * Production/dev (newwork-dev, prod): /platform/every-office/spreadsheets
  * Local development (localhost): /platform/apps/spreadsheet-apps
  */
 
-const SPREADSHEET_PATH_PROD = '/platform/spreadsheets'
+const SPREADSHEET_PATH_PROD = '/platform/every-office/spreadsheets'
+const SPREADSHEET_PATH_LEGACY = '/platform/spreadsheets'
 const SPREADSHEET_PATH_DEV = '/platform/apps/spreadsheet-apps'
 
 /**
@@ -18,8 +19,12 @@ export function getSpreadsheetBasePath(): string {
 
 /**
  * Check if a pathname is a valid spreadsheet app path (for open-redirect guards).
- * Accepts both production (/platform/spreadsheets) and dev (/platform/apps/spreadsheet-apps) paths.
+ * Accepts canonical production path, legacy production path, and local dev path.
  */
 export function isAllowedSpreadsheetPath(pathname: string): boolean {
-  return pathname.startsWith(SPREADSHEET_PATH_PROD) || pathname.startsWith(SPREADSHEET_PATH_DEV)
+  return (
+    pathname.startsWith(SPREADSHEET_PATH_PROD) ||
+    pathname.startsWith(SPREADSHEET_PATH_LEGACY) ||
+    pathname.startsWith(SPREADSHEET_PATH_DEV)
+  )
 }
