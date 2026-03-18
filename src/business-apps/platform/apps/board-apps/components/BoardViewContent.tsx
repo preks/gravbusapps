@@ -58,6 +58,9 @@ export interface BoardViewContentProps {
   onDeleteQuickFilter?: (id: string) => void
   onReorderRow?: (rowId: string, afterRowId: string | null, beforeRowId: string | null) => Promise<void>
   peopleLookup?: Map<string, import('../types/columns').SelectOption>
+  focusedCells?: Map<string, import('../hooks/useBoardPresence').CellPresenceEntry>
+  onCellFocus?: (rowId: string, columnId: string) => void
+  onCellBlur?: () => void
   testId: string
 }
 
@@ -96,6 +99,9 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
   onDeleteQuickFilter,
   onReorderRow,
   peopleLookup,
+  focusedCells,
+  onCellFocus,
+  onCellBlur,
   testId
 }) => {
   const [kanbanGroupColumn, setKanbanGroupColumn] = useState<string | null>(null)
@@ -154,7 +160,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
   switch (viewType) {
     case 'table':
       return (
-        <>
+        <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0">
           {hiddenBar}
           <BoardTableView
             key={view?.id || 'default-table'}
@@ -181,9 +187,12 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
             onDeleteQuickFilter={onDeleteQuickFilter}
             onReorderRow={onReorderRow}
             peopleLookup={peopleLookup}
+            focusedCells={focusedCells}
+            onCellFocus={onCellFocus}
+            onCellBlur={onCellBlur}
             testId={testId}
           />
-        </>
+        </div>
       )
     case 'kanban': {
       const kc = (viewConfig || {}) as Partial<KanbanViewConfig>

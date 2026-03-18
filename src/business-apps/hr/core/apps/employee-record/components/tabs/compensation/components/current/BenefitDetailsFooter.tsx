@@ -10,6 +10,10 @@ interface BenefitDetailsFooterProps {
    */
   benefit: BenefitCatalogItem
   /**
+   * When set, passed to request flow as pre-selected provider (from modal provider dropdown)
+   */
+  selectedProviderRef?: string
+  /**
    * Translation function
    */
   t: (key: string, params?: any) => string
@@ -35,6 +39,7 @@ interface BenefitDetailsFooterProps {
  */
 const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
   benefit,
+  selectedProviderRef,
   t,
   accessToken,
   employeeId,
@@ -42,10 +47,14 @@ const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
 }) => {
   const isEmployeeIdValid = Boolean(employeeId)
   const isAvailableBenefit = benefit.canRequest
+  const hasProviders = (benefit.availableProviders?.length ?? 0) > 0
+  const hasProviderSelection = selectedProviderRef != null && selectedProviderRef !== ''
+  const canSubmitRequest = isAvailableBenefit && (!hasProviders || hasProviderSelection)
+  const benefitWithProvider = hasProviderSelection ? { ...benefit, providerRef: selectedProviderRef } : benefit
 
   return (
     <SheetFooter className="gba:mt-auto gba:px-6 gba:flex-col gba:gap-2">
-      {isAvailableBenefit && (
+      {canSubmitRequest && (
         <>
           {!isEmployeeIdValid && (
             <div
@@ -66,7 +75,7 @@ const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
               contexts={[
                 {
                   context: FlowContextName.employeeBenefitRequest,
-                  contextData: { employeeId: employeeId!, benefit: benefit }
+                  contextData: { employeeId: employeeId!, benefit: benefitWithProvider }
                 }
               ]}
               prefixDataTestId={`benefit-details-request-${benefit.code}`}
