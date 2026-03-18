@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import { Badge, Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import { Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { WarningCircleIcon, ShieldWarningIcon, InfoIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
 import { SeverityBadge } from '../../shared/StatusBadge'
@@ -70,17 +70,6 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
     return result
   }, [allIssues, severityFilter, categoryFilter])
 
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, { blocker: number; warning: number; info: number }> = {}
-    for (const issue of allIssues) {
-      if (!counts[issue.category]) {
-        counts[issue.category] = { blocker: 0, warning: 0, info: 0 }
-      }
-      counts[issue.category][issue.severity]++
-    }
-    return counts
-  }, [allIssues])
-
   const blockerCount = allIssues.filter(i => i.severity === 'blocker').length
   const warningCount = allIssues.filter(i => i.severity === 'warning').length
   const infoCount = allIssues.filter(i => i.severity === 'info').length
@@ -136,72 +125,51 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
       </div>
 
       <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
-        <div className="gba:min-w-[140px]">
-          <Select
-            value={severityFilter}
-            onValueChange={(val: string) => setSeverityFilter(val as IssueSeverity | 'all')}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Severity" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('filter-all')}</SelectItem>
-              <SelectItem value="blocker">{t('severity-blocker')}</SelectItem>
-              <SelectItem value="warning">{t('severity-warning')}</SelectItem>
-              <SelectItem value="info">{t('severity-info')}</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+            {t('label-severity')}
+          </span>
+          <div className="gba:min-w-[140px]">
+            <Select
+              value={severityFilter}
+              onValueChange={(val: string) => setSeverityFilter(val as IssueSeverity | 'all')}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Severity" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('filter-all')}</SelectItem>
+                <SelectItem value="blocker">{t('severity-blocker')}</SelectItem>
+                <SelectItem value="warning">{t('severity-warning')}</SelectItem>
+                <SelectItem value="info">{t('severity-info')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div className="gba:min-w-[200px]">
-          <Select
-            value={categoryFilter}
-            onValueChange={(val: string) => setCategoryFilter(val as IssueCategory | 'all')}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('filter-all')}</SelectItem>
-              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+            {t('label-category')}
+          </span>
+          <div className="gba:min-w-[200px]">
+            <Select
+              value={categoryFilter}
+              onValueChange={(val: string) => setCategoryFilter(val as IssueCategory | 'all')}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('filter-all')}</SelectItem>
+                {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
-
-      {Object.entries(categoryCounts).length > 0 && (
-        <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-3">
-          {Object.entries(categoryCounts).map(([category, counts]) => (
-            <Card
-              key={category}
-              className={`gba:p-3 gba:cursor-pointer gba:transition-colors ${
-                categoryFilter === category ? 'gba:ring-2 gba:ring-primary' : 'gba:hover:bg-muted'
-              }`}
-              onClick={() => setCategoryFilter(categoryFilter === category ? 'all' : (category as IssueCategory))}
-            >
-              <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
-                {CATEGORY_LABELS[category as IssueCategory] || category}
-              </p>
-              <div className="gba:flex gba:gap-3 gba:text-xs">
-                {counts.blocker > 0 && (
-                  <Badge variant="destructive">
-                    {counts.blocker} blocker{counts.blocker !== 1 ? 's' : ''}
-                  </Badge>
-                )}
-                {counts.warning > 0 && (
-                  <Badge variant="warning">
-                    {counts.warning} warning{counts.warning !== 1 ? 's' : ''}
-                  </Badge>
-                )}
-                {counts.info > 0 && <Badge variant="secondary">{counts.info} info</Badge>}
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
 
       <div className="gba:space-y-2">
         {filteredIssues.length === 0 ? (
