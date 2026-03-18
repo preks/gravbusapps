@@ -96,11 +96,16 @@ export function useBoardRealtime({
       return
     }
 
-    const apiUrl = getDocumentServiceApiUrl().replace('/api/v1', '')
+    const apiUrl = getDocumentServiceApiUrl().replace(/\/api\/v1$/, '')
+    const urlObj = new URL(apiUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3002')
+    const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
+    const servicePath = urlObj.pathname
+    const socketPath = isLocalhost ? '/socket.io' : `${servicePath}/socket.io`
 
-    const socket = io(`${apiUrl}/boards`, {
+    const socket = io(`${urlObj.origin}/boards`, {
       auth: { token: accessToken },
       query: { boardId },
+      path: socketPath,
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 2000,
