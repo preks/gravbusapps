@@ -63,6 +63,39 @@ type MonthlyTrendRow = {
 }
 type QueryParamValue = string | number | boolean
 type YearlyKpiMap = Record<YearlyKpiCategory, { value: number; count: number }>
+type KpiDateRanges = {
+  currentYear: number
+  quarterStart: string
+  quarterEnd: string
+  previousQuarterStart: string
+  previousQuarterEnd: string
+  currentMonthStart: string
+  currentMonthEnd: string
+  previousMonthStart: string
+  previousMonthEnd: string
+  currentQTD: string
+  sameQuarterLastYearStart: string
+  sameMonthLastYearStart: string
+  previousQTD: string
+  sameQuarterLastYearEnd: string
+  sameMonthLastYearEnd: string
+  startOfYearTs: string
+  endOfYearTs: string
+  currentYTD: string
+  previousYearStart: string
+  previousYTD: string
+}
+type NonYearlyWindow = {
+  isQuarterly: boolean
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  previousPeriodStart: string
+  previousPeriodEnd: string
+  currentComparisonStart: string
+  currentComparisonEnd: string
+  previousComparisonStart: string
+  previousComparisonEnd: string
+}
 
 const asNumber = (val: unknown) => (typeof val === 'number' && Number.isFinite(val) ? val : 0)
 
@@ -220,6 +253,46 @@ const buildMonthlyKpiResponse = (metrics: NonYearlyKpiMetrics) => ({
     metrics.comparisonPrevious.count,
     'reimbursableAmount'
   )
+})
+
+const getNonYearlyWindow = (period: string, dateRanges: KpiDateRanges): NonYearlyWindow => {
+  if (period === 'quarterly') {
+    return {
+      isQuarterly: true,
+      currentPeriodStart: dateRanges.quarterStart,
+      currentPeriodEnd: dateRanges.quarterEnd,
+      previousPeriodStart: dateRanges.previousQuarterStart,
+      previousPeriodEnd: dateRanges.previousQuarterEnd,
+      currentComparisonStart: dateRanges.quarterStart,
+      currentComparisonEnd: dateRanges.currentQTD,
+      previousComparisonStart: dateRanges.sameQuarterLastYearStart,
+      previousComparisonEnd: dateRanges.previousQTD
+    }
+  }
+
+  return {
+    isQuarterly: false,
+    currentPeriodStart: dateRanges.currentMonthStart,
+    currentPeriodEnd: dateRanges.currentMonthEnd,
+    previousPeriodStart: dateRanges.previousMonthStart,
+    previousPeriodEnd: dateRanges.previousMonthEnd,
+    currentComparisonStart: dateRanges.currentMonthStart,
+    currentComparisonEnd: dateRanges.currentMonthEnd,
+    previousComparisonStart: dateRanges.sameMonthLastYearStart,
+    previousComparisonEnd: dateRanges.sameMonthLastYearEnd
+  }
+}
+
+const buildPlanActualParams = (
+  selectedCurrency: string,
+  currentPeriodStart: string,
+  currentPeriodEnd: string,
+  selectedDepartment: string | null
+): Record<string, QueryParamValue> => ({
+  selectedCurrency,
+  currentPeriodStart,
+  currentPeriodEnd,
+  ...(selectedDepartment ? { selectedDepartment } : {})
 })
 
 export const useDashboardStats = ({
@@ -493,25 +566,15 @@ export const useDashboardStats = ({
       }
 
       const hasDepartment = !!selectedDepartment
-      const isQuarterly = period === 'quarterly'
-      const currentPeriodStart = isQuarterly ? dateRanges.quarterStart : dateRanges.currentMonthStart
-      const currentPeriodEnd = isQuarterly ? dateRanges.quarterEnd : dateRanges.currentMonthEnd
-      const previousPeriodStart = isQuarterly ? dateRanges.previousQuarterStart : dateRanges.previousMonthStart
-      const previousPeriodEnd = isQuarterly ? dateRanges.previousQuarterEnd : dateRanges.previousMonthEnd
-      const currentComparisonStart = isQuarterly ? dateRanges.quarterStart : dateRanges.currentMonthStart
-      const currentComparisonEnd = isQuarterly ? dateRanges.currentQTD : dateRanges.currentMonthEnd
-      const previousComparisonStart = isQuarterly
-        ? dateRanges.sameQuarterLastYearStart
-        : dateRanges.sameMonthLastYearStart
-      const previousComparisonEnd = isQuarterly ? dateRanges.previousQTD : dateRanges.sameMonthLastYearEnd
+      const window = getNonYearlyWindow(period, dateRanges)
 
       const periodAndYtdParams: Record<string, QueryParamValue> = {
         selectedDepartment: selectedDepartment ?? 'null',
         selectedCurrency,
-        currentPeriodStart,
-        currentPeriodEnd,
-        previousPeriodStart,
-        previousPeriodEnd,
+        currentPeriodStart: window.currentPeriodStart,
+        currentPeriodEnd: window.currentPeriodEnd,
+        previousPeriodStart: window.previousPeriodStart,
+        previousPeriodEnd: window.previousPeriodEnd,
         currentYtdStart: dateRanges.startOfYearTs,
         currentYtdEnd: dateRanges.currentYTD,
         previousYtdStart: dateRanges.previousYearStart,
@@ -520,23 +583,23 @@ export const useDashboardStats = ({
       const workflowParams: Record<string, QueryParamValue> = {
         selectedDepartment: selectedDepartment ?? 'null',
         selectedCurrency,
-        currentPeriodStart,
-        currentPeriodEnd
+        currentPeriodStart: window.currentPeriodStart,
+        currentPeriodEnd: window.currentPeriodEnd
       }
       const planActualQueryName = hasDepartment ? YEARLY_PLAN_ACTUAL_QUERY_BY_DEPT : YEARLY_PLAN_ACTUAL_QUERY_NO_DEPT
-      const planActualParams: Record<string, QueryParamValue> = {
+      const planActualParams = buildPlanActualParams(
         selectedCurrency,
-        currentPeriodStart,
-        currentPeriodEnd,
-        ...(hasDepartment && selectedDepartment ? { selectedDepartment } : {})
-      }
+        window.currentPeriodStart,
+        window.currentPeriodEnd,
+        hasDepartment ? selectedDepartment : null
+      )
       const comparisonParams: Record<string, QueryParamValue> = {
         selectedDepartment: selectedDepartment ?? 'null',
         selectedCurrency,
-        currentComparisonStart,
-        currentComparisonEnd,
-        previousComparisonStart,
-        previousComparisonEnd
+        currentComparisonStart: window.currentComparisonStart,
+        currentComparisonEnd: window.currentComparisonEnd,
+        previousComparisonStart: window.previousComparisonStart,
+        previousComparisonEnd: window.previousComparisonEnd
       }
 
       const [periodAndYtdResponse, workflowResponse, planActualResponse, comparisonResponse] = await Promise.all([
@@ -554,7 +617,7 @@ export const useDashboardStats = ({
       ] as DatasetKpiRow[]
 
       const metrics = buildNonYearlyKpiMetrics(rows)
-      return isQuarterly ? buildQuarterlyKpiResponse(metrics) : buildMonthlyKpiResponse(metrics)
+      return window.isQuarterly ? buildQuarterlyKpiResponse(metrics) : buildMonthlyKpiResponse(metrics)
     },
     [datasetClient, executeYearlyKpiQuery]
   )
