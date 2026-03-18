@@ -14,13 +14,14 @@ import {
   TableHeader,
   TableRow,
   Spinner,
+  Checkbox,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { Plus, Database, Calendar, MoreHorizontal, Pencil, Trash2, Check } from 'lucide-react'
+import { Plus, Database, Calendar, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogs, Catalog, useCreateCatalog, useDeleteCatalog, useUpdateCatalog } from '@/common/data/catalog'
 import { DebouncedInput } from '@/components/debounced-input'
@@ -258,7 +259,7 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
       </TableCell>
       <TableCell>
         <div className="gba:flex gba:items-center gba:justify-center">
-          {catalog.isCustomerManaged ? <Check className="gba:h-4 gba:w-4 gba:text-success" /> : null}
+          <Checkbox checked={!!catalog.isCustomerManaged} disabled />
         </div>
       </TableCell>
       <TableCell className="gba:w-[60px]">
