@@ -6,9 +6,9 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, type Editor as TiptapEditor } from '@tiptap/react'
 import { DOMSerializer } from '@tiptap/pm/model'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Plugin, PluginKey, NodeSelection, type Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
@@ -81,6 +81,11 @@ import { isAllowedHref, escapeHtmlAttr, escapeHtmlText } from '../../utils/linkU
 import { normalizeDocumentHtmlForEditor, sanitizePaginationRuntimeHtml } from '../../utils/documentContentUtils'
 import { computePanelCommentAnchor, type PanelCommentAnchor } from '../../utils/commentPanelAnchor'
 import {
+  createDocumentImageUploadHandler,
+  isDocumentImageProtectedSrc,
+  resolveProtectedDocumentImageSrc
+} from '../../utils/documentImageBindings'
+import {
   useDocumentEditorAvatars,
   useYjsDocumentSync,
   useDocumentEditorShortcuts,
@@ -115,6 +120,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { Table, TableCell, TableHeader, TableRow } from '@/components/tiptap-extensions/tiptap-custom-tables'
+import type { CustomImageAttributes } from '@/components/tiptap-extensions/tiptap-custom-image'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
 import { CheckpointDialog } from '../../../shared/components/CheckpointDialog'
 import { StatusBadge } from '../../../shared/components/StatusBadge'
@@ -126,6 +132,7 @@ import { AiEditPanel } from '../AiEditPanel'
 import { PageSetupDialog } from './PageSetupDialog'
 import { LinkDialog, type LinkDialogInitialValues, type LinkDialogMode } from './LinkDialog'
 import { LinkBubbleMenu } from './LinkBubbleMenu'
+import { ImageSettingsSidebar, type SelectedImageSidebarState } from './ImageSettingsSidebar'
 import { InsertImageDialog } from './InsertImageDialog'
 import { InsertTableDialog } from './InsertTableDialog'
 import { NavigationPanel } from './NavigationPanel'
@@ -146,6 +153,39 @@ const AUTOCOMPLETE_DEBOUNCE_MS = 350
 const AUTOCOMPLETE_ROLLOUT_STORAGE_KEY = 'document-autocomplete-rollout'
 const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
 const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
+const CLOSED_IMAGE_SIDEBAR: SelectedImageSidebarState = {
+  open: false,
+  editor: null,
+  pos: null,
+  nodeSize: null,
+  attrs: null
+}
+
+function getSelectedImageState(editor: TiptapEditor): Omit<SelectedImageSidebarState, 'open' | 'editor'> | null {
+  const { selection } = editor.state
+
+  if (selection instanceof NodeSelection && selection.node.type.name === 'image') {
+    return {
+      pos: selection.from,
+      nodeSize: selection.node.nodeSize,
+      attrs: selection.node.attrs as CustomImageAttributes
+    }
+  }
+
+  const { $from } = selection
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth)
+    if (node.type.name === 'image') {
+      return {
+        pos: $from.before(depth),
+        nodeSize: node.nodeSize,
+        attrs: node.attrs as CustomImageAttributes
+      }
+    }
+  }
+
+  return null
+}
 
 function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean {
   if (globalThis.window === undefined) return false
@@ -809,6 +849,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showPublishDialog, setShowPublishDialog] = useState(false)
     const [showPageSetupDialog, setShowPageSetupDialog] = useState(false)
     const [showInsertImageDialog, setShowInsertImageDialog] = useState(false)
+    const [imageDialogMode, setImageDialogMode] = useState<'insert' | 'replace'>('insert')
     const [showInsertTableDialog, setShowInsertTableDialog] = useState(false)
     const [showLinkDialog, setShowLinkDialog] = useState(false)
     const [linkDialogMode, setLinkDialogMode] = useState<LinkDialogMode>('insert')
@@ -818,9 +859,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     type RightSidebar = 'closed' | 'comments' | 'ai'
     type NavigationPanelTab = 'headings' | 'find' | 'replace'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
+    const [selectedImageSidebar, setSelectedImageSidebar] = useState<SelectedImageSidebarState>(CLOSED_IMAGE_SIDEBAR)
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
+    const replaceImagePosRef = useRef<number | null>(null)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
     const [pendingSelection, setPendingSelection] = useState<{
       from: number
@@ -833,6 +876,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [aiSelectionSnapshot, setAiSelectionSnapshot] = useState('')
     const [aiSelectionSnapshotHtml, setAiSelectionSnapshotHtml] = useState('')
     const panelCommentAnchorRef = useRef<PanelCommentAnchor | null>(null)
+    const selectedImageSidebarRef = useRef<SelectedImageSidebarState>(CLOSED_IMAGE_SIDEBAR)
     const activeEditorRef = useRef<ReturnType<typeof useEditor> | null>(null)
     const everyAiFallbackPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const suppressYjsSnapshotSaveRef = useRef(false)
@@ -863,6 +907,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       return collapseWhitespaceLinear(parsed.body.textContent || '')
     }, [aiSelectionSnapshot, aiSelectionSnapshotHtml])
     const hasLongAiSelectionPreview = aiSelectionPreviewText.length > 220
+    const imageSidebarRightOffset = rightSidebar === 'comments' ? 412 : rightSidebar === 'ai' ? 496 : 16
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -1266,10 +1311,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const isCollaborationMode = Boolean(document?.id)
 
+    const uploadImage = useMemo(
+      () => createDocumentImageUploadHandler(document?.id ?? null, accessToken),
+      [accessToken, document?.id]
+    )
+
+    const imageUploadContext = useMemo(() => ({ documentId: document?.id ?? null }), [document?.id])
+
     const imageHandlers = useEditorImageHandlers({
       editorRef,
-      documentId: document?.id ?? null,
-      accessToken
+      uploadImage,
+      uploadContext: imageUploadContext
     })
 
     // Page count and current page from PaginationPlus DOM.
@@ -1392,6 +1444,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }),
           DocumentImage.configure({
             getAccessToken: () => accessToken,
+            isProtectedSrc: isDocumentImageProtectedSrc,
+            resolveProtectedSrc: (src, token) => resolveProtectedDocumentImageSrc(src, token),
             HTMLAttributes: {
               class: 'editor-image'
             }
@@ -1462,6 +1516,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }),
           DocumentImage.configure({
             getAccessToken: () => accessToken,
+            isProtectedSrc: isDocumentImageProtectedSrc,
+            resolveProtectedSrc: (src, token) => resolveProtectedDocumentImageSrc(src, token),
             HTMLAttributes: {
               class: 'editor-image'
             }
@@ -1610,6 +1666,146 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [activeEditor])
 
     useEffect(() => {
+      selectedImageSidebarRef.current = selectedImageSidebar
+    }, [selectedImageSidebar])
+
+    const setSelectedImageSidebarState = useCallback((next: SelectedImageSidebarState) => {
+      selectedImageSidebarRef.current = next
+      setSelectedImageSidebar(current => {
+        if (
+          current.open === next.open &&
+          current.editor === next.editor &&
+          current.pos === next.pos &&
+          current.nodeSize === next.nodeSize &&
+          current.attrs === next.attrs
+        ) {
+          return current
+        }
+
+        return next
+      })
+    }, [])
+
+    useEffect(() => {
+      if (!editor && !activeEditor) {
+        replaceImagePosRef.current = null
+        setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
+        return
+      }
+
+      const editors: TiptapEditor[] = []
+      if (activeEditor) editors.push(activeEditor)
+      if (editor && editor !== activeEditor) editors.push(editor)
+
+      const getPersistedSelectedImageSidebar = (
+        sourceEditor?: TiptapEditor,
+        transaction?: ProseMirrorTransaction
+      ): SelectedImageSidebarState | null => {
+        const current = selectedImageSidebarRef.current
+        if (!current.open || !current.editor || current.pos == null) return null
+
+        const targetEditor = sourceEditor === current.editor ? sourceEditor : current.editor
+        if (!targetEditor) return null
+
+        const mappedPos =
+          transaction && sourceEditor === current.editor ? transaction.mapping.mapResult(current.pos) : null
+
+        if (mappedPos?.deleted) {
+          return null
+        }
+
+        const nextPos = mappedPos?.pos ?? current.pos
+        const node = targetEditor.state.doc.nodeAt(nextPos)
+        if (!node || node.type.name !== 'image') {
+          return null
+        }
+
+        return {
+          open: true,
+          editor: targetEditor,
+          pos: nextPos,
+          nodeSize: node.nodeSize,
+          attrs: node.attrs as CustomImageAttributes
+        }
+      }
+
+      const syncSelectedImageSidebar = (sourceEditor?: TiptapEditor) => {
+        const editorCandidates = sourceEditor ? [sourceEditor, ...editors.filter(ed => ed !== sourceEditor)] : editors
+        const match = editorCandidates
+          .map(ed => ({ editor: ed, imageSelection: getSelectedImageState(ed) }))
+          .find(entry => entry.imageSelection !== null)
+
+        if (!match?.imageSelection) {
+          const persisted = getPersistedSelectedImageSidebar(sourceEditor)
+          if (persisted) {
+            replaceImagePosRef.current = persisted.pos
+            setSelectedImageSidebarState(persisted)
+            return
+          }
+
+          replaceImagePosRef.current = null
+          setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
+          return
+        }
+
+        replaceImagePosRef.current = match.imageSelection.pos
+        setSelectedImageSidebarState({
+          open: true,
+          editor: match.editor,
+          pos: match.imageSelection.pos,
+          nodeSize: match.imageSelection.nodeSize,
+          attrs: match.imageSelection.attrs
+        })
+      }
+
+      const refreshSelectedImageSidebar = (sourceEditor: TiptapEditor) => {
+        const current = selectedImageSidebarRef.current
+        if (current.open && current.editor && sourceEditor !== current.editor) {
+          return
+        }
+
+        const persisted = getPersistedSelectedImageSidebar(sourceEditor)
+        if (!persisted || persisted.editor !== sourceEditor) {
+          replaceImagePosRef.current = null
+          setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
+          return
+        }
+
+        replaceImagePosRef.current = persisted.pos
+        setSelectedImageSidebarState(persisted)
+      }
+
+      syncSelectedImageSidebar()
+      const subs: Array<{
+        ed: TiptapEditor
+        selectionFn: () => void
+        transactionFn: (payload: { transaction: ProseMirrorTransaction }) => void
+      }> = []
+      for (const ed of editors) {
+        const selectionFn = () => syncSelectedImageSidebar(ed)
+        const transactionFn = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+          if (transaction.selectionSet) {
+            syncSelectedImageSidebar(ed)
+            return
+          }
+
+          refreshSelectedImageSidebar(ed)
+        }
+
+        ed.on('selectionUpdate', selectionFn)
+        ed.on('transaction', transactionFn)
+        subs.push({ ed, selectionFn, transactionFn })
+      }
+
+      return () => {
+        for (const { ed, selectionFn, transactionFn } of subs) {
+          ed.off('selectionUpdate', selectionFn)
+          ed.off('transaction', transactionFn)
+        }
+      }
+    }, [editor, activeEditor, setSelectedImageSidebarState])
+
+    useEffect(() => {
       if (!editor) return
       const editors: NonNullable<typeof editor>[] = []
       if (editor) editors.push(editor)
@@ -1632,6 +1828,32 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         }
       }
     }, [editor, activeEditor])
+
+    useEffect(() => {
+      if (!selectedImageSidebar.open) return
+
+      const handlePointerDown = (event: PointerEvent) => {
+        const target = event.target
+        if (!(target instanceof HTMLElement)) return
+
+        if (target.closest('[data-testid="document-image-settings-sidebar"]')) {
+          return
+        }
+
+        if (target.closest('[data-testid="document-editor-image-anchor"]')) {
+          return
+        }
+
+        replaceImagePosRef.current = null
+        setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
+      }
+
+      globalThis.document.addEventListener('pointerdown', handlePointerDown, true)
+
+      return () => {
+        globalThis.document.removeEventListener('pointerdown', handlePointerDown, true)
+      }
+    }, [selectedImageSidebar.open, setSelectedImageSidebarState])
 
     const pagesOptionsSyncEditorRef = useRef<typeof editor | null>(null)
 
@@ -2010,6 +2232,42 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       }
       setShowLinkDialog(true)
     }, [activeEditor])
+
+    const openInsertImageDialog = useCallback(() => {
+      replaceImagePosRef.current = null
+      setImageDialogMode('insert')
+      setShowInsertImageDialog(true)
+    }, [])
+
+    const openReplaceImageDialog = useCallback((imagePos: number | null) => {
+      replaceImagePosRef.current = imagePos
+      setImageDialogMode('replace')
+      setShowInsertImageDialog(true)
+    }, [])
+
+    const closeImageSettingsSidebar = useCallback(() => {
+      replaceImagePosRef.current = null
+      setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
+    }, [setSelectedImageSidebarState])
+
+    const handleReplaceSelectedImage = useCallback(
+      (src: string) => {
+        if (!activeEditor) return
+        const imagePos = replaceImagePosRef.current
+        if (imagePos == null) return
+
+        const node = activeEditor.state.doc.nodeAt(imagePos)
+        if (!node || node.type.name !== 'image') return
+
+        const tr = activeEditor.state.tr.setNodeMarkup(imagePos, undefined, {
+          ...node.attrs,
+          src
+        })
+        activeEditor.view.dispatch(tr)
+        activeEditor.view.focus()
+      },
+      [activeEditor]
+    )
 
     const handleLinkApply = useCallback(
       (values: { href: string; displayText?: string; openInNewTab: boolean }) => {
@@ -2702,7 +2960,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <EditorToolbar
             editor={activeEditor}
             onOpenLinkDialog={openLinkDialog}
-            onOpenInsertImageDialog={() => setShowInsertImageDialog(true)}
+            onOpenInsertImageDialog={openInsertImageDialog}
             onOpenInsertTableDialog={() => setShowInsertTableDialog(true)}
             onOpenFind={() => openNavigationPanelTab('find')}
             onOpenReplace={() => openNavigationPanelTab('replace')}
@@ -2761,13 +3019,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 }}
               >
                 <EditorContent editor={editor} className="editor-content" />
-                {editor && (
+                {activeEditor && (
                   <BubbleMenu
-                    editor={editor}
+                    editor={activeEditor}
                     shouldShow={({ editor: e }) => e.isActive('link')}
                     pluginKey="linkBubbleMenu"
+                    onMouseDown={event => event.preventDefault()}
                   >
-                    <LinkBubbleMenu editor={editor} onEdit={openLinkDialog} data-testid="document-link-bubble-menu" />
+                    <LinkBubbleMenu
+                      editor={activeEditor}
+                      onEdit={openLinkDialog}
+                      data-testid="document-link-bubble-menu"
+                    />
                   </BubbleMenu>
                 )}
                 {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
@@ -3067,6 +3330,26 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           vertical-align: bottom;
           border-radius: 4pt;
         }
+        .paged-document-editor .ProseMirror figure[data-node-type='custom-image'] {
+          max-width: 100%;
+        }
+        .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='square-left'],
+        .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='tight'],
+        .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='through'] {
+          float: left;
+        }
+        .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='square-right'] {
+          float: right;
+        }
+        .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='top-bottom'] {
+          clear: both;
+        }
+        .paged-document-editor .ProseMirror .editor-image-caption {
+          margin-top: 4pt;
+          color: #6b7280;
+          font-size: 0.75rem;
+          line-height: 1.3;
+        }
         .paged-document-editor .ProseMirror .editor-image {
           margin: 0;
         }
@@ -3315,8 +3598,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             open={showInsertImageDialog}
             onOpenChange={setShowInsertImageDialog}
             editor={activeEditor}
-            documentId={document?.id ?? null}
-            accessToken={accessToken}
+            mode={imageDialogMode}
+            uploadImage={uploadImage}
+            uploadContext={imageUploadContext}
+            onSubmitImage={imageDialogMode === 'replace' ? handleReplaceSelectedImage : undefined}
             data-testid="document-insert-image-dialog"
           />
         )}
@@ -3480,6 +3765,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             currentUserId={currentUserId || undefined}
             headerHeight={measuredHeaderHeight || 120}
             data-testid="document-ai-edit-panel"
+          />
+        )}
+
+        {(selectedImageSidebar.editor || activeEditor) && (
+          <ImageSettingsSidebar
+            editor={selectedImageSidebar.editor || activeEditor}
+            image={selectedImageSidebar}
+            headerHeight={measuredHeaderHeight || 120}
+            rightOffset={imageSidebarRightOffset}
+            onClose={closeImageSettingsSidebar}
+            onReplace={openReplaceImageDialog}
+            data-testid="document-image-settings-sidebar"
           />
         )}
 

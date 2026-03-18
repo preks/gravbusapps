@@ -512,6 +512,9 @@ image-context-paste = Paste
 image-context-delete = Delete
 image-context-replace = Change picture
 image-context-alt-text = Alt text
+image-context-align = Align
+image-context-caption = Caption
+image-context-spacing = Distance from text
 
 # Wrap text (Word-style)
 image-context-wrap-text = Wrap text
@@ -527,6 +530,32 @@ image-wrap-in-front = In front of text
 image-alt-text-dialog-title = Alt text
 image-alt-text-label = Description (for accessibility)
 image-alt-text-save = Save
+image-caption-prompt = Caption
+image-distance-prompt = Distance from text (pixels)
+image-position-menu = Position
+image-position-move-left = Move left
+image-position-move-right = Move right
+image-position-move-up = Move up
+image-position-move-down = Move down
+image-position-bring-forward = Bring forward
+image-position-send-backward = Send backward
+image-sidebar-title = Picture
+image-sidebar-distance-top = Top
+image-sidebar-distance-right = Right
+image-sidebar-distance-bottom = Bottom
+image-sidebar-distance-left = Left
+image-sidebar-offset-x = Horizontal offset
+image-sidebar-offset-y = Vertical offset
+image-sidebar-overlap = Allow overlap
+image-sidebar-size = Size
+image-sidebar-width = Width
+image-sidebar-height = Height
+image-sidebar-relative-to-page = Relative to page
+image-sidebar-lock-aspect-ratio = Lock aspect ratio
+image-sidebar-reset-size = Reset original size
+image-sidebar-scale-width = Scale width (%)
+image-sidebar-scale-height = Scale height (%)
+image-sidebar-rotation = Rotation (deg)
 
 # Paged document editor
 editor-back-title = Back to documents

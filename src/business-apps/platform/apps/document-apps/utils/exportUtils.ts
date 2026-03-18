@@ -7,6 +7,11 @@
 
 import DOMPurify from 'dompurify'
 import JSZip from 'jszip'
+import {
+  CUSTOM_IMAGE_TAG,
+  getImageFigureAttributesFromElement
+} from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
+import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
 import { buildDocxBlob, sanitizeDocxFilename } from './docxExport'
 
 /**
@@ -45,6 +50,99 @@ function filterStyleToBlockSpacing(styleStr: string): string {
 }
 
 const EXPORT_DATA_URI_ATTR = 'data-nw-export-src'
+const EXPORT_IMAGE_DEFAULTS = {
+  align: 'left' as const,
+  wrapMode: 'inline' as const,
+  anchorMode: 'inline' as const,
+  display: 'inline' as const,
+  distance: 0
+}
+
+function applyCustomImageLayoutForExport(html: string): string {
+  if (!html || globalThis.DOMParser === undefined) return html
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const figures = Array.from(doc.body.querySelectorAll(`figure[data-node-type="${CUSTOM_IMAGE_TAG}"]`))
+
+  for (const figure of figures) {
+    const attrs = getImageFigureAttributesFromElement(figure, EXPORT_IMAGE_DEFAULTS)
+    const resolvedDimensions = resolveImageDimensions(attrs)
+    const img = figure.querySelector('img')
+    const figcaption = figure.querySelector('figcaption')
+
+    figure.classList.add('editor-image-figure')
+    figure.setAttribute('data-image-wrap', attrs.wrapMode ?? EXPORT_IMAGE_DEFAULTS.wrapMode)
+    figure.setAttribute('data-image-align', attrs.align ?? EXPORT_IMAGE_DEFAULTS.align)
+    figure.style.maxWidth = '100%'
+    figure.style.marginTop = `${attrs.distanceTop ?? EXPORT_IMAGE_DEFAULTS.distance}px`
+    figure.style.marginRight = `${attrs.distanceRight ?? EXPORT_IMAGE_DEFAULTS.distance}px`
+    figure.style.marginBottom = `${attrs.distanceBottom ?? EXPORT_IMAGE_DEFAULTS.distance}px`
+    figure.style.marginLeft = `${attrs.distanceLeft ?? EXPORT_IMAGE_DEFAULTS.distance}px`
+
+    switch (attrs.wrapMode) {
+      case 'square-left':
+      case 'tight':
+      case 'through':
+        figure.style.cssFloat = 'left'
+        figure.style.display = 'inline-block'
+        break
+      case 'square-right':
+        figure.style.cssFloat = 'right'
+        figure.style.display = 'inline-block'
+        break
+      case 'top-bottom':
+        figure.style.display = 'block'
+        figure.style.clear = 'both'
+        figure.style.textAlign = attrs.align ?? 'left'
+        break
+      case 'behind':
+      case 'front':
+        figure.style.position = 'relative'
+        figure.style.display = 'inline-block'
+        figure.style.left = `${attrs.offsetX ?? 0}px`
+        figure.style.top = `${attrs.offsetY ?? 0}px`
+        figure.style.zIndex = String(attrs.wrapMode === 'behind' ? 0 : (attrs.zIndex ?? 1))
+        break
+      case 'inline':
+      default:
+        figure.style.display = 'inline-block'
+        break
+    }
+
+    if (img) {
+      img.style.maxWidth = '100%'
+      if (resolvedDimensions.width != null) {
+        img.setAttribute('width', String(resolvedDimensions.width))
+        img.style.width = `${resolvedDimensions.width}px`
+      } else {
+        img.removeAttribute('width')
+      }
+      if (resolvedDimensions.height != null) {
+        img.setAttribute('height', String(resolvedDimensions.height))
+        img.style.height = `${resolvedDimensions.height}px`
+      } else {
+        img.removeAttribute('height')
+        img.style.height = 'auto'
+      }
+      if (resolvedDimensions.rotation !== 0) {
+        img.style.transform = `rotate(${resolvedDimensions.rotation}deg)`
+        img.style.transformOrigin = 'center center'
+      }
+    }
+
+    if (figcaption) {
+      figcaption.classList.add('editor-image-caption')
+      figcaption.style.marginTop = '4pt'
+      figcaption.style.color = '#6b7280'
+      figcaption.style.fontSize = '9pt'
+      figcaption.style.lineHeight = '1.3'
+      figcaption.style.textAlign = attrs.align ?? 'left'
+    }
+  }
+
+  return doc.body.innerHTML
+}
 
 function stripTagsToText(html: string): string {
   const out: string[] = []
@@ -251,10 +349,12 @@ export function buildPrintHtmlDocument({
   const safeTitle = escapeHtmlText(title || 'Document')
   const titleHeading = includeTitleHeading ? `<h1>${safeTitle}</h1>` : ''
   // CWE-79: only sanitized body HTML is embedded to prevent DOM XSS when written to document
-  const safeBodyHtml = sanitizeHtmlForExport(htmlContent, {
-    preserveBlockSpacing: true,
-    allowDataUriInImg: true
-  })
+  const safeBodyHtml = applyCustomImageLayoutForExport(
+    sanitizeHtmlForExport(htmlContent, {
+      preserveBlockSpacing: true,
+      allowDataUriInImg: true
+    })
+  )
 
   return `<!DOCTYPE html>
 <html>
@@ -419,11 +519,13 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
       }
       const container = doc.createElement('div')
       // CWE-79: assign only DOMPurify.sanitize(...) to innerHTML so SAST recognizes the known sanitizer
-      container.innerHTML = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
-        FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-        FORBID_ATTR: [],
-        ALLOW_DATA_ATTR: true
-      })
+      container.innerHTML = applyCustomImageLayoutForExport(
+        DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+          FORBID_ATTR: [],
+          ALLOW_DATA_ATTR: true
+        })
+      )
       doc.body.appendChild(container)
 
       let printed = false
