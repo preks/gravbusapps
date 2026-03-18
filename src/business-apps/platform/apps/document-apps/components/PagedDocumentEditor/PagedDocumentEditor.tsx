@@ -3019,18 +3019,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 }}
               >
                 <EditorContent editor={editor} className="editor-content" />
-                {activeEditor && (
+                {editor && (
                   <BubbleMenu
-                    editor={activeEditor}
+                    editor={editor}
                     shouldShow={({ editor: e }) => e.isActive('link')}
                     pluginKey="linkBubbleMenu"
                     onMouseDown={event => event.preventDefault()}
                   >
-                    <LinkBubbleMenu
-                      editor={activeEditor}
-                      onEdit={openLinkDialog}
-                      data-testid="document-link-bubble-menu"
-                    />
+                    <LinkBubbleMenu editor={editor} onEdit={openLinkDialog} data-testid="document-link-bubble-menu" />
                   </BubbleMenu>
                 )}
                 {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
