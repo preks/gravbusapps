@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { requestFilterStatuses } from '../../../hooks/availableFilterStatuses'
 import { useExpenseRequestCurrencies } from '../../../hooks/useExpenseRequestCurrencies'
-import { getExpenseRequestStatusDisplay } from '../../../utils'
+import { getExpenseRequestStatusFilterLabel } from '../../../utils'
 import ExpenseRequestStatistics from './ExpenseRequestStatistics'
 import ExpenseRequestsTable from './ExpenseRequestsTable'
 import ExpenseRequestDetails from './ExpenseRequestDetails'
@@ -98,8 +98,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
     for (const status of requestFilterStatuses) {
-      const config = getExpenseRequestStatusDisplay(status)
-      map[status] = config.label
+      map[status] = getExpenseRequestStatusFilterLabel(status)
     }
     map['ExpenseRequestType:v1:EXPENSES'] = getTranslationFromI18nKeyAndLabel(
       'lowcoder:personal_expenses.expense',
