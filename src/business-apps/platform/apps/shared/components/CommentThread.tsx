@@ -113,11 +113,8 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   const isCellComment = comment.type === 'cell'
   const hasCellReference = isCellComment && comment.cellReference
 
-  const handleResolveAndUnhighlight = async () => {
+  const handleResolve = async () => {
     await onResolve()
-    if (isInlineComment && onUnhighlight) {
-      onUnhighlight(comment.id)
-    }
   }
 
   const handleDeleteAndUnhighlight = async () => {
@@ -146,11 +143,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
   return (
     <div
-      className={`gba:rounded-xl gba:border gba:p-4 gba:transition-all ${
-        isResolved
-          ? 'gba:border-success/30 gba:bg-success/5'
-          : 'gba:border-border/50 gba:bg-card/50 hover:gba:border-border hover:gba:shadow-sm'
-      }`}
+      className="gba:rounded-xl gba:border gba:border-border/50 gba:bg-card/50 gba:p-4 gba:transition-all hover:gba:border-border hover:gba:shadow-sm"
       data-testid={`${testId}-${comment.id}`}
     >
       {/* Comment header */}
@@ -246,7 +239,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
               </DropdownMenuItem>
             )}
             {!isResolved && (
-              <DropdownMenuItem onClick={handleResolveAndUnhighlight}>
+              <DropdownMenuItem onClick={handleResolve}>
                 <CheckCircle className="gba:h-4 gba:w-4 gba:mr-2" />
                 {messages.resolve}
               </DropdownMenuItem>

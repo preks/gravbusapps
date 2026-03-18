@@ -314,14 +314,7 @@ export function refreshPageMinHeight(targetNode: HTMLElement) {
   targetNode.style.minHeight = `${minHeight + 2}px`
 }
 
-function blockInactiveRegionSelection(event: MouseEvent, region: HTMLElement) {
-  if (region.dataset.rmOverlayActive === 'true') return
-
-  event.preventDefault()
-  event.stopPropagation()
-}
-
-function blockInactiveRegionInteraction(event: Event, region: HTMLElement) {
+function blockInactiveRegion(event: Event, region: HTMLElement) {
   if (region.dataset.rmOverlayActive === 'true') return
 
   event.preventDefault()
@@ -360,8 +353,11 @@ export function createHeaderFooterRegion(params: {
   )
 
   const region = document.createElement('div')
-  region.className =
-    type === 'header' ? (firstPage ? 'rm-first-page-header' : 'rm-page-header-region') : 'rm-page-footer-region'
+  if (type === 'header') {
+    region.className = firstPage ? 'rm-first-page-header' : 'rm-page-header-region'
+  } else {
+    region.className = 'rm-page-footer-region'
+  }
   region.dataset.rmPageNumber = String(pageNumber)
   region.dataset.rmEditorType = type
   region.dataset.rmEditable = 'true'
@@ -402,10 +398,10 @@ export function createHeaderFooterRegion(params: {
   region.appendChild(inner)
 
   region.addEventListener('mousedown', event => {
-    blockInactiveRegionSelection(event, region)
+    blockInactiveRegion(event, region)
   })
   region.addEventListener('selectstart', event => {
-    blockInactiveRegionInteraction(event, region)
+    blockInactiveRegion(event, region)
   })
 
   region.addEventListener('dblclick', event => {

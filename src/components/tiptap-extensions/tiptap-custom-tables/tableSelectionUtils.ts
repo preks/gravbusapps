@@ -109,7 +109,7 @@ export function splitTableAtRow(
   options: SplitTableOptions = {}
 ) {
   const table = state.doc.nodeAt(tablePos)
-  if (!table || table.type.name !== 'table') return false
+  if (table?.type?.name !== 'table') return false
   if (splitRowIndex <= 0 || splitRowIndex >= table.childCount) return false
 
   const safeSplitIndex = findSafeSplitRow(table, splitRowIndex)
@@ -141,11 +141,11 @@ export function splitTableAtRow(
 
 export function mergeAdjacentPaginationTables(state: EditorState, tr: Transaction, firstTablePos: number) {
   const firstTable = state.doc.nodeAt(firstTablePos)
-  if (!firstTable || firstTable.type.name !== 'table') return false
+  if (firstTable?.type?.name !== 'table') return false
 
   const secondTablePos = firstTablePos + firstTable.nodeSize
   const secondTable = state.doc.nodeAt(secondTablePos)
-  if (!secondTable || secondTable.type.name !== 'table') return false
+  if (secondTable?.type?.name !== 'table') return false
 
   const firstSplitId = firstTable.attrs.paginationSplitId
   const secondSplitId = secondTable.attrs.paginationSplitId

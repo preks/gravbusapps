@@ -209,10 +209,9 @@ export function detectRunawayPageGrowth(
   info: PageCountDebugInfo | null
 ): RunawayPageGrowthCheck {
   if (
-    previous === null ||
-    previous.measuredPageCount !== currentPageCount ||
+    previous?.measuredPageCount !== currentPageCount ||
     info?.reason !== 'add-pages' ||
-    info.lastPageGap === null ||
+    info?.lastPageGap === null ||
     measuredPageCount <= currentPageCount
   ) {
     return NO_RUNAWAY_PAGE_GROWTH_CHECK
@@ -1091,7 +1090,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     const extensionOptions = this.options
 
     const refresh = (editor: typeof this.editor) => {
-      const storage = editor.storage.pages as PagesStorage
+      const storage = editor.storage.pages
       const options = getRuntimeOptions(editor, extensionOptions)
       syncStorageFromOptions(storage, options)
       syncEditorStorage(editor as unknown as { storage: Record<string, unknown> }, storage)
@@ -1110,13 +1109,13 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           new HeaderFooterOverlayManager(
             editor,
             () => getRuntimeOptions(editor, extensionOptions),
-            () => editor.storage.pages as PagesStorage
+            () => editor.storage.pages
           )
       ).close()
     }
 
     const openEditorByType = (editor: typeof this.editor, type: 'header' | 'footer', pageNumber: number) => {
-      const storage = editor.storage.pages as PagesStorage
+      const storage = editor.storage.pages
       const options = getRuntimeOptions(editor, extensionOptions)
       const totalPages = storage.getPageCount()
       if (pageNumber < 1 || pageNumber > totalPages) return false
@@ -1124,8 +1123,9 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       if (!view) return false
 
       const selector = `[data-rm-editor-type="${type}"][data-rm-page-number="${pageNumber}"]`
-      const target = view.dom.querySelector(selector) as HTMLElement | null
-      if (!target) return false
+      const targetEl = view.dom.querySelector(selector)
+      if (!(targetEl instanceof HTMLElement)) return false
+      const target = targetEl
 
       const overlayManager = getOverlayManager(
         editor,
@@ -1133,7 +1133,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           new HeaderFooterOverlayManager(
             editor,
             () => getRuntimeOptions(editor, extensionOptions),
-            () => editor.storage.pages as PagesStorage
+            () => editor.storage.pages
           )
       )
 
@@ -1175,7 +1175,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       const options = getRuntimeOptions(editor, extensionOptions)
 
       if (updates.pageFormat !== undefined) {
-        const storage = editor.storage.pages as PagesStorage
+        const storage = editor.storage.pages
         options.pageFormat = updates.pageFormat
         storage.pageFormat = resolvePageFormat(updates.pageFormat)
         syncEditorStorage(editor as unknown as { storage: Record<string, unknown> }, storage)
@@ -1210,7 +1210,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
               new HeaderFooterOverlayManager(
                 editor,
                 () => getRuntimeOptions(editor, extensionOptions),
-                () => editor.storage.pages as PagesStorage
+                () => editor.storage.pages
               )
           ).updateAccentColor()
           return refresh(editor)
@@ -1313,14 +1313,14 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       closeHeaderEditor:
         () =>
         ({ editor }) => {
-          if ((editor.storage.pages as PagesStorage).activeEditorType !== 'header') return false
+          if (editor.storage.pages.activeEditorType !== 'header') return false
           closeOverlay(editor)
           return refresh(editor)
         },
       closeFooterEditor:
         () =>
         ({ editor }) => {
-          if ((editor.storage.pages as PagesStorage).activeEditorType !== 'footer') return false
+          if (editor.storage.pages.activeEditorType !== 'footer') return false
           closeOverlay(editor)
           return refresh(editor)
         },
@@ -1334,7 +1334,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
               new HeaderFooterOverlayManager(
                 editor,
                 () => getRuntimeOptions(editor, extensionOptions),
-                () => editor.storage.pages as PagesStorage
+                () => editor.storage.pages
               )
           ).updateAccentColor()
           return true
@@ -1349,7 +1349,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
               new HeaderFooterOverlayManager(
                 editor,
                 () => getRuntimeOptions(editor, extensionOptions),
-                () => editor.storage.pages as PagesStorage
+                () => editor.storage.pages
               )
           ).updateAccentColor()
           return true
@@ -1364,7 +1364,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
               new HeaderFooterOverlayManager(
                 editor,
                 () => getRuntimeOptions(editor, extensionOptions),
-                () => editor.storage.pages as PagesStorage
+                () => editor.storage.pages
               )
           ).updateAccentColor()
           return true

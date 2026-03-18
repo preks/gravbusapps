@@ -69,7 +69,7 @@ export function InsertTableDialog({
         setRowsError(null)
         return
       }
-      const n = parseInt(raw, 10)
+      const n = Number.parseInt(raw, 10)
       if (Number.isNaN(n) || n < MIN_ROWS || n > MAX_ROWS) {
         setRowsError(t('insert-table-dialog-rows-range', { min: MIN_ROWS, max: MAX_ROWS }))
         setRows(Number.isNaN(n) ? DEFAULT_ROWS : clamp(n, MIN_ROWS, MAX_ROWS))
@@ -89,7 +89,7 @@ export function InsertTableDialog({
         setColsError(null)
         return
       }
-      const n = parseInt(raw, 10)
+      const n = Number.parseInt(raw, 10)
       if (Number.isNaN(n) || n < MIN_COLS || n > MAX_COLS) {
         setColsError(t('insert-table-dialog-cols-range', { min: MIN_COLS, max: MAX_COLS }))
         setCols(Number.isNaN(n) ? DEFAULT_COLS : clamp(n, MIN_COLS, MAX_COLS))

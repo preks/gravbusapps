@@ -147,7 +147,7 @@ const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
 const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
 
 function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean {
-  if (typeof globalThis.window === 'undefined') return false
+  if (globalThis.window === undefined) return false
 
   const searchParams = new URLSearchParams(globalThis.window.location.search)
   const queryValue = searchParams.get(searchParam)
@@ -510,32 +510,113 @@ export interface PagedDocumentEditorRef {
   insertAtCursor: (htmlOrText: string) => void
 }
 
-function findInlineCommentSelection(editor: any, commentId: string): { from: number; to: number } | null {
-  const { doc } = editor.state
-  let found: { from: number; to: number } | null = null
-
-  doc.descendants((node: any, pos: number) => {
-    if (found) return false
-    const marks: any[] | undefined = node.marks
-    if (!marks?.length) return
-
-    for (const mark of marks) {
-      if (mark?.type?.name === 'inlineComment' && mark?.attrs?.commentId === commentId) {
-        found = { from: pos, to: pos + node.nodeSize }
-        return false
-      }
-    }
-    return
-  })
-
-  return found
+type InlineCommentMeta = {
+  selectionStart?: number
+  selectionEnd?: number
+  selectedText?: string
 }
 
-function scrollInlineCommentDomIntoView(commentId: string) {
-  setTimeout(() => {
-    const element = document.querySelector(`[data-comment-id="${commentId}"]`)
-    element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, 100)
+/**
+ * Resolves the full document range for an inline comment. The previous implementation
+ * only used the first text node with the mark; formatted selections (bold/mixed marks)
+ * split into multiple text nodes, so only a fragment was highlighted.
+ * When marks are split across pagination, we fall back to stored selection positions.
+ */
+function findInlineCommentSelection(
+  editor: { state: { doc: any } },
+  commentId: string,
+  comment?: InlineCommentMeta | null
+): { from: number; to: number } | null {
+  const { doc } = editor.state
+  const ranges: { from: number; to: number }[] = []
+
+  doc.descendants((node: any, pos: number) => {
+    if (!node.isText) return
+    for (const mark of node.marks ?? []) {
+      if (mark?.type?.name === 'inlineComment' && mark?.attrs?.commentId === commentId) {
+        ranges.push({ from: pos, to: pos + node.nodeSize })
+        break
+      }
+    }
+  })
+
+  const docSize = doc.content.size
+  const tryStoredRange = (): { from: number; to: number } | null => {
+    if (
+      comment?.selectionStart == null ||
+      comment?.selectionEnd == null ||
+      comment.selectionEnd <= comment.selectionStart
+    ) {
+      return null
+    }
+    const from = Math.max(0, Math.min(comment.selectionStart, docSize))
+    const to = Math.max(from, Math.min(comment.selectionEnd, docSize))
+    return to > from ? { from, to } : null
+  }
+
+  // Resolved (or legacy) comments may have no doc marks; navigate via stored positions
+  if (!ranges.length) {
+    return tryStoredRange()
+  }
+
+  ranges.sort((a, b) => a.from - b.from)
+  const merged: { from: number; to: number }[] = []
+  for (const r of ranges) {
+    const prev = merged[merged.length - 1]
+    if (prev && r.from <= prev.to) prev.to = Math.max(prev.to, r.to)
+    else merged.push({ ...r })
+  }
+
+  if (merged.length > 1) {
+    const stored = tryStoredRange()
+    if (stored) return stored
+    return merged.reduce((a, b) => (b.to - b.from > a.to - a.from ? b : a))
+  }
+
+  const single = merged[0]
+  const expectedLen = comment?.selectedText?.trim().length ?? 0
+  const markLen = single.to - single.from
+  if (expectedLen > 0 && markLen < expectedLen * 0.85) {
+    const stored = tryStoredRange()
+    if (stored && stored.to - stored.from >= expectedLen * 0.85) return stored
+  }
+
+  return single
+}
+
+function scrollInlineCommentRangeIntoView(editor: { view: any }, from: number, to: number, commentId?: string) {
+  requestAnimationFrame(() => {
+    const view = editor.view
+    const domFallback = () => {
+      if (!commentId) return
+      globalThis.document
+        .querySelector(`[data-comment-id="${commentId}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+    let startCoords: { top: number; bottom: number }
+    let endCoords: { top: number; bottom: number }
+    try {
+      startCoords = view.coordsAtPos(from)
+      endCoords = view.coordsAtPos(to > from ? to - 1 : from)
+    } catch {
+      domFallback()
+      return
+    }
+    const viewport = view.dom.closest('.document-editor-viewport') as HTMLElement | null
+    if (!viewport) {
+      domFallback()
+      return
+    }
+    const top = Math.min(startCoords.top, endCoords.top)
+    const bottom = Math.max(startCoords.bottom, endCoords.bottom)
+    const vp = viewport.getBoundingClientRect()
+    const pad = 24
+    if (top < vp.top + pad) {
+      viewport.scrollTop -= vp.top + pad - top
+    } else if (bottom > vp.bottom - pad) {
+      viewport.scrollTop += bottom - (vp.bottom - pad)
+    }
+  })
 }
 
 function renderSaveStatus(
@@ -591,7 +672,8 @@ function handleTabKeyInPagedEditor(event: KeyboardEvent, editorRef: React.RefObj
   const $from = ed.state.selection.$from
   let inTableCell = false
   for (let d = $from.depth; d > 0; d--) {
-    if ($from.node(d).type.name === 'tableCell') {
+    const nodeName = $from.node(d).type.name
+    if (nodeName === 'tableCell' || nodeName === 'tableHeader') {
       inTableCell = true
       break
     }
@@ -1438,7 +1520,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   },
                   onActiveEditorChange: handlePagesActiveEditorChange,
                   onDblClickHeaderFooterPreventClose: event =>
-                    editorChromeRef.current?.contains(event.target as Node) ?? false
+                    (event.target instanceof Node && editorChromeRef.current?.contains(event.target)) ?? false
                 })
               ]
             : []),
@@ -3280,16 +3362,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             headerHeight={measuredHeaderHeight || 120}
             onUnhighlight={commentId => {
               if (!editor) return
-              const selection = findInlineCommentSelection(editor, commentId)
+              const c = comments.comments.find(x => x.id === commentId)
+              const selection = findInlineCommentSelection(editor, commentId, c)
               if (!selection) return
               editor.chain().setTextSelection(selection).unsetInlineComment().run()
             }}
             onScrollToHighlight={commentId => {
               if (!editor) return
-              const selection = findInlineCommentSelection(editor, commentId)
+              const c = comments.comments.find(x => x.id === commentId)
+              const selection = findInlineCommentSelection(editor, commentId, c)
               if (!selection) return
               editor.chain().setTextSelection(selection).focus().run()
-              scrollInlineCommentDomIntoView(commentId)
+              setTimeout(() => scrollInlineCommentRangeIntoView(editor, selection.from, selection.to, commentId), 50)
             }}
             data-testid="document-comment-panel"
           />

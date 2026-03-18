@@ -23,6 +23,8 @@ export interface CommentPanelMessages {
   resolvedHere?: string
   loading?: string
   addPlaceholder?: string
+  noComments?: string
+  noCommentsHint?: string
 }
 
 export interface CommentPanelThreadMessages {
@@ -66,7 +68,7 @@ export interface CommentPanelProps {
 }
 
 /**
- * Comment panel with tabbed view for all/unresolved comments
+ * Comment panel with Unresolved / Resolved tabs
  */
 export const CommentPanel: React.FC<CommentPanelProps> = ({
   comments,
@@ -100,18 +102,21 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
     noResolved: t('comment-panel-no-resolved'),
     resolvedHere: t('comment-panel-resolved-here'),
     loading: t('comment-panel-loading'),
-    addPlaceholder: t('comment-panel-add-placeholder')
+    addPlaceholder: t('comment-panel-add-placeholder'),
+    noComments: t('comment-panel-no-comments'),
+    noCommentsHint: t('comment-panel-no-comments-hint')
   }
   const messages = { ...defaultMessages, ...messagesProp }
 
   const [activeTab, setActiveTab] = useState<'unresolved' | 'resolved'>('unresolved')
   const [isCreating, setIsCreating] = useState(false)
 
-  // Filter top-level comments (not replies)
   const topLevelComments = comments.filter(c => !c.parentId)
   const unresolvedComments = topLevelComments.filter(c => !c.resolvedAt)
   const resolvedComments = topLevelComments.filter(c => !!c.resolvedAt)
-  const displayComments = activeTab === 'unresolved' ? unresolvedComments : resolvedComments
+  const sortByNewest = (a: Comment, b: Comment) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  const displayComments =
+    activeTab === 'unresolved' ? [...unresolvedComments].sort(sortByNewest) : [...resolvedComments].sort(sortByNewest)
 
   const handleCreateComment = async (content: string) => {
     setIsCreating(true)
@@ -143,11 +148,13 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
           </div>
           <div>
             <h3 className="gba:font-semibold gba:text-sm">{messages.title}</h3>
-            {unresolvedCount > 0 && (
+            {unresolvedCount > 0 ? (
               <p className="gba:text-xs gba:text-muted-foreground">
                 {unresolvedCount} {messages.unresolvedCount}
               </p>
-            )}
+            ) : topLevelComments.length > 0 ? (
+              <p className="gba:text-xs gba:text-muted-foreground">{messages.allResolved}</p>
+            ) : null}
           </div>
         </div>
         <Button
@@ -161,9 +168,9 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
         </Button>
       </div>
 
-      {/* Modern Tab Buttons */}
       <div className="gba:flex gba:gap-1 gba:p-1 gba:bg-muted/30">
         <button
+          type="button"
           onClick={() => setActiveTab('unresolved')}
           className={`gba:flex-1 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-3 gba:py-1.5 gba:rounded-lg gba:text-sm gba:font-medium gba:transition-all ${
             activeTab === 'unresolved'
@@ -184,6 +191,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
           )}
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('resolved')}
           className={`gba:flex-1 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-3 gba:py-1.5 gba:rounded-lg gba:text-sm gba:font-medium gba:transition-all ${
             activeTab === 'resolved'
@@ -200,7 +208,6 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
         </button>
       </div>
 
-      {/* Content */}
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overflow-x-hidden gba:px-3 gba:pr-6">
         {isLoading ? (
           <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
@@ -216,10 +223,18 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
               )}
             </div>
             <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
-              {activeTab === 'unresolved' ? messages.allCaughtUp : messages.noResolved}
+              {activeTab === 'unresolved'
+                ? topLevelComments.length === 0
+                  ? messages.noComments
+                  : messages.allCaughtUp
+                : messages.noResolved}
             </p>
             <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[200px]">
-              {activeTab === 'unresolved' ? messages.allResolved : messages.resolvedHere}
+              {activeTab === 'unresolved'
+                ? topLevelComments.length === 0
+                  ? messages.noCommentsHint
+                  : messages.allResolved
+                : messages.resolvedHere}
             </p>
           </div>
         ) : (

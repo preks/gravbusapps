@@ -100,10 +100,9 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
       tableWidth: {
         default: this.options.defaultTableWidth,
         parseHTML: element => {
-          const htmlElement = element as HTMLElement
           return (
             element.getAttribute('data-table-width') ??
-            htmlElement.style.width ??
+            (element instanceof HTMLElement ? element.style.width : null) ??
             element.getAttribute('width') ??
             this.options.defaultTableWidth
           )
@@ -282,4 +281,4 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
   }
 })
 
-export { normalizeTableAlign, normalizeTableWidth, normalizeTableWidthMode }
+export { normalizeTableAlign, normalizeTableWidth, normalizeTableWidthMode } from './styleUtils'

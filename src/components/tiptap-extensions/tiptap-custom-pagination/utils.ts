@@ -495,15 +495,15 @@ function getElementLayoutHeight(element: HTMLElement): number {
   let trailingEmptyLineHeight = 0
 
   if (measuredContentHeight <= 0 && element.matches('p') && element.querySelector('br.ProseMirror-trailingBreak')) {
-    const computedStyle = typeof window !== 'undefined' ? window.getComputedStyle(element) : null
+    const computedStyle = globalThis.window !== undefined ? globalThis.window.getComputedStyle(element) : null
     const parsedLineHeight = Number.parseFloat(computedStyle?.lineHeight ?? '')
     const parsedFontSize = Number.parseFloat(computedStyle?.fontSize ?? '')
 
-    trailingEmptyLineHeight = Number.isFinite(parsedLineHeight)
-      ? parsedLineHeight
-      : Number.isFinite(parsedFontSize)
-        ? parsedFontSize * 1.2
-        : 0
+    if (Number.isFinite(parsedLineHeight)) {
+      trailingEmptyLineHeight = parsedLineHeight
+    } else if (Number.isFinite(parsedFontSize)) {
+      trailingEmptyLineHeight = parsedFontSize * 1.2
+    }
   }
 
   return Math.max(
@@ -576,18 +576,18 @@ function getTableMeasurementElement(element: HTMLElement): HTMLElement {
 }
 
 function getElementMarginTop(element: HTMLElement): number {
-  if (typeof window === 'undefined') return 0
+  if (globalThis.window === undefined) return 0
 
-  const computedStyle = window.getComputedStyle(element)
+  const computedStyle = globalThis.window.getComputedStyle(element)
   const marginTop = Number.parseFloat(computedStyle.marginTop ?? '')
 
   return Number.isFinite(marginTop) ? marginTop : 0
 }
 
 function getElementMarginBottom(element: HTMLElement): number {
-  if (typeof window === 'undefined') return 0
+  if (globalThis.window === undefined) return 0
 
-  const computedStyle = window.getComputedStyle(element)
+  const computedStyle = globalThis.window.getComputedStyle(element)
   const marginBottom = Number.parseFloat(computedStyle.marginBottom ?? '')
 
   return Number.isFinite(marginBottom) ? marginBottom : 0
@@ -649,21 +649,21 @@ function getSplitIndexForPushedTable(
 
   let splitIndex: number | null = null
 
-  rowEntries.forEach(rowEntry => {
+  for (const rowEntry of rowEntries) {
     const rowDom = view.nodeDOM(rowEntry.rowPos)
-    if (!(rowDom instanceof HTMLTableRowElement)) return
+    if (!(rowDom instanceof HTMLTableRowElement)) continue
 
     const rowBottom = getElementBottomInEditor(view.dom, rowDom)
     const rowHeight = Math.max(0, rowBottom - getElementTopInEditor(view.dom, rowDom))
     const consumedHeight = Math.max(0, rowBottom - tableTop)
 
-    if (rowHeight >= availableHeight - tolerance) return
+    if (rowHeight >= availableHeight - tolerance) continue
 
     if (consumedHeight <= availableHeight + tolerance) {
       splitIndex = rowEntry.rowIndex + 1
-      return
+      break
     }
-  })
+  }
 
   if (splitIndex === null || splitIndex >= rowEntries.length) return null
 
@@ -720,7 +720,7 @@ export function findOverflowingTableSplit(view: EditorView): TableOverflowSplitC
   let candidate: TableOverflowSplitCandidate | null = null
   const tables: Array<{ node: ProseMirrorNode; pos: number }> = []
 
-  ;(view.state.doc as ProseMirrorNode).descendants((node, pos) => {
+  view.state.doc.descendants((node, pos) => {
     if (node.type.name === 'table') {
       tables.push({ node, pos })
       return false
@@ -743,11 +743,9 @@ export function findOverflowingTableSplit(view: EditorView): TableOverflowSplitC
       const safeSplitIndex = findSafeSplitRow(node, pushedSplitIndex)
 
       if (safeSplitIndex >= 1 && safeSplitIndex < rowEntries.length) {
-        if (candidate === null) {
-          candidate = {
-            tablePos: pos,
-            splitRowIndex: safeSplitIndex
-          }
+        candidate ??= {
+          tablePos: pos,
+          splitRowIndex: safeSplitIndex
         }
       }
       return
@@ -779,11 +777,9 @@ export function findOverflowingTableSplit(view: EditorView): TableOverflowSplitC
         break
       }
 
-      if (candidate === null) {
-        candidate = {
-          tablePos: pos,
-          splitRowIndex: safeSplitIndex
-        }
+      candidate ??= {
+        tablePos: pos,
+        splitRowIndex: safeSplitIndex
       }
 
       break
@@ -806,7 +802,7 @@ export function findMergeableTableFragments(view: EditorView): MergeableTableFra
   } | null = null
   let candidate: MergeableTableFragmentsCandidate | null = null
 
-  ;(view.state.doc as ProseMirrorNode).descendants((node, pos) => {
+  view.state.doc.descendants((node, pos) => {
     if (candidate || node.type.name !== 'table') return !candidate
 
     const paginationSplitId =
@@ -832,14 +828,15 @@ export function findMergeableTableFragments(view: EditorView): MergeableTableFra
       tolerance
     )
 
+    const prevTable = previousTable
     if (
-      previousTable &&
-      previousTable.paginationSplitId === paginationSplitId &&
-      pos === previousTable.pos + previousTable.node.nodeSize &&
-      bandIndex === previousTable.bandIndex
+      prevTable &&
+      prevTable.paginationSplitId === paginationSplitId &&
+      pos === prevTable.pos + prevTable.node.nodeSize &&
+      bandIndex === prevTable.bandIndex
     ) {
       candidate = {
-        firstTablePos: previousTable.pos,
+        firstTablePos: prevTable.pos,
         secondTablePos: pos,
         paginationSplitId
       }
@@ -860,10 +857,8 @@ export function findMergeableTableFragments(view: EditorView): MergeableTableFra
 }
 
 function getSelectionBottom(view: EditorView): number {
-  const selection = (view as EditorView & { state?: { selection?: { from: number; to: number } } }).state?.selection
-  if (!selection) return 0
-
-  const positions = selection.from === selection.to ? [selection.from] : [selection.from, selection.to]
+  const { from, to } = view.state.selection
+  const positions = from === to ? [from] : [from, to]
   const editorRect = view.dom.getBoundingClientRect()
   let selectionBottom = 0
 
@@ -916,7 +911,7 @@ export function calculatePageCount(
   pageGap: number,
   layoutOptions: PageCountLayoutOptions = {}
 ): number {
-  if (isEffectivelyEmptyDocument((view as EditorView & { state?: { doc?: ProseMirrorNode } }).state?.doc)) {
+  if (isEffectivelyEmptyDocument(view.state.doc)) {
     layoutOptions.onDebug?.({
       reason: 'empty-doc',
       hasPaginationElement: false,
@@ -939,13 +934,15 @@ export function calculatePageCount(
   const lastContentElement = getLastContentElement(editorDom)
   const selectionBottom = getSelectionBottom(view)
   const contentBottom = lastContentElement ? getMeasuredElementBottomInEditor(editorDom, lastContentElement) : null
-  const measuredBottom = contentBottom !== null ? Math.max(contentBottom, selectionBottom) : selectionBottom
+  const measuredBottom = contentBottom === null ? selectionBottom : Math.max(contentBottom, selectionBottom)
   const pageContentHeight = getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
 
   if (paginationElement) {
-    const lastPageBreak = paginationElement.lastElementChild?.querySelector('.breaker') as HTMLElement | null
+    const lastPageBreakRaw = paginationElement.lastElementChild?.querySelector('.breaker')
+    const lastPageBreak = lastPageBreakRaw instanceof HTMLElement ? lastPageBreakRaw : null
+    const canMeasurePagination = lastPageBreak !== null && (lastContentElement !== null || selectionBottom > 0)
 
-    if ((!lastContentElement && selectionBottom <= 0) || !lastPageBreak) {
+    if (!canMeasurePagination) {
       const resultPageCount = Math.max(1, currentPageCount)
       layoutOptions.onDebug?.({
         reason: 'existing-no-op',

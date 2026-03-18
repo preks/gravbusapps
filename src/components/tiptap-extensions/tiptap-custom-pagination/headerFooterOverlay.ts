@@ -247,7 +247,6 @@ function resolveEditorPositionFromClick(editor: Editor, clickPosition?: { client
 
   const ownerDocument = editor.view.dom.ownerDocument as Document & {
     caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
-    caretRangeFromPoint?: (x: number, y: number) => Range | null
   }
 
   try {
@@ -257,15 +256,6 @@ function resolveEditorPositionFromClick(editor: Editor, clickPosition?: { client
     }
   } catch {
     // Ignore and continue to the Range fallback.
-  }
-
-  try {
-    const caretRange = ownerDocument.caretRangeFromPoint?.(clickPosition.clientX, clickPosition.clientY)
-    if (caretRange?.startContainer) {
-      return editor.view.posAtDOM(caretRange.startContainer, caretRange.startOffset)
-    }
-  } catch {
-    // Ignore and fall back to the default focus position.
   }
 
   return null

@@ -24,7 +24,8 @@ function updateColumns(
       const { colspan, colwidth } = row.child(cellIndex).attrs
 
       for (let spanIndex = 0; spanIndex < colspan; spanIndex += 1, colIndex += 1) {
-        const width = colwidth?.[spanIndex] as number | undefined
+        const rawColWidth = colwidth?.[spanIndex]
+        const width = typeof rawColWidth === 'number' ? rawColWidth : undefined
         const cssWidth = width ? `${width}px` : ''
 
         totalWidth += width || cellMinWidth
@@ -33,18 +34,18 @@ function updateColumns(
           fixedWidth = false
         }
 
-        if (!nextDOM) {
-          const colElement = document.createElement('col')
-          const [propertyKey, propertyValue] = getColStyleDeclaration(cellMinWidth, width)
-          colElement.style.setProperty(propertyKey, propertyValue)
-          colgroup.appendChild(colElement)
-        } else {
+        if (nextDOM) {
           if ((nextDOM as HTMLTableColElement).style.width !== cssWidth) {
             const [propertyKey, propertyValue] = getColStyleDeclaration(cellMinWidth, width)
             ;(nextDOM as HTMLTableColElement).style.setProperty(propertyKey, propertyValue)
           }
 
           nextDOM = nextDOM.nextSibling
+        } else {
+          const colElement = document.createElement('col')
+          const [propertyKey, propertyValue] = getColStyleDeclaration(cellMinWidth, width)
+          colElement.style.setProperty(propertyKey, propertyValue)
+          colgroup.appendChild(colElement)
         }
       }
     }
@@ -52,7 +53,7 @@ function updateColumns(
 
   while (nextDOM) {
     const nextSibling = nextDOM.nextSibling
-    nextDOM.parentNode?.removeChild(nextDOM)
+    nextDOM.remove()
     nextDOM = nextSibling
   }
 
@@ -112,7 +113,7 @@ export class CustomTableView implements NodeView {
   }
 
   ignoreMutation(mutation: ViewMutationRecord) {
-    const target = mutation.target as Node
+    const { target } = mutation
     const isInsideTable = this.dom.contains(target)
     const isInsideContent = this.contentDOM.contains(target)
 

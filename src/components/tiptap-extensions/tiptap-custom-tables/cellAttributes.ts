@@ -16,13 +16,9 @@ export function createCustomCellAttributes() {
   const attrs: Record<string, Attribute> = {
     cellTextAlign: {
       default: null,
-      parseHTML: element => {
-        const htmlElement = element as HTMLElement
-        return (
-          normalizeCellTextAlign(element.getAttribute('data-cell-text-align')) ??
-          getElementStyles(htmlElement).textAlign
-        )
-      },
+      parseHTML: element =>
+        normalizeCellTextAlign(element.getAttribute('data-cell-text-align')) ??
+        (element instanceof HTMLElement ? getElementStyles(element).textAlign : null),
       renderHTML: attributes => {
         const cellTextAlign = normalizeCellTextAlign(attributes.cellTextAlign)
         if (!cellTextAlign) return {}
@@ -34,13 +30,9 @@ export function createCustomCellAttributes() {
     },
     cellVerticalAlign: {
       default: null,
-      parseHTML: element => {
-        const htmlElement = element as HTMLElement
-        return (
-          normalizeCellVerticalAlign(element.getAttribute('data-cell-vertical-align')) ??
-          getElementStyles(htmlElement).verticalAlign
-        )
-      },
+      parseHTML: element =>
+        normalizeCellVerticalAlign(element.getAttribute('data-cell-vertical-align')) ??
+        (element instanceof HTMLElement ? getElementStyles(element).verticalAlign : null),
       renderHTML: attributes => {
         const cellVerticalAlign = normalizeCellVerticalAlign(attributes.cellVerticalAlign)
         if (!cellVerticalAlign) return {}
@@ -52,13 +44,9 @@ export function createCustomCellAttributes() {
     },
     backgroundColor: {
       default: null,
-      parseHTML: element => {
-        const htmlElement = element as HTMLElement
-        return (
-          normalizeColorValue(element.getAttribute('data-cell-background')) ??
-          getElementStyles(htmlElement).backgroundColor
-        )
-      },
+      parseHTML: element =>
+        normalizeColorValue(element.getAttribute('data-cell-background')) ??
+        (element instanceof HTMLElement ? getElementStyles(element).backgroundColor : null),
       renderHTML: attributes => {
         const backgroundColor = normalizeColorValue(attributes.backgroundColor)
         if (!backgroundColor) return {}
@@ -70,13 +58,9 @@ export function createCustomCellAttributes() {
     },
     borderColor: {
       default: null,
-      parseHTML: element => {
-        const htmlElement = element as HTMLElement
-        return (
-          normalizeColorValue(element.getAttribute('data-cell-border-color')) ??
-          getElementStyles(htmlElement).borderColor
-        )
-      },
+      parseHTML: element =>
+        normalizeColorValue(element.getAttribute('data-cell-border-color')) ??
+        (element instanceof HTMLElement ? getElementStyles(element).borderColor : null),
       renderHTML: attributes => {
         const borderColor = normalizeColorValue(attributes.borderColor)
         if (!borderColor) return {}

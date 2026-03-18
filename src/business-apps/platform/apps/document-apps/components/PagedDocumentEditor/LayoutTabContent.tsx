@@ -53,7 +53,7 @@ const PAGE_COLOUR_PRESETS: { hex: string; labelKey: string }[] = [
 
 function normalizeHex(hex: string): string {
   const h = hex.trim().toLowerCase()
-  if (h.length === 4 && h[0] === '#') {
+  if (h.length === 4 && h.startsWith('#')) {
     return `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}`
   }
   return h
@@ -72,12 +72,15 @@ function marginsNearEqual(
   )
 }
 
+const MARGIN_PT_RE = /^([\d.]+)\s*pt$/i
+const MARGIN_EM_RE = /^([\d.]+)\s*em$/i
+
 function marginStringToPt(s: string | null | undefined): number {
   if (!s?.trim()) return 0
   const t = s.trim()
-  const pt = t.match(/^([\d.]+)\s*pt$/i)
+  const pt = MARGIN_PT_RE.exec(t)
   if (pt) return Math.round(Number.parseFloat(pt[1]) * 10) / 10
-  const em = t.match(/^([\d.]+)\s*em$/i)
+  const em = MARGIN_EM_RE.exec(t)
   if (em) return Math.round(Number.parseFloat(em[1]) * 12 * 10) / 10
   return 0
 }
@@ -107,9 +110,9 @@ export function LayoutTabContent({
   testId = 'editor-toolbar'
 }: Readonly<LayoutTabContentProps>) {
   const { t } = useTranslation(translations)
-  const [, setTick] = useState(0)
+  const [layoutRefreshKey, setLayoutRefreshKey] = useState(0)
   useEffect(() => {
-    const fn = () => setTick(x => x + 1)
+    const fn = () => setLayoutRefreshKey(x => x + 1)
     editor.on('transaction', fn)
     editor.on('selectionUpdate', fn)
     return () => {
@@ -119,8 +122,8 @@ export function LayoutTabContent({
   }, [editor])
 
   const layout = useMemo(() => resolvePageLayout(formatting), [formatting])
-  const spacing = useMemo(() => getCurrentSpacing(editor), [editor, editor.state])
-  const indents = useMemo(() => getCurrentParagraphIndent(editor), [editor, editor.state])
+  const spacing = useMemo(() => getCurrentSpacing(editor), [editor, editor.state, layoutRefreshKey])
+  const indents = useMemo(() => getCurrentParagraphIndent(editor), [editor, editor.state, layoutRefreshKey])
 
   const applyMargins = useCallback(
     (margins: DocumentFormatting['margins']) => {

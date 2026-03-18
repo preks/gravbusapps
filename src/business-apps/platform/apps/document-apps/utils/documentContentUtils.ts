@@ -2,8 +2,7 @@ function collapseWhitespaceLinear(input: string): string {
   let result = ''
   let previousWasWhitespace = false
 
-  for (let index = 0; index < input.length; index += 1) {
-    const char = input[index]
+  for (const char of input) {
     const isWhitespace = /\s/.test(char)
 
     if (isWhitespace) {
@@ -370,7 +369,7 @@ export function sanitizePaginationRuntimeHtml(html: string): string {
   }
 
   try {
-    if (typeof globalThis.DOMParser === 'undefined' || typeof globalThis.document === 'undefined') {
+    if (globalThis.DOMParser === undefined || globalThis.document === undefined) {
       return html
     }
 
@@ -411,7 +410,7 @@ export function normalizeDocumentHtmlForEditor(html: string): string {
   }
 
   try {
-    if (typeof globalThis.DOMParser === 'undefined' || typeof globalThis.document === 'undefined') {
+    if (globalThis.DOMParser === undefined || globalThis.document === undefined) {
       return sanitizedHtml
     }
 
@@ -442,7 +441,7 @@ export function isEffectivelyEmptyDocumentHtml(html: string): boolean {
   if (!html.trim()) return true
 
   try {
-    if (typeof globalThis.DOMParser !== 'undefined') {
+    if (globalThis.DOMParser !== undefined) {
       const doc = new globalThis.DOMParser().parseFromString(html, 'text/html')
       if (doc.body.querySelector('table, img, video, audio, iframe, canvas, svg, hr, ul[data-type="taskList"]')) {
         return false

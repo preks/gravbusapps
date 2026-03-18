@@ -61,15 +61,18 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
     const fontFamily = editor.getAttributes('textStyle').fontFamily as string | undefined
     const value = fontFamily?.trim() ?? ''
     const effectiveValue = value || DEFAULT_FONT_FAMILY
-    const label = FONT_FAMILY_KEYS[value] != null ? t(FONT_FAMILY_KEYS[value]) : effectiveValue
+    const fontKey = FONT_FAMILY_KEYS[value]
+    const label = fontKey !== undefined ? t(fontKey) : effectiveValue
     return { label, value: effectiveValue }
   }
 
   const getCurrentFontSize = (): string => {
     const fontSize = editor.getAttributes('textStyle').fontSize as string | undefined
-    if (!fontSize) return '12'
-    const match = /^(\d+(?:\.\d+)?)/.exec(fontSize)
-    return match ? match[1] : '12'
+    if (fontSize) {
+      const match = /^(\d+(?:\.\d+)?)/.exec(fontSize)
+      return match ? match[1] : '12'
+    }
+    return '12'
   }
 
   const applyCustomFontSize = useCallback(

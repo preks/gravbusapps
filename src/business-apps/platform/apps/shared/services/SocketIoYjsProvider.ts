@@ -96,7 +96,7 @@ export class SocketIoYjsProvider {
 
   private onSyncedChange?: (isSynced: boolean) => void
   private onBootstrapRequired?: (html: string) => Promise<void> | void
-  private onReadyStateApplied?: (info: {
+  private readonly onReadyStateApplied?: (info: {
     source: 'sync' | 'event' | 'remote-update'
     status: 'ready' | 'already_ready'
     fragmentLength: number

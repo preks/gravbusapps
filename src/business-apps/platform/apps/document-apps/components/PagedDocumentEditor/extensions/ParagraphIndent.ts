@@ -6,15 +6,15 @@ import { Extension } from '@tiptap/core'
 
 const TYPES = ['paragraph', 'heading'] as const
 
+const CM_RE = /^([\d.]+)\s*cm$/i
+const PX_RE = /^([\d.]+)\s*px$/i
+
 function parseCm(styleVal: string | undefined): number | null {
   if (!styleVal) return null
-  const m = String(styleVal)
-    .trim()
-    .match(/^([\d.]+)\s*cm$/i)
-  if (m) return Math.round(Number.parseFloat(m[1]) * 100) / 100
-  const px = String(styleVal)
-    .trim()
-    .match(/^([\d.]+)\s*px$/i)
+  const trimmed = String(styleVal).trim()
+  const cm = CM_RE.exec(trimmed)
+  if (cm) return Math.round(Number.parseFloat(cm[1]) * 100) / 100
+  const px = PX_RE.exec(trimmed)
   if (px) return Math.round((Number.parseFloat(px[1]) / (96 / 2.54)) * 100) / 100
   return null
 }
