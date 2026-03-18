@@ -25,7 +25,7 @@ export const PayrollGridFilters: React.FC<PayrollGridFiltersProps> = ({ filters,
   }
 
   return (
-    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap gba:mb-4">
+    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
       <div className="gba:relative gba:flex-1 gba:min-w-[200px] gba:max-w-[320px]">
         <MagnifyingGlassIcon
           size={16}

@@ -45,7 +45,7 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
             <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center">
               {employee.pictureThumbnail ? (
                 <img
-                  src={employee.pictureThumbnail}
+                  src={`data:image/jpeg;base64,${employee.pictureThumbnail}`}
                   alt=""
                   className="gba:w-10 gba:h-10 gba:rounded-full gba:object-cover"
                 />

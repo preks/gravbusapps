@@ -118,7 +118,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
   }
 
   return (
-    <div>
+    <div className="gba:space-y-4">
       <PayrollGridFilters
         filters={filters}
         onFiltersChange={f => {
@@ -129,8 +129,8 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
         t={t}
       />
 
-      <Card className="gba:overflow-hidden">
-        <div className="gba:overflow-x-auto">
+      <Card className="gba:overflow-hidden gba:bg-transparent gba:shadow-none gba:border-none gba:pt-2">
+        <div className="gba:overflow-x-auto gba:bg-card gba:rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
@@ -140,7 +140,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
                   activeField={sortField}
                   order={sortOrder}
                   onSort={handleSort}
-                  className="gba:min-w-[200px]"
+                  className="gba:min-w-[200px] gba:sticky gba:left-0 gba:z-20 gba:bg-card"
                 />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-employee-id')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-status')}</TableHead>
@@ -202,12 +202,12 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
                       className="gba:cursor-pointer gba:hover:bg-muted"
                       onClick={() => setSelectedEmployee(emp)}
                     >
-                      <TableCell>
+                      <TableCell className="gba:sticky gba:left-0 gba:z-10 gba:bg-card">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
                             {emp.pictureThumbnail ? (
                               <img
-                                src={emp.pictureThumbnail}
+                                src={`data:image/jpeg;base64,${emp.pictureThumbnail}`}
                                 alt=""
                                 className="gba:w-8 gba:h-8 gba:rounded-full gba:object-cover"
                               />
