@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { Badge, Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { WarningCircleIcon, ShieldWarningIcon, InfoIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
 import { SeverityBadge } from '../../shared/StatusBadge'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface ExceptionsViewProps {
   employees: PayrollEmployee[]
@@ -73,6 +74,34 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
   const warningCount = allIssues.filter(i => i.severity === 'warning').length
   const infoCount = allIssues.filter(i => i.severity === 'info').length
   const affectedEmployees = new Set(allIssues.map(i => i.employeeId)).size
+
+  const handleNavigateForIssue = useCallback((employeeId: string, category: IssueCategory) => {
+    switch (category) {
+      case 'missing_personal_data':
+      case 'missing_bank_details':
+        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'details' }))
+        break
+      case 'missing_contract_salary':
+      case 'missing_tax_social':
+      case 'missing_country_specific':
+      case 'pending_final_payroll':
+      case 'invalid_effective_dates':
+        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'employment' }))
+        break
+      case 'missing_approvals':
+        navigateTo(buildPlatformUrl('/platform/task-manager', { view: 'inbox' }))
+        break
+      case 'missing_absence_data':
+      case 'overlapping_absences':
+        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'absences' }))
+        break
+      case 'retroactive_changes':
+        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'changeLog' }))
+        break
+      default:
+        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'details' }))
+    }
+  }, [])
 
   const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
     switch (severity) {
@@ -183,7 +212,11 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
           </Card>
         ) : (
           filteredIssues.map(issue => (
-            <Card key={`${issue.employeeId}-${issue.issueCode}`} className="gba:p-4">
+            <Card
+              key={`${issue.employeeId}-${issue.issueCode}`}
+              className="gba:p-4 gba:cursor-pointer gba:hover:bg-muted/50 gba:transition-colors"
+              onClick={() => handleNavigateForIssue(issue.employeeId, issue.category)}
+            >
               <div className="gba:flex gba:items-start gba:gap-3">
                 <SeverityIcon severity={issue.severity} />
                 <div className="gba:flex-1 gba:min-w-0">

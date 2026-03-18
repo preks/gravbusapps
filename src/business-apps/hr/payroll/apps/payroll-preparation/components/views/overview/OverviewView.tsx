@@ -28,13 +28,16 @@ interface KpiCardProps {
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => (
-  <Card className="gba:p-4 gba:flex gba:items-center gba:gap-4">
-    <Badge variant={variant} className="gba:w-12 gba:h-12 gba:rounded-lg gba:flex gba:items-center gba:justify-center">
+  <Card className="gba:p-4 gba:flex gba:flex-row gba:items-center gba:gap-3">
+    <Badge
+      variant={variant}
+      className="gba:w-10 gba:h-10 gba:shrink-0 gba:rounded-lg gba:flex gba:items-center gba:justify-center"
+    >
       {icon}
     </Badge>
-    <div>
-      <p className="gba:text-2xl gba:font-bold gba:text-foreground">{value}</p>
-      <p className="gba:text-sm gba:text-muted-foreground">{label}</p>
+    <div className="gba:min-w-0">
+      <p className="gba:text-xl gba:font-bold gba:text-foreground gba:leading-tight">{value}</p>
+      <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{label}</p>
     </div>
   </Card>
 )
@@ -56,7 +59,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ summary, payrollRun,
         </Card>
       )}
 
-      <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 lg:gba:grid-cols-7 gba:gap-4">
+      <div className="gba:grid gba:grid-cols-4 gba:gap-4">
         <KpiCard
           label={t('summary-total')}
           value={summary.totalEmployees}
