@@ -146,7 +146,9 @@ const ADVANCE_LABEL_OVERRIDES: LabelOverrideMap = {
   TRANSFERRED: { i18nKey: 'lowcoder:expense_statuses.payment_required', fallback: 'Payment Required' }
 }
 
-const ENTITY_LABEL_OVERRIDES: Partial<Record<'plan' | 'request' | 'advance', LabelOverrideMap>> = {
+type EntityKind = 'plan' | 'request' | 'advance'
+
+const ENTITY_LABEL_OVERRIDES: Partial<Record<EntityKind, LabelOverrideMap>> = {
   request: REQUEST_LABEL_OVERRIDES,
   advance: ADVANCE_LABEL_OVERRIDES
 }
@@ -154,7 +156,7 @@ const ENTITY_LABEL_OVERRIDES: Partial<Record<'plan' | 'request' | 'advance', Lab
 /**
  * Generic status-to-display mapper with per-entity overrides.
  */
-export const getEntityStatusDisplay = (entity: 'plan' | 'request' | 'advance', status: string): StatusDisplayConfig => {
+export const getEntityStatusDisplay = (entity: EntityKind, status: string): StatusDisplayConfig => {
   if (!status) {
     return { label: '', type: 'draft', badgeVariant: STATUS_COLORS.DRAFT }
   }

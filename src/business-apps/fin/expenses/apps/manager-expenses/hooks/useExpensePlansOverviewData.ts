@@ -145,7 +145,7 @@ export function useExpensePlansOverviewData(context: BusinessAppContextProps, pa
         endDate: p.endDate,
         planDate: p.planDate,
         totalAmount: Number(p.totalAmount ?? 0),
-        currency: (currency || primaryCurrency || 'EUR') as string,
+        currency: currency || primaryCurrency || 'EUR',
         currencyRef: p.currencyRef,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,

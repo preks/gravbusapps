@@ -34,7 +34,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const [searchTerm, setSearchTerm] = useState('')
   /** Default filter "In Approval (Pending)" is linked to the second (Pending) card; chip and card stay in sync. */
   const [statusFilter, setStatusFilter] = useState<string[]>([ExpenseStatus.PENDING])
-  const [primaryCurrency, setCurrencyFilter] = useState<string | null>(null)
+  const [primaryCurrency, setPrimaryCurrency] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState(20)
 
   const { availableCurrencies: currencyCodes, mostUsedCurrency } = useAdvancePaymentCurrencies({
@@ -86,7 +86,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   useEffect(() => {
     if (hasInitializedCurrency.current) return
     if (!primaryCurrency && mostUsedCurrency) {
-      setCurrencyFilter(mostUsedCurrency)
+      setPrimaryCurrency(mostUsedCurrency)
       hasInitializedCurrency.current = true
     }
   }, [primaryCurrency, mostUsedCurrency])
@@ -129,7 +129,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     (statuses: string[]) => {
       setStatusFilter(statuses)
       if (!primaryCurrency && mostUsedCurrency) {
-        setCurrencyFilter(mostUsedCurrency)
+        setPrimaryCurrency(mostUsedCurrency)
       }
       setCurrentPage(1)
     },
@@ -137,7 +137,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   )
 
   const handleCurrencyChange = useCallback((code: string | null) => {
-    setCurrencyFilter(code)
+    setPrimaryCurrency(code)
     setCurrentPage(1)
   }, [])
 

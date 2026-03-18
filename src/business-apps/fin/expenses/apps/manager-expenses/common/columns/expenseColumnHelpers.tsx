@@ -48,9 +48,7 @@ export function createDateColumn<T extends object>(
   const hasFn = typeof accessor === 'function'
   return {
     id,
-    ...(hasFn
-      ? { accessorFn: accessor as (row: T) => string | null | undefined }
-      : { accessorKey: accessor as string }),
+    ...(hasFn ? { accessorFn: accessor as (row: T) => string | null | undefined } : { accessorKey: accessor }),
     header,
     enableSorting: true,
     size: 110,
@@ -59,7 +57,7 @@ export function createDateColumn<T extends object>(
     cell: ({ row }) => {
       const value = hasFn
         ? (accessor as (row: T) => string | null | undefined)(row.original)
-        : (row.original as Record<string, string | null | undefined>)[accessor as string]
+        : (row.original as Record<string, string | null | undefined>)[accessor]
       return (
         <span className="gba:text-sm" data-testid={`${id}-${(row.original as { id?: string }).id ?? row.index}`}>
           {formatDate(value ?? null)}

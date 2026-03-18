@@ -112,8 +112,11 @@ export function createExpenseRequestColumns(currencyFilter: string | null): Colu
     createCurrencyColumn<ExpenseRequest>(
       'totalAmount',
       getTranslationFromI18nKeyAndLabel(AMOUNT, AMOUNT_LABEL),
-      (row: ExpenseRequest) =>
-        typeof row.amount === 'number' ? row.amount : typeof row.totalAmount === 'number' ? row.totalAmount : 0,
+      (row: ExpenseRequest) => {
+        if (typeof row.amount === 'number') return row.amount
+        if (typeof row.totalAmount === 'number') return row.totalAmount
+        return 0
+      },
       (row: ExpenseRequest) => currencyFilter ?? row.currency ?? 'EUR',
       formatCurrency
     ),

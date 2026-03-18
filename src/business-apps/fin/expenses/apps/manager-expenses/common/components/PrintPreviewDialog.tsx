@@ -27,6 +27,34 @@ export const PrintPreviewDialog = React.memo(function PrintPreviewDialog({
   const noDocumentMessage =
     noDocumentDetailsMessage ??
     getTranslationFromI18nKeyAndLabel('lowcoder:print.no_document_details', DEFAULT_NO_DOCUMENT_DETAILS)
+
+  let dialogBody: React.ReactNode
+  if (loading) {
+    dialogBody = (
+      <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+        <Spinner />
+      </div>
+    )
+  } else if (pdfUrl) {
+    dialogBody = (
+      <iframe
+        src={pdfUrl}
+        className="gba:w-full gba:border-0 gba:min-h-[calc(90vh-55px)]"
+        title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
+        data-testid={`${testIdPrefix}-pdf-iframe`}
+      />
+    )
+  } else {
+    dialogBody = (
+      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
+        <div className="gba:text-muted-foreground gba:mb-4">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:print.no_document', 'No document available for printing')}
+        </div>
+        <div className="gba:text-sm gba:text-muted-foreground">{noDocumentMessage}</div>
+      </div>
+    )
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -36,25 +64,7 @@ export const PrintPreviewDialog = React.memo(function PrintPreviewDialog({
         <DialogHeader className="gba:p-4">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        {loading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-            <Spinner />
-          </div>
-        ) : pdfUrl ? (
-          <iframe
-            src={pdfUrl}
-            className="gba:w-full gba:border-0 gba:min-h-[calc(90vh-55px)]"
-            title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
-            data-testid={`${testIdPrefix}-pdf-iframe`}
-          />
-        ) : (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-            <div className="gba:text-muted-foreground gba:mb-4">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:print.no_document', 'No document available for printing')}
-            </div>
-            <div className="gba:text-sm gba:text-muted-foreground">{noDocumentMessage}</div>
-          </div>
-        )}
+        {dialogBody}
       </DialogContent>
     </Dialog>
   )

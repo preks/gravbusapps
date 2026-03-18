@@ -143,7 +143,7 @@ export function useExpenseRequestsOverviewData(
         description: r.description,
         amount: Number(r.totalAmount ?? 0),
         totalAmount: Number(r.totalAmount ?? 0),
-        currency: (currency || primaryCurrency || 'EUR') as string,
+        currency: currency || primaryCurrency || 'EUR',
         currencyRef: r.currencyRef,
         status: r.status,
         createdAt: r.createdAt,
