@@ -32,6 +32,16 @@ interface CatalogListViewProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
+const STATUS_STYLES: Record<string, React.CSSProperties> = {
+  active: { backgroundColor: 'var(--nw-color-success-50)', borderColor: 'var(--nw-color-success-200)' },
+  draft: { backgroundColor: 'var(--nw-color-warning-50)', borderColor: 'var(--nw-color-warning-200)' }
+}
+const DEFAULT_STATUS_STYLE: React.CSSProperties = {
+  backgroundColor: 'var(--nw-color-surface-secondary)',
+  borderColor: 'var(--nw-color-border-default)'
+}
+const getStatusStyles = (status: string): React.CSSProperties => STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE
+
 interface CatalogListState {
   pagination: {
     current: number
@@ -221,23 +231,7 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
         </code>
       </TableCell>
       <TableCell>
-        <Badge
-          variant="outline"
-          style={{
-            backgroundColor:
-              catalog.status === 'active'
-                ? 'var(--nw-color-success-50)'
-                : catalog.status === 'draft'
-                  ? 'var(--nw-color-warning-50)'
-                  : 'var(--nw-color-surface-secondary)',
-            borderColor:
-              catalog.status === 'active'
-                ? 'var(--nw-color-success-200)'
-                : catalog.status === 'draft'
-                  ? 'var(--nw-color-warning-200)'
-                  : 'var(--nw-color-border-default)'
-          }}
-        >
+        <Badge variant="outline" style={getStatusStyles(catalog.status)}>
           {catalog.status}
         </Badge>
       </TableCell>
@@ -395,11 +389,13 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
           <CardTitle>Catalog Directory</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {isLoading && (
             <div className="gba:flex gba:justify-center gba:py-8" data-testid={`${dataTestId}-Loading`}>
               <Spinner size="lg" />
             </div>
-          ) : catalogs.length === 0 ? (
+          )}
+
+          {!isLoading && catalogs.length === 0 && (
             <div
               className="gba:text-center gba:py-8"
               style={{ color: 'var(--nw-color-text-secondary)' }}
@@ -423,7 +419,9 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
                 </Button>
               )}
             </div>
-          ) : (
+          )}
+
+          {!isLoading && catalogs.length > 0 && (
             <>
               <Table data-testid={`${dataTestId}-Table`}>
                 <TableHeader>
