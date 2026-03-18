@@ -234,6 +234,13 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
             existingEnd.setHours(0, 0, 0, 0)
           }
 
+          if (newEnd === null && existingEnd === null) {
+            return getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.multiple_open_allocations_error',
+              'Cannot create multiple open-ended allocations for the same asset'
+            )
+          }
+
           const hasOverlap =
             (newEnd === null || newEnd >= existingStart) && (existingEnd === null || newStart <= existingEnd)
 
@@ -279,15 +286,14 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         control={form.control}
         name="employeeId"
         render={({ field }) => (
-          <FormItem className="gba:w-[calc(50%-0.5rem)] gba:min-w-0">
+          <FormItem>
             <Label htmlFor="employeeId" data-testid="employee-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee')} *
             </Label>
             <Select onValueChange={field.onChange} value={field.value} disabled={employeesLoading}>
               <style>{`#employeeId [data-job-title] { display: none !important; }`}</style>
-              <SelectTrigger id="employeeId" data-testid="employee-select" className="gba:w-full gba:min-w-0">
+              <SelectTrigger id="employeeId" data-testid="employee-select" className="gba:w-full">
                 <SelectValue
-                  className="gba:truncate"
                   placeholder={
                     employeesLoading
                       ? getTranslationFromI18nKeyAndLabel(
@@ -598,6 +604,8 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   }
 
                   setIsSubmitting(true)
+                  const assetStatusUpdated = false
+
                   try {
                     if (!assetId) {
                       throw new Error(
@@ -699,7 +707,21 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       }
                     })
                   } catch (error) {
-                    console.error('Error allocating asset:', error)
+                    if (assetStatusUpdated && assetId) {
+                      try {
+                        const rollbackVersion = await resolveAssetVersion()
+                        if (rollbackVersion !== undefined) {
+                          await assetProcessClient.updateAsset({
+                            id: assetId,
+                            version: rollbackVersion,
+                            assetStatus: AssetStatus.AVAILABLE
+                          })
+                        }
+                      } catch {
+                        // Rollback failed
+                      }
+                    }
+
                     setIsSubmitting(false)
                     throw error
                   }
