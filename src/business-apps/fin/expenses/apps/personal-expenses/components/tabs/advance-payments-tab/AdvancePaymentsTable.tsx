@@ -65,9 +65,11 @@ function AdvancePaymentPlanNumberCell({ record }: Readonly<{ record: AdvancePaym
 function AdvancePaymentStatusCell({ record }: Readonly<{ record: AdvancePayment }>) {
   const statusConfig = getAdvancePaymentStatusDisplay(record.status)
   return (
-    <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-cell">
-      {statusConfig.label}
-    </Badge>
+    <span className="gba:inline-block gba:whitespace-nowrap">
+      <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-cell">
+        {statusConfig.label}
+      </Badge>
+    </span>
   )
 }
 
@@ -915,7 +917,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
-        size: 100,
+        size: 180,
+        minSize: 160,
+        maxSize: 280,
         cell: renderAdvStatusCell
       },
       {

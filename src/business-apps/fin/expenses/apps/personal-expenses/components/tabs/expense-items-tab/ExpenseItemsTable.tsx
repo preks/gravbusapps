@@ -152,9 +152,11 @@ function ExpenseItemExpenseDateCell({ record }: Readonly<{ record: ExpenseItem }
 function ExpenseItemStatusCell({ record }: Readonly<{ record: ExpenseItem }>) {
   const statusConf = getExpenseItemStatusDisplay(record.status)
   return (
-    <Badge variant={statusConf.badgeVariant || 'outline'} data-testid="expense-status-cell">
-      {statusConf.label}
-    </Badge>
+    <span className="gba:inline-block gba:whitespace-nowrap">
+      <Badge variant={statusConf.badgeVariant || 'outline'} data-testid="expense-status-cell">
+        {statusConf.label}
+      </Badge>
+    </span>
   )
 }
 
@@ -758,7 +760,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-        size: 100,
+        size: 180,
+        minSize: 160,
+        maxSize: 280,
         cell: renderItemStatusCell
       },
       {

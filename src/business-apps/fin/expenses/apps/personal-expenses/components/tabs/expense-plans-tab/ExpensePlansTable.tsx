@@ -103,9 +103,11 @@ function ExpensePlanDateCell({ dateValue, testId }: Readonly<{ dateValue: string
 function ExpensePlanStatusCell({ record }: Readonly<{ record: ExpensePlan }>) {
   const statusConfig = getExpensePlanStatusDisplay(record.status)
   return (
-    <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-cell">
-      {statusConfig.label}
-    </Badge>
+    <span className="gba:inline-block gba:whitespace-nowrap">
+      <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-cell">
+        {statusConfig.label}
+      </Badge>
+    </span>
   )
 }
 
@@ -675,7 +677,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-        size: 100,
+        size: 180,
+        minSize: 160,
+        maxSize: 280,
         cell: renderStatusCell
       },
       {

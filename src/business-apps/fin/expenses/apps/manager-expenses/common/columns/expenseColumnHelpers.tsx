@@ -142,6 +142,7 @@ export function createCurrencyColumn<T extends object>(
 
 /**
  * Creates a status column that renders a Badge from a status display config.
+ * Width aligned with personal expenses: narrow default, min/max for long translations (e.g. German).
  */
 export function createStatusBadgeColumn<T extends object>(
   id: string,
@@ -153,18 +154,20 @@ export function createStatusBadgeColumn<T extends object>(
     accessorFn: (row: T) => getStatusDisplay(row).label,
     header,
     enableSorting: true,
-    size: 140,
-    minSize: 100,
-    maxSize: 200,
+    size: 150,
+    minSize: 160,
+    maxSize: 250,
     cell: ({ row }) => {
       const display = getStatusDisplay(row.original)
       return (
-        <Badge
-          variant={display.badgeVariant ?? 'outline'}
-          data-testid={`status-pill-${String(display.label).toLowerCase().replace(/\s/g, '-')}`}
-        >
-          {display.label}
-        </Badge>
+        <span className="gba:inline-block gba:whitespace-nowrap">
+          <Badge
+            variant={display.badgeVariant ?? 'outline'}
+            data-testid={`status-pill-${String(display.label).toLowerCase().replace(/\s/g, '-')}`}
+          >
+            {display.label}
+          </Badge>
+        </span>
       )
     }
   }
