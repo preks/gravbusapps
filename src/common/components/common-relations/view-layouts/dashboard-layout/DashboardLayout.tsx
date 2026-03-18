@@ -80,10 +80,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   // Compute valid tab keys dynamically based on available tabs
   const validTabKeys = useMemo(() => new Set(tabs.map(t => t.key)), [tabs])
 
-  // Initialize active tab from URL parameter, fallback to initialTab or first available tab
+  // Initialize active tab: prefer initialTab prop, then URL parameter, then first available tab
   const [activeTab, setActiveTab] = useState<string>(() => {
+    if (initialTab) return initialTab
     const urlTab = getInitialTabFromUrl(validTabKeys)
-    return urlTab || initialTab || tabs[0]?.key || ''
+    return urlTab || tabs[0]?.key || ''
   })
 
   // Check if there's no data to display
@@ -102,11 +103,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   // Reset active tab if it becomes invalid (e.g., when a tab is hidden via config)
   useEffect(() => {
     if (tabs.length > 0 && !validTabKeys.has(activeTab)) {
+      if (activeTab === initialTab) return
       const firstTab = tabs[0].key
       setActiveTab(firstTab)
       updateUrl(firstTab)
     }
-  }, [tabs, validTabKeys, activeTab, updateUrl])
+  }, [tabs, validTabKeys, activeTab, initialTab, updateUrl])
 
   // Set initial URL parameter if missing (runs once on mount)
   useEffect(() => {
