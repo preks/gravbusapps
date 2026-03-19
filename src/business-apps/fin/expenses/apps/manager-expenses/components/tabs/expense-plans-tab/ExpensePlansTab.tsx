@@ -20,7 +20,6 @@ import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics'
 import ExpensePlansTable from './ExpensePlansTable'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { DetailsSheet } from '../../../common/components/DetailsSheet'
-import { PLAN_TAB_HIDDEN_STATUSES } from '../../../constants/expenseStatus'
 import { createExpensePlanFilterConfig } from './config/expensePlanFilterConfig'
 import { expensePlanSortableColumns } from './config/expensePlanSortableColumns'
 import { expensePlanAvailableColumns } from './config/expensePlanAvailableColumns'
@@ -176,11 +175,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     [effectiveStatsCurrency, setCurrencyFilter, setStatusFilter]
   )
 
-  const availableStatuses = useMemo(() => planFilterStatuses.filter(s => !PLAN_TAB_HIDDEN_STATUSES.includes(s)), [])
-
   const filterConfiguration = useMemo(
-    () => createExpensePlanFilterConfig({ statusOptions: availableStatuses, filterLabelMap }),
-    [availableStatuses, filterLabelMap]
+    () => createExpensePlanFilterConfig({ statusOptions: planFilterStatuses, filterLabelMap }),
+    [filterLabelMap]
   )
 
   const filtersObject = useMemo((): Record<string, unknown> => {

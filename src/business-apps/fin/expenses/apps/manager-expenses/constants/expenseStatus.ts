@@ -16,5 +16,5 @@ export const EXCLUDE_REQUEST_STATUSES = new Set<string>(['REJECTED', 'DISCARDED'
 export const EXCLUDE_PLAN_STATUSES = new Set<string>(['DISCARDED', 'REJECTED'])
 export const EXCLUDE_ADV_PAYMENT_STATUSES = new Set<string>(['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED'])
 
-/** Single source of truth: statuses never shown in Plans tab (data + filter UI). Empty = show all plan statuses (Draft/Created, Assigned, In Approval, Approved, Revision Required/Rejected, Closed, Discarded). */
-export const PLAN_TAB_HIDDEN_STATUSES: readonly string[] = []
+/** Statuses excluded from Plans tab when no explicit status filter is selected. */
+export const PLAN_TAB_HIDDEN_STATUSES: readonly string[] = ['CREATED']
