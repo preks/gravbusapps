@@ -143,7 +143,6 @@ export const buildContactQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.salutationRef}
-        ${entityFields.type}
         ${accountContactsRelation}
         ${additionalFields || ''}
       }
@@ -199,7 +198,6 @@ export const buildContactByIdQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.salutationRef}
-        ${entityFields.type}
   `
 
   // Common entity relations

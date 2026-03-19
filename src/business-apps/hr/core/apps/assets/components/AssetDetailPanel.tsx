@@ -16,6 +16,7 @@ import {
 } from '@newwork/nw-design-system'
 import { CalendarIcon, MapPinIcon, TagIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { getActionLabels } from './AssetTableActionButton'
 import {
   getTranslationFromI18nKeyAndLabel,
   formatDate,
@@ -154,13 +155,14 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   const isRetired = asset.assetStatus === AssetStatus.RETIRED
 
   const staticFlowData = useMemo(() => {
+    const labels = getActionLabels()
     const actions: any[] = []
 
     if (!isRetired && onUpdateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'update-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_asset', 'Update Asset'),
+        label: labels.update_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onUpdateAsset(asset.id)
@@ -170,9 +172,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (!isAllocated && !isRetired && onAllocateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'allocate-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset'),
+        label: labels.allocate_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onAllocateAsset(asset.id)
@@ -182,9 +184,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (isAllocated && !isRetired && onRetrieveAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'retrieve-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retrieve_asset', 'Retrieve Asset'),
+        label: labels.retrieve_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetrieveAsset(asset.id)
@@ -194,9 +196,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (!isRetired && onRetireAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'retire-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retire_asset', 'Retire Asset'),
+        label: labels.retire_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetireAsset(asset.id)
@@ -206,9 +208,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (isRetired && onGenerateDocument) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'generate-document',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.export_certificate', 'Export certificate'),
+        label: labels.export_certificate,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onGenerateDocument(asset.id)

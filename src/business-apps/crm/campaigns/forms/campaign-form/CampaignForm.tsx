@@ -4,6 +4,7 @@ import { CampaignFormProvider } from './context/CampaignFormContext'
 import CampaignFormComponent from './components/CampaignFormComponent'
 import type { CampaignFormValues } from './types'
 import { CatalogSelect } from '@/components/catalog-select'
+import { ErrorAlert } from '@/components/error-alert'
 
 interface CampaignFormProps extends BusinessAppContextProps {
   initialValues?: Partial<CampaignFormValues>
@@ -20,11 +21,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
   additionalData
 }) => {
   if (!accessToken) {
-    return (
-      <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">Error: No access token found. Please authenticate.</div>
-      </div>
-    )
+    return <ErrorAlert errors={[{ type: 'accessToken' }]} prefixDataTestId="crm-campaign-form" />
   }
 
   return (

@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
-import { env } from '@/common/env/EnvUtils'
 import dayjs from 'dayjs'
 import {
   ProjectAnalyticsData,
@@ -24,6 +22,7 @@ import {
   calculateWeeklyBurnRates,
   getDaysUntilDeadline
 } from '../utils/calculations'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 interface ProjectResponse {
   Project: ProjectData[]
@@ -48,8 +47,6 @@ interface EmployeeResponse {
   }>
 }
 
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
-
 export const useProjectAnalytics = (accessToken: string) => {
   const [projects, setProjects] = useState<ProjectAnalyticsData[]>([])
   const [projectManagers, setProjectManagers] = useState<
@@ -65,16 +62,18 @@ export const useProjectAnalytics = (accessToken: string) => {
   })
 
   const graphqlClient = useGraphqlClient(accessToken)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
-  const structureId = getCurrentActiveStructureId() || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+  const orgchartClient = useOrgchartClient(accessToken)
+  const structureId = getCurrentActiveStructureId() ?? ''
 
   // Fetch projects from REST API (has more fields including hoursBudget)
   const fetchProjectsFromRest = useCallback(async (): Promise<ProjectData[]> => {
     try {
-      const response = await restClient.get<{ data: ProjectData[] }>('/projects', {
-        params: { structureId },
-        headers: { Authorization: `Bearer ${accessToken}` }
-      })
+      const response = await orgchartClient.getProjects(
+        { structureId },
+        {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      )
       return response.data || []
     } catch (err) {
       console.error('Error fetching projects from REST:', err)
@@ -85,7 +84,7 @@ export const useProjectAnalytics = (accessToken: string) => {
       })
       return result.Project || []
     }
-  }, [accessToken, graphqlClient, restClient, structureId])
+  }, [accessToken, graphqlClient, orgchartClient, structureId])
 
   // Fetch working hours for all projects
   const fetchWorkingHours = useCallback(

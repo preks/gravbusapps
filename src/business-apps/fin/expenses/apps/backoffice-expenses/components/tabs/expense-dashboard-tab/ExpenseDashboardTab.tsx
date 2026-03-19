@@ -11,7 +11,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Alert,
-  Spinner,
   SectionKpiCards,
   KpiCardData,
   Card,
@@ -55,7 +54,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   })
 
   const [hasUserSelectedCurrency, setHasUserSelectedCurrency] = useState(false)
-  const [hasLoadedStatsOnce, setHasLoadedStatsOnce] = useState(false)
 
   // Update currency when mostUsedCurrency is loaded (only if user hasn't manually selected one yet)
   useEffect(() => {
@@ -68,7 +66,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   }, [mostUsedCurrency, hasUserSelectedCurrency])
 
   // ⚡ PERFORMANCE: Only fetch stats when tab is active
-  const { stats, loading, error } = useDashboardStats({
+  const { stats, loadingBySection, errorsBySection } = useDashboardStats({
     accessToken,
     filters: currentFilters,
     isActive
@@ -387,6 +385,16 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   )
 
   const kpiCards = useMemo(() => {
+    const loadingText = 'Loading...'
+    const coreCardIds = new Set([
+      'total-company-spend',
+      'monthly-spend-comparison',
+      'transfer-required',
+      'pending-requests',
+      'avg-spend-per-trip'
+    ])
+    const planActualCardIds = new Set(['actual-vs-planned', 'advance-payment'])
+
     const cards: KpiCardData[] = [
       buildTotalCompanySpendCard(),
       buildActualVsPlannedCard(),
@@ -397,7 +405,27 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       buildAvgSpendPerTripCard()
     ]
 
-    return cards
+    return cards.map(card => {
+      if (loadingBySection.core && coreCardIds.has(card.id)) {
+        return {
+          ...card,
+          value: loadingText,
+          footer: loadingText,
+          trend: undefined
+        }
+      }
+      if (loadingBySection.planActual && planActualCardIds.has(card.id)) {
+        return {
+          ...card,
+          value: loadingText,
+          suffix: undefined,
+          decimalPlaces: undefined,
+          footer: loadingText,
+          trend: undefined
+        }
+      }
+      return card
+    })
   }, [
     buildTotalCompanySpendCard,
     buildActualVsPlannedCard,
@@ -405,7 +433,9 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     buildTransferRequiredCard,
     buildPendingRequestsCard,
     buildAdvancePaymentCard,
-    buildAvgSpendPerTripCard
+    buildAvgSpendPerTripCard,
+    loadingBySection.core,
+    loadingBySection.planActual
   ])
 
   // Removed testing-only CSV export function (no longer used)
@@ -419,13 +449,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     setCurrentFilters(newFilters)
   }
 
-  useEffect(() => {
-    if (!loading) {
-      setHasLoadedStatsOnce(true)
-    }
-  }, [loading])
-
-  const isRefreshing = loading && hasLoadedStatsOnce
   const quickActions = useMemo(
     () => [
       {
@@ -439,7 +462,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       {
         key: 'reports',
         icon: PiFileText,
-        iconColor: 'gba:text-accent',
+        iconColor: 'gba:text-primary',
         title: t('expense-reports-title'),
         description: t('quick-actions-reports-cta'),
         onClick: props.onNavigateToReports
@@ -450,19 +473,11 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
 
   return (
     <div className="gba:space-y-6 gba:relative" data-testid={prefixDataTestId}>
-      {isRefreshing && (
-        <div
-          className="gba:absolute gba:inset-0 gba:bg-background/50 gba:flex gba:items-center gba:justify-center gba:z-10"
-          data-testid="expense-dashboard-refresh-overlay"
-        >
-          <Spinner size="lg" data-testid="expense-dashboard-spinner" />
-        </div>
-      )}
-      {error && (
+      {errorsBySection.core && (
         <Alert variant="destructive" className="gba:mb-4" data-testid="expense-dashboard-error-inline">
           <div>
             <h4 className="gba:font-semibold">{t('dashboard-error-title')}</h4>
-            <p className="gba:text-sm gba:mt-1">{error.message || t('dashboard-error-message')}</p>
+            <p className="gba:text-sm gba:mt-1">{errorsBySection.core.message || t('dashboard-error-message')}</p>
           </div>
         </Alert>
       )}
@@ -517,8 +532,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       {/* Monthly Expense Trends Chart */}
       <div data-testid={`${prefixDataTestId}-chart-section`}>
         <MonthlyExpenseTrendsCard
-          loading={loading}
-          error={error}
+          loading={loadingBySection.trends}
+          error={errorsBySection.trends}
           monthlyTrends={stats.monthlyTrends}
           selectedCurrencyCode={selectedCurrencyCode}
           moduleColor={moduleColor}

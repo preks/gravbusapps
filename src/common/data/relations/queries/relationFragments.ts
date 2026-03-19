@@ -96,7 +96,6 @@ export const buildContactFragment = (fields: Record<keyof typeof ContactFields, 
     ${CATALOG_ENTRY}
   }
   ${fields.salutationRef}
-  ${fields.type}
   ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
     ${COMMUNICATION_CHANNEL_REF}
   }

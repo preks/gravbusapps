@@ -11,6 +11,7 @@ import {
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import translations from '../../_i18n'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 const MAX_NAME_LENGTH = 64
 
@@ -39,7 +40,7 @@ const CreateJobPositionModal: React.FC<CreateJobPositionModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL'))
-  const orgchartRestClient = useRestClient(`${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`)
+  const orgchartClient = useOrgchartClient(accessToken)
 
   const isFormValid = name.trim().length > 0 && name.length <= MAX_NAME_LENGTH && count >= 1
 
@@ -74,7 +75,7 @@ const CreateJobPositionModal: React.FC<CreateJobPositionModalProps> = ({
         jobPositionName: jp.name || name.trim()
       }))
 
-      await orgchartRestClient.post('/employee-assignments/organizational-unit', assignmentPayload, {
+      await orgchartClient.assignEmployeesToOrganizationalUnit(assignmentPayload, {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
 

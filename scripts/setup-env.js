@@ -4,6 +4,7 @@ const ENV_FILE = '.env'
 const ENV_EXAMPLE_FILE = '.env.example'
 const ENV_BACKUP_FILE = '.env.bak'
 const SECRETS_FILE = '.secrets'
+const MIGRATIONS_FILE = new URL('./setup-env-migrations.json', import.meta.url)
 
 const KEY_LINE_REGEX = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/
 const TOKEN_KEY_REGEX = /(TOKEN|KEY|SECRET|PASSWORD|SAS)/i
@@ -386,6 +387,49 @@ function resetEnv(shouldResetTokens, shouldResetUrls) {
   }
 }
 
+function loadMigrations() {
+  try {
+    const content = fs.readFileSync(MIGRATIONS_FILE, 'utf8')
+    return JSON.parse(content)
+  } catch {
+    return []
+  }
+}
+
+function runMigrations() {
+  if (!fs.existsSync(ENV_FILE) || !fs.existsSync(ENV_EXAMPLE_FILE)) return
+
+  const migrations = loadMigrations()
+  if (migrations.length === 0) return
+
+  const exampleEntries = parseEnvEntries(fs.readFileSync(ENV_EXAMPLE_FILE, 'utf8'))
+  const envContent = readFileIfExists(ENV_FILE)
+  const migratedKeys = []
+
+  const migratedLines = splitLines(envContent).map(line => {
+    const assignment = parseAssignmentLine(line)
+    if (!assignment) return line
+
+    const migration = migrations.find(m => m.key === assignment.key)
+    if (!migration) return line
+
+    const exampleEntry = exampleEntries.get(assignment.key)
+    if (!exampleEntry) return line
+
+    const { value: currentValue } = splitValueAndComment(assignment.rawValue)
+
+    if (!migration.values.includes(currentValue.trim())) return line
+
+    migratedKeys.push(assignment.key)
+    return buildAssignmentLine(assignment.key, exampleEntry.value, exampleEntry.comment)
+  })
+
+  if (migratedKeys.length === 0) return
+
+  fs.writeFileSync(ENV_FILE, migratedLines.join('\n'))
+  console.log(`Migrated ${migratedKeys.length} env value(s): ${migratedKeys.join(', ')}`)
+}
+
 function run() {
   if (!fs.existsSync(ENV_EXAMPLE_FILE)) return
 
@@ -396,10 +440,12 @@ function run() {
 
   if (shouldReset) {
     resetEnv(shouldResetTokens, shouldResetUrls)
+    runMigrations()
     return
   }
 
   syncEnv()
+  runMigrations()
 }
 
 try {
