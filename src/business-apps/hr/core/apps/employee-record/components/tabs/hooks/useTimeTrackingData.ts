@@ -344,6 +344,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         }
       }
       for (const a of absences) {
+        if (String(a.status).toUpperCase() !== 'APPROVED') continue
         const translation = (a.type?.translations as { localeCode?: string; value?: string }[] | undefined)?.find(
           tr => tr.localeCode === activeLocale
         )
