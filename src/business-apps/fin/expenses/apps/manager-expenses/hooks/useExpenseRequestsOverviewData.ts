@@ -1,14 +1,14 @@
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { ExpenseRequest } from './useGetExpenseRequests'
 import { useManagerExpensesOverview } from './useManagerExpensesOverview'
-import { standardizeCurrencyRef, extractCurrencyCode } from '../utils/currencyUtils'
+import { extractCurrencyCode } from '../utils/currencyUtils'
 import { convertDateRangeToGraphQL } from '../utils/dateUtils'
+import { useCurrencyRefs, usePaginationParams, useStatsFromOverview, extractLoadingError } from './overviewHelpers'
 
 export interface ExpenseRequestsOverviewDataParams {
   managerId: string
   primaryCurrency: string | null
-  /** Most-used currency for card stats when primaryCurrency is null (All). */
   mostUsedCurrency: string | null
   searchTerm: string
   statusFilter: string[]
@@ -49,26 +49,13 @@ export function useExpenseRequestsOverviewData(
     reqOrderBy
   } = params
 
-  const currencyRef = useMemo(
-    () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
-    [primaryCurrency]
-  )
-
-  const statsCurrency = primaryCurrency ?? mostUsedCurrency
-  const reqStatsCurrencyRef = useMemo(
-    () => (statsCurrency ? standardizeCurrencyRef(statsCurrency) : undefined),
-    [statsCurrency]
-  )
+  const { currencyRef, statsCurrencyRef: reqStatsCurrencyRef } = useCurrencyRefs(primaryCurrency, mostUsedCurrency)
+  const requestsParams = usePaginationParams(pageSize, currentPage, reqOrderBy)
 
   const requestsEffectiveDateRange = useMemo(() => convertDateRangeToGraphQL(effectiveDateRange), [effectiveDateRange])
   const requestsRequestDateRange = useMemo(() => convertDateRangeToGraphQL(requestDateRange), [requestDateRange])
   const requestsStartDateRange = useMemo(() => convertDateRangeToGraphQL(startDateRange), [startDateRange])
   const requestsEndDateRange = useMemo(() => convertDateRangeToGraphQL(endDateRange), [endDateRange])
-
-  const requestsParams = useMemo(
-    () => ({ limit: pageSize, offset: (currentPage - 1) * pageSize, orderBy: reqOrderBy }),
-    [pageSize, currentPage, reqOrderBy]
-  )
 
   const overviewParams = useMemo(
     () => ({
@@ -102,24 +89,22 @@ export function useExpenseRequestsOverviewData(
   )
 
   const overview = useManagerExpensesOverview(context, overviewParams)
-  const lastValidStatsRef = useRef<RequestStats | null>(null)
 
-  const requestStats = useMemo((): RequestStats | null => {
-    if (!overview.data) return lastValidStatsRef.current
-    const newStats: RequestStats = {
-      pendingCount: overview.data.requestPendingCount ?? 0,
-      pendingAmount: overview.data.requestPendingAmount ?? 0,
-      totalRequestsSubmitted: overview.data.requestSubmittedCount ?? 0,
-      totalSubmittedAmount: overview.data.requestSubmittedAmount ?? 0
-    }
-    lastValidStatsRef.current = newStats
-    return newStats
-  }, [
-    overview.data?.requestPendingCount,
-    overview.data?.requestPendingAmount,
-    overview.data?.requestSubmittedCount,
-    overview.data?.requestSubmittedAmount
-  ])
+  const requestStats = useStatsFromOverview<RequestStats, typeof overview.data>(
+    overview.data,
+    d => ({
+      pendingCount: d?.requestPendingCount ?? 0,
+      pendingAmount: d?.requestPendingAmount ?? 0,
+      totalRequestsSubmitted: d?.requestSubmittedCount ?? 0,
+      totalSubmittedAmount: d?.requestSubmittedAmount ?? 0
+    }),
+    [
+      overview.data?.requestPendingCount,
+      overview.data?.requestPendingAmount,
+      overview.data?.requestSubmittedCount,
+      overview.data?.requestSubmittedAmount
+    ]
+  )
 
   const expenseRequests = useMemo((): ExpenseRequest[] => {
     const rows = overview.data?.expenseRequests ?? []
@@ -148,11 +133,9 @@ export function useExpenseRequestsOverviewData(
     })
   }, [overview.data?.expenseRequests, primaryCurrency])
 
+  const { loading: requestsLoading, error: requestsError } = extractLoadingError(overview)
+  const { loading: statsLoading, error: statsError } = extractLoadingError(overview)
   const totalCount = overview.data?.expenseRequestsTotal ?? 0
-  const requestsLoading = overview.isLoading && !overview.data
-  const requestsError = overview.error ? new Error(overview.error) : null
-  const statsLoading = overview.isLoading && !overview.data
-  const statsError = overview.error ? new Error(overview.error) : null
 
   return {
     requestStats,

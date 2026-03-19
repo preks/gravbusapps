@@ -1,8 +1,8 @@
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { AdvancePayment } from './useMainViewAdvancePayments'
 import { useManagerExpensesOverview } from './useManagerExpensesOverview'
-import { standardizeCurrencyRef } from '../utils/currencyUtils'
+import { useCurrencyRefs, usePaginationParams, useStatsFromOverview, extractLoadingError } from './overviewHelpers'
 
 export interface AdvancePaymentsOverviewDataParams {
   managerId: string
@@ -29,25 +29,8 @@ export function useAdvancePaymentsOverviewData(
   const { managerId, primaryCurrency, mostUsedCurrency, searchTerm, statusFilter, pageSize, currentPage, payOrderBy } =
     params
 
-  const currencyRef = useMemo(
-    () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
-    [primaryCurrency]
-  )
-
-  const effectiveStatsCurrency = primaryCurrency ?? mostUsedCurrency ?? null
-  const payStatsCurrencyRef = useMemo(
-    () => (effectiveStatsCurrency ? standardizeCurrencyRef(effectiveStatsCurrency) : undefined),
-    [effectiveStatsCurrency]
-  )
-
-  const paymentsParams = useMemo(
-    () => ({
-      limit: pageSize,
-      offset: (currentPage - 1) * pageSize,
-      orderBy: payOrderBy
-    }),
-    [pageSize, currentPage, payOrderBy]
-  )
+  const { currencyRef, statsCurrencyRef: payStatsCurrencyRef } = useCurrencyRefs(primaryCurrency, mostUsedCurrency)
+  const paymentsParams = usePaginationParams(pageSize, currentPage, payOrderBy)
 
   const overviewParams = useMemo(
     () => ({
@@ -64,24 +47,22 @@ export function useAdvancePaymentsOverviewData(
   )
 
   const overview = useManagerExpensesOverview(context, overviewParams)
-  const lastValidStatsRef = useRef<PaymentStats | null>(null)
 
-  const payStats = useMemo((): PaymentStats | null => {
-    if (!overview.data) return lastValidStatsRef.current
-    const newStats: PaymentStats = {
-      totalCount: overview.data.totalPaymentsAll ?? 0,
-      sumAmount: overview.data.paymentTotalAmount ?? 0,
-      pendingCount: overview.data.pendingPaymentsAll ?? 0,
-      pendingAmount: overview.data.paymentPendingAmount ?? 0
-    }
-    lastValidStatsRef.current = newStats
-    return newStats
-  }, [
-    overview.data?.totalPaymentsAll,
-    overview.data?.paymentTotalAmount,
-    overview.data?.pendingPaymentsAll,
-    overview.data?.paymentPendingAmount
-  ])
+  const payStats = useStatsFromOverview<PaymentStats, typeof overview.data>(
+    overview.data,
+    d => ({
+      totalCount: d?.totalPaymentsAll ?? 0,
+      sumAmount: d?.paymentTotalAmount ?? 0,
+      pendingCount: d?.pendingPaymentsAll ?? 0,
+      pendingAmount: d?.paymentPendingAmount ?? 0
+    }),
+    [
+      overview.data?.totalPaymentsAll,
+      overview.data?.paymentTotalAmount,
+      overview.data?.pendingPaymentsAll,
+      overview.data?.paymentPendingAmount
+    ]
+  )
 
   const advancePayments = useMemo((): AdvancePayment[] => {
     const rows = overview.data?.advancePayments ?? []
@@ -103,11 +84,9 @@ export function useAdvancePaymentsOverviewData(
     })) as AdvancePayment[]
   }, [overview.data?.advancePayments])
 
+  const { loading: paymentsLoading, error: paymentsError } = extractLoadingError(overview)
+  const { loading: statsLoading, error: statsError } = extractLoadingError(overview)
   const totalCount = overview.data?.advancePaymentsTotal ?? 0
-  const paymentsLoading = overview.isLoading && !overview.data
-  const paymentsError = overview.error ? new Error(overview.error) : null
-  const statsLoading = overview.isLoading && !overview.data
-  const statsError = overview.error ? new Error(overview.error) : null
 
   const availableCurrencies = useMemo(() => {
     return overview.data?.distinctCurrenciesFromPayments ?? overview.data?.distinctCurrencies ?? []

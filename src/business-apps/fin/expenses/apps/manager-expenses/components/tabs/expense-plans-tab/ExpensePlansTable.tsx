@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import { Button } from '@newwork/nw-design-system'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
@@ -12,6 +11,10 @@ import { DetailsSheet } from '../../../common/components/DetailsSheet'
 import { useExpensePlanFileService } from '../../../../../common/files/useExpensePlanFileService'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { ExpenseDataTable } from '../../../common/components/ExpenseDataTable'
+import { TableErrorState } from '../../../common/components/TableErrorState'
+import { useTableSetup } from '../../../common/hooks/useTableSetup'
+import { usePrintPreview } from '../../../common/hooks/usePrintPreview'
+import { useSortingState } from '../../../hooks/useTabState'
 import { createExpensePlanColumns } from './expensePlanColumns'
 
 interface ExpensePlansTableProps extends BusinessAppContextProps {
@@ -34,36 +37,32 @@ interface ExpensePlansTableProps extends BusinessAppContextProps {
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
-  const contextProps = useMemo(
-    () => ({
-      accessToken: props.accessToken,
-      userInfo: props.userInfo
-    }),
-    [props.accessToken, props.userInfo]
+  const currentCurrencyFilter = props.currencyFilter ?? null
+  const allColumns = useMemo(() => createExpensePlanColumns(currentCurrencyFilter), [currentCurrencyFilter])
+  const { contextProps, columns, pagination, handlePaginationChange } = useTableSetup(
+    props,
+    allColumns,
+    props.visibleColumnIds,
+    props.currentPage,
+    props.pageSize,
+    props.setCurrentPage,
+    props.setPageSize
   )
 
-  const currentCurrencyFilter = props.currencyFilter ?? null
-
-  const [printModalOpen, setPrintModalOpen] = useState<boolean>(false)
-  const [printPdfUrl, setPrintPdfUrl] = useState<string>('')
-  const [printLoading, setPrintLoading] = useState<boolean>(false)
   const [selectedItem, setSelectedItem] = useState<ExpensePlan | null>(null)
 
   const { printExpensePlan, isMounted } = useExpensePlanFileService(contextProps)
-
   const {
-    expensePlans,
-    loading,
-    error,
-    totalCount,
-    currentPage,
-    setCurrentPage,
-    sorting,
-    onSortingChange,
-    pageSize,
-    setPageSize
-  } = props
+    modalOpen: printModalOpen,
+    pdfUrl: printPdfUrl,
+    loading: printLoading,
+    handlePrint: handlePrintPlan,
+    handleClose: handlePrintClose
+  } = usePrintPreview<ExpensePlan>(printExpensePlan, isMounted)
 
+  const { expensePlans, loading, error, totalCount, sorting, onSortingChange } = props
+
+  const sortingState = useSortingState(sorting)
   const handleCloseDetails = useCallback(() => setSelectedItem(null), [])
 
   const handleViewDetails = useCallback((plan: ExpensePlan) => {
@@ -73,49 +72,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
     })
     navigateTo(url)
   }, [])
-
-  const handlePrintPlan = useCallback(
-    async (plan: ExpensePlan) => {
-      setPrintLoading(true)
-      setPrintModalOpen(true)
-      try {
-        const result = await printExpensePlan(plan as never)
-        if (result.success && result.pdfUrl && isMounted.current) {
-          setPrintPdfUrl(result.pdfUrl)
-        } else if (!result.success) {
-          console.error('[Print Error]', result.error)
-        }
-      } catch (err) {
-        console.error('[Print Exception]', err instanceof Error ? err.message : 'Unknown error')
-      } finally {
-        if (isMounted.current) {
-          setPrintLoading(false)
-        }
-      }
-    },
-    [printExpensePlan, isMounted]
-  )
-
-  const allColumns = useMemo(() => createExpensePlanColumns(currentCurrencyFilter), [currentCurrencyFilter])
-  const columns = useMemo(() => {
-    const ids = props.visibleColumnIds.length > 0 ? props.visibleColumnIds : allColumns.map(c => c.id as string)
-    return allColumns.filter(col => ids.includes((col.id as string) ?? ''))
-  }, [allColumns, props.visibleColumnIds])
-
-  const sortingState: SortingState = useMemo(() => {
-    if (!sorting.field || !sorting.order) return []
-    return [{ id: sorting.field, desc: sorting.order === 'DESC' }]
-  }, [sorting.field, sorting.order])
-
-  const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
-
-  const handlePaginationChange = useCallback(
-    (p: { pageIndex: number; pageSize: number }) => {
-      setCurrentPage(p.pageIndex + 1)
-      setPageSize(p.pageSize)
-    },
-    [setCurrentPage, setPageSize]
-  )
 
   const errorMessage = error?.message ?? null
 
@@ -182,21 +138,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   const onRowClick = useCallback((plan: ExpensePlan) => setSelectedItem(plan), [])
 
   if (error) {
-    return (
-      <div
-        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
-        data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
-      >
-        <div className="gba:text-muted-foreground gba:mb-4">{errorMessage}</div>
-        <Button
-          variant="default"
-          onClick={() => globalThis.location.reload()}
-          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
-        >
-          Retry
-        </Button>
-      </div>
-    )
+    return <TableErrorState message={errorMessage} testIdPrefix={DATA_TEST_ID_PREFIX} />
   }
 
   return (
@@ -220,10 +162,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
       <PrintPreviewDialog
         open={printModalOpen}
         onOpenChange={open => {
-          if (!open) {
-            setPrintModalOpen(false)
-            setPrintPdfUrl('')
-          }
+          if (!open) handlePrintClose()
         }}
         title={getTranslationFromI18nKeyAndLabel('lowcoder:print.title', 'Print Expense Plan')}
         loading={printLoading}

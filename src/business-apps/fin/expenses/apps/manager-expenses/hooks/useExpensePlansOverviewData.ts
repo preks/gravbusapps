@@ -1,10 +1,11 @@
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpensePlan } from './useMainViewExpensePlans'
 import { useManagerExpensesOverview } from './useManagerExpensesOverview'
-import { standardizeCurrencyRef, extractCurrencyCode } from '../utils/currencyUtils'
+import { extractCurrencyCode } from '../utils/currencyUtils'
 import { PLAN_TAB_HIDDEN_STATUSES } from '../constants/expenseStatus'
 import { convertDateRangeToGraphQL } from '../utils/dateUtils'
+import { useCurrencyRefs, usePaginationParams, useStatsFromOverview, extractLoadingError } from './overviewHelpers'
 
 export interface ExpensePlansOverviewDataParams {
   managerId: string
@@ -46,30 +47,13 @@ export function useExpensePlansOverviewData(context: BusinessAppContextProps, pa
     planOrderBy
   } = params
 
-  const currencyRef = useMemo(
-    () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
-    [primaryCurrency]
-  )
-
-  const effectiveStatsCurrency = primaryCurrency ?? mostUsedCurrency ?? null
-  const planStatsCurrencyRef = useMemo(
-    () => (effectiveStatsCurrency ? standardizeCurrencyRef(effectiveStatsCurrency) : undefined),
-    [effectiveStatsCurrency]
-  )
+  const { currencyRef, statsCurrencyRef: planStatsCurrencyRef } = useCurrencyRefs(primaryCurrency, mostUsedCurrency)
+  const plansParams = usePaginationParams(pageSize, currentPage, planOrderBy)
 
   const plansEffectiveDateRange = useMemo(() => convertDateRangeToGraphQL(effectiveDateRange), [effectiveDateRange])
   const plansStartDateRange = useMemo(() => convertDateRangeToGraphQL(startDateRange), [startDateRange])
   const plansEndDateRange = useMemo(() => convertDateRangeToGraphQL(endDateRange), [endDateRange])
   const plansPlanDateRange = useMemo(() => convertDateRangeToGraphQL(planDateRange), [planDateRange])
-
-  const plansParams = useMemo(
-    () => ({
-      limit: pageSize,
-      offset: (currentPage - 1) * pageSize,
-      orderBy: planOrderBy
-    }),
-    [pageSize, currentPage, planOrderBy]
-  )
 
   const overviewParams = useMemo(
     () => ({
@@ -104,24 +88,22 @@ export function useExpensePlansOverviewData(context: BusinessAppContextProps, pa
   )
 
   const overview = useManagerExpensesOverview(context, overviewParams)
-  const lastValidStatsRef = useRef<PlanStats | null>(null)
 
-  const planStats = useMemo((): PlanStats | null => {
-    if (!overview.data) return lastValidStatsRef.current
-    const newStats: PlanStats = {
-      totalCount: overview.data.planTotalCount || 0,
-      sumTotalAmount: overview.data.planTotalAmount || 0,
-      pendingCount: overview.data.planPendingCount || 0,
-      pendingAmount: overview.data.planPendingAmount || 0
-    }
-    lastValidStatsRef.current = newStats
-    return newStats
-  }, [
-    overview.data?.planTotalCount,
-    overview.data?.planTotalAmount,
-    overview.data?.planPendingCount,
-    overview.data?.planPendingAmount
-  ])
+  const planStats = useStatsFromOverview<PlanStats, typeof overview.data>(
+    overview.data,
+    d => ({
+      totalCount: d?.planTotalCount || 0,
+      sumTotalAmount: d?.planTotalAmount || 0,
+      pendingCount: d?.planPendingCount || 0,
+      pendingAmount: d?.planPendingAmount || 0
+    }),
+    [
+      overview.data?.planTotalCount,
+      overview.data?.planTotalAmount,
+      overview.data?.planPendingCount,
+      overview.data?.planPendingAmount
+    ]
+  )
 
   const expensePlans = useMemo((): ExpensePlan[] => {
     const rows = overview.data?.expensePlans || []
@@ -149,11 +131,9 @@ export function useExpensePlansOverviewData(context: BusinessAppContextProps, pa
     })
   }, [overview.data?.expensePlans, primaryCurrency])
 
+  const { loading: plansLoading, error: plansError } = extractLoadingError(overview)
+  const { loading: statsLoading, error: statsError } = extractLoadingError(overview)
   const totalCount = overview.data?.expensePlansTotal ?? 0
-  const plansLoading = overview.isLoading && !overview.data
-  const plansError = overview.error ? new Error(overview.error) : null
-  const statsLoading = overview.isLoading && !overview.data
-  const statsError = overview.error ? new Error(overview.error) : null
 
   return {
     planStats,

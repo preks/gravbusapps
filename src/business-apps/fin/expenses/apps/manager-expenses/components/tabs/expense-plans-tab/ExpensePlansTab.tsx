@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import type { SortingState } from '@tanstack/react-table'
+import { useFilterSignatureReset, useSortingState, useSearchHandler } from '../../../hooks/useTabState'
 import { DataDisplay } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -131,13 +132,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     ]
   )
 
-  const prevFilterSignatureRef = useRef<string | null>(null)
-  useEffect(() => {
-    const signature = JSON.stringify(filterSignature)
-    const prev = prevFilterSignatureRef.current
-    if (prev !== null && prev !== signature) setCurrentPage(1)
-    prevFilterSignatureRef.current = signature
-  }, [filterSignature])
+  const resetPage = useCallback(() => setCurrentPage(1), [])
+  useFilterSignatureReset(filterSignature, resetPage)
 
   const handleSortingChange = useCallback(
     (newSorting: SortingState) => {
@@ -160,13 +156,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const handleViewDetails = useCallback((plan: ExpensePlan) => setSelectedPlan(plan), [])
   const handleCloseDetails = useCallback(() => setSelectedPlan(null), [])
 
-  const handleSearchChange = useCallback(
-    (search: string) => {
-      setSearchTerm(search)
-      setCurrentPage(1)
-    },
-    [setSearchTerm]
-  )
+  const handleSearchChange = useSearchHandler(setSearchTerm, setCurrentPage)
 
   const displayCurrencyForCards = effectiveStatsCurrency ?? 'EUR'
 
@@ -237,10 +227,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     [availableCurrencies, primaryCurrency, handleCurrencyChange]
   )
 
-  const sortingState: SortingState = useMemo(() => {
-    if (!sorting.field || !sorting.order) return []
-    return [{ id: sorting.field, desc: sorting.order === 'DESC' }]
-  }, [sorting.field, sorting.order])
+  const sortingState = useSortingState(sorting)
 
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (searchTerm || '').trim() !== ''

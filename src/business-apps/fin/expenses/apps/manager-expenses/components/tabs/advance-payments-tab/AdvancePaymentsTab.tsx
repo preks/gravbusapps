@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import type { SortingState } from '@tanstack/react-table'
+import { useCurrencyInit, useFilterSignatureReset, useSortingState, useSearchHandler } from '../../../hooks/useTabState'
 import { DataDisplay } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -81,28 +82,14 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   )
 
   // Initialize selector/filter with the most used currency once it becomes available.
-  // Keep one-time behavior so users can still select "All" afterwards.
-  const hasInitializedCurrency = useRef(false)
-  useEffect(() => {
-    if (hasInitializedCurrency.current) return
-    if (!primaryCurrency && mostUsedCurrency) {
-      setPrimaryCurrency(mostUsedCurrency)
-      hasInitializedCurrency.current = true
-    }
-  }, [primaryCurrency, mostUsedCurrency])
+  useCurrencyInit(mostUsedCurrency, setPrimaryCurrency, primaryCurrency)
 
   const filterSignature = useMemo(
     () => ({ searchTerm, statusFilter, primaryCurrency }),
     [searchTerm, statusFilter, primaryCurrency]
   )
-  const prevFilterSignatureRef = useRef<string | null>(null)
-  useEffect(() => {
-    const signature = JSON.stringify(filterSignature)
-    if (prevFilterSignatureRef.current !== null && prevFilterSignatureRef.current !== signature) {
-      setCurrentPage(1)
-    }
-    prevFilterSignatureRef.current = signature
-  }, [filterSignature])
+  const resetPage = useCallback(() => setCurrentPage(1), [])
+  useFilterSignatureReset(filterSignature, resetPage)
 
   const handleSortingChange = useCallback((newState: SortingState) => {
     if (newState.length === 0) {
@@ -114,10 +101,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     setCurrentPage(1)
   }, [])
 
-  const handleSearchChange = useCallback((search: string) => {
-    setSearchTerm(search)
-    setCurrentPage(1)
-  }, [])
+  const handleSearchChange = useSearchHandler(setSearchTerm, setCurrentPage)
 
   const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
     const statusIds = (filters.statusIds as string[] | undefined) || []
@@ -149,10 +133,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     return obj
   }, [statusFilter])
 
-  const sortingState: SortingState = useMemo(() => {
-    if (!sorting.field || !sorting.order) return []
-    return [{ id: sorting.field, desc: sorting.order === 'DESC' }]
-  }, [sorting.field, sorting.order])
+  const sortingState = useSortingState(sorting)
 
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (searchTerm || '').trim() !== ''

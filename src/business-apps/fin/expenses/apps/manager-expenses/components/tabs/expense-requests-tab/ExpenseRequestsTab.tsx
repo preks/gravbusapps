@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useCallback, useState, useRef } from 'react'
+import React, { useMemo, useCallback, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 import { DataDisplay } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -17,6 +17,7 @@ import { buildExpenseRequestOrderBy } from './config/expenseRequestOrderBy'
 import { expenseRequestSortableColumns } from './config/expenseRequestSortableColumns'
 import { expenseRequestAvailableColumns } from './config/expenseRequestAvailableColumns'
 import { formatDateRangeForChip, applyDateRangeFromFilter } from '../expense-plans-tab/config/dataDisplayFilterUtils'
+import { useCurrencyInit, useFilterSignatureReset, useSortingState, useSearchHandler } from '../../../hooks/useTabState'
 import type { ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
 
 export type ExpenseRequestsTabProps = BusinessAppContextProps
@@ -57,14 +58,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     managerId
   )
 
-  const hasInitializedCurrency = useRef(false)
-  useEffect(() => {
-    if (hasInitializedCurrency.current) return
-    if (mostUsedCurrency) {
-      setSelectedCurrency(mostUsedCurrency)
-      hasInitializedCurrency.current = true
-    }
-  }, [mostUsedCurrency])
+  useCurrencyInit(mostUsedCurrency, setSelectedCurrency)
 
   const reqOrderBy = useMemo(
     () => buildExpenseRequestOrderBy(sorting.field, sorting.order),
@@ -136,19 +130,10 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       requestTypeFilter
     ]
   )
-  const prevFilterSignatureRef = useRef<string | null>(null)
-  useEffect(() => {
-    const signature = JSON.stringify(filterSignature)
-    if (prevFilterSignatureRef.current !== null && prevFilterSignatureRef.current !== signature) {
-      setCurrentPage(1)
-    }
-    prevFilterSignatureRef.current = signature
-  }, [filterSignature])
+  const resetPage = useCallback(() => setCurrentPage(1), [])
+  useFilterSignatureReset(filterSignature, resetPage)
 
-  const sortingState: SortingState = useMemo(() => {
-    if (!sorting.field || !sorting.order) return []
-    return [{ id: sorting.field, desc: sorting.order === 'DESC' }]
-  }, [sorting.field, sorting.order])
+  const sortingState = useSortingState(sorting)
 
   const handleSortingChange = useCallback(
     (newSorting: SortingState) => {
@@ -167,10 +152,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     [DEFAULT_SORT, sorting.field]
   )
 
-  const handleSearchChange = useCallback((search: string) => {
-    setSearchTerm(search)
-    setCurrentPage(1)
-  }, [])
+  const handleSearchChange = useSearchHandler(setSearchTerm, setCurrentPage)
 
   const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
     const statusIds = (filters.statusIds as string[] | undefined) || []

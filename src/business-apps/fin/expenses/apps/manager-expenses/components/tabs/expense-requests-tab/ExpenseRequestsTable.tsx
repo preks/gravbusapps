@@ -1,6 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
-import { Button } from '@newwork/nw-design-system'
-import type { SortingState } from '@tanstack/react-table'
+import React, { useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -10,6 +8,9 @@ import { RowActionsWrapper, RowActionsIcon } from '../../../common/components/Ro
 import { PrintPreviewDialog } from '../../../common/components/PrintPreviewDialog'
 import { useExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import { ExpenseDataTable } from '../../../common/components/ExpenseDataTable'
+import { TableErrorState } from '../../../common/components/TableErrorState'
+import { useTableSetup } from '../../../common/hooks/useTableSetup'
+import { usePrintPreview } from '../../../common/hooks/usePrintPreview'
 import { createExpenseRequestColumns } from './expenseRequestColumns'
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
@@ -32,18 +33,6 @@ interface ExpenseRequestsTableProps extends BusinessAppContextProps {
 const DATA_TEST_ID_PREFIX = 'expense-requests'
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
-  const contextProps = useMemo(
-    () => ({
-      accessToken: props.accessToken,
-      userInfo: props.userInfo
-    }),
-    [props.accessToken, props.userInfo]
-  )
-
-  const [printModalOpen, setPrintModalOpen] = useState(false)
-  const [printPdfUrl, setPrintPdfUrl] = useState('')
-  const [printLoading, setPrintLoading] = useState(false)
-
   const {
     expenseRequests,
     loading,
@@ -61,29 +50,25 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     onViewDetails
   } = props
 
-  const { printExpenseRequest, isMounted } = useExpenseRequestFileService(contextProps)
-
-  const handlePrintRequest = useCallback(
-    async (request: ExpenseRequest) => {
-      setPrintLoading(true)
-      setPrintModalOpen(true)
-      try {
-        const result = await printExpenseRequest(request as never)
-        if (result.success && result.pdfUrl && isMounted.current) {
-          setPrintPdfUrl(result.pdfUrl)
-        } else if (!result.success) {
-          console.error('Error printing request:', result.error)
-        }
-      } catch (err) {
-        console.error('Error fetching print PDF:', err instanceof Error ? err.message : 'Unknown error')
-      } finally {
-        if (isMounted.current) {
-          setPrintLoading(false)
-        }
-      }
-    },
-    [printExpenseRequest, isMounted]
+  const allColumns = useMemo(() => createExpenseRequestColumns(currencyFilter ?? null), [currencyFilter])
+  const { contextProps, columns, pagination, handlePaginationChange } = useTableSetup(
+    props,
+    allColumns,
+    visibleColumnIds,
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize
   )
+
+  const { printExpenseRequest, isMounted } = useExpenseRequestFileService(contextProps)
+  const {
+    modalOpen: printModalOpen,
+    pdfUrl: printPdfUrl,
+    loading: printLoading,
+    handlePrint: handlePrintRequest,
+    handleClose: handlePrintClose
+  } = usePrintPreview<ExpenseRequest>(printExpenseRequest, isMounted)
 
   const handleViewRequestDetails = useCallback((request: ExpenseRequest) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
@@ -92,21 +77,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     })
     navigateTo(url)
   }, [])
-
-  const allColumns = useMemo(() => createExpenseRequestColumns(currencyFilter ?? null), [currencyFilter])
-  const columns = useMemo(() => {
-    const ids = visibleColumnIds.length > 0 ? visibleColumnIds : allColumns.map(c => c.id as string)
-    return allColumns.filter(col => ids.includes((col.id as string) ?? ''))
-  }, [allColumns, visibleColumnIds])
-
-  const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
-  const handlePaginationChange = useCallback(
-    (p: { pageIndex: number; pageSize: number }) => {
-      setCurrentPage(p.pageIndex + 1)
-      setPageSize(p.pageSize)
-    },
-    [setCurrentPage, setPageSize]
-  )
 
   const actions = useCallback(
     (row: { original: ExpenseRequest }) => {
@@ -176,21 +146,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const errorMessage = error?.message ?? null
 
   if (error) {
-    return (
-      <div
-        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
-        data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
-      >
-        <div className="gba:text-muted-foreground gba:mb-4">{errorMessage}</div>
-        <Button
-          variant="default"
-          onClick={() => globalThis.location.reload()}
-          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
-        >
-          Retry
-        </Button>
-      </div>
-    )
+    return <TableErrorState message={errorMessage} testIdPrefix={DATA_TEST_ID_PREFIX} />
   }
 
   return (
@@ -214,10 +170,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       <PrintPreviewDialog
         open={printModalOpen}
         onOpenChange={open => {
-          if (!open) {
-            setPrintModalOpen(false)
-            setPrintPdfUrl('')
-          }
+          if (!open) handlePrintClose()
         }}
         title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
         loading={printLoading}

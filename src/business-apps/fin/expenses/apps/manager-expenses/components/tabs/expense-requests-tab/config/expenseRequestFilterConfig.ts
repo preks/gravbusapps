@@ -1,5 +1,10 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  createDateRangeFilterGroup,
+  createStatusFilterGroup,
+  createTypeFilterGroup
+} from '../../../../common/config/filterConfigHelpers'
 
 export interface ExpenseRequestFilterConfigOptions {
   statusOptions: string[]
@@ -25,117 +30,30 @@ export function createExpenseRequestFilterConfig({
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
     }
   ]
-  const dateRangeConfig = {
-    dateType: 'date' as const,
-    mode: 'range' as const,
-    placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-    placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
-    showClearButton: true
-  }
 
   const groups: FilterConfiguration['groups'] = [
-    {
-      id: 'effectiveDate-group',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
-      collapsible: true,
-      defaultExpanded: false,
-      filters: [
-        {
-          id: 'effectiveDateRange',
-          field: 'effectiveDateRange',
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
-          type: 'date',
-          config: dateRangeConfig
-        }
-      ]
-    },
-    {
-      id: 'requestDate-group',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:confirm_transfer_advance_payment.request_date_label',
-        'Request Date'
-      ),
-      collapsible: true,
-      defaultExpanded: false,
-      filters: [
-        {
-          id: 'requestDateRange',
-          field: 'requestDateRange',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:confirm_transfer_advance_payment.request_date_label',
-            'Request Date'
-          ),
-          type: 'date',
-          config: dateRangeConfig
-        }
-      ]
-    },
-    {
-      id: 'startDate-group',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
-      collapsible: true,
-      defaultExpanded: false,
-      filters: [
-        {
-          id: 'startDateRange',
-          field: 'startDateRange',
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
-          type: 'date',
-          config: dateRangeConfig
-        }
-      ]
-    },
-    {
-      id: 'endDate-group',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
-      collapsible: true,
-      defaultExpanded: false,
-      filters: [
-        {
-          id: 'endDateRange',
-          field: 'endDateRange',
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
-          type: 'date',
-          config: dateRangeConfig
-        }
-      ]
-    },
-    {
-      id: 'status-group',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-      collapsible: true,
-      defaultExpanded: true,
-      filters: [
-        {
-          id: 'statusIds',
-          field: 'statusIds',
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-          type: 'multi-select',
-          config: { options: statusFilters }
-        }
-      ]
-    },
-    {
-      id: 'requestType-group',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
-        'Request Type'
-      ),
-      collapsible: true,
-      defaultExpanded: false,
-      filters: [
-        {
-          id: 'requestTypeIds',
-          field: 'requestTypeIds',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
-            'Request Type'
-          ),
-          type: 'multi-select',
-          config: { options: requestTypeOptions }
-        }
-      ]
-    }
+    createDateRangeFilterGroup(
+      'effectiveDate',
+      'effectiveDateRange',
+      'lowcoder:personal_expenses.effective_date',
+      'Effective Date'
+    ),
+    createDateRangeFilterGroup(
+      'requestDate',
+      'requestDateRange',
+      'lowcoder:confirm_transfer_advance_payment.request_date_label',
+      'Request Date'
+    ),
+    createDateRangeFilterGroup('startDate', 'startDateRange', 'lowcoder:personal_expenses.start_date', 'Start Date'),
+    createDateRangeFilterGroup('endDate', 'endDateRange', 'lowcoder:personal_expenses.end_date', 'End Date'),
+    createStatusFilterGroup(statusFilters),
+    createTypeFilterGroup(
+      'requestType',
+      'requestTypeIds',
+      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
+      'Request Type',
+      requestTypeOptions
+    )
   ]
 
   return {
