@@ -2,24 +2,12 @@ import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import type { JSONObject, JSONValue } from '@/common/types/i18nTypes'
 import type { AbsenceTypeVersionFormValues } from './absenceSetup'
+import { buildAbsenceTypeObjectValue, getAbsenceTypeObjectEditorState } from './absenceTypeObjectValue'
 
 interface AbsenceTypeVersionObjectValue extends JSONObject {
   version?: string
   validFrom?: string
   validTo?: string
-  colorToken?: string
-  measurement?: string
-  behaviour?: string
-  priority?: number
-  enteredBy?: string
-  substitute?: boolean
-  relative?: boolean
-  document?: boolean
-  anonymous?: boolean
-  halfDays?: boolean
-  accessPlan?: boolean
-  accessRequest?: boolean
-  absenceTypeCode?: string
 }
 
 const isObjectRecord = (value: JSONValue | undefined): value is AbsenceTypeVersionObjectValue =>
@@ -31,10 +19,81 @@ const toStringValue = (value: JSONValue | undefined, fallback: string): string =
   return fallback
 }
 
-const toBooleanValue = (value: JSONValue | undefined, fallback: boolean): boolean =>
-  typeof value === 'boolean' ? value : fallback
-
 const sanitizeVersionCode = (value: string) => value.trim().replaceAll(/[^a-zA-Z0-9_-]+/g, '-')
+
+const parseDateValue = (value: string): Date | null => {
+  if (!value) {
+    return null
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const parsed = new Date(`${value}T00:00:00`)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+
+  if (/^\d{2}[/.]\d{2}[/.]\d{4}$/.test(value)) {
+    const normalizedValue = value.replaceAll('.', '/')
+    const [day, month, year] = normalizedValue.split('/')
+    const parsed = new Date(`${year}-${month}-${day}T00:00:00`)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+const getTodayAtStart = () => {
+  const today = new Date()
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate())
+}
+
+export const isAbsenceTypeVersionActive = (entry: CatalogEntry): boolean => {
+  const objectValue = isObjectRecord(entry.objectValue) ? entry.objectValue : {}
+  const validFromDate = parseDateValue(toStringValue(objectValue.validFrom, ''))
+  const validToDate = parseDateValue(toStringValue(objectValue.validTo, ''))
+  const today = getTodayAtStart()
+
+  if (validFromDate && validFromDate > today) {
+    return false
+  }
+
+  if (validToDate && validToDate < today) {
+    return false
+  }
+
+  return true
+}
+
+export const canEditAbsenceTypeVersion = (entry: CatalogEntry): boolean => {
+  const objectValue = isObjectRecord(entry.objectValue) ? entry.objectValue : {}
+  const validToDate = parseDateValue(toStringValue(objectValue.validTo, ''))
+  const today = getTodayAtStart()
+
+  if (validToDate && validToDate < today) {
+    return false
+  }
+
+  return true
+}
+
+export const getAbsenceTypeVersionSortValue = (entry: CatalogEntry): number => {
+  const objectValue = isObjectRecord(entry.objectValue) ? entry.objectValue : {}
+  const validFromDate = parseDateValue(toStringValue(objectValue.validFrom, ''))
+  const validToDate = parseDateValue(toStringValue(objectValue.validTo, ''))
+
+  return validFromDate?.getTime() || validToDate?.getTime() || 0
+}
+
+export const getAbsenceTypeVersionTitle = (
+  entry: CatalogEntry,
+  absenceTypes: AbsenceType[],
+  fallbackTitle: string
+): string => {
+  const absenceTypeCode = getAbsenceTypeCodeForVersion(entry)
+  const selectedType = absenceTypes.find(item => item.code === absenceTypeCode)
+
+  return selectedType?.value || selectedType?.code || entry.value || absenceTypeCode || fallbackTitle
+}
 
 export const getAbsenceTypeCodeForVersion = (entry?: CatalogEntry): string => {
   const objectValue = isObjectRecord(entry?.objectValue) ? entry?.objectValue : undefined
@@ -60,24 +119,14 @@ export const getAbsenceTypeVersionFormValues = (
   }
 
   const objectValue = isObjectRecord(entry.objectValue) ? entry.objectValue : {}
+  const { settings } = getAbsenceTypeObjectEditorState(entry.objectValue)
 
   return {
     code: getAbsenceTypeCodeForVersion(entry),
     version: toStringValue(objectValue.version, defaultValues.version),
     validFrom: toStringValue(objectValue.validFrom, defaultValues.validFrom),
     validTo: toStringValue(objectValue.validTo, defaultValues.validTo),
-    colorToken: toStringValue(objectValue.colorToken, defaultValues.colorToken),
-    measurement: toStringValue(objectValue.measurement, defaultValues.measurement),
-    behaviour: toStringValue(objectValue.behaviour, defaultValues.behaviour),
-    priority: toStringValue(objectValue.priority, defaultValues.priority),
-    enteredBy: toStringValue(objectValue.enteredBy, defaultValues.enteredBy),
-    substitute: toBooleanValue(objectValue.substitute, defaultValues.substitute),
-    relative: toBooleanValue(objectValue.relative, defaultValues.relative),
-    document: toBooleanValue(objectValue.document, defaultValues.document),
-    anonymous: toBooleanValue(objectValue.anonymous, defaultValues.anonymous),
-    halfDays: toBooleanValue(objectValue.halfDays, defaultValues.halfDays),
-    accessPlan: toBooleanValue(objectValue.accessPlan, defaultValues.accessPlan),
-    accessRequest: toBooleanValue(objectValue.accessRequest, defaultValues.accessRequest)
+    settings
   }
 }
 
@@ -100,24 +149,11 @@ export const buildAbsenceTypeVersionPayload = (
     code,
     value,
     parentEntryId: formValues.code ? `AbsenceType:v1:${formValues.code}` : '',
-    objectValue: {
+    objectValue: buildAbsenceTypeObjectValue(formValues.settings, {
       version: formValues.version,
       validFrom: formValues.validFrom,
-      validTo: formValues.validTo,
-      colorToken: formValues.colorToken,
-      measurement: formValues.measurement,
-      behaviour: formValues.behaviour,
-      priority: Number(formValues.priority || 0),
-      enteredBy: formValues.enteredBy,
-      substitute: formValues.substitute,
-      relative: formValues.relative,
-      document: formValues.document,
-      anonymous: formValues.anonymous,
-      halfDays: formValues.halfDays,
-      accessPlan: formValues.accessPlan,
-      accessRequest: formValues.accessRequest,
-      absenceTypeCode: formValues.code
-    },
+      validTo: formValues.validTo
+    }),
     translations: []
   }
 }

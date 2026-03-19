@@ -92,6 +92,7 @@ export const GenericCatalogEntryModal: React.FC<GenericCatalogEntryModalProps> =
                 id="generic-catalog-entry-code"
                 value={code}
                 onChange={event => setCode(event.target.value)}
+                disabled={Boolean(entry?.id)}
                 data-testid="generic-catalog-entry-code-input"
               />
             </div>

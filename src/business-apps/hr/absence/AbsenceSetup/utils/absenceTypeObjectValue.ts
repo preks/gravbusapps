@@ -47,11 +47,34 @@ export const defaultAbsenceTypeObjectSettings: AbsenceTypeObjectSettings = {
 const isObjectValueRecord = (value: AbsenceType['objectValue']): value is AbsenceTypeObjectValue =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
-const isAccessByOption = (value: JSONValue): value is AbsenceTypeAccessByOption =>
-  typeof value === 'string' && ABSENCE_TYPE_ACCESS_BY_OPTIONS.includes(value as AbsenceTypeAccessByOption)
+const normalizeAccessByOption = (value: JSONValue): AbsenceTypeAccessByOption | null => {
+  if (typeof value !== 'string') {
+    return null
+  }
 
-const isMeasurementOption = (value: JSONValue): value is AbsenceTypeMeasurementOption =>
-  typeof value === 'string' && ABSENCE_TYPE_MEASUREMENT_OPTIONS.includes(value as AbsenceTypeMeasurementOption)
+  const normalizedValue = value.replaceAll(/[\s_-]+/g, '').toLowerCase()
+
+  if (normalizedValue === 'employee') return 'Employee'
+  if (normalizedValue === 'manager') return 'Manager'
+  if (normalizedValue === 'assistant') return 'Assistant'
+  if (normalizedValue === 'hr') return 'HR'
+
+  return null
+}
+
+const normalizeMeasurementOption = (value: JSONValue): AbsenceTypeMeasurementOption | null => {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const normalizedValue = value.replaceAll(/[\s_-]+/g, '').toLowerCase()
+
+  if (normalizedValue === 'workingdays') return 'WorkingDays'
+  if (normalizedValue === 'calendardays') return 'CalendarDays'
+  if (normalizedValue === 'hours') return 'Hours'
+
+  return null
+}
 
 export const getAbsenceTypeObjectEditorState = (
   objectValue?: AbsenceType['objectValue']
@@ -85,9 +108,16 @@ export const getAbsenceTypeObjectEditorState = (
       icon: typeof icon === 'string' ? icon : defaultAbsenceTypeObjectSettings.icon,
       color: typeof color === 'string' ? color : defaultAbsenceTypeObjectSettings.color,
       display: typeof display === 'boolean' ? display : defaultAbsenceTypeObjectSettings.display,
-      accessBy: Array.isArray(accessBy) ? accessBy.filter(isAccessByOption) : defaultAbsenceTypeObjectSettings.accessBy,
-      priority: typeof priority === 'number' ? String(priority) : defaultAbsenceTypeObjectSettings.priority,
-      measurement: isMeasurementOption(measurement) ? measurement : defaultAbsenceTypeObjectSettings.measurement,
+      accessBy: Array.isArray(accessBy)
+        ? accessBy.map(normalizeAccessByOption).filter((value): value is AbsenceTypeAccessByOption => Boolean(value))
+        : defaultAbsenceTypeObjectSettings.accessBy,
+      priority:
+        typeof priority === 'number'
+          ? String(priority)
+          : typeof priority === 'string'
+            ? priority
+            : defaultAbsenceTypeObjectSettings.priority,
+      measurement: normalizeMeasurementOption(measurement) || defaultAbsenceTypeObjectSettings.measurement,
       enableReason: typeof enableReason === 'boolean' ? enableReason : defaultAbsenceTypeObjectSettings.enableReason,
       enableApproval:
         typeof enableApproval === 'boolean' ? enableApproval : defaultAbsenceTypeObjectSettings.enableApproval,

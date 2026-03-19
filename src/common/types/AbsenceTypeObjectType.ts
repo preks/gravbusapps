@@ -9,6 +9,7 @@ export interface AbsenceType {
   id: string
   code: string
   value: string
+  type?: string
   parentEntryId?: string
   objectValue?: AbsenceTypeObjectValue | JSONValue[]
   catalogEntryLocalId?: string

@@ -5,8 +5,10 @@ import type { CatalogEntry, GetCatalogEntriesParams, GetCatalogsParams } from '@
 import type { JSONValue } from '@/common/types/i18nTypes'
 
 export interface AbsenceCatalogEntryPayload {
+  id?: string
   code: string
   value: string
+  type?: string
   parentEntryId?: string
   objectValue?: JSONValue
   localeCode?: string
@@ -21,6 +23,23 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
+  const fetchEntries = useCallback(
+    async (queryParams: GetCatalogsParams = {}) => {
+      if (!client) {
+        throw new Error('Catalog manager client not available')
+      }
+
+      const pathParams: GetCatalogEntriesParams = {
+        catalogIdentifier,
+        version: CATALOG_VERSION
+      }
+
+      const response = await client.getCatalogEntriesList(pathParams, queryParams)
+      return (response?.data || []) as CatalogEntry[]
+    },
+    [catalogIdentifier, client]
+  )
+
   const loadEntries = useCallback(async () => {
     if (!accessToken || !client) {
       setEntries([])
@@ -32,10 +51,6 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
     setError(null)
 
     try {
-      const pathParams: GetCatalogEntriesParams = {
-        catalogIdentifier,
-        version: CATALOG_VERSION
-      }
       const queryParams: GetCatalogsParams = {
         includeLocalizedVersions: true,
         includeTranslations: true,
@@ -43,9 +58,7 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
         limit: 200,
         offset: 0
       }
-
-      const response = await client.getCatalogEntriesList(pathParams, queryParams)
-      setEntries((response?.data || []) as CatalogEntry[])
+      setEntries(await fetchEntries(queryParams))
     } catch (err) {
       const resolvedError = err instanceof Error ? err : new Error(`Failed to fetch ${catalogIdentifier} entries`)
       console.error(`[useAbsenceCatalogEntries] Failed to fetch ${catalogIdentifier}:`, resolvedError.message)
@@ -55,7 +68,7 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
     } finally {
       setLoading(false)
     }
-  }, [accessToken, catalogIdentifier, client])
+  }, [accessToken, catalogIdentifier, client, fetchEntries])
 
   useEffect(() => {
     loadEntries()
@@ -89,8 +102,10 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
       }
 
       const updatedEntry = await client.updateCatalogEntry(catalogIdentifier, CATALOG_VERSION, entryId, {
+        ...(updates.id !== undefined ? { id: updates.id } : {}),
         ...(updates.code !== undefined ? { code: updates.code } : {}),
         ...(updates.value !== undefined ? { value: updates.value } : {}),
+        ...(updates.type !== undefined ? { type: updates.type } : {}),
         ...(updates.parentEntryId !== undefined ? { parentEntryId: updates.parentEntryId } : {}),
         ...(updates.objectValue !== undefined ? { objectValue: updates.objectValue } : {}),
         ...(updates.localeCode !== undefined ? { localeCode: updates.localeCode } : {}),
@@ -122,6 +137,7 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
     createEntry,
     updateEntry,
     deleteEntry,
+    fetchEntries,
     refetch: loadEntries
   }
 }

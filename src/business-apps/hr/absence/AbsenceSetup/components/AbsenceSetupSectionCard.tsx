@@ -3,6 +3,7 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Badge,
   Button,
   Card,
   CardContent,
@@ -61,24 +62,25 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
       className="gba:w-full gba:min-w-0 gba:overflow-hidden gba:border gba:border-border gba:bg-card"
     >
       <CardHeader className="gba:border-b gba:border-border gba:bg-muted/20 gba:px-6 gba:py-5">
-        <div className="gba:space-y-4">
+        <div className="gba:flex gba:flex-col gba:gap-4 gba:lg:flex-row gba:lg:items-start gba:lg:justify-between">
           <div className="gba:flex gba:min-w-0 gba:items-start gba:gap-4">
             <div className="gba:flex gba:h-11 gba:w-11 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-xl gba:bg-background">
               <Icon className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
             </div>
             <div className="gba:min-w-0 gba:flex-1 gba:space-y-1">
               <CardTitle className="gba:text-xl gba:font-semibold">{title}</CardTitle>
-              <CardDescription className="gba:max-w-2xl gba:text-sm">{description}</CardDescription>
+              <CardDescription className="gba:max-w-4xl gba:text-sm">{description}</CardDescription>
             </div>
           </div>
-          <div className="gba:w-full">
+
+          <div className="gba:flex gba:w-full gba:justify-start gba:lg:w-auto gba:justify-self-end">
             <Button
               type="button"
               variant="default"
               size="sm"
               onClick={onAdd}
               data-testid={addButtonTestId}
-              className="gba:w-full"
+              className="gba:w-full gba:lg:w-auto"
             >
               {addLabel}
             </Button>
@@ -118,11 +120,16 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
             {items.map(item => (
               <div
                 key={item.id}
-                className="gba:flex gba:w-full gba:flex-wrap gba:items-start gba:justify-between gba:gap-4 gba:rounded-xl gba:border gba:border-border gba:bg-background gba:p-4"
+                className={`gba:flex gba:w-full gba:flex-wrap gba:items-start gba:justify-between gba:gap-4 gba:rounded-xl gba:border gba:border-border gba:bg-background gba:p-4 ${
+                  item.canEdit === false ? 'gba:opacity-80' : ''
+                }`}
                 data-testid={`${cardTestId}-item-${item.id}`}
               >
                 <div className="gba:min-w-0 gba:space-y-1">
-                  <p className="gba:font-medium gba:text-foreground">{item.title}</p>
+                  <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+                    <p className="gba:font-medium gba:text-foreground">{item.title}</p>
+                    {item.statusLabel ? <Badge variant="outline">{item.statusLabel}</Badge> : null}
+                  </div>
                   <p className="gba:text-sm gba:text-muted-foreground">{item.description}</p>
                 </div>
                 <div className="gba:flex gba:shrink-0 gba:items-center gba:gap-2">
@@ -131,6 +138,7 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
                     variant="ghost"
                     size="sm"
                     onClick={() => onEdit(item.id)}
+                    disabled={item.canEdit === false}
                     data-testid={`${cardTestId}-edit-${item.id}`}
                   >
                     {editLabel}

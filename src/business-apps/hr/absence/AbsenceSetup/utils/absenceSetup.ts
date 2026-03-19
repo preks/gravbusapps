@@ -1,10 +1,13 @@
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import type { AbsenceEntitlementObjectValue } from './absenceEntitlementObjectValue'
+import { defaultAbsenceTypeObjectSettings, type AbsenceTypeObjectSettings } from './absenceTypeObjectValue'
 
 export interface SetupSectionItem {
   id: string
   title: string
   description: string
+  statusLabel?: string
+  canEdit?: boolean
 }
 
 export interface MockEntitlementSummary {
@@ -21,18 +24,7 @@ export interface AbsenceTypeVersionFormValues {
   version: string
   validFrom: string
   validTo: string
-  colorToken: string
-  measurement: string
-  behaviour: string
-  priority: string
-  enteredBy: string
-  substitute: boolean
-  relative: boolean
-  document: boolean
-  anonymous: boolean
-  halfDays: boolean
-  accessPlan: boolean
-  accessRequest: boolean
+  settings: AbsenceTypeObjectSettings
 }
 
 export interface AbsenceTypeEntitlementRow {
@@ -130,18 +122,7 @@ export const defaultAbsenceTypeVersionValues: AbsenceTypeVersionFormValues = {
   version: '1.0',
   validFrom: '2024-01-01',
   validTo: '9999-12-31',
-  colorToken: 'warning',
-  measurement: 'working-days',
-  behaviour: 'absence-and-time',
-  priority: '',
-  enteredBy: 'HR, Manager',
-  substitute: false,
-  relative: false,
-  document: false,
-  anonymous: false,
-  halfDays: false,
-  accessPlan: false,
-  accessRequest: false
+  settings: defaultAbsenceTypeObjectSettings
 }
 
 export const defaultAbsenceEntitlementValues: AbsenceEntitlementFormValues = {

@@ -14,6 +14,8 @@ interface AbsenceSetupDeleteDialogProps {
   entityLabel: string
   name: string
   isDeleting: boolean
+  blockedReason?: string
+  errorMessage?: string
   onCancel: () => void
   onConfirm: () => Promise<void>
 }
@@ -23,10 +25,14 @@ export function AbsenceSetupDeleteDialog({
   entityLabel,
   name,
   isDeleting,
+  blockedReason,
+  errorMessage,
   onCancel,
   onConfirm
 }: AbsenceSetupDeleteDialogProps) {
   const { t } = useTranslation(translations)
+  void blockedReason
+  const messageToShow = errorMessage || ''
 
   return (
     <Dialog open={open} onOpenChange={nextOpen => !nextOpen && onCancel()}>
@@ -35,6 +41,11 @@ export function AbsenceSetupDeleteDialog({
           <DialogTitle>{t('delete-catalog-entry-title', { entity: entityLabel })}</DialogTitle>
           <DialogDescription>{t('delete-catalog-entry-description', { name, entity: entityLabel })}</DialogDescription>
         </DialogHeader>
+        {messageToShow ? (
+          <div className="gba:mx-6 gba:mt-4 gba:rounded-xl gba:border gba:border-red-200 gba:bg-red-50 gba:px-4 gba:py-3 gba:text-sm gba:text-red-700">
+            {messageToShow}
+          </div>
+        ) : null}
         <div className="gba:flex gba:justify-end gba:gap-2 gba:px-6 gba:py-4">
           <Button type="button" variant="secondary" onClick={onCancel} disabled={isDeleting}>
             {t('cancel-button')}

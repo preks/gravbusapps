@@ -80,6 +80,26 @@ export const buildAbsenceSetupSectionCards = ({
   onDeleteGenericCatalog
 }: BuildAbsenceSetupSectionCardsArgs): AbsenceSetupSectionCardConfig[] => [
   {
+    icon: genericCatalogConfigs.AbsenceGroup.icon,
+    title: genericCatalogConfigs.AbsenceGroup.title,
+    entityLabel: genericCatalogConfigs.AbsenceGroup.entityLabel,
+    description: genericCatalogConfigs.AbsenceGroup.description,
+    items: genericCatalogConfigs.AbsenceGroup.items,
+    isLoading: genericCatalogConfigs.AbsenceGroup.hook.loading,
+    errorMessage: genericCatalogConfigs.AbsenceGroup.hook.error?.message,
+    onAdd: () => onAddGenericCatalog('AbsenceGroup'),
+    onEdit: itemId => {
+      const entry = genericCatalogConfigs.AbsenceGroup.hook.entries.find(item => item.id === itemId)
+      if (entry) onEditGenericCatalog('AbsenceGroup', entry)
+    },
+    onDelete: itemId => {
+      const entry = genericCatalogConfigs.AbsenceGroup.hook.entries.find(item => item.id === itemId)
+      if (entry) onDeleteGenericCatalog('AbsenceGroup', entry)
+    },
+    addButtonTestId: genericCatalogConfigs.AbsenceGroup.addButtonTestId,
+    cardTestId: genericCatalogConfigs.AbsenceGroup.cardTestId
+  },
+  {
     icon: Calendar,
     title: t('absence-types-title'),
     entityLabel: t('absence-type-entity-label'),
@@ -139,7 +159,7 @@ export const buildAbsenceSetupSectionCards = ({
     addButtonTestId: 'absence-setup-add-entitlement-button',
     cardTestId: 'absence-setup-entitlements-card'
   },
-  ...(['AbsenceGroup', 'AbsencePolicy', 'AbsenceReason'] as const).map(catalogKey => {
+  ...(['AbsencePolicy', 'AbsenceReason'] as const).map(catalogKey => {
     const config = genericCatalogConfigs[catalogKey]
 
     return {

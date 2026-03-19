@@ -1,10 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
   Button,
   Card,
   CardContent,
@@ -21,23 +18,13 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
-import { AbsenceTypeSettingsSection } from '../components/AbsenceTypeSettingsSection'
-import useAbsenceGroups from '../../../core/hooks/useAbsenceGroups'
+import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import translations from '../_i18n'
-import {
-  buildAbsenceTypeObjectValue,
-  defaultAbsenceTypeObjectSettings,
-  getAbsenceTypeObjectEditorState,
-  type AbsenceTypeObjectSettings
-} from '../utils/absenceTypeObjectValue'
 
 export interface AbsenceTypeModalValues {
   code: string
   name: string
-  name_de: string
-  name_ro: string
-  group: string
-  objectValue: NonNullable<AbsenceType['objectValue']>
+  parentEntryId: string
 }
 
 interface AbsenceTypeModalProps {
@@ -45,24 +32,31 @@ interface AbsenceTypeModalProps {
   onClose: () => void
   onSave: (values: AbsenceTypeModalValues) => Promise<void>
   absenceType?: AbsenceType | null
-  accessToken: string
+  groups: CatalogEntry[]
 }
 
 const emptyFormState = {
   code: '',
   name: '',
-  name_de: '',
-  name_ro: '',
-  group: '',
-  settings: defaultAbsenceTypeObjectSettings,
-  extraObjectValue: {}
+  parentEntryId: ''
 }
 
-export function AbsenceTypeModal({ open, onClose, onSave, absenceType, accessToken }: AbsenceTypeModalProps) {
+export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }: AbsenceTypeModalProps) {
   const { t } = useTranslation(translations)
-  const { groups, loading: groupsLoading, error: groupsError } = useAbsenceGroups(accessToken)
   const [formValues, setFormValues] = useState(emptyFormState)
   const [isSaving, setIsSaving] = useState(false)
+
+  const groupOptions = groups.map(group => ({
+    value: `AbsenceGroup:v1:${group.code}`,
+    label: group.value || group.code
+  }))
+
+  if (formValues.parentEntryId && !groupOptions.some(option => option.value === formValues.parentEntryId)) {
+    groupOptions.unshift({
+      value: formValues.parentEntryId,
+      label: formValues.parentEntryId.split(':').pop() || formValues.parentEntryId
+    })
+  }
 
   useEffect(() => {
     if (!open) return
@@ -72,42 +66,15 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, accessTok
       return
     }
 
-    const { settings, extraObjectValue } = getAbsenceTypeObjectEditorState(absenceType.objectValue)
-
     setFormValues({
       code: absenceType.code || '',
       name: absenceType.translations?.find(item => item.localeCode === 'en-US')?.value || absenceType.value || '',
-      name_de: absenceType.translations?.find(item => item.localeCode === 'de-DE')?.value || '',
-      name_ro: absenceType.translations?.find(item => item.localeCode === 'ro-RO')?.value || '',
-      group: absenceType.parentEntryId?.split(':').pop() || '',
-      settings,
-      extraObjectValue
+      parentEntryId: absenceType.parentEntryId || ''
     })
   }, [absenceType, open])
 
-  const groupOptions = useMemo(
-    () =>
-      groups.map(group => ({
-        value: group.code || group.id,
-        label: group.value || group.code || group.id
-      })),
-    [groups]
-  )
-
-  const isSaveDisabled = isSaving || !formValues.code.trim() || !formValues.name.trim() || !formValues.group
-
-  const updateSettingsField = <K extends keyof AbsenceTypeObjectSettings>(
-    field: K,
-    value: AbsenceTypeObjectSettings[K]
-  ) => {
-    setFormValues(current => ({
-      ...current,
-      settings: {
-        ...current.settings,
-        [field]: value
-      }
-    }))
-  }
+  const isSaveDisabled =
+    isSaving || !formValues.code.trim() || !formValues.name.trim() || !formValues.parentEntryId.trim()
 
   const handleSubmit = async () => {
     if (isSaveDisabled) {
@@ -119,10 +86,7 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, accessTok
       await onSave({
         code: formValues.code.trim(),
         name: formValues.name.trim(),
-        name_de: formValues.name_de.trim(),
-        name_ro: formValues.name_ro.trim(),
-        group: formValues.group,
-        objectValue: buildAbsenceTypeObjectValue(formValues.settings, formValues.extraObjectValue)
+        parentEntryId: formValues.parentEntryId.trim()
       })
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : t('save-absence-type-error')
@@ -142,93 +106,61 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, accessTok
         <div className="gba:flex gba:min-h-0 gba:flex-1 gba:flex-col">
           <DialogHeader className="gba:border-b gba:border-border gba:bg-muted/20 gba:px-4 gba:py-3">
             <DialogTitle>{absenceType?.id ? t('type-modal-edit-title') : t('type-modal-create-title')}</DialogTitle>
-            <DialogDescription>{t('type-modal-description')}</DialogDescription>
+            <DialogDescription>
+              {t('generic-catalog-modal-description', { entity: t('absence-type-entity-label') })}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="gba:flex-1 gba:space-y-3 gba:overflow-y-auto gba:px-4 gba:py-4">
-            {groupsError && (
-              <Alert variant="destructive" data-testid="absence-type-groups-error">
-                <AlertTitle>{t('type-modal-groups-error-title')}</AlertTitle>
-                <AlertDescription>{groupsError.message}</AlertDescription>
-              </Alert>
-            )}
-
             <Card data-testid="absence-type-form" className="gba:border gba:border-border gba:bg-muted/10">
               <CardHeader className="gba:border-b gba:border-border gba:bg-background">
                 <CardTitle>{t('basic-information-section-title')}</CardTitle>
               </CardHeader>
-              <CardContent className="gba:space-y-3 gba:p-4">
-                <div className="gba:grid gba:gap-4 gba:md:grid-cols-2">
-                  <div className="gba:space-y-2">
-                    <Label htmlFor="absence-type-code">
-                      {t('field-code-label')}
-                      <span className="gba:text-destructive"> *</span>
-                    </Label>
-                    <Input
-                      id="absence-type-code"
-                      value={formValues.code}
-                      onChange={event => setFormValues(current => ({ ...current, code: event.target.value }))}
-                      placeholder={t('code-placeholder')}
-                      data-testid="absence-type-code-input"
-                    />
-                  </div>
-
-                  <div className="gba:space-y-2">
-                    <Label htmlFor="absence-type-group">
-                      {t('field-group-label')}
-                      <span className="gba:text-destructive"> *</span>
-                    </Label>
-                    <Combobox
-                      value={formValues.group}
-                      onValueChange={value => setFormValues(current => ({ ...current, group: String(value || '') }))}
-                      options={groupOptions}
-                      placeholder={t('group-placeholder')}
-                      searchPlaceholder={t('group-placeholder')}
-                      emptyText={t('no-group')}
-                      disabled={groupsLoading}
-                      data-testid="absence-type-group-select"
-                    />
-                  </div>
+              <CardContent className="gba:grid gba:gap-4 gba:p-4 gba:md:grid-cols-3">
+                <div className="gba:space-y-2">
+                  <Label htmlFor="absence-type-code">
+                    {t('field-code-label')}
+                    <span className="gba:text-destructive"> *</span>
+                  </Label>
+                  <Input
+                    id="absence-type-code"
+                    value={formValues.code}
+                    onChange={event => setFormValues(current => ({ ...current, code: event.target.value }))}
+                    placeholder={t('code-placeholder')}
+                    disabled={Boolean(absenceType?.id)}
+                    data-testid="absence-type-code-input"
+                  />
                 </div>
 
-                <div className="gba:grid gba:gap-4 gba:md:grid-cols-2">
-                  <div className="gba:space-y-2">
-                    <Label htmlFor="absence-type-name-en">
-                      {t('field-name-en-label')}
-                      <span className="gba:text-destructive"> *</span>
-                    </Label>
-                    <Input
-                      id="absence-type-name-en"
-                      value={formValues.name}
-                      onChange={event => setFormValues(current => ({ ...current, name: event.target.value }))}
-                      data-testid="absence-type-name-en-input"
-                    />
-                  </div>
+                <div className="gba:space-y-2">
+                  <Label htmlFor="absence-type-name">
+                    {t('field-name-label')}
+                    <span className="gba:text-destructive"> *</span>
+                  </Label>
+                  <Input
+                    id="absence-type-name"
+                    value={formValues.name}
+                    onChange={event => setFormValues(current => ({ ...current, name: event.target.value }))}
+                    data-testid="absence-type-name-input"
+                  />
+                </div>
 
-                  <div className="gba:space-y-2">
-                    <Label htmlFor="absence-type-name-de">{t('field-name-de-label')}</Label>
-                    <Input
-                      id="absence-type-name-de"
-                      value={formValues.name_de}
-                      onChange={event => setFormValues(current => ({ ...current, name_de: event.target.value }))}
-                      data-testid="absence-type-name-de-input"
-                    />
-                  </div>
-
-                  <div className="gba:space-y-2">
-                    <Label htmlFor="absence-type-name-ro">{t('field-name-ro-label')}</Label>
-                    <Input
-                      id="absence-type-name-ro"
-                      value={formValues.name_ro}
-                      onChange={event => setFormValues(current => ({ ...current, name_ro: event.target.value }))}
-                      data-testid="absence-type-name-ro-input"
-                    />
-                  </div>
+                <div className="gba:space-y-2">
+                  <Label>{t('field-group-label')}</Label>
+                  <Combobox
+                    value={formValues.parentEntryId}
+                    onValueChange={value =>
+                      setFormValues(current => ({ ...current, parentEntryId: String(value || '') }))
+                    }
+                    options={groupOptions}
+                    placeholder={t('group-placeholder')}
+                    searchPlaceholder={t('group-placeholder')}
+                    emptyText={t('empty-catalog-entries', { entity: t('absence-group-entity-label') })}
+                    data-testid="absence-type-group-select"
+                  />
                 </div>
               </CardContent>
             </Card>
-
-            <AbsenceTypeSettingsSection settings={formValues.settings} onFieldChange={updateSettingsField} />
           </div>
 
           <div className="gba:flex gba:shrink-0 gba:justify-end gba:gap-2 gba:border-t gba:border-border gba:bg-background gba:px-4 gba:py-3">

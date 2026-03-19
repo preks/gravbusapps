@@ -7,6 +7,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Combobox,
+  DateInput,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -25,10 +27,11 @@ import translations from '../_i18n'
 import { AbsenceEntitlementSettingsSection } from '../components/AbsenceEntitlementSettingsSection'
 import {
   buildAbsenceEntitlementObjectValue,
+  type AbsenceEntitlementDetailEntry,
+  type AbsenceEntitlementDetailSettings,
   defaultAbsenceEntitlementDetailSettings,
   defaultAbsenceEntitlementObjectSettings,
   getAbsenceEntitlementEditorState,
-  type AbsenceEntitlementDetailSettings,
   type AbsenceEntitlementObjectSettings,
   type AbsenceEntitlementObjectValue
 } from '../utils/absenceEntitlementObjectValue'
@@ -46,6 +49,24 @@ interface AbsenceEntitlementModalProps {
   onSave: (values: AbsenceEntitlementModalValues) => Promise<void>
   entitlement?: CatalogEntry | null
   absenceTypes: AbsenceType[]
+  absenceTypeVersions: CatalogEntry[]
+}
+
+const normalizeDateInputValue = (value: string): string => {
+  if (!value) {
+    return ''
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value
+  }
+
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(value)) {
+    const [day, month, year] = value.split('.')
+    return `${year}-${month}-${day}`
+  }
+
+  return value
 }
 
 export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = ({
@@ -53,19 +74,21 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
   onClose,
   onSave,
   entitlement,
-  absenceTypes
+  absenceTypes,
+  absenceTypeVersions
 }) => {
   const { t } = useTranslation(translations)
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [settings, setSettings] = useState<AbsenceEntitlementObjectSettings>(defaultAbsenceEntitlementObjectSettings)
-  const [detailSettings, setDetailSettings] = useState<AbsenceEntitlementDetailSettings>(
-    defaultAbsenceEntitlementDetailSettings
-  )
+  const [detailEntries, setDetailEntries] = useState<AbsenceEntitlementDetailEntry[]>([])
   const [extraObjectValue, setExtraObjectValue] = useState<JSONObject>({})
-  const [extraDetailValue, setExtraDetailValue] = useState<JSONObject>({})
-  const [extraDetails, setExtraDetails] = useState<JSONObject[]>([])
   const [isSaving, setIsSaving] = useState(false)
+
+  const entitlementTypeOptions = [
+    { value: 'YEARLY', label: t('type-yearly') },
+    { value: 'SPECIAL', label: t('type-special') }
+  ]
 
   useEffect(() => {
     if (!open) return
@@ -76,10 +99,8 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
     setCode(entitlement?.code || '')
     setName(entitlement?.value || '')
     setSettings(nextState.settings)
-    setDetailSettings(nextState.detailSettings)
+    setDetailEntries(nextState.detailEntries)
     setExtraObjectValue(nextState.extraObjectValue)
-    setExtraDetailValue(nextState.extraDetailValue)
-    setExtraDetails(nextState.extraDetails)
   }, [entitlement, open])
 
   const isSaveDisabled = isSaving || !code.trim() || !name.trim()
@@ -91,11 +112,40 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
     setSettings(current => ({ ...current, [field]: value }))
   }
 
-  const updateDetailField = <K extends keyof AbsenceEntitlementDetailSettings>(
+  const updateDetailField = <K extends keyof AbsenceEntitlementDetailEntry['settings']>(
+    detailId: string,
     field: K,
-    value: AbsenceEntitlementDetailSettings[K]
+    value: AbsenceEntitlementDetailEntry['settings'][K]
   ) => {
-    setDetailSettings(current => ({ ...current, [field]: value }))
+    setDetailEntries(current =>
+      current.map(detailEntry =>
+        detailEntry.id === detailId
+          ? { ...detailEntry, settings: { ...detailEntry.settings, [field]: value } }
+          : detailEntry
+      )
+    )
+  }
+
+  const createDetailId = () =>
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `detail-${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+  const addDetailEntry = (detailSettings: AbsenceEntitlementDetailSettings) => {
+    setDetailEntries(current => [
+      ...current,
+      {
+        id: createDetailId(),
+        settings: { ...defaultAbsenceEntitlementDetailSettings, ...detailSettings },
+        extraValue: {}
+      }
+    ])
+  }
+
+  const removeDetailEntry = (detailId: string) => {
+    setDetailEntries(current =>
+      current.length > 1 ? current.filter(detailEntry => detailEntry.id !== detailId) : current
+    )
   }
 
   const handleSubmit = async () => {
@@ -108,13 +158,7 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
       await onSave({
         code: code.trim(),
         name: name.trim(),
-        objectValue: buildAbsenceEntitlementObjectValue(
-          settings,
-          detailSettings,
-          extraObjectValue,
-          extraDetailValue,
-          extraDetails
-        )
+        objectValue: buildAbsenceEntitlementObjectValue(settings, detailEntries, extraObjectValue)
       })
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : t('save-absence-entitlement-error')
@@ -147,13 +191,14 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
               <CardHeader className="gba:border-b gba:border-border gba:bg-background">
                 <CardTitle>{t('entitlement-basic-section-title')}</CardTitle>
               </CardHeader>
-              <CardContent className="gba:grid gba:gap-3 gba:p-4 gba:md:grid-cols-2">
+              <CardContent className="gba:grid gba:gap-3 gba:p-4 gba:md:grid-cols-2 gba:xl:grid-cols-5">
                 <div className="gba:space-y-2">
                   <Label htmlFor="absence-entitlement-code">{t('field-code-label')}</Label>
                   <Input
                     id="absence-entitlement-code"
                     value={code}
                     onChange={event => setCode(event.target.value)}
+                    disabled={Boolean(entitlement?.id)}
                     data-testid="absence-entitlement-code-input"
                   />
                 </div>
@@ -164,6 +209,40 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
                     value={name}
                     onChange={event => setName(event.target.value)}
                     data-testid="absence-entitlement-name-input"
+                  />
+                </div>
+                <div className="gba:space-y-2">
+                  <Label>{t('field-type-label')}</Label>
+                  <Combobox
+                    value={settings.entitlement_type}
+                    onValueChange={value => updateSettingsField('entitlement_type', String(value || 'YEARLY'))}
+                    options={entitlementTypeOptions}
+                    placeholder={t('field-type-label')}
+                    searchPlaceholder={t('field-type-label')}
+                    emptyText={t('empty-catalog-entries', { entity: t('absence-entitlement-entity-label') })}
+                    data-testid="absence-entitlement-type-select"
+                  />
+                </div>
+                <div className="gba:space-y-2">
+                  <Label htmlFor="absence-entitlement-valid-from">{t('field-valid-from-label')}</Label>
+                  <DateInput
+                    id="absence-entitlement-valid-from"
+                    type="date"
+                    outputFormat="iso"
+                    value={normalizeDateInputValue(settings.valid_from)}
+                    onChange={value => updateSettingsField('valid_from', value || '')}
+                    data-testid="absence-entitlement-valid-from-input"
+                  />
+                </div>
+                <div className="gba:space-y-2">
+                  <Label htmlFor="absence-entitlement-valid-to">{t('field-valid-to-label')}</Label>
+                  <DateInput
+                    id="absence-entitlement-valid-to"
+                    type="date"
+                    outputFormat="iso"
+                    value={normalizeDateInputValue(settings.valid_to)}
+                    onChange={value => updateSettingsField('valid_to', value || '')}
+                    data-testid="absence-entitlement-valid-to-input"
                   />
                 </div>
               </CardContent>
@@ -181,19 +260,25 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
 
               <AbsenceEntitlementSettingsSection
                 settings={settings}
-                detailSettings={detailSettings}
+                detailEntries={detailEntries}
                 absenceTypes={absenceTypes}
+                absenceTypeVersions={absenceTypeVersions}
                 mode="settings"
                 onSettingsChange={updateSettingsField}
+                onAddDetail={addDetailEntry}
+                onRemoveDetail={removeDetailEntry}
                 onDetailChange={updateDetailField}
               />
 
               <AbsenceEntitlementSettingsSection
                 settings={settings}
-                detailSettings={detailSettings}
+                detailEntries={detailEntries}
                 absenceTypes={absenceTypes}
+                absenceTypeVersions={absenceTypeVersions}
                 mode="details"
                 onSettingsChange={updateSettingsField}
+                onAddDetail={addDetailEntry}
+                onRemoveDetail={removeDetailEntry}
                 onDetailChange={updateDetailField}
               />
             </Tabs>

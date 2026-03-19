@@ -11,6 +11,7 @@ const mapCatalogEntryToAbsenceType = (entry: CatalogEntry): AbsenceType => ({
   id: `${ABSENCE_TYPE_CATALOG}:${ABSENCE_TYPE_VERSION}:${entry.code}`,
   code: entry.code,
   value: entry.value,
+  type: entry.type,
   parentEntryId: entry.parentEntryId,
   objectValue:
     Array.isArray(entry.objectValue) || typeof entry.objectValue === 'object' ? entry.objectValue : undefined,
@@ -101,19 +102,23 @@ const useAbsenceTypes = (accessToken: string) => {
         throw new Error('Catalog manager client not available')
       }
 
-      const updatedEntry = await client.updateCatalogEntry(
-        ABSENCE_TYPE_CATALOG,
-        ABSENCE_TYPE_VERSION,
-        resolveCatalogEntryId(absenceTypes, id),
-        {
-          ...(updates.code ? { code: updates.code } : {}),
-          ...(updates.value !== undefined ? { value: updates.value } : {}),
-          ...(updates.parentEntryId !== undefined ? { parentEntryId: updates.parentEntryId } : {}),
-          ...(updates.objectValue !== undefined ? { objectValue: updates.objectValue } : {}),
-          ...(updates.localeCode ? { localeCode: updates.localeCode } : {}),
-          ...(updates.translations ? { translations: updates.translations } : {})
-        }
-      )
+      const existingType = absenceTypes.find(item => item.id === id)
+      if (!existingType) {
+        throw new Error('Absence type not found')
+      }
+
+      const entryId = resolveCatalogEntryId(absenceTypes, id)
+
+      const updatedEntry = await client.updateCatalogEntry(ABSENCE_TYPE_CATALOG, ABSENCE_TYPE_VERSION, entryId, {
+        id: entryId,
+        code: existingType.code,
+        value: updates.value !== undefined ? updates.value : existingType.value,
+        type: existingType.type,
+        parentEntryId: updates.parentEntryId !== undefined ? updates.parentEntryId : existingType.parentEntryId,
+        objectValue: updates.objectValue !== undefined ? updates.objectValue : existingType.objectValue,
+        localeCode: updates.localeCode || existingType.localeCode || 'en-US',
+        translations: updates.translations || existingType.translations || []
+      } as any)
 
       const updatedType = mapCatalogEntryToAbsenceType(updatedEntry as CatalogEntry)
       setAbsenceTypes(prev => prev.map(item => (item.id === id ? updatedType : item)))

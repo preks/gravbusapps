@@ -5,8 +5,15 @@ import useAbsenceTypes from '../../../core/hooks/useAbsenceTypes'
 import { useAbsenceCatalogEntries } from './useAbsenceCatalogEntries'
 import type { AbsenceEntitlementModalValues } from '../modals/AbsenceEntitlementModal'
 import { getAbsenceEntitlementDescription } from '../utils/absenceEntitlementObjectValue'
+import { getAbsencePolicyDescription, type AbsencePolicyObjectValue } from '../utils/absencePolicyObjectValue'
 import { getAbsenceGroupLabel, getAbsenceTypeTitle, type SetupSectionItem } from '../utils/absenceSetup'
-import { getAbsenceTypeVersionDescription } from '../utils/absenceTypeVersionObjectValue'
+import {
+  canEditAbsenceTypeVersion,
+  getAbsenceTypeVersionDescription,
+  getAbsenceTypeVersionSortValue,
+  getAbsenceTypeVersionTitle,
+  isAbsenceTypeVersionActive
+} from '../utils/absenceTypeVersionObjectValue'
 
 type TranslateFn = (key: string, values?: Record<string, string>) => string
 
@@ -48,12 +55,29 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
 
   const absenceTypeVersionItems = useMemo(
     () =>
-      absenceTypeVersionsCatalog.entries.map(entry => ({
-        id: entry.id,
-        title: entry.value || entry.code || t('untitled-absence-type-version'),
-        description: getAbsenceTypeVersionDescription(entry)
-      })),
-    [absenceTypeVersionsCatalog.entries, t]
+      [...absenceTypeVersionsCatalog.entries]
+        .sort((leftEntry, rightEntry) => {
+          const leftIsActive = isAbsenceTypeVersionActive(leftEntry)
+          const rightIsActive = isAbsenceTypeVersionActive(rightEntry)
+
+          if (leftIsActive !== rightIsActive) {
+            return leftIsActive ? -1 : 1
+          }
+
+          return getAbsenceTypeVersionSortValue(rightEntry) - getAbsenceTypeVersionSortValue(leftEntry)
+        })
+        .map(entry => {
+          const isActive = isAbsenceTypeVersionActive(entry)
+
+          return {
+            id: entry.id,
+            title: getAbsenceTypeVersionTitle(entry, absenceTypeState.absenceTypes, t('untitled-absence-type-version')),
+            description: getAbsenceTypeVersionDescription(entry),
+            statusLabel: isActive ? t('status-active') : t('status-inactive'),
+            canEdit: canEditAbsenceTypeVersion(entry)
+          }
+        }),
+    [absenceTypeState.absenceTypes, absenceTypeVersionsCatalog.entries, t]
   )
 
   const entitlementItems = useMemo(
@@ -83,7 +107,12 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
       entityLabel: t('absence-policy-entity-label'),
       title: t('absence-policies-title'),
       description: t('absence-policies-description'),
-      items: mapGenericItems(absencePoliciesCatalog.entries),
+      items: absencePoliciesCatalog.entries.map(entry => ({
+        id: entry.id,
+        title: entry.value || entry.code || t('absence-policy-entity-label'),
+        description:
+          getAbsencePolicyDescription(entry.objectValue as AbsencePolicyObjectValue | undefined) || entry.code
+      })),
       hook: absencePoliciesCatalog,
       icon: Shield,
       addButtonTestId: 'absence-setup-add-policy-button',
@@ -106,8 +135,10 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
     absenceTypeItems,
     absenceTypeVersionItems,
     entitlementItems,
+    absenceGroups: absenceGroupsCatalog.entries,
     absenceTypeVersionsCatalog,
     absenceEntitlementsCatalog,
+    absencePoliciesCatalog,
     genericCatalogConfigs
   }
 }
