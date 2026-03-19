@@ -126,6 +126,7 @@ const PAGE_GAP_PX = 24
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
+const DOCUMENT_LIVE_SYNC_POLL_INTERVAL_MS = 1000
 
 // Collaboration cursor styles
 const CURSOR_STYLES = `
@@ -417,6 +418,12 @@ function getSpaceIdFromWindow(): string | null {
   return new URLSearchParams(globalThis.window.location.search).get('spaceId')
 }
 
+function parseIsoDateMs(value?: string): number {
+  if (!value) return 0
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 function useNavigationPanelState(): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
   const [show, setShow] = useState(() => {
     if (globalThis.window === undefined) return false
@@ -479,10 +486,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const titleInputRef = useRef<HTMLInputElement>(null)
     const editorRef = useRef<any>(null) // Store editor instance
+    const lastRemoteUpdateMsRef = useRef<number>(parseIsoDateMs(document?.updatedAt))
 
     useEffect(() => {
       DocumentApiService.setAccessToken(accessTokenProp || null)
     }, [accessTokenProp])
+
+    useEffect(() => {
+      lastRemoteUpdateMsRef.current = parseIsoDateMs(document?.updatedAt)
+    }, [document?.id, document?.updatedAt])
 
     useEffect(() => {
       if (!document?.id) return
@@ -514,9 +526,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
           setLastSaved(new Date())
           setHasUnsavedChanges(false)
-          if (document.id) {
-            void versioning.loadVersions()
-          }
         } catch (error) {
           console.error('[PagedDocumentEditor] Failed to refresh document after stream commit:', error)
         }
@@ -526,7 +535,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       return () => {
         globalThis.window.removeEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
       }
-    }, [document?.id, title, versioning])
+    }, [document?.id, title])
 
     const resolvedLayout = resolvePageLayout(layoutFormatting)
     const paginationConfig = getPaginationConfigFromFormatting(layoutFormatting)
@@ -646,6 +655,54 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setLastSaved,
       setHasUnsavedChanges
     })
+
+    useEffect(() => {
+      if (!document?.id || !isYjsSynced) return
+
+      let cancelled = false
+
+      const pollLatestDocumentState = async () => {
+        try {
+          const latest = await DocumentApiService.getDocument(document.id)
+          if (!latest || cancelled) return
+
+          const latestUpdatedAtMs = parseIsoDateMs(latest.updatedAt)
+          if (latestUpdatedAtMs <= lastRemoteUpdateMsRef.current) return
+          lastRemoteUpdateMsRef.current = latestUpdatedAtMs
+
+          const editorInstance = editorRef.current as {
+            getHTML?: () => string
+            commands?: { setContent?: (html: string, emit?: boolean) => void }
+          } | null
+          if (!editorInstance) return
+
+          const latestHtml = latest.content || '<p></p>'
+          const currentHtml = editorInstance.getHTML?.() || ''
+          if (latestHtml && latestHtml !== currentHtml) {
+            editorInstance.commands?.setContent?.(latestHtml, true)
+          }
+
+          const nextTitle = latest.title || title
+          setTitle(prev => (prev === nextTitle ? prev : nextTitle))
+          setLastSaved(new Date(latestUpdatedAtMs || Date.now()))
+          setHasUnsavedChanges(false)
+        } catch (error) {
+          if (!cancelled) {
+            console.error('[PagedDocumentEditor] Live sync poll failed:', error)
+          }
+        }
+      }
+
+      void pollLatestDocumentState()
+      const pollInterval = globalThis.window.setInterval(() => {
+        void pollLatestDocumentState()
+      }, DOCUMENT_LIVE_SYNC_POLL_INTERVAL_MS)
+
+      return () => {
+        cancelled = true
+        globalThis.window.clearInterval(pollInterval)
+      }
+    }, [document?.id, isYjsSynced, title])
 
     // Seed collaborative title once synced (do not overwrite an existing value from the room).
     useEffect(() => {
