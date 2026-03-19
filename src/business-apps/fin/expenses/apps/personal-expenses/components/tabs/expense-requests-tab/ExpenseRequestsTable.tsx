@@ -133,11 +133,7 @@ function renderReqAdvanceCell(info: CellContext<ExpenseRequestRow, unknown>) {
 }
 function ExpenseRequestStatusCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
   const statusConfig = getExpenseRequestStatusDisplay(record.status || '')
-  return (
-    <span className="gba:inline-block gba:whitespace-nowrap">
-      <Badge variant={(statusConfig as any).badgeVariant || 'outline'}>{statusConfig.label}</Badge>
-    </span>
-  )
+  return <Badge variant={(statusConfig as any).badgeVariant || 'outline'}>{statusConfig.label}</Badge>
 }
 function renderReqStatusCell(info: CellContext<ExpenseRequestRow, unknown>) {
   return <ExpenseRequestStatusCell record={info.row.original} />
@@ -682,9 +678,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-        size: 180,
-        minSize: 160,
-        maxSize: 280,
+        size: 100,
         cell: renderReqStatusCell
       },
       {
