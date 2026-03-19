@@ -144,7 +144,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const handleSortingChange = useCallback(
     (newSorting: SortingState) => {
       if (newSorting.length === 0) {
-        setSorting({ ...DEFAULT_SORT })
+        if (sorting.field === 'createdAt') {
+          setSorting({ field: null, order: null, lastField: sorting.lastField })
+        } else {
+          setSorting({ ...DEFAULT_SORT })
+        }
       } else {
         const first = newSorting[0]
         setSorting({
@@ -155,7 +159,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       }
       setCurrentPage(1)
     },
-    [DEFAULT_SORT]
+    [DEFAULT_SORT, sorting.field, sorting.lastField]
   )
 
   const [selectedPlan, setSelectedPlan] = useState<ExpensePlan | null>(null)

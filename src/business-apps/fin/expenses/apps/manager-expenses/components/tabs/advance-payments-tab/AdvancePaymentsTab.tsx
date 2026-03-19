@@ -99,15 +99,22 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const resetPage = useCallback(() => setCurrentPage(1), [])
   useFilterSignatureReset(filterSignature, resetPage)
 
-  const handleSortingChange = useCallback((newState: SortingState) => {
-    if (newState.length === 0) {
-      setSorting({ field: 'createdAt', order: 'DESC' })
-    } else {
-      const first = newState[0]
-      setSorting({ field: first.id, order: first.desc ? 'DESC' : 'ASC' })
-    }
-    setCurrentPage(1)
-  }, [])
+  const handleSortingChange = useCallback(
+    (newState: SortingState) => {
+      if (newState.length === 0) {
+        if (sorting.field === 'createdAt') {
+          setSorting({ field: null, order: null })
+        } else {
+          setSorting({ field: 'createdAt', order: 'DESC' })
+        }
+      } else {
+        const first = newState[0]
+        setSorting({ field: first.id, order: first.desc ? 'DESC' : 'ASC' })
+      }
+      setCurrentPage(1)
+    },
+    [sorting.field]
+  )
 
   const handleSearchChange = useSearchHandler(setSearchTerm, setCurrentPage)
 
