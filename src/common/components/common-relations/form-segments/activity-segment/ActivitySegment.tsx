@@ -306,9 +306,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('activity-entity-label')} <span className="gba:text-destructive">*</span>
-              </FormLabel>
+              <FormLabel>{t('activity-entity-label')}</FormLabel>
               <FormControl>
                 <EntitySelect
                   entities={entities}
