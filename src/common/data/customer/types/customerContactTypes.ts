@@ -54,7 +54,6 @@ export const CustomerContactFields = {
   leads: 'lead', // CRM uses singular "lead"
   picture: 'pictureUrl',
   pictureThumbnail: 'pictureThumbnailUrl',
-  type: 'contactType',
 
   // CRM-specific fields
   salesCampaignId: 'salesCampaign'
@@ -112,7 +111,6 @@ export const customerContactFormFields = {
   // Override mappings for CRM field name differences
   description: 'bio', // Form uses 'bio', backend expects 'description' → map bio to description
   jobPosition: 'jobTitle', // Form uses 'jobTitle', backend expects 'jobTitle' → map jobPosition to jobTitle
-  type: 'contactType', // Form uses 'contactType', backend expects 'type' → map contactType to type
   picture: 'pictureUrl', // Form uses 'pictureUrl', backend expects 'pictureUrl' → map picture to pictureUrl
   pictureThumbnail: 'pictureThumbnailUrl', // Form uses 'pictureThumbnailUrl', backend expects 'pictureThumbnailUrl'
   // CRM-specific fields
@@ -123,7 +121,7 @@ export const customerContactFormFields = {
  * Build Customer Contact payload for CRM module
  *
  * Automatically handles:
- * - Field name mapping via customerContactFormFields (jobPosition → jobTitle, type → contactType, etc.)
+ * - Field name mapping via customerContactFormFields (jobPosition → jobTitle, etc.)
  * - Empty value exclusion
  * - ID/version automatically included if present (determines update vs create)
  * - CRM-specific fields (salesCampaign, linkedinUrl, xingUrl, bio, workExperienceYears)
@@ -143,11 +141,6 @@ export const buildCustomerContactPayload = (contact: Partial<CustomerContact>) =
     delete basePayload.communicationChannels
   }
 
-  // Omit contactType when empty so backend does not receive "" (enum coercion error)
-  if (basePayload.contactType === '') {
-    delete basePayload.contactType
-  }
-
   return {
     contact: basePayload
   }
@@ -158,7 +151,6 @@ export const buildCustomerContactPayload = (contact: Partial<CustomerContact>) =
  *
  * Handles CRM-specific field name mappings (fallback only):
  * - jobTitle → jobPosition (fallback only)
- * - contactType → type (fallback only)
  * - pictureUrl → picture (fallback only)
  * - pictureThumbnailUrl → pictureThumbnail (fallback only)
  * - bio → description (fallback only)
@@ -167,7 +159,7 @@ export const buildCustomerContactPayload = (contact: Partial<CustomerContact>) =
  */
 export function toCustomerContact(raw: any): CustomerContact {
   // Extract incorrectly named fields to exclude from spread
-  const { contactType, jobTitle, lead, pictureUrl, pictureThumbnailUrl, bio, ...rest } = raw
+  const { jobTitle, lead, pictureUrl, pictureThumbnailUrl, bio, ...rest } = raw
 
   // Use accountContacts from GraphQL if available, otherwise fallback to deprecated accountId/account
   const accountContacts: CustomerAccountContact[] | undefined = raw.accountContacts
@@ -196,7 +188,6 @@ export function toCustomerContact(raw: any): CustomerContact {
     ...rest,
     // Map only if target field doesn't already exist (fallback mapping)
     jobPosition: raw.jobPosition ?? jobTitle,
-    type: raw.type ?? contactType,
     picture: raw.picture ?? pictureUrl,
     pictureThumbnail: raw.pictureThumbnail ?? pictureThumbnailUrl,
     description: raw.description ?? bio,
