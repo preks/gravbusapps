@@ -18,7 +18,8 @@ const INTERNAL_METADATA_FIELDS = new Set([
   '_workflow_id',
   '_recipient_id',
   '_isBulkCollectionPending',
-  '_automationId'
+  '_automationId',
+  '__columnLabels__'
 ])
 
 export interface UseSpreadsheetBulkRowsProps {
@@ -37,12 +38,19 @@ export interface UseSpreadsheetBulkRowsProps {
   ) => Promise<Record<string, unknown> | null>
   onRowAdd?: (appId: string, sheetId: string, data: Record<string, unknown>) => Promise<Record<string, unknown>>
   saveTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>
+  /** Called when automation adds/updates rows so the grid can refresh (e.g. bump snapshotSeed). */
+  onRequestGridRefresh?: () => void
 }
 
 export interface SpreadsheetBulkRowsHandlers {
   handleAddRows: (rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => void
   handleUpdateRows: (
-    updates: Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+    updates: Array<{
+      workflowId: string
+      recipientId?: string
+      cells: Record<string, unknown>
+      columnLabels?: Record<string, string>
+    }>
   ) => void
   handleAddRowsRef: React.MutableRefObject<typeof handleAddRows | null>
   handleUpdateRowsRef: React.MutableRefObject<typeof handleUpdateRows | null>
@@ -50,7 +58,12 @@ export interface SpreadsheetBulkRowsHandlers {
 
 type HandleAddRowsFn = (rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => void
 type HandleUpdateRowsFn = (
-  updates: Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+  updates: Array<{
+    workflowId: string
+    recipientId?: string
+    cells: Record<string, unknown>
+    columnLabels?: Record<string, string>
+  }>
 ) => void
 
 const AUTO_FIT_MIN_WIDTH = 80
@@ -95,14 +108,16 @@ function findNewFields(allFieldNames: Set<string>, existingColumns: SpreadsheetC
 /**
  * Create columns for new fields
  */
-function createColumnsForFields(newFieldNames: string[]): SpreadsheetColumn[] {
+function createColumnsForFields(newFieldNames: string[], columnLabels?: Record<string, string>): SpreadsheetColumn[] {
   return newFieldNames.map((fieldName, index) => {
     const trackingCol = TRACKING_COLUMNS.find(tc => tc.name === fieldName)
 
     let label: string
     let colType: SpreadsheetColumn['type'] = 'text'
 
-    if (trackingCol) {
+    if (columnLabels?.[fieldName]?.trim()) {
+      label = columnLabels[fieldName].trim()
+    } else if (trackingCol) {
       label = trackingCol.label
       if (trackingCol.id === 'sent_at' || trackingCol.id === 'responded_at') {
         colType = 'datetime'
@@ -266,6 +281,23 @@ function createTrackingHeaderRow(updatedColumns: SpreadsheetColumn[]): Record<st
   )
 }
 
+function mergeColumnLabelsFromUpdates(
+  updates: Array<{ columnLabels?: Record<string, string> }>
+): Record<string, string> | undefined {
+  const merged: Record<string, string> = {}
+  let hasAny = false
+  for (const u of updates) {
+    if (!u.columnLabels) continue
+    for (const [name, label] of Object.entries(u.columnLabels)) {
+      if (typeof label === 'string' && label.trim()) {
+        merged[name] = label.trim()
+        hasAny = true
+      }
+    }
+  }
+  return hasAny ? merged : undefined
+}
+
 function collectFieldNamesFromUpdates(
   updates: Array<{ cells: Record<string, unknown> }>,
   skipFields: Set<string>
@@ -328,8 +360,34 @@ function buildCompletedRowIndices(
   return { byWorkflowId: completedRowByWorkflowId, byRecipientId: completedRowByRecipientId }
 }
 
-type UpdateEntry = { workflowId: string; recipientId?: string; cells: Record<string, unknown> }
-type UpdatePayload = Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+/** Find rows by workflowId/recipientId for completion updates, regardless of current status (e.g. "Sent" → "Completed"). */
+function buildCompletionTargetRowIndices(
+  currentData: Record<string, unknown>[],
+  completedByWorkflowId: Map<string, { workflowId: string; recipientId?: string; cells: Record<string, unknown> }>,
+  completedByRecipientId: Map<string, { workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+): { byWorkflowId: Map<string, number>; byRecipientId: Map<string, number> } {
+  const byWorkflowId = new Map<string, number>()
+  const byRecipientId = new Map<string, number>()
+  currentData.forEach((row, idx) => {
+    const workflowId = row._workflow_id as string | undefined
+    const recipientId = row.recipientId as string | undefined
+    if (workflowId && completedByWorkflowId.has(workflowId) && !byWorkflowId.has(workflowId)) {
+      byWorkflowId.set(workflowId, idx)
+    }
+    if (recipientId && completedByRecipientId.has(recipientId) && !byRecipientId.has(recipientId)) {
+      byRecipientId.set(recipientId, idx)
+    }
+  })
+  return { byWorkflowId, byRecipientId }
+}
+
+type UpdateEntry = {
+  workflowId: string
+  recipientId?: string
+  cells: Record<string, unknown>
+  columnLabels?: Record<string, string>
+}
+type UpdatePayload = Array<UpdateEntry>
 
 function applyRowUpdates(
   currentData: Record<string, unknown>[],
@@ -340,7 +398,9 @@ function applyRowUpdates(
   completedByRecipientId: Map<string, UpdateEntry>,
   recipientIdToBestRowIndex: Map<string, number>,
   completedRowByWorkflowId: Map<string, number>,
-  completedRowByRecipientId: Map<string, number>
+  completedRowByRecipientId: Map<string, number>,
+  completionTargetByWorkflowId: Map<string, number>,
+  completionTargetByRecipientId: Map<string, number>
 ): {
   updatedExisting: Record<string, unknown>[]
   matchCount: number
@@ -414,6 +474,43 @@ function applyRowUpdates(
           _workflow_id: update.workflowId,
           _updatedAt: new Date().toISOString()
         }
+      }
+    }
+
+    // First-time completion: match by workflowId/recipientId regardless of row status (e.g. "Sent" → "Completed")
+    if (
+      workflowId &&
+      completedByWorkflowId.has(workflowId) &&
+      !matchedCompletedWorkflowIds.has(workflowId) &&
+      completionTargetByWorkflowId.get(workflowId) === rowIndex
+    ) {
+      matchCount++
+      const update = completedByWorkflowId.get(workflowId)!
+      matchedCompletedWorkflowIds.add(update.workflowId)
+      matchedUpdateIds.add(update.workflowId)
+      return {
+        ...row,
+        ...mapCellsToColumnNames(update.cells, columnMap),
+        _workflow_id: update.workflowId,
+        _updatedAt: new Date().toISOString()
+      }
+    }
+
+    if (
+      recipientId &&
+      completedByRecipientId.has(recipientId) &&
+      !matchedCompletedRecipientIds.has(recipientId) &&
+      completionTargetByRecipientId.get(recipientId) === rowIndex
+    ) {
+      matchCount++
+      const update = completedByRecipientId.get(recipientId)!
+      matchedCompletedRecipientIds.add(recipientId)
+      matchedUpdateIds.add(update.workflowId)
+      return {
+        ...row,
+        ...mapCellsToColumnNames(update.cells, columnMap),
+        _workflow_id: update.workflowId,
+        _updatedAt: new Date().toISOString()
       }
     }
 
@@ -682,7 +779,8 @@ export function useSpreadsheetBulkRows({
   onSheetUpdate,
   onRowUpdate,
   onRowAdd,
-  saveTimeoutRef
+  saveTimeoutRef,
+  onRequestGridRefresh
 }: UseSpreadsheetBulkRowsProps): SpreadsheetBulkRowsHandlers {
   const handleAddRowsRef = useRef<HandleAddRowsFn | null>(null)
   const handleUpdateRowsRef = useRef<HandleUpdateRowsFn | null>(null)
@@ -735,6 +833,7 @@ export function useSpreadsheetBulkRows({
       const { columns: autoSizedColumns, changed: autoWidthChanged } = applyDynamicColumnWidths(updatedColumns, newData)
       localSheetDataRef.current = newData
       setLocalSheetData(newData)
+      onRequestGridRefresh?.()
 
       // Persist changes
       // NOTE: `onAppUpdate` does not persist sheet row data in database-backed mode.
@@ -805,18 +904,27 @@ export function useSpreadsheetBulkRows({
       onSheetUpdate,
       localSheetDataRef,
       setLocalSheetData,
-      saveTimeoutRef
+      saveTimeoutRef,
+      onRequestGridRefresh
     ]
   )
 
   const handleUpdateRows = useCallback(
-    (updates: Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>) => {
+    (
+      updates: Array<{
+        workflowId: string
+        recipientId?: string
+        cells: Record<string, unknown>
+        columnLabels?: Record<string, string>
+      }>
+    ) => {
       clearPendingSave(saveTimeoutRef)
       if (!activeSheet || updates.length === 0) return
 
       const allFieldNames = collectFieldNamesFromUpdates(updates, INTERNAL_METADATA_FIELDS)
       const newFieldNames = findNewFields(allFieldNames, activeSheet.columns)
-      const newColumns = createColumnsForFields(newFieldNames)
+      const mergedColumnLabels = mergeColumnLabelsFromUpdates(updates)
+      const newColumns = createColumnsForFields(newFieldNames, mergedColumnLabels)
       const updatedColumns = mergeColumns(activeSheet.columns, newColumns)
       const columnMap = buildColumnLookupMap(updatedColumns)
       const { completedUpdates, nonCompletedUpdates } = splitUpdatesByCompletion(updates)
@@ -827,6 +935,8 @@ export function useSpreadsheetBulkRows({
       const recipientIdToBestRowIndex = buildRecipientIdToBestRowIndex(currentData, updateByRecipientId)
       const { byWorkflowId: completedRowByWorkflowId, byRecipientId: completedRowByRecipientId } =
         buildCompletedRowIndices(currentData, completedByWorkflowId, completedByRecipientId)
+      const { byWorkflowId: completionTargetByWorkflowId, byRecipientId: completionTargetByRecipientId } =
+        buildCompletionTargetRowIndices(currentData, completedByWorkflowId, completedByRecipientId)
 
       const {
         updatedExisting,
@@ -844,7 +954,9 @@ export function useSpreadsheetBulkRows({
         completedByRecipientId,
         recipientIdToBestRowIndex,
         completedRowByWorkflowId,
-        completedRowByRecipientId
+        completedRowByRecipientId,
+        completionTargetByWorkflowId,
+        completionTargetByRecipientId
       )
 
       const unmatchedUpdates = buildUnmatchedUpdates({
@@ -865,6 +977,7 @@ export function useSpreadsheetBulkRows({
 
       localSheetDataRef.current = newData
       setLocalSheetData(newData)
+      onRequestGridRefresh?.()
 
       persistColumnChanges({
         shouldPersistColumns: newColumns.length > 0 || autoWidthChanged,
@@ -886,8 +999,9 @@ export function useSpreadsheetBulkRows({
           localSheetDataRef,
           setLocalSheetData
         })
+      }
+      if (addedRows.length > 0) {
         persistAddedRows({ addedRows, onRowAdd, onDataChange, appId: app.id, sheetId: activeSheet.id, newData })
-        return
       }
       if (matchCount > 0 || addedRows.length > 0) {
         onDataChange?.(activeSheet.id, newData)
@@ -903,7 +1017,8 @@ export function useSpreadsheetBulkRows({
       onRowAdd,
       localSheetDataRef,
       setLocalSheetData,
-      saveTimeoutRef
+      saveTimeoutRef,
+      onRequestGridRefresh
     ]
   )
 

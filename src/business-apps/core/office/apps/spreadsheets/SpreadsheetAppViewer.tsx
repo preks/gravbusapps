@@ -914,6 +914,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [showPublishDialog, setShowPublishDialog] = useState(false)
   const [showComments, setShowComments] = useState(false)
 
+  // Bump snapshot seed so Univer reinitializes with fresh data when automation adds/updates rows.
+  // Clear bootstrap snapshot so the grid builds from current localSheetData (which has the new rows).
+  const requestGridRefresh = useCallback(() => {
+    setBootstrapSnapshot(null)
+    setBootstrapSnapshotSeed(prev => `${prev}-refresh-${Date.now()}`)
+  }, [])
+
   // --- Bulk row handlers (used by automation responses) ---
   const bulkRows = useSpreadsheetBulkRows({
     app,
@@ -925,7 +932,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onSheetUpdate,
     onRowUpdate,
     onRowAdd,
-    saveTimeoutRef
+    saveTimeoutRef,
+    onRequestGridRefresh: requestGridRefresh
   })
 
   // Persist automations/workflow links back into the sheet config
@@ -956,7 +964,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onAddRows: bulkRows.handleAddRows,
     onUpdateRows: bulkRows.handleUpdateRows,
     enablePolling: true,
-    pollInterval: 10000
+    pollInterval: 30000
   })
 
   const [hasTaskForCollectionCopy, setHasTaskForCollectionCopy] = useState(false)
@@ -1019,7 +1027,42 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleSubmitCollection = useCallback(async () => {
     if (!userId || !automations.completeExcelCollectionTask) return
-    const result = await automations.completeExcelCollectionTask(app.id)
+
+    // Gather spreadsheet row data so it gets captured in the report sheet
+    const internalKeys = new Set([
+      '_id',
+      '_createdAt',
+      '_updatedAt',
+      '_workflow_id',
+      '_recipient_id',
+      '_isBulkCollectionPending',
+      '_automationId'
+    ])
+    let formData: Record<string, unknown> | undefined
+    const sourceRows = localSheetDataRef.current
+    if (sourceRows?.length > 0) {
+      const firstDataRow = sourceRows.find(row =>
+        Object.entries(row).some(([k, v]) => !internalKeys.has(k) && v != null && String(v).trim() !== '')
+      )
+      if (firstDataRow) {
+        formData = {}
+        for (const [key, value] of Object.entries(firstDataRow)) {
+          if (!internalKeys.has(key) && value != null && value !== '') {
+            formData[key] = value
+          }
+        }
+        // Include column headers so the response sheet gets proper labels (not "Unnamed Column")
+        const columnLabels: Record<string, string> = {}
+        for (const col of activeSheet.columns.filter(c => c.isVisible !== false)) {
+          if (col.label?.trim()) columnLabels[col.name] = col.label.trim()
+        }
+        if (Object.keys(columnLabels).length > 0) {
+          formData.__columnLabels__ = columnLabels
+        }
+      }
+    }
+
+    const result = await automations.completeExcelCollectionTask(app.id, formData)
     if (result.success) {
       const submittedAt = new Date().toISOString()
       try {
@@ -1038,7 +1081,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     } else {
       toast.error(result.error || 'Failed to submit')
     }
-  }, [app, automations.completeExcelCollectionTask, onAppUpdate, onBack, userId])
+  }, [activeSheet.columns, app, automations.completeExcelCollectionTask, onAppUpdate, onBack, userId])
 
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
   const handleOpenAICapability = useCallback((capability: AICapability) => {
@@ -1428,6 +1471,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
 
       const worksheet = getWorksheetFromSnapshot(snapshot, activeSheetId)
+      const wsRowCount =
+        typeof (worksheet as { rowCount?: number })?.rowCount === 'number'
+          ? (worksheet as { rowCount: number }).rowCount
+          : 1000
+      const wsColCount =
+        typeof (worksheet as { columnCount?: number })?.columnCount === 'number'
+          ? (worksheet as { columnCount: number }).columnCount
+          : 32
 
       const visibleColumns = activeSheet.columns.filter(c => c.isVisible !== false)
       const current = localSheetDataRef.current
@@ -1435,8 +1486,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         | Record<string, Record<string, unknown>>
         | undefined
       const cellDataFromGrid = spreadsheetGridRef.current?.getVisibleRangeValues?.(
-        current.length,
-        visibleColumns.length
+        Math.min(current.length, wsRowCount),
+        Math.min(visibleColumns.length, wsColCount)
       )
       const cellData =
         cellDataFromGrid && typeof cellDataFromGrid === 'object' ? cellDataFromGrid : cellDataFromSnapshot
