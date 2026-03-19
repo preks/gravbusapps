@@ -1,55 +1,64 @@
 import type { Editor } from '@tiptap/react'
 import type { DocumentPagesFormatting, PageNumberAlignment, PageNumberNumeralStyle } from '../../types/document'
-import { normalizeStoredPagesFormatting } from '../../utils/pageLayoutUtils'
+import { normalizeStoredPagesFormatting, sanitizeStandalonePageNumberTemplates } from '../../utils/pageLayoutUtils'
 import type { PagesOptionUpdates } from '@/components/tiptap-extensions/tiptap-custom-pagination'
 
-function paragraph(align: string): string {
-  return `<p style="text-align: ${align}">{page}</p>`
+type PagesOptionField =
+  | 'header'
+  | 'footer'
+  | 'headerFirstPage'
+  | 'footerFirstPage'
+  | 'headerOdd'
+  | 'headerEven'
+  | 'footerOdd'
+  | 'footerEven'
+
+const STORAGE_HTML_FIELD_BY_OPTION: Record<PagesOptionField, keyof NonNullable<Editor['storage']>['pages']> = {
+  header: 'headerHTML',
+  footer: 'footerHTML',
+  headerFirstPage: 'headerFirstPageHTML',
+  footerFirstPage: 'footerFirstPageHTML',
+  headerOdd: 'headerOddHTML',
+  headerEven: 'headerEvenHTML',
+  footerOdd: 'footerOddHTML',
+  footerEven: 'footerEvenHTML'
 }
 
-/** Outside = flush on outer margin; Inside = toward gutter (inset). Footer only. */
-function paragraphInsideOutsideFooter(kind: 'inside' | 'outside', oddPage: boolean): string {
-  if (kind === 'outside') {
-    if (oddPage) {
-      return '<p style="text-align:right;margin:0">{page}</p>'
+function stripHtmlToText(value: string): string {
+  return value
+    .replace(/\u200B/g, '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function isStandalonePageNumberTemplate(value: string | null | undefined): boolean {
+  if (!value) return false
+  return stripHtmlToText(value) === '{page}'
+}
+
+function getLegacyStandaloneTemplateResetUpdates(editor: Editor): Partial<PagesOptionUpdates> {
+  const updates: Partial<PagesOptionUpdates> = {}
+  const pagesStorage = (editor as Editor & { storage?: { pages?: Record<string, unknown> } }).storage?.pages
+  const pagesExtension = (
+    editor as Editor & {
+      extensionManager?: { extensions?: Array<{ name?: string; options?: Record<string, unknown> }> }
     }
-    return '<p style="text-align:left;margin:0">{page}</p>'
-  }
-  if (oddPage) {
-    return '<p style="text-align:left;margin:0;padding-left:18%;box-sizing:border-box">{page}</p>'
-  }
-  return '<p style="text-align:right;margin:0;padding-right:18%;box-sizing:border-box">{page}</p>'
-}
+  ).extensionManager?.extensions?.find(extension => extension.name === 'pages')
+  const pagesOptions = pagesExtension?.options ?? {}
 
-function headerTextAlign(alignment: PageNumberAlignment, oddPage: boolean): string {
-  switch (alignment) {
-    case 'left':
-      return 'left'
-    case 'right':
-      return 'right'
-    case 'center':
-      return 'center'
-    case 'outside':
-      return oddPage ? 'right' : 'left'
-    case 'inside':
-      return oddPage ? 'left' : 'right'
-    default:
-      return 'center'
-  }
-}
+  ;(Object.keys(STORAGE_HTML_FIELD_BY_OPTION) as PagesOptionField[]).forEach(field => {
+    const storageValue = pagesStorage?.[STORAGE_HTML_FIELD_BY_OPTION[field]]
+    const optionValue = pagesOptions[field]
+    const currentValue =
+      typeof storageValue === 'string' ? storageValue : typeof optionValue === 'string' ? optionValue : null
+    if (isStandalonePageNumberTemplate(currentValue)) {
+      updates[field] = ''
+    }
+  })
 
-/**
- * Page number on its own paragraph above a blank line for header body (TipTap-safe: no div).
- */
-function headerPageNumberBand(alignment: PageNumberAlignment, oddPage: boolean): string {
-  const ta = headerTextAlign(alignment, oddPage)
-  const pad =
-    alignment === 'inside' && oddPage
-      ? 'padding-left:18%;'
-      : alignment === 'inside' && !oddPage
-        ? 'padding-right:18%;'
-        : ''
-  return `<p style="text-align:${ta};margin:0;padding-bottom:8px;${pad}box-sizing:border-box">{page}</p><p><br></p>`
+  return updates
 }
 
 export interface ApplyPageNumberPlacementParams {
@@ -65,52 +74,12 @@ export function applyPageNumberPlacement(editor: Editor, params: ApplyPageNumber
   const { position, alignment, showOnFirstPage, numeralStyle, startAt } = params
 
   const updates: PagesOptionUpdates = {
+    ...getLegacyStandaloneTemplateResetUpdates(editor),
+    pageNumberRegion: position,
     pageNumberNumeralStyle: numeralStyle,
     pageNumberStartAt: Math.max(1, Math.floor(startAt) || 1),
-    pageNumberAlignment: alignment
-  }
-
-  if (position === 'header') {
-    if (alignment === 'inside' || alignment === 'outside') {
-      updates.differentOddEven = true
-      updates.headerOdd = headerPageNumberBand(alignment, true)
-      updates.headerEven = headerPageNumberBand(alignment, false)
-      updates.header = '<p></p>'
-    } else {
-      updates.differentOddEven = false
-      updates.header = headerPageNumberBand(alignment, true)
-      updates.headerOdd = '<p></p>'
-      updates.headerEven = '<p></p>'
-    }
-  } else {
-    if (alignment === 'inside' || alignment === 'outside') {
-      updates.differentOddEven = true
-      const kind = alignment === 'outside' ? 'outside' : 'inside'
-      updates.footerOdd = paragraphInsideOutsideFooter(kind, true)
-      updates.footerEven = paragraphInsideOutsideFooter(kind, false)
-      updates.footer = '<p></p>'
-    } else {
-      updates.differentOddEven = false
-      updates.footer = paragraph(alignment)
-      updates.footerOdd = '<p></p>'
-      updates.footerEven = '<p></p>'
-    }
-  }
-
-  if (!showOnFirstPage) {
-    updates.differentFirstPage = true
-    if (position === 'header') {
-      updates.headerFirstPage = '<p></p>'
-    } else {
-      updates.footerFirstPage = '<p></p>'
-    }
-  } else {
-    updates.differentFirstPage = false
-    if (position === 'header') {
-      updates.headerFirstPage = '<p></p>'
-    } else {
-      updates.footerFirstPage = '<p></p>'
-    }
+    pageNumberAlignment: alignment,
+    pageNumberShowOnFirstPage: showOnFirstPage
   }
 
   const ok = cmds.setPagesOptions?.(updates) ?? false
@@ -132,52 +101,12 @@ export function mergePagesFormattingAfterPageNumbersApply(
   const startAt = Math.max(1, Math.floor(params.startAt) || 1)
   const next: DocumentPagesFormatting = {
     ...base,
+    pageNumberRegion: params.position,
     pageNumberNumeralStyle: params.numeralStyle,
     pageNumberStartAt: startAt,
     pageNumberAlignment: params.alignment,
-    pageNumberRegion: params.position
+    pageNumberShowOnFirstPage: params.showOnFirstPage
   }
 
-  if (params.position === 'header') {
-    if (params.alignment === 'inside' || params.alignment === 'outside') {
-      next.differentOddEven = true
-      next.headerOdd = headerPageNumberBand(params.alignment, true)
-      next.headerEven = headerPageNumberBand(params.alignment, false)
-      next.header = '<p></p>'
-    } else {
-      next.differentOddEven = false
-      next.header = headerPageNumberBand(params.alignment, true)
-      next.headerOdd = '<p></p>'
-      next.headerEven = '<p></p>'
-    }
-    if (!params.showOnFirstPage) {
-      next.differentFirstPage = true
-      next.headerFirstPage = '<p></p>'
-    } else {
-      next.differentFirstPage = false
-      next.headerFirstPage = '<p></p>'
-    }
-  } else {
-    if (params.alignment === 'inside' || params.alignment === 'outside') {
-      const kind = params.alignment === 'outside' ? 'outside' : 'inside'
-      next.differentOddEven = true
-      next.footerOdd = paragraphInsideOutsideFooter(kind, true)
-      next.footerEven = paragraphInsideOutsideFooter(kind, false)
-      next.footer = '<p></p>'
-    } else {
-      next.differentOddEven = false
-      next.footer = paragraph(params.alignment)
-      next.footerOdd = '<p></p>'
-      next.footerEven = '<p></p>'
-    }
-    if (!params.showOnFirstPage) {
-      next.differentFirstPage = true
-      next.footerFirstPage = '<p></p>'
-    } else {
-      next.differentFirstPage = false
-      next.footerFirstPage = '<p></p>'
-    }
-  }
-
-  return normalizeStoredPagesFormatting(next) ?? next
+  return sanitizeStandalonePageNumberTemplates(normalizeStoredPagesFormatting(next)) ?? next
 }

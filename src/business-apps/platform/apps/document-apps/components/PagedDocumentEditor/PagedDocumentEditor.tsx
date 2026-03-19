@@ -79,6 +79,7 @@ import {
   getPaginationConfigFromFormatting,
   getPagesConfigFromFormatting,
   normalizeStoredPagesFormatting,
+  sanitizeStandalonePageNumberTemplates,
   resolvePageLayout,
   getDefaultPageLayout,
   DEFAULT_PAGE_COLOR
@@ -813,7 +814,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         pageColor: fromDoc.pageColor,
         pageless: fromDoc.pageless
       })
-    }, [document?.id, initialFormatting])
+    }, [document?.id, document?.formatting, initialFormatting])
 
     useEffect(() => {
       setPagesEditorState({
@@ -997,36 +998,38 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         if (!pagesFromEditor) {
           if (import.meta.env.DEV) {
             console.info('[document-pages-debug] persist pages (no editor HTML snapshot)', {
-              fallbackPages: fb
+              fallbackPages: sanitizeStandalonePageNumberTemplates(fb)
             })
           }
-          return fb
+          return sanitizeStandalonePageNumberTemplates(fb)
         }
         if (!fb) {
           if (import.meta.env.DEV) {
             console.info('[document-pages-debug] persist pages (editor only)', {
-              pagesFromEditor
+              pagesFromEditor: sanitizeStandalonePageNumberTemplates(pagesFromEditor)
             })
           }
-          return pagesFromEditor
+          return sanitizeStandalonePageNumberTemplates(pagesFromEditor)
         }
         /** Null header/footer in storage means "cleared / use options" — do not wipe explicit fallback (e.g. `{page}` from Page Numbers). */
-        const merged = {
-          ...fb,
-          ...pagesFromEditor,
-          header: pagesFromEditor.header ?? fb.header,
-          footer: pagesFromEditor.footer ?? fb.footer,
-          headerFirstPage: pagesFromEditor.headerFirstPage ?? fb.headerFirstPage,
-          footerFirstPage: pagesFromEditor.footerFirstPage ?? fb.footerFirstPage,
-          headerOdd: pagesFromEditor.headerOdd ?? fb.headerOdd,
-          headerEven: pagesFromEditor.headerEven ?? fb.headerEven,
-          footerOdd: pagesFromEditor.footerOdd ?? fb.footerOdd,
-          footerEven: pagesFromEditor.footerEven ?? fb.footerEven,
-          pageNumberNumeralStyle: fb.pageNumberNumeralStyle,
-          pageNumberStartAt: fb.pageNumberStartAt,
-          pageNumberAlignment: fb.pageNumberAlignment,
-          pageNumberRegion: fb.pageNumberRegion
-        }
+        const merged =
+          sanitizeStandalonePageNumberTemplates({
+            ...fb,
+            ...pagesFromEditor,
+            header: pagesFromEditor.header ?? fb.header,
+            footer: pagesFromEditor.footer ?? fb.footer,
+            headerFirstPage: pagesFromEditor.headerFirstPage ?? fb.headerFirstPage,
+            footerFirstPage: pagesFromEditor.footerFirstPage ?? fb.footerFirstPage,
+            headerOdd: pagesFromEditor.headerOdd ?? fb.headerOdd,
+            headerEven: pagesFromEditor.headerEven ?? fb.headerEven,
+            footerOdd: pagesFromEditor.footerOdd ?? fb.footerOdd,
+            footerEven: pagesFromEditor.footerEven ?? fb.footerEven,
+            pageNumberNumeralStyle: fb.pageNumberNumeralStyle,
+            pageNumberStartAt: fb.pageNumberStartAt,
+            pageNumberAlignment: fb.pageNumberAlignment,
+            pageNumberRegion: fb.pageNumberRegion,
+            pageNumberShowOnFirstPage: fb.pageNumberShowOnFirstPage
+          }) ?? fb
         if (import.meta.env.DEV) {
           console.info('[document-pages-debug] persist pages merge', {
             fallbackSnippet: {
@@ -1627,9 +1630,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   onDblClickHeaderFooterPreventClose: event =>
                     (event.target instanceof Node && editorChromeRef.current?.contains(event.target)) ?? false,
                   documentTitle: (document?.title || initialTitle || '').trim(),
+                  pageNumberRegion: pagesFormattingConfig.pageNumberRegion,
                   pageNumberNumeralStyle: pagesFormattingConfig.pageNumberNumeralStyle,
                   pageNumberStartAt: pagesFormattingConfig.pageNumberStartAt,
-                  pageNumberAlignment: pagesFormattingConfig.pageNumberAlignment
+                  pageNumberAlignment: pagesFormattingConfig.pageNumberAlignment,
+                  pageNumberShowOnFirstPage: pagesFormattingConfig.pageNumberShowOnFirstPage
                 })
               ]
             : []),
@@ -1937,9 +1942,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         accentColor: pagesFormattingConfig.accentColor,
         headerAccentColor: pagesFormattingConfig.headerAccentColor,
         footerAccentColor: pagesFormattingConfig.footerAccentColor,
+        pageNumberRegion: pagesFormattingConfig.pageNumberRegion,
         pageNumberNumeralStyle: pagesFormattingConfig.pageNumberNumeralStyle,
         pageNumberStartAt: pagesFormattingConfig.pageNumberStartAt,
-        pageNumberAlignment: pagesFormattingConfig.pageNumberAlignment
+        pageNumberAlignment: pagesFormattingConfig.pageNumberAlignment,
+        pageNumberShowOnFirstPage: pagesFormattingConfig.pageNumberShowOnFirstPage
       })
     }, [
       editor,
@@ -1967,7 +1974,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       pagesFormattingConfig.headerAccentColor,
       pagesFormattingConfig.pageNumberNumeralStyle,
       pagesFormattingConfig.pageNumberStartAt,
-      pagesFormattingConfig.pageNumberAlignment
+      pagesFormattingConfig.pageNumberAlignment,
+      pagesFormattingConfig.pageNumberRegion,
+      pagesFormattingConfig.pageNumberShowOnFirstPage
     ])
 
     useEffect(() => {
@@ -2300,13 +2309,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const handleQuickPageNumberPlacement = useCallback(
       (position: 'header' | 'footer', alignment: PageNumberAlignment) => {
         const p = normalizeStoredPagesFormatting(layoutFormattingRef.current.pages) ?? {}
-        const showOnFirstPage =
-          !p.differentFirstPage ||
-          Boolean(((position === 'header' ? p.headerFirstPage : p.footerFirstPage) ?? '').includes('{page}'))
         handlePageNumbersApply({
           position,
           alignment,
-          showOnFirstPage,
+          showOnFirstPage: p.pageNumberShowOnFirstPage ?? true,
           numeralStyle: p.pageNumberNumeralStyle ?? 'decimal',
           startAt: p.pageNumberStartAt ?? 1
         })

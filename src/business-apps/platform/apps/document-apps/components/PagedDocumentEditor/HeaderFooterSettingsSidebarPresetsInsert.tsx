@@ -121,21 +121,6 @@ export function HeaderFooterSettingsSidebarPresetsInsert({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:min-w-52">
-              <DropdownMenuItem
-                disabled={!canInsertInOverlay}
-                onClick={() => insertInOverlay('{page}')}
-                data-testid={`${testId}-pn-page`}
-              >
-                {t('header-footer-sidebar-insert-page-field')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={!canInsertInOverlay}
-                onClick={() => insertInOverlay('{total}')}
-                data-testid={`${testId}-pn-total`}
-              >
-                {t('header-footer-sidebar-insert-total-field')}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger onMouseDown={onMouseDown} data-testid={`${testId}-pn-footer-submenu`}>
                   {t('header-footer-sidebar-pn-bottom-page')}
@@ -199,6 +184,30 @@ export function HeaderFooterSettingsSidebarPresetsInsert({
             data-testid={`${testId}-date-time`}
           >
             {t('header-footer-sidebar-date-time')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:w-full gba:justify-start"
+            disabled={!canInsertInOverlay}
+            onMouseDown={onMouseDown}
+            onClick={() => insertInOverlay('{page}')}
+            data-testid={`${testId}-field-page`}
+          >
+            {t('header-footer-sidebar-insert-page-field')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:w-full gba:justify-start"
+            disabled={!canInsertInOverlay}
+            onMouseDown={onMouseDown}
+            onClick={() => insertInOverlay('{total}')}
+            data-testid={`${testId}-field-total`}
+          >
+            {t('header-footer-sidebar-insert-total-field')}
           </Button>
           <Button
             type="button"

@@ -894,20 +894,20 @@ template-field-unknown-entity = Entitate necunoscută: { $key }
 template-field-unknown-error = Eroare necunoscută
 
 page-numbers-dialog-title = Numere de pagină
-page-numbers-dialog-warning = La aplicare, antetul sau subsolul ales este înlocuit cu o singură linie cu numărul paginii.
+page-numbers-dialog-warning = La aplicare, este actualizat slotul dedicat pentru numărul paginii din antet sau subsol, iar textul rămâne separat.
 page-numbers-position = Poziție
 page-numbers-position-header = Sus (antet)
 page-numbers-position-footer = Jos (subsol)
 page-numbers-alignment = Aliniere
 header-footer-sidebar-pn-bottom-page = Jos pe pagină (subsol)
 header-footer-sidebar-pn-top-page = Sus pe pagină (antet)
-header-footer-sidebar-pn-header-band-hint = Număr pe linie separată deasupra textului din antet. Exterior/Interior = pagini impare/pare (ca în Word).
+header-footer-sidebar-pn-header-band-hint = Numărul paginii folosește un slot dedicat în rândul antetului. Exterior/Interior comută între marginea exterioară și cusătură pe pagini impare/pare.
 page-numbers-align-left = Stânga
 page-numbers-align-center = Centru
 page-numbers-align-right = Dreapta
 page-numbers-align-inside = Interior
 page-numbers-align-outside = Exterior
-page-numbers-align-facing-hint = Pagini față-verso: Exterior = la margine; interior = spre cusătură, ușor indentat (impar/par).
+page-numbers-align-facing-hint = Pagini față-verso: Interior și Exterior comută între sloturile rezervate din stânga și dreapta pe pagini impare/pare.
 page-numbers-show-on-first = Afișează număr pe prima pagină
 page-numbers-preview = Previzualizare
 page-numbers-format-button = Format…

@@ -62,6 +62,7 @@ function inferAlignment(p: DocumentPagesFormatting, region: 'header' | 'footer')
 }
 
 function inferShowOnFirst(p: DocumentPagesFormatting, region: 'header' | 'footer'): boolean {
+  if (typeof p.pageNumberShowOnFirstPage === 'boolean') return p.pageNumberShowOnFirstPage
   if (!p.differentFirstPage) return true
   const first = region === 'header' ? p.headerFirstPage : p.footerFirstPage
   return Boolean((first ?? '').includes('{page}'))
@@ -136,10 +137,14 @@ export function PageNumbersDialog({
       case 'outside':
         return oddMiniPage ? `${row} gba:justify-end` : `${row} gba:justify-start`
       case 'inside':
-        return oddMiniPage ? `${row} gba:justify-start gba:pl-6` : `${row} gba:justify-end gba:pr-6`
+        return oddMiniPage ? `${row} gba:justify-start` : `${row} gba:justify-end`
       default:
         return `${row} gba:justify-center`
     }
+  }
+
+  const renderPreviewBand = (label: string, oddMiniPage: boolean) => {
+    return <div className={`${bandClass} ${previewBandLayout(oddMiniPage)} gba:text-muted-foreground`}>{label}</div>
   }
 
   const bandClass =
@@ -223,17 +228,9 @@ export function PageNumbersDialog({
                   <div
                     className={`gba:flex-1 gba:min-h-0 ${region === 'header' ? 'gba:flex gba:flex-col' : 'gba:flex gba:flex-col gba:justify-end'}`}
                   >
-                    {region === 'header' && (
-                      <div className={`${bandClass} ${previewBandLayout(true)} gba:text-muted-foreground`}>
-                        {label1}
-                      </div>
-                    )}
+                    {region === 'header' && renderPreviewBand(label1, true)}
                     <div className="gba:flex-1 gba:border gba:border-dashed gba:border-border/40 gba:rounded-sm gba:bg-muted/20" />
-                    {region === 'footer' && (
-                      <div className={`${bandClass} ${previewBandLayout(true)} gba:text-muted-foreground`}>
-                        {label1}
-                      </div>
-                    )}
+                    {region === 'footer' && renderPreviewBand(label1, true)}
                   </div>
                 </div>
                 <div
@@ -243,17 +240,9 @@ export function PageNumbersDialog({
                   <div
                     className={`gba:flex-1 gba:min-h-0 ${region === 'header' ? 'gba:flex gba:flex-col' : 'gba:flex gba:flex-col gba:justify-end'}`}
                   >
-                    {region === 'header' && (
-                      <div className={`${bandClass} ${previewBandLayout(false)} gba:text-muted-foreground`}>
-                        {label2}
-                      </div>
-                    )}
+                    {region === 'header' && renderPreviewBand(label2, false)}
                     <div className="gba:flex-1 gba:border gba:border-dashed gba:border-border/40 gba:rounded-sm gba:bg-muted/20" />
-                    {region === 'footer' && (
-                      <div className={`${bandClass} ${previewBandLayout(false)} gba:text-muted-foreground`}>
-                        {label2}
-                      </div>
-                    )}
+                    {region === 'footer' && renderPreviewBand(label2, false)}
                   </div>
                 </div>
               </div>

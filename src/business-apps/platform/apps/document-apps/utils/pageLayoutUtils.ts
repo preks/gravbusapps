@@ -158,10 +158,56 @@ export interface DocumentPagesConfig {
   pageNumberStartAt: number
   pageNumberAlignment?: PageNumberAlignment
   pageNumberRegion?: 'header' | 'footer'
+  pageNumberShowOnFirstPage: boolean
+}
+
+function stripHtmlToText(value: string): string {
+  return value
+    .replace(/\u200B/g, '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function isStandalonePageNumberTemplate(value: string | null | undefined): boolean {
+  if (!value) return false
+  return stripHtmlToText(value) === '{page}'
+}
+
+export function sanitizeStandalonePageNumberTemplates(
+  pages?: DocumentPagesFormatting | null
+): DocumentPagesFormatting | undefined {
+  const normalized = normalizeStoredPagesFormatting(pages ?? undefined)
+  if (!normalized) return undefined
+  if (!normalized.pageNumberRegion || !normalized.pageNumberAlignment) return normalized
+
+  const sanitized: DocumentPagesFormatting = { ...normalized }
+  const fields: Array<
+    keyof Pick<
+      DocumentPagesFormatting,
+      | 'header'
+      | 'footer'
+      | 'headerFirstPage'
+      | 'footerFirstPage'
+      | 'headerOdd'
+      | 'headerEven'
+      | 'footerOdd'
+      | 'footerEven'
+    >
+  > = ['header', 'footer', 'headerFirstPage', 'footerFirstPage', 'headerOdd', 'headerEven', 'footerOdd', 'footerEven']
+
+  for (const field of fields) {
+    if (isStandalonePageNumberTemplate(sanitized[field])) {
+      sanitized[field] = null
+    }
+  }
+
+  return sanitized
 }
 
 export function getPagesConfigFromFormatting(formatting?: DocumentFormatting | null): DocumentPagesConfig {
-  const pages = formatting?.pages ?? {}
+  const pages = sanitizeStandalonePageNumberTemplates(formatting?.pages) ?? {}
 
   return {
     differentFirstPage: pages.differentFirstPage ?? false,
@@ -184,7 +230,8 @@ export function getPagesConfigFromFormatting(formatting?: DocumentFormatting | n
     pageNumberNumeralStyle: pages.pageNumberNumeralStyle ?? 'decimal',
     pageNumberStartAt: pages.pageNumberStartAt ?? 1,
     pageNumberAlignment: pages.pageNumberAlignment,
-    pageNumberRegion: pages.pageNumberRegion
+    pageNumberRegion: pages.pageNumberRegion,
+    pageNumberShowOnFirstPage: pages.pageNumberShowOnFirstPage ?? true
   }
 }
 
@@ -212,7 +259,8 @@ export function normalizeStoredPagesFormatting(pages?: DocumentPagesFormatting):
     pageNumberNumeralStyle: pages.pageNumberNumeralStyle ?? 'decimal',
     pageNumberStartAt: pages.pageNumberStartAt ?? 1,
     pageNumberAlignment: pages.pageNumberAlignment,
-    pageNumberRegion: pages.pageNumberRegion
+    pageNumberRegion: pages.pageNumberRegion,
+    pageNumberShowOnFirstPage: pages.pageNumberShowOnFirstPage ?? true
   }
 
   return normalized

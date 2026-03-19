@@ -2,6 +2,7 @@ import { Editor, type Extension } from '@tiptap/core'
 import { handleTiptapTabKey } from '../tiptapTabKeyHandler'
 import type { HeaderFooterEditorType, PagesHeaderFooter, PagesOptions, PagesStorage, PageVariantKey } from './types'
 import { renderHeaderFooterDisplayContent } from './dom'
+import { layoutPageNumberSlots } from './pageNumberSlotLayout'
 import {
   getHeaderFooterExtensions,
   replaceTemplateTokens,
@@ -130,6 +131,7 @@ export class HeaderFooterOverlayManager {
 
       if (visibleContent) {
         renderHeaderFooterDisplayContent(visibleContent, htmlForVisibleRegion(html), placeholderLabel)
+        requestAnimationFrame(() => layoutPageNumberSlots(target))
       }
 
       params.onUpdate?.()
@@ -185,6 +187,7 @@ export class HeaderFooterOverlayManager {
       overlayEditor.destroy()
       if (visibleContent) {
         renderHeaderFooterDisplayContent(visibleContent, htmlForVisibleRegion(finalHtml), placeholderLabel)
+        requestAnimationFrame(() => layoutPageNumberSlots(target))
       }
       overlay.remove()
       delete target.dataset.rmOverlayActive

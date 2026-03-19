@@ -575,8 +575,10 @@ const defaultOptions: PagesOptions = {
   differentOddEven: false,
   accentColor: '#6366f1',
   documentTitle: '',
+  pageNumberRegion: 'footer',
   pageNumberNumeralStyle: 'decimal',
-  pageNumberStartAt: 1
+  pageNumberStartAt: 1,
+  pageNumberShowOnFirstPage: true
 }
 
 export const Pages = Extension.create<PagesOptions, PagesStorage>({
@@ -1238,9 +1240,12 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       if (updates.headerAccentColor !== undefined) options.headerAccentColor = updates.headerAccentColor
       if (updates.footerAccentColor !== undefined) options.footerAccentColor = updates.footerAccentColor
       if (updates.documentTitle !== undefined) options.documentTitle = updates.documentTitle
+      if (updates.pageNumberRegion !== undefined) options.pageNumberRegion = updates.pageNumberRegion
       if (updates.pageNumberNumeralStyle !== undefined) options.pageNumberNumeralStyle = updates.pageNumberNumeralStyle
       if (updates.pageNumberStartAt !== undefined) options.pageNumberStartAt = updates.pageNumberStartAt
       if (updates.pageNumberAlignment !== undefined) options.pageNumberAlignment = updates.pageNumberAlignment
+      if (updates.pageNumberShowOnFirstPage !== undefined)
+        options.pageNumberShowOnFirstPage = updates.pageNumberShowOnFirstPage
     }
 
     return {

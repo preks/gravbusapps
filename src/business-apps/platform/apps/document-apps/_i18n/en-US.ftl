@@ -899,20 +899,20 @@ template-field-unknown-error = Unknown error
 
 # Page numbers (Word-like)
 page-numbers-dialog-title = Page numbers
-page-numbers-dialog-warning = Applying replaces the chosen header or footer area with a single page number line.
+page-numbers-dialog-warning = Applying updates the dedicated header/footer page number slot and keeps your header/footer text separate.
 page-numbers-position = Position
 page-numbers-position-header = Top of page (header)
 page-numbers-position-footer = Bottom of page (footer)
 page-numbers-alignment = Alignment
 header-footer-sidebar-pn-bottom-page = Bottom of page (footer)
 header-footer-sidebar-pn-top-page = Top of page (header)
-header-footer-sidebar-pn-header-band-hint = Page # on its own line above your header text. Outside/Inside = outer or gutter side on odd/even pages (same as Word), not outside the header band.
+header-footer-sidebar-pn-header-band-hint = The page number uses a dedicated slot in the header row. Outside/Inside switch between the outer and gutter sides on odd/even pages.
 page-numbers-align-left = Left
 page-numbers-align-center = Center
 page-numbers-align-right = Right
 page-numbers-align-inside = Inside
 page-numbers-align-outside = Outside
-page-numbers-align-facing-hint = Facing pages: Outside = flush on the outer edge; Inside = inset toward the gutter (odd vs even page).
+page-numbers-align-facing-hint = Facing pages: Inside and Outside switch between the reserved left and right slots on odd/even pages.
 page-numbers-show-on-first = Show number on first page
 page-numbers-preview = Preview
 page-numbers-format-button = Format…

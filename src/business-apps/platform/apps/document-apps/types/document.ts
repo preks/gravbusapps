@@ -65,6 +65,7 @@ export interface DocumentPagesFormatting {
   pageNumberAlignment?: PageNumberAlignment
   /** Last region chosen in Page Numbers dialog (header vs footer). */
   pageNumberRegion?: 'header' | 'footer'
+  pageNumberShowOnFirstPage?: boolean
 }
 
 /**

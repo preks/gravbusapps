@@ -12,6 +12,7 @@ import type {
   HeaderFooterEditorType,
   PageFormat,
   PageFormatInput,
+  PageNumberAlignment,
   PageNumberNumeralStyle,
   PagesHeaderFooter,
   PagesHeaderFooterSource,
@@ -44,6 +45,14 @@ export interface MergeableTableFragmentsCandidate {
   firstTablePos: number
   secondTablePos: number
   paginationSplitId: string
+}
+
+export interface ResolvedPageNumberSlot {
+  alignment: 'left' | 'center' | 'right'
+  originalAlignment: PageNumberAlignment
+  region: HeaderFooterEditorType
+  oddPage: boolean
+  text: string
 }
 
 export interface PageCountDebugInfo {
@@ -275,6 +284,49 @@ function pageNumeralFromOptions(options: PagesOptions) {
   return {
     style: options.pageNumberNumeralStyle ?? 'decimal',
     startAt: options.pageNumberStartAt ?? 1
+  }
+}
+
+function resolvePageNumberSlotAlignment(
+  alignment: PageNumberAlignment,
+  oddPage: boolean
+): ResolvedPageNumberSlot['alignment'] {
+  switch (alignment) {
+    case 'left':
+      return 'left'
+    case 'center':
+      return 'center'
+    case 'right':
+      return 'right'
+    case 'inside':
+      return oddPage ? 'left' : 'right'
+    case 'outside':
+      return oddPage ? 'right' : 'left'
+    default:
+      return 'center'
+  }
+}
+
+export function resolvePageNumberSlot(
+  options: PagesOptions,
+  region: HeaderFooterEditorType,
+  page: number
+): ResolvedPageNumberSlot | null {
+  if (!options.pageNumberAlignment) return null
+  const configuredRegion = options.pageNumberRegion ?? 'footer'
+  if (configuredRegion !== region) return null
+  if (options.pageNumberShowOnFirstPage === false && page === 1) return null
+
+  const numeral = pageNumeralFromOptions(options)
+  const displayed = physicalPageToDisplayedPage(page, numeral.startAt ?? 1)
+  const oddPage = page % 2 !== 0
+
+  return {
+    alignment: resolvePageNumberSlotAlignment(options.pageNumberAlignment, oddPage),
+    originalAlignment: options.pageNumberAlignment,
+    region,
+    oddPage,
+    text: formatPageNumeral(displayed, numeral.style ?? 'decimal')
   }
 }
 

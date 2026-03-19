@@ -1,6 +1,13 @@
 import type { Extension } from '@tiptap/core'
 import type { HeaderFooterEditorType, PageFormat, PagesOptions, PagesStorage } from './types'
-import { getHeaderFooterExtensions, getPageLayoutHeights, getPageSpacerHeight, resolveDisplayContent } from './utils'
+import { layoutPageNumberSlots } from './pageNumberSlotLayout'
+import {
+  getHeaderFooterExtensions,
+  getPageLayoutHeights,
+  getPageSpacerHeight,
+  resolveDisplayContent,
+  resolvePageNumberSlot
+} from './utils'
 
 const STYLE_ATTR = 'data-rm-pages-style'
 
@@ -28,6 +35,24 @@ export function renderHeaderFooterDisplayContent(
   }
 
   content.innerHTML = html ?? ''
+}
+
+function createPageNumberSlotElement(
+  options: PagesOptions,
+  type: HeaderFooterEditorType,
+  pageNumber: number
+): HTMLElement | null {
+  const slotState = resolvePageNumberSlot(options, type, pageNumber)
+  if (!slotState) return null
+
+  const slot = document.createElement('div')
+  slot.className = 'rm-page-number-slot'
+  slot.dataset.rmPageNumberSlot = 'true'
+  slot.dataset.rmPageNumberAlign = slotState.alignment
+  slot.dataset.rmPageNumberOdd = slotState.oddPage ? 'true' : 'false'
+  slot.textContent = slotState.text
+  slot.setAttribute('contenteditable', 'false')
+  return slot
 }
 
 export function ensurePagesStyles(targetDocument: Document) {
@@ -142,6 +167,54 @@ export function ensurePagesStyles(targetDocument: Document) {
       pointer-events: none;
       user-select: none;
       -webkit-user-select: none;
+    }
+    .rm-pages-root .rm-page-region-layout {
+      position: relative;
+      width: 100%;
+      min-height: var(--rm-page-number-layout-min-height, 20px);
+    }
+    .rm-pages-root .rm-page-region-layout[data-rm-page-number-active="true"][data-rm-page-number-align="left"] .rm-page-header-content,
+    .rm-pages-root .rm-page-region-layout[data-rm-page-number-active="true"][data-rm-page-number-align="left"] .rm-page-footer-content {
+      box-sizing: border-box;
+      padding-left: 48px;
+    }
+    .rm-pages-root .rm-page-region-layout[data-rm-page-number-active="true"][data-rm-page-number-align="right"] .rm-page-header-content,
+    .rm-pages-root .rm-page-region-layout[data-rm-page-number-active="true"][data-rm-page-number-align="right"] .rm-page-footer-content {
+      box-sizing: border-box;
+      padding-right: 48px;
+    }
+    .rm-pages-root .rm-page-number-slot {
+      position: absolute;
+      top: 0;
+      min-width: 24px;
+      color: inherit;
+      font: inherit;
+      line-height: inherit;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
+      white-space: nowrap;
+    }
+    .rm-pages-root .rm-page-region-layout[data-rm-page-number-align="left"] .rm-page-number-slot {
+      left: 0;
+      text-align: left;
+    }
+    .rm-pages-root .rm-page-region-layout[data-rm-page-number-align="right"] .rm-page-number-slot {
+      right: 0;
+      text-align: right;
+    }
+    .rm-pages-root .rm-page-region-layout[data-rm-page-number-align="center"] .rm-page-number-slot {
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+    .rm-pages-root .rm-page-region-layout[data-rm-page-number-below="true"] .rm-page-number-slot {
+      top: var(--rm-page-number-center-top, 20px);
+    }
+    .rm-pages-root .rm-page-region-layout[data-rm-page-number-below="true"] .rm-page-header-content,
+    .rm-pages-root .rm-page-region-layout[data-rm-page-number-below="true"] .rm-page-footer-content {
+      padding-left: 0;
+      padding-right: 0;
     }
     .rm-pages-root .rm-page-region-placeholder {
       display: inline-block;
@@ -369,12 +442,28 @@ export function createHeaderFooterRegion(params: {
 
   const content = document.createElement('div')
   content.className = type === 'header' ? 'rm-page-header-content' : 'rm-page-footer-content'
+  content.dataset.rmPageNumberBody = 'true'
   content.setAttribute('contenteditable', 'false')
   renderHeaderFooterDisplayContent(
     content,
     displayContent.html,
     type === 'header' ? uiLabels.headerLabel : uiLabels.footerLabel
   )
+  const bodyLayout = document.createElement('div')
+  bodyLayout.className = 'rm-page-region-layout'
+  bodyLayout.dataset.rmPageNumberLayout = 'true'
+
+  const pageNumberSlot = createPageNumberSlotElement(options, type, pageNumber)
+  if (pageNumberSlot) {
+    bodyLayout.dataset.rmPageNumberActive = 'true'
+    bodyLayout.dataset.rmPageNumberAlign = pageNumberSlot.dataset.rmPageNumberAlign ?? 'center'
+    bodyLayout.dataset.rmPageNumberRegion = type
+    bodyLayout.dataset.rmPageNumberOdd = pageNumberSlot.dataset.rmPageNumberOdd ?? 'false'
+  }
+  bodyLayout.append(content)
+  if (pageNumberSlot) {
+    bodyLayout.append(pageNumberSlot)
+  }
 
   const meta = document.createElement('div')
   meta.className = `rm-page-region-meta rm-page-region-meta-${type}`
@@ -391,11 +480,12 @@ export function createHeaderFooterRegion(params: {
   meta.append(label, hint)
 
   if (type === 'header') {
-    inner.append(content, meta)
+    inner.append(bodyLayout, meta)
   } else {
-    inner.append(meta, content)
+    inner.append(meta, bodyLayout)
   }
   region.appendChild(inner)
+  requestAnimationFrame(() => layoutPageNumberSlots(region))
 
   region.addEventListener('mousedown', event => {
     blockInactiveRegion(event, region)

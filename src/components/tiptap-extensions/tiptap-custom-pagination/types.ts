@@ -76,9 +76,11 @@ export interface PagesOptionUpdates {
   footerAccentColor?: string
   /** Resolved at display time for `{title}` in headers/footers */
   documentTitle?: string
+  pageNumberRegion?: HeaderFooterEditorType
   pageNumberNumeralStyle?: PageNumberNumeralStyle
   pageNumberStartAt?: number
   pageNumberAlignment?: PageNumberAlignment
+  pageNumberShowOnFirstPage?: boolean
 }
 
 export interface PagesOptions {
@@ -111,9 +113,11 @@ export interface PagesOptions {
   uiLabels?: Partial<PagesUiLabels>
   /** Current document title; substitutes `{title}` when rendering headers/footers */
   documentTitle?: string
+  pageNumberRegion?: HeaderFooterEditorType
   pageNumberNumeralStyle?: PageNumberNumeralStyle
   pageNumberStartAt?: number
   pageNumberAlignment?: PageNumberAlignment
+  pageNumberShowOnFirstPage?: boolean
 }
 
 export interface PagesStorage {

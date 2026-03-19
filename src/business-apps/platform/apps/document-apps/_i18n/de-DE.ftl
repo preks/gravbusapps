@@ -894,20 +894,20 @@ template-field-unknown-entity = Unbekannte Entität: { $key }
 template-field-unknown-error = Unbekannter Fehler
 
 page-numbers-dialog-title = Seitenzahlen
-page-numbers-dialog-warning = Beim Anwenden wird der gewählte Kopf- oder Fußbereich durch eine einzelne Zeile mit der Seitenzahl ersetzt.
+page-numbers-dialog-warning = Beim Anwenden wird der eigene Seitenzahl-Slot in Kopf- oder Fußzeile aktualisiert; Ihr Kopf-/Fußzeilentext bleibt separat.
 page-numbers-position = Position
 page-numbers-position-header = Oben (Kopfzeile)
 page-numbers-position-footer = Unten (Fußzeile)
 header-footer-sidebar-pn-bottom-page = Unten auf der Seite (Fußzeile)
 header-footer-sidebar-pn-top-page = Oben auf der Seite (Kopfzeile)
-header-footer-sidebar-pn-header-band-hint = Seitenzahl in eigener Zeile über dem Kopfzeilentext. Außen/Innen = ungerade/gerade (wie in Word).
+header-footer-sidebar-pn-header-band-hint = Die Seitenzahl verwendet einen eigenen Slot in der Kopfzeilenzeile. Außen/Innen wechseln zwischen Außenkante und Bundsteg auf ungeraden/geraden Seiten.
 page-numbers-alignment = Ausrichtung
 page-numbers-align-left = Links
 page-numbers-align-center = Zentriert
 page-numbers-align-right = Rechts
 page-numbers-align-inside = Innen
 page-numbers-align-outside = Außen
-page-numbers-align-facing-hint = Doppelseiten: Außen = bündig außen; Innen = zum Bundsteg eingerückt (ungerade/gerade).
+page-numbers-align-facing-hint = Doppelseiten: Innen und Außen wechseln zwischen den reservierten linken und rechten Slots auf ungeraden/geraden Seiten.
 page-numbers-show-on-first = Nummer auf erster Seite anzeigen
 page-numbers-preview = Vorschau
 page-numbers-format-button = Format…
