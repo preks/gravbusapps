@@ -18,7 +18,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { BoardRow, BoardColumn, BoardQuickFilter, ViewFilter, ViewSort, FilterConnector } from '../types'
 import { ColumnSettingsSheet } from '../components/columns/ColumnSettingsSheet'
 import { FilterSortToolbar } from '../components/table/FilterSortToolbar'
-import { TableHeader } from '../components/table/TableHeader'
+import { TableHeader, COL_PREFIX } from '../components/table/TableHeader'
 import { renderRowCells, VirtuosoTableRow } from '../components/table/TableBodyRows'
 import type { VirtuosoContext } from '../components/table/TableBodyRows'
 import { useTableFilterSort } from '../hooks/useTableFilterSort'
@@ -61,6 +61,7 @@ export interface BoardTableViewProps {
   onRenameQuickFilter?: (id: string, name: string) => void
   onDeleteQuickFilter?: (id: string) => void
   onReorderRow?: (rowId: string, afterRowId: string | null, beforeRowId: string | null) => Promise<void>
+  onReorderColumns?: (reordered: BoardColumn[]) => void
   peopleLookup?: Map<string, import('../types/columns').SelectOption>
   focusedCells?: Map<string, import('../hooks/useBoardPresence').CellPresenceEntry>
   onCellFocus?: (rowId: string, columnId: string) => void
@@ -94,6 +95,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   onRenameQuickFilter,
   onDeleteQuickFilter,
   onReorderRow,
+  onReorderColumns,
   peopleLookup,
   focusedCells,
   onCellFocus,
@@ -128,15 +130,30 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
-      if (!over || active.id === over.id || !onReorderRow) return
+      if (!over || active.id === over.id) return
 
-      const draggedId = String(active.id)
+      const activeId = String(active.id)
       const overId = String(over.id)
-      const oldIdx = displayRows.findIndex(r => r.id === draggedId)
+
+      if (activeId.startsWith(COL_PREFIX) && overId.startsWith(COL_PREFIX) && onReorderColumns) {
+        const fromColId = activeId.slice(COL_PREFIX.length)
+        const toColId = overId.slice(COL_PREFIX.length)
+        const fromIdx = columns.findIndex(c => c.id === fromColId)
+        const toIdx = columns.findIndex(c => c.id === toColId)
+        if (fromIdx === -1 || toIdx === -1) return
+        const next = [...columns]
+        const [moved] = next.splice(fromIdx, 1)
+        next.splice(toIdx, 0, moved)
+        onReorderColumns(next)
+        return
+      }
+
+      if (!onReorderRow) return
+      const oldIdx = displayRows.findIndex(r => r.id === activeId)
       const overIdx = displayRows.findIndex(r => r.id === overId)
       if (oldIdx === -1 || overIdx === -1) return
 
-      const withoutDragged = displayRows.filter(r => r.id !== draggedId)
+      const withoutDragged = displayRows.filter(r => r.id !== activeId)
       const targetIdx = withoutDragged.findIndex(r => r.id === overId)
       if (targetIdx === -1) return
 
@@ -151,9 +168,9 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
         beforeRowId = targetIdx < withoutDragged.length - 1 ? withoutDragged[targetIdx + 1].id : null
       }
 
-      onReorderRow(draggedId, afterRowId, beforeRowId)
+      onReorderRow(activeId, afterRowId, beforeRowId)
     },
-    [displayRows, onReorderRow]
+    [displayRows, columns, onReorderRow, onReorderColumns]
   )
 
   // ── Sort map ──────────────────────────────────────────────────────────
@@ -443,6 +460,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
           onDeleteColumn={onDeleteColumn}
           onAddColumn={onAddColumn}
           reorderEnabled={reorderEnabled}
+          columnReorderEnabled={Boolean(onReorderColumns)}
           onOpenSettings={c => {
             setSettingsColumn(c)
             setSelectedCell(null)
