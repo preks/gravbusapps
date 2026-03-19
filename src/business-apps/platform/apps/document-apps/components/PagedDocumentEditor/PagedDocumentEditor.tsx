@@ -152,7 +152,6 @@ import { InsertImageDialog } from './InsertImageDialog'
 import { InsertTableDialog } from './InsertTableDialog'
 import { PageNumbersDialog } from './PageNumbersDialog'
 import {
-  applyPageNumberPlacement,
   mergePagesFormattingAfterPageNumbersApply,
   type ApplyPageNumberPlacementParams
 } from './applyPageNumberPlacement'
@@ -1648,7 +1647,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   onDblClickHeaderFooterPreventClose: event =>
                     event.target instanceof Element &&
                     (editorChromeRef.current?.contains(event.target) ||
-                      event.target.closest('[data-testid="document-header-footer-settings-sidebar"]') !== null),
+                      event.target.closest('[data-testid^="document-header-footer-settings-sidebar"]') !== null ||
+                      event.target.closest('[data-testid^="document-page-numbers-dialog"]') !== null),
                   documentTitle: (document?.title || initialTitle || '').trim(),
                   pageNumberRegion: pagesFormattingConfig.pageNumberRegion,
                   pageNumberNumeralStyle: pagesFormattingConfig.pageNumberNumeralStyle,
@@ -2300,30 +2300,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const handlePageNumbersApply = useCallback(
       (params: ApplyPageNumberPlacementParams) => {
-        const ed = editorRef.current
-        if (!ed) return
-        const cmds = ed.commands as { closeHeaderFooterEditors?: () => boolean }
-        cmds.closeHeaderFooterEditors?.()
-        const cmdOk = applyPageNumberPlacement(ed, params)
         const merged = mergePagesFormattingAfterPageNumbersApply(layoutFormattingRef.current.pages, params)
         const lf = layoutFormattingRef.current
         const nextFormatting: DocumentFormatting = { ...lf, pages: merged }
         const persisted = buildPersistedFormatting(nextFormatting, merged)
         if (import.meta.env.DEV) {
-          const snap = getPagesStorageSnapshot()
           console.info('[document-pages-debug] Page Numbers OK', {
-            setPagesOptionsReturned: cmdOk,
             params,
             mergedPagesFromMergeFn: merged,
-            persistedFormattingPages: persisted.pages,
-            editorStorageFooterHTML: snap?.footerHTML,
-            editorStorageFooterHasJSON: Boolean(snap?.footerJSON)
+            persistedFormattingPages: persisted.pages
           })
         }
         handlePageSetupApply(persisted)
         setHasUnsavedChanges(true)
       },
-      [buildPersistedFormatting, getPagesStorageSnapshot, handlePageSetupApply]
+      [buildPersistedFormatting, handlePageSetupApply]
     )
 
     const handleQuickPageNumberPlacement = useCallback(
@@ -3922,7 +3913,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onShowDocumentBodyChange={setShowBodyWhileEditingHeaderFooter}
             onPersistPagesFromEditor={persistPagesFromEditor}
             onOpenPageNumbers={() => {
-              closeHeaderFooterEditorsAndSidebar()
               setPageNumbersDialogOpen(true)
             }}
             onQuickPageNumberPlacement={handleQuickPageNumberPlacement}

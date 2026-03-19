@@ -545,6 +545,16 @@ declare module '@tiptap/core' {
   }
 }
 
+function updatesAffectPageNumberOptions(updates: PagesOptionUpdates) {
+  return (
+    updates.pageNumberRegion !== undefined ||
+    updates.pageNumberNumeralStyle !== undefined ||
+    updates.pageNumberStartAt !== undefined ||
+    updates.pageNumberAlignment !== undefined ||
+    updates.pageNumberShowOnFirstPage !== undefined
+  )
+}
+
 function buildHardBreakDecorations(doc: PMNode): DecorationSet {
   const decorations: Decoration[] = []
 
@@ -1120,6 +1130,20 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       ).close()
     }
 
+    const reopenActiveEditorAfterRefresh = (
+      editor: typeof this.editor,
+      activeEditor: { type: 'header' | 'footer'; pageNumber: number },
+      attemptsLeft = 2
+    ) => {
+      if (openEditorByType(editor, activeEditor.type, activeEditor.pageNumber) || attemptsLeft <= 0) {
+        return
+      }
+
+      requestAnimationFrame(() => {
+        reopenActiveEditorAfterRefresh(editor, activeEditor, attemptsLeft - 1)
+      })
+    }
+
     const openEditorByType = (editor: typeof this.editor, type: 'header' | 'footer', pageNumber: number) => {
       const storage = editor.storage.pages
       const options = getRuntimeOptions(editor, extensionOptions)
@@ -1252,9 +1276,18 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       setPagesOptions:
         updates =>
         ({ editor }) => {
-          closeOverlay(editor)
-          applyOptionUpdates(editor, updates)
-          getOverlayManager(
+          const storage = editor.storage.pages
+          const shouldPreserveActiveEditor =
+            updatesAffectPageNumberOptions(updates) &&
+            (storage.activeEditorType === 'header' || storage.activeEditorType === 'footer') &&
+            storage.activePageNumber != null
+          const activeEditor = shouldPreserveActiveEditor
+            ? {
+                type: storage.activeEditorType as 'header' | 'footer',
+                pageNumber: storage.activePageNumber as number
+              }
+            : null
+          const overlayManager = getOverlayManager(
             editor,
             () =>
               new HeaderFooterOverlayManager(
@@ -1262,8 +1295,20 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
                 () => getRuntimeOptions(editor, extensionOptions),
                 () => editor.storage.pages
               )
-          ).updateAccentColor()
-          return refresh(editor)
+          )
+          if (activeEditor) {
+            overlayManager.suppressNextCloseNotificationOnce()
+          }
+          closeOverlay(editor)
+          applyOptionUpdates(editor, updates)
+          overlayManager.updateAccentColor()
+          const refreshed = refresh(editor)
+          if (activeEditor) {
+            requestAnimationFrame(() => {
+              reopenActiveEditorAfterRefresh(editor, activeEditor)
+            })
+          }
+          return refreshed
         },
       setPageFormat:
         pageFormat =>

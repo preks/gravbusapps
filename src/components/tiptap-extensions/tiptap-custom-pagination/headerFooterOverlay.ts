@@ -50,7 +50,9 @@ export class HeaderFooterOverlayManager {
     const overlay = document.createElement('div')
     const editorHost = document.createElement('div')
     const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
+    const contentClass = type === 'header' ? 'rm-page-header-content' : 'rm-page-footer-content'
     const visibleContent = target.querySelector(contentSelector) as HTMLElement | null
+    const layoutRoot = target.querySelector('[data-rm-page-number-layout="true"]') as HTMLElement | null
     const hint = target.querySelector('.rm-page-region-hint') as HTMLElement | null
     const variant = resolveVariantForPage(pageNumber, options)
     const accentColor =
@@ -65,9 +67,9 @@ export class HeaderFooterOverlayManager {
     overlay.className = 'rm-page-overlay'
     overlay.dataset.rmOverlayType = type
     overlay.style.setProperty('--rm-overlay-accent', accentColor)
-    editorHost.className = 'rm-page-overlay-editor'
+    editorHost.className = `rm-page-overlay-editor ${contentClass}`
 
-    if (visibleContent) {
+    if (visibleContent && !layoutRoot) {
       const targetRect = target.getBoundingClientRect()
       const contentRect = visibleContent.getBoundingClientRect()
       const topInset = Math.max(0, contentRect.top - targetRect.top)
@@ -91,7 +93,7 @@ export class HeaderFooterOverlayManager {
 
     target.dataset.rmOverlayActive = 'true'
     overlay.append(editorHost)
-    target.appendChild(overlay)
+    ;(layoutRoot ?? target).appendChild(overlay)
     if (hint) {
       hint.textContent = activeHint
     }
@@ -179,7 +181,8 @@ export class HeaderFooterOverlayManager {
       if (targetNode && overlay.contains(targetNode)) return
 
       const targetElement = event.target instanceof Element ? event.target : null
-      if (targetElement?.closest('[data-testid="document-header-footer-settings-sidebar"]')) return
+      if (targetElement?.closest('[data-testid^="document-header-footer-settings-sidebar"]')) return
+      if (targetElement?.closest('[data-testid^="document-page-numbers-dialog"]')) return
       if (resolveHeaderFooterRegionTarget(event.target)) return
 
       event.preventDefault()
@@ -300,6 +303,11 @@ export class HeaderFooterOverlayManager {
         : (options.footerAccentColor ?? options.accentColor ?? '#6366f1')
 
     this.activeOverlay.overlay.style.setProperty('--rm-overlay-accent', color)
+  }
+
+  suppressNextCloseNotificationOnce() {
+    if (!this.activeOverlay) return
+    this.suppressNextCloseNotification = true
   }
 }
 

@@ -203,6 +203,11 @@ export function ensurePagesStyles(targetDocument: Document) {
       -webkit-user-select: none;
       white-space: nowrap;
     }
+    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-number-slot,
+    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-number-slot,
+    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-number-slot {
+      z-index: 6;
+    }
     .rm-pages-root .rm-page-region-layout[data-rm-page-number-align="left"] .rm-page-number-slot {
       left: 0;
       text-align: left;
@@ -273,9 +278,9 @@ export function ensurePagesStyles(targetDocument: Document) {
     .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-region-hint {
       opacity: 1;
     }
-    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-header-content,
-    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-footer-content,
-    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-header-content {
+    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-header-content:not(.rm-page-overlay-editor),
+    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-footer-content:not(.rm-page-overlay-editor),
+    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-header-content:not(.rm-page-overlay-editor) {
       visibility: hidden;
       pointer-events: none;
       user-select: none;
@@ -336,6 +341,14 @@ export function ensurePagesStyles(targetDocument: Document) {
       padding: 0;
       caret-color: var(--rm-overlay-accent, #6366f1);
       user-select: text;
+    }
+    .rm-pages-root .rm-page-overlay-editor.rm-page-header-content,
+    .rm-pages-root .rm-page-overlay-editor.rm-page-footer-content {
+      visibility: visible;
+      pointer-events: auto;
+      user-select: text;
+      -webkit-user-select: text;
+      overflow: visible;
     }
     .rm-pages-root .rm-page-overlay-editor .ProseMirror {
       min-height: 0;
