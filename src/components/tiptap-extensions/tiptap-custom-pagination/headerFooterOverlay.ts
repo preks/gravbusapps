@@ -5,6 +5,7 @@ import { renderHeaderFooterDisplayContent } from './dom'
 import { layoutPageNumberSlots } from './pageNumberSlotLayout'
 import {
   getHeaderFooterExtensions,
+  getInitialEditorContent,
   replaceTemplateTokens,
   resolveVariantForPage,
   setStoredVariantContent
@@ -150,6 +151,26 @@ export class HeaderFooterOverlayManager {
     const handleDocumentDoubleClick = (event: MouseEvent) => {
       if (overlay.contains(event.target as Node)) return
 
+      const nextRegion = resolveHeaderFooterRegionTarget(event.target)
+      if (nextRegion && nextRegion.element !== target) {
+        event.preventDefault()
+        event.stopPropagation()
+        const totalPages = Math.max(1, storage.getPageCount())
+        this.open({
+          type: nextRegion.type,
+          pageNumber: nextRegion.pageNumber,
+          target: nextRegion.element,
+          clickPosition: { clientX: event.clientX, clientY: event.clientY },
+          initialContent: getInitialEditorContent(storage, options, nextRegion.type, nextRegion.pageNumber, totalPages),
+          storage,
+          options,
+          extensions: params.extensions,
+          onClose: params.onClose,
+          onUpdate: params.onUpdate
+        })
+        return
+      }
+
       const shouldPreventClose =
         (type === 'header' ? options.onDblClickHeaderPreventClose : options.onDblClickFooterPreventClose)?.(event) ??
         options.onDblClickHeaderFooterPreventClose?.(event) ??
@@ -284,4 +305,27 @@ function resolveEditorPositionFromClick(editor: Editor, clickPosition?: { client
   }
 
   return null
+}
+
+function resolveHeaderFooterRegionTarget(target: EventTarget | null): {
+  element: HTMLElement
+  type: HeaderFooterEditorType
+  pageNumber: number
+} | null {
+  if (!(target instanceof Element)) return null
+
+  const region = target.closest('[data-rm-editor-type][data-rm-page-number]') as HTMLElement | null
+  if (!(region instanceof HTMLElement)) return null
+
+  const type = region.dataset.rmEditorType
+  const pageNumber = Number.parseInt(region.dataset.rmPageNumber ?? '', 10)
+  if ((type !== 'header' && type !== 'footer') || !Number.isFinite(pageNumber) || pageNumber < 1) {
+    return null
+  }
+
+  return {
+    element: region,
+    type,
+    pageNumber
+  }
 }

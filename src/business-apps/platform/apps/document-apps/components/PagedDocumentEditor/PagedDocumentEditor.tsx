@@ -1467,6 +1467,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setPagesEditorState(state)
     }, [])
 
+    const closeHeaderFooterEditorsAndSidebar = useCallback(() => {
+      setPagesEditorState({
+        activeEditor: null,
+        activeEditorType: null,
+        activePageNumber: null
+      })
+      ;(
+        editorRef.current as { commands?: { closeHeaderFooterEditors?: () => boolean } } | null
+      )?.commands?.closeHeaderFooterEditors?.()
+    }, [])
+
     const headerFooterExtensions = useMemo(
       () =>
         [
@@ -1635,7 +1646,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   },
                   onActiveEditorChange: handlePagesActiveEditorChange,
                   onDblClickHeaderFooterPreventClose: event =>
-                    (event.target instanceof Node && editorChromeRef.current?.contains(event.target)) ?? false,
+                    event.target instanceof Element &&
+                    (editorChromeRef.current?.contains(event.target) ||
+                      event.target.closest('[data-testid="document-header-footer-settings-sidebar"]') !== null),
                   documentTitle: (document?.title || initialTitle || '').trim(),
                   pageNumberRegion: pagesFormattingConfig.pageNumberRegion,
                   pageNumberNumeralStyle: pagesFormattingConfig.pageNumberNumeralStyle,
@@ -3909,14 +3922,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onShowDocumentBodyChange={setShowBodyWhileEditingHeaderFooter}
             onPersistPagesFromEditor={persistPagesFromEditor}
             onOpenPageNumbers={() => {
-              editor.commands.closeHeaderFooterEditors()
+              closeHeaderFooterEditorsAndSidebar()
               setPageNumbersDialogOpen(true)
             }}
             onQuickPageNumberPlacement={handleQuickPageNumberPlacement}
             headerHeight={measuredHeaderHeight || 120}
             rightOffset={documentRightPanelOffset}
             onClose={() => {
-              editor.commands.closeHeaderFooterEditors()
+              closeHeaderFooterEditorsAndSidebar()
             }}
             data-testid="document-header-footer-settings-sidebar"
           />
