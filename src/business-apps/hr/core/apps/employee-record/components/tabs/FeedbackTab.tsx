@@ -246,7 +246,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
       <div className={isSelfView ? 'gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6' : 'gba:space-y-6'}>
         <FeedbackListSection
-          title={t('feedback-hub-section-received-title', { total: receivedTotal })}
+          title={t('feedback-hub-section-received-visible-title', { visible: receivedTotal })}
           loading={receivedLoading}
           feedbackList={receivedList}
           emptyLabel={t('feedback-hub-empty-received')}
