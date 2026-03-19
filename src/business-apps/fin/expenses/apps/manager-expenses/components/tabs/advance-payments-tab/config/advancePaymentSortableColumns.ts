@@ -1,8 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { ColumnConfig } from '../../../../common/types/columnTypes'
 
-export type { ColumnConfig as SortableColumn }
-
 export const advancePaymentSortableColumns: ColumnConfig[] = [
   {
     id: 'expensePlan.title',
