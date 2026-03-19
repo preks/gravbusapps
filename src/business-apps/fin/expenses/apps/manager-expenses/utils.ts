@@ -131,10 +131,32 @@ const ENTITY_OVERRIDES: {
   }
 }
 
+type LabelOverrideMap = Partial<Record<StatusKey, { i18nKey: string; fallback: string }>>
+
+// Request: backoffice-style action-oriented labels
+const REQUEST_LABEL_OVERRIDES: LabelOverrideMap = {
+  APPROVED: { i18nKey: 'lowcoder:expense_statuses.verification_required', fallback: 'Verification Required' },
+  VERIFIED: { i18nKey: 'lowcoder:expense_statuses.booking_required', fallback: 'Booking Required' },
+  BOOKED: { i18nKey: 'lowcoder:expense_statuses.transfer_required', fallback: 'Transfer Required' }
+}
+
+// Advance payment: same labels as backoffice (Transfer Required / Payment Required)
+const ADVANCE_LABEL_OVERRIDES: LabelOverrideMap = {
+  BOOKED: { i18nKey: 'lowcoder:expense_statuses.transfer_required', fallback: 'Transfer Required' },
+  TRANSFERRED: { i18nKey: 'lowcoder:expense_statuses.payment_required', fallback: 'Payment Required' }
+}
+
+type EntityKind = 'plan' | 'request' | 'advance'
+
+const ENTITY_LABEL_OVERRIDES: Partial<Record<EntityKind, LabelOverrideMap>> = {
+  request: REQUEST_LABEL_OVERRIDES,
+  advance: ADVANCE_LABEL_OVERRIDES
+}
+
 /**
  * Generic status-to-display mapper with per-entity overrides.
  */
-export const getEntityStatusDisplay = (entity: 'plan' | 'request' | 'advance', status: string): StatusDisplayConfig => {
+export const getEntityStatusDisplay = (entity: EntityKind, status: string): StatusDisplayConfig => {
   if (!status) {
     return { label: '', type: 'draft', badgeVariant: STATUS_COLORS.DRAFT }
   }
@@ -149,7 +171,9 @@ export const getEntityStatusDisplay = (entity: 'plan' | 'request' | 'advance', s
 
   const overrideType = ENTITY_OVERRIDES[entity]?.[normalized as StatusKey]
   const type = overrideType || base.defaultType
-  const label = getTranslationFromI18nKeyAndLabel(base.i18nKey, base.fallback)
+  const labelOverride = ENTITY_LABEL_OVERRIDES[entity]?.[normalized as StatusKey]
+  const { i18nKey, fallback } = labelOverride ?? base
+  const label = getTranslationFromI18nKeyAndLabel(i18nKey, fallback)
   const badgeVariant = STATUS_COLORS[normalized] || 'outline'
   return { label, type, badgeVariant }
 }
@@ -165,6 +189,32 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
 
 export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayConfig =>
   getEntityStatusDisplay('advance', status)
+
+/**
+ * Returns the label for entity status filter chips (e.g. "In Approval (Pending)").
+ * Single source of truth for status filter labels; use in tabs and filter hooks (DRY).
+ * When the display label differs from the technical status, appends the latter in parentheses.
+ */
+function buildEntityStatusFilterLabel(entity: 'plan' | 'request' | 'advance', status: string): string {
+  const statusConfig = getEntityStatusDisplay(entity, status)
+  if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+    return statusConfig.label
+  }
+  const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
+  const translatedStatus = getTranslationFromI18nKeyAndLabel(
+    `lowcoder:expense_statuses.${status.toLowerCase()}`,
+    formattedStatus
+  )
+  return `${statusConfig.label} (${translatedStatus})`
+}
+
+export function getExpenseRequestStatusFilterLabel(status: string): string {
+  return buildEntityStatusFilterLabel('request', status)
+}
+
+export function getAdvancePaymentStatusFilterLabel(status: string): string {
+  return buildEntityStatusFilterLabel('advance', status)
+}
 
 /**
  * Type guard to check if error has a message property

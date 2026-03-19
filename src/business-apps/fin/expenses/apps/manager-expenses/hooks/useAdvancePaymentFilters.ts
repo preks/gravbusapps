@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataFilter'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { getAdvancePaymentStatusDisplay } from '../utils'
+import { getAdvancePaymentStatusFilterLabel } from '../utils'
 import { advancePaymentFilterStatuses } from './availableFilterStatuses'
 import { useCurrencyStore } from '../store/useCurrencyStore'
 import { useAdvancePaymentCurrencies } from './useAdvancePaymentCurrencies'
@@ -145,40 +145,17 @@ export const useAdvancePaymentFilters = ({
 
   const availableFilterStatuses = advancePaymentFilterStatuses
 
-  // Helper function to format status display name with brackets (matching personal expenses pattern)
-  const getStatusDisplayName = useCallback((status: string): string => {
-    const statusConfig = getAdvancePaymentStatusDisplay(status)
-    // Only show backend status in parentheses if the label is different from the status
-    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
-      return statusConfig.label
-    } else {
-      // Format backend status with only first letter uppercase and translate it
-      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
-      const translatedStatus = getTranslationFromI18nKeyAndLabel(
-        `lowcoder:expense_statuses.${status.toLowerCase()}`,
-        formattedStatus
-      )
-      return `${statusConfig.label} (${translatedStatus})`
-    }
-  }, [])
-
-  // Create a mapping of filter IDs to their display labels
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
-
-    // Add status filters with brackets
     for (const status of availableFilterStatuses) {
-      map[status] = getStatusDisplayName(status)
+      map[status] = getAdvancePaymentStatusFilterLabel(status)
     }
-
-    // Add currency filters from dynamic data (safe access)
     const availableCurrencies = Array.isArray(dynamicCurrencies) ? dynamicCurrencies : []
     for (const currency of availableCurrencies) {
       map[currency] = currency
     }
-
     return map
-  }, [availableFilterStatuses, dynamicCurrencies, getStatusDisplayName])
+  }, [availableFilterStatuses, dynamicCurrencies])
 
   // Create filter groups for the DataFilter component
   // NOTE: Only returning status group - currency group is built by the tab from overview data
