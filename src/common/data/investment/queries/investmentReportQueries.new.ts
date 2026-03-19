@@ -421,6 +421,7 @@ const buildRealEstateInvestmentReportFragment = (fieldSet: Set<string>): string 
         date
         scope
         size
+        sizeMeasurementUnitRef
         numberOfUnits
         occupancyPercent
         annualNetColdRent
