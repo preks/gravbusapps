@@ -93,7 +93,7 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
 
   return (
     <aside
-      className={`note-sidebar-inter gba:flex-shrink-0 gba:bg-sidebar gba:border-r gba:border-sidebar-border gba:flex gba:flex-col gba:relative gba:select-none ${
+      className={`note-sidebar-inter gba:flex-shrink-0 gba:bg-card-decorative gba:border-r gba:border-white/10 gba:flex gba:flex-col gba:relative gba:select-none gba:text-decorative-foreground ${
         isResizing ? '' : 'gba:transition-[width] gba:duration-200'
       }`}
       style={{ width: `${width}px` }}
@@ -101,7 +101,7 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
     >
       {/* Header */}
       <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:pt-3 gba:pb-2 gba:flex-shrink-0">
-        <h2 className="gba:font-display gba:font-semibold gba:text-base gba:text-sidebar-foreground gba:tracking-tight">
+        <h2 className="gba:font-display gba:font-semibold gba:text-base gba:text-white gba:tracking-tight">
           {t('sidebar-brand-title')}
         </h2>
         <div className="gba:flex gba:items-center gba:gap-0.5">
@@ -110,7 +110,7 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="gba:h-7 gba:w-7 gba:text-sidebar-foreground"
+                className="gba:h-7 gba:w-7 gba:text-white/80 hover:gba:text-white hover:gba:bg-white/10"
                 data-testid="sidebar-new-btn"
               >
                 <Plus className="gba:w-4 gba:h-4" />
@@ -155,7 +155,7 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="gba:h-7 gba:w-7 gba:text-sidebar-foreground"
+                  className="gba:h-7 gba:w-7 gba:text-white/80 hover:gba:text-white hover:gba:bg-white/10"
                   onClick={onCollapse}
                 >
                   <PanelLeftClose className="gba:w-4 gba:h-4" />
@@ -170,12 +170,12 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
       {/* Search */}
       <div className="gba:px-2 gba:pb-1 gba:flex-shrink-0">
         <div className="gba:relative">
-          <Search className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:w-3.5 gba:h-3.5 gba:text-muted-foreground/50" />
+          <Search className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:w-3.5 gba:h-3.5 gba:text-white/40" />
           <Input
             placeholder={t('header-search-placeholder')}
             value={searchQuery}
             onChange={e => onSearchChange(e.target.value)}
-            className="gba:h-8 gba:pl-8 gba:text-xs gba:rounded-lg gba:bg-sidebar-accent/40 gba:border-0 gba:shadow-none focus-visible:gba:ring-1 focus-visible:gba:ring-sidebar-ring"
+            className="gba:h-8 gba:pl-8 gba:text-xs gba:rounded-lg gba:bg-white/10 gba:border-0 gba:shadow-none gba:text-white gba:placeholder-white/40 focus-visible:gba:ring-1 focus-visible:gba:ring-white/30"
             data-testid="sidebar-search"
           />
         </div>
@@ -190,11 +190,11 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
 
       {/* Section divider */}
       <div className="gba:mx-3 gba:my-1.5 gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
-        <div className="gba:flex-1 gba:h-px gba:bg-sidebar-border/60" />
-        <span className="gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-widest gba:text-muted-foreground/50 gba:select-none">
+        <div className="gba:flex-1 gba:h-px gba:bg-white/15" />
+        <span className="gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-widest gba:text-white/30 gba:select-none">
           {t('sidebar-section-recent')}
         </span>
-        <div className="gba:flex-1 gba:h-px gba:bg-sidebar-border/60" />
+        <div className="gba:flex-1 gba:h-px gba:bg-white/15" />
       </div>
 
       {/* Scrollable flat recent notes list */}
@@ -216,7 +216,7 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
 
       {/* Resize handle */}
       <div
-        className="gba:absolute gba:top-0 gba:right-0 gba:w-1 gba:h-full gba:cursor-col-resize hover:gba:bg-sidebar-accent gba:transition-colors gba:z-10"
+        className="gba:absolute gba:top-0 gba:right-0 gba:w-1 gba:h-full gba:cursor-col-resize hover:gba:bg-white/20 gba:transition-colors gba:z-10"
         onMouseDown={onResizeStart}
         data-testid="sidebar-resize-handle"
       />

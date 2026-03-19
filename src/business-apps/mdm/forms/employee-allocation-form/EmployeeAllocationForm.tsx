@@ -9,9 +9,9 @@ import { useTranslation } from 'react-i18next'
 import { TeamEmployee } from '../../apps/project-management/hooks/useTeamAssignments'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 const DATA_TEST_ID_PREFIX = 'EmployeeAllocationForm'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 const EMPLOYEES_BASE_URL = `${env('NEXT_PUBLIC_BASE_URL')}/processes/employee`
 
 // Translation function type for project-allocation bundle (optional when used from ProjectAllocation)
@@ -106,7 +106,7 @@ const EmployeeAllocationForm: React.FC<EmployeeAllocationFormProps> = ({
   t: tProjectAllocation
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClientOrgchart = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const restClientEmployees = useRestClient(EMPLOYEES_BASE_URL)
   const { t } = useTranslation('master-data')
 
@@ -129,7 +129,7 @@ const EmployeeAllocationForm: React.FC<EmployeeAllocationFormProps> = ({
       const percentageDifference = (values.percentage as number) - employeePercentage
 
       // Use PUT to update the allocation
-      await restClientOrgchart.put(`/employee-assignments/matrix-unit/${employee.teamAssignmentId}`, payload, {
+      await orgchartClient.updateMatrixUnitEmployeeAssignment(String(employee.teamAssignmentId), payload, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'

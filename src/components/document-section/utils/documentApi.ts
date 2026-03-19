@@ -55,7 +55,7 @@ export async function updateDocumentLocation({
       ]
     }
 
-    await restClient.put(`/orgchart/api/v1/companies/${entityId}`, payload, {
+    await restClient.put(`/companies/${entityId}`, payload, {
       headers: { Authorization: `Bearer ${accessToken}` }
     })
   } else {
