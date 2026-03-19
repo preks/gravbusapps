@@ -13,18 +13,19 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@newwork/nw-design-system'
-import { LayoutGrid, MoreHorizontal, Copy, Trash2, Star, Share2, Users } from 'lucide-react'
+import { LayoutGrid, MoreHorizontal, Copy, Trash2, Star, Share2, Users, ArrowRight, FolderClosed } from 'lucide-react'
 import type { BoardSummary } from '../types'
 
 export interface BoardListItemProps {
   board: BoardSummary
   isFavorite?: boolean
+  collectionInfo?: { name: string; color?: string; icon?: string; memberCount?: number }
   onToggleFavorite?: (id: string, e?: React.MouseEvent) => void
   onOpen: (id: string) => void
   onDuplicate: (id: string) => void
   onDelete: (id: string) => void
   onShare?: (id: string) => void
-  onManageShares?: (id: string) => void
+  onMoveToCollection?: (id: string) => void
   testId: string
 }
 
@@ -47,12 +48,13 @@ export function formatRelativeTime(dateString: string): string {
 export const BoardListItem: React.FC<BoardListItemProps> = ({
   board,
   isFavorite,
+  collectionInfo,
   onToggleFavorite,
   onOpen,
   onDuplicate,
   onDelete,
   onShare,
-  onManageShares,
+  onMoveToCollection,
   testId
 }) => {
   const isOwner = !board.isShared
@@ -91,6 +93,21 @@ export const BoardListItem: React.FC<BoardListItemProps> = ({
             Shared
           </Badge>
         )}
+        {!board.isShared && collectionInfo && (collectionInfo.memberCount ?? 0) > 1 && (
+          <Badge variant="outline" className="gba:text-xs gba:px-1.5 gba:py-0 gba:gap-1 gba:text-muted-foreground">
+            <Users className="gba:w-3 gba:h-3" /> {collectionInfo.memberCount}
+          </Badge>
+        )}
+      </div>
+      <div className="gba:w-36 gba:flex-shrink-0 gba:text-xs gba:text-muted-foreground gba:truncate">
+        {collectionInfo ? (
+          <span className="gba:inline-flex gba:items-center gba:gap-1 gba:max-w-full">
+            <FolderClosed className="gba:w-3 gba:h-3 gba:flex-shrink-0" />
+            <span className="gba:truncate">{collectionInfo.name}</span>
+          </span>
+        ) : (
+          <span className="gba:text-muted-foreground/50">–</span>
+        )}
       </div>
       <div className="gba:w-28 gba:flex-shrink-0 gba:text-xs gba:text-muted-foreground">
         {formatRelativeTime(board.updatedAt)}
@@ -119,12 +136,12 @@ export const BoardListItem: React.FC<BoardListItemProps> = ({
                 <Share2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Share
               </DropdownMenuItem>
             )}
-            {isOwner && onManageShares && (
+            {isOwner && onMoveToCollection && (
               <DropdownMenuItem
-                onClick={() => onManageShares(board.id)}
-                data-testid={`${testId}-menu-manage-${board.id}`}
+                onClick={() => onMoveToCollection(board.id)}
+                data-testid={`${testId}-menu-move-${board.id}`}
               >
-                <Users className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Manage sharing
+                <ArrowRight className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Move to Collection
               </DropdownMenuItem>
             )}
             {isOwner && (
