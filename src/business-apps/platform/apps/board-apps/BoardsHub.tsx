@@ -39,6 +39,9 @@ import { RenameCollectionDialog } from './components/collections/RenameCollectio
 import { BoardsHubBoardList } from './components/BoardsHubBoardList'
 import { BoardContentHeader } from './components/BoardContentHeader'
 import { BoardEditorHeader } from './components/BoardEditorHeader'
+import { BoardsHubHero } from './components/hero'
+import { BoardsHomeDashboard } from './components/home/BoardsHomeDashboard'
+import { useBoardHomeData } from './hooks/useBoardHomeData'
 
 export interface BoardsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -50,7 +53,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   'data-testid': testId = 'boards-hub'
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeSection, setActiveSection] = useState<BoardHubSidebarSection>('my-boards')
+  const [activeSection, setActiveSection] = useState<BoardHubSidebarSection>('home')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isAIDialogOpen, setIsAIDialogOpen] = useState(false)
   const [isCreateCollectionOpen, setIsCreateCollectionOpen] = useState(false)
@@ -76,6 +79,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   const [renameBoardId, setRenameBoardId] = useState<string | null>(null)
   const [shareCollectionId, setShareCollectionId] = useState<string | null>(null)
   const [manageCollectionId, setManageCollectionId] = useState<string | null>(null)
+  const { stats: heroStats, myWork: heroMyWork, isLoading: heroLoading } = useBoardHomeData(activeSection === 'home')
 
   const sidebar = useResizableSidebar()
   const {
@@ -339,6 +343,14 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     [setFavorites]
   )
 
+  const handleTemplateCreated = useCallback(
+    async (boardId: string) => {
+      const board = await loadBoard(boardId)
+      if (board) urlState.setBoardId(boardId)
+    },
+    [loadBoard, urlState]
+  )
+
   const isViewing = Boolean(selectedBoardId && currentBoard)
   const isViewerOwner = currentBoard && !currentBoard.isShared
   const activeCollection = activeCollectionId ? collections.find(c => c.id === activeCollectionId) : null
@@ -464,6 +476,40 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
               onPatchRowDeleted={patchRowDeleted}
               onPatchSheetColumns={patchSheetColumns}
               data-testid={`${testId}-viewer`}
+            />
+          </div>
+        ) : activeSection === 'home' ? (
+          <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:overflow-y-auto">
+            <BoardsHubHero
+              stats={heroStats}
+              boards={boards}
+              myWork={heroMyWork}
+              isLoading={heroLoading}
+              onOpenBoard={id => void handleOpenBoard(id)}
+              onNavigateToItem={handleNavigateToItem}
+              isSidebarCollapsed={sidebar.isCollapsed}
+              onToggleSidebar={sidebar.toggleCollapsed}
+              onCreateOpen={() => setIsCreateDialogOpen(true)}
+              onAIOpen={() => setIsAIDialogOpen(true)}
+              onSearchOpen={() => setIsGlobalSearchOpen(true)}
+              data-testid={`${testId}-hero`}
+            />
+            <BoardsHomeDashboard
+              accessToken={accessToken}
+              userInfo={userInfo as any}
+              boards={boards}
+              onOpenBoard={id => void handleOpenBoard(id)}
+              onDuplicate={duplicateBoard}
+              onDelete={deleteBoard}
+              onCreateOpen={() => setIsCreateDialogOpen(true)}
+              onCreateAI={() => setIsAIDialogOpen(true)}
+              onSearchOpen={() => setIsGlobalSearchOpen(true)}
+              onNavigateToItem={handleNavigateToItem}
+              onCreateBoard={createBoard}
+              onBoardCreated={handleTemplateCreated}
+              createRow={createRow}
+              updateSheet={updateSheet}
+              data-testid={`${testId}-home`}
             />
           </div>
         ) : (

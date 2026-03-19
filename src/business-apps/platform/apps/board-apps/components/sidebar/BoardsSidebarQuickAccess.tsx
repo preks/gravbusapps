@@ -1,8 +1,8 @@
 import React from 'react'
-import { LayoutGrid, Star, Users, Clock } from 'lucide-react'
+import { Home, LayoutGrid, Star, Users, Clock } from 'lucide-react'
 import type { BoardHubSidebarSection } from '../../hooks/useBoardAppsHubFiltering'
 
-export type QuickAccessSection = Exclude<BoardHubSidebarSection, 'home'>
+export type QuickAccessSection = BoardHubSidebarSection
 
 interface QuickAccessItem {
   key: QuickAccessSection
@@ -11,6 +11,7 @@ interface QuickAccessItem {
 }
 
 const QUICK_ACCESS_ITEMS: QuickAccessItem[] = [
+  { key: 'home', label: 'Home', icon: <Home className="gba:w-4 gba:h-4" /> },
   { key: 'my-boards', label: 'All Boards', icon: <LayoutGrid className="gba:w-4 gba:h-4" /> },
   { key: 'favorites', label: 'Favorites', icon: <Star className="gba:w-4 gba:h-4" /> },
   { key: 'shared', label: 'Shared with me', icon: <Users className="gba:w-4 gba:h-4" /> },
