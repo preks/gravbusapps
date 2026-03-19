@@ -41,12 +41,13 @@ import {
   FileText,
   Info,
   ArrowRight,
-  Zap
+  Zap,
+  RefreshCw
 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FlowManagement } from '@/common/components/flow'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { TaskDetailsTab } from './components'
-import { FlowManagement } from '../../common/components'
 import { QuickTaskModal, QuickTaskFormData, QuickTaskFlowService } from '../../common/components/flow-quick-task'
 
 // Remove unused Ant Design destructuring
@@ -354,6 +355,11 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
     }
   }, [selectedUserId])
 
+  const handleRefresh = async () => {
+    if (!selectedUserId) return
+    await Promise.all([fetchUserData(selectedUserId), fetchCompletedTasks(selectedUserId)])
+  }
+
   const performTaskAction = async (taskId: string, action: string, payload: any = {}) => {
     setActionLoading(taskId + action)
     try {
@@ -651,6 +657,15 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
 
           {/* Top Right: User Selection and Quick Task Button */}
           <div className="gba:flex gba:items-center gba:gap-3">
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={loading || completedLoading}
+              data-testid={`${prefixDataTestId}-RefreshButton`}
+            >
+              <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
+              Refresh
+            </Button>
             <Button
               onClick={() => setIsQuickTaskModalOpen(true)}
               className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg"

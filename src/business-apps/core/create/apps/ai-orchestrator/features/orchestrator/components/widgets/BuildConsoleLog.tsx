@@ -38,11 +38,13 @@ const logColors = {
   warning: 'gba:text-foreground'
 }
 
+const DEFAULT_MAX_HEIGHT_CLASS = 'gba:max-h-[160px] gba:md:max-h-[220px]'
+
 export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
   logs,
   currentOperation,
   isBuilding,
-  maxHeight = '320px',
+  maxHeight,
   className,
   'data-testid': testId = 'build-console-log'
 }) => {
@@ -54,6 +56,12 @@ export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
     }
   }, [logs.length])
+
+  const useResponsiveHeight = maxHeight === undefined
+  const logContentClassName = cn(
+    'gba:overflow-y-auto gba:bg-background gba:scrollbar-thin',
+    useResponsiveHeight ? DEFAULT_MAX_HEIGHT_CLASS : null
+  )
 
   return (
     <div
@@ -71,11 +79,7 @@ export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
       </div>
 
       {/* Log content */}
-      <div
-        ref={logContainerRef}
-        className="gba:overflow-y-auto gba:bg-background gba:scrollbar-thin"
-        style={{ maxHeight }}
-      >
+      <div ref={logContainerRef} className={logContentClassName} style={maxHeight != null ? { maxHeight } : undefined}>
         <div className="gba:p-2 gba:space-y-0.5">
           {logs.length === 0 && (
             <div className="gba:text-xs gba:text-muted-foreground gba:italic">Waiting for build to start...</div>

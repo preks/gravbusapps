@@ -3,57 +3,165 @@
  *
  * Resolution priority:
  * 1. Environment variable override (for local development) - used as-is
- * 2. Base URL + service path (for published components)
+ * 2. Base URL + service path + api path (for published components)
  */
 
 import { env } from '@/common/env/EnvUtils'
 
+export interface ServicePathConfig {
+  servicePath: string
+  apiPath: string
+}
+
+function isLocalhostRuntime(): boolean {
+  const host = globalThis.window?.location?.hostname
+  return host === 'localhost' || host === '127.0.0.1'
+}
+
+function buildFullPath(servicePath: string, apiPath: string): string {
+  const s = servicePath.startsWith('/') ? servicePath : `/${servicePath}`
+  const trimmed = s.endsWith('/') ? s.slice(0, -1) : s
+  if (!apiPath) return trimmed
+  const a = apiPath.startsWith('/') ? apiPath : `/${apiPath}`
+  return `${trimmed}${a}`
+}
+
 /**
  * Resolve service URL based on environment.
  *
- * @param envVar - Environment variable name (e.g., 'NEXT_PUBLIC_REST_ENDPOINT_ORGCHART')
- * @param servicePath - Service path (e.g., '/orgchart/api/v1')
+ * @param envVar - Environment variable name (e.g., 'NEXT_PUBLIC_ORGCHART_API_URL')
+ * @param config - servicePath (e.g. '/orgchart') and apiPath (e.g. '/api/v1'); full path = servicePath + apiPath
  * @returns Fully qualified service URL
- *
- * @example
- * // Local dev with explicit env var:
- * // NEXT_PUBLIC_AI_BUILDER_API_URL=http://localhost:3001
- * // -> http://localhost:3001
- *
- * // Production (no env var):
- * // NEXT_PUBLIC_BASE_URL=https://newwork-dev.newwork.com
- * // -> https://newwork-dev.newwork.com/ai-builder/api
  */
-export function resolveServiceUrl(envVar: string, servicePath: string): string {
-  // Priority 1: Explicit ENV (local dev) - use as-is without modification
-  const explicitUrl = env(envVar)
-  if (explicitUrl) {
-    return explicitUrl
+export function resolveServiceUrl(envVar: string, config: ServicePathConfig): string {
+  const serviceUrl = env(envVar)
+  if (serviceUrl && isLocalhostRuntime()) {
+    return serviceUrl
   }
 
-  // Priority 2: Construct from base URL (published components) - trim trailing slashes without ReDoS
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   while (baseUrl.length > 0 && baseUrl.endsWith('/')) {
     baseUrl = baseUrl.slice(0, -1)
   }
-  const cleanPath = servicePath.startsWith('/') ? servicePath : `/${servicePath}`
+  const fullPath = buildFullPath(config.servicePath, config.apiPath)
 
-  return `${baseUrl}${cleanPath}`
+  return `${baseUrl}${fullPath}`
 }
 
 // ============================================================================
 // Pre-resolved Service URLs (Central Configuration)
+// Naming: NAME_API_URL. Alphabetically sorted; env vars and paths match .env.example.new (base-URL services only).
 // ============================================================================
 
-export const AI_BUILDER_API_URL = resolveServiceUrl('NEXT_PUBLIC_AI_BUILDER_API_URL', '/ai-builder/api')
-
-export const ORGCHART_API_URL = resolveServiceUrl('NEXT_PUBLIC_REST_ENDPOINT_ORGCHART', '/orgchart/api/v1')
-
-export const GRAPHQL_API_URL = resolveServiceUrl('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK', '/v1/graphql')
-
-export const CATALOG_API_URL = resolveServiceUrl('NEXT_PUBLIC_CATALOG_API', '/catalog-manager')
-
-export const CUSTOM_FLOW_ENGINE_API_URL = resolveServiceUrl(
-  'NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL',
-  '/flow-engine/api'
-)
+export const AI_BUILDER_API_URL = resolveServiceUrl('NEXT_PUBLIC_AI_BUILDER_API_URL', {
+  servicePath: '/ai-builder',
+  apiPath: '/api'
+})
+export const CATALOG_API_URL = resolveServiceUrl('NEXT_PUBLIC_CATALOG_API_URL', {
+  servicePath: '/catalog-manager',
+  apiPath: ''
+})
+export const CHAT_API_URL = resolveServiceUrl('NEXT_PUBLIC_CHAT_API_URL', {
+  servicePath: '/chat-service',
+  apiPath: '/api/v1'
+})
+export const CHAT_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_CHAT_WEB_SOCKET_URL', {
+  servicePath: '/chat-service',
+  apiPath: ''
+})
+export const CUSTOM_FLOW_ENGINE_API_URL = resolveServiceUrl('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL', {
+  servicePath: '/flow-engine',
+  apiPath: '/api'
+})
+export const CUSTOMER_RELATIONS_API_URL = resolveServiceUrl('NEXT_PUBLIC_CUSTOMER_RELATIONS_API_URL', {
+  servicePath: '/processes/customer-relations',
+  apiPath: ''
+})
+export const DOCUMENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_API_URL', {
+  servicePath: '/document',
+  apiPath: '/api/v1'
+})
+export const EMPLOYEE_EXPENSE_API_URL = resolveServiceUrl('NEXT_PUBLIC_EMPLOYEE_EXPENSE_API_URL', {
+  servicePath: '/processes/employee-expense',
+  apiPath: ''
+})
+// TODO: This custom expense process service should be removed as soon as the Selgros flow is migrated to the standard expense backend.
+export const CS_SELGROS_API_URL = resolveServiceUrl('NEXT_PUBLIC_CS_SELGROS_API_URL', {
+  servicePath: '/processes/cs-selgros',
+  apiPath: ''
+})
+export const EMPLOYEES_API_URL = resolveServiceUrl('NEXT_PUBLIC_EMPLOYEES_API_URL', {
+  servicePath: '/processes/employee',
+  apiPath: ''
+})
+export const EMPLOYEE_TIME_API_URL = resolveServiceUrl('NEXT_PUBLIC_EMPLOYEE_TIME_API_URL', {
+  servicePath: '/processes/employee-time',
+  apiPath: ''
+})
+export const EVERY_API_URL = resolveServiceUrl('NEXT_PUBLIC_EVERY_API_URL', {
+  servicePath: '/every-api',
+  apiPath: '/v1'
+})
+export const EVERYBOX_API_URL = resolveServiceUrl('NEXT_PUBLIC_EVERYBOX_API_URL', {
+  servicePath: '/everybox',
+  apiPath: '/api/v1'
+})
+export const FILES_API_URL = resolveServiceUrl('NEXT_PUBLIC_FILES_API_URL', {
+  servicePath: '/files',
+  apiPath: '/api/v1'
+})
+export const FLOW_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOW_MANAGER_API_URL', {
+  servicePath: '/flow-manager',
+  apiPath: '/api/v1'
+})
+export const FLOW_METRICS_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOW_METRICS_API_URL', {
+  servicePath: '/flow-metrics',
+  apiPath: '/api/v1'
+})
+export const FLOWBOT_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOWBOT_API_URL', {
+  servicePath: '/flowbot',
+  apiPath: ''
+})
+export const FLOW_REGISTRY_API_URL = resolveServiceUrl('NEXT_PUBLIC_FLOW_REGISTRY_API_URL', {
+  servicePath: '/flow-registry',
+  apiPath: '/api/v1'
+})
+export const GRAPHQL_API_URL = resolveServiceUrl('NEXT_PUBLIC_GRAPHQL_API_URL', {
+  servicePath: '',
+  apiPath: '/v1'
+})
+export const INVESTMENT_RELATIONS_API_URL = resolveServiceUrl('NEXT_PUBLIC_INVESTMENT_RELATIONS_API_URL', {
+  servicePath: '/processes/investment-relations',
+  apiPath: ''
+})
+export const NAVIGATION_API_URL = resolveServiceUrl('NEXT_PUBLIC_NAVIGATION_API_URL', {
+  servicePath: '/navigation',
+  apiPath: '/api/v1'
+})
+export const ORGCHART_API_URL = resolveServiceUrl('NEXT_PUBLIC_ORGCHART_API_URL', {
+  servicePath: '/orgchart',
+  apiPath: '/api/v1'
+})
+export const AUTHORIZATION_API_URL = resolveServiceUrl('NEXT_PUBLIC_AUTHORIZATION_API_URL', {
+  servicePath: '/authorization',
+  apiPath: '/api/v1'
+})
+// TODO: Temporary altered
+export const PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_PROMPT_MANAGER_API_URL_TEMP', {
+  servicePath: '/prompt-manager',
+  apiPath: '/api/v1'
+})
+/** Processes base (base + /processes). No env override; for FlowClient / useKogitoProcess only. */
+export const PROCESSES_BASE_URL = (() => {
+  let base = env('NEXT_PUBLIC_BASE_URL') || ''
+  while (base.length > 0 && base.endsWith('/')) base = base.slice(0, -1)
+  return `${base}/processes`
+})()
+export const SCREEN_MANAGEMENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_SCREEN_MANAGEMENT_API_URL', {
+  servicePath: '/screen-management',
+  apiPath: '/api/v1'
+})
+export const USER_MANAGEMENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_USER_MANAGEMENT_API', {
+  servicePath: '/usermanagement',
+  apiPath: '/api/v1'
+})

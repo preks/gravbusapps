@@ -18,8 +18,8 @@ interface DocumentFileInfo {
     accessScope?: string
     uploadedAt?: string
   }
-  fileSize?: number
-  mimeType?: string
+  fileSize?: number | null
+  mimeType?: string | null
 }
 
 interface UseDocumentFileUploadArgs {

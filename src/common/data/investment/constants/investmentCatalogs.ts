@@ -24,3 +24,8 @@ export const INVESTMENT_ACCOUNT_TYPE = 'InvestmentAccountType:v1'
 export const investmentGroup = 'InvestmentGroup:v1'
 export const investmentType = 'InvestmentType:v1'
 export const investmentLiquidFundType = 'InvestmentLiquidFundType:v1'
+
+// Task and activity catalogs (IRM)
+export const TASK_TYPE = 'InvestmentTaskType:v1'
+export const TASK_PRIORITY = 'InvestmentTaskPriority:v1'
+export const ACTIVITY_TYPE = 'InvestmentActivityType:v1'

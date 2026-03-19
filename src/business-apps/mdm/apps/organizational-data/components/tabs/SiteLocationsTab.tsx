@@ -40,21 +40,19 @@ import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/She
 import { VerticalTableProps } from '../../../generic-components/table/VerticalTable'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
 import SiteLocationForm from '@/business-apps/mdm/forms/site-location-form/SiteLocationForm'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 export interface SiteLocationsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
 const DATA_TEST_ID_PREFIX = 'SiteLocationsTab'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
   const { t } = useTranslation()
   const { prefixDataTestId, userInfo } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   const {
     siteLocations,
@@ -106,13 +104,13 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
     async (location: SiteLocation | undefined) => {
       if (!location) return
 
-      await restClient.delete(`/site-locations/${location.id}`, {
+      await orgchartClient.deleteSiteLocation(location.id, {
         headers: { Authorization: `Bearer ${context.accessToken}` }
       })
 
       refetch()
     },
-    [restClient, context.accessToken, refetch]
+    [orgchartClient, context.accessToken, refetch]
   )
 
   const employeeDataTable = useCallback(

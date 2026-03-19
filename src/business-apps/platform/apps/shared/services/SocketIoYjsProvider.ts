@@ -61,7 +61,15 @@ export interface SocketIoYjsProviderOptions {
   awareness: Awareness
   onSyncedChange?: (isSynced: boolean) => void
   onBootstrapRequired?: (html: string) => Promise<void> | void
+  onReadyStateApplied?: (info: {
+    source: 'sync' | 'event' | 'remote-update'
+    status: 'ready' | 'already_ready'
+    fragmentLength: number
+    fragmentContent: unknown
+  }) => Promise<void> | void
   onLocalDocumentChange?: () => void
+  onRemoteDocumentChange?: () => void
+  onRemoteAwarenessChange?: () => void
   /** Resolve before first apply of doc/awareness state so the editor view can mount. */
   onBeforeFirstSync?: () => Promise<void>
 }
@@ -88,7 +96,15 @@ export class SocketIoYjsProvider {
 
   private onSyncedChange?: (isSynced: boolean) => void
   private onBootstrapRequired?: (html: string) => Promise<void> | void
+  private readonly onReadyStateApplied?: (info: {
+    source: 'sync' | 'event' | 'remote-update'
+    status: 'ready' | 'already_ready'
+    fragmentLength: number
+    fragmentContent: unknown
+  }) => Promise<void> | void
   private onLocalDocumentChange?: () => void
+  private onRemoteDocumentChange?: () => void
+  private onRemoteAwarenessChange?: () => void
   private readonly onBeforeFirstSync?: () => Promise<void>
   private hasWaitedForReady = false
 
@@ -102,7 +118,10 @@ export class SocketIoYjsProvider {
     this.awareness = options.awareness
     this.onSyncedChange = options.onSyncedChange
     this.onBootstrapRequired = options.onBootstrapRequired
+    this.onReadyStateApplied = options.onReadyStateApplied
     this.onLocalDocumentChange = options.onLocalDocumentChange
+    this.onRemoteDocumentChange = options.onRemoteDocumentChange
+    this.onRemoteAwarenessChange = options.onRemoteAwarenessChange
     this.onBeforeFirstSync = options.onBeforeFirstSync
   }
 
@@ -189,8 +208,19 @@ export class SocketIoYjsProvider {
     }
   }
 
+  private static readonly PERMANENT_ERROR_PATTERNS = ['access', 'forbidden', 'not found', 'permission', 'unauthorized']
+
+  private isPermanentError(error: string): boolean {
+    const lower = error.toLowerCase()
+    return SocketIoYjsProvider.PERMANENT_ERROR_PATTERNS.some(p => lower.includes(p))
+  }
+
   private handleSyncFailure(response: Extract<YjsSyncResponse, { success: false }>) {
     console.error('[SocketIoYjsProvider] Sync failed:', response.error)
+    if (this.isPermanentError(response.error)) {
+      console.warn('[SocketIoYjsProvider] Permanent error, will not retry')
+      return
+    }
     this.scheduleSyncRetry()
   }
 
@@ -202,9 +232,14 @@ export class SocketIoYjsProvider {
     await this.waitReadyIfNeeded()
     if (this.destroyed) return false
 
-    console.log('[SocketIoYjsProvider] Applying ready state, status:', response.status)
     if (response.status === 'ready') {
-      this.applyDocState(response.state)
+      const applyResult = this.applyDocState(response.state)
+      await this.onReadyStateApplied?.({
+        source: 'sync',
+        status: response.status,
+        fragmentLength: applyResult.fragmentLength,
+        fragmentContent: applyResult.fragmentContent
+      })
       const awarenessPayload = response.awareness
       if (awarenessPayload) {
         // Defer awareness so the view finishes applying doc state before we dispatch again.
@@ -263,8 +298,6 @@ export class SocketIoYjsProvider {
     if (!this.documentId) return
     if (this.synced) return
 
-    console.log(`[SocketIoYjsProvider] Starting sync for ${this.entityType}:`, this.documentId)
-
     const response = await this.requestSync()
     if (this.destroyed) return
 
@@ -288,23 +321,31 @@ export class SocketIoYjsProvider {
     this.handleWaitingStatus(response as Extract<YjsSyncResponse, { success: true; status: 'waiting' }>)
   }
 
-  private applyDocState(stateBase64: string) {
+  private applyDocState(stateBase64: string): { fragmentLength: number; fragmentContent: unknown } {
     try {
       const stateBytes = base64ToUint8Array(stateBase64)
-      console.log('[SocketIoYjsProvider] Applying doc state, length:', stateBytes.length)
       Y.applyUpdate(this.ydoc, stateBytes, 'remote')
+      this.onRemoteDocumentChange?.()
 
       const fragment = this.ydoc.getXmlFragment('default')
-      console.log('[SocketIoYjsProvider] After applying state, fragment length:', fragment.length)
-      console.log('[SocketIoYjsProvider] Fragment content:', fragment.toJSON())
+      const fragmentContent = fragment.toJSON()
+      return {
+        fragmentLength: fragment.length,
+        fragmentContent
+      }
     } catch (error) {
       console.error('[SocketIoYjsProvider] Failed applying doc state:', error)
+      return {
+        fragmentLength: -1,
+        fragmentContent: null
+      }
     }
   }
 
   private applyAwarenessState(updateBase64: string) {
     try {
       applyAwarenessUpdate(this.awareness, base64ToUint8Array(updateBase64), 'remote')
+      this.onRemoteAwarenessChange?.()
     } catch (error) {
       console.error('[SocketIoYjsProvider] Failed applying awareness state:', error)
     }
@@ -319,7 +360,13 @@ export class SocketIoYjsProvider {
 
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
-      this.applyDocState(event.state)
+      const applyResult = this.applyDocState(event.state)
+      void this.onReadyStateApplied?.({
+        source: 'event',
+        status: 'ready',
+        fragmentLength: applyResult.fragmentLength,
+        fragmentContent: applyResult.fragmentContent
+      })
       if (event.awareness) {
         this.applyAwarenessState(event.awareness)
       }
@@ -338,7 +385,13 @@ export class SocketIoYjsProvider {
     if (eventEntityType !== this.entityType) return
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
-      this.applyDocState(event.update)
+      const applyResult = this.applyDocState(event.update)
+      void this.onReadyStateApplied?.({
+        source: 'remote-update',
+        status: 'ready',
+        fragmentLength: applyResult.fragmentLength,
+        fragmentContent: applyResult.fragmentContent
+      })
     })
   }
 

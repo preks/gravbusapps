@@ -33,7 +33,11 @@ export function ToolbarGroupStyles({ editor, testId = 'editor-toolbar' }: Readon
     <RibbonGroup label={t('editor-ribbon-group-styles')} data-testid={testId ? `${testId}-group-styles` : undefined}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:min-w-[100px] gba:justify-between">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gba:h-8 gba:min-w-[110px] gba:justify-between gba:border-border/70 gba:bg-background"
+          >
             <span className="gba:text-xs">{getCurrentHeading()}</span>
             <ChevronDown className="gba:h-3 gba:w-3 gba:ml-1" />
           </Button>

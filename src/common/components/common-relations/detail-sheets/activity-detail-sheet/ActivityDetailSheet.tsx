@@ -161,24 +161,18 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
   }
 
   const handleReferenceClick = () => {
+    if (!buildReferenceUrl) return
+
     let url: string | null = null
 
     if (activity.accountId) {
-      url = buildReferenceUrl
-        ? buildReferenceUrl('account', activity.accountId)
-        : buildPlatformUrl('/platform/crm/account-record', { accountId: activity.accountId })
+      url = buildReferenceUrl('account', activity.accountId)
     } else if (activity.contactId) {
-      url = buildReferenceUrl
-        ? buildReferenceUrl('contact', activity.contactId)
-        : buildPlatformUrl('/platform/crm/contact-record', { contactId: activity.contactId })
+      url = buildReferenceUrl('contact', activity.contactId)
     } else if (activity.leadId) {
-      url = buildReferenceUrl
-        ? buildReferenceUrl('lead', activity.leadId)
-        : buildPlatformUrl('/platform/crm/lead-record', { leadId: activity.leadId })
+      url = buildReferenceUrl('lead', activity.leadId)
     } else if (activity.opportunityId) {
-      url = buildReferenceUrl
-        ? buildReferenceUrl('opportunity', activity.opportunityId)
-        : buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: activity.opportunityId })
+      url = buildReferenceUrl('opportunity', activity.opportunityId)
     }
 
     if (url) {

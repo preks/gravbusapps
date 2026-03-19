@@ -26,8 +26,8 @@ interface DocumentData {
     accessScope?: string
     uploadedAt?: string
   }
-  fileSize?: number
-  mimeType?: string
+  fileSize?: number | null
+  mimeType?: string | null
 }
 
 interface UseDocumentFormDataArgs {

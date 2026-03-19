@@ -53,7 +53,7 @@ const NewCellActions: React.FC<{
         onSaveCell()
       }}
       className="gba:flex-1 gba:h-7 gba:text-xs"
-      disabled={isSavingCell || cell.amount <= 0}
+      disabled={isSavingCell}
     >
       {isSavingCell ? 'Saving...' : 'Save'}
     </Button>
@@ -232,10 +232,10 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
               id={`${prefixDataTestId}-cell-amount-${ruleId}-${regionId}`}
               type="number"
               step="0.01"
-              value={cell.amount || ''}
+              value={cell.amount !== null && cell.amount !== undefined ? cell.amount : ''}
               onChange={e => {
-                const value = Number.parseFloat(e.target.value) || 0
-                onUpdateCell({ amount: value, isModified: true })
+                const value = e.target.value === '' ? 0 : Number.parseFloat(e.target.value)
+                onUpdateCell({ amount: isNaN(value) ? 0 : value, isModified: true })
               }}
               onClick={e => e.stopPropagation()}
               className="gba:w-full gba:h-7 gba:text-center gba:text-sm gba:font-semibold"

@@ -1,4 +1,16 @@
 # Sidebar
+# Hero
+dh-parent-label = Every Office
+dh-title = Documente
+dh-tabs-aria-label = Secțiuni documente
+dh-tab-my-documents = Documentele mele
+dh-tab-shared = Partajate
+dh-tab-templates = Șabloane
+dh-tab-favorites = Favorite
+dh-tab-recent = Recente
+dh-tab-archived = Arhivate
+
+# Sidebar (legacy)
 sidebar-back-to-desk = Înapoi la birou
 sidebar-expand = Extinde panoul lateral
 sidebar-collapse = Restrânge panoul lateral
@@ -33,7 +45,8 @@ menu-new-create-template-description = Creați un șablon nou
 
 # Header and list
 header-sort = Sortare
-header-search-placeholder = Căutare...
+header-search-placeholder = Caută documente...
+header-refresh = Reîmprospătează
 sort-name = Nume
 sort-modified = Modificat
 sort-created = Creat
@@ -297,6 +310,18 @@ ai-edit-placeholder = Descrieți ce doriți să modificați (ex. mai formal, scu
 ai-edit-apply = Aplicați
 ai-edit-fast-mode = Mod rapid (Groq)
 ai-edit-smart-mode = Mod inteligent (OpenAI)
+ai-edit-smart = Inteligent
+ai-edit-fast = Rapid
+ai-edit-instruction-label = Instrucțiune
+ai-edit-ctrl-enter-hint = Apăsați Ctrl+Enter pentru a genera
+ai-edit-generate-preview = Generează previzualizare
+ai-edit-selected-text = Text selectat
+ai-edit-clear-selection-title = Șterge selecția
+ai-edit-generating = Se generează…
+ai-edit-discard = Renunță
+ai-edit-undo = Revine
+ai-edit-new = Nou
+ai-edit-active = (activ)
 
 # Quill/Editor heading labels (for picker)
 editor-heading-normal = Normal
@@ -319,8 +344,6 @@ pdf-uploaded = Încărcat
 pdf-original = Original
 pdf-error-path-not-found = Calea fișierului PDF nu a fost găsită
 pdf-error-load-failed = Nu s-a putut încărca PDF-ul
-ai-edit-smart = Inteligent
-ai-edit-fast = Rapid
 editor-toolbar-undo = Revine (Ctrl+Z)
 editor-toolbar-redo = Refă (Ctrl+Y)
 editor-toolbar-bold = Îngroșat (Ctrl+B)
@@ -338,6 +361,7 @@ editor-toolbar-align-center = Aliniere centru
 editor-toolbar-align-right = Aliniere dreapta
 editor-toolbar-justify = Justificat
 editor-dictate-tooltip = Dictați textul cu vocea
+editor-dictate-label = Dictare
 editor-dictate-listening = Ascult…
 editor-dictate-unavailable = Introducerea vocală nu este disponibilă
 editor-dictate-hint = Faceți clic pentru a porni introducerea vocală
@@ -361,9 +385,51 @@ editor-toolbar-horizontal-rule = Linie orizontală
 editor-toolbar-insert-link = Inserați link
 editor-toolbar-insert-image = Inserați imagine
 editor-toolbar-insert-table = Inserați tabel
+editor-toolbar-table-row-before = Inserați rând deasupra
+editor-toolbar-table-row-after = Inserați rând dedesubt
+editor-toolbar-table-duplicate-row = Duplicați rândul
+editor-toolbar-table-column-before = Inserați coloană la stânga
+editor-toolbar-table-column-after = Inserați coloană la dreapta
+editor-toolbar-table-duplicate-column = Duplicați coloana
+editor-toolbar-table-delete-row = Ștergeți rândul
+editor-toolbar-table-delete-column = Ștergeți coloana
+editor-toolbar-table-delete-table = Ștergeți tabelul
+editor-toolbar-table-merge-cells = Îmbinați celulele
+editor-toolbar-table-split-cell = Divideți celula
+editor-toolbar-table-toggle-header-row = Comutați rândul de antet
+editor-toolbar-table-toggle-header-column = Comutați coloana de antet
+editor-toolbar-table-toggle-header-cell = Comutați celula de antet
+editor-toolbar-table-width-autofit-window = Potrivire automată la fereastră
+editor-toolbar-table-width-autofit-content = Potrivire automată la conținut
+editor-toolbar-table-width-full = Lățime tabel: 100%
+editor-toolbar-table-width-half = Lățime tabel: 50%
+editor-toolbar-table-width-fixed = Lățime tabel: 14 cm
+editor-toolbar-table-width-custom = Lățime personalizată a tabelului...
+editor-toolbar-table-width-prompt = Lățimea tabelului (exemple: 14cm, 320pt, 100%)
+editor-toolbar-table-align-left = Aliniați tabelul la stânga
+editor-toolbar-table-align-center = Centrați tabelul
+editor-toolbar-table-align-right = Aliniați tabelul la dreapta
+editor-toolbar-table-text-align-left = Aliniați textul celulei la stânga
+editor-toolbar-table-text-align-center = Centrați textul celulei
+editor-toolbar-table-text-align-right = Aliniați textul celulei la dreapta
+editor-toolbar-table-vertical-align-top = Aliniați celula sus
+editor-toolbar-table-vertical-align-middle = Aliniați celula la mijloc
+editor-toolbar-table-vertical-align-bottom = Aliniați celula jos
+editor-toolbar-table-fill-yellow = Umpleți celula: galben deschis
+editor-toolbar-table-fill-clear = Eliminați umplerea celulei
+editor-toolbar-table-fill-custom = Umplere personalizată a celulei...
+editor-toolbar-table-fill-prompt = Culoarea de umplere a celulei (exemplu: #FFF2CC)
+editor-toolbar-table-border-blue = Culoare bordură: albastru
+editor-toolbar-table-border-clear = Eliminați culoarea bordurii
+editor-toolbar-table-border-custom = Culoare personalizată a bordurii...
+editor-toolbar-table-border-prompt = Culoarea bordurii celulei (exemplu: #2563EB)
 editor-toolbar-page-break = Inserați salt de pagină (Ctrl+Enter)
 editor-toolbar-clear-formatting = Eliminați formatarea
 editor-toolbar-font = Font
+editor-toolbar-select-all = Selectați tot
+editor-toolbar-paste = Lipire
+editor-toolbar-paste-text-only = Lipire doar text
+editor-toolbar-paste-merge-formatting = Lipire cu combinarea formatării
 editor-font-default = Implicit
 editor-font-arial = Arial
 editor-font-times = Times New Roman
@@ -422,6 +488,16 @@ link-dialog-remove-link = Eliminați linkul
 link-dialog-cancel = Anulare
 link-dialog-invalid-url = Introduceți o adresă URL validă.
 
+# Insert table dialog
+insert-table-dialog-title = Inserați tabel
+insert-table-dialog-rows = Rânduri
+insert-table-dialog-cols = Coloane
+insert-table-dialog-header-row = Folosiți primul rând ca antet
+insert-table-dialog-insert = Inserați
+insert-table-dialog-cancel = Anulare
+insert-table-dialog-rows-range = Rândurile trebuie să fie între { $min } și { $max }.
+insert-table-dialog-cols-range = Coloanele trebuie să fie între { $min } și { $max }.
+
 # Link bubble menu
 link-bubble-edit = Editare
 link-bubble-remove-link = Eliminați linkul
@@ -462,6 +538,7 @@ editor-approval-more = +{ $count } în plus { $count ->
 editor-document-menu = Document
 editor-version-history = Istoric versiuni
 editor-save-checkpoint = Salvați checkpoint
+editor-checkpoint-from-save = Salvat din editor
 editor-unlock-document = Deblocați documentul
 editor-lock-document = Blocați documentul
 editor-publish = Publicare...
@@ -498,8 +575,6 @@ navigation-panel-show = Afișează panoul de navigare
 
 # Page setup dialog
 page-setup-title = Configurare pagină
-page-setup-tab-pages = Pagini
-page-setup-tab-pageless = Fără pagini
 page-setup-apply-to = Aplicare la
 page-setup-entire-document = Întreg documentul
 page-setup-orientation = Orientare
@@ -512,8 +587,6 @@ page-setup-margin-top = Sus
 page-setup-margin-bottom = Jos
 page-setup-margin-left = Stânga
 page-setup-margin-right = Dreapta
-page-setup-use-pageless = Fără pagini
-page-setup-pageless-description = Afișați documentul ca o singură pagină continuă, fără întreruperi de pagină.
 page-setup-cancel = Anulare
 page-setup-ok = OK
 page-size-a4 = A4
@@ -557,6 +630,14 @@ editor-approval-approver-alt = Aprobator
 editor-approval-rejector-alt = Respingător
 editor-page-of = Pagina { $current } din { $total }
 editor-user-fallback = Utilizator
+editor-header-footer-editing-header = Editați antetul pe pagina { $page }
+editor-header-footer-editing-footer = Editați subsolul pe pagina { $page }
+editor-header-footer-mode-description = Acțiunile din bara de instrumente se aplică antetului sau subsolului activ.
+editor-header-footer-close = Gata
+editor-header-footer-label-header = Antet
+editor-header-footer-label-footer = Subsol
+editor-header-footer-double-click = Faceți dublu clic pentru editare
+editor-header-footer-double-click-exit = Faceți dublu clic în afara zonei pentru a ieși
 
 # Template fields panel
 template-fields-insert = Inserați câmp

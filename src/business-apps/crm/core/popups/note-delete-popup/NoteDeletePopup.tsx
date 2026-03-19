@@ -204,14 +204,6 @@ const NoteDeletePopup: React.FC<NoteDeletePopupProps> = ({ initialValues = {}, .
                     </Badge>
                   </p>
                 )}
-                {note.noteText && (
-                  <p className="gba:mt-1">
-                    <strong>{getTranslationFromI18nKeyAndLabel('common.text', 'Text')}:</strong>{' '}
-                    <Badge variant="outline" className="gba:ml-1">
-                      {note.noteText.length > 80 ? `${note.noteText.substring(0, 80)}...` : note.noteText}
-                    </Badge>
-                  </p>
-                )}
                 {note.authorDisplayName && (
                   <p className="gba:mt-1">
                     <strong>{getTranslationFromI18nKeyAndLabel('note.author', 'Author')}:</strong>{' '}

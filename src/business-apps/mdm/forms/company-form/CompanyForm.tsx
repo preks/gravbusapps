@@ -21,8 +21,6 @@ import {
   useTranslation,
   Combobox
 } from '@newwork/nw-design-system'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import type { Company, CompanyAddress, Director } from '../../apps/organizational-data/types'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AddressSegment } from '@/common/components/common-relations/form-segments/address-segment'
@@ -33,6 +31,7 @@ import { useCompanyAdditionalProperties } from '../../hooks/useCompanyAdditional
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import translations from './_i18n'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 // Helper to validate no leading whitespace (trailing will be trimmed on submit)
 const noLeadingWhitespace = (value: string) => value === value.trimStart()
@@ -129,7 +128,6 @@ const createCompanySchema = (t: (key: string) => string) =>
 export type CompanyFormData = z.infer<ReturnType<typeof createCompanySchema>>
 
 const DATA_TEST_ID_PREFIX = 'CompanyForm'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 // Thumbnail configuration constants
 const THUMBNAIL_MAX_WIDTH = 200
@@ -168,7 +166,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
 
   const [loading, setLoading] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(company?.directorId || null)
@@ -731,13 +729,16 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
         }
       ]
 
-      await restClient.post(`/edges/operations`, updateCompanyEdgesPayload, {
-        params: { structureId: structureId },
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
+      await orgchartClient.updateCompanyEdges(
+        updateCompanyEdgesPayload,
+        { structureId },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
         }
-      })
+      )
     }
   }
 
@@ -841,11 +842,11 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
 
       // Handle company creation/update
       if (companyData?.id) {
-        await restClient.put(`/companies/${companyData?.id}`, payload, {
+        await orgchartClient.updateCompany(companyData.id, payload, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       } else {
-        await restClient.post(`/nodes/${structureId}`, createCompanyPayload, {
+        await orgchartClient.createCompanyNode(structureId, createCompanyPayload, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       }

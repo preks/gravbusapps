@@ -19,6 +19,8 @@ import type { TaskNodeConfig } from '../../../types/studioTypes'
 import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
 import { useStudioExpressionSuggestions } from '../../../hooks/useStudioExpressionSuggestions'
 import type { ExpressionSuggestionItem } from '@/common/components/flow/expression-editor'
+import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { AutomationVersionSelect } from './AutomationVersionSelect'
 
 interface AgentParamRowProps {
   paramName: string
@@ -110,16 +112,37 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ config, update, st
   const { agents, agentsLoading } = studioData
   const suggestions = useStudioExpressionSuggestions()
   const stepValueSuggestions = useMemo(
-    () => suggestions.filter(s => s.source === 'steps' || s.source === 'trigger'),
+    () =>
+      suggestions.filter(
+        s => s.source === 'steps' || s.source === 'trigger' || s.source === 'workflow' || s.source === 'orgchart'
+      ),
     [suggestions]
   )
 
   const [paramsLoading, setParamsLoading] = useState(false)
   const [params, setParams] = useState<{ system: string[]; user: string[] }>({ system: [], user: [] })
+  const [versionsLoading, setVersionsLoading] = useState(false)
+  const [versions, setVersions] = useState<PromptODM[]>([])
 
   const filtered = search ? agents.filter(a => (a.name ?? '').toLowerCase().includes(search.toLowerCase())) : agents
 
   const selectedAgent = agents.find(a => a._id === config.agentConfig?.promptId)
+
+  useEffect(() => {
+    if (config.stepType !== 'AI_TASK_EXPERT') return
+    if (!selectedAgent?._id) return
+    if (typeof config.agentConfig?.version === 'number') return
+
+    update({
+      agentConfig: {
+        ...config.agentConfig,
+        promptId: selectedAgent._id,
+        promptName: selectedAgent.name,
+        version: typeof selectedAgent.version === 'number' ? selectedAgent.version : undefined,
+        outputSchema: selectedAgent.response_schema ?? undefined
+      }
+    })
+  }, [config.agentConfig, config.stepType, selectedAgent, update])
 
   useEffect(() => {
     let cancelled = false
@@ -134,6 +157,27 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ config, update, st
         if (!cancelled) setParams(next)
       } finally {
         if (!cancelled) setParamsLoading(false)
+      }
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedAgent?._id, studioData])
+
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (!selectedAgent?._id) {
+        setVersions([])
+        return
+      }
+      setVersionsLoading(true)
+      try {
+        const next = await studioData.loadAgentVersions(selectedAgent._id)
+        if (!cancelled) setVersions(next)
+      } finally {
+        if (!cancelled) setVersionsLoading(false)
       }
     }
     run()
@@ -186,83 +230,121 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ config, update, st
     })
   }
 
+  const availableVersions = useMemo(() => {
+    const loaded = versions.map(version => Number(version.version)).filter(version => Number.isFinite(version))
+    const latest = Number(selectedAgent?.version)
+    return Array.from(new Set([...loaded, ...(Number.isFinite(latest) ? [latest] : [])])).sort((a, b) => b - a)
+  }, [selectedAgent?.version, versions])
+
+  const updateVersion = (version: number) => {
+    const current = config.agentConfig ?? { promptId: selectedAgent?._id ?? '', promptName: selectedAgent?.name }
+    const selectedVersionMeta =
+      versions.find(item => Number(item.version) === version) ??
+      (Number(selectedAgent?.version) === version ? selectedAgent : undefined)
+
+    update({
+      agentConfig: {
+        ...current,
+        version,
+        outputSchema: selectedVersionMeta?.response_schema ?? undefined
+      }
+    })
+  }
+
   return (
     <div className="gba:flex gba:flex-col gba:gap-2 gba:p-3 gba:rounded-lg gba:bg-muted">
       <Label className="gba:text-xs gba:font-semibold gba:text-foreground">
         <Bot className="gba:h-3.5 gba:w-3.5 gba:inline gba:mr-1" />
         {t('task-type-ai_task_expert')}
       </Label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="gba:w-full gba:justify-between gba:h-9 gba:text-xs gba:font-normal gba:bg-background"
-            data-testid={`${testId}-agent-select`}
-          >
-            {selectedAgent ? (
-              <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-foreground gba:truncate">
-                <Bot className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:flex-shrink-0" />
-                {selectedAgent.name}
-              </span>
-            ) : (
-              <span className="gba:text-muted-foreground">
-                {agentsLoading ? 'Loading agents...' : 'Select an agent...'}
-              </span>
-            )}
-            <ChevronsUpDown className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="gba:w-[--radix-popover-trigger-width] gba:p-0" align="start">
-          <Command shouldFilter={false}>
-            <CommandInput placeholder="Search agents..." value={search} onValueChange={setSearch} />
-            <CommandList>
-              {agentsLoading ? (
-                <div className="gba:flex gba:items-center gba:justify-center gba:py-6 gba:text-xs gba:text-muted-foreground gba:gap-2">
-                  <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
-                  Loading agents...
-                </div>
-              ) : (
-                <>
-                  <CommandEmpty>No agents found.</CommandEmpty>
-                  <CommandGroup>
-                    {filtered.map(agent => (
-                      <CommandItem
-                        key={agent._id}
-                        value={agent._id ?? ''}
-                        onSelect={() => {
-                          update({
-                            agentConfig: {
-                              ...config.agentConfig,
-                              promptId: agent._id ?? '',
-                              promptName: agent.name
-                            }
-                          })
-                          setOpen(false)
-                        }}
-                      >
-                        <Bot className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-muted-foreground" />
-                        <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
-                          <span className="gba:truncate gba:text-foreground">{agent.name}</span>
-                          {agent.description && (
-                            <span className="gba:text-[10px] gba:text-muted-foreground gba:truncate">
-                              {agent.description}
-                            </span>
-                          )}
-                        </div>
-                        {config.agentConfig?.promptId === agent._id && (
-                          <Check className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:flex-shrink-0" />
-                        )}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </>
-              )}
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+      <div className={selectedAgent ? 'gba:grid gba:grid-cols-[minmax(0,1fr)_9rem] gba:gap-2 gba:items-end' : ''}>
+        <div className="gba:flex gba:flex-col gba:gap-1.5">
+          <Label className="gba:text-xs gba:font-medium">{t('task-type-ai_task_expert')}</Label>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="gba:w-full gba:justify-between gba:h-9 gba:text-xs gba:font-normal gba:bg-background"
+                data-testid={`${testId}-agent-select`}
+              >
+                {selectedAgent ? (
+                  <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-foreground gba:truncate">
+                    <Bot className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:flex-shrink-0" />
+                    {selectedAgent.name}
+                  </span>
+                ) : (
+                  <span className="gba:text-muted-foreground">
+                    {agentsLoading ? 'Loading agents...' : 'Select an agent...'}
+                  </span>
+                )}
+                <ChevronsUpDown className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="gba:w-[--radix-popover-trigger-width] gba:p-0" align="start">
+              <Command shouldFilter={false}>
+                <CommandInput placeholder="Search agents..." value={search} onValueChange={setSearch} />
+                <CommandList>
+                  {agentsLoading ? (
+                    <div className="gba:flex gba:items-center gba:justify-center gba:py-6 gba:text-xs gba:text-muted-foreground gba:gap-2">
+                      <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
+                      Loading agents...
+                    </div>
+                  ) : (
+                    <>
+                      <CommandEmpty>No agents found.</CommandEmpty>
+                      <CommandGroup>
+                        {filtered.map(agent => (
+                          <CommandItem
+                            key={agent._id}
+                            value={agent._id ?? ''}
+                            onSelect={() => {
+                              update({
+                                agentConfig: {
+                                  ...config.agentConfig,
+                                  promptId: agent._id ?? '',
+                                  promptName: agent.name,
+                                  version: typeof agent.version === 'number' ? agent.version : undefined,
+                                  outputSchema: agent.response_schema ?? undefined
+                                }
+                              })
+                              setOpen(false)
+                            }}
+                          >
+                            <Bot className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-muted-foreground" />
+                            <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
+                              <span className="gba:truncate gba:text-foreground">{agent.name}</span>
+                              {agent.description && (
+                                <span className="gba:text-[10px] gba:text-muted-foreground gba:truncate">
+                                  {agent.description}
+                                </span>
+                              )}
+                            </div>
+                            {config.agentConfig?.promptId === agent._id && (
+                              <Check className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:flex-shrink-0" />
+                            )}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+        {selectedAgent && (
+          <AutomationVersionSelect
+            label={t('list-col-version')}
+            value={config.agentConfig?.version}
+            options={availableVersions}
+            loading={versionsLoading}
+            onChange={updateVersion}
+            data-testid={`${testId}-agent-version`}
+          />
+        )}
+      </div>
       {selectedAgent?.description && (
         <p className="gba:text-[10px] gba:text-muted-foreground">{selectedAgent.description}</p>
       )}
@@ -315,9 +397,9 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ config, update, st
                           testId={testId}
                           idx={idx}
                           pickLabel={t('task-input-params-pick')}
-                          searchLabel={t('logic-field-search')}
+                          searchLabel={t('flow-context-search')}
                           emptyLabel={t('logic-field-empty')}
-                          stepsGroupLabel={t('logic-field-group-steps')}
+                          stepsGroupLabel={t('flow-context-group')}
                         />
                       )
                     })}

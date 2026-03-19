@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useTaskExport } from './hooks/useTaskExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -87,6 +89,14 @@ export interface TaskLayoutProps<TTask extends Task = Task, TQueryVariables = an
   initialFilters?: Record<string, any>
   hideFilters?: boolean
   customPrimaryAction?: React.ReactNode
+  enableExport?: boolean
+  exportFilenamePrefix?: string
+}
+
+const getTaskExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
+  if (isExporting) return 'Exporting…'
+  if (totalCount === 0) return 'No data to export'
+  return `Export ${totalCount} tasks as ${format}`
 }
 
 /**
@@ -132,7 +142,9 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     dataTestId = 'task-view',
     initialFilters = {},
     hideFilters = false,
-    customPrimaryAction
+    customPrimaryAction,
+    enableExport = false,
+    exportFilenamePrefix = 'tasks'
   } = props
   const { accessToken, userInfo } = context
 
@@ -287,6 +299,47 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     return deriveSortableColumns(config.descriptors, config.columnLabels, availableColumnIds)
   }, [config.descriptors, config.columnLabels, availableColumns])
 
+  // Export hook — always called (hooks must not be conditional)
+  const { isExporting, handleExportCsv, handleExportExcel } = useTaskExport({
+    fetchTasks: config.fetchTasks as any,
+    queryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  // Export buttons — only rendered when enableExport is true
+  const exportButtons = useMemo(() => {
+    if (!enableExport) return null
+    const csvTitle = getTaskExportButtonTitle(isExporting, totalCount, 'CSV')
+    const excelTitle = getTaskExportButtonTitle(isExporting, totalCount, 'Excel')
+    return (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="task-export-csv-button"
+          title={csvTitle}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="task-export-excel-button"
+          title={excelTitle}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'Excel'}
+        </Button>
+      </>
+    )
+  }, [enableExport, isExporting, totalCount, handleExportCsv, handleExportExcel])
+
   return (
     <div data-testid={dataTestId}>
       {/* Statistics - Single set for Team Tasks */}
@@ -344,6 +397,7 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
             </AppAction>
           ) : undefined)
         }
+        secondaryActions={exportButtons}
         toolbarDensity="default"
         enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterTasks', 'Filter Tasks')}

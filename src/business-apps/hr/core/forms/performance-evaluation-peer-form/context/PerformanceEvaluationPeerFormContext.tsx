@@ -19,7 +19,6 @@ interface PerformanceEvaluationPeerFormContextType {
   error: string | null
   clearError: () => void
   onSubmit: () => Promise<void>
-  onCancel: () => Promise<void>
   businessAppContext: BusinessAppContextProps
   employees: EmployeeOption[]
   employeesLoading: boolean
@@ -40,15 +39,13 @@ interface PerformanceEvaluationPeerFormProviderProps {
   businessAppContext: BusinessAppContextProps
   initialValues?: Partial<PerformanceEvaluationPeerFormValues>
   onSubmit?: (values: PerformanceEvaluationPeerFormValues) => Promise<void>
-  onCancel?: () => Promise<void>
 }
 
 export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluationPeerFormProviderProps> = ({
   children,
   businessAppContext,
   initialValues = {},
-  onSubmit = async () => {},
-  onCancel = async () => {}
+  onSubmit = async () => {}
 }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -130,15 +127,6 @@ export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluati
     }
   }, [formValues, onSubmit, businessAppContext?.additionalData])
 
-  const handleCancel = useCallback(async () => {
-    try {
-      dispatchProcessContinueEvent('pse_abort', {})
-      await onCancel()
-    } catch {
-      // ignore
-    }
-  }, [onCancel])
-
   const value = useMemo<PerformanceEvaluationPeerFormContextType>(
     () => ({
       formValues,
@@ -147,7 +135,6 @@ export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluati
       error,
       clearError,
       onSubmit: handleSubmit,
-      onCancel: handleCancel,
       businessAppContext,
       employees,
       employeesLoading,
@@ -164,7 +151,6 @@ export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluati
       error,
       clearError,
       handleSubmit,
-      handleCancel,
       businessAppContext,
       employees,
       employeesLoading,

@@ -8,8 +8,17 @@ import { renderCatalogSelectOptionLabel } from './catalogSelectOptionLabel'
 
 type Variant = 'combobox' | 'select'
 
+/** Context from useFormField() when CatalogSelect is used inside FormField; applied to trigger for validation/ARIA. */
+export type FormFieldContextValue = {
+  ref?: React.Ref<unknown>
+  id?: string
+  invalid?: boolean
+  error?: { id?: string }
+}
+
 export type CatalogSelectViewProps = {
   fieldName?: string
+  formFieldContext?: FormFieldContextValue
   isSubmitted?: boolean
   variant?: Variant
   mode?: CatalogSelectProps['mode']
@@ -29,6 +38,7 @@ export type CatalogSelectViewProps = {
 export const CatalogSelectView = React.memo(
   ({
     fieldName,
+    formFieldContext,
     isSubmitted = false,
     variant,
     mode: propMode,
@@ -59,6 +69,15 @@ export const CatalogSelectView = React.memo(
     const wiredDisabled = propDisabled || (controller?.disabled ?? false)
     const wiredControllerValue = controller?.value ?? ''
     const isControlled = value !== undefined
+
+    const triggerFormProps = formFieldContext
+      ? {
+          ref: formFieldContext.ref,
+          id: formFieldContext.id,
+          'aria-invalid': !!formFieldContext.invalid,
+          'aria-describedby': formFieldContext.error?.id
+        }
+      : {}
 
     const effectiveValue = React.useMemo(() => {
       if (value === undefined) {
@@ -279,6 +298,7 @@ export const CatalogSelectView = React.memo(
 
     if (wiredVariant === 'combobox') {
       const baseProps = {
+        ...triggerFormProps,
         className:
           'gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:max-w-full gba:[&_button]:min-w-0 gba:[&_button]:overflow-hidden gba:[&_button_span]:truncate',
         options: comboboxOptions,
@@ -399,7 +419,12 @@ export const CatalogSelectView = React.memo(
         disabled={wiredDisabled}
         showClearButton={allowClear}
       >
-        <SelectTrigger className={`gba:w-full gba:max-w-full ${className || ''}`} data-testid={testId} {...props}>
+        <SelectTrigger
+          className={`gba:w-full gba:max-w-full ${className || ''}`}
+          data-testid={testId}
+          {...triggerFormProps}
+          {...props}
+        >
           <SelectValue placeholder="Select..." className="gba:max-w-full gba:overflow-hidden">
             {singleOption?.label
               ? renderCatalogSelectOptionLabel(

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
-import { Reply, ReplyAll, Forward, Trash2, Star, Archive, MessageSquare } from 'lucide-react'
+import { Reply, ReplyAll, Forward, Trash2, Star, Archive, MessageSquare, Undo2 } from 'lucide-react'
 import type { EmailMessage, ComposeMode } from '../../types'
 
 interface EmailReaderToolbarProps {
@@ -9,6 +9,8 @@ interface EmailReaderToolbarProps {
   onCompose: (mode: ComposeMode, replyTo?: EmailMessage) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
+  onRestore?: (id: string) => void
+  isTrashView?: boolean
   onToggleStar: (id: string) => void
   onToggleThreadView?: () => void
   t: (key: string, vars?: Record<string, string | number>) => string
@@ -21,6 +23,8 @@ export const EmailReaderToolbar: React.FC<EmailReaderToolbarProps> = ({
   onCompose,
   onArchive,
   onDelete,
+  onRestore,
+  isTrashView = false,
   onToggleStar,
   onToggleThreadView,
   t,
@@ -87,6 +91,22 @@ export const EmailReaderToolbar: React.FC<EmailReaderToolbarProps> = ({
           </TooltipTrigger>
           <TooltipContent>{t('reader-delete')}</TooltipContent>
         </Tooltip>
+        {isTrashView && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onRestore?.(message.id)}
+                disabled={!onRestore}
+                data-testid={`${testId}-restore`}
+              >
+                <Undo2 className="gba:w-4 gba:h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('reader-restore')}</TooltipContent>
+          </Tooltip>
+        )}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" onClick={() => onToggleStar(message.id)}>

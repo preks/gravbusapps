@@ -1,291 +1,93 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ReportType } from '../../types/reportTypes'
 import type { ReportColumnDef } from './backofficeExpenseReportsPage.utils'
 
-const amountAndDateColumns = (): ReportColumnDef[] => [
-  {
-    key: 'totalAmount',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Total Amount')
-  },
-  {
-    key: 'advancePaidAmount',
-    title: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
-      'Advance Payment'
-    )
-  },
-  {
-    key: 'remainingAmount',
-    title: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:team_expenses_page.dashboard_tab.plan_vs_request',
-      'Remaining Amount'
-    )
-  },
-  {
-    key: 'startDate',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date')
-  },
-  {
-    key: 'endDate',
-    title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.end_date', 'End Date')
-  }
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string
+
+const amountAndDateColumns = (t: TranslateFn): ReportColumnDef[] => [
+  { key: 'totalAmount', title: t('header-total-amount') },
+  { key: 'advancePaidAmount', title: t('header-advance') },
+  { key: 'remainingAmount', title: t('header-remaining-amount') },
+  { key: 'startDate', title: t('header-start-date') },
+  { key: 'endDate', title: t('header-end-date') }
 ]
 
-export const getReportColumns = (selectedReportType: ReportType | null): ReportColumnDef[] => {
+export const getReportColumns = (selectedReportType: ReportType | null, t: TranslateFn): ReportColumnDef[] => {
   switch (selectedReportType) {
     case ReportType.EXPENSE_ITEM:
       return [
-        {
-          key: 'title',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          widthClass: 'gba:w-[20%]'
-        },
-        {
-          key: 'code',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-            'Expense Code'
-          ),
-          widthClass: 'gba:w-[8%]'
-        },
-        {
-          key: 'employeeName',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
-          widthClass: 'gba:w-[13%]'
-        },
-        {
-          key: 'date',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:acknowledge_sick_leave.submission_date',
-            'Submission Date'
-          ),
-          widthClass: 'gba:w-[8%]'
-        },
-        {
-          key: 'amount',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount')
-        },
-        {
-          key: 'category',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.category', 'Category')
-        },
-        {
-          key: 'status',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-        }
+        { key: 'title', title: t('header-title'), widthClass: 'gba:w-[20%]' },
+        { key: 'code', title: t('header-expense-code'), widthClass: 'gba:w-[8%]' },
+        { key: 'employeeName', title: t('header-employee'), widthClass: 'gba:w-[13%]' },
+        { key: 'date', title: t('header-expense-date'), widthClass: 'gba:w-[8%]' },
+        { key: 'amount', title: t('header-amount') },
+        { key: 'category', title: t('header-category') },
+        { key: 'status', title: t('header-status') }
       ]
     case ReportType.EXPENSE_PLAN:
       return [
-        {
-          key: 'title',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          widthClass: 'gba:w-[18%]'
-        },
-        {
-          key: 'code',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code')
-        },
-        {
-          key: 'expenseRequestCode',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-            'Request Code'
-          ),
-          widthClass: 'gba:w-[8%]'
-        },
-        {
-          key: 'employeeName',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
-          widthClass: 'gba:w-[15%]'
-        },
-        {
-          key: 'createdAt',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:acknowledge_sick_leave.submission_date',
-            'Submission Date'
-          ),
-          widthClass: 'gba:w-[8%]'
-        },
-        {
-          key: 'status',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-          widthClass: 'gba:w-[13%]'
-        },
-        ...amountAndDateColumns()
+        { key: 'title', title: t('header-title'), widthClass: 'gba:w-[18%]' },
+        { key: 'code', title: t('header-plan-code') },
+        { key: 'expenseRequestCode', title: t('header-request-code'), widthClass: 'gba:w-[8%]' },
+        { key: 'employeeName', title: t('header-employee'), widthClass: 'gba:w-[15%]' },
+        { key: 'createdAt', title: t('header-creation-date'), widthClass: 'gba:w-[8%]' },
+        { key: 'status', title: t('header-status'), widthClass: 'gba:w-[13%]' },
+        ...amountAndDateColumns(t)
       ]
     case ReportType.EXPENSE_REQUEST:
       return [
-        {
-          key: 'title',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          widthClass: 'gba:w-[18%]'
-        },
-        {
-          key: 'code',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-            'Request Code'
-          ),
-          widthClass: 'gba:w-[8%]'
-        },
-        {
-          key: 'planCode',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code'),
-          widthClass: 'gba:w-[8%]'
-        },
-        {
-          key: 'employeeName',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
-          widthClass: 'gba:w-[13%]'
-        },
-        {
-          key: 'createdAt',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date')
-        },
-        {
-          key: 'status',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-        },
-        ...amountAndDateColumns()
+        { key: 'title', title: t('header-title'), widthClass: 'gba:w-[18%]' },
+        { key: 'code', title: t('header-request-code'), widthClass: 'gba:w-[8%]' },
+        { key: 'planCode', title: t('header-plan-code'), widthClass: 'gba:w-[8%]' },
+        { key: 'employeeName', title: t('header-employee'), widthClass: 'gba:w-[13%]' },
+        { key: 'createdAt', title: t('header-creation-date') },
+        { key: 'status', title: t('header-status') },
+        ...amountAndDateColumns(t)
       ]
     case ReportType.ADVANCE_PAYMENT:
       return [
-        {
-          key: 'title',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          widthClass: 'gba:w-[19%]'
-        },
-        {
-          key: 'employeeName',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
-          widthClass: 'gba:w-[18%]'
-        },
-        {
-          key: 'code',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code')
-        },
-        {
-          key: 'requestDate',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:acknowledge_sick_leave.submission_date',
-            'Submission Date'
-          ),
-          widthClass: 'gba:w-[10%]'
-        },
-        {
-          key: 'status',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-          widthClass: 'gba:w-[11%]'
-        },
-        {
-          key: 'amount',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount')
-        },
-        {
-          key: 'paymentMethod',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:payment_method', 'Payment Method'),
-          widthClass: 'gba:w-[8%]'
-        },
-        {
-          key: 'costCenter',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:cost_center', 'Cost Center'),
-          widthClass: 'gba:w-[8%]'
-        }
+        { key: 'title', title: t('header-title'), widthClass: 'gba:w-[19%]' },
+        { key: 'employeeName', title: t('header-employee'), widthClass: 'gba:w-[18%]' },
+        { key: 'code', title: t('header-plan-code') },
+        { key: 'createdAt', title: t('header-creation-date'), widthClass: 'gba:w-[10%]' },
+        { key: 'status', title: t('header-status'), widthClass: 'gba:w-[11%]' },
+        { key: 'amount', title: t('header-amount') },
+        { key: 'paymentMethod', title: t('header-payment-method'), widthClass: 'gba:w-[8%]' },
+        { key: 'costCenter', title: t('header-cost-center'), widthClass: 'gba:w-[8%]' }
       ]
     case ReportType.APPROVAL_PAYOUT_CYCLE:
       return [
-        {
-          key: 'title',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          widthClass: 'gba:w-[14%]'
-        },
-        {
-          key: 'code',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-            'Request Code'
-          ),
-          widthClass: 'gba:w-[8%]'
-        },
-        {
-          key: 'employeeName',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
-          widthClass: 'gba:w-[12%]'
-        },
-        {
-          key: 'pendingAt',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.submitted_label',
-            'Pending At'
-          )
-        },
-        { key: 'approvedAt', title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_date', 'Approved At') },
-        { key: 'paidAt', title: getTranslationFromI18nKeyAndLabel('lowcoder:payment_date', 'Paid At') },
-        { key: 'approvalDays', title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_days', 'Approval Days') },
-        { key: 'payoutDays', title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_days', 'Payout Days') },
-        {
-          key: 'totalCycleDays',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_days', 'Total Cycle Days')
-        },
-        {
-          key: 'approvalSlaLimitDays',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_sla_limit_days', 'Approval SLA Limit (Days)')
-        },
-        {
-          key: 'payoutSlaLimitDays',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_limit_days', 'Payout SLA Limit (Days)')
-        },
-        {
-          key: 'totalCycleSlaLimitDays',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:total_cycle_sla_limit_days',
-            'Total Cycle SLA Limit (Days)'
-          )
-        },
-        {
-          key: 'approvalSlaStatus',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_sla_status', 'Approval SLA Status')
-        },
-        {
-          key: 'payoutSlaStatus',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_status', 'Payout SLA Status')
-        },
-        {
-          key: 'totalCycleSlaStatus',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_sla_status', 'Total Cycle SLA Status')
-        },
-        {
-          key: 'bottleneckStage',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:bottleneck_stage', 'Bottleneck Stage')
-        },
-        {
-          key: 'status',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-        },
-        {
-          key: 'totalAmount',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_plan_table.amount',
-            'Total Amount'
-          )
-        }
+        { key: 'title', title: t('header-title'), widthClass: 'gba:w-[14%]' },
+        { key: 'code', title: t('header-request-code'), widthClass: 'gba:w-[8%]' },
+        { key: 'employeeName', title: t('header-employee'), widthClass: 'gba:w-[12%]' },
+        { key: 'pendingAt', title: t('header-pending-at') },
+        { key: 'approvedAt', title: t('header-approved-at') },
+        { key: 'paidAt', title: t('header-paid-at') },
+        { key: 'approvalDays', title: t('header-approval-days') },
+        { key: 'payoutDays', title: t('header-payout-days') },
+        { key: 'totalCycleDays', title: t('header-total-cycle-days') },
+        { key: 'approvalSlaLimitDays', title: t('header-approval-sla-limit') },
+        { key: 'payoutSlaLimitDays', title: t('header-payout-sla-limit') },
+        { key: 'totalCycleSlaLimitDays', title: t('header-total-cycle-sla-limit') },
+        { key: 'approvalSlaStatus', title: t('header-approval-sla-status') },
+        { key: 'payoutSlaStatus', title: t('header-payout-sla-status') },
+        { key: 'totalCycleSlaStatus', title: t('header-total-cycle-sla-status') },
+        { key: 'bottleneckStage', title: t('header-bottleneck-stage') },
+        { key: 'status', title: t('header-status') },
+        { key: 'totalAmount', title: t('header-total-amount') }
       ]
     default:
       return []
   }
 }
 
-export const getExportColumns = (selectedReportType: ReportType | null): ReportColumnDef[] => {
-  const uiCols = getReportColumns(selectedReportType)
+export const getExportColumns = (selectedReportType: ReportType | null, t: TranslateFn): ReportColumnDef[] => {
+  const uiCols = getReportColumns(selectedReportType, t)
   const insertCurrencyAfter = (afterKey: string) => {
     const alreadyHasCurrency = uiCols.some(c => c.key === 'currency')
     if (alreadyHasCurrency) return uiCols
     const idx = uiCols.findIndex(c => c.key === afterKey)
     if (idx === -1) return uiCols
-    const currencyCol: ReportColumnDef = {
-      key: 'currency',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.currency', 'Currency')
-    }
+    const currencyCol: ReportColumnDef = { key: 'currency', title: t('header-currency') }
     const next = [...uiCols]
     next.splice(idx + 1, 0, currencyCol)
     return next
@@ -311,11 +113,11 @@ export const getBackendSortableColumnKeys = (selectedReportType: ReportType | nu
     case ReportType.EXPENSE_ITEM:
       return new Set(['title', 'date', 'amount', 'status'])
     case ReportType.EXPENSE_REQUEST:
-      return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'requestDate', 'startDate', 'endDate'])
+      return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'startDate', 'endDate'])
     case ReportType.EXPENSE_PLAN:
       return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'startDate', 'endDate'])
     case ReportType.ADVANCE_PAYMENT:
-      return new Set(['requestDate', 'status', 'amount', 'paymentMethod'])
+      return new Set(['createdAt', 'status', 'amount', 'paymentMethod'])
     case ReportType.APPROVAL_PAYOUT_CYCLE:
       return new Set(['title', 'code', 'status', 'totalAmount'])
     default:

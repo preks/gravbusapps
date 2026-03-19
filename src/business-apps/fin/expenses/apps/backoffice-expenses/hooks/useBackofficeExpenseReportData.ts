@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import dayjs from 'dayjs'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { TranslateFn } from '../utils/utils'
 import {
   GET_EXPENSE_ITEMS_BACKOFFICE,
   GET_EXPENSE_PLANS_BACKOFFICE,
@@ -10,7 +11,8 @@ import {
   GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE,
   GET_EXPENSES_SLA_POLICY,
   GET_SLA_KPI_COMMENTS,
-  GET_SLA_KPI_PAYMENTS
+  GET_SLA_KPI_PAYMENTS,
+  GET_EXPENSE_EMPLOYEE_NAMES
 } from '../queries/backofficeReportQueries'
 import { useBackofficeExpensesOverview } from './useBackofficeExpensesOverview'
 import {
@@ -27,7 +29,9 @@ import {
   getFilterValues,
   buildReportExpenseRequestWhere,
   buildExpensePlanWhereForExport,
-  buildAdvancePaymentWhereForExport
+  buildAdvancePaymentWhereForExport,
+  buildExpenseItemWhereForReport,
+  type DateRanges
 } from './queryFilterUtils'
 import { useEmployeeResolver } from './useEmployeeResolver'
 import {
@@ -85,6 +89,17 @@ const extractIds = (items: any[], paths: string[]): string[] =>
     .flatMap((item: any) => paths.map(p => String(p.split('.').reduce((o: any, k: string) => o?.[k], item) || '')))
     .filter(Boolean)
 
+const extractEmployeeNames = (rows: any[]): string[] =>
+  rows
+    .map((r: any) => {
+      const e = r?.employee
+      if (!e) return ''
+      const full = (e.fullName || '').trim()
+      if (full) return full
+      return [e.firstName, e.lastName].filter(Boolean).join(' ').trim()
+    })
+    .filter(Boolean)
+
 const AGGREGATE_KEY: Record<string, string> = {
   [ReportType.EXPENSE_ITEM]: 'ExpenseItemAggregate',
   [ReportType.EXPENSE_PLAN]: 'ExpensePlanAggregate',
@@ -95,11 +110,14 @@ const AGGREGATE_KEY: Record<string, string> = {
 
 export const useBackofficeExpenseReportData = (
   { accessToken, userInfo }: BusinessAppContextProps,
+  t: TranslateFn,
   activeFiltersByReportType: Partial<Record<ReportType, ReportFilters>> = {},
   sorting: SortingState = []
 ): UseBackofficeExpenseReportDataReturn => {
-  const { graphqlClient, resolveEmployeeNamesByIds, resolveDisplayName, resolveDepartmentName } =
-    useEmployeeResolver(accessToken)
+  const { graphqlClient, resolveEmployeeNamesByIds, resolveDisplayName, resolveDepartmentName } = useEmployeeResolver(
+    accessToken,
+    t
+  )
 
   const [reportData, setReportData] = useState<ReportItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -115,6 +133,43 @@ export const useBackofficeExpenseReportData = (
   const reportQuerySignatureRef = useRef<Partial<Record<ReportType, string>>>({})
   const expensesSlaPolicyRef = useRef<ExpensesSlaPolicy>(DEFAULT_EXPENSES_SLA_POLICY)
   const reportOrderBy = useMemo(() => mapSortingToOrderBy(selectedReportType, sorting), [selectedReportType, sorting])
+  const activeFilters = selectedReportType ? (activeFiltersByReportType[selectedReportType] ?? {}) : {}
+
+  const selectedDateFrom = useMemo(() => {
+    const raw = (activeFilters as any)?.dateFrom
+    return typeof raw === 'string' && raw ? dayjs(raw).startOf('day').format('YYYY-MM-DD[T]HH:mm:ss') : undefined
+  }, [(activeFilters as any)?.dateFrom])
+
+  const selectedDateTo = useMemo(() => {
+    const raw = (activeFilters as any)?.dateTo
+    return typeof raw === 'string' && raw ? dayjs(raw).endOf('day').format('YYYY-MM-DD[T]HH:mm:ss') : undefined
+  }, [(activeFilters as any)?.dateTo])
+
+  const fmtStart = (v?: string) => (v ? dayjs(v).startOf('day').format('YYYY-MM-DD[T]HH:mm:ss') : undefined)
+  const fmtEnd = (v?: string) => (v ? dayjs(v).endOf('day').format('YYYY-MM-DD[T]HH:mm:ss') : undefined)
+
+  const selectedDates = useMemo(
+    () => ({
+      dateFrom: selectedDateFrom,
+      dateTo: selectedDateTo,
+      effectiveDateFrom: fmtStart((activeFilters as any)?.effectiveDateFrom),
+      effectiveDateTo: fmtEnd((activeFilters as any)?.effectiveDateTo),
+      requestDateFrom: fmtStart((activeFilters as any)?.requestDateFrom),
+      requestDateTo: fmtEnd((activeFilters as any)?.requestDateTo),
+      planDateFrom: fmtStart((activeFilters as any)?.planDateFrom),
+      planDateTo: fmtEnd((activeFilters as any)?.planDateTo)
+    }),
+    [
+      selectedDateFrom,
+      selectedDateTo,
+      (activeFilters as any)?.effectiveDateFrom,
+      (activeFilters as any)?.effectiveDateTo,
+      (activeFilters as any)?.requestDateFrom,
+      (activeFilters as any)?.requestDateTo,
+      (activeFilters as any)?.planDateFrom,
+      (activeFilters as any)?.planDateTo
+    ]
+  )
 
   const overview = useBackofficeExpensesOverview(
     { accessToken, userInfo },
@@ -136,6 +191,12 @@ export const useBackofficeExpenseReportData = (
         offset: (currentPage - 1) * pageSize,
         orderBy: selectedReportType === ReportType.ADVANCE_PAYMENT ? reportOrderBy : DEFAULT_ADVANCE_PAYMENT_ORDER
       },
+      requestsStatus: getFilterValues(
+        activeFiltersByReportType,
+        ReportType.EXPENSE_REQUEST,
+        selectedReportType,
+        'status'
+      ),
       requestsEmployeeNames: getFilterValues(
         activeFiltersByReportType,
         ReportType.EXPENSE_REQUEST,
@@ -148,6 +209,7 @@ export const useBackofficeExpenseReportData = (
         selectedReportType,
         'departmentName'
       ),
+      plansStatus: getFilterValues(activeFiltersByReportType, ReportType.EXPENSE_PLAN, selectedReportType, 'status'),
       plansEmployeeNames: getFilterValues(
         activeFiltersByReportType,
         ReportType.EXPENSE_PLAN,
@@ -159,6 +221,12 @@ export const useBackofficeExpenseReportData = (
         ReportType.EXPENSE_PLAN,
         selectedReportType,
         'departmentName'
+      ),
+      paymentsStatus: getFilterValues(
+        activeFiltersByReportType,
+        ReportType.ADVANCE_PAYMENT,
+        selectedReportType,
+        'status'
       ),
       paymentsEmployeeNames: getFilterValues(
         activeFiltersByReportType,
@@ -172,6 +240,25 @@ export const useBackofficeExpenseReportData = (
         selectedReportType,
         'departmentName'
       ),
+      requestsRequestDateRange:
+        selectedReportType === ReportType.EXPENSE_REQUEST &&
+        (selectedDates.requestDateFrom || selectedDates.requestDateTo)
+          ? { from: selectedDates.requestDateFrom, to: selectedDates.requestDateTo }
+          : undefined,
+      requestsEffectiveDateRange:
+        selectedReportType === ReportType.EXPENSE_REQUEST &&
+        (selectedDates.effectiveDateFrom || selectedDates.effectiveDateTo)
+          ? { from: selectedDates.effectiveDateFrom, to: selectedDates.effectiveDateTo }
+          : undefined,
+      plansEffectiveDateRange:
+        selectedReportType === ReportType.EXPENSE_PLAN &&
+        (selectedDates.effectiveDateFrom || selectedDates.effectiveDateTo)
+          ? { from: selectedDates.effectiveDateFrom, to: selectedDates.effectiveDateTo }
+          : undefined,
+      plansPlanDateRange:
+        selectedReportType === ReportType.EXPENSE_PLAN && (selectedDates.planDateFrom || selectedDates.planDateTo)
+          ? { from: selectedDates.planDateFrom, to: selectedDates.planDateTo }
+          : undefined,
       includeRequests: selectedReportType === ReportType.EXPENSE_REQUEST,
       includePlans: selectedReportType === ReportType.EXPENSE_PLAN,
       includePayments: selectedReportType === ReportType.ADVANCE_PAYMENT,
@@ -192,7 +279,6 @@ export const useBackofficeExpenseReportData = (
     setSelectedReportType(nextType)
   }, [])
 
-  const activeFilters = selectedReportType ? (activeFiltersByReportType[selectedReportType] ?? {}) : {}
   const selectedStatusFilters = useMemo(
     () => (Array.isArray(activeFilters?.status) ? activeFilters.status : EMPTY_STRING_ARRAY),
     [activeFilters?.status]
@@ -206,34 +292,17 @@ export const useBackofficeExpenseReportData = (
     [activeFilters?.departmentName]
   )
 
-  const mapStatusLabelsToRaw = useCallback((statusFilters: readonly string[]): string[] => {
-    const labelMap: Record<string, string[]> = {
-      'IN APPROVAL': ['PENDING'],
-      'VERIFICATION REQUIRED': ['APPROVED'],
-      PAID: ['PAID'],
-      'PAYMENT REQUIRED': ['TRANSFERRED'],
-      PREPARED: ['PREPARED'],
-      'TRANSFER REQUIRED': ['VERIFIED', 'BOOKED', 'TRANSFERRED']
-    }
-    const directRaw = new Set(['PENDING', 'APPROVED', 'PAID', 'PREPARED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'])
-    const mapped = new Set<string>()
-    statusFilters.forEach(f => {
-      const norm = toUpperText(f).replaceAll(/[_-]+/g, ' ').replaceAll(/\s+/g, ' ').trim()
-      const vals = labelMap[norm]
-      if (vals) {
-        vals.forEach(v => mapped.add(v))
-        return
-      }
-      const upper = toUpperText(f)
-      if (directRaw.has(upper)) mapped.add(upper)
-    })
-    return Array.from(mapped)
-  }, [])
+  const passthrough = useCallback((filters: string[]) => filters, [])
 
   const buildRequestWhere = useCallback(
-    (search: string, statuses: string[] = [], employees: string[] = [], departments: string[] = []) =>
-      buildReportExpenseRequestWhere(search, statuses, employees, departments, mapStatusLabelsToRaw),
-    [mapStatusLabelsToRaw]
+    (
+      search: string,
+      statuses: string[] = [],
+      employees: string[] = [],
+      departments: string[] = [],
+      dates: DateRanges = {}
+    ) => buildReportExpenseRequestWhere(search, statuses, employees, departments, passthrough, dates),
+    [passthrough]
   )
 
   const applyRows = useCallback((type: ReportType, rows: ReportItem[], count: number) => {
@@ -270,7 +339,7 @@ export const useBackofficeExpenseReportData = (
           if (cancelled) return
           applyRows(
             ReportType.EXPENSE_REQUEST,
-            mapRequestsFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName),
+            mapRequestsFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName, t),
             data?.expenseRequestsTotal || 0
           )
           break
@@ -281,7 +350,7 @@ export const useBackofficeExpenseReportData = (
           if (cancelled) return
           applyRows(
             ReportType.EXPENSE_PLAN,
-            mapPlansFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName),
+            mapPlansFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName, t),
             data?.expensePlansTotal || 0
           )
           break
@@ -294,7 +363,7 @@ export const useBackofficeExpenseReportData = (
           if (cancelled) return
           applyRows(
             ReportType.ADVANCE_PAYMENT,
-            mapPaymentsFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName),
+            mapPaymentsFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName, t),
             data?.advancePaymentsTotal || 0
           )
           break
@@ -313,7 +382,8 @@ export const useBackofficeExpenseReportData = (
     resolveEmployeeNamesByIds,
     resolveDisplayName,
     resolveDepartmentName,
-    applyRows
+    applyRows,
+    t
   ])
 
   const loadSlaPolicy = useCallback(async (): Promise<ExpensesSlaPolicy> => {
@@ -374,29 +444,27 @@ export const useBackofficeExpenseReportData = (
 
       switch (type) {
         case ReportType.EXPENSE_ITEM: {
+          const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
+          const dates = overrides?.dates ?? { dateFrom: selectedDates.dateFrom, dateTo: selectedDates.dateTo }
+          const where = buildExpenseItemWhereForReport(search, statuses, empFilters, deptFilters, dates)
           const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
             limit,
             offset,
-            searchTerm: search ? `%${search}%` : '%%',
-            orderBy: reportOrderBy
+            orderBy: reportOrderBy,
+            where
           })
           const nameById = await resolveEmployeeNamesByIds(
             extractIds(result?.ExpenseItem || [], ['employeeId', 'createdBy'])
           )
-          let rows: ReportItem[] = processExpenseItemsData(result, nameById, resolveDepartmentName)
-          const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
-          if (statuses.length || empFilters.length || deptFilters.length) {
-            rows = rows.filter(
-              r =>
-                (!statuses.length || statuses.includes(String(r?.status || ''))) &&
-                (!empFilters.length || empFilters.includes(String(r?.employeeName || ''))) &&
-                (!deptFilters.length || deptFilters.includes(String(r?.departmentName || '')))
-            )
+          return {
+            rows: processExpenseItemsData(result, nameById, resolveDepartmentName, t),
+            totalCount: getCount(result)
           }
-          return { rows, totalCount: getCount(result) }
         }
         case ReportType.EXPENSE_PLAN: {
-          const where = buildExpensePlanWhereForExport(search, empFilters, deptFilters)
+          const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
+          const dates = overrides?.dates ?? selectedDates
+          const where = buildExpensePlanWhereForExport(search, empFilters, deptFilters, dates, statuses)
           const result = await graphqlClient.request(GET_EXPENSE_PLANS_BACKOFFICE, {
             where,
             limit,
@@ -407,13 +475,14 @@ export const useBackofficeExpenseReportData = (
             extractIds(result?.ExpensePlan || [], ['employeeId', 'createdBy'])
           )
           return {
-            rows: processExpensePlansData(result, nameById, resolveDisplayName, resolveDepartmentName),
+            rows: processExpensePlansData(result, nameById, resolveDisplayName, resolveDepartmentName, t),
             totalCount: getCount(result)
           }
         }
         case ReportType.EXPENSE_REQUEST: {
           const statuses = resolveOverride(overrides?.statusFilters, [])
-          const where = buildRequestWhere(search, statuses, empFilters, deptFilters)
+          const dates = overrides?.dates ?? selectedDates
+          const where = buildRequestWhere(search, statuses, empFilters, deptFilters, dates)
           const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BACKOFFICE, {
             where,
             limit,
@@ -424,12 +493,14 @@ export const useBackofficeExpenseReportData = (
             extractIds(result?.ExpenseRequest || [], ['employeeId', 'createdBy'])
           )
           return {
-            rows: processExpenseRequestsData(result, nameById, resolveDisplayName, resolveDepartmentName),
+            rows: processExpenseRequestsData(result, nameById, resolveDisplayName, resolveDepartmentName, t),
             totalCount: getCount(result)
           }
         }
         case ReportType.ADVANCE_PAYMENT: {
-          const where = buildAdvancePaymentWhereForExport(search, empFilters, deptFilters)
+          const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
+          const dates = overrides?.dates ?? selectedDates
+          const where = buildAdvancePaymentWhereForExport(search, empFilters, deptFilters, dates, statuses)
           const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE, {
             where,
             limit,
@@ -441,14 +512,15 @@ export const useBackofficeExpenseReportData = (
           )
           return {
             rows: (result?.AdvancePayment || []).map((p: any) =>
-              mapAdvancePaymentToReport(p, nameById, resolveDisplayName, resolveDepartmentName)
+              mapAdvancePaymentToReport(p, nameById, resolveDisplayName, resolveDepartmentName, t)
             ),
             totalCount: getCount(result)
           }
         }
         case ReportType.APPROVAL_PAYOUT_CYCLE: {
           const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
-          const where = buildRequestWhere(search, statuses, empFilters, deptFilters)
+          const dates = overrides?.dates ?? selectedDates
+          const where = buildRequestWhere(search, statuses, empFilters, deptFilters, dates)
           const slaPolicyPromise = loadSlaPolicy()
           const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
             where,
@@ -466,6 +538,7 @@ export const useBackofficeExpenseReportData = (
               nameById,
               resolveDisplayName,
               resolveDepartmentName,
+              t,
               slaPolicy
             ),
             totalCount: getCount(result)
@@ -482,11 +555,13 @@ export const useBackofficeExpenseReportData = (
       selectedStatusFilters,
       selectedEmployeeFilters,
       selectedDepartmentFilters,
+      selectedDates,
       buildRequestWhere,
       resolveEmployeeNamesByIds,
       resolveDisplayName,
       resolveDepartmentName,
-      loadSlaPolicy
+      loadSlaPolicy,
+      t
     ]
   )
 
@@ -499,7 +574,7 @@ export const useBackofficeExpenseReportData = (
       for (let i = 0; i < maxBatches; i++) {
         const { rows } = await fetchReport(type, offset, batchLimit, overrides)
         if (!Array.isArray(rows)) {
-          setError(`Partial export: invalid ${type} batch`)
+          setError(t('error-partial-export', { type }))
           break
         }
         all.push(...rows)
@@ -524,7 +599,7 @@ export const useBackofficeExpenseReportData = (
         applyRows(type, rows, count)
         reportQuerySignatureRef.current[type] = querySignature
       } catch {
-        setError(`Failed to load ${type} data`)
+        setError(t('error-failed-load-report', { type }))
       } finally {
         if (!hasCached) setIsLoading(false)
       }
@@ -539,24 +614,34 @@ export const useBackofficeExpenseReportData = (
     try {
       return await fetchBatched(selectedReportType)
     } catch {
-      setError('Failed to export report data')
+      setError(t('error-failed-export-report'))
       return []
     }
   }, [graphqlClient, selectedReportType, fetchBatched])
 
-  const fetchAllForFilterOptions = useCallback(async (): Promise<ReportItem[]> => {
-    if (!graphqlClient || !selectedReportType) return []
-    try {
-      return await fetchBatched(selectedReportType, {
-        searchTerm: '',
-        statusFilters: [],
-        employeeFilters: [],
-        departmentFilters: []
-      })
-    } catch {
-      return []
+  const [allEmployeeNames, setAllEmployeeNames] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!graphqlClient) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const result = await graphqlClient.request(GET_EXPENSE_EMPLOYEE_NAMES, {})
+        if (cancelled) return
+        const names = [
+          ...extractEmployeeNames(result?.requestEmployees || []),
+          ...extractEmployeeNames(result?.planEmployees || [])
+        ]
+        setAllEmployeeNames(Array.from(new Set(names)).sort((a, b) => a.localeCompare(b)))
+      } catch {
+        /* ignore */
+      }
     }
-  }, [graphqlClient, selectedReportType, fetchBatched])
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [graphqlClient])
 
   const [slaKpiCounts, setSlaKpiCounts] = useState<SlaKpiCounts | null>(null)
 
@@ -589,7 +674,7 @@ export const useBackofficeExpenseReportData = (
             }
           ]
         })
-        setSlaKpiCounts(computeSlaKpiFromFlat(comments, payments, slaPolicy))
+        setSlaKpiCounts(computeSlaKpiFromFlat(comments, payments, slaPolicy, t))
       } catch {
         /* SLA KPI fetch failed */
       }
@@ -598,7 +683,7 @@ export const useBackofficeExpenseReportData = (
     return () => {
       cancelled = true
     }
-  }, [graphqlClient, loadSlaPolicy])
+  }, [graphqlClient, loadSlaPolicy, t])
 
   // Auto-fetch on parameter change for direct-fetch types
   const lastFetchSignatureRef = useRef<string | null>(null)
@@ -617,7 +702,11 @@ export const useBackofficeExpenseReportData = (
       selectedStatusFilters: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedStatusFilters : [],
       selectedEmployeeFilters: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedEmployeeFilters : [],
       selectedDepartmentFilters:
-        selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedDepartmentFilters : []
+        selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedDepartmentFilters : [],
+      selectedDates:
+        selectedReportType === ReportType.EXPENSE_ITEM || selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
+          ? selectedDates
+          : {}
     })
     if (lastFetchSignatureRef.current === signature) return
     if (
@@ -637,52 +726,38 @@ export const useBackofficeExpenseReportData = (
     selectedStatusFilters,
     selectedEmployeeFilters,
     selectedDepartmentFilters,
+    selectedDates,
     fetchPageData
   ])
 
   const reportTypes: ReportMetadata[] = [
     {
       id: 'report-1',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
-        'Approval & Payout Cycle'
-      ),
+      name: t('report-approval-payout-cycle'),
       type: ReportType.APPROVAL_PAYOUT_CYCLE,
       selected: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
     },
     {
       id: 'report-2',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_item_report',
-        'Expense Item Report'
-      ),
+      name: t('report-expense-item'),
       type: ReportType.EXPENSE_ITEM,
       selected: selectedReportType === ReportType.EXPENSE_ITEM
     },
     {
       id: 'report-3',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_plan_report',
-        'Expense Plan Report'
-      ),
+      name: t('report-expense-plan'),
       type: ReportType.EXPENSE_PLAN,
       selected: selectedReportType === ReportType.EXPENSE_PLAN
     },
     {
       id: 'report-4',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_request_report',
-        'Expense Request Report'
-      ),
+      name: t('report-expense-request'),
       type: ReportType.EXPENSE_REQUEST,
       selected: selectedReportType === ReportType.EXPENSE_REQUEST
     },
     {
       id: 'report-5',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:advance_payment_report.search_module',
-        'Advance Payment Report'
-      ),
+      name: t('report-advance-payment'),
       type: ReportType.ADVANCE_PAYMENT,
       selected: selectedReportType === ReportType.ADVANCE_PAYMENT
     }
@@ -714,7 +789,7 @@ export const useBackofficeExpenseReportData = (
       await fetchPageData(selectedReportType, token, sig)
     }, [selectedReportType, currentPage, pageSize, searchTerm, reportOrderBy, fetchPageData]),
     fetchAllForExport,
-    fetchAllForFilterOptions,
+    allEmployeeNames,
     slaKpiCounts
   }
 }

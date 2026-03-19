@@ -128,7 +128,11 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     loadRows,
     createRow,
     updateRow,
-    deleteRow
+    deleteRow,
+    patchRowCreated,
+    patchRowUpdated,
+    patchRowDeleted,
+    patchSheetColumns
   } = useBoardApps(accessToken)
 
   useEffect(() => {
@@ -449,6 +453,10 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
             onCreateRow={createRow}
             onUpdateRow={updateRow}
             onDeleteRow={deleteRow}
+            onPatchRowCreated={patchRowCreated}
+            onPatchRowUpdated={patchRowUpdated}
+            onPatchRowDeleted={patchRowDeleted}
+            onPatchSheetColumns={patchSheetColumns}
             data-testid={`${testId}-viewer`}
           />
         </div>

@@ -14,8 +14,8 @@ import {
 const formatDatePickerRange = (range: any[] | null): { from?: string; to?: string } | null => {
   if (!range?.[0] && !range?.[1]) return null
   return {
-    from: range?.[0] ? dayjs(range[0]).format('YYYY-MM-DD') : undefined,
-    to: range?.[1] ? dayjs(range[1]).format('YYYY-MM-DD') : undefined
+    from: range?.[0] ? dayjs(range[0]).startOf('day').format('YYYY-MM-DD[T]HH:mm:ss') : undefined,
+    to: range?.[1] ? dayjs(range[1]).endOf('day').format('YYYY-MM-DD[T]HH:mm:ss') : undefined
   }
 }
 
@@ -30,10 +30,6 @@ interface QueryFilterState {
   readonly amountMaxFilter: string
   readonly departmentId: string
   readonly currencyRef: string
-  readonly startFrom?: string
-  readonly startTo?: string
-  readonly endFrom?: string
-  readonly endTo?: string
   readonly effectiveDateRange: any[] | null
   readonly requestDateRange: any[] | null
   readonly requestTypeFilterLocal: string[]
@@ -48,10 +44,6 @@ export function useExpenseRequestQueryBuilder(state: QueryFilterState) {
     amountMaxFilter,
     departmentId,
     currencyRef,
-    startFrom,
-    startTo,
-    endFrom,
-    endTo,
     effectiveDateRange,
     requestDateRange,
     requestTypeFilterLocal,
@@ -78,18 +70,13 @@ export function useExpenseRequestQueryBuilder(state: QueryFilterState) {
       conditions.push({ employee: { employeePosition: { organizationalUnitId: { _eq: departmentId } } } })
     if (currencyRef) conditions.push({ currencyRef: { _eq: currencyRef } })
 
-    const startCond = buildDateRangeConditionShared(startFrom, startTo)
-    if (startCond) conditions.push({ startDate: startCond })
-    const endCond = buildDateRangeConditionShared(endFrom, endTo)
-    if (endCond) conditions.push({ endDate: endCond })
-
     const effRange = formatDatePickerRange(effectiveDateRange)
     if (effRange) pushIfPresent(conditions, buildRequestEffectiveDateFilter(effRange))
 
     const reqRange = formatDatePickerRange(requestDateRange)
     if (reqRange) {
       const reqCond = buildDateRangeConditionShared(reqRange.from, reqRange.to)
-      if (reqCond) conditions.push({ requestDate: reqCond })
+      if (reqCond) conditions.push({ createdAt: reqCond })
     }
 
     pushIfPresent(conditions, buildRequestTypeFilter(requestTypeFilterLocal))
@@ -102,10 +89,6 @@ export function useExpenseRequestQueryBuilder(state: QueryFilterState) {
     buildAmountCondition,
     departmentId,
     currencyRef,
-    startFrom,
-    startTo,
-    endFrom,
-    endTo,
     effectiveDateRange,
     requestDateRange,
     requestTypeFilterLocal,

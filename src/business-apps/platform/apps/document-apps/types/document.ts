@@ -34,9 +34,29 @@ export interface DocumentFileInfo {
 }
 
 /**
- * Page size preset id (used with tiptap-pagination-plus PAGE_SIZES).
+ * Page size preset id used by the local pages extension/page setup UI.
  */
 export type PageSizeId = 'A4' | 'A3' | 'A5' | 'LETTER' | 'LEGAL' | 'TABLOID'
+
+export interface DocumentPagesFormatting {
+  differentFirstPage?: boolean
+  differentOddEven?: boolean
+  header?: string | null
+  footer?: string | null
+  headerFirstPage?: string | null
+  footerFirstPage?: string | null
+  headerOdd?: string | null
+  headerEven?: string | null
+  footerOdd?: string | null
+  footerEven?: string | null
+  headerHeight?: number
+  footerHeight?: number
+  headerTopMargin?: number
+  footerBottomMargin?: number
+  accentColor?: string
+  headerAccentColor?: string
+  footerAccentColor?: string
+}
 
 /**
  * Document formatting metadata.
@@ -62,6 +82,8 @@ export interface DocumentFormatting {
   pageColor?: string
   /** If true, document is one continuous scroll (no fixed pages). */
   pageless?: boolean
+  /** Persisted pages/header/footer state for the local Pages extension. */
+  pages?: DocumentPagesFormatting
 }
 
 /**
@@ -171,6 +193,7 @@ export interface DocumentSummary {
   isOwner?: boolean
   permission?: 'owner' | 'view' | 'edit' | 'comment'
   sharedCount?: number
+  sharedPreviewUserIds?: string[]
   sharedWithCount?: number
   wordCount?: number
   approvalStatus?: 'pending' | 'approved' | 'rejected'

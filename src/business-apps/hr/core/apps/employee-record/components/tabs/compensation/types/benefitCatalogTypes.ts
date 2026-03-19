@@ -37,6 +37,8 @@ export interface CatalogBenefitEntry {
     objectValue?: unknown
   }>
   childEntries?: ProviderEntry[]
+  /** When multiple catalog entries are merged into one benefit type, all catalog ids for matching employee benefits */
+  catalogIds?: string[]
 }
 
 /**

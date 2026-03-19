@@ -1,6 +1,6 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Separator, Spinner } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Card, CardContent, CardHeader, CardTitle, Separator, Spinner, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
 import { LineChartComponent, PieChartComponent } from '../../../../manager-expenses/components/modals/charts'
 import { formatCurrency } from '../../../utils/currencyUtils'
 
@@ -45,8 +45,9 @@ const SummaryStatisticsCard: React.FC<{
   readonly amountTestId: string
   readonly totalCount: number
   readonly totalAmount: number
-  readonly countLabelKey: string
-  readonly countLabelFallback: string
+  readonly countLabel: string
+  readonly summaryTitle: string
+  readonly totalAmountLabel: string
   readonly amountClassName: string
   readonly kpiCurrencyCode: string
 }> = ({
@@ -55,19 +56,15 @@ const SummaryStatisticsCard: React.FC<{
   amountTestId,
   totalCount,
   totalAmount,
-  countLabelKey,
-  countLabelFallback,
+  countLabel,
+  summaryTitle,
+  totalAmountLabel,
   amountClassName,
   kpiCurrencyCode
 }) => (
   <Card data-testid={cardTestId}>
     <CardHeader>
-      <CardTitle>
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.summary_statistics',
-          'Summary Statistics'
-        )}
-      </CardTitle>
+      <CardTitle>{summaryTitle}</CardTitle>
     </CardHeader>
     <CardContent>
       <div className="gba:space-y-4">
@@ -75,21 +72,14 @@ const SummaryStatisticsCard: React.FC<{
           <div className="gba:text-3xl gba:font-bold gba:text-primary" data-testid={countTestId}>
             {totalCount}
           </div>
-          <div className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(countLabelKey, countLabelFallback)}
-          </div>
+          <div className="gba:text-sm gba:text-muted-foreground">{countLabel}</div>
         </div>
         <Separator />
         <div className="gba:text-center">
           <div className={amountClassName} data-testid={amountTestId}>
             {formatKpiAmount(Number((totalAmount ?? 0).toFixed?.(2) ?? totalAmount ?? 0), kpiCurrencyCode)}
           </div>
-          <div className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.total_amount',
-              'Total Amount'
-            )}
-          </div>
+          <div className="gba:text-sm gba:text-muted-foreground">{totalAmountLabel}</div>
         </div>
       </div>
     </CardContent>
@@ -100,8 +90,7 @@ const buildSummaryConfig = (
   idPrefix: string,
   statuses: Array<{ count: number }>,
   totalAmount: number,
-  countLabelKey: string,
-  countLabelFallback: string,
+  countLabel: string,
   amountClassName: string
 ) => ({
   cardTestId: `backoffice-analytics-${idPrefix}-summary-card`,
@@ -109,8 +98,7 @@ const buildSummaryConfig = (
   amountTestId: `backoffice-analytics-${idPrefix}-total-amount`,
   totalCount: statuses.reduce((sum, item) => sum + item.count, 0),
   totalAmount,
-  countLabelKey,
-  countLabelFallback,
+  countLabel,
   amountClassName
 })
 
@@ -126,6 +114,8 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
   expenseItemsByCategoryWithNames,
   travelByDestinationPointChartData
 }) => {
+  const { t } = useTranslation(translations)
+
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:p-8">
@@ -141,11 +131,19 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
   }
 
   const chartCurrency = currency || primaryCurrency
+  const summaryTitle = t('chart-summary-statistics')
+  const totalAmountLabel = t('chart-total-amount')
+
   const renderGrid = (columnsClass: string, chartCards: React.ReactNode[], summaryProps: any) => (
     <div className="gba:flex gba:flex-col gba:gap-6">
       <div className={`gba:grid gba:grid-cols-1 ${columnsClass} gba:gap-6`}>
         {chartCards}
-        <SummaryStatisticsCard {...summaryProps} kpiCurrencyCode={kpiCurrencyCode} />
+        <SummaryStatisticsCard
+          {...summaryProps}
+          kpiCurrencyCode={kpiCurrencyCode}
+          summaryTitle={summaryTitle}
+          totalAmountLabel={totalAmountLabel}
+        />
       </div>
     </div>
   )
@@ -157,12 +155,7 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
         [
           <Card key="monthly" data-testid="backoffice-analytics-expense-items-monthly-chart-card">
             <CardHeader>
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_items',
-                  'Monthly Expense Items'
-                )}
-              </CardTitle>
+              <CardTitle>{t('chart-monthly-expense-items')}</CardTitle>
             </CardHeader>
             <CardContent>
               <LineChartComponent
@@ -176,12 +169,7 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
           </Card>,
           <Card key="category" data-testid="backoffice-analytics-expense-items-category-chart-card">
             <CardHeader>
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.expense_items_by_category',
-                  'Expense Items by Category'
-                )}
-              </CardTitle>
+              <CardTitle>{t('chart-expense-items-by-category')}</CardTitle>
             </CardHeader>
             <CardContent>
               <PieChartComponent
@@ -198,8 +186,7 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
           'expense-items',
           data?.expenseItemsByStatus || [],
           data?.totalExpenseAmount ?? 0,
-          'lowcoder:team_expenses_page.dashboard_tab.total_expense_items',
-          'Total Items',
+          t('kpi-total-expense-items'),
           'gba:text-2xl gba:font-bold gba:text-primary'
         )
       )
@@ -210,12 +197,7 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
         [
           <Card key="monthly" data-testid="backoffice-analytics-expense-requests-monthly-chart-card">
             <CardHeader className="gba:bg-muted">
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_requests',
-                  'Monthly Expense Requests'
-                )}
-              </CardTitle>
+              <CardTitle>{t('chart-monthly-expense-requests')}</CardTitle>
             </CardHeader>
             <CardContent>
               <LineChartComponent
@@ -229,12 +211,7 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
           </Card>,
           <Card key="destination" data-testid="backoffice-analytics-expense-requests-by-destination-point-chart-card">
             <CardHeader className="gba:bg-muted">
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.destination_spend_distribution',
-                  'Destination Spend Distribution'
-                )}
-              </CardTitle>
+              <CardTitle>{t('chart-destination-spend')}</CardTitle>
             </CardHeader>
             <CardContent>
               <PieChartComponent
@@ -251,8 +228,7 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
           'expense-requests',
           data?.expenseRequestsByStatus || [],
           data?.totalRequestAmount ?? 0,
-          'lowcoder:team_expenses_page.dashboard_tab.total_expense_requests',
-          'Total Requests',
+          t('kpi-total-expense-requests'),
           'gba:text-2xl gba:font-bold gba:text-success'
         )
       )
@@ -263,12 +239,7 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
         [
           <Card key="monthly" data-testid="backoffice-analytics-expense-plans-monthly-chart-card">
             <CardHeader>
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_plans',
-                  'Monthly Expense Plans'
-                )}
-              </CardTitle>
+              <CardTitle>{t('chart-monthly-expense-plans')}</CardTitle>
             </CardHeader>
             <CardContent>
               <LineChartComponent
@@ -285,8 +256,7 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
           'expense-plans',
           data?.expensePlansByStatus || [],
           data?.totalPlanAmount ?? 0,
-          'lowcoder:team_expenses_page.dashboard_tab.total_expense_plans',
-          'Total Plans',
+          t('kpi-total-expense-plans'),
           'gba:text-2xl gba:font-bold gba:text-warning'
         )
       )
@@ -297,12 +267,7 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
         [
           <Card key="monthly" data-testid="backoffice-analytics-advance-payments-monthly-chart-card">
             <CardHeader>
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.monthly_advance_payments',
-                  'Monthly Advance Payments'
-                )}
-              </CardTitle>
+              <CardTitle>{t('chart-monthly-advance-payments')}</CardTitle>
             </CardHeader>
             <CardContent>
               <LineChartComponent
@@ -319,8 +284,7 @@ const AnalyticsTabContent: React.FC<AnalyticsTabContentProps> = ({
           'advance-payments',
           data?.advancePaymentsByStatus || [],
           data?.totalAdvanceAmount ?? 0,
-          'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
-          'Total Payments',
+          t('kpi-total-advance-payments'),
           'gba:text-2xl gba:font-bold gba:text-info'
         )
       )

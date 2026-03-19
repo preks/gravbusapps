@@ -15,6 +15,8 @@ import { MessageSquare } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InputRenderer } from '../../creator/components/shared/InputRenderer'
 import { LinksRenderer } from '../../creator/components/shared/LinksRenderer'
+import FlowDataSourceSelect from '@/business-apps/flow/common/components/data-source/FlowDataSourceSelect'
+import FlowDataSourceMultiSelect from '@/business-apps/flow/common/components/data-source/FlowDataSourceMultiSelect'
 import { mockUsers, type User as MockUser } from '../../../data/mockUsers'
 
 // Removed Ant Design destructuring - now using nw-design-system components
@@ -50,6 +52,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
   taskFormData,
   reassignUserId,
   prefixDataTestId,
+  accessToken,
   isCompleted = false,
   onComplete,
   onClaim,
@@ -129,7 +132,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
           <h3 className="gba:text-base gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>
             Attachments
           </h3>
-          <LinksRenderer links={task.links!} />
+          <LinksRenderer links={task.links!} accessToken={accessToken} />
         </div>
       )}
 
@@ -140,21 +143,76 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
             {isCompleted ? 'Submitted Data' : 'Form'}
           </h3>
           <div className="gba:space-y-4">
-            {(task.form || task.inputs)!.map((input: any, index: number) => (
-              <InputRenderer
-                key={index}
-                input={input}
-                index={index}
-                value={taskFormData[input.name] || ''}
-                onChange={value => {
-                  console.log('Field changed:', input.name, value)
-                  setTaskFormData({
-                    ...taskFormData,
-                    [input.name]: value
-                  })
-                }}
-              />
-            ))}
+            {(task.form || task.inputs)!.map((input: any, index: number) => {
+              const inputType = String(input?.type || '').toUpperCase()
+              const dataTestId = `input-renderer-input-${index}`
+              const currentValue = taskFormData?.[input.name]
+
+              const handleChange = (value: any) => {
+                console.log('Field changed:', input.name, value)
+                setTaskFormData({
+                  ...taskFormData,
+                  [input.name]: value
+                })
+              }
+
+              if (input?.dataSource && inputType === 'SELECT') {
+                return (
+                  <div key={index} className="gba:mb-4" data-testid={`${prefixDataTestId}-datasource-select-${index}`}>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{input.label}</label>
+                    <FlowDataSourceSelect
+                      value={String(currentValue ?? '')}
+                      onValueChange={handleChange}
+                      dataSource={input.dataSource}
+                      accessToken={accessToken}
+                      placeholder={input.placeholder || `Select ${input.label}`}
+                      initialOptions={Array.isArray(input.options) ? input.options : undefined}
+                      disabled={isCompleted || Boolean(input.readOnly)}
+                      data-testid={dataTestId}
+                    />
+                    {input.description ? (
+                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{input.description}</p>
+                    ) : null}
+                  </div>
+                )
+              }
+
+              if (input?.dataSource && inputType === 'MULTISELECT') {
+                return (
+                  <div
+                    key={index}
+                    className="gba:mb-4"
+                    data-testid={`${prefixDataTestId}-datasource-multiselect-${index}`}
+                  >
+                    <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{input.label}</label>
+                    <FlowDataSourceMultiSelect
+                      value={Array.isArray(currentValue) ? currentValue.map(String) : []}
+                      onValueChange={handleChange}
+                      dataSource={input.dataSource}
+                      accessToken={accessToken}
+                      placeholder={input.placeholder || `Select ${input.label}`}
+                      initialOptions={Array.isArray(input.options) ? input.options : undefined}
+                      disabled={isCompleted || Boolean(input.readOnly)}
+                      data-testid={dataTestId}
+                    />
+                    {input.description ? (
+                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{input.description}</p>
+                    ) : null}
+                  </div>
+                )
+              }
+
+              return (
+                <InputRenderer
+                  key={index}
+                  input={input}
+                  index={index}
+                  readOnly={isCompleted || Boolean(input.readOnly)}
+                  value={currentValue ?? ''}
+                  onChange={handleChange}
+                />
+              )
+            })}
           </div>
         </div>
       )}

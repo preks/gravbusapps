@@ -98,8 +98,8 @@ export interface ActivitySegmentProps {
     id: string
     name?: string
     version?: number
-    mimeType?: string
-    fileSize?: number
+    mimeType?: string | null
+    fileSize?: number | null
     fileInfo?: any
   }>
   onDocumentRemove?: (documentId: string) => void
@@ -306,7 +306,9 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('activity-entity-label')}</FormLabel>
+              <FormLabel>
+                {t('activity-entity-label')} <span className="gba:text-destructive">*</span>
+              </FormLabel>
               <FormControl>
                 <EntitySelect
                   entities={entities}

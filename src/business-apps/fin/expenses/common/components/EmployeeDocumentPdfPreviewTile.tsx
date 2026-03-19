@@ -46,12 +46,7 @@ export const EmployeeDocumentPdfPreviewTile: React.FC<EmployeeDocumentPdfPreview
   const hasDocument = Boolean(record?.employeeDocument?.file && String(record.employeeDocument.file).trim() !== '')
 
   const fileName = useMemo(
-    () =>
-      getFileNameFromEmployeeDocument(
-        record,
-        'lowcoder:expenses.employee_document_pdf.fallback_file_name',
-        'employee-document.pdf'
-      ),
+    () => getFileNameFromEmployeeDocument(record, undefined, undefined, 'employee-document.pdf'),
     [record]
   )
 

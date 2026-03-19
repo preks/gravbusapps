@@ -11,6 +11,7 @@ import { UnstructuredConnectorSelector } from './UnstructuredConnectorSelector'
 import { UnstructuredPreview } from './UnstructuredPreview'
 import { UnstructuredImportConfig } from './UnstructuredImportConfig'
 import { UnstructuredSyncProgress } from './UnstructuredSyncProgress'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 
 type Step = 'select' | 'preview' | 'config' | 'progress'
 
@@ -29,15 +30,21 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
   onAfterImport,
   'data-testid': testId = 'external-document-import-sheet'
 }) => {
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [step, setStep] = useState<Step>('select')
   const [connectors, setConnectors] = useState<UnstructuredConnectorSummary[]>([])
   const [isLoadingConnectors, setIsLoadingConnectors] = useState(false)
   const [connectorError, setConnectorError] = useState<string | null>(null)
   const [selectedConnector, setSelectedConnector] = useState<UnstructuredConnectorSummary | null>(null)
+  const [sharedConnections, setSharedConnections] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null)
+  const [isLoadingSharedConnections, setIsLoadingSharedConnections] = useState(false)
+  const [sharedConnectionsError, setSharedConnectionsError] = useState<string | null>(null)
 
   const [previewItems, setPreviewItems] = useState<UnstructuredPreviewItem[]>([])
   const [estimatedTotal, setEstimatedTotal] = useState<number | undefined>()
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   const [limit, setLimit] = useState(100)
   const [keepConnected, setKeepConnected] = useState(false)
@@ -57,6 +64,8 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const runIdRef = useRef<string | null>(null)
   runIdRef.current = runId
+  const pmClientRef = useRef(promptManagerClient)
+  pmClientRef.current = promptManagerClient
 
   useEffect(() => {
     if (accessToken) {
@@ -68,8 +77,39 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
     setIsLoadingConnectors(true)
     setConnectorError(null)
     try {
-      const result = await DocumentExternalSourceService.listConnectors()
-      setConnectors(result)
+      const [allConnectors, activeConnections, mcpConns] = await Promise.all([
+        DocumentExternalSourceService.listConnectors(),
+        pmClientRef.current.getExternalConnections({
+          kind: 'unstructured',
+          consumerType: 'document_import',
+          limit: 100,
+          offset: 0
+        }),
+        pmClientRef.current.getExternalConnections({
+          kind: 'mcp',
+          consumerType: 'document_import',
+          limit: 100,
+          offset: 0
+        })
+      ])
+      const activeConnectorIds = new Set(
+        (activeConnections.data || []).map(c => (c as any).connector_id || (c as any).connectorId || '').filter(Boolean)
+      )
+      const filtered = allConnectors.filter(c => activeConnectorIds.has(c.name))
+
+      const mcpAsConnectors: UnstructuredConnectorSummary[] = (mcpConns.data || []).map(c => {
+        const connId = (c as any).connection_id || (c as any).connectionId || ''
+        return {
+          id: connId,
+          name: c.name || connId,
+          description: c.description ?? null,
+          connectorEnabled: true,
+          config: { __kind: 'mcp' },
+          latestVersion: { version: 1, inputSchema: {}, outputSchema: {}, createdAt: '' }
+        }
+      })
+
+      setConnectors([...filtered, ...mcpAsConnectors])
     } catch {
       setConnectorError('Failed to load connectors')
     } finally {
@@ -83,12 +123,68 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
     }
   }, [open, step, loadConnectors])
 
+  const isMcpConnector = (c: UnstructuredConnectorSummary | null) =>
+    (c as any)?.config?.__kind === 'mcp'
+
+  useEffect(() => {
+    const loadSharedConnections = async () => {
+      if (!selectedConnector) {
+        setSharedConnections([])
+        setSelectedConnectionId(null)
+        setSharedConnectionsError(null)
+        return
+      }
+
+      if (isMcpConnector(selectedConnector)) {
+        setSharedConnections([])
+        setSelectedConnectionId(selectedConnector.id)
+        setSharedConnectionsError(null)
+        setIsLoadingSharedConnections(false)
+        return
+      }
+
+      setIsLoadingSharedConnections(true)
+      setSharedConnectionsError(null)
+      try {
+        const result = await promptManagerClient.getExternalConnections({
+          kind: 'unstructured',
+          connectorId: selectedConnector.name,
+          consumerType: 'document_import',
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true
+        })
+        const next = (result.data || []).map(item => ({
+          id: (item as any).connection_id || (item as any).connectionId || '',
+          name: item.name
+        }))
+        const valid = next.filter(item => item.id)
+        setSharedConnections(valid)
+        if (valid.length === 1) {
+          setSelectedConnectionId(valid[0].id)
+        }
+      } catch {
+        setSharedConnections([])
+        setSharedConnectionsError('Failed to load shared connections')
+      } finally {
+        setIsLoadingSharedConnections(false)
+      }
+    }
+    void loadSharedConnections()
+  }, [promptManagerClient, selectedConnector])
+
   const handlePreview = useCallback(async () => {
     if (!selectedConnector) return
     setIsLoadingPreview(true)
+    setPreviewError(null)
+    setPreviewItems([])
+    setEstimatedTotal(undefined)
     setStep('preview')
     try {
-      const result = await DocumentExternalSourceService.preview(selectedConnector.id)
+      const result = await DocumentExternalSourceService.preview(
+        selectedConnector.id,
+        selectedConnectionId || undefined
+      )
       if (result) {
         setPreviewItems(result.items)
         setEstimatedTotal(result.estimatedTotal)
@@ -96,13 +192,14 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
         toast.error('Preview failed')
         setStep('select')
       }
-    } catch {
-      toast.error('Preview failed')
-      setStep('select')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Preview failed'
+      setPreviewError(message)
+      toast.error(message)
     } finally {
       setIsLoadingPreview(false)
     }
-  }, [selectedConnector])
+  }, [selectedConnector, selectedConnectionId])
 
   const pollRunStatus = useCallback(
     async (activeRunId: string) => {
@@ -150,6 +247,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
         connectorId: selectedConnector.id,
         connectorName: selectedConnector.name,
         connectorDescription: selectedConnector.description ?? undefined,
+        connectionId: selectedConnectionId || undefined,
         limit,
         keepConnected,
         refreshMode: keepConnected ? refreshMode : undefined
@@ -174,7 +272,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
     } finally {
       setIsImporting(false)
     }
-  }, [selectedConnector, limit, keepConnected, refreshMode, startPolling])
+  }, [selectedConnector, selectedConnectionId, limit, keepConnected, refreshMode, startPolling])
 
   const handleCancel = useCallback(async () => {
     if (!runId) return
@@ -188,8 +286,12 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
   const resetState = useCallback(() => {
     setStep('select')
     setSelectedConnector(null)
+    setSharedConnections([])
+    setSelectedConnectionId(null)
+    setSharedConnectionsError(null)
     setPreviewItems([])
     setEstimatedTotal(undefined)
+    setPreviewError(null)
     setRunId(null)
     setRunStatus('queued')
     setTotalDiscovered(0)
@@ -238,6 +340,11 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
               connectors={connectors}
               selectedId={selectedConnector?.id ?? null}
               onSelect={setSelectedConnector}
+              connectionOptions={sharedConnections}
+              selectedConnectionId={selectedConnectionId}
+              onConnectionChange={setSelectedConnectionId}
+              isLoadingConnections={isLoadingSharedConnections}
+              connectionError={sharedConnectionsError}
               onNext={() => void handlePreview()}
               isLoading={isLoadingConnectors}
               error={connectorError}
@@ -251,6 +358,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
               items={previewItems}
               estimatedTotal={estimatedTotal}
               isLoading={isLoadingPreview}
+              error={previewError}
               onBack={() => setStep('select')}
               onNext={() => setStep('config')}
               data-testid={`${testId}-preview`}

@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 export interface SiteLocationOption {
   id: string
@@ -12,8 +11,6 @@ export interface SiteLocationOption {
   country?: string
   region?: string
 }
-
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 /** Same REST API and response shape as MDM organizational-data useSiteLocations. */
 interface SiteLocationData {
@@ -26,15 +23,6 @@ interface SiteLocationData {
   region_ref?: string
 }
 
-interface PaginatedSiteLocations {
-  data: SiteLocationData[]
-  paging?: {
-    offset: number
-    totalRecords: number
-    hasMore?: boolean
-  }
-}
-
 export const useSiteLocations = (context: BusinessAppContextProps) => {
   const [options, setOptions] = useState<SiteLocationOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -43,7 +31,7 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
     getCurrentActiveStructureId() ?? context.additionalData?.structureId ?? 'active'
   )
 
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   const fetchSiteLocations = useCallback(async () => {
     if (!context.accessToken) {
@@ -60,10 +48,12 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
 
     try {
       // Same as MDM: resolve structure then fetch site-locations
-      const getStructureResponse = await restClient.get<{ structure: { structureId: string } }>(
-        `/structures/${structureId}`,
+      const getStructureResponse = await orgchartClient.getStructure(
+        structureId,
         {
-          params: { nodeType: 'cost_center' },
+          nodeType: 'cost_center'
+        },
+        {
           headers: { Authorization: `Bearer ${context.accessToken}` }
         }
       )
@@ -75,10 +65,12 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
       let hasMore = true
 
       while (hasMore) {
-        const response = await restClient.get<PaginatedSiteLocations>('/site-locations', {
-          params: { structureId: resolvedStructureId, offset },
-          headers: { Authorization: `Bearer ${context.accessToken}` }
-        })
+        const response = await orgchartClient.getSiteLocations(
+          { structureId: resolvedStructureId, offset },
+          {
+            headers: { Authorization: `Bearer ${context.accessToken}` }
+          }
+        )
 
         if (response.data && response.paging) {
           allLocations.push(...response.data)
@@ -110,7 +102,7 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
     } finally {
       setIsLoading(false)
     }
-  }, [restClient, context.accessToken, context.additionalData?.structureId])
+  }, [orgchartClient, context.accessToken, context.additionalData?.structureId])
 
   useEffect(() => {
     fetchSiteLocations()

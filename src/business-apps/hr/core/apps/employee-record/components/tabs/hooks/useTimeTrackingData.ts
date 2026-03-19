@@ -77,7 +77,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [sortKey, setSortKey] = useState<keyof TimeEntry>('attendanceDateISO')
   const [sortDir, setSortDir] = useState<SortDirection>('asc')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(100)
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [allEntries, setAllEntries] = useState<TimeEntry[]>([])
   const [allMonthEntries, setAllMonthEntries] = useState<TimeEntry[]>([])
@@ -344,7 +344,10 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         }
       }
       for (const a of absences) {
-        const label = a.type?.translations?.[0]?.value || a.type?.objectValue || ''
+        const translation = (a.type?.translations as { localeCode?: string; value?: string }[] | undefined)?.find(
+          tr => tr.localeCode === activeLocale
+        )
+        const label = translation?.value ?? a.type?.translations?.[0]?.value ?? a.type?.objectValue ?? ''
         const trimmed = (label && String(label).trim()) || 'Absence'
         if (a.startDate && a.endDate) {
           addAbsenceRange(String(a.startDate), String(a.endDate), trimmed)

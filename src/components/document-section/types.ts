@@ -30,7 +30,7 @@ export interface DocumentItem {
   } | null
   fileInfo?: FileInfo | null
   mimeType?: string | null
-  fileSize?: number
+  fileSize?: number | null
   createdBy?: string | null
   parentDocument?: string | null
   folder?: boolean

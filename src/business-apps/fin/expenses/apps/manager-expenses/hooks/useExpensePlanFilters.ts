@@ -10,8 +10,7 @@ import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import { createDateRangeFilterComponent } from './dateRangeFilterComponent'
-import { availableFilterStatuses } from './availableFilterStatuses'
-import { PLAN_TAB_HIDDEN_STATUSES } from '../constants/expenseStatus'
+import { planFilterStatuses } from './availableFilterStatuses'
 
 // Extend dayjs with required plugins
 dayjs.extend(weekday)
@@ -60,8 +59,7 @@ export const useExpensePlanFilters = ({
   userInfo
 }: UseExpensePlanFiltersProps = {}): UseExpensePlanFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('')
-  // No default status filter - show all expense plans by default
-  const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([])
+  const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([ExpenseStatus.PENDING])
   // Date range filters
   const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null)
   const [planDateRange, setPlanDateRange] = useState<[Date | null, Date | null] | null>(null)
@@ -238,18 +236,12 @@ export const useExpensePlanFilters = ({
     }
   }, [])
 
-  // Plans tab: filter UI shows only statuses not in PLAN_TAB_HIDDEN_STATUSES (single source of truth).
-  const planVisibleStatuses = useMemo(
-    () => availableFilterStatuses.filter(s => !PLAN_TAB_HIDDEN_STATUSES.includes(s)),
-    []
-  )
-
   // Memoize filterLabelMap with stable dependencies
   const filterLabelMap = useMemo<Record<string, string>>(() => {
     const map: Record<string, string> = {}
 
-    // Add status filter labels (only statuses visible in Plans tab)
-    for (const status of planVisibleStatuses) {
+    // Add status filter labels
+    for (const status of planFilterStatuses) {
       map[status] = getStatusDisplayName(status)
     }
 
@@ -261,7 +253,7 @@ export const useExpensePlanFilters = ({
     buildDateRangeLabels(map)
 
     return map
-  }, [buildDateRangeLabels, getStatusDisplayName, planVisibleStatuses])
+  }, [buildDateRangeLabels, getStatusDisplayName])
 
   // Helper to check if date range is active
   const isDateRangeActive = useCallback((range: [Date | null, Date | null] | null): boolean => {
@@ -343,8 +335,7 @@ export const useExpensePlanFilters = ({
 
   // Create filter groups for the DataFilter component
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
-    // Status filters (Plans tab: CREATED and DISCARDED are hidden)
-    const statusItems: DataFilter[] = planVisibleStatuses.map(status => ({
+    const statusItems: DataFilter[] = planFilterStatuses.map(status => ({
       id: status,
       label: filterLabelMap[status],
       selected: statusFilter.includes(status)
@@ -424,7 +415,6 @@ export const useExpensePlanFilters = ({
       }
     ]
   }, [
-    planVisibleStatuses,
     filterLabelMap,
     statusFilter,
     planTypeFilter,

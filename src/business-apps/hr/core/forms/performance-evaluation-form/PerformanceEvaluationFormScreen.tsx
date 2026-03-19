@@ -55,11 +55,6 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
     // This function is kept for backward compatibility but the actual submission happens in the context
   }
 
-  const handleCancelEvaluation = async () => {
-    // Evaluation cancellation is now handled by Kogito process via dispatchProcessContinueEvent
-    // This function is kept for backward compatibility but the actual cancellation happens in the context
-  }
-
   return (
     <div
       className="gba:h-full gba:w-full"
@@ -70,7 +65,6 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
         userInfo={userInfo}
         additionalData={additionalData}
         onSubmit={handleSubmitEvaluation}
-        onCancel={handleCancelEvaluation}
         preSelectedEmployeeId={finalEmployeeId}
       />
     </div>

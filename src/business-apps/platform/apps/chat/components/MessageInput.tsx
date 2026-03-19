@@ -610,7 +610,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
         // Add mention badge as inline HTML
         const showAvatar = mention.type === 'employee' && mention.pictureThumbnail
-        html += `<span contenteditable="false" class="mention-badge" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; background-color: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); margin: 0 0.125rem; vertical-align: middle; user-select: none; cursor: default;">`
+        html += `<span contenteditable="false" class="mention-badge" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; background-color: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); font-family: inherit; font-size: inherit; font-weight: inherit; margin: 0 0.125rem; vertical-align: middle; user-select: none; cursor: default;">`
         if (showAvatar) {
           html += `<img src="data:image/jpeg;base64,${mention.pictureThumbnail}" alt="${mention.name.replace(/"/g, '&quot;')}" style="width: 0.75rem; height: 0.75rem; border-radius: 9999px; object-fit: cover;" />`
         } else {

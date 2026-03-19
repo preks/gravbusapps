@@ -1,35 +1,34 @@
-/**
- * Generates asset detail PDF and triggers download (same approach as HR Analytics export).
- * Uses PDFKit + triggerDownload — no popup, no templates.
- */
-
 import { Asset, AssetAllocation, AssetStatus } from '../types'
 import { buildFilename, triggerDownload } from '@/common/utils/excelExportUtils'
 import { formatDate, formatNumberFunction, getCatalogValue } from '@/common/utils/windowUtils'
 import PDFKitModule from 'pdfkit/js/pdfkit.standalone.js'
 
-/** Fixed English labels for PDF export (no i18n to avoid font/character issues). */
 const LABELS = {
   assetsReport: 'Assets Report',
-  disposalCertificate: 'Disposal Certificate',
-  assetInformation: 'Asset Information',
-  assetIdentifiers: 'Asset Identifiers',
-  assetId: 'Asset ID',
-  serialNumber: 'Serial Number',
-  model: 'Model',
-  category: 'Category',
+  certificateTitle: 'Data Sanitization & Asset Disposal Certificate',
+  documentControl: 'DOCUMENT CONTROL',
+  issueDate: 'Issue Date',
   status: 'Status',
+  assetIdentification: 'ASSET IDENTIFICATION',
+  assetIdInventoryNo: 'Asset ID / Inventory No.',
+  deviceType: 'Device Type',
+  manufacturerAndModel: 'Manufacturer & Model',
+  serialNumber: 'Serial Number (S/N)',
+  previousCustodian: 'Previous Custodian',
+  dataSanitizationDetails: 'DATA SANITIZATION DETAILS',
+  sanitizationDate: 'Sanitization Date',
+  sanitizationMethod: 'Sanitization Method',
+  disposalStatusLogistics: 'DISPOSAL STATUS & LOGISTICS',
+  disposalType: 'Disposal Type',
+  authorizationSignOff: 'AUTHORIZATION & SIGN-OFF',
+  performedBy: 'Performed by',
+  finalDeclaration: 'Final Declaration:',
+  finalDeclarationText:
+    '"I hereby certify that the asset identified above has been sanitized in accordance with the organization\'s Data Retention Policy and ISO 27001 standards. All stored information has been rendered irrecoverable. The physical chain of custody has been maintained until final disposal/transfer."',
+  assetInformation: 'Asset Information',
   location: 'Location',
   inventoryValue: 'Inventory Value',
   acquisitionDate: 'Acquisition Date',
-  disposalMethod: 'Disposal Method',
-  disposalDate: 'Disposal Date',
-  disposalSection: 'Disposal',
-  responsiblePerson: 'Responsible Person',
-  sanitizationMethod: 'Sanitization Method',
-  sanitizationExecutionDate: 'Sanitization Execution Date',
-  sanitizationSection: 'Sanitization',
-  performedBy: 'Performed by',
   warranty: 'Warranty',
   warrantyPeriod: 'Warranty Period',
   months: 'months',
@@ -37,14 +36,12 @@ const LABELS = {
   valid: 'Valid',
   expired: 'Expired',
   notes: 'Notes',
-  allocationHistory: 'Allocation History',
+  allocationHistory: 'ALLOCATION HISTORY',
   allocationHistoryEmpty: 'No allocation history available for this asset.',
   notAvailable: 'N/A',
   present: 'Present',
   current: 'Current',
   employee: 'Employee',
-  start: 'Start',
-  end: 'End',
   startCondition: 'Start condition',
   returnCondition: 'Return condition',
   expectedReturn: 'Expected return',
@@ -79,13 +76,6 @@ function statusDisplayName(status: AssetStatus): string {
     default:
       return 'N/A'
   }
-}
-
-function responsiblePersonDisplay(asset: Asset, notAvailable: string): string {
-  const r = asset.responsibleEmployee
-  if (r?.displayName) return r.displayName
-  if (r?.firstName || r?.lastName) return `${r?.firstName ?? ''} ${r?.lastName ?? ''}`.trim()
-  return notAvailable
 }
 
 function performerDisplay(asset: Asset, notAvailable: string): string {
@@ -169,11 +159,12 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
   const { doc, promise } = createPdfDoc()
   const margin = 40
   const pageWidth = doc.page.width - margin * 2
+  const sectionGap = 24
   let y = margin
 
   const isDisposalCertificate = asset.assetStatus === AssetStatus.RETIRED
 
-  const titleText = isDisposalCertificate ? labels.disposalCertificate : labels.assetsReport
+  const titleText = isDisposalCertificate ? labels.certificateTitle : labels.assetsReport
   doc.fontSize(18).font('Helvetica-Bold').text(titleText, margin, y, {
     width: pageWidth,
     align: 'center'
@@ -182,64 +173,67 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
   y += 24
 
   const category = getCatalogValue(asset.assetCategory) || labels.notAvailable
-  const modelDisplay = asset.model || labels.notAvailable
   const serialDisplay = asset.serialNumber ?? labels.notAvailable
+  const manufacturerAndModelDisplay =
+    [getCatalogValue(asset.assetBrand), asset.model].filter(Boolean).join(' ') || labels.notAvailable
 
+  const sortedAllocationsForCert = [...allocations].sort(
+    (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+  )
+  const lastAllocation = sortedAllocationsForCert[0]
+  const previousCustodianDisplay = lastAllocation
+    ? employeeDisplayName(lastAllocation, labels.notAvailable)
+    : labels.notAvailable
   if (isDisposalCertificate) {
-    // --- Asset Identifiers (kept as requested) ---
-    doc.fontSize(12).font('Helvetica-Bold').text(labels.assetIdentifiers, margin, y)
+    // DOCUMENT CONTROL
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.documentControl, margin, y)
     y += 18
     doc.fontSize(10).font('Helvetica')
-    doc.text(`${labels.assetId}: ${asset.id}`, margin, y, { width: pageWidth })
+    const issueDateDisplay = asset.disposalDate
+      ? formatDate(asset.disposalDate) || asset.disposalDate
+      : labels.notAvailable
+    doc.text(`${labels.issueDate}: ${issueDateDisplay}`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.status}: Retired`, margin, y, { width: pageWidth })
+    y += sectionGap
+
+    // ASSET IDENTIFICATION
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.assetIdentification, margin, y)
+    y += 18
+    doc.fontSize(10).font('Helvetica')
+    doc.text(`${labels.assetIdInventoryNo}: ${asset.id}`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.deviceType}: ${category}`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.manufacturerAndModel}: ${manufacturerAndModelDisplay}`, margin, y, { width: pageWidth })
     y += 14
     doc.text(`${labels.serialNumber}: ${serialDisplay}`, margin, y, { width: pageWidth })
     y += 14
-    doc.text(`${labels.model}: ${modelDisplay}`, margin, y, { width: pageWidth })
-    y += 14
-    doc.text(`${labels.category}: ${category}`, margin, y, { width: pageWidth })
-    y += 24
+    doc.text(`${labels.previousCustodian}: ${previousCustodianDisplay}`, margin, y, { width: pageWidth })
+    y += sectionGap
 
-    // --- Disposal method (disposal_outcome_ref) & disposal date (disposal_date) ---
-    doc.fontSize(12).font('Helvetica-Bold').text(labels.disposalSection, margin, y)
+    // DATA SANITIZATION DETAILS
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.dataSanitizationDetails, margin, y)
     y += 18
     doc.fontSize(10).font('Helvetica')
-    const disposalMethodDisplay =
-      getCatalogValue(asset.disposalOutcome) || asset.disposalOutcomeRef || labels.notAvailable
-    doc.text(`${labels.disposalMethod}: ${disposalMethodDisplay}`, margin, y, { width: pageWidth })
-    y += 14
-    const disposalDateDisplay = asset.disposalDate
-      ? formatDate(asset.disposalDate) || asset.disposalDate
+    const sanitizationDateDisplay = asset.sanitizationExecutionDate
+      ? formatDate(asset.sanitizationExecutionDate) || asset.sanitizationExecutionDate
       : labels.notAvailable
-    doc.text(`${labels.disposalDate}: ${disposalDateDisplay}`, margin, y, { width: pageWidth })
-    y += 24
+    doc.text(`${labels.sanitizationDate}: ${sanitizationDateDisplay}`, margin, y, { width: pageWidth })
+    y += 14
+    const sanitizationMethodDisplay =
+      getCatalogValue(asset.sanitizationMethod) || asset.sanitizationMethodRef || labels.notAvailable
+    doc.text(`${labels.sanitizationMethod}: ${sanitizationMethodDisplay}`, margin, y, { width: pageWidth })
+    y += sectionGap
 
-    // --- Responsible person (responsible_employee_id) ---
-    doc.fontSize(12).font('Helvetica-Bold').text(labels.responsiblePerson, margin, y)
+    // DISPOSAL STATUS & LOGISTICS
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.disposalStatusLogistics, margin, y)
     y += 18
     doc.fontSize(10).font('Helvetica')
-    doc.text(responsiblePersonDisplay(asset, labels.notAvailable), margin, y, { width: pageWidth })
-    y += 24
-
-    // --- Sanitization: method (sanitization_method_ref), execution date (sanitization_execution_date), performed by (performer_employee_id) ---
-    if (asset.requireSanitization) {
-      doc.fontSize(12).font('Helvetica-Bold').text(labels.sanitizationSection, margin, y)
-      y += 18
-      doc.fontSize(10).font('Helvetica')
-      const sanitizationMethodDisplay =
-        getCatalogValue(asset.sanitizationMethod) || asset.sanitizationMethodRef || labels.notAvailable
-      doc.text(`${labels.sanitizationMethod}: ${sanitizationMethodDisplay}`, margin, y, { width: pageWidth })
-      y += 14
-      const sanitizationDateDisplay = asset.sanitizationExecutionDate
-        ? formatDate(asset.sanitizationExecutionDate) || asset.sanitizationExecutionDate
-        : labels.notAvailable
-      doc.text(`${labels.sanitizationExecutionDate}: ${sanitizationDateDisplay}`, margin, y, { width: pageWidth })
-      y += 14
-      doc.text(`${labels.performedBy}: ${performerDisplay(asset, labels.notAvailable)}`, margin, y, {
-        width: pageWidth
-      })
-      y += 24
-    }
-
+    const disposalTypeDisplay =
+      getCatalogValue(asset.disposalOutcome) || asset.disposalOutcomeRef || labels.notAvailable
+    doc.text(`${labels.disposalType}: ${disposalTypeDisplay}`, margin, y, { width: pageWidth })
+    y += sectionGap
     doc.fontSize(12).font('Helvetica-Bold').text(labels.allocationHistory, margin, y)
     y += 18
   } else {
@@ -364,6 +358,22 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
       y = drawTableRow(doc, margin, y, [...colWidths], rowCells, false)
       drawHorizontalLine(doc, margin, y - ROW_PADDING, tableWidth)
     }
+  }
+
+  if (isDisposalCertificate) {
+    y += sectionGap
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.authorizationSignOff, margin, y)
+    y += 18
+    doc.fontSize(10).font('Helvetica')
+    doc.text(`${labels.performedBy}: ${performerDisplay(asset, labels.notAvailable)}`, margin, y, {
+      width: pageWidth
+    })
+    y += 14
+    y += 16
+    doc.fontSize(10).font('Helvetica-Bold').text(labels.finalDeclaration, margin, y, { width: pageWidth })
+    y += doc.heightOfString(labels.finalDeclaration, { width: pageWidth }) + 4
+    doc.fontSize(10).font('Helvetica').text(labels.finalDeclarationText, margin, y, { width: pageWidth })
+    y += doc.heightOfString(labels.finalDeclarationText, { width: pageWidth }) + 24
   }
 
   doc.end()

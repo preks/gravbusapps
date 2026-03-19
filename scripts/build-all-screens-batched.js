@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const BATCH_SIZE = 75
+const BATCH_SIZE = 40
 
 console.log('🚀 Building all screens in batches...')
 

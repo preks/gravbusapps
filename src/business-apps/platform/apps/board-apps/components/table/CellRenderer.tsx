@@ -33,7 +33,15 @@ function getInitials(name: string): string {
     .join('')
 }
 
-export const CellRenderer: React.FC<CellRendererProps> = ({
+function safeDisplayValue(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object') {
+    try { return JSON.stringify(value) } catch { return '' }
+  }
+  return String(value)
+}
+
+export const CellRenderer: React.FC<CellRendererProps> = React.memo(({
   value,
   type,
   columnName,
@@ -280,7 +288,7 @@ export const CellRenderer: React.FC<CellRendererProps> = ({
       return (
         <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground/70">
           <Copy className="gba:w-3 gba:h-3" />
-          {String(value)}
+          {safeDisplayValue(value)}
         </span>
       )
 
@@ -288,7 +296,7 @@ export const CellRenderer: React.FC<CellRendererProps> = ({
       return (
         <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground/70">
           <Calculator className="gba:w-3 gba:h-3" />
-          {typeof value === 'number' ? value.toLocaleString() : String(value)}
+          {typeof value === 'number' ? value.toLocaleString() : safeDisplayValue(value)}
         </span>
       )
 
@@ -319,10 +327,12 @@ export const CellRenderer: React.FC<CellRendererProps> = ({
       return (
         <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:italic gba:text-muted-foreground">
           <FileText className="gba:w-3 gba:h-3" />
-          {String(value)}
+          {safeDisplayValue(value)}
         </span>
       )
   }
 
-  return <span className="gba:text-xs">{String(value)}</span>
-}
+  return <span className="gba:text-xs">{safeDisplayValue(value)}</span>
+})
+
+CellRenderer.displayName = 'CellRenderer'

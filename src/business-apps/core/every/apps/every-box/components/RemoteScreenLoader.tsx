@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom'
 import ReactJSXRuntime from 'react/jsx-runtime'
 import ReactJSXDevRuntime from 'react/jsx-dev-runtime'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import isPropValid from '@emotion/is-prop-valid'
 import {
   injectImportProxy,
   installDependenciesBootstrap,
@@ -320,6 +321,14 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     w.ReactJSXDevRuntime = w.ReactJSXDevRuntime || (ReactJSXDevRuntime as any)
     injectImportProxy()
     installDependenciesBootstrap()
+    // Extend require to provide @emotion/is-prop-valid (used by nw-design-system/framer-motion)
+    const origRequire = w.require
+    if (origRequire) {
+      w.require = function (moduleName: string) {
+        if (moduleName === '@emotion/is-prop-valid') return isPropValid
+        return origRequire(moduleName)
+      }
+    }
   }, [])
 
   // Update component props when parent props change

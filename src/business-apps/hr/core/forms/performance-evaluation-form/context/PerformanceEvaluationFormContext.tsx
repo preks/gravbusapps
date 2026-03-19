@@ -81,7 +81,6 @@ interface PerformanceEvaluationFormContextType {
   error: string | null
   clearError: () => void
   onSubmit: () => Promise<void>
-  onCancel: () => Promise<void>
   businessAppContext: BusinessAppContextProps
   employees: EmployeeOption[]
   employeesLoading: boolean
@@ -115,7 +114,6 @@ interface PerformanceEvaluationFormProviderProps {
   businessAppContext: BusinessAppContextProps
   initialValues?: Partial<PerformanceEvaluationFormValues>
   onSubmit?: (values: PerformanceEvaluationFormValues) => Promise<void>
-  onCancel?: () => Promise<void>
   preSelectedEmployeeId?: string
   preSelectedUserId?: string
 }
@@ -125,7 +123,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
   businessAppContext,
   initialValues = {},
   onSubmit = async () => {},
-  onCancel = async () => {},
   preSelectedEmployeeId,
   preSelectedUserId
 }) => {
@@ -489,20 +486,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     }
   }, [formValues, onSubmit, setError, businessAppContext?.additionalData, preSelectedEmployeeId])
 
-  const handleCancel = useCallback(async () => {
-    try {
-      // Dispatch the process pause event
-      dispatchProcessContinueEvent('pse_abort', {})
-
-      // Also call the original onCancel if provided (for backward compatibility)
-      if (onCancel) {
-        await onCancel()
-      }
-    } catch (err) {
-      console.error('Error :', err)
-    }
-  }, [onCancel])
-
   const contextValue: PerformanceEvaluationFormContextType = {
     formValues,
     setFormValues: updateFormValues,
@@ -511,7 +494,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     error,
     clearError,
     onSubmit: handleSubmit,
-    onCancel: handleCancel,
     businessAppContext,
     employees,
     employeesLoading,

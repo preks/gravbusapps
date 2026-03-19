@@ -118,6 +118,7 @@ benefit-details-end-date = End Date
 benefit-details-notes = Notes
 benefit-details-justification = Justification
 benefit-details-available-providers = Available Providers
+benefit-details-choose-provider = Choose provider
 benefit-details-additional-info = Additional Information
 benefit-details-value = Value
 benefit-details-no-value-info = Detailed value information will be determined after requesting this benefit.
@@ -286,8 +287,8 @@ error-end-date-today-or-later = End date must be today or later
 error-end-date-after-start-date = End date must be on or after the benefit start date
 
 # Employee Record - Notifications
-notification-address-updated-success = Address updates are sent for HR approval
-notification-bank-account-updated-success = Bank account updates are sent for HR approval
+notification-address-updated-success = Address updates are done.
+notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates are sent for HR approval
 notification-communication-updated-success = Communication details updates are sent for HR approval
 notification-profile-picture-updated-success = Profile picture updates are sent for HR approval
@@ -300,8 +301,8 @@ notification-working-conditions-updated-success = Working conditions updates are
 notification-working-hours-updated-success = Working hours updates are sent for HR approval
 
 # HR approval phrasing (profile updates)
-notification-address-updated-success = Address updates sent to be approved by the HR department.
-notification-bank-account-updated-success = Bank account updates sent to be approved by the HR department.
+notification-address-updated-success = Address updates are done.
+notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
 notification-communication-updated-success = Communication details updates sent to be approved by the HR department.
 
@@ -801,7 +802,13 @@ employment-label-church-affiliation = Church Affiliation
 employment-label-child-tax-allowance = Child Tax Allowance
 employment-label-health-insurance = Health Insurance
 employment-label-type-of-health-insurance = Type Of Health Insurance
+employment-label-request-at-office = Request at tax office
+employment-label-last-updated = Last Updated
+employment-label-employee-tax-office = Employee's Tax Office
+employment-label-individual-free-amount = Individual Free Amount
 common-loading = Loading...
+common-yes = Yes
+common-no = No
 
 # Change Log Categories
 changelog-category-personal = Personal Data
@@ -842,7 +849,7 @@ assets-no-assets-assigned = No Assets Assigned
 assets-no-equipment-assigned-self = You don't have any equipment assigned to you at the moment.
 assets-no-equipment-assigned-employee = This employee doesn't have any equipment assigned at the moment.
 assets-assigned-equipment = Asset Summary
-assets-request-new-asset = Request New Asset
+assets-request-new-asset = Open a ticket
 assets-asset-assignment-history = Asset Assignment History
 assets-unknown = Unknown
 assets-to = to

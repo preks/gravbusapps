@@ -55,21 +55,23 @@ export function ToolbarGroupParagraph({ editor, testId = 'editor-toolbar' }: Rea
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant={
-                    editor.isActive('bulletList') || editor.isActive('orderedList') || editor.isActive('taskList')
-                      ? 'secondary'
-                      : 'ghost'
-                  }
-                  size="sm"
-                  className="gba:h-8 gba:min-w-8 gba:px-1"
-                  data-testid={testId ? `${testId}-list-dropdown-trigger` : undefined}
-                >
-                  <List className="gba:h-4 gba:w-4" />
-                  <ChevronDown className="gba:h-3.5 gba:w-3.5 gba:ml-0.5" />
-                </Button>
-              </DropdownMenuTrigger>
+              <span className="gba:inline-flex">
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant={
+                      editor.isActive('bulletList') || editor.isActive('orderedList') || editor.isActive('taskList')
+                        ? 'secondary'
+                        : 'ghost'
+                    }
+                    size="sm"
+                    className="gba:h-8 gba:min-w-8 gba:px-1"
+                    data-testid={testId ? `${testId}-list-dropdown-trigger` : undefined}
+                  >
+                    <List className="gba:h-4 gba:w-4" />
+                    <ChevronDown className="gba:h-3.5 gba:w-3.5 gba:ml-0.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </span>
             </TooltipTrigger>
             <TooltipContent side="bottom">
               <p>{t('editor-toolbar-bullet-list')}</p>

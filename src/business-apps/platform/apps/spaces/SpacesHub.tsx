@@ -8,18 +8,12 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
 import { Plus, Search, LayoutDashboard } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo, EVERY_OFFICE_PLATFORM_PATH } from '@/common/utils/navigationUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
 import { SpaceCard } from './components/SpaceCard'
 import { CreateSpaceDialog } from './components/CreateSpaceDialog'
-import { SpaceHeroBackground } from './components/SpaceHeroBackground'
-
-const hubHostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACES_HUB_VIDEO_URL
-const hubLocalVideoUrl = '/space-hub-background.mp4'
-const hubUseVideo =
-  hubHostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && hubLocalVideoUrl)
-const hubVideoSrc = hubHostedVideoUrl || hubLocalVideoUrl
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 
 // Hooks
 import { useSpaces } from './hooks/useSpaces'
@@ -108,31 +102,8 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
     <div className="gba:min-h-screen gba:bg-background" data-testid={testId}>
       {/* Hero: same visual weight as Space detail – entry page impact */}
       <header className="gba:relative gba:overflow-hidden gba:min-h-96">
-        {hubUseVideo ? (
-          <video
-            src={hubVideoSrc}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden
-            data-testid="spaces-hub-video"
-          />
-        ) : (
-          <SpaceHeroBackground />
-        )}
-        {/* Overlay for text readability */}
-        {/* eslint-disable newwork-local/no-hardcoded-colors */}
-        <div
-          className="gba:absolute gba:inset-0 gba:pointer-events-none"
-          style={{
-            background: `linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)`
-          }}
-          aria-hidden
-        />
-        {/* eslint-enable newwork-local/no-hardcoded-colors */}
+        <PremiumHeroBackground data-testid={`${testId}-background`} />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
         <div className="gba:relative gba:max-w-7xl gba:mx-auto gba:px-6 gba:pt-12 gba:pb-14">
           {/* Title block – big and confident like Space detail */}
           <div className="gba:flex gba:items-start gba:justify-between gba:gap-6 gba:mb-10">
@@ -159,7 +130,7 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => navigateTo(EVERY_OFFICE_PLATFORM_PATH)}
+                onClick={() => navigateTo('/platform/every-office')}
                 className="gba:gap-2 gba:rounded-xl gba:bg-white/10 gba:text-white gba:border-white/20 hover:gba:bg-white/20"
                 data-testid={`${testId}-every-office-link`}
               >
