@@ -5,7 +5,6 @@ import { renderHeaderFooterDisplayContent } from './dom'
 import { layoutPageNumberSlots } from './pageNumberSlotLayout'
 import {
   getHeaderFooterExtensions,
-  getInitialEditorContent,
   replaceTemplateTokens,
   resolveVariantForPage,
   setStoredVariantContent
@@ -36,6 +35,7 @@ interface ActiveOverlay {
 
 export class HeaderFooterOverlayManager {
   private activeOverlay: ActiveOverlay | null = null
+  private suppressNextCloseNotification = false
 
   constructor(
     private readonly hostEditor: Editor,
@@ -46,7 +46,7 @@ export class HeaderFooterOverlayManager {
   open(params: OpenOverlayParams) {
     this.close()
 
-    const { target, type, pageNumber, initialContent, storage, options, clickPosition } = params
+    const { target, type, pageNumber, initialContent, storage, options } = params
     const overlay = document.createElement('div')
     const editorHost = document.createElement('div')
     const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
@@ -87,6 +87,7 @@ export class HeaderFooterOverlayManager {
     overlay.addEventListener('mousedown', stopPointerPropagation, true)
     overlay.addEventListener('mouseup', stopPointerPropagation, true)
     overlay.addEventListener('click', stopPointerPropagation, true)
+    overlay.addEventListener('dblclick', stopPointerPropagation)
 
     target.dataset.rmOverlayActive = 'true'
     overlay.append(editorHost)
@@ -104,6 +105,9 @@ export class HeaderFooterOverlayManager {
       extensions: getHeaderFooterExtensions(params.extensions),
       content: initialContent,
       editable: true,
+      parseOptions: {
+        preserveWhitespace: 'full'
+      },
       editorProps: {
         handleKeyDown(_view, event) {
           return handleTiptapTabKey(event, overlayEditorRef.current)
@@ -146,7 +150,41 @@ export class HeaderFooterOverlayManager {
       })
     }
 
+    const switchToRegion = (nextRegion: { element: HTMLElement; type: HeaderFooterEditorType; pageNumber: number }) => {
+      const commands = this.hostEditor.commands as {
+        closeHeaderFooterEditors?: () => boolean
+        openHeaderEditor?: (params: { pageNumber: number }) => boolean
+        openFooterEditor?: (params: { pageNumber: number }) => boolean
+      }
+
+      this.suppressNextCloseNotification = true
+      const closed = commands.closeHeaderFooterEditors?.() ?? false
+      if (!closed) {
+        this.suppressNextCloseNotification = false
+      }
+
+      requestAnimationFrame(() => {
+        if (nextRegion.type === 'header') {
+          commands.openHeaderEditor?.({ pageNumber: nextRegion.pageNumber })
+        } else {
+          commands.openFooterEditor?.({ pageNumber: nextRegion.pageNumber })
+        }
+      })
+    }
+
     overlayEditor.on('update', syncOverlayContentToStorage)
+
+    const handleDocumentMouseDown = (event: MouseEvent) => {
+      const targetNode = event.target as Node | null
+      if (targetNode && overlay.contains(targetNode)) return
+
+      const targetElement = event.target instanceof Element ? event.target : null
+      if (targetElement?.closest('[data-testid="document-header-footer-settings-sidebar"]')) return
+      if (resolveHeaderFooterRegionTarget(event.target)) return
+
+      event.preventDefault()
+      event.stopPropagation()
+    }
 
     const handleDocumentDoubleClick = (event: MouseEvent) => {
       if (overlay.contains(event.target as Node)) return
@@ -155,19 +193,7 @@ export class HeaderFooterOverlayManager {
       if (nextRegion && nextRegion.element !== target) {
         event.preventDefault()
         event.stopPropagation()
-        const totalPages = Math.max(1, storage.getPageCount())
-        this.open({
-          type: nextRegion.type,
-          pageNumber: nextRegion.pageNumber,
-          target: nextRegion.element,
-          clickPosition: { clientX: event.clientX, clientY: event.clientY },
-          initialContent: getInitialEditorContent(storage, options, nextRegion.type, nextRegion.pageNumber, totalPages),
-          storage,
-          options,
-          extensions: params.extensions,
-          onClose: params.onClose,
-          onUpdate: params.onUpdate
-        })
+        switchToRegion(nextRegion)
         return
       }
 
@@ -177,13 +203,9 @@ export class HeaderFooterOverlayManager {
         false
 
       if (!shouldPreventClose) {
-        const targetNode = event.target as Node | null
-        this.close()
-        if (targetNode && this.hostEditor.view.dom.contains(targetNode)) {
-          requestAnimationFrame(() => {
-            this.hostEditor.commands.focus()
-          })
-        }
+        event.preventDefault()
+        event.stopPropagation()
+        ;(this.hostEditor.commands as { closeHeaderFooterEditors?: () => boolean }).closeHeaderFooterEditors?.()
       }
     }
 
@@ -194,15 +216,18 @@ export class HeaderFooterOverlayManager {
       }
     }
 
+    document.addEventListener('mousedown', handleDocumentMouseDown, true)
     document.addEventListener('dblclick', handleDocumentDoubleClick, true)
     document.addEventListener('keydown', handleEscape, true)
 
     const cleanup = () => {
+      document.removeEventListener('mousedown', handleDocumentMouseDown, true)
       document.removeEventListener('dblclick', handleDocumentDoubleClick, true)
       document.removeEventListener('keydown', handleEscape, true)
       overlay.removeEventListener('mousedown', stopPointerPropagation, true)
       overlay.removeEventListener('mouseup', stopPointerPropagation, true)
       overlay.removeEventListener('click', stopPointerPropagation, true)
+      overlay.removeEventListener('dblclick', stopPointerPropagation)
       overlayEditor.off('update', syncOverlayContentToStorage)
       const finalHtml = overlayEditor.getHTML()
       overlayEditor.destroy()
@@ -233,7 +258,10 @@ export class HeaderFooterOverlayManager {
     storage.activeEditorType = type
     storage.activePageNumber = pageNumber
     notifyActiveEditorChange()
-    focusOverlayEditor(overlayEditor, clickPosition)
+    requestAnimationFrame(() => {
+      if (this.activeOverlay?.editor !== overlayEditor) return
+      focusOverlayEditor(overlayEditor)
+    })
   }
 
   close() {
@@ -241,6 +269,8 @@ export class HeaderFooterOverlayManager {
 
     const activeOverlay = this.activeOverlay
     const storage = this.getStorage()
+    const suppressNotification = this.suppressNextCloseNotification
+    this.suppressNextCloseNotification = false
     setStoredVariantContent(storage, activeOverlay.type, activeOverlay.variant, {
       html: activeOverlay.editor.getHTML(),
       json: activeOverlay.editor.getJSON()
@@ -248,11 +278,13 @@ export class HeaderFooterOverlayManager {
     storage.activeEditor = null
     storage.activeEditorType = null
     storage.activePageNumber = null
-    this.getOptions().onActiveEditorChange?.({
-      activeEditor: null,
-      activeEditorType: null,
-      activePageNumber: null
-    })
+    if (!suppressNotification) {
+      this.getOptions().onActiveEditorChange?.({
+        activeEditor: null,
+        activeEditorType: null,
+        activePageNumber: null
+      })
+    }
 
     this.activeOverlay = null
     activeOverlay.cleanup()

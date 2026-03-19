@@ -12,7 +12,13 @@ import {
 const STYLE_ATTR = 'data-rm-pages-style'
 
 function isEmptyHeaderFooterHtml(html: string | null | undefined) {
-  return !html || html.replace(/<[^>]*>/g, '').trim() === ''
+  if (!html) return true
+
+  const container = document.createElement('div')
+  container.innerHTML = html
+  if ((container.textContent ?? '').length > 0) return false
+
+  return container.querySelector('img, table, hr, iframe, svg, video, audio, canvas, object, embed') === null
 }
 
 export function renderHeaderFooterDisplayContent(
@@ -163,6 +169,8 @@ export function ensurePagesStyles(targetDocument: Document) {
       min-height: 0;
       outline: none;
       word-break: break-word;
+      white-space: break-spaces;
+      tab-size: 4;
       overflow: hidden;
       pointer-events: none;
       user-select: none;
@@ -333,6 +341,8 @@ export function ensurePagesStyles(targetDocument: Document) {
       min-height: 0;
       outline: none;
       user-select: text;
+      white-space: break-spaces;
+      tab-size: 4;
     }
     .rm-pages-root .rm-page-inline-editor {
       width: 100%;
@@ -344,6 +354,8 @@ export function ensurePagesStyles(targetDocument: Document) {
     .rm-pages-root .rm-page-inline-editor .ProseMirror {
       outline: none;
       user-select: text;
+      white-space: break-spaces;
+      tab-size: 4;
     }
     .rm-pages-root .rm-page-overlay[data-rm-overlay-type="header"] .rm-page-overlay-editor .ProseMirror {
     }
