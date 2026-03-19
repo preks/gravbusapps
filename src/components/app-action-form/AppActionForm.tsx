@@ -1,5 +1,16 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { Button, Alert, Form, WizardForm, useWizard, type WizardStep, useTranslation } from '@newwork/nw-design-system'
+import {
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Form,
+  WizardForm,
+  useWizard,
+  type WizardStep,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { CircleX } from 'lucide-react'
 import { useForm, type Resolver, type UseFormReturn } from 'react-hook-form'
 import { type z } from 'zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -486,7 +497,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
     <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
       {message?.type === 'error' && (
         <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
-          {message.message}
+          <CircleX className="gba:h-4 gba:w-4" />
+          <AlertTitle>{t('process-error-title')}</AlertTitle>
+          <AlertDescription>{message.message}</AlertDescription>
         </Alert>
       )}
 

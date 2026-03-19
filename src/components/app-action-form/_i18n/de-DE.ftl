@@ -11,6 +11,7 @@ process-button-cancel = Abbrechen
 process-button-previous = Zurück
 process-button-next = Weiter
 process-button-submit = Absenden
+process-error-title = Fehler
 
 
 
