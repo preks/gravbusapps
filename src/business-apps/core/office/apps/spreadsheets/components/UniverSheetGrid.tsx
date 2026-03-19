@@ -17,6 +17,7 @@ import type {
 import {
   buildWorkbookSnapshot,
   createUniverConversionContext,
+  getHyperlinkUrlFromSelection,
   transformAvatarFormulasInSnapshot,
   type ConversionContext,
   type UniverWorkbookSnapshot
@@ -1057,15 +1058,22 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (!worksheet) return null
 
           const values: Record<number, Record<number, unknown>> = {}
-          for (let row = 0; row < Math.max(0, rowCount); row++) {
-            for (let col = 0; col < Math.max(0, colCount); col++) {
-              const range = worksheet.getRange?.(row, col)
-              const value =
-                (range as { getValue?: () => unknown })?.getValue?.() ??
-                (range as { getCellData?: () => { v?: unknown } })?.getCellData?.()?.v
-              if (value === undefined) continue
-              if (!values[row]) values[row] = {}
-              values[row][col] = value
+          const safeRowCount = Math.max(0, Math.min(rowCount, 1000))
+          let effectiveMaxCol = Math.max(0, Math.min(colCount, 256))
+          for (let row = 0; row < safeRowCount; row++) {
+            for (let col = 0; col < effectiveMaxCol; col++) {
+              try {
+                const range = worksheet.getRange?.(row, col)
+                const value =
+                  (range as { getValue?: () => unknown })?.getValue?.() ??
+                  (range as { getCellData?: () => { v?: unknown } })?.getCellData?.()?.v
+                if (value === undefined) continue
+                if (!values[row]) values[row] = {}
+                values[row][col] = value
+              } catch {
+                effectiveMaxCol = col
+                break
+              }
             }
           }
           return values
@@ -1091,14 +1099,55 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
       const customMarkerAttr = 'data-univer-custom-comment-item'
       const customClassName = 'univer-custom-comment-item'
+      const openLinkMarkerAttr = 'data-univer-open-link-item'
+      const openLinkClassName = 'univer-open-link-item'
       let contextMenuObserver: MutationObserver | null = null
 
-      const createItem = (template: HTMLElement) =>
+      const createCommentItem = (template: HTMLElement) =>
         createContextMenuItem(template, customMarkerAttr, customClassName, 'Add comment', () => {
           callbacksRef.current.onOpenCommentRequest?.()
         })
 
-      const inject = (x: number, y: number) => tryInjectContextMenuItem(x, y, customMarkerAttr, createItem)
+      const injectComment = (x: number, y: number) =>
+        tryInjectContextMenuItem(x, y, customMarkerAttr, createCommentItem)
+      const injectOpenLink = (x: number, y: number) => {
+        const wb = univerAPIRef.current?.getActiveWorkbook?.()
+        const active = activeSelectionRef.current ?? extractActiveRangePosition(wb)
+        if (active == null) return false
+        const { data, columns, sheet } = propsRef.current
+        let cellFormula: string | null = null
+        try {
+          const snap =
+            (wb as { save?: () => unknown; getSnapshot?: () => unknown })?.save?.() ??
+            (wb as { getSnapshot?: () => unknown })?.getSnapshot?.()
+          const sheets =
+            snap && typeof snap === 'object'
+              ? ((snap as Record<string, unknown>).sheets as Record<
+                  string,
+                  { cellData?: Record<number | string, Record<number | string, { f?: string }>> }
+                >)
+              : null
+          const sheetId =
+            sheet?.id ??
+            (Array.isArray((snap as Record<string, unknown>)?.sheetOrder)
+              ? (snap as { sheetOrder: string[] }).sheetOrder[0]
+              : '')
+          const ws = sheetId ? sheets?.[sheetId] : null
+          const rowCells = ws?.cellData?.[active.row] ?? ws?.cellData?.[String(active.row)]
+          const cell =
+            rowCells && typeof rowCells === 'object' ? (rowCells[active.col] ?? rowCells[String(active.col)]) : null
+          if (cell?.f) cellFormula = cell.f
+        } catch {
+          /* ignore */
+        }
+        const url = getHyperlinkUrlFromSelection(active.row, active.col, data, columns, cellFormula)
+        if (!url) return false
+        return tryInjectContextMenuItem(x, y, openLinkMarkerAttr, (template: HTMLElement) =>
+          createContextMenuItem(template, openLinkMarkerAttr, openLinkClassName, 'Open link', () => {
+            window.open(url, '_blank', 'noopener,noreferrer')
+          })
+        )
+      }
 
       const stopObserver = () => {
         if (contextMenuObserver) {
@@ -1109,7 +1158,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
       const pollInjection = (x: number, y: number, attempts: { count: number }, maxAttempts: number) => {
         attempts.count += 1
-        if (inject(x, y)) {
+        injectOpenLink(x, y)
+        if (injectComment(x, y)) {
           stopObserver()
           return
         }
@@ -1126,7 +1176,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         const attempts = { count: 0 }
         stopObserver()
         contextMenuObserver = new MutationObserver(() => {
-          if (inject(x, y)) stopObserver()
+          injectOpenLink(x, y)
+          if (injectComment(x, y)) stopObserver()
         })
         contextMenuObserver.observe(document.body, { childList: true, subtree: true })
         scheduleContextMenuInjectionPoll(() => pollInjection(x, y, attempts, 40))
@@ -1138,6 +1189,51 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         container.removeEventListener('contextmenu', onNativeContextMenu, true)
       }
     }, [props.isReadOnly])
+
+    useEffect(() => {
+      const container = containerRef.current
+      if (!container) return
+      const handleLinkClick = () => {
+        const wb = univerAPIRef.current?.getActiveWorkbook?.()
+        const active = activeSelectionRef.current ?? extractActiveRangePosition(wb)
+        if (active == null) return
+        const { data, columns, sheet } = propsRef.current
+        let cellFormula: string | null = null
+        try {
+          const snap =
+            (wb as { save?: () => unknown; getSnapshot?: () => unknown })?.save?.() ??
+            (wb as { getSnapshot?: () => unknown })?.getSnapshot?.()
+          const sheets =
+            snap && typeof snap === 'object'
+              ? ((snap as Record<string, unknown>).sheets as Record<
+                  string,
+                  { cellData?: Record<number | string, Record<number | string, { f?: string }>> }
+                >)
+              : null
+          const sheetId =
+            sheet?.id ??
+            (Array.isArray((snap as Record<string, unknown>)?.sheetOrder)
+              ? (snap as { sheetOrder: string[] }).sheetOrder[0]
+              : '')
+          const ws = sheetId ? sheets?.[sheetId] : null
+          const rowCells = ws?.cellData?.[active.row] ?? ws?.cellData?.[String(active.row)]
+          const cell =
+            rowCells && typeof rowCells === 'object' ? (rowCells[active.col] ?? rowCells[String(active.col)]) : null
+          if (cell?.f) cellFormula = cell.f
+        } catch {
+          /* ignore */
+        }
+        const url = getHyperlinkUrlFromSelection(active.row, active.col, data, columns, cellFormula)
+        if (url) window.open(url, '_blank', 'noopener,noreferrer')
+      }
+      const onCaptureClick = (e: MouseEvent) => {
+        if (e.detail > 1) return
+        if (!container.contains(e.target as Node)) return
+        globalThis.setTimeout(handleLinkClick, 50)
+      }
+      document.addEventListener('click', onCaptureClick, true)
+      return () => document.removeEventListener('click', onCaptureClick, true)
+    }, [])
 
     useImperativeHandle(
       ref,

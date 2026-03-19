@@ -32,6 +32,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
   Checkbox,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
@@ -478,7 +481,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
-  const [taskStatusFilter] = useState<'pending' | 'completed'>('pending')
+  const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed'>('pending')
   const [pendingTaskAppIds, setPendingTaskAppIds] = useState<Set<string>>(new Set())
   const [completedTaskAppIds, setCompletedTaskAppIds] = useState<Set<string>>(new Set())
 
@@ -675,6 +678,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const pendingTaskCount = useMemo(
     () => apps.filter(app => isPendingTaskApp(app, currentUserId, pendingTaskAppIds)).length,
     [apps, currentUserId, pendingTaskAppIds]
+  )
+  const completedTaskCount = useMemo(
+    () =>
+      activeSection === 'tasks'
+        ? filteredApps.filter(app => completedTaskAppIds.has(app.id) && !pendingTaskAppIds.has(app.id)).length
+        : 0,
+    [activeSection, filteredApps, completedTaskAppIds, pendingTaskAppIds]
   )
   const taskDisplayedApps = useMemo(
     () =>
@@ -1506,6 +1516,31 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                       </div>
                     </div>
                   </div>
+                  {activeSection === 'tasks' && (
+                    <Tabs
+                      value={taskStatusFilter}
+                      onValueChange={(v: string) => setTaskStatusFilter(v as 'pending' | 'completed')}
+                      className="gba:mb-4"
+                      data-testid={`${testId}-tasks-subtabs`}
+                    >
+                      <TabsList className="gba:inline-flex gba:items-center gba:rounded-lg gba:bg-muted/50 gba:p-1">
+                        <TabsTrigger
+                          value="pending"
+                          className="gba:px-4 gba:py-2 gba:text-sm"
+                          data-testid={`${testId}-tasks-tab-pending`}
+                        >
+                          {t('tasks-pending')} ({pendingTaskCount})
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="completed"
+                          className="gba:px-4 gba:py-2 gba:text-sm"
+                          data-testid={`${testId}-tasks-tab-completed`}
+                        >
+                          {t('tasks-completed')} ({completedTaskCount})
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  )}
                 </div>
                 <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
                   {/* Loading state */}
