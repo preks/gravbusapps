@@ -4,6 +4,22 @@
 import dayjs from 'dayjs'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
+export type DateRangeTuple = [Date | null, Date | null] | null
+
+/**
+ * Converts a date range tuple to GraphQL filter shape (from/to in YYYY-MM-DD HH:mm:ss).
+ * Returns null if the range is empty.
+ */
+export function convertDateRangeToGraphQL(
+  dateRange: DateRangeTuple
+): { from: string | null; to: string | null } | null {
+  if (!dateRange || (!dateRange[0] && !dateRange[1])) return null
+  return {
+    from: dateRange[0] ? dayjs(dateRange[0]).startOf('day').format('YYYY-MM-DD HH:mm:ss') : null,
+    to: dateRange[1] ? dayjs(dateRange[1]).endOf('day').format('YYYY-MM-DD HH:mm:ss') : null
+  }
+}
+
 /**
  * Ensures consistent date formatting in DD.MM.YYYY format
  * This acts as a wrapper around formatDate to ensure consistent formatting

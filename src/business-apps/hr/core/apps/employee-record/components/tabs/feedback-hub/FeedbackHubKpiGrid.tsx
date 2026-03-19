@@ -38,7 +38,11 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
         value: String(kpis.receivedTotal),
         icon: <Icon icon={ChatCircleIcon} size="sm" decorative />,
         iconColor: 'var(--nw-info)',
-        footer: t('feedback-hub-kpi-trend-30d', { value: trendLabel(kpis.receivedTrend) })
+        trend: {
+          value: trendLabel(kpis.receivedTrend),
+          positive: kpis.receivedTrend >= 0,
+          description: t('feedback-hub-kpi-trend-vs-30d')
+        }
       },
       {
         id: 'feedback-given',
@@ -46,7 +50,11 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
         value: String(kpis.givenTotal),
         icon: <Icon icon={PaperPlaneTiltIcon} size="sm" decorative />,
         iconColor: 'var(--nw-success)',
-        footer: t('feedback-hub-kpi-trend-30d', { value: trendLabel(kpis.givenTrend) })
+        trend: {
+          value: trendLabel(kpis.givenTrend),
+          positive: kpis.givenTrend >= 0,
+          description: t('feedback-hub-kpi-trend-vs-30d')
+        }
       },
       {
         id: 'feedback-contributors',
@@ -54,7 +62,11 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
         value: String(kpis.distinctContributors),
         icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-decorative)',
-        footer: t('feedback-hub-kpi-trend-30d', { value: trendLabel(kpis.contributorTrend) })
+        trend: {
+          value: trendLabel(kpis.contributorTrend),
+          positive: kpis.contributorTrend >= 0,
+          description: t('feedback-hub-kpi-trend-vs-30d')
+        }
       }
     ],
     [

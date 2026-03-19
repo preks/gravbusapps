@@ -54,6 +54,7 @@ export const INVESTMENT_QUERY_CONFIGS: Record<string, string[]> = {
     'acquisitionDate',
     'additionalProperties',
     'code',
+    'company',
     'createdAt',
     'createdBy',
     'currency',

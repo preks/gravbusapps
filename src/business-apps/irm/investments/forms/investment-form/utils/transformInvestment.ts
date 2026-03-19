@@ -64,6 +64,19 @@ export const transformInvestment = (
     }
   }
 
+  // Explicitly preserve investmentAccounts array for update mode prefill (same as investment-report-form)
+  if (investment.investmentAccounts && mappedValues.investment) {
+    ;(mappedValues.investment as any).investmentAccounts = investment.investmentAccounts
+  }
+
+  // Explicitly preserve company for update mode prefill (CompanySelect needs company object for initialCompany)
+  if (investment.company && mappedValues.investment) {
+    ;(mappedValues.investment as any).company = investment.company
+  }
+  if (investment.companyId && mappedValues.investment) {
+    ;(mappedValues.investment as any).companyId = investment.companyId
+  }
+
   // Convert null to undefined for optional fields (schema expects string | undefined, not null)
   if (mappedValues.investment?.code === null) {
     delete mappedValues.investment.code

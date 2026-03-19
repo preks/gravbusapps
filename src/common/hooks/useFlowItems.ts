@@ -117,7 +117,10 @@ const mapFlowItemsToActionOptions = (
 
   // Heuristic: prefer flows that match the entity implied by externalContextData
   const hasTaskHints =
-    'taskId' in externalContextData || 'salesTask' in externalContextData || 'salesTaskId' in externalContextData
+    'taskId' in externalContextData ||
+    'salesTask' in externalContextData ||
+    'salesTaskId' in externalContextData ||
+    'investmentTask' in externalContextData
   const hasNoteHints =
     'noteId' in externalContextData || 'crmNote' in externalContextData || 'investmentNote' in externalContextData
   const hasActivityHints =
