@@ -10,6 +10,7 @@ retired-at-by = Retired at { $disposalDate } by { $responsiblePerson }
 
 # Allocate Asset validation
 issue-date-not-before-purchase = The asset cannot be allocated before the aquisition date.
+start-date-not-before-last-return = Allocation start date must be on or after the last return date.
 
 # Actions
 generate_document = Generate document

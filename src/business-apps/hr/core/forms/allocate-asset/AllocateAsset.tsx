@@ -19,7 +19,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import dayjs from 'dayjs'
 import FormHeader from '../components/FormHeader'
@@ -214,6 +214,26 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
         const today = new Date()
         today.setHours(0, 0, 0, 0)
+
+        // New allocation start must be on or after the latest return date (and today)
+        let latestReturnDate: Date | null = null
+        for (const allocation of existingAllocations) {
+          if (allocation.isDeleted || !allocation.endDate) continue
+          const end = new Date(allocation.endDate)
+          if (Number.isNaN(end.getTime())) continue
+          end.setHours(0, 0, 0, 0)
+          if (!latestReturnDate || end > latestReturnDate) {
+            latestReturnDate = end
+          }
+        }
+        const minAllowedStart = latestReturnDate && latestReturnDate > today ? latestReturnDate : today
+        if (newStart < minAllowedStart) {
+          const minDateStr = formatDate(minAllowedStart, 'date.short') ?? minAllowedStart.toLocaleDateString()
+          return getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_assets.start-date-not-before-last-return',
+            `Allocation start date must be on or after the last return date (${minDateStr}).`
+          )
+        }
 
         for (const allocation of existingAllocations) {
           if (allocation.isDeleted) continue

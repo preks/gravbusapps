@@ -34,6 +34,7 @@ export interface EmployeeOption {
   department?: string
   pictureThumbnail?: string
   userId?: string
+  managerUserId?: string
 }
 
 export interface PerformanceEvaluationFormProps {

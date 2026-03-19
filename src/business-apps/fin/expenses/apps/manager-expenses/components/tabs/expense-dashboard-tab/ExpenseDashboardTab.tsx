@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, IconAvatar, useTranslation } from '@newwork/nw-design-system'
-import translations from './_i18n'
+import translations from '../../../_i18n'
 import { ListChecksIcon, ChartLineUpIcon, FileTextIcon, CalendarIcon, ClockAfternoonIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'

@@ -266,7 +266,7 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
               error: sectionsError,
               actionButtonProps: {
                 contextsArray: [FlowContextName.investmentEntity],
-                externalContextData: { contactId },
+                externalContextData: { contactId, dealType: 'DIVESTMENT_DEAL' },
                 prefixDataTestId: 'contact-investment'
               }
             }

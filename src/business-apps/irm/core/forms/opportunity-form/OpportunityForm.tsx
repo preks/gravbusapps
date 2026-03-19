@@ -94,6 +94,9 @@ const DEAL_TYPES = [
 ] as const
 
 type InvestmentOpportunityFormProps = BusinessAppContextProps
+type InvestmentOpportunityFormValues = Partial<InvestmentOpportunity> & {
+  investmentTypeId?: string
+}
 
 const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   accessToken,
@@ -128,8 +131,13 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   const useContacts = useInvestmentContactsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
   // Create form instance - resolver will be updated dynamically
+  // Preset dealType and investmentId from additionalData (e.g. divestment from DivestmentsTab)
   const form = useForm({
-    defaultValues: mapToFormValues(opportunity || {}, investmentOpportunitySchema) as Partial<InvestmentOpportunity>,
+    defaultValues: {
+      ...mapToFormValues(opportunity || {}, investmentOpportunitySchema),
+      ...(dealType && { dealType }),
+      ...(investmentId && !opportunity?.id && { investmentId })
+    } as InvestmentOpportunityFormValues,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   }) as any
@@ -193,7 +201,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   const previousSchemaKeysRef = useRef<string[]>([])
   const previousFormFieldsDefinitionRef = useRef<typeof formFieldsDefinition>(null)
   const investmentLoadedRef = useRef(false)
-  const mappedInvestmentValuesRef = useRef<Partial<InvestmentOpportunity> | null>(null)
+  const mappedInvestmentValuesRef = useRef<InvestmentOpportunityFormValues | null>(null)
 
   // Fetch investments list for selection (only when dealType is DIVESTMENT_DEAL and no initial investmentId)
   const { investments, loading: investmentsLoading } = useInvestments(accessToken || '', { limit: 100 }, 'list')
@@ -233,20 +241,43 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         const mappedValues = mapInvestmentToInvestmentOpportunityValues(investmentToMap as any)
         const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId
 
-        // Store mapped values for later use when schema updates
-        mappedInvestmentValuesRef.current = mappedValues
+        // Derive investmentTypeId from group/type refs (required by schema, not set by mapper)
+        const derivedInvestmentTypeId =
+          (mappedValues.investmentGroupRef || mappedValues.investmentTypeRef) && getPathByType
+            ? mapToSingleInvestmentTypeId(
+                mappedValues.investmentGroupRef ?? null,
+                mappedValues.investmentTypeRef ?? null,
+                getPathByType
+              )
+            : null
 
-        // Mapped values already contain both static and dynamic fields (from mapper)
-        // Merge with existing form values and ensure dealType is set
-        const mergedValues = {
-          ...form.getValues(),
-          ...mappedValues,
-          dealType: 'DIVESTMENT_DEAL',
-          investmentId: investmentIdToUse,
-          ownerEmployeeId: mappedValues.ownerEmployeeId || currentUserEmployeeId || ''
-        }
+        // Sanitize divestment-mapped values before storing them in form state.
+        // This keeps strict schema validation enabled while stripping nested GraphQL-only objects
+        // like opportunityAccounts[].account from the mapper output.
+        const sanitizedMappedValues = mapToFormValues(
+          {
+            ...mappedValues,
+            dealType: 'DIVESTMENT_DEAL',
+            investmentId: investmentIdToUse,
+            ...(derivedInvestmentTypeId && { investmentTypeId: derivedInvestmentTypeId }),
+            ownerEmployeeId: mappedValues.ownerEmployeeId || currentUserEmployeeId || ''
+          },
+          prospectSchema
+        ) as InvestmentOpportunityFormValues
 
-        form.reset(mergedValues as Partial<InvestmentOpportunity>)
+        // Store sanitized mapped values for later use when schema updates
+        mappedInvestmentValuesRef.current = sanitizedMappedValues
+
+        // Merge sanitized divestment values into the current form state before reset
+        const mergedValues = mapToFormValues(
+          {
+            ...form.getValues(),
+            ...sanitizedMappedValues
+          },
+          prospectSchema
+        ) as InvestmentOpportunityFormValues
+
+        form.reset(mergedValues)
         investmentLoadedRef.current = true
       } catch (err) {
         console.error('[OpportunityForm] Error mapping investment data for divestment:', err)
@@ -270,7 +301,8 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     userInfo?.employeeDetails?.employeeId,
     formFieldsDefinition,
     prospectSchema,
-    investmentTypesLoading
+    investmentTypesLoading,
+    getPathByType
   ])
 
   // Helper: Update form resolver
@@ -307,7 +339,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
 
   // Helper: Build form values when entity ID changes
   const buildFormValuesFromOpportunity = useCallback(() => {
-    const baseValues = mapToFormValues(opportunity || {}, prospectSchema)
+    const baseValues = mapToFormValues(opportunity || {}, prospectSchema) as InvestmentOpportunityFormValues
 
     // Calculate investmentTypeId FIRST from opportunity data
     const investmentTypeId = buildInvestmentTypeIdFromOpportunity(opportunity)
@@ -441,10 +473,23 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         const prospectFields = isDivestmentDeal ? {} : extractProspectFieldsFromFormValues(data, formFieldsDefinition)
 
         // For divestment: map investment data to opportunity form values (develop approach)
-        const investmentMappedFields =
-          (data.dealType || dealType) === 'DIVESTMENT_DEAL' && (investmentFromForm || investment)
+        const rawInvestmentMappedFields =
+          isDivestmentDeal && (investmentFromForm || investment)
             ? mapInvestmentToInvestmentOpportunityValues((investmentFromForm || investment) as any)
             : {}
+
+        // Align submit payload with the ID-based relation shape used by other IRM forms.
+        // The mapper adds GraphQL display objects like opportunityAccounts[].account, but the
+        // payload builder expects UUID fields only and will convert accountId -> account itself.
+        const investmentMappedFields = {
+          ...rawInvestmentMappedFields,
+          opportunityAccounts: rawInvestmentMappedFields.opportunityAccounts?.map((assoc: any) => ({
+            ...(assoc.id && { id: assoc.id }),
+            ...(assoc.version !== undefined && { version: assoc.version }),
+            accountId: assoc.accountId || assoc.account?.id || assoc.account,
+            ...(assoc.accountTypeRef && { accountTypeRef: assoc.accountTypeRef })
+          }))
+        }
 
         // Convert investmentTypeId back to group/type for payload (HEAD approach)
         const investmentTypeId = data.investmentTypeId

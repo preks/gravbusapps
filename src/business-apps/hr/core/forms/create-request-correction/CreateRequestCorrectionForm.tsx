@@ -144,7 +144,14 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
             employeeAttendanceMonthlyAllQuery,
             { employeeId: resolvedEmployeeId, dateFrom, dateTo }
           ),
-          graphqlClient.request<{ EmployeeAbsence: { startDate: string; endDate: string }[] }>(getEmployeeAbsences, {
+          graphqlClient.request<{
+            EmployeeAbsence: {
+              startDate: string
+              endDate: string
+              status?: string
+              type?: { objectValue?: string; translations?: { value?: string }[] }
+            }[]
+          }>(getEmployeeAbsences, {
             employeeId: resolvedEmployeeId,
             startDate: new Date(
               monthStart.getFullYear(),
@@ -161,8 +168,18 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
         const attendanceRows = attendanceRes?.EmployeeAttendance ?? []
         attendanceRows.forEach((r: { attendanceDate: string }) => attendanceOnlySet.add(String(r.attendanceDate)))
 
-        const absences = absencesRes?.EmployeeAbsence ?? []
-        absences.forEach((a: { startDate: string; endDate: string }) => {
+        const absences: any[] = absencesRes?.EmployeeAbsence ?? []
+        const approvedAbsences = absences.filter((a: any) => String(a.status).toUpperCase() === 'APPROVED')
+        const isBlockingAbsence = (a: any): boolean => {
+          const translations: { value?: string }[] = a?.type?.translations ?? []
+          const objVal = String(a?.type?.objectValue ?? '').toLowerCase()
+          const allText = translations.map(tr => String(tr?.value ?? '').toLowerCase()).join(' ') + ' ' + objVal
+          const nonBlockingPatterns =
+            /\b(remote|home\s*office|telearbeit|lucru\s*de\s*acas[aă]|relocare|relocation|telemunc[aă])\b/
+          return !nonBlockingPatterns.test(allText)
+        }
+        const blockingAbsences = approvedAbsences.filter(isBlockingAbsence)
+        blockingAbsences.forEach((a: { startDate: string; endDate: string }) => {
           const from = new Date(a.startDate)
           const to = new Date(a.endDate)
           const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
@@ -280,7 +297,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     try {
       const d = new Date(dateVal)
       if (!Number.isNaN(d.getTime())) {
-        key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+        key = toLocalDateKey(d)
       }
     } catch {
       // no-op
@@ -529,7 +546,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
                   try {
                     const d = new Date(value)
                     if (!Number.isNaN(d.getTime())) {
-                      key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+                      key = toLocalDateKey(d)
                     }
                   } catch {
                     // no-op

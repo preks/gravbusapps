@@ -108,13 +108,25 @@ export const transformInvestment = (
 
   // Remove id and version from sub-investments - these belong to the investment, not the report
   if ((mappedValues as any).equityInvestment) {
-    ;(mappedValues as any).equityInvestment = removeIdVersion((mappedValues as any).equityInvestment)
+    const equityInvestment = (mappedValues as any).equityInvestment
+    ;(mappedValues as any).equityInvestment = {
+      ...removeIdVersion(equityInvestment),
+      ...(equityInvestment?.id && { equityInvestmentId: equityInvestment.id })
+    }
   }
   if ((mappedValues as any).liquidFundInvestment) {
-    ;(mappedValues as any).liquidFundInvestment = removeIdVersion((mappedValues as any).liquidFundInvestment)
+    const liquidFundInvestment = (mappedValues as any).liquidFundInvestment
+    ;(mappedValues as any).liquidFundInvestment = {
+      ...removeIdVersion(liquidFundInvestment),
+      ...(liquidFundInvestment?.id && { liquidFundInvestmentId: liquidFundInvestment.id })
+    }
   }
   if ((mappedValues as any).realEstateInvestment) {
-    ;(mappedValues as any).realEstateInvestment = removeIdVersion((mappedValues as any).realEstateInvestment)
+    const realEstateInvestment = (mappedValues as any).realEstateInvestment
+    ;(mappedValues as any).realEstateInvestment = {
+      ...removeIdVersion(realEstateInvestment),
+      ...(realEstateInvestment?.id && { realEstateInvestmentId: realEstateInvestment.id })
+    }
   }
 
   // Set investmentId only (not id) - id belongs to the investment entity, not the report

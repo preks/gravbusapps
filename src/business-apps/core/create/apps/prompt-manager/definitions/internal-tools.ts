@@ -233,7 +233,6 @@ export const CREATE_CONTACT_SCHEMA = {
     birthDate: { type: 'string', description: 'Birth date (ISO format: YYYY-MM-DD)' },
     jobPosition: { type: 'string', description: 'Job title/position' },
     department: { type: 'string', description: 'Department name' },
-    type: { type: 'string', description: 'Contact type' },
     description: { type: 'string', description: 'Contact description' },
     notesSummary: { type: 'string', description: 'Summary notes' }
   },
@@ -247,7 +246,7 @@ export const CREATE_CONTACT_SOURCE = `async function handler(event, context) {
   if (!event.firstName || !event.lastName) return { success: false, error: 'firstName and lastName are required' };
 
   const contact = {};
-  const fields = ['firstName', 'lastName', 'ownerEmployeeId', 'salutationRef', 'academicTitleRef', 'languageRef', 'birthDate', 'jobPosition', 'department', 'type', 'description', 'notesSummary'];
+  const fields = ['firstName', 'lastName', 'ownerEmployeeId', 'salutationRef', 'academicTitleRef', 'languageRef', 'birthDate', 'jobPosition', 'department', 'description', 'notesSummary'];
   for (const f of fields) { if (event[f] !== undefined && event[f] !== null && event[f] !== '') contact[f] = event[f]; }
 
   try {
@@ -275,7 +274,6 @@ export const UPDATE_CONTACT_SCHEMA = {
     birthDate: { type: 'string', description: 'Birth date (ISO format: YYYY-MM-DD)' },
     jobPosition: { type: 'string', description: 'Job title/position' },
     department: { type: 'string', description: 'Department name' },
-    type: { type: 'string', description: 'Contact type' },
     description: { type: 'string', description: 'Contact description' },
     notesSummary: { type: 'string', description: 'Summary notes' }
   },
@@ -289,7 +287,7 @@ export const UPDATE_CONTACT_SOURCE = `async function handler(event, context) {
   if (!event.id || event.version === undefined) return { success: false, error: 'id and version are required' };
 
   const contact = { id: event.id, version: event.version };
-  const fields = ['firstName', 'lastName', 'ownerEmployeeId', 'salutationRef', 'academicTitleRef', 'languageRef', 'birthDate', 'jobPosition', 'department', 'type', 'description', 'notesSummary'];
+  const fields = ['firstName', 'lastName', 'ownerEmployeeId', 'salutationRef', 'academicTitleRef', 'languageRef', 'birthDate', 'jobPosition', 'department', 'description', 'notesSummary'];
   for (const f of fields) { if (event[f] !== undefined) contact[f] = event[f]; }
 
   try {
