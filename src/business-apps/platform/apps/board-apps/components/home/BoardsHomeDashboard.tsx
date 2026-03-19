@@ -52,7 +52,7 @@ export const BoardsHomeDashboard: React.FC<BoardsHomeDashboardProps> = ({
   const showSkeleton = isLoading && !stats && !myWork
 
   return (
-    <div className="gba:flex-1 gba:overflow-auto" data-testid={testId}>
+    <div data-testid={testId}>
       <div className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:pt-6 gba:pb-10 gba:space-y-6">
         <BoardsHomeGreeting userName={userName} data-testid={`${testId}-greeting`} />
 
