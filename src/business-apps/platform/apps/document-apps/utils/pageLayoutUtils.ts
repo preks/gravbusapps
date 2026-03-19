@@ -30,6 +30,16 @@ export interface PageLayoutPaginationConfig {
   marginRight: number
 }
 
+export interface DocumentPrintStyleConfig {
+  pageSizeCss: string
+  pageMarginCss: string
+  fontFamily: string
+  fontSize: string
+  lineHeight: string
+  textColor: string
+  pageColor: string
+}
+
 /**
  * Returns default layout (A4 portrait, 2.54 cm margins, white page, not pageless).
  */
@@ -133,6 +143,44 @@ export function getPaginationConfigFromFormatting(
     marginBottom,
     marginLeft,
     marginRight
+  }
+}
+
+function formatPrintLength(value: number, unit: 'cm' | 'in'): string {
+  const rounded = Math.round(value * 100) / 100
+  return `${rounded}${unit}`
+}
+
+function getCssPageSizeName(sizeId: PageSizeId): string {
+  switch (sizeId) {
+    case 'LETTER':
+      return 'letter'
+    case 'LEGAL':
+      return 'legal'
+    case 'TABLOID':
+      return 'tabloid'
+    default:
+      return sizeId.toLowerCase()
+  }
+}
+
+export function getPrintStyleConfigFromFormatting(formatting?: DocumentFormatting | null): DocumentPrintStyleConfig {
+  const layout = resolvePageLayout(formatting)
+  const marginUnit = layout.marginUnit === 'in' ? 'in' : 'cm'
+
+  return {
+    pageSizeCss: `${getCssPageSizeName(layout.pageSize)} ${layout.orientation}`,
+    pageMarginCss: [
+      formatPrintLength(layout.margins.top, marginUnit),
+      formatPrintLength(layout.margins.right, marginUnit),
+      formatPrintLength(layout.margins.bottom, marginUnit),
+      formatPrintLength(layout.margins.left, marginUnit)
+    ].join(' '),
+    fontFamily: formatting?.fontFamily?.trim() || "'Times New Roman', Georgia, serif",
+    fontSize: typeof formatting?.fontSize === 'number' ? `${formatting.fontSize}px` : '16px',
+    lineHeight: typeof formatting?.lineHeight === 'number' ? String(formatting.lineHeight) : '1.15',
+    textColor: '#1a1a1a',
+    pageColor: layout.pageColor ?? DEFAULT_PAGE_COLOR
   }
 }
 

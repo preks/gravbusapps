@@ -78,6 +78,7 @@ import type {
 import {
   getPaginationConfigFromFormatting,
   getPagesConfigFromFormatting,
+  getPrintStyleConfigFromFormatting,
   normalizeStoredPagesFormatting,
   sanitizeStandalonePageNumberTemplates,
   resolvePageLayout,
@@ -111,7 +112,12 @@ import { DocumentImage, PageBreak, SearchHighlight } from './extensions'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
 import DOMPurify from 'dompurify'
-import { exportToWord, exportToPDF, printHtmlDocument, embedImagesInHtml } from '../../utils/exportUtils'
+import {
+  exportToWord,
+  exportToPDFWithStyle,
+  printHtmlDocumentWithStyle,
+  embedImagesInHtml
+} from '../../utils/exportUtils'
 import { useImageDataUrlResolver } from '../../hooks/useImageDataUrlResolver'
 import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
@@ -796,6 +802,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const resolvedLayout = resolvePageLayout(layoutFormatting)
     const paginationConfig = getPaginationConfigFromFormatting(layoutFormatting)
     const pagesFormattingConfig = getPagesConfigFromFormatting(layoutFormatting)
+    const printStyleConfig = useMemo(() => getPrintStyleConfigFromFormatting(layoutFormatting), [layoutFormatting])
     const isPageless = resolvedLayout.pageless
     const pageColor = resolvedLayout.pageColor ?? DEFAULT_PAGE_COLOR
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
@@ -2559,13 +2566,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           FORBID_ATTR: [],
           ALLOW_DATA_ATTR: true
         })
-        await exportToPDF(title, safeHtml)
+        await exportToPDFWithStyle(title, safeHtml, printStyleConfig)
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to PDF failed:', error)
       } finally {
         setIsExporting(false)
       }
-    }, [title, editor, getExportHtmlWithEmbeddedImages])
+    }, [title, editor, getExportHtmlWithEmbeddedImages, printStyleConfig])
 
     // Print document — CWE-79: use DOMPurify.sanitize so SAST recognizes the sanitizer
     const handlePrint = useCallback(async () => {
@@ -2577,18 +2584,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           FORBID_ATTR: [],
           ALLOW_DATA_ATTR: true
         })
-        printHtmlDocument({
-          title,
-          htmlContent: safeHtml,
-          extraCss: `
-        .page-break { page-break-after: always; break-after: page; }
-        @media print { .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }
-      `
-        })
+        printHtmlDocumentWithStyle(
+          {
+            title,
+            htmlContent: safeHtml
+          },
+          printStyleConfig
+        )
       } catch (error) {
         console.error('[PagedDocumentEditor] Print failed:', error)
       }
-    }, [title, editor, getExportHtmlWithEmbeddedImages])
+    }, [title, editor, getExportHtmlWithEmbeddedImages, printStyleConfig])
 
     // Zoom controls
     const handleZoomIn = useCallback(() => {
