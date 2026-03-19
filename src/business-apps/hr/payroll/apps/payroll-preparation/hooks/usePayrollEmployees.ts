@@ -8,12 +8,20 @@ import {
   GET_PAYROLL_SALARIES,
   GET_PAYROLL_ABSENCES,
   GET_PAYROLL_ATTENDANCE,
+  GET_PREVIOUS_SALARIES,
+  GET_EMPLOYEES_BY_USER_IDS,
   GET_ACTIVE_STRUCTURE,
   GET_COMPANY_ADDRESSES
 } from '../queries/payrollQueries'
 import { runAllValidations, resetIssueIdCounter } from '../utils/validationRules'
 import { parseDurationToMinutes, getPlannedMinutesForDate, toLocalDateKey } from '../utils/timeUtils'
-import type { PayrollEmployee, PayrollCountry, PayrollSummary, PayrollGridFilters } from '../types/payrollTypes'
+import type {
+  PayrollEmployee,
+  PayrollCountry,
+  PayrollSummary,
+  PayrollGridFilters,
+  PayrollChangeEvent
+} from '../types/payrollTypes'
 
 interface AbsenceTypeObjectValue {
   category?: string
@@ -42,6 +50,7 @@ interface RawEmployeePosition {
     displayName: string
     pictureThumbnail: string | null
     additionalProperties: Record<string, unknown> | null
+    updatedAt: string | null
     workingCondition: Array<{
       id: string
       contractType: {
@@ -54,6 +63,8 @@ interface RawEmployeePosition {
       hireDate: string | null
       exitDate: string | null
       region: { id: string; value: string; parentEntry?: { code?: string } } | null
+      updatedAt: string | null
+      updatedBy: string | null
     }>
     workingHours: Array<{
       weeklyHours: number | null
@@ -65,12 +76,16 @@ interface RawEmployeePosition {
       fridayHours: number | null
       saturdayHours: number | null
       sundayHours: number | null
+      updatedAt: string | null
+      updatedBy: string | null
     }>
     bankAccounts: Array<{
       id: string
       iban: string | null
       bankName: string | null
       accountHolder: string | null
+      updatedAt: string | null
+      updatedBy: string | null
     }>
     taxDetails: Array<{
       taxNumber: string | null
@@ -81,6 +96,8 @@ interface RawEmployeePosition {
       taxBracketRef: string | null
       childTaxAllowance: number | null
       additionalProperties: Record<string, unknown> | null
+      updatedAt: string | null
+      updatedBy: string | null
     }>
   }
 }
@@ -129,6 +146,16 @@ interface RawAttendance {
   recordedTime: string | null
 }
 
+interface RawPreviousSalary {
+  id: string
+  employeeId: string
+  monthlyGrossSalary: number | null
+  currency: { code: string } | null
+  currencyRef: string | null
+  startDate: string | null
+  createdAt: string
+}
+
 function detectCountryFromCode(countryCode: string | null | undefined): PayrollCountry | null {
   if (!countryCode) return null
   const raw = countryCode.trim().toUpperCase()
@@ -163,14 +190,175 @@ function resolveEmploymentStatus(
   return exitDate <= payrollPeriodEnd ? 'terminated' : 'active'
 }
 
+function toDateOnly(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr
+  return d.toISOString().split('T')[0]
+}
+
+function detectChanges(
+  pos: RawEmployeePosition,
+  currentSalary: RawSalary | undefined,
+  previousSalary: RawPreviousSalary | undefined,
+  absences: RawAbsence[],
+  referenceDate: Date,
+  payrollMonth: number,
+  payrollYear: number
+): PayrollChangeEvent[] {
+  const changes: PayrollChangeEvent[] = []
+  let changeId = 1
+  const emp = pos.employee
+  const wc = emp.workingCondition?.[0]
+  const wh = emp.workingHours?.[0]
+  const monthStart = new Date(payrollYear, payrollMonth - 1, 1)
+  const monthEnd = new Date(payrollYear, payrollMonth, 0)
+
+  const hireDate = wc?.hireDate || pos.hireDate
+  if (hireDate) {
+    const hd = new Date(hireDate)
+    if (hd >= monthStart && hd <= monthEnd) {
+      changes.push({
+        id: `chg-${pos.employeeId}-${changeId++}`,
+        employeeId: emp.id,
+        changeType: 'new_hire',
+        fieldName: 'Hire Date',
+        oldValue: null,
+        newValue: hireDate,
+        effectiveDate: toDateOnly(hireDate),
+        changedAt: hireDate
+      })
+    }
+  }
+
+  const exitDate = wc?.exitDate || pos.exitDate
+  if (exitDate) {
+    const ed = new Date(exitDate)
+    if (ed >= monthStart && ed <= monthEnd) {
+      changes.push({
+        id: `chg-${pos.employeeId}-${changeId++}`,
+        employeeId: emp.id,
+        changeType: 'termination',
+        fieldName: 'Exit Date',
+        oldValue: null,
+        newValue: exitDate,
+        effectiveDate: toDateOnly(exitDate),
+        changedAt: exitDate
+      })
+    }
+  }
+
+  if (currentSalary?.createdAt && new Date(currentSalary.createdAt) >= referenceDate) {
+    const oldVal =
+      previousSalary?.monthlyGrossSalary != null
+        ? `${previousSalary.monthlyGrossSalary} ${previousSalary.currency?.code || ''}`.trim()
+        : null
+    const newVal =
+      currentSalary.monthlyGrossSalary != null
+        ? `${currentSalary.monthlyGrossSalary} ${currentSalary.currency?.code || ''}`.trim()
+        : null
+    changes.push({
+      id: `chg-${pos.employeeId}-${changeId++}`,
+      employeeId: emp.id,
+      changeType: 'salary_change',
+      fieldName: 'Monthly Gross Salary',
+      oldValue: oldVal,
+      newValue: newVal,
+      effectiveDate: toDateOnly(currentSalary.startDate || currentSalary.createdAt),
+      changedAt: currentSalary.createdAt
+    })
+  }
+
+  if (wh?.updatedAt && new Date(wh.updatedAt) >= referenceDate) {
+    changes.push({
+      id: `chg-${pos.employeeId}-${changeId++}`,
+      employeeId: emp.id,
+      changeType: 'working_time_change',
+      fieldName: 'Working Hours',
+      oldValue: null,
+      newValue: wh.weeklyHours != null ? `${wh.weeklyHours}h/week` : null,
+      effectiveDate: toDateOnly(wh.updatedAt),
+      changedAt: wh.updatedAt,
+      changedBy: wh.updatedBy || undefined
+    })
+  }
+
+  if (wc?.updatedAt && new Date(wc.updatedAt) >= referenceDate) {
+    changes.push({
+      id: `chg-${pos.employeeId}-${changeId++}`,
+      employeeId: emp.id,
+      changeType: 'contract_type_change',
+      fieldName: 'Working Condition',
+      oldValue: null,
+      newValue: wc.contractType?.translations?.[0]?.value || wc.contractType?.value || 'Updated',
+      effectiveDate: toDateOnly(wc.updatedAt),
+      changedAt: wc.updatedAt,
+      changedBy: wc.updatedBy || undefined
+    })
+  }
+
+  for (const bank of emp.bankAccounts || []) {
+    if (bank.updatedAt && new Date(bank.updatedAt) >= referenceDate) {
+      changes.push({
+        id: `chg-${pos.employeeId}-${changeId++}`,
+        employeeId: emp.id,
+        changeType: 'bank_details_change',
+        fieldName: 'Bank Account',
+        oldValue: null,
+        newValue: bank.iban ? `IBAN: ${bank.iban.slice(0, 4)}****` : 'Updated',
+        effectiveDate: toDateOnly(bank.updatedAt),
+        changedAt: bank.updatedAt,
+        changedBy: bank.updatedBy || undefined
+      })
+      break
+    }
+  }
+
+  for (const tax of emp.taxDetails || []) {
+    if (tax.updatedAt && new Date(tax.updatedAt) >= referenceDate) {
+      changes.push({
+        id: `chg-${pos.employeeId}-${changeId++}`,
+        employeeId: emp.id,
+        changeType: 'country_specific_change',
+        fieldName: 'Tax / Social Data',
+        oldValue: null,
+        newValue: 'Updated',
+        effectiveDate: toDateOnly(tax.updatedAt),
+        changedAt: tax.updatedAt,
+        changedBy: tax.updatedBy || undefined
+      })
+      break
+    }
+  }
+
+  const changedAbsences = absences.filter(a => a.createdAt && new Date(a.createdAt) >= referenceDate)
+  if (changedAbsences.length > 0) {
+    changes.push({
+      id: `chg-${pos.employeeId}-${changeId++}`,
+      employeeId: emp.id,
+      changeType: 'absence_change',
+      fieldName: 'Absences',
+      oldValue: null,
+      newValue: `${changedAbsences.length} absence(s) added/modified`,
+      effectiveDate: toDateOnly(changedAbsences[0].startDate),
+      changedAt: changedAbsences[0].createdAt
+    })
+  }
+
+  return changes
+}
+
 function buildPayrollEmployee(
   pos: RawEmployeePosition,
   salaryMap: Map<string, RawSalary>,
   absenceMap: Map<string, RawAbsence[]>,
   attendanceMap: Map<string, RawAttendance[]>,
+  previousSalaryMap: Map<string, RawPreviousSalary>,
   country: PayrollCountry,
   payrollMonth: number,
-  payrollYear: number
+  payrollYear: number,
+  referenceDate: Date
 ): PayrollEmployee {
   const emp = pos.employee
   const wc = emp.workingCondition?.[0]
@@ -292,6 +480,11 @@ function buildPayrollEmployee(
     exportEligible: true
   }
 
+  const previousSalary = previousSalaryMap.get(emp.id)
+  const detectedChanges = detectChanges(pos, salary, previousSalary, absences, referenceDate, payrollMonth, payrollYear)
+  payrollEmp.changes = detectedChanges
+  payrollEmp.changedSinceLastPayroll = detectedChanges.length > 0
+
   resetIssueIdCounter()
   const issues = runAllValidations(payrollEmp, country)
   payrollEmp.issues = issues
@@ -355,7 +548,9 @@ export function usePayrollEmployees(
       const lastDay = new Date(year, month, 0).getDate()
       const periodEnd = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
 
-      const [salaryResult, absenceResult, attendanceResult] = await Promise.all([
+      const referenceDate = new Date(year, month - 1, 1)
+
+      const [salaryResult, absenceResult, attendanceResult, prevSalaryResult] = await Promise.all([
         client.request<{ EmployeeSalary: RawSalary[] }>(GET_PAYROLL_SALARIES, { employeeIds }),
         client.request<{ EmployeeAbsence: RawAbsence[] }>(GET_PAYROLL_ABSENCES, {
           employeeIds,
@@ -367,6 +562,10 @@ export function usePayrollEmployees(
           employeeIds,
           dateFrom: periodStart,
           dateTo: periodEnd
+        }),
+        client.request<{ EmployeeSalary: RawPreviousSalary[] }>(GET_PREVIOUS_SALARIES, {
+          employeeIds,
+          beforeDate: referenceDate.toISOString()
         })
       ])
 
@@ -391,9 +590,60 @@ export function usePayrollEmployees(
         attendanceMap.set(att.employeeId, existing)
       }
 
+      const previousSalaryMap = new Map<string, RawPreviousSalary>()
+      for (const sal of prevSalaryResult.EmployeeSalary || []) {
+        if (!previousSalaryMap.has(sal.employeeId)) {
+          previousSalaryMap.set(sal.employeeId, sal)
+        }
+      }
+
       const allEmployees = positions
         .filter(p => p.employee?.id)
-        .map(pos => buildPayrollEmployee(pos, salaryMap, absenceMap, attendanceMap, effectiveCountry, month, year))
+        .map(pos =>
+          buildPayrollEmployee(
+            pos,
+            salaryMap,
+            absenceMap,
+            attendanceMap,
+            previousSalaryMap,
+            effectiveCountry,
+            month,
+            year,
+            referenceDate
+          )
+        )
+
+      const changedByUserIds = new Set<string>()
+      for (const emp of allEmployees) {
+        for (const change of emp.changes) {
+          if (change.changedBy) changedByUserIds.add(change.changedBy)
+        }
+      }
+
+      if (changedByUserIds.size > 0) {
+        try {
+          const userResult = await client.request<{
+            Employee: Array<{ userId: string; displayName: string | null; fullName: string | null }>
+          }>(GET_EMPLOYEES_BY_USER_IDS, { userIds: [...changedByUserIds] })
+
+          const userNameMap = new Map<string, string>()
+          for (const u of userResult.Employee || []) {
+            if (u.userId) {
+              userNameMap.set(u.userId, u.displayName || u.fullName || u.userId)
+            }
+          }
+
+          for (const emp of allEmployees) {
+            for (const change of emp.changes) {
+              if (change.changedBy && userNameMap.has(change.changedBy)) {
+                change.changedBy = userNameMap.get(change.changedBy)
+              }
+            }
+          }
+        } catch {
+          // Non-critical — keep raw user IDs if resolution fails
+        }
+      }
 
       const payrollEmployees = allEmployees.filter(e => e.payrollRelevant !== false)
 

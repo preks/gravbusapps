@@ -137,9 +137,11 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
                     <TableCell>
                       <Badge variant="success">{change.newValue || '—'}</Badge>
                     </TableCell>
-                    <TableCell className="gba:text-sm gba:text-muted-foreground">{change.effectiveDate}</TableCell>
                     <TableCell className="gba:text-sm gba:text-muted-foreground">
-                      {new Date(change.changedAt).toLocaleDateString()}
+                      {change.effectiveDate ? new Date(change.effectiveDate).toLocaleDateString() : '—'}
+                    </TableCell>
+                    <TableCell className="gba:text-sm gba:text-muted-foreground">
+                      {change.changedAt ? new Date(change.changedAt).toLocaleDateString() : '—'}
                     </TableCell>
                     <TableCell className="gba:text-sm gba:text-muted-foreground">{change.changedBy || '—'}</TableCell>
                   </TableRow>
