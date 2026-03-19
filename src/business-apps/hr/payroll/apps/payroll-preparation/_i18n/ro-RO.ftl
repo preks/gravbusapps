@@ -48,7 +48,8 @@ summary-warning = Avertismente
 summary-blocked = Blocați
 summary-excluded = Excluși
 summary-blockers = Blocaje Deschise
-summary-changed = Modificați
+summary-open-warnings = Avertismente Deschise
+summary-changed = Modificări
 
 label-company = Companie:
 label-month = Luna:

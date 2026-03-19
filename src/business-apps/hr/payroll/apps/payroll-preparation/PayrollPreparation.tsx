@@ -182,7 +182,18 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
 
     switch (activeTab) {
       case 'overview':
-        return <OverviewView summary={summary} payrollRun={payrollRun} t={t} />
+        return (
+          <OverviewView
+            summary={summary}
+            payrollRun={payrollRun}
+            employees={employees}
+            t={t}
+            onNavigateToGrid={() => {
+              setActiveTab('grid')
+              updateUrl('grid')
+            }}
+          />
+        )
       case 'grid':
         return <PayrollGridView employees={employees} country={detectedCountry || 'DE'} t={t} />
       case 'exceptions':

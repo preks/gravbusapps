@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { WarningCircleIcon, ShieldWarningIcon, InfoIcon } from '@phosphor-icons/react'
+import { WarningCircleIcon, ShieldWarningIcon, InfoIcon, ArrowSquareOutIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
 import { SeverityBadge } from '../../shared/StatusBadge'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { Navigation, navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface ExceptionsViewProps {
   employees: PayrollEmployee[]
@@ -24,15 +24,22 @@ const CATEGORY_LABELS: Record<IssueCategory, string> = {
   invalid_effective_dates: 'Invalid Effective Dates'
 }
 
-const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
-  switch (severity) {
-    case 'blocker':
-      return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
-    case 'warning':
-      return <WarningCircleIcon size={16} weight="fill" className="gba:text-warning" />
-    case 'info':
-      return <InfoIcon size={16} weight="fill" className="gba:text-primary" />
-  }
+/**
+ * Maps issue categories to the appropriate employee-record tab and subView.
+ * Uses the legacy tab shortcuts that employee-record supports.
+ */
+const CATEGORY_TO_TAB: Record<IssueCategory, { tab: string; subView?: string }> = {
+  missing_personal_data: { tab: 'hrAdmin', subView: 'details' },
+  missing_bank_details: { tab: 'hrAdmin', subView: 'details' },
+  missing_contract_salary: { tab: 'compensation', subView: 'currentCompensation' },
+  missing_tax_social: { tab: 'hrAdmin', subView: 'details' },
+  missing_country_specific: { tab: 'hrAdmin', subView: 'details' },
+  missing_approvals: { tab: 'absences' },
+  missing_absence_data: { tab: 'absences' },
+  overlapping_absences: { tab: 'absences' },
+  retroactive_changes: { tab: 'hrAdmin', subView: 'changeLog' },
+  pending_final_payroll: { tab: 'compensation', subView: 'currentCompensation' },
+  invalid_effective_dates: { tab: 'hrAdmin', subView: 'employment' }
 }
 
 interface IssueWithEmployee extends PayrollIssue {
@@ -75,36 +82,32 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
   const infoCount = allIssues.filter(i => i.severity === 'info').length
   const affectedEmployees = new Set(allIssues.map(i => i.employeeId)).size
 
-  const handleNavigateForIssue = useCallback((employeeId: string, category: IssueCategory) => {
-    switch (category) {
-      case 'missing_personal_data':
-      case 'missing_bank_details':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'details' }))
-        break
-      case 'missing_contract_salary':
-      case 'missing_tax_social':
-      case 'missing_country_specific':
-      case 'pending_final_payroll':
-      case 'invalid_effective_dates':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'employment' }))
-        break
-      case 'missing_approvals':
-        navigateTo(buildPlatformUrl('/platform/task-manager', { view: 'inbox' }))
-        break
-      case 'missing_absence_data':
-      case 'overlapping_absences':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'absences' }))
-        break
-      case 'retroactive_changes':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'changeLog' }))
-        break
-      default:
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'details' }))
+  const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
+    switch (severity) {
+      case 'blocker':
+        return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
+      case 'warning':
+        return <WarningCircleIcon size={16} weight="fill" className="gba:text-warning" />
+      case 'info':
+        return <InfoIcon size={16} weight="fill" className="gba:text-primary" />
     }
+  }
+
+  const handleIssueClick = useCallback((issue: IssueWithEmployee) => {
+    const tabConfig = CATEGORY_TO_TAB[issue.category]
+    const params: Record<string, string> = {
+      id: issue.employeeId,
+      tab: tabConfig.tab
+    }
+    if (tabConfig.subView) {
+      params.subView = tabConfig.subView
+    }
+    navigateTo(buildPlatformUrl(Navigation.HR_EMPLOYEE_RECORD, params))
   }, [])
 
   return (
     <div className="gba:space-y-6">
+      {/* Summary KPIs */}
       <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 gba:gap-4">
         <Card className="gba:p-4 gba:text-center">
           <p className="gba:text-2xl gba:font-bold gba:text-destructive">{blockerCount}</p>
@@ -124,53 +127,45 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
         </Card>
       </div>
 
+      {/* Filters */}
       <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
-            {t('label-severity')}
-          </span>
-          <div className="gba:min-w-[140px]">
-            <Select
-              value={severityFilter}
-              onValueChange={(val: string) => setSeverityFilter(val as IssueSeverity | 'all')}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Severity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('filter-all')}</SelectItem>
-                <SelectItem value="blocker">{t('severity-blocker')}</SelectItem>
-                <SelectItem value="warning">{t('severity-warning')}</SelectItem>
-                <SelectItem value="info">{t('severity-info')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="gba:min-w-[140px]">
+          <Select
+            value={severityFilter}
+            onValueChange={(val: string) => setSeverityFilter(val as IssueSeverity | 'all')}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Severity" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('filter-all')}</SelectItem>
+              <SelectItem value="blocker">{t('severity-blocker')}</SelectItem>
+              <SelectItem value="warning">{t('severity-warning')}</SelectItem>
+              <SelectItem value="info">{t('severity-info')}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
-            {t('label-category')}
-          </span>
-          <div className="gba:min-w-[200px]">
-            <Select
-              value={categoryFilter}
-              onValueChange={(val: string) => setCategoryFilter(val as IssueCategory | 'all')}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('filter-all')}</SelectItem>
-                {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="gba:min-w-[200px]">
+          <Select
+            value={categoryFilter}
+            onValueChange={(val: string) => setCategoryFilter(val as IssueCategory | 'all')}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('filter-all')}</SelectItem>
+              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                <SelectItem key={key} value={key}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
+      {/* Issues List */}
       <div className="gba:space-y-2">
         {filteredIssues.length === 0 ? (
           <Card className="gba:p-8 gba:text-center gba:text-muted-foreground">
@@ -182,8 +177,8 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
           filteredIssues.map(issue => (
             <Card
               key={`${issue.employeeId}-${issue.issueCode}`}
-              className="gba:p-4 gba:cursor-pointer gba:hover:bg-muted/50 gba:transition-colors"
-              onClick={() => handleNavigateForIssue(issue.employeeId, issue.category)}
+              className="gba:p-4 gba:cursor-pointer gba:transition-colors gba:hover:bg-muted/50"
+              onClick={() => handleIssueClick(issue)}
             >
               <div className="gba:flex gba:items-start gba:gap-3">
                 <SeverityIcon severity={issue.severity} />
@@ -196,6 +191,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <span className="gba:text-xs gba:font-mono gba:text-muted-foreground">{issue.issueCode}</span>
                       <SeverityBadge severity={issue.severity} />
+                      <ArrowSquareOutIcon size={14} className="gba:text-muted-foreground" />
                     </div>
                   </div>
                   <p className="gba:text-sm gba:text-foreground gba:mb-1">{issue.message}</p>

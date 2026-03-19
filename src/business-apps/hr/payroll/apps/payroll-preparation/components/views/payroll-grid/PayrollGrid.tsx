@@ -8,14 +8,18 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  TableHead
+  TableHead,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
 } from '@newwork/nw-design-system'
-import { UserIcon, CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
+import { CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollGridFilters as FilterState, PayrollCountry } from '../../../types/payrollTypes'
 import { useFilteredEmployees } from '../../../hooks/usePayrollEmployees'
 import { ReadinessStatusBadge, IssueCountBadge, ChangedBadge, FieldStatusBadge } from '../../shared/StatusBadge'
 import { PayrollGridFilters } from './PayrollGridFilters'
 import { EmployeeDetailDrawer } from './EmployeeDetailDrawer'
+import { getPictureDataUrl } from '../../../utils/imageUtils'
 
 interface PayrollGridViewProps {
   employees: PayrollEmployee[]
@@ -27,38 +31,6 @@ type SortField = 'displayName' | 'department' | 'baseSalary' | 'readinessStatus'
 type SortOrder = 'asc' | 'desc'
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100]
-
-const SortIcon: React.FC<{ field: SortField; activeField: SortField; order: SortOrder }> = ({
-  field,
-  activeField,
-  order
-}) => {
-  if (activeField !== field) return <CaretUpIcon size={12} className="gba:text-muted-foreground/40" />
-  return order === 'asc' ? (
-    <CaretUpIcon size={12} className="gba:text-foreground" weight="bold" />
-  ) : (
-    <CaretDownIcon size={12} className="gba:text-foreground" weight="bold" />
-  )
-}
-
-const SortableHead: React.FC<{
-  field: SortField
-  label: string
-  activeField: SortField
-  order: SortOrder
-  onSort: (field: SortField) => void
-  className?: string
-}> = ({ field, label, activeField, order, onSort, className }) => (
-  <TableHead
-    className={`gba:cursor-pointer gba:select-none gba:whitespace-nowrap ${className || ''}`}
-    onClick={() => onSort(field)}
-  >
-    <span className="gba:flex gba:items-center gba:gap-1">
-      {label}
-      <SortIcon field={field} activeField={activeField} order={order} />
-    </span>
-  </TableHead>
-)
 
 export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, country, t }) => {
   const [filters, setFilters] = useState<FilterState>({
@@ -117,8 +89,34 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
     setCurrentPage(1)
   }
 
+  const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
+    if (sortField !== field) return <CaretUpIcon size={12} className="gba:text-muted-foreground/40" />
+    return sortOrder === 'asc' ? (
+      <CaretUpIcon size={12} className="gba:text-foreground" weight="bold" />
+    ) : (
+      <CaretDownIcon size={12} className="gba:text-foreground" weight="bold" />
+    )
+  }
+
+  const SortableHead: React.FC<{ field: SortField; label: string; className?: string; sticky?: boolean }> = ({
+    field,
+    label,
+    className,
+    sticky
+  }) => (
+    <TableHead
+      className={`gba:cursor-pointer gba:select-none gba:whitespace-nowrap ${sticky ? 'gba:sticky gba:left-0 gba:z-20 gba:bg-background' : ''} ${className || ''}`}
+      onClick={() => handleSort(field)}
+    >
+      <span className="gba:flex gba:items-center gba:gap-1">
+        {label}
+        <SortIcon field={field} />
+      </span>
+    </TableHead>
+  )
+
   return (
-    <div className="gba:space-y-4">
+    <div>
       <PayrollGridFilters
         filters={filters}
         onFiltersChange={f => {
@@ -129,58 +127,27 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
         t={t}
       />
 
-      <Card className="gba:overflow-hidden gba:bg-transparent gba:shadow-none gba:border-none gba:pt-2">
-        <div className="gba:overflow-x-auto gba:bg-card gba:rounded-lg">
+      <Card className="gba:overflow-hidden">
+        <div className="gba:overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <SortableHead
-                  field="displayName"
-                  label={t('grid-employee')}
-                  activeField={sortField}
-                  order={sortOrder}
-                  onSort={handleSort}
-                  className="gba:min-w-[200px] gba:sticky gba:left-0 gba:z-20 gba:bg-card"
-                />
+                <SortableHead field="displayName" label={t('grid-employee')} className="gba:min-w-[220px]" sticky />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-employee-id')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-status')}</TableHead>
-                <SortableHead
-                  field="department"
-                  label={t('grid-department')}
-                  activeField={sortField}
-                  order={sortOrder}
-                  onSort={handleSort}
-                />
+                <SortableHead field="department" label={t('grid-department')} />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-cost-center')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-contract-type')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-fte')}</TableHead>
-                <SortableHead
-                  field="baseSalary"
-                  label={t('grid-base-salary')}
-                  activeField={sortField}
-                  order={sortOrder}
-                  onSort={handleSort}
-                />
+                <SortableHead field="baseSalary" label={t('grid-base-salary')} />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-bank-details')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-paid-leave')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-sick-leave')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-logged-hours')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-capacity')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-balance')}</TableHead>
-                <SortableHead
-                  field="issues"
-                  label={t('grid-issues')}
-                  activeField={sortField}
-                  order={sortOrder}
-                  onSort={handleSort}
-                />
-                <SortableHead
-                  field="readinessStatus"
-                  label={t('grid-readiness')}
-                  activeField={sortField}
-                  order={sortOrder}
-                  onSort={handleSort}
-                />
+                <SortableHead field="issues" label={t('grid-issues')} />
+                <SortableHead field="readinessStatus" label={t('grid-readiness')} />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-changed')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -202,19 +169,15 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
                       className="gba:cursor-pointer gba:hover:bg-muted"
                       onClick={() => setSelectedEmployee(emp)}
                     >
-                      <TableCell className="gba:sticky gba:left-0 gba:z-10 gba:bg-card">
+                      <TableCell className="gba:sticky gba:left-0 gba:z-10 gba:bg-background">
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                            {emp.pictureThumbnail ? (
-                              <img
-                                src={`data:image/jpeg;base64,${emp.pictureThumbnail}`}
-                                alt=""
-                                className="gba:w-8 gba:h-8 gba:rounded-full gba:object-cover"
-                              />
-                            ) : (
-                              <UserIcon size={14} className="gba:text-muted-foreground" />
-                            )}
-                          </div>
+                          <Avatar size="sm" className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                            <AvatarImage src={getPictureDataUrl(emp.pictureThumbnail)} alt={emp.displayName} />
+                            <AvatarFallback className="gba:text-xs gba:font-medium">
+                              {emp.firstName?.charAt(0) || ''}
+                              {emp.lastName?.charAt(0) || ''}
+                            </AvatarFallback>
+                          </Avatar>
                           <div>
                             <p className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
                               {emp.displayName}
