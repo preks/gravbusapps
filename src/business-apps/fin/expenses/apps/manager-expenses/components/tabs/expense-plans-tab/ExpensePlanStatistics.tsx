@@ -86,9 +86,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'All submitted plans'
         ),
         active: !!(
-          activeFilter?.length === 9 &&
+          activeFilter?.length === 8 &&
           [
-            ExpenseStatus.PREPARED,
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
             ExpenseStatus.APPROVED,
@@ -101,7 +100,6 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         ),
         onClick: () => {
           const submittedStatuses = [
-            ExpenseStatus.PREPARED,
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
             ExpenseStatus.APPROVED,
@@ -112,7 +110,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             ExpenseStatus.TRANSFERRED
           ]
           const isTotalPlansFilterActive =
-            activeFilter?.length === 9 && submittedStatuses.every(status => activeFilter?.includes(status))
+            activeFilter?.length === 8 && submittedStatuses.every(status => activeFilter?.includes(status))
           if (isTotalPlansFilterActive) {
             onFilterChange(null)
           } else {
