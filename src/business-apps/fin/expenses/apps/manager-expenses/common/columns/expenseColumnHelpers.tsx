@@ -1,9 +1,44 @@
+import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ensureShortDateFormat } from '../../utils/dateUtils'
+import { formatCurrencyDisplay } from '../../../personal-expenses/utils'
 
 const NOT_AVAILABLE = 'lowcoder:common.not_available'
 const NOT_AVAILABLE_LABEL = 'N/A'
+
+export const naLabel = () => getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)
+
+export function createFormatDate() {
+  return (v: string | null | undefined) => (v ? ensureShortDateFormat(v) : naLabel())
+}
+
+export function createFormatCurrency(currencyFilter: string | null) {
+  return (amount: number, currency: string) => formatCurrencyDisplay(amount, currencyFilter ?? currency ?? 'EUR')
+}
+
+export function renderTitleCodeCell(
+  title: string | null | undefined,
+  code: string | null | undefined,
+  testId: string,
+  titleFallback?: string
+): React.ReactElement {
+  return (
+    <div>
+      <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate" data-testid={testId}>
+        {title ?? titleFallback ?? naLabel()}
+      </div>
+      <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
+        {code ?? naLabel()}
+      </div>
+    </div>
+  )
+}
+
+export function renderCodeCell(code: string | null | undefined): React.ReactElement {
+  return <span className="gba:text-sm">{code ?? naLabel()}</span>
+}
 
 export type BadgeVariant =
   | 'default'

@@ -4,10 +4,12 @@ import {
   createDateColumn,
   createEmployeeColumn,
   createCurrencyColumn,
-  createStatusBadgeColumn
+  createStatusBadgeColumn,
+  createFormatDate,
+  createFormatCurrency,
+  renderTitleCodeCell,
+  renderCodeCell
 } from '../../../common/columns/expenseColumnHelpers'
-import { ensureShortDateFormat } from '../../../utils/dateUtils'
-import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
 import type { ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
 
@@ -27,8 +29,6 @@ const AMOUNT = 'lowcoder:manager_expense_request_list.expense_table.amount'
 const AMOUNT_LABEL = 'Amount'
 const STATUS = 'lowcoder:expense_request_details.status'
 const STATUS_LABEL = 'Status'
-const NOT_AVAILABLE = 'lowcoder:common.not_available'
-const NOT_AVAILABLE_LABEL = 'N/A'
 const UNTITLED = 'lowcoder:common.untitled_request'
 const UNTITLED_LABEL = 'Untitled Request'
 
@@ -37,11 +37,8 @@ const UNTITLED_LABEL = 'Untitled Request'
  * currencyFilter: when set, all amount cells use this currency; otherwise each row uses its own.
  */
 export function createExpenseRequestColumns(currencyFilter: string | null): ColumnDef<ExpenseRequest>[] {
-  const formatDate = (v: string | null | undefined) =>
-    v ? ensureShortDateFormat(v) : getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)
-
-  const formatCurrency = (amount: number, currency: string) =>
-    formatCurrencyDisplay(amount, currencyFilter ?? currency ?? 'EUR')
+  const formatDate = createFormatDate()
+  const formatCurrency = createFormatCurrency(currencyFilter)
 
   return [
     {
@@ -52,22 +49,13 @@ export function createExpenseRequestColumns(currencyFilter: string | null): Colu
       size: 200,
       minSize: 160,
       maxSize: 320,
-      cell: ({ row }) => {
-        const request = row.original
-        return (
-          <div>
-            <div
-              className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate"
-              data-testid={`expense-requests-title-${request.id}`}
-            >
-              {request.title ?? getTranslationFromI18nKeyAndLabel(UNTITLED, UNTITLED_LABEL)}
-            </div>
-            <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
-              {request.code ?? getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)}
-            </div>
-          </div>
+      cell: ({ row }) =>
+        renderTitleCodeCell(
+          row.original.title,
+          row.original.code,
+          `expense-requests-title-${row.original.id}`,
+          getTranslationFromI18nKeyAndLabel(UNTITLED, UNTITLED_LABEL)
         )
-      }
     },
     {
       id: 'planCode',
@@ -77,14 +65,7 @@ export function createExpenseRequestColumns(currencyFilter: string | null): Colu
       size: 120,
       minSize: 90,
       maxSize: 180,
-      cell: ({ row }) => {
-        const code = (row.original as any)?.expensePlan?.code ?? null
-        return (
-          <span className="gba:text-sm">
-            {code ?? getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)}
-          </span>
-        )
-      }
+      cell: ({ row }) => renderCodeCell((row.original as any)?.expensePlan?.code ?? null)
     },
     createDateColumn<ExpenseRequest>(
       'startDate',

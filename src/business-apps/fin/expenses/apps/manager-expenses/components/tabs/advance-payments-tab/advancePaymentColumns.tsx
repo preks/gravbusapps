@@ -4,15 +4,14 @@ import {
   createDateColumn,
   createEmployeeColumn,
   createCurrencyColumn,
-  createStatusBadgeColumn
+  createStatusBadgeColumn,
+  createFormatDate,
+  renderTitleCodeCell
 } from '../../../common/columns/expenseColumnHelpers'
-import { ensureShortDateFormat } from '../../../utils/dateUtils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getAdvancePaymentStatusDisplay } from '../../../utils'
 import type { AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments'
 
-const NOT_AVAILABLE = 'lowcoder:common.not_available'
-const NOT_AVAILABLE_LABEL = 'N/A'
 const EXPENSE_PLAN = 'lowcoder:create_expense_request.initial_expense_plan_select_label'
 const EXPENSE_PLAN_LABEL = 'Expense Plan'
 const START_DATE = 'lowcoder:personal_expenses.start_date'
@@ -33,8 +32,7 @@ const STATUS_LABEL = 'Status'
  * currencyFilter: when set, all amount cells use this currency; otherwise each row uses its own.
  */
 export function createAdvancePaymentColumns(currencyFilter: string | null): ColumnDef<AdvancePaymentItem>[] {
-  const formatDate = (v: string | null | undefined) =>
-    v ? ensureShortDateFormat(v) : getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)
+  const formatDate = createFormatDate()
 
   const normalizeCurrency = (raw: string | undefined): string => {
     if (!raw) return 'EUR'
@@ -52,22 +50,12 @@ export function createAdvancePaymentColumns(currencyFilter: string | null): Colu
       size: 200,
       minSize: 160,
       maxSize: 320,
-      cell: ({ row }) => {
-        const plan = row.original.expensePlan
-        return (
-          <div>
-            <div
-              className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate"
-              data-testid={`advance-payment-expense-plan-title-${row.original.id}`}
-            >
-              {plan?.title ?? getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)}
-            </div>
-            <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
-              {plan?.code ?? getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)}
-            </div>
-          </div>
+      cell: ({ row }) =>
+        renderTitleCodeCell(
+          row.original.expensePlan?.title,
+          row.original.expensePlan?.code,
+          `advance-payment-expense-plan-title-${row.original.id}`
         )
-      }
     },
     createDateColumn<AdvancePaymentItem>(
       'expensePlan.startDate',

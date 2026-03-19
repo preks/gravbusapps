@@ -4,10 +4,12 @@ import {
   createDateColumn,
   createEmployeeColumn,
   createCurrencyColumn,
-  createStatusBadgeColumn
+  createStatusBadgeColumn,
+  createFormatDate,
+  createFormatCurrency,
+  renderTitleCodeCell,
+  renderCodeCell
 } from '../../../common/columns/expenseColumnHelpers'
-import { ensureShortDateFormat } from '../../../utils/dateUtils'
-import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getExpensePlanStatusDisplay } from '../../../utils'
 import type { ExpensePlan } from '../../../hooks/useMainViewExpensePlans'
 import type { ExpenseStatus } from '../../../utils'
@@ -28,19 +30,14 @@ const AMOUNT = 'lowcoder:sales_hub.amount'
 const AMOUNT_LABEL = 'Amount'
 const STATUS = 'lowcoder:expense_request_list.expense_plan_table.status'
 const STATUS_LABEL = 'Status'
-const NOT_AVAILABLE = 'lowcoder:common.not_available'
-const NOT_AVAILABLE_LABEL = 'N/A'
 
 /**
  * Builds column definitions for the manager expense plans table.
  * currencyFilter: when set, all amount cells use this currency; otherwise each row uses its own.
  */
 export function createExpensePlanColumns(currencyFilter: string | null): ColumnDef<ExpensePlan>[] {
-  const formatDate = (v: string | null | undefined) =>
-    v ? ensureShortDateFormat(v) : getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)
-
-  const formatCurrency = (amount: number, currency: string) =>
-    formatCurrencyDisplay(amount, currencyFilter ?? currency ?? 'EUR')
+  const formatDate = createFormatDate()
+  const formatCurrency = createFormatCurrency(currencyFilter)
 
   return [
     {
@@ -50,22 +47,8 @@ export function createExpensePlanColumns(currencyFilter: string | null): ColumnD
       size: 200,
       minSize: 160,
       maxSize: 320,
-      cell: ({ row }) => {
-        const plan = row.original
-        return (
-          <div>
-            <div
-              className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate"
-              data-testid={`expense-plan-title-${plan.id}`}
-            >
-              {plan.title}
-            </div>
-            <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
-              {plan.code || getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)}
-            </div>
-          </div>
-        )
-      }
+      cell: ({ row }) =>
+        renderTitleCodeCell(row.original.title, row.original.code, `expense-plan-title-${row.original.id}`)
     },
     {
       id: 'requestCode',
@@ -82,11 +65,7 @@ export function createExpensePlanColumns(currencyFilter: string | null): ColumnD
           Array.isArray(row.original.expenseRequest) && row.original.expenseRequest.length > 0
             ? row.original.expenseRequest[0]?.code
             : null
-        return (
-          <span className="gba:text-sm">
-            {code ?? getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)}
-          </span>
-        )
+        return renderCodeCell(code)
       }
     },
     createDateColumn<ExpensePlan>(
