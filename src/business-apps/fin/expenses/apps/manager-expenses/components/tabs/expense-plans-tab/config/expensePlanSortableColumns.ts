@@ -1,15 +1,9 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { ColumnConfig } from '../../../../common/types/columnTypes'
 
-export interface SortableColumn {
-  id: string
-  label: string
-}
+export type { ColumnConfig as SortableColumn }
 
-/**
- * Sortable column definitions for the manager expense plans DataDisplay sort dropdown.
- * IDs must match column ids in expensePlanColumns.tsx.
- */
-export const expensePlanSortableColumns: SortableColumn[] = [
+export const expensePlanSortableColumns: ColumnConfig[] = [
   { id: 'title', label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title') },
   {
     id: 'requestCode',
@@ -46,3 +40,5 @@ export const expensePlanSortableColumns: SortableColumn[] = [
     label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
   }
 ]
+
+export const expensePlanAvailableColumns = expensePlanSortableColumns

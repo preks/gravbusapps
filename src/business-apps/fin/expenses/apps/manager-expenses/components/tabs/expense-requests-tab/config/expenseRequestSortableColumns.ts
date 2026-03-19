@@ -1,11 +1,9 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { ColumnConfig } from '../../../../common/types/columnTypes'
 
-export interface SortableColumn {
-  id: string
-  label: string
-}
+export type { ColumnConfig as SortableColumn }
 
-export const expenseRequestSortableColumns: SortableColumn[] = [
+export const expenseRequestSortableColumns: ColumnConfig[] = [
   {
     id: 'title',
     label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title')
@@ -33,3 +31,5 @@ export const expenseRequestSortableColumns: SortableColumn[] = [
   },
   { id: 'status', label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.status', 'Status') }
 ]
+
+export const expenseRequestAvailableColumns = expenseRequestSortableColumns

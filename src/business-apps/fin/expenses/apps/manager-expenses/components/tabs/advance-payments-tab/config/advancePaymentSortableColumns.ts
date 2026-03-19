@@ -1,15 +1,9 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { ColumnConfig } from '../../../../common/types/columnTypes'
 
-export interface SortableColumn {
-  id: string
-  label: string
-}
+export type { ColumnConfig as SortableColumn }
 
-/**
- * Sortable column definitions for the manager advance payments DataDisplay sort dropdown.
- * IDs must match column ids in advancePaymentColumns.tsx.
- */
-export const advancePaymentSortableColumns: SortableColumn[] = [
+export const advancePaymentSortableColumns: ColumnConfig[] = [
   {
     id: 'expensePlan.title',
     label: getTranslationFromI18nKeyAndLabel(
@@ -48,3 +42,5 @@ export const advancePaymentSortableColumns: SortableColumn[] = [
     label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status', 'Status')
   }
 ]
+
+export const advancePaymentAvailableColumns = advancePaymentSortableColumns
