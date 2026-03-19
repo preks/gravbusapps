@@ -143,6 +143,11 @@ export const buildCustomerContactPayload = (contact: Partial<CustomerContact>) =
     delete basePayload.communicationChannels
   }
 
+  // Omit contactType when empty so backend does not receive "" (enum coercion error)
+  if (basePayload.contactType === '') {
+    delete basePayload.contactType
+  }
+
   return {
     contact: basePayload
   }
