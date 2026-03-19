@@ -28,6 +28,7 @@ export interface StartCycleConfirmOptions {
   teamIds: string[]
   employeeId?: string
   employeeUserId?: string
+  managerUserId?: string
 }
 
 interface StartCycleConfirmDialogProps {
@@ -113,7 +114,8 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
         runFor: 'self',
         teamIds: [],
         employeeId: selectedEmployeeId!,
-        employeeUserId: selected?.userId ?? ''
+        employeeUserId: selected?.userId ?? '',
+        managerUserId: selected?.managerUserId ?? ''
       })
     } else {
       if (!hasValidTeam) return
