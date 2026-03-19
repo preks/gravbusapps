@@ -14,6 +14,7 @@ import type { Board, BoardSheet, BoardRow, BoardQuickFilter } from './types'
 import { RowPagePanel } from './components/RowPagePanel'
 import { BoardViewContent } from './components/BoardViewContent'
 import { useBoardRealtime } from './hooks/useBoardRealtime'
+import { useBoardPresence } from './hooks/useBoardPresence'
 import { BoardViewerTabs } from './components/viewer/BoardViewerTabs'
 import { BoardViewerFooter } from './components/viewer/BoardViewerFooter'
 import { BoardViewerOverlays } from './components/viewer/BoardViewerOverlays'
@@ -104,6 +105,10 @@ export interface BoardViewerProps {
   onCreateRow?: (boardId: string, sheetId: string, data: Record<string, unknown>) => Promise<BoardRow | null>
   onUpdateRow?: (boardId: string, sheetId: string, rowId: string, data: Record<string, unknown>) => Promise<void>
   onDeleteRow?: (boardId: string, sheetId: string, rowId: string) => Promise<boolean>
+  onPatchRowCreated?: (row: BoardRow) => void
+  onPatchRowUpdated?: (row: BoardRow) => void
+  onPatchRowDeleted?: (rowId: string) => void
+  onPatchSheetColumns?: (sheetId: string, columns: unknown[]) => void
   'data-testid'?: string
 }
 
@@ -125,6 +130,10 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     onCreateRow,
     onUpdateRow,
     onDeleteRow,
+    onPatchRowCreated,
+    onPatchRowUpdated,
+    onPatchRowDeleted,
+    onPatchSheetColumns,
     rows,
     rowsLoading,
     rowsTotal,
@@ -402,27 +411,76 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     })
   }, [activeSheet, board.id, isKanbanView, onLoadRows, rows.length, rowsTotal])
 
-  const liveEnabled = Boolean((board.settings as any)?.liveUpdatesEnabled)
-  useBoardRealtime({
+  const liveEnabled = (board.settings as any)?.liveUpdatesEnabled !== false
+  const realtimeFullRefetch = useCallback(() => {
+    if (!activeSheet) return
+    const opts = { ...serverFilterRef.current }
+    if (isKanbanView) {
+      kanbanNextPageRef.current = 2
+      void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
+    } else {
+      tableNextPageRef.current = 2
+      void onLoadRows(board.id, activeSheet.id, {
+        page: 1,
+        limit: activeSheet.settings.rowsPerPage || 50,
+        ...opts
+      })
+    }
+  }, [activeSheet, board.id, isKanbanView, onLoadRows])
+
+  const { socket: boardSocket } = useBoardRealtime({
     boardId: board.id,
     accessToken,
     enabled: liveEnabled,
     onEvent: event => {
       if (!activeSheet) return
       if (event.sheetId && event.sheetId !== activeSheet.id) return
-      const opts = { ...serverFilterRef.current }
-      if (isKanbanView) {
-        kanbanNextPageRef.current = 2
-        void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
-      } else {
-        tableNextPageRef.current = 2
-        void onLoadRows(board.id, activeSheet.id, {
-          page: 1,
-          limit: activeSheet.settings.rowsPerPage || 50,
-          ...opts
-        })
+      if (event.actorUserId === userId) return
+
+      switch (event.type) {
+        case 'row.created':
+          if (event.row && onPatchRowCreated) {
+            onPatchRowCreated(event.row as unknown as BoardRow)
+          } else {
+            realtimeFullRefetch()
+          }
+          break
+        case 'row.updated':
+          if (event.row && onPatchRowUpdated) {
+            onPatchRowUpdated(event.row as unknown as BoardRow)
+          } else {
+            realtimeFullRefetch()
+          }
+          break
+        case 'row.deleted':
+          if (event.rowId && onPatchRowDeleted) {
+            onPatchRowDeleted(event.rowId)
+          } else {
+            realtimeFullRefetch()
+          }
+          break
+        case 'row.reordered':
+          realtimeFullRefetch()
+          break
+        case 'sheet.updated':
+          if (event.columns && event.sheetId && onPatchSheetColumns) {
+            onPatchSheetColumns(event.sheetId, event.columns)
+          } else {
+            realtimeFullRefetch()
+          }
+          break
+        default:
+          realtimeFullRefetch()
+          break
       }
     }
+  })
+
+  const { focusedCells, emitCellFocus, emitCellBlur } = useBoardPresence({
+    socket: boardSocket,
+    boardId: board.id,
+    sheetId: activeSheet?.id ?? '',
+    enabled: liveEnabled
   })
 
   const autoSyncDoneRef = useRef(false)
@@ -770,6 +828,9 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                     : undefined
                 }
                 peopleLookup={peopleLookup}
+                focusedCells={focusedCells}
+                onCellFocus={emitCellFocus}
+                onCellBlur={emitCellBlur}
                 testId={`${testId}-${viewType}`}
               />
 

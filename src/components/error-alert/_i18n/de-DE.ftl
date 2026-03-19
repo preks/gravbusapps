@@ -1,5 +1,6 @@
 # Fehlermeldungen
 
+error-title = Fehler
 error-accessToken = Authentifizierung erforderlich. Bitte melden Sie sich erneut an.
 error-unauthorized = Sie sind nicht berechtigt, diese Aktion auszuführen.
 error-forbidden = Zugriff verweigert. Sie haben keine Berechtigung, auf diese Ressource zuzugreifen.

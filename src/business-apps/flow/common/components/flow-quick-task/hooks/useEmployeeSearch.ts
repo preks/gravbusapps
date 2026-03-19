@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { Employee } from '../types'
@@ -122,17 +122,21 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
               }
             `
 
+        if (!structureId) {
+          throw new Error('[useEmployeeSearch] No active structure ID available')
+        }
+
         const variables =
           currentUserId && isInitialLoad
             ? {
-                structureId: structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf',
+                structureId,
                 currentUserId,
-                limit: 50 // REDUCED: Only fetch 50 team members max (was 500!)
+                limit: 50
               }
             : {
-                structureId: structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf',
+                structureId,
                 search: `%${searchTerm}%`,
-                limit: 20 // REDUCED: Show top 20 search results (was 50)
+                limit: 20
               }
 
         let employeePositions: any[] = []

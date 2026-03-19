@@ -1,9 +1,7 @@
 import React, { useState, useEffect, Dispatch, SetStateAction, useMemo, useCallback } from 'react'
 import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Combobox } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useTranslation } from 'react-i18next'
-import { env } from '@/common/env/EnvUtils'
 import {
   SiteLocation,
   SiteLocationCountry,
@@ -11,9 +9,9 @@ import {
 } from '@/business-apps/mdm/apps/organizational-data/types'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 const DATA_TEST_ID_PREFIX = 'SiteLocationForm'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 interface SiteLocationFormProps extends BusinessAppContextProps {
   siteLocation?: SiteLocation
@@ -49,7 +47,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { t } = useTranslation('master-data')
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const [countriesOptions, setCountriesOptions] = useState<Array<{ value: string; label: string; code: string }>>([])
   const [regions, setRegions] = useState<Array<{ value: string; label: string; code: string }>>([])
   const [isLoadingRegions, setIsLoadingRegions] = useState(false)
@@ -161,14 +159,14 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
 
       if (isEditSiteLocation && siteLocation?.id) {
         // Update existing site location
-        await restClient.put(`/site-locations/${siteLocation.id}`, siteLocationData, {
+        await orgchartClient.updateSiteLocation(siteLocation.id, siteLocationData, {
           headers: {
             Authorization: `Bearer ${accessToken}`
           }
         })
       } else {
         // Create new site location
-        await restClient.post('/site-locations', siteLocationData, {
+        await orgchartClient.createSiteLocation(siteLocationData, {
           headers: {
             Authorization: `Bearer ${accessToken}`
           }

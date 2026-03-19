@@ -32,6 +32,7 @@ export function ToolbarGroupVoice({ voiceProps, testId = 'editor-toolbar' }: Rea
         onStartListening={voiceProps.onStartListening}
         onStopListening={voiceProps.onStopListening}
         size="sm"
+        label={t('editor-dictate-label')}
         data-testid={testId ? `${testId}-dictate` : undefined}
       />
     </RibbonGroup>

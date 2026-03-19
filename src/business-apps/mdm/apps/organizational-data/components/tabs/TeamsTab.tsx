@@ -50,21 +50,19 @@ import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/She
 import { InfoIcon } from 'lucide-react'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
 import TeamForm from '@/business-apps/mdm/forms/team-form'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 export interface TeamsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
 const DATA_TEST_ID_PREFIX = 'TeamsTab'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 const TeamsTab: React.FC<TeamsTabProps> = context => {
   const { t } = useTranslation()
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   const { teams, structureId, isLoading, error, refetch, searchTeams, getSortedTeams, totalTeams } = useTeams(context)
 
@@ -107,7 +105,7 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
   const handleDeleteTeam = async (team: Team | undefined) => {
     if (!team) return
 
-    await restClient.delete(`/matrix-units/${team.id}`, {
+    await orgchartClient.deleteMatrixUnit(team.id, {
       headers: { Authorization: `Bearer ${context.accessToken}` }
     })
 

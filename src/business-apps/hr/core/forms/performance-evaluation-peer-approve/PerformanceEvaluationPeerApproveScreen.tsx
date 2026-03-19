@@ -12,10 +12,6 @@ const PerformanceEvaluationPeerApproveScreen: React.FC<BusinessAppContextProps> 
     // Submission is handled by context via dispatchProcessContinueEvent
   }
 
-  const handleCancel = async () => {
-    // Cancellation is handled by context via dispatchProcessContinueEvent
-  }
-
   return (
     <div
       className="gba:h-full gba:w-full"
@@ -26,7 +22,6 @@ const PerformanceEvaluationPeerApproveScreen: React.FC<BusinessAppContextProps> 
         userInfo={userInfo}
         additionalData={additionalData}
         onSubmit={handleSubmit}
-        onCancel={handleCancel}
       />
     </div>
   )

@@ -151,7 +151,7 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
 
   return (
     <Card
-      className={`gba:relative gba:overflow-hidden gba:cursor-pointer gba:transition-all gba:duration-200 hover:gba:shadow-md gba:group gba:border ${colorMap[noteColor]} ${borderColorMap[noteColor]}`}
+      className={`gba:relative gba:overflow-hidden gba:cursor-pointer gba:transition-all gba:duration-200 hover:gba:shadow-md hover:gba:-translate-y-0.5 active:gba:scale-[0.98] gba:group gba:border ${colorMap[noteColor]} ${borderColorMap[noteColor]}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -161,21 +161,21 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
     >
       {/* Pin indicator */}
       {note.isPinned && (
-        <div className="gba:absolute gba:top-2 gba:right-2 gba:text-warning">
-          <Pin className="gba:w-4 gba:h-4 gba:fill-current" />
+        <div className="gba:absolute gba:top-2.5 gba:right-2.5 gba:text-warning">
+          <Pin className="gba:w-3.5 gba:h-3.5 gba:fill-current" />
         </div>
       )}
 
       <div className="gba:p-4">
         {/* Icon and Title */}
         <div className="gba:flex gba:items-start gba:gap-3 gba:mb-3">
-          <div className="gba:flex-shrink-0 gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:text-lg">
-            {note.icon ? (
-              <span>{note.icon}</span>
+          <div className="gba:flex-shrink-0 gba:w-10 gba:h-10 gba:rounded-xl gba:bg-card-decorative gba:flex gba:items-center gba:justify-center">
+            {note.icon === '📁' ? (
+              <Folder className="gba:w-5 gba:h-5 gba:text-decorative-foreground" />
             ) : note.hasChildren ? (
-              <Folder className="gba:w-5 gba:h-5 gba:text-primary" />
+              <Folder className="gba:w-5 gba:h-5 gba:text-decorative-foreground" />
             ) : (
-              <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
+              <FileText className="gba:w-5 gba:h-5 gba:text-decorative-foreground" />
             )}
           </div>
           <div className="gba:flex-1 gba:min-w-0">
@@ -370,8 +370,8 @@ export const NoNotesState: React.FC<{
   return (
     <Card className="gba:p-12 gba:text-center">
       <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
-        <div className="gba:w-20 gba:h-20 gba:rounded-2xl gba:bg-gradient-to-br gba:from-primary/20 gba:to-primary/5 gba:flex gba:items-center gba:justify-center">
-          <FileText className="gba:w-10 gba:h-10 gba:text-primary" />
+        <div className="gba:w-20 gba:h-20 gba:rounded-2xl gba:bg-card-decorative gba:flex gba:items-center gba:justify-center">
+          <FileText className="gba:w-10 gba:h-10 gba:text-decorative-foreground" />
         </div>
         <div className="gba:space-y-2">
           <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">{resolvedTitle}</h3>

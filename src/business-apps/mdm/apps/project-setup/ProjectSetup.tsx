@@ -60,8 +60,6 @@ import {
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import ProjectForm from '@/business-apps/mdm/forms/project-form'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { VerticalTable, VerticalTableProps } from '../generic-components/table/VerticalTable'
 import CardTabHeaderComponent from '../generic-components/card'
 import { DeleteButton } from '../generic-components/delete-button/DeleteButton'
@@ -70,13 +68,13 @@ import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { PersonDisplay } from '@/common/components/person-display/PersonDisplay'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 export interface ProjectSetupProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
 const DATA_TEST_ID_PREFIX = 'ProjectSetup'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 // Helper function to get time status information for a project
 const getProjectTimeStatus = (project: Project) => {
@@ -158,7 +156,7 @@ export const showProjectManager = (project: Project, options?: ShowProjectManage
 const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...context }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { t } = useTranslation()
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   const customerRelationsEnabled = useFeature(Feature.CRM.CustomerRelations.Key)
 
@@ -210,11 +208,11 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
       // Reset employee allocations (subtract project %)
       await resetTeamAllocations(matrixUnitId)
       // Delete the matrix team (BE auto-deletes assignments)
-      await restClient.delete(`/matrix-units/${matrixUnitId}`, {
+      await orgchartClient.deleteMatrixUnit(matrixUnitId, {
         headers: { Authorization: `Bearer ${context.accessToken}` }
       })
     },
-    [resetTeamAllocations, restClient, context.accessToken]
+    [resetTeamAllocations, orgchartClient, context.accessToken]
   )
 
   // Trigger BE search when debounced search term changes
@@ -653,12 +651,12 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
       // Reset employee allocations and delete team if exists
       if (team?.matrixId) {
         await resetTeamAllocations(team.matrixId)
-        await restClient.delete(`/matrix-units/${team.matrixId}`, {
+        await orgchartClient.deleteMatrixUnit(team.matrixId, {
           headers: { Authorization: `Bearer ${context.accessToken}` }
         })
       }
 
-      await restClient.delete(`/projects/${project.id}`, {
+      await orgchartClient.deleteProject(project.id, {
         headers: { Authorization: `Bearer ${context.accessToken}` }
       })
 
@@ -678,7 +676,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
       // Note: BE auto-deletes assignments when team is deleted
       if (teamId) {
         await resetTeamAllocations(teamId)
-        await restClient.delete(`/matrix-units/${teamId}`, {
+        await orgchartClient.deleteMatrixUnit(teamId, {
           headers: { Authorization: `Bearer ${context.accessToken}` }
         })
       }
@@ -703,7 +701,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         matrixUnitId: null // Remove team reference from project
       }
 
-      await restClient.put(`/projects/${project.id}`, projectData, {
+      await orgchartClient.updateProject(project.id, projectData, {
         headers: { Authorization: `Bearer ${context.accessToken}` }
       })
 

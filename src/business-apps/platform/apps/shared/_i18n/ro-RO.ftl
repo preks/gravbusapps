@@ -32,6 +32,8 @@ comment-panel-no-resolved = Nu există comentarii rezolvate
 comment-panel-resolved-here = Comentariile rezolvate vor apărea aici
 comment-panel-loading = Se încarcă comentariile...
 comment-panel-add-placeholder = Adăugați un comentariu...
+comment-panel-no-comments = Încă nu există comentarii
+comment-panel-no-comments-hint = Adăugați unul mai jos pentru a începe o discuție
 
 # LockControls
 lock-file-locked = Fișierul este blocat
