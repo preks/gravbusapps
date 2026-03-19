@@ -1,6 +1,15 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import type { SortingState } from '@tanstack/react-table'
-import { useCurrencyInit, useFilterSignatureReset, useSortingState, useSearchHandler } from '../../../hooks/useTabState'
+import {
+  useCurrencyInit,
+  useFilterSignatureReset,
+  useSortingState,
+  useSearchHandler,
+  useCurrencyChangeHandler,
+  useVisibleColumns,
+  useCurrencySecondaryAction,
+  useEmptyMessage
+} from '../../../hooks/useTabState'
 import { DataDisplay } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -10,7 +19,6 @@ import AdvancePaymentStatistics from './AdvancePaymentStatistics'
 import AdvancePaymentsTable from './AdvancePaymentsTable'
 import AdvancePaymentDetails from './AdvancePaymentDetails'
 import { DetailsSheet } from '../../../common/components/DetailsSheet'
-import { CurrencyDropdown } from '../../../common/components/CurrencyDropdown'
 import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
 import { useAdvancePaymentsOverviewData } from '../../../hooks/useAdvancePaymentsOverviewData'
 import { createAdvancePaymentFilterConfig } from './config/advancePaymentFilterConfig'
@@ -120,10 +128,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     [primaryCurrency, mostUsedCurrency]
   )
 
-  const handleCurrencyChange = useCallback((code: string | null) => {
-    setPrimaryCurrency(code)
-    setCurrentPage(1)
-  }, [])
+  const handleCurrencyChange = useCurrencyChangeHandler(setPrimaryCurrency, setCurrentPage)
 
   const displayCurrencyCode = primaryCurrency ?? mostUsedCurrency ?? 'EUR'
 
@@ -141,28 +146,19 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     return hasSearch || hasStatus || !!primaryCurrency
   }, [searchTerm, statusFilter, primaryCurrency])
 
-  const emptyMessage = hasActiveFilters
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data available')
-    : getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_landing_page.no_advance_payments_created_by_team',
-        'No advance payment created by your team yet.'
-      )
+  const emptyMessage = useEmptyMessage(
+    hasActiveFilters,
+    'lowcoder:manager_expense_landing_page.no_advance_payments_created_by_team',
+    'No advance payment created by your team yet.'
+  )
 
-  const columnsFilteredByVisibility = useMemo(() => {
-    const allIds = advancePaymentAvailableColumns.map(c => c.id)
-    return visibleColumns.length > 0 ? visibleColumns : allIds
-  }, [visibleColumns])
+  const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, advancePaymentAvailableColumns)
 
-  const secondaryActions = useMemo(
-    () => (
-      <CurrencyDropdown
-        availableCurrencies={currencyCodes}
-        selectedCurrency={primaryCurrency}
-        onCurrencyChange={handleCurrencyChange}
-        testIdPrefix="advance-payments"
-      />
-    ),
-    [currencyCodes, primaryCurrency, handleCurrencyChange]
+  const secondaryActions = useCurrencySecondaryAction(
+    currencyCodes,
+    primaryCurrency,
+    handleCurrencyChange,
+    'advance-payments'
   )
 
   return (

@@ -10,14 +10,22 @@ import ExpenseRequestStatistics from './ExpenseRequestStatistics'
 import ExpenseRequestsTable from './ExpenseRequestsTable'
 import ExpenseRequestDetails from './ExpenseRequestDetails'
 import { DetailsSheet } from '../../../common/components/DetailsSheet'
-import { CurrencyDropdown } from '../../../common/components/CurrencyDropdown'
 import { useExpenseRequestsOverviewData } from '../../../hooks/useExpenseRequestsOverviewData'
 import { createExpenseRequestFilterConfig } from './config/expenseRequestFilterConfig'
 import { buildExpenseRequestOrderBy } from './config/expenseRequestOrderBy'
 import { expenseRequestSortableColumns } from './config/expenseRequestSortableColumns'
 import { expenseRequestAvailableColumns } from './config/expenseRequestAvailableColumns'
 import { formatDateRangeForChip, applyDateRangeFromFilter } from '../expense-plans-tab/config/dataDisplayFilterUtils'
-import { useCurrencyInit, useFilterSignatureReset, useSortingState, useSearchHandler } from '../../../hooks/useTabState'
+import {
+  useCurrencyInit,
+  useFilterSignatureReset,
+  useSortingState,
+  useSearchHandler,
+  useCurrencyChangeHandler,
+  useVisibleColumns,
+  useCurrencySecondaryAction,
+  useEmptyMessage
+} from '../../../hooks/useTabState'
 import type { ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
 
 export type ExpenseRequestsTabProps = BusinessAppContextProps
@@ -172,10 +180,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     setCurrentPage(1)
   }, [])
 
-  const handleCurrencyChange = useCallback((code: string | null) => {
-    setSelectedCurrency(code)
-    setCurrentPage(1)
-  }, [])
+  const handleCurrencyChange = useCurrencyChangeHandler(setSelectedCurrency, setCurrentPage)
 
   const displayCurrency = selectedCurrency ?? mostUsedCurrency ?? 'EUR'
 
@@ -210,28 +215,19 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     return hasSearch || hasStatus || hasRequestType || !!hasDate
   }, [searchTerm, statusFilter, requestTypeFilter, effectiveDateRange, requestDateRange, startDateRange, endDateRange])
 
-  const emptyMessage = hasActiveFilters
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data available')
-    : getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_landing_page.no_requests_created_by_team',
-        'No expense request created by your team yet.'
-      )
+  const emptyMessage = useEmptyMessage(
+    hasActiveFilters,
+    'lowcoder:manager_expense_landing_page.no_requests_created_by_team',
+    'No expense request created by your team yet.'
+  )
 
-  const columnsFilteredByVisibility = useMemo(() => {
-    const allIds = expenseRequestAvailableColumns.map(c => c.id)
-    return visibleColumns.length > 0 ? visibleColumns : allIds
-  }, [visibleColumns])
+  const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, expenseRequestAvailableColumns)
 
-  const secondaryActions = useMemo(
-    () => (
-      <CurrencyDropdown
-        availableCurrencies={availableCurrencies}
-        selectedCurrency={selectedCurrency}
-        onCurrencyChange={handleCurrencyChange}
-        testIdPrefix="expense-requests"
-      />
-    ),
-    [availableCurrencies, selectedCurrency, handleCurrencyChange]
+  const secondaryActions = useCurrencySecondaryAction(
+    availableCurrencies,
+    selectedCurrency,
+    handleCurrencyChange,
+    'expense-requests'
   )
 
   return (

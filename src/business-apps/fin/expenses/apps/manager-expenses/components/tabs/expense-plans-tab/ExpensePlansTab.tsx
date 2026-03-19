@@ -1,6 +1,14 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import type { SortingState } from '@tanstack/react-table'
-import { useFilterSignatureReset, useSortingState, useSearchHandler } from '../../../hooks/useTabState'
+import {
+  useFilterSignatureReset,
+  useSortingState,
+  useSearchHandler,
+  useCurrencyChangeHandler,
+  useVisibleColumns,
+  useCurrencySecondaryAction,
+  useEmptyMessage
+} from '../../../hooks/useTabState'
 import { DataDisplay } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -12,7 +20,6 @@ import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics'
 import ExpensePlansTable from './ExpensePlansTable'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { DetailsSheet } from '../../../common/components/DetailsSheet'
-import { CurrencyDropdown } from '../../../common/components/CurrencyDropdown'
 import { PLAN_TAB_HIDDEN_STATUSES } from '../../../constants/expenseStatus'
 import { createExpensePlanFilterConfig } from './config/expensePlanFilterConfig'
 import { expensePlanSortableColumns } from './config/expensePlanSortableColumns'
@@ -207,24 +214,13 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     [setPlanDateRange, setEffectiveDateRange, setStartDateRange, setEndDateRange]
   )
 
-  const handleCurrencyChange = useCallback(
-    (code: string | null) => {
-      setCurrencyFilter(code)
-      setCurrentPage(1)
-    },
-    [setCurrencyFilter]
-  )
+  const handleCurrencyChange = useCurrencyChangeHandler(setCurrencyFilter, setCurrentPage)
 
-  const secondaryActions = useMemo(
-    () => (
-      <CurrencyDropdown
-        availableCurrencies={availableCurrencies}
-        selectedCurrency={primaryCurrency}
-        onCurrencyChange={handleCurrencyChange}
-        testIdPrefix="expense-plans"
-      />
-    ),
-    [availableCurrencies, primaryCurrency, handleCurrencyChange]
+  const secondaryActions = useCurrencySecondaryAction(
+    availableCurrencies,
+    primaryCurrency,
+    handleCurrencyChange,
+    'expense-plans'
   )
 
   const sortingState = useSortingState(sorting)
@@ -251,17 +247,13 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     endDateRange
   ])
 
-  const emptyMessage = hasActiveFilters
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data available')
-    : getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_landing_page.no_plans_created_by_team',
-        'No expense plan created by your team yet.'
-      )
+  const emptyMessage = useEmptyMessage(
+    hasActiveFilters,
+    'lowcoder:manager_expense_landing_page.no_plans_created_by_team',
+    'No expense plan created by your team yet.'
+  )
 
-  const columnsFilteredByVisibility = useMemo(() => {
-    const allIds = expensePlanAvailableColumns.map(c => c.id)
-    return visibleColumns.length > 0 ? visibleColumns : allIds
-  }, [visibleColumns])
+  const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, expensePlanAvailableColumns)
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-plans-tab-container">
