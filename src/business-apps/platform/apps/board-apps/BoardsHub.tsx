@@ -9,6 +9,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { toast } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useBoardApps } from './hooks/useBoardApps'
 import { CreateBoardDialog } from './components/CreateBoardDialog'
 import { CreateBoardAIDialog } from './components/CreateBoardAIDialog'
@@ -91,7 +92,8 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     moveBoardToCollection,
     removeBoardFromCollection,
     loadCollectionBoards,
-    refreshCollections
+    refreshCollections,
+    error: collectionsError
   } = useBoardCollections()
 
   const tokenRef = useRef(accessToken)
@@ -110,6 +112,10 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  useEffect(() => {
+    if (collectionsError) toast.error(collectionsError)
+  }, [collectionsError])
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
@@ -233,7 +239,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
       }
       await loadBoard(board.id)
       urlState.setBoardId(board.id)
-      toast.success(activeCollectionId ? 'Board created in collection' : 'Board created')
+      toast.success(activeCollectionId ? 'Board created in space' : 'Board created')
     }
   }, [newBoardName, createBoard, loadBoard, urlState, activeCollectionId, moveBoardToCollection])
 
@@ -276,11 +282,19 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   )
 
   const handleCreateCollection = useCallback(
-    async (data: { name: string; description?: string; icon?: string; color?: string }) => {
+    async (data: {
+      name: string
+      description?: string
+      icon?: string
+      color?: string
+      isPublic?: boolean
+      dimension?: { type: string; id: string; name: string }
+      memberIds?: string[]
+    }) => {
       const result = await createCollection(data)
       if (result) {
         setIsCreateCollectionOpen(false)
-        toast.success('Collection created')
+        toast.success('Space created')
         urlState.setCollectionId(result.id)
       }
     },
@@ -291,7 +305,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     async (id: string) => {
       const ok = await deleteCollection(id)
       if (ok) {
-        toast.success('Collection deleted')
+        toast.success('Space deleted')
         if (activeCollectionId === id) urlState.setCollectionId(null)
       }
     },
@@ -303,7 +317,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
       if (!moveBoardId) return
       const ok = await moveBoardToCollection(collectionId, moveBoardId)
       if (ok) {
-        toast.success('Board moved to collection')
+        toast.success('Board moved to space')
         setMoveBoardId(null)
       }
     },
@@ -319,11 +333,15 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
         if (ok) count++
       }
       if (count > 0) {
-        toast.success(`${count} board${count !== 1 ? 's' : ''} added to collection`)
+        toast.success(`${count} board${count !== 1 ? 's' : ''} added to space`)
       }
     },
     [activeCollectionId, moveBoardToCollection]
   )
+
+  const handleOpenInSpaces = useCallback((collectionId: string) => {
+    navigateTo(buildPlatformUrl('/platform/every-office/spaces', { spaceId: collectionId }))
+  }, [])
 
   const toggleFavorite = useCallback(
     (id: string, e?: React.MouseEvent) => {
@@ -421,6 +439,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
           onShareBoard={setManageBoardId}
           onRenameBoard={setRenameBoardId}
           onDeleteBoard={deleteBoard}
+          onOpenInSpaces={handleOpenInSpaces}
           onCollapse={sidebar.toggleCollapsed}
           onResizeStart={sidebar.handleMouseDown}
           data-testid={`${testId}-sidebar`}
@@ -539,6 +558,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
                 onAddExistingBoard={() => setAddBoardToCollectionOpen(true)}
                 onShareCollection={() => setShareCollectionId(activeCollection.id)}
                 onManageMembers={() => setManageCollectionId(activeCollection.id)}
+                onOpenInSpaces={() => handleOpenInSpaces(activeCollection.id)}
                 data-testid={`${testId}-collection-dashboard`}
               />
             ) : (
@@ -603,6 +623,8 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
         open={isCreateCollectionOpen}
         onOpenChange={setIsCreateCollectionOpen}
         onSubmit={handleCreateCollection}
+        accessToken={accessToken}
+        currentUserId={currentUserId as string}
         data-testid={`${testId}-create-collection-dialog`}
       />
       {renameCollectionId && (
@@ -702,7 +724,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
             if (!open) setShareCollectionId(null)
           }}
           collectionId={shareCollectionId}
-          collectionName={collections.find(c => c.id === shareCollectionId)?.name || 'Collection'}
+          collectionName={collections.find(c => c.id === shareCollectionId)?.name || 'Space'}
           accessToken={accessToken}
           currentUserId={currentUserId as string}
           onShareComplete={() => setShareCollectionId(null)}
@@ -716,7 +738,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
             if (!open) setManageCollectionId(null)
           }}
           collectionId={manageCollectionId}
-          collectionName={collections.find(c => c.id === manageCollectionId)?.name || 'Collection'}
+          collectionName={collections.find(c => c.id === manageCollectionId)?.name || 'Space'}
           accessToken={accessToken}
           onMembersChanged={() => void refreshCollections()}
           onAddMoreMembers={() => {

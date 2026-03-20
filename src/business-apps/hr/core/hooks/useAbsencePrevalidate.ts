@@ -24,11 +24,7 @@ const IDLE_RESULT: PrevalidateResult = {
 }
 
 const REQUEST_DEBOUNCE_MS = 400
-const PREVALIDATE_PATHS = [
-  '/employee-time/api/v1/absences/prevalidate',
-  '/processes/employee-time/api/v1/absences/prevalidate',
-  '/api/v1/absences/prevalidate'
-]
+const PREVALIDATE_PATHS = ['/employee-time/api/v1/absences/prevalidate']
 
 const STATUS_TO_ERROR_CODE: Record<number, string> = {
   400: 'INVALID_REQUEST',
@@ -106,7 +102,9 @@ export const useAbsencePrevalidateShared = ({
 
     const timer = setTimeout(async () => {
       try {
-        const baseUrl = trimTrailingSlashes(env('NEXT_PUBLIC_BASE_URL') ?? '')
+        const baseUrl = trimTrailingSlashes(
+          env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') ?? env('NEXT_PUBLIC_BASE_URL') ?? ''
+        )
         const requestBody = JSON.stringify({
           employeeId,
           typeRef,

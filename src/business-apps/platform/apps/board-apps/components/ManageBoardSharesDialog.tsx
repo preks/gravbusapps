@@ -141,7 +141,7 @@ export const ManageBoardSharesDialog: React.FC<ManageBoardSharesDialogProps> = (
             <div className="gba:space-y-1">
               <div className="gba:text-sm gba:text-muted-foreground gba:mb-3">
                 {shares.length} direct {shares.length === 1 ? 'share' : 'shares'}
-                {inheritedMembers.length > 0 && ' (overrides collection permissions)'}
+                {inheritedMembers.length > 0 && ' (overrides space permissions)'}
               </div>
               <div className="gba:border gba:rounded-md gba:divide-y gba:max-h-80 gba:overflow-y-auto">
                 {shares.map(share => (

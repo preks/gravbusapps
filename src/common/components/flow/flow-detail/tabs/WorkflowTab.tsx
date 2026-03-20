@@ -18,11 +18,18 @@ interface SystemActivityEntry {
 interface WorkflowTabProps {
   flowId: string
   templateId?: string
+  templateVersion?: number | null
   accessToken: string
   isVisible?: boolean
 }
 
-export const WorkflowTab: React.FC<WorkflowTabProps> = ({ flowId, templateId, accessToken, isVisible = true }) => {
+export const WorkflowTab: React.FC<WorkflowTabProps> = ({
+  flowId,
+  templateId,
+  templateVersion,
+  accessToken,
+  isVisible = true
+}) => {
   const [systemEntries, setSystemEntries] = useState<SystemActivityEntry[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
@@ -68,6 +75,7 @@ export const WorkflowTab: React.FC<WorkflowTabProps> = ({ flowId, templateId, ac
       <ReadonlyTemplateFlowCanvas
         accessToken={accessToken}
         templateId={templateId}
+        templateVersion={templateVersion}
         title="Flow Definition"
         description="Read-only graph rendering of the template used by this workflow instance."
         emptyTitle="No definition available"

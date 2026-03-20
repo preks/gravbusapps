@@ -96,7 +96,7 @@ export const AddBoardToCollectionDialog: React.FC<AddBoardToCollectionDialogProp
             <div className="gba:space-y-1">
               {availableBoards.length === 0 ? (
                 <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-6">
-                  {searchQuery.trim() ? 'No matching boards found.' : 'All boards are already in this collection.'}
+                  {searchQuery.trim() ? 'No matching boards found.' : 'All boards are already in this space.'}
                 </p>
               ) : (
                 availableBoards.map(board => {

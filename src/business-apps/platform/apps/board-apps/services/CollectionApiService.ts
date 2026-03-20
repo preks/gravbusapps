@@ -30,7 +30,9 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }))
-    throw new Error(error.message || `API Error: ${response.status}`)
+    const err = new Error(error.message || `API Error: ${response.status}`) as Error & { status: number }
+    err.status = response.status
+    throw err
   }
 
   const text = await response.text()
@@ -119,11 +121,13 @@ function mapToBoardSummary(item: SpaceContentItem): BoardSummary {
 }
 
 export const CollectionApiService = {
+  /**
+   * Lists every space the current user can access (owner or member), same universe as the Spaces app.
+   * New spaces created from Boards still set settings.type === board_collection for analytics/distinguishing
+   * creators, but listing is not limited to that — otherwise Spaces-app spaces would be hidden here.
+   */
   async listCollections(): Promise<BoardCollection[]> {
-    const params = new URLSearchParams({
-      settingsType: COLLECTION_SETTINGS_TYPE,
-      includeContent: 'true'
-    })
+    const params = new URLSearchParams({ includeContent: 'true' })
     const spaces = await apiRequest<SpaceApiResponse[]>(`/spaces?${params}`)
     return spaces.map(mapToCollection)
   },
@@ -133,7 +137,15 @@ export const CollectionApiService = {
     description?: string
     icon?: string
     color?: string
+    isPublic?: boolean
+    dimension?: { type: string; id: string; name: string }
+    memberIds?: string[]
   }): Promise<BoardCollection> {
+    const settings: Record<string, unknown> = { type: COLLECTION_SETTINGS_TYPE }
+    if (data.dimension) {
+      settings.dimension = { type: data.dimension.type, id: data.dimension.id, name: data.dimension.name }
+    }
+
     const space = await apiRequest<SpaceApiResponse>('/spaces', {
       method: 'POST',
       body: JSON.stringify({
@@ -141,9 +153,24 @@ export const CollectionApiService = {
         description: data.description,
         icon: data.icon,
         color: data.color,
-        settings: { type: COLLECTION_SETTINGS_TYPE }
+        isPublic: data.isPublic ?? false,
+        settings
       })
     })
+
+    if (data.memberIds && data.memberIds.length > 0) {
+      try {
+        await apiRequest(`/spaces/${space.id}/members/bulk`, {
+          method: 'POST',
+          body: JSON.stringify({
+            members: data.memberIds.map(userId => ({ userId, role: 'editor' }))
+          })
+        })
+      } catch (err) {
+        console.error('[CollectionApiService] Error adding members after creation:', err)
+      }
+    }
+
     return mapToCollection(space)
   },
 

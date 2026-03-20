@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Button, Card, Spinner, Icon, DataTable, CardContent, Badge, toast } from '@newwork/nw-design-system'
+import {
+  Button,
+  Card,
+  Spinner,
+  Icon,
+  DataTable,
+  CardContent,
+  Badge,
+  toast,
+  useTranslation
+} from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useUserLocale } from '@/common/locale/useUserLocale'
@@ -47,7 +57,7 @@ export interface EmploymentTypesTabProps extends BusinessAppContextProps {
 const DATA_TEST_ID_PREFIX = 'EmploymentTypesTab'
 
 const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, prefixDataTestId }) => {
-  const { t } = useTranslation()
+  const { t } = useTranslation(translations)
   const userLocale = useUserLocale() ?? 'en-US'
   const catalogClient = useCatalogManagerClient(accessToken)
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
@@ -70,7 +80,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
 
       setEmploymentTypes(sortedTypes)
     } catch {
-      toast.error('Failed to load employment types')
+      toast.error(t('toast-load-error'))
     } finally {
       setLoading(false)
     }
@@ -107,19 +117,18 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
     const items = [
       {
         icon: <InfoIcon />,
-        title: 'Basic Information',
+        title: t('drawer-section-basic-info'),
         items: [
           {
-            label: 'Name',
+            label: t('drawer-label-name'),
             value: selectedType.value
           },
           {
-            label: 'Code',
+            label: t('drawer-label-code'),
             value: selectedType.code || '-'
           },
-
           {
-            label: 'Description',
+            label: t('drawer-label-description'),
             value: selectedType.additionalValue1 ?? '-'
           }
         ]
@@ -157,7 +166,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
     const columns: ColumnDef<EmploymentType & { description: string }>[] = [
       {
         accessorKey: 'code',
-        header: 'Code',
+        header: t('table-header-code'),
         enableSorting: true,
         cell: ({ getValue }) => {
           const code = getValue()
@@ -170,7 +179,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
       },
       {
         accessorKey: 'value',
-        header: 'Name',
+        header: t('table-header-name'),
         enableSorting: true,
         cell: ({ getValue }) => {
           const name = getValue()
@@ -185,7 +194,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
       },
       {
         accessorKey: 'description',
-        header: 'Description',
+        header: t('table-header-description'),
         enableSorting: true,
         cell: ({ getValue }) => {
           const description = getValue()
@@ -205,7 +214,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
       },
       {
         id: 'actions',
-        header: () => <div className="gba:flex gba:w-[115px]">Actions</div>,
+        header: () => <div className="gba:flex gba:w-[115px]">{t('table-header-actions')}</div>,
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => (
@@ -240,7 +249,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
             <DeleteButton
               onDelete={() => handleDelete(row.original)}
               itemName={row.original.value}
-              itemTitle="Employment Type"
+              itemTitle={t('delete-item-title')}
             />
           </div>
         )
@@ -272,7 +281,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
                   }}
                   data-testid={`${dataTestId}-add-button`}
                 >
-                  <Icon icon={PlusIcon} /> Add Employment Type
+                  <Icon icon={PlusIcon} /> {t('add-button')}
                 </Button>
               }
               refetch={loadEmploymentTypes}
@@ -281,8 +290,8 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
               usedCodes={usedCodes}
             />
           }
-          cardTitle={`${t('hr.employment_types', 'Employment Types')} (${employmentTypes.length})`}
-          cardDescription="Manage employment types to classify different types of employment relationships."
+          cardTitle={`${t('card-title')} (${employmentTypes.length})`}
+          cardDescription={t('card-description')}
         />
       )}
 
@@ -292,10 +301,10 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
             key="search-input"
             value={searchTerm}
             onChange={value => setSearchTerm(value)}
-            placeholder="Search employment types..."
+            placeholder={t('search-placeholder')}
             className="gba:w-full gba:pr-10"
             debounceDelay={300}
-            ariaLabel="Search employment types..."
+            ariaLabel={t('search-placeholder')}
             data-testid="asset-search-input"
             icon={
               <MagnifyingGlassIcon
@@ -324,13 +333,13 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
               }
               setIsDrawerVisible(openStatus)
             }}
-            title="Employment Type Details"
+            title={t('sheet-title')}
             titleIcon={IdentificationCardIcon}
             drawerItems={drawerItems}
             extraContent={
               <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:justify-center gba:gap-2">
-                <Icon icon={TagIcon} className="gba:!w-4 gba:!h-4" />
-                This employment type can be used to classify employees and job profiles.
+                <Icon icon={TagIcon} className="gba:w-4! gba:h-4!" />
+                {t('sheet-extra-content')}
               </div>
             }
             footerButtons={[
@@ -342,7 +351,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
                     }}
                     data-testid={`${dataTestId}-edit-button`}
                   >
-                    <Icon icon={PencilSimpleLineIcon} /> Edit
+                    <Icon icon={PencilSimpleLineIcon} /> {t('edit-button')}
                   </Button>
                 }
                 refetch={loadEmploymentTypes}

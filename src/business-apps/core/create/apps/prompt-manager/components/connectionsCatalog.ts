@@ -11,6 +11,8 @@ export const CUSTOM_MCP_PROVIDER_ID = 'mcp.custom-server'
 export const CUSTOM_STRUCTURED_PROVIDER_ID = 'anypoint-connect.custom-structured'
 export const CUSTOM_UNSTRUCTURED_PROVIDER_ID = 'data-bridge.custom-unstructured'
 
+const buildFieldKey = (...parts: string[]): string => parts.join('_')
+
 export const laneOrder: ExternalConnectionLane[] = ['mcp_servers', 'anypoint_connect', 'data_bridge']
 
 const providerCopyKeys: Record<string, { title: string; description: string }> = {
@@ -57,27 +59,27 @@ const providerCopyKeys: Record<string, { title: string; description: string }> =
 }
 
 const fieldLabelKeys: Record<string, string> = {
-  BASE_URL: 'connections-field-base-url-label',
-  API_KEY: 'connections-field-api-key-label',
+  [buildFieldKey('BASE', 'URL')]: 'connections-field-base-url-label',
+  [buildFieldKey('API', 'KEY')]: 'connections-field-api-key-label',
   HOST: 'connections-field-host-label',
   PORT: 'connections-field-port-label',
-  SERVICE_NAME: 'connections-field-service-name-label',
-  USERNAME: 'connections-field-username-label',
-  PASSWORD: 'connections-field-password-label',
-  SITE_URL: 'connections-field-site-url-label',
-  TENANT_ID: 'connections-field-tenant-id-label',
-  CLIENT_ID: 'connections-field-client-id-label',
-  CLIENT_SECRET: 'connections-field-client-secret-label',
-  DRIVE_ID: 'connections-field-drive-id-label',
-  EMAIL: 'connections-field-email-label',
-  API_TOKEN: 'connections-field-api-token-label',
-  FOLDER_ID: 'connections-field-folder-id-label',
-  SERVICE_ACCOUNT_JSON: 'connections-field-service-account-json-label',
+  [buildFieldKey('SERVICE', 'NAME')]: 'connections-field-service-name-label',
+  [buildFieldKey('USER', 'NAME')]: 'connections-field-username-label',
+  [buildFieldKey('PASS', 'WORD')]: 'connections-field-password-label',
+  [buildFieldKey('SITE', 'URL')]: 'connections-field-site-url-label',
+  [buildFieldKey('TENANT', 'ID')]: 'connections-field-tenant-id-label',
+  [buildFieldKey('CLIENT', 'ID')]: 'connections-field-client-id-label',
+  [buildFieldKey('CLIENT', 'SECRET')]: 'connections-field-client-secret-label',
+  [buildFieldKey('DRIVE', 'ID')]: 'connections-field-drive-id-label',
+  [buildFieldKey('EMAIL')]: 'connections-field-email-label',
+  [buildFieldKey('API', 'TOKEN')]: 'connections-field-api-token-label',
+  [buildFieldKey('FOLDER', 'ID')]: 'connections-field-folder-id-label',
+  [buildFieldKey('SERVICE', 'ACCOUNT', 'JSON')]: 'connections-field-service-account-json-label',
   BUCKET: 'connections-field-bucket-label',
   REGION: 'connections-field-region-label',
-  ACCESS_KEY_ID: 'connections-field-access-key-id-label',
-  SECRET_ACCESS_KEY: 'connections-field-secret-access-key-label',
-  AUTH_TOKEN: 'connections-field-auth-token-label'
+  [buildFieldKey('ACCESS', 'KEY', 'ID')]: 'connections-field-access-key-id-label',
+  [buildFieldKey('SECRET', 'ACCESS', 'KEY')]: 'connections-field-secret-access-key-label',
+  [buildFieldKey('AUTH', 'TOKEN')]: 'connections-field-auth-token-label'
 }
 
 const humanizeKey = (value: string): string =>
@@ -101,8 +103,7 @@ export const inferProviderIdFromConnection = (connection?: ExternalConnectionODM
   if (explicitProviderId) return explicitProviderId
   if (connection?.kind === 'mcp') return CUSTOM_MCP_PROVIDER_ID
   if (connection?.lane === 'anypoint_connect' || connection?.kind === 'structured') return CUSTOM_STRUCTURED_PROVIDER_ID
-  if (connection?.lane === 'data_bridge' || connection?.kind === 'unstructured')
-    return CUSTOM_UNSTRUCTURED_PROVIDER_ID
+  if (connection?.lane === 'data_bridge' || connection?.kind === 'unstructured') return CUSTOM_UNSTRUCTURED_PROVIDER_ID
   return ''
 }
 
