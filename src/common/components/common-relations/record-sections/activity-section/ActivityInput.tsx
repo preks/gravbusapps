@@ -8,13 +8,11 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  InputGroup,
-  InputGroupInput,
-  InputGroupTextarea,
-  InputGroupAddon,
-  InputGroupButton,
+  Input,
+  Textarea,
   DateInput,
   FileUpload,
+  Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -168,7 +166,7 @@ export const ActivityInput: React.FC<ActivityInputProps> = ({
             />
           </FormFieldGroup>
 
-          {/* Title + Description + Submit in InputGroup */}
+          {/* Title + description only — submit is in footer below attachments */}
           <FormItem>
             {/* TODO: Revisit when DS supports automatic required asterisk for group labels; remove manual asterisk if automation applies. */}
             <FormLabel>
@@ -178,17 +176,17 @@ export const ActivityInput: React.FC<ActivityInputProps> = ({
               </span>
             </FormLabel>
             <FormControl>
-              <InputGroup>
+              <div className="gba:flex gba:flex-col gba:w-full gba:overflow-hidden gba:rounded-md gba:border gba:border-border gba:bg-background">
                 <FormField
                   control={form.control}
                   name="details.title"
                   render={({ field }) => (
-                    <InputGroupInput
+                    <Input
                       {...field}
                       placeholder={t('activities-titlePlaceholder')}
                       disabled={isProcessing}
                       data-testid="activity-quick-add-title"
-                      className="gba:border-b gba:border-border"
+                      className="gba:rounded-none gba:border-0 gba:border-b gba:border-border gba:shadow-none gba:focus-visible:gba:ring-0 gba:focus-visible:gba:ring-offset-0"
                     />
                   )}
                 />
@@ -196,29 +194,17 @@ export const ActivityInput: React.FC<ActivityInputProps> = ({
                   control={form.control}
                   name="details.description"
                   render={({ field }) => (
-                    <InputGroupTextarea
+                    <Textarea
                       {...field}
                       placeholder={t('activities-descriptionPlaceholder')}
                       disabled={isProcessing}
                       data-testid="activity-quick-add-description"
-                      rows={2}
-                      className="gba:text-xs gba:resize-none gba:text-muted-foreground"
+                      rows={5}
+                      className="gba:min-h-24 gba:rounded-none gba:border-0 gba:shadow-none gba:text-xs gba:resize-y gba:text-muted-foreground gba:focus-visible:gba:ring-0 gba:focus-visible:gba:ring-offset-0"
                     />
                   )}
                 />
-                <InputGroupAddon align="block-end">
-                  <InputGroupButton
-                    type="submit"
-                    disabled={isProcessing}
-                    size="sm"
-                    data-testid="activity-quick-add-submit"
-                    className="gba:ml-auto"
-                  >
-                    <PaperPlaneTiltIcon size={14} weight="bold" />
-                    {isProcessing ? t('activities-creating') : t('activities-create')}
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
+              </div>
             </FormControl>
           </FormItem>
 
@@ -256,6 +242,28 @@ export const ActivityInput: React.FC<ActivityInputProps> = ({
               </FormItem>
             )}
           />
+
+          <div className="gba:border-t gba:border-border gba:pt-3 gba:mt-1">
+            <Button
+              type="submit"
+              variant="default"
+              disabled={isProcessing}
+              className="gba:w-full gba:gap-2"
+              data-testid="activity-quick-add-submit"
+            >
+              {isProcessing ? (
+                <span className="gba:inline-flex gba:items-center gba:gap-2">
+                  <Spinner size="sm" />
+                  {t('activities-creating')}
+                </span>
+              ) : (
+                <span className="gba:inline-flex gba:items-center gba:gap-2">
+                  <PaperPlaneTiltIcon size={16} weight="bold" />
+                  {t('activities-create')}
+                </span>
+              )}
+            </Button>
+          </div>
         </form>
       </Form>
     </div>
