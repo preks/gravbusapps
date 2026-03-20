@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout, Dialog, DialogContent, DialogTitle, Button } from '@newwork/nw-design-system'
 import { DesktopIcon, PlusIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import { useAssets } from './hooks/useAssets'
 import { useAssetDialogs } from './hooks/useAssetDialogs'
 import { useEmployeeFilterBackendSearch } from './hooks/useEmployeeFilterBackendSearch'
@@ -23,6 +23,18 @@ import { useAssetsCatalog } from '../../forms/equipment-registration/hooks/useAs
 import { DataFilter, DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { formatStatus } from './components/AssetTableUtils'
 import { generateAssetDocumentPdf } from './utils/assetDocumentPdf'
+import {
+  ACQUISITION_FROM_PREFIX,
+  ACQUISITION_TO_PREFIX,
+  DISPOSAL_FROM_PREFIX,
+  DISPOSAL_TO_PREFIX,
+  ACQUISITION_RANGE_PILL_ID,
+  DISPOSAL_RANGE_PILL_ID,
+  isAssetDateFilterPillId,
+  pickDateFilter,
+  replaceDateRangeFilters
+} from './utils/assetFilterDateIds'
+import { AssetDateRangeFilter } from './components/AssetDateRangeFilter'
 
 const moduleColor = MODULE_COLORS.HR
 
@@ -79,6 +91,62 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     () => selectedFilterIds.filter(id => id.startsWith('employee:')).map(id => id.slice('employee:'.length)),
     [selectedFilterIds]
   )
+  const acquisitionDateFrom = useMemo(
+    () => pickDateFilter(selectedFilterIds, ACQUISITION_FROM_PREFIX) || undefined,
+    [selectedFilterIds]
+  )
+  const acquisitionDateTo = useMemo(
+    () => pickDateFilter(selectedFilterIds, ACQUISITION_TO_PREFIX) || undefined,
+    [selectedFilterIds]
+  )
+  const disposalDateFrom = useMemo(
+    () => pickDateFilter(selectedFilterIds, DISPOSAL_FROM_PREFIX) || undefined,
+    [selectedFilterIds]
+  )
+  const disposalDateTo = useMemo(
+    () => pickDateFilter(selectedFilterIds, DISPOSAL_TO_PREFIX) || undefined,
+    [selectedFilterIds]
+  )
+  const acquisitionRangeValue = useMemo((): [string | null, string | null] | null => {
+    const from = pickDateFilter(selectedFilterIds, ACQUISITION_FROM_PREFIX)
+    const to = pickDateFilter(selectedFilterIds, ACQUISITION_TO_PREFIX)
+    if (!from && !to) return null
+    return [from || null, to || null]
+  }, [selectedFilterIds])
+  const disposalRangeValue = useMemo((): [string | null, string | null] | null => {
+    const from = pickDateFilter(selectedFilterIds, DISPOSAL_FROM_PREFIX)
+    const to = pickDateFilter(selectedFilterIds, DISPOSAL_TO_PREFIX)
+    if (!from && !to) return null
+    return [from || null, to || null]
+  }, [selectedFilterIds])
+
+  /** Pills shown above the table (one chip per acquisition/disposal range when both dates set). */
+  const filterPillIds = useMemo(() => {
+    const af = pickDateFilter(selectedFilterIds, ACQUISITION_FROM_PREFIX)
+    const at = pickDateFilter(selectedFilterIds, ACQUISITION_TO_PREFIX)
+    const df = pickDateFilter(selectedFilterIds, DISPOSAL_FROM_PREFIX)
+    const dt = pickDateFilter(selectedFilterIds, DISPOSAL_TO_PREFIX)
+
+    const withoutDate = selectedFilterIds.filter(id => !isAssetDateFilterPillId(id))
+    const out = [...withoutDate]
+
+    if (af && at) {
+      out.push(ACQUISITION_RANGE_PILL_ID)
+    } else {
+      if (af) out.push(`${ACQUISITION_FROM_PREFIX}${af}`)
+      if (at) out.push(`${ACQUISITION_TO_PREFIX}${at}`)
+    }
+
+    if (df && dt) {
+      out.push(DISPOSAL_RANGE_PILL_ID)
+    } else {
+      if (df) out.push(`${DISPOSAL_FROM_PREFIX}${df}`)
+      if (dt) out.push(`${DISPOSAL_TO_PREFIX}${dt}`)
+    }
+
+    return out
+  }, [selectedFilterIds])
+
   const activeStatusFilter = useMemo(() => {
     const statusIds = statusFilter
     if (statusIds.length === 0) return 'all'
@@ -95,6 +163,10 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       categoryFilter: categoryFilter.length > 0 ? categoryFilter : undefined,
       locationFilter: locationFilter.length > 0 ? locationFilter : undefined,
       employeeFilter: employeeFilter.length > 0 ? employeeFilter : undefined,
+      acquisitionDateFrom,
+      acquisitionDateTo,
+      disposalDateFrom,
+      disposalDateTo,
       sortField: sortField || undefined,
       sortOrder: sortField ? sortOrder : undefined
     }),
@@ -106,6 +178,10 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       categoryFilter,
       locationFilter,
       employeeFilter,
+      acquisitionDateFrom,
+      acquisitionDateTo,
+      disposalDateFrom,
+      disposalDateTo,
       sortField,
       sortOrder
     ]
@@ -300,8 +376,64 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     setCurrentPage(1)
   }, [])
 
-  const handleSetFilterPills = useCallback((newIds: string[]) => {
-    setSelectedFilterIds(newIds)
+  const handleAcquisitionRangeChange = useCallback((value: string | [string | null, string | null] | null) => {
+    setSelectedFilterIds(prev => {
+      if (value && typeof value === 'string') return prev
+      if (!value || !Array.isArray(value)) {
+        return replaceDateRangeFilters(prev, ACQUISITION_FROM_PREFIX, ACQUISITION_TO_PREFIX, '', '')
+      }
+      const [from, to] = value
+      return replaceDateRangeFilters(prev, ACQUISITION_FROM_PREFIX, ACQUISITION_TO_PREFIX, from ?? '', to ?? '')
+    })
+    setCurrentPage(1)
+  }, [])
+
+  const handleDisposalRangeChange = useCallback((value: string | [string | null, string | null] | null) => {
+    setSelectedFilterIds(prev => {
+      if (value && typeof value === 'string') return prev
+      if (!value || !Array.isArray(value)) {
+        return replaceDateRangeFilters(prev, DISPOSAL_FROM_PREFIX, DISPOSAL_TO_PREFIX, '', '')
+      }
+      const [from, to] = value
+      return replaceDateRangeFilters(prev, DISPOSAL_FROM_PREFIX, DISPOSAL_TO_PREFIX, from ?? '', to ?? '')
+    })
+    setCurrentPage(1)
+  }, [])
+
+  const handleSetFilterPills = useCallback((newPillIds: string[]) => {
+    setSelectedFilterIds(prev => {
+      const paf = pickDateFilter(prev, ACQUISITION_FROM_PREFIX)
+      const pat = pickDateFilter(prev, ACQUISITION_TO_PREFIX)
+      const pdf = pickDateFilter(prev, DISPOSAL_FROM_PREFIX)
+      const pdt = pickDateFilter(prev, DISPOSAL_TO_PREFIX)
+
+      const base = newPillIds.filter(id => !isAssetDateFilterPillId(id))
+      const merged = [...base]
+
+      if (newPillIds.includes(ACQUISITION_RANGE_PILL_ID)) {
+        if (paf) merged.push(`${ACQUISITION_FROM_PREFIX}${paf}`)
+        if (pat) merged.push(`${ACQUISITION_TO_PREFIX}${pat}`)
+      } else {
+        newPillIds.forEach(id => {
+          if (id.startsWith(ACQUISITION_FROM_PREFIX) || id.startsWith(ACQUISITION_TO_PREFIX)) {
+            merged.push(id)
+          }
+        })
+      }
+
+      if (newPillIds.includes(DISPOSAL_RANGE_PILL_ID)) {
+        if (pdf) merged.push(`${DISPOSAL_FROM_PREFIX}${pdf}`)
+        if (pdt) merged.push(`${DISPOSAL_TO_PREFIX}${pdt}`)
+      } else {
+        newPillIds.forEach(id => {
+          if (id.startsWith(DISPOSAL_FROM_PREFIX) || id.startsWith(DISPOSAL_TO_PREFIX)) {
+            merged.push(id)
+          }
+        })
+      }
+
+      return merged
+    })
     setCurrentPage(1)
   }, [])
 
@@ -431,6 +563,15 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   const filterGroups: DataFilterGroup[] = useMemo(
     () => [
       {
+        id: 'employee',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee'),
+        backendSearch: employeeBackendSearch,
+        emptyMessage: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:hr_assets.type_to_search_employee',
+          'Type to search for an employee'
+        )
+      },
+      {
         id: 'category',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.category', 'Category'),
         filters: categoryOptions.map(opt => ({
@@ -458,16 +599,57 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         }))
       },
       {
-        id: 'employee',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee'),
-        backendSearch: employeeBackendSearch,
-        emptyMessage: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:hr_assets.type_to_search_employee',
-          'Type to search for an employee'
+        id: 'acquisition-date',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date'),
+        hideSearch: true,
+        customComponent: (
+          <AssetDateRangeFilter
+            value={acquisitionRangeValue}
+            onRangeChange={handleAcquisitionRangeChange}
+            placeholderStart={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.date_range_start_placeholder',
+              'dd/mm/yyyy'
+            )}
+            placeholderEnd={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.date_range_end_placeholder',
+              'dd/mm/yyyy'
+            )}
+            testIdPrefix="assets-filter-acquisition-date"
+          />
+        )
+      },
+      {
+        id: 'disposal-date',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.disposal_date', 'Disposal date'),
+        hideSearch: true,
+        customComponent: (
+          <AssetDateRangeFilter
+            value={disposalRangeValue}
+            onRangeChange={handleDisposalRangeChange}
+            placeholderStart={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.date_range_start_placeholder',
+              'dd/mm/yyyy'
+            )}
+            placeholderEnd={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.date_range_end_placeholder',
+              'dd/mm/yyyy'
+            )}
+            testIdPrefix="assets-filter-disposal-date"
+          />
         )
       }
     ],
-    [categoryOptions, locationOptions, selectedFilterIds, employeeBackendSearch]
+    [
+      categoryOptions,
+      locationOptions,
+      selectedFilterIds,
+      employeeBackendSearch,
+      currentLocale,
+      acquisitionRangeValue,
+      disposalRangeValue,
+      handleAcquisitionRangeChange,
+      handleDisposalRangeChange
+    ]
   )
 
   const filterLabelMap = useMemo(() => {
@@ -487,8 +669,43 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         const employeeId = id.slice('employee:'.length)
         map[id] = getEmployeeLabel(employeeId) ?? employeeId
       })
+    const acquisitionTitle = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:hr_assets.acquisition_date',
+      'Acquisition Date'
+    )
+    const disposalTitle = getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.disposal_date', 'Disposal date')
+    const af = pickDateFilter(selectedFilterIds, ACQUISITION_FROM_PREFIX)
+    const at = pickDateFilter(selectedFilterIds, ACQUISITION_TO_PREFIX)
+    const df = pickDateFilter(selectedFilterIds, DISPOSAL_FROM_PREFIX)
+    const dt = pickDateFilter(selectedFilterIds, DISPOSAL_TO_PREFIX)
+
+    if (af && at) {
+      const d1 = formatDate(af, 'date.short') ?? af
+      const d2 = formatDate(at, 'date.short') ?? at
+      map[ACQUISITION_RANGE_PILL_ID] = `${acquisitionTitle}: ${d1} - ${d2}`
+    } else {
+      if (af) {
+        map[`${ACQUISITION_FROM_PREFIX}${af}`] = `${acquisitionTitle}: ${formatDate(af, 'date.short') ?? af} -`
+      }
+      if (at) {
+        map[`${ACQUISITION_TO_PREFIX}${at}`] = `${acquisitionTitle}: - ${formatDate(at, 'date.short') ?? at}`
+      }
+    }
+
+    if (df && dt) {
+      const d1 = formatDate(df, 'date.short') ?? df
+      const d2 = formatDate(dt, 'date.short') ?? dt
+      map[DISPOSAL_RANGE_PILL_ID] = `${disposalTitle}: ${d1} - ${d2}`
+    } else {
+      if (df) {
+        map[`${DISPOSAL_FROM_PREFIX}${df}`] = `${disposalTitle}: ${formatDate(df, 'date.short') ?? df} -`
+      }
+      if (dt) {
+        map[`${DISPOSAL_TO_PREFIX}${dt}`] = `${disposalTitle}: - ${formatDate(dt, 'date.short') ?? dt}`
+      }
+    }
     return map
-  }, [categoryOptions, locationOptions, selectedFilterIds, getEmployeeLabel])
+  }, [categoryOptions, locationOptions, selectedFilterIds, getEmployeeLabel, currentLocale])
 
   return (
     <div data-testid="assets-app">
@@ -582,7 +799,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
                     onGenerateDocument={handleGenerateDocument}
                     showDataFilter={showDataFilter}
                     onToggleDataFilter={() => setShowDataFilter(prev => !prev)}
-                    filter={selectedFilterIds}
+                    filter={filterPillIds}
                     setFilter={handleSetFilterPills}
                     filterLabelMap={filterLabelMap}
                   />
