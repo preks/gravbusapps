@@ -153,7 +153,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
           data-testid="data-filter-form"
         >
           <div
-            className="gba:flex gba:flex-col gba:w-full gba:gap-1 gba:overflow-y-auto gba:grow"
+            className="gba:flex gba:flex-col gba:w-full gba:min-w-0 gba:gap-1 gba:grow gba:overflow-y-auto gba:overflow-x-hidden"
             data-testid="data-filter-groups-container"
           >
             {filteredGroups.map(group => {
@@ -251,7 +251,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
               }
 
               return (
-                <div key={group.id} className="gba:w-full" data-testid={`data-filter-group-${group.id}`}>
+                <div key={group.id} className="gba:w-full gba:min-w-0" data-testid={`data-filter-group-${group.id}`}>
                   <button
                     className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:w-full gba:pt-2 gba:!pl-2 gba:!pr-2 gba:!pb-[14px] gba:hover:bg-gray-100/50 gba:transition-colors gba:!border-b gba:!border-gray-200"
                     onClick={() => toggleGroup(group.id)}
@@ -287,13 +287,16 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
 
                   {isExpanded && (
                     <div
-                      className="gba:flex gba:flex-col gba:w-full gba:pl-2"
+                      className="gba:flex gba:flex-col gba:w-full gba:min-w-0 gba:max-w-full gba:pl-2"
                       id={groupId}
                       data-testid={`data-filter-group-content-${group.id}`}
                     >
                       {/* Render custom component if provided */}
                       {group.customComponent ? (
-                        <div className="gba:w-full gba:mt-1" data-testid={`data-filter-group-custom-${group.id}`}>
+                        <div
+                          className="gba:w-full gba:min-w-0 gba:max-w-full gba:mt-1"
+                          data-testid={`data-filter-group-custom-${group.id}`}
+                        >
                           {group.customComponent}
                         </div>
                       ) : (
