@@ -102,12 +102,13 @@ export const getAbsenceTypeObjectEditorState = (
     enableAttachement,
     ...extraObjectValue
   } = objectValue
-  const resolvedPriority =
-    typeof priority === 'number'
-      ? String(priority)
-      : typeof priority === 'string'
-        ? priority
-        : defaultAbsenceTypeObjectSettings.priority
+  let resolvedPriority = defaultAbsenceTypeObjectSettings.priority
+
+  if (typeof priority === 'number') {
+    resolvedPriority = String(priority)
+  } else if (typeof priority === 'string') {
+    resolvedPriority = priority
+  }
 
   return {
     settings: {

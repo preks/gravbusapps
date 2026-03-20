@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Button,
   Card,
@@ -78,6 +78,7 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
   absenceTypeVersions
 }) => {
   const { t } = useTranslation(translations)
+  const nextDetailIdRef = useRef(0)
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [settings, setSettings] = useState<AbsenceEntitlementObjectSettings>(defaultAbsenceEntitlementObjectSettings)
@@ -129,7 +130,7 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
   const createDetailId = () =>
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
-      : `detail-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      : `detail-${Date.now()}-${nextDetailIdRef.current++}`
 
   const addDetailEntry = (detailSettings: AbsenceEntitlementDetailSettings) => {
     setDetailEntries(current => [
