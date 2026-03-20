@@ -396,6 +396,7 @@ export const buildInvestmentFragment = (fields: string[]): string => {
         ${RealEstateInvestmentFields.size}
         ${RealEstateInvestmentFields.locality}
         ${RealEstateInvestmentFields.postalCode}
+        ${RealEstateInvestmentFields.sizeMeasurementUnitRef}
         ${RealEstateInvestmentFields.sizeMeasurementUnit} {
           ${CATALOG_ENTRY}
         }
