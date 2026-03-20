@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PageLayout, Dialog, DialogContent, DialogTitle, Button } from '@newwork/nw-design-system'
+import { PageLayout, Dialog, DialogContent, DialogTitle, Button, useTranslation } from '@newwork/nw-design-system'
 import { DesktopIcon, PlusIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
@@ -35,10 +35,12 @@ import {
   replaceDateRangeFilters
 } from './utils/assetFilterDateIds'
 import { AssetDateRangeFilter } from './components/AssetDateRangeFilter'
+import assetsTranslations from './_i18n'
 
 const moduleColor = MODULE_COLORS.HR
 
 export const Assets: React.FC<BusinessAppContextProps> = props => {
+  const { t: tAssets } = useTranslation(assetsTranslations)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [pendingAssetId, setPendingAssetId] = useState<string | null>(null)
@@ -564,12 +566,9 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     () => [
       {
         id: 'employee',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee'),
+        title: tAssets('employee'),
         backendSearch: employeeBackendSearch,
-        emptyMessage: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:hr_assets.type_to_search_employee',
-          'Type to search for an employee'
-        )
+        emptyMessage: tAssets('type_to_search_employee')
       },
       {
         id: 'category',
@@ -606,34 +605,18 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
           <AssetDateRangeFilter
             value={acquisitionRangeValue}
             onRangeChange={handleAcquisitionRangeChange}
-            placeholderStart={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.date_range_start_placeholder',
-              'dd/mm/yyyy'
-            )}
-            placeholderEnd={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.date_range_end_placeholder',
-              'dd/mm/yyyy'
-            )}
             testIdPrefix="assets-filter-acquisition-date"
           />
         )
       },
       {
         id: 'disposal-date',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.disposal_date', 'Disposal date'),
+        title: tAssets('disposal_date'),
         hideSearch: true,
         customComponent: (
           <AssetDateRangeFilter
             value={disposalRangeValue}
             onRangeChange={handleDisposalRangeChange}
-            placeholderStart={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.date_range_start_placeholder',
-              'dd/mm/yyyy'
-            )}
-            placeholderEnd={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.date_range_end_placeholder',
-              'dd/mm/yyyy'
-            )}
             testIdPrefix="assets-filter-disposal-date"
           />
         )
@@ -648,7 +631,8 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       acquisitionRangeValue,
       disposalRangeValue,
       handleAcquisitionRangeChange,
-      handleDisposalRangeChange
+      handleDisposalRangeChange,
+      tAssets
     ]
   )
 
@@ -673,7 +657,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       'lowcoder:hr_assets.acquisition_date',
       'Acquisition Date'
     )
-    const disposalTitle = getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.disposal_date', 'Disposal date')
+    const disposalTitle = tAssets('disposal_date')
     const af = pickDateFilter(selectedFilterIds, ACQUISITION_FROM_PREFIX)
     const at = pickDateFilter(selectedFilterIds, ACQUISITION_TO_PREFIX)
     const df = pickDateFilter(selectedFilterIds, DISPOSAL_FROM_PREFIX)
@@ -705,7 +689,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       }
     }
     return map
-  }, [categoryOptions, locationOptions, selectedFilterIds, getEmployeeLabel, currentLocale])
+  }, [categoryOptions, locationOptions, selectedFilterIds, getEmployeeLabel, currentLocale, tAssets])
 
   return (
     <div data-testid="assets-app">
