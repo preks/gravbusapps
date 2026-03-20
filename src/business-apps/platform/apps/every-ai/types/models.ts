@@ -211,6 +211,7 @@ export type FlowProposalOutput = {
 
 export type DocumentStreamStartOutput = {
   type: 'document_stream_start'
+  edit_run_id: string
   document_id?: string | null
   mode: 'document' | 'selection'
   sequence: number
@@ -218,6 +219,7 @@ export type DocumentStreamStartOutput = {
 
 export type DocumentStreamChunkOutput = {
   type: 'document_stream_chunk'
+  edit_run_id: string
   document_id?: string | null
   mode: 'document' | 'selection'
   sequence: number
@@ -227,6 +229,7 @@ export type DocumentStreamChunkOutput = {
 
 export type DocumentStreamCompleteOutput = {
   type: 'document_stream_complete'
+  edit_run_id: string
   document_id: string
   mode: 'document' | 'selection'
   sequence: number
@@ -236,6 +239,7 @@ export type DocumentStreamCompleteOutput = {
 
 export type DocumentStreamErrorOutput = {
   type: 'document_stream_error'
+  edit_run_id: string
   document_id?: string | null
   mode?: 'document' | 'selection' | null
   sequence: number
