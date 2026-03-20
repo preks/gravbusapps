@@ -7,32 +7,37 @@ import {
   DialogDescription,
   DialogFooter,
   Button,
-  Input,
-  Textarea,
-  Label
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent
 } from '@newwork/nw-design-system'
-import { FolderPlus } from 'lucide-react'
+import { FolderPlus, Loader2 } from 'lucide-react'
+import { Users, Buildings } from '@phosphor-icons/react'
+import { DimensionPicker, useOrganizationalDimensions, DEFAULT_DIMENSION_TRANSLATIONS } from '../../../shared'
+import type { DimensionType, SelectedDimension } from '../../../shared/types/dimensions'
+import type { OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
+import { SpaceFormFields, MemberPreview } from './SpaceFormFields'
 
-const COLOR_OPTIONS = [
-  { value: '#6366f1', label: 'Indigo' },
-  { value: '#8b5cf6', label: 'Violet' },
-  { value: '#ec4899', label: 'Pink' },
-  { value: '#f43f5e', label: 'Rose' },
-  { value: '#f97316', label: 'Orange' },
-  { value: '#eab308', label: 'Yellow' },
-  { value: '#22c55e', label: 'Green' },
-  { value: '#14b8a6', label: 'Teal' },
-  { value: '#06b6d4', label: 'Cyan' },
-  { value: '#3b82f6', label: 'Blue' }
-]
+type CreationMode = 'manual' | 'dimension'
 
-const ICON_OPTIONS = ['📋', '🎯', '🚀', '💼', '📊', '🏗️', '🎨', '📦', '⚡', '🔬', '🌐', '📱']
+export interface CreateCollectionSubmitData {
+  name: string
+  description?: string
+  icon?: string
+  color?: string
+  isPublic?: boolean
+  dimension?: SelectedDimension
+  memberIds?: string[]
+}
 
 export interface CreateCollectionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (data: { name: string; description?: string; icon?: string; color?: string }) => void
+  onSubmit: (data: CreateCollectionSubmitData) => void
   isSubmitting?: boolean
+  accessToken?: string
+  currentUserId?: string
   'data-testid'?: string
 }
 
@@ -41,21 +46,54 @@ export const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
   onOpenChange,
   onSubmit,
   isSubmitting,
+  accessToken,
+  currentUserId,
   'data-testid': testId = 'create-collection-dialog'
 }) => {
+  const [creationMode, setCreationMode] = useState<CreationMode>('manual')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null)
+  const [isPublic, setIsPublic] = useState(false)
+  const [showDimensionPicker, setShowDimensionPicker] = useState(false)
+  const [dimensionMembers, setDimensionMembers] = useState<OrgUserBasic[]>([])
+  const [selectedDimension, setSelectedDimension] = useState<SelectedDimension | null>(null)
+
+  const {
+    organizationalUnits,
+    matrixTeams,
+    locations,
+    legalEntities,
+    capabilities,
+    isLoadingDimensions,
+    isLoadingMembers,
+    selectedMembers,
+    loadDimensions,
+    loadMembersByDimension,
+    clearMembers
+  } = useOrganizationalDimensions(accessToken || '', {})
 
   useEffect(() => {
-    if (open) {
-      setName('')
-      setDescription('')
-      setSelectedColor(null)
-      setSelectedIcon(null)
-    }
-  }, [open])
+    if (open && creationMode === 'dimension' && accessToken) loadDimensions()
+  }, [open, creationMode, accessToken, loadDimensions])
+
+  const resetForm = useCallback(() => {
+    setName('')
+    setDescription('')
+    setSelectedColor(null)
+    setSelectedIcon(null)
+    setIsPublic(false)
+    setCreationMode('manual')
+    setShowDimensionPicker(false)
+    setDimensionMembers([])
+    setSelectedDimension(null)
+    clearMembers()
+  }, [clearMembers])
+
+  useEffect(() => {
+    if (open) resetForm()
+  }, [open, resetForm])
 
   const handleSubmit = useCallback(() => {
     if (!name.trim()) return
@@ -63,103 +101,208 @@ export const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
       name: name.trim(),
       description: description.trim() || undefined,
       icon: selectedIcon || undefined,
-      color: selectedColor || undefined
+      color: selectedColor || undefined,
+      isPublic,
+      ...(creationMode === 'dimension' && selectedDimension
+        ? { dimension: selectedDimension, memberIds: dimensionMembers.map(m => m.id) }
+        : {})
     })
-  }, [name, description, selectedIcon, selectedColor, onSubmit])
+  }, [
+    name,
+    description,
+    selectedIcon,
+    selectedColor,
+    isPublic,
+    creationMode,
+    selectedDimension,
+    dimensionMembers,
+    onSubmit
+  ])
+
+  const handleDimensionSelect = async (type: DimensionType, dimensionId: string) => {
+    await loadMembersByDimension(type, dimensionId)
+  }
+
+  const handleDimensionConfirm = (
+    members: OrgUserBasic[],
+    dimensionName: string,
+    dimensionType: DimensionType,
+    dimensionId: string
+  ) => {
+    setDimensionMembers(members)
+    setSelectedDimension({ type: dimensionType, id: dimensionId, name: dimensionName })
+    setShowDimensionPicker(false)
+    if (!name.trim()) setName(dimensionName)
+  }
+
+  const handleModeChange = (mode: string) => {
+    setCreationMode(mode as CreationMode)
+    if (mode === 'manual') {
+      setDimensionMembers([])
+      setSelectedDimension(null)
+      clearMembers()
+    }
+  }
+
+  const memberCount = creationMode === 'dimension' ? dimensionMembers.length : 0
+  const canSubmit =
+    !!name.trim() && !isSubmitting && !(creationMode === 'dimension' && !selectedDimension && memberCount === 0)
+
+  const formFieldsProps = {
+    name,
+    onNameChange: setName,
+    description,
+    onDescriptionChange: setDescription,
+    isPublic,
+    onIsPublicChange: setIsPublic,
+    selectedIcon,
+    onIconChange: setSelectedIcon,
+    selectedColor,
+    onColorChange: setSelectedColor,
+    canSubmit,
+    onSubmit: handleSubmit,
+    testId
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-md" data-testid={testId}>
+    <Dialog
+      open={open}
+      onOpenChange={v => {
+        if (!v && !isSubmitting) {
+          resetForm()
+          onOpenChange(false)
+        } else {
+          onOpenChange(v)
+        }
+      }}
+    >
+      <DialogContent className="gba:max-w-2xl gba:max-h-[85vh]" data-testid={testId}>
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <FolderPlus className="gba:w-5 gba:h-5 gba:text-primary" />
-            New Collection
+            New Space
           </DialogTitle>
           <DialogDescription>
-            Group related boards together. Share the collection to give people access to all boards inside.
+            Group related boards together. Share the space to give people access to all boards inside.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="gba:space-y-4 gba:py-4">
-          <div className="gba:space-y-2">
-            <Label htmlFor="collection-name">Name</Label>
-            <Input
-              id="collection-name"
-              placeholder="e.g. Marketing, Engineering, Q1 Planning..."
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && name.trim()) handleSubmit()
+        {showDimensionPicker ? (
+          <div className="gba:py-4">
+            <DimensionPicker
+              organizationalUnits={organizationalUnits}
+              matrixTeams={matrixTeams}
+              locations={locations}
+              legalEntities={legalEntities}
+              capabilities={capabilities}
+              isLoadingDimensions={isLoadingDimensions}
+              isLoadingMembers={isLoadingMembers}
+              selectedMembers={selectedMembers}
+              onDimensionSelect={handleDimensionSelect}
+              onConfirm={handleDimensionConfirm}
+              onCancel={() => {
+                setShowDimensionPicker(false)
+                clearMembers()
               }}
-              autoFocus
-              data-testid={`${testId}-name`}
+              currentUserId={currentUserId}
+              translations={DEFAULT_DIMENSION_TRANSLATIONS}
+              data-testid={`${testId}-dimension-picker`}
             />
           </div>
+        ) : (
+          <div className="gba:space-y-4 gba:py-4">
+            <Tabs value={creationMode} onValueChange={handleModeChange} className="gba:w-full">
+              <TabsList className="gba:w-full gba:mb-4">
+                <TabsTrigger value="manual" className="gba:flex-1" data-testid={`${testId}-tab-manual`}>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                    <Users className="gba:w-4 gba:h-4" />
+                    <span>Create Manually</span>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger value="dimension" className="gba:flex-1" data-testid={`${testId}-tab-dimension`}>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                    <Buildings className="gba:w-4 gba:h-4" />
+                    <span>Create by Group</span>
+                  </div>
+                </TabsTrigger>
+              </TabsList>
 
-          <div className="gba:space-y-2">
-            <Label htmlFor="collection-desc">Description (optional)</Label>
-            <Textarea
-              id="collection-desc"
-              placeholder="What is this collection for?"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              className="gba:resize-none"
-              rows={2}
-              data-testid={`${testId}-desc`}
-            />
+              <TabsContent value="manual" className="gba:space-y-4">
+                <SpaceFormFields {...formFieldsProps} />
+              </TabsContent>
+
+              <TabsContent value="dimension" className="gba:space-y-4">
+                {selectedDimension ? (
+                  <>
+                    <div className="gba:p-3 gba:bg-success-secondary gba:rounded-lg gba:border gba:border-success/30">
+                      <div className="gba:flex gba:items-center gba:justify-between">
+                        <div>
+                          <div className="gba:font-medium gba:text-success-secondary-foreground">
+                            {selectedDimension.name}
+                          </div>
+                          <div className="gba:text-sm gba:text-success-secondary-foreground/70">
+                            {dimensionMembers.length} members will be added
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowDimensionPicker(true)}
+                          data-testid={`${testId}-change-dimension`}
+                        >
+                          Change
+                        </Button>
+                      </div>
+                    </div>
+                    <SpaceFormFields {...formFieldsProps} />
+                    <MemberPreview members={dimensionMembers} />
+                  </>
+                ) : (
+                  <DimensionPrompt onSelect={() => setShowDimensionPicker(true)} testId={testId} />
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
+        )}
 
-          <div className="gba:space-y-2">
-            <Label>Icon (optional)</Label>
-            <div className="gba:flex gba:flex-wrap gba:gap-1.5">
-              {ICON_OPTIONS.map(icon => (
-                <button
-                  key={icon}
-                  className={`gba:w-8 gba:h-8 gba:rounded-md gba:flex gba:items-center gba:justify-center gba:text-base gba:transition-all ${
-                    selectedIcon === icon
-                      ? 'gba:bg-primary/20 gba:ring-2 gba:ring-primary gba:scale-110'
-                      : 'gba:bg-muted/50 gba:hover:bg-muted gba:hover:scale-105'
-                  }`}
-                  onClick={() => setSelectedIcon(selectedIcon === icon ? null : icon)}
-                  type="button"
-                >
-                  {icon}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="gba:space-y-2">
-            <Label>Color (optional)</Label>
-            <div className="gba:flex gba:flex-wrap gba:gap-1.5">
-              {COLOR_OPTIONS.map(color => (
-                <button
-                  key={color.value}
-                  className={`gba:w-7 gba:h-7 gba:rounded-full gba:transition-all ${
-                    selectedColor === color.value
-                      ? 'gba:ring-2 gba:ring-offset-2 gba:ring-primary gba:scale-110'
-                      : 'gba:hover:scale-110'
-                  }`}
-                  style={{ backgroundColor: color.value }}
-                  onClick={() => setSelectedColor(selectedColor === color.value ? null : color.value)}
-                  title={color.label}
-                  type="button"
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} data-testid={`${testId}-cancel`}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!name.trim() || isSubmitting} data-testid={`${testId}-submit`}>
-            <FolderPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-            Create Collection
-          </Button>
-        </DialogFooter>
+        {!showDimensionPicker && (
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)} data-testid={`${testId}-cancel`}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={!canSubmit} data-testid={`${testId}-submit`}>
+              {isSubmitting ? (
+                <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+              ) : memberCount > 0 ? (
+                `Create Space (${memberCount} members)`
+              ) : (
+                <>
+                  <FolderPlus className="gba:w-4 gba:h-4 gba:mr-2" /> Create Space
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+function DimensionPrompt({ onSelect, testId }: { onSelect: () => void; testId: string }) {
+  return (
+    <div className="gba:text-center gba:py-10 gba:space-y-4">
+      <div className="gba:w-14 gba:h-14 gba:mx-auto gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+        <Buildings className="gba:w-7 gba:h-7 gba:text-primary" />
+      </div>
+      <div>
+        <h3 className="gba:font-medium gba:text-foreground">Create Space from Group</h3>
+        <p className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:max-w-xs gba:mx-auto">
+          Select an organizational group and all its members will be automatically added to your space
+        </p>
+      </div>
+      <Button onClick={onSelect} data-testid={`${testId}-select-dimension`}>
+        Select Group
+      </Button>
+    </div>
   )
 }

@@ -57,16 +57,16 @@ export const MoveBoardDialog: React.FC<MoveBoardDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <ArrowRight className="gba:w-5 gba:h-5 gba:text-primary" />
-            Move to Collection
+            Move to Space
           </DialogTitle>
-          <DialogDescription>Move &quot;{boardName}&quot; to a collection.</DialogDescription>
+          <DialogDescription>Move &quot;{boardName}&quot; to a space.</DialogDescription>
         </DialogHeader>
 
         <div className="gba:space-y-3 gba:py-4">
           <div className="gba:relative">
             <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
             <Input
-              placeholder="Search collections..."
+              placeholder="Search spaces..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="gba:pl-9"
@@ -78,7 +78,7 @@ export const MoveBoardDialog: React.FC<MoveBoardDialogProps> = ({
             <div className="gba:space-y-1">
               {filteredCollections.length === 0 ? (
                 <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-6">
-                  {collections.length === 0 ? 'No collections yet. Create one first.' : 'No matching collections.'}
+                  {collections.length === 0 ? 'No spaces yet. Create one first.' : 'No matching spaces.'}
                 </p>
               ) : (
                 filteredCollections.map(collection => (
@@ -128,7 +128,7 @@ export const MoveBoardDialog: React.FC<MoveBoardDialogProps> = ({
                 data-testid={`${testId}-remove`}
               >
                 <X className="gba:w-4 gba:h-4" />
-                Remove from current collection
+                Remove from current space
               </button>
             </>
           )}

@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { LayoutGrid, Plus, Users, Share2, FolderOpen, ArrowRight, ChevronDown } from 'lucide-react'
+import { LayoutGrid, Plus, Users, Share2, FolderOpen, ArrowRight, ChevronDown, ExternalLink } from 'lucide-react'
 import type { BoardCollection } from '../../types/collection'
 import type { BoardSummary } from '../../types/board'
 import { formatRelativeTime } from '../BoardListItem'
@@ -23,6 +23,7 @@ export interface CollectionDashboardProps {
   onAddExistingBoard: () => void
   onShareCollection: () => void
   onManageMembers: () => void
+  onOpenInSpaces?: () => void
   'data-testid'?: string
 }
 
@@ -35,6 +36,7 @@ export const CollectionDashboard: React.FC<CollectionDashboardProps> = ({
   onAddExistingBoard,
   onShareCollection,
   onManageMembers,
+  onOpenInSpaces,
   'data-testid': testId = 'collection-dashboard'
 }) => (
   <div className="gba:flex-1 gba:overflow-auto" data-testid={testId}>
@@ -71,6 +73,11 @@ export const CollectionDashboard: React.FC<CollectionDashboardProps> = ({
                 </Badge>
               )}
             </Button>
+            {onOpenInSpaces && (
+              <Button variant="outline" size="sm" onClick={onOpenInSpaces} data-testid={`${testId}-open-in-spaces`}>
+                <ExternalLink className="gba:w-3.5 gba:h-3.5 gba:mr-1.5" /> Open in Spaces
+              </Button>
+            )}
           </div>
         </div>
 
@@ -178,7 +185,7 @@ function CollectionEmptyState({
       </div>
       <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">No boards yet</h3>
       <p className="gba:text-muted-foreground gba:text-sm gba:mb-5 gba:text-center gba:max-w-xs">
-        Create a new board directly in this collection, or move an existing one here.
+        Create a new board directly in this space, or move an existing one here.
       </p>
       <div className="gba:flex gba:items-center gba:gap-2">
         <Button onClick={onCreateBoard} data-testid={`${testId}-empty-create`}>

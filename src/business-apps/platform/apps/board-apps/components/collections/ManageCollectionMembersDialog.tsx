@@ -125,7 +125,7 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
 
   const handleRemove = useCallback(
     async (memberId: string, userName?: string) => {
-      if (!confirm(`Remove ${userName || 'this member'} from the collection?`)) return
+      if (!confirm(`Remove ${userName || 'this member'} from this space?`)) return
       const ok = await CollectionApiService.removeMember(collectionId, memberId)
       if (ok) {
         setMembers(prev => prev.filter(m => m.id !== memberId))
@@ -153,7 +153,7 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
             Members
           </DialogTitle>
           <DialogDescription>
-            Manage who has access to &quot;{collectionName}&quot; and all boards within.
+            Manage who has access to &quot;{collectionName}&quot; and all boards in this space.
           </DialogDescription>
         </DialogHeader>
 
@@ -203,12 +203,8 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="editor">
-                              <span className="gba:flex gba:items-center gba:gap-1.5">{ROLE_ICONS.editor} Editor</span>
-                            </SelectItem>
-                            <SelectItem value="viewer">
-                              <span className="gba:flex gba:items-center gba:gap-1.5">{ROLE_ICONS.viewer} Viewer</span>
-                            </SelectItem>
+                            <SelectItem value="editor">Editor</SelectItem>
+                            <SelectItem value="viewer">Viewer</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button

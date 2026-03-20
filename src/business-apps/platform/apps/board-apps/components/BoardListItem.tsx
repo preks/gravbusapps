@@ -141,7 +141,7 @@ export const BoardListItem: React.FC<BoardListItemProps> = ({
                 onClick={() => onMoveToCollection(board.id)}
                 data-testid={`${testId}-menu-move-${board.id}`}
               >
-                <ArrowRight className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Move to Collection
+                <ArrowRight className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Move to Space
               </DropdownMenuItem>
             )}
             {isOwner && (
