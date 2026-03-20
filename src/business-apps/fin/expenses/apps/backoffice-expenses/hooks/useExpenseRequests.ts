@@ -16,6 +16,19 @@ import { buildRequestEffectiveDateFilter, buildRequestTypeFilter } from './backo
 import { extractUniqueStatuses, extractUniqueEmployees } from '../utils/sharedUtils'
 import { buildEmployeeDisplayName } from './backofficeReportUtils'
 
+export type ExpenseRequestListSortField =
+  | 'title'
+  | 'startDate'
+  | 'endDate'
+  | 'createdAt'
+  | 'status'
+  | 'totalAmount'
+  | 'reimbursableAmount'
+  | 'totalRemainingAmount'
+  | 'employee.fullName'
+  | 'employee.code'
+  | 'code'
+
 export const useExpenseRequests = (context: BusinessAppContextProps, t: TranslateFn, isActive: boolean = true) => {
   const { accessToken } = context
   const client = useGraphqlClient(accessToken)
@@ -30,30 +43,24 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
   // Request deduplication - prevent duplicate queries
   const lastRequestKey = useRef<string>('')
   const isLoadingRef = useRef<boolean>(false)
-
-  type SortField =
-    | 'title'
-    | 'startDate'
-    | 'endDate'
-    | 'createdAt'
-    | 'status'
-    | 'totalAmount'
-    | 'totalRemainingAmount'
-    | 'employee.fullName'
-    | 'employee.code'
-    | 'code'
+  /** Latest rows for fetch decisions (avoid stale closure in async fetch). */
+  const expensesRef = useRef<ExpenseData[]>([])
 
   // Single source of truth for sorting state
   const [sorting, setSorting] = useState<{
-    field: SortField
+    field: ExpenseRequestListSortField
     order: 'ASC' | 'DESC'
-    lastField: SortField
+    lastField: ExpenseRequestListSortField
   }>({ field: 'createdAt', order: 'DESC', lastField: 'createdAt' })
 
   // Derived state - kept for backward compatibility with existing code
   const [sorter, setSorter] = useState<any[]>([{ createdAt: 'DESC' }])
 
-  const mapSortToOrderBy = useCallback((field: SortField, order: 'ASC' | 'DESC'): any[] => {
+  useEffect(() => {
+    expensesRef.current = expenses
+  }, [expenses])
+
+  const mapSortToOrderBy = useCallback((field: ExpenseRequestListSortField, order: 'ASC' | 'DESC'): any[] => {
     switch (field) {
       case 'title':
         return [{ title: order }, { id: order }]
@@ -66,6 +73,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
       case 'status':
         return [{ status: order }, { id: order }]
       case 'totalAmount':
+      case 'reimbursableAmount':
         return [{ reimbursableAmount: order }, { id: order }]
       case 'totalRemainingAmount':
         return [{ totalRemainingAmount: order }, { id: order }]
@@ -87,7 +95,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
   }, [sorting.field, sorting.order, mapSortToOrderBy])
 
   const updateSorting = useCallback(
-    (field: SortField) => {
+    (field: ExpenseRequestListSortField) => {
       // Determine sort order: toggle if same field, default to ASC for new field
       let order: 'ASC' | 'DESC' = 'ASC'
       if (sorting.lastField === field) {
@@ -98,12 +106,22 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
         field,
         order,
         lastField: field
-      } as { field: SortField; order: 'ASC' | 'DESC'; lastField: SortField }
+      } as { field: ExpenseRequestListSortField; order: 'ASC' | 'DESC'; lastField: ExpenseRequestListSortField }
       setSorting(next)
       setCurrentPage(1)
     },
     [sorting.lastField, sorting.order]
   )
+
+  /** Sets sort field and order explicitly (e.g. TanStack DataTable header sort). Does not reset page — callers must do that only when sort actually changes (DataTable may re-emit the same sort on pagination updates). */
+  const applySorting = useCallback((field: ExpenseRequestListSortField, order: 'ASC' | 'DESC') => {
+    setSorting(prev => {
+      if (prev.field === field && prev.order === order) {
+        return prev
+      }
+      return { field, order, lastField: field }
+    })
+  }, [])
 
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [employeeFilter, setEmployeeFilter] = useState<string>('')
@@ -294,7 +312,12 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
     lastRequestKey.current = requestKey
     isLoadingRef.current = true
 
-    setLoading(true)
+    // Design-system DataTable replaces the whole table with a skeleton when loading=true.
+    // For sort/page/filter refetches while we already have rows, skip that to avoid a full remount flash.
+    const showFullTableLoading = force || expensesRef.current.length === 0
+    if (showFullTableLoading) {
+      setLoading(true)
+    }
     setError(null)
 
     try {
@@ -332,7 +355,9 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
         setExpenses([])
       }
 
-      setTotalItems(responseData.total.aggregate.count ?? 0)
+      const aggregateCount = responseData.total?.aggregate?.count
+      const parsedTotal = Number(aggregateCount)
+      setTotalItems(Number.isFinite(parsedTotal) ? parsedTotal : 0)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch expense requests. Please try again later.')
       setExpenses([])
@@ -381,7 +406,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
   const handleSortChange = useCallback((columnKey: string, direction: 'ASC' | 'DESC') => {
     // Map columnKey to SortField and update sorting state
     setSorting(prev => ({
-      field: columnKey as SortField,
+      field: columnKey as ExpenseRequestListSortField,
       order: direction,
       lastField: prev.field
     }))
@@ -392,7 +417,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
     // Extract field and order from orderBy array and update sorting state
     if (orderBy.length > 0) {
       const firstOrder = orderBy[0]
-      const field = Object.keys(firstOrder)[0] as SortField
+      const field = Object.keys(firstOrder)[0] as ExpenseRequestListSortField
       const order = firstOrder[field] as 'ASC' | 'DESC'
       setSorting(prev => ({
         field,
@@ -403,10 +428,16 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
     setCurrentPage(1)
   }, [])
 
-  const handleSearch = (value: string) => {
-    setSearchTerm(value)
-    setCurrentPage(1)
-  }
+  const handleSearch = useCallback(
+    (value: string) => {
+      if (value === searchTerm) {
+        return
+      }
+      setSearchTerm(value)
+      setCurrentPage(1)
+    },
+    [searchTerm]
+  )
 
   const handleEmployeeFilter = useCallback((employeeIds: string) => {
     setEmployeeFilter(employeeIds)
@@ -499,12 +530,15 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
     error,
     currentPage,
     pageSize,
+    setCurrentPage,
+    setPageSize,
     searchTerm,
     fetchData,
     searchEmployees,
     searchStatuses,
     sorting,
     updateSorting,
+    applySorting,
     handleEmployeeFilter,
     handleStatusFilter,
     handleAmountFilter,

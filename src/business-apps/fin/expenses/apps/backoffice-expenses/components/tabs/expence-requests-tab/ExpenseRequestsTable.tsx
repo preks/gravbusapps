@@ -9,20 +9,9 @@ import { useExpenseRequests } from '../../../hooks/useExpenseRequests'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { ExpenseData } from '../../../types'
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-  Alert,
-  Spinner,
   Button,
-  Checkbox,
   Separator,
   Badge,
-  Card,
-  CardContent,
   Sheet,
   SheetContent,
   Tooltip,
@@ -31,7 +20,8 @@ import {
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ArrowUpIcon, ArrowDownIcon, DownloadIcon, FileXlsIcon, InfoIcon } from '@phosphor-icons/react'
+import type { SortingState } from '@tanstack/react-table'
+import { DownloadIcon, FileXlsIcon, InfoIcon } from '@phosphor-icons/react'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import translations from '../../../_i18n'
@@ -57,13 +47,17 @@ import { ExpenseDetailsPanelContent } from '../../../../../common/components/det
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOptions'
 
+import { ExpenseRequestPdfModal, EmployeeSearchFilter, AmountFilter, ExpenseRequestsDataTable } from './components'
+import { useTableSetup } from '../../../common/hooks/useTableSetup'
 import {
-  ExpenseRequestPdfModal,
-  EmployeeSearchFilter,
-  AmountFilter,
-  ExpenseRequestTableRow,
-  ExpenseRequestPagination
-} from './components'
+  BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS,
+  createBackofficeExpenseRequestColumns,
+  type BackofficeExpenseRequestTableChrome
+} from './backofficeExpenseRequestColumns'
+import {
+  expenseRequestColumnIdToSortField,
+  expenseRequestSortFieldToColumnId
+} from './backofficeExpenseRequestSortUtils'
 
 import {
   useExpenseRequestFilters,
@@ -110,9 +104,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     }),
     [props.accessToken]
   )
-
-  // Deterministic scroll target for pagination (top of table)
-  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   const [initialParams] = useState(() => {
     const urlParams = new URLSearchParams(globalThis.location.search)
@@ -181,16 +172,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     error,
     currentPage,
     pageSize,
+    setCurrentPage,
+    setPageSize,
     fetchData,
     searchEmployees,
     sorting,
-    updateSorting,
+    applySorting,
     handleEmployeeFilter,
     handleStatusFilter,
     handleAmountFilter,
     handleDepartmentFilter,
     handleCurrencyFilter,
-    handleTableChange,
     handleSearch,
     amountMinFilter,
     amountMaxFilter,
@@ -421,6 +413,90 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const selectedBookableCount = useMemo(() => {
     return selectedRecords.filter(r => r.status === 'BOOKED').length
   }, [selectedRecords])
+
+  const tableChrome = useMemo((): BackofficeExpenseRequestTableChrome => {
+    return {
+      accessToken,
+      bookableRecordsCount,
+      allBookableSelected,
+      onSelectAllRecords: handleSelectAllRecords,
+      selectedRowKeys,
+      onSelectRecord: handleSelectRecord,
+      isTransferInProgress,
+      onNavigateToExpenseRequest: handleNavigateToExpenseRequest,
+      onDownloadAccountingNote: handleDownloadAccountingNote,
+      onTriggerCSV: handleTriggerCSV,
+      onPrintExpenseRequest: handlePrintExpenseRequest,
+      onTransferPayment: handleTransferPayment
+    }
+  }, [
+    accessToken,
+    bookableRecordsCount,
+    allBookableSelected,
+    handleSelectAllRecords,
+    selectedRowKeys,
+    handleSelectRecord,
+    isTransferInProgress,
+    handleNavigateToExpenseRequest,
+    handleDownloadAccountingNote,
+    handleTriggerCSV,
+    handlePrintExpenseRequest,
+    handleTransferPayment
+  ])
+
+  const allRequestColumns = useMemo(() => createBackofficeExpenseRequestColumns(t, tableChrome), [t, tableChrome])
+
+  const visibleRequestColumnIds = useMemo(() => [...BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS], [])
+
+  const {
+    columns: requestTableColumns,
+    pagination: requestPagination,
+    handlePaginationChange: handleRequestPaginationChange
+  } = useTableSetup(
+    props,
+    allRequestColumns,
+    visibleRequestColumnIds,
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize
+  )
+
+  const sortingState = useMemo((): SortingState => {
+    const colId = expenseRequestSortFieldToColumnId(sorting.field)
+    return [{ id: colId, desc: sorting.order === 'DESC' }]
+  }, [sorting.field, sorting.order])
+
+  const handleRequestSortingChange = useCallback(
+    (newSorting: SortingState) => {
+      if (newSorting.length === 0) {
+        if (sorting.field === 'createdAt' && sorting.order === 'DESC') {
+          return
+        }
+        applySorting('createdAt', 'DESC')
+        setCurrentPage(1)
+        return
+      }
+      const first = newSorting[0]
+      if (first.id === 'select' || first.id === 'actions') {
+        return
+      }
+      const currentColumnId = expenseRequestSortFieldToColumnId(sorting.field)
+      const nextDesc = first.desc === true
+      if (first.id === currentColumnId && nextDesc === (sorting.order === 'DESC')) {
+        return
+      }
+      const field = expenseRequestColumnIdToSortField(first.id)
+      applySorting(field, nextDesc ? 'DESC' : 'ASC')
+      setCurrentPage(1)
+    },
+    [applySorting, sorting.field, sorting.order, setCurrentPage]
+  )
+
+  const listEmptyMessage = useMemo(
+    () => (hasActiveFilters ? t('empty-no-data') : t('empty-no-requests-yet')),
+    [hasActiveFilters, t]
+  )
 
   // Helper function to format status display name with brackets (matching personal expenses pattern)
   const getStatusDisplayName = useCallback(
@@ -708,305 +784,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   // removed unused getFilters helper
 
-  const handleEnhancedTableChange = useCallback(
-    (pagination: any) => {
-      handleTableChange(pagination, {}, undefined as any)
-    },
-    [handleTableChange]
-  )
-
-  // Helper to map column key to field name (eliminates nested ternary)
-  const getFieldFromColumnKey = useCallback((columnKey: string): string => {
-    if (columnKey === 'employee') {
-      return 'employee.fullName'
-    }
-    if (columnKey === 'employeeCode') {
-      return 'employee.code'
-    }
-    if (columnKey === 'requestNumber') {
-      return 'code'
-    }
-    if (columnKey === 'totalAmount') {
-      return 'reimbursableAmount'
-    }
-    return columnKey
-  }, [])
-
-  const onSort = useCallback(
-    (columnKey: string) => {
-      const field = getFieldFromColumnKey(columnKey)
-      // Type assertion is safe: field is always a valid SortField from the mapping
-      updateSorting(
-        field as
-          | 'title'
-          | 'startDate'
-          | 'endDate'
-          | 'createdAt'
-          | 'status'
-          | 'totalAmount'
-          | 'reimbursableAmount'
-          | 'totalRemainingAmount'
-          | 'employee.fullName'
-          | 'employee.code'
-          | 'code'
-      )
-      handleTableChange({ current: 1, pageSize } as any, {} as any, undefined as any)
-    },
-    [getFieldFromColumnKey, handleTableChange, pageSize, updateSorting]
-  )
-
-  const isActiveSort = useCallback(
-    (columnKey: string) => {
-      const field = getFieldFromColumnKey(columnKey)
-      return sorting.lastField === field
-    },
-    [getFieldFromColumnKey, sorting.lastField]
-  )
-
-  const isAsc = sorting.order === 'ASC'
-
-  // Helper to render sort icon (reduces nested ternary complexity)
-  const renderSortIcon = useCallback(
-    (field: string) => {
-      if (isActiveSort(field)) {
-        return isAsc ? <ArrowUpIcon size={12} className="gba:ml-1" /> : <ArrowDownIcon size={12} className="gba:ml-1" />
-      }
-      return <span className="gba:ml-1 gba:inline-block gba:w-[12px] gba:h-[12px]" />
-    },
-    [isActiveSort, isAsc]
-  )
-
-  // Helper to render loading/error/empty states (reduces cognitive complexity)
-  const renderEmptyState = useCallback(() => {
-    if (loading && !expenses?.length) {
-      return (
-        <div className="gba:flex gba:justify-center gba:p-8">
-          <Spinner />
-        </div>
-      )
-    }
-
-    if (error) {
-      return (
-        <Alert variant="destructive" className="gba:m-4">
-          {error}
-        </Alert>
-      )
-    }
-
-    return null
-  }, [loading, expenses, error])
-
-  // Render data body pattern (matches Advance Payments)
-  const renderDataBody = useCallback(() => {
-    const emptyState = renderEmptyState()
-    if (emptyState) return emptyState
-
-    return (
-      <div ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
-        <Card data-testid="expense-requests-container">
-          <CardContent className="gba:p-0">
-            {loading && !expenses?.length && (
-              <div className="gba:flex gba:justify-center gba:p-4">
-                <Spinner />
-              </div>
-            )}
-
-            <div className="gba:overflow-x-auto gba:max-w-full gba:px-6">
-              <Table
-                data-testid="expense-requests-data-table"
-                className="gba:min-w-[1782px] gba:w-full gba:table-fixed gba:[&>thead>tr>th]:!text-left"
-              >
-                <TableHeader>
-                  <TableRow className="gba:border-b gba:bg-muted">
-                    <TableHead className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border">
-                      {bookableRecordsCount > 0 && (
-                        <div className="gba:flex gba:items-center gba:justify-center">
-                          <Checkbox
-                            checked={allBookableSelected}
-                            onCheckedChange={handleSelectAllRecords}
-                            data-testid="select-all-records-checkbox"
-                            className="gba:cursor-pointer"
-                          />
-                        </div>
-                      )}
-                    </TableHead>
-                    <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border">
-                      {t('header-actions')}
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[22%] gba:cursor-pointer gba:select-none"
-                      onClick={() => onSort('employee')}
-                      data-testid="header-sort-employee"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        <span>{t('header-employee')}</span>
-                        {renderSortIcon('employee')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[16%] gba:cursor-pointer gba:select-none"
-                      onClick={() => onSort('employeeCode')}
-                      data-testid="header-sort-employeeCode"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        <span>{t('header-employee-code')}</span>
-                        {renderSortIcon('employeeCode')}
-                      </div>
-                    </TableHead>
-                    <TableHead className="gba:w-[16%]">{t('header-sap-number')}</TableHead>
-                    <TableHead
-                      className="gba:w-[18%] gba:cursor-pointer gba:select-none"
-                      onClick={() => onSort('requestNumber')}
-                      data-testid="header-sort-requestNumber"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        <span>{t('header-request-number')}</span>
-                        {renderSortIcon('requestNumber')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[20%] gba:cursor-pointer gba:select-none"
-                      onClick={() => onSort('title')}
-                      data-testid="header-sort-title"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        <span>{t('header-title')}</span>
-                        {renderSortIcon('title')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[14%] gba:cursor-pointer gba:select-none"
-                      onClick={() => onSort('startDate')}
-                      data-testid="header-sort-startDate"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        <span>{t('header-start-date')}</span>
-                        {renderSortIcon('startDate')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[14%] gba:cursor-pointer gba:select-none"
-                      onClick={() => onSort('endDate')}
-                      data-testid="header-sort-endDate"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        <span>{t('header-end-date')}</span>
-                        {renderSortIcon('endDate')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[14%] gba:cursor-pointer gba:select-none"
-                      onClick={() => onSort('createdAt')}
-                      data-testid="header-sort-createdAt"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        <span>{t('header-creation-date')}</span>
-                        {renderSortIcon('createdAt')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[22%] gba:cursor-pointer gba:select-none"
-                      onClick={() => onSort('status')}
-                      data-testid="header-sort-status"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        <span>{t('header-status')}</span>
-                        {renderSortIcon('status')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[18%] gba:cursor-pointer gba:select-none"
-                      onClick={() => onSort('totalRemainingAmount')}
-                      data-testid="header-sort-remainingAmount"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        <span>{t('header-remaining-amount')}</span>
-                        {renderSortIcon('totalRemainingAmount')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[20%] gba:cursor-pointer gba:select-none"
-                      onClick={() => onSort('totalAmount')}
-                      data-testid="header-sort-total"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        <span>{t('header-total-amount')}</span>
-                        {renderSortIcon('totalAmount')}
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {!loading && totalItems === 0 && (!expenses || expenses.length === 0) ? (
-                    <TableRow>
-                      <TableCell colSpan={12} className="gba:py-8 gba:text-center">
-                        <div className="gba:text-muted-foreground">
-                          {hasActiveFilters ? t('empty-no-data') : t('empty-no-requests-yet')}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    expenses?.map((record: ExpenseData) => (
-                      <ExpenseRequestTableRow
-                        key={record.id}
-                        record={record}
-                        accessToken={accessToken}
-                        onRowClick={handleRowClick}
-                        onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
-                        onDownloadAccountingNote={handleDownloadAccountingNote}
-                        onTriggerCSV={handleTriggerCSV}
-                        onPrintExpenseRequest={handlePrintExpenseRequest}
-                        onTransferPayment={handleTransferPayment}
-                        isSelected={selectedRowKeys.includes(record.id)}
-                        onSelectRecord={handleSelectRecord}
-                        transferInProgress={isTransferInProgress(record.id)}
-                      />
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Pagination */}
-            <ExpenseRequestPagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={totalItems}
-              onPageChange={handleEnhancedTableChange}
-              scrollTargetRef={tableTopRef}
-            />
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }, [
-    loading,
-    expenses,
-    error,
-    renderEmptyState,
-    bookableRecordsCount,
-    allBookableSelected,
-    isActiveSort,
-    isAsc,
-    onSort,
-    handleSelectAllRecords,
-    accessToken,
-    handleRowClick,
-    handleNavigateToExpenseRequest,
-    handleDownloadAccountingNote,
-    handleTriggerCSV,
-    handlePrintExpenseRequest,
-    handleTransferPayment,
-    isTransferInProgress,
-    selectedRowKeys,
-    handleSelectRecord,
-    currentPage,
-    pageSize,
-    totalItems,
-    handleEnhancedTableChange
-  ])
-
   const { buildQueryConditions } = useExpenseRequestQueryBuilder({
     statusFilter,
     employeeFilter,
@@ -1135,6 +912,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
       <DataContainer
         contentBackground="white"
+        dataBodyClassName="gba:overflow-y-auto gba:overflow-x-hidden"
         dataControllerProps={{
           listTitle: t('tab-expense-requests'),
           listAmount: totalItems ? `${totalItems}` : undefined,
@@ -1242,7 +1020,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 } else {
                   // Format backend status with only first letter uppercase and translate it
                   const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
-                  const statusKey = `status-${status.toLowerCase().replaceAll('_', '-')}` as const
+                  const statusKey = `status-${status.toLowerCase().split('_').join('-')}` as const
                   const translatedStatus = t(statusKey as any) || formattedStatus
                   acc[status] = `${statusConfig.label} (${translatedStatus})`
                 }
@@ -1288,7 +1066,22 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             }
           }
         }}
-        dataBody={renderDataBody()}
+        dataBody={
+          <ExpenseRequestsDataTable
+            error={error}
+            loading={loading}
+            expenses={expenses ?? []}
+            totalItems={totalItems}
+            columns={requestTableColumns}
+            sorting={sortingState}
+            onSortingChange={handleRequestSortingChange}
+            pagination={requestPagination}
+            onPaginationChange={handleRequestPaginationChange}
+            onRowClick={handleRowClick}
+            emptyMessage={listEmptyMessage}
+            dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+          />
+        }
       />
 
       <Sheet
@@ -1364,4 +1157,4 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   )
 }
 
-export default ExpenseRequestsTable
+export default React.memo(ExpenseRequestsTable)
