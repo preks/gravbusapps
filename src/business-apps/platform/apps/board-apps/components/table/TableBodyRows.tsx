@@ -123,10 +123,10 @@ VirtuosoTableRow.displayName = 'VirtuosoTableRow'
 function DragHandle({ testId, rowId }: { testId: string; rowId: string }) {
   const sortable = React.useContext(SortableHandleCtx)
   return (
-    <td className="gba:w-7 gba:p-0 gba:border-0 gba:bg-transparent gba:align-middle">
+    <td className="gba:w-7 gba:min-w-7 gba:max-w-7 gba:p-0 gba:border-0 gba:bg-transparent gba:align-middle gba:overflow-hidden">
       <button
         type="button"
-        className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full gba:py-1.5 gba:cursor-grab gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:text-muted-foreground gba:hover:text-foreground active:gba:cursor-grabbing"
+        className="gba:flex gba:items-center gba:justify-center gba:w-full gba:min-w-0 gba:max-w-full gba:h-full gba:py-1.5 gba:cursor-grab gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:text-muted-foreground gba:hover:text-foreground active:gba:cursor-grabbing"
         data-testid={`${testId}-grip-${rowId}`}
         {...(sortable?.attributes as any)}
         {...(sortable?.listeners as any)}
@@ -166,6 +166,8 @@ export function renderRowCells(index: number, row: BoardRow, ctx: VirtuosoContex
         const isEditing = ctx.editingCell?.rowId === row.id && ctx.editingCell?.colName === col.name
         const isSelected = ctx.selectedCell?.rowId === row.id && ctx.selectedCell?.colName === col.name && !isEditing
         const presence = ctx.focusedCells?.get(`${row.id}:${col.name}`)
+        const isLastDataCol = colIndex === ctx.columns.length - 1
+        const dataColWidth = isLastDataCol ? 'gba:min-w-40' : 'gba:w-40'
 
         return (
           <CellContextMenu
@@ -180,7 +182,7 @@ export function renderRowCells(index: number, row: BoardRow, ctx: VirtuosoContex
             data-testid={`${ctx.testId}-ctx-${row.id}-${col.name}`}
           >
             <td
-              className={`gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r gba:w-40 gba:relative ${
+              className={`gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r ${dataColWidth} gba:relative ${
                 presence ? 'gba:overflow-visible' : 'gba:truncate'
               } ${isSelected ? 'gba:ring-2 gba:ring-primary gba:ring-inset gba:bg-primary/5' : ''} ${
                 presence ? 'gba:ring-2 gba:ring-inset' : ''
@@ -375,9 +377,14 @@ function renderSubRows(
       className="gba:bg-muted/10 gba:hover:bg-muted/20 gba:transition-colors"
       data-testid={`${testId}-subrow-${sub.id}`}
     >
-      {reorderEnabled && <td className="gba:w-7 gba:p-0 gba:border-0" />}
+      {reorderEnabled && <td className="gba:w-7 gba:min-w-7 gba:max-w-7 gba:p-0 gba:border-0 gba:overflow-hidden" />}
       {columns.map((col, ci) => (
-        <td key={col.id || col.name} className="gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r gba:truncate gba:w-40">
+        <td
+          key={col.id || col.name}
+          className={`gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r gba:truncate ${
+            ci === columns.length - 1 ? 'gba:min-w-40' : 'gba:w-40'
+          }`}
+        >
           {ci === 0 ? (
             <div className="gba:flex gba:items-center gba:gap-1.5 gba:pl-7">
               <div className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-border gba:flex-shrink-0" />
