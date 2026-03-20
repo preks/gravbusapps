@@ -103,7 +103,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
             <div
               className={`gba:group gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:cursor-pointer gba:transition-colors ${
                 isActive && !activeBoardId
-                  ? 'gba:bg-card-decorative gba:text-decorative-foreground gba:font-medium gba:shadow-sm gba:border gba:border-white/10'
+                  ? 'gba:bg-primary/8 gba:text-foreground gba:border gba:border-primary/15'
                   : 'gba:text-muted-foreground gba:hover:bg-background/60 gba:hover:text-foreground'
               }`}
               onClick={() => onSelectCollection(collection.id)}
@@ -123,7 +123,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                 />
               </button>
               <FolderIcon
-                className={`gba:w-4 gba:h-4 gba:flex-shrink-0 ${isActive && !activeBoardId ? 'gba:opacity-95' : 'gba:opacity-70'}`}
+                className={`gba:w-4 gba:h-4 gba:flex-shrink-0 ${isActive && !activeBoardId ? 'gba:opacity-90' : 'gba:opacity-70'}`}
                 style={collection.color ? { color: collection.color } : undefined}
               />
               <span className="gba:flex-1 gba:text-sm gba:truncate gba:select-none">
@@ -153,11 +153,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`gba:h-5 gba:w-5 gba:p-0 ${
-                        isActive && !activeBoardId
-                          ? 'gba:text-decorative-foreground/80 gba:hover:text-decorative-foreground gba:hover:bg-white/10'
-                          : 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60'
-                      }`}
+                      className="gba:h-5 gba:w-5 gba:p-0 gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60"
                       data-testid={`${testId}-menu-${collection.id}`}
                     >
                       <MoreHorizontal className="gba:w-3.5 gba:h-3.5" />
@@ -204,7 +200,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                         key={board.id}
                         className={`gba:group/board gba:flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-sm gba:transition-colors gba:cursor-pointer ${
                           isBoardActive
-                            ? 'gba:bg-card-decorative gba:text-decorative-foreground gba:font-medium gba:shadow-sm gba:border gba:border-white/10'
+                            ? 'gba:bg-primary/8 gba:text-foreground gba:border gba:border-primary/15'
                             : 'gba:text-muted-foreground gba:hover:bg-background/60 gba:hover:text-foreground'
                         }`}
                         onClick={() => onSelectBoard(board.id)}
@@ -230,11 +226,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className={`gba:h-5 gba:w-5 gba:p-0 ${
-                                  isBoardActive
-                                    ? 'gba:text-decorative-foreground/80 gba:hover:text-decorative-foreground gba:hover:bg-white/10'
-                                    : 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60'
-                                }`}
+                                className="gba:h-5 gba:w-5 gba:p-0 gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60"
                                 data-testid={`${testId}-board-menu-${board.id}`}
                               >
                                 <MoreHorizontal className="gba:w-3.5 gba:h-3.5" />
