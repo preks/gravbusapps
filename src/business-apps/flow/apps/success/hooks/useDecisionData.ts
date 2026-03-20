@@ -133,9 +133,17 @@ export interface DecisionOptimizationData {
     escalationRate: number
     branchAgreementRate: number
   }>
-  escalationReasons: Array<{
+  fallbackCauses: Array<{
     reason: string
     totalOccurrences: number
+  }>
+  aiEscalationReasons: Array<{
+    decisionTitle: string
+    stepReference: string
+    promptName?: string
+    promptVersion?: number | null
+    reason: string
+    createdAt?: string
   }>
 }
 
@@ -288,7 +296,12 @@ export const useDecisionOptimizationAnalytics = (filters: {
         stepPerformance: Array.isArray(payload?.stepPerformance) ? payload.stepPerformance : [],
         promptVersions: Array.isArray(payload?.promptVersions) ? payload.promptVersions : [],
         policyVersions: Array.isArray(payload?.policyVersions) ? payload.policyVersions : [],
-        escalationReasons: Array.isArray(payload?.escalationReasons) ? payload.escalationReasons : []
+        fallbackCauses: Array.isArray(payload?.fallbackCauses)
+          ? payload.fallbackCauses
+          : Array.isArray(payload?.escalationReasons)
+            ? payload.escalationReasons
+            : [],
+        aiEscalationReasons: Array.isArray(payload?.aiEscalationReasons) ? payload.aiEscalationReasons : []
       })
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch decision optimization analytics'))

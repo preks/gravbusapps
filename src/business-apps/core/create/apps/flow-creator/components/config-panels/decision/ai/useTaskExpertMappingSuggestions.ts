@@ -1,21 +1,17 @@
 import { useMemo } from 'react'
 import type { ExpressionSuggestionItem, ExpressionValueType } from '@/common/components/flow/expression-editor'
+import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { collectJsonSchemaPaths } from '../decisionConfigUtils'
 
-export function useTaskExpertMappingSuggestions(
-  agents: any[] | undefined,
-  promptId: string | undefined
-): { schemaPaths: string[]; suggestions: ExpressionSuggestionItem[] } {
+export function useTaskExpertMappingSuggestions(prompt: Pick<PromptODM, 'response_schema'> | undefined): {
+  schemaPaths: string[]
+  suggestions: ExpressionSuggestionItem[]
+} {
   const schemaPaths = useMemo(() => {
-    const id = String(promptId || '').trim()
-    if (!id) return []
-    const prompt = (agents ?? []).find(a => a._id === id)
     return collectJsonSchemaPaths(prompt?.response_schema ?? null)
-  }, [agents, promptId])
+  }, [prompt])
 
   const suggestions = useMemo((): ExpressionSuggestionItem[] => {
-    const id = String(promptId || '').trim()
-    const prompt = id ? (agents ?? []).find(a => a._id === id) : undefined
     const schema = (prompt?.response_schema ?? null) as any
 
     const getObjectProperty = (node: any, key: string): any => {
@@ -84,7 +80,7 @@ export function useTaskExpertMappingSuggestions(
       seen.add(key)
       return true
     })
-  }, [agents, promptId, schemaPaths])
+  }, [prompt, schemaPaths])
 
   return { schemaPaths, suggestions }
 }

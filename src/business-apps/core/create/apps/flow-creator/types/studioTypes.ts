@@ -169,6 +169,16 @@ export interface DecisionNodeConfig {
       conditions: Array<{ expression: string; branchId: string }>
     }
     /**
+     * Explicit Prompt Manager system parameter mappings for TASK_EXPERT decisions.
+     * Keys come from the selected prompt definition and values are studio expressions.
+     */
+    systemParamsMap?: Record<string, string>
+    /**
+     * Explicit Prompt Manager user parameter mappings for TASK_EXPERT decisions.
+     * Keys come from the selected prompt definition and values are studio expressions.
+     */
+    userParamsMap?: Record<string, string>
+    /**
      * Optional path used to extract a reasoning string from the task expert output (resultData).
      * Example: \"reasoning\" or \"result.reasoning\"
      */

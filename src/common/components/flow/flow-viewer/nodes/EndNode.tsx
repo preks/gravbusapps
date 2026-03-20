@@ -33,9 +33,9 @@ function getBorderClass(
 }
 
 function getBgClass(status?: StepStatus, isSelected?: boolean, hasFields?: boolean): string {
-  if (isSelected) return 'gba:bg-accent'
-  if (status === 'completed') return 'gba:bg-success-secondary'
-  if (hasFields) return 'gba:bg-success-secondary'
+  if (isSelected) return 'gba:bg-card'
+  if (status === 'completed') return 'gba:bg-card'
+  if (hasFields) return 'gba:bg-card'
   return 'gba:bg-card'
 }
 
