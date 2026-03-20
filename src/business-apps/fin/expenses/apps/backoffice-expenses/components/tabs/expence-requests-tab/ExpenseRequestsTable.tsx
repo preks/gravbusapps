@@ -50,10 +50,10 @@ import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOp
 import { ExpenseRequestPdfModal, EmployeeSearchFilter, AmountFilter, ExpenseRequestsDataTable } from './components'
 import { useTableSetup } from '../../../common/hooks/useTableSetup'
 import {
-  BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS,
   createBackofficeExpenseRequestColumns,
   type BackofficeExpenseRequestTableChrome
 } from './backofficeExpenseRequestColumns'
+import { BACKOFFICE_EXPENSE_REQUEST_DATA_COLUMN_IDS } from './config/backofficeExpenseRequestSortableColumns'
 import {
   expenseRequestColumnIdToSortField,
   expenseRequestSortFieldToColumnId
@@ -446,7 +446,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const allRequestColumns = useMemo(() => createBackofficeExpenseRequestColumns(t, tableChrome), [t, tableChrome])
 
-  const visibleRequestColumnIds = useMemo(() => [...BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS], [])
+  const visibleRequestColumnIds = useMemo(
+    () => ['select', 'actions', ...BACKOFFICE_EXPENSE_REQUEST_DATA_COLUMN_IDS],
+    []
+  )
 
   const {
     columns: requestTableColumns,
