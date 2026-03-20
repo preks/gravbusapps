@@ -45,7 +45,6 @@ not_available = k. A.
 present = Heute
 current = Aktuell
 employee = Mitarbeiter
-type_to_search_employee = Tippen Sie, um nach einem Mitarbeiter zu suchen
 start = Start
 end = Ende
 start_condition = Startzustand

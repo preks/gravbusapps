@@ -236,7 +236,9 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                   </button>
                 ))
               } else {
-                filterContent = (
+                const suppressBackendEmpty = typeof group.backendSearch === 'function' && !group.emptyMessage
+
+                filterContent = suppressBackendEmpty ? null : (
                   <div
                     className="gba:p-2 gba:text-gray-400 gba:text-sm"
                     data-testid={`data-filter-group-empty-${group.id}`}

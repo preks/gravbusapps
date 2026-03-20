@@ -45,7 +45,6 @@ not_available = N/A
 present = Prezent
 current = Curent
 employee = Angajat
-type_to_search_employee = Tastează pentru a căuta un angajat
 start = Început
 end = Sfârșit
 start_condition = Stare la început
