@@ -63,7 +63,7 @@ export function AbsenceEntitlementSettingsSection({
   onAddDetail,
   onRemoveDetail,
   onDetailChange
-}: AbsenceEntitlementSettingsSectionProps) {
+}: Readonly<AbsenceEntitlementSettingsSectionProps>) {
   const { t } = useTranslation(translations)
   const [newDetailSettings, setNewDetailSettings] = useState<AbsenceEntitlementDetailSettings>(
     defaultAbsenceEntitlementDetailSettings
@@ -165,20 +165,28 @@ export function AbsenceEntitlementSettingsSection({
     { value: 'HR', label: 'on approval by HR' }
   ]
 
+  const getCarryoverLimitSummary = (detailSettings: AbsenceEntitlementDetailSettings): string => {
+    if (detailSettings.max_carryover_percent) {
+      return `max ${detailSettings.max_carryover_percent}%`
+    }
+
+    if (detailSettings.max_carryover_amount) {
+      return `max ${detailSettings.max_carryover_amount} ${getOptionLabel(
+        withCurrentOption(validationAmountUnitOptions, detailSettings.validation_amount_unit),
+        detailSettings.validation_amount_unit
+      ).toLowerCase()}`
+    }
+
+    return 'no limit'
+  }
+
   const getCarryoverSummary = (detailSettings: AbsenceEntitlementDetailSettings) =>
     [
       `Carry over ${getOptionLabel(
         withCurrentOption(carryoverApprovalOptions, detailSettings.carryover_approval),
         detailSettings.carryover_approval
       ).toLowerCase()}`,
-      detailSettings.max_carryover_percent
-        ? `max ${detailSettings.max_carryover_percent}%`
-        : detailSettings.max_carryover_amount
-          ? `max ${detailSettings.max_carryover_amount} ${getOptionLabel(
-              withCurrentOption(validationAmountUnitOptions, detailSettings.validation_amount_unit),
-              detailSettings.validation_amount_unit
-            ).toLowerCase()}`
-          : 'no limit',
+      getCarryoverLimitSummary(detailSettings),
       `prolong: ${getOptionLabel(
         withCurrentOption(prolongApprovalOptions, detailSettings.prolong_approval),
         detailSettings.prolong_approval
@@ -186,8 +194,8 @@ export function AbsenceEntitlementSettingsSection({
     ].join(', ')
 
   useEffect(() => {
-    const detailIds = detailEntries.map(detailEntry => detailEntry.id)
-    setExpandedDetailIds(currentExpandedIds => currentExpandedIds.filter(detailId => detailIds.includes(detailId)))
+    const detailIds = new Set(detailEntries.map(detailEntry => detailEntry.id))
+    setExpandedDetailIds(currentExpandedIds => currentExpandedIds.filter(detailId => detailIds.has(detailId)))
   }, [detailEntries])
 
   const normalizeDateInputValue = (value: string): string => {
@@ -215,10 +223,14 @@ export function AbsenceEntitlementSettingsSection({
     )
   }
 
-  const usedAbsenceTypeRefs = detailEntries.map(detailEntry => detailEntry.settings.absence_type_ref).filter(Boolean)
+  const usedAbsenceTypeRefs = new Set(
+    detailEntries
+      .map(detailEntry => detailEntry.settings.absence_type_ref)
+      .filter((absenceTypeRef): absenceTypeRef is string => Boolean(absenceTypeRef))
+  )
 
   const addDetailOptions = withCurrentOption(
-    absenceTypeOptions.filter(option => !usedAbsenceTypeRefs.includes(option.value)),
+    absenceTypeOptions.filter(option => !usedAbsenceTypeRefs.has(option.value)),
     newDetailSettings.absence_type_ref
   )
 

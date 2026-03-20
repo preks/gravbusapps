@@ -37,7 +37,7 @@ const useAbsenceGroups = (accessToken: string) => {
         }
 
         const response = await client.getCatalogEntriesList(pathParams, queryParams)
-        setGroups((response?.data as AbsenceGroup[]) || [])
+        setGroups(response?.data || [])
       } catch (err) {
         const resolvedError = err instanceof Error ? err : new Error('Failed to fetch absence groups')
         console.error('[useAbsenceGroups] Failed to fetch absence groups:', resolvedError.message)

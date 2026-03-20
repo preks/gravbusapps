@@ -21,6 +21,16 @@ interface AbsenceTypeSettingsSectionProps {
   onFieldChange: <K extends keyof AbsenceTypeObjectSettings>(field: K, value: AbsenceTypeObjectSettings[K]) => void
 }
 
+type BooleanFieldKey =
+  | 'display'
+  | 'enableReason'
+  | 'enableApproval'
+  | 'enableHalfDays'
+  | 'enableRelative'
+  | 'checkEntitlement'
+  | 'enableSubstitute'
+  | 'enableAttachement'
+
 const measurementLabelKeys = {
   WorkingDays: 'measurement-working-days',
   CalendarDays: 'measurement-calendar-days',
@@ -34,7 +44,7 @@ const accessByLabelKeys = {
   HR: 'access-by-hr'
 } as const
 
-const booleanFieldLabelKeys = {
+const booleanFieldLabelKeys: Record<BooleanFieldKey, string> = {
   display: 'toggle-display',
   enableReason: 'toggle-enable-reason',
   enableApproval: 'toggle-enable-approval',
@@ -43,7 +53,18 @@ const booleanFieldLabelKeys = {
   checkEntitlement: 'toggle-check-entitlement',
   enableSubstitute: 'toggle-substitute',
   enableAttachement: 'toggle-attachment'
-} as const
+}
+
+const booleanFieldKeys: BooleanFieldKey[] = [
+  'display',
+  'enableReason',
+  'enableApproval',
+  'enableHalfDays',
+  'enableRelative',
+  'checkEntitlement',
+  'enableSubstitute',
+  'enableAttachement'
+]
 
 const toggleAccessBy =
   (
@@ -56,7 +77,7 @@ const toggleAccessBy =
     onFieldChange('accessBy', nextValue)
   }
 
-export function AbsenceTypeSettingsSection({ settings, onFieldChange }: AbsenceTypeSettingsSectionProps) {
+export function AbsenceTypeSettingsSection({ settings, onFieldChange }: Readonly<AbsenceTypeSettingsSectionProps>) {
   const { t } = useTranslation(translations)
 
   const measurementOptions = Object.entries(measurementLabelKeys).map(([value, labelKey]) => ({
@@ -136,16 +157,14 @@ export function AbsenceTypeSettingsSection({ settings, onFieldChange }: AbsenceT
         </div>
 
         <div className="gba:grid gba:gap-2 gba:sm:grid-cols-2 gba:lg:grid-cols-4 gba:rounded-xl gba:border gba:border-border gba:bg-background gba:p-3">
-          {Object.entries(booleanFieldLabelKeys).map(([field, labelKey]) => (
+          {booleanFieldKeys.map(field => (
             <label key={field} className="gba:flex gba:items-center gba:gap-2">
               <Checkbox
-                checked={settings[field as keyof typeof booleanFieldLabelKeys] as boolean}
-                onCheckedChange={checked =>
-                  onFieldChange(field as keyof AbsenceTypeObjectSettings, Boolean(checked) as never)
-                }
+                checked={settings[field]}
+                onCheckedChange={checked => onFieldChange(field, Boolean(checked))}
                 data-testid={`absence-type-${field}-checkbox`}
               />
-              <span>{t(labelKey)}</span>
+              <span>{t(booleanFieldLabelKeys[field])}</span>
             </label>
           ))}
         </div>

@@ -114,8 +114,8 @@ export const AbsencePolicyModal: React.FC<AbsencePolicyModalProps> = ({
   const isSaveDisabled = isSaving || !code.trim() || !name.trim()
 
   useEffect(() => {
-    const detailIds = details.map(detail => detail.id)
-    setExpandedDetailIds(currentExpandedIds => currentExpandedIds.filter(detailId => detailIds.includes(detailId)))
+    const detailIds = new Set(details.map(detail => detail.id))
+    setExpandedDetailIds(currentExpandedIds => currentExpandedIds.filter(detailId => detailIds.has(detailId)))
   }, [details])
 
   const getNextDetailId = () => details.reduce((maxId, detail) => Math.max(maxId, detail.id), 0) + 1
@@ -199,9 +199,13 @@ export const AbsencePolicyModal: React.FC<AbsencePolicyModalProps> = ({
     )
   }
 
-  const usedAbsenceTypeRefs = details.map(detail => detail.settings.absence_type_ref).filter(Boolean)
+  const usedAbsenceTypeRefs = new Set(
+    details
+      .map(detail => detail.settings.absence_type_ref)
+      .filter((absenceTypeRef): absenceTypeRef is string => Boolean(absenceTypeRef))
+  )
 
-  const addDetailAbsenceTypeOptions = absenceTypeOptions.filter(option => !usedAbsenceTypeRefs.includes(option.value))
+  const addDetailAbsenceTypeOptions = absenceTypeOptions.filter(option => !usedAbsenceTypeRefs.has(option.value))
 
   const isDraftReady =
     draftDetail.policy_rule_type === 'GENERAL_POLICY' ||

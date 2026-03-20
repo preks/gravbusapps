@@ -14,44 +14,54 @@ import { buildAbsenceSetupSectionCards, type AbsenceSetupSectionCardConfig } fro
 type GenericCatalogKey = 'AbsenceGroup' | 'AbsencePolicy' | 'AbsenceReason'
 type TranslateFn = (key: string, values?: Record<string, string>) => string
 
-const getErrorDetail = (error: unknown, fallback: string): string => {
-  const tryResolve = (value: unknown): string | null => {
-    if (!value || typeof value !== 'object') {
-      return null
-    }
+interface ErrorListItem {
+  detail?: unknown
+  message?: unknown
+  title?: unknown
+}
 
-    const payload = value as {
-      message?: unknown
-      error?: unknown
-      detail?: unknown
-      details?: unknown
-      responseData?: {
-        message?: unknown
-        error?: unknown
-        detail?: unknown
-        details?: unknown
-        errors?: Array<{ detail?: unknown; message?: unknown; title?: unknown }>
-      }
-      errors?: Array<{ detail?: unknown; message?: unknown; title?: unknown }>
-    }
+interface ErrorPayload {
+  message?: unknown
+  error?: unknown
+  detail?: unknown
+  details?: unknown
+  responseData?: {
+    message?: unknown
+    error?: unknown
+    detail?: unknown
+    details?: unknown
+    errors?: ErrorListItem[]
+  }
+  errors?: ErrorListItem[]
+}
 
-    const responseErrors = payload.responseData?.errors
-    if (Array.isArray(responseErrors) && responseErrors.length > 0) {
-      const firstError = responseErrors[0]
-      if (typeof firstError.detail === 'string' && firstError.detail.trim()) return firstError.detail
-      if (typeof firstError.message === 'string' && firstError.message.trim()) return firstError.message
-      if (typeof firstError.title === 'string' && firstError.title.trim()) return firstError.title
-    }
+const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object'
 
-    const directErrors = payload.errors
-    if (Array.isArray(directErrors) && directErrors.length > 0) {
-      const firstError = directErrors[0]
-      if (typeof firstError.detail === 'string' && firstError.detail.trim()) return firstError.detail
-      if (typeof firstError.message === 'string' && firstError.message.trim()) return firstError.message
-      if (typeof firstError.title === 'string' && firstError.title.trim()) return firstError.title
+const getFirstNonEmptyString = (...values: unknown[]): string | null => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value
     }
+  }
 
-    const candidates = [
+  return null
+}
+
+const getListErrorDetail = (errors?: ErrorListItem[]): string | null => {
+  const firstError = errors?.[0]
+
+  return getFirstNonEmptyString(firstError?.detail, firstError?.message, firstError?.title)
+}
+
+const getPayloadErrorDetail = (payload: ErrorPayload | null): string | null => {
+  if (!payload) {
+    return null
+  }
+
+  return (
+    getListErrorDetail(payload.responseData?.errors) ||
+    getListErrorDetail(payload.errors) ||
+    getFirstNonEmptyString(
       payload.responseData?.detail,
       payload.responseData?.details,
       payload.responseData?.message,
@@ -60,29 +70,22 @@ const getErrorDetail = (error: unknown, fallback: string): string => {
       payload.details,
       payload.message,
       payload.error
-    ]
+    )
+  )
+}
 
-    for (const candidate of candidates) {
-      if (typeof candidate === 'string' && candidate.trim()) {
-        return candidate
-      }
-    }
-
-    return null
+const getErrorDetail = (error: unknown, fallback: string): string => {
+  const payload = isRecord(error) ? (error as ErrorPayload) : null
+  const resolved = getPayloadErrorDetail(payload)
+  if (resolved) {
+    return resolved
   }
 
-  if (error instanceof Error) {
-    const resolved = tryResolve(error)
-    if (resolved) {
-      return resolved
-    }
-
-    if (error.message.trim()) {
-      return error.message
-    }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message
   }
 
-  return tryResolve(error) || fallback
+  return fallback
 }
 
 const upsertEnglishTranslation = (

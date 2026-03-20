@@ -6,6 +6,7 @@ import type { SetupSectionItem } from './absenceSetup'
 import type { GenericCatalogConfig } from '../hooks/useAbsenceSetupCatalogData'
 
 type TranslateFn = (key: string, values?: Record<string, string>) => string
+type GenericCatalogKey = 'AbsenceGroup' | 'AbsencePolicy' | 'AbsenceReason'
 
 export interface AbsenceSetupSectionCardConfig {
   icon: LucideIcon
@@ -36,7 +37,7 @@ interface BuildAbsenceSetupSectionCardsArgs {
   entitlements: CatalogEntry[]
   entitlementLoading: boolean
   entitlementError?: string
-  genericCatalogConfigs: Record<'AbsenceGroup' | 'AbsencePolicy' | 'AbsenceReason', GenericCatalogConfig>
+  genericCatalogConfigs: Record<GenericCatalogKey, GenericCatalogConfig>
   onAddAbsenceType: () => void
   onEditAbsenceType: (entry: AbsenceType) => void
   onDeleteAbsenceType: (entry: AbsenceType) => void
@@ -46,9 +47,9 @@ interface BuildAbsenceSetupSectionCardsArgs {
   onAddEntitlement: () => void
   onEditEntitlement: (entry: CatalogEntry) => void
   onDeleteEntitlement: (entry: CatalogEntry) => void
-  onAddGenericCatalog: (catalogKey: 'AbsenceGroup' | 'AbsencePolicy' | 'AbsenceReason') => void
-  onEditGenericCatalog: (catalogKey: 'AbsenceGroup' | 'AbsencePolicy' | 'AbsenceReason', entry: CatalogEntry) => void
-  onDeleteGenericCatalog: (catalogKey: 'AbsenceGroup' | 'AbsencePolicy' | 'AbsenceReason', entry: CatalogEntry) => void
+  onAddGenericCatalog: (catalogKey: GenericCatalogKey) => void
+  onEditGenericCatalog: (catalogKey: GenericCatalogKey, entry: CatalogEntry) => void
+  onDeleteGenericCatalog: (catalogKey: GenericCatalogKey, entry: CatalogEntry) => void
 }
 
 export const buildAbsenceSetupSectionCards = ({

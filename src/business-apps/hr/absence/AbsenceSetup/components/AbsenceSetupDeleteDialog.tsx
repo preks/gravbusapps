@@ -29,10 +29,10 @@ export function AbsenceSetupDeleteDialog({
   errorMessage,
   onCancel,
   onConfirm
-}: AbsenceSetupDeleteDialogProps) {
+}: Readonly<AbsenceSetupDeleteDialogProps>) {
   const { t } = useTranslation(translations)
-  void blockedReason
-  const messageToShow = errorMessage || ''
+  const messageToShow = blockedReason || errorMessage || ''
+  const isConfirmDisabled = isDeleting || Boolean(blockedReason)
 
   return (
     <Dialog open={open} onOpenChange={nextOpen => !nextOpen && onCancel()}>
@@ -54,7 +54,7 @@ export function AbsenceSetupDeleteDialog({
             type="button"
             variant="default"
             onClick={onConfirm}
-            disabled={isDeleting}
+            disabled={isConfirmDisabled}
             data-testid="absence-setup-delete-confirm"
           >
             {isDeleting ? t('saving-button') : t('delete-button')}

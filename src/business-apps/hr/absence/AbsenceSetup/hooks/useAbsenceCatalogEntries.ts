@@ -17,6 +17,18 @@ export interface AbsenceCatalogEntryPayload {
 
 const CATALOG_VERSION = 'v1'
 
+const assignIfDefined = <K extends keyof Partial<Omit<CatalogEntry, 'id' | 'type'>>>(
+  target: Partial<Omit<CatalogEntry, 'id' | 'type'>>,
+  key: K,
+  value: Partial<Omit<CatalogEntry, 'id' | 'type'>>[K]
+) => {
+  if (value === undefined) {
+    return
+  }
+
+  target[key] = value
+}
+
 export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier: string) => {
   const client = useCatalogManagerClient(accessToken)
   const [entries, setEntries] = useState<CatalogEntry[]>([])
@@ -35,7 +47,7 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
       }
 
       const response = await client.getCatalogEntriesList(pathParams, queryParams)
-      return (response?.data || []) as CatalogEntry[]
+      return response?.data || []
     },
     [catalogIdentifier, client]
   )
@@ -89,8 +101,8 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
         translations: entry.translations || []
       })
 
-      setEntries(prev => [...prev, createdEntry as CatalogEntry])
-      return createdEntry as CatalogEntry
+      setEntries(prev => [...prev, createdEntry])
+      return createdEntry
     },
     [catalogIdentifier, client]
   )
@@ -101,19 +113,18 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
         throw new Error('Catalog manager client not available')
       }
 
-      const updatedEntry = await client.updateCatalogEntry(catalogIdentifier, CATALOG_VERSION, entryId, {
-        ...(updates.id !== undefined ? { id: updates.id } : {}),
-        ...(updates.code !== undefined ? { code: updates.code } : {}),
-        ...(updates.value !== undefined ? { value: updates.value } : {}),
-        ...(updates.type !== undefined ? { type: updates.type } : {}),
-        ...(updates.parentEntryId !== undefined ? { parentEntryId: updates.parentEntryId } : {}),
-        ...(updates.objectValue !== undefined ? { objectValue: updates.objectValue } : {}),
-        ...(updates.localeCode !== undefined ? { localeCode: updates.localeCode } : {}),
-        ...(updates.translations !== undefined ? { translations: updates.translations } : {})
-      })
+      const updatePayload: Partial<Omit<CatalogEntry, 'id' | 'type'>> = {}
+      assignIfDefined(updatePayload, 'code', updates.code)
+      assignIfDefined(updatePayload, 'value', updates.value)
+      assignIfDefined(updatePayload, 'parentEntryId', updates.parentEntryId)
+      assignIfDefined(updatePayload, 'objectValue', updates.objectValue)
+      assignIfDefined(updatePayload, 'localeCode', updates.localeCode)
+      assignIfDefined(updatePayload, 'translations', updates.translations)
 
-      setEntries(prev => prev.map(item => (item.id === entryId ? (updatedEntry as CatalogEntry) : item)))
-      return updatedEntry as CatalogEntry
+      const updatedEntry = await client.updateCatalogEntry(catalogIdentifier, CATALOG_VERSION, entryId, updatePayload)
+
+      setEntries(prev => prev.map(item => (item.id === entryId ? updatedEntry : item)))
+      return updatedEntry
     },
     [catalogIdentifier, client]
   )

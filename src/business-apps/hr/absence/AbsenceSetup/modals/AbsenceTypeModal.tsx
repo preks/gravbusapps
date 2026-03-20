@@ -41,7 +41,7 @@ const emptyFormState = {
   parentEntryId: ''
 }
 
-export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }: AbsenceTypeModalProps) {
+export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }: Readonly<AbsenceTypeModalProps>) {
   const { t } = useTranslation(translations)
   const [formValues, setFormValues] = useState(emptyFormState)
   const [isSaving, setIsSaving] = useState(false)

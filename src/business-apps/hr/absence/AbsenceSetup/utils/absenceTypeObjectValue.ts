@@ -102,6 +102,12 @@ export const getAbsenceTypeObjectEditorState = (
     enableAttachement,
     ...extraObjectValue
   } = objectValue
+  const resolvedPriority =
+    typeof priority === 'number'
+      ? String(priority)
+      : typeof priority === 'string'
+        ? priority
+        : defaultAbsenceTypeObjectSettings.priority
 
   return {
     settings: {
@@ -111,12 +117,7 @@ export const getAbsenceTypeObjectEditorState = (
       accessBy: Array.isArray(accessBy)
         ? accessBy.map(normalizeAccessByOption).filter((value): value is AbsenceTypeAccessByOption => Boolean(value))
         : defaultAbsenceTypeObjectSettings.accessBy,
-      priority:
-        typeof priority === 'number'
-          ? String(priority)
-          : typeof priority === 'string'
-            ? priority
-            : defaultAbsenceTypeObjectSettings.priority,
+      priority: resolvedPriority,
       measurement: normalizeMeasurementOption(measurement) || defaultAbsenceTypeObjectSettings.measurement,
       enableReason: typeof enableReason === 'boolean' ? enableReason : defaultAbsenceTypeObjectSettings.enableReason,
       enableApproval:
