@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
@@ -107,6 +107,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const abortControllerRef = useRef<AbortController | null>(null)
   const pageCacheRef = useRef<Map<string, { items: AdvancePayment[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
+  const itemsRef = useRef<AdvancePayment[]>([]) // For checking existing data (avoid loading flash on sort/pagination, same as items table)
 
   const generateCacheKey = useCallback(
     (params: {
@@ -192,20 +193,33 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     return true
   }
 
-  // Helper function to build sort order
+  // Helper function to build sort order (maps UI column ids to AdvancePaymentOrderBy field names)
   const buildOrderBy = (sortField?: SortField, sortOrder?: SortOrder): any[] => {
     if (sortField && sortOrder) {
+      const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
+      // expensePlan is a relation; AdvancePaymentOrderBy expects ExpensePlanOrderBy object, not a string
+      if (sortField === 'expensePlan') {
+        return [{ expensePlan: { title: direction } }]
+      }
+      // Plan Number column shows expensePlan.code, so sort by nested relation
+      if (sortField === 'planNumber') {
+        return [{ expensePlan: { code: direction } }]
+      }
+      // Amount column shows expensePlan.totalAmount (plan total), so sort by nested relation
+      if (sortField === 'amount') {
+        return [{ expensePlan: { totalAmount: direction } }]
+      }
       const fieldMap: Record<string, string> = {
         status: 'status',
-        amount: 'amount',
+        advance: 'amount', // Advance column = AdvancePayment.amount
         paymentMethod: 'paymentMethod',
         createdAt: 'createdAt',
         updatedAt: 'updatedAt',
         description: 'description',
-        currencyRef: 'currencyRef'
+        currencyRef: 'currencyRef',
+        code: 'code'
       }
       const gqlField = fieldMap[sortField] || sortField
-      const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
       return [{ [gqlField]: direction }]
     }
     return [{ createdAt: 'DESC_NULLS_LAST' }]
@@ -319,6 +333,38 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     setItems(fetchedItems)
   }
 
+  const performRequest = useCallback(
+    async (
+      controller: AbortController,
+      requestKey: string,
+      cacheKey: string,
+      query: string,
+      variables: GraphQLVariables
+    ): Promise<void> => {
+      const baseRequestPromise = graphqlClient.request<any>(query, variables)
+      const requestPromise = makeCancellableRequest(baseRequestPromise, controller).finally(() => {
+        inflightRef.current.delete(requestKey)
+      })
+      inflightRef.current.set(requestKey, requestPromise)
+      try {
+        const result = await requestPromise
+        if (abortControllerRef.current !== controller) return
+        processResponseData(result, cacheKey)
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
+        if (abortControllerRef.current !== controller) return
+        setError(err instanceof Error ? err : new Error(String(err)))
+        setItems([])
+        setTotalCount(0)
+      } finally {
+        if (abortControllerRef.current === controller) {
+          setIsLoading(false)
+        }
+      }
+    },
+    [graphqlClient, processResponseData]
+  )
+
   const fetchItems = useCallback(
     async (options: FetchItemsOptions = {}) => {
       const {
@@ -386,75 +432,48 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         return
       }
 
-      setIsLoading(true)
+      if (itemsRef.current.length === 0) {
+        setIsLoading(true)
+      }
       setError(null)
 
-      try {
-        const filters: AdvancePaymentFilters = {
-          statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
-          amountRange: amountRange || undefined,
-          advanceRange: advanceRange || undefined,
-          currencyRef: currencyRef || undefined
-        }
-
-        const filterState = validateFilters(filters)
-        const query = buildAdvancePaymentsListQuery(filters, { includeSearch })
-        const variables = buildVariables({
-          employeeId,
-          searchTerm,
-          includeSearch,
-          page,
-          pageSize,
-          sortField: sortField || null,
-          sortOrder: sortOrder || null,
-          filters,
-          filterState
-        })
-
-        const baseRequestPromise = graphqlClient.request<any>(query, variables)
-        const requestPromise = makeCancellableRequest(baseRequestPromise, controller).finally(() => {
-          inflightRef.current.delete(requestKey)
-        })
-
-        inflightRef.current.set(requestKey, requestPromise)
-        const result = await requestPromise
-
-        // If a newer request started, ignore this response.
-        if (abortControllerRef.current !== controller) {
-          return
-        }
-
-        processResponseData(result, cacheKey)
-      } catch (err) {
-        // Ignore errors from cancelled/stale requests
-        if (err instanceof Error && err.name === 'AbortError') {
-          return
-        }
-        if (abortControllerRef.current !== controller) {
-          return
-        }
-        setError(err instanceof Error ? err : new Error(String(err)))
-        setItems([])
-        setTotalCount(0)
-      } finally {
-        if (abortControllerRef.current === controller) {
-          setIsLoading(false)
-        }
+      const filters: AdvancePaymentFilters = {
+        statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
+        amountRange: amountRange || undefined,
+        advanceRange: advanceRange || undefined,
+        currencyRef: currencyRef || undefined
       }
+      const filterState = validateFilters(filters)
+      const query = buildAdvancePaymentsListQuery(filters, { includeSearch })
+      const variables = buildVariables({
+        employeeId,
+        searchTerm,
+        includeSearch,
+        page,
+        pageSize,
+        sortField: sortField || null,
+        sortOrder: sortOrder || null,
+        filters,
+        filterState
+      })
+      await performRequest(controller, requestKey, cacheKey, query, variables)
     },
     [
       context?.userInfo?.employeeDetails?.employeeId,
       context?.accessToken,
-      graphqlClient,
       generateCacheKey,
       validateAndGetValues,
       handleCachedData,
       checkCallSignature,
       handleInflightRequest,
       buildVariables,
-      processResponseData
+      performRequest
     ]
   )
+
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
 
   const invalidateAllCache = useCallback(() => {
     pageCacheRef.current.clear()

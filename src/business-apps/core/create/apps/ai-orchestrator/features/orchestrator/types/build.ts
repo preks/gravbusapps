@@ -66,6 +66,7 @@ export interface BuildPlan {
   createdAt: string
   status: BuildStatus
   appMetadata?: AppMetadata
+  currentPhase?: string
   /** Orchestrator session context persisted by backend (optional for older plans). */
   sessionId?: string
   repoId?: string

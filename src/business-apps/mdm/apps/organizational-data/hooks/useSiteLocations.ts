@@ -1,23 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
-import {
-  SiteLocationData,
-  SiteLocation,
-  PaginatedSiteLocations,
-  SiteLocationCountry,
-  SiteLocationRegion
-} from '../types'
+import { SiteLocationData, SiteLocation, SiteLocationCountry, SiteLocationRegion } from '../types'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 // Cache for resolved countries and regions to avoid duplicate API calls
 interface CountryRegionCache {
   countries: Map<string, SiteLocationCountry>
   regions: Map<string, SiteLocationRegion[]>
 }
-
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 export const useSiteLocations = (context: BusinessAppContextProps, initialPageSize: number = 10) => {
   const [siteLocations, setSiteLocations] = useState<SiteLocation[]>([])
@@ -26,7 +18,7 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
   const [pageSize, setPageSize] = useState<number>(initialPageSize)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const structureId = useRef<string>(context.additionalData?.structureId || 'active')
+  const structureId = useRef<string>(getCurrentActiveStructureId() ?? '')
 
   // Cache for countries and regions to avoid duplicate API calls
   const cache = useRef<CountryRegionCache>({
@@ -34,7 +26,7 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
     regions: new Map()
   })
 
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
   const catalogClient = useCatalogManagerClient(context.accessToken)
 
   // Helper function to extract country code from country_ref
@@ -123,25 +115,30 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
           throw new Error('Structure ID is required to fetch site locations')
         }
 
-        const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
-          params: {
+        const getStructureResponse = await orgchartClient.getStructure(
+          structureId.current,
+          {
             nodeType: 'cost_center'
           },
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`
+          {
+            headers: {
+              Authorization: `Bearer ${context.accessToken}`
+            }
           }
-        })
+        )
         structureId.current = getStructureResponse.structure.structureId
 
-        const response = await restClient.get<PaginatedSiteLocations>('/site-locations', {
-          params: {
+        const response = await orgchartClient.getSiteLocations(
+          {
             structureId: structureId.current,
             offset
           },
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`
+          {
+            headers: {
+              Authorization: `Bearer ${context.accessToken}`
+            }
           }
-        })
+        )
 
         // Handle both the new paginated format and the old format for backward compatibility
         if (response.data && response.paging) {
@@ -158,7 +155,7 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
         throw new Error('Failed to fetch site locations from orgchart API')
       }
     },
-    [context.accessToken, restClient]
+    [context.accessToken, orgchartClient]
   )
 
   const fetchCountriesAndRegions = useCallback(async (): Promise<SiteLocationCountry[]> => {

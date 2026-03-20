@@ -7,7 +7,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceEvaluationFormProps> = ({
   initialValues,
   onSubmit = async () => {},
-  onCancel = async () => {},
   preSelectedEmployeeId,
   preSelectedUserId,
   accessToken,
@@ -40,7 +39,6 @@ const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceE
       businessAppContext={businessAppContext}
       initialValues={initialValues}
       onSubmit={onSubmit}
-      onCancel={onCancel}
       preSelectedEmployeeId={preSelectedEmployeeId}
       preSelectedUserId={effectivePreSelectedUserId}
     >

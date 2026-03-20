@@ -3,34 +3,47 @@ import { Handle, Position } from '@xyflow/react'
 import { Badge } from '@newwork/nw-design-system'
 import { CheckCircle, BarChart3 } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'
+import { NODE_META_BADGE_STANDARD_CLASS } from './nodeBadgeStyles'
 import type { StepStatus } from '../types/viewerTypes'
 
 interface EndNodeData {
+  label?: string
+  title?: string
+  description?: string
   summaryFieldsCount?: number
   isSelected?: boolean
   status?: StepStatus
+  isOnActivePath?: boolean
   onSelect?: () => void
   testId?: string
 }
 
-function getBorderClass(status?: StepStatus, isSelected?: boolean, hasFields?: boolean): string {
+function getBorderClass(
+  status?: StepStatus,
+  isSelected?: boolean,
+  hasFields?: boolean,
+  isOnActivePath?: boolean
+): string {
   if (isSelected) return 'gba:border-primary'
+  if (isOnActivePath) return 'gba:border-info'
   if (status === 'completed') return 'gba:border-success'
-  if (status === 'active') return 'gba:border-primary'
+  if (status === 'active') return 'gba:border-info'
   if (hasFields) return 'gba:border-success/60'
   return 'gba:border-border'
 }
 
 function getBgClass(status?: StepStatus, isSelected?: boolean, hasFields?: boolean): string {
-  if (isSelected) return 'gba:bg-accent'
-  if (status === 'completed') return 'gba:bg-success-secondary'
-  if (hasFields) return 'gba:bg-success-secondary'
+  if (isSelected) return 'gba:bg-card'
+  if (status === 'completed') return 'gba:bg-card'
+  if (hasFields) return 'gba:bg-card'
   return 'gba:bg-card'
 }
 
 export const EndNode: React.FC<{ data: EndNodeData }> = ({ data }) => {
+  const hasSummaryFields = typeof data.summaryFieldsCount === 'number'
   const hasFields = (data.summaryFieldsCount ?? 0) > 0
-  const borderClass = getBorderClass(data.status, data.isSelected, hasFields)
+  const title = data.title ?? data.label ?? 'Summary'
+  const borderClass = getBorderClass(data.status, data.isSelected, hasFields, data.isOnActivePath)
   const bgClass = getBgClass(data.status, data.isSelected, hasFields)
 
   return (
@@ -68,15 +81,23 @@ export const EndNode: React.FC<{ data: EndNodeData }> = ({ data }) => {
       <div
         className={`gba:font-semibold gba:text-sm ${hasFields ? 'gba:text-foreground' : 'gba:text-muted-foreground'}`}
       >
-        Summary
+        {title}
       </div>
 
-      {hasFields ? (
-        <Badge variant="outline" className="gba:text-xs gba:bg-success/10 gba:text-success gba:border-success/30">
-          {data.summaryFieldsCount} {data.summaryFieldsCount === 1 ? 'field' : 'fields'}
-        </Badge>
+      {hasSummaryFields ? (
+        hasFields ? (
+          <Badge variant="outline" className={NODE_META_BADGE_STANDARD_CLASS}>
+            {data.summaryFieldsCount} {data.summaryFieldsCount === 1 ? 'field' : 'fields'}
+          </Badge>
+        ) : (
+          <span className="gba:text-muted-foreground gba:text-xs gba:italic">No fields</span>
+        )
+      ) : data.description ? (
+        <span className="gba:text-muted-foreground gba:text-xs gba:text-center gba:px-3 gba:line-clamp-2">
+          {data.description}
+        </span>
       ) : (
-        <span className="gba:text-muted-foreground gba:text-xs gba:italic">No fields</span>
+        <span className="gba:text-muted-foreground gba:text-xs gba:italic">End</span>
       )}
     </button>
   )

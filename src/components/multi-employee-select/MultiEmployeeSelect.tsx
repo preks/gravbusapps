@@ -1,33 +1,82 @@
 import React from 'react'
-import { Combobox, Avatar, AvatarImage, AvatarFallback, Badge, Button } from '@newwork/nw-design-system'
-import { Building2, Briefcase, X } from 'lucide-react'
+import { Combobox, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Building2, Briefcase } from 'lucide-react'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 
 export interface MultiEmployeeSelectProps {
-  value?: string[] // Array of employee IDs
+  value?: string[]
   onValueChange?: (employeeIds: string[]) => void
   onEmployeesChange?: (employees: EmployeeLiteOption[]) => void
   placeholder?: string
   searchPlaceholder?: string
   className?: string
   ['data-testid']?: string
-
-  // Context
   accessToken?: string
   initialEmployees?: EmployeeLiteOption[]
 }
 
-// Helper function to find employee by ID from multiple sources
-const findEmployeeById = (
-  empId: string,
-  selectedEmployees: EmployeeLiteOption[],
-  initialEmployees: EmployeeLiteOption[],
-  employees: EmployeeLiteOption[]
-): EmployeeLiteOption | undefined => {
-  let employee = selectedEmployees.find(e => e.id === empId)
-  employee ??= initialEmployees.find(e => e.id === empId)
-  employee ??= employees.find(e => e.id === empId)
-  return employee
+function getInitials(emp: EmployeeLiteOption) {
+  return (emp.displayName || '?')
+    .split(' ')
+    .map(p => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
+function employeeToOption(emp: EmployeeLiteOption) {
+  const initials = getInitials(emp)
+  const avatarBlock = (
+    <Avatar className="gba:self-center" size="sm">
+      {emp.pictureThumbnail ? (
+        <AvatarImage src={`data:image/jpeg;base64,${emp.pictureThumbnail}`} alt={emp.displayName} />
+      ) : (
+        <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+      )}
+    </Avatar>
+  )
+  const optionLabel = (
+    <div className="gba:flex gba:items-start gba:gap-3 gba:w-full">
+      {avatarBlock}
+      <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-1">
+        <div className="gba:text-sm gba:font-medium gba:truncate gba:text-left">{emp.displayName}</div>
+        {(emp.organizationalUnitName || emp.jobPositionName) && (
+          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:text-xs gba:text-left">
+            {emp.organizationalUnitName && (
+              <span className="gba:flex gba:items-center gba:gap-1">
+                <Building2 className="gba:w-3 gba:h-3" />
+                {emp.organizationalUnitName}
+              </span>
+            )}
+            {emp.organizationalUnitName && emp.jobPositionName && <span>·</span>}
+            {emp.jobPositionName && (
+              <span className="gba:flex gba:items-center gba:gap-1">
+                <Briefcase className="gba:w-3 gba:h-3" />
+                {emp.jobPositionName}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+  const chipLabel = (
+    <span className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+      <Avatar size="sm" className="gba:h-4 gba:w-4 gba:flex-shrink-0">
+        {emp.pictureThumbnail ? (
+          <AvatarImage src={`data:image/jpeg;base64,${emp.pictureThumbnail}`} alt={emp.displayName} />
+        ) : (
+          <AvatarFallback className="gba:text-[10px]">{initials}</AvatarFallback>
+        )}
+      </Avatar>
+      <span className="gba:truncate">{emp.displayName || emp.id}</span>
+    </span>
+  )
+  return {
+    value: emp.id,
+    label: chipLabel,
+    optionLabel
+  }
 }
 
 const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelectProps>(
@@ -45,177 +94,63 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
     },
     ref
   ) => {
-    const [selectedEmployees, setSelectedEmployees] = React.useState<EmployeeLiteOption[]>(initialEmployees)
-    const initializedRef = React.useRef(false)
-
-    // Use employee search hook
     const { employees, loading, hasMore, search, loadMore } = useEmployeeSearch(accessToken)
+    const initialSearchDoneRef = React.useRef(false)
 
-    // Unified sync effect - makes this a proper controlled component
     React.useEffect(() => {
-      // On first mount, if value is empty but initialEmployees has data, initialize from initialEmployees
-      if (!initializedRef.current && value.length === 0 && initialEmployees.length > 0) {
-        setSelectedEmployees(initialEmployees)
-        initializedRef.current = true
-        return
-      }
+      if (!accessToken || initialSearchDoneRef.current) return
+      initialSearchDoneRef.current = true
+      search('')
+    }, [accessToken, search])
 
-      // After initialization, always sync selectedEmployees with value prop (source of truth)
-      if (initializedRef.current) {
-        // Build employee objects from value IDs
-        const newSelectedEmployees: EmployeeLiteOption[] = []
+    const mergedById = React.useMemo(() => {
+      const map = new Map<string, EmployeeLiteOption>()
+      initialEmployees.forEach(e => map.set(e.id, e))
+      employees.forEach(e => map.set(e.id, e))
+      return map
+    }, [initialEmployees, employees])
 
-        for (const empId of value) {
-          const employee = findEmployeeById(empId, selectedEmployees, initialEmployees, employees)
-          if (employee) {
-            newSelectedEmployees.push(employee)
-          }
-        }
-
-        // Only update if the IDs changed (prevent unnecessary re-renders)
-        const currentIds = selectedEmployees
-          .map(e => e.id)
-          .sort((a, b) => a.localeCompare(b))
-          .join(',')
-        const newIds = newSelectedEmployees
-          .map(e => e.id)
-          .sort((a, b) => a.localeCompare(b))
-          .join(',')
-
-        if (currentIds !== newIds) {
-          setSelectedEmployees(newSelectedEmployees)
-        }
-      } else if (value.length > 0) {
-        // If value has data on first render, mark as initialized
-        initializedRef.current = true
-      }
-    }, [value, initialEmployees, employees, selectedEmployees])
-
-    const handleAdd = React.useCallback(
-      (employeeId: string) => {
-        const employee = employees.find(e => e.id === employeeId)
-        if (employee && !selectedEmployees.some(e => e.id === employeeId)) {
-          const newSelected = [...selectedEmployees, employee]
-          setSelectedEmployees(newSelected)
-          onValueChange?.(newSelected.map(e => e.id))
-          onEmployeesChange?.(newSelected)
-        }
-      },
-      [employees, selectedEmployees, onValueChange, onEmployeesChange]
-    )
-
-    const handleRemove = React.useCallback(
-      (employeeId: string) => {
-        const newSelected = selectedEmployees.filter(e => e.id !== employeeId)
-        setSelectedEmployees(newSelected)
-        onValueChange?.(newSelected.map(e => e.id))
-        onEmployeesChange?.(newSelected)
-      },
-      [selectedEmployees, onValueChange, onEmployeesChange]
-    )
-
-    // Build options for combobox (exclude already selected)
     const options = React.useMemo(() => {
-      return employees
-        .filter(emp => !selectedEmployees.some(s => s.id === emp.id))
-        .map(emp => {
-          const initials = (emp.displayName || '?')
-            .split(' ')
-            .map(p => p[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase()
+      const list = Array.from(mergedById.values()).map(employeeToOption)
+      const valueIds = new Set(value || [])
+      const existingValues = new Set(list.map(o => o.value))
+      valueIds.forEach(id => {
+        if (!existingValues.has(id)) {
+          const stubLabel = <span className="gba:text-muted-foreground">{id}</span>
+          list.push({ value: id, label: stubLabel, optionLabel: stubLabel })
+        }
+      })
+      return list
+    }, [mergedById, value])
 
-          return {
-            value: emp.id,
-            label: (
-              <div className="gba:flex gba:items-start gba:gap-3 gba:w-full">
-                <Avatar className="gba:self-center" size="sm">
-                  {emp.pictureThumbnail ? (
-                    <AvatarImage src={`data:image/jpeg;base64,${emp.pictureThumbnail}`} alt={emp.displayName} />
-                  ) : (
-                    <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
-                  )}
-                </Avatar>
-                <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-1">
-                  <div className="gba:text-sm gba:font-medium gba:truncate gba:text-left">{emp.displayName}</div>
-                  {(emp.organizationalUnitName || emp.jobPositionName) && (
-                    <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:text-xs gba:text-left">
-                      {emp.organizationalUnitName && (
-                        <span className="gba:flex gba:items-center gba:gap-1">
-                          <Building2 className="gba:w-3 gba:h-3" />
-                          {emp.organizationalUnitName}
-                        </span>
-                      )}
-                      {emp.organizationalUnitName && emp.jobPositionName && <span>·</span>}
-                      {emp.jobPositionName && (
-                        <span className="gba:flex gba:items-center gba:gap-1">
-                          <Briefcase className="gba:w-3 gba:h-3" />
-                          {emp.jobPositionName}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          }
-        })
-    }, [employees, selectedEmployees])
+    const handleValueChange = React.useCallback(
+      (ids: string[]) => {
+        onValueChange?.(ids)
+        if (onEmployeesChange) {
+          const resolved = ids
+            .map(id => mergedById.get(id) ?? ({ id, displayName: id } as EmployeeLiteOption))
+            .filter(Boolean)
+          onEmployeesChange(resolved)
+        }
+      },
+      [onValueChange, onEmployeesChange, mergedById]
+    )
 
     return (
-      <div ref={ref} className={`gba:space-y-2 ${className || ''}`} data-testid={dataTestId}>
-        {/* Selected Employees - Display as badges */}
-        {selectedEmployees.length > 0 && (
-          <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid={`${dataTestId}-selected`}>
-            {selectedEmployees.map(employee => {
-              const initials = (employee.displayName || '?')
-                .split(' ')
-                .map(p => p[0])
-                .join('')
-                .slice(0, 2)
-                .toUpperCase()
-
-              return (
-                <Badge
-                  key={employee.id}
-                  variant="secondary"
-                  className="gba:flex gba:items-center gba:gap-1.5 gba:pr-1.5 gba:pl-1 gba:py-0.5 gba:h-7"
-                  data-testid={`${dataTestId}-badge-${employee.id}`}
-                >
-                  <Avatar size="sm" className="gba:h-5 gba:w-5">
-                    {employee.pictureThumbnail ? (
-                      <AvatarImage
-                        src={`data:image/jpeg;base64,${employee.pictureThumbnail}`}
-                        alt={employee.displayName}
-                      />
-                    ) : (
-                      <AvatarFallback className="gba:text-[10px]">{initials}</AvatarFallback>
-                    )}
-                  </Avatar>
-                  <span className="gba:text-xs gba:leading-none">{employee.displayName}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="gba:h-4 gba:w-4 gba:p-0 gba:ml-0.5 gba:rounded-full hover:gba:bg-destructive hover:gba:text-destructive-foreground"
-                    onClick={() => handleRemove(employee.id)}
-                    data-testid={`${dataTestId}-remove-${employee.id}`}
-                  >
-                    <X className="gba:h-2.5 gba:w-2.5" />
-                  </Button>
-                </Badge>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Employee Combobox for adding */}
+      <div
+        ref={ref}
+        className={
+          className
+            ? `gba:min-w-0 gba:w-full gba:max-w-full gba:overflow-hidden ${className}`
+            : 'gba:min-w-0 gba:w-full gba:max-w-full gba:overflow-hidden'
+        }
+        data-testid={dataTestId}
+      >
         <Combobox
-          className="gba:[&&]:h-auto"
-          options={options as any}
-          value=""
-          onValueChange={handleAdd}
+          mode="multiple"
+          value={value ?? []}
+          onValueChange={handleValueChange}
+          options={options}
           placeholder={placeholder}
           searchPlaceholder={searchPlaceholder}
           emptyText={loading ? 'Loading...' : 'No employees found'}
@@ -224,8 +159,10 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
           loading={Boolean(loading)}
           onLoadMore={loadMore}
           hasMore={Boolean(hasMore)}
-          data-testid={`${dataTestId}-combobox`}
           align="start"
+          showClearButton
+          data-testid={`${dataTestId}-combobox`}
+          className="gba:[&&]:h-auto"
         />
       </div>
     )

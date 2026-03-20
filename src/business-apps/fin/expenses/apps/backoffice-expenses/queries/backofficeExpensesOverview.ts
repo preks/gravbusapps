@@ -277,7 +277,6 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_TABLE = `
           status
         }
       }
-      employeeDocument { file name }
     }
 
     ExpensePlansAggregate: ExpensePlanAggregate(

@@ -98,13 +98,7 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
                         className="gba:object-cover"
                       />
                     )}
-                    <AvatarFallback
-                      className={textSizeClasses[size]}
-                      style={{
-                        backgroundColor: `${participant.userColor}20`,
-                        color: participant.userColor
-                      }}
-                    >
+                    <AvatarFallback className={`${textSizeClasses[size]} gba:bg-muted gba:text-muted-foreground`}>
                       {getInitials(participant.userName)}
                     </AvatarFallback>
                   </Avatar>

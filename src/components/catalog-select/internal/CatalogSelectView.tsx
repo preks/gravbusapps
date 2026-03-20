@@ -8,8 +8,17 @@ import { renderCatalogSelectOptionLabel } from './catalogSelectOptionLabel'
 
 type Variant = 'combobox' | 'select'
 
+/** Context from useFormField() when CatalogSelect is used inside FormField; applied to trigger for validation/ARIA. */
+export type FormFieldContextValue = {
+  ref?: React.Ref<unknown>
+  id?: string
+  invalid?: boolean
+  error?: { id?: string }
+}
+
 export type CatalogSelectViewProps = {
   fieldName?: string
+  formFieldContext?: FormFieldContextValue
   isSubmitted?: boolean
   variant?: Variant
   mode?: CatalogSelectProps['mode']
@@ -29,6 +38,7 @@ export type CatalogSelectViewProps = {
 export const CatalogSelectView = React.memo(
   ({
     fieldName,
+    formFieldContext,
     isSubmitted = false,
     variant,
     mode: propMode,
@@ -59,6 +69,15 @@ export const CatalogSelectView = React.memo(
     const wiredDisabled = propDisabled || (controller?.disabled ?? false)
     const wiredControllerValue = controller?.value ?? ''
     const isControlled = value !== undefined
+
+    const triggerFormProps = formFieldContext
+      ? {
+          ref: formFieldContext.ref,
+          id: formFieldContext.id,
+          'aria-invalid': !!formFieldContext.invalid,
+          'aria-describedby': formFieldContext.error?.id
+        }
+      : {}
 
     const effectiveValue = React.useMemo(() => {
       if (value === undefined) {
@@ -113,16 +132,30 @@ export const CatalogSelectView = React.memo(
     }, [controller, effectiveValue, isControlled, mode])
 
     const hasAutoSelectedRef = React.useRef(false)
+    const autoSelectScopeRef = React.useRef<string | null>(null)
+    const currentAutoSelectScope = controller?.filterSignature || 'unfiltered'
+
+    React.useEffect(() => {
+      if (mode !== 'default' || !autoSelectFirst) return
+      if (!effectiveValue && mergedOptions.length === 0) {
+        hasAutoSelectedRef.current = false
+        autoSelectScopeRef.current = null
+      }
+    }, [mode, autoSelectFirst, effectiveValue, mergedOptions.length])
+
     React.useEffect(() => {
       if (
         mode === 'default' &&
         autoSelectFirst &&
         !hasAutoSelectedRef.current &&
+        autoSelectScopeRef.current !== currentAutoSelectScope &&
         !effectiveValue &&
         mergedOptions.length > 0 &&
-        !wiredLoading
+        !wiredLoading &&
+        !wiredDisabled
       ) {
         hasAutoSelectedRef.current = true
+        autoSelectScopeRef.current = currentAutoSelectScope
         const firstOption = mergedOptions[0]
         if (firstOption?.value) {
           const firstValue = String(firstOption.value)
@@ -134,7 +167,18 @@ export const CatalogSelectView = React.memo(
           }
         }
       }
-    }, [mode, autoSelectFirst, effectiveValue, mergedOptions, wiredLoading, controller, isControlled, onValueChange])
+    }, [
+      mode,
+      autoSelectFirst,
+      effectiveValue,
+      mergedOptions,
+      currentAutoSelectScope,
+      wiredLoading,
+      wiredDisabled,
+      controller,
+      isControlled,
+      onValueChange
+    ])
 
     const lastControllerValueRef = React.useRef<string>(wiredControllerValue)
     React.useEffect(() => {
@@ -184,6 +228,17 @@ export const CatalogSelectView = React.memo(
       [mergedOptions]
     )
 
+    const selectedLabelCacheRef = React.useRef<Record<string, string>>({})
+    React.useEffect(() => {
+      if (mergedOptions.length === 0) return
+
+      for (const option of mergedOptions) {
+        const optionValue = String(option.value)
+        const optionLabel = typeof option.label === 'string' ? option.label : String(option.label || option.value)
+        selectedLabelCacheRef.current[optionValue] = optionLabel
+      }
+    }, [mergedOptions])
+
     const selectedLabelsSignature = React.useMemo(() => {
       const selectedValues =
         mode !== 'default'
@@ -200,7 +255,11 @@ export const CatalogSelectView = React.memo(
       )
 
       return selectedValues
-        .map(selectedValue => `${selectedValue}:${labelByValue.get(selectedValue) || selectedValue}`)
+        .map(selectedValue => {
+          const resolvedLabel =
+            labelByValue.get(selectedValue) || selectedLabelCacheRef.current[selectedValue] || selectedValue
+          return `${selectedValue}:${resolvedLabel}`
+        })
         .join('|')
     }, [effectiveValue, mergedOptions, mode])
 
@@ -239,6 +298,7 @@ export const CatalogSelectView = React.memo(
 
     if (wiredVariant === 'combobox') {
       const baseProps = {
+        ...triggerFormProps,
         className:
           'gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:max-w-full gba:[&_button]:min-w-0 gba:[&_button]:overflow-hidden gba:[&_button_span]:truncate',
         options: comboboxOptions,
@@ -349,6 +409,7 @@ export const CatalogSelectView = React.memo(
 
     const selectValue = Array.isArray(effectiveValue) ? effectiveValue[0] || '' : effectiveValue || ''
     const singleOption = mergedOptions.find(option => String(option.value) === String(selectValue))
+    const cachedSingleOptionLabel = selectValue ? selectedLabelCacheRef.current[selectValue] : undefined
 
     return (
       <Select
@@ -358,7 +419,12 @@ export const CatalogSelectView = React.memo(
         disabled={wiredDisabled}
         showClearButton={allowClear}
       >
-        <SelectTrigger className={`gba:w-full gba:max-w-full ${className || ''}`} data-testid={testId} {...props}>
+        <SelectTrigger
+          className={`gba:w-full gba:max-w-full ${className || ''}`}
+          data-testid={testId}
+          {...triggerFormProps}
+          {...props}
+        >
           <SelectValue placeholder="Select..." className="gba:max-w-full gba:overflow-hidden">
             {singleOption?.label
               ? renderCatalogSelectOptionLabel(
@@ -366,7 +432,9 @@ export const CatalogSelectView = React.memo(
                   singleOption.icon,
                   'gba:block'
                 )
-              : 'Select...'}
+              : cachedSingleOptionLabel
+                ? renderCatalogSelectOptionLabel(cachedSingleOptionLabel, undefined, 'gba:block')
+                : 'Select...'}
           </SelectValue>
         </SelectTrigger>
         <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto gba:min-w-0 gba:max-w-[var(--radix-select-trigger-width)]">

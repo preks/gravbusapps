@@ -24,15 +24,18 @@ import {
   Card,
   CardContent,
   Sheet,
-  SheetContent
+  SheetContent,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { ArrowUpIcon, ArrowDownIcon, DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { ArrowUpIcon, ArrowDownIcon, DownloadIcon, FileXlsIcon, InfoIcon } from '@phosphor-icons/react'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../../_i18n'
 import { formatCurrency } from '../../../utils/currencyUtils'
-import { DatePicker, Tooltip } from 'antd'
-import { InfoIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { useFilterData, type OrganizationalUnit, type Currency } from '../../../hooks/useFilterData'
 import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils/utils'
@@ -43,8 +46,6 @@ import DepartmentSelectFilter from '../common/DepartmentSelectFilter'
 import { useExpenseRequestExport } from './expenseRequestExport'
 import { useExpenseRequestQueryBuilder } from './expenseRequestQueryBuilder'
 import {
-  getStartDateLabel,
-  getEndDateLabel,
   getCurrencyLabel,
   getDepartmentLabel,
   getEffectiveDateLabel,
@@ -90,6 +91,7 @@ interface ExpenseRequestsTableProps extends BusinessAppContextProps {
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const { search, onSearchChange, accessToken, isActive = true, filterData: propsFilterData } = props
+  const { t } = useTranslation(translations)
 
   const sanitizeUrlParam = (value: string | null, maxLength: number): string => {
     if (!value) return ''
@@ -188,8 +190,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     handleAmountFilter,
     handleDepartmentFilter,
     handleCurrencyFilter,
-    handleStartDateRangeFilter,
-    handleEndDateRangeFilter,
     handleTableChange,
     handleSearch,
     amountMinFilter,
@@ -197,7 +197,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     setEffectiveDateRangeFilter,
     setRequestDateRangeFilter,
     setRequestTypeFilter
-  } = useExpenseRequests(contextProps, isActive)
+  } = useExpenseRequests(contextProps, t, isActive)
 
   const { isPdfModalVisible, pdfUrl, pdfLoading, pdfError, handlePrintExpenseRequest, handleClosePdfModal } =
     useExpenseRequestPdf(props)
@@ -248,14 +248,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   // Date range filters - matching manager/personal expenses pattern
   const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null)
   const [requestDateRange, setRequestDateRange] = useState<[Date | null, Date | null] | null>(null)
-  const [startFrom, setStartFrom] = useState<string | undefined>()
-  const [startTo, setStartTo] = useState<string | undefined>()
-  const [endFrom, setEndFrom] = useState<string | undefined>()
-  const [endTo, setEndTo] = useState<string | undefined>()
   // Request type filter (EXPENSES, TRIP) - radio button behavior
   const [requestTypeFilterLocal, setRequestTypeFilterLocal] = useState<string[]>([])
-  const RangePicker = DatePicker.RangePicker
-
   // ⚡ PERFORMANCE: Always fetch locally as fallback, but prefer propsFilterData if it has valid data
   const localFilterData = useFilterData({ accessToken })
   // Use propsFilterData if it has valid organizationalUnits, otherwise fall back to localFilterData
@@ -276,8 +270,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       ...(currencyRef ? ['currency'] : []),
       ...(effectiveDateRange && (effectiveDateRange[0] || effectiveDateRange[1]) ? ['effectiveDateRange'] : []),
       ...(requestDateRange && (requestDateRange[0] || requestDateRange[1]) ? ['requestDateRange'] : []),
-      ...(startFrom || startTo ? ['startDate'] : []),
-      ...(endFrom || endTo ? ['endDate'] : []),
       ...requestTypeFilterLocal
     ]
   }, [
@@ -289,10 +281,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     currencyRef,
     effectiveDateRange,
     requestDateRange,
-    startFrom,
-    startTo,
-    endFrom,
-    endTo,
     requestTypeFilterLocal
   ])
 
@@ -315,11 +303,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   }, [isActive, selectedFilters.length, searchText, setStatusFilter, handleStatusFilter])
 
   useEffect(() => {
-    // Mirror personal expenses: use a fixed enum list for statuses
-    // Exclude CREATED (draft) status from filter options
-    const allStatuses = Object.values(ExpenseStatus)
-    const filteredStatuses = allStatuses.filter(status => status !== ExpenseStatus.CREATED)
-    setAvailableStatuses(filteredStatuses)
+    const expenseRequestStatuses = [
+      ExpenseStatus.CREATED,
+      ExpenseStatus.PENDING,
+      ExpenseStatus.APPROVED,
+      ExpenseStatus.REJECTED,
+      ExpenseStatus.VERIFIED,
+      ExpenseStatus.BOOKED,
+      ExpenseStatus.TRANSFERRED,
+      ExpenseStatus.PAID,
+      ExpenseStatus.DISCARDED
+    ]
+    setAvailableStatuses(expenseRequestStatuses)
   }, [])
 
   useEffect(() => {
@@ -429,8 +424,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   // Helper function to format status display name with brackets (matching personal expenses pattern)
   const getStatusDisplayName = useCallback(
-    (status: string): string => buildStatusDisplayName(status, getExpenseRequestStatusDisplay),
-    []
+    (status: string): string => buildStatusDisplayName(status, getExpenseRequestStatusDisplay, t),
+    [t]
   )
 
   // Helper: Build unique status filters (reduces cognitive complexity)
@@ -446,42 +441,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     return Array.from(byLabel.values())
   }, [availableStatuses, statusFilter, getStatusDisplayName])
 
-  // Helper: Handle start date range change (reduces cognitive complexity)
-  const handleStartDateChange = useCallback(
-    (dates: any) => {
-      if (!dates?.[0] || !dates?.[1]) {
-        setStartFrom(undefined)
-        setStartTo(undefined)
-        handleStartDateRangeFilter('', '')
-        return
-      }
-      const from = dates[0].startOf('day').format('YYYY-MM-DDT00:00:00')
-      const to = dates[1].endOf('day').format('YYYY-MM-DDT23:59:59')
-      setStartFrom(from)
-      setStartTo(to)
-      handleStartDateRangeFilter(from, to)
-    },
-    [handleStartDateRangeFilter]
-  )
-
-  // Helper: Handle end date range change (reduces cognitive complexity)
-  const handleEndDateChange = useCallback(
-    (dates: any) => {
-      if (!dates?.[0] || !dates?.[1]) {
-        setEndFrom(undefined)
-        setEndTo(undefined)
-        handleEndDateRangeFilter('', '')
-        return
-      }
-      const from = dates[0].startOf('day').format('YYYY-MM-DDT00:00:00')
-      const to = dates[1].endOf('day').format('YYYY-MM-DDT23:59:59')
-      setEndFrom(from)
-      setEndTo(to)
-      handleEndDateRangeFilter(from, to)
-    },
-    [handleEndDateRangeFilter]
-  )
-
   // Helper: Handle effective date range change
   const handleEffectiveDateChange = useCallback(
     (dates: any) => {
@@ -490,12 +449,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         setEffectiveDateRangeFilter(null)
         return
       }
-      const fromDate = dates[0]?.toDate() || null
-      const toDate = dates[1]?.toDate() || null
+      const fromDate = dates[0] instanceof Date ? dates[0] : new Date(dates[0])
+      const toDate = dates[1] instanceof Date ? dates[1] : new Date(dates[1])
       setEffectiveDateRange([fromDate, toDate])
       setEffectiveDateRangeFilter({
-        from: fromDate ? dayjs(fromDate).startOf('day').format('YYYY-MM-DDTHH:mm:ss') : undefined,
-        to: toDate ? dayjs(toDate).endOf('day').format('YYYY-MM-DDTHH:mm:ss') : undefined
+        from: dayjs(fromDate).startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        to: dayjs(toDate).endOf('day').format('YYYY-MM-DDTHH:mm:ss')
       })
     },
     [setEffectiveDateRangeFilter]
@@ -509,12 +468,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         setRequestDateRangeFilter(null)
         return
       }
-      const fromDate = dates[0]?.toDate() || null
-      const toDate = dates[1]?.toDate() || null
+      const fromDate = dates[0] instanceof Date ? dates[0] : new Date(dates[0])
+      const toDate = dates[1] instanceof Date ? dates[1] : new Date(dates[1])
       setRequestDateRange([fromDate, toDate])
       setRequestDateRangeFilter({
-        from: fromDate ? dayjs(fromDate).startOf('day').format('YYYY-MM-DDTHH:mm:ss') : undefined,
-        to: toDate ? dayjs(toDate).endOf('day').format('YYYY-MM-DDTHH:mm:ss') : undefined
+        from: dayjs(fromDate).startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        to: dayjs(toDate).endOf('day').format('YYYY-MM-DDTHH:mm:ss')
       })
     },
     [setRequestDateRangeFilter]
@@ -541,7 +500,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       // Currency first (matching manager/personal pattern)
       {
         id: 'currency',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency', 'Currency'),
+        title: t('header-currency'),
         type: 'custom',
         customComponent: (
           <CurrencySelectFilter
@@ -552,15 +511,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             }}
             currencies={currencies}
             testIdPrefix="expense-requests"
+            t={t}
           />
         )
       },
       {
         id: 'department',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_list.employee_report_filter.department_title',
-          'Department'
-        ),
+        title: t('header-department'),
         type: 'custom',
         customComponent: (
           <DepartmentSelectFilter
@@ -571,46 +528,55 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             }}
             departmentOptions={departmentOptions}
             testIdPrefix="expense-requests"
+            t={t}
           />
         )
       },
       // Effective Date Range
       {
         id: 'effectiveDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
+        title: t('filter-effective-date'),
         type: 'custom',
         customComponent: (
-          <div className="gba:w-full">
-            <RangePicker
-              value={
-                effectiveDateRange?.[0] && effectiveDateRange?.[1]
-                  ? [dayjs(effectiveDateRange[0]), dayjs(effectiveDateRange[1])]
-                  : null
-              }
-              onChange={handleEffectiveDateChange}
-              placeholder={[
-                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-              ]}
-              format="YYYY-MM-DD"
-              allowClear
-              allowEmpty={[true, true]}
-              className="gba:w-full"
-              data-testid="expense-requests-effective-date-range"
-            />
+          <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-sm gba:text-muted-foreground gba:w-10">{t('filter-from')}</span>
+              <input
+                type="date"
+                value={effectiveDateRange?.[0] ? dayjs(effectiveDateRange[0]).format('YYYY-MM-DD') : ''}
+                onChange={e => {
+                  const from = e.target.value ? new Date(e.target.value) : null
+                  handleEffectiveDateChange(from ? [from, effectiveDateRange?.[1] ?? null] : null)
+                }}
+                className="gba:h-8 gba:w-[140px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                data-testid="expense-requests-effective-date-from"
+              />
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-sm gba:text-muted-foreground gba:w-10">{t('filter-to')}</span>
+              <input
+                type="date"
+                value={effectiveDateRange?.[1] ? dayjs(effectiveDateRange[1]).format('YYYY-MM-DD') : ''}
+                onChange={e => {
+                  const to = e.target.value ? new Date(e.target.value) : null
+                  handleEffectiveDateChange(to ? [effectiveDateRange?.[0] ?? null, to] : null)
+                }}
+                className="gba:h-8 gba:w-[140px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                data-testid="expense-requests-effective-date-to"
+              />
+            </div>
             <div
-              className="gba:mt-2 gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1"
+              className="gba:mt-1 gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1"
               data-testid="effective-date-hint"
             >
-              <Tooltip
-                title={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:personal_expenses.effective_date_info',
-                  'For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.'
-                )}
-                placement="right"
-              >
-                <InfoIcon size={16} data-testid="effective-date-info" />
-              </Tooltip>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <InfoIcon size={16} data-testid="effective-date-info" className="gba:cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{t('filter-effective-date-info')}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         )
@@ -618,103 +584,60 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       // Creation Date Range
       {
         id: 'requestDateRange',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:manager_expense_request_list.expense_table.creation_date',
-          'Creation Date'
-        ),
+        title: t('filter-creation-date'),
         type: 'custom',
         customComponent: (
-          <div className="gba:w-full">
-            <RangePicker
-              value={
-                requestDateRange?.[0] && requestDateRange?.[1]
-                  ? [dayjs(requestDateRange[0]), dayjs(requestDateRange[1])]
-                  : null
-              }
-              onChange={handleRequestDateChange}
-              placeholder={[
-                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-              ]}
-              format="YYYY-MM-DD"
-              allowClear
-              allowEmpty={[true, true]}
-              className="gba:w-full"
-              data-testid="expense-requests-request-date-range"
-            />
-          </div>
-        )
-      },
-      // Start Date Range
-      {
-        id: 'startDate',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
-        type: 'custom',
-        customComponent: (
-          <div className="gba:w-full">
-            <RangePicker
-              value={startFrom && startTo ? [dayjs(startFrom), dayjs(startTo)] : null}
-              onChange={handleStartDateChange}
-              placeholder={[
-                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-              ]}
-              format="YYYY-MM-DD"
-              allowClear
-              allowEmpty={[true, true]}
-              className="gba:w-full"
-              data-testid="expense-requests-start-range"
-            />
-          </div>
-        )
-      },
-      // End Date Range
-      {
-        id: 'endDate',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
-        type: 'custom',
-        customComponent: (
-          <div className="gba:w-full">
-            <RangePicker
-              value={endFrom && endTo ? [dayjs(endFrom), dayjs(endTo)] : null}
-              onChange={handleEndDateChange}
-              placeholder={[
-                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-              ]}
-              format="YYYY-MM-DD"
-              allowClear
-              allowEmpty={[true, true]}
-              className="gba:w-full"
-              data-testid="expense-requests-end-range"
-            />
+          <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-sm gba:text-muted-foreground gba:w-10">{t('filter-from')}</span>
+              <input
+                type="date"
+                value={requestDateRange?.[0] ? dayjs(requestDateRange[0]).format('YYYY-MM-DD') : ''}
+                onChange={e => {
+                  const from = e.target.value ? new Date(e.target.value) : null
+                  handleRequestDateChange(from ? [from, requestDateRange?.[1] ?? null] : null)
+                }}
+                className="gba:h-8 gba:w-[140px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                data-testid="expense-requests-request-date-from"
+              />
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-sm gba:text-muted-foreground gba:w-10">{t('filter-to')}</span>
+              <input
+                type="date"
+                value={requestDateRange?.[1] ? dayjs(requestDateRange[1]).format('YYYY-MM-DD') : ''}
+                onChange={e => {
+                  const to = e.target.value ? new Date(e.target.value) : null
+                  handleRequestDateChange(to ? [requestDateRange?.[0] ?? null, to] : null)
+                }}
+                className="gba:h-8 gba:w-[140px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                data-testid="expense-requests-request-date-to"
+              />
+            </div>
           </div>
         )
       },
       // Status
       {
         id: 'status',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        title: t('filter-status'),
         type: 'checkbox',
         filters: buildStatusFilters()
       },
       // Request Type
       {
         id: 'requestType',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
-          'Request Type'
-        ),
+        title: t('filter-request-type'),
         type: 'radio' as any,
         filters: [
           {
             id: 'ExpenseRequestType:v1:EXPENSES',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense'),
+            label: t('filter-request-type-expense'),
             selected: requestTypeFilterLocal.includes('ExpenseRequestType:v1:EXPENSES')
           },
           {
             id: 'ExpenseRequestType:v1:TRIP',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'),
+            label: t('filter-request-type-trip'),
             selected: requestTypeFilterLocal.includes('ExpenseRequestType:v1:TRIP')
           }
         ]
@@ -722,7 +645,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       // Employee
       {
         id: 'employee',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
+        title: t('filter-employee'),
         type: 'custom',
         customComponent: (
           <EmployeeSearchFilter
@@ -743,7 +666,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       // Amount
       {
         id: 'amount',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
+        title: t('filter-amount'),
         type: 'custom',
         customComponent: (
           <AmountFilter
@@ -774,17 +697,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     currencyRef,
     effectiveDateRange,
     requestDateRange,
-    startFrom,
-    startTo,
-    endFrom,
-    endTo,
     requestTypeFilterLocal,
     handleDepartmentFilter,
     handleCurrencyFilter,
     handleEffectiveDateChange,
     handleRequestDateChange,
-    handleStartDateChange,
-    handleEndDateChange,
     organizationalUnits,
     currencies
   ])
@@ -915,10 +832,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       )}
                     </TableHead>
                     <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:employee_profile.employee_tabs.flows_button.actions',
-                        'Actions'
-                      )}
+                      {t('header-actions')}
                     </TableHead>
                     <TableHead
                       className="gba:w-[22%] gba:cursor-pointer gba:select-none"
@@ -926,12 +840,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       data-testid="header-sort-employee"
                     >
                       <div className="gba:flex gba:items-center">
-                        <span>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:hr_absences.create_absence.employee',
-                            'Employee'
-                          )}
-                        </span>
+                        <span>{t('header-employee')}</span>
                         {renderSortIcon('employee')}
                       </div>
                     </TableHead>
@@ -941,33 +850,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       data-testid="header-sort-employeeCode"
                     >
                       <div className="gba:flex gba:items-center">
-                        <span>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_request_table.employee_code',
-                            'Employee Code'
-                          )}
-                        </span>
+                        <span>{t('header-employee-code')}</span>
                         {renderSortIcon('employeeCode')}
                       </div>
                     </TableHead>
-                    <TableHead className="gba:w-[16%]">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
-                        'SAP Number'
-                      )}
-                    </TableHead>
+                    <TableHead className="gba:w-[16%]">{t('header-sap-number')}</TableHead>
                     <TableHead
                       className="gba:w-[18%] gba:cursor-pointer gba:select-none"
                       onClick={() => onSort('requestNumber')}
                       data-testid="header-sort-requestNumber"
                     >
                       <div className="gba:flex gba:items-center">
-                        <span>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-                            'Request Number'
-                          )}
-                        </span>
+                        <span>{t('header-request-number')}</span>
                         {renderSortIcon('requestNumber')}
                       </div>
                     </TableHead>
@@ -977,12 +871,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       data-testid="header-sort-title"
                     >
                       <div className="gba:flex gba:items-center">
-                        <span>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:manager_expense_request_list.expense_table.title',
-                            'Title'
-                          )}
-                        </span>
+                        <span>{t('header-title')}</span>
                         {renderSortIcon('title')}
                       </div>
                     </TableHead>
@@ -992,12 +881,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       data-testid="header-sort-startDate"
                     >
                       <div className="gba:flex gba:items-center">
-                        <span>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_plan_list.expense_plan_table.start_date',
-                            'Start Date'
-                          )}
-                        </span>
+                        <span>{t('header-start-date')}</span>
                         {renderSortIcon('startDate')}
                       </div>
                     </TableHead>
@@ -1007,12 +891,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       data-testid="header-sort-endDate"
                     >
                       <div className="gba:flex gba:items-center">
-                        <span>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_plan_list.expense_plan_table.end_date',
-                            'End Date'
-                          )}
-                        </span>
+                        <span>{t('header-end-date')}</span>
                         {renderSortIcon('endDate')}
                       </div>
                     </TableHead>
@@ -1022,12 +901,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       data-testid="header-sort-createdAt"
                     >
                       <div className="gba:flex gba:items-center">
-                        <span>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:manager_expense_request_list.expense_table.creation_date',
-                            'Creation Date'
-                          )}
-                        </span>
+                        <span>{t('header-creation-date')}</span>
                         {renderSortIcon('createdAt')}
                       </div>
                     </TableHead>
@@ -1037,12 +911,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       data-testid="header-sort-status"
                     >
                       <div className="gba:flex gba:items-center">
-                        <span>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_request_list.expense_plan_table.status',
-                            'Status'
-                          )}
-                        </span>
+                        <span>{t('header-status')}</span>
                         {renderSortIcon('status')}
                       </div>
                     </TableHead>
@@ -1052,12 +921,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       data-testid="header-sort-remainingAmount"
                     >
                       <div className="gba:flex gba:items-center">
-                        <span>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:approve_expense_plan.remaining',
-                            'Remaining Amount'
-                          )}
-                        </span>
+                        <span>{t('header-remaining-amount')}</span>
                         {renderSortIcon('totalRemainingAmount')}
                       </div>
                     </TableHead>
@@ -1067,12 +931,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       data-testid="header-sort-total"
                     >
                       <div className="gba:flex gba:items-center">
-                        <span>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                            'Total Amount'
-                          )}
-                        </span>
+                        <span>{t('header-total-amount')}</span>
                         {renderSortIcon('totalAmount')}
                       </div>
                     </TableHead>
@@ -1083,15 +942,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                     <TableRow>
                       <TableCell colSpan={12} className="gba:py-8 gba:text-center">
                         <div className="gba:text-muted-foreground">
-                          {hasActiveFilters
-                            ? getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-                                'No data available'
-                              )
-                            : getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:backoffice_expense_landing_page.no_requests_created_yet',
-                                'No expense requests created yet.'
-                              )}
+                          {hasActiveFilters ? t('empty-no-data') : t('empty-no-requests-yet')}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1163,10 +1014,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     amountMaxFilter,
     departmentId,
     currencyRef,
-    startFrom,
-    startTo,
-    endFrom,
-    endTo,
     effectiveDateRange,
     requestDateRange,
     requestTypeFilterLocal,
@@ -1188,11 +1035,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             size="sm"
             disabled={isBulkTransferInProgress}
           >
-            {isBulkTransferInProgress
-              ? getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment_in_progress', 'Transfer in Progress')
-              : getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')}{' '}
-            ({selectedBookableCount}{' '}
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
+            {isBulkTransferInProgress ? t('transfer-in-progress') : t('transfer-payment-label')} (
+            {selectedBookableCount} {t('transfer-selected')})
           </Button>
         ]
       : []
@@ -1212,10 +1056,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     setCurrencyRef('')
     setEffectiveDateRange(null)
     setRequestDateRange(null)
-    setStartFrom(undefined)
-    setStartTo(undefined)
-    setEndFrom(undefined)
-    setEndTo(undefined)
 
     handleEmployeeFilter('')
     handleStatusFilter('')
@@ -1225,8 +1065,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     handleCurrencyFilter('')
     setEffectiveDateRangeFilter(null)
     setRequestDateRangeFilter(null)
-    handleStartDateRangeFilter('', '')
-    handleEndDateRangeFilter('', '')
   }, [
     employeeFilter,
     selectedEmployees.length,
@@ -1234,10 +1072,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     requestTypeFilterLocal.length,
     effectiveDateRange,
     requestDateRange,
-    startFrom,
-    startTo,
-    endFrom,
-    endTo,
     handleEmployeeFilter,
     handleStatusFilter,
     setRequestTypeFilter,
@@ -1245,9 +1079,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     handleDepartmentFilter,
     handleCurrencyFilter,
     setEffectiveDateRangeFilter,
-    setRequestDateRangeFilter,
-    handleStartDateRangeFilter,
-    handleEndDateRangeFilter
+    setRequestDateRangeFilter
   ])
 
   // Helper to handle employee filter removal (avoids boolean parameter pattern)
@@ -1285,7 +1117,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             title={getExportCsvTitle()}
           >
             <DownloadIcon className="gba:mr-2" />
-            {isExporting ? 'Exporting...' : getTranslationFromI18nKeyAndLabel('lowcoder:export_csv', 'CSV')}
+            {isExporting ? t('export-exporting') : t('export-csv-label')}
           </Button>
           <Button
             onClick={handleExportExcel}
@@ -1296,7 +1128,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             title={getExportExcelTitle()}
           >
             <FileXlsIcon className="gba:mr-2" />
-            {isExporting ? 'Exporting...' : getTranslationFromI18nKeyAndLabel('lowcoder:export_excel', 'Excel')}
+            {isExporting ? t('export-exporting') : t('export-excel-label')}
           </Button>
         </div>
       )}
@@ -1304,17 +1136,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       <DataContainer
         contentBackground="white"
         dataControllerProps={{
-          listTitle: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_list.flows_button.expense_requests',
-            'Expense Requests'
-          ),
+          listTitle: t('tab-expense-requests'),
           listAmount: totalItems ? `${totalItems}` : undefined,
           search: searchText,
           setSearch: handleSearchChange,
-          placeholder: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.search_module',
-            'Search in Expense Requests'
-          ),
+          placeholder: t('common-search-expense-requests'),
           filter: selectedFilters,
           setFilter: (newFilters: string[]): void => {
             if (newFilters.length === 0) {
@@ -1330,10 +1156,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               setLocalAmountMax('')
               setEffectiveDateRange(null)
               setRequestDateRange(null)
-              setStartFrom(undefined)
-              setStartTo(undefined)
-              setEndFrom(undefined)
-              setEndTo(undefined)
               handleStatusFilter('')
               setRequestTypeFilter([])
               handleCurrencyFilter('')
@@ -1342,12 +1164,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               handleAmountFilter('', '')
               setEffectiveDateRangeFilter(null)
               setRequestDateRangeFilter(null)
-              handleStartDateRangeFilter('', '')
-              handleEndDateRangeFilter('', '')
               return
             }
             // Constants for filter type identification
-            const DATE_RANGE_FILTERS = new Set(['effectiveDateRange', 'requestDateRange', 'startDate', 'endDate'])
+            const DATE_RANGE_FILTERS = new Set(['effectiveDateRange', 'requestDateRange'])
             const isCurrencyFilter = (f: string) => f.startsWith('currency:')
             const isRequestTypeFilter = (f: string) => f.startsWith('ExpenseRequestType:')
             const isDateRangeFilter = (f: string) => DATE_RANGE_FILTERS.has(f)
@@ -1378,14 +1198,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               } else if (f === 'requestDateRange') {
                 setRequestDateRange(null)
                 setRequestDateRangeFilter(null)
-              } else if (f === 'startDate') {
-                setStartFrom(undefined)
-                setStartTo(undefined)
-                handleStartDateRangeFilter('', '')
-              } else if (f === 'endDate') {
-                setEndFrom(undefined)
-                setEndTo(undefined)
-                handleEndDateRangeFilter('', '')
               }
             })
 
@@ -1424,17 +1236,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           filterLabelMap: {
             ...statusFilter.reduce(
               (acc, status) => {
-                const statusConfig = getExpenseRequestStatusDisplay(status)
-                // Only show backend status in parentheses if the label is different from the status
+                const statusConfig = getExpenseRequestStatusDisplay(status, t)
                 if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
                   acc[status] = statusConfig.label
                 } else {
                   // Format backend status with only first letter uppercase and translate it
                   const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
-                  const translatedStatus = getTranslationFromI18nKeyAndLabel(
-                    `lowcoder:expense_statuses.${status.toLowerCase()}`,
-                    formattedStatus
-                  )
+                  const statusKey = `status-${status.toLowerCase().replaceAll('_', '-')}` as const
+                  const translatedStatus = t(statusKey as any) || formattedStatus
                   acc[status] = `${statusConfig.label} (${translatedStatus})`
                 }
                 return acc
@@ -1447,13 +1256,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             currency: getCurrencyLabel(currencyRef, currencies),
             effectiveDateRange: getEffectiveDateLabel(effectiveDateRange),
             requestDateRange: getRequestDateLabel(requestDateRange),
-            startDate: getStartDateLabel(startFrom, startTo),
-            endDate: getEndDateLabel(endFrom, endTo),
-            'ExpenseRequestType:v1:EXPENSES': getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.expense',
-              'Expense'
-            ),
-            'ExpenseRequestType:v1:TRIP': getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+            'ExpenseRequestType:v1:EXPENSES': t('filter-request-type-expense'),
+            'ExpenseRequestType:v1:TRIP': t('filter-request-type-trip')
           },
           actions: dataControllerActions
         }}
@@ -1497,24 +1301,20 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         data-testid="backoffice-expense-request-details-sheet"
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedExpense?.title ||
-              getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details')
-            }
-          >
+          <ExpenseDetailsShell title={selectedExpense?.title || t('detail-expense-request-details')}>
             {selectedExpense ? (
               <ExpenseDetailsPanelContent
                 dataTestIdPrefix="backoffice-expense-request-details"
                 record={selectedExpense as any}
                 formatAmount={(amount, currencyCode) => formatCurrency(amount, currencyCode)}
                 showHeader={false}
+                t={t}
                 headerRight={
                   <Badge
-                    variant={getExpenseRequestStatusDisplay(selectedExpense.status).badgeVariant || 'outline'}
+                    variant={getExpenseRequestStatusDisplay(selectedExpense.status, t).badgeVariant || 'outline'}
                     data-testid="expense-request-status-badge"
                   >
-                    {getExpenseRequestStatusDisplay(selectedExpense.status).label}
+                    {getExpenseRequestStatusDisplay(selectedExpense.status, t).label}
                   </Badge>
                 }
                 extraContent={
@@ -1539,10 +1339,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                         }}
                         data-testid="view-expense-request-details-button"
                       >
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:team_expenses_page.plan_details.view_full_details',
-                          'View Full Details'
-                        )}
+                        {t('detail-view-full-details')}
                       </Button>
                     </div>
                   </>

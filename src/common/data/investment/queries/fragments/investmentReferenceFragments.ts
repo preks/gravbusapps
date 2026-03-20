@@ -71,7 +71,6 @@ export const INVESTMENT_CONTACT_REF = `
   jobPosition
   picture
   pictureThumbnail
-  type
   userId
 `
 

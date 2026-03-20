@@ -27,10 +27,15 @@ interface UseCreateChatOptions {
   onRefine: (feedback: string) => Promise<void>
   onRefineSend?: (
     feedback: string,
-    onPartial?: (partial: AssistantStreamUpdate) => void
+    onPartial?: (partial: AssistantStreamUpdate) => void,
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
   ) => Promise<void | FixSendResult>
   onStartBuild: (skipComponents?: string[]) => Promise<void>
-  onFixSend?: (prompt: string, onPartial?: (partial: AssistantStreamUpdate) => void) => Promise<void | FixSendResult>
+  onFixSend?: (
+    prompt: string,
+    onPartial?: (partial: AssistantStreamUpdate) => void,
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+  ) => Promise<void | FixSendResult>
   userInfo?: { id?: string }
 }
 
@@ -38,6 +43,12 @@ export interface UseCreateChatResult {
   messages: CreateChatMessage[]
   isProcessing: boolean
   handleSend: (content: string) => void
+  editAndResendMessage: (
+    messageId: string,
+    content: string,
+    editorId?: string,
+    forcedState?: OrchestratorViewState
+  ) => void
   addSystemMessage: (content: string, extras?: Partial<CreateChatMessage>) => string
   addAssistantMessage: (content: string, type?: ChatMessageType, extras?: Partial<CreateChatMessage>) => string
   addUserMessage: (content: string, type?: ChatMessageType, extras?: Partial<CreateChatMessage>) => string
@@ -64,17 +75,6 @@ function createId(): string {
 function isBuildIntent(content: string): boolean {
   const lower = content.toLowerCase().trim()
   return BUILD_KEYWORDS.some(kw => lower === kw || lower.startsWith(kw))
-}
-
-function isRefineIntent(content: string): boolean {
-  const lower = content.toLowerCase().trim()
-  return (
-    lower.startsWith('refine') ||
-    lower.startsWith('refine plan') ||
-    lower.startsWith('update plan') ||
-    lower.startsWith('modify plan') ||
-    lower.startsWith('adjust plan')
-  )
 }
 
 function applyStreamingUpdate(
@@ -120,7 +120,11 @@ interface StreamingSendOptions {
   messageType: ChatMessageType
   fallbackContent: string
   errorMessage: string
-  onSend: (content: string, onPartial: (partial: AssistantStreamUpdate) => void) => Promise<void | FixSendResult>
+  onSend: (
+    content: string,
+    onPartial: (partial: AssistantStreamUpdate) => void,
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+  ) => Promise<void | FixSendResult>
 }
 
 function createStreamingSendHandler(
@@ -128,6 +132,7 @@ function createStreamingSendHandler(
   setMessages: Dispatch<SetStateAction<CreateChatMessage[]>>,
   appendMessage: (msg: AppendableCreateChatMessage) => string,
   setIsProcessing: (value: boolean) => void,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
   options: StreamingSendOptions
 ): () => Promise<void> {
   return async () => {
@@ -143,7 +148,7 @@ function createStreamingSendHandler(
       setMessages(prev => applyStreamingUpdate(prev, streamingMessageId, partial))
     }
     try {
-      const result = await options.onSend(content, applyPartial)
+      const result = await options.onSend(content, applyPartial, conversationHistory)
       if (result?.assistantMessage) {
         applyPartial(result.assistantMessage)
       } else {
@@ -161,6 +166,20 @@ function createStreamingSendHandler(
   }
 }
 
+function buildConversationHistorySnapshot(
+  messages: CreateChatMessage[],
+  pendingUserContent?: string
+): Array<{ role: 'user' | 'assistant'; content: string }> {
+  const history = messages
+    .filter(message => (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string')
+    .map(message => ({ role: message.role as 'user' | 'assistant', content: message.content }))
+  const pending = pendingUserContent?.trim()
+  if (pending) {
+    history.push({ role: 'user', content: pending })
+  }
+  return history
+}
+
 export function useCreateChat({
   viewState,
   onRefine,
@@ -170,12 +189,17 @@ export function useCreateChat({
   userInfo
 }: UseCreateChatOptions): UseCreateChatResult {
   const [messages, setMessages] = useState<CreateChatMessage[]>([])
+  const messagesRef = useRef<CreateChatMessage[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const viewStateRef = useRef(viewState)
 
   useEffect(() => {
     viewStateRef.current = viewState
   }, [viewState])
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   const appendMessage = useCallback((msg: AppendableCreateChatMessage) => {
     const full: CreateChatMessage = {
@@ -234,13 +258,21 @@ export function useCreateChat({
       }
 
       if (onRefineSend) {
+        const conversationHistory = buildConversationHistorySnapshot(messagesRef.current, content)
         setIsProcessing(true)
-        const handler = createStreamingSendHandler(content, setMessages, appendMessage, setIsProcessing, {
-          messageType: 'refinement',
-          fallbackContent: 'Plan updated based on your feedback. Review the changes on the canvas.',
-          errorMessage: 'I could not apply that refinement. Please try rephrasing.',
-          onSend: onRefineSend
-        })
+        const handler = createStreamingSendHandler(
+          content,
+          setMessages,
+          appendMessage,
+          setIsProcessing,
+          conversationHistory,
+          {
+            messageType: 'refinement',
+            fallbackContent: 'Plan updated based on your feedback. Review the changes on the canvas.',
+            errorMessage: 'I could not apply that refinement. Please try rephrasing.',
+            onSend: onRefineSend
+          }
+        )
         await handler()
         return
       }
@@ -272,29 +304,29 @@ export function useCreateChat({
         addAssistantMessage('Fix chat is not available for this build.')
         return
       }
+      const conversationHistory = buildConversationHistorySnapshot(messagesRef.current, content)
       setIsProcessing(true)
-      const handler = createStreamingSendHandler(content, setMessages, appendMessage, setIsProcessing, {
-        messageType: 'fix',
-        fallbackContent: 'Applied. Review the updated preview on the canvas.',
-        errorMessage: 'I could not apply this fix. Please try again.',
-        onSend: onFixSend
-      })
+      const handler = createStreamingSendHandler(
+        content,
+        setMessages,
+        appendMessage,
+        setIsProcessing,
+        conversationHistory,
+        {
+          messageType: 'fix',
+          fallbackContent: 'Applied. Review the updated preview on the canvas.',
+          errorMessage: 'I could not apply this fix. Please try again.',
+          onSend: onFixSend
+        }
+      )
       await handler()
     },
     [onFixSend, addAssistantMessage, appendMessage]
   )
 
-  const handleSend = useCallback(
-    (content: string) => {
-      const currentState = viewStateRef.current
-      const refineFromComplete = currentState === 'complete' && !!onRefineSend && isRefineIntent(content)
-      let messageType: ChatMessageType = 'general'
-      if (currentState === 'review' || refineFromComplete) messageType = 'refinement'
-      else if (currentState === 'complete') messageType = 'fix'
-
-      appendMessage({ role: 'user', content, messageType, createdBy: userInfo?.id })
-
-      if (currentState === 'review' || refineFromComplete) {
+  const routeMessageByState = useCallback(
+    (content: string, currentState: OrchestratorViewState) => {
+      if (currentState === 'review') {
         void handleReviewSend(content)
       } else if (currentState === 'complete') {
         void handleCompleteSend(content)
@@ -304,7 +336,20 @@ export function useCreateChat({
         addAssistantMessage('Please submit a prompt from the canvas first.')
       }
     },
-    [appendMessage, handleReviewSend, handleCompleteSend, addAssistantMessage, onRefineSend, userInfo?.id]
+    [addAssistantMessage, handleCompleteSend, handleReviewSend]
+  )
+
+  const handleSend = useCallback(
+    (content: string) => {
+      const currentState = viewStateRef.current
+      let messageType: ChatMessageType = 'general'
+      if (currentState === 'review') messageType = 'refinement'
+      else if (currentState === 'complete') messageType = 'fix'
+
+      appendMessage({ role: 'user', content, messageType, createdBy: userInfo?.id })
+      routeMessageByState(content, currentState)
+    },
+    [appendMessage, routeMessageByState, userInfo?.id]
   )
 
   const resetMessages = useCallback(() => {
@@ -312,11 +357,55 @@ export function useCreateChat({
     setIsProcessing(false)
   }, [])
 
+  const editAndResendMessage = useCallback(
+    (messageId: string, content: string, editorId?: string, forcedState?: OrchestratorViewState) => {
+      const nextContent = content.trim()
+      if (!messageId || !nextContent) return
+      const now = new Date().toISOString()
+      const actorId = editorId ?? userInfo?.id
+      const currentState = forcedState ?? viewStateRef.current
+
+      setMessages(prev => {
+        const next = [...prev]
+        const targetIndex = next.findIndex(message => message.id === messageId && message.role === 'user')
+        if (targetIndex === -1) {
+          next.push({
+            id: messageId,
+            role: 'user',
+            content: nextContent,
+            createdAt: now,
+            messageType: currentState === 'review' ? 'refinement' : currentState === 'complete' ? 'fix' : 'prompt',
+            createdBy: actorId ?? userInfo?.id,
+            editHistory: actorId ? [{ userId: actorId, editedAt: now }] : undefined
+          })
+          return next
+        }
+
+        const target = next[targetIndex]
+        const nextHistory = [...(target.editHistory ?? [])]
+        if (actorId) {
+          nextHistory.push({ userId: actorId, editedAt: now })
+        }
+        next[targetIndex] = {
+          ...target,
+          content: nextContent,
+          createdBy: target.createdBy ?? actorId ?? userInfo?.id,
+          editHistory: nextHistory
+        }
+        return next
+      })
+
+      routeMessageByState(nextContent, currentState)
+    },
+    [routeMessageByState, userInfo?.id]
+  )
+
   return useMemo(
     () => ({
       messages,
       isProcessing,
       handleSend,
+      editAndResendMessage,
       addSystemMessage,
       addAssistantMessage,
       addUserMessage,
@@ -327,6 +416,7 @@ export function useCreateChat({
       messages,
       isProcessing,
       handleSend,
+      editAndResendMessage,
       addSystemMessage,
       addAssistantMessage,
       addUserMessage,

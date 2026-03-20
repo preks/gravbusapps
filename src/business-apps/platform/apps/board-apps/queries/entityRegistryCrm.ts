@@ -70,7 +70,6 @@ export const ENTITY_REGISTRY_CRM: Record<string, EntityQueryDef> = {
       f('lastName', 'Last Name', 'text', true, 'lastName'),
       f('department', 'Department', 'text', true, 'department'),
       f('jobTitle', 'Job Title', 'text', true, 'jobTitle'),
-      f('contactType', 'Type', 'text', true, 'contactType'),
       f('owner', 'Owner', 'text', false, 'ownerEmployee.displayName'),
       f('createdAt', 'Created At', 'datetime', false, 'createdAt')
     ]

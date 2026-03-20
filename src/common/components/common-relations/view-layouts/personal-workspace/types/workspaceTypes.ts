@@ -21,8 +21,8 @@ export interface GenericActivity {
   documents?: Array<{
     id: string
     name: string
-    mimeType?: string
-    fileSize?: number
+    mimeType?: string | null
+    fileSize?: number | null
     fileInfo?: {
       path: string
       fileMetadata?: {

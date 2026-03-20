@@ -333,19 +333,25 @@ const SourceCitation = ({ sources, testId }: { sources: NexusSource[]; testId: s
       return
     }
 
-    const isProduction = process.env.NODE_ENV === 'production'
     if (source.contentType === 'document') {
-      const url = isProduction ? '/platform/documents' : '/platform/apps/document-apps'
-      navigateTo(buildPlatformUrl(url, { docId: source.contentId, view: 'editor', from: 'nexus' }))
+      navigateTo(
+        buildPlatformUrl('/platform/every-office/documents', { docId: source.contentId, view: 'editor', from: 'nexus' })
+      )
       return
     }
     if (source.contentType === 'spreadsheet') {
-      const url = isProduction ? '/platform/spreadsheets' : '/platform/apps/spreadsheet-apps'
-      navigateTo(buildPlatformUrl(url, { appId: source.contentId, view: 'viewer', from: 'nexus' }))
+      navigateTo(
+        buildPlatformUrl('/platform/every-office/spreadsheets', {
+          appId: source.contentId,
+          view: 'viewer',
+          from: 'nexus'
+        })
+      )
       return
     }
-    const url = isProduction ? '/platform/notes' : '/platform/apps/note-apps'
-    navigateTo(buildPlatformUrl(url, { noteId: source.contentId, view: 'editor', from: 'nexus' }))
+    navigateTo(
+      buildPlatformUrl('/platform/every-office/notes', { noteId: source.contentId, view: 'editor', from: 'nexus' })
+    )
   }
 
   return (

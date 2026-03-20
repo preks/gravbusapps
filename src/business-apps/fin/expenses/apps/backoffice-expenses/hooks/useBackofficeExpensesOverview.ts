@@ -45,14 +45,10 @@ interface UseBackofficeExpensesOverviewParams {
   plansDepartmentNames?: string[]
   paymentsDepartmentNames?: string[]
   plansEffectiveDateRange?: { from?: string | null; to?: string | null } | null
-  plansStartDateRange?: { from?: string | null; to?: string | null } | null
-  plansEndDateRange?: { from?: string | null; to?: string | null } | null
   plansPlanDateRange?: { from?: string | null; to?: string | null } | null
   plansTypeFilter?: string[]
   requestsEffectiveDateRange?: { from?: string | null; to?: string | null } | null
   requestsRequestDateRange?: { from?: string | null; to?: string | null } | null
-  requestsStartDateRange?: { from?: string | null; to?: string | null } | null
-  requestsEndDateRange?: { from?: string | null; to?: string | null } | null
   requestsTypeFilter?: string[]
   includeRequests?: boolean
   includePlans?: boolean
@@ -105,50 +101,36 @@ interface UseBackofficeExpensesOverviewReturn {
 
 const DEFAULT_OVERVIEW_ORDER: any[] = [{ createdAt: 'DESC' }]
 
-function buildStatusWhereWithExclusions(statuses: string[] | undefined, excludedStatuses: string[]): GqlBoolExp {
-  if (Array.isArray(statuses) && statuses.length > 0) {
-    const allowedStatuses = statuses.filter(status => !excludedStatuses.includes(status))
-    if (allowedStatuses.length > 0) {
-      return { status: { _in: allowedStatuses } } as unknown as GqlBoolExp
-    }
-    return { status: { _nin: excludedStatuses } } as unknown as GqlBoolExp
-  }
-  return { status: { _nin: excludedStatuses } } as unknown as GqlBoolExp
-}
-
 const REQUEST_EXCLUDED_STATUSES = ['CREATED', 'DISCARDED']
 const PAYMENT_EXCLUDED_STATUSES = ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED']
+const PLAN_EXCLUDED_STATUSES = ['CREATED', 'DISCARDED']
+
+function buildEntityStatusWhere(statuses: string[] | undefined, defaultExcluded: string[]): GqlBoolExp {
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    return { status: { _in: statuses } } as unknown as GqlBoolExp
+  }
+  return { status: { _nin: defaultExcluded } } as unknown as GqlBoolExp
+}
 
 function buildStatusWhere(statuses?: string[]): GqlBoolExp {
-  return buildStatusWhereWithExclusions(statuses, REQUEST_EXCLUDED_STATUSES)
+  return buildEntityStatusWhere(statuses, REQUEST_EXCLUDED_STATUSES)
 }
 
 function buildPaymentStatusWhere(statuses?: string[]): GqlBoolExp {
-  return buildStatusWhereWithExclusions(statuses, PAYMENT_EXCLUDED_STATUSES)
+  return buildEntityStatusWhere(statuses, PAYMENT_EXCLUDED_STATUSES)
 }
 
-const DEFAULT_EXCLUDED_STATUSES = ['CREATED', 'DISCARDED'] as const
-
 function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]): GqlBoolExp {
-  const excluded = new Set(
-    Array.isArray(exclude) && exclude.length > 0 ? exclude.filter(Boolean) : DEFAULT_EXCLUDED_STATUSES
-  )
-  const selected = Array.isArray(statuses) ? statuses.filter(Boolean) : []
-  const allowed = selected.filter(status => !excluded.has(status))
-  if (allowed.length > 0) return { status: { _in: allowed } } as unknown as GqlBoolExp
-  return { status: { _nin: Array.from(excluded) } } as unknown as GqlBoolExp
+  const excluded = Array.isArray(exclude) && exclude.length > 0 ? exclude : PLAN_EXCLUDED_STATUSES
+  return buildEntityStatusWhere(statuses, excluded)
 }
 
 function buildBackofficeOverviewDependencies(params: UseBackofficeExpensesOverviewParams): unknown[] {
   const dateRangePairs: Array<{ from?: string | null; to?: string | null } | null | undefined> = [
     params.plansEffectiveDateRange,
-    params.plansStartDateRange,
-    params.plansEndDateRange,
     params.plansPlanDateRange,
     params.requestsEffectiveDateRange,
-    params.requestsRequestDateRange,
-    params.requestsStartDateRange,
-    params.requestsEndDateRange
+    params.requestsRequestDateRange
   ]
   return [
     ...buildOverviewCoreDependencies(params),
@@ -198,11 +180,9 @@ function buildDepartmentNameWhere(
   names: string[] | undefined,
   path: 'employee' | 'expensePlan.employee' = 'employee'
 ): GqlBoolExp {
-  return buildScopedNameWhere(names, path, name => ({
+  return buildScopedNameWhere(names, path, idOrName => ({
     employeePosition: {
-      organizationalUnit: {
-        name: { _eq: name }
-      }
+      organizationalUnitId: { _eq: idOrName }
     }
   }))
 }

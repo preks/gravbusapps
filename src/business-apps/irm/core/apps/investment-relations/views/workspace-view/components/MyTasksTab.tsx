@@ -27,6 +27,8 @@ export const MyTasksTab: React.FC<BusinessAppContextProps> = context => {
       accessToken={context.accessToken}
       userInfo={context.userInfo}
       dataTestId="workspace-my-tasks"
+      enableExport
+      exportFilenamePrefix="irm-my-tasks"
     />
   )
 }

@@ -11,5 +11,4 @@ export interface PerformanceEvaluationPeerApproveFormValues {
 
 export interface PerformanceEvaluationPeerApproveFormProps {
   onSubmit?: (values: PerformanceEvaluationPeerApproveFormValues) => Promise<void>
-  onCancel?: () => Promise<void>
 }

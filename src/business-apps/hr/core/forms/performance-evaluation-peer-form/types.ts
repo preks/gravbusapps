@@ -16,5 +16,4 @@ export interface PerformanceEvaluationPeerFormValues {
 export interface PerformanceEvaluationPeerFormProps {
   initialValues?: Partial<PerformanceEvaluationPeerFormValues>
   onSubmit?: (values: PerformanceEvaluationPeerFormValues) => Promise<void>
-  onCancel?: () => Promise<void>
 }

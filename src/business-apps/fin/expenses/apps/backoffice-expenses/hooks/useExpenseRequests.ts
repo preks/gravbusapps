@@ -4,6 +4,7 @@ import { GET_EXPENSE_REQUESTS, PROCESS_PAYMENT_MUTATION } from '../queries'
 import { ExpenseData, ExpenseRequestQueryData } from '../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDateLocalized } from '../utils/dateUtils'
+import type { TranslateFn } from '../utils/utils'
 import {
   buildNumericRangeCondition,
   buildSearchCondition as buildSearchConditionBase,
@@ -15,7 +16,7 @@ import { buildRequestEffectiveDateFilter, buildRequestTypeFilter } from './backo
 import { extractUniqueStatuses, extractUniqueEmployees } from '../utils/sharedUtils'
 import { buildEmployeeDisplayName } from './backofficeReportUtils'
 
-export const useExpenseRequests = (context: BusinessAppContextProps, isActive: boolean = true) => {
+export const useExpenseRequests = (context: BusinessAppContextProps, t: TranslateFn, isActive: boolean = true) => {
   const { accessToken } = context
   const client = useGraphqlClient(accessToken)
 
@@ -111,14 +112,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
   const [amountMaxFilter, setAmountMaxFilter] = useState<string>('')
   const [departmentFilter, setDepartmentFilter] = useState<string>('')
   const [currencyRefFilter, setCurrencyRefFilter] = useState<string>('')
-  const [startDateRangeFilter, setStartDateRangeFilter] = useState<{
-    from?: string
-    to?: string
-  }>({})
-  const [endDateRangeFilter, setEndDateRangeFilter] = useState<{
-    from?: string
-    to?: string
-  }>({})
   // New date range filters - matching manager/personal pattern
   const [effectiveDateRangeFilter, setEffectiveDateRangeFilter] = useState<{
     from?: string
@@ -140,10 +133,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       sapNumber: item.employee?.hrReferenceCode ?? '-',
       employee: buildEmployeeDisplayName(item.employee) || '-',
       title: item.title ?? '-',
-      creationDate: formatDateLocalized(item.createdAt),
-      startDate: formatDateLocalized(item.startDate),
-      endDate: formatDateLocalized(item.endDate),
-      requestDate: formatDateLocalized(item.createdAt),
+      creationDate: formatDateLocalized(item.createdAt, t),
+      startDate: formatDateLocalized(item.startDate, t),
+      endDate: formatDateLocalized(item.endDate, t),
+      requestDate: formatDateLocalized(item.requestDate ?? item.createdAt, t),
       reporter: buildEmployeeDisplayName(item.employee) || '-',
       type: item.requestType?.value ?? '-',
       amount: item.reimbursableAmount ? `${item.reimbursableAmount} ${item.currency?.code ?? ''}`.trim() : '-',
@@ -177,30 +170,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     }))
   }
 
-  // Helper: Build date range filter conditions (reduces cognitive complexity)
-  const buildDateRangeFilterConditions = (
-    startDateRange: { from?: string; to?: string },
-    endDateRange: { from?: string; to?: string }
-  ): any[] => {
-    const conditions: any[] = []
-
-    if (startDateRange.from || startDateRange.to) {
-      const rangeCond: any = {}
-      if (startDateRange.from) rangeCond._gte = startDateRange.from
-      if (startDateRange.to) rangeCond._lte = startDateRange.to
-      conditions.push({ startDate: rangeCond })
-    }
-
-    if (endDateRange.from || endDateRange.to) {
-      const rangeCond: any = {}
-      if (endDateRange.from) rangeCond._gte = endDateRange.from
-      if (endDateRange.to) rangeCond._lte = endDateRange.to
-      conditions.push({ endDate: rangeCond })
-    }
-
-    return conditions
-  }
-
   const buildSearchCondition = (searchTerm: string): any[] => {
     return buildSearchConditionBase(searchTerm, buildExpenseRequestSearchOrConditions)
   }
@@ -213,8 +182,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       employeeFilter: string
       amountMinFilter: string
       amountMaxFilter: string
-      startDateRangeFilter: { from?: string; to?: string }
-      endDateRangeFilter: { from?: string; to?: string }
       searchTerm: string
       departmentFilter: string
       currencyRefFilter: string
@@ -227,8 +194,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
         employeeFilter,
         amountMinFilter,
         amountMaxFilter,
-        startDateRangeFilter,
-        endDateRangeFilter,
         searchTerm,
         departmentFilter,
         currencyRefFilter,
@@ -237,14 +202,21 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
         requestTypeFilter
       } = options
 
-      // Build conditions array using extracted helper functions
+      const activeStatuses = statusFilter
+        ? statusFilter
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
+        : []
+      const excludedStatuses = ['DISCARDED']
+      if (!activeStatuses.includes('CREATED')) excludedStatuses.push('CREATED')
+
       const conditions: any[] = [
         { isDeleted: { _eq: false } },
-        { status: { _nin: ['DISCARDED', 'CREATED'] } },
+        { status: { _nin: excludedStatuses } },
         ...buildStatusFilterCondition(statusFilter),
         ...buildEmployeeFilterCondition(employeeFilter),
         ...buildAmountFilterCondition(amountMinFilter, amountMaxFilter),
-        ...buildDateRangeFilterConditions(startDateRangeFilter, endDateRangeFilter),
         ...buildSearchCondition(searchTerm)
       ]
 
@@ -268,10 +240,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
 
       // Add request date range filter if provided
       if (requestDateRangeFilter?.from || requestDateRangeFilter?.to) {
-        const requestDateCond: any = {}
-        if (requestDateRangeFilter.from) requestDateCond._gte = requestDateRangeFilter.from
-        if (requestDateRangeFilter.to) requestDateCond._lte = requestDateRangeFilter.to
-        conditions.push({ requestDate: requestDateCond })
+        const createdAtCond: any = {}
+        if (requestDateRangeFilter.from) createdAtCond._gte = requestDateRangeFilter.from
+        if (requestDateRangeFilter.to) createdAtCond._lte = requestDateRangeFilter.to
+        conditions.push({ createdAt: createdAtCond })
       }
 
       // Add request type filter if provided
@@ -303,8 +275,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       amountMaxFilter,
       departmentFilter,
       currencyRefFilter,
-      startDateRange: startDateRangeFilter,
-      endDateRange: endDateRangeFilter,
       effectiveDateRange: effectiveDateRangeFilter,
       requestDateRange: requestDateRangeFilter,
       requestTypeFilter,
@@ -334,8 +304,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
         employeeFilter,
         amountMinFilter,
         amountMaxFilter,
-        startDateRangeFilter,
-        endDateRangeFilter,
         searchTerm,
         departmentFilter,
         currencyRefFilter,
@@ -393,10 +361,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     amountMaxFilter,
     departmentFilter,
     currencyRefFilter,
-    startDateRangeFilter.from,
-    startDateRangeFilter.to,
-    endDateRangeFilter.from,
-    endDateRangeFilter.to,
     effectiveDateRangeFilter?.from,
     effectiveDateRangeFilter?.to,
     requestDateRangeFilter?.from,
@@ -467,16 +431,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
 
   const handleCurrencyFilter = useCallback((currencyRef: string) => {
     setCurrencyRefFilter(currencyRef)
-    setCurrentPage(1)
-  }, [])
-
-  const handleStartDateRangeFilter = useCallback((from?: string, to?: string) => {
-    setStartDateRangeFilter({ from, to })
-    setCurrentPage(1)
-  }, [])
-
-  const handleEndDateRangeFilter = useCallback((from?: string, to?: string) => {
-    setEndDateRangeFilter({ from, to })
     setCurrentPage(1)
   }, [])
 
@@ -556,8 +510,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     handleAmountFilter,
     handleDepartmentFilter,
     handleCurrencyFilter,
-    handleStartDateRangeFilter,
-    handleEndDateRangeFilter,
     handleTableChange,
     handleSearch,
     handleSortChange,

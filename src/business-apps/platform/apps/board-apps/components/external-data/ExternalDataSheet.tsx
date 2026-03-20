@@ -4,10 +4,12 @@ import { Plug } from 'lucide-react'
 import { BoardApiService } from '../../services/BoardApiService'
 import { useBoardRealtime, type BoardRealtimeEvent } from '../../hooks/useBoardRealtime'
 import type { ConnectorSummary, ConnectorField, SyncRunStatus } from '../../types'
+import type { ConnectorProviderODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { ConnectorSelector } from './ConnectorSelector'
 import { ExternalPreview } from './ExternalPreview'
 import { ExternalImportConfig } from './ExternalImportConfig'
 import { ExternalSyncProgress } from './ExternalSyncProgress'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 
 type Step = 'select' | 'preview' | 'config' | 'progress'
 
@@ -33,11 +35,17 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
   onSheetUpdate,
   'data-testid': testId = 'external-data-sheet'
 }) => {
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [step, setStep] = useState<Step>('select')
   const [connectors, setConnectors] = useState<ConnectorSummary[]>([])
+  const [connectProviders, setConnectProviders] = useState<ConnectorProviderODM[]>([])
   const [isLoadingConnectors, setIsLoadingConnectors] = useState(false)
   const [connectorError, setConnectorError] = useState<string | null>(null)
   const [selectedConnector, setSelectedConnector] = useState<ConnectorSummary | null>(null)
+  const [sharedConnections, setSharedConnections] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null)
+  const [isLoadingSharedConnections, setIsLoadingSharedConnections] = useState(false)
+  const [sharedConnectionsError, setSharedConnectionsError] = useState<string | null>(null)
 
   const [previewRecords, setPreviewRecords] = useState<Array<Record<string, unknown>>>([])
   const [previewSchema, setPreviewSchema] = useState<ConnectorField[]>([])
@@ -64,6 +72,8 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const runIdRef = useRef<string | null>(null)
   runIdRef.current = runId
+  const pmClientRef = useRef(promptManagerClient)
+  pmClientRef.current = promptManagerClient
 
   const handleRealtimeEvent = useCallback(
     (event: BoardRealtimeEvent) => {
@@ -115,8 +125,48 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
     setIsLoadingConnectors(true)
     setConnectorError(null)
     try {
-      const result = await BoardApiService.listExternalConnectors(boardId, sheetId)
-      setConnectors(result as unknown as ConnectorSummary[])
+      const [allConnectors, boardStructuredConns, mcpConns] = await Promise.all([
+        BoardApiService.listExternalConnectors(boardId, sheetId),
+        pmClientRef.current.getExternalConnections({
+          kind: 'structured',
+          consumerType: 'board_import',
+          limit: 100,
+          offset: 0
+        }),
+        pmClientRef.current.getExternalConnections({
+          kind: 'mcp',
+          consumerType: 'board_import',
+          limit: 100,
+          offset: 0
+        })
+      ])
+
+      const activeConnectorNames = new Set(
+        (boardStructuredConns.data || [])
+          .filter(c => c.active !== false)
+          .map(c => c.connectorId || c.connector_id || c.connectorName || c.connector_name)
+          .filter(Boolean) as string[]
+      )
+
+      const structuredConnectors = (allConnectors as unknown as ConnectorSummary[]).filter(c =>
+        activeConnectorNames.has(c.name)
+      )
+
+      const mcpAsConnectors: ConnectorSummary[] = (mcpConns.data || [])
+        .filter(c => c.active !== false)
+        .map(c => {
+          const connId = (c as any).connection_id || (c as any).connectionId || ''
+          return {
+            id: connId,
+            name: c.name || connId,
+            description: c.description ?? null,
+            connectorEnabled: true,
+            config: { __kind: 'mcp' },
+            latestVersion: { version: 1, inputSchema: {}, outputSchema: {}, createdAt: '' }
+          }
+        })
+
+      setConnectors([...structuredConnectors, ...mcpAsConnectors])
     } catch {
       setConnectorError('Failed to load connectors')
     } finally {
@@ -124,18 +174,87 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
     }
   }, [boardId, sheetId])
 
+  const loadConnectProviders = useCallback(async () => {
+    try {
+      const result = await promptManagerClient.getConnectorProviders({
+        consumerType: 'board_import',
+        limit: 100,
+        offset: 0,
+        returnTotalRecords: true
+      })
+      setConnectProviders(result.data || [])
+    } catch {
+      setConnectProviders([])
+    }
+  }, [promptManagerClient])
+
   useEffect(() => {
     if (open && step === 'select') {
       void loadConnectors()
+      void loadConnectProviders()
     }
-  }, [open, step, loadConnectors])
+  }, [open, step, loadConnectors, loadConnectProviders])
+
+  const isMcpConnector = (c: ConnectorSummary | null) => c?.config?.__kind === 'mcp'
+
+  useEffect(() => {
+    const loadSharedConnections = async () => {
+      if (!selectedConnector) {
+        setSharedConnections([])
+        setSelectedConnectionId(null)
+        setSharedConnectionsError(null)
+        return
+      }
+
+      if (isMcpConnector(selectedConnector)) {
+        setSharedConnections([])
+        setSelectedConnectionId(selectedConnector.id)
+        setSharedConnectionsError(null)
+        setIsLoadingSharedConnections(false)
+        return
+      }
+
+      setIsLoadingSharedConnections(true)
+      setSharedConnectionsError(null)
+      try {
+        const result = await promptManagerClient.getExternalConnections({
+          kind: 'structured',
+          connectorId: selectedConnector.name,
+          consumerType: 'board_import',
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true
+        })
+        const next = (result.data || []).map(item => ({
+          id: (item as any).connection_id || (item as any).connectionId || '',
+          name: item.name
+        }))
+        const valid = next.filter(item => item.id)
+        setSharedConnections(valid)
+        if (valid.length === 1) {
+          setSelectedConnectionId(valid[0].id)
+        }
+      } catch {
+        setSharedConnections([])
+        setSharedConnectionsError('Failed to load shared connections')
+      } finally {
+        setIsLoadingSharedConnections(false)
+      }
+    }
+    void loadSharedConnections()
+  }, [promptManagerClient, selectedConnector])
 
   const handlePreview = useCallback(async () => {
     if (!selectedConnector) return
     setIsLoadingPreview(true)
     setStep('preview')
     try {
-      const result = await BoardApiService.externalPreview(boardId, sheetId, selectedConnector.id)
+      const result = await BoardApiService.externalPreview(
+        boardId,
+        sheetId,
+        selectedConnector.id,
+        selectedConnectionId || undefined
+      )
       if (result) {
         setPreviewRecords(result.records)
         setPreviewSchema(result.schema as ConnectorField[])
@@ -151,7 +270,7 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
     } finally {
       setIsLoadingPreview(false)
     }
-  }, [selectedConnector, boardId, sheetId])
+  }, [selectedConnector, selectedConnectionId, boardId, sheetId])
 
   const pollRunStatus = useCallback(
     async (activeRunId: string) => {
@@ -199,6 +318,7 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
         connectorId: selectedConnector.id,
         connectorName: selectedConnector.name,
         connectorDescription: selectedConnector.description ?? undefined,
+        connectionId: selectedConnectionId || undefined,
         selectedFields,
         limit,
         mode,
@@ -228,6 +348,7 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
     }
   }, [
     selectedConnector,
+    selectedConnectionId,
     boardId,
     sheetId,
     selectedFields,
@@ -251,6 +372,9 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
   const resetState = useCallback(() => {
     setStep('select')
     setSelectedConnector(null)
+    setSharedConnections([])
+    setSelectedConnectionId(null)
+    setSharedConnectionsError(null)
     setPreviewRecords([])
     setPreviewSchema([])
     setEstimatedTotal(undefined)
@@ -300,8 +424,14 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
           {step === 'select' && (
             <ConnectorSelector
               connectors={connectors}
+              providers={connectProviders}
               selectedId={selectedConnector?.id ?? null}
               onSelect={setSelectedConnector}
+              connectionOptions={sharedConnections}
+              selectedConnectionId={selectedConnectionId}
+              onConnectionChange={setSelectedConnectionId}
+              isLoadingConnections={isLoadingSharedConnections}
+              connectionError={sharedConnectionsError}
               onNext={() => void handlePreview()}
               isLoading={isLoadingConnectors}
               error={connectorError}

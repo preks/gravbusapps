@@ -34,12 +34,12 @@ export interface EmployeeOption {
   department?: string
   pictureThumbnail?: string
   userId?: string
+  managerUserId?: string
 }
 
 export interface PerformanceEvaluationFormProps {
   initialValues?: Partial<PerformanceEvaluationFormValues>
   onSubmit?: (values: PerformanceEvaluationFormValues) => Promise<void>
-  onCancel?: () => Promise<void>
   preSelectedEmployeeId?: string
   preSelectedUserId?: string
 }

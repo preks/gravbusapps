@@ -4,6 +4,7 @@ import { UserIcon, AddressBookIcon, UsersThreeIcon, CurrencyDollarIcon } from '@
 import { CampaignKPIsProps } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatPercentage } from '@/common/utils/numberFormatter'
+import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
 
 const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, error, onRetry }) => {
   // Transform KPIs data into widgets format
@@ -13,7 +14,7 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, 
       title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalLeads', 'Total Leads'),
       value: kpisWithTrends?.totalLeads.current || 0,
       prefix: <UserIcon />,
-      color: '#1890ff',
+      color: NW_CHART_COLOR_VARS[0],
       span: { xs: 24, sm: 12, lg: 6 },
       description: kpisWithTrends?.totalLeads.percentage
         ? `${formatPercentage(kpisWithTrends.totalLeads.percentage)} converted`
@@ -25,7 +26,7 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, 
       title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalAccounts', 'Total Accounts'),
       value: kpisWithTrends?.totalAccounts.current || 0,
       prefix: <AddressBookIcon />,
-      color: '#52c41a',
+      color: NW_CHART_COLOR_VARS[1],
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('campaign.kpis.accounts.description', 'Campaign accounts'),
       trend: kpisWithTrends?.totalAccounts.trend
@@ -35,7 +36,7 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, 
       title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalContacts', 'Total Contacts'),
       value: kpisWithTrends?.totalContacts.current || 0,
       prefix: <UsersThreeIcon />,
-      color: '#722ed1',
+      color: NW_CHART_COLOR_VARS[2],
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('campaign.kpis.contacts.description', 'Campaign contacts'),
       trend: kpisWithTrends?.totalContacts.trend
@@ -45,7 +46,7 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, 
       title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalOpportunities', 'Total Opportunities'),
       value: kpisWithTrends?.totalOpportunities.current || 0,
       prefix: <CurrencyDollarIcon />,
-      color: '#fa8c16',
+      color: NW_CHART_COLOR_VARS[3],
       span: { xs: 24, sm: 12, lg: 6 },
       description: kpisWithTrends?.totalOpportunities.percentage
         ? `${formatPercentage(kpisWithTrends.totalOpportunities.percentage)} won`

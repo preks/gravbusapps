@@ -16,7 +16,7 @@ import {
   PopoverTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { FileText, Table2, StickyNote, Presentation, Search, Loader2, X, Plus } from 'lucide-react'
+import { FileText, Table2, StickyNote, Presentation, Search, Loader2, X, Plus, ExternalLink } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import type { ContentReference, ContentType } from '../services/SlideGenerationService'
@@ -192,6 +192,30 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
     }
   }
 
+  // Get URL to open content in new tab (environment-aware)
+  const getContentUrl = (type: ContentType, id: string) => {
+    const isProduction = process.env.NODE_ENV === 'production'
+
+    switch (type) {
+      case 'document':
+        return isProduction
+          ? `/platform/documents?docId=${id}&view=editor`
+          : `/?app=platform/apps/document-apps&docId=${id}&view=editor`
+      case 'note':
+        return isProduction
+          ? `/platform/notes?noteId=${id}&view=editor`
+          : `/?app=platform/apps/note-apps&noteId=${id}&view=editor`
+      case 'spreadsheet':
+        return isProduction
+          ? `/platform/spreadsheets?appId=${id}&view=viewer`
+          : `/?app=platform/apps/spreadsheet-apps&appId=${id}&view=viewer`
+      case 'slide':
+        return isProduction
+          ? `/platform/slides?slideId=${id}&view=editor`
+          : `/?app=platform/apps/slide-apps&slideId=${id}&view=editor`
+    }
+  }
+
   // Active tab items
   const activeItems = contentItems[activeTab]
 
@@ -209,13 +233,24 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
               >
                 <Icon className="gba:w-3 gba:h-3" />
                 <span className="gba:max-w-[150px] gba:truncate">{item.title || t('title-untitled')}</span>
+                <a
+                  href={getContentUrl(item.type, item.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="gba:p-0.5 gba:rounded-sm hover:gba:bg-muted-foreground/20"
+                  title={t('attachment-open-new-tab') || 'Open in new tab'}
+                  data-testid={`${testId}-open-${item.id}`}
+                >
+                  <ExternalLink className="gba:w-3 gba:h-3" />
+                </a>
                 <button
                   type="button"
                   onClick={e => {
                     e.stopPropagation()
                     removeItem(item)
                   }}
-                  className="gba:ml-1 gba:p-0.5 gba:rounded-sm hover:gba:bg-muted-foreground/20"
+                  className="gba:p-0.5 gba:rounded-sm hover:gba:bg-muted-foreground/20"
                   data-testid={`${testId}-remove-${item.id}`}
                 >
                   <X className="gba:w-3 gba:h-3" />

@@ -9,7 +9,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Socket } from 'socket.io-client'
 import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
+import { markNextPaginationHydrationDocChange } from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
 import { DocumentApiService } from '../services/DocumentApiService'
+import type { DocumentFormatting } from '../types'
+import {
+  containsCustomDocumentTags,
+  isEffectivelyEmptyDocumentHtml,
+  normalizeDocumentHtmlForEditor,
+  sanitizePaginationRuntimeHtml
+} from '../utils/documentContentUtils'
 
 const SNAPSHOT_SAVE_DELAY_MS = 2000
 
@@ -22,6 +30,7 @@ export interface UseYjsDocumentSyncParams {
   suppressSnapshotSaveRef?: React.MutableRefObject<boolean>
   isReadOnly: boolean
   title: string
+  getFormattingForSave?: () => DocumentFormatting | undefined
   setLastSaved: (date: Date | null) => void
   setHasUnsavedChanges: (value: boolean) => void
 }
@@ -40,6 +49,7 @@ export function useYjsDocumentSync({
   suppressSnapshotSaveRef,
   isReadOnly,
   title,
+  getFormattingForSave,
   setLastSaved,
   setHasUnsavedChanges
 }: UseYjsDocumentSyncParams): UseYjsDocumentSyncResult {
@@ -47,6 +57,7 @@ export function useYjsDocumentSync({
   const scheduleSnapshotSaveRef = useRef<(editor: { getHTML?: () => string }) => void>(() => {})
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const providerRef = useRef<SocketIoYjsProvider | null>(null)
+  const recoveryAttemptedRef = useRef(false)
 
   const scheduleSnapshotSave = useCallback(
     (currentEditor: { getHTML?: () => string }) => {
@@ -58,8 +69,23 @@ export function useYjsDocumentSync({
       }
 
       autoSaveTimeoutRef.current = setTimeout(() => {
-        const html = currentEditor?.getHTML?.() || ''
-        DocumentApiService.updateDocument(documentId, { title, content: html }, { createVersion: false })
+        const html = sanitizePaginationRuntimeHtml(currentEditor?.getHTML?.() || '')
+        const updates: {
+          title: string
+          content: string
+          formatting?: DocumentFormatting
+          contentJson?: Record<string, never>
+        } = {
+          title,
+          content: html,
+          formatting: getFormattingForSave?.()
+        }
+
+        if (isEffectivelyEmptyDocumentHtml(html)) {
+          updates.contentJson = {}
+        }
+
+        DocumentApiService.updateDocument(documentId, updates, { createVersion: false })
           .then(() => {
             setLastSaved(new Date())
             setHasUnsavedChanges(false)
@@ -69,7 +95,7 @@ export function useYjsDocumentSync({
           })
       }, SNAPSHOT_SAVE_DELAY_MS)
     },
-    [documentId, isReadOnly, isYjsSynced, title, setLastSaved, setHasUnsavedChanges]
+    [documentId, getFormattingForSave, isReadOnly, isYjsSynced, title, setLastSaved, setHasUnsavedChanges]
   )
 
   useEffect(() => {
@@ -95,9 +121,72 @@ export function useYjsDocumentSync({
     })
   }, [editorRef])
 
+  const applyNormalizedContentToEditor = useCallback(
+    async (html: string) => {
+      const start = Date.now()
+      while (!editorRef.current && Date.now() - start < 5000) {
+        await new Promise(resolve => setTimeout(resolve, 25))
+      }
+
+      const ed = editorRef.current as {
+        commands: { setContent: (editorHtml: string, emit?: boolean) => void }
+        getHTML?: () => string
+      } | null
+
+      if (!ed) {
+        throw new Error('Editor not ready for content apply')
+      }
+
+      const normalizedHtml = normalizeDocumentHtmlForEditor(html || '<p></p>')
+
+      try {
+        if (suppressSnapshotSaveRef) {
+          suppressSnapshotSaveRef.current = true
+        }
+        markNextPaginationHydrationDocChange(ed)
+        ed.commands.setContent(normalizedHtml, true)
+        await new Promise(resolve => setTimeout(resolve, 100))
+      } finally {
+        setTimeout(() => {
+          if (suppressSnapshotSaveRef) {
+            suppressSnapshotSaveRef.current = false
+          }
+        }, 1500)
+      }
+    },
+    [documentId, editorRef, suppressSnapshotSaveRef]
+  )
+
+  const handleReadyStateApplied = useCallback(
+    async (info: {
+      source: 'sync' | 'event' | 'remote-update'
+      status: 'ready' | 'already_ready'
+      fragmentLength: number
+      fragmentContent: unknown
+    }) => {
+      const serializedFragment =
+        typeof info.fragmentContent === 'string' ? info.fragmentContent : JSON.stringify(info.fragmentContent ?? null)
+      const looksCorrupted = containsCustomDocumentTags(serializedFragment)
+
+      if (!documentId || recoveryAttemptedRef.current || !looksCorrupted) {
+        return
+      }
+
+      recoveryAttemptedRef.current = true
+
+      const latest = await DocumentApiService.getDocument(documentId, { fresh: true })
+      if (!latest?.content) return
+
+      await applyNormalizedContentToEditor(latest.content)
+    },
+    [applyNormalizedContentToEditor, documentId]
+  )
+
   // Drive Yjs sync over Socket.IO: create provider, start, cleanup
   useEffect(() => {
     if (!documentId || !collaborationSocket) return
+
+    recoveryAttemptedRef.current = false
 
     const provider = new SocketIoYjsProvider({
       socket: collaborationSocket,
@@ -106,26 +195,8 @@ export function useYjsDocumentSync({
       awareness,
       onBeforeFirstSync: getEditorReadyPromise,
       onSyncedChange: setIsYjsSynced,
-      onBootstrapRequired: async (html: string) => {
-        const start = Date.now()
-        while (!editorRef.current && Date.now() - start < 5000) {
-          await new Promise(resolve => setTimeout(resolve, 25))
-        }
-        const ed = editorRef.current as {
-          isEditable: boolean
-          setEditable: (v: boolean) => void
-          commands: { setContent: (html: string, emit?: boolean) => void }
-        } | null
-        if (!ed) {
-          throw new Error('Editor not ready for bootstrap')
-        }
-        const wasEditable = ed.isEditable
-        if (!wasEditable) {
-          ed.setEditable(true)
-        }
-        ed.commands.setContent(html || '<p></p>', true)
-        await new Promise(resolve => setTimeout(resolve, 100))
-      },
+      onBootstrapRequired: applyNormalizedContentToEditor,
+      onReadyStateApplied: handleReadyStateApplied,
       onLocalDocumentChange: () => {
         if (suppressSnapshotSaveRef?.current) {
           return
@@ -143,7 +214,17 @@ export function useYjsDocumentSync({
       providerRef.current = null
       setIsYjsSynced(false)
     }
-  }, [documentId, collaborationSocket, ydoc, awareness, editorRef, suppressSnapshotSaveRef, getEditorReadyPromise])
+  }, [
+    documentId,
+    collaborationSocket,
+    ydoc,
+    awareness,
+    editorRef,
+    suppressSnapshotSaveRef,
+    getEditorReadyPromise,
+    applyNormalizedContentToEditor,
+    handleReadyStateApplied
+  ])
 
   // Cleanup snapshot timeout on unmount
   useEffect(() => {

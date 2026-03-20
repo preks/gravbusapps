@@ -115,8 +115,11 @@ export const useAgentBuilderState = (
       '',
       'Rules:',
       '- decisionResult must be one of the allowed values',
+      '- Always include reasoning as a concise explanation (1-3 sentences)',
+      '- Always include escalate as true or false',
       '- If you cannot decide from the context, set escalate=true and explain why in reasoning',
-      '- Keep reasoning concise (1-3 sentences)'
+      '- Always include confidence as a number between 0 and 1',
+      '- Use higher confidence for clear matches and lower confidence for ambiguous cases'
     ].join('\n')
   }
 
@@ -126,11 +129,13 @@ export const useAgentBuilderState = (
       type: 'object',
       properties: {
         decisionResult: { type: 'string', enum: enumVals },
-        reasoning: { type: 'string' },
-        escalate: { type: 'boolean' }
+        reasoning: { type: 'string', minLength: 1 },
+        escalate: { type: 'boolean' },
+        escalationReason: { type: 'string' },
+        confidence: { type: 'number', minimum: 0, maximum: 1 }
       },
-      required: ['decisionResult'],
-      additionalProperties: false
+      required: ['decisionResult', 'reasoning', 'escalate', 'confidence'],
+      additionalProperties: true
     }
     return JSON.stringify(schema, null, 2)
   }

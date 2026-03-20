@@ -46,6 +46,8 @@ export interface InvestmentActivityQueryVariables extends CommonActivityQueryVar
   // Investment-specific: investmentId filter
   investmentId?: string
   investmentIds?: string[]
+  /** Filter by reference entity type: 'account' | 'contact' | 'lead' | 'opportunity' | 'investment' */
+  referenceTypes?: string[]
 }
 
 /**

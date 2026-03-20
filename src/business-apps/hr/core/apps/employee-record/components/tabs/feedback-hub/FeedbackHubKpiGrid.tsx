@@ -20,6 +20,7 @@ interface FeedbackHubKpiGridProps {
 }
 
 const trendLabel = (value: number) => (value > 0 ? `+${value}` : String(value))
+const trendPositive = (value: number) => (value === 0 ? undefined : value > 0)
 
 const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
   t,
@@ -38,7 +39,11 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
         value: String(kpis.receivedTotal),
         icon: <Icon icon={ChatCircleIcon} size="sm" decorative />,
         iconColor: 'var(--nw-info)',
-        footer: t('feedback-hub-kpi-trend-30d', { value: trendLabel(kpis.receivedTrend) })
+        trend: {
+          value: trendLabel(kpis.receivedTrend),
+          positive: trendPositive(kpis.receivedTrend),
+          description: t('feedback-hub-kpi-trend-vs-30d')
+        }
       },
       {
         id: 'feedback-given',
@@ -46,7 +51,11 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
         value: String(kpis.givenTotal),
         icon: <Icon icon={PaperPlaneTiltIcon} size="sm" decorative />,
         iconColor: 'var(--nw-success)',
-        footer: t('feedback-hub-kpi-trend-30d', { value: trendLabel(kpis.givenTrend) })
+        trend: {
+          value: trendLabel(kpis.givenTrend),
+          positive: trendPositive(kpis.givenTrend),
+          description: t('feedback-hub-kpi-trend-vs-30d')
+        }
       },
       {
         id: 'feedback-contributors',
@@ -54,7 +63,11 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
         value: String(kpis.distinctContributors),
         icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-decorative)',
-        footer: t('feedback-hub-kpi-trend-30d', { value: trendLabel(kpis.contributorTrend) })
+        trend: {
+          value: trendLabel(kpis.contributorTrend),
+          positive: trendPositive(kpis.contributorTrend),
+          description: t('feedback-hub-kpi-trend-vs-30d')
+        }
       }
     ],
     [
@@ -119,17 +132,6 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
               {(kpis.daysSinceGiven == null || kpis.daysSinceGiven > 30) && (
                 <li className="gba:space-y-1.5">
                   <p className="gba:mt-0.5">{t('feedback-hub-suggested-no-given')}</p>
-                  <AppAction
-                    variant="update-primary"
-                    contexts={[
-                      { context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }
-                    ]}
-                    prefixDataTestId="suggested-give-feedback"
-                    accessToken={accessToken}
-                    autoExecute={true}
-                  >
-                    {t('feedback-hub-give-feedback')}
-                  </AppAction>
                 </li>
               )}
               {pendingRequestsCount === 0 &&

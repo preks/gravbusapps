@@ -45,7 +45,7 @@ export interface LayoutOptions {
 
 export const DEFAULT_LAYOUT_OPTIONS: Required<LayoutOptions> = {
   direction: 'TB',
-  useForwardEdgesOnlyForRanking: false,
+  useForwardEdgesOnlyForRanking: true,
   nodeSpacing: 60,
   layerSpacing: 100,
   edgeNodeSpacing: 24,

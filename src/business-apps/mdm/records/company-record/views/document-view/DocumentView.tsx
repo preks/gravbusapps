@@ -12,10 +12,9 @@ import { DocumentSection } from '@/components/document-section'
 import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { CompanyDocumentUploadPopup } from '@/business-apps/mdm/forms/company-document-upload-popup'
 import { CompanyFolderCreatePopup } from '@/business-apps/mdm/forms/company-folder-create-popup'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import type { DocumentViewProps } from '../../types'
 import translations from '../../_i18n'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 /**
  * Get Company Document API configuration
@@ -46,7 +45,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
   const [selectedFolder, setSelectedFolder] = useState<any>(null)
 
   // REST client for document operations
-  const restClient = useRestClient(env('NEXT_PUBLIC_ORGCHART_API_URL'))
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   // Icons - created once to prevent re-renders
   const uploadIcon = useMemo(() => <UploadIcon className="gba:h-4 gba:w-4" />, [])
@@ -82,7 +81,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
         }
 
         // Call updateCompany endpoint
-        await restClient.put(`/orgchart/api/v1/companies/${entityId}`, payload, {
+        await orgchartClient.updateCompany(entityId, payload, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
 
@@ -95,7 +94,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
         toast.error(getTranslationFromI18nKeyAndLabel('document.error.delete.failed', 'Failed to delete document'))
       }
     },
-    [company, restClient, refetch]
+    [company, orgchartClient, refetch]
   )
 
   /**
@@ -171,7 +170,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
           error={error}
           onRefresh={refetch}
           apiConfig={getCompanyDocumentApiConfig()}
-          restClient={restClient}
+          restClient={orgchartClient}
           companyData={
             company?.structureId && company?.code
               ? {

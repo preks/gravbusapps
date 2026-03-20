@@ -15,19 +15,13 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import {
-  ImageIcon,
-  FilePdfIcon,
-  FileDocIcon,
-  FileXlsIcon,
-  FileIcon
-} from '@phosphor-icons/react'
+import { ImageIcon, FilePdfIcon, FileDocIcon, FileXlsIcon, FileIcon } from '@phosphor-icons/react'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems'
 import { getExpenseItemStatusDisplay } from '../../../utils'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
 import { Badge } from '@newwork/nw-design-system'
 import type { UploadFile } from 'antd/es/upload/interface'
@@ -505,15 +499,24 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
     <div className="gba:space-y-6">
       {availableActions.length > 0 ? (
         <div className="gba:flex gba:justify-end">
-          <AppActionButton
-            data-testid="expense-item-details-action-button"
-            size="icon"
-            staticFlowData={availableActions}
+          <AppAction
+            variant="table-row"
+            customActions={availableActions}
             prefixDataTestId="expense-item-details-action"
             accessToken={contextProps.accessToken}
-            emptyStateBehavior="disable"
-            deferMainContextRequestsUntilClick={true}
-          />
+            emptyState="disable"
+            lazyLoad
+            data-testid="expense-item-details-action-button"
+          >
+            <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+              />
+            </svg>
+          </AppAction>
         </div>
       ) : null}
 

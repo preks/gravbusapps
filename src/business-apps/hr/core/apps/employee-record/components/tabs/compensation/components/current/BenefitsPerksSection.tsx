@@ -66,15 +66,9 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitCatalogItem | null>(null)
 
-  // Fetch benefits catalog
-  const {
-    catalogData,
-    loading: catalogLoading,
-    error,
-    refetch
-  } = useBenefitsCatalog(employeeId, accessToken, {
-    excludeHrBackoffice: hrBackofficeHasPermission === false
-  })
+  // Fetch full catalog so assigned benefits (active/scheduled/not approved) always show.
+  // Role-based filtering is applied only to the "available" bucket in the section.
+  const { catalogData, loading: catalogLoading, error, refetch } = useBenefitsCatalog(employeeId, accessToken)
 
   // Refresh catalog when a benefit request or deactivation flow completes
   useProcessCompletion({
@@ -112,7 +106,15 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
       )
     }
 
-    // Eligibility filter based on catalogEntry.objectValue.groups
+    // Split into active, scheduled, not approved (cancelled), and available first.
+    // Assigned benefits (active/scheduled/not approved) are always visible regardless of role —
+    // if the employee was assigned a benefit, they can see it. Role-based filtering applies only to "available" benefits.
+    const active = benefits.filter(b => b.isActive)
+    const scheduled = benefits.filter(b => !b.isActive && b.isScheduled)
+    const notApproved = benefits.filter(b => b.isCancelled)
+    let available = benefits.filter(b => !b.isActive && !b.isScheduled && !b.isCancelled)
+
+    // Eligibility filter for *available* benefits only (catalogEntry.objectValue.groups)
     const hasHrBackoffice = hrBackofficeHasPermission === true
     const isEligibleByGroups = (b: BenefitCatalogItem): boolean => {
       const raw = b.catalogEntry?.objectValue as any
@@ -127,24 +129,16 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
       const groups: string[] = Array.isArray(obj?.groups) ? obj.groups.filter((g: any) => typeof g === 'string') : []
       if (groups.length === 0) return true
 
-      // Require that ALL groups are satisfied (AND logic)
       const satisfies = (g: string): boolean => {
         if (g === 'all-employees') return true
         if (g === 'all-hr-backoffice') return hasHrBackoffice
-        // Unknown or unsupported groups are not satisfied
         return false
       }
 
       return groups.every(satisfies)
     }
 
-    benefits = benefits.filter(isEligibleByGroups)
-
-    // Split into active, scheduled, not approved (cancelled), and available
-    const active = benefits.filter(b => b.isActive)
-    const scheduled = benefits.filter(b => !b.isActive && b.isScheduled)
-    const notApproved = benefits.filter(b => b.isCancelled)
-    const available = benefits.filter(b => !b.isActive && !b.isScheduled && !b.isCancelled)
+    available = available.filter(isEligibleByGroups)
 
     return {
       activeBenefits: active,

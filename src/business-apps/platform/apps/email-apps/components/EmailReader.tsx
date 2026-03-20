@@ -23,6 +23,8 @@ interface EmailReaderProps {
   onDelete: (id: string) => void
   onToggleStar: (id: string) => void
   onArchive: (id: string) => void
+  onRestore?: (id: string) => void
+  isTrashView?: boolean
   onRefreshMessages?: () => void
   onMessageLabelsUpdated?: (messageId: string, labels?: EmailLabel[]) => Promise<void> | void
   accessToken?: string
@@ -40,6 +42,8 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   onDelete,
   onToggleStar,
   onArchive,
+  onRestore,
+  isTrashView = false,
   onRefreshMessages,
   onMessageLabelsUpdated,
   accessToken,
@@ -166,6 +170,8 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
         onCompose={onCompose}
         onArchive={onArchive}
         onDelete={onDelete}
+        onRestore={onRestore}
+        isTrashView={isTrashView}
         onToggleStar={onToggleStar}
         onToggleThreadView={onToggleThreadView}
         t={t}

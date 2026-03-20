@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDate, formatDateToISO, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import { Alert, LocalizationProvider, useTranslation, Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, LocalizationProvider, useTranslation, Spinner } from '@newwork/nw-design-system'
 import { WarningCircleIcon } from '@phosphor-icons/react'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AdjustEmployeeSalaryProvider, useAdjustEmployeeSalary } from './AdjustEmployeeSalaryContext'
@@ -33,6 +33,8 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ access
   const formMode: FormMode = useMemo(() => data?.formMode || 'adjust', [data?.formMode])
   const currencies = useMemo(() => data?.currencies || [], [data?.currencies])
   const bankAccountCurrency = useMemo(() => data?.bankAccountCurrency || null, [data?.bankAccountCurrency])
+  const countryCurrencyRef = useMemo(() => data?.countryCurrencyRef ?? null, [data?.countryCurrencyRef])
+  const hasEmploymentRegion = useMemo(() => data?.hasEmploymentRegion ?? true, [data?.hasEmploymentRegion])
   const weeklyHours = useMemo(() => data?.weeklyHours || null, [data?.weeklyHours])
   // Hire date for assign mode - format from timestamp to YYYY-MM-DD for date input
   const hireDate = useMemo(() => {
@@ -82,19 +84,26 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ access
     return 'annually'
   }, [currentSalaryAnnual, currentSalaryMonthly, currentSalaryHourly])
 
-  // Default currency: use bank account currency if exists, otherwise EUR, otherwise first in list
+  // Default currency: employment region country currency first, then bank account, then EUR, then first in list.
+  // When no employment region is set, do not preset (empty) so user must set region first.
   const defaultCurrency = useMemo(() => {
-    // If bank account has currency, use it
-    if (bankAccountCurrency) {
+    if (!hasEmploymentRegion) return ''
+    const currencyIds = new Set(currencies.map(c => c.id))
+    if (countryCurrencyRef && currencyIds.has(countryCurrencyRef)) {
+      return countryCurrencyRef
+    }
+    if (bankAccountCurrency && currencyIds.has(bankAccountCurrency)) {
       return bankAccountCurrency
     }
-    // Fallback to EUR if available
     const eurCurrency = currencies.find(c => c.code === 'EUR')
     return eurCurrency?.id || currencies[0]?.id || ''
-  }, [bankAccountCurrency, currencies])
+  }, [hasEmploymentRegion, countryCurrencyRef, bankAccountCurrency, currencies])
 
-  // Currency is readonly if it comes from bank account
-  const isCurrencyReadonly = useMemo(() => !!bankAccountCurrency, [bankAccountCurrency])
+  // Currency is disabled when no employment region, or when preset from bank account or employment region country
+  const isCurrencyReadonly = useMemo(
+    () => !hasEmploymentRegion || !!bankAccountCurrency || !!countryCurrencyRef,
+    [hasEmploymentRegion, bankAccountCurrency, countryCurrencyRef]
+  )
 
   const defaultValues: AdjustEmployeeSalaryFormValues = useMemo(
     () => ({
@@ -302,6 +311,18 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ access
             : undefined
         }
       />
+
+      {!hasEmploymentRegion && (
+        <Alert variant="default" className="gba:mb-4" data-testid="assign-salary-no-region-warning">
+          <WarningCircleIcon className="gba:h-4 gba:w-4" />
+          <AlertDescription>
+            {t('assign-salary-no-employment-region-warning', {
+              defaultValue:
+                'An employment region must be set for this employee to ensure correct currency and compliance. Please set the employment region in the employee record.'
+            })}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div
         className="gba:flex gba:flex-col gba:[&>div[data-testid='adjust-employee-salary']]:pt-0!"

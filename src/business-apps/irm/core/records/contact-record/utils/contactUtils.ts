@@ -3,13 +3,13 @@ import { getContactTypeLabel } from '@/common/data/investment/types/investmentEn
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
- * Get human-readable contact type display value
+ * Get human-readable contact type display value from junction (accountContacts)
  * @param contactData - Enhanced contact data from GraphQL
- * @param contact - Local contact data (deprecated, kept for backward compatibility)
+ * @param contact - Optional local contact data for fallback
  * @returns Human-readable contact type string
  */
 export const getContactTypeDisplayValue = (contactData: any, contact?: any): string => {
-  const contactType = contactData?.type || contact?.contactType
+  const contactType = contactData?.accountContacts?.[0]?.contactType ?? contact?.accountContacts?.[0]?.contactType
   return getContactTypeLabel(contactType)
 }
 

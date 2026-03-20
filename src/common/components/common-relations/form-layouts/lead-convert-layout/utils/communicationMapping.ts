@@ -16,9 +16,13 @@ export function mapLeadCommunicationChannels(
 ): {
   email?: string
   phoneNumber?: string
+  secondaryNumber?: string
+  linkedinUrl?: string
 } {
   return {
-    email: leadData[emailField] || undefined,
-    phoneNumber: leadData[phoneField] || undefined
+    email: (leadData[emailField] as string) || undefined,
+    phoneNumber: (leadData[phoneField] as string) || undefined,
+    secondaryNumber: (leadData as any).secondaryNumber || undefined,
+    linkedinUrl: (leadData as any).linkedinUrl || undefined
   }
 }

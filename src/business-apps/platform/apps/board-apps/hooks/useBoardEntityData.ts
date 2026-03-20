@@ -14,7 +14,7 @@ import {
   type EntityFieldDef,
   type EntityQueryDef
 } from '../queries/entityQueries'
-import { buildGraphQLWhere } from '@/business-apps/platform/apps/spreadsheet-apps/hooks/useEntityDataSource'
+import { buildGraphQLWhere } from '@/business-apps/core/office/apps/spreadsheets/hooks/useEntityDataSource'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import type { EntityDataSource } from '../types'
 

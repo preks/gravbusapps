@@ -305,6 +305,7 @@ export const BoardApiService = {
         status: app.status as BoardStatus,
         sheetCount: sheets.length,
         rowCount: (app.rowCount as number) ?? 0,
+        spaceId: app.spaceId as string | undefined,
         createdAt: app.createdAt as string,
         updatedAt: app.updatedAt as string,
         permission: mapPermission(app.permission as string | undefined),
@@ -498,6 +499,19 @@ export const BoardApiService = {
     } catch {
       return false
     }
+  },
+
+  async reorderRow(
+    boardId: string,
+    sheetId: string,
+    rowId: string,
+    afterRowId: string | null,
+    beforeRowId: string | null
+  ): Promise<void> {
+    await apiRequest(`/boards/${boardId}/sheets/${sheetId}/rows/reorder`, {
+      method: 'POST',
+      body: JSON.stringify({ rowId, afterRowId, beforeRowId })
+    })
   },
 
   async getRowPage(
@@ -1083,7 +1097,7 @@ export const BoardApiService = {
       await apiRequest('/sharing', {
         method: 'POST',
         body: JSON.stringify({
-          entityType: 'board',
+          entityType: 'spreadsheet_app',
           entityId: boardId,
           recipients: shares.map(s => ({ userId: s.userId, permission: s.permission }))
         })
@@ -1097,7 +1111,7 @@ export const BoardApiService = {
 
   async getBoardSharedUsers(boardId: string): Promise<BoardShare[]> {
     try {
-      const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/board/${boardId}`)
+      const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/spreadsheet_app/${boardId}`)
       return (shares || []).map(s => ({
         id: s.id as string,
         userId: s.userId as string,
@@ -1164,6 +1178,7 @@ export const BoardApiService = {
     boardId: string,
     sheetId: string,
     connectorId: string,
+    connectionId?: string,
     query?: Record<string, unknown>,
     limit?: number
   ): Promise<{
@@ -1174,7 +1189,7 @@ export const BoardApiService = {
     try {
       return await apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/preview`, {
         method: 'POST',
-        body: JSON.stringify({ connectorId, query, limit })
+        body: JSON.stringify({ connectorId, connectionId, query, limit })
       })
     } catch (err) {
       console.error('External preview failed:', err instanceof Error ? err.message : err)
@@ -1189,6 +1204,7 @@ export const BoardApiService = {
       connectorId: string
       connectorName: string
       connectorDescription?: string
+      connectionId?: string
       query?: Record<string, unknown>
       selectedFields?: string[]
       limit?: number

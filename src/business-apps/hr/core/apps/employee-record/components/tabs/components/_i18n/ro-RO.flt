@@ -8,3 +8,10 @@ actions = Acțiuni
 
 today = Astăzi
 holiday = Zi liberă
+manual_entry = Introducere manuală
+
+# Day Type column (attendance page only; absences use catalog translations)
+time_tracking_day_type_weekend = Weekend
+time_tracking_day_type_not_working = Nu este zi lucrătoare
+time_tracking_day_type_work_day = Zi lucrătoare
+manual_entry = Introducere manuală

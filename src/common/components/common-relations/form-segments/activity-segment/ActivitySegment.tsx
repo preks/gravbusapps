@@ -98,8 +98,8 @@ export interface ActivitySegmentProps {
     id: string
     name?: string
     version?: number
-    mimeType?: string
-    fileSize?: number
+    mimeType?: string | null
+    fileSize?: number | null
     fileInfo?: any
   }>
   onDocumentRemove?: (documentId: string) => void
@@ -164,7 +164,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     // Handle common entity types (account, contact, opportunity, lead)
     const commonEntityApplied = applyInitialCommonEntityFromContext(initialEntityFromContext as CommonEntityContext, {
       form,
-      useIdFields: false
+      useIdFields: true
     })
 
     // If no common entity was applied, handle additional entity types (e.g. investmentId) via handler
@@ -316,7 +316,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                     if (form) {
                       const handleEntityChange = createCommonEntitySelectHandler({
                         form,
-                        useIdFields: false,
+                        useIdFields: true,
                         entities: entities || [],
                         onAdditionalEntityChange
                       })

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, IconAvatar } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, IconAvatar, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
 import { ListChecksIcon, ChartLineUpIcon, FileTextIcon, CalendarIcon, ClockAfternoonIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -39,6 +40,7 @@ interface RecentRequestItem {
 const getErrorMessage = getNormalizedErrorMessage
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
+  const { t } = useTranslation(translations)
   const { moduleColor } = props
   // Get manager ID from props
   const managerId = props.userInfo?.employeeDetails?.employeeId || props.userInfo?.id || ''
@@ -340,12 +342,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       <div className="gba:flex-1 gba:space-y-6">
         {/* Quick Actions Section */}
         <div>
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.quick_actions',
-              'Quick Actions'
-            )}
-          </h3>
+          <h3 className="gba:text-lg gba:font-semibold gba:mb-4">{t('insights-reports-title')}</h3>
           <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             {quickActions.map(action => {
               return (

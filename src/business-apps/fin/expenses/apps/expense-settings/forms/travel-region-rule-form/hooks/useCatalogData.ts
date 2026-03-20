@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { CatalogOption } from '../types'
-import { GET_TRAVEL_REGIONS_WITH_COUNT, GET_TRAVEL_REGIONS_BY_PARENT } from '../queries/TravelRegionFormQueries'
+import { GET_TRAVEL_REGIONS_WITH_COUNT } from '../queries/TravelRegionFormQueries'
 
 const TRAVEL_REGIONS_FALLBACK = [
   { id: 'western-europe', name: 'Western Europe' },
@@ -17,7 +17,7 @@ const TRAVEL_REGIONS_FALLBACK = [
   { id: 'international', name: 'International' }
 ]
 
-const REGION_LIMIT = 50
+const REGION_PAGE_SIZE = 100
 
 interface UseCatalogDataProps {
   accessToken: string
@@ -31,14 +31,13 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
   const [catalogsLoading, setCatalogsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Pagination state for travel regions
-  const [isLoadingMoreRegions, setIsLoadingMoreRegions] = useState(false)
-  const offsetRef = useRef(0)
-  const hasMoreRef = useRef(true)
-  const totalRegionsRef = useRef(0)
-  const isLoadingRef = useRef(false)
+  const [isLoadingRegions, setIsLoadingRegions] = useState(false)
+  const hasMoreRegionsRef = useRef(false)
+  const regionOffsetRef = useRef(0)
+  const regionTotalRef = useRef(0)
+  const isLoadingRegionsRef = useRef(false)
+  const currentCountryCodeRef = useRef<string | undefined>(undefined)
   const initialLoadDoneRef = useRef(false)
-  const selectedCountryCodeRef = useRef<string | undefined>(undefined) // Track selected country for pagination
 
   // Pagination state for countries
   const [isLoadingMoreCountries, setIsLoadingMoreCountries] = useState(false)
@@ -50,17 +49,14 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
   const catalogClient = useCatalogManagerClient(accessToken)
   const graphqlClient = useGraphQLClient(accessToken)
 
-  // Load catalog data (countries and currencies only - travel regions loaded separately)
   const loadCatalogData = useCallback(async () => {
     setCatalogsLoading(true)
     try {
-      // Load ALL countries at once (500 limit is enough for ~253 countries)
-      // We need all countries to sort them alphabetically
       const [countriesRes, currenciesRes] = await Promise.all([
         catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'Country', version: 'v1' },
           {
-            limit: 500, // Load all countries at once
+            limit: 500,
             offset: 0,
             returnTotalRecords: true,
             includeChildCatalogEntries: true
@@ -72,19 +68,18 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
         )
       ])
 
-      // Map and sort ALL countries alphabetically by value (country name)
       const countriesList = countriesRes.data
         .map((item: any) => ({
           id: item.id,
           value: item.value,
           code: item.code
         }))
-        .sort((a, b) => a.value.localeCompare(b.value)) // Sort alphabetically by country name
+        .sort((a: CatalogOption, b: CatalogOption) => a.value.localeCompare(b.value))
 
       setCountries(countriesList)
       totalCountriesRef.current = countriesList.length
       countryOffsetRef.current = countriesList.length
-      hasMoreCountriesRef.current = false // All countries loaded
+      hasMoreCountriesRef.current = false
       isLoadingCountriesRef.current = false
 
       setCurrencies(
@@ -102,7 +97,6 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
     }
   }, [catalogClient])
 
-  // Load more countries (for infinite scroll)
   const loadMoreCountries = useCallback(async () => {
     if (isLoadingCountriesRef.current || !hasMoreCountriesRef.current) {
       return
@@ -128,41 +122,51 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
           value: item.value,
           code: item.code
         }))
-        .sort((a, b) => a.value.localeCompare(b.value)) // Sort alphabetically by country name
+        .sort((a: CatalogOption, b: CatalogOption) => a.value.localeCompare(b.value))
 
-      setCountries(prev => [...prev, ...newCountries].sort((a, b) => a.value.localeCompare(b.value))) // Re-sort entire list
+      setCountries(prev => [...prev, ...newCountries].sort((a, b) => a.value.localeCompare(b.value)))
       countryOffsetRef.current += newCountries.length
-      hasMoreCountriesRef.current = newCountries.length >= 50 // If we got 50, assume there may be more
+      hasMoreCountriesRef.current = newCountries.length >= 50
     } catch (err) {
-      console.error('❌ Error loading more countries:', err)
+      console.error('Error loading more countries:', err)
     } finally {
       isLoadingCountriesRef.current = false
       setIsLoadingMoreCountries(false)
     }
   }, [catalogClient])
 
-  // Load travel regions for the travel region set (called when country is selected or on init)
+  const fetchRegionsPage = useCallback(
+    async (countryCode?: string, offset = 0) => {
+      if (!travelRegionSetId) return null
+
+      const query = GET_TRAVEL_REGIONS_WITH_COUNT(countryCode)
+      return graphqlClient.request<{
+        parent: Array<{ id: string; childEntriesAggregate: { aggregate: { count: number } } }>
+        regions: any[]
+      }>(query, {
+        parentEntryId: travelRegionSetId,
+        limit: REGION_PAGE_SIZE,
+        offset
+      })
+    },
+    [travelRegionSetId, graphqlClient]
+  )
+
   const loadTravelRegions = useCallback(
-    async (_countryCode?: string) => {
-      if (!travelRegionSetId) {
-        return
-      }
+    async (countryCode?: string) => {
+      if (!travelRegionSetId || isLoadingRegionsRef.current) return
 
-      // Store country code for pagination (not used for filtering anymore)
-      selectedCountryCodeRef.current = _countryCode
-
-      setIsLoadingMoreRegions(true)
+      isLoadingRegionsRef.current = true
+      setIsLoadingRegions(true)
+      currentCountryCodeRef.current = countryCode
+      regionOffsetRef.current = 0
 
       try {
-        // Load ALL regions for the travel region set without country filter
-        // The country field is separate from travel region and shouldn't filter the region list
-        const query = GET_TRAVEL_REGIONS_WITH_COUNT() // No country filter
-        const result = await graphqlClient.request<{
-          parent: Array<{ id: string; childEntriesAggregate: { aggregate: { count: number } } }>
-          regions: any[]
-        }>(query, { parentEntryId: travelRegionSetId, limit: REGION_LIMIT, offset: 0 })
+        const result = await fetchRegionsPage(countryCode, 0)
+        if (!result) return
 
-        totalRegionsRef.current = result.parent[0]?.childEntriesAggregate.aggregate.count || 0
+        const totalCount = result.parent[0]?.childEntriesAggregate?.aggregate?.count ?? 0
+        regionTotalRef.current = totalCount
 
         const regions = result.regions.map((item: any) => ({
           id: item.id,
@@ -171,11 +175,10 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
         }))
 
         setTravelRegions(regions)
-        offsetRef.current = regions.length
-        hasMoreRef.current = offsetRef.current < totalRegionsRef.current
-        isLoadingRef.current = false
+        regionOffsetRef.current = regions.length
+        hasMoreRegionsRef.current = regions.length < totalCount
       } catch (err) {
-        console.error('❌ Error loading travel regions:', err)
+        console.error('Error loading travel regions:', err)
         setError('Failed to load travel regions')
         setTravelRegions(
           TRAVEL_REGIONS_FALLBACK.map(region => ({
@@ -184,62 +187,70 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
             code: region.id
           }))
         )
+        hasMoreRegionsRef.current = false
       } finally {
-        setIsLoadingMoreRegions(false)
+        isLoadingRegionsRef.current = false
+        setIsLoadingRegions(false)
       }
     },
-    [travelRegionSetId, graphqlClient]
+    [travelRegionSetId, fetchRegionsPage]
   )
 
-  // Load more travel regions (for infinite scroll)
   const loadMoreTravelRegions = useCallback(async () => {
-    if (isLoadingRef.current || !hasMoreRef.current || !travelRegionSetId) {
-      return
-    }
+    if (!travelRegionSetId || isLoadingRegionsRef.current || !hasMoreRegionsRef.current) return
 
-    isLoadingRef.current = true
-    setIsLoadingMoreRegions(true)
+    isLoadingRegionsRef.current = true
+    setIsLoadingRegions(true)
 
     try {
-      // Load ALL regions without country filter
-      const query = GET_TRAVEL_REGIONS_BY_PARENT() // No country filter
-      const result = await graphqlClient.request<{ CatalogEntry: any[] }>(query, {
-        parentEntryId: travelRegionSetId,
-        limit: REGION_LIMIT,
-        offset: offsetRef.current
-      })
+      const result = await fetchRegionsPage(currentCountryCodeRef.current, regionOffsetRef.current)
+      if (!result) return
 
-      const newRegions = result.CatalogEntry.map((item: any) => ({
+      const newRegions = result.regions.map((item: any) => ({
         id: item.id,
         value: item.value,
         code: item.code
       }))
 
       setTravelRegions(prev => [...prev, ...newRegions])
-      offsetRef.current += newRegions.length
-      hasMoreRef.current = offsetRef.current < totalRegionsRef.current
+      regionOffsetRef.current += newRegions.length
+      hasMoreRegionsRef.current = regionOffsetRef.current < regionTotalRef.current
     } catch (err) {
-      console.error('❌ Error loading more travel regions:', err)
+      console.error('Error loading more travel regions:', err)
     } finally {
-      isLoadingRef.current = false
-      setIsLoadingMoreRegions(false)
+      isLoadingRegionsRef.current = false
+      setIsLoadingRegions(false)
     }
-  }, [travelRegionSetId, graphqlClient])
+  }, [travelRegionSetId, fetchRegionsPage])
 
-  // Reset pagination when country changes (don't reload, just reset state)
+  const searchTravelRegions = useCallback(
+    (searchTerm: string) => {
+      if (!searchTerm.trim()) {
+        loadTravelRegions(currentCountryCodeRef.current)
+        return
+      }
+      // Client-side filter on already-loaded regions is instant;
+      // if more pages exist, reload from server without country filter
+      // so the search covers the full set.
+      if (hasMoreRegionsRef.current) {
+        loadTravelRegions(currentCountryCodeRef.current)
+      }
+    },
+    [loadTravelRegions]
+  )
+
   const resetPagination = useCallback(() => {
-    offsetRef.current = 0
-    hasMoreRef.current = true
-    totalRegionsRef.current = 0
     setTravelRegions([])
+    hasMoreRegionsRef.current = false
+    regionOffsetRef.current = 0
+    regionTotalRef.current = 0
+    currentCountryCodeRef.current = undefined
   }, [])
 
-  // Initial load
   useEffect(() => {
     if (accessToken && !initialLoadDoneRef.current) {
       initialLoadDoneRef.current = true
       loadCatalogData()
-      // Also load travel regions if travelRegionSetId is available
       if (travelRegionSetId) {
         loadTravelRegions()
       }
@@ -252,17 +263,14 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
     travelRegions,
     catalogsLoading,
     error,
-    // Travel regions pagination
-    isLoadingMoreRegions,
-    hasMoreRef,
-    offsetRef,
-    totalRegionsRef,
-    loadTravelRegions, // Load regions for selected country
-    loadMoreTravelRegions, // Load more regions for pagination
-    resetPagination, // Reset pagination state
-    // Countries pagination
+    isLoadingRegions,
+    hasMoreRegions: hasMoreRegionsRef,
+    loadTravelRegions,
+    loadMoreTravelRegions,
+    searchTravelRegions,
+    resetPagination,
     isLoadingMoreCountries,
     hasMoreCountriesRef,
-    loadMoreCountries // Load more countries for pagination
+    loadMoreCountries
   }
 }

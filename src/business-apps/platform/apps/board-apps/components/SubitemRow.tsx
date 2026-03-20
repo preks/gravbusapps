@@ -80,5 +80,8 @@ function formatCell(value: unknown): React.ReactNode {
   if (value === null || value === undefined || value === '') {
     return <span className="gba:text-muted-foreground/40">--</span>
   }
+  if (typeof value === 'object') {
+    try { return JSON.stringify(value) } catch { return '' }
+  }
   return String(value)
 }

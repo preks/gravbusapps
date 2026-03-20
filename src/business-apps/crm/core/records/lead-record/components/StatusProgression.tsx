@@ -1,6 +1,8 @@
 import React from 'react'
-import { StatusProgression as SharedStatusProgression } from '@/components/status-progression/StatusProgression'
-import type { ReferenceData } from '../types'
+import {
+  StatusProgression as SharedStatusProgression,
+  type ReferenceData
+} from '@/components/status-progression/StatusProgression'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface StatusProgressionProps {
@@ -18,7 +20,9 @@ export const StatusProgression: React.FC<StatusProgressionProps> = props => {
       config={{
         flowContextName: FlowContextName.customerLeadStatusUpdate,
         statusReferencePrefix: 'SalesLeadStatus:v1:',
-        testIdPrefix: 'lead-status'
+        testIdPrefix: 'lead-status',
+        successStatusCodes: ['CONVERTED'],
+        destructiveStatusCodes: ['LOST']
       }}
     />
   )

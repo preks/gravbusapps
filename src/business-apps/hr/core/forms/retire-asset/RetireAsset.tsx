@@ -5,7 +5,7 @@ import {
   FormField,
   FormItem,
   Label,
-  Input,
+  DateInput,
   Button,
   Select,
   SelectTrigger,
@@ -32,8 +32,10 @@ import { useAssetVersion } from '../return-asset/hooks/useAssetVersion'
 import { dispatchProcessCompletionEvents } from '../return-asset/utils/processEventUtils'
 import { useDisposalOutcomeCatalog } from './hooks/useDisposalOutcomeCatalog'
 import { useSanitizationMethodCatalog } from './hooks/useSanitizationMethodCatalog'
+import { useITAdminEmployees } from './hooks/useITAdminEmployees'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatDateForInput } from '@/business-apps/fin/expenses/apps/expense-settings/utils'
 import translations from './_i18n'
 
 type FormValues = {
@@ -65,10 +67,10 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
   }, [])
 
   const defaultResponsibleEmployee = userInfo?.employeeDetails?.employeeId ?? ''
-  const defaultResponsibleDisplayName =
-    userInfo?.employeeDetails?.firstName || userInfo?.employeeDetails?.lastName
-      ? `${userInfo.employeeDetails.firstName ?? ''} ${userInfo.employeeDetails.lastName ?? ''}`.trim()
-      : t('current-user')
+  const { employees: itAdminEmployees, isLoading: itAdminEmployeesLoading } = useITAdminEmployees(
+    accessToken,
+    defaultResponsibleEmployee
+  )
 
   const formSchema = useMemo(
     () =>
@@ -127,18 +129,16 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
       requireSanitization: 'no',
       sanitizationMethod: '',
       sanitizationExecutionDate: new Date().toISOString().split('T')[0],
-      performedBy: defaultResponsibleDisplayName
+      performedBy: defaultResponsibleEmployee
     }
   })
 
   useEffect(() => {
     if (defaultResponsibleEmployee) {
       form.setValue('responsibleEmployee', defaultResponsibleEmployee)
+      form.setValue('performedBy', defaultResponsibleEmployee)
     }
-    if (defaultResponsibleDisplayName) {
-      form.setValue('performedBy', defaultResponsibleDisplayName)
-    }
-  }, [defaultResponsibleEmployee, defaultResponsibleDisplayName, form])
+  }, [defaultResponsibleEmployee, form])
 
   const requireSanitization = form.watch('requireSanitization')
   const currentLocale = getCurrentActiveUserLocale()
@@ -154,8 +154,17 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
       !existingAsset ||
       !assetId ||
       disposalOutcomeLoading ||
+      sanitizationMethodLoading ||
+      itAdminEmployeesLoading,
+    [
+      isSubmitting,
+      form.formState.isValid,
+      existingAsset,
+      assetId,
+      disposalOutcomeLoading,
       sanitizationMethodLoading,
-    [isSubmitting, form.formState.isValid, existingAsset, assetId, disposalOutcomeLoading, sanitizationMethodLoading]
+      itAdminEmployeesLoading
+    ]
   )
 
   const formFields = (
@@ -214,12 +223,20 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
             <Label htmlFor="disposalDate" data-testid="disposal-date-label">
               {t('disposal-date')} *
             </Label>
-            <Input
-              id="disposalDate"
+            <DateInput
               type="date"
               value={field.value || ''}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
+              onChange={(value: string | [string | null, string | null] | null) => {
+                const stringValue = typeof value === 'string' ? value : ''
+                field.onChange(stringValue)
+              }}
+              {...({
+                locale: getCurrentActiveUserLocale(),
+                captionLayout: 'dropdown',
+                outputFormat: 'iso',
+                showClearButton: true
+              } as any)}
+              className="gba:w-full"
               data-testid="disposal-date-input"
             />
           </FormItem>
@@ -234,14 +251,23 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
             <Label htmlFor="responsibleEmployee" data-testid="responsible-person-label">
               {t('responsible-person')} *
             </Label>
-            <Input
-              id="responsibleEmployee"
-              type="text"
-              readOnly
-              value={defaultResponsibleDisplayName || field.value}
-              className="gba:bg-muted"
-              data-testid="responsible-person-input"
-            />
+            <Select
+              value={field.value || undefined}
+              onValueChange={field.onChange}
+              disabled={itAdminEmployeesLoading}
+              data-testid="responsible-person-select"
+            >
+              <SelectTrigger id="responsibleEmployee" className="gba:w-full">
+                <SelectValue placeholder={itAdminEmployeesLoading ? t('loading') : t('select-responsible-person')} />
+              </SelectTrigger>
+              <SelectContent>
+                {itAdminEmployees.map(emp => (
+                  <SelectItem key={emp.id} value={emp.id} data-testid={`responsible-person-option-${emp.id}`}>
+                    {emp.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </FormItem>
         )}
       />
@@ -336,12 +362,20 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
                 <Label htmlFor="sanitizationExecutionDate" data-testid="sanitization-date-label">
                   {t('sanitization-execution-date')} *
                 </Label>
-                <Input
-                  id="sanitizationExecutionDate"
+                <DateInput
                   type="date"
                   value={field.value || ''}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
+                  onChange={(value: string | [string | null, string | null] | null) => {
+                    const stringValue = typeof value === 'string' ? value : ''
+                    field.onChange(stringValue)
+                  }}
+                  {...({
+                    locale: getCurrentActiveUserLocale(),
+                    captionLayout: 'dropdown',
+                    outputFormat: 'iso',
+                    showClearButton: true
+                  } as any)}
+                  className="gba:w-full"
                   data-testid="sanitization-execution-date-input"
                 />
               </FormItem>
@@ -356,15 +390,23 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
                 <Label htmlFor="performedBy" data-testid="performed-by-label">
                   {t('performed-by')} *
                 </Label>
-                <Input
-                  id="performedBy"
-                  type="text"
-                  placeholder={t('performed-by-placeholder')}
-                  value={field.value || ''}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  data-testid="performed-by-input"
-                />
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
+                  disabled={itAdminEmployeesLoading}
+                  data-testid="performed-by-select"
+                >
+                  <SelectTrigger id="performedBy" className="gba:w-full">
+                    <SelectValue placeholder={itAdminEmployeesLoading ? t('loading') : t('select-performed-by')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {itAdminEmployees.map(emp => (
+                      <SelectItem key={emp.id} value={emp.id} data-testid={`performed-by-option-${emp.id}`}>
+                        {emp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormItem>
             )}
           />
@@ -455,7 +497,10 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
                       version: currentAssetVersion,
                       model: existingAsset.model,
                       serialNumber: existingAsset.serialNumber,
-                      acquisitionDate: existingAsset.acquisitionDate,
+                      acquisitionDate: existingAsset.acquisitionDate
+                        ? (formatDateForInput(existingAsset.acquisitionDate) ??
+                          existingAsset.acquisitionDate.slice(0, 10))
+                        : undefined,
                       warrantyPeriodMonths: existingAsset.warrantyPeriodMonths,
                       inventoryValue: existingAsset.inventoryValue ?? 0,
                       assetStatus: AssetStatus.RETIRED,
@@ -466,20 +511,21 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
                       notes: existingAsset.notes,
                       disposalStatus: 'RETIRED_DISPOSAL_STATUS',
                       disposalOutcomeRef: values.disposalOutcomeRef,
-                      disposalDate: values.disposalDate,
+                      disposalDate:
+                        (formatDateForInput(values.disposalDate) ?? values.disposalDate?.trim().slice(0, 10)) ||
+                        values.disposalDate,
                       disposalReason: values.disposalReason || undefined,
                       responsibleEmployee: values.responsibleEmployee || undefined,
                       requireSanitization: values.requireSanitization === 'yes',
                       sanitizationMethodRef:
                         values.requireSanitization === 'yes' ? values.sanitizationMethod : undefined,
                       sanitizationExecutionDate:
-                        values.requireSanitization === 'yes' ? values.sanitizationExecutionDate : undefined,
-                      performerEmployee:
                         values.requireSanitization === 'yes'
-                          ? values.performedBy === defaultResponsibleDisplayName
-                            ? defaultResponsibleEmployee
-                            : values.performedBy
-                          : undefined
+                          ? (formatDateForInput(values.sanitizationExecutionDate) ??
+                            values.sanitizationExecutionDate?.trim().slice(0, 10) ??
+                            values.sanitizationExecutionDate)
+                          : undefined,
+                      performerEmployee: values.requireSanitization === 'yes' ? values.performedBy : undefined
                     }
 
                     await assetProcessClient.updateAsset(payload)

@@ -1,18 +1,12 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import translations from '../../_i18n'
 
 interface EveryPagesHeroProps {
   activeTab: string
   'data-testid'?: string
 }
-
-// Video background - same logic as SpaceHero and EveryOne
-const hostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
-const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
 // Tab -> FTL keys for hero title/subtitle (EveryPages and NEWWORK stay untranslated as marketing/brand names)
 const tabContentKeys: Record<string, { titleKey: string; subtitleKey: string }> = {
@@ -40,33 +34,8 @@ export const EveryPagesHero: React.FC<EveryPagesHeroProps> = ({
   return (
     <div data-testid={testId} className="gba:w-full gba:h-[200px] gba:shrink-0">
       <div className="gba:relative gba:overflow-hidden gba:h-full">
-        {/* Video background when available, otherwise canvas animation - same as SpaceHero */}
-        {useVideo ? (
-          <video
-            src={HERO_VIDEO_SRC}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden
-            data-testid={`${testId}-video`}
-          />
-        ) : (
-          <SpaceHeroBackground />
-        )}
-
-        {/* Dark overlay for text readability - same as SpaceHero */}
-        {/* eslint-disable newwork-local/no-hardcoded-colors */}
-        <div
-          className="gba:absolute gba:inset-0 gba:pointer-events-none"
-          style={{
-            background: `linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)`
-          }}
-          aria-hidden
-        />
-        {/* eslint-enable newwork-local/no-hardcoded-colors */}
+        <PremiumHeroBackground data-testid={`${testId}-background`} />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
         {/* Content */}
         <div className="gba:relative gba:h-full gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8 gba:flex gba:flex-col gba:justify-center">

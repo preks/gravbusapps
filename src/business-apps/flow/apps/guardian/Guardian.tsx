@@ -12,13 +12,13 @@ import {
   DialogTitle
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FlowDetailView } from '@/common/components/flow/flow-detail'
 import { GuardianD3Visualization } from './components/GuardianD3Visualization'
 // Using list-style dark SLA component
 import { D3SLAViolationList } from './components/charts/D3SLAViolationList'
 import { useGuardianData } from './hooks/useGuardianData'
 import { GuardianViewMode, GuardianFilter } from './types/guardianTypes'
 import { GuardianKPICard } from './components/GuardianKPICard'
-import { FlowDetailView } from '../../common/components/flow-detail/FlowDetailView'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 

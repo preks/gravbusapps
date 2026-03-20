@@ -94,6 +94,93 @@ export class UserManagementClient extends RestClient {
       offset
     })
   }
+
+  /**
+   * Get groups from the User Management API (e.g. for resolving all-it-admin).
+   * Uses same base URL as /users; path is /groups (api/v1 is already in base).
+   * @param params - Optional searchParam, limit, offset
+   * @returns Promise resolving to { data: Array<{ id: string; name: string }> } or similar
+   */
+  public async getGroups(params?: {
+    searchParam?: string
+    limit?: number
+    offset?: number
+  }): Promise<{ data: Array<{ id: string; name: string }> }> {
+    try {
+      const response = await this.get<
+        { data: Array<{ id: string; name: string }> } | Array<{ id: string; name: string }>
+      >('/groups', { params: params as Record<string, string | number> })
+      if (Array.isArray(response)) {
+        return { data: response }
+      }
+      return (response as { data: Array<{ id: string; name: string }> }) || { data: [] }
+    } catch (error) {
+      console.error('UserManagementClient: Error fetching groups', error)
+      return { data: [] }
+    }
+  }
+
+  /**
+   * Get users (members) of a group by group ID.
+   * API: GET /groups/:groupId/users?limit=10&offset=0
+   * @param groupId - The group ID (from getGroups)
+   * @param params - Optional limit, offset for pagination
+   * @returns Promise resolving to list of users (id, givenName?, familyName?, name?, email?, employeeId?)
+   */
+  public async getGroupUsers(
+    groupId: string,
+    params?: { limit?: number; offset?: number },
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<{
+    data: Array<{
+      id: string
+      givenName?: string
+      familyName?: string
+      name?: string
+      email?: string
+      employeeId?: string
+    }>
+    paging?: { totalRecords?: number; limit?: number; offset?: number }
+  }> {
+    try {
+      const queryParams = {
+        ...(params?.limit != null && { limit: params.limit }),
+        ...(params?.offset != null && { offset: params.offset })
+      }
+      const response = await this.get<
+        | {
+            data: Array<{
+              id: string
+              givenName?: string
+              familyName?: string
+              name?: string
+              email?: string
+              employeeId?: string
+            }>
+            paging?: { totalRecords?: number; limit?: number; offset?: number }
+          }
+        | Array<{
+            id: string
+            givenName?: string
+            familyName?: string
+            name?: string
+            email?: string
+            employeeId?: string
+          }>
+      >(`/groups/${encodeURIComponent(groupId)}/users`, {
+        ...options,
+        params: queryParams as Record<string, number>
+      })
+      if (Array.isArray(response)) {
+        return { data: response }
+      }
+      const res = response as { data?: any[]; paging?: any }
+      return { data: res?.data ?? [], paging: res?.paging }
+    } catch (error) {
+      console.error('UserManagementClient: Error fetching group users', error)
+      return { data: [] }
+    }
+  }
 }
 
 // Singleton instance

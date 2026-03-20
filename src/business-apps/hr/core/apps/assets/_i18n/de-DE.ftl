@@ -6,9 +6,11 @@ end-of-warranty-period = Ende des Garantiezeitraums
 # Allocation history (retired asset)
 ended-asset-retired = Beendet (Gerät außer Betrieb)
 asset-retired = Gerät außer Betrieb
+retired-at-by = Außer Betrieb genommen am { $disposalDate } von { $responsiblePerson }
 
 # Allocate Asset validation
 issue-date-not-before-purchase = Die Zuweisung kann nicht vor dem Erwerbsdatum erfolgen.
+start-date-not-before-last-return = Das Zuweisungsstartdatum muss am oder nach dem letzten Rückgabedatum liegen.
 
 # Actions
 generate_document = Dokument erstellen
@@ -27,6 +29,9 @@ serial_number = Seriennummer
 location = Standort
 inventory_value = Inventarwert
 acquisition_date = Erwerbsdatum
+disposal_date = Entsorgungsdatum
+date_from = Von
+date_to = Bis
 warranty = Garantie
 warranty_period = Garantiezeitraum
 months = Monate

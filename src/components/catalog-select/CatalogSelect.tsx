@@ -93,9 +93,10 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   const { isSubmitted } = useFormState({ control: formMethods?.control })
 
   let fieldName: string | undefined
+  let formFieldContext: ReturnType<typeof useFormField> | undefined
   try {
-    const fieldContext = useFormField()
-    fieldName = fieldContext?.name
+    formFieldContext = useFormField()
+    fieldName = formFieldContext?.name
   } catch {
     // Not inside a FormField, that's ok
   }
@@ -143,6 +144,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   return (
     <CatalogSelectView
       fieldName={fieldName}
+      formFieldContext={formFieldContext}
       isSubmitted={isSubmitted}
       variant={variant}
       mode={mode}
@@ -152,7 +154,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       className={className}
       dataTestId={dataTestId}
       selectedOption={selectedOption}
-      allowClear={allowClear}
+      allowClear={allowClear && !autoSelectFirst}
       autoSelectFirst={autoSelectFirst}
       disabled={disabled}
       multiple={multiple}

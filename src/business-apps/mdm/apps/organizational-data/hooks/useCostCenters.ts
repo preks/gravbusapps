@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { CostCenterData, CostCenter, CostCenterNode } from '../types'
-
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 export const useCostCenters = (context: BusinessAppContextProps) => {
   const [costCenters, setCostCenters] = useState<CostCenter[]>([])
@@ -12,9 +10,9 @@ export const useCostCenters = (context: BusinessAppContextProps) => {
   const [error, setError] = useState<string | null>(null)
   const [costCenterNodes, setCostCenterNodes] = useState<CostCenterNode[]>([])
   const [costCenterDetails, setCostCenterDetails] = useState<Map<string, unknown>>(new Map())
-  const structureId = useRef<string>(context.additionalData?.structureId || 'active')
+  const structureId = useRef<string>(getCurrentActiveStructureId() ?? '')
 
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   // Transform API cost center data to UI-friendly CostCenter interface
   const transformCostCenter = (costCenterData: CostCenterData): CostCenter => {
@@ -57,31 +55,36 @@ export const useCostCenters = (context: BusinessAppContextProps) => {
       if (!structureId) {
         throw new Error('Structure ID is required to fetch cost centers')
       }
-      const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
-        params: {
+      const getStructureResponse = await orgchartClient.getStructure(
+        structureId.current,
+        {
           nodeType: 'cost_center'
         },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
+        {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`
+          }
         }
-      })
+      )
       structureId.current = getStructureResponse.structure.structureId
 
       setCostCenterNodes(getStructureResponse.nodes.map(transformCostCenterNode))
 
-      const response = await restClient.get<CostCenterData[]>('/cost-centers', {
-        params: { structureId: structureId.current },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
+      const response = await orgchartClient.getCostCenters(
+        { structureId: structureId.current },
+        {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`
+          }
         }
-      })
+      )
 
       return response.map(transformCostCenter)
     } catch (error) {
       console.error('Error fetching cost centers:', error)
       throw new Error('Failed to fetch cost centers from orgchart API')
     }
-  }, [context.accessToken, restClient])
+  }, [context.accessToken, orgchartClient])
 
   // Load initial data
   const loadData = useCallback(async () => {
@@ -208,7 +211,7 @@ export const useCostCenters = (context: BusinessAppContextProps) => {
           return costCenterDetails.get(cacheKey)
         }
 
-        const response = await restClient.get(`/employees/cost-centers/${costCenterId}`, {
+        const response = await orgchartClient.getEmployeesCostCenters(costCenterId, {
           headers: {
             Authorization: `Bearer ${context.accessToken}`
           }
@@ -223,7 +226,7 @@ export const useCostCenters = (context: BusinessAppContextProps) => {
         throw new Error('Failed to fetch employees')
       }
     },
-    [context.accessToken, restClient, costCenterDetails]
+    [context.accessToken, orgchartClient, costCenterDetails]
   )
 
   // Get organizational units for a specific cost center
@@ -236,16 +239,18 @@ export const useCostCenters = (context: BusinessAppContextProps) => {
           return costCenterDetails.get(cacheKey)
         }
 
-        const response = await restClient.get('/organizational-units', {
-          params: {
+        const response = await orgchartClient.getOrganizationalUnits(
+          {
             costCenterId,
             structureId: structureId.current,
             costCenterAssign: false
           },
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`
+          {
+            headers: {
+              Authorization: `Bearer ${context.accessToken}`
+            }
           }
-        })
+        )
 
         // Cache the response
         setCostCenterDetails(prev => new Map(prev.set(cacheKey, response)))
@@ -256,7 +261,7 @@ export const useCostCenters = (context: BusinessAppContextProps) => {
         throw new Error('Failed to fetch organizational units')
       }
     },
-    [context.accessToken, restClient, costCenterDetails, structureId]
+    [context.accessToken, orgchartClient, costCenterDetails, structureId]
   )
 
   // Clear cached data for a specific cost center

@@ -1,9 +1,10 @@
 /**
- * Page layout utilities: presets, cm↔px conversion, and PaginationPlus config from document formatting.
+ * Page layout utilities: presets, cm↔px conversion, and local Pages config from document formatting.
  */
 
-import { PAGE_SIZES } from 'tiptap-pagination-plus'
-import type { DocumentFormatting, PageSizeId } from '../types/document'
+import { PAGE_FORMATS } from '@/components/tiptap-extensions/tiptap-custom-pagination'
+import type { PageFormat } from '@/components/tiptap-extensions/tiptap-custom-pagination'
+import type { DocumentFormatting, DocumentPagesFormatting, PageSizeId } from '../types/document'
 
 /** 96 DPI: 1 cm = 96/2.54 px */
 export const CM_TO_PX = 96 / 2.54
@@ -14,6 +15,7 @@ export const DEFAULT_MARGIN_CM = 2.54
 export const DEFAULT_PAGE_COLOR = '#ffffff'
 
 export interface PageLayoutPaginationConfig {
+  pageFormat: PageFormat
   pageWidth: number
   pageHeight: number
   marginTop: number
@@ -93,10 +95,10 @@ export function getPaginationConfigFromFormatting(
   const layout = resolvePageLayout(formatting)
   if (layout.pageless) return null
 
-  const sizeId: PageSizeId = layout.pageSize
-  const preset = PAGE_SIZES[sizeId] ?? PAGE_SIZES.A4
-  let pageWidth = preset.pageWidth
-  let pageHeight = preset.pageHeight
+  const normalizedSizeId = normalizePageSizeId(layout.pageSize)
+  const preset = PAGE_FORMATS[normalizedSizeId] ?? PAGE_FORMATS.A4
+  let pageWidth = preset.width
+  let pageHeight = preset.height
   if (layout.orientation === 'landscape') {
     ;[pageWidth, pageHeight] = [pageHeight, pageWidth]
   }
@@ -105,14 +107,109 @@ export function getPaginationConfigFromFormatting(
   const marginBottom = marginCmToPx(layout.margins.bottom)
   const marginLeft = marginCmToPx(layout.margins.left)
   const marginRight = marginCmToPx(layout.margins.right)
+  const pageFormat: PageFormat = {
+    name: normalizedSizeId,
+    width: pageWidth,
+    height: pageHeight,
+    margins: {
+      top: marginTop,
+      right: marginRight,
+      bottom: marginBottom,
+      left: marginLeft
+    }
+  }
 
   return {
+    pageFormat,
     pageWidth,
     pageHeight,
     marginTop,
     marginBottom,
     marginLeft,
     marginRight
+  }
+}
+
+export interface DocumentPagesConfig {
+  differentFirstPage: boolean
+  differentOddEven: boolean
+  header: string
+  footer: string
+  headerFirstPage?: string
+  footerFirstPage?: string
+  headerOdd?: string
+  headerEven?: string
+  footerOdd?: string
+  footerEven?: string
+  headerHeight?: number
+  footerHeight?: number
+  headerTopMargin?: number
+  footerBottomMargin?: number
+  accentColor?: string
+  headerAccentColor?: string
+  footerAccentColor?: string
+}
+
+export function getPagesConfigFromFormatting(formatting?: DocumentFormatting | null): DocumentPagesConfig {
+  const pages = formatting?.pages ?? {}
+
+  return {
+    differentFirstPage: pages.differentFirstPage ?? false,
+    differentOddEven: pages.differentOddEven ?? false,
+    header: pages.header ?? '',
+    footer: pages.footer ?? '',
+    headerFirstPage: pages.headerFirstPage ?? undefined,
+    footerFirstPage: pages.footerFirstPage ?? undefined,
+    headerOdd: pages.headerOdd ?? undefined,
+    headerEven: pages.headerEven ?? undefined,
+    footerOdd: pages.footerOdd ?? undefined,
+    footerEven: pages.footerEven ?? undefined,
+    headerHeight: pages.headerHeight,
+    footerHeight: pages.footerHeight,
+    headerTopMargin: pages.headerTopMargin,
+    footerBottomMargin: pages.footerBottomMargin,
+    accentColor: pages.accentColor,
+    headerAccentColor: pages.headerAccentColor,
+    footerAccentColor: pages.footerAccentColor
+  }
+}
+
+export function normalizeStoredPagesFormatting(pages?: DocumentPagesFormatting): DocumentPagesFormatting | undefined {
+  if (!pages) return undefined
+
+  const normalized: DocumentPagesFormatting = {
+    differentFirstPage: pages.differentFirstPage ?? false,
+    differentOddEven: pages.differentOddEven ?? false,
+    header: pages.header ?? null,
+    footer: pages.footer ?? null,
+    headerFirstPage: pages.headerFirstPage ?? null,
+    footerFirstPage: pages.footerFirstPage ?? null,
+    headerOdd: pages.headerOdd ?? null,
+    headerEven: pages.headerEven ?? null,
+    footerOdd: pages.footerOdd ?? null,
+    footerEven: pages.footerEven ?? null,
+    headerHeight: pages.headerHeight,
+    footerHeight: pages.footerHeight,
+    headerTopMargin: pages.headerTopMargin,
+    footerBottomMargin: pages.footerBottomMargin,
+    accentColor: pages.accentColor,
+    headerAccentColor: pages.headerAccentColor,
+    footerAccentColor: pages.footerAccentColor
+  }
+
+  return normalized
+}
+
+function normalizePageSizeId(sizeId: PageSizeId): keyof typeof PAGE_FORMATS {
+  switch (sizeId) {
+    case 'LETTER':
+      return 'Letter'
+    case 'LEGAL':
+      return 'Legal'
+    case 'TABLOID':
+      return 'Tabloid'
+    default:
+      return sizeId
   }
 }
 

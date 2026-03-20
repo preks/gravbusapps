@@ -11,14 +11,12 @@ import {
   Textarea,
   Combobox
 } from '@newwork/nw-design-system'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useTranslation } from 'react-i18next'
 import { CostCenter, CostCenterNode } from '../../apps/organizational-data/types'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 const DATA_TEST_ID_PREFIX = 'CostCenterForm'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 export interface CostCenterFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -53,7 +51,7 @@ export const CostCenterForm: React.FC<CostCenterFormProps> = ({
   costCenterNodes
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const { t } = useTranslation('master-data')
 
   const [loading, setLoading] = useState(false)
@@ -113,12 +111,12 @@ export const CostCenterForm: React.FC<CostCenterFormProps> = ({
 
       if (costCenter) {
         // Update existing cost center
-        await restClient.put(`/cost-centers/${costCenter?.id}`, editCostCenterData, {
+        await orgchartClient.updateCostCenter(costCenter.id, editCostCenterData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       } else {
         // Create new cost center
-        await restClient.post(`/nodes/${structureId}`, costCenterData, {
+        await orgchartClient.createCostCenterNode(structureId, costCenterData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       }

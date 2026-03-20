@@ -6,7 +6,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger
 } from '@newwork/nw-design-system'
-import { Pencil, Eraser, Copy, FileText, Trash2 } from 'lucide-react'
+import { Pencil, Eraser, Copy, FileText, Trash2, ArrowUp, ArrowDown } from 'lucide-react'
 import { toast } from '@newwork/nw-design-system'
 
 export interface CellContextMenuProps {
@@ -16,6 +16,8 @@ export interface CellContextMenuProps {
   onClear: () => void
   onOpenRowPage?: () => void
   onDeleteRow?: () => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
   'data-testid'?: string
 }
 
@@ -26,6 +28,8 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
   onClear,
   onOpenRowPage,
   onDeleteRow,
+  onMoveUp,
+  onMoveDown,
   'data-testid': testId = 'cell-ctx-menu'
 }) => {
   const handleCopy = useCallback(() => {
@@ -35,6 +39,8 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
       () => toast.error('Failed to copy')
     )
   }, [value])
+
+  const hasReorder = onMoveUp || onMoveDown
 
   return (
     <ContextMenu>
@@ -52,6 +58,23 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
           <Eraser className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
           Clear
         </ContextMenuItem>
+        {hasReorder && (
+          <>
+            <ContextMenuSeparator />
+            {onMoveUp && (
+              <ContextMenuItem onClick={onMoveUp} data-testid={`${testId}-move-up`}>
+                <ArrowUp className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+                Move up
+              </ContextMenuItem>
+            )}
+            {onMoveDown && (
+              <ContextMenuItem onClick={onMoveDown} data-testid={`${testId}-move-down`}>
+                <ArrowDown className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+                Move down
+              </ContextMenuItem>
+            )}
+          </>
+        )}
         {onOpenRowPage && (
           <>
             <ContextMenuSeparator />

@@ -1,7 +1,18 @@
-import React from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { Alert, AlertTitle, AlertDescription, Card } from '@newwork/nw-design-system'
+import React, { useMemo } from 'react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Button,
+  Card,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig
+} from '@newwork/nw-design-system'
 import { CampaignConversionFunnel } from '../../queries/CampaignAnalyticsQueries'
+import { NW_CHART_COLOR_VARS, toChartConfigKey } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
 
 interface CampaignConversionFunnelProps {
   funnelData: CampaignConversionFunnel | null
@@ -16,6 +27,28 @@ const CampaignConversionFunnelComponent: React.FC<CampaignConversionFunnelProps>
   error = null,
   onRetry
 }) => {
+  const stagesWithKeys = useMemo(() => {
+    if (!funnelData?.stages?.length) return []
+    const used = new Set<string>()
+    return funnelData.stages.map((stage, index) => {
+      let key = toChartConfigKey(stage.stage)
+      if (used.has(key)) key = `${key}-${index}`
+      used.add(key)
+      return { ...stage, stageKey: key, fill: `var(--color-${key})` }
+    })
+  }, [funnelData?.stages])
+
+  const funnelChartConfig = useMemo<ChartConfig>(() => {
+    const config: ChartConfig = {}
+    stagesWithKeys.forEach((stage, index) => {
+      config[stage.stageKey] = {
+        label: stage.stage,
+        color: NW_CHART_COLOR_VARS[index % NW_CHART_COLOR_VARS.length]
+      }
+    })
+    return config
+  }, [stagesWithKeys])
+
   if (isLoading) {
     return (
       <div className="gba:p-8 gba:text-center" data-testid="funnel-loading">
@@ -31,13 +64,9 @@ const CampaignConversionFunnelComponent: React.FC<CampaignConversionFunnelProps>
         <AlertTitle>Error Loading Conversion Funnel</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
         {onRetry && (
-          <button
-            onClick={onRetry}
-            className="gba:mt-2 gba:px-3 gba:py-1 gba:text-sm gba:rounded gba:bg-primary gba:text-primary-foreground"
-            data-testid="funnel-retry-button"
-          >
+          <Button className="gba:mt-2" size="sm" onClick={onRetry} data-testid="funnel-retry-button">
             Retry
-          </button>
+          </Button>
         )}
       </Alert>
     )
@@ -51,31 +80,16 @@ const CampaignConversionFunnelComponent: React.FC<CampaignConversionFunnelProps>
     )
   }
 
-  // Colors for funnel stages
-  const stageColors = ['#8884d8', '#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96']
-
-  // Format tooltip
-  const formatTooltip = (value: number) => {
-    return [
-      <div key="tooltip-content">
-        <div>Count: {value}</div>
-      </div>,
-      'Funnel Stage'
-    ]
-  }
-
   return (
     <Card className="gba:p-6" data-testid="campaign-conversion-funnel-container">
-      {/* Header */}
       <div className="gba:mb-6">
         <h3 className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-foreground">Conversion Funnel</h3>
         <p className="gba:text-sm gba:text-muted-foreground">Lead progression through the sales funnel</p>
       </div>
 
-      {/* Funnel Chart */}
       <div className="gba:h-80 gba:mb-6">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={funnelData.stages} margin={{ top: 20, right: 30, left: 20, bottom: 80 }} maxBarSize={60}>
+        <ChartContainer config={funnelChartConfig} className="gba:h-80 gba:w-full">
+          <BarChart data={stagesWithKeys} margin={{ top: 20, right: 30, left: 20, bottom: 80 }} maxBarSize={60}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-default)" />
             <XAxis
               dataKey="stage"
@@ -92,40 +106,28 @@ const CampaignConversionFunnelComponent: React.FC<CampaignConversionFunnelProps>
               domain={[0, 'dataMax']}
               allowDecimals={false}
             />
-            <Tooltip
-              formatter={formatTooltip}
-              contentStyle={{
-                backgroundColor: 'var(--color-surface-primary)',
-                border: '1px solid var(--color-border-default)',
-                borderRadius: 'var(--border-radius-sm)',
-                fontSize: '12px'
-              }}
-              data-testid="funnel-tooltip"
-            />
-            <Bar dataKey="count" name="Count" radius={[4, 4, 0, 0]} maxBarSize={60}>
-              {funnelData.stages.map((stage, index) => (
-                <Cell key={`cell-${stage.stage}`} fill={stageColors[index % stageColors.length]} />
-              ))}
-            </Bar>
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Bar dataKey="count" name="Count" radius={[4, 4, 0, 0]} maxBarSize={60} />
           </BarChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </div>
 
-      {/* Funnel Statistics - KPI Style */}
       <div
         className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-6 gba:gap-4"
         data-testid="funnel-kpi-cards"
       >
-        {funnelData.stages.map((stage, index) => (
+        {stagesWithKeys.map((stage, index) => (
           <div
-            key={stage.stage}
+            key={stage.stageKey}
             className="gba:text-center gba:p-4 gba:bg-muted gba:rounded-lg gba:border gba:border-border"
             data-testid={`funnel-kpi-${index}`}
           >
             <div className="gba:flex gba:items-center gba:justify-center gba:mb-2">
               <div
                 className="gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
-                style={{ backgroundColor: stageColors[index % stageColors.length] }}
+                style={{
+                  backgroundColor: NW_CHART_COLOR_VARS[index % NW_CHART_COLOR_VARS.length]
+                }}
               ></div>
               <h4 className="gba:text-sm gba:font-medium gba:text-foreground">{stage.stage}</h4>
             </div>

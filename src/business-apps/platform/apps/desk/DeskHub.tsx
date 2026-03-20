@@ -15,6 +15,7 @@ import {
   StickyNote,
   MessageSquare,
   Presentation,
+  HardDrive,
   ChevronDown,
   ChevronUp
 } from 'lucide-react'
@@ -56,32 +57,24 @@ export interface DeskHubProps extends BusinessAppContextProps {
 
 /**
  * Navigate to a specific app screen using platform URLs
- * Use pretty platform routes in production (e.g. /platform/documents),
- * and /platform/apps/* in development so navigationUtils can map to ?app=...
+ * Use canonical Every Office routes and let navigationUtils map them in dev.
  */
 const navigateToApp = (appPath: string, params?: Record<string, string>) => {
   // Extract just the app name (e.g., 'document-apps' from 'platform/apps/document-apps' or 'document-apps')
   const appName = appPath.replace(/^\/?platform\/apps\//, '')
-  const isProduction = process.env.NODE_ENV === 'production'
 
   const platformUrl =
     appName === 'document-apps'
-      ? isProduction
-        ? '/platform/documents'
-        : '/platform/apps/document-apps'
+      ? '/platform/every-office/documents'
       : appName === 'spreadsheet-apps'
-        ? isProduction
-          ? '/platform/spreadsheets'
-          : '/platform/apps/spreadsheet-apps'
+        ? '/platform/every-office/spreadsheets'
         : appName === 'note-apps'
-          ? isProduction
-            ? '/platform/notes'
-            : '/platform/apps/note-apps'
+          ? '/platform/every-office/notes'
           : appName === 'slide-apps'
-            ? isProduction
-              ? '/platform/slides'
-              : '/platform/apps/slide-apps'
-            : `/platform/apps/${appName}`
+            ? '/platform/every-office/slides'
+            : appName === 'drive-apps'
+              ? '/platform/every-office/drive'
+              : `/platform/apps/${appName}`
   const urlParams = params?.from ? params : { from: 'desk', ...params }
   navigateTo(buildPlatformUrl(platformUrl, urlParams))
 }
@@ -168,8 +161,12 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
     navigateToApp('slide-apps', { action: 'new' })
   }, [])
 
+  const handleOpenDrive = useCallback(() => {
+    navigateToApp('drive-apps')
+  }, [])
+
   const handleOpenSpaces = useCallback(() => {
-    navigateTo(buildPlatformUrl('/platform/spaces'))
+    navigateTo(buildPlatformUrl('/platform/every-office/spaces'))
   }, [])
 
   const toggleAppsCollapse = useCallback(() => {
@@ -181,7 +178,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
   }, [])
 
   const handleSpaceClick = useCallback((spaceId: string) => {
-    navigateTo(buildPlatformUrl('/platform/spaces', { spaceId, from: 'desk' }))
+    navigateTo(buildPlatformUrl('/platform/every-office/spaces', { spaceId, from: 'desk' }))
   }, [])
 
   // Handle item click - navigate to the specific item
@@ -324,7 +321,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
 
             {/* App cards grid - collapsible */}
             {!isAppsCollapsed && (
-              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 lg:gba:grid-cols-4 gba:gap-4">
+              <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:xl:grid-cols-5 gba:gap-4">
                 <AppCard
                   title={t('app-documents-title')}
                   description={t('app-documents-description')}
@@ -376,6 +373,18 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                   isLoading={isLoading}
                   animationDelay={0.4}
                   data-testid={`${testId}-app-slides`}
+                />
+                <AppCard
+                  title={t('app-drive-title')}
+                  description={t('app-drive-description')}
+                  icon={HardDrive}
+                  count={stats.totalItems}
+                  accentColor="decorative"
+                  onOpen={handleOpenDrive}
+                  onCreate={handleOpenDrive}
+                  isLoading={isLoading}
+                  animationDelay={0.5}
+                  data-testid={`${testId}-app-drive`}
                 />
               </div>
             )}
