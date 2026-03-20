@@ -11,7 +11,7 @@ import {
   InputGroupInput,
   InputGroupButton
 } from '@newwork/nw-design-system'
-import { PiPlus, PiTrash } from 'react-icons/pi'
+import { PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { CommunicationChannelCode } from '@/common/data/relations/types/relationEnums'
@@ -131,7 +131,7 @@ const CommunicationChannelItem: React.FC<{
                     data-testid={`communication-channel-remove-${channelIndex}`}
                     aria-label="Remove channel"
                   >
-                    <PiTrash className="gba:w-4 gba:h-4" />
+                    <TrashIcon className="gba:w-4 gba:h-4" />
                   </InputGroupButton>
                 </InputGroupAddon>
               </InputGroup>
@@ -211,7 +211,7 @@ const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({
         className="gba:w-full gba:mt-2"
         data-testid="communication-channels-add-channel"
       >
-        <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+        <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
         {t('communication-channels-add-channel')}
       </Button>
 

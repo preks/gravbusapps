@@ -31,6 +31,39 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
   dataTestId
 }) => {
   const { t } = useTranslation(hrTranslations)
+
+  // Custom legend to enforce fixed order
+  const renderLegend = (props: any) => {
+    const desiredOrder = ['hires', 'departures', 'netChange']
+    const items = Array.isArray(props?.payload) ? props.payload : []
+
+    const ordered = [...items].sort((a, b) => {
+      const ai = desiredOrder.indexOf(a?.dataKey ?? '')
+      const bi = desiredOrder.indexOf(b?.dataKey ?? '')
+      return ai - bi
+    })
+
+    const labelFor = (dataKey: string): string => {
+      if (dataKey === 'hires') return t('hr-analytics-new-hires')
+      if (dataKey === 'departures') return t('hr-analytics-departures')
+      if (dataKey === 'netChange') return t('hr-analytics-net-change')
+      return dataKey
+    }
+
+    return (
+      <div className="gba:flex gba:flex-wrap gba:gap-4 gba:mb-2">
+        {ordered.map((entry: any) => (
+          <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2">
+            <span
+              className="gba:inline-block gba:w-3 gba:h-3 gba:rounded-sm"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="gba:text-sm gba:text-foreground">{labelFor(entry.dataKey)}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
   // Combine all data by date
   const combinedData = React.useMemo(() => {
     const dataMap = new Map()
@@ -121,7 +154,7 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
               boxShadow: 'var(--nw-shadow-sm)'
             }}
           />
-          <Legend />
+          <Legend content={renderLegend} />
           <Line
             type="monotone"
             dataKey="hires"

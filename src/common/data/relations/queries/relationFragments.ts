@@ -79,6 +79,7 @@ export const buildContactFragment = (fields: Record<keyof typeof ContactFields, 
   ${fields.department}
   ${fields.id}
   ${fields.firstName}
+  ${fields.fullName}
   ${fields.jobPosition}
   ${fields.language} {
     ${CATALOG_ENTRY}
@@ -95,7 +96,6 @@ export const buildContactFragment = (fields: Record<keyof typeof ContactFields, 
     ${CATALOG_ENTRY}
   }
   ${fields.salutationRef}
-  ${fields.type}
   ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
     ${COMMUNICATION_CHANNEL_REF}
   }
@@ -127,15 +127,27 @@ export const buildActivityFragment = (fields: Record<keyof typeof ActivityFields
 
 /**
  * Build Task fragment using fields mapping (REF fields only, no relations)
+ * Updated to support multiple assignees via taskAssignees relationship
  */
 export const buildTaskFragment = (fields: Record<keyof typeof TaskFields, string> = TaskFields): string => {
   return `
   ${AUDIT_FIELDS}
-  ${fields.assignedEmployee} {
+  # Multiple assignees (many-to-many via TaskAssignee)
+  ${fields.taskAssignees}(where: { isDeleted: { _eq: false } }) {
+    id
+    taskId
+    assignedEmployee {
     ${EMPLOYEE_REF}
   }
-  ${fields.assignedEmployeeId}
-  ${fields.assignedUserId}
+    assignedEmployeeId
+    assignedUserId
+    ${AUDIT_FIELDS}
+  }
+  ${fields.taskAssigneesAggregate}(where: { isDeleted: { _eq: false } }) {
+    aggregate {
+      count
+    }
+  }
   ${fields.code}
   # TODO: comments missing
   ${fields.creatorEmployee} {

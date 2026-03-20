@@ -4,8 +4,19 @@ import { GET_EXPENSE_REQUESTS, PROCESS_PAYMENT_MUTATION } from '../queries'
 import { ExpenseData, ExpenseRequestQueryData } from '../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDateLocalized } from '../utils/dateUtils'
+import type { TranslateFn } from '../utils/utils'
+import {
+  buildNumericRangeCondition,
+  buildSearchCondition as buildSearchConditionBase,
+  buildExpenseRequestSearchOrConditions,
+  buildStatusFilterCondition,
+  buildEmployeeFilterCondition
+} from './queryFilterUtils'
+import { buildRequestEffectiveDateFilter, buildRequestTypeFilter } from './backofficeSharedOverview'
+import { extractUniqueStatuses, extractUniqueEmployees } from '../utils/sharedUtils'
+import { buildEmployeeDisplayName } from './backofficeReportUtils'
 
-export const useExpenseRequests = (context: BusinessAppContextProps, isActive: boolean = true) => {
+export const useExpenseRequests = (context: BusinessAppContextProps, t: TranslateFn, isActive: boolean = true) => {
   const { accessToken } = context
   const client = useGraphqlClient(accessToken)
 
@@ -55,7 +66,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       case 'status':
         return [{ status: order }, { id: order }]
       case 'totalAmount':
-        return [{ totalAmount: order }, { id: order }]
+        return [{ reimbursableAmount: order }, { id: order }]
       case 'totalRemainingAmount':
         return [{ totalRemainingAmount: order }, { id: order }]
       case 'employee.fullName':
@@ -101,14 +112,17 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
   const [amountMaxFilter, setAmountMaxFilter] = useState<string>('')
   const [departmentFilter, setDepartmentFilter] = useState<string>('')
   const [currencyRefFilter, setCurrencyRefFilter] = useState<string>('')
-  const [startDateRangeFilter, setStartDateRangeFilter] = useState<{
+  // New date range filters - matching manager/personal pattern
+  const [effectiveDateRangeFilter, setEffectiveDateRangeFilter] = useState<{
     from?: string
     to?: string
-  }>({})
-  const [endDateRangeFilter, setEndDateRangeFilter] = useState<{
+  } | null>(null)
+  const [requestDateRangeFilter, setRequestDateRangeFilter] = useState<{
     from?: string
     to?: string
-  }>({})
+  } | null>(null)
+  // Request type filter (EXPENSES, TRIP)
+  const [requestTypeFilter, setRequestTypeFilter] = useState<string[]>([])
 
   const transformExpenseRequest = (item: any): ExpenseData => {
     return {
@@ -116,19 +130,19 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       expenseId: String(item.id ?? '-'),
       employeeCode: item.employee?.code ?? '-',
       code: item.code ?? '-',
-      sapNumber: item.employee?.additionalProperties?.SAPNumber ?? '-',
-      employee: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
+      sapNumber: item.employee?.hrReferenceCode ?? '-',
+      employee: buildEmployeeDisplayName(item.employee) || '-',
       title: item.title ?? '-',
-      creationDate: formatDateLocalized(item.createdAt),
-      startDate: formatDateLocalized(item.startDate),
-      endDate: formatDateLocalized(item.endDate),
-      requestDate: formatDateLocalized(item.requestDate),
-      reporter: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
+      creationDate: formatDateLocalized(item.createdAt, t),
+      startDate: formatDateLocalized(item.startDate, t),
+      endDate: formatDateLocalized(item.endDate, t),
+      requestDate: formatDateLocalized(item.requestDate ?? item.createdAt, t),
+      reporter: buildEmployeeDisplayName(item.employee) || '-',
       type: item.requestType?.value ?? '-',
-      amount: item.totalAmount ? `${item.totalAmount} ${item.currency?.code ?? ''}`.trim() : '-',
+      amount: item.reimbursableAmount ? `${item.reimbursableAmount} ${item.currency?.code ?? ''}`.trim() : '-',
       advance: '',
       status: item.status ?? '',
-      payableAmount: item.totalAmount ? `${item.totalAmount} ${item.currency?.code ?? ''}`.trim() : '-',
+      payableAmount: item.reimbursableAmount ? `${item.reimbursableAmount} ${item.currency?.code ?? ''}`.trim() : '-',
       paymentMethod: '-',
       employeeId: String(item.employee?.id ?? '-'),
       version: item.version ?? '',
@@ -139,7 +153,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       totalRemainingAmount: item.totalRemainingAmount ?? '-',
       userId: '',
       expenseRuleId: '',
-      totalAmount: item.totalAmount ?? 0,
+      totalAmount: item.reimbursableAmount ?? 0,
       employeeDocumentId: item.employeeDocumentId ?? null,
       documentData: null,
       employeeDocument: item.employeeDocument,
@@ -149,93 +163,15 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     }
   }
 
-  // Helper: Build status filter condition (reduces cognitive complexity)
-  const buildStatusFilterCondition = (statusFilter: string): any[] => {
-    if (!statusFilter || statusFilter === '') return []
-
-    const statusArray = statusFilter
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-    return statusArray.length > 0 ? [{ status: { _in: statusArray } }] : []
-  }
-
-  // Helper: Build employee filter condition (reduces cognitive complexity)
-  const buildEmployeeFilterCondition = (employeeFilter: string): any[] => {
-    if (!employeeFilter || employeeFilter === '') return []
-
-    const employeeIds = employeeFilter
-      .split(',')
-      .map(id => id.trim())
-      .filter(Boolean)
-    if (employeeIds.length === 0) return []
-
-    return [
-      {
-        _or: employeeIds.map(id => ({ employee: { id: { _eq: id } } }))
-      }
-    ]
-  }
-
   // Helper: Build amount filter condition (reduces cognitive complexity)
   const buildAmountFilterCondition = (amountMin?: string, amountMax?: string): any[] => {
-    if (!amountMin && !amountMax) return []
-
-    const amountConditions: any = {}
-    if (amountMin) amountConditions._gte = Number.parseFloat(amountMin)
-    if (amountMax) amountConditions._lte = Number.parseFloat(amountMax)
-
-    if (Object.keys(amountConditions).length === 0) return []
-
-    return [{ totalAmount: amountConditions }]
+    return buildNumericRangeCondition(amountMin, amountMax, amountConditions => ({
+      reimbursableAmount: amountConditions
+    }))
   }
 
-  // Helper: Build date range filter conditions (reduces cognitive complexity)
-  const buildDateRangeFilterConditions = (
-    startDateRange: { from?: string; to?: string },
-    endDateRange: { from?: string; to?: string }
-  ): any[] => {
-    const conditions: any[] = []
-
-    if (startDateRange.from || startDateRange.to) {
-      const rangeCond: any = {}
-      if (startDateRange.from) rangeCond._gte = startDateRange.from
-      if (startDateRange.to) rangeCond._lte = startDateRange.to
-      conditions.push({ startDate: rangeCond })
-    }
-
-    if (endDateRange.from || endDateRange.to) {
-      const rangeCond: any = {}
-      if (endDateRange.from) rangeCond._gte = endDateRange.from
-      if (endDateRange.to) rangeCond._lte = endDateRange.to
-      conditions.push({ endDate: rangeCond })
-    }
-
-    return conditions
-  }
-
-  // Helper: Build search condition (reduces cognitive complexity)
   const buildSearchCondition = (searchTerm: string): any[] => {
-    if (!searchTerm || searchTerm.trim() === '') return []
-
-    const searchValue = `%${searchTerm.trim()}%`
-    return [
-      {
-        _or: [
-          { employee: { firstName: { _ilike: searchValue } } },
-          { employee: { lastName: { _ilike: searchValue } } },
-          { employee: { displayName: { _ilike: searchValue } } },
-          { employee: { code: { _ilike: searchValue } } },
-          { title: { _ilike: searchValue } },
-          { code: { _ilike: searchValue } },
-          { employee: { employeePosition: { costCenter: { name: { _ilike: searchValue } } } } },
-          { employee: { employeePosition: { organizationalUnit: { name: { _ilike: searchValue } } } } },
-          { requestType: { value: { _ilike: searchValue } } },
-          { requestType: { translations: { value: { _ilike: searchValue } } } },
-          { currency: { code: { _ilike: searchValue } } }
-        ]
-      }
-    ]
+    return buildSearchConditionBase(searchTerm, buildExpenseRequestSearchOrConditions)
   }
 
   // Helper: Build complete where conditions from all filters (reduces cognitive complexity)
@@ -246,32 +182,41 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       employeeFilter: string
       amountMinFilter: string
       amountMaxFilter: string
-      startDateRangeFilter: { from?: string; to?: string }
-      endDateRangeFilter: { from?: string; to?: string }
       searchTerm: string
       departmentFilter: string
       currencyRefFilter: string
+      effectiveDateRangeFilter: { from?: string; to?: string } | null
+      requestDateRangeFilter: { from?: string; to?: string } | null
+      requestTypeFilter: string[]
     }): any => {
       const {
         statusFilter,
         employeeFilter,
         amountMinFilter,
         amountMaxFilter,
-        startDateRangeFilter,
-        endDateRangeFilter,
         searchTerm,
         departmentFilter,
-        currencyRefFilter
+        currencyRefFilter,
+        effectiveDateRangeFilter,
+        requestDateRangeFilter,
+        requestTypeFilter
       } = options
 
-      // Build conditions array using extracted helper functions
+      const activeStatuses = statusFilter
+        ? statusFilter
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
+        : []
+      const excludedStatuses = ['DISCARDED']
+      if (!activeStatuses.includes('CREATED')) excludedStatuses.push('CREATED')
+
       const conditions: any[] = [
         { isDeleted: { _eq: false } },
-        { status: { _neq: 'DISCARDED' } },
+        { status: { _nin: excludedStatuses } },
         ...buildStatusFilterCondition(statusFilter),
         ...buildEmployeeFilterCondition(employeeFilter),
         ...buildAmountFilterCondition(amountMinFilter, amountMaxFilter),
-        ...buildDateRangeFilterConditions(startDateRangeFilter, endDateRangeFilter),
         ...buildSearchCondition(searchTerm)
       ]
 
@@ -287,9 +232,29 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
         conditions.push({ currencyRef: { _eq: currencyRefFilter } })
       }
 
+      // Add effective date filter if provided
+      const effectiveDateFilter = buildRequestEffectiveDateFilter(effectiveDateRangeFilter)
+      if (effectiveDateFilter) {
+        conditions.push(effectiveDateFilter)
+      }
+
+      // Add request date range filter if provided
+      if (requestDateRangeFilter?.from || requestDateRangeFilter?.to) {
+        const createdAtCond: any = {}
+        if (requestDateRangeFilter.from) createdAtCond._gte = requestDateRangeFilter.from
+        if (requestDateRangeFilter.to) createdAtCond._lte = requestDateRangeFilter.to
+        conditions.push({ createdAt: createdAtCond })
+      }
+
+      // Add request type filter if provided
+      const requestTypeFilterCond = buildRequestTypeFilter(requestTypeFilter)
+      if (requestTypeFilterCond) {
+        conditions.push(requestTypeFilterCond)
+      }
+
       return conditions.length === 1 ? conditions[0] : { _and: conditions }
     },
-    []
+    [buildRequestEffectiveDateFilter, buildRequestTypeFilter]
   )
 
   const fetchData = async (force: boolean = false) => {
@@ -310,8 +275,9 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       amountMaxFilter,
       departmentFilter,
       currencyRefFilter,
-      startDateRange: startDateRangeFilter,
-      endDateRange: endDateRangeFilter,
+      effectiveDateRange: effectiveDateRangeFilter,
+      requestDateRange: requestDateRangeFilter,
+      requestTypeFilter,
       sorter
     })
 
@@ -338,11 +304,12 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
         employeeFilter,
         amountMinFilter,
         amountMaxFilter,
-        startDateRangeFilter,
-        endDateRangeFilter,
         searchTerm,
         departmentFilter,
-        currencyRefFilter
+        currencyRefFilter,
+        effectiveDateRangeFilter,
+        requestDateRangeFilter,
+        requestTypeFilter
       })
 
       const limit = Math.min(pageSize, 1000)
@@ -367,16 +334,9 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
 
       setTotalItems(responseData.total.aggregate.count ?? 0)
     } catch (err) {
-      console.error('Error fetching expense requests:', err)
-      console.error('Error details:', {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-        employeeFilter,
-        searchTerm,
-        currentPage,
-        pageSize
-      })
-      setError('Failed to fetch expense requests. Please try again later.')
+      setError(err instanceof Error ? err.message : 'Failed to fetch expense requests. Please try again later.')
+      setExpenses([])
+      setTotalItems(0)
     } finally {
       setLoading(false)
       isLoadingRef.current = false // Reset loading ref
@@ -401,10 +361,11 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     amountMaxFilter,
     departmentFilter,
     currencyRefFilter,
-    startDateRangeFilter.from,
-    startDateRangeFilter.to,
-    endDateRangeFilter.from,
-    endDateRangeFilter.to,
+    effectiveDateRangeFilter?.from,
+    effectiveDateRangeFilter?.to,
+    requestDateRangeFilter?.from,
+    requestDateRangeFilter?.to,
+    JSON.stringify(requestTypeFilter),
     JSON.stringify(sorter),
     isActive
   ])
@@ -473,16 +434,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     setCurrentPage(1)
   }, [])
 
-  const handleStartDateRangeFilter = useCallback((from?: string, to?: string) => {
-    setStartDateRangeFilter({ from, to })
-    setCurrentPage(1)
-  }, [])
-
-  const handleEndDateRangeFilter = useCallback((from?: string, to?: string) => {
-    setEndDateRangeFilter({ from, to })
-    setCurrentPage(1)
-  }, [])
-
   const processExpensePayment = async (id: string) => {
     if (!client) return false
     setError(null)
@@ -490,33 +441,19 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       await client.request(PROCESS_PAYMENT_MUTATION, { id })
       await fetchData() // Refresh data after payment processing
       return true
-    } catch (err) {
-      console.error('Error processing expense payment:', err)
+    } catch {
       setError('Failed to process expense payment.')
       return false
     }
   }
 
-  // Search employees method
   const searchEmployees = useCallback(
     async (searchTerm: string): Promise<Array<{ id: string; name: string }>> => {
-      if (!accessToken) {
-        console.warn('Access token not found for employee search')
-        return []
-      }
-
-      if (!client) {
-        console.warn('GraphQL client not initialized for employee search')
-        return []
-      }
-
-      if (!searchTerm.trim()) {
-        return []
-      }
+      if (!accessToken || !client || !searchTerm.trim()) return []
 
       try {
         const searchValue = `%${searchTerm.trim()}%`
-        const variables = {
+        const data = await client.request(GET_EXPENSE_REQUESTS, {
           where: {
             _and: [
               { isDeleted: { _eq: false } },
@@ -524,89 +461,33 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
               {
                 _or: [
                   { employee: { firstName: { _ilike: searchValue } } },
-                  { employee: { lastName: { _ilike: searchValue } } },
-                  { employee: { displayName: { _ilike: searchValue } } }
+                  { employee: { lastName: { _ilike: searchValue } } }
                 ]
               }
             ]
           },
           limit: 1000,
           offset: 0
-        }
-
-        const data = await client.request(GET_EXPENSE_REQUESTS, variables)
-
-        const employees = new Map<string, { id: string; name: string }>()
-        const searchLower = searchTerm.trim().toLowerCase()
-
-        data?.ExpenseRequest?.forEach((request: any) => {
-          if (request.employee) {
-            const firstName = request.employee.firstName || ''
-            const lastName = request.employee.lastName || ''
-            const displayName = request.employee.displayName || ''
-            const employeeId = request.employee.id
-
-            const fullName = `${firstName} ${lastName}`.trim()
-
-            const matchesSearch =
-              fullName.toLowerCase().includes(searchLower) ||
-              displayName.toLowerCase().includes(searchLower) ||
-              firstName.toLowerCase().includes(searchLower) ||
-              lastName.toLowerCase().includes(searchLower)
-
-            if (fullName && matchesSearch && employeeId) {
-              employees.set(employeeId, { id: employeeId, name: fullName })
-            }
-            if (displayName && matchesSearch && employeeId) {
-              employees.set(employeeId, { id: employeeId, name: displayName })
-            }
-          }
         })
 
-        const result = Array.from(employees.values()).sort((a, b) => a.name.localeCompare(b.name))
-        return result
-      } catch (err: any) {
-        console.error('Error searching employees:', err)
+        return extractUniqueEmployees(data?.ExpenseRequest || [], (request: any) => request.employee, searchTerm)
+      } catch {
         return []
       }
     },
     [client, accessToken]
   )
 
-  // Search statuses method
   const searchStatuses = useCallback(async (): Promise<string[]> => {
-    if (!accessToken) {
-      console.warn('Access token not found for status search')
-      return []
-    }
-
-    if (!client) {
-      console.warn('GraphQL client not initialized for status search')
-      return []
-    }
-
+    if (!accessToken || !client) return []
     try {
-      const variables = {
-        where: {
-          _and: [{ isDeleted: { _eq: false } }, { status: { _neq: 'DISCARDED' } }]
-        },
+      const data = await client.request(GET_EXPENSE_REQUESTS, {
+        where: { _and: [{ isDeleted: { _eq: false } }, { status: { _neq: 'DISCARDED' } }] },
         limit: 1000,
         offset: 0
-      }
-
-      const data = await client.request(GET_EXPENSE_REQUESTS, variables)
-
-      const statuses = new Set<string>()
-      data?.ExpenseRequest?.forEach((request: any) => {
-        if (request.status) {
-          statuses.add(request.status)
-        }
       })
-
-      const result = Array.from(statuses).sort()
-      return result
-    } catch (err: any) {
-      console.error('Error searching statuses:', err)
+      return extractUniqueStatuses(data?.ExpenseRequest || [], ['DISCARDED'])
+    } catch {
       return []
     }
   }, [client, accessToken])
@@ -629,14 +510,16 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     handleAmountFilter,
     handleDepartmentFilter,
     handleCurrencyFilter,
-    handleStartDateRangeFilter,
-    handleEndDateRangeFilter,
     handleTableChange,
     handleSearch,
     handleSortChange,
     setOrderBy,
     amountMinFilter,
     amountMaxFilter,
-    processExpensePayment
+    processExpensePayment,
+    // New filter setters
+    setEffectiveDateRangeFilter,
+    setRequestDateRangeFilter,
+    setRequestTypeFilter
   }
 }

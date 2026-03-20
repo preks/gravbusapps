@@ -6,6 +6,31 @@ every-box-blink-button = Blink
 every-box-tab-inflows = InFlows
 every-box-tab-outflows = OutFlows
 every-box-blink-description = Create and assign a quick task instantly
+every-box-hero-tagline = Your unified inbox for tasks and workflows
+every-box-search-placeholder = Search...
+every-box-sort-label = Sort
+every-box-sort-newest = Newest first
+every-box-sort-oldest = Oldest first
+every-box-sort-priority = Priority
+every-box-refresh-label = Refresh
+every-box-due-filter-label = Due date
+every-box-due-filter-any = Any
+every-box-due-filter-overdue = Overdue
+every-box-due-filter-due-soon = Due in <24h
+every-box-due-filter-has = Has due date
+every-box-due-filter-none = No due date
+
+# Filters Dropdown
+filters-dropdown-label = Filters
+filters-all = All
+filters-blinks = Blinks
+filters-approvals = Approvals
+filters-completed = Completed
+filters-active-count = { $count } active
+
+# Detail Panel
+detail-panel-empty = Select a task to view details
+detail-panel-empty-flow = Select a workflow to view details
 
 # Inbox View
 inbox-search-placeholder = Search tasks...
@@ -21,6 +46,10 @@ inbox-new-completed-tasks-description = New completed tasks have arrived. Click 
 inbox-error-title = Error Loading Tasks
 inbox-showing-tasks = Showing {$current} of {$total}{$hasMore} tasks
 inbox-load-more = Load More
+inbox-loading-more = Loading more tasks...
+inbox-no-task-selected = No task selected
+inbox-select-task-prompt = Select a task from the list to view details
+inbox-task-no-title = Untitled Task
 
 # Inbox Empty States
 inbox-empty-no-results = No tasks found matching "{$query}"
@@ -39,6 +68,8 @@ outbox-error-title = Error Loading Flows
 outbox-error-unable = Unable to load outflows
 outbox-error-server = The server is experiencing performance issues. This is a known backend problem.
 outbox-try-again = Try Again
+outbox-no-flow-selected = No workflow selected
+outbox-select-flow-prompt = Select a workflow from the list to view details
 
 # Outbox Empty States
 outbox-empty-no-results = No workflows found matching "{$query}"
@@ -60,9 +91,28 @@ blink-upload-error = Failed to upload attachments: {$error}
 task-card-overdue = Overdue
 task-card-due-soon = Due soon
 task-card-due = Due {$date}
+task-card-due-in-hours = Due in {$hours}h
+task-card-overdue-hours = Overdue {$hours}h
+task-card-due-in-days = Due in {$days}d
+task-card-overdue-days = Overdue {$days}d
+task-card-tooltip-due-hours = Due in {$hours} hours
+task-card-tooltip-due-days = Due in {$days} days
+task-card-tooltip-overdue-hours = Overdue: {$hours} hours
+task-card-tooltip-overdue-days = Overdue: {$days} days
+
+# Task meta actions (Everybox-service)
+task-meta-pin = Pin
+task-meta-unpin = Unpin
+task-meta-mark-unread = Mark unread
+task-meta-priority = Priority
+task-meta-priority-none = None
+task-meta-priority-high = High
+task-meta-priority-medium = Medium
+task-meta-priority-low = Low
 task-card-blink = Blink
 task-card-unknown-creator = Unknown
 task-card-untitled = Untitled Task
+task-card-pinned = Pinned
 
 # FlowCard Component
 flow-card-blink = Blink
@@ -100,6 +150,8 @@ task-completion-outcome-acknowledged = Acknowledged
 task-footer-reject = Reject
 task-footer-reassign = Reassign
 task-footer-unclaim = Unclaim
+task-details-task-claimed = Task claimed successfully!
+task-details-task-unclaimed = Task unclaimed successfully!
 
 # FlowDetailDialog Component
 flow-detail-loading = Loading...
@@ -119,7 +171,6 @@ flow-detail-flow-steps = Flow Steps
 flow-detail-step = Step {$number}: {$title}
 flow-detail-assigned-to = Assigned to: {$name}
 flow-detail-completed-by = Completed by: {$name}
-flow-detail-id = ID: {$id}
 
 # TaskDetailDialog Component
 task-dialog-completed-success = ✓ Task completed successfully!
@@ -141,15 +192,33 @@ completed-showing = Showing {$current} of {$total} completed tasks
 completed-load-more = Load More
 
 # UniversalCflowTaskDetails Component
+task-details-related-links = Related Links
+task-details-meeting-links = Meeting Links
 task-details-related-to = Related To
+task-details-meeting-recording-notice = Recording and transcription. By joining, you consent to being included.
+task-details-meeting-participants = Participants
+task-details-meeting-participants-with-count = Participants ({$count})
+task-details-meeting-organiser = Organiser
+task-details-meeting-invitation-title-with-count = Meeting Invitation: {$count} participants
+task-details-meeting-participants-show-more = Show {$count} more
+task-details-meeting-participants-show-less = Show less
+task-details-meeting-please-respond = Please respond to this invitation.
+task-details-meeting-participant-view-profile = View profile
+task-details-meeting-status-pending = Pending
+task-details-meeting-status-accepted = Accepted
+task-details-meeting-status-declined = Declined
+task-details-meeting-status-tentative = Tentative
 task-details-attachments = Attachments ({$count})
 task-details-form = Form
+task-due-date-label = Due
+task-start-date-label = Starts
 task-details-read-only = Read-only
 task-details-form-loading = Loading...
 task-details-add-comment = Add Comment
 task-details-optional = (Optional)
 task-details-comment-placeholder = Enter your comment...
 task-details-blink-info = This is a quick Blink task. You can complete it directly from here.
+task-details-blink-instruction-hint = Open the link below to access your assigned copy, complete it, and return here to submit.
 task-details-unknown = Unknown
 task-details-untitled = Untitled Task
 task-details-claim-coming = Claim functionality coming soon
@@ -211,3 +280,97 @@ formatter-priority-normal = Normal
 formatter-priority-high = High
 formatter-priority-medium = Medium
 formatter-priority-low = Low
+
+# Due Date Labels
+due-date-days-overdue = { $days ->
+    [one] { $days }d overdue
+   *[other] { $days }d overdue
+}
+due-date-hours-overdue = { $hours ->
+    [one] { $hours }h overdue
+   *[other] { $hours }h overdue
+}
+due-date-hours-left = { $hours ->
+    [one] { $hours }h left
+   *[other] { $hours }h left
+}
+due-date-days-left = { $days ->
+    [one] { $days }d left
+   *[other] { $days }d left
+}
+
+# AI Features
+ai-search-placeholder = Smart search...
+ai-search-toggle = Smart search
+ai-search-toggle-tooltip = Use AI-powered semantic search
+ai-search-results-title = Search Results
+ai-search-mode-semantic = AI results
+ai-search-mode-lexical = Text results
+ai-search-no-results = No matching tasks found
+ai-search-error = Search failed. Please try again.
+ai-summary-title = Summary
+ai-summary-loading = Generating summary...
+ai-summary-error = Failed to generate summary
+ai-summary-regenerate = Regenerate
+ai-summary-cached = Cached
+ai-suggestions-title = Suggested Actions
+ai-suggestions-loading = Generating suggestions...
+ai-suggestions-error = Failed to generate suggestions
+ai-suggestions-retry = Retry
+ai-suggestions-copy = Copy
+ai-suggestions-apply = Apply
+ai-urgency-label = Urgency
+ai-urgency-high = High
+ai-urgency-medium = Medium
+ai-urgency-low = Low
+ai-priority-suggested = Suggested priority
+ai-priority-apply = Apply priority
+ai-clustering-group-by = Group by category
+ai-clustering-group-label = { $cluster }
+ai-clustering-uncategorized = Uncategorized
+
+# AI Assistant
+ai-assistant-suggest = Suggest
+ai-assistant-suggest-tooltip = Get AI-suggested reply
+ai-assistant-improve = Improve
+ai-assistant-improve-tooltip = Improve your draft
+ai-assistant-tone = Tone
+ai-assistant-tone-tooltip = Adjust the tone of your message
+ai-assistant-expand = Expand
+ai-assistant-expand-tooltip = Add more detail
+ai-assistant-shorten = Shorten
+ai-assistant-shorten-tooltip = Make it more concise
+ai-assistant-custom = Custom
+ai-assistant-custom-tooltip = Give custom instructions
+ai-assistant-custom-label = What should AI do?
+ai-assistant-custom-placeholder = e.g., Make it more polite...
+ai-assistant-apply = Apply
+ai-assistant-suggested-reply = Suggested reply
+ai-assistant-use-this = Use this
+ai-assistant-dismiss = Dismiss
+ai-assistant-placeholder = Write your reply...
+ai-assistant-send = Send
+ai-assistant-cancel = Cancel
+ai-assistant-ai-assisted = AI-assisted
+ai-assistant-applied = Applied
+ai-assistant-draft-helper = AI Writing Assistant
+ai-assistant-draft-placeholder = Use AI to help draft your response...
+ai-assistant-copy = Copy
+ai-assistant-copied = Copied to clipboard
+
+# AI Predictions
+ai-prediction-helpful = Was this helpful?
+ai-feedback-helpful = Yes, this was helpful
+ai-feedback-not-helpful = No, this was not helpful
+ai-feedback-thanks = Thanks for your feedback!
+ai-prediction-likely-approve = Likely approve
+ai-prediction-likely-reject = Likely reject
+ai-prediction-likely-delegate = Likely delegate
+ai-prediction-likely-defer = Likely defer
+ai-prediction-needs-review = Needs review
+ai-prediction-high-priority = High priority
+ai-prediction-medium-priority = Medium priority
+ai-prediction-low-priority = Low priority
+ai-prediction-confidence = { $percent }% confidence
+ai-relationship-context = Relationship context
+ai-decision-history = Based on your decision history

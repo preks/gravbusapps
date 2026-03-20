@@ -1,32 +1,66 @@
-import React from 'react'
+/**
+ * @deprecated This utility is deprecated. Use updateActionProps and deleteActionProps
+ * on DocumentSection component instead. This ensures proper permission checks via
+ * Flow Registry and centralized flow configuration.
+ *
+ * Migration guide:
+ * Instead of:
+ *   const customActions = createDocumentSectionActions({
+ *     domain: 'investment-relations',
+ *     documentFieldName: 'investmentDocument',
+ *     entityType: 'opportunity',
+ *     updateProcessName: 'updateInvestmentDocument',
+ *     deleteEndpoint: '/investment-relations/deleteInvestmentDocument'
+ *   })
+ *   <DocumentSection customActions={customActions} ... />
+ *
+ * Use:
+ *   const updateActionProps = useMemo(() => ({
+ *     contextsArray: [FlowContextName.investmentDocumentUpdate],
+ *     externalContextData: { opportunityId },
+ *     prefixDataTestId: 'opportunity-document-update'
+ *   }), [opportunityId])
+ *
+ *   const deleteActionProps = useMemo(() => ({
+ *     contextsArray: [FlowContextName.investmentDocumentDelete],
+ *     externalContextData: { opportunityId },
+ *     prefixDataTestId: 'opportunity-document-delete'
+ *   }), [opportunityId])
+ *
+ *   <DocumentSection updateActionProps={updateActionProps} deleteActionProps={deleteActionProps} ... />
+ *
+ * @see DocumentSection component for the new pattern
+ */
+
 import { Download, Edit, Trash2 } from 'lucide-react'
-import { buildFileUrl } from '@/common/utils/fileUtils'
 import { toast } from '@newwork/nw-design-system'
 import { startProcess } from '@/common/utils/start-process'
+import { handleDocumentClick } from '@/common/utils/documentClickHandler'
 
 export interface DocumentSectionActionsConfig {
   /**
-   * Domain for process execution (e.g., 'customer-relations', 'investment-relations', 'hr', 'finance')
+   * Domain for process execution (e.g., 'customer-relations', 'investment-relations', 'hr', 'finance', 'mdm')
    */
   domain: string
 
   /**
-   * Document field name in payload (e.g., 'crmDocument', 'investmentDocument', 'hrDocument')
+   * Document field name in payload (e.g., 'crmDocument', 'investmentDocument', 'hrDocument', 'companyDocument')
    */
   documentFieldName: string
 
   /**
-   * Entity type (e.g., 'lead', 'account', 'employee', 'expense')
+   * Entity type (e.g., 'lead', 'account', 'employee', 'expense', 'company')
    */
   entityType: string
 
   /**
-   * Update process name (e.g., 'updateCrmDocument', 'updateInvestmentDocument')
+   * Update process name (e.g., 'updateCrmDocument', 'updateInvestmentDocument', 'updateCompanyDocument')
    */
   updateProcessName: string
 
   /**
-   * Delete API endpoint (e.g., '/customer-relations/deleteCrmDocument')
+   * Delete API endpoint (e.g., '/customer-relations/deleteCrmDocument', '/mdm/deleteCompanyDocument')
+   * For MDM, this will be converted to use updateCompany endpoint with changeMode: 'DELETE'
    */
   deleteEndpoint: string
 
@@ -37,6 +71,18 @@ export interface DocumentSectionActionsConfig {
    * @returns Translated text or fallback
    */
   getTranslation?: (key: string, fallback: string) => string
+
+  /**
+   * Optional custom delete handler for MDM
+   * When provided, this will be used instead of the default apiEndpoint approach
+   */
+  customDeleteHandler?: (documentId: string, document: any, entityId: string, accessToken?: string) => Promise<void>
+
+  /**
+   * Optional custom update handler for MDM
+   * When provided, this will be used instead of the default startProcess approach
+   */
+  customUpdateHandler?: (documentId: string, document: any, entityId: string) => void
 }
 
 /**
@@ -93,88 +139,81 @@ export function createDocumentSectionActions(config: DocumentSectionActionsConfi
       key: 'download',
       label: getTranslation('document.action.download', 'Download'),
       icon: <Download className="gba:h-4 gba:w-4" />,
-      onClick: (_documentId: string, document: any) => {
-        if (!document.fileInfo) {
-          toast.warning(getTranslation('document.warning.no.file', 'No file available to download'))
-          return
-        }
-
-        try {
-          // Use buildFileUrl to get the proper file URL
-          const fileUrl = buildFileUrl(document.fileInfo)
-          const downloadFilename = document.name || 'document'
-
-          // Create link with download attribute to force download
-          const link = globalThis.document.createElement('a')
-          link.href = fileUrl
-          link.download = downloadFilename
-          globalThis.document.body.appendChild(link)
-          link.click()
-          link.remove()
-
-          toast.success(getTranslation('document.success.downloading', `Downloading ${downloadFilename}`))
-        } catch (error) {
-          console.error('Error downloading document:', error)
-          toast.error(getTranslation('document.error.download.failed', 'Failed to download document'))
-        }
+      onClick: async (_documentId: string, document: any, _entityId: string, accessToken?: string) => {
+        await handleDocumentClick(document, accessToken, {
+          showToast: true,
+          onError: error => {
+            console.error('Error downloading document:', error)
+            toast.error(getTranslation('document.error.download.failed', 'Failed to download document'))
+          }
+        })
       }
     },
     {
       key: 'update',
       label: getTranslation('document.action.update', 'Update'),
       icon: <Edit className="gba:h-4 gba:w-4" />,
-      onClick: (documentId: string, document: any, entityId: string) => {
-        // Pass the complete document object to pre-fill the form
-        startProcess({
-          domain,
-          processName: updateProcessName,
-          payload: {
-            documentId,
-            [`${entityType}Id`]: entityId,
-            [documentFieldName]: {
-              // Core document fields
-              id: documentId,
-              version: document.version,
-              name: document.name,
-              description: document.description,
-              folder: document.folder || false,
-              parentDocument: document.parentDocument,
-              format: document.format,
+      onClick:
+        config.customUpdateHandler ??
+        ((documentId: string, document: any, entityId: string) => {
+          // Pass the complete document object to pre-fill the form
+          startProcess({
+            domain,
+            processName: updateProcessName,
+            payload: {
+              documentId,
+              [`${entityType}Id`]: entityId,
+              [documentFieldName]: {
+                // Core document fields
+                id: documentId,
+                version: document.version,
+                name: document.name,
+                description: document.description,
+                folder: document.folder || false,
+                parentDocument: document.parentDocument,
+                format: document.format,
 
-              // Catalog references
-              documentGroupRef: document.documentGroup?.id,
-              documentTypeRef: document.documentType?.id,
+                // Catalog references
+                documentGroupRef: document.documentGroup?.id,
+                documentTypeRef: document.documentType?.id,
 
-              // File information (essential for update mode)
-              file: document.file,
-              fileInfo: document.fileInfo,
-              fileSize: document.fileSize,
-              mimeType: document.mimeType,
+                // File information (essential for update mode)
+                file: document.file,
+                fileInfo: document.fileInfo,
+                fileSize: document.fileSize,
+                mimeType: document.mimeType,
 
-              // Date fields
-              expirationDate: document.expirationDate,
-              createdAt: document.createdAt,
+                // Date fields
+                expirationDate: document.expirationDate,
+                createdAt: document.createdAt,
 
-              // Additional metadata
-              verified: document.verified,
-              verificationDate: document.verificationDate,
-              authenticated: document.authenticated,
-              authenticationDate: document.authenticationDate,
-              mandatory: document.mandatory,
+                // Additional metadata
+                verified: document.verified,
+                verificationDate: document.verificationDate,
+                authenticated: document.authenticated,
+                authenticationDate: document.authenticationDate,
+                mandatory: document.mandatory,
 
-              // Entity relationship
-              [entityType]: entityId
-            }
-          },
-          builderType: 'NATIVE_SCREEN'
+                // Entity relationship
+                [entityType]: entityId
+              }
+            },
+            builderType: 'NATIVE_SCREEN'
+          })
         })
-      }
     },
     {
       key: 'delete',
       label: getTranslation('document.action.delete', 'Delete'),
       icon: <Trash2 className="gba:h-4 gba:w-4" />,
-      apiEndpoint: deleteEndpoint,
+      // Use custom delete handler if provided (for MDM), otherwise use apiEndpoint
+      ...(config.customDeleteHandler
+        ? {
+            onClick: config.customDeleteHandler
+          }
+        : {
+            apiEndpoint: deleteEndpoint
+          }),
       confirmMessage: getTranslation(
         'document.confirm.delete',
         'Are you sure you want to delete this document? This action cannot be undone.'

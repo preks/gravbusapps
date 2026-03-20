@@ -5,9 +5,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Building2, Calendar } from 'lucide-react'
+import { BuildingsIcon, CalendarIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatDate } from '@/common/data/investment/utils/formatters'
+import { getInvestmentStatusBadgeVariant } from '../utils/statusBadgeHelpers'
 
 // Helper function to format group names for display
 const formatGroupName = (groupName: string): string => {
@@ -17,7 +18,7 @@ const formatGroupName = (groupName: string): string => {
   if (groupName === 'LiquidFund' || groupName === 'LiquidFunds') {
     return 'Liquid Fund'
   }
-  return groupName.replaceAll(/([A-Z])/g, ' $1').trim()
+  return groupName.replace(/([A-Z])/g, ' $1').trim()
 }
 
 // Helper function to get owner display name
@@ -61,7 +62,7 @@ const renderAmount = (amount: number | undefined, currencyCode?: string) => {
 // Cell renderer: Name cell
 const NameCell = ({ row }: CellContext<Investment, unknown>) => (
   <div className="gba:flex gba:items-center gba:gap-2">
-    <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
+    <BuildingsIcon className="gba:w-4 gba:h-4 gba:text-gray-500" />
     <span className="gba:font-medium">{row.original.name}</span>
   </div>
 )
@@ -130,7 +131,7 @@ const OwnerEmployeeCell = ({ row }: CellContext<Investment, unknown>) => {
 
 // Cell renderer: Investment Status cell
 const InvestmentStatusCell = ({ row }: CellContext<Investment, unknown>) => (
-  <Badge variant={row.original.investmentStatus?.code === 'ACTIVE' ? 'default' : 'secondary'}>
+  <Badge variant={getInvestmentStatusBadgeVariant(row.original.investmentStatus?.type)}>
     {row.original.investmentStatus?.value || 'Unknown'}
   </Badge>
 )
@@ -142,7 +143,7 @@ const CreatedAtCell = ({ row }: CellContext<Investment, unknown>) => {
   }
   return (
     <div className="gba:flex gba:items-center gba:gap-2 gba:truncate">
-      <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+      <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
       <span className="gba:text-sm gba:truncate">{formatDate(row.original.createdAt)}</span>
     </div>
   )
@@ -173,7 +174,7 @@ const createRowActions =
       contexts={[
         {
           context: FlowContextName.investmentEntity,
-          contextData: { investmentId: row.original.id }
+          contextData: { investmentId: row.original.id, dealType: 'DIVESTMENT_DEAL' }
         }
       ]}
       prefixDataTestId="all-investment-update"

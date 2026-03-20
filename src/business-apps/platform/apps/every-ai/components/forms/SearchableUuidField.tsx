@@ -10,6 +10,14 @@ import {
   getEntityTypeFromFieldName,
   type EntityType
 } from '../../queries/employeeQueries'
+import { useCustomerOpportunity } from '@/common/data/customer/hooks/useCustomerOpportunity'
+import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
+import { useCustomerContact } from '@/common/data/customer/hooks/useCustomerContact'
+import { useCustomerLead } from '@/common/data/customer/hooks/useCustomerLead'
+import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
+import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestmentAccount'
+import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
+import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
 
 interface SearchableUuidFieldProps {
   controlId: string
@@ -19,6 +27,8 @@ interface SearchableUuidFieldProps {
   disabled?: boolean
   value: string
   onChange: (val: string) => void
+  /** Flow module name (e.g. customer-relations, investment-relations). When it includes "investment", IRM hooks are used to resolve labels. */
+  moduleName?: string
 }
 
 export const SearchableUuidField: React.FC<SearchableUuidFieldProps> = ({
@@ -28,10 +38,12 @@ export const SearchableUuidField: React.FC<SearchableUuidFieldProps> = ({
   accessToken,
   disabled,
   value,
-  onChange
+  onChange,
+  moduleName
 }) => {
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
+  const isIrm = Boolean(moduleName?.toLowerCase().includes('investment'))
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 250)
@@ -174,6 +186,97 @@ export const SearchableUuidField: React.FC<SearchableUuidFieldProps> = ({
     employeeDetailsState
   ])
 
+  // When value is pre-filled (e.g. from flow proposal) but not in options yet (no search),
+  // resolve its label using existing "fetch by ID" hooks so the Combobox shows name/title instead of raw UUID.
+  const val = (value || '').trim()
+  const valueNotInOptions = val && !options.some((o: { value: string }) => o.value === val)
+  const idToResolve = valueNotInOptions ? val : undefined
+
+  const { opportunity } = useCustomerOpportunity(
+    accessToken,
+    entityType === 'opportunity' && !isIrm ? idToResolve : undefined
+  )
+  const { account } = useCustomerAccount(accessToken, entityType === 'account' && !isIrm ? idToResolve : undefined)
+  const { contact } = useCustomerContact(accessToken, entityType === 'contact' && !isIrm ? idToResolve : undefined)
+  const { lead } = useCustomerLead(accessToken, entityType === 'lead' && !isIrm ? idToResolve : undefined)
+  const { opportunity: investmentOpportunity } = useInvestmentOpportunity(
+    accessToken,
+    entityType === 'opportunity' && isIrm ? idToResolve : undefined
+  )
+  const { account: investmentAccount } = useInvestmentAccount(
+    accessToken,
+    entityType === 'account' && isIrm ? idToResolve : undefined
+  )
+  const { contact: investmentContact } = useInvestmentContact(
+    accessToken,
+    entityType === 'contact' && isIrm ? idToResolve : undefined
+  )
+  const { lead: investmentLead } = useInvestmentLead(
+    accessToken,
+    entityType === 'lead' && isIrm ? idToResolve : undefined
+  )
+  const { state: employeeState } = useEmployeeDetails(
+    entityType === 'employee' && idToResolve ? idToResolve : '',
+    accessToken
+  )
+
+  const resolvedLabel = useMemo(() => {
+    if (!valueNotInOptions || !val) return null
+    switch (entityType) {
+      case 'opportunity': {
+        const o = isIrm ? investmentOpportunity : opportunity
+        return o ? o.name || (o as { code?: string }).code || o.id : null
+      }
+      case 'account': {
+        const a = isIrm ? investmentAccount : account
+        return a ? a.name || a.id : null
+      }
+      case 'contact': {
+        const c = isIrm ? investmentContact : contact
+        return c ? `${(c.firstName ?? '').trim()} ${(c.lastName ?? '').trim()}`.trim() || c.id : null
+      }
+      case 'lead': {
+        const l = isIrm ? investmentLead : lead
+        return l
+          ? `${(l.firstName ?? '').trim()} ${(l.lastName ?? '').trim()}`.trim() +
+              ((l as { companyName?: string }).companyName
+                ? ` (${(l as { companyName?: string }).companyName})`
+                : '') ||
+              (l as { email?: string }).email ||
+              l.id
+          : null
+      }
+      case 'employee':
+      default:
+        if (employeeState?.state === 'success' && employeeState.employee) {
+          const e = employeeState.employee
+          return `${(e.firstName ?? '').trim()} ${(e.lastName ?? '').trim()}`.trim() || e.id
+        }
+        return null
+    }
+  }, [
+    valueNotInOptions,
+    val,
+    entityType,
+    isIrm,
+    opportunity,
+    account,
+    contact,
+    lead,
+    investmentOpportunity,
+    investmentAccount,
+    investmentContact,
+    investmentLead,
+    employeeState
+  ])
+
+  const optionsWithValue = useMemo(() => {
+    if (!val) return options
+    const inList = options.some((o: { value: string }) => o.value === val)
+    if (inList) return options
+    return [{ value: val, label: resolvedLabel ?? val }, ...options]
+  }, [val, options, resolvedLabel])
+
   // Get placeholder text based on entity type
   const placeholderText = useMemo(() => {
     switch (entityType) {
@@ -195,7 +298,7 @@ export const SearchableUuidField: React.FC<SearchableUuidFieldProps> = ({
       <Combobox
         id={controlId}
         className="gba:w-full"
-        options={options}
+        options={optionsWithValue}
         value={value || ''}
         onValueChange={v => onChange(v || '')}
         placeholder={`Select ${label}`}

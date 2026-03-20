@@ -1,16 +1,18 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
-import { PiGraduationCap, PiChartBar, PiChatCircle } from 'react-icons/pi'
+import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
+import { GraduationCapIcon, ChartBarIcon, ChatCircleIcon } from '@phosphor-icons/react'
 import SkillsTab from './SkillsTab'
 import PerformanceTab from './PerformanceTab'
 import FeedbackTab from './FeedbackTab'
+import PerformanceEvaluationTab from './performance-evaluation/PerformanceEvaluationTab'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Employee, EmployeePerformanceGoal, EmployeeFeedback } from '../../hooks/useEmployeeData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
+import translations from '../../_i18n'
+import SkillsTabOld from './SkillsTabOld'
 
 interface HrGrowthTabProps extends BusinessAppContextProps {
   employee: Employee
@@ -21,7 +23,7 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   feedback?: EmployeeFeedback[]
 }
 
-const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance'] as const
+const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance', 'performanceEvaluation'] as const
 type HrGrowthSubView = (typeof HR_GROWTH_SUBVIEW_VALUES)[number]
 
 const getInitialHrGrowthSubView = (): HrGrowthSubView => {
@@ -46,6 +48,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   employeePerformanceGoals,
   feedback
 }) => {
+  const { t } = useTranslation(translations)
   const [activeSubView, setActiveSubView] = useState<HrGrowthSubView>(getInitialHrGrowthSubView())
 
   const { loading: permissionsLoading } = useEmployeePermissions(employeeId, accessToken)
@@ -69,9 +72,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   const hasPerformancePermission =
     permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading
       ? false
-      : isSelfView ||
-        hasManagerEmployeeGrowthPermission ||
-        (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
 
   const updateUrl = useCallback(
     (subView: HrGrowthSubView) => {
@@ -102,7 +103,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    if (!devFeatureFlag && activeSubView === 'feedback') {
+    if (!devFeatureFlag && activeSubView === 'performanceEvaluation') {
       const newSubView = 'skills'
       setActiveSubView(newSubView)
       updateUrl(newSubView)
@@ -160,28 +161,16 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
         <TabsList className="gba:mb-4 gba:w-full" data-testid="hr-growth-tabs-list">
           <TabsTrigger value="skills" data-testid="hr-growth-skills-subtab" className="gba:flex-1">
             <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-              <PiGraduationCap />
-              <span>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.summary_layout.skills_section.skills_title',
-                  'Skills'
-                )}
-              </span>
+              <GraduationCapIcon />
+              <span>{t('hr-growth-skills')}</span>
             </div>
           </TabsTrigger>
-          {devFeatureFlag && (
-            <TabsTrigger value="feedback" data-testid="hr-growth-feedback-subtab" className="gba:flex-1">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiChatCircle />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.summary_layout.skills_section.feedback_generic_module_title',
-                    'Feedback'
-                  )}
-                </span>
-              </div>
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="feedback" data-testid="hr-growth-feedback-subtab" className="gba:flex-1">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+              <ChatCircleIcon />
+              <span>{t('hr-growth-feedback')}</span>
+            </div>
+          </TabsTrigger>
           {(permissionsLoading ||
             employeeRecordAllHrBackoffice.loading ||
             employeeGrowthPermission.loading ||
@@ -193,34 +182,48 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               disabled={permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading}
             >
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiChartBar />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absence_management_hub_backoffice.performance',
-                    'Performance'
-                  )}
-                </span>
+                <ChartBarIcon />
+                <span>{t('hr-growth-performance')}</span>
+              </div>
+            </TabsTrigger>
+          )}
+          {devFeatureFlag && (
+            <TabsTrigger
+              value="performanceEvaluation"
+              data-testid="hr-growth-performance-evaluation-subtab"
+              className="gba:flex-1"
+            >
+              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                <ChartBarIcon />
+                <span>{t('employee-record-tab-performance-evaluation')}</span>
               </div>
             </TabsTrigger>
           )}
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
-          <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
+          {devFeatureFlag ? (
+            <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
+          ) : (
+            <SkillsTabOld employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
+          )}
         </TabsContent>
 
-        {devFeatureFlag && (
-          <TabsContent value="feedback" data-testid="hr-growth-feedback-content" className="gba:mt-4">
-            <FeedbackTab
-              employee={employee}
-              accessToken={accessToken}
-              employeeId={employeeId}
-              userInfo={userInfo}
-              employeeFeedback={feedback}
-              isSelfView={isSelfView}
-            />
-          </TabsContent>
-        )}
+        <TabsContent value="feedback" data-testid="hr-growth-feedback-content" className="gba:mt-4">
+          <FeedbackTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeId}
+            userInfo={userInfo}
+            employeeFeedback={feedback}
+            isSelfView={isSelfView}
+            canViewAiInsights={
+              isSelfView ||
+              hasManagerEmployeeGrowthPermission ||
+              employeeRecordAllHrBackoffice?.hasPermission === true
+            }
+          />
+        </TabsContent>
 
         {hasPerformancePermission && (
           <TabsContent value="performance" data-testid="hr-growth-performance-content" className="gba:mt-4">
@@ -231,6 +234,16 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               userInfo={userInfo}
               employeePerformanceGoals={employeePerformanceGoals}
             />
+          </TabsContent>
+        )}
+
+        {devFeatureFlag && (
+          <TabsContent
+            value="performanceEvaluation"
+            data-testid="hr-growth-performance-evaluation-content"
+            className="gba:mt-4"
+          >
+            <PerformanceEvaluationTab employee={employee} accessToken={accessToken} employeeId={employeeId} />
           </TabsContent>
         )}
       </Tabs>

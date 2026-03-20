@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserOutlined, ContactsOutlined, DollarOutlined, TeamOutlined } from '@ant-design/icons'
+import { UserIcon, AddressBookIcon, CurrencyDollarIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { CampaignsAnalyticsComponentProps, CampaignsAnalyticsMetrics } from '../types/CampaignsAnalyticsTypes'
 import { formatCurrencyCompact, formatPercentage } from '@/common/utils/numberFormatter'
+import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
 
 // Widget configuration factory functions
 interface WidgetConfig {
@@ -13,10 +14,15 @@ interface WidgetConfig {
 }
 
 const WIDGET_CONFIGS: WidgetConfig[] = [
-  { key: 'total-leads', title: 'Total Leads', icon: <UserOutlined />, color: 'var(--chart-1)' },
-  { key: 'total-accounts', title: 'Total Accounts', icon: <ContactsOutlined />, color: 'var(--chart-2)' },
-  { key: 'total-contacts', title: 'Total Contacts', icon: <TeamOutlined />, color: 'var(--chart-3)' },
-  { key: 'total-opportunities', title: 'Total Opportunities', icon: <DollarOutlined />, color: 'var(--chart-4)' }
+  { key: 'total-leads', title: 'Total Leads', icon: <UserIcon />, color: NW_CHART_COLOR_VARS[0] },
+  { key: 'total-accounts', title: 'Total Accounts', icon: <AddressBookIcon />, color: NW_CHART_COLOR_VARS[1] },
+  { key: 'total-contacts', title: 'Total Contacts', icon: <UsersThreeIcon />, color: NW_CHART_COLOR_VARS[2] },
+  {
+    key: 'total-opportunities',
+    title: 'Total Opportunities',
+    icon: <CurrencyDollarIcon />,
+    color: NW_CHART_COLOR_VARS[3]
+  }
 ]
 
 // Description generators

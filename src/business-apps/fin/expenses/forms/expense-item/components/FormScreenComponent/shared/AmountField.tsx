@@ -13,6 +13,7 @@ interface AmountFieldProps {
   isProcessingFiles: boolean
   form: any
   showCurrencyField?: boolean
+  hasLinkedExpenseRequest?: boolean
   onAmountChange: (value: number) => void
   onCurrencyChange?: (value: string) => void
 }
@@ -25,6 +26,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
   isProcessingFiles,
   form,
   showCurrencyField = false,
+  hasLinkedExpenseRequest = false,
   onAmountChange,
   onCurrencyChange
 }) => {
@@ -98,6 +100,19 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 
         let value = String(field.value)
 
+        // Allow only digits and one decimal separator (. or ,); block letters and other characters
+        value = value.replace(/[^\d.,]/g, '')
+        const firstSepIndex = value.search(/[.,]/)
+        if (firstSepIndex >= 0) {
+          const sep = value[firstSepIndex]
+          const before = value.slice(0, firstSepIndex).replace(/[.,]/g, '')
+          const after = value
+            .slice(firstSepIndex + 1)
+            .replace(/[.,]/g, '')
+            .slice(0, 2)
+          value = after.length > 0 ? `${before}${sep}${after}` : before || sep
+        }
+
         // Limit to 2 decimal places (accept both . and , as decimal separator)
         if (value.includes('.') || value.includes(',')) {
           const sep = value.includes('.') ? '.' : ','
@@ -155,7 +170,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
                   'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
                   'Currency'
                 )}
-                disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency')}
+                disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency') || hasLinkedExpenseRequest}
                 name="currency"
                 data-testid={`currency-select-${index}`}
                 isDataSorted={false}

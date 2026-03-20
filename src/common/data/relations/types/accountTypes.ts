@@ -41,6 +41,7 @@ export interface Account extends BaseEntity {
   ownerEmployeeId?: string // IRM | CRM
   picture?: string // IRM | TODO (pictureUrl in CRM)
   pictureThumbnail?: string // IRM | TODO (pictureThumbnailUrl in CRM)
+  prospective?: boolean // IRM | CRM
   tasks?: Task[] // IRM | CRM
   timeZone?: CatalogEntry // IRM | CRM
   timeZoneRef?: string // IRM | CRM
@@ -77,6 +78,7 @@ export const AccountFields = {
   ownerEmployeeId: 'ownerEmployeeId',
   picture: 'picture',
   pictureThumbnail: 'pictureThumbnail',
+  prospective: 'prospective',
   tasks: 'tasks',
   timeZone: 'timeZone',
   timeZoneRef: 'timeZoneRef',
@@ -102,6 +104,7 @@ export const AccountFormFields = {
   ownerEmployeeId: 'ownerEmployee',
   picture: 'picture',
   pictureThumbnail: 'pictureThumbnail',
+  prospective: 'prospective',
   timeZoneRef: 'timeZoneRef',
   version: 'version',
   website: 'website'
@@ -222,6 +225,7 @@ export const createAccountDescriptors = (
   },
   { key: 'picture', searchPaths: [fields.picture], sortPath: fields.picture, type: 'text' },
   { key: 'pictureThumbnail', searchPaths: [fields.pictureThumbnail], sortPath: fields.pictureThumbnail, type: 'text' },
+  { key: 'prospective', searchPaths: [fields.prospective], sortPath: fields.prospective, type: 'boolean' },
   {
     key: 'tasks',
     searchPaths: [`${fields.tasks}.name`, `${fields.tasks}.description`],
@@ -321,6 +325,9 @@ export const createAccountDescriptors = (
     kind: 'inIds'
   },
   { key: 'timeZoneIds', path: fields.timeZoneRef, kind: 'inIds' },
+
+  // Boolean filters
+  { key: 'prospective', path: fields.prospective, kind: 'eqBool' },
 
   // Date range filters
   { key: 'foundationDateFrom', path: fields.foundationDate, kind: 'dateFrom' },

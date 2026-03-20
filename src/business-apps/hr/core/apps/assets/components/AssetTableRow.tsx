@@ -14,6 +14,7 @@ interface AssetTableRowProps {
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onGenerateDocument?: (assetId: string) => void
 }
 
 export const AssetTableRow: React.FC<AssetTableRowProps> = ({
@@ -24,14 +25,28 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
-  onRetrieveAsset
+  onRetrieveAsset,
+  onGenerateDocument
 }) => {
-  const acquisitionDate = new Date(asset.acquisitionDate)
-  const warrantyExpiryDate = new Date(acquisitionDate)
-  warrantyExpiryDate.setMonth(warrantyExpiryDate.getMonth() + asset.warrantyPeriodMonths)
+  const hasValidWarrantyData =
+    asset.acquisitionDate != null &&
+    asset.acquisitionDate !== '' &&
+    typeof asset.warrantyPeriodMonths === 'number' &&
+    !Number.isNaN(asset.warrantyPeriodMonths)
 
-  const isWarrantyExpired = warrantyExpiryDate < new Date()
-  const warrantyDaysRemaining = Math.ceil((warrantyExpiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+  const warrantyExpiryDate = hasValidWarrantyData
+    ? (() => {
+        const d = new Date(asset.acquisitionDate!)
+        d.setMonth(d.getMonth() + (asset.warrantyPeriodMonths ?? 0))
+        return d
+      })()
+    : null
+
+  const isWarrantyExpired = warrantyExpiryDate != null && warrantyExpiryDate.getTime() < new Date().getTime()
+  const warrantyDaysRemaining =
+    warrantyExpiryDate != null
+      ? Math.ceil((warrantyExpiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      : 0
 
   return (
     <TableRow
@@ -52,6 +67,7 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
             onUpdateAsset={onUpdateAsset}
             onRetireAsset={onRetireAsset}
             onRetrieveAsset={onRetrieveAsset}
+            onGenerateDocument={onGenerateDocument}
           />
         </div>
       </TableCell>
@@ -65,7 +81,9 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
           ? getCatalogValue(asset.assetBrand)
           : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
       </TableCell>
-      <TableCell data-testid={`asset-model-${asset.id}`}>{asset.model}</TableCell>
+      <TableCell data-testid={`asset-model-${asset.id}`}>
+        <div className="gba:max-w-[300px] gba:break-words gba:whitespace-normal">{asset.model}</div>
+      </TableCell>
       <TableCell data-testid={`asset-serial-${asset.id}`} className="gba:font-mono gba:text-sm">
         {asset.serialNumber}
       </TableCell>
@@ -77,7 +95,11 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
       </TableCell>
       <TableCell data-testid={`asset-warranty-${asset.id}`}>
         <div className="gba:text-sm">
-          {isWarrantyExpired ? (
+          {!hasValidWarrantyData ? (
+            <span className="gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
+            </span>
+          ) : isWarrantyExpired ? (
             <Badge variant="destructive">
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expired', 'Expired')}
             </Badge>
@@ -88,9 +110,10 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
             </Badge>
           ) : (
             <span className="gba:text-muted-foreground">
-              {formatDate(warrantyExpiryDate) ||
-                formatDate(warrantyExpiryDate.toISOString()) ||
-                warrantyExpiryDate.toLocaleDateString()}
+              {warrantyExpiryDate &&
+                (formatDate(warrantyExpiryDate) ||
+                  formatDate(warrantyExpiryDate.toISOString()) ||
+                  warrantyExpiryDate.toLocaleDateString())}
             </span>
           )}
         </div>

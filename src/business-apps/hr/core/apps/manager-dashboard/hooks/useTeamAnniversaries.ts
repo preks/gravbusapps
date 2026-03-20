@@ -5,6 +5,7 @@ import { Employee, WorkCommunication } from '../types/employee.types'
 
 export interface TeamAnniversary {
   id: string
+  userId?: string
   firstName: string
   lastName: string
   fullName: string
@@ -66,6 +67,7 @@ export const useTeamAnniversaries = ({
             orderBy: [{ firstName: ASC }, { lastName: ASC }]
           ) {
             id
+            userId
             firstName
             lastName
             pictureThumbnail
@@ -132,6 +134,7 @@ export const useTeamAnniversaries = ({
 
             return {
               id: employee.id,
+              userId: employee.userId,
               firstName: employee.firstName,
               lastName: employee.lastName,
               fullName: `${employee.firstName} ${employee.lastName}`,

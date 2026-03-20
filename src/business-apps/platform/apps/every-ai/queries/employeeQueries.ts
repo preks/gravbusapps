@@ -111,7 +111,11 @@ type SuccessState = {
 
 type EmployeeDetailsState = typeof loadingState | ErrorState | SuccessState
 
-const idToProfileUrl = (id: string) => `/platform/employee-record?tab=summary&employeeId=${id}`
+const idToProfileUrl = (id: string) => `/platform/employee-record?tab=assets&employeeId=${id}`
+
+// In-memory cache for employee details to prevent duplicate requests
+const employeeCache = new Map<string, { data: SuccessState; timestamp: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 export function useEmployeeDetails(employeeId: string, accessToken: string) {
   const [state, setState] = useState<EmployeeDetailsState>(loadingState)
@@ -119,6 +123,13 @@ export function useEmployeeDetails(employeeId: string, accessToken: string) {
 
   useEffect(() => {
     async function fetchData() {
+      // Check cache first
+      const cached = employeeCache.get(employeeId)
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        setState(cached.data)
+        return
+      }
+
       setState(loadingState)
       try {
         const empRes = (await graphqlClient.request(EMPLOYEE_BY_ID_QUERY, { id: employeeId })) as EmployeeResponse
@@ -149,11 +160,19 @@ export function useEmployeeDetails(employeeId: string, accessToken: string) {
             }
           : null
 
-        setState({
+        const successState: SuccessState = {
           state: 'success',
           employee: employee,
           manager: manager
+        }
+
+        // Cache the result
+        employeeCache.set(employeeId, {
+          data: successState,
+          timestamp: Date.now()
         })
+
+        setState(successState)
       } catch {
         setState({ state: 'error', message: 'Error fetching employee details.' })
       }
@@ -161,7 +180,8 @@ export function useEmployeeDetails(employeeId: string, accessToken: string) {
     if (employeeId && accessToken) {
       fetchData()
     }
-  }, [employeeId, accessToken, graphqlClient])
+  }, [employeeId, accessToken])
+  // Note: graphqlClient is intentionally omitted from deps to prevent infinite loops
 
   return { state }
 }
@@ -205,7 +225,8 @@ export function useEmployeeSearchLight(accessToken: string, params: { search?: s
     return () => {
       cancelled = true
     }
-  }, [accessToken, graphqlClient, params.search, params.limit])
+  }, [accessToken, params.search, params.limit])
+  // Note: graphqlClient is intentionally omitted from deps to prevent infinite loops
 
   return { employees, isLoading }
 }
@@ -288,7 +309,8 @@ export function useAccountSearch(accessToken: string, params: { search?: string;
     return () => {
       cancelled = true
     }
-  }, [accessToken, graphqlClient, params.search, params.limit])
+  }, [accessToken, params.search, params.limit])
+  // Note: graphqlClient is intentionally omitted from deps to prevent infinite loops
 
   return { accounts, isLoading }
 }
@@ -369,7 +391,8 @@ export function useContactSearch(accessToken: string, params: { search?: string;
     return () => {
       cancelled = true
     }
-  }, [accessToken, graphqlClient, params.search, params.limit])
+  }, [accessToken, params.search, params.limit])
+  // Note: graphqlClient is intentionally omitted from deps to prevent infinite loops
 
   return { contacts, isLoading }
 }
@@ -451,7 +474,8 @@ export function useLeadSearch(accessToken: string, params: { search?: string; li
     return () => {
       cancelled = true
     }
-  }, [accessToken, graphqlClient, params.search, params.limit])
+  }, [accessToken, params.search, params.limit])
+  // Note: graphqlClient is intentionally omitted from deps to prevent infinite loops
 
   return { leads, isLoading }
 }
@@ -529,7 +553,8 @@ export function useOpportunitySearch(accessToken: string, params: { search?: str
     return () => {
       cancelled = true
     }
-  }, [accessToken, graphqlClient, params.search, params.limit])
+  }, [accessToken, params.search, params.limit])
+  // Note: graphqlClient is intentionally omitted from deps to prevent infinite loops
 
   return { opportunities, isLoading }
 }

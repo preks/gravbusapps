@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react'
+import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { useGraphQLClient } from '../../../../../../../../common/network/graphql/useGraphQLClient'
 import { CalendarTimeline } from '@newwork/gravity-ui-catalog'
@@ -19,6 +20,8 @@ import {
   type CalendarEmployeePositionResponse,
   type CalendarEmployeesWithAbsencesResponse
 } from '../../../queries/absenceQueries'
+import { useBackofficeTeamCalendarDays } from '../../../hooks/useBackofficeTeamCalendarDays'
+import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
 const { Option } = Select
 
 interface EmployeeAbsence {
@@ -84,6 +87,26 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
   )
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+
+  // Catalog mapping for labels/colors (optional for note/title)
+  const { mapType } = useAbsenceTypeCatalog(accessToken)
+
+  // Build employeeIds list for the selected departments
+  const employeeIds = useMemo(() => {
+    if (!Array.isArray(allEmployees)) return []
+    return allEmployees
+      .filter(emp => {
+        const dept = emp.employeePosition?.organizationalUnit?.name || 'No Department'
+        return selectedOrgUnits.includes('All Departments') || selectedOrgUnits.includes(dept)
+      })
+      .map(emp => emp.id)
+      .filter(Boolean)
+  }, [allEmployees, selectedOrgUnits])
+
+  // Fetch view-backed events for the whole current year to ensure month navigation displays data
+  const yearFrom = dayjs().startOf('year').format('YYYY-MM-DD')
+  const yearTo = dayjs().endOf('year').format('YYYY-MM-DD')
+  const { events: viewEvents } = useBackofficeTeamCalendarDays(accessToken, employeeIds, yearFrom, yearTo, mapType)
 
   const getAbsenceTypeName = (type: EmployeeAbsence['type'], locale = userLocale): string => {
     const translation = type.translations?.find(t => t.localeCode === locale)
@@ -371,7 +394,7 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
       <CalendarTimeline
         key={selectedOrgUnits.join(',') || 'all'}
         items={timelineItems}
-        events={timelineEvents}
+        events={Array.isArray(viewEvents) && viewEvents.length > 0 ? viewEvents : timelineEvents}
         title={getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.title', 'Team Absence Calendar')}
         legendItems={legendItems}
         itemLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}

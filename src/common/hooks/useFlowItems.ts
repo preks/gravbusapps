@@ -117,7 +117,10 @@ const mapFlowItemsToActionOptions = (
 
   // Heuristic: prefer flows that match the entity implied by externalContextData
   const hasTaskHints =
-    'taskId' in externalContextData || 'salesTask' in externalContextData || 'salesTaskId' in externalContextData
+    'taskId' in externalContextData ||
+    'salesTask' in externalContextData ||
+    'salesTaskId' in externalContextData ||
+    'investmentTask' in externalContextData
   const hasNoteHints =
     'noteId' in externalContextData || 'crmNote' in externalContextData || 'investmentNote' in externalContextData
   const hasActivityHints =
@@ -233,7 +236,9 @@ const mapFlowItemsToActionOptions = (
             processName: flowItem.processName,
             domain: flowItem.domain,
             payload,
-            builderType: uiBuilder
+            builderType: uiBuilder,
+            targetDesktop: flowItem.targetDesktop,
+            targetMobile: flowItem.targetMobile
           })
         }
         break
@@ -247,7 +252,9 @@ const mapFlowItemsToActionOptions = (
       processName: flowItem.processName,
       domain: flowItem.domain,
       category: flowItem.flowType,
-      payload
+      payload,
+      targetDesktop: flowItem.targetDesktop,
+      targetMobile: flowItem.targetMobile
     } as ActionOption
   })
 }

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { PageHeader, Button, Spinner } from '@newwork/nw-design-system'
-import { ArrowLeft } from 'lucide-react'
+import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ReactionTable } from './components/ReactionTable'
 import {
@@ -147,30 +146,25 @@ const ReactionDataPage: React.FC<ReactionDataPageProps> = ({ prefixDataTestId, o
   }
 
   return (
-    <div data-testid={prefixDataTestId} className="gba:p-6">
+    <div data-testid={prefixDataTestId}>
       <PageHeader
         title="Content Reactions"
-        description="Manage emoji and custom reactions for user engagement"
+        subtitle="Manage emoji and custom reactions for user engagement"
         className="gba:mb-6"
-      >
-        {onBack && (
-          <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-back-button`}>
-            <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-            Back
-          </Button>
-        )}
-      </PageHeader>
-
-      <ReactionTable
-        reactions={reactions}
-        isLoading={isLoading}
-        error={error}
-        onCreate={handleCreate}
-        onUpdate={handleUpdate}
-        onDelete={handleDelete}
-        onRetry={loadReactions}
-        prefixDataTestId={`${prefixDataTestId}-table`}
+        onBack={onBack}
       />
+      <div className="gba:p-6">
+        <ReactionTable
+          reactions={reactions}
+          isLoading={isLoading}
+          error={error}
+          onCreate={handleCreate}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+          onRetry={loadReactions}
+          prefixDataTestId={`${prefixDataTestId}-table`}
+        />
+      </div>
     </div>
   )
 }

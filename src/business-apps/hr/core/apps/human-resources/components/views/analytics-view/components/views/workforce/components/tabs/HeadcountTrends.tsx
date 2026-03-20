@@ -1,41 +1,25 @@
-import React, { useState } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@newwork/nw-design-system'
-import { Typography } from 'antd'
-import { PiFileText, PiFilePdf } from 'react-icons/pi'
+import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import HeadcountStatistics from '../components/HeadcountStatistics'
 import HeadcountTrendsChart from '../components/HeadcountTrendsChart'
 import HiresAndDeparturesChart from '../components/HiresAndDeparturesChart'
 import HeadcountByOrgUnitChart from '../components/HeadcountByOrgUnitChart'
 import { useHeadcountTrendsData } from '../../../../../hooks/useHeadcountTrendsData'
-import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Title, Text } = Typography
-
-interface TableData {
-  period: string
-  value: number
-  change?: number
-}
+import { useAnalyticsTableExport } from '../../../../../hooks/useAnalyticsTableExport'
+import { useChartTableSelection } from '../../../../../hooks/useChartTableSelection'
+import { DIFFERENT_BADGE, HIGHLIGHT_BADGE } from '../../../../shared/AnalyticsDataTable'
+import type { AnalyticsTableData } from '../../../../shared/analyticsTabTypes'
+import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
+import SelectableChartCard from '../../../../shared/SelectableChartCard'
+import AnalyticsTableSection from '../../../../shared/AnalyticsTableSection'
+import { renderPeriodValueCell } from '../../../../shared/analyticsTableRenderers'
 
 const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
-  const [selectedChart, setSelectedChart] = useState<string | null>(null)
-  const [exportingTable, setExportingTable] = useState<string | null>(null)
   const { t } = useTranslation(hrTranslations)
+  const { handleExport, resolveExportingFormat } = useAnalyticsTableExport()
+  const { selectedChart, tableRef, handleChartClick } = useChartTableSelection()
 
   const {
     statistics,
@@ -50,7 +34,7 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
   } = useHeadcountTrendsData(context)
 
   // Transform data functions for tables
-  const transformHeadcountOverTimeData = (): TableData[] => {
+  const transformHeadcountOverTimeData = (): AnalyticsTableData[] => {
     return headcountOverTime.map((item, index) => ({
       period: new Date(item.dateCategory).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -61,7 +45,7 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
     }))
   }
 
-  const transformHiresAndDeparturesData = (): TableData[] => {
+  const transformHiresAndDeparturesData = (): AnalyticsTableData[] => {
     const hiresMap = new Map(monthlyHires.map(h => [h.dateCategory, h.value]))
     const exitsMap = new Map(monthlyExits.map(e => [e.dateCategory, e.value]))
 
@@ -79,28 +63,12 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
     }))
   }
 
-  const transformOrgUnitData = (): TableData[] => {
+  const transformOrgUnitData = (): AnalyticsTableData[] => {
     return departmentData.map(item => ({
       period: item.category,
       value: item.value,
       change: 0
     }))
-  }
-
-  // Mock export functions
-  const handleExport = async (format: 'excel' | 'pdf', tableName: string, data: TableData[]) => {
-    setExportingTable(`${tableName}-${format}`)
-
-    // Mock export delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    console.log(`Exporting ${tableName} as ${format}:`, data)
-
-    setExportingTable(null)
-  }
-
-  const handleChartClick = (chartId: string) => {
-    setSelectedChart(selectedChart === chartId ? null : chartId)
   }
 
   // Chart configurations
@@ -111,7 +79,12 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
       tableData: transformHeadcountOverTimeData(),
       testId: 'headcount-trends-chart',
       tag: t('hr-analytics-total-data-points', { count: headcountOverTime.length }),
-      description: t('hr-analytics-headcount-trends-description')
+      description: t('hr-analytics-headcount-trends-description'),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-month') },
+        { key: 'value', header: t('hr-analytics-value') },
+        { key: 'change', header: t('hr-analytics-change'), badge: DIFFERENT_BADGE }
+      ]
     },
     {
       title: t('hr-analytics-monthly-hires-departures'),
@@ -119,7 +92,12 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
       tableData: transformHiresAndDeparturesData(),
       testId: 'hires-departures-chart',
       tag: t('hr-analytics-months', { count: Math.max(monthlyHires.length, monthlyExits.length) }),
-      description: t('hr-analytics-hires-departures-description')
+      description: t('hr-analytics-hires-departures-description'),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-month') },
+        { key: 'value', header: t('hr-analytics-value') },
+        { key: 'change', header: t('hr-analytics-change'), badge: DIFFERENT_BADGE }
+      ]
     },
     {
       title: t('hr-analytics-headcount-by-org-unit'),
@@ -127,35 +105,26 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
       tableData: transformOrgUnitData(),
       testId: 'headcount-by-org-unit-chart',
       tag: t('hr-analytics-departments', { count: departmentData.length }),
-      description: t('hr-analytics-headcount-by-org-unit-description')
+      description: t('hr-analytics-headcount-by-org-unit-description'),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-department') },
+        { key: 'value', header: t('hr-analytics-value'), badge: HIGHLIGHT_BADGE }
+      ]
     }
   ]
 
-  // Find the selected chart configuration
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
 
   if (error) {
     return (
-      <div data-testid="headcount-trends-error">
-        <Card className="gba:border-destructive-secondary gba:bg-destructive-secondary/50">
-          <CardContent className="gba:p-6">
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex-1">
-                <h3 className="gba:text-destructive-secondary-foreground gba:font-medium gba:mb-2">
-                  {t('hr-analytics-failed-to-load-headcount')}
-                </h3>
-                <p className="gba:text-destructive-secondary-foreground">{error}</p>
-              </div>
-              <button
-                onClick={refetch}
-                className="gba:px-4 gba:py-2 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive-secondary"
-              >
-                {t('common-retry')}
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <AnalyticsTabErrorCard
+        dataTestId="headcount-trends-error"
+        message={t('hr-analytics-failed-to-load-headcount')}
+        detail={error}
+        retryLabel={t('common-retry')}
+        onRetry={refetch}
+        variant="row"
+      />
     )
   }
 
@@ -172,206 +141,74 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
 
       {/* Top Row: Two Charts Side by Side */}
       <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:mt-6">
-        {chartConfigs.slice(0, 2).map(config => {
-          const isSelected = selectedChart === config.testId
-
-          return (
-            <Card
-              key={config.testId}
-              data-testid={`${config.testId}-card`}
-              className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:shadow-sm ${
-                isSelected ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
-              }`}
-              onClick={() => handleChartClick(config.testId)}
-            >
-              <CardHeader className="gba:border-b">
-                <div className="gba:flex gba:items-center gba:justify-between">
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Title level={4} className="gba:m-0 gba:text-foreground">
-                      {config.title}
-                    </Title>
-                  </div>
-                  <Badge variant="outline" className="gba:text-xs">
-                    {config.tag}
-                  </Badge>
-                </div>
-                <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{config.description}</Text>
-                {isSelected && (
-                  <p className="gba:text-xs gba:text-info gba:mt-1">
-                    ✓ {t('common-selected')} - {t('hr-analytics-table-shown-below')}
-                  </p>
-                )}
-              </CardHeader>
-
-              <CardContent>
-                <div className="gba:h-64">
-                  {config.testId === 'headcount-trends-chart' && (
-                    <HeadcountTrendsChart
-                      data={headcountOverTime}
-                      isLoading={isLoading}
-                      dataTestId="headcount-trends-chart"
-                    />
-                  )}
-                  {config.testId === 'hires-departures-chart' && (
-                    <HiresAndDeparturesChart
-                      hiresData={monthlyHires}
-                      exitsData={monthlyExits}
-                      netChangeData={netChange}
-                      isLoading={isLoading}
-                      dataTestId="hires-departures-chart"
-                    />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+        {chartConfigs.slice(0, 2).map(config => (
+          <SelectableChartCard
+            key={config.testId}
+            testId={config.testId}
+            isSelected={selectedChart === config.testId}
+            onSelect={() => handleChartClick(config.testId)}
+            title={config.title}
+            tag={config.tag}
+            description={config.description}
+            selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
+          >
+            {config.testId === 'headcount-trends-chart' && (
+              <HeadcountTrendsChart
+                data={headcountOverTime}
+                isLoading={isLoading}
+                dataTestId="headcount-trends-chart"
+              />
+            )}
+            {config.testId === 'hires-departures-chart' && (
+              <HiresAndDeparturesChart
+                hiresData={monthlyHires}
+                exitsData={monthlyExits}
+                netChangeData={netChange}
+                isLoading={isLoading}
+                dataTestId="hires-departures-chart"
+              />
+            )}
+          </SelectableChartCard>
+        ))}
       </div>
 
       {/* Bottom Row: Full Width Chart */}
       <div className="gba:mt-6">
-        {(() => {
-          const config = chartConfigs[2] // Organizational Unit chart
-          const isSelected = selectedChart === config.testId
-
-          return (
-            <Card
-              data-testid={`${config.testId}-card`}
-              className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:shadow-sm ${
-                isSelected ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
-              }`}
-              onClick={() => handleChartClick(config.testId)}
-            >
-              <CardHeader className="gba:border-b">
-                <div className="gba:flex gba:items-center gba:justify-between">
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Title level={4} className="gba:m-0 gba:text-foreground">
-                      {config.title}
-                    </Title>
-                  </div>
-                  <Badge variant="outline" className="gba:text-xs">
-                    {config.tag}
-                  </Badge>
-                </div>
-                <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{config.description}</Text>
-                {isSelected && <p className="gba:text-xs gba:text-info gba:mt-1">✓ Selected - Table shown below</p>}
-              </CardHeader>
-
-              <CardContent>
-                <div className="gba:h-64">
-                  <HeadcountByOrgUnitChart
-                    data={departmentData}
-                    isLoading={isLoading}
-                    dataTestId="headcount-by-org-unit-chart"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })()}
+        <SelectableChartCard
+          testId={chartConfigs[2].testId}
+          isSelected={selectedChart === chartConfigs[2].testId}
+          onSelect={() => handleChartClick(chartConfigs[2].testId)}
+          title={chartConfigs[2].title}
+          tag={chartConfigs[2].tag}
+          description={chartConfigs[2].description}
+          selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
+        >
+          <HeadcountByOrgUnitChart
+            data={departmentData}
+            isLoading={isLoading}
+            dataTestId="headcount-by-org-unit-chart"
+          />
+        </SelectableChartCard>
       </div>
 
       {/* Interactive Data Table */}
-      {selectedConfig && (
-        <Card data-testid={`${selectedConfig.testId}-table`} className="gba:mt-6">
-          <CardHeader>
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <CardTitle className="gba:text-xl">
-                  {t('hr-analytics-data-table', { title: selectedConfig.title })}
-                </CardTitle>
-                <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary/50">
-                  {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
-                </Badge>
-              </div>
-              <div className="gba:flex gba:gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={exportingTable === `${selectedConfig.testId}-excel`}
-                  onClick={e => {
-                    e.stopPropagation()
-                    handleExport('excel', selectedConfig.testId, selectedConfig.tableData)
-                  }}
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
-                  <PiFileText className="gba:w-3 gba:h-3" />
-                  {t('common-export-excel')}
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={exportingTable === `${selectedConfig.testId}-pdf`}
-                  onClick={e => {
-                    e.stopPropagation()
-                    handleExport('pdf', selectedConfig.testId, selectedConfig.tableData)
-                  }}
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
-                  <PiFilePdf className="gba:w-3 gba:h-3" />
-                  {t('common-export-pdf')}
-                </Button>
-              </div>
-            </div>
-            <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{selectedConfig.description}</p>
-          </CardHeader>
-
-          <CardContent>
-            <div className="gba:max-h-96 gba:overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="gba:w-2/5">{t('hr-analytics-period')}</TableHead>
-                    <TableHead className="gba:w-1/5">{t('hr-analytics-value')}</TableHead>
-                    <TableHead className="gba:w-2/5">{t('hr-analytics-change')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedConfig.tableData.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="gba:font-medium">{item.period}</TableCell>
-                      <TableCell>{item.value.toLocaleString()}</TableCell>
-                      <TableCell>
-                        {item.change !== undefined && (
-                          <Badge
-                            variant="outline"
-                            className={`${
-                              item.change > 0
-                                ? 'gba:bg-success-secondary/50 gba:text-success-secondary-foreground'
-                                : item.change < 0
-                                  ? 'gba:bg-destructive-secondary/50 gba:text-destructive-secondary-foreground'
-                                  : 'gba:bg-muted gba:text-muted-foreground'
-                            }`}
-                          >
-                            {item.change > 0 ? '+' : ''}
-                            {item.change.toLocaleString()}
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Summary */}
-            <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
-              <span className="gba:font-medium gba:text-sm">
-                {t('hr-analytics-total-data-points', { count: selectedConfig.tableData.length })}
-              </span>
-              <span className="gba:text-sm gba:text-muted-foreground">{selectedConfig.title}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Help Text */}
-      {!selectedConfig && (
-        <div className="gba:text-center gba:py-8">
-          <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
-        </div>
-      )}
+      <AnalyticsTableSection<AnalyticsTableData>
+        tableRef={tableRef}
+        selectedConfig={selectedConfig}
+        resolveExportingFormat={resolveExportingFormat}
+        handleExport={handleExport}
+        exportExcelLabel={t('common-export-excel')}
+        exportPdfLabel={t('common-export-pdf')}
+        tableTitle={selectedConfig ? t('hr-analytics-data-table', { title: selectedConfig.title }) : ''}
+        entriesText={selectedConfig ? t('hr-analytics-total-entries', { count: selectedConfig.tableData.length }) : ''}
+        clickToViewMessage={t('hr-analytics-click-to-view-table')}
+        renderCell={(item, col) => renderPeriodValueCell(item, col)}
+        footerVariant="simple"
+        simpleFooterCountText={
+          selectedConfig ? t('hr-analytics-total-data-points', { count: selectedConfig.tableData.length }) : undefined
+        }
+        simpleFooterTitle={selectedConfig?.title}
+      />
     </div>
   )
 }

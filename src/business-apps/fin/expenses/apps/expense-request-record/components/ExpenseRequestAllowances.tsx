@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-des
 import type { ColumnsType } from 'antd/es/table'
 import { ExpenseAllowance } from '../types/expenseRequestRecord.types'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
+import { CheckIcon, XIcon } from '@phosphor-icons/react'
 
 interface ExpenseRequestAllowancesProps {
   expenseAllowances: ExpenseAllowance[]
@@ -26,7 +26,7 @@ const ExpenseRequestAllowances: React.FC<ExpenseRequestAllowancesProps> = ({ exp
 
   // Boolean indicator component
   const BooleanIndicator = ({ value }: { value: boolean }) =>
-    value ? <CheckOutlined className="gba:text-green-500" /> : <CloseOutlined className="gba:text-red-500" />
+    value ? <CheckIcon size={16} className="gba:text-green-500" /> : <XIcon size={16} className="gba:text-red-500" />
 
   const columns: ColumnsType<ExpenseAllowance> = [
     {

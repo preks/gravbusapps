@@ -1,24 +1,12 @@
-import React, { useState } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@newwork/nw-design-system'
+import React from 'react'
+import { Card, CardContent, CardHeader, Badge, useTranslation } from '@newwork/nw-design-system'
 import { Typography } from 'antd'
-import { PiFileText, PiFilePdf } from 'react-icons/pi'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { DemographicsData } from '../../../../hooks/useDemographicsDataIntegration'
-import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { useAnalyticsTableExport } from '../../../../hooks/useAnalyticsTableExport'
+import { useChartTableSelection } from '../../../../hooks/useChartTableSelection'
+import AnalyticsDataTable, { HIGHLIGHT_BADGE } from '../../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
 
@@ -34,10 +22,30 @@ interface TableData {
   percentage: string
 }
 
+interface DemographicsLegendProps {
+  testId: string
+  data: Array<{ category: string }>
+  colors: string[]
+}
+
+const DemographicsLegend: React.FC<DemographicsLegendProps> = ({ testId, data, colors }) => (
+  <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-3 gba:mt-2 gba:text-[10px]">
+    {data.map((entry, entryIndex) => (
+      <div key={`${testId}-${entry.category}`} className="gba:flex gba:items-center gba:gap-1">
+        <span
+          className="gba:inline-block gba:w-2.5 gba:h-2.5"
+          style={{ backgroundColor: colors[entryIndex % colors.length] }}
+        />
+        <span>{entry.category}</span>
+      </div>
+    ))}
+  </div>
+)
+
 const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demographicsData, isLoading, dataTestId }) => {
-  const [selectedChart, setSelectedChart] = useState<string | null>(null)
-  const [exportingTable, setExportingTable] = useState<string | null>(null)
   const { t } = useTranslation(hrTranslations)
+  const { handleExport, resolveExportingFormat } = useAnalyticsTableExport()
+  const { selectedChart, tableRef, handleChartClick } = useChartTableSelection()
 
   // Chart colors from design system
   const chartColors = [
@@ -74,9 +82,53 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
     ) : null
   }
 
+  const getAgeSortKey = (category: string): number => {
+    const label = String(category || '')
+      .trim()
+      .toLowerCase()
+    if (!label || label === 'unknown') return Number.MAX_SAFE_INTEGER
+    if (label.includes('under 25') || label.includes('<25') || label.includes('< 25')) return 24
+
+    const isDigitsOnly = (s: string) => s.length > 0 && [...s].every(c => c >= '0' && c <= '9')
+
+    const dashIdx = label.indexOf('-')
+    if (dashIdx !== -1) {
+      const before = label.slice(0, dashIdx).trim()
+      const after = label.slice(dashIdx + 1).trim()
+      if (isDigitsOnly(before) && isDigitsOnly(after)) {
+        const num = Number(before)
+        if (Number.isFinite(num)) return num
+      }
+    }
+
+    const plusIdx = label.indexOf('+')
+    if (plusIdx !== -1) {
+      const before = label.slice(0, plusIdx).trim()
+      if (isDigitsOnly(before)) {
+        const num = Number(before)
+        if (Number.isFinite(num)) return num
+      }
+    }
+
+    if (label.startsWith('under')) {
+      const rest = label.slice(5).trim()
+      if (isDigitsOnly(rest)) {
+        const num = Number(rest)
+        if (Number.isFinite(num)) return num - 1
+      }
+    }
+
+    return Number.MAX_SAFE_INTEGER
+  }
+
   // Safe access to data with null checks
   const genderData = demographicsData?.genderDistribution || []
-  const ageData = demographicsData?.ageDistribution || []
+  const ageData = [...(demographicsData?.ageDistribution || [])].sort((a, b) => {
+    const aKey = getAgeSortKey(a.category)
+    const bKey = getAgeSortKey(b.category)
+    if (aKey !== bKey) return aKey - bKey
+    return String(a.category).localeCompare(String(b.category))
+  })
   const nationalityData = demographicsData?.nationalityDistribution || []
 
   // Transform data to include percentages
@@ -91,17 +143,11 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
     }))
   }
 
-  // Mock export functions
-  const handleExport = async (format: 'excel' | 'pdf', tableName: string, data: TableData[]) => {
-    setExportingTable(`${tableName}-${format}`)
-
-    // Mock export delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    console.log(`Exporting ${tableName} as ${format}:`, data)
-
-    setExportingTable(null)
-  }
+  const exportColumnsDemographics = [
+    { key: 'category', header: t('common-category') },
+    { key: 'value', header: t('hr-analytics-employee-count') },
+    { key: 'percentage', header: t('hr-analytics-percentage'), badge: HIGHLIGHT_BADGE }
+  ]
 
   const chartConfigs = [
     {
@@ -111,7 +157,8 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       colors: chartColors,
       testId: 'gender-chart',
       tag: t('hr-analytics-categories', { count: genderData.length }),
-      description: t('hr-analytics-gender-description')
+      description: t('hr-analytics-gender-description'),
+      exportColumns: exportColumnsDemographics
     },
     {
       title: t('hr-analytics-age-distribution'),
@@ -120,7 +167,8 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       colors: chartColors,
       testId: 'age-chart',
       tag: t('hr-analytics-age-groups', { count: ageData.length }),
-      description: t('hr-analytics-age-description')
+      description: t('hr-analytics-age-description'),
+      exportColumns: exportColumnsDemographics
     },
     {
       title: t('hr-analytics-nationality-distribution'),
@@ -129,16 +177,10 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       colors: chartColors,
       testId: 'nationality-chart',
       tag: t('hr-analytics-top-8-of-nationalities', { total: nationalityData.length }),
-      description: t('hr-analytics-nationality-description')
+      description: t('hr-analytics-nationality-description'),
+      exportColumns: exportColumnsDemographics
     }
   ]
-
-  const handleChartClick = (chartId: string) => {
-    // If clicking the same chart, deselect it. Otherwise, select the new one.
-    setSelectedChart(selectedChart === chartId ? null : chartId)
-  }
-
-  // Find the selected chart configuration
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
 
   if (isLoading) {
@@ -217,13 +259,15 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value: number, name: string) => [`${value} ${t('hr-analytics-employees')}`, name]}
+                          formatter={(value: number | undefined, name: string | undefined) => [
+                            `${value ?? 0} ${t('hr-analytics-employees')}`,
+                            name ?? ''
+                          ]}
                         />
                         <Legend
-                          wrapperStyle={{
-                            fontSize: '10px',
-                            marginTop: '8px'
-                          }}
+                          content={
+                            <DemographicsLegend testId={config.testId} data={config.data} colors={config.colors} />
+                          }
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -240,98 +284,58 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       </div>
 
       {/* Selected Chart Data Table */}
-      {selectedConfig && (
-        <Card data-testid={`${dataTestId}-${selectedConfig.testId}-table`}>
-          <CardHeader>
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <CardTitle className="gba:text-xl">{t('hr-analytics-data-table', { title: selectedConfig.title })}</CardTitle>
-                <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary-foreground">
-                  {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
-                </Badge>
+      <div ref={tableRef}>
+        {selectedConfig && (
+          <AnalyticsDataTable
+            dataTestId={`${dataTestId}-${selectedConfig.testId}-table`}
+            title={t('hr-analytics-data-table', { title: selectedConfig.title })}
+            description={selectedConfig.description}
+            entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
+            columns={selectedConfig.exportColumns}
+            rows={selectedConfig.tableData}
+            exportingFormat={resolveExportingFormat(selectedConfig.testId)}
+            exportExcelTestId={`${dataTestId}-${selectedConfig.testId}-export-excel`}
+            exportPdfTestId={`${dataTestId}-${selectedConfig.testId}-export-pdf`}
+            exportExcelLabel={t('common-export-excel')}
+            exportPdfLabel={t('common-export-pdf')}
+            onExport={format =>
+              handleExport(
+                format,
+                selectedConfig.testId,
+                selectedConfig.title,
+                selectedConfig.exportColumns,
+                selectedConfig.tableData as unknown as Record<string, unknown>[]
+              )
+            }
+            getRowKey={row => row.category}
+            renderCell={(item, col) => {
+              if (col.key === 'category') return <span className="gba:font-medium">{item.category}</span>
+              if (col.key === 'value') return item.value.toLocaleString()
+              if (col.key === 'percentage') return item.percentage
+              return '-'
+            }}
+            footer={
+              <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
+                <span className="gba:font-medium gba:text-sm">
+                  {t('hr-analytics-total-label')}:{' '}
+                  {selectedConfig.tableData.reduce((sum, item) => sum + item.value, 0).toLocaleString()}{' '}
+                  {t('hr-analytics-employees')}
+                </span>
+                <span className="gba:text-sm gba:text-muted-foreground">
+                  {t('hr-analytics-categories', { count: selectedConfig.tableData.length })}
+                </span>
               </div>
-              <div className="gba:flex gba:gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={exportingTable === `${selectedConfig.testId}-excel`}
-                  onClick={e => {
-                    e.stopPropagation()
-                    handleExport('excel', selectedConfig.testId, selectedConfig.tableData)
-                  }}
-                  data-testid={`${dataTestId}-${selectedConfig.testId}-export-excel`}
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
-                  <PiFileText className="gba:w-3 gba:h-3" />
-                  {t('common-export-excel')}
-                </Button>
+            }
+          />
+        )}
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={exportingTable === `${selectedConfig.testId}-pdf`}
-                  onClick={e => {
-                    e.stopPropagation()
-                    handleExport('pdf', selectedConfig.testId, selectedConfig.tableData)
-                  }}
-                  data-testid={`${dataTestId}-${selectedConfig.testId}-export-pdf`}
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
-                  <PiFilePdf className="gba:w-3 gba:h-3" />
-                  {t('common-export-pdf')}
-                </Button>
-              </div>
-            </div>
-            <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{selectedConfig.description}</p>
-          </CardHeader>
-
-          <CardContent>
-            <div className="gba:max-h-96 gba:overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="gba:w-2/5">{t('common-category')}</TableHead>
-                    <TableHead className="gba:w-1/5">{t('hr-analytics-employee-count')}</TableHead>
-                    <TableHead className="gba:w-2/5">{t('hr-analytics-percentage')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedConfig.tableData.map(item => (
-                    <TableRow key={item.category}>
-                      <TableCell className="gba:font-medium">{item.category}</TableCell>
-                      <TableCell>{item.value.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="gba:bg-info-secondary gba:text-info-secondary-foreground">
-                          {item.percentage}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Summary */}
-            <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
-              <span className="gba:font-medium gba:text-sm">
-                {t('hr-analytics-total-label')}:{' '}
-                {selectedConfig.tableData.reduce((sum, item) => sum + item.value, 0).toLocaleString()}{' '}
-                {t('hr-analytics-employees')}
-              </span>
-              <span className="gba:text-sm gba:text-muted-foreground">
-                {t('hr-analytics-categories', { count: selectedConfig.tableData.length })}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Help Text */}
-      {!selectedConfig && (
-        <div className="gba:text-center gba:py-8">
-          <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
-        </div>
-      )}
+        {/* Help Text */}
+        {!selectedConfig && (
+          <div className="gba:text-center gba:py-8">
+            <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -69,7 +69,22 @@ export const InvestmentAccountFields = {
  * Adds IRM-specific fields that don't exist in Common/CRM
  */
 export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
-  ...createAccountDescriptors(InvestmentAccountFields as Record<keyof typeof AccountFields, string>),
+  ...createAccountDescriptors(InvestmentAccountFields as Record<keyof typeof AccountFields, string>).map(descriptor => {
+    // Disable search/sort for opportunities field - it's not a direct field on InvestmentAccount
+    // investmentOpportunity is not directly queryable on InvestmentAccount in GraphQL schema
+    // (Opportunities link TO accounts via opportunityAccounts junction table, not the other way)
+    if (descriptor.key === 'opportunities') {
+      return {
+        ...descriptor,
+        enableSearch: false,
+        enableSort: false,
+        searchPaths: [],
+        sortPath: undefined,
+        sortPaths: []
+      }
+    }
+    return descriptor
+  }),
 
   // IRM-specific fields (not in Common/CRM)
   // Note: investmentInvestmentAccount is a relationship from Investment TO InvestmentAccount
@@ -126,7 +141,6 @@ export const buildInvestmentAccountPayload = (account: Partial<InvestmentAccount
  * This mapper handles array naming transformations:
  * - investment → investments
  * - investmentReport → reports
- * - investmentAddress → addresses
  * - investmentCommunicationChannel → communicationChannels
  * - investmentAccountContact → accountContacts (common naming)
  * - investmentOpportunity → opportunities (common naming)
@@ -138,7 +152,6 @@ export function toInvestmentAccount(raw: any): InvestmentAccount {
     investments, // GraphQL field name for junction table relationship
     investmentReport,
     investmentAccountContact,
-    investmentAddress,
     investmentCommunicationChannel,
     investmentLead,
     investmentOpportunity,
@@ -152,7 +165,6 @@ export function toInvestmentAccount(raw: any): InvestmentAccount {
     investments: investments ?? [],
     investmentReports: raw.investmentReports ?? investmentReport,
     accountContacts: raw.accountContacts ?? investmentAccountContact,
-    addresses: raw.addresses ?? investmentAddress,
     communicationChannels: raw.communicationChannels ?? investmentCommunicationChannel,
     leads: raw.leads ?? investmentLead,
     opportunities: raw.opportunities ?? investmentOpportunity

@@ -1,4 +1,20 @@
-import type { Activity, EntityOption } from './ActivitySegment'
+import type { EntityOption } from './ActivitySegment'
+
+/**
+ * Extracts the primary email from an entity's communicationChannels array.
+ * Used by Account, Contact, and Opportunity (which store email in the
+ * communicationChannels relation rather than a flat field).
+ */
+const getEmailFromCommunicationChannels = (entity: any): string | undefined => {
+  const channels = entity?.communicationChannels
+  if (!Array.isArray(channels) || channels.length === 0) return undefined
+  const emailChannel = channels.find(
+    (ch: any) =>
+      ch.communicationChannel?.code?.toLowerCase() === 'e-mail' ||
+      ch.communicationChannelRef?.toLowerCase().includes('e-mail')
+  )
+  return emailChannel?.value || undefined
+}
 
 export const mapEntityToOption = (entity: any, type: 'account' | 'contact' | 'opportunity' | 'lead'): EntityOption => {
   const getEntityName = () => {
@@ -23,13 +39,13 @@ export const mapEntityToOption = (entity: any, type: 'account' | 'contact' | 'op
   const getEntitySubtitle = () => {
     switch (type) {
       case 'account':
-        return entity?.email
+        return getEmailFromCommunicationChannels(entity) || entity?.email
       case 'contact':
-        return entity?.email
+        return getEmailFromCommunicationChannels(entity) || entity?.email
       case 'opportunity':
-        return entity?.dealType
+        return getEmailFromCommunicationChannels(entity) || entity?.dealType
       case 'lead':
-        return entity?.email
+        return entity?.email || entity?.companyEmail
       default:
         return undefined
     }
@@ -41,24 +57,4 @@ export const mapEntityToOption = (entity: any, type: 'account' | 'contact' | 'op
     type,
     subtitle: getEntitySubtitle()
   }
-}
-
-export const validateActivityData = (data: Activity, options?: { requireEntity?: boolean }): string[] | null => {
-  const errors: string[] = []
-
-  if (!data.title) errors.push('Title is required')
-  if (!data.activityTypeRef) errors.push('Activity type is required')
-  if (!data.occurredAt) errors.push('Date is required')
-  if (!data.description) errors.push('Description is required')
-
-  const requireEntity = options?.requireEntity ?? true
-  const hasEntity = Boolean(
-    data.account || data.contact || data.opportunity || data.lead || (data as any)?.relatedEntityId
-  )
-
-  if (requireEntity && !hasEntity) {
-    errors.push('Please select a related entity')
-  }
-
-  return errors.length > 0 ? errors : null
 }

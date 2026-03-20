@@ -1,0 +1,87 @@
+export interface HasEmployeeDocument {
+  code?: string | null
+  employeeDocument?: {
+    file?: string | null
+    name?: string | null
+    employee?: { id?: string | null } | null
+  } | null
+  employee?: { id?: string | null } | null
+}
+
+/**
+ * Extracts file name from URL query parameters
+ */
+const extractFileNameFromUrlParams = (fileUrl: string): string | null => {
+  try {
+    const url = new URL(fileUrl, globalThis.location?.origin || 'http://localhost')
+    const paramName =
+      url.searchParams.get('fileName') ||
+      url.searchParams.get('filename') ||
+      url.searchParams.get('name') ||
+      url.searchParams.get('download')
+    if (paramName) {
+      const decoded = decodeURIComponent(paramName).trim()
+      if (decoded) return decoded
+    }
+  } catch {
+    // ignore (file might be a relative path or not a valid URL)
+  }
+  return null
+}
+
+/**
+ * Extracts file name from URL path segment
+ */
+const extractFileNameFromPath = (fileUrl: string): string | null => {
+  const clean = fileUrl.split('?')[0]
+  const segments = clean.split('/').filter(Boolean)
+  const segment = segments.length > 0 ? segments[segments.length - 1] : null
+  if (segment) {
+    try {
+      return decodeURIComponent(segment)
+    } catch {
+      return segment
+    }
+  }
+  return null
+}
+
+/**
+ * Gets file name from employee document record.
+ * Prioritizes the name field from query results, falls back to URL extraction if needed.
+ *
+ * @param record - The employee document record
+ * @param t - Translation function for fallback labels
+ * @param fallbackKey - Optional FTL key for the fallback label
+ * @param fallbackDefault - Optional default string if no translation key is provided
+ */
+export const getFileNameFromEmployeeDocument = (
+  record: HasEmployeeDocument,
+  t?: (key: string, vars?: Record<string, unknown>) => string,
+  fallbackKey?: string,
+  fallbackDefault?: string
+): string => {
+  const name = record.employeeDocument?.name
+  const trimmedName = typeof name === 'string' ? name.trim() : ''
+  if (trimmedName) return trimmedName
+
+  const file = record.employeeDocument?.file
+  const trimmedFile = typeof file === 'string' ? file.trim() : ''
+  if (trimmedFile) {
+    const urlFileName = extractFileNameFromUrlParams(trimmedFile)
+    if (urlFileName) return urlFileName
+
+    const pathFileName = extractFileNameFromPath(trimmedFile)
+    if (pathFileName) return pathFileName
+  }
+
+  const code = record.code
+  const trimmedCode = typeof code === 'string' ? code.trim() : ''
+  if (trimmedCode) return `${trimmedCode}.pdf`
+
+  if (fallbackKey && t) {
+    return t(fallbackKey)
+  }
+
+  return fallbackDefault || 'document.pdf'
+}

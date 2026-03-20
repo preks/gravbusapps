@@ -2,13 +2,29 @@ import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/c
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { TaskTiming } from '../constants/taskConstants'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+
+/**
+ * Task Assignee Junction Table
+ * Supports multiple assignees per task (many-to-many relationship)
+ */
+export interface TaskAssignee extends BaseEntity {
+  id?: string
+  taskId?: string
+  assignedEmployee?: Employee
+  assignedEmployeeId?: string
+  assignedUserId?: string
+}
 
 export interface Task extends BaseEntity {
   account?: any // IRM | CRM
   accountId?: string // IRM | CRM
-  assignedEmployee?: Employee // IRM | CRM
-  assignedEmployeeId?: string // IRM | CRM
-  assignedUserId?: string // IRM | CRM
+
+  // Multiple assignees (many-to-many relationship via TaskAssignee)
+  taskAssignees?: TaskAssignee[]
+  taskAssigneesAggregate?: { aggregate: { count: number } }
+
+  businessKey?: string // IRM | CRM - Process business key shared by all task instances
   code?: string // IRM | CRM
   comments?: any[] // IRM | TODO
   contact?: any // IRM | CRM
@@ -46,9 +62,12 @@ export interface Task extends BaseEntity {
 export const TaskFields = {
   account: 'account',
   accountId: 'accountId',
-  assignedEmployee: 'assignedEmployee',
-  assignedEmployeeId: 'assignedEmployeeId',
-  assignedUserId: 'assignedUserId',
+
+  // Multiple assignees fields
+  taskAssignees: 'taskAssignees',
+  taskAssigneesAggregate: 'taskAssigneesAggregate',
+
+  businessKey: 'businessKey',
   code: 'code',
   comments: 'comments',
   contact: 'contact',
@@ -83,8 +102,13 @@ export const TaskFields = {
 
 export const TaskFormFields = {
   accountId: 'account',
-  assignedEmployeeId: 'assignedEmployee',
-  assignedUserId: 'assignedUserId',
+
+  // Multiple assignees field - pass through taskAssignees array directly with id/version
+  taskAssignees: 'taskAssignees',
+
+  // Legacy mapping kept for backward compatibility (not used when taskAssignees is set)
+  assignedEmployeeIds: 'taskAssignees',
+
   code: 'code',
   contactId: 'contact',
   creatorEmployeeId: 'creatorEmployee',
@@ -120,13 +144,13 @@ export const createTaskDescriptors = (fields: Record<keyof typeof TaskFields, st
     type: 'text'
   },
   {
-    key: 'assignedEmployee',
+    key: 'taskAssignees',
     searchPaths: [
-      `${fields.assignedEmployee}.displayName`,
-      `${fields.assignedEmployee}.firstName`,
-      `${fields.assignedEmployee}.lastName`
+      `${fields.taskAssignees}.assignedEmployee.displayName`,
+      `${fields.taskAssignees}.assignedEmployee.firstName`,
+      `${fields.taskAssignees}.assignedEmployee.lastName`
     ],
-    sortPath: `${fields.assignedEmployee}.displayName`,
+    sortPath: `${fields.taskAssignees}.assignedEmployee.displayName`,
     type: 'text'
   },
   { key: 'code', searchPaths: [fields.code], sortPath: fields.code, type: 'text' },
@@ -219,15 +243,18 @@ export const createTaskDescriptors = (fields: Record<keyof typeof TaskFields, st
   { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
   {
     key: 'assignedEmployeeIds',
-    path: fields.assignedEmployeeId,
+    path: `${fields.taskAssignees}.assignedEmployeeId`,
     filterLabel: 'Assigned To',
-    optionSelectPaths: [`${fields.assignedEmployee}.id`, `${fields.assignedEmployee}.displayName`],
-    optionSearchPaths: [
-      `${fields.assignedEmployee}.displayName`,
-      `${fields.assignedEmployee}.firstName`,
-      `${fields.assignedEmployee}.lastName`
+    optionSelectPaths: [
+      `${fields.taskAssignees}.assignedEmployee.id`,
+      `${fields.taskAssignees}.assignedEmployee.displayName`
     ],
-    optionDistinctOn: [fields.assignedEmployeeId],
+    optionSearchPaths: [
+      `${fields.taskAssignees}.assignedEmployee.displayName`,
+      `${fields.taskAssignees}.assignedEmployee.firstName`,
+      `${fields.taskAssignees}.assignedEmployee.lastName`
+    ],
+    optionDistinctOn: [`${fields.taskAssignees}.assignedEmployeeId`],
     kind: 'inIds'
   },
   { key: 'contactIds', path: fields.contactId, kind: 'inIds' },
@@ -277,11 +304,11 @@ export const createTaskDescriptors = (fields: Record<keyof typeof TaskFields, st
   {
     key: 'assignedTo',
     searchPaths: [
-      `${fields.assignedEmployee}.displayName`,
-      `${fields.assignedEmployee}.firstName`,
-      `${fields.assignedEmployee}.lastName`
+      `${fields.taskAssignees}.assignedEmployee.displayName`,
+      `${fields.taskAssignees}.assignedEmployee.firstName`,
+      `${fields.taskAssignees}.assignedEmployee.lastName`
     ],
-    sortPath: `${fields.assignedEmployee}.displayName`,
+    sortPath: `${fields.taskAssignees}.assignedEmployee.displayName`,
     type: 'text'
   },
   {
@@ -345,4 +372,19 @@ export interface TaskReference {
   name: string
   pictureThumbnail?: string
   type: string // Entity type (e.g., 'opportunity', 'account', 'lead', 'contact', 'investment')
+}
+
+/**
+ * Build Task Payload (Unified for IRM & CRM)
+ * Transforms form data to backend format with multiple assignees
+ *
+ * Note: taskAssignees array is now built by TaskForm's useEffect and passed through
+ * by buildPayload with id/version intact (for UPDATE/DELETE operations)
+ */
+export const buildTaskPayload = (task: Partial<Task> & Record<string, any>) => {
+  // Build base payload using buildPayload utility
+  // taskAssignees array is passed through with all fields (id, version, assignedEmployeeId, etc.)
+  const payload = buildPayload(task, TaskFormFields)
+
+  return payload
 }

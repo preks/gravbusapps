@@ -71,6 +71,26 @@ const buildCommunicationChannelsFromLead = (
     } as CommunicationChannel)
   }
 
+  if (lead.secondaryNumber) {
+    channels.push({
+      value: lead.secondaryNumber,
+      communicationChannel: {
+        code: CommunicationChannelCode.MOBILE,
+        type: CommunicationChannelType.TEL
+      }
+    } as CommunicationChannel)
+  }
+
+  if (lead.linkedinUrl) {
+    channels.push({
+      value: lead.linkedinUrl,
+      communicationChannel: {
+        code: CommunicationChannelCode.LINKEDIN,
+        type: CommunicationChannelType.URL
+      }
+    } as CommunicationChannel)
+  }
+
   return channels.length > 0 ? channels : undefined
 }
 
@@ -125,7 +145,6 @@ export function buildCustomerContactFromLead(lead: CustomerLead | any): Customer
     lastName: lead.lastName || '',
     // Map CRM field names to Contact standard
     jobPosition: lead.position || lead.jobTitle || lead.jobPosition,
-    type: lead.contactType,
     academicTitle: lead.academicTitle,
     academicTitleRef: lead.academicTitleRef,
     salutation: lead.salutation,

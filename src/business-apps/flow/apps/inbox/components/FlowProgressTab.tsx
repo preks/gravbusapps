@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { Card, Timeline, Spin, Alert, Button, Tag, Progress, Statistic, Row, Col, Typography } from 'antd'
 import {
-  CheckCircleOutlined,
-  PlayCircleOutlined,
-  ClockCircleOutlined,
-  PauseCircleOutlined,
-  ReloadOutlined,
-  WarningOutlined
-} from '@ant-design/icons'
+  CheckCircleIcon,
+  PlayCircleIcon,
+  ClockIcon,
+  PauseCircleIcon,
+  ArrowsClockwiseIcon,
+  WarningIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 const { Title, Text } = Typography
 
@@ -92,8 +92,7 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
     setError(null)
 
     try {
-      const API_BASE =
-        (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+      const API_BASE = getFlowEngineApiBaseUrl()
 
       // Add cache-busting parameter when forcing refresh
       const cacheBuster = forceRefresh ? `?_=${Date.now()}` : ''
@@ -263,14 +262,14 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
   const getStepIcon = (status: string, isActive: boolean) => {
     switch (status) {
       case 'COMPLETED':
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />
+        return <CheckCircleIcon size={16} style={{ color: '#52c41a' }} />
       case 'IN_PROGRESS':
-        return <PlayCircleOutlined style={{ color: '#1890ff' }} />
+        return <PlayCircleIcon style={{ color: '#1890ff' }} />
       case 'SCHEDULED':
-        return <ClockCircleOutlined style={{ color: '#faad14' }} />
+        return <ClockIcon size={16} style={{ color: '#faad14' }} />
       case 'QUEUED':
       default:
-        return <PauseCircleOutlined style={{ color: '#d9d9d9' }} />
+        return <PauseCircleIcon style={{ color: '#d9d9d9' }} />
     }
   }
 
@@ -341,28 +340,28 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
     switch (step.approvalStatus) {
       case 'APPROVED':
         tags.push(
-          <Tag key="approved" color="green" icon={<CheckCircleOutlined />}>
+          <Tag key="approved" color="green" icon={<CheckCircleIcon size={16} />}>
             Approved
           </Tag>
         )
         break
       case 'REJECTED':
         tags.push(
-          <Tag key="rejected" color="red" icon={<WarningOutlined />}>
+          <Tag key="rejected" color="red" icon={<WarningIcon />}>
             Rejected
           </Tag>
         )
         break
       case 'PENDING':
         tags.push(
-          <Tag key="pending" color="orange" icon={<ClockCircleOutlined />}>
+          <Tag key="pending" color="orange" icon={<ClockIcon size={16} />}>
             Awaiting Approval
           </Tag>
         )
         break
       case 'MIXED':
         tags.push(
-          <Tag key="mixed" color="purple" icon={<PlayCircleOutlined />}>
+          <Tag key="mixed" color="purple" icon={<PlayCircleIcon size={16} />}>
             Partial Approval
           </Tag>
         )
@@ -432,7 +431,7 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
         type="error"
         showIcon
         action={
-          <Button size="small" onClick={() => fetchProgressData(true)} icon={<ReloadOutlined />}>
+          <Button size="small" onClick={() => fetchProgressData(true)} icon={<ArrowsClockwiseIcon size={16} />}>
             Retry
           </Button>
         }
@@ -484,7 +483,7 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
       <Card
         title="Step Progress"
         extra={
-          <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchProgressData(true)} loading={isLoading}>
+          <Button size="small" icon={<ArrowsClockwiseIcon size={16} />} onClick={() => fetchProgressData(true)} loading={isLoading}>
             Refresh
           </Button>
         }
@@ -507,7 +506,7 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
                 </Text>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
                   {step.status === 'COMPLETED' && step.completedAt && (
-                    <Tag color="default" icon={<CheckCircleOutlined />}>
+                    <Tag color="default" icon={<CheckCircleIcon size={16} />}>
                       {new Date(step.completedAt).toLocaleDateString()}{' '}
                       {new Date(step.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Tag>
@@ -515,7 +514,7 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
                   {step.status === 'SCHEDULED' && step.dueDate && (
                     <Tag
                       color={isStepOverdue(step) ? 'red' : 'default'}
-                      icon={isStepOverdue(step) ? <WarningOutlined /> : <ClockCircleOutlined />}
+                      icon={isStepOverdue(step) ? <WarningIcon size={16} /> : <ClockIcon size={16} />}
                     >
                       {isStepOverdue(step) ? 'Overdue: ' : 'Due: '}
                       {new Date(step.dueDate).toLocaleDateString()}{' '}
@@ -523,13 +522,13 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
                     </Tag>
                   )}
                   {step.status === 'SCHEDULED' && step.scheduledAt && (
-                    <Tag color="default" icon={<ClockCircleOutlined />}>
+                    <Tag color="default" icon={<ClockIcon size={16} />}>
                       Scheduled: {new Date(step.scheduledAt).toLocaleDateString()}{' '}
                       {new Date(step.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Tag>
                   )}
                   {step.status === 'QUEUED' && step.expectedStartAt && (
-                    <Tag color="default" icon={<ClockCircleOutlined />}>
+                    <Tag color="default" icon={<ClockIcon size={16} />}>
                       Expected: {new Date(step.expectedStartAt).toLocaleDateString()}{' '}
                       {new Date(step.expectedStartAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Tag>

@@ -1,7 +1,9 @@
-import React from 'react'
-import { Card, CardContent, Badge } from '@newwork/nw-design-system'
-import { Calendar, Clock, Users, Video, ExternalLink } from 'lucide-react'
+import React, { useMemo } from 'react'
+import { Card, CardContent, Badge, Button } from '@newwork/nw-design-system'
+import { Calendar, Clock, Users, Video, ExternalLink, ListTodo } from 'lucide-react'
+import { getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
 import type { ScheduledMeeting } from '../hooks/useEveryAIChat'
+import { getAgendaFromMetadata } from '../calendar/utils/agendaUtils'
 
 interface MeetingCardProps {
   meeting: ScheduledMeeting
@@ -15,6 +17,9 @@ interface MeetingCardProps {
 export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, className = '' }) => {
   const startDate = new Date(meeting.startTime)
   const endDate = new Date(meeting.endTime)
+
+  // Extract agenda from metadata
+  const agendaItems = useMemo(() => getAgendaFromMetadata(meeting.metadata), [meeting.metadata])
 
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString(undefined, {
@@ -33,19 +38,12 @@ export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, cl
   }
 
   const handleClick = () => {
-    // Switch to calendar view within Chat and open meeting details
-    // The Calendar component listens for this custom event
+    // Switch to calendar view and open meeting details; mutate current URL so it works from menu or sidebar.
     const dateStr = startDate.toISOString().split('T')[0]
+    const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ view: 'calendar', meetingId: meeting.id })
+    globalThis.window.history.pushState({}, '', `${globalThis.window.location.origin}${pathAndQuery}`)
 
-    // Update URL parameters (Calendar reads these on mount/event)
-    const url = new URL(window.location.href)
-    url.searchParams.set('view', 'calendar')
-    url.searchParams.set('date', dateStr)
-    url.searchParams.set('meetingId', meeting.id)
-    window.history.pushState({}, '', url.toString())
-
-    // Dispatch custom event to notify Calendar component
-    window.dispatchEvent(
+    globalThis.window.dispatchEvent(
       new CustomEvent('switchToCalendar', {
         detail: {
           date: dateStr,
@@ -54,6 +52,15 @@ export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, cl
       })
     )
   }
+
+  const handleJoinMeeting = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click from firing
+    if (meeting.meetingLink && meeting.meetingLink !== 'auto-generate') {
+      globalThis.window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const canJoinMeeting = meeting.meetingLink && meeting.meetingLink !== 'auto-generate'
 
   return (
     <Card
@@ -104,12 +111,38 @@ export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, cl
             </div>
           )}
 
-          {/* Meeting link indicator */}
-          {meeting.meetingLink && (
-            <div className="gba:flex gba:items-center gba:gap-2.5 gba:bg-success/10 gba:rounded-md gba:px-2.5 gba:py-1.5">
-              <Video className="gba:w-3.5 gba:h-3.5 gba:text-success gba:flex-shrink-0" />
-              <span className="gba:text-success gba:font-medium">Video call included</span>
+          {/* Agenda preview */}
+          {agendaItems.length > 0 && (
+            <div className="gba:flex gba:items-center gba:gap-2.5 gba:bg-background/50 gba:rounded-md gba:px-2.5 gba:py-1.5">
+              <ListTodo className="gba:w-3.5 gba:h-3.5 gba:text-primary gba:flex-shrink-0" />
+              <span className="gba:text-muted-foreground gba:truncate">
+                {agendaItems.length} agenda item{agendaItems.length !== 1 ? 's' : ''}
+              </span>
             </div>
+          )}
+
+          {/* Meeting link - clickable button if available, otherwise indicator */}
+          {meeting.meetingLink && (
+            <>
+              {canJoinMeeting ? (
+                <Button
+                  onClick={handleJoinMeeting}
+                  variant="default"
+                  size="sm"
+                  className="gba:w-full gba:justify-start gba:bg-success gba:hover:bg-success/90 gba:text-success-foreground"
+                  data-testid={`meeting-card-join-${meeting.id}`}
+                >
+                  <Video className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+                  <span className="gba:font-medium">Join Meeting</span>
+                  <ExternalLink className="gba:w-3 gba:h-3 gba:ml-auto" />
+                </Button>
+              ) : (
+                <div className="gba:flex gba:items-center gba:gap-2.5 gba:bg-success/10 gba:rounded-md gba:px-2.5 gba:py-1.5">
+                  <Video className="gba:w-3.5 gba:h-3.5 gba:text-success gba:flex-shrink-0" />
+                  <span className="gba:text-success gba:font-medium">Video call included</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 

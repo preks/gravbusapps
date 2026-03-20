@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useRef } from 'react'
 import { SectionKpiCards, KpiCardData, Button, Icon } from '@newwork/nw-design-system'
-import { PiWarning, PiArrowClockwise } from 'react-icons/pi'
+import { WarningIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UsersIcon, CalendarIcon, EnvelopeIcon, PhoneIcon } from '@phosphor-icons/react'
 
@@ -37,16 +37,22 @@ export interface WidgetItem {
     xl?: number
   }
   /**
-   * Optional description text to show below the value
+   * Optional description text to show below the value (alias for footer; use footer for clarity)
    */
   description?: string
+  /**
+   * Optional footer text to show below the value (maps to KPI card footer)
+   */
+  footer?: string
   /**
    * Optional trend data for showing trend indicators
    */
   trend?: {
-    value: string
+    value?: string
     positive?: boolean
     description?: string
+    /** When true, hides the trend badge (e.g. for no-trend cards with value + empty row + footer). */
+    hideBadge?: boolean
   }
   customContent?: ReactNode
   /**
@@ -81,7 +87,7 @@ export interface WidgetGroupProps {
   onRetry?: () => void
 
   /**
-   * Function to call when a widget is clicked
+   * Function to call when a widget card is clicked (makes cards clickable when provided)
    */
   onWidgetClick?: (widgetKey: string) => void
 
@@ -135,6 +141,13 @@ export interface WidgetGroupProps {
    * Custom className for the SectionKpiCards grid container
    */
   cardsClassName?: string
+
+  /**
+   * If true, uses the widgets array structure during loading to preserve height
+   * This ensures loading placeholders match the height of loaded widgets
+   * When true, also shows loading text in the footer/description area instead of the value area
+   */
+  useWidgetStructureForLoading?: boolean
 }
 
 /**
@@ -192,6 +205,9 @@ const mapStringNameToIconNode = (name?: string): ReactNode | undefined => {
   const key = name.toLowerCase().trim()
   if (key === 'users' || key === 'user' || key === 'people') return <Icon icon={UsersIcon} size="sm" decorative />
   if (key === 'calendar' || key === 'date' || key === 'time') return <Icon icon={CalendarIcon} size="sm" decorative />
+  if (key === 'clock') return <Icon icon={CalendarIcon} size="sm" decorative />
+  if (key === 'firstaid' || key === 'first-aid' || key === 'health' || key === 'sick')
+    return <Icon icon={UsersIcon} size="sm" decorative />
   if (key === 'mail' || key === 'email' || key === 'envelope') return <Icon icon={EnvelopeIcon} size="sm" decorative />
   if (key === 'phone' || key === 'call') return <Icon icon={PhoneIcon} size="sm" decorative />
   return undefined
@@ -240,12 +256,69 @@ const transformWidgetToKpiCard = (widget: WidgetItem): KpiCardData => {
     prefix: isIconKeyword ? undefined : potentialPrefixText,
     suffix: reactNodeToString(widget.suffix),
     decimalPlaces: widget.precision,
-    footer: widget.description,
+    footer: widget.footer ?? widget.description,
     icon: iconNode,
-    trend: widget.trend
+    trend: widget.trend ? { ...widget.trend, value: widget.trend.value ?? '' } : undefined
     // Note: SectionKpiCards doesn't support onClick directly,
     // but we'll handle it in the component if needed
   }
+}
+
+/**
+ * Applies widget metadata and interactivity to card DOM elements (used when onWidgetClick is provided).
+ * Makes each card a proper interactive element (role, tabIndex, click, keyboard) for accessibility.
+ * Returns a cleanup function to remove event listeners.
+ */
+function applyWidgetInteractivityToCards(
+  container: HTMLDivElement,
+  widgets: WidgetItem[],
+  onWidgetClick: (widgetKey: string) => void
+): () => void {
+  const controller = new AbortController()
+  const { signal } = controller
+
+  const cards = container.querySelectorAll('div[class*="card"], div[class*="Card"]')
+  const count = widgets.length
+  const cardsPerWidget = count > 0 ? Math.ceil(cards.length / count) : 0
+  for (let widgetIndex = 0; widgetIndex < count; widgetIndex++) {
+    const widget = widgets[widgetIndex]
+    const startIndex = widgetIndex * cardsPerWidget
+    const endIndex = Math.min(startIndex + cardsPerWidget, cards.length)
+    for (let i = startIndex; i < endIndex; i++) {
+      const card = cards[i] as HTMLElement
+      card.dataset.widgetKey = widget.key
+      if (widget.onClick) {
+        card.classList.add('clickable')
+      } else {
+        card.classList.remove('clickable')
+      }
+
+      card.setAttribute('role', 'button')
+      card.tabIndex = 0
+      if (widget.title) {
+        card.setAttribute('aria-label', widget.title)
+      }
+
+      const activate = (): void => {
+        onWidgetClick(widget.key)
+        widget.onClick?.()
+      }
+
+      card.addEventListener('click', activate, { signal })
+      card.addEventListener(
+        'keydown',
+        (e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            activate()
+          }
+        },
+        { signal }
+      )
+    }
+  }
+
+  return () => controller.abort()
 }
 
 /**
@@ -261,67 +334,80 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   className = 'gba:py-2',
   skeletonCount = 4,
   emptyText = 'No data available',
+  useWidgetStructureForLoading = false,
   'data-testid': dataTestId = 'widget-group'
 }) => {
-  // Handle loading state
+  const cardsRef = useRef<HTMLDivElement>(null)
+
+  // When onWidgetClick is used, make each card an accessible interactive element (role, tabIndex, click, keyboard)
+  useEffect(() => {
+    if (!onWidgetClick || !cardsRef.current) return
+    let cleanup: () => void = () => {}
+    const run = (): void => {
+      cleanup()
+      if (cardsRef.current) cleanup = applyWidgetInteractivityToCards(cardsRef.current, widgets, onWidgetClick)
+    }
+    run()
+    const timeoutId = setTimeout(run, 100)
+    return () => {
+      clearTimeout(timeoutId)
+      cleanup()
+    }
+  }, [onWidgetClick, widgets])
+
+  // Transform widgets to KPI cards (declare before content usage)
+  const kpiCards: KpiCardData[] = widgets.map(widget => transformWidgetToKpiCard(widget))
+  // Build cards for each state but keep a single return to avoid tree shape churn
+  let content: React.ReactNode
   if (isLoading) {
-    // Create placeholder KPI cards for loading state
-    const placeholderCards: KpiCardData[] = [...Array(skeletonCount)].map((_, index) => ({
-      id: `loading-${index}`,
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...'),
-      value: 0
-    }))
-
-    return (
-      <div className={className} data-testid={`${dataTestId}-loading`}>
-        <SectionKpiCards
-          cards={placeholderCards}
-          className="gba:opacity-50"
-          data-testid={`${dataTestId}-loading-cards`}
-        />
-      </div>
+    let loadingCards: KpiCardData[]
+    if (useWidgetStructureForLoading && widgets && widgets.length > 0) {
+      const loadingText = getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')
+      loadingCards = widgets.map(widget => {
+        const kpiCard = transformWidgetToKpiCard(widget)
+        const trendSkeleton = widget.trend ? { value: '\u00A0', positive: undefined, description: '\u00A0' } : undefined
+        return { ...kpiCard, value: widget.valueIsString ? '0' : 0, footer: loadingText, trend: trendSkeleton }
+      })
+    } else {
+      loadingCards = [...Array(skeletonCount)].map((_, index) => ({
+        id: `loading-${index}`,
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...'),
+        value: 0
+      }))
+    }
+    content = (
+      <SectionKpiCards cards={loadingCards} className="gba:opacity-50" data-testid={`${dataTestId}-loading-cards`} />
     )
-  }
-
-  // Handle error state
-  if (error) {
+  } else if (error) {
     const errorMessage = error instanceof Error ? error.message : error
-    return (
-      <div className={className} data-testid={`${dataTestId}-error`}>
-        <div
-          className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg"
-          data-testid={`${dataTestId}-error-container`}
-        >
-          <PiWarning className="gba:text-red-500 gba:text-4xl gba:mb-4" data-testid={`${dataTestId}-error-icon`} />
-          <h3
-            className="gba:text-lg gba:font-medium gba:text-red-900 gba:mb-2"
-            data-testid={`${dataTestId}-error-title`}
+    content = (
+      <div
+        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg"
+        data-testid={`${dataTestId}-error-container`}
+      >
+        <WarningIcon className="gba:text-red-500 gba:text-4xl gba:mb-4" data-testid={`${dataTestId}-error-icon`} />
+        <h3 className="gba:text-lg gba:font-medium gba:text-red-900 gba:mb-2" data-testid={`${dataTestId}-error-title`}>
+          Error Loading Data
+        </h3>
+        <p className="gba:text-red-700 gba:mb-4" data-testid={`${dataTestId}-error-message`}>
+          {errorMessage}
+        </p>
+        {onRetry && (
+          <Button
+            variant="outline"
+            onClick={onRetry}
+            className="gba:flex gba:items-center gba:gap-2"
+            data-testid={`${dataTestId}-error-retry-button`}
           >
-            Error Loading Data
-          </h3>
-          <p className="gba:text-red-700 gba:mb-4" data-testid={`${dataTestId}-error-message`}>
-            {errorMessage}
-          </p>
-          {onRetry && (
-            <Button
-              variant="outline"
-              onClick={onRetry}
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid={`${dataTestId}-error-retry-button`}
-            >
-              <PiArrowClockwise />
-              Retry
-            </Button>
-          )}
-        </div>
+            <ArrowClockwiseIcon />
+            Retry
+          </Button>
+        )}
       </div>
     )
-  }
-
-  // Handle empty state
-  if (!widgets || widgets.length === 0) {
-    return (
-      <div className={`${className} gba:text-center gba:p-8`} data-testid={`${dataTestId}-empty`}>
+  } else if (!widgets || widgets.length === 0) {
+    content = (
+      <div className="gba:text-center gba:p-8" data-testid={`${dataTestId}-empty`}>
         <p className="gba:text-gray-500 gba:mb-4" data-testid={`${dataTestId}-empty-message`}>
           {emptyText}
         </p>
@@ -332,100 +418,27 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
             className="gba:flex gba:items-center gba:gap-2 gba:mx-auto"
             data-testid={`${dataTestId}-empty-load-button`}
           >
-            <PiArrowClockwise />
+            <ArrowClockwiseIcon />
             Load Data
           </Button>
         )}
       </div>
     )
+  } else if (onWidgetClick) {
+    content = (
+      <div className="gba:relative" style={{ cursor: 'default' }} data-testid={`${dataTestId}-clickable-container`}>
+        <div ref={cardsRef} className="widget-group-cards">
+          <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
+        </div>
+      </div>
+    )
+  } else {
+    content = <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
   }
 
-  // Transform widgets to KPI cards
-  const kpiCards: KpiCardData[] = widgets.map(widget => transformWidgetToKpiCard(widget))
-
-  // Ref to the cards container
-  const cardsRef = useRef<HTMLDivElement>(null)
-
-  // Apply cursor styling to individual cards
-  useEffect(() => {
-    const applyCursorStyling = () => {
-      if (cardsRef.current) {
-        // Find all card elements using a more reliable selector
-        const cards = cardsRef.current.querySelectorAll('div[class*="card"], div[class*="Card"]')
-
-        // Process each widget and find its corresponding card(s)
-        widgets.forEach((widget, widgetIndex) => {
-          // Calculate which cards belong to this widget
-          const cardsPerWidget = Math.ceil(cards.length / widgets.length)
-          const startIndex = widgetIndex * cardsPerWidget
-          const endIndex = Math.min(startIndex + cardsPerWidget, cards.length)
-          const widgetCards = Array.from(cards).slice(startIndex, endIndex)
-
-          widgetCards.forEach(card => {
-            // Add data attribute for identification
-            card.setAttribute('data-widget-key', widget.key)
-            // Add clickable class if widget has onClick handler
-            if (widget.onClick) {
-              card.classList.add('clickable')
-            } else {
-              card.classList.remove('clickable')
-            }
-          })
-        })
-      }
-    }
-
-    // Apply immediately
-    applyCursorStyling()
-
-    // Also apply after a short delay to ensure DOM is fully rendered
-    const timeoutId = setTimeout(applyCursorStyling, 100)
-
-    return () => clearTimeout(timeoutId)
-  }, [widgets])
-
-  // Display widgets using SectionKpiCards with conditional click handling
   return (
     <div className={className} data-testid={dataTestId}>
-      {onWidgetClick ? (
-        // Add clickable wrapper only when onWidgetClick is provided
-        <div
-          className="gba:relative"
-          style={{
-            // Default cursor for the container
-            cursor: 'default'
-          }}
-          onClick={e => {
-            // Find which card was clicked by traversing up from the click target
-            const target = e.target as HTMLElement
-            const cardElement = target.closest('[data-widget-key]')
-
-            if (cardElement) {
-              const widgetKey = cardElement.getAttribute('data-widget-key')
-              if (widgetKey) {
-                const widgetIndex = widgets.findIndex(w => w.key === widgetKey)
-                if (widgetIndex >= 0 && widgetIndex < widgets.length) {
-                  if (onWidgetClick) {
-                    onWidgetClick(widgetKey)
-                  }
-                  // Also call individual widget onClick if it exists
-                  if (widgets[widgetIndex]?.onClick) {
-                    widgets[widgetIndex].onClick()
-                  }
-                }
-              }
-            }
-          }}
-          data-testid={`${dataTestId}-clickable-container`}
-        >
-          <div ref={cardsRef} className="widget-group-cards">
-            <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
-          </div>
-        </div>
-      ) : (
-        // Use SectionKpiCards directly when no click functionality is needed
-        <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
-      )}
+      {content}
     </div>
   )
 }

@@ -18,6 +18,7 @@ export interface FlowExecutionTask {
   ownerName?: string
   creatorUserId?: string
   creatorName?: string
+  nodeName?: string
   potentialUsers?: string[]
   assigneeNames?: string[]
   endpoint?: string
@@ -62,7 +63,27 @@ export interface FlowExecutionTasksParams {
 
 export class FlowMetricsClient extends RestClient {
   constructor(accessToken?: string) {
-    const baseUrl = env('NEXT_PUBLIC_FLOW_METRICS_ENDPOINT') || `${env('NEXT_PUBLIC_BASE_URL') || ''}`
+    // Determine origin for relative URL resolution
+    const origin =
+      typeof globalThis !== 'undefined' && (globalThis as any).location?.origin
+        ? (globalThis as any).location.origin
+        : ''
+
+    // Priority: NEXT_PUBLIC_FLOW_METRICS_ENDPOINT > NEXT_PUBLIC_BASE_URL > origin
+    // Note: FlowMetrics API (/flow-executions/tasks) is at the platform root, no subpath needed
+    let baseUrl = env('NEXT_PUBLIC_FLOW_METRICS_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || origin
+
+    // Ensure relative paths become absolute
+    if (baseUrl && baseUrl.startsWith('/')) {
+      baseUrl = `${origin}${baseUrl}`
+    }
+
+    // If still empty, use origin
+    if (!baseUrl) {
+      baseUrl = origin
+    }
+
+    console.log('[FlowMetricsClient] Initialized with baseUrl:', baseUrl)
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
@@ -135,6 +156,40 @@ export class FlowMetricsClient extends RestClient {
    */
   async getFlowExecutionTask(taskId: string): Promise<FlowExecutionTask> {
     return this.get<FlowExecutionTask>(`/flow-executions/tasks/${taskId}`)
+  }
+
+  /**
+   * Get flow execution tasks by business key
+   * @param businessKey - The business key that links GraphQL tasks to flow execution tasks
+   * @param params - Optional query parameters (userId, filterState, pagination, etc.)
+   */
+  async getFlowExecutionTasksByBusinessKey(
+    businessKey: string,
+    params?: {
+      size?: number
+      page?: number
+      field?: string
+      direction?: 'ASC' | 'DESC'
+      filterTaskName?: string
+    }
+  ): Promise<FlowExecutionTasksResponse> {
+    const queryParams: Record<string, string | number> = {
+      // Pagination (mandatory)
+      size: params?.size || 20,
+      page: params?.page || 0,
+      // Sort (mandatory)
+      field: params?.field || 'CREATION_DATE',
+      direction: params?.direction || 'DESC'
+    }
+
+    // filterTaskName (optional)
+    if (params?.filterTaskName) {
+      queryParams.filterTaskName = params.filterTaskName
+    }
+
+    return this.get<FlowExecutionTasksResponse>(`/flow-executions/tasks/${businessKey}`, {
+      params: queryParams
+    })
   }
 
   /**

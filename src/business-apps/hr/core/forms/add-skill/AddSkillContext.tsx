@@ -1,10 +1,24 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ADD_SKILL_QUERY, SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from './AddSkillQueries'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import {
+  ADD_SKILL_QUERY,
+  ADD_SKILL_DOCUMENT_CATALOGS_QUERY,
+  SEARCH_SKILLS_QUERY,
+  GET_SKILLS_BY_NAMES
+} from './AddSkillQueries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
-
+import { hybridSearchSkills } from '@/common/network/flowbot/hybridSearchSkills'
 import { env } from '@/common/env/EnvUtils'
+
+export interface CatalogEntry {
+  id: string | number
+  value?: string
+  translations?: { localeCode?: string; value?: string }[]
+  parentEntryId?: string | null
+  catalog?: { defaultLocale?: string }
+}
 
 export interface SkillRecord {
   id: string
@@ -15,6 +29,9 @@ export interface SkillRecord {
 export interface EmployeeSkillLink {
   id: string
   version: number
+  level?: number | string | null
+  validFrom?: string | null
+  validTo?: string | null
   skill: SkillRecord
 }
 
@@ -39,7 +56,46 @@ export interface DetailedEmployee {
 
 export interface AddSkillDataResponse {
   employee: DetailedEmployee
+  catalogs?: {
+    documentGroup?: CatalogEntry[]
+    documentType?: CatalogEntry[]
+  }
 }
+
+export interface ChangeLevelParams {
+  mode: 'changeLevel'
+  skillId: string
+  employeeSkillId: string
+  skillName?: string
+  currentLevel: number | null
+}
+
+export interface DeactivateSkillParams {
+  mode: 'deactivate'
+  skillId: string
+  employeeSkillId: string
+  skillName: string
+}
+
+export interface ActivateSkillParams {
+  mode: 'activate'
+  skillId: string
+  employeeSkillId: string
+  skillName: string
+}
+
+export interface AttachVerificationSkillParams {
+  mode: 'attachVerification'
+  skillId: string
+  employeeSkillId: string
+  skillName: string
+}
+
+export type FlowFormParams =
+  | ChangeLevelParams
+  | DeactivateSkillParams
+  | ActivateSkillParams
+  | AttachVerificationSkillParams
 
 interface AddSkillContextValue {
   data: AddSkillDataResponse | null
@@ -49,6 +105,20 @@ interface AddSkillContextValue {
   searchSkills: (term: string) => Promise<SkillRecord[]>
   createSkillAndFetchByNames: (name: string, namesAccumulator: string[]) => Promise<SkillRecord[]>
   employeeId?: string
+  changeLevelParams: ChangeLevelParams | null
+  flowFormParams: FlowFormParams | null
+}
+
+const DEFAULT_ADD_SKILL_VALUE: AddSkillContextValue = {
+  data: null,
+  isLoading: false,
+  error: 'Missing context. Open this form from the employee record (Add skill) or from a flow.',
+  refetch: async () => {},
+  searchSkills: async () => [],
+  createSkillAndFetchByNames: async () => [],
+  employeeId: undefined,
+  changeLevelParams: null,
+  flowFormParams: null
 }
 
 const AddSkillContext = createContext<AddSkillContextValue | undefined>(undefined)
@@ -73,10 +143,42 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
     )
   }, [additionalData, userInfo])
 
+  const changeLevelParams: ChangeLevelParams | null = useMemo(() => {
+    const params = additionalData?.contextData ?? additionalData?.psi_taskPayload?.psi_initialParameters ?? undefined
+    if (params?.mode !== 'changeLevel' || params?.skillId == null) return null
+    const rawLevel = params.currentLevel
+    let currentLevel: number | null = null
+    if (rawLevel != null) {
+      currentLevel = typeof rawLevel === 'number' ? rawLevel : Number.parseInt(String(rawLevel), 10)
+      if (Number.isNaN(currentLevel)) currentLevel = null
+    }
+    return {
+      mode: 'changeLevel',
+      skillId: String(params.skillId),
+      employeeSkillId: String(params?.employeeSkillId ?? ''),
+      skillName: params?.skillName === null || params?.skillName === undefined ? undefined : String(params.skillName),
+      currentLevel
+    }
+  }, [additionalData?.contextData, additionalData?.psi_taskPayload?.psi_initialParameters])
+
+  const flowFormParams: FlowFormParams | null = useMemo(() => {
+    const params = additionalData?.contextData ?? additionalData?.psi_taskPayload?.psi_initialParameters ?? undefined
+    if (params?.skillId == null) return changeLevelParams
+    const base = {
+      skillId: String(params.skillId),
+      employeeSkillId: String(params?.employeeSkillId ?? ''),
+      skillName: String(params?.skillName ?? '')
+    }
+    if (params.mode === 'deactivate') return { mode: 'deactivate', ...base }
+    if (params.mode === 'activate') return { mode: 'activate', ...base }
+    if (params.mode === 'attachVerification') return { mode: 'attachVerification', ...base }
+    return changeLevelParams
+  }, [additionalData?.contextData, additionalData?.psi_taskPayload?.psi_initialParameters, changeLevelParams])
+
   const fetchData = useCallback(async () => {
-    if (!accessToken || !employeeId) {
+    if (employeeId == null || accessToken == null) {
       setIsLoading(false)
-      setError(!employeeId ? 'Missing employeeId' : 'Missing accessToken')
+      setError(employeeId == null ? 'Missing employeeId' : 'Missing accessToken')
       return
     }
     setIsLoading(true)
@@ -85,7 +187,16 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       type AddSkillQueryVariables = { id: string }
       const variables: AddSkillQueryVariables = { id: employeeId }
       const response = await graphqlClient.request<AddSkillDataResponse>(ADD_SKILL_QUERY, variables)
-      setData(response)
+      const activeUserLocale = getCurrentActiveUserLocale() || 'en-US'
+      const catalogsResponse = await graphqlClient.request<{
+        documentType?: CatalogEntry[]
+      }>(ADD_SKILL_DOCUMENT_CATALOGS_QUERY, { activeUserLocale })
+      setData({
+        ...response,
+        catalogs: {
+          documentType: catalogsResponse?.documentType ?? []
+        }
+      })
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Unknown error'
       setError(message)
@@ -98,29 +209,36 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
     fetchData()
   }, [fetchData])
 
-  const value: AddSkillContextValue = {
-    data,
-    isLoading,
-    error,
-    refetch: fetchData,
-    searchSkills: async (term: string) => {
+  const searchSkills = useCallback(
+    async (term: string): Promise<SkillRecord[]> => {
       const trimmed = (term || '').trim()
-      if (!trimmed) return []
-      const pattern = `%${trimmed}%`
-      type SearchSkillsVariables = { search: string }
-      const result = await graphqlClient.request<{ skill: SkillRecord[] }>(SEARCH_SKILLS_QUERY, {
-        search: pattern
-      } as SearchSkillsVariables)
-      return result?.skill || []
+      if (!trimmed || trimmed.length < 2) return []
+      try {
+        const matches = await hybridSearchSkills(trimmed, accessToken ?? '', 20)
+        // Only show skills with score >= 70% (score is 0–1 from flowbot)
+        const minScore = 0.7
+        return matches
+          .filter(m => (m.score ?? 0) >= minScore)
+          .map(m => ({ id: m.id, name: m.name, version: m.version }))
+      } catch {
+        const pattern = `%${trimmed}%`
+        type SearchSkillsVariables = { search: string }
+        const result = await graphqlClient.request<{ skill: SkillRecord[] }>(SEARCH_SKILLS_QUERY, {
+          search: pattern
+        } as SearchSkillsVariables)
+        return result?.skill ?? []
+      }
     },
-    createSkillAndFetchByNames: async (name: string, namesAccumulator: string[]) => {
-      // Validate
+    [accessToken, graphqlClient]
+  )
+
+  const createSkillAndFetchByNames = useCallback(
+    async (name: string, namesAccumulator: string[]) => {
       const trimmed = (name || '').trim()
       if (!trimmed) return []
-      // POST to processes + employee/saveSkill
       await restClient.post(
         '/processes/employee/saveSkill',
-        { skill: { name: trimmed } },
+        { changeMode: 'INSERT', skill: { name: trimmed } },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -128,7 +246,6 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
           }
         }
       )
-      // Query back skills by provided names
       const queryNames = Array.from(new Set([...(namesAccumulator || []), trimmed]))
       type GetSkillsByNamesVariables = { names: string[] }
       const result = await graphqlClient.request<{ skill: SkillRecord[] }>(GET_SKILLS_BY_NAMES, {
@@ -136,16 +253,40 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       } as GetSkillsByNamesVariables)
       return result?.skill || []
     },
-    employeeId
-  }
+    [accessToken, graphqlClient, restClient]
+  )
+
+  const value = useMemo<AddSkillContextValue>(
+    () => ({
+      data,
+      isLoading,
+      error,
+      refetch: fetchData,
+      searchSkills,
+      createSkillAndFetchByNames,
+      employeeId,
+      changeLevelParams,
+      flowFormParams
+    }),
+    [
+      data,
+      isLoading,
+      error,
+      fetchData,
+      searchSkills,
+      createSkillAndFetchByNames,
+      employeeId,
+      changeLevelParams,
+      flowFormParams
+    ]
+  )
 
   return <AddSkillContext.Provider value={value}>{children}</AddSkillContext.Provider>
 }
 
-export const useAddSkill = () => {
+export const useAddSkill = (): AddSkillContextValue => {
   const ctx = useContext(AddSkillContext)
-  if (!ctx) throw new Error('useAddSkill must be used within AddSkillProvider')
-  return ctx
+  return ctx ?? DEFAULT_ADD_SKILL_VALUE
 }
 
 export default AddSkillContext

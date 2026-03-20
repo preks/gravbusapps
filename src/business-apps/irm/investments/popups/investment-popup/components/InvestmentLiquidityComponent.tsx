@@ -13,7 +13,7 @@ import {
   Button,
   Alert
 } from '@newwork/nw-design-system'
-import { Plus } from 'lucide-react'
+import { PlusIcon } from '@phosphor-icons/react'
 import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
 import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentLiquidityComponentProps, LiquidityFormData, LiquidityPreferenceItem } from '../types'
@@ -295,7 +295,7 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
             data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
             className="gba:w-full"
           >
-            <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+            <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
             {getTranslationFromI18nKeyAndLabel('investment.liquidity.addRow', 'Add Liquidity Preference')}
           </Button>
         </div>

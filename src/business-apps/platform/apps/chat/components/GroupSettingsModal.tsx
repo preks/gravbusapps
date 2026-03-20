@@ -21,7 +21,7 @@ import { UserIcon, MoreVertical, Crown, Trash2, Shield, UserMinus } from 'lucide
 import { UserSelector } from './UserSelector'
 import { ChatApiClient } from '../services/chatApiClient'
 import type { Conversation, User } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface GroupSettingsModalProps {
   isOpen: boolean
@@ -44,6 +44,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
   prefixDataTestId = 'group-settings-modal',
   accessToken
 }) => {
+  const t = useChatTranslation()
   const [isAddingMembers, setIsAddingMembers] = useState(false)
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -103,11 +104,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
     if (!apiClient || !currentUserId) return
 
     // Confirm removal
-    if (
-      !window.confirm(
-        getTranslationFromI18nKeyAndLabel('chat.confirmRemoveMember', 'Are you sure you want to remove this member?')
-      )
-    ) {
+    if (!window.confirm(t('chat-confirmRemoveMember'))) {
       return
     }
 
@@ -118,10 +115,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
       onRefresh()
     } catch (err: any) {
       console.error('Error removing member:', err)
-      setErrorMessage(
-        err?.response?.data?.message ||
-          getTranslationFromI18nKeyAndLabel('chat.errorRemovingMember', 'Failed to remove member')
-      )
+      setErrorMessage(err?.response?.data?.message || t('chat-errorRemovingMember'))
     } finally {
       setIsLoading(false)
     }
@@ -137,10 +131,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
       onRefresh()
     } catch (err: any) {
       console.error('Error making owner:', err)
-      setErrorMessage(
-        err?.response?.data?.message ||
-          getTranslationFromI18nKeyAndLabel('chat.errorMakingOwner', 'Failed to transfer ownership')
-      )
+      setErrorMessage(err?.response?.data?.message || t('chat-errorMakingOwner'))
     } finally {
       setIsLoading(false)
     }
@@ -156,10 +147,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
       onRefresh()
     } catch (err: any) {
       console.error('Error making admin:', err)
-      setErrorMessage(
-        err?.response?.data?.message ||
-          getTranslationFromI18nKeyAndLabel('chat.errorMakingAdmin', 'Failed to make admin')
-      )
+      setErrorMessage(err?.response?.data?.message || t('chat-errorMakingAdmin'))
     } finally {
       setIsLoading(false)
     }
@@ -175,10 +163,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
       onRefresh()
     } catch (err: any) {
       console.error('Error removing role:', err)
-      setErrorMessage(
-        err?.response?.data?.message ||
-          getTranslationFromI18nKeyAndLabel('chat.errorRemovingRole', 'Failed to change role')
-      )
+      setErrorMessage(err?.response?.data?.message || t('chat-errorRemovingRole'))
     } finally {
       setIsLoading(false)
     }
@@ -196,10 +181,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
       onRefresh()
     } catch (err: any) {
       console.error('Error deleting group:', err)
-      setErrorMessage(
-        err?.response?.data?.message ||
-          getTranslationFromI18nKeyAndLabel('chat.errorDeletingGroup', 'Failed to delete group')
-      )
+      setErrorMessage(err?.response?.data?.message || t('chat-errorDeletingGroup'))
     } finally {
       setIsLoading(false)
     }
@@ -215,7 +197,14 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="gba:max-w-2xl gba:max-h-[80vh]" data-testid={prefixDataTestId}>
+      <DialogContent
+        className="gba:max-h-[80vh]"
+        style={{
+          width: '90vw',
+          maxWidth: window.innerWidth >= 1280 ? '896px' : window.innerWidth >= 1024 ? '768px' : '90vw'
+        }}
+        data-testid={prefixDataTestId}
+      >
         <DialogHeader>
           <DialogTitle>{conversation.name || 'Group Settings'}</DialogTitle>
         </DialogHeader>
@@ -223,17 +212,13 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
         <div className="gba:space-y-4 gba:py-4">
           {/* Group Info */}
           <div className="gba:space-y-2">
-            <div className="gba:text-sm gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('chat.groupName', 'Group Name')}
-            </div>
+            <div className="gba:text-sm gba:font-medium">{t('chat-groupName')}</div>
             <div className="gba:text-sm gba:text-muted-foreground">{conversation.name}</div>
           </div>
 
           {conversation.description && (
             <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('chat.description', 'Description')}
-              </div>
+              <div className="gba:text-sm gba:font-medium">{t('chat-description')}</div>
               <div className="gba:text-sm gba:text-muted-foreground">{conversation.description}</div>
             </div>
           )}
@@ -242,8 +227,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
           <div className="gba:space-y-2">
             <div className="gba:flex gba:items-center gba:justify-between">
               <div className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('chat.participants', 'Participants')} (
-                {conversation.participants?.length || 0})
+                {t('chat-participants')} ({conversation.participants?.length || 0})
               </div>
               {canManageParticipants && !isAddingMembers && (
                 <Button
@@ -253,7 +237,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                   disabled={isLoading}
                   data-testid={`${prefixDataTestId}-add-members-btn`}
                 >
-                  {getTranslationFromI18nKeyAndLabel('chat.addMembers', 'Add Members')}
+                  {t('chat-addMembers')}
                 </Button>
               )}
             </div>
@@ -279,14 +263,14 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                     disabled={isLoading}
                     data-testid={`${prefixDataTestId}-cancel-add`}
                   >
-                    {getTranslationFromI18nKeyAndLabel('chat.cancel', 'Cancel')}
+                    {t('chat-cancel')}
                   </Button>
                   <Button
                     onClick={handleAddMembers}
                     disabled={isLoading || selectedUserIds.length === 0}
                     data-testid={`${prefixDataTestId}-confirm-add`}
                   >
-                    {getTranslationFromI18nKeyAndLabel('chat.add', 'Add')} ({selectedUserIds.length})
+                    {t('chat-add')} ({selectedUserIds.length})
                   </Button>
                 </div>
               </div>
@@ -323,9 +307,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                         <div className="gba:font-medium gba:truncate">
                           {getDisplayName(participant.user)}
                           {isCurrentUser && (
-                            <span className="gba:text-muted-foreground gba:ml-2">
-                              ({getTranslationFromI18nKeyAndLabel('chat.you', 'you')})
-                            </span>
+                            <span className="gba:text-muted-foreground gba:ml-2">({t('chat-you')})</span>
                           )}
                         </div>
                         {participant.user?.email && (
@@ -357,7 +339,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                                 data-testid={`${prefixDataTestId}-make-owner-${participant.userId}`}
                               >
                                 <Crown className="gba:h-4 gba:w-4 gba:mr-2" />
-                                {getTranslationFromI18nKeyAndLabel('chat.makeOwner', 'Make Owner')}
+                                {t('chat-makeOwner')}
                               </DropdownMenuItem>
                             )}
                             {!isParticipantOwner && !isParticipantAdmin && (
@@ -366,7 +348,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                                 data-testid={`${prefixDataTestId}-make-admin-${participant.userId}`}
                               >
                                 <Shield className="gba:h-4 gba:w-4 gba:mr-2" />
-                                {getTranslationFromI18nKeyAndLabel('chat.makeAdmin', 'Make Admin')}
+                                {t('chat-makeAdmin')}
                               </DropdownMenuItem>
                             )}
                             {(isParticipantAdmin || isParticipantOwner) && !isParticipantOwner && (
@@ -375,7 +357,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                                 data-testid={`${prefixDataTestId}-remove-role-${participant.userId}`}
                               >
                                 <UserMinus className="gba:h-4 gba:w-4 gba:mr-2" />
-                                {getTranslationFromI18nKeyAndLabel('chat.removeRole', 'Remove Role')}
+                                {t('chat-removeRole')}
                               </DropdownMenuItem>
                             )}
                             {!isParticipantOwner && (
@@ -385,7 +367,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                                 data-testid={`${prefixDataTestId}-remove-${participant.userId}`}
                               >
                                 <Trash2 className="gba:h-4 gba:w-4 gba:mr-2" />
-                                {getTranslationFromI18nKeyAndLabel('chat.removeFromGroup', 'Remove from Group')}
+                                {t('chat-removeFromGroup')}
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
@@ -409,12 +391,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
         {/* Info about being last owner */}
         {isOwner && ownerCount === 1 && (
           <Alert className="gba:mt-2">
-            <AlertDescription>
-              {getTranslationFromI18nKeyAndLabel(
-                'chat.lastOwnerInfo',
-                'You are the only owner. To leave this group, first make another member an owner or delete the group.'
-              )}
-            </AlertDescription>
+            <AlertDescription>{t('chat-lastOwnerInfo')}</AlertDescription>
           </Alert>
         )}
 
@@ -427,12 +404,12 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
               data-testid={`${prefixDataTestId}-delete-group`}
             >
               <Trash2 className="gba:h-4 gba:w-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('chat.deleteGroup', 'Delete Group')}
+              {t('chat-deleteGroup')}
             </Button>
           )}
           <div className="gba:flex-1" />
           <Button variant="outline" onClick={handleClose} data-testid={`${prefixDataTestId}-close`}>
-            {getTranslationFromI18nKeyAndLabel('chat.close', 'Close')}
+            {t('chat-close')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -441,20 +418,15 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{getTranslationFromI18nKeyAndLabel('chat.deleteGroupTitle', 'Delete Group?')}</DialogTitle>
-            <DialogDescription>
-              {getTranslationFromI18nKeyAndLabel(
-                'chat.deleteGroupDescription',
-                'This will permanently delete the group and all messages. This action cannot be undone.'
-              )}
-            </DialogDescription>
+            <DialogTitle>{t('chat-deleteGroupTitle')}</DialogTitle>
+            <DialogDescription>{t('chat-deleteGroupDescription')}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} disabled={isLoading}>
-              {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+              {t('common-cancel')}
             </Button>
             <Button variant="destructive" onClick={handleDeleteGroup} disabled={isLoading}>
-              {getTranslationFromI18nKeyAndLabel('chat.delete', 'Delete')}
+              {t('chat-delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

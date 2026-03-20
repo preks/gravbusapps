@@ -36,6 +36,12 @@ export interface CurrencyFilterProps {
    * @default "Currency:"
    */
   label?: string
+  /**
+   * When set, prepends an "all currencies" option with this label and value 'all'.
+   * Used in views where selecting across all currencies is needed.
+   * @example allOptionLabel="All"
+   */
+  allOptionLabel?: string
 }
 
 /**
@@ -61,8 +67,11 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
   className,
   dataTestId = 'currency-filter',
   showLabel = true,
-  label = getTranslationFromI18nKeyAndLabel('currency.filter', 'Currency:')
+  label = getTranslationFromI18nKeyAndLabel('currency.filter', 'Currency:'),
+  allOptionLabel
 }) => {
+  if (!allOptionLabel && currencies.length === 0) return null
+
   return (
     <div className={`gba:flex gba:items-center gba:gap-2 ${className || ''}`}>
       {showLabel && (
@@ -75,6 +84,11 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
           <SelectValue />
         </SelectTrigger>
         <SelectContent data-testid={`${dataTestId}-content`}>
+          {allOptionLabel && (
+            <SelectItem value="all" data-testid={`${dataTestId}-option-all`}>
+              {allOptionLabel}
+            </SelectItem>
+          )}
           {currencies.map(currency => (
             <SelectItem key={currency} value={currency} data-testid={`${dataTestId}-option-${currency}`}>
               {currency}

@@ -17,7 +17,7 @@ const EmployeeLinkChip: React.FC<EmployeeLinkChipProps> = ({ employeeId, token, 
   if (state.state === 'loading') {
     return (
       <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted gba:text-sm">
-        <div className="gba:h-5 gba:w-5 gba:rounded-full gba:bg-muted-foreground gba:animate-pulse" />
+        <span className="gba:inline-block gba:h-5 gba:w-5 gba:rounded-full gba:bg-muted-foreground gba:animate-pulse" />
         <span className="gba:leading-none">{children}</span>
       </span>
     )
@@ -26,7 +26,7 @@ const EmployeeLinkChip: React.FC<EmployeeLinkChipProps> = ({ employeeId, token, 
   // Error state: show link text with error styling
   if (state.state === 'error') {
     return (
-      <BaseEntityLinkChip url={`/platform/employee-record?employeeId=${employeeId}`} icon={<span>👤</span>}>
+      <BaseEntityLinkChip url={`/platform/employee-record?tab=assets&employeeId=${employeeId}`} icon={<span>👤</span>}>
         {children}
       </BaseEntityLinkChip>
     )
@@ -46,11 +46,11 @@ const EmployeeLinkChip: React.FC<EmployeeLinkChipProps> = ({ employeeId, token, 
 
   return (
     <BaseEntityLinkChip
-      url={state.employee?.profileUrl || `/platform/employee-record?employeeId=${employeeId}`}
+      url={state.employee?.profileUrl || `/platform/employee-record?tab=assets&employeeId=${employeeId}`}
       icon={icon}
       onClick={e => {
         e.preventDefault()
-        navigateTo(state.employee?.profileUrl || `/platform/employee-record?employeeId=${employeeId}`)
+        navigateTo(state.employee?.profileUrl || `/platform/employee-record?tab=assets&employeeId=${employeeId}`)
       }}
     >
       {children}

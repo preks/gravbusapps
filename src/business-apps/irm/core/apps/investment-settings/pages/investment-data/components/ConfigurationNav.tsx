@@ -1,6 +1,6 @@
 import React from 'react'
 import { TabNav, TabNavLink } from '@newwork/nw-design-system'
-import { PiListBullets, PiTable, PiSquaresFour } from 'react-icons/pi'
+import { ListBulletsIcon, TableIcon, GaugeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface ConfigurationNavProps extends BusinessAppContextProps {
@@ -35,7 +35,7 @@ export const ConfigurationNav: React.FC<ConfigurationNavProps> = ({
       <TabNavLink
         href="#form"
         active={configSection === 'form'}
-        startIcon={<PiListBullets className="gba:w-4 gba:h-4" />}
+        startIcon={<ListBulletsIcon className="gba:w-4 gba:h-4" />}
         onClick={e => {
           e.preventDefault()
           onSectionChange('form')
@@ -47,7 +47,7 @@ export const ConfigurationNav: React.FC<ConfigurationNavProps> = ({
       <TabNavLink
         href="#prospect"
         active={configSection === 'prospect'}
-        startIcon={<PiTable className="gba:w-4 gba:h-4" />}
+        startIcon={<TableIcon className="gba:w-4 gba:h-4" />}
         onClick={e => {
           e.preventDefault()
           onSectionChange('prospect')
@@ -59,7 +59,7 @@ export const ConfigurationNav: React.FC<ConfigurationNavProps> = ({
       <TabNavLink
         href="#tile"
         active={configSection === 'tile'}
-        startIcon={<PiSquaresFour className="gba:w-4 gba:h-4" />}
+        startIcon={<GaugeIcon className="gba:w-4 gba:h-4" />}
         onClick={e => {
           e.preventDefault()
           onSectionChange('tile')

@@ -12,11 +12,16 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     $payLimit: Int! = 20, $payOffset: Int! = 0, $payOrderBy: [AdvancePaymentOrderBy!] = [{ createdAt: DESC }],
     $monthStart: timestamp, $monthEnd: timestamp, $yearStart: timestamp,
     $reqCurrencyWhere: ExpenseRequestBoolExp = {},
+    $reqStatsCurrencyWhere: ExpenseRequestBoolExp = {},
     $planCurrencyWhere: ExpensePlanBoolExp = {},
+    $planStatsCurrencyWhere: ExpensePlanBoolExp = {},
     $payCurrencyWhere: AdvancePaymentBoolExp = {},
+    $payStatsCurrencyWhere: AdvancePaymentBoolExp = {},
     $reqStatusWhere: ExpenseRequestBoolExp = {},
     $planStatusWhere: ExpensePlanBoolExp = {},
-    $payStatusWhere: AdvancePaymentBoolExp = {}
+    $payStatusWhere: AdvancePaymentBoolExp = {},
+    $planDateWhere: ExpensePlanBoolExp = {},
+    $reqDateWhere: ExpenseRequestBoolExp = {}
   ) {
     # Distinct currencies fallback (collect from sources and dedupe client-side)
     DistinctCurrenciesFromItems: ExpenseItem(
@@ -112,7 +117,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     ExpensePlansTotalAggregate: ExpensePlanAggregate(
       where: {
         _and: [
-          $planCurrencyWhere,
+          $planStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _nin: ["CREATED","REJECTED","DISCARDED"] } },
           { isDeleted: { _eq: false } }
@@ -120,11 +125,11 @@ export const MANAGER_EXPENSES_OVERVIEW = `
       }
     ) { aggregate { sum { totalAmount } } }
 
-    # Plans statistics (total and pending) - currency filtered
+    # Plans statistics (total and pending) - stats currency (e.g. most-used when list shows All)
     AllPlansAggregate: ExpensePlanAggregate(
       where: {
         _and: [
-          $planCurrencyWhere,
+          $planStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _nin: ["CREATED","REJECTED","DISCARDED"] } },
           { isDeleted: { _eq: false } }
@@ -135,7 +140,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     PendingPlansCountAggregate: ExpensePlanAggregate(
       where: {
         _and: [
-          $planCurrencyWhere,
+          $planStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _eq: "PENDING" } },
           { isDeleted: { _eq: false } }
@@ -146,7 +151,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     PendingPlansAmountAggregate: ExpensePlanAggregate(
       where: {
         _and: [
-          $planCurrencyWhere,
+          $planStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _eq: "PENDING" } },
           { isDeleted: { _eq: false } }
@@ -165,11 +170,11 @@ export const MANAGER_EXPENSES_OVERVIEW = `
       }
     ) { aggregate { sum { totalAmount } } }
 
-    # Requests statistics (pending and submitted) - currency filtered
+    # Requests statistics (pending and submitted) - use reqStatsCurrencyWhere so cards show most-used when list shows All
     RequestsPendingCountAggregate: ExpenseRequestAggregate(
       where: {
         _and: [
-          $reqCurrencyWhere,
+          $reqStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _eq: "PENDING" } },
           { isDeleted: { _eq: false } }
@@ -180,7 +185,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     RequestsPendingAmountAggregate: ExpenseRequestAggregate(
       where: {
         _and: [
-          $reqCurrencyWhere,
+          $reqStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _eq: "PENDING" } },
           { isDeleted: { _eq: false } }
@@ -191,7 +196,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     RequestsSubmittedCountAggregate: ExpenseRequestAggregate(
       where: {
         _and: [
-          $reqCurrencyWhere,
+          $reqStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _in: ["PENDING","APPROVED","VERIFIED","BOOKED","TRANSFERRED"] } },
           { isDeleted: { _eq: false } }
@@ -202,7 +207,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     RequestsSubmittedAmountAggregate: ExpenseRequestAggregate(
       where: {
         _and: [
-          $reqCurrencyWhere,
+          $reqStatsCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
           { status: { _in: ["PENDING","APPROVED","VERIFIED","BOOKED","TRANSFERRED"] } },
           { isDeleted: { _eq: false } }
@@ -272,7 +277,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
           { title: { _ilike: $searchTerm } },
           { employee: { fullName: { _ilike: $searchTerm } } }
         ],
-        _and: [ $reqCurrencyWhere, $reqStatusWhere ]
+        _and: [ $reqCurrencyWhere, $reqStatusWhere, $reqDateWhere ]
       }
     ) { aggregate { count } }
 
@@ -288,16 +293,34 @@ export const MANAGER_EXPENSES_OVERVIEW = `
         ],
         _and: [ 
           $reqCurrencyWhere,
-          $reqStatusWhere
+          $reqStatusWhere,
+          $reqDateWhere
         ]
       }
     ) {
       id code title requestDate startDate endDate description
       totalAmount currencyRef status createdAt updatedAt
-      expensePlan { code }
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
+      expensePlan { 
+        code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
       employeeDocument { file name }
       employee {
-        id displayName firstName lastName fullName pictureThumbnail
+        id code displayName firstName lastName fullName pictureThumbnail
+        additionalProperties
         employeePosition { organizationalUnit { id name } siteLocation { id name } }
       }
     }
@@ -311,7 +334,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
           { title: { _ilike: $searchTerm } },
           { employee: { fullName: { _ilike: $searchTerm } } }
         ],
-        _and: [ $planCurrencyWhere, $planStatusWhere ]
+        _and: [ $planCurrencyWhere, $planStatusWhere, $planDateWhere ]
       }
     ) { aggregate { count } }
 
@@ -327,19 +350,35 @@ export const MANAGER_EXPENSES_OVERVIEW = `
         ],
         _and: [ 
           $planCurrencyWhere,
-          $planStatusWhere
+          $planStatusWhere,
+          $planDateWhere
         ]
       }
     ) {
       id code title startDate endDate status
       activeFrom activeTo totalAmount currencyRef createdAt updatedAt decisionDate planDate
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
       employeeDocument { id file fileSize name mimeType description type }
       employee {
-        id displayName firstName lastName fullName pictureThumbnail
+        id code displayName firstName lastName fullName pictureThumbnail
+        additionalProperties
         employeePosition { organizationalUnit { id name } siteLocation { id name } }
       }
       expenseRequest(where: { isDeleted: { _eq: false } }) {
         id code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
       }
       advancePayment(where: { isDeleted: { _eq: false } }) {
         id code amount status transactionDate currencyRef createdAt paymentMethod
@@ -380,25 +419,45 @@ export const MANAGER_EXPENSES_OVERVIEW = `
         ]
       }
     ) {
-      id code amount status createdAt paymentMethod currencyRef
+      id code amount status createdAt paymentMethod currencyRef decisionDate transactionDate
       costCenter { id name code }
-      expensePlan { id code title startDate endDate employee { id fullName } }
+      project { id name }
+      expensePlan { 
+        id code title startDate endDate totalAmount currencyRef
+        costCenter { id name code }
+        project { id name }
+        employee { 
+          id code fullName displayName firstName lastName pictureThumbnail
+          additionalProperties
+          employeePosition { 
+            organizationalUnit { id name }
+            costCenter { id name code }
+            supervisor { id fullName }
+          }
+        }
+      }
     }
 
-    # Advance payments statistics (total and pending) - currency filtered
+    # Advance payments statistics: first card = paid/closed only, second = pending
     AllPaymentsAggregate: AdvancePaymentAggregate(
       where: {
-        isDeleted: { _eq: false },
-        expensePlan: { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
-        currencyRef: { _eq: $currencyRef }
+        _and: [
+          $payStatsCurrencyWhere,
+          { isDeleted: { _eq: false } },
+          { status: { _in: ["PAID", "TRANSFERRED"] } },
+          { expensePlan: { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } } }
+        ]
       }
     ) { aggregate { count sum { amount } } }
 
     PendingPaymentsAggregate: AdvancePaymentAggregate(
       where: {
-        isDeleted: { _eq: false }, status: { _eq: "PENDING" },
-        expensePlan: { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
-        currencyRef: { _eq: $currencyRef }
+        _and: [
+          $payStatsCurrencyWhere,
+          { isDeleted: { _eq: false } },
+          { status: { _eq: "PENDING" } },
+          { expensePlan: { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } } }
+        ]
       }
     ) { aggregate { count sum { amount } } }
   }

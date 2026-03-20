@@ -10,15 +10,11 @@ interface TrendData {
   isPositive: boolean
 }
 
-interface ContactStatisticsTrendData {
+export interface UseInvestmentContactStatisticsReturn {
   recentContacts: TrendData
   activeContacts: TrendData
-  emailEngagements: TrendData
+  totalContacts: TrendData
   contactsThisYear: TrendData
-}
-
-export interface UseInvestmentContactStatisticsReturn {
-  trendData: ContactStatisticsTrendData | null
   isLoading: boolean
   error: Error | null
   refetch: () => Promise<void>
@@ -46,28 +42,40 @@ const GET_ALL_INVESTMENT_CONTACT_STATISTICS_WITH_TREND = `
     }) {
       aggregate { count }
     }
-    activeContactsCurrent: InvestmentContactAggregate(where: {
-      isDeleted: {_eq: false},
-      activeTo: {_isNull: true}
+    activeContactsCurrent: InvestmentOpportunityContactAggregate(
+      where: {
+        isDeleted: {_eq: false},
+        opportunity: {
+          isDeleted: {_eq: false},
+          opportunityStatus: {type: {_eq: "OPEN"}}
+        }
+      },
+      distinctOn: [contactId]
+    ) {
+      aggregate { count }
+    }
+    activeContactsPrevious: InvestmentOpportunityContactAggregate(
+      where: {
+        isDeleted: {_eq: false},
+        opportunity: {
+          isDeleted: {_eq: false},
+          opportunityStatus: {type: {_eq: "OPEN"}}
+        },
+        contact: {
+          createdAt: {_lt: $lastMonth}
+        }
+      },
+      distinctOn: [contactId]
+    ) {
+      aggregate { count }
+    }
+    totalContactsCurrent: InvestmentContactAggregate(where: {
+      isDeleted: {_eq: false}
     }) {
       aggregate { count }
     }
-    activeContactsPrevious: InvestmentContactAggregate(where: {
+    totalContactsPrevious: InvestmentContactAggregate(where: {
       isDeleted: {_eq: false},
-      activeTo: {_isNull: true},
-      createdAt: {_lt: $lastMonth}
-    }) {
-      aggregate { count }
-    }
-    emailEngagementsCurrent: InvestmentContactAggregate(where: {
-      isDeleted: {_eq: false},
-      email: {_isNull: false}
-    }) {
-      aggregate { count }
-    }
-    emailEngagementsPrevious: InvestmentContactAggregate(where: {
-      isDeleted: {_eq: false},
-      email: {_isNull: false},
       createdAt: {_lt: $lastMonth}
     }) {
       aggregate { count }
@@ -110,7 +118,34 @@ const calculateTrend = (current: number, previous: number): TrendData => {
 export const useInvestmentContactStatistics = (
   context: BusinessAppContextProps
 ): UseInvestmentContactStatisticsReturn => {
-  const [trendData, setTrendData] = useState<ContactStatisticsTrendData | null>(null)
+  const [recentContacts, setRecentContacts] = useState<TrendData>({
+    current: 0,
+    previous: 0,
+    change: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [activeContacts, setActiveContacts] = useState<TrendData>({
+    current: 0,
+    previous: 0,
+    change: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [totalContacts, setTotalContacts] = useState<TrendData>({
+    current: 0,
+    previous: 0,
+    change: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [contactsThisYear, setContactsThisYear] = useState<TrendData>({
+    current: 0,
+    previous: 0,
+    change: 0,
+    changePercent: 0,
+    isPositive: true
+  })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const graphqlClient = useGraphQLClient(context.accessToken)
@@ -139,8 +174,8 @@ export const useInvestmentContactStatistics = (
         recentContactsPrevious: { aggregate: { count: number } }
         activeContactsCurrent: { aggregate: { count: number } }
         activeContactsPrevious: { aggregate: { count: number } }
-        emailEngagementsCurrent: { aggregate: { count: number } }
-        emailEngagementsPrevious: { aggregate: { count: number } }
+        totalContactsCurrent: { aggregate: { count: number } }
+        totalContactsPrevious: { aggregate: { count: number } }
         contactsThisYearCurrent: { aggregate: { count: number } }
         contactsThisYearPrevious: { aggregate: { count: number } }
       }>(GET_ALL_INVESTMENT_CONTACT_STATISTICS_WITH_TREND, {
@@ -153,24 +188,18 @@ export const useInvestmentContactStatistics = (
         lastYearEnd: lastYearEnd.toISOString()
       })
 
-      setTrendData({
-        recentContacts: calculateTrend(
-          result.recentContactsCurrent.aggregate.count,
-          result.recentContactsPrevious.aggregate.count
-        ),
-        activeContacts: calculateTrend(
-          result.activeContactsCurrent.aggregate.count,
-          result.activeContactsPrevious.aggregate.count
-        ),
-        emailEngagements: calculateTrend(
-          result.emailEngagementsCurrent.aggregate.count,
-          result.emailEngagementsPrevious.aggregate.count
-        ),
-        contactsThisYear: calculateTrend(
-          result.contactsThisYearCurrent.aggregate.count,
-          result.contactsThisYearPrevious.aggregate.count
-        )
-      })
+      setRecentContacts(
+        calculateTrend(result.recentContactsCurrent.aggregate.count, result.recentContactsPrevious.aggregate.count)
+      )
+      setActiveContacts(
+        calculateTrend(result.activeContactsCurrent.aggregate.count, result.activeContactsPrevious.aggregate.count)
+      )
+      setTotalContacts(
+        calculateTrend(result.totalContactsCurrent.aggregate.count, result.totalContactsPrevious.aggregate.count)
+      )
+      setContactsThisYear(
+        calculateTrend(result.contactsThisYearCurrent.aggregate.count, result.contactsThisYearPrevious.aggregate.count)
+      )
     } catch (err) {
       console.error('Error fetching investment contact statistics with trend:', err)
       setError(err instanceof Error ? err : new Error('Failed to load investment contact statistics with trend'))
@@ -186,7 +215,10 @@ export const useInvestmentContactStatistics = (
   }, [context.accessToken, refetch])
 
   return {
-    trendData,
+    recentContacts,
+    activeContacts,
+    totalContacts,
+    contactsThisYear,
     isLoading,
     error,
     refetch

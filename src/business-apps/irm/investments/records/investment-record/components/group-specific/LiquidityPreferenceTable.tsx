@@ -16,7 +16,7 @@ import {
   Alert,
   AlertDescription
 } from '@newwork/nw-design-system'
-import { Edit } from 'lucide-react'
+import { PencilIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -52,7 +52,6 @@ export const LiquidityPreferenceTable: React.FC<LiquidityPreferenceTableProps> =
   const loadLiquidityData = useCallback(() => {
     // This would trigger a refetch of investment data in the parent component
     // For now, the data will refresh automatically when the parent refetches
-    console.log('Liquidity preference data updated')
   }, [])
 
   // Render content based on current state
@@ -176,7 +175,7 @@ export const LiquidityPreferenceTable: React.FC<LiquidityPreferenceTableProps> =
               data-testid="liquidity-preference-update-table-button"
               style={{ gap: 'var(--nw-spacing-xs)' }}
             >
-              <Edit size={16} />
+              <PencilIcon size={16} />
               {getTranslationFromI18nKeyAndLabel('crm.investments.liquidityPreference.updateTable', 'Update Table')}
             </Button>
           </AppAction>

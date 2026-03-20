@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Button, Spinner, RecordLayout, Badge } from '@newwork/nw-design-system'
-import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon } from '@phosphor-icons/react'
+import { Button, Spinner, RecordLayout, Badge, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
+import {
+  UsersIcon,
+  TrendUpIcon,
+  FileTextIcon,
+  BankIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  CalendarIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -8,11 +16,13 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { useAccountAiSummary } from './hooks/useAccountAiSummary'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
-import { getAccountPriorityBadgeVariant } from '@/common/utils/badgeUtils'
+import { getAccountPriorityBadgeVariant, getProspectiveBadgeConfig } from '@/common/utils/badgeUtils'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string
@@ -52,6 +62,10 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
   const { account: accountData, loading, error, refetch } = useCustomerAccount(props.accessToken, accountId)
 
+  // AI Summary hook - must be called before any conditional returns
+  // Pass already-fetched accountData to avoid a duplicate GetAccountById query
+  const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken, accountData)
+
   const handleTabChange = useCallback((value: string) => {
     if ((ALLOWED_TABS as readonly string[]).includes(value)) {
       setActiveTab(value as TabKey)
@@ -82,17 +96,17 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           {
             label: 'Email',
             value: getEmailChannel(accountData?.communicationChannels)?.value || 'Not set',
-            icon: TrendUpIcon
+            icon: EnvelopeIcon
           },
           {
             label: 'Phone',
             value: getPhoneChannel(accountData?.communicationChannels)?.value || 'Not set',
-            icon: TrendUpIcon
+            icon: PhoneIcon
           },
           {
             label: 'Founded',
             value: accountData?.foundationDate ? new Date(accountData.foundationDate).toLocaleDateString() : 'Not set',
-            icon: TrendUpIcon
+            icon: CalendarIcon
           },
           {
             label: 'Owner',
@@ -110,23 +124,32 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
   )
 
   const headerMeta = useMemo(() => {
-    if (!accountData?.accountPriority) {
-      return null
-    }
+    const badges = []
 
-    const priority = accountData.accountPriority
-    const value = priority.value || priority.code || ''
-    const additionalValue1 = priority.additionalValue1 || ''
-    const displayValue = additionalValue1 ? `${value}: ${additionalValue1}` : value
+    // Priority badge
+    if (accountData?.accountPriority) {
+      const priority = accountData.accountPriority
+      const value = priority.value || priority.code || ''
+      const additionalValue1 = priority.additionalValue1 || ''
+      const displayValue = additionalValue1 ? `${value}: ${additionalValue1}` : value
 
-    return (
-      <div className="gba:flex gba:items-center gba:gap-2">
-        <Badge variant={getAccountPriorityBadgeVariant(priority)} data-testid="account-priority-badge">
+      badges.push(
+        <Badge key="priority" variant={getAccountPriorityBadgeVariant(priority)} data-testid="account-priority-badge">
           {displayValue}
         </Badge>
-      </div>
+      )
+    }
+
+    // Prospective badge
+    const prospectiveConfig = getProspectiveBadgeConfig(accountData?.prospective ?? false, 'crm')
+    badges.push(
+      <Badge key="prospective" variant={prospectiveConfig.variant} data-testid="account-prospective-badge">
+        {prospectiveConfig.label}
+      </Badge>
     )
-  }, [accountData?.accountPriority])
+
+    return badges.length > 0 ? <div className="gba:flex gba:items-center gba:gap-2">{badges}</div> : null
+  }, [accountData?.accountPriority, accountData?.prospective])
 
   const headerActionButton = useMemo(
     () => (
@@ -150,6 +173,15 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
       />
     ),
     [accountId, accountData?.name, props.accessToken]
+  )
+
+  const headerActions = (
+    <AiActions
+      entityType="account"
+      entityId={accountId}
+      features={['summary', 'meeting-planner']}
+      hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+    />
   )
 
   const subViewsConfig = useMemo(
@@ -220,14 +252,17 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     <div data-testid="customer-account-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={BankIcon}
-        headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.account', 'ACCOUNT')}
+        headerAvatar={<IconAvatar icon={BankIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.account', 'ACCOUNT')}
         onBack={onBack}
         headerTitle={accountData.name || 'Unknown Account'}
         headerMeta={headerMeta}
-        headerDetailGroups={headerDetailGroups}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        headerActions={headerActions}
         headerActionButton={headerActionButton}
-        subViews={subViewsConfig}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

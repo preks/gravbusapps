@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { formatDateToISO, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatDate, formatDateToISO, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import { LocalizationProvider, useTranslation, Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, LocalizationProvider, useTranslation, Spinner } from '@newwork/nw-design-system'
+import { WarningCircleIcon } from '@phosphor-icons/react'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AdjustEmployeeSalaryProvider, useAdjustEmployeeSalary } from './AdjustEmployeeSalaryContext'
 import { useForm } from 'react-hook-form'
@@ -13,9 +14,10 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { calculateSalaryAdjustment } from './utils/calculateSalaryAdjustment'
 import { findActiveSalary } from './utils/findActiveSalary'
 import { useTaskCancellation } from '../../hooks/useTaskCancellation'
+import { useExistingSalaryAdjustmentForMonth } from './hooks/useExistingSalaryAdjustmentForMonth'
 import translations from '../_i18n'
 
-const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
+const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData, userInfo }) => {
   const { t } = useTranslation(translations)
   const { data, isLoading } = useAdjustEmployeeSalary()
 
@@ -31,6 +33,8 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
   const formMode: FormMode = useMemo(() => data?.formMode || 'adjust', [data?.formMode])
   const currencies = useMemo(() => data?.currencies || [], [data?.currencies])
   const bankAccountCurrency = useMemo(() => data?.bankAccountCurrency || null, [data?.bankAccountCurrency])
+  const countryCurrencyRef = useMemo(() => data?.countryCurrencyRef ?? null, [data?.countryCurrencyRef])
+  const hasEmploymentRegion = useMemo(() => data?.hasEmploymentRegion ?? true, [data?.hasEmploymentRegion])
   const weeklyHours = useMemo(() => data?.weeklyHours || null, [data?.weeklyHours])
   // Hire date for assign mode - format from timestamp to YYYY-MM-DD for date input
   const hireDate = useMemo(() => {
@@ -80,19 +84,26 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
     return 'annually'
   }, [currentSalaryAnnual, currentSalaryMonthly, currentSalaryHourly])
 
-  // Default currency: use bank account currency if exists, otherwise EUR, otherwise first in list
+  // Default currency: employment region country currency first, then bank account, then EUR, then first in list.
+  // When no employment region is set, do not preset (empty) so user must set region first.
   const defaultCurrency = useMemo(() => {
-    // If bank account has currency, use it
-    if (bankAccountCurrency) {
+    if (!hasEmploymentRegion) return ''
+    const currencyIds = new Set(currencies.map(c => c.id))
+    if (countryCurrencyRef && currencyIds.has(countryCurrencyRef)) {
+      return countryCurrencyRef
+    }
+    if (bankAccountCurrency && currencyIds.has(bankAccountCurrency)) {
       return bankAccountCurrency
     }
-    // Fallback to EUR if available
     const eurCurrency = currencies.find(c => c.code === 'EUR')
     return eurCurrency?.id || currencies[0]?.id || ''
-  }, [bankAccountCurrency, currencies])
+  }, [hasEmploymentRegion, countryCurrencyRef, bankAccountCurrency, currencies])
 
-  // Currency is readonly if it comes from bank account
-  const isCurrencyReadonly = useMemo(() => !!bankAccountCurrency, [bankAccountCurrency])
+  // Currency is disabled when no employment region, or when preset from bank account or employment region country
+  const isCurrencyReadonly = useMemo(
+    () => !hasEmploymentRegion || !!bankAccountCurrency || !!countryCurrencyRef,
+    [hasEmploymentRegion, bankAccountCurrency, countryCurrencyRef]
+  )
 
   const defaultValues: AdjustEmployeeSalaryFormValues = useMemo(
     () => ({
@@ -207,9 +218,12 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
     )
   }, [watchedValues])
 
-  // Dynamic title based on mode
+  // Dynamic title based on mode (with defaultValue so the key is never shown when translations aren't loaded)
   const title = useMemo(
-    () => (formMode === 'assign' ? t('assign-salary-title') : t('adjust-salary-title')),
+    () =>
+      formMode === 'assign'
+        ? t('assign-salary-title', { defaultValue: 'Assign Employee Salary' })
+        : t('adjust-salary-title', { defaultValue: 'Adjust Employee Salary' }),
     [t, formMode]
   )
 
@@ -227,11 +241,28 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
   const employeeId =
     externalContext?.employeeId || // From AppAction externalContextData (highest priority)
     additionalData?.psi_taskPayload?.employeeId ||
-    additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+    additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
     additionalData?.employeeId ||
-    employee?.code ||
     employee?.id ||
+    employee?.code ||
     ''
+
+  const duplicateCheckEffectiveDate = formMode === 'adjust' ? effectiveDate : ''
+  const {
+    hasDuplicate: hasSameMonthSalaryAdjustment,
+    isLoading: isDuplicateCheckLoading,
+    existingStartDate
+  } = useExistingSalaryAdjustmentForMonth(accessToken, employeeId, duplicateCheckEffectiveDate)
+
+  const existingStartDateLabel = useMemo(
+    () => (existingStartDate ? formatDate(existingStartDate, 'date.short') || existingStartDate : ''),
+    [existingStartDate]
+  )
+
+  const isSubmitDisabled =
+    !form.formState.isValid ||
+    isUnchangedNow ||
+    (formMode === 'adjust' && !!effectiveDate && (isDuplicateCheckLoading || hasSameMonthSalaryAdjustment))
 
   // Show loading state while fetching data to prevent displaying zero values
   if (isLoading) {
@@ -281,6 +312,18 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
         }
       />
 
+      {!hasEmploymentRegion && (
+        <Alert variant="default" className="gba:mb-4" data-testid="assign-salary-no-region-warning">
+          <WarningCircleIcon className="gba:h-4 gba:w-4" />
+          <AlertDescription>
+            {t('assign-salary-no-employment-region-warning', {
+              defaultValue:
+                'An employment region must be set for this employee to ensure correct currency and compliance. Please set the employment region in the employee record.'
+            })}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div
         className="gba:flex gba:flex-col gba:[&>div[data-testid='adjust-employee-salary']]:pt-0!"
         data-testid="adjust-employee-salary-form-content"
@@ -293,7 +336,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
           cancelEventType="pse_abort"
           cancelButtonText={t('action-cancel')}
           submitButtonText={t('action-submit')}
-          isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
+          isSubmitDisabled={isSubmitDisabled}
           // Shows cancel button - default cancelEventType="pse_abort" handles process abort
           onCancel={() => {
             markAsCancelled()
@@ -333,7 +376,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
                     monthlyGrossSalary: isHourly ? null : values.monthlySalary,
                     hourlyGrossSalary: isHourly ? values.hourlySalary : null,
                     currencyRef: values.currency || '',
-                    salaryAdjustReason: null, // No reason for assign mode
+                    salaryAdjustReasonRef: null, // No reason for assign mode (fixed field name)
                     startDate: formattedStartDate,
                     notes: values.notes || '',
                     stockOptions: false,
@@ -369,31 +412,40 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
                 event: 'pse_submit',
                 employeeId: employeeId,
                 initiatorEmployeeId: userInfo?.employeeDetails?.employeeId || '',
-                oldEmployeeSalary: {
-                  employee: employeeId,
-                  annualGrossSalary: currentSalaryAnnual,
-                  monthlyGrossSalary: currentSalaryMonthly,
-                  hourlyGrossSalary: currentSalaryHourly,
-                  currencyRef: currentCurrencyRef,
-                  startDate: null,
-                  endDate: null,
-                  stockOptions: false,
-                  notes: null,
-                  requestStatus: null,
-                  requestDate: null,
-                  decisionDate: null,
-                  requestedPercent: null,
-                  requestedAmount: null,
-                  salaryAdjustReason: null,
-                  decisionEmployee: null
-                },
+                oldEmployeeSalary: currentCompensation
+                  ? {
+                      // Include ALL fields from current salary record so backend can update it
+                      id: currentCompensation.id, // ✅ Critical: Backend needs this to update endDate
+                      employee: employeeId,
+                      annualGrossSalary: currentCompensation.annualGrossSalary,
+                      monthlyGrossSalary: currentCompensation.monthlyGrossSalary,
+                      hourlyGrossSalary: currentCompensation.hourlyGrossSalary,
+                      currencyRef: currentCompensation.currencyRef,
+                      activeFrom: currentCompensation.activeFrom,
+                      activeTo: currentCompensation.activeTo,
+                      startDate: currentCompensation.startDate,
+                      endDate: null, // Backend will compute this based on new salary startDate
+                      requestStatus: currentCompensation.requestStatus,
+                      requestDate: currentCompensation.requestDate,
+                      decisionDate: currentCompensation.decisionDate,
+                      requestedPercent: currentCompensation.requestedPercent,
+                      requestedAmount: currentCompensation.requestedAmount,
+                      stockOptions: currentCompensation.stockOptions ?? false,
+                      notes: currentCompensation.notes,
+                      salaryAdjustReasonRef: currentCompensation.salaryAdjustReasonRef,
+                      decisionEmployee: currentCompensation.decisionEmployeeId,
+                      createdAt: currentCompensation.createdAt,
+                      isDeleted: currentCompensation.isDeleted
+                    }
+                  : null, // If no current salary (assign mode), send null
+
                 employeeSalary: {
                   employee: employeeId,
                   annualGrossSalary: finalAnnualGrossSalary,
                   monthlyGrossSalary: finalMonthlyGrossSalary,
                   hourlyGrossSalary: newHourlySalary,
                   currencyRef: currentCurrencyRef,
-                  salaryAdjustReason: values.reason || '',
+                  salaryAdjustReasonRef: values.reason || null, // ✅ Fixed: Use salaryAdjustReasonRef (catalog reference)
                   startDate: formattedStartDate,
                   notes: values.notes || '',
                   stockOptions: false,
@@ -437,6 +489,18 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
                 locale={locale}
                 salaryAdjustReasonEntries={salaryAdjustReasonEntries}
               />
+            )}
+            {formMode === 'adjust' && hasSameMonthSalaryAdjustment && (
+              <Alert className="gba:mb-2" data-testid="same-month-adjustment-warning">
+                <WarningCircleIcon className="gba:h-4 gba:w-4" />
+                <span>
+                  {t('adjust-salary-duplicate-month-warning', {
+                    date: existingStartDateLabel,
+                    defaultValue:
+                      'A salary adjustment already exists for this month on {date}. Please choose another effective date.'
+                  })}
+                </span>
+              </Alert>
             )}
           </div>
         </AppActionForm>

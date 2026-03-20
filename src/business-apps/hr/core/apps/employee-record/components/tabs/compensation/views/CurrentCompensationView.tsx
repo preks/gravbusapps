@@ -1,14 +1,13 @@
 'use client'
 
 import React from 'react'
-import { Card, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, Button } from '@newwork/nw-design-system'
 import { CompensationData } from '../types/compensationTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
 import CompensationKPICards from '../components/current/CompensationKPICards'
-import { ScopePermissionCheckResult, useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
-import { useCompensationPermissions } from '../hooks/useCompensationPermissions'
+import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -19,8 +18,9 @@ interface CurrentCompensationViewProps extends BusinessAppContextProps {
   employeeId: string
   locale: string
   employeeRecordHrBackoffice: ScopePermissionCheckResult
-  isSelfView: boolean // Whether user is viewing their own profile
-  supervisorEmployeeId?: string | null // Employee's supervisor ID for manager check
+  // Computed permission props (passed from parent to avoid re-calculating)
+  canManageCompensation: boolean
+  permissionsLoading: boolean
 }
 
 /**
@@ -39,33 +39,9 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   additionalData,
   locale,
   employeeRecordHrBackoffice,
-  isSelfView,
-  supervisorEmployeeId
+  canManageCompensation,
+  permissionsLoading
 }) => {
-  // Compute permissions locally using hooks (avoids prop drilling)
-  const employeeRecordAllHrBackoffice = useScopePermissionCheck(
-    '/platform/employee-record',
-    'employee-record-all-hr-backoffice',
-    accessToken
-  )
-  const employeeGrowthPermission = useScopePermissionCheck('/platform/employee-record', 'employee-growth', accessToken)
-
-  // Determine if current user is the employee's manager
-  const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
-  const isManager = !!(supervisorEmployeeId && currentUserEmployeeId && supervisorEmployeeId === currentUserEmployeeId)
-
-  // Check if permissions are still loading
-  const permissionsLoading = employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading
-
-  // Use centralized permission hook for consistent permission logic
-  // Only compute permissions when loading is complete to avoid incorrect evaluation
-  const { canManageCompensation } = useCompensationPermissions({
-    isSelfView,
-    isManager,
-    hasEmployeeGrowthPermission: !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true,
-    hasEmployeeRecordAllHrBackoffice: employeeRecordAllHrBackoffice?.hasPermission === true
-  })
-
   // Both salary adjustment and bonus granting use the same permission logic
   // Hide actions during permission loading to avoid flickering UI
   const showSalaryAction = !permissionsLoading && canManageCompensation
@@ -86,23 +62,25 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   if (error) {
     return (
       <div className="gba:space-y-6" data-testid="current-compensation-view-error">
-        <Card className="gba:p-8">
-          <div className="gba:text-center gba:space-y-4">
-            <div className="gba:text-destructive gba:text-lg gba:font-semibold">{t('compensation-error-title')}</div>
-            <div className="gba:text-muted-foreground">{error}</div>
-            {onRetry && (
-              <div className="gba:mt-4">
-                <Button
-                  variant="default"
-                  size="default"
-                  onClick={onRetry}
-                  data-testid="current-compensation-retry-button"
-                >
-                  {t('compensation-error-retry')}
-                </Button>
-              </div>
-            )}
-          </div>
+        <Card>
+          <CardContent className="gba:p-8">
+            <div className="gba:text-center gba:space-y-4">
+              <div className="gba:text-destructive gba:text-lg gba:font-semibold">{t('compensation-error-title')}</div>
+              <div className="gba:text-muted-foreground">{error}</div>
+              {onRetry && (
+                <div className="gba:mt-4">
+                  <Button
+                    variant="default"
+                    size="default"
+                    onClick={onRetry}
+                    data-testid="current-compensation-retry-button"
+                  >
+                    {t('compensation-error-retry')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
         </Card>
       </div>
     )

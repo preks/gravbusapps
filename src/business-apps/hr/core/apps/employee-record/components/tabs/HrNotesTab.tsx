@@ -10,10 +10,12 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
 } from '@newwork/nw-design-system'
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { Avatar } from '@newwork/gravity-ui-catalog'
+import { PlusIcon, MagnifyingGlassIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react'
 import { useGetEmployeeNotes } from '../../queries/EmployeeNoteQueries'
 import type { EmployeeNoteData } from '../../queries/EmployeeNoteQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -22,6 +24,7 @@ import { useEmployeeNoteApi } from '../../hooks/useEmployeeNoteApi'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 const toAvatarSrc = (thumb?: string | null): string | undefined => {
   if (!thumb) return undefined
@@ -97,6 +100,12 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
     loadNotes()
   }, [loadNotes])
 
+  useProcessCompletion({
+    onSuccess: () => {
+      void loadNotes()
+    }
+  })
+
   const filteredNotes = React.useMemo(() => {
     if (!searchQuery.trim()) {
       return notes
@@ -132,19 +141,10 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
                 <div className="gba:flex gba:items-start gba:justify-between">
                   <div className="gba:flex gba:items-start gba:gap-3 gba:flex-1">
                     <div className="gba:shrink-0 gba:mt-1" data-testid="note-avatar-container">
-                      <Avatar
-                        src={toAvatarSrc(authorAvatar)}
-                        initials={authorInitials}
-                        alt={authorName}
-                        // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
-                        contentType={authorAvatar ? 'image' : 'initials'}
-                        // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
-                        size="lg"
-                        // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
-                        shape="circle"
-                        // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
-                        appearance="gradient"
-                      />
+                      <Avatar className="gba:h-10 gba:w-10">
+                        {toAvatarSrc(authorAvatar) && <AvatarImage src={toAvatarSrc(authorAvatar)} alt={authorName} />}
+                        <AvatarFallback>{authorInitials}</AvatarFallback>
+                      </Avatar>
                     </div>
                     <div className="gba:flex-1">
                       <div className="gba:mb-3">
@@ -177,7 +177,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
                       }}
                       data-testid={`hr-note-edit-${note.id}`}
                     >
-                      <EditOutlined style={{ fontSize: 18 }} />
+                      <PencilSimpleIcon className="gba:h-[18px] gba:w-[18px]" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -189,7 +189,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
                         setDeleteDialogOpen(true)
                       }}
                     >
-                      <DeleteOutlined style={{ fontSize: 18 }} />
+                      <TrashIcon className="gba:h-[18px] gba:w-[18px]" />
                     </Button>
                   </div>
                 </div>
@@ -220,35 +220,6 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
     )
   }, [filteredNotes, searchQuery, deletingNoteId, employeeId])
 
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      const response = event.detail?.response
-
-      if (response?.hrNote || response?.HrNote || response?.employeeNote || response?.EmployeeNote) {
-        loadNotes().catch(err => {
-          console.error('Error loading notes after process completion:', err)
-        })
-      }
-    }
-
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'processCompletion',
-      'taskCompletion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [loadNotes])
-
   return (
     <div data-testid="hr-notes-tab-container" className="gba:space-y-6">
       <div className="gba:flex gba:items-start gba:justify-between">
@@ -276,7 +247,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
             autoExecuteSingleAction={true}
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:text-foreground gba:hover:text-foreground/80 gba:font-normal gba:text-base">
-              <PlusOutlined className="gba:h-5 gba:w-5 gba:text-foreground" />
+              <PlusIcon className="gba:h-5 gba:w-5 gba:text-foreground" />
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.add_note', 'Add Note')}
             </div>
           </AppActionMenu>
@@ -285,10 +256,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
 
       <div className="gba:border gba:border-border gba:rounded-lg gba:p-3 gba:bg-card">
         <div className="gba:relative">
-          <SearchOutlined
-            className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:pointer-events-none gba:z-10"
-            style={{ fontSize: 20 }}
-          />
+          <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:pointer-events-none gba:z-10 gba:h-5 gba:w-5" />
           <Input
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.search_placeholder', 'Search notes...')}
             value={searchQuery}

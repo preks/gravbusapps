@@ -7,6 +7,8 @@ import { useEmployeeDetails } from '../hooks/useEmployeeDetails'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { FeedbackRequestClient } from '@/common/network/feedback-request/FeedbackRequestClient'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 
 interface FeedbackRequestFormContextType {
   formValues: FeedbackRequestFormValues
@@ -47,6 +49,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
   onCancel = async () => {},
   preSelectedEmployeeId
 }) => {
+  const { t } = useTranslation(translations)
   const [formValues, setFormValues] = useState<FeedbackRequestFormValues>({
     employeeId: undefined,
     employeeName: undefined,
@@ -203,7 +206,11 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
           requestedFrom: firstRequested,
           requestedFromList,
           creatorUserId: currentUserEmployeeId,
-          requestMessage: formValues.requestMessage
+          requestMessage: formValues.requestMessage,
+          completeNotification: {
+            type: 'success',
+            message: t('notification-feedback-request-sent-success')
+          }
         }
         dispatchProcessContinueEvent('pse_submit', payload)
       } else {
@@ -212,7 +219,11 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
           requestedFrom: requestedFromList[0],
           requestedFromList,
           creatorUserId: currentUserEmployeeId,
-          requestMessage: formValues.requestMessage
+          requestMessage: formValues.requestMessage,
+          completeNotification: {
+            type: 'success',
+            message: t('notification-feedback-request-sent-success')
+          }
         }
         dispatchProcessContinueEvent('pse_submit', payload)
       }
@@ -235,8 +246,8 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
         await onCancel()
       }
 
-      // Dispatch cancel event to close the modal
-      dispatchProcessContinueEvent('pse_cancel', {})
+      // Dispatch abort event to close the modal
+      dispatchProcessContinueEvent('pse_abort', {})
     } catch (err) {
       // Silent error handling for cancellation
       console.error('Error :', err)

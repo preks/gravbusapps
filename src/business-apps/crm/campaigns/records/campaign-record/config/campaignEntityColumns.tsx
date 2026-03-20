@@ -1,8 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
-import { Calendar, User, Building, Users as UsersIcon, Target } from 'lucide-react'
+import { CalendarIcon, UserIcon, BuildingIcon, UsersIcon, TargetIcon } from '@phosphor-icons/react'
 import type { CampaignEntity } from '../types/CampaignRecordTypes'
-import { formatDate } from '@/common/utils/windowUtils'
 
 // Helper to safely convert values to strings
 // Returns empty string for objects to avoid '[object Object]' stringification
@@ -25,16 +24,16 @@ const safeString = (value: unknown): string => {
 // Helper to get entity type config
 const getEntityTypeConfig = (type: string) => {
   const typeConfig = {
-    lead: { label: 'Lead', icon: User, color: 'var(--color-primary-500)' },
-    account: { label: 'Account', icon: Building, color: 'var(--color-primary-600)' },
+    lead: { label: 'Lead', icon: UserIcon, color: 'var(--color-primary-500)' },
+    account: { label: 'Account', icon: BuildingIcon, color: 'var(--color-primary-600)' },
     contact: { label: 'Contact', icon: UsersIcon, color: 'var(--color-primary-600)' },
-    opportunity: { label: 'Opportunity', icon: Target, color: 'var(--color-primary-500)' }
+    opportunity: { label: 'Opportunity', icon: TargetIcon, color: 'var(--color-primary-500)' }
   }
 
   return (
     typeConfig[type as keyof typeof typeConfig] || {
       label: type,
-      icon: User,
+      icon: UserIcon,
       color: 'var(--color-primary-500)'
     }
   )
@@ -102,12 +101,24 @@ export const createCampaignEntityColumns = (): ColumnDef<CampaignEntity>[] => [
     minSize: 120,
     maxSize: 180,
     enableResizing: false,
-    cell: ({ row }) => (
-      <div className="gba:flex gba:items-center gba:gap-2" data-testid={`entity-created-date-cell-${row.original.id}`}>
-        <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
-        <span className="gba:text-sm">{formatDate(row.original.creationDate)}</span>
-      </div>
-    )
+    cell: ({ row }) => {
+      const formattedDate = row.original.creationDate
+        ? new Date(row.original.creationDate).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
+        : '-'
+      return (
+        <div
+          className="gba:flex gba:items-center gba:gap-2"
+          data-testid={`entity-created-date-cell-${row.original.id}`}
+        >
+          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <span className="gba:text-sm">{formattedDate}</span>
+        </div>
+      )
+    }
   },
   {
     id: 'owner',
@@ -127,7 +138,7 @@ export const createCampaignEntityColumns = (): ColumnDef<CampaignEntity>[] => [
           : '-')
       return (
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`entity-owner-cell-${row.original.id}`}>
-          <User className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <UserIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
           <span className="gba:text-sm gba:truncate" title={ownerName}>
             {ownerName}
           </span>

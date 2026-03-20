@@ -8,6 +8,7 @@ import {
   LIQUID_FUND_INVESTMENT_REPORT,
   REAL_ESTATE_INVESTMENT_REPORT
 } from './fragments/investmentReportFragments'
+import { INVESTMENT_REPORT_DESCRIPTORS } from '@/common/data/investment/types/investmentReportTypes'
 
 /**
  * Escapes GraphQL string values to prevent injection attacks
@@ -162,6 +163,10 @@ export interface InvestmentReportQueryVariables {
   liquidFundInvestmentIds?: string[]
   realEstateInvestmentIds?: string[]
 
+  // Liquid Fund Type Filters (for filtering by liquidFundInvestmentReport.investmentLiquidFundType)
+  liquidFundTypeIds?: string[]
+  liquidFundTypeIdsExclude?: string[]
+
   // Pagination
   limit?: number
   offset?: number
@@ -171,6 +176,9 @@ export interface InvestmentReportQueryVariables {
     field: string
     direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
   }>
+
+  // Allow dynamic number range filters from descriptors
+  [key: string]: any
 }
 
 // Build where conditions for InvestmentReport queries
@@ -254,6 +262,43 @@ export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQ
       conditions.push(`currency: { id: { _in: [${safeCurrencyIds}] } }`)
     }
 
+    // Dynamic number range filters (using descriptors)
+    // Process any field with _gte/_lte that has a number descriptor
+    const numberDescriptors = INVESTMENT_REPORT_DESCRIPTORS.filter(d => d.type === 'number' && d.path)
+
+    numberDescriptors.forEach(descriptor => {
+      const value = variables[descriptor.key]
+      if (!value || typeof value !== 'object') return
+
+      // Check if this is a GraphQL range condition
+      if ('_gte' in value || '_lte' in value) {
+        const rangeParts: string[] = []
+        if (typeof value._gte === 'number') {
+          rangeParts.push(`_gte: ${value._gte}`)
+        }
+        if (typeof value._lte === 'number') {
+          rangeParts.push(`_lte: ${value._lte}`)
+        }
+
+        if (rangeParts.length > 0) {
+          // Parse nested path to build correct GraphQL structure
+          const path = descriptor.path!
+          const pathParts = path.split('.')
+
+          if (pathParts.length === 1) {
+            // Direct field: totalInvestmentAmount: { _gte: 10, _lte: 100 }
+            conditions.push(`${pathParts[0]}: { ${rangeParts.join(', ')} }`)
+          } else if (pathParts.length === 2) {
+            // Nested field: realEstateInvestmentReport: { size: { _gte: 10, _lte: 100 } }
+            conditions.push(`${pathParts[0]}: { ${pathParts[1]}: { ${rangeParts.join(', ')} } }`)
+          } else {
+            // Deeper nesting (if needed in the future)
+            console.warn(`Unsupported nested path depth for descriptor ${descriptor.key}: ${path}`)
+          }
+        }
+      }
+    })
+
     // Investment-level filters (through relationship)
     // Consolidate ALL investment-related filters into single investment clause to avoid duplicate keys
     // Add investment ID filter if provided (direct field, not nested)
@@ -301,6 +346,22 @@ export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQ
         .join(', ')
       conditions.push(
         `realEstateInvestmentReport: { realEstateInvestmentId: { _in: [${safeRealEstateInvestmentIds}] } }`
+      )
+    }
+
+    // Liquid Fund Type Filters - filter by liquidFundInvestmentReport.investmentLiquidFundType
+    if (variables.liquidFundTypeIds?.length) {
+      const safeLiquidFundTypeIds = variables.liquidFundTypeIds.map(id => `"${escapeGraphQLString(id)}"`).join(', ')
+      conditions.push(
+        `liquidFundInvestmentReport: { investmentLiquidFundType: { id: { _in: [${safeLiquidFundTypeIds}] } } }`
+      )
+    }
+    if (variables.liquidFundTypeIdsExclude?.length) {
+      const safeLiquidFundTypeIdsExclude = variables.liquidFundTypeIdsExclude
+        .map(id => `"${escapeGraphQLString(id)}"`)
+        .join(', ')
+      conditions.push(
+        `liquidFundInvestmentReport: { investmentLiquidFundType: { id: { _nin: [${safeLiquidFundTypeIdsExclude}] } } }`
       )
     }
 

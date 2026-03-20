@@ -72,7 +72,14 @@ const buildCatalogEntryWhereCondition = (variables: CatalogEntryQueryVariables):
 
   // Filter by a specific entry id
   if (variables.entryId) {
-    conditions.push(`{ id: { _eq: "${variables.entryId}" } }`)
+    if (Array.isArray(variables.entryId)) {
+      const entryIds = variables.entryId.filter(entryId => typeof entryId === 'string' && entryId.length > 0)
+      if (entryIds.length > 0) {
+        conditions.push(`{ id: { _in: [${entryIds.map(entryId => `"${entryId}"`).join(', ')}] } }`)
+      }
+    } else {
+      conditions.push(`{ id: { _eq: "${variables.entryId}" } }`)
+    }
   }
 
   // Filter by parent entry
@@ -102,11 +109,35 @@ const buildCatalogEntryWhereCondition = (variables: CatalogEntryQueryVariables):
     conditions.push(`{ type: { _eq: "${variables.typeEquals.trim()}" } }`)
   }
 
+  // Exclude codes filter (case-insensitive substring match)
+  if (variables.excludeCodes && variables.excludeCodes.length > 0) {
+    const excludePatterns = variables.excludeCodes.map((pattern: string) => `{ code: { _ilike: "%${pattern}%" } }`)
+    conditions.push(`{ _not: { _or: [${excludePatterns.join(', ')}] } }`)
+  }
+
+  // Include codes filter (case-insensitive substring match)
+  if (variables.includeCodes && variables.includeCodes.length > 0) {
+    const includePatterns = variables.includeCodes.map((pattern: string) => `{ code: { _ilike: "%${pattern}%" } }`)
+    conditions.push(`{ _or: [${includePatterns.join(', ')}] }`)
+  }
+
+  // Exclude types filter (case-insensitive substring match)
+  if (variables.excludeTypes && variables.excludeTypes.length > 0) {
+    const excludePatterns = variables.excludeTypes.map((pattern: string) => `{ type: { _ilike: "%${pattern}%" } }`)
+    conditions.push(`{ _not: { _or: [${excludePatterns.join(', ')}] } }`)
+  }
+
+  // Include types filter (case-insensitive substring match)
+  if (variables.includeTypes && variables.includeTypes.length > 0) {
+    const includePatterns = variables.includeTypes.map((pattern: string) => `{ type: { _ilike: "%${pattern}%" } }`)
+    conditions.push(`{ _or: [${includePatterns.join(', ')}] }`)
+  }
+
   return conditions.length > 1 ? `where: { _and: [${conditions.join(', ')}] }` : `where: ${conditions[0]}`
 }
 
 // Helper function to build order by clauses
-const buildOrderBy = (orderBy?: Array<{ field: string; direction: 'ASC' | 'DESC' }>): string => {
+const buildOrderBy = (orderBy?: Array<{ field: string; direction: string }>): string => {
   if (!orderBy || orderBy.length === 0) {
     return 'orderBy: [{ name: ASC }]' // Default sort for catalogs
   }
@@ -115,9 +146,9 @@ const buildOrderBy = (orderBy?: Array<{ field: string; direction: 'ASC' | 'DESC'
   return `orderBy: [${orderFields.join(', ')}]`
 }
 
-const buildEntryOrderBy = (orderBy?: Array<{ field: string; direction: 'ASC' | 'DESC' }>): string => {
+const buildEntryOrderBy = (orderBy?: Array<{ field: string; direction: string }>): string => {
   if (!orderBy || orderBy.length === 0) {
-    return 'orderBy: [{ displayOrder: ASC }, { value: ASC }]' // Default sort for entries
+    return 'orderBy: [{ displayOrder: ASC_NULLS_LAST }, { value: ASC }]' // Default sort for entries
   }
 
   const orderFields = orderBy.map(order => `{ ${order.field}: ${order.direction} }`)
@@ -162,7 +193,7 @@ export const GET_CATALOGS = (variables: CatalogQueryOptions = {}): string => {
     catalogEntries(
       limit: ${entriesLimit}
       offset: ${entriesOffset}
-      orderBy: [{ displayOrder: ASC }, { value: ASC }]
+      orderBy: [{ displayOrder: ASC_NULLS_LAST }, { value: ASC }]
     ) @include(if: $includeCatalogEntries) {
       ${CATALOG_ENTRY_REF}
       ${

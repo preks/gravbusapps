@@ -13,7 +13,6 @@ import {
   buildTaskByLeadIdQuery,
   buildTaskByAccountIdQuery,
   buildTaskByContactIdQuery,
-  buildTaskByOpportunityIdQuery,
   type CommonTaskQueryVariables,
   type TaskRelationBuilders,
   type TaskRelationFields
@@ -21,6 +20,8 @@ import {
 import { InvestmentTaskFields, INVESTMENT_TASK_DESCRIPTORS } from '../types/investmentTaskTypes'
 // TaskFields type is used implicitly through Record<keyof typeof TaskFields, string>
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
+import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
 import {
@@ -50,35 +51,203 @@ export interface InvestmentTaskQueryVariables extends CommonTaskQueryVariables {
 }
 
 /**
- * Build Investment Task query with fields mapping
+ * Build Task Assignee Fragment
+ * Fragment for querying task assignees (multiple assignees support)
+ * NOTE: Must be defined before constants that use it
  */
-export const buildInvestmentTaskQuery = (fields: typeof InvestmentTaskFields = InvestmentTaskFields): string => {
-  // Build relation builders and fields for references
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
+export const buildTaskAssigneeFragment = (): string => `
+  id
+  taskId
+  assignedEmployee {
+    ${EMPLOYEE_REF}
   }
+  assignedEmployeeId
+  assignedUserId
+  taskStatus
+  completedAt
+  ${AUDIT_FIELDS}
+`
 
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
+/**
+ * Shared constants for all Investment Task queries
+ * These are reused across all query builders to avoid duplication
+ */
+const INVESTMENT_TASK_RELATION_BUILDERS: Partial<TaskRelationBuilders> = {
+  buildDocumentFragment,
+  buildAccountFragment,
+  buildContactFragment,
+  buildLeadFragment,
+  buildOpportunityFragment
+}
 
-  const entityFields = `
+const INVESTMENT_TASK_RELATION_FIELDS: Partial<TaskRelationFields> = {
+  documentFields: InvestmentDocumentFields,
+  accountFields: InvestmentAccountFields,
+  contactFields: InvestmentContactFields,
+  leadFields: InvestmentLeadFields,
+  opportunityFields: InvestmentOpportunityFields
+}
+
+const INVESTMENT_TASK_ENTITY_FIELDS = `
     # Investment relation (only in IRM, not in CRM)
-    # Required for reference column mapping (investment.name)
     investment{
       ${INVESTMENT_REF}
     }
     investmentId
+  
+  # Task Assignees (multiple assignees support - NEW)
+  taskAssignees(where: { isDeleted: { _eq: false } }) {
+    ${buildTaskAssigneeFragment()}
+  }
+`
+
+/**
+ * Build IRM-Specific Task Fragment for Relations
+ * IMPORTANT: This overrides the common buildTaskFragment for IRM entities
+ * IRM uses taskAssignees (multiple assignees), not assignedEmployee
+ * Used when tasks are included as relations in other entities (opportunity, account, etc.)
+ */
+export const buildInvestmentTaskFragmentForRelations = (): string => {
+  return `
+  ${AUDIT_FIELDS}
+  # Task Assignees (multiple assignees - NEW for IRM)
+  taskAssignees(where: { isDeleted: { _eq: false } }) {
+    ${buildTaskAssigneeFragment()}
+  }
+  businessKey
+  code
+  creatorEmployee {
+    ${EMPLOYEE_REF}
+  }
+  creatorEmployeeId
+  creatorUserId
+  description
+  dueDate
+  endDate
+  id
+  name
+  source
+  startDate
+  taskPriority {
+    ${CATALOG_ENTRY}
+  }
+  taskPriorityRef
+  taskStatus {
+    ${CATALOG_ENTRY}
+  }
+  taskStatusRef
+  taskTiming
+  taskType {
+    ${CATALOG_ENTRY}
+  }
+  taskTypeRef
+  templateStartDate
+`
+}
+
+/**
+ * Build Investment Task query with fields mapping
+ * Custom implementation for InvestmentTask (does not use buildTaskQuery)
+ * NOTE: assignedEmployee fields removed - replaced by taskAssignees (multiple assignees)
+ */
+export const buildInvestmentTaskQuery = (): string => {
+  // Build optional relations (documents, account, contact, lead, opportunity)
+  const references = `
+    # Common entity relations
+    ${
+      INVESTMENT_TASK_RELATION_BUILDERS.buildDocumentFragment && INVESTMENT_TASK_RELATION_FIELDS.documentFields
+        ? `documents(where: { isDeleted: { _eq: false } }) {
+      ${INVESTMENT_TASK_RELATION_BUILDERS.buildDocumentFragment(INVESTMENT_TASK_RELATION_FIELDS.documentFields)}
+    }`
+        : ''
+    }
+    
+    ${
+      INVESTMENT_TASK_RELATION_BUILDERS.buildAccountFragment && INVESTMENT_TASK_RELATION_FIELDS.accountFields
+        ? `accountId
+      account {
+        ${INVESTMENT_TASK_RELATION_BUILDERS.buildAccountFragment(INVESTMENT_TASK_RELATION_FIELDS.accountFields)}
+      }`
+        : ''
+    }
+    ${
+      INVESTMENT_TASK_RELATION_BUILDERS.buildContactFragment && INVESTMENT_TASK_RELATION_FIELDS.contactFields
+        ? `contactId
+      contact {
+        ${INVESTMENT_TASK_RELATION_BUILDERS.buildContactFragment(INVESTMENT_TASK_RELATION_FIELDS.contactFields)}
+      }`
+        : ''
+    }
+    ${
+      INVESTMENT_TASK_RELATION_BUILDERS.buildLeadFragment && INVESTMENT_TASK_RELATION_FIELDS.leadFields
+        ? `leadId
+      lead {
+        ${INVESTMENT_TASK_RELATION_BUILDERS.buildLeadFragment(INVESTMENT_TASK_RELATION_FIELDS.leadFields)}
+      }`
+        : ''
+    }
+    ${
+      INVESTMENT_TASK_RELATION_BUILDERS.buildOpportunityFragment && INVESTMENT_TASK_RELATION_FIELDS.opportunityFields
+        ? `opportunityId
+      opportunity {
+        ${INVESTMENT_TASK_RELATION_BUILDERS.buildOpportunityFragment(INVESTMENT_TASK_RELATION_FIELDS.opportunityFields)}
+      }`
+        : ''
+    }
   `
-  return buildTaskQuery('InvestmentTask', fields, relationBuilders, relationFields, entityFields)
+
+  return `
+    query GetInvestmentTasks(
+      $limit: Int
+      $offset: Int
+      $where: InvestmentTaskBoolExp
+      $orderBy: [InvestmentTaskOrderBy!]
+    ) {
+      InvestmentTask(
+        limit: $limit
+        offset: $offset
+        orderBy: $orderBy
+        where: $where
+      ) {
+        ${AUDIT_FIELDS}
+        businessKey
+        code
+        creatorEmployee {
+          ${EMPLOYEE_REF}
+        }
+        creatorEmployeeId
+        creatorUserId
+        description
+        dueDate
+        endDate
+        id
+        name
+        source
+        startDate
+        taskPriority {
+          ${CATALOG_ENTRY}
+        }
+        taskPriorityRef
+        taskStatus {
+          ${CATALOG_ENTRY}
+        }
+        taskStatusRef
+        taskTiming
+        taskType {
+          ${CATALOG_ENTRY}
+        }
+        taskTypeRef
+        templateStartDate
+        
+        ${INVESTMENT_TASK_ENTITY_FIELDS}
+        
+        ${references}
+      }
+      InvestmentTaskAggregate(where: $where) {
+        aggregate { count }
+      }
+    }
+  `
 }
 
 /**
@@ -88,34 +257,14 @@ export const buildInvestmentTaskByIdQuery = (
   fields: typeof InvestmentTaskFields = InvestmentTaskFields,
   id: string
 ): string => {
-  // Build relation builders and fields for common relations
-  const relationBuilders: TaskRelationBuilders = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: TaskRelationFields = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  // Domain-specific entity fields (investment)
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    # Required for reference column mapping (investment.name)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-  `
-
-  return buildTaskByIdQuery('InvestmentTask', id, fields, relationBuilders, relationFields, entityFields)
+  return buildTaskByIdQuery(
+    'InvestmentTask',
+    id,
+    fields,
+    INVESTMENT_TASK_RELATION_BUILDERS as TaskRelationBuilders,
+    INVESTMENT_TASK_RELATION_FIELDS as TaskRelationFields,
+    INVESTMENT_TASK_ENTITY_FIELDS
+  )
 }
 
 /**
@@ -128,12 +277,27 @@ export const buildInvestmentTaskSearchQuery = (fields: typeof InvestmentTaskFiel
 /**
  * Build WHERE condition for Investment Task queries
  * Uses INVESTMENT_TASK_DESCRIPTORS which includes common descriptors + custom reference descriptor
+ * NOTE: Handles assignedEmployeeIds through taskAssignees relationship (multiple assignees support)
  */
 export const buildInvestmentTaskWhereCondition = (
   variables: InvestmentTaskQueryVariables = {},
   additionalDescriptors: Descriptor[] = [],
   customConditions: Record<string, any>[] = []
 ): Record<string, any> => {
+  // Handle assignedEmployeeIds through taskAssignees relationship (NEW: multiple assignees)
+  if (variables.assignedEmployeeIds && variables.assignedEmployeeIds.length > 0) {
+    customConditions.push({
+      taskAssignees: {
+        assignedEmployeeId: { _in: variables.assignedEmployeeIds },
+        isDeleted: { _eq: false }
+      }
+    })
+    // Remove assignedEmployeeIds from variables to prevent it from being processed by base builder
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { assignedEmployeeIds, ...restVariables } = variables
+    variables = restVariables as InvestmentTaskQueryVariables
+  }
+
   // INVESTMENT_TASK_DESCRIPTORS already includes common descriptors + custom reference descriptor
   const descriptors = [...INVESTMENT_TASK_DESCRIPTORS, ...additionalDescriptors]
   return buildTaskWhereCondition(variables, descriptors, customConditions)
@@ -160,31 +324,13 @@ export const buildInvestmentTaskOrderBy = (
  * Uses common buildTaskByLeadIdQuery with Investment-specific fields and relations
  */
 export const buildInvestmentTaskByLeadIdQuery = (): string => {
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-  `
-
-  return buildTaskByLeadIdQuery('InvestmentTask', InvestmentTaskFields, relationBuilders, relationFields, entityFields)
+  return buildTaskByLeadIdQuery(
+    'InvestmentTask',
+    InvestmentTaskFields,
+    INVESTMENT_TASK_RELATION_BUILDERS,
+    INVESTMENT_TASK_RELATION_FIELDS,
+    INVESTMENT_TASK_ENTITY_FIELDS
+  )
 }
 
 /**
@@ -192,36 +338,12 @@ export const buildInvestmentTaskByLeadIdQuery = (): string => {
  * Uses common buildTaskByAccountIdQuery with Investment-specific fields and relations
  */
 export const buildInvestmentTaskByAccountIdQuery = (): string => {
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-  `
-
   return buildTaskByAccountIdQuery(
     'InvestmentTask',
     InvestmentTaskFields,
-    relationBuilders,
-    relationFields,
-    entityFields
+    INVESTMENT_TASK_RELATION_BUILDERS,
+    INVESTMENT_TASK_RELATION_FIELDS,
+    INVESTMENT_TASK_ENTITY_FIELDS
   )
 }
 
@@ -230,75 +352,22 @@ export const buildInvestmentTaskByAccountIdQuery = (): string => {
  * Uses common buildTaskByContactIdQuery with Investment-specific fields and relations
  */
 export const buildInvestmentTaskByContactIdQuery = (): string => {
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-  `
-
   return buildTaskByContactIdQuery(
     'InvestmentTask',
     InvestmentTaskFields,
-    relationBuilders,
-    relationFields,
-    entityFields
+    INVESTMENT_TASK_RELATION_BUILDERS,
+    INVESTMENT_TASK_RELATION_FIELDS,
+    INVESTMENT_TASK_ENTITY_FIELDS
   )
 }
 
 /**
  * Build Investment Task query filtered by Opportunity ID
- * Uses common buildTaskByOpportunityIdQuery with Investment-specific fields and relations
+ * Note: This is identical to buildInvestmentTaskQuery - use WHERE clause to filter by opportunityId
  */
 export const buildInvestmentTaskByOpportunityIdQuery = (): string => {
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-  `
-
-  return buildTaskByOpportunityIdQuery(
-    'InvestmentTask',
-    InvestmentTaskFields,
-    relationBuilders,
-    relationFields,
-    entityFields
-  )
+  // Reuse the main query builder - filtering is done via WHERE clause
+  return buildInvestmentTaskQuery()
 }
 
 /**
@@ -306,30 +375,12 @@ export const buildInvestmentTaskByOpportunityIdQuery = (): string => {
  * IRM-specific query builder
  */
 export const buildInvestmentTaskByInvestmentIdQuery = (): string => {
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-  `
-
   // Use buildTaskQuery directly since there's no common builder for investment
-  return buildTaskQuery('InvestmentTask', InvestmentTaskFields, relationBuilders, relationFields, entityFields)
+  return buildTaskQuery(
+    'InvestmentTask',
+    InvestmentTaskFields,
+    INVESTMENT_TASK_RELATION_BUILDERS,
+    INVESTMENT_TASK_RELATION_FIELDS,
+    INVESTMENT_TASK_ENTITY_FIELDS
+  )
 }

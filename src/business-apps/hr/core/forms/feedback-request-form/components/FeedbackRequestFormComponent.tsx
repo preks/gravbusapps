@@ -1,28 +1,33 @@
-import React, { useState, useEffect } from 'react'
-import { Button, Alert, Spinner, Label } from '@newwork/nw-design-system'
-import { UserOutlined } from '@ant-design/icons'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { Button, Alert, Label, useTranslation } from '@newwork/nw-design-system'
+import { UserIcon } from '@phosphor-icons/react'
 import { useFeedbackRequestForm } from '../context/FeedbackRequestFormContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import MultiEmployeeSelectionModal from './MultiEmployeeSelectionModal'
+import { AppActionForm } from '@/components/app-action-form'
+import translations from '../../_i18n'
+import { FeedbackRequestClient } from '@/common/network/feedback-request/FeedbackRequestClient'
+import { FeedbackRequestPayload } from '../types'
 
 const prefixDataTestId = 'FeedbackRequestFormComponent'
 
 const FeedbackRequestFormComponent: React.FC = () => {
+  const { t } = useTranslation(translations)
   const {
     formValues,
     setFormValues,
     isLoading,
     error,
-    clearError,
-    onSubmit,
-    onCancel,
     employees,
     employeesLoading,
     employeesError,
     searchEmployees,
     hasPreSelectedEmployee,
-    isPreSelectedEmployeeCurrentUser
+    isPreSelectedEmployeeCurrentUser,
+    businessAppContext,
+    getEmployeeById,
+    preSelectedEmployee
   } = useFeedbackRequestForm()
 
   // Load initial employees if needed
@@ -55,23 +60,100 @@ const FeedbackRequestFormComponent: React.FC = () => {
 
   // request message is optional; UI currently does not expose a field
 
-  const handleSubmit = async () => {
-    clearError()
-    await onSubmit()
-  }
+  const isSubmitDisabled = useMemo(() => {
+    const hasSelection = (formValues.employeeIds && formValues.employeeIds.length > 0) || Boolean(formValues.employeeId)
+    return isLoading || !hasSelection
+  }, [isLoading, formValues.employeeIds, formValues.employeeId])
 
-  const handleCancel = async () => {
-    await onCancel()
-  }
+  const selectedEmployeesPreview = useMemo(() => {
+    const names = formValues.employeeNames || []
+    if (!names || names.length === 0) return ''
+    const shown = names.slice(0, 2).join(', ')
+    const extraCount = names.length > 2 ? ` +${names.length - 2}` : ''
+    return `${shown}${extraCount}`
+  }, [formValues.employeeNames])
+
+  // Build payload and run any side-effects before submit event is dispatched
+  const handlePreSubmit = useCallback(async () => {
+    let selectedIds: string[] = []
+    if (formValues.employeeIds && formValues.employeeIds.length > 0) {
+      selectedIds = formValues.employeeIds
+    } else if (formValues.employeeId) {
+      selectedIds = [formValues.employeeId]
+    }
+
+    const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
+
+    // Resolve employees to get userIds where available
+    const resolvedEmployees = selectedIds
+      .map(id => {
+        if (preSelectedEmployee?.id === id) return preSelectedEmployee
+        return getEmployeeById(id)
+      })
+      .filter(Boolean) as Array<{ id: string; userId?: string }>
+
+    const requestedFromList = resolvedEmployees.map(emp => emp.userId || emp.id)
+
+    if (requestedFromList.length > 1) {
+      const client = new FeedbackRequestClient()
+      client.setAccessToken(businessAppContext.accessToken)
+      const [firstRequested, ...remainingRequested] = requestedFromList
+      await client.bulkRequestFeedback({
+        requestedFromList: remainingRequested,
+        creatorUserId: currentUserEmployeeId as string,
+        requestMessage: formValues.requestMessage
+      })
+      const payload: FeedbackRequestPayload = {
+        requestedFrom: firstRequested,
+        requestedFromList,
+        creatorUserId: currentUserEmployeeId as string,
+        requestMessage: formValues.requestMessage,
+        completeNotification: {
+          type: 'success',
+          message: t('notification-feedback-request-sent-success')
+        }
+      }
+      return payload
+    }
+
+    const payload: FeedbackRequestPayload = {
+      requestedFrom: requestedFromList[0]!,
+      requestedFromList,
+      creatorUserId: currentUserEmployeeId as string,
+      requestMessage: formValues.requestMessage,
+      completeNotification: {
+        type: 'success',
+        message: t('notification-feedback-request-sent-success')
+      }
+    }
+
+    return payload
+  }, [
+    formValues.employeeIds,
+    formValues.employeeId,
+    formValues.requestMessage,
+    businessAppContext.accessToken,
+    businessAppContext.userInfo?.employeeDetails?.employeeId,
+    getEmployeeById,
+    preSelectedEmployee,
+    t
+  ])
 
   return (
-    <div
-      className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full"
+    <AppActionForm
+      processType="create"
+      onSubmit={data => data}
+      formData={{ employeeIds: formValues.employeeIds, employeeId: formValues.employeeId }}
+      handlePreSubmit={handlePreSubmit}
+      isSubmitDisabled={isSubmitDisabled}
+      submitEventType="pse_submit"
+      cancelEventType="pse_abort"
+      submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.send', 'Send Request')}
+      cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
       <div className="gba:bg-white gba:max-w-md gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
-        {/* Modal Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
+        <div className="gba:flex gba:items-center gba:justify-between gba:pb-4">
           <div className="gba:flex gba:items-center gba:gap-2">
             <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.title', 'Request Feedback')}
@@ -79,16 +161,13 @@ const FeedbackRequestFormComponent: React.FC = () => {
           </div>
         </div>
 
-        {/* Modal Content */}
-        <div className="gba:p-4 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-140px)]">
-          {/* Error Display */}
+        <div className="gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-140px)]">
           {error && (
             <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'Error')}>
               {error}
             </Alert>
           )}
 
-          {/* Employee Selection */}
           <div className="gba:space-y-2">
             {!hasPreSelectedEmployee && !isPreSelectedEmployeeCurrentUser ? (
               <>
@@ -101,15 +180,15 @@ const FeedbackRequestFormComponent: React.FC = () => {
                 </Label>
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div className="gba:text-sm gba:text-muted-foreground">
-                    {formValues.employeeNames && formValues.employeeNames.length > 0
-                      ? `${formValues.employeeNames.slice(0, 2).join(', ')}${formValues.employeeNames.length > 2 ? ` +${formValues.employeeNames.length - 2}` : ''}`
-                      : getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:feedback_request_form.selectPlaceholder',
-                          'Select employees'
-                        )}
+                    {selectedEmployeesPreview ||
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:feedback_request_form.selectPlaceholder',
+                        'Select employees'
+                      )}
                   </div>
                   <Button
                     variant="outline"
+                    type="button"
                     onClick={openMultiModal}
                     data-testid={formatDataTestId(prefixDataTestId, 'OpenMultiSelect')}
                   >
@@ -123,7 +202,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
             ) : (
               <div className="gba:p-3 gba:bg-muted gba:rounded-lg gba:border-border">
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <UserOutlined />
+                  <UserIcon size={16} />
                   <span className="gba:font-medium">{formValues.employeeName}</span>
                 </div>
               </div>
@@ -131,37 +210,6 @@ const FeedbackRequestFormComponent: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Buttons - Fixed at bottom */}
-        <div className="gba:p-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
-          <Button
-            variant="secondary"
-            onClick={handleCancel}
-            disabled={isLoading}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-            className="gba:px-6 gba:py-2 gba:rounded-lg"
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.cancel', 'Cancel')}
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={
-              isLoading || !((formValues.employeeIds && formValues.employeeIds.length > 0) || formValues.employeeId)
-            }
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
-            className="gba:bg-foreground hover:gba:bg-muted gba:text-primary-foreground gba:px-6 gba:py-2 gba:rounded-lg"
-          >
-            {isLoading ? (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Spinner size="sm" />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.sending', 'Sending...')}
-              </div>
-            ) : (
-              getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.send', 'Send Request')
-            )}
-          </Button>
-        </div>
-
-        {/* Multi-select modal */}
         {!hasPreSelectedEmployee && !isPreSelectedEmployeeCurrentUser && (
           <MultiEmployeeSelectionModal
             open={isMultiModalOpen}
@@ -182,7 +230,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
           />
         )}
       </div>
-    </div>
+    </AppActionForm>
   )
 }
 

@@ -61,6 +61,7 @@ export interface InvestmentOpportunity extends Opportunity {
   investmentStakeType?: CatalogEntry // IRM specific
   investmentStakeTypeRef?: string // IRM specific
   investmentType?: CatalogEntry // IRM specific
+  investmentTypeId?: string // Form-only leaf type ID used by investment prospect layouts
   investmentTypeRef?: string // IRM specific
   loanAmount?: number // IRM specific
   loanInterestRate?: number // IRM specific
@@ -85,43 +86,48 @@ export interface InvestmentOpportunityStageCondition extends OpportunityStageCon
 /**
  * Investment Opportunity Query Field Mapping
  * Extends OpportunityFields with IRM-specific GraphQL field names
+ * Note: account and accountId are excluded - IRM uses opportunityAccounts junction table instead
  */
-export const InvestmentOpportunityFields = {
-  ...OpportunityFields,
-  // Override IRM-specific field names
-  leads: 'investmentLead',
-  opportunityContacts: 'investmentOpportunityContact',
-  opportunityStageConditions: 'investmentOpportunityStageCondition',
-  investments: 'investment',
-  equityInvestmentRound: 'equityInvestmentRound',
-  // Junction table relationship - GraphQL field name is 'opportunityAccounts'
-  investmentOpportunityAccounts: 'opportunityAccounts',
-  // IRM-specific fields
-  annualNetColdRent: 'annualNetColdRent',
-  buildingYear: 'buildingYear',
-  dealType: 'dealType',
-  divestment: 'divestment',
-  divestmentId: 'divestmentId',
-  forecastedProfitAmount: 'forecastedProfitAmount',
-  initialInvestmentAmount: 'initialInvestmentAmount',
-  investmentGroup: 'investmentGroup',
-  investmentGroupRef: 'investmentGroupRef',
-  investmentName: 'investmentName',
-  investmentRole: 'investmentRole',
-  investmentRoleRef: 'investmentRoleRef',
-  investmentStakeType: 'investmentStakeType',
-  investmentStakeTypeRef: 'investmentStakeTypeRef',
-  investmentType: 'investmentType',
-  investmentTypeRef: 'investmentTypeRef',
-  loanAmount: 'loanAmount',
-  loanInterestRate: 'loanInterestRate',
-  marketValue: 'marketValue',
-  requiredCapitalAmount: 'requiredCapitalAmount',
-  size: 'size',
-  sizeMeasurementUnit: 'sizeMeasurementUnit',
-  sizeMeasurementUnitRef: 'sizeMeasurementUnitRef',
-  stakePercentage: 'stakePercentage'
-} as const
+export const InvestmentOpportunityFields = (() => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { account, accountId, ...fields } = OpportunityFields
+  return {
+    ...fields,
+    // Override IRM-specific field names
+    leads: 'investmentLead',
+    opportunityContacts: 'investmentOpportunityContact',
+    opportunityStageConditions: 'investmentOpportunityStageCondition',
+    investments: 'investment',
+    equityInvestmentRound: 'equityInvestmentRound',
+    // Junction table relationship - GraphQL field name is 'opportunityAccounts'
+    investmentOpportunityAccounts: 'opportunityAccounts',
+    // IRM-specific fields
+    annualNetColdRent: 'annualNetColdRent',
+    buildingYear: 'buildingYear',
+    dealType: 'dealType',
+    divestment: 'divestment',
+    divestmentId: 'divestmentId',
+    forecastedProfitAmount: 'forecastedProfitAmount',
+    initialInvestmentAmount: 'initialInvestmentAmount',
+    investmentGroup: 'investmentGroup',
+    investmentGroupRef: 'investmentGroupRef',
+    investmentName: 'investmentName',
+    investmentRole: 'investmentRole',
+    investmentRoleRef: 'investmentRoleRef',
+    investmentStakeType: 'investmentStakeType',
+    investmentStakeTypeRef: 'investmentStakeTypeRef',
+    investmentType: 'investmentType',
+    investmentTypeRef: 'investmentTypeRef',
+    loanAmount: 'loanAmount',
+    loanInterestRate: 'loanInterestRate',
+    marketValue: 'marketValue',
+    requiredCapitalAmount: 'requiredCapitalAmount',
+    size: 'size',
+    sizeMeasurementUnit: 'sizeMeasurementUnit',
+    sizeMeasurementUnitRef: 'sizeMeasurementUnitRef',
+    stakePercentage: 'stakePercentage'
+  } as const
+})()
 
 /**
  * Investment Opportunity Stage Condition Query Field Mapping
@@ -137,9 +143,40 @@ export const InvestmentOpportunityStageConditionFields = {
  * Adds IRM-specific fields that don't exist in Common/CRM
  */
 export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
-  ...createOpportunityDescriptors(InvestmentOpportunityFields as Record<keyof typeof OpportunityFields, string>).filter(
-    d => !['investmentOpportunityContacts', 'investmentOpportunityStageConditions'].includes(d.key)
-  ),
+  ...createOpportunityDescriptors(InvestmentOpportunityFields as any)
+    .filter(d => !['investmentOpportunityContacts', 'investmentOpportunityStageConditions'].includes(d.key))
+    .map(descriptor => {
+      // Clean up any undefined paths caused by missing account/accountId fields
+      if (descriptor.searchPaths) {
+        descriptor.searchPaths = descriptor.searchPaths.filter(
+          path => path && typeof path === 'string' && !path.includes('undefined')
+        )
+      }
+      if (descriptor.sortPaths) {
+        descriptor.sortPaths = descriptor.sortPaths.filter(
+          path => path && typeof path === 'string' && !path.includes('undefined')
+        )
+      }
+      if (
+        descriptor.sortPath &&
+        (typeof descriptor.sortPath !== 'string' || descriptor.sortPath.includes('undefined'))
+      ) {
+        descriptor.sortPath = undefined
+      }
+      if (descriptor.path && (typeof descriptor.path !== 'string' || descriptor.path.includes('undefined'))) {
+        descriptor.path = undefined
+      }
+      return descriptor
+    })
+    .filter(descriptor => {
+      // Remove descriptors that have no valid paths (like account/accountId which don't exist in IRM)
+      const hasValidSearchPaths = descriptor.searchPaths && descriptor.searchPaths.length > 0
+      const hasValidSortPath = descriptor.sortPath || (descriptor.sortPaths && descriptor.sortPaths.length > 0)
+      const hasValidPath = descriptor.path !== undefined
+
+      // Keep descriptors that have at least one valid capability
+      return hasValidSearchPaths || hasValidSortPath || hasValidPath || descriptor.kind !== undefined
+    }),
   // IRM-specific descriptors
   { key: 'annualNetColdRent', searchPaths: ['annualNetColdRent'], sortPath: 'annualNetColdRent', type: 'number' },
   { key: 'buildingYear', searchPaths: ['buildingYear'], sortPath: 'buildingYear', type: 'text' },
@@ -334,7 +371,6 @@ export const buildInvestmentOpportunityContacts = (contactIds: string[] = [], op
  * Handles IRM-prefixed field name mappings (fallback only):
  * - investment → investments
  * - investmentActivity → activities
- * - investmentAddress → addresses
  * - investmentCommunicationChannel → communicationChannels
  * - investmentDocument → documents
  * - investmentLead → leads

@@ -1,38 +1,47 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
+import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
+import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Alert } from 'antd'
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-  Card,
-  CardContent,
-  Spinner,
-  Button,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '@newwork/nw-design-system'
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import { useTranslation, Button, Badge } from '@newwork/nw-design-system'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
-import { Badge } from '@newwork/nw-design-system'
 import ExpenseRequestDetails from './ExpenseRequestDetails'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { startProcess } from '@/common/utils/start-process'
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService'
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
+import translations from '../../../_i18n'
+import {
+  formatDateRangeForChip,
+  applyDateRangeFromFilter,
+  resolveSelectedCurrencyCode,
+  applyCurrencyChange,
+  buildEmptyMessage
+} from '../../../utils/tableUtils'
+import {
+  CurrencyDropdown,
+  PrintPreviewDialog,
+  DetailsSheet,
+  RowActionsWrapper,
+  RowActionsIcon
+} from '../../shared/TableSharedComponents'
+
+type ExpenseRequestRow = {
+  id: string
+  code?: string
+  title?: string
+  requestDate?: string
+  startDate?: string
+  endDate?: string
+  status?: string
+  reimbursableAmount?: number
+  currency?: { code?: string }
+  expensePlan?: { advancePaymentAggregate?: { aggregate?: { sum?: { amount?: number } } } }
+  employeeDocument?: { file?: string }
+}
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[]
@@ -54,11 +63,85 @@ export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   tableRefreshTrigger?: number
   addFilter?: (filterId: string) => void
   removeFilter?: (filterId: string) => void
+  requestDateRange?: [Date | null, Date | null] | null
+  setRequestDateRange?: (range: [Date | null, Date | null] | null) => void
+  startDateRange?: [Date | null, Date | null] | null
+  setStartDateRange?: (range: [Date | null, Date | null] | null) => void
+  endDateRange?: [Date | null, Date | null] | null
+  setEndDateRange?: (range: [Date | null, Date | null] | null) => void
+  effectiveDateRange?: [Date | null, Date | null] | null
+  setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void
+  currencyStats?: Array<{ ref: string; code: string; count: number }>
 }
 
 const DEFAULT_PAGE_SIZE = 20
+const DATA_TEST_ID_PREFIX = 'expense-requests'
+
+function ExpenseRequestCodeCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+  return <div className="gba:font-medium gba:text-sm gba:truncate">{record.code || 'N/A'}</div>
+}
+function ExpenseRequestTitleCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+  return <div className="gba:font-medium gba:text-sm gba:truncate">{record.title}</div>
+}
+function ExpenseRequestDateCell({ dateValue }: Readonly<{ dateValue: string | undefined }>) {
+  return <div className="gba:text-sm">{dateValue ? formatDate(dateValue, 'date.short') || '-' : '-'}</div>
+}
+function ExpenseRequestReimbursableCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+  return (
+    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate">
+      {record.reimbursableAmount && record.reimbursableAmount !== 0 ? (
+        formatCurrencyDisplay(record.reimbursableAmount, record.currency?.code)
+      ) : (
+        <span className="gba:text-muted-foreground">-</span>
+      )}
+    </div>
+  )
+}
+function ExpenseRequestAdvanceCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+  const v = record.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount
+  return (
+    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate">
+      {v && v !== 0 ? (
+        formatCurrencyDisplay(v, record.currency?.code)
+      ) : (
+        <span className="gba:text-muted-foreground">-</span>
+      )}
+    </div>
+  )
+}
+
+function renderReqCodeCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestCodeCell record={info.row.original} />
+}
+function renderReqTitleCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestTitleCell record={info.row.original} />
+}
+function renderReqRequestDateCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestDateCell dateValue={info.row.original.requestDate} />
+}
+function renderReqStartDateCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestDateCell dateValue={info.row.original.startDate} />
+}
+function renderReqEndDateCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestDateCell dateValue={info.row.original.endDate} />
+}
+function renderReqReimbursableCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestReimbursableCell record={info.row.original} />
+}
+function renderReqAdvanceCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestAdvanceCell record={info.row.original} />
+}
+function ExpenseRequestStatusCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+  const statusConfig = getExpenseRequestStatusDisplay(record.status || '')
+  return <Badge variant={(statusConfig as any).badgeVariant || 'outline'}>{statusConfig.label}</Badge>
+}
+function renderReqStatusCell(info: CellContext<ExpenseRequestRow, unknown>) {
+  return <ExpenseRequestStatusCell record={info.row.original} />
+}
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(props => {
+  const { t: tPersonal } = useTranslation(translations)
+
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
     () => ({
@@ -80,10 +163,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     search = '',
     onSearchChange,
     selectedFilters = [],
-    setFilters,
-    filterGroups = [],
-    // handleFilterChange not used locally; provided to DataContainer via wrapper
-    // clearFilters not used locally
     filterLabelMap = {},
     onAddExpenseRequest,
     tableRefreshTrigger
@@ -101,7 +180,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   // Preserve page index across search clear
   const savedPageBeforeSearchRef = useRef<number | null>(null)
   const prevDebouncedSearchRef = useRef<string>('')
-
   // Selected item for details panel
   const [selectedItem, setSelectedItem] = useState<(typeof items)[0] | null>(null)
 
@@ -120,6 +198,332 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     const trimmedSearch = (search || '').trim()
     return trimmedSearch !== '' || selectedFilters.length > 0
   }, [search, selectedFilters])
+
+  const requestDateRange = props.requestDateRange ?? null
+  const startDateRange = props.startDateRange ?? null
+  const endDateRange = props.endDateRange ?? null
+  const effectiveDateRange = props.effectiveDateRange ?? null
+  const currencyStats = props.currencyStats ?? []
+
+  // FilterConfiguration for DataDisplay filter sheet (same pattern as plans/advance payments)
+  const expenseRequestsFilterConfig: FilterConfiguration = useMemo(() => {
+    const statusOptions = Object.values(ExpenseRequestStatus).map(s => ({
+      id: s,
+      label: filterLabelMap[s] || s
+    }))
+    const requestTypeOptions = [
+      {
+        id: 'ExpenseRequestType:v1:EXPENSES',
+        label:
+          filterLabelMap['ExpenseRequestType:v1:EXPENSES'] ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+      },
+      {
+        id: 'ExpenseRequestType:v1:TRIP',
+        label:
+          filterLabelMap['ExpenseRequestType:v1:TRIP'] ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+      }
+    ]
+    const groups: FilterConfiguration['groups'] = [
+      {
+        id: 'effectiveDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'effectiveDateRange',
+            field: 'effectiveDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'requestDate-group',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:confirm_transfer_advance_payment.request_date_label',
+          'Request Date'
+        ),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'requestDateRange',
+            field: 'requestDateRange',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:confirm_transfer_advance_payment.request_date_label',
+              'Request Date'
+            ),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'startDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'startDateRange',
+            field: 'startDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'endDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'endDateRange',
+            field: 'endDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'status-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        collapsible: true,
+        defaultExpanded: true,
+        filters: [
+          {
+            id: 'statusIds',
+            field: 'statusIds',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_plan_table.status',
+              'Status'
+            ),
+            type: 'multi-select',
+            config: { options: statusOptions }
+          }
+        ]
+      },
+      {
+        id: 'requestType-group',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
+          'Request Type'
+        ),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'requestTypeIds',
+            field: 'requestTypeIds',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
+              'Request Type'
+            ),
+            type: 'multi-select',
+            config: { options: requestTypeOptions }
+          }
+        ]
+      }
+    ]
+    return { id: 'expense-requests-filters', name: 'Expense Requests Filters', groups }
+  }, [filterLabelMap])
+
+  const filtersObject = useMemo((): Record<string, unknown> => {
+    const statusIds = (selectedFilters || []).filter(f => Object.values(ExpenseRequestStatus).includes(f as any))
+    const requestTypeIds = (selectedFilters || []).filter(f =>
+      ['ExpenseRequestType:v1:EXPENSES', 'ExpenseRequestType:v1:TRIP'].includes(f)
+    )
+    const obj: Record<string, unknown> = {}
+    if (statusIds.length > 0) obj.statusIds = statusIds
+    if (requestTypeIds.length > 0) obj.requestTypeIds = requestTypeIds
+    const requestDateStr = formatDateRangeForChip(requestDateRange)
+    if (requestDateStr) obj.requestDateRange = requestDateStr
+    const effectiveDateStr = formatDateRangeForChip(effectiveDateRange)
+    if (effectiveDateStr) obj.effectiveDateRange = effectiveDateStr
+    const startDateStr = formatDateRangeForChip(startDateRange)
+    if (startDateStr) obj.startDateRange = startDateStr
+    const endDateStr = formatDateRangeForChip(endDateRange)
+    if (endDateStr) obj.endDateRange = endDateStr
+    return obj
+  }, [selectedFilters, requestDateRange, effectiveDateRange, startDateRange, endDateRange])
+
+  const handleFilterChangeFromDisplay = useCallback(
+    (filters: Record<string, unknown>) => {
+      const statusIds = (filters.statusIds as string[] | undefined) || []
+      const requestTypeIds = (filters.requestTypeIds as string[] | undefined) || []
+      const currencyTokens = (selectedFilters || []).filter(f => f.startsWith('currency:'))
+      const dateRangeTokens: string[] = []
+      if (applyDateRangeFromFilter(filters.requestDateRange, props.setRequestDateRange))
+        dateRangeTokens.push('requestDateRange')
+      if (applyDateRangeFromFilter(filters.effectiveDateRange, props.setEffectiveDateRange))
+        dateRangeTokens.push('effectiveDateRange')
+      if (applyDateRangeFromFilter(filters.startDateRange, props.setStartDateRange))
+        dateRangeTokens.push('startDateRange')
+      if (applyDateRangeFromFilter(filters.endDateRange, props.setEndDateRange)) dateRangeTokens.push('endDateRange')
+      // _effectiveDateInfo is a display-only boolean used to show the effective date description; ignore it
+      if (props.setFilters) {
+        props.setFilters([...statusIds, ...requestTypeIds, ...currencyTokens, ...dateRangeTokens])
+      }
+      if (onTableChange) onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
+    },
+    [
+      selectedFilters,
+      props.setFilters,
+      props.setRequestDateRange,
+      props.setEffectiveDateRange,
+      props.setStartDateRange,
+      props.setEndDateRange,
+      onTableChange,
+      pageSize,
+      sortField,
+      sortOrder
+    ]
+  )
+
+  const sortableColumns = useMemo(
+    () => [
+      {
+        id: 'code',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+          'Request Number'
+        )
+      },
+      {
+        id: 'title',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')
+      },
+      {
+        id: 'requestDate',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:confirm_transfer_advance_payment.request_date_label',
+          'Request Date'
+        )
+      },
+      {
+        id: 'startDate',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_plan_list.expense_plan_table.start_date',
+          'Start Date'
+        )
+      },
+      {
+        id: 'endDate',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
+      },
+      {
+        id: 'status',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+      },
+      {
+        id: 'reimbursableAmount',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
+      }
+    ],
+    []
+  )
+
+  const baseVisibleColumnIds = useMemo(
+    () => ['code', 'title', 'requestDate', 'startDate', 'endDate', 'status', 'reimbursableAmount', 'advance'],
+    []
+  )
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...baseVisibleColumnIds])
+
+  const availableColumnsForDisplay = useMemo(
+    () => [
+      {
+        id: 'code',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+          'Request Number'
+        )
+      },
+      {
+        id: 'title',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')
+      },
+      {
+        id: 'requestDate',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:confirm_transfer_advance_payment.request_date_label',
+          'Request Date'
+        )
+      },
+      {
+        id: 'startDate',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_plan_list.expense_plan_table.start_date',
+          'Start Date'
+        )
+      },
+      {
+        id: 'endDate',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
+      },
+      {
+        id: 'status',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+      },
+      {
+        id: 'reimbursableAmount',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
+      },
+      {
+        id: 'advance',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:manager_expense_request_list.expense_table.advance',
+          'Advance'
+        )
+      }
+    ],
+    []
+  )
+
+  const selectedCurrencyCode = useMemo(
+    () => resolveSelectedCurrencyCode(selectedFilters || [], currencyStats),
+    [selectedFilters, currencyStats]
+  )
+
+  const handleCurrencyChange = useCallback(
+    (code: string) => {
+      if (props.setFilters) {
+        applyCurrencyChange(code, selectedFilters || [], currencyStats, props.setFilters)
+      }
+      if (onTableChange) onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
+    },
+    [selectedFilters, currencyStats, props.setFilters, onTableChange, pageSize, sortField, sortOrder]
+  )
 
   useEffect(() => {
     if (!isLoading && totalCount > 0 && currentPage > 1 && onTableChange) {
@@ -140,33 +544,25 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     const prev = (prevDebouncedSearchRef.current || '').trim()
     const next = (debouncedSearchTerm || '').trim()
 
+    // Propagate search change to parent first so filters are up-to-date before any refetch
+    if (onSearchChange && debouncedSearchTerm !== search) {
+      onSearchChange(debouncedSearchTerm)
+    }
+
     // Manage pagination transitions for search
     if (prev === '' && next !== '') {
-      // Starting a new search → save current page and jump to page 1
+      savedPageBeforeSearchRef.current = currentPage
       if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
-      savedPageBeforeSearchRef.current = currentPage
     } else if (prev !== '' && next === '') {
-      // Clearing search → restore saved page if available
-      if (onTableChange) {
-        onTableChange(
-          { current: savedPageBeforeSearchRef.current || 1, pageSize },
-          {},
-          { field: sortField, order: sortOrder }
-        )
-      }
       savedPageBeforeSearchRef.current = null
     } else if (prev !== next && next !== '') {
-      // Search term changed while already in search mode → reset to first page
       if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
     }
 
-    if (onSearchChange && debouncedSearchTerm !== search) {
-      onSearchChange(debouncedSearchTerm)
-    }
     prevDebouncedSearchRef.current = debouncedSearchTerm
   }, [debouncedSearchTerm, onSearchChange, search, onTableChange, currentPage, pageSize, sortField, sortOrder])
 
@@ -185,87 +581,132 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     setSearchInput(value)
   }, [])
 
-  // Handle filter changes
-  const handleFilterChangeCallback = useCallback(
-    (filterId: string, selected: boolean) => {
-      // Delegate to parent handler (align with ExpensePlansTable pattern)
-      if (props.handleFilterChange) {
-        props.handleFilterChange(filterId, selected)
-        return
-      }
-      // Fallback: simple add/remove
-      if (selected) {
-        props.addFilter?.(filterId)
-      } else {
-        props.removeFilter?.(filterId)
-      }
-    },
-    [props.handleFilterChange, props.addFilter, props.removeFilter]
-  )
-
-  // Enhanced server-side sorting handler
-  const handleSort = useCallback(
-    (field: string) => {
-      if (sortField === field) {
-        // Cycle through: ascend -> descend -> clear
-        if (sortOrder === 'ascend') {
-          setSortOrder('descend')
-        } else if (sortOrder === 'descend') {
-          setSortField('')
-          setSortOrder(undefined)
-        } else {
-          setSortOrder('ascend')
-        }
-      } else {
-        setSortField(field)
-        setSortOrder('ascend')
-      }
-      // Reset to first page when sorting changes
-      if (onTableChange) {
-        onTableChange({ current: 1, pageSize }, {}, { field, order: sortOrder === 'ascend' ? 'descend' : 'ascend' })
-      }
-    },
-    [sortField, sortOrder, onTableChange, pageSize]
-  )
-
-  // Helper function to render sort icon
-  const renderSortIcon = useCallback(
-    (field: string) => {
-      if (sortField !== field) return null
-      if (sortOrder === 'ascend') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-      if (sortOrder === 'descend') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
-      return null
-    },
+  const sorting = useMemo(
+    () => (sortOrder ? [{ id: sortField || 'requestDate', desc: sortOrder === 'descend' }] : []),
     [sortField, sortOrder]
   )
-
-  // Enhanced table change handler for pagination
-  const handleEnhancedTableChange = useCallback(
-    (pagination: any, _filters: any, sorter: any) => {
-      if (onTableChange) {
-        // Update sorting state if sorter is provided
-        if (sorter && sorter.field) {
-          setSortField(sorter.field)
-          setSortOrder(sorter.order)
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      if (!onTableChange) return
+      const entry = newSorting[0]
+      let nextField: string
+      let nextOrder: 'ascend' | 'descend' | undefined
+      if (!entry) {
+        nextField = sortField || 'requestDate'
+        nextOrder = undefined
+      } else {
+        const isSameColumn = entry.id === sortField
+        const incomingOrder = entry.desc ? 'descend' : 'ascend'
+        if (isSameColumn && sortOrder === 'descend' && incomingOrder === 'ascend') {
+          nextField = entry.id
+          nextOrder = undefined
+        } else {
+          nextField = entry.id
+          nextOrder = incomingOrder
         }
-        onTableChange(pagination, _filters, sorter)
       }
+      setSortField(nextField)
+      setSortOrder(nextOrder)
+      onTableChange({ current: 1, pageSize }, {}, { field: nextField, order: nextOrder })
     },
-    [onTableChange]
+    [onTableChange, pageSize, sortField, sortOrder]
   )
-
-  // Memoize pagination configuration
-  // Pagination config is constructed inline in JSX via handlers
-
-  const getStatusDisplay = useCallback(
-    (status: string) => {
-      const statusConfig = getExpenseRequestStatusDisplay(status)
-      return { label: statusConfig.label, badgeVariant: (statusConfig as any).badgeVariant }
+  const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
+  const handlePaginationChange = useCallback(
+    (newPagination: { pageIndex: number; pageSize: number }) => {
+      if (!onTableChange) return
+      onTableChange(
+        { current: newPagination.pageIndex + 1, pageSize: newPagination.pageSize },
+        {},
+        { field: sortField, order: sortOrder }
+      )
     },
-    [filterLabelMap]
+    [onTableChange, sortField, sortOrder]
   )
-
-  // Row selection handling not used in this table
+  const emptyMessage = buildEmptyMessage(
+    hasActiveFilters,
+    'lowcoder:personal_expenses.no_expense_request_data',
+    'No expense requests found. Create your first expense request to get started.'
+  )
+  const columns = useMemo<ColumnDef<ExpenseRequestRow>[]>(
+    () => [
+      {
+        id: 'code',
+        accessorKey: 'code',
+        header: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+          'Request Number'
+        ),
+        size: 120,
+        cell: renderReqCodeCell
+      },
+      {
+        id: 'title',
+        accessorKey: 'title',
+        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title'),
+        size: 200,
+        cell: renderReqTitleCell
+      },
+      {
+        id: 'requestDate',
+        accessorKey: 'requestDate',
+        header: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:confirm_transfer_advance_payment.request_date_label',
+          'Request Date'
+        ),
+        size: 110,
+        cell: renderReqRequestDateCell
+      },
+      {
+        id: 'startDate',
+        accessorKey: 'startDate',
+        header: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_plan_list.expense_plan_table.start_date',
+          'Start Date'
+        ),
+        size: 110,
+        cell: renderReqStartDateCell
+      },
+      {
+        id: 'endDate',
+        accessorKey: 'endDate',
+        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date'),
+        size: 110,
+        cell: renderReqEndDateCell
+      },
+      {
+        id: 'status',
+        accessorKey: 'status',
+        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        size: 100,
+        cell: renderReqStatusCell
+      },
+      {
+        id: 'reimbursableAmount',
+        accessorKey: 'reimbursableAmount',
+        header: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:approve_expense_request.reimbursable',
+          'Reimbursable Amount'
+        ),
+        size: 140,
+        meta: { align: 'right' as const },
+        cell: renderReqReimbursableCell
+      },
+      {
+        id: 'advance',
+        accessorFn: (row: ExpenseRequestRow) => row.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount,
+        header: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:manager_expense_request_list.expense_table.advance',
+          'Advance'
+        ),
+        size: 120,
+        enableSorting: false,
+        meta: { align: 'right' as const },
+        cell: renderReqAdvanceCell
+      }
+    ],
+    []
+  )
 
   // Handle item selection
   const handleSelectItem = useCallback((item: (typeof items)[0]) => {
@@ -307,8 +748,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         } else if (!result.success) {
           console.error('Error printing request:', result.error)
         }
-      } catch {
-        console.error('Error fetching print PDF:', error)
+      } catch (error) {
+        console.error('Error fetching print PDF:', error instanceof Error ? error.message : 'Unknown error')
       } finally {
         if (isMounted.current) {
           setPrintLoading(false)
@@ -323,466 +764,184 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     setSelectedItem(null)
   }, [])
 
-  // Render the data body with memoization
-  const renderDataBody = useCallback(() => {
-    // Show error message if there's an error
-    if (error) {
-      const errorMessage =
-        typeof error === 'string' ? error : (error as Error)?.message || 'Failed to load expense requests.'
-      return <Alert message="Error" description={errorMessage} type="error" showIcon />
-    }
-
-    return (
-      <div className="expense-requests-table">
-        <Card data-testid="expense-requests-table-container">
-          <CardContent className="gba:p-0">
-            <div className="gba:overflow-x-auto">
-              <Table data-testid="expense-requests-data-table">
-                <TableHeader>
-                  <TableRow className="gba:border-b gba:bg-gray-50">
-                    <TableHead className="gba:w-[50px] gba:min-w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3" />
-                    <TableHead
-                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
-                      onClick={() => handleSort('code')}
-                      data-testid="expense-requests-code-header"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-                          'Request Number'
-                        )}
-                        {renderSortIcon('code')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
-                      onClick={() => handleSort('title')}
-                      data-testid="expense-requests-title-header"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')}
-                        {renderSortIcon('title')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
-                      onClick={() => handleSort('requestDate')}
-                      data-testid="expense-requests-request-date-header"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:confirm_transfer_advance_payment.request_date_label',
-                          'Request Date'
-                        )}
-                        {renderSortIcon('requestDate')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
-                      onClick={() => handleSort('startDate')}
-                      data-testid="expense-requests-start-date-header"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:expense_plan_list.expense_plan_table.start_date',
-                          'Start Date'
-                        )}
-                        {renderSortIcon('startDate')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
-                      onClick={() => handleSort('endDate')}
-                      data-testid="expense-requests-end-date-header"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:expense_plan_list.expense_plan_table.end_date',
-                          'End Date'
-                        )}
-                        {renderSortIcon('endDate')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
-                      onClick={() => handleSort('status')}
-                      data-testid="expense-requests-status-header"
-                    >
-                      <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:expense_plan_list.expense_plan_table.status',
-                          'Status'
-                        )}
-                        {renderSortIcon('status')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100 gba:text-right"
-                      onClick={() => handleSort('reimbursableAmount')}
-                      data-testid="expense-requests-reimbursable-amount-header"
-                    >
-                      <div className="gba:flex gba:items-center gba:justify-end">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:approve_expense_request.reimbursable',
-                          'Reimbursable Amount'
-                        )}
-                        {renderSortIcon('reimbursableAmount')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right"
-                      data-testid="expense-requests-advance-header"
-                    >
-                      <div className="gba:flex gba:items-center gba:justify-end">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:manager_expense_request_list.expense_table.advance',
-                          'Advance'
-                        )}
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {!isLoading && totalCount === 0 && (!items || items.length === 0) ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="gba:py-8 gba:text-center">
-                        <div className="gba:text-gray-500">
-                          {hasActiveFilters
-                            ? getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-                                'No data available'
-                              )
-                            : getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:personal_expenses.no_expense_request_data',
-                                'No expense requests found. Create your first expense request to get started.'
-                              )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    items?.map((record: any) => (
-                      <TableRow
-                        key={record.id}
-                        className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedItem?.id === record.id ? 'gba:bg-blue-50' : ''}`}
-                        onClick={() => handleSelectItem(record)}
-                        data-testid={`expense-request-row-${record.id}`}
-                      >
-                        <TableCell className="gba:py-4 gba:px-3">
-                          <div className="gba:flex gba:justify-start gba:gap-2" onClick={e => e.stopPropagation()}>
-                            <AppActionButton
-                              data-testid={`expense-request-update-button-${record.id}`}
-                              size="icon"
-                              staticFlowData={[
-                                ...(record.status === 'CREATED' || record.status === 'REJECTED'
-                                  ? [
-                                      {
-                                        category: getTranslationFromI18nKeyAndLabel(
-                                          'lowcoder:employee_list.flows_button.actions',
-                                          'Actions'
-                                        ),
-                                        key: 'edit-expense-request',
-                                        label: getTranslationFromI18nKeyAndLabel(
-                                          'lowcoder:expense_request_list.modal_list_or_flow_button.update_request_btn',
-                                          'Update Request'
-                                        ),
-                                        onClick: (e?: React.MouseEvent) => {
-                                          e?.stopPropagation()
-                                          handleEditExpenseRequest(record)
-                                        }
-                                      }
-                                    ]
-                                  : []),
-                                ...((record.status === 'APPROVED' ||
-                                  record.status === 'VERIFIED' ||
-                                  record.status === 'BOOKED' ||
-                                  record.status === 'TRANSFERRED' ||
-                                  record.status === 'PAID') &&
-                                record.employeeDocument &&
-                                record.employeeDocument?.file &&
-                                record.employeeDocument.file.trim() !== ''
-                                  ? [
-                                      {
-                                        category: getTranslationFromI18nKeyAndLabel(
-                                          'lowcoder:employee_list.flows_button.actions',
-                                          'Actions'
-                                        ),
-                                        key: 'print',
-                                        label: getTranslationFromI18nKeyAndLabel(
-                                          'lowcoder:expense_plan_list.expense_plan_flows.print',
-                                          'Print'
-                                        ),
-                                        onClick: (e?: React.MouseEvent) => {
-                                          e?.stopPropagation()
-                                          handlePrintRequest(record)
-                                        }
-                                      }
-                                    ]
-                                  : []),
-                                {
-                                  category: getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:employee_list.flows_button.navigations',
-                                    'Navigations'
-                                  ),
-                                  key: 'view-expense-request',
-                                  label: getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                                    'View Request Details'
-                                  ),
-                                  onClick: (e?: React.MouseEvent) => {
-                                    e?.stopPropagation()
-                                    handleViewExpenseRequestDetails(record)
-                                  }
-                                }
-                              ]}
-                              accessToken={contextProps.accessToken}
-                              emptyStateBehavior="enable"
-                              deferMainContextRequestsUntilClick={true}
-                              onClick={e => e.stopPropagation()}
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6">{record.code || 'N/A'}</TableCell>
-                        <TableCell className="gba:py-4 gba:px-6">{record.title}</TableCell>
-                        <TableCell className="gba:py-4 gba:px-6">
-                          {record.requestDate ? formatDate(record.requestDate, 'date.short') || '-' : '-'}
-                        </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6">
-                          {record.startDate ? formatDate(record.startDate, 'date.short') || '-' : '-'}
-                        </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6">
-                          {record.endDate ? formatDate(record.endDate, 'date.short') || '-' : '-'}
-                        </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6">
-                          {(() => {
-                            const { label, badgeVariant } = getStatusDisplay(record.status)
-                            return <Badge variant={badgeVariant || 'outline'}>{label}</Badge>
-                          })()}
-                        </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6 gba:text-right">
-                          {(() => {
-                            const formattedAmount =
-                              record.reimbursableAmount && record.reimbursableAmount !== 0
-                                ? formatCurrencyDisplay(record.reimbursableAmount, record.currency?.code)
-                                : '-'
-
-                            return <div data-testid={`reimbursable-amount-${record.id}`}>{formattedAmount}</div>
-                          })()}
-                        </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6 gba:text-right">
-                          {(() => {
-                            const advanceAmountValue =
-                              record.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount
-                            // Use expense plan currency if available, otherwise fall back to main currency
-                            const formattedAmount =
-                              advanceAmountValue && advanceAmountValue !== 0
-                                ? formatCurrencyDisplay(advanceAmountValue, record.currency?.code)
-                                : '-'
-                            return <div data-testid={`total-amount-${record.id}`}>{formattedAmount}</div>
-                          })()}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Pagination */}
-            {totalCount > pageSize ? (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
-                data-testid="expense-requests-pagination"
-              >
-                <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-requests-pagination-info">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_list.flows_button.expense_requests',
-                    'Expense Requests'
-                  )}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <p className="gba:text-sm gba:font-medium">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                    </p>
-                    <select
-                      value={pageSize}
-                      onChange={e =>
-                        handleEnhancedTableChange({ current: 1, pageSize: Number(e.target.value) }, {}, {})
+  const rowActions = useCallback(
+    (row: { original: ExpenseRequestRow }) => {
+      const record = row.original
+      return (
+        <RowActionsWrapper>
+          <AppAction
+            variant="table-row"
+            customActions={[
+              ...(record.status === 'CREATED' || record.status === 'REJECTED'
+                ? [
+                    {
+                      category: getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:employee_list.flows_button.actions',
+                        'Actions'
+                      ),
+                      key: 'edit-expense-request',
+                      label: tPersonal('personal-expenses-update-request-action'),
+                      onClick: (e?: React.MouseEvent) => {
+                        e?.stopPropagation()
+                        handleEditExpenseRequest(record)
                       }
-                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                      data-testid="expense-requests-page-size-select"
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                  <div
-                    className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                    data-testid="expense-requests-page-info"
-                  >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                    {Math.ceil(totalCount / pageSize)}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handleEnhancedTableChange({ current: 1, pageSize }, {}, {})}
-                      disabled={currentPage === 1}
-                      data-testid="expense-requests-first-page-button"
-                    >
-                      <span className="gba:sr-only">Go to first page</span>
-                      ⟨⟨
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
-                      disabled={currentPage === 1}
-                      data-testid="expense-requests-previous-page-button"
-                    >
-                      <span className="gba:sr-only">Go to previous page</span>⟨
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid="expense-requests-next-page-button"
-                    >
-                      <span className="gba:sr-only">Go to next page</span>⟩
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() =>
-                        handleEnhancedTableChange({ current: Math.ceil(totalCount / pageSize), pageSize }, {}, {})
+                    }
+                  ]
+                : []),
+              ...((record.status === 'APPROVED' ||
+                record.status === 'VERIFIED' ||
+                record.status === 'BOOKED' ||
+                record.status === 'TRANSFERRED' ||
+                record.status === 'PAID') &&
+              record.employeeDocument?.file?.trim()
+                ? [
+                    {
+                      category: getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:employee_list.flows_button.actions',
+                        'Actions'
+                      ),
+                      key: 'print',
+                      label: getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_plan_list.expense_plan_flows.print',
+                        'Print'
+                      ),
+                      onClick: (e?: React.MouseEvent) => {
+                        e?.stopPropagation()
+                        handlePrintRequest(record)
                       }
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid="expense-requests-last-page-button"
-                    >
-                      <span className="gba:sr-only">Go to last page</span>
-                      ⟩⟩
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
-                data-testid="expense-requests-pagination-info-single-page"
-              >
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                  </p>
-                  <select
-                    value={pageSize}
-                    onChange={e => handleEnhancedTableChange({ current: 1, pageSize: Number(e.target.value) }, {}, {})}
-                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                    data-testid="expense-requests-page-size-select-single"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }, [
-    items,
-    isLoading,
-    error,
-    totalCount,
-    currentPage,
-    pageSize,
-    handleEnhancedTableChange,
-    handleSort,
-    renderSortIcon,
-    handleSelectItem,
-    handleEditExpenseRequest,
-    handlePrintRequest,
-    getStatusDisplay,
-    contextProps.accessToken
-  ])
+                    }
+                  ]
+                : []),
+              {
+                category: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_list.flows_button.navigations',
+                  'Navigations'
+                ),
+                key: 'view-expense-request',
+                label: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+                  'View Request Details'
+                ),
+                onClick: (e?: React.MouseEvent) => {
+                  e?.stopPropagation()
+                  handleViewExpenseRequestDetails(record)
+                }
+              }
+            ]}
+            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update`}
+            accessToken={contextProps.accessToken}
+            data-testid={`expense-request-update-button-${record.id}`}
+          >
+            <RowActionsIcon />
+          </AppAction>
+        </RowActionsWrapper>
+      )
+    },
+    [tPersonal, contextProps.accessToken, handleEditExpenseRequest, handlePrintRequest, handleViewExpenseRequestDetails]
+  )
+
+  const primaryAction = useMemo(
+    () => (
+      <Button
+        onClick={onAddExpenseRequest || (() => {})}
+        size="sm"
+        variant="default"
+        data-testid="add-expense-request-button"
+        type="button"
+      >
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
+          'Add'
+        )}
+      </Button>
+    ),
+    [onAddExpenseRequest]
+  )
+
+  const secondaryActions = useMemo(
+    () =>
+      currencyStats.length > 0 ? (
+        <CurrencyDropdown
+          currencyStats={currencyStats}
+          selectedCurrencyCode={selectedCurrencyCode}
+          onCurrencyChange={handleCurrencyChange}
+          testIdPrefix="expense-requests"
+        />
+      ) : undefined,
+    [currencyStats, selectedCurrencyCode, handleCurrencyChange]
+  )
 
   return (
     <>
-      <DataContainer
-        dataControllerProps={{
-          listTitle: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_list.flows_button.expense_requests',
-            'Expense Requests'
-          ),
-          listAmount: totalCount ? `${totalCount}` : undefined,
-          search: searchInput,
-          setSearch: handleSearchChange,
-          placeholder:
-            getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
-            '...',
-          filter: selectedFilters,
-          setFilter: setFilters || (() => {}),
-          filterLabelMap: useMemo(() => {
-            const currencyLabelMap: Record<string, string> = {}
-            ;((props as any).currencyStats || []).forEach((cs: any) => {
-              currencyLabelMap[`currency:${cs.ref}`] = cs.code
-            })
-            return { ...filterLabelMap, ...currencyLabelMap }
-          }, [filterLabelMap, (props as any).currencyStats]),
-          addButton: {
-            onClick: onAddExpenseRequest || (() => {}),
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'list',
             label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
-              'Add'
+              'lowcoder:employee_list.flows_button.expense_requests',
+              'Expense Requests'
             ),
-            'data-testid': 'add-expense-plan-button'
+            metadata: { count: totalCount, isLoading }
           }
-        }}
-        dataFilterProps={{
-          filterGroups: useMemo(() => {
-            const currencyFilters =
-              (props as any).currencyStats?.map((cs: any) => ({
-                id: `currency:${cs.ref}`,
-                label: cs.code,
-                selected: (selectedFilters || []).includes(`currency:${cs.ref}`)
-              })) || []
-            const currencyGroup =
-              currencyFilters.length > 0
-                ? [
-                    {
-                      id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                        'Currency'
-                      ),
-                      filters: currencyFilters
-                    }
-                  ]
-                : []
-            return [...currencyGroup, ...filterGroups]
-          }, [filterGroups, selectedFilters, (props as any).currencyStats]),
-          onFilterChange: handleFilterChangeCallback
-        }}
-        dataBody={renderDataBody()}
-        addLeftPaddingWhenNoFilter={true}
-      />
+        ]}
+        currentSection="list"
+        searchValue={searchInput}
+        searchPlaceholder={
+          getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
+          '...'
+        }
+        onSearchChange={handleSearchChange}
+        filters={filtersObject}
+        filterConfiguration={expenseRequestsFilterConfig}
+        onFilterChange={handleFilterChangeFromDisplay}
+        sorting={sorting}
+        sortableColumns={sortableColumns}
+        onSortingChange={handleSortingChange}
+        primaryAction={primaryAction}
+        secondaryActions={secondaryActions}
+        availableColumns={availableColumnsForDisplay}
+        visibleColumns={visibleColumns}
+        onVisibleColumnsChange={setVisibleColumns}
+        toolbarDensity="default"
+        enableLiveFiltering={true}
+        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_list.flows_button.expense_requests',
+          'Filter Expense Requests'
+        )}
+        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.filter_expense_requests_description',
+          'Apply filters to narrow down the expense requests list.'
+        )}
+      >
+        <DataTable<ExpenseRequestRow>
+          data={items}
+          columns={columns.filter(col =>
+            visibleColumns.includes((col as ColumnDef<ExpenseRequestRow> & { id?: string }).id ?? '')
+          )}
+          loading={isLoading}
+          error={error || undefined}
+          totalCount={totalCount}
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          tableLayout="fixed"
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage={emptyMessage}
+          actions={rowActions}
+          onRowClick={handleSelectItem}
+          data-testid={DATA_TEST_ID_PREFIX}
+        />
+      </DataDisplay>
 
-      {/* Expense Request Details Sheet */}
-      <Sheet
+      <DetailsSheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
         title={
@@ -792,73 +951,32 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
             'Expense Request Details'
           )
         }
-        data-testid="expense-request-details-sheet"
+        testId="expense-request-details-sheet"
       >
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-                  'Expense Request Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedItem && (
-              <ExpenseRequestDetails
-                selectedItem={selectedItem}
-                onClose={handleCloseDetails}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-              />
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+        {selectedItem ? (
+          <ExpenseRequestDetails
+            selectedItem={selectedItem}
+            onClose={handleCloseDetails}
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
+          />
+        ) : null}
+      </DetailsSheet>
 
-      {/* Print Dialog using design system */}
-      <Dialog
+      <PrintPreviewDialog
         open={printModalOpen}
         onOpenChange={open => {
           setPrintModalOpen(open)
-          if (!open) {
-            setPrintPdfUrl('')
-          }
+          if (!open) setPrintPdfUrl('')
         }}
-      >
-        <DialogContent
-          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
-          style={{ height: '90vh' }}
-          data-testid="expense-request-print-modal"
-        >
-          <DialogHeader className="gba:p-4">
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.print_expense_request',
-                'Print Expense Request'
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          {printLoading ? (
-            <div className="gba:flex gba:justify-center gba:p-8">
-              <Spinner />
-            </div>
-          ) : printPdfUrl ? (
-            <iframe
-              src={printPdfUrl}
-              className="gba:w-full gba:border-0"
-              style={{ height: 'calc(90vh - 55px)' }}
-              title="Expense Request PDF"
-              data-testid="expense-request-pdf-iframe"
-            />
-          ) : (
-            <div className="gba:text-center gba:p-8 gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+        title={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.print_expense_request',
+          'Print Expense Request'
+        )}
+        loading={printLoading}
+        pdfUrl={printPdfUrl}
+        testIdPrefix="expense-request"
+      />
     </>
   )
 })

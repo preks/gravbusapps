@@ -16,9 +16,16 @@ import {
   SelectContent,
   SelectItem
 } from '@newwork/nw-design-system'
-import { TrendingUp, BarChart, PieChart } from 'lucide-react'
+import {
+  TrendUpIcon,
+  ChartBarIcon,
+  ChartPieIcon,
+  CurrencyCircleDollarIcon,
+  TrendUpIcon as TrendUpIconAlt,
+  UsersThreeIcon,
+  PercentIcon
+} from '@phosphor-icons/react'
 import { WidgetGroup } from '@/components/widget-group'
-import { DollarCircleOutlined, RiseOutlined, TeamOutlined, PercentageOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -93,10 +100,12 @@ export interface RealEstateInvestmentKPIs {
 
 interface RealEstateInvestmentsReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  isActive?: boolean
 }
 
 const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = props => {
   const prefixDataTestId = props.prefixDataTestId || 'RealEstateInvestmentsReport'
+  const isActive = props.isActive ?? true
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
@@ -117,7 +126,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
     isLoading: kpiLoading,
     error: kpiError,
     refetch: refetchKpis
-  } = useRealEstateKPIIntegration(props, selectedCurrency)
+  } = useRealEstateKPIIntegration(props, selectedCurrency, undefined, isActive)
 
   const { fetchInvestments } = useGetInvestments(props)
 
@@ -263,7 +272,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               key: 'total-investments',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
               value: kpis.totalInvestments,
-              prefix: <TeamOutlined />,
+              prefix: <UsersThreeIcon />,
               color: 'var(--nw-color-primary-500)',
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Property count',
@@ -277,7 +286,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               key: 'total-amount-invested',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
               value: formatCurrency(kpis.totalAmountInvested, selectedCurrency),
-              prefix: <DollarCircleOutlined />,
+              prefix: <CurrencyCircleDollarIcon />,
               color: 'var(--nw-color-success-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
@@ -292,7 +301,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               key: 'total-market-value',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalMarketValue', 'Total Market Value'),
               value: formatCurrency(kpis.totalMarketValue, selectedCurrency),
-              prefix: <RiseOutlined />,
+              prefix: <TrendUpIconAlt />,
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
@@ -307,7 +316,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               key: 'average-occupancy-rate',
               title: getTranslationFromI18nKeyAndLabel('kpi.averageOccupancyRate', 'Average Occupancy Rate'),
               value: formatPercentage(kpis.averageOccupancyRate),
-              prefix: <PercentageOutlined />,
+              prefix: <PercentIcon />,
               color: 'var(--nw-color-purple-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
@@ -334,13 +343,13 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
           data-testid={formatDataTestId(prefixDataTestId, 'ChartTabs')}
         >
           <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
-            <TabsTrigger value="distribution" startIcon={<PieChart />}>
+            <TabsTrigger value="distribution" startIcon={<ChartPieIcon />}>
               {getTranslationFromI18nKeyAndLabel('tab.distribution', 'Distribution Analysis')}
             </TabsTrigger>
-            <TabsTrigger value="timeline" startIcon={<TrendingUp />}>
+            <TabsTrigger value="timeline" startIcon={<TrendUpIcon />}>
               {getTranslationFromI18nKeyAndLabel('tab.timeline', 'Timeline Analysis')}
             </TabsTrigger>
-            <TabsTrigger value="analytics" startIcon={<BarChart />}>
+            <TabsTrigger value="analytics" startIcon={<ChartBarIcon />}>
               {getTranslationFromI18nKeyAndLabel('tab.analytics', 'Performance Analysis')}
             </TabsTrigger>
           </TabsList>

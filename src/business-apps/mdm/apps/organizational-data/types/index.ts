@@ -3,6 +3,25 @@
 
 // Organizational Data Types
 
+// Company Address types
+export interface CompanyAddressLine {
+  streetAddress?: string
+  addressLine2?: string
+  addressLine3?: string
+  addressLine4?: string
+}
+
+export interface CompanyAddress {
+  id?: string
+  companyId?: string
+  addressType?: string
+  addressLine?: CompanyAddressLine
+  postalCode?: string
+  locality?: string
+  regionRef?: string
+  countryRef?: string
+}
+
 // Company-related types based on orgchart API
 export interface CompanyData {
   id: string
@@ -10,6 +29,17 @@ export interface CompanyData {
   name: string
   code: string
   description?: string
+  directorId?: string
+  commercialRegistrationNumber?: string
+  taxIdentificationNumber?: string
+  taxNumber?: string
+  valueAddedTaxNumber?: string
+  currencyRef?: string
+  additionalProperties?: Record<string, unknown>
+  addresses?: CompanyAddress[]
+  picture?: Record<string, unknown>
+  pictureThumbnail?: string
+  documents?: unknown[]
 }
 
 export interface OrganizationalNode {
@@ -52,6 +82,15 @@ export interface OrgchartApiResponse {
   edges: OrganizationalEdge[]
 }
 
+// Director type for companies (similar to ProjectManager)
+export interface Director {
+  id: string
+  displayName?: string
+  firstName?: string
+  lastName?: string
+  pictureThumbnail?: string
+}
+
 // Enhanced Company interface for UI display
 export interface Company {
   id: string
@@ -65,6 +104,16 @@ export interface Company {
   parentCompanyName?: string
   percentage: number | undefined
   edgeId?: string // The edge ID for updating companyEdges
+  // New fields from API
+  directorId?: string
+  director?: Director // Populated director data (similar to Project.manager)
+  commercialRegistrationNumber?: string
+  taxIdentificationNumber?: string
+  taxNumber?: string
+  valueAddedTaxNumber?: string
+  currencyRef?: string
+  additionalProperties?: Record<string, unknown>
+  addresses?: CompanyAddress[]
   // Statistics from API
   numberOfAssignedJobPositions: number
   numberOfAssignedEmployees: number
@@ -76,6 +125,8 @@ export interface Company {
   level: number // Hierarchy level (0 = root, 1 = child, etc.)
   children: Company[]
   hasChildren: boolean
+  pictureThumbnail?: string
+  picture?: Record<string, unknown>
 }
 
 // Hierarchy state for managing tree view
@@ -84,42 +135,6 @@ export interface CompanyHierarchyState {
   allCompanies: Company[]
   companyMap: Map<string, Company>
   expandedIds: Set<string>
-}
-
-// Project-related types based on orgchart API
-export interface ProjectData {
-  id: string
-  name: string
-  description?: string
-  validTo?: string // ISO timestamp
-  structureId: string
-  projectType: 'INTERNAL' | 'EXTERNAL'
-  customerId?: string // Only for EXTERNAL projects
-}
-
-export interface PaginatedProjectRecords {
-  data: ProjectData[]
-  paging: {
-    offset: number
-    totalRecords: number
-    hasMore: boolean
-  }
-}
-
-// Enhanced Project interface for UI display
-export interface Project {
-  id: string
-  name: string
-  description?: string
-  validTo?: string
-  structureId: string
-  projectType: 'INTERNAL' | 'EXTERNAL'
-  customerId?: string
-  // Computed fields
-  status: 'Active' | 'Expired' | 'Expiring Soon'
-  isActive: boolean
-  daysUntilExpiry?: number
-  formattedValidTo?: string
 }
 
 // Other organizational data types

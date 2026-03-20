@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  parseNumber,
+  parsePhoneNumberFromString,
   getCountryCallingCode,
   getCountries,
   type CountryCode,
@@ -43,6 +43,7 @@ export const useCommunicationFormState = ({
   const [baseline, setBaseline] = useState<Baseline | null>(null)
   const previousCountryRef = useRef<CountryCode | ''>('')
   const isManualCountryChangeRef = useRef<boolean>(false)
+  const skipNextParseRef = useRef<boolean>(false)
 
   const primaryTypeId = useMemo(() => {
     const t = types.find(x => (x.label || x.value || '').toLowerCase() === 'primary')
@@ -193,7 +194,6 @@ export const useCommunicationFormState = ({
       const prefillValue = normalizePhoneNumber(latest?.value || '', channelType, channels)
       const prefillPurpose = latest?.purpose || 'PRIVATE'
 
-      // Clear phone fields when value changes to allow proper parsing
       if (isPhoneType) {
         setSelectedCountryCode('')
         setPhoneNumber('')
@@ -212,7 +212,6 @@ export const useCommunicationFormState = ({
       return
     }
 
-    // Clear phone fields when no match found
     if (isPhoneType) {
       setSelectedCountryCode('')
       setPhoneNumber('')
@@ -296,6 +295,12 @@ export const useCommunicationFormState = ({
       setSelectedCountryCode('')
       setPhoneNumber('')
       isManualCountryChangeRef.current = false
+      skipNextParseRef.current = false
+      return
+    }
+
+    if (skipNextParseRef.current) {
+      skipNextParseRef.current = false
       return
     }
 
@@ -308,25 +313,11 @@ export const useCommunicationFormState = ({
       return
     }
 
-    if (selectedCountryCode) {
-      const currentCallingCode = countries.find(c => c.code === selectedCountryCode)?.callingCode
-      if (currentCallingCode && value.startsWith('+')) {
-        const valueWithoutPlus = value.substring(1).trim()
-        if (valueWithoutPlus.startsWith(String(currentCallingCode))) {
-          if (phoneNumber) {
-            const expectedValue = `+${currentCallingCode}${phoneNumber}`
-            if (value === expectedValue) {
-              return
-            }
-            // Value changed but still matches current country code - continue parsing
-          } else {
-            // No phone number but country code matches - continue parsing
-          }
-        } else {
-          // Value doesn't match current country code - clear and continue parsing
-          setSelectedCountryCode('')
-        }
-      }
+    const parsed = parsePhoneNumberFromString(value)
+    if (parsed && parsed.country) {
+      setSelectedCountryCode(parsed.country)
+      setPhoneNumber(parsed.nationalNumber)
+      return
     }
 
     if (value.startsWith('+')) {
@@ -342,29 +333,12 @@ export const useCommunicationFormState = ({
         const callingCode = String(country.callingCode)
         if (valueWithoutPlus.startsWith(callingCode)) {
           const remaining = valueWithoutPlus.substring(callingCode.length).trim()
-          if (remaining.length >= 3) {
-            setSelectedCountryCode(country.code)
-            setPhoneNumber(remaining)
-            return
-          }
+          setSelectedCountryCode(country.code)
+          setPhoneNumber(remaining)
+          return
         }
       }
     }
-
-    try {
-      const parsed = parseNumber(value)
-      if (parsed && 'country' in parsed && parsed.country) {
-        setSelectedCountryCode(parsed.country)
-        if ('nationalNumber' in parsed && typeof parsed.nationalNumber === 'string') {
-          setPhoneNumber(parsed.nationalNumber)
-        } else {
-          const callingCode = getCountryCallingCode(parsed.country)
-          const numberWithoutCode = value.replace(`+${callingCode}`, '').trim()
-          setPhoneNumber(numberWithoutCode)
-        }
-        return
-      }
-    } catch {}
 
     if (!selectedCountryCode) {
       setSelectedCountryCode('')
@@ -380,6 +354,7 @@ export const useCommunicationFormState = ({
       selectedCountryCode !== previousCountryRef.current
     ) {
       setPhoneNumber('')
+      skipNextParseRef.current = true
     }
     previousCountryRef.current = selectedCountryCode
   }, [selectedCountryCode, isPhoneType])
@@ -412,7 +387,10 @@ export const useCommunicationFormState = ({
     setValue,
     setPurpose,
     setValueTouched,
-    setPhoneNumber,
+    setPhoneNumber: (num: string) => {
+      skipNextParseRef.current = true
+      setPhoneNumber(num)
+    },
     setSelectedCountryCode: (code: CountryCode | '') => {
       if (code) {
         isManualCountryChangeRef.current = true

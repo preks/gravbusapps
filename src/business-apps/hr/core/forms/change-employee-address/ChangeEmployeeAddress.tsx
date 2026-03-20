@@ -5,7 +5,7 @@ import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangeEmployeeAddressProvider, useChangeEmployeeAddress } from './ChangeEmployeeAddressContext'
 import { useForm } from 'react-hook-form'
-import { Button, FormField } from '@newwork/nw-design-system'
+import { Button, FormField, useTranslation } from '@newwork/nw-design-system'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -19,7 +19,8 @@ import {
   shouldDisableSubmit
 } from './utils'
 import { populateFormFromRecord, buildDeletePayloadFromRecord, restoreSelectionFromId } from './helpers'
-import { uploadEmployeeDocumentIfAny } from './uploadHelpers'
+import { uploadEmployeeDocumentIfAny, UploadedEmployeeDocument } from './uploadHelpers'
+import translations from '../../apps/employee-record/_i18n'
 
 interface AddressFormValues {
   selectedAddressId?: string | null // null means Add Address
@@ -30,11 +31,12 @@ interface AddressFormValues {
   regionId?: string | null
   regionLabel?: string // read-only display of region label
   comment?: string
-  employeeDocumentId?: string
+  employeeDocument?: UploadedEmployeeDocument
 }
 
 const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData }) => {
   const [fileList, setFileList] = useState<any[]>([])
+  const { t } = useTranslation(translations)
   const [addressLineCount, setAddressLineCount] = useState<number>(1)
   const [addressLinesError, setAddressLinesError] = useState<string | null>(null)
   const { data, refetchAddresses } = useChangeEmployeeAddress()
@@ -220,7 +222,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
 
   return (
     <div
-      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
+      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
       data-testid="change-employee-address-form-container"
     >
       <FormHeader
@@ -239,7 +241,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
       />
 
       <div
-        className="gba:flex gba:flex-col gba:[&>div[data-testid='change-employee-address']]:!pt-0"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='change-employee-address']]:pt-0!"
         data-testid="change-employee-address-form-content"
       >
         {/* moved upload below comment - removed from here */}
@@ -259,13 +261,13 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
               userInfo?.employeeDetails?.employeeId ||
               data?.address?.EmployeeAddress[0]?.employeeId ||
               ''
-            const uploadedEmployeeDocumentId = await uploadEmployeeDocumentIfAny(
+            const uploadedEmployeeDocument = await uploadEmployeeDocumentIfAny(
               fileClient,
               accessToken,
               fileList,
               employeeId
             )
-            return { ...(values as any), employeeDocumentId: uploadedEmployeeDocumentId } as AddressFormValues
+            return { ...(values as any), employeeDocument: uploadedEmployeeDocument }
           }}
           onSubmit={async (values: AddressFormValues) => {
             const employeeId =
@@ -290,9 +292,9 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
             }
 
             if (addingNew) {
-              return buildInsertPayload({
+              const payload = buildInsertPayload({
                 employeeId,
-                employeeDocumentId: values.employeeDocumentId || null,
+                employeeDocument: values.employeeDocument || null,
                 lines,
                 postalCode: values.postalCode,
                 city: values.city,
@@ -301,10 +303,17 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                 comment: values.comment,
                 addresses
               })
+              return {
+                ...payload,
+                completeNotification: {
+                  type: 'success',
+                  message: t('notification-address-updated-success')
+                }
+              } as any
             }
-            return buildUpdatePayload({
+            const updatePayload = buildUpdatePayload({
               employeeId,
-              employeeDocumentId: values.employeeDocumentId || null,
+              employeeDocument: values.employeeDocument || null,
               lines,
               postalCode: values.postalCode,
               city: values.city,
@@ -313,6 +322,13 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
               comment: values.comment,
               selected
             })
+            return {
+              ...updatePayload,
+              completeNotification: {
+                type: 'success',
+                message: t('notification-address-updated-success')
+              }
+            } as any
           }}
           data-testid="change-employee-address"
         >
@@ -435,7 +451,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
             {!isDeleteMode && null}
           </div>
 
-          <div className="gba:flex-grow" data-testid="change-employee-address-spacer" />
+          <div className="gba:grow" data-testid="change-employee-address-spacer" />
 
           <div
             className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mt-auto gba:pt-4"

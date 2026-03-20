@@ -22,6 +22,7 @@ export interface UseJobPositionsReturn {
   loadMore: () => void
   searchPositions: (searchTerm?: string) => void
   retry: () => void
+  refetch: () => void
 }
 
 /**
@@ -75,8 +76,6 @@ export const useJobPositions = ({
     if (currentSearch !== search || currentOrgUnitId !== organizationalUnitId) {
       setCurrentSearch(search)
       setCurrentOrgUnitId(organizationalUnitId)
-      setJobPositions([])
-      setAllJobPositions([])
       setOffset(0)
       setHasMore(true)
       setTotal(0)
@@ -149,8 +148,6 @@ export const useJobPositions = ({
   // Search job positions
   const searchPositions = useCallback((searchTerm?: string) => {
     setCurrentSearch(searchTerm)
-    setJobPositions([])
-    setAllJobPositions([])
     setOffset(0)
     setHasMore(true)
     setTotal(0)
@@ -160,6 +157,16 @@ export const useJobPositions = ({
 
   // Retry loading
   const retry = useCallback(() => {
+    setError(null)
+    setHasMore(true)
+    setInitialLoadDone(false)
+    setOffset(0)
+    setJobPositions([])
+    setAllJobPositions([])
+  }, [])
+
+  // Refetch job positions (used after creating a new position)
+  const refetch = useCallback(() => {
     setError(null)
     setHasMore(true)
     setInitialLoadDone(false)
@@ -197,6 +204,7 @@ export const useJobPositions = ({
     total,
     loadMore,
     searchPositions,
-    retry
+    retry,
+    refetch
   }
 }

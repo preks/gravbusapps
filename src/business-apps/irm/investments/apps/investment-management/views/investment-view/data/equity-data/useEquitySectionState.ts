@@ -63,6 +63,13 @@ export const useEquitySectionState = ({
 
   // Query variables
   const queryVariables: InvestmentQueryVariables = useMemo(() => {
+    // Remove investment type filters from selectedFilters to avoid conflicts
+    const otherFilters = Object.fromEntries(
+      Object.entries(selectedFilters).filter(
+        ([key]) => !['realEstateInvestment', 'liquidFundInvestment', 'equityInvestment'].includes(key)
+      )
+    )
+
     return {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
@@ -70,9 +77,10 @@ export const useEquitySectionState = ({
       orderBy: sortField
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-      // Default filter for equity investments
-      equityInvestment: { id: { _isNull: false } },
-      ...selectedFilters
+      ...otherFilters,
+      // Always enforce equity investment filter for this tab
+      // Check that at least one related record exists (Hasura array relationship filter)
+      equityInvestment: { id: { _isNull: false } }
     }
   }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters])
 

@@ -1,18 +1,21 @@
 import React, { useCallback, useMemo } from 'react'
 import { ExpenseRequestStatisticsData } from '../../../hooks/useGetExpenseRequests'
-import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { WidgetItem } from '@/components/widget-group'
+import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
+import { CurrencyPrefix } from '../../../common/components/CurrencyPrefix'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
+const SUBMITTED_STATUSES = ['PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED']
 
 interface ExpenseRequestStatisticsProps {
   requestStats: ExpenseRequestStatisticsData | null
   requestStatsLoading: boolean
   requestStatsError: string | null
   fetchRequestStatistics: () => Promise<void>
-  currencyFilter?: string | null
-  addFilter: (filter: string) => void
-  removeFilter: (filter: string) => void
-  selectedFilters: string[]
+  displayCurrency?: string | null
+  activeFilter?: string[]
+  onFilterChange?: (statuses: string[], currency: string) => void
 }
 
 const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
@@ -20,72 +23,28 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   requestStatsLoading,
   requestStatsError,
   fetchRequestStatistics,
-  currencyFilter,
-  addFilter,
-  removeFilter,
-  selectedFilters
+  displayCurrency: displayCurrencyProp,
+  activeFilter = [],
+  onFilterChange
 }) => {
-  const displayCurrency = currencyFilter || 'EUR'
+  const displayCurrency = displayCurrencyProp ?? 'EUR'
 
-  // Helper: Clear all current filters
-  const clearAllFilters = useCallback(() => {
-    for (const filter of selectedFilters) {
-      removeFilter(filter)
-    }
-  }, [selectedFilters, removeFilter])
-
-  // Helper: Apply multiple filters
-  const applyMultipleFilters = useCallback(
-    (filters: string[]) => {
-      for (const filter of filters) {
-        addFilter(filter)
-      }
-    },
-    [addFilter]
-  )
-
-  // Helper: Toggle multi-filter set (e.g., all submitted statuses)
-  const handleMultiFilterToggle = useCallback(
-    (filtersToToggle: string[]) => {
-      const allFiltersActive = filtersToToggle.every(filter => selectedFilters.includes(filter))
-
-      if (allFiltersActive) {
-        for (const filter of filtersToToggle) {
-          removeFilter(filter)
-        }
-      } else {
-        clearAllFilters()
-        applyMultipleFilters(filtersToToggle)
-      }
-    },
-    [selectedFilters, removeFilter, clearAllFilters, applyMultipleFilters]
-  )
-
-  // Helper: Toggle single filter (exclusive selection)
-  const handleSingleFilterToggle = useCallback(
-    (filterKey: string) => {
-      if (selectedFilters.includes(filterKey)) {
-        removeFilter(filterKey)
-      } else {
-        clearAllFilters()
-        addFilter(filterKey)
-      }
-    },
-    [selectedFilters, removeFilter, clearAllFilters, addFilter]
-  )
-
-  // Handle card click functionality with proper filtering logic
   const handleCardClick = useCallback(
     (filterKey: string, isMultiFilter: boolean = false) => {
+      if (!onFilterChange) return
       if (isMultiFilter) {
-        const filtersToToggle = ['PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED']
-        handleMultiFilterToggle(filtersToToggle)
+        const allActive = SUBMITTED_STATUSES.every(s => activeFilter.includes(s))
+        onFilterChange(allActive ? [] : [...SUBMITTED_STATUSES], displayCurrency)
       } else {
-        handleSingleFilterToggle(filterKey)
+        const isActive = activeFilter.includes(filterKey)
+        onFilterChange(isActive ? [] : [filterKey], displayCurrency)
       }
     },
-    [handleMultiFilterToggle, handleSingleFilterToggle]
+    [onFilterChange, activeFilter, displayCurrency]
   )
+
+  const isPendingActive = activeFilter.length === 1 && activeFilter[0] === 'PENDING'
+  const isSubmittedActive = SUBMITTED_STATUSES.every(s => activeFilter.includes(s))
 
   const widgets: WidgetItem[] = useMemo(
     () =>
@@ -97,14 +56,15 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
                 'lowcoder:absence_management_hub_manager.pending_requests_btn',
                 'Pending Requests'
               ),
-              value: requestStats.pendingCount,
-              color: selectedFilters.includes('PENDING') ? 'var(--nw-primary)' : 'var(--nw-warning)',
-
+              value: requestStats.pendingCount.toString(),
+              prefix: <CurrencyPrefix currency={displayCurrency} />,
+              valueIsString: true,
+              color: isPendingActive ? 'var(--nw-primary)' : 'var(--nw-warning)',
               description: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval',
                 'Waiting for approval'
               ),
-              active: selectedFilters.includes('PENDING'),
+              active: isPendingActive,
               onClick: () => handleCardClick('PENDING')
             },
             {
@@ -115,7 +75,6 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
               ),
               value: formatCurrencyDisplay(requestStats.pendingAmount || 0, displayCurrency),
               color: 'var(--nw-success)',
-
               description: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds',
                 'Total Pending Reimbursement'
@@ -128,17 +87,15 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
                 'lowcoder:team_expenses_page.expense_requests_tab.total_requests_submitted',
                 'Total Requests Submitted'
               ),
-              value: requestStats.totalRequestsSubmitted,
+              value: requestStats.totalRequestsSubmitted.toString(),
+              prefix: <CurrencyPrefix currency={displayCurrency} />,
+              valueIsString: true,
               color: 'var(--nw-primary)',
-
               description: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests',
                 'All Submitted Requests'
               ),
-              active: (() => {
-                const multiFilters = ['PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED']
-                return multiFilters.every(filter => selectedFilters.includes(filter))
-              })(),
+              active: isSubmittedActive,
               onClick: () => handleCardClick('', true)
             },
             {
@@ -148,45 +105,25 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
                 'Total Submitted Amount'
               ),
               value: formatCurrencyDisplay(requestStats.totalSubmittedAmount || 0, displayCurrency),
-              color: selectedFilters.length === 0 ? 'var(--nw-primary)' : 'var(--nw-accent)',
-
+              color: activeFilter.length === 0 ? 'var(--nw-primary)' : 'var(--nw-accent)',
               description: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests',
                 'All Expense Requests'
               ),
               valueIsString: true,
-              active: selectedFilters.length === 0
+              active: activeFilter.length === 0
             }
           ]
         : [],
-    [requestStats, selectedFilters, displayCurrency, handleCardClick]
-  )
-
-  // Handle widget clicks from WidgetGroup
-  const handleWidgetClick = useCallback(
-    (widgetKey: string) => {
-      switch (widgetKey) {
-        case 'pending-requests':
-          handleCardClick('PENDING')
-          break
-        case 'total-requests-submitted':
-          handleCardClick('', true) // Use multi-filter mode
-          break
-
-        default:
-          break
-      }
-    },
-    [handleCardClick]
+    [requestStats, activeFilter, displayCurrency, handleCardClick, isPendingActive, isSubmittedActive]
   )
 
   return (
-    <WidgetGroup
+    <ManagerClickableWidgetGroup
       widgets={widgets}
       isLoading={requestStatsLoading}
       error={requestStatsError ? 'Failed to load statistics' : undefined}
       onRetry={fetchRequestStatistics}
-      onWidgetClick={handleWidgetClick}
       skeletonCount={4}
       emptyText={getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.no_expense_request_statistics_available',

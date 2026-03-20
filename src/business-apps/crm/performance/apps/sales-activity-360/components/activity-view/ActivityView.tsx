@@ -1,22 +1,24 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
-import { RecordLayout, Avatar, AvatarImage, AvatarFallback, Spinner } from '@newwork/nw-design-system'
+import { RecordLayout, Avatar, AvatarImage, AvatarFallback, Spinner, IconAvatar } from '@newwork/nw-design-system'
 import {
-  PiListBullets,
-  PiCalendar,
-  PiUser,
-  PiBuilding,
-  PiTarget,
-  PiHandshake,
-  PiUserCircle,
-  PiChartLineUp,
-  PiEnvelope,
-  PiPhone,
-  PiDeviceMobile,
-  PiMapPin
-} from 'react-icons/pi'
+  ListBulletsIcon,
+  CalendarIcon,
+  UserIcon,
+  BuildingIcon,
+  TargetIcon,
+  HandshakeIcon,
+  UserCircleIcon,
+  ChartLineUpIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  DeviceMobileIcon,
+  MapPinIcon,
+  UsersThreeIcon
+} from '@phosphor-icons/react'
 import { ActivityViewProps, ActivityViewFilter, ActivityTabType } from '../../types'
 import { Activity360ListTab } from '../tabs/Activity360ListTab'
 import { Activity360CalendarTab } from '../tabs/Activity360CalendarTab'
+import { Activity360ComparisonTab } from '../tabs/Activity360ComparisonTab'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -66,43 +68,49 @@ const getViewConfig = (filter: ActivityViewFilter) => {
     case 'all':
       return {
         category: 'ALL ACTIVITIES',
-        icon: PiListBullets,
+        icon: ListBulletsIcon,
         subtitle: 'Complete view of all activities across the organization'
       }
     case 'by-employee':
       return {
         category: 'EMPLOYEE ACTIVITIES',
-        icon: PiUser,
+        icon: UserIcon,
         subtitle: 'Individual employee performance and activities'
       }
     case 'by-account':
       return {
         category: 'ACCOUNT ACTIVITIES',
-        icon: PiBuilding,
+        icon: BuildingIcon,
         subtitle: 'Activities related to this account'
       }
     case 'by-contact':
       return {
         category: 'CONTACT ACTIVITIES',
-        icon: PiUserCircle,
+        icon: UserCircleIcon,
         subtitle: 'Touchpoints with this contact'
       }
     case 'by-lead':
       return {
         category: 'LEAD ACTIVITIES',
-        icon: PiTarget,
+        icon: TargetIcon,
         subtitle: 'Engagement activities for this lead'
       }
     case 'by-opportunity':
       return {
         category: 'OPPORTUNITY ACTIVITIES',
-        icon: PiHandshake,
+        icon: HandshakeIcon,
         subtitle: 'Deal-related activities'
+      }
+    case 'by-general':
+      return {
+        category: 'GENERAL ACTIVITIES',
+        icon: ListBulletsIcon,
+        subtitle: 'Activities not linked to any specific entity'
       }
     default:
       return {
         category: 'ACTIVITIES',
-        icon: PiChartLineUp,
+        icon: ChartLineUpIcon,
         subtitle: 'Sales activities'
       }
   }
@@ -162,11 +170,16 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
   onBack
 }) => {
   // Get initial tab from URL or default
+  // Note: 'comparison' tab is only available for 'all' filter
   const getInitialTab = (): ActivityTabType => {
     const urlParams = new URLSearchParams(globalThis.location.search)
     const subViewFromUrl = urlParams.get('tab')
     if (subViewFromUrl === 'list' || subViewFromUrl === 'calendar') {
       return subViewFromUrl
+    }
+    // Comparison tab only allowed for 'all' filter
+    if (subViewFromUrl === 'comparison' && filter === 'all') {
+      return 'comparison'
     }
     return 'list'
   }
@@ -313,15 +326,15 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
         {/* Country - SECOND */}
         {employeeData.country && (
           <>
-            <ContactInfoItem icon={PiMapPin} label="Country" value={employeeData.country} />
+            <ContactInfoItem icon={MapPinIcon} label="Country" value={employeeData.country} />
             <HeaderSeparator />
           </>
         )}
 
         {/* Contact Info - AFTER */}
-        {employeeData.email && <ContactInfoItem icon={PiEnvelope} label="Email" value={employeeData.email} />}
-        {employeeData.phone && <ContactInfoItem icon={PiPhone} label="Phone" value={employeeData.phone} />}
-        {employeeData.mobile && <ContactInfoItem icon={PiDeviceMobile} label="Mobile" value={employeeData.mobile} />}
+        {employeeData.email && <ContactInfoItem icon={EnvelopeIcon} label="Email" value={employeeData.email} />}
+        {employeeData.phone && <ContactInfoItem icon={PhoneIcon} label="Phone" value={employeeData.phone} />}
+        {employeeData.mobile && <ContactInfoItem icon={DeviceMobileIcon} label="Mobile" value={employeeData.mobile} />}
       </div>
     )
   }, [filter, employeeData])
@@ -329,43 +342,70 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
   // Custom wide content className for full width tables/calendars
   const wideContentClassName = 'gba:py-4 gba:w-full gba:max-w-full'
 
+  // Build tabs array - comparison tab only available for 'all' filter
+  const tabItems = useMemo(() => {
+    const items = [
+      {
+        value: 'list',
+        label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.activityList', 'Activity List'),
+        icon: <ListBulletsIcon className="gba:mr-2" />,
+        contentClassName: wideContentClassName,
+        content: (
+          <div data-testid={`${DATA_TEST_ID_PREFIX}-list-content`}>
+            <Activity360ListTab accessToken={accessToken} userInfo={userInfo} filter={filter} entityId={entityId} />
+          </div>
+        )
+      },
+      {
+        value: 'calendar',
+        label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.activityCalendar', 'Activity Calendar'),
+        icon: <CalendarIcon className="gba:mr-2" />,
+        contentClassName: wideContentClassName,
+        content: (
+          <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`}>
+            <Activity360CalendarTab
+              accessToken={accessToken}
+              userInfo={userInfo}
+              filter={filter}
+              entityId={entityId}
+              compact
+            />
+          </div>
+        )
+      }
+    ]
+
+    // Only add comparison tab for 'all' filter
+    if (filter === 'all') {
+      items.push({
+        value: 'comparison',
+        label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.employeeComparison', 'Employee Comparison'),
+        icon: <UsersThreeIcon className="gba:mr-2" />,
+        contentClassName: wideContentClassName,
+        content: (
+          <div data-testid={`${DATA_TEST_ID_PREFIX}-comparison-content`}>
+            <Activity360ComparisonTab
+              accessToken={accessToken}
+              userInfo={userInfo}
+              filter={filter}
+              entityId={entityId}
+            />
+          </div>
+        )
+      })
+    }
+
+    return items
+  }, [accessToken, userInfo, filter, entityId, wideContentClassName])
+
   // Prepare subviews configuration (tabs)
   const subViewsConfig = useMemo(
     () => ({
       defaultValue: activeTab,
       onValueChange: handleTabChange,
-      items: [
-        {
-          value: 'list',
-          label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.activityList', 'Activity List'),
-          icon: <PiListBullets className="gba:mr-2" />,
-          contentClassName: wideContentClassName,
-          content: (
-            <div data-testid={`${DATA_TEST_ID_PREFIX}-list-content`}>
-              <Activity360ListTab accessToken={accessToken} userInfo={userInfo} filter={filter} entityId={entityId} />
-            </div>
-          )
-        },
-        {
-          value: 'calendar',
-          label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.activityCalendar', 'Activity Calendar'),
-          icon: <PiCalendar className="gba:mr-2" />,
-          contentClassName: wideContentClassName,
-          content: (
-            <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`}>
-              <Activity360CalendarTab
-                accessToken={accessToken}
-                userInfo={userInfo}
-                filter={filter}
-                entityId={entityId}
-                compact
-              />
-            </div>
-          )
-        }
-      ]
+      items: tabItems
     }),
-    [activeTab, accessToken, userInfo, filter, entityId, handleTabChange]
+    [activeTab, handleTabChange, tabItems]
   )
 
   // Show loading for employee header fetch
@@ -389,6 +429,15 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
       ? `data:image/jpeg;base64,${employeeData.pictureThumbnail}`
       : undefined
 
+  const headerAvatar = headerImageSrc ? (
+    <Avatar size="xl">
+      <AvatarImage src={headerImageSrc} alt={headerTitle} />
+      <AvatarFallback>?</AvatarFallback>
+    </Avatar>
+  ) : (
+    <IconAvatar icon={config.icon} variant="decorative" size="xl" />
+  )
+
   return (
     <div data-testid={`${DATA_TEST_ID_PREFIX}-container`} className="gba:record-layout-no-padding">
       <style>
@@ -402,15 +451,15 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
       </style>
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={config.icon}
-        headerImageSrc={headerImageSrc}
-        headerImageAlt={headerTitle}
-        headerCategory={config.category}
+        headerAvatar={headerAvatar}
+        headerOverline={config.category}
         onBack={onBack}
         headerTitle={headerTitle}
         headerMeta={headerMeta}
-        headerContent={headerContent}
-        subViews={subViewsConfig}
+        headerSlotAfter={headerContent}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

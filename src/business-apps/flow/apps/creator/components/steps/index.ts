@@ -2,7 +2,7 @@ export { InputFieldsConfiguration, InputFieldsContent, InputFieldsTrigger } from
 export { SummaryFieldsConfiguration, SummaryFieldsTrigger } from './SummaryFieldsConfiguration'
 export { LinksConfiguration, LinksContent, LinksTrigger } from './LinksConfiguration'
 export { TagConfiguration } from './TagConfiguration'
-export { AssignmentConfiguration } from './AssignmentConfiguration'
 export { BasicConfiguration } from './BasicConfiguration'
 export { StepsSection } from './StepsSection'
 export { StepItem } from './StepItem'
+export { EventSubscriptionsConfiguration } from './EventSubscriptionsConfiguration'

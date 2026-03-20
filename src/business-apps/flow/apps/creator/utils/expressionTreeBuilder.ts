@@ -201,6 +201,14 @@ const buildStepsNode = (template: FlowTemplate, currentStepIndex: number): TreeN
         path: ['$steps', `step_${i}`, 'formData', field.name],
         description: field.label || field.name,
         isExpanded: false,
+        metadata: {
+          inputType: field.type,
+          dataSourceType: field.dataSource?.type,
+          dataSourceEntity: field.dataSource?.entity,
+          dataSourceCatalog: field.dataSource?.catalog,
+          labelField: field.dataSource?.labelField,
+          valueField: field.dataSource?.valueField
+        },
         children: []
       }
     })
@@ -413,6 +421,171 @@ const buildCatalogsNode = (catalogs?: CatalogMetadata[]): TreeNode => {
 }
 
 /**
+ * Build OrgChart node with organizational hierarchy expressions
+ */
+const buildOrgChartNode = (): TreeNode => {
+  const orgChartNode: TreeNode = {
+    id: 'orgchart',
+    label: 'OrgChart',
+    type: 'orgchart',
+    icon: 'users',
+    path: ['$orgchart'],
+    description: 'Organizational hierarchy (managers, reports)',
+    isExpanded: false,
+    children: []
+  }
+
+  // Helper to create field nodes
+  const createFieldNodes = (relationKey: string, isArrayReturn: boolean = false): TreeNode[] => {
+    const baseDescription = isArrayReturn ? 'Array of user IDs' : 'User ID'
+    return [
+      {
+        id: `${relationKey}-base`,
+        label: '(Base) User ID(s)',
+        type: 'orgchart-field' as const,
+        icon: 'hash',
+        dataType: isArrayReturn ? 'array' : 'string',
+        description: baseDescription,
+        expressionTemplate: `{{$orgchart.${relationKey}[ID_PLACEHOLDER]}}`
+      },
+      {
+        id: `${relationKey}-name`,
+        label: '.name',
+        type: 'orgchart-field' as const,
+        icon: 'text',
+        dataType: isArrayReturn ? 'array' : 'string',
+        description: isArrayReturn ? 'Array of display names' : 'Display name',
+        expressionTemplate: `{{$orgchart.${relationKey}[ID_PLACEHOLDER].name}}`
+      },
+      {
+        id: `${relationKey}-email`,
+        label: '.email',
+        type: 'orgchart-field' as const,
+        icon: 'mail',
+        dataType: isArrayReturn ? 'array' : 'string',
+        description: isArrayReturn ? 'Array of email addresses' : 'Email address',
+        expressionTemplate: `{{$orgchart.${relationKey}[ID_PLACEHOLDER].email}}`
+      }
+    ]
+  }
+
+  // By Employee ID category
+  const byEmployeeIdNode: TreeNode = {
+    id: 'orgchart-by-employeeid',
+    label: 'By Employee ID',
+    type: 'orgchart-category' as const,
+    icon: 'folder',
+    description: 'Use when you have an employeeId',
+    isExpanded: false,
+    children: [
+      {
+        id: 'orgchart-manager',
+        label: 'Manager',
+        type: 'orgchart-relation' as const,
+        icon: 'user',
+        description: 'Direct manager (returns user ID)',
+        isExpanded: false,
+        metadata: {
+          relationType: 'manager',
+          isArrayReturn: false
+        },
+        children: createFieldNodes('manager', false)
+      },
+      {
+        id: 'orgchart-skiplevel',
+        label: 'Skip-Level Manager',
+        type: 'orgchart-relation' as const,
+        icon: 'users',
+        description: "Manager's manager (returns user ID)",
+        isExpanded: false,
+        metadata: {
+          relationType: 'skipLevelManager',
+          isArrayReturn: false
+        },
+        children: createFieldNodes('skipLevelManager', false)
+      },
+      {
+        id: 'orgchart-reports',
+        label: 'Direct Reports',
+        type: 'orgchart-relation' as const,
+        icon: 'users',
+        description: 'All direct reports (returns array of user IDs)',
+        isExpanded: false,
+        metadata: {
+          relationType: 'directReports',
+          isArrayReturn: true
+        },
+        children: createFieldNodes('directReports', true)
+      },
+      {
+        id: 'orgchart-userid-by-employeeid',
+        label: 'Convert to User ID',
+        type: 'orgchart-field' as const,
+        icon: 'arrow-right',
+        description: 'Convert employeeId to userId (for assignments)',
+        dataType: 'string',
+        expressionTemplate: '{{$orgchart.userIdByEmployeeId[ID_PLACEHOLDER]}}'
+      }
+    ]
+  }
+
+  // By User ID category
+  const byUserIdNode: TreeNode = {
+    id: 'orgchart-by-userid',
+    label: 'By User ID (Recommended)',
+    type: 'orgchart-category' as const,
+    icon: 'folder',
+    description: 'Use when you have a userId (simpler)',
+    isExpanded: false,
+    children: [
+      {
+        id: 'orgchart-manager-by-userid',
+        label: 'Manager By User ID',
+        type: 'orgchart-relation' as const,
+        icon: 'user',
+        description: 'Direct manager via userId (returns user ID)',
+        isExpanded: false,
+        metadata: {
+          relationType: 'managerByUserId',
+          isArrayReturn: false
+        },
+        children: createFieldNodes('managerByUserId', false)
+      },
+      {
+        id: 'orgchart-skiplevel-by-userid',
+        label: 'Skip-Level Manager By User ID',
+        type: 'orgchart-relation' as const,
+        icon: 'users',
+        description: "Manager's manager via userId (returns user ID)",
+        isExpanded: false,
+        metadata: {
+          relationType: 'skipLevelManagerByUserId',
+          isArrayReturn: false
+        },
+        children: createFieldNodes('skipLevelManagerByUserId', false)
+      },
+      {
+        id: 'orgchart-reports-by-userid',
+        label: 'Direct Reports By User ID',
+        type: 'orgchart-relation' as const,
+        icon: 'users',
+        description: 'All direct reports via userId (returns array of user IDs)',
+        isExpanded: false,
+        metadata: {
+          relationType: 'directReportsByUserId',
+          isArrayReturn: true
+        },
+        children: createFieldNodes('directReportsByUserId', true)
+      }
+    ]
+  }
+
+  orgChartNode.children = [byEmployeeIdNode, byUserIdNode]
+
+  return orgChartNode
+}
+
+/**
  * Build tree structure from template
  *
  * @param template - Flow template
@@ -441,6 +614,9 @@ export const buildExpressionTree = (
   // Add entities node (dynamic from fetched schemas)
   nodes.push(buildEntitiesRootNode(entitySchemas || null))
 
+  // Add OrgChart node
+  nodes.push(buildOrgChartNode())
+
   return nodes.filter(Boolean)
 }
 
@@ -459,7 +635,7 @@ export const pathToExpression = (path: string[]): string => {
   })
 
   // Build expression
-  let expression = cleanPath[0] // $workflow, $steps, $catalog, $entity
+  let expression = cleanPath[0] // $workflow, $steps, $catalog, $entity, $orgchart
 
   for (let i = 1; i < cleanPath.length; i++) {
     const segment = cleanPath[i]

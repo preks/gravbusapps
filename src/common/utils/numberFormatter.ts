@@ -437,6 +437,51 @@ export function extractAvailableCurrencies<T>(items: T[], currencyGetter: (item:
   return Array.from(currencies).sort((a, b) => a.localeCompare(b))
 }
 
+/**
+ * Parse a localized number string with various formats (e.g., "1.234,56", "1,234.56", "1234.56")
+ * Handles thousands separators and different decimal separator conventions.
+ *
+ * @param value - The value to parse (can be number or string with various separators)
+ * @returns The parsed number or NaN if invalid
+ *
+ * @example
+ * parseLocalizedNumber("1.234,56")  // 1234.56 (European format)
+ * parseLocalizedNumber("1,234.56")  // 1234.56 (US format)
+ * parseLocalizedNumber("€1.234,56") // 1234.56 (with currency symbol)
+ * parseLocalizedNumber(1234.56)     // 1234.56 (already a number)
+ */
+export const parseLocalizedNumber = (value: any): number => {
+  if (typeof value === 'number') return value
+
+  const input = String(value).trim()
+  if (!input) return Number.NaN
+
+  // Strip non-numeric characters except dots, commas, and minus
+  const cleaned = input.replace(/[^\d.,-]/g, '')
+  if (!cleaned) return Number.NaN
+
+  // Find last occurrence of separators
+  const lastComma = cleaned.lastIndexOf(',')
+  const lastDot = cleaned.lastIndexOf('.')
+  const lastSep = Math.max(lastComma, lastDot)
+
+  let normalized = cleaned
+  if (lastSep > -1) {
+    const fractional = cleaned.substring(lastSep + 1)
+    // If followed by 1-2 digits, it's a decimal separator
+    const isDecimal = /^\d{1,2}$/.test(fractional)
+    if (isDecimal) {
+      const before = cleaned.substring(0, lastSep).replace(/[.,]/g, '')
+      normalized = `${before}.${fractional}`
+    } else {
+      // Otherwise remove all separators
+      normalized = cleaned.replace(/[.,]/g, '')
+    }
+  }
+
+  return Number.parseFloat(normalized)
+}
+
 /** Wrapper to use platform number mask formatting when available. */
 export const formatWithPattern = (value: number | string, pattern: string): string => {
   try {

@@ -36,6 +36,7 @@ import { InvestmentAccountFields } from '../types/investmentAccountTypes'
 import { InvestmentContactFields } from '../types/investmentContactTypes'
 import { InvestmentLeadFields } from '../types/investmentLeadTypes'
 import { InvestmentOpportunityFields } from '../types/investmentOpportunityTypes'
+import { INVESTMENT_REF } from './fragments/investmentReferenceFragments'
 
 /**
  * Investment Activity Query Variables Interface
@@ -45,15 +46,44 @@ export interface InvestmentActivityQueryVariables extends CommonActivityQueryVar
   // Investment-specific: investmentId filter
   investmentId?: string
   investmentIds?: string[]
+  /** Filter by reference entity type: 'account' | 'contact' | 'lead' | 'opportunity' | 'investment' */
+  referenceTypes?: string[]
 }
 
 /**
  * Build Investment Activity query with fields mapping
+ * Includes IRM-specific investment field and all reference relations
  */
 export const buildInvestmentActivityQuery = (
   fields: typeof InvestmentActivityFields = InvestmentActivityFields
 ): string => {
-  return buildActivityQuery('InvestmentActivity', fields)
+  // Build relation builders for common references (account, contact, lead, opportunity)
+  const relationBuilders: ActivityRelationBuilders = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: ActivityRelationFields = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  // Build additional fields for IRM (investment relation)
+  const additionalFields = `
+    # Investment relation (IRM-specific)
+    ${fields.investment} {
+      ${INVESTMENT_REF}
+    }
+    ${fields.investmentId}
+  `
+
+  return buildActivityQuery('InvestmentActivity', fields, relationBuilders, relationFields, additionalFields)
 }
 
 /**

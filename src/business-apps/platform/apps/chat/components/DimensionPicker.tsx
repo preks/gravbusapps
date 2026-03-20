@@ -21,9 +21,9 @@ import {
   Lightning
 } from '@phosphor-icons/react'
 import { UserIcon } from 'lucide-react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { DimensionType, DimensionOption } from '../hooks/useOrganizationalDimensions'
 import type { OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface DimensionPickerProps {
   organizationalUnits: DimensionOption[]
@@ -35,7 +35,7 @@ interface DimensionPickerProps {
   isLoadingMembers: boolean
   selectedMembers: OrgUserBasic[]
   onDimensionSelect: (type: DimensionType, dimensionId: string) => void
-  onConfirm: (members: OrgUserBasic[], dimensionName: string) => void
+  onConfirm: (members: OrgUserBasic[], dimensionName: string, dimensionType: DimensionType, dimensionId: string) => void
   onCancel: () => void
   currentUserId?: string | null
   prefixDataTestId?: string
@@ -91,6 +91,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
   currentUserId,
   prefixDataTestId = 'dimension-picker'
 }) => {
+  const t = useChatTranslation()
   const [step, setStep] = useState<Step>('select_type')
   const [selectedType, setSelectedType] = useState<DimensionType | null>(null)
   const [selectedDimension, setSelectedDimension] = useState<DimensionOption | null>(null)
@@ -155,33 +156,28 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
 
   // Handle confirm
   const handleConfirm = () => {
-    if (selectedDimension && filteredMembers.length > 0) {
-      onConfirm(filteredMembers, selectedDimension.name)
+    if (selectedDimension && selectedType && filteredMembers.length > 0) {
+      onConfirm(filteredMembers, selectedDimension.name, selectedType, selectedDimension.id)
     }
   }
 
   // Get dimension type label
   const getTypeName = (type: DimensionType): string => {
     const dim = DIMENSION_TYPES.find(d => d.type === type)
-    return dim ? getTranslationFromI18nKeyAndLabel(dim.labelKey, dim.defaultLabel) : ''
+    return dim ? t(dim.labelKey) : ''
   }
 
   // Render step 1: Select dimension type
   const renderTypeSelection = () => (
     <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-type-selection`}>
-      <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-        {getTranslationFromI18nKeyAndLabel(
-          'chat.selectDimensionType',
-          'Choose how you want to create your group chat:'
-        )}
-      </div>
+      <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('chat-selectDimensionTypePrompt')}</div>
 
       <RadioGroup
         value={selectedType || ''}
         onValueChange={value => handleTypeSelect(value as DimensionType)}
         className="gba:space-y-3"
       >
-        {DIMENSION_TYPES.map(({ type, labelKey, defaultLabel, icon: Icon }) => {
+        {DIMENSION_TYPES.map(({ type, labelKey, icon: Icon }) => {
           const getCount = () => {
             switch (type) {
               case 'organization_unit':
@@ -212,11 +208,9 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
                   <Icon className="gba:w-5 gba:h-5 gba:text-primary" />
                 </div>
                 <div className="gba:flex-1">
-                  <div className="gba:font-medium gba:text-foreground">
-                    {getTranslationFromI18nKeyAndLabel(labelKey, defaultLabel)}
-                  </div>
+                  <div className="gba:font-medium gba:text-foreground">{t(labelKey)}</div>
                   <div className="gba:text-xs gba:text-muted-foreground">
-                    {count} {getTranslationFromI18nKeyAndLabel('chat.available', 'available')}
+                    {count} {t('chat-available')}
                   </div>
                 </div>
                 <CaretRight className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
@@ -238,7 +232,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
   const renderDimensionSelection = () => (
     <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-dimension-selection`}>
       <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-2">
-        <span>{getTranslationFromI18nKeyAndLabel('chat.selectFrom', 'Select from')}</span>
+        <span>{t('chat-selectFrom')}</span>
         <span className="gba:font-medium gba:text-foreground">{getTypeName(selectedType!)}</span>
       </div>
 
@@ -246,7 +240,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
       <div className="gba:relative">
         <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
         <Input
-          placeholder={getTranslationFromI18nKeyAndLabel('chat.searchDimension', 'Search...')}
+          placeholder={t('chat-searchDimension')}
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           className="gba:!pl-10"
@@ -262,9 +256,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
           </div>
         ) : filteredOptions.length === 0 ? (
           <div className="gba:p-8 gba:text-center gba:text-sm gba:text-muted-foreground">
-            {searchQuery
-              ? getTranslationFromI18nKeyAndLabel('chat.noResultsFound', 'No results found')
-              : getTranslationFromI18nKeyAndLabel('chat.noDimensionsAvailable', 'No options available')}
+            {searchQuery ? t('chat-noResultsFound') : t('chat-noDimensionsAvailable')}
           </div>
         ) : (
           <div className="gba:p-1">
@@ -312,7 +304,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
 
       <div>
         <Label className="gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('chat.membersToAdd', 'Members to add')}
+          {t('chat-membersToAdd')}
           <span className="gba:ml-1 gba:text-foreground gba:font-medium">({filteredMembers.length})</span>
         </Label>
       </div>
@@ -325,7 +317,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
           </div>
         ) : filteredMembers.length === 0 ? (
           <div className="gba:p-8 gba:text-center gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('chat.noMembersFound', 'No members found in this group')}
+            {t('chat-noMembersFound')}
           </div>
         ) : (
           <div className="gba:p-1">
@@ -360,10 +352,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
 
       {filteredMembers.length === 0 && !isLoadingMembers && (
         <div className="gba:text-sm gba:text-warning gba:bg-warning-secondary gba:p-3 gba:rounded-md">
-          {getTranslationFromI18nKeyAndLabel(
-            'chat.cannotCreateEmptyGroup',
-            'Cannot create a group with no members. Please select a different group.'
-          )}
+          {t('chat-cannotCreateEmptyGroup')}
         </div>
       )}
     </div>
@@ -374,15 +363,15 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
       {/* Step indicator */}
       <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
         <span className={step === 'select_type' ? 'gba:text-primary gba:font-medium' : ''}>
-          {getTranslationFromI18nKeyAndLabel('chat.stepSelectType', '1. Type')}
+          {t('chat-stepSelectType')}
         </span>
         <span>→</span>
         <span className={step === 'select_dimension' ? 'gba:text-primary gba:font-medium' : ''}>
-          {getTranslationFromI18nKeyAndLabel('chat.stepSelectGroup', '2. Group')}
+          {t('chat-stepSelectGroup')}
         </span>
         <span>→</span>
         <span className={step === 'confirm_members' ? 'gba:text-primary gba:font-medium' : ''}>
-          {getTranslationFromI18nKeyAndLabel('chat.stepConfirm', '3. Confirm')}
+          {t('chat-stepConfirm')}
         </span>
       </div>
 
@@ -398,9 +387,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
           onClick={step === 'select_type' ? onCancel : handleBack}
           data-testid={`${prefixDataTestId}-back`}
         >
-          {step === 'select_type'
-            ? getTranslationFromI18nKeyAndLabel('chat.cancel', 'Cancel')
-            : getTranslationFromI18nKeyAndLabel('chat.back', 'Back')}
+          {step === 'select_type' ? t('chat-cancel') : t('chat-back')}
         </Button>
 
         {step === 'confirm_members' && (
@@ -409,7 +396,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
             disabled={filteredMembers.length === 0 || isLoadingMembers}
             data-testid={`${prefixDataTestId}-confirm`}
           >
-            {getTranslationFromI18nKeyAndLabel('chat.continue', 'Continue')}
+            {t('chat-continue')}
           </Button>
         )}
       </div>

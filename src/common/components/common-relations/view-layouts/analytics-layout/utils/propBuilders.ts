@@ -499,6 +499,7 @@ export interface ContactsStaticData {
 
 export interface ContactsBuilderConfig {
   title: string
+  module: 'crm' | 'irm'
 }
 
 export interface ContactsBuilderData {
@@ -511,7 +512,6 @@ export interface ContactsBuilderData {
   contactInsights?: {
     totalContacts?: number
     topAccountsByContacts?: any[]
-    contactsByType?: any[]
     recentContacts?: any[]
   }
   contactInsightsLoading?: boolean
@@ -522,6 +522,7 @@ export interface ContactsBuilderData {
 export function buildContactsProps(data: ContactsBuilderData, config: ContactsBuilderConfig) {
   return {
     title: config.title,
+    module: config.module,
 
     // Core KPIs
     totalContacts: data.contactsStaticData?.totalContacts || 0,
@@ -560,7 +561,6 @@ export function buildContactsProps(data: ContactsBuilderData, config: ContactsBu
       recentContacts: data.contactInsights.recentContacts || [],
       insightsData: {
         totalContacts: data.contactInsights.totalContacts || 0,
-        contactsByType: data.contactInsights.contactsByType || [],
         contactsByAccount: data.contactInsights.topAccountsByContacts || [],
         recentContacts: data.contactInsights.recentContacts || []
       }

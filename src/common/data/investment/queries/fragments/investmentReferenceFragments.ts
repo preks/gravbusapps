@@ -9,13 +9,13 @@
  */
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import {
   COMMON_LEAD_FIELDS,
   COMMON_ACCOUNT_FIELDS,
   COMMON_CONTACT_FIELDS,
   COMMON_OPPORTUNITY_FIELDS,
   COMMON_OPPORTUNITY_STAGE_CONDITION_REF,
-  COMMON_TASK_FIELDS,
   COMMON_TASK_TEMPLATE_FIELDS,
   COMMON_TASK_COMMENT_FIELDS,
   COMMON_ACTIVITY_FIELDS,
@@ -71,7 +71,6 @@ export const INVESTMENT_CONTACT_REF = `
   jobPosition
   picture
   pictureThumbnail
-  type
   userId
 `
 
@@ -215,13 +214,48 @@ export const INVESTMENT_OPPORTUNITY_STAGE_CONDITION_REF = `
 `
 
 /**
+ * Task Assignee Fragment for IRM
+ * Used within INVESTMENT_TASK_REF to include multiple assignees
+ */
+const INVESTMENT_TASK_ASSIGNEE_FRAGMENT = `
+  id
+  taskId
+  assignedEmployee {
+    ${EMPLOYEE_REF}
+  }
+  assignedEmployeeId
+  assignedUserId
+  taskStatus
+  completedAt
+  ${AUDIT_FIELDS}
+`
+
+/**
  * ============================================================================
  * INVESTMENT_TASK_REF
  * ============================================================================
- * TODO: taskTiming/taskType/taskTypeRef/taskPriority/taskPriorityRef/taskStatus/taskStatusRef
+ * IRM-specific task reference fragment
+ * IMPORTANT: Uses taskAssignees (multiple assignees), not assignedEmployee
  */
 export const INVESTMENT_TASK_REF = `
-  ${COMMON_TASK_FIELDS}
+  ${AUDIT_FIELDS}
+  # Task Assignees (multiple assignees - NEW for IRM)
+  taskAssignees(where: { isDeleted: { _eq: false } }) {
+    ${INVESTMENT_TASK_ASSIGNEE_FRAGMENT}
+  }
+  code
+  creatorEmployee {
+    ${EMPLOYEE_REF}
+  }
+  creatorEmployeeId
+  creatorUserId
+  description
+  dueDate
+  endDate
+  id
+  name
+  source
+  startDate
   taskPriority {
     ${CATALOG_ENTRY}
   }

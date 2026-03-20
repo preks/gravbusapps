@@ -5,6 +5,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
   Label,
   Textarea,
   toast,
@@ -25,10 +27,19 @@ import {
   SidebarTrigger,
   Separator,
   LocalizationProvider,
-  SupportedLocale,
-  Badge
+  Badge,
+  Switch
 } from '@newwork/nw-design-system'
-import { Gear, Info, Clock, Warning, CheckCircle, XCircle } from '@phosphor-icons/react'
+import {
+  GearIcon,
+  InfoIcon,
+  ClockIcon,
+  WarningIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  CloudArrowUpIcon,
+  CircleNotchIcon
+} from '@phosphor-icons/react'
 import { IDEMainMenu, BusinessAppInfo } from '@/components/ide-main-menu'
 import { IDERenderer } from '@/components/ide-renderer'
 import { UserInfoProps } from './common/BusinessAppContext'
@@ -40,6 +51,30 @@ import { useDynamicScreen } from './common/hooks/useDynamicScreen'
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog'
 import { useRewrapAntDStylesLive } from './common/hooks/useRewrapAntDStylesLive'
 import { BlinkProvider } from './common/providers/BlinkProvider'
+import { useBusinessAuth } from './common/auth/useBusinessAuth'
+import { useUserProfileFromKeycloak } from './common/user-profile/useUserProfileFromKeycloak'
+import {
+  STORAGE_KEY_USER_INFO,
+  STORAGE_KEY_ACCESS_TOKEN,
+  STORAGE_KEY_ADDITIONAL_DATA,
+  STORAGE_KEY_SIDEBAR_COLLAPSED
+} from './common/constants/ideStorageKeys'
+import { NAVIGATION_BASE_PATH, PLATFORM_URL_TO_APP_MAPPING, navigateTo } from './common/utils/navigationUtils'
+
+type Locales = 'en-US' | 'de-DE' | 'ro-RO'
+
+function getAppPathForPlatformUrl(pathname: string): string | undefined {
+  const normalized = pathname?.replace(/\/$/, '') || ''
+  const withLeading = normalized.startsWith('/') ? normalized : `/${normalized}`
+  return PLATFORM_URL_TO_APP_MAPPING[withLeading]
+}
+
+function getPlatformPathForAppPath(appPath: string): string | undefined {
+  if (!appPath) return undefined
+  return Object.keys(PLATFORM_URL_TO_APP_MAPPING).find(
+    platformPath => PLATFORM_URL_TO_APP_MAPPING[platformPath] === appPath
+  )
+}
 
 // Get available modules without eagerly loading them
 const modulePatterns = import.meta.glob('./business-apps/**/index.ts', {
@@ -58,14 +93,6 @@ const allModulePaths = Object.keys(modulePatterns)
 
 // Build the businessApps array from index.ts files (matching getDynamicEntries logic)
 for (const path in modulePatterns) {
-  if (
-    path.includes('/opportunity-tabs/') ||
-    path.includes('/oportunity-tabs/') ||
-    path.includes('/opportunity-components/')
-  ) {
-    continue
-  }
-
   const excludedDirs = ['/components/', '/modules/', '/hooks/', '/lib/', '/utils/']
   if (excludedDirs.some(dir => path.includes(dir))) {
     continue
@@ -227,22 +254,24 @@ for (const path in examplePatterns) {
   })
 }
 
-const STORAGE_KEY_USER_INFO = 'business-app-ide-user-info'
-const STORAGE_KEY_ACCESS_TOKEN = 'business-app-ide-access-token'
-const STORAGE_KEY_ADDITIONAL_DATA = 'business-app-ide-additional-data'
-const STORAGE_KEY_SIDEBAR_COLLAPSED = 'business-app-ide-sidebar-collapsed'
-
 export interface CompMeta {
   name: string
   layoutInfo?: any
 }
 
 const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
-  const { domain, processName, processInstanceId, startProcessBody } = event
+  const { domain, processName, processInstanceId, startProcessBody, builderType, skipScreen } = event
+  const parts = [
+    `Domain: ${domain}`,
+    `Process: ${processName}`,
+    processInstanceId ? `ID: ${processInstanceId}` : null,
+    builderType ? `Builder: ${builderType}` : null,
+    skipScreen === undefined ? null : `Skip Screen: ${skipScreen}`,
+    `Process body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`
+  ].filter(Boolean)
+
   toast.success('Process Start Event Detected', {
-    description: `Domain: ${domain}, \nProcess: ${processName}${
-      processInstanceId ? `, ID: ${processInstanceId}` : ''
-    }\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
+    description: parts.join('\n'),
     position: 'top-right'
   })
 }
@@ -271,10 +300,21 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   // Check for different parameter types (app, form, popup, window)
   const appFromUrl = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
 
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+  // /platform is home (no app); only paths under /platform/... with a mapping resolve to an app
+  const appPathFromPathname =
+    pathname && pathname !== NAVIGATION_BASE_PATH ? getAppPathForPlatformUrl(pathname) : undefined
+  const inferredAppFromPath =
+    !appPathFromPathname && !appFromUrl && (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft'))
+      ? 'flow/apps/creator'
+      : null
+  const effectiveAppFromUrl = appPathFromPathname ?? appFromUrl ?? inferredAppFromPath
+
   const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
     // First try to find by full path (new format), then fallback to name (legacy format)
-    getAppByPath(appFromUrl || '') || getAppByName(appFromUrl || '') || null
+    getAppByPath(effectiveAppFromUrl || '') || getAppByName(effectiveAppFromUrl || '') || null
   )
+  const [hasLoadedSettings, setHasLoadedSettings] = useState(false)
   const [userInfo, setUserInfo] = useState<string>('')
   const [userInfoError, setUserInfoError] = useState<string>('')
   const [accessToken, setAccessToken] = useState<string>('')
@@ -294,7 +334,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
         : 'gba:density-default'
 
   // Locale state for LocalizationProvider
-  const [locale, setLocale] = useState<SupportedLocale>('en-US')
+  const [locale, setLocale] = useState<Locales>('en-US')
+  const [enableIdeStructureIdAutofill, setEnableIdeStructureIdAutofill] = useState(true)
 
   // Apply density globally on <html> to ensure DS components outside wrapper are affected
   useEffect(() => {
@@ -315,6 +356,71 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     remainingTime: string
     variant: 'success' | 'warning' | 'destructive' | 'secondary'
   } | null>(null)
+
+  // Publish screen state
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [publishConfirmDialogVisible, setPublishConfirmDialogVisible] = useState(false)
+
+  // Open the publish confirmation dialog
+  const handlePublishButtonClick = useCallback(() => {
+    if (!selectedApp) {
+      toast.error('No screen selected', {
+        description: 'Please select a screen to publish',
+        position: 'top-right'
+      })
+      return
+    }
+    setPublishConfirmDialogVisible(true)
+  }, [selectedApp])
+
+  // Actually publish the screen after confirmation
+  const handleConfirmPublish = useCallback(async () => {
+    if (!selectedApp) return
+
+    setPublishConfirmDialogVisible(false)
+    setIsPublishing(true)
+
+    try {
+      const response = await fetch('/__publish-screen', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ screenPath: selectedApp.screenKey })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Screen published successfully', {
+          description: (
+            <span className="gba:text-foreground">
+              <code className="gba:font-medium">{selectedApp.screenKey}</code>
+            </span>
+          ),
+          position: 'top-right'
+        })
+        // Update last published date
+        setLastPublishedDate(new Date().toLocaleString())
+      } else {
+        toast.error('Publish failed', {
+          description: <span className="gba:text-foreground">{result.error || 'An unknown error occurred'}</span>,
+          position: 'top-right'
+        })
+        console.error('Publish error details:', result)
+      }
+    } catch (error) {
+      console.error('Publish error:', error)
+      toast.error('Publish failed', {
+        description: (
+          <span className="gba:text-foreground">{error instanceof Error ? error.message : 'Network error'}</span>
+        ),
+        position: 'top-right'
+      })
+    } finally {
+      setIsPublishing(false)
+    }
+  }, [selectedApp])
 
   // Utility function to decode and analyze JWT token
   const analyzeToken = useCallback((token: string) => {
@@ -425,14 +531,21 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
 
     // Load saved locale
-    const savedLocale = localStorage.getItem('business-app-ide-locale') as SupportedLocale | null
+    const savedLocale = localStorage.getItem('business-app-ide-locale') as Locales | null
     if (savedLocale) {
       setLocale(savedLocale)
     }
 
-    // Set open keys based on the currently selected app (from URL)
-    // Only if menu is not collapsed initially and using legacy menu
-    const initialSelectedApp = getAppByPath(appFromUrl || '') || getAppByName(appFromUrl || '')
+    // Load saved structure id autofill toggle
+    const savedAutofill = localStorage.getItem('business-app-ide-structure-id-autofill')
+    if (savedAutofill === 'true' || savedAutofill === 'false') {
+      setEnableIdeStructureIdAutofill(savedAutofill === 'true')
+    }
+
+    setHasLoadedSettings(true)
+
+    // Set open keys based on the currently selected app (from URL or pathname)
+    const initialSelectedApp = getAppByPath(effectiveAppFromUrl || '') || getAppByName(effectiveAppFromUrl || '')
     const initialCollapsed = localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === 'true'
     if (!initialCollapsed && initialSelectedApp) {
       const requiredKeys = getRequiredOpenKeysForApp(initialSelectedApp)
@@ -468,22 +581,77 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   }, [selectedApp, collapsed])
 
   useEffect(() => {
+    const pathname = window.location.pathname
+    const hasOAuthParams = window.location.search.includes('code=') || window.location.search.includes('state=')
+
+    if (!selectedApp) {
+      const isStartUrl = pathname === '' || pathname === '/' || pathname === NAVIGATION_BASE_PATH
+      if (isStartUrl && !hasOAuthParams) {
+        window.history.pushState({}, '', NAVIGATION_BASE_PATH)
+      }
+      if (!isStartUrl) {
+        const appPathFromPathname = getAppPathForPlatformUrl(pathname)
+        const app = appPathFromPathname ? getAppByPath(appPathFromPathname) || getAppByName(appPathFromPathname) : null
+        if (app) setSelectedApp(app)
+      }
+      setLastPublishedDate('')
+      return
+    }
+
+    fetchLastPublishedDate(selectedApp)
+
+    const platformPath = getPlatformPathForAppPath(selectedApp.screenKey)
     const url = new URL(window.location.href)
 
-    // Clear all type parameters first
-    url.searchParams.delete('app')
-    url.searchParams.delete('form')
-    url.searchParams.delete('popup')
-
-    if (selectedApp) {
-      // Set the appropriate parameter based on the app's type
-      url.searchParams.set(selectedApp.type, selectedApp.screenKey)
-      fetchLastPublishedDate(selectedApp)
+    if (platformPath) {
+      url.pathname = platformPath
+      url.searchParams.delete('app')
+      url.searchParams.delete('form')
+      url.searchParams.delete('popup')
+      url.searchParams.delete('window')
     } else {
-      setLastPublishedDate('')
+      url.searchParams.delete('app')
+      url.searchParams.delete('form')
+      url.searchParams.delete('popup')
+      url.searchParams.delete('window')
+      url.searchParams.set(selectedApp.type, selectedApp.screenKey)
     }
-    window.history.pushState({}, '', url.toString())
+    const targetUrl = url.pathname + (url.search || '')
+    const currentUrl = window.location.pathname + window.location.search
+    if (targetUrl !== currentUrl) {
+      window.history.pushState({}, '', targetUrl)
+    }
   }, [selectedApp])
+
+  // Redirect root to platform home so localhost:3002 lands on /platform.
+  // Do not touch the URL when it has OAuth callback params (code, state) – Keycloak must process them first; overwriting causes a login loop.
+  useEffect(() => {
+    const path = window.location.pathname
+    const search = window.location.search
+    const hasOAuthParams = search.includes('code=') || search.includes('state=')
+    if ((path === '/' || path === '') && !hasOAuthParams) {
+      window.history.replaceState({}, '', NAVIGATION_BASE_PATH)
+    }
+  }, [])
+
+  // Sync selectedApp from URL when user navigates back/forward (pathname or query)
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathname = window.location.pathname
+      const params = new URLSearchParams(window.location.search)
+      const appFromQuery = params.get('app') || params.get('form') || params.get('popup') || params.get('window')
+      const appPathFromPathname = getAppPathForPlatformUrl(pathname)
+      const effectivePath = appPathFromPathname ?? appFromQuery
+      if (effectivePath) {
+        const app = getAppByPath(effectivePath) || getAppByName(effectivePath)
+        setSelectedApp(app)
+      } else {
+        setSelectedApp(null)
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   /**
    * Fetches the last published date for a business app from Azure Storage
@@ -611,6 +779,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   }
 
   const goToStartScreen = () => {
+    navigateTo(NAVIGATION_BASE_PATH)
     setSelectedApp(null)
   }
 
@@ -659,6 +828,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     localStorage.setItem('business-app-ide-locale', locale)
   }, [locale])
 
+  // Persist structure id autofill selection
+  useEffect(() => {
+    localStorage.setItem('business-app-ide-structure-id-autofill', String(enableIdeStructureIdAutofill))
+  }, [enableIdeStructureIdAutofill])
+
   const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
       try {
@@ -683,6 +857,191 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     return undefined
   }, [additionalData])
 
+  const getIdeActiveStructureId = useCallback((): string | undefined => {
+    if (typeof process !== 'undefined' && process.env?.IDE_ACTIVE_STRUCTURE_ID) {
+      return String(process.env.IDE_ACTIVE_STRUCTURE_ID)
+    }
+
+    return undefined
+  }, [])
+
+  useEffect(() => {
+    if (!hasLoadedSettings || !enableIdeStructureIdAutofill) return
+    const ideStructureId = getIdeActiveStructureId()
+    if (!ideStructureId) return
+
+    if (!additionalData || additionalData.trim().length === 0) {
+      setAdditionalData(JSON.stringify({ platformContext: { structureId: ideStructureId } }, null, 2))
+      return
+    }
+
+    const existingAdditionalData = parsedAdditionalData()
+    if (!existingAdditionalData) return
+
+    const hasStructureId =
+      existingAdditionalData?.platformContext?.structureId ||
+      existingAdditionalData?.structureId ||
+      existingAdditionalData?.activeStructureId
+
+    if (hasStructureId) return
+
+    const mergedAdditionalData = {
+      ...existingAdditionalData,
+      platformContext: {
+        ...existingAdditionalData.platformContext,
+        structureId: ideStructureId
+      }
+    }
+
+    const serialized = JSON.stringify(mergedAdditionalData, null, 2)
+    if (serialized !== additionalData) {
+      setAdditionalData(serialized)
+    }
+  }, [additionalData, enableIdeStructureIdAutofill, getIdeActiveStructureId, hasLoadedSettings, parsedAdditionalData])
+
+  // Provide a local platform context for localhost IDE usage.
+  // This mirrors platform-provided values without hardcoding any IDs.
+  useEffect(() => {
+    if (typeof globalThis === 'undefined') return
+
+    const localUserInfo = parsedUserInfo()
+    const localAdditionalData = parsedAdditionalData()
+    if (!localUserInfo && !localAdditionalData) return
+
+    const lowcoder = ((globalThis as any).lowcoder ??= {})
+    const platformContext = { ...lowcoder.platformContext }
+    const additionalPlatformContext = localAdditionalData?.platformContext ?? {}
+
+    const structureId =
+      platformContext.structureId ||
+      additionalPlatformContext.structureId ||
+      localAdditionalData?.structureId ||
+      localAdditionalData?.activeStructureId
+
+    if (structureId && !platformContext.structureId) {
+      platformContext.structureId = structureId
+    }
+
+    if (structureId && !lowcoder.activeStructureId) {
+      lowcoder.activeStructureId = structureId
+    }
+
+    if (localUserInfo?.employeeDetails?.employeeId && !platformContext.employeeId) {
+      platformContext.employeeId = localUserInfo.employeeDetails.employeeId
+    }
+
+    if (localUserInfo?.employeeDetails?.organizationalUnit?.id && !platformContext.organizationalUnitId) {
+      platformContext.organizationalUnitId = localUserInfo.employeeDetails.organizationalUnit.id
+    }
+
+    if (localUserInfo?.employeeDetails?.supervisor?.id && !platformContext.managerId) {
+      platformContext.managerId = localUserInfo.employeeDetails.supervisor.id
+    }
+
+    if (localUserInfo?.id && !platformContext.userId) {
+      platformContext.userId = localUserInfo.id
+    }
+
+    lowcoder.platformContext = platformContext
+  }, [parsedAdditionalData, parsedUserInfo])
+
+  // --- Authentication & user profile (Keycloak-based) ---
+  const {
+    initialized: authInitialized,
+    accessToken: authToken,
+    tokenParsed,
+    logout,
+    refreshToken,
+    isMsOAuthCallback
+  } = useBusinessAuth()
+  const { userInfo: profileUserInfo, loading: profileLoading } = useUserProfileFromKeycloak(authToken, tokenParsed)
+
+  // When auth/profile become available, synchronize into IDE state and localStorage
+  useEffect(() => {
+    if (!authInitialized || !authToken) return
+
+    setAccessToken(authToken)
+    try {
+      localStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, authToken)
+    } catch {
+      // ignore storage errors
+    }
+  }, [authInitialized, authToken])
+
+  useEffect(() => {
+    if (!profileUserInfo) return
+    try {
+      const serialized = JSON.stringify(profileUserInfo, null, 2)
+      setUserInfo(serialized)
+      validateUserInfo(serialized)
+      localStorage.setItem(STORAGE_KEY_USER_INFO, serialized)
+    } catch {
+      // ignore serialization or storage errors
+    }
+  }, [profileUserInfo])
+
+  // After auth init, sync selectedApp from URL (covers path restore after reload)
+  useEffect(() => {
+    if (!authInitialized) return
+    const pathname = window.location.pathname
+    const params = new URLSearchParams(window.location.search)
+    const appFromQuery = params.get('app') || params.get('form') || params.get('popup') || params.get('window')
+    const appPathFromPathname = getAppPathForPlatformUrl(pathname)
+    const effectivePath = appPathFromPathname ?? appFromQuery
+    if (effectivePath) {
+      const app = getAppByPath(effectivePath) || getAppByName(effectivePath)
+      setSelectedApp(app)
+    } else if (pathname === '' || pathname === '/' || pathname === NAVIGATION_BASE_PATH) {
+      setSelectedApp(null)
+    }
+  }, [authInitialized])
+
+  const handleLogout = useCallback(async () => {
+    await logout()
+    setAccessToken('')
+    setUserInfo('')
+    setAdditionalData('')
+    setTokenStatus(null)
+    setSettingsModalVisible(false)
+  }, [logout])
+
+  const handleTokenBadgeClick = useCallback(async () => {
+    await refreshToken()
+    setSettingsModalVisible(true)
+  }, [refreshToken])
+
+  // While authentication is initializing, show a minimal loading shell.
+  // Only block on profile loading when we do not have profile yet (avoids fullscreen "Signing in" on token refresh).
+  // Exception: if this is a Microsoft OAuth callback, render immediately so email app can handle it.
+  const hasSavedReturnPath = typeof window !== 'undefined' && sessionStorage.getItem('keycloak_return_path') != null
+  if (!authInitialized || (profileLoading && !profileUserInfo && !isMsOAuthCallback)) {
+    const loadingLabel = isMsOAuthCallback
+      ? 'Completing Microsoft sign-in…'
+      : hasSavedReturnPath
+        ? 'Loading…'
+        : 'Signing you in to NEWWORK…'
+    return (
+      <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
+        <LocalizationProvider locale={locale}>
+          <div className={densityClass}>
+            <div className="gba:h-screen gba:flex gba:items-center gba:justify-center">
+              <div className="gba:text-sm gba:text-muted-foreground">{loadingLabel}</div>
+            </div>
+          </div>
+        </LocalizationProvider>
+      </ThemeProvider>
+    )
+  }
+
+  const tokenStatusIcon = (size: number) =>
+    tokenStatus?.isExpired ? (
+      <XCircleIcon size={size} weight="fill" />
+    ) : tokenStatus?.variant === 'warning' ? (
+      <WarningIcon size={size} weight="fill" />
+    ) : (
+      <CheckCircleIcon size={size} weight="fill" />
+    )
+
   return (
     <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
       <LocalizationProvider locale={locale}>
@@ -704,12 +1063,12 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                   />
                   <SidebarInset>
                     {/* Header inside inset, responsive to collapsed state */}
-                    <header className="gba:flex gba:h-12 gba:shrink-0 gba:items-center gba:gap-2 gba:transition-[width,height] gba:ease-linear">
+                    <header className="gba:flex gba:h-12 gba:shrink-0 gba:items-center gba:gap-2 gba:transition-[width,height] gba:ease-linear gba:bg-header gba:text-header-foreground gba:border-b gba:border-border">
                       <div className="gba:flex gba:items-center gba:gap-2 gba:px-4">
                         <SidebarTrigger className="gba:-ml-1" />
                         <Separator orientation="vertical" className="gba:mr-2" />
                         <a
-                          href="#"
+                          href={NAVIGATION_BASE_PATH}
                           onClick={e => {
                             e.preventDefault()
                             goToStartScreen()
@@ -737,7 +1096,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
                       <div className="gba:flex gba:items-center gba:justify-end gba:gap-4 gba:pr-4">
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <Select value={locale} onValueChange={v => setLocale(v as SupportedLocale)}>
+                          <Select value={locale} onValueChange={v => setLocale(v as Locales)}>
                             <SelectTrigger data-testid="BusinessAppIDE-locale-select" aria-label="Language">
                               <SelectValue placeholder="Language" />
                             </SelectTrigger>
@@ -786,16 +1145,10 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                                 <Badge
                                   variant={tokenStatus.variant}
                                   className="gba:cursor-pointer gba:gap-1.5 gba:px-2.5 gba:py-1"
-                                  onClick={() => setSettingsModalVisible(true)}
+                                  onClick={handleTokenBadgeClick}
                                   data-testid="TokenStatusBadge"
                                 >
-                                  {tokenStatus.isExpired ? (
-                                    <XCircle size={14} weight="fill" />
-                                  ) : tokenStatus.variant === 'warning' ? (
-                                    <Warning size={14} weight="fill" />
-                                  ) : (
-                                    <CheckCircle size={14} weight="fill" />
-                                  )}
+                                  {tokenStatusIcon(14)}
                                   <span className="gba:text-xs gba:font-medium">{tokenStatus.remainingTime}</span>
                                 </Badge>
                               </TooltipTrigger>
@@ -820,10 +1173,10 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                                 <Badge
                                   variant="secondary"
                                   className="gba:cursor-pointer gba:gap-1.5 gba:px-2.5 gba:py-1"
-                                  onClick={() => setSettingsModalVisible(true)}
+                                  onClick={handleTokenBadgeClick}
                                   data-testid="TokenStatusBadge-Invalid"
                                 >
-                                  <Clock size={14} />
+                                  <ClockIcon size={14} />
                                   <span className="gba:text-xs gba:font-medium">Invalid Token</span>
                                 </Badge>
                               </TooltipTrigger>
@@ -836,11 +1189,35 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                             </Tooltip>
                           </TooltipProvider>
                         )}
+                        {selectedApp && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handlePublishButtonClick}
+                                  disabled={isPublishing}
+                                  className="gba:gap-1.5"
+                                  data-testid="PublishScreenButton"
+                                >
+                                  {isPublishing ? (
+                                    <CircleNotchIcon size={14} className="gba:animate-spin" />
+                                  ) : (
+                                    <CloudArrowUpIcon size={14} />
+                                  )}
+                                  <span className="gba:text-xs">Publish Screen</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Publish {selectedApp.name} to dev</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button variant="ghost" size="icon" onClick={() => setSettingsModalVisible(true)}>
-                                <Gear size={16} />
+                                <GearIcon size={16} />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Settings</TooltipContent>
@@ -850,7 +1227,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button variant="ghost" size="icon" onClick={() => setPerformanceModalVisible(true)}>
-                                <Info size={16} />
+                                <InfoIcon size={16} />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Performance Metrics</TooltipContent>
@@ -920,15 +1297,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                             }`}
                             data-testid="TokenStatusInfo"
                           >
-                            <div className="gba:flex-shrink-0 gba:mt-0.5">
-                              {tokenStatus.isExpired ? (
-                                <XCircle size={18} weight="fill" />
-                              ) : tokenStatus.variant === 'warning' ? (
-                                <Warning size={18} weight="fill" />
-                              ) : (
-                                <CheckCircle size={18} weight="fill" />
-                              )}
-                            </div>
+                            <div className="gba:flex-shrink-0 gba:mt-0.5">{tokenStatusIcon(18)}</div>
                             <div className="gba:flex-1 gba:space-y-1">
                               <div className="gba:font-semibold gba:text-sm">
                                 {tokenStatus.isExpired
@@ -956,7 +1325,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                             data-testid="TokenStatusInfo-Invalid"
                           >
                             <div className="gba:flex-shrink-0 gba:mt-0.5">
-                              <Clock size={18} />
+                              <ClockIcon size={18} />
                             </div>
                             <div className="gba:flex-1">
                               <div className="gba:font-semibold gba:text-sm">Invalid Token Format</div>
@@ -973,7 +1342,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                         <Label htmlFor="additionalData">Additional Data (JSON format)</Label>
                         <Textarea
                           id="additionalData"
-                          placeholder='Enter additional data in JSON format (e.g., {"employeeId": "123", "jobPositionId": "456"})'
+                          placeholder='Enter additional data in JSON format (e.g., {"employeeId": "123", "jobPositionId": "456", "platformContext": {"structureId": "uuid-here"}})'
                           rows={4}
                           value={additionalData}
                           onChange={e => {
@@ -986,16 +1355,33 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                         {additionalDataError && <p className="gba:text-sm gba:text-red-500">{additionalDataError}</p>}
                       </div>
 
+                      <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
+                        <Label htmlFor="enableStructureIdAutofill">
+                          Auto-fill structure ID from local environment variables
+                        </Label>
+                        <Switch
+                          id="enableStructureIdAutofill"
+                          checked={enableIdeStructureIdAutofill}
+                          onCheckedChange={setEnableIdeStructureIdAutofill}
+                          data-testid="ide-settings-structure-id-autofill-toggle"
+                        />
+                      </div>
+
                       <p className="gba:text-sm gba:text-gray-600">
                         These settings will be saved in your browser's local storage and persisted between sessions.
                         Additional Data is used to pass context information like employeeId, jobPositionId, etc.
                       </p>
 
-                      <div className="gba:flex gba:justify-end gba:gap-2">
-                        <Button variant="outline" onClick={() => setSettingsModalVisible(false)}>
-                          Cancel
+                      <div className="gba:flex gba:justify-between gba:gap-2">
+                        <Button variant="outline" onClick={handleLogout}>
+                          Logout
                         </Button>
-                        <Button onClick={saveSettings}>Save Settings</Button>
+                        <div className="gba:flex gba:gap-2">
+                          <Button variant="outline" onClick={() => setSettingsModalVisible(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={saveSettings}>Save Settings</Button>
+                        </div>
                       </div>
                     </div>
                   </DialogContent>
@@ -1052,6 +1438,39 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                         <Button onClick={() => setPerformanceModalVisible(false)}>Close</Button>
                       </div>
                     </div>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Publish Confirmation Dialog */}
+                <Dialog open={publishConfirmDialogVisible} onOpenChange={setPublishConfirmDialogVisible}>
+                  <DialogContent className="gba:max-w-[450px]">
+                    <DialogHeader>
+                      <DialogTitle>Publish Screen</DialogTitle>
+                      <DialogDescription>Publish this screen to dev?</DialogDescription>
+                    </DialogHeader>
+                    {selectedApp && (
+                      <div className="gba:bg-muted gba:p-3 gba:rounded-lg gba:space-y-1">
+                        <div className="gba:text-sm">
+                          <span className="gba:text-muted-foreground">Screen: </span>
+                          <span className="gba:font-medium">{selectedApp.name}</span>
+                        </div>
+                        <div className="gba:text-sm">
+                          <span className="gba:text-muted-foreground">Path: </span>
+                          <code className="gba:text-xs gba:bg-background gba:px-1 gba:py-0.5 gba:rounded">
+                            {selectedApp.screenKey}
+                          </code>
+                        </div>
+                      </div>
+                    )}
+                    <DialogFooter className="gba:gap-2">
+                      <Button variant="outline" onClick={() => setPublishConfirmDialogVisible(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleConfirmPublish}>
+                        <CloudArrowUpIcon size={14} className="gba:mr-1.5" />
+                        Publish
+                      </Button>
+                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
 

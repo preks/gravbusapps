@@ -1,9 +1,11 @@
 import React from 'react'
 import { Button, Alert, AlertTitle, AlertDescription, Spinner } from '@newwork/nw-design-system'
-import { BarChart3, Home, Banknote } from 'lucide-react'
+import { ChartBarIcon, HouseIcon, CurrencyDollarIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { InvestmentStatistics } from './components/InvestmentStatistics'
+import { InvestmentKPICards } from '@/common/components/investment-kpi-cards'
+import { OVERVIEW_KPI_CONFIG } from '@/common/data/investment/kpis'
+import { useInvestmentPortfolioIntegration } from '../analytics-view/overview/hooks/useInvestmentPortfolioIntegration'
 import InvestmentBreakdownCard, { type InvestmentGroup, type TrendData } from './components/InvestmentBreakdownCard'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { Investment } from '@/common/data/investment/types/investmentTypes'
@@ -16,30 +18,26 @@ interface DashboardViewProps extends BusinessAppContextProps {
   onNavigateToInvestments?: (subTab?: string) => void
 }
 
-// Helper function to format group names for display
-const formatGroupName = (groupName: string): string => {
-  if (groupName === 'RealEstate') {
-    return 'Real Estate'
-  }
-  if (groupName === 'LiquidFund' || groupName === 'LiquidFunds') {
-    return 'Liquid Fund'
-  }
-  return groupName.replace(/([A-Z])/g, ' $1').trim()
-}
-
-// Helper function to get icon component by name
-const getIconComponent = (groupName: string) => {
+// Helper function to get icon for the 4 main groups, fallback to generic for others
+const getGroupIcon = (groupName: string) => {
   const groupLower = groupName.toLowerCase()
 
-  if (groupLower.includes('equity') && !groupLower.includes('private')) {
-    return BarChart3
-  } else if (groupLower.includes('real') || groupLower.includes('estate')) {
-    return Home
-  } else if (groupLower.includes('liquid') || groupLower.includes('fund')) {
-    return Banknote
-  } else {
-    return BarChart3
+  // Check for the 4 specific groups with dedicated icons
+  if (groupLower.includes('private') && groupLower.includes('equity')) {
+    return TrendUpIcon // Private Equity
   }
+  if (groupLower.includes('equity')) {
+    return ChartBarIcon // Regular Equity
+  }
+  if (groupLower.includes('real') || groupLower.includes('estate')) {
+    return HouseIcon // Real Estate
+  }
+  if (groupLower.includes('liquid') || groupLower.includes('fund')) {
+    return CurrencyDollarIcon // Liquid Funds
+  }
+
+  // Generic fallback for all other groups (TEST, etc.)
+  return ChartBarIcon
 }
 
 // Helper function to calculate trend data
@@ -125,6 +123,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   // Use centralized groups and types data
   const { data: groupsData, error: groupsError, isLoading: groupsLoading } = useInvestmentGroupsAndTypes(accessToken)
 
+  // Use centralized Overview KPIs from Analytics View
+  const overviewKPIs = useInvestmentPortfolioIntegration({ accessToken, userInfo }, masterCurrency)
+
   // Fetch ALL investments once (cards can filter by their individual currency)
   React.useEffect(() => {
     let mounted = true
@@ -169,12 +170,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     return map
   }, [groupsData])
 
-  // Process investments by groups
+  // Process investments by groups - use catalog displayOrder for sorting
   const processedInvestmentGroups = React.useMemo(() => {
     if (!investments?.length || !groupsData?.groups?.length) {
       return []
     }
 
+    // Group investments by their group value
     const groupGroups = investments.reduce(
       (groups, inv) => {
         const investmentTypeValue = inv.investmentType?.value
@@ -208,45 +210,44 @@ const DashboardView: React.FC<DashboardViewProps> = ({
       {} as Record<string, Investment[]>
     )
 
-    const groupOrder = ['RealEstate', 'Equity', 'Liquid Fund', 'Liquid Funds']
-
+    // Ensure all catalog groups are present (even with 0 investments)
     groupsData.groups.forEach((catalogGroup: any) => {
       if (!groupGroups[catalogGroup.value]) {
         groupGroups[catalogGroup.value] = []
       }
     })
 
-    return Object.entries(groupGroups)
-      .sort(([groupA], [groupB]) => {
-        const indexA = groupOrder.indexOf(groupA)
-        const indexB = groupOrder.indexOf(groupB)
-
-        if (indexA !== -1 && indexB !== -1) return indexA - indexB
-        if (indexA !== -1) return -1
-        if (indexB !== -1) return 1
-        return groupA.localeCompare(groupB)
+    // Sort groups by displayOrder from catalog, then alphabetically
+    return groupsData.groups
+      .sort((a: any, b: any) => {
+        // Primary sort: by displayOrder
+        if (a.displayOrder !== b.displayOrder) {
+          return a.displayOrder - b.displayOrder
+        }
+        // Secondary sort: alphabetically by value
+        return a.value.localeCompare(b.value)
       })
-      .map(([group, groupInvestments]) => ({
-        group,
-        investments: groupInvestments
+      .map((catalogGroup: any) => ({
+        group: catalogGroup.value,
+        investments: groupGroups[catalogGroup.value] || []
       }))
   }, [investments, groupsData, typeToGroupMap])
 
-  // Transform investments into grouped metrics
+  // Transform investments into grouped metrics - use specific icons for main 4 groups
   const investmentGroupMetrics = React.useMemo(() => {
-    if (!groupsData?.groups?.length || !investments?.length) {
+    if (!groupsData?.groups?.length) {
       return []
     }
 
     return processedInvestmentGroups.map(({ group, investments: groupInvestments }) => {
       return {
         name: group,
-        icon: getIconComponent(group),
+        icon: getGroupIcon(group), // Specific icons for Equity, Private Equity, Real Estate, Liquid Funds; generic for others
         investments: groupInvestments.length,
         groupInvestments // Include actual investments for currency filtering and trend calculation
       }
     })
-  }, [processedInvestmentGroups])
+  }, [processedInvestmentGroups, groupsData])
 
   if (isLoading) {
     return (
@@ -288,7 +289,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Key Metrics Cards */}
       <div className="gba:mb-8">
-        <InvestmentStatistics accessToken={accessToken} userInfo={userInfo} selectedCurrency={masterCurrency} />
+        <InvestmentKPICards
+          config={OVERVIEW_KPI_CONFIG}
+          data={overviewKPIs.kpis}
+          previousData={overviewKPIs.previousKpis}
+          currencyCode={masterCurrency}
+          isLoading={overviewKPIs.isLoading}
+          error={overviewKPIs.error ? new Error(overviewKPIs.error) : null}
+          onRetry={overviewKPIs.refetch}
+          data-testid="dashboard-overview-kpis"
+        />
       </div>
 
       {/* Investment Groups Breakdown */}
@@ -302,7 +312,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-3">
+        <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-4">
           {groupsLoading ? (
             <div className="gba:col-span-full gba:flex gba:justify-center gba:items-center gba:py-8">
               <Spinner size="lg" />
@@ -333,7 +343,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                   moduleColor as 'ext1' | 'ext2' | 'ext3' | 'ext4' | 'ext5' | 'ext6' | 'ext7' | 'ext8' | undefined
                 }
                 onNavigateToInvestmentType={handleNavigateToInvestmentType}
-                formatGroupName={formatGroupName}
                 calculateTrendData={calculateTrendData}
                 masterCurrency={masterCurrency}
                 availableCurrencies={availableCurrencies}

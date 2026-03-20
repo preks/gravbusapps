@@ -41,9 +41,30 @@ export const processCompleteServerSideAggregations = (
   ]
 
   const rawEntitlements = aggregationResult?.EmployeeAbsenceEntitlement || []
+  const snapshotRows = aggregationResult?.entitlementSnapshot || []
   const activeEmployeesCount = aggregationResult?.activeEmployeesCount?.aggregate?.count || 0
   const vacationAbsenceBalance = aggregationResult?.vacationAbsenceBalance?.aggregate?.sum?.balance || 0
-  const vacationMetrics = calculateVacationMetrics(rawEntitlements, activeEmployeesCount, vacationAbsenceBalance)
+
+  let entitlementsForMetrics = rawEntitlements
+  if (Array.isArray(snapshotRows) && snapshotRows.length > 0) {
+    const byEmployee: Record<string, { total: number; approved: number; pending: number }> = {}
+    snapshotRows.forEach((r: any) => {
+      const key = r.employeeId || 'unknown'
+      if (!byEmployee[key]) {
+        byEmployee[key] = { total: 0, approved: 0, pending: 0 }
+      }
+      byEmployee[key].total += Number(r.totalEntitlement) || 0
+      byEmployee[key].approved += Number(r.usedApproved) || 0
+      byEmployee[key].pending += Number(r.usedPending) || 0
+    })
+    entitlementsForMetrics = Object.values(byEmployee).map(v => ({
+      total: v.total,
+      approved: v.approved,
+      pending: v.pending
+    }))
+  }
+
+  const vacationMetrics = calculateVacationMetrics(entitlementsForMetrics, activeEmployeesCount, vacationAbsenceBalance)
 
   const averageDuration = Math.round((aggregationResult.totalAbsences?.aggregate?.avg?.effectiveDays || 0) * 100) / 100
 

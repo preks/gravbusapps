@@ -1,0 +1,9 @@
+# Opportunity Import View - Romanian
+
+# Page Header
+opportunity-page-title = Import Opportunity cu mapare AI
+opportunity-page-description = Încărcați un fișier CSV, lăsați AI să analizeze și să mapeze câmpurile, apoi convertiți în formatul Opportunity
+
+# Entity Type
+opportunity-entity-type = opportunities
+opportunity-entity-type-singular = opportunity

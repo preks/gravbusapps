@@ -7,11 +7,15 @@
 
 import { useCallback } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import type { PromptAttachment } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { ActiveExpert } from './useConversationExperts'
 
 export interface ExpertRoutingOptions {
   accessToken: string
 }
+
+/** Attachment passed to expert from chat messages - re-exported from PromptManagerClient */
+export type ExpertAttachment = PromptAttachment
 
 export interface ExpertResponse {
   text: string
@@ -31,9 +35,12 @@ export const useExpertRouting = ({ accessToken }: ExpertRoutingOptions) => {
 
   /**
    * Send message to a specific expert
+   * @param prompt - The user's message/question
+   * @param expert - The expert to route to
+   * @param attachments - Optional attachments from the chat message
    */
   const sendToExpert = useCallback(
-    async (prompt: string, expert: ActiveExpert): Promise<ExpertResponse> => {
+    async (prompt: string, expert: ActiveExpert, attachments?: ExpertAttachment[]): Promise<ExpertResponse> => {
       try {
         // First, get the expert's prompt to see what parameters it expects
         const expertPrompt = await client.getPrompt(expert.expertId)
@@ -51,15 +58,26 @@ export const useExpertRouting = ({ accessToken }: ExpertRoutingOptions) => {
         const isDocumentReviewer = expertName.includes('document') || expertName.includes('review')
         const docContext = (globalThis as any).__currentDocumentContext
 
-        // For Document Reviewer, build a comprehensive prompt with document content
+        // Build effective prompt - start with the user's message
         let effectivePrompt = prompt
-        if (isDocumentReviewer && docContext?.documentContent) {
-          console.log('[ExpertRouting] Document Reviewer detected, injecting document context:', {
-            documentId: docContext.documentId,
-            documentTitle: docContext.documentTitle,
-            contentLength: docContext.documentContent?.length || 0
-          })
 
+        // If attachments are provided, include their info in the prompt context
+        if (attachments && attachments.length > 0) {
+          const attachmentList = attachments
+            .map(att => `- ${att.name} (${att.mimeType || att.type || 'unknown type'}, URL: ${att.url})`)
+            .join('\n')
+
+          effectivePrompt = `${prompt}
+
+=== ATTACHED FILES ===
+The user has shared the following file(s) with this message:
+${attachmentList}
+
+You can access these files via their URLs to analyze their content.`
+        }
+
+        // For Document Reviewer, build a comprehensive prompt with document content
+        if (isDocumentReviewer && docContext?.documentContent) {
           // Build a comprehensive prompt that includes all the document details
           effectivePrompt = `${prompt}
 
@@ -127,6 +145,20 @@ Please analyze the document above and return your findings as structured JSON wi
         }
         if (Object.keys(systemParams).length > 0) {
           formData.append('system_params', JSON.stringify(systemParams))
+        }
+
+        // Include attachments if provided
+        if (attachments && attachments.length > 0) {
+          // Pass attachment metadata as JSON for the expert to access
+          const attachmentData = attachments.map(att => ({
+            id: att.id,
+            name: att.name,
+            url: att.url,
+            type: att.type || att.mimeType,
+            mimeType: att.mimeType,
+            size: att.size
+          }))
+          formData.append('attachments', JSON.stringify(attachmentData))
         }
 
         // Execute the expert's prompt

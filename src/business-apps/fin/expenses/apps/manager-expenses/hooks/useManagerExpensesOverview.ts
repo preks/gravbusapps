@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { MANAGER_EXPENSES_OVERVIEW } from '../queries/ManagerExpensesOverview'
@@ -13,6 +13,12 @@ export interface OverviewPagingAndSort<TOrder> {
 export interface UseManagerExpensesOverviewParams {
   managerId: string
   currencyRef?: string | null
+  /** When set, request card stats use this currency (e.g. most-used when list shows All). Falls back to currencyRef. */
+  reqStatsCurrencyRef?: string | null
+  /** When set, plan card stats use this currency (e.g. most-used when list shows All). Falls back to currencyRef. */
+  planStatsCurrencyRef?: string | null
+  /** When set, payment card stats use this currency. Falls back to currencyRef. */
+  payStatsCurrencyRef?: string | null
   searchTerm?: string | null
   // Windows for aggregates/trends
   monthStart?: string | null // ISO timestamp
@@ -25,12 +31,30 @@ export interface UseManagerExpensesOverviewParams {
   // Optional status filters
   requestsStatus?: string[]
   plansStatus?: string[]
+  /** Optional: statuses to always exclude from plans list (caller-owned; e.g. Plans tab passes PLAN_TAB_HIDDEN_STATUSES). */
+  plansStatusExclude?: readonly string[]
   paymentsStatus?: string[]
+  // Date range filters for plans
+  plansEffectiveDateRange?: { from?: string | null; to?: string | null } | null
+  plansStartDateRange?: { from?: string | null; to?: string | null } | null
+  plansEndDateRange?: { from?: string | null; to?: string | null } | null
+  plansPlanDateRange?: { from?: string | null; to?: string | null } | null
+  // Plan type filter (EXPENSES, TRIP)
+  plansTypeFilter?: string[]
+  // Date range filters for requests
+  requestsEffectiveDateRange?: { from?: string | null; to?: string | null } | null
+  requestsRequestDateRange?: { from?: string | null; to?: string | null } | null
+  requestsStartDateRange?: { from?: string | null; to?: string | null } | null
+  requestsEndDateRange?: { from?: string | null; to?: string | null } | null
+  // Request type filter (EXPENSES, TRIP)
+  requestsTypeFilter?: string[]
 }
 
 export interface ManagerExpensesOverviewState {
-  // Distinct currencies combined and de-duplicated
+  // Distinct currencies combined and de-duplicated (from requests + plans + payments)
   distinctCurrencies: string[]
+  /** Currencies that have at least one advance payment. Use for Advance Payments tab filter options so chips only show currencies that yield results. */
+  distinctCurrenciesFromPayments: string[]
   // Aggregates
   teamMembersCount: number
   pendingApprovalsCount: number
@@ -80,8 +104,224 @@ export interface UseManagerExpensesOverviewReturn {
 
 // Default orders to keep current UX parity
 const DEFAULT_REQ_ORDER: any[] = [{ createdAt: 'DESC' }]
-const DEFAULT_PLAN_ORDER: any[] = [{ planDate: 'DESC' }]
+const DEFAULT_PLAN_ORDER: any[] = [{ createdAt: 'DESC' }]
 const DEFAULT_PAY_ORDER: any[] = [{ createdAt: 'DESC' }]
+
+type DateRangeInput = { from?: string | null; to?: string | null } | null | undefined
+
+type GqlBoolExp = Record<string, unknown>
+
+function buildSearchPattern(searchTerm?: string | null): string {
+  const trimmedSearch = (searchTerm ?? '').toString().trim()
+  return trimmedSearch.length > 0 ? `%${trimmedSearch}%` : '%%'
+}
+
+function buildDateRangeCondition(from?: string | null, to?: string | null): GqlBoolExp | null {
+  if (!from && !to) return null
+  const condition: Record<string, string> = {}
+  if (from) condition._gte = from
+  if (to) condition._lte = to
+  return Object.keys(condition).length > 0 ? (condition as unknown as GqlBoolExp) : null
+}
+
+function wrapFieldCondition(field: string, condition: GqlBoolExp | null): GqlBoolExp | null {
+  return condition ? ({ [field]: condition } as unknown as GqlBoolExp) : null
+}
+
+function buildPlanEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
+  if (!range?.from && !range?.to) return null
+
+  const tripAnd: GqlBoolExp[] = []
+  const expenseAnd: GqlBoolExp[] = []
+
+  if (range.from) {
+    tripAnd.push({ startDate: { _gte: range.from } })
+    expenseAnd.push({ expensePlanItem: { expenseDate: { _gte: range.from } } })
+  }
+  if (range.to) {
+    tripAnd.push({ startDate: { _lte: range.to } })
+    expenseAnd.push({ expensePlanItem: { expenseDate: { _lte: range.to } } })
+  }
+
+  if (tripAnd.length === 0 && expenseAnd.length === 0) return null
+
+  return {
+    _or: [
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
+    ]
+  } as unknown as GqlBoolExp
+}
+
+function buildRequestEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
+  if (!range?.from && !range?.to) return null
+
+  const tripAnd: GqlBoolExp[] = []
+  const expenseAnd: GqlBoolExp[] = []
+
+  if (range.from) {
+    tripAnd.push({ startDate: { _gte: range.from } })
+    expenseAnd.push({ expenseItem: { expenseDate: { _gte: range.from } } })
+  }
+  if (range.to) {
+    tripAnd.push({ startDate: { _lte: range.to } })
+    expenseAnd.push({ expenseItem: { expenseDate: { _lte: range.to } } })
+  }
+
+  if (tripAnd.length === 0 && expenseAnd.length === 0) return null
+
+  return {
+    _or: [
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
+    ]
+  } as unknown as GqlBoolExp
+}
+
+function buildPlanTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
+  if (!typeFilters || typeFilters.length === 0) return null
+
+  const planTypeTokens = typeFilters.filter(f => f.startsWith('planType:'))
+  if (planTypeTokens.length === 0) return null
+
+  const allowedTypes = planTypeTokens.map(t => t.replace('planType:', '')).filter(t => t === 'EXPENSES' || t === 'TRIP')
+  if (allowedTypes.length === 0) return null
+
+  const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
+  return { _or: typeOr } as unknown as GqlBoolExp
+}
+
+function buildRequestTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
+  if (!typeFilters || typeFilters.length === 0) return null
+
+  const requestTypeTokens = typeFilters.filter(f => f.startsWith('ExpenseRequestType:'))
+  if (requestTypeTokens.length === 0) return null
+
+  const allowedTypes = requestTypeTokens
+    .map(t => t.replace('ExpenseRequestType:v1:', ''))
+    .filter(t => t === 'EXPENSES' || t === 'TRIP')
+  if (allowedTypes.length === 0) return null
+
+  const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
+  return { _or: typeOr } as unknown as GqlBoolExp
+}
+
+const REQUEST_DEFAULT_EXCLUDED = ['CREATED', 'DISCARDED']
+const PAYMENT_DEFAULT_EXCLUDED = ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED']
+
+function buildEntityStatusWhere(statuses: string[] | undefined, defaultExcluded: string[]): GqlBoolExp {
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    return { status: { _in: statuses } } as unknown as GqlBoolExp
+  }
+  return { status: { _nin: defaultExcluded } } as unknown as GqlBoolExp
+}
+
+function buildRequestStatusWhere(statuses?: string[]): GqlBoolExp {
+  return buildEntityStatusWhere(statuses, REQUEST_DEFAULT_EXCLUDED)
+}
+
+function buildPaymentStatusWhere(statuses?: string[]): GqlBoolExp {
+  return buildEntityStatusWhere(statuses, PAYMENT_DEFAULT_EXCLUDED)
+}
+
+/** Build plan status filter. When exclude is provided and non-empty, excludes those statuses when none selected; when exclude is empty, no exclusion (show all). Honors explicit user selections. */
+function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]): GqlBoolExp {
+  const excluded: readonly string[] = Array.isArray(exclude) ? exclude : ['CREATED']
+  const selected = Array.isArray(statuses) ? statuses.filter(Boolean) : []
+  if (selected.length > 0) {
+    return { status: { _in: selected } } as unknown as GqlBoolExp
+  }
+  if (excluded.length === 0) {
+    return {} as unknown as GqlBoolExp
+  }
+  return { status: { _nin: excluded } } as unknown as GqlBoolExp
+}
+
+function buildPlanDateWhereClause(params: UseManagerExpensesOverviewParams): GqlBoolExp {
+  const conditions = [
+    buildPlanEffectiveDateFilter(params.plansEffectiveDateRange),
+    wrapFieldCondition(
+      'startDate',
+      buildDateRangeCondition(params.plansStartDateRange?.from, params.plansStartDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'endDate',
+      buildDateRangeCondition(params.plansEndDateRange?.from, params.plansEndDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'planDate',
+      buildDateRangeCondition(params.plansPlanDateRange?.from, params.plansPlanDateRange?.to)
+    ),
+    buildPlanTypeFilter(params.plansTypeFilter)
+  ].filter(Boolean)
+
+  return (conditions.length > 0 ? { _and: conditions } : {}) as unknown as GqlBoolExp
+}
+
+function buildRequestDateWhereClause(params: UseManagerExpensesOverviewParams): GqlBoolExp {
+  const conditions = [
+    buildRequestEffectiveDateFilter(params.requestsEffectiveDateRange),
+    wrapFieldCondition(
+      'requestDate',
+      buildDateRangeCondition(params.requestsRequestDateRange?.from, params.requestsRequestDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'startDate',
+      buildDateRangeCondition(params.requestsStartDateRange?.from, params.requestsStartDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'endDate',
+      buildDateRangeCondition(params.requestsEndDateRange?.from, params.requestsEndDateRange?.to)
+    ),
+    buildRequestTypeFilter(params.requestsTypeFilter)
+  ].filter(Boolean)
+
+  return (conditions.length > 0 ? { _and: conditions } : {}) as unknown as GqlBoolExp
+}
+
+function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Record<string, unknown> {
+  const currencyRef = params.currencyRef || null
+  const reqStatsCurrencyRef = params.reqStatsCurrencyRef ?? currencyRef
+  const planStatsCurrencyRef = params.planStatsCurrencyRef ?? currencyRef
+  const payStatsCurrencyRef = params.payStatsCurrencyRef ?? currencyRef
+  const searchTerm = buildSearchPattern(params.searchTerm)
+
+  const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const reqStatsCurrencyWhere = reqStatsCurrencyRef ? { currencyRef: { _eq: reqStatsCurrencyRef } } : {}
+  const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const planStatsCurrencyWhere = planStatsCurrencyRef ? { currencyRef: { _eq: planStatsCurrencyRef } } : {}
+  const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const payStatsCurrencyWhere = payStatsCurrencyRef ? { currencyRef: { _eq: payStatsCurrencyRef } } : {}
+
+  return {
+    managerId: params.managerId,
+    currencyRef,
+    searchTerm,
+    reqLimit: params.requests?.limit ?? 20,
+    reqOffset: params.requests?.offset ?? 0,
+    reqOrderBy: params.requests?.orderBy ?? DEFAULT_REQ_ORDER,
+    planLimit: params.plans?.limit ?? 20,
+    planOffset: params.plans?.offset ?? 0,
+    planOrderBy: params.plans?.orderBy ?? DEFAULT_PLAN_ORDER,
+    payLimit: params.payments?.limit ?? 20,
+    payOffset: params.payments?.offset ?? 0,
+    payOrderBy: params.payments?.orderBy ?? DEFAULT_PAY_ORDER,
+    monthStart: params.monthStart ?? undefined,
+    monthEnd: params.monthEnd ?? undefined,
+    yearStart: params.yearStart ?? undefined,
+    reqCurrencyWhere,
+    reqStatsCurrencyWhere,
+    planCurrencyWhere,
+    planStatsCurrencyWhere,
+    payCurrencyWhere,
+    payStatsCurrencyWhere,
+    planDateWhere: buildPlanDateWhereClause(params),
+    reqDateWhere: buildRequestDateWhereClause(params),
+    reqStatusWhere: buildRequestStatusWhere(params.requestsStatus),
+    planStatusWhere: buildPlanStatusWhere(params.plansStatus, params.plansStatusExclude),
+    payStatusWhere: buildPaymentStatusWhere(params.paymentsStatus)
+  }
+}
 
 // Global in-flight request cache to deduplicate concurrent identical calls across components
 const inFlightBySignature: Map<string, Promise<any>> = new Map()
@@ -114,6 +354,19 @@ function extractDistinctCurrencies(result: any): string[] {
     pushRefs(result?.DistinctCurrenciesFromPayments)
   }
 
+  return Array.from(currencyRefs).sort((a, b) => a.localeCompare(b))
+}
+
+/** Currencies that appear in advance payments only (for Advance Payments tab so filter options match actual data). */
+function extractDistinctCurrenciesFromPayments(result: any): string[] {
+  const currencyRefs = new Set<string>()
+  const pushRefs = (arr?: Array<{ currencyRef?: string }>) => {
+    if (!Array.isArray(arr)) return
+    for (const r of arr) {
+      if (r?.currencyRef) currencyRefs.add(r.currencyRef)
+    }
+  }
+  pushRefs(result?.DistinctCurrenciesFromPayments)
   return Array.from(currencyRefs).sort((a, b) => a.localeCompare(b))
 }
 
@@ -175,6 +428,7 @@ function aggregateExpenseCategories(trendItems: any[]): Array<{ name: string; am
 function transformResultToState(
   result: any,
   distinctCurrencies: string[],
+  distinctCurrenciesFromPayments: string[],
   monthlyExpenseTrends: Array<{ month: string; amount: number }>,
   expenseCategories: Array<{ name: string; amount: number }>
 ): ManagerExpensesOverviewState {
@@ -189,6 +443,7 @@ function transformResultToState(
 
   return {
     distinctCurrencies,
+    distinctCurrenciesFromPayments,
     teamMembersCount: Number(result?.TeamMembersAggregate?.aggregate?.count ?? 0),
     pendingApprovalsCount: Number(result?.PendingApprovalsAggregate?.aggregate?.count ?? 0),
     totalPlansAmount: Number(result?.ExpensePlansTotalAggregate?.aggregate?.sum?.totalAmount ?? 0),
@@ -234,56 +489,17 @@ export const useManagerExpensesOverview = (
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [state, setState] = useState<ManagerExpensesOverviewState | null>(null)
+  const latestSignatureRef = useRef<string>('')
 
   // Normalize/prepare variables
   const variables = useMemo(() => {
-    const trimmedSearch = (params.searchTerm ?? '').toString().trim()
-    const searchPattern = trimmedSearch.length > 0 ? `%${trimmedSearch}%` : '%%'
-
-    // Build currency filter boolean expressions conditionally
-    const currencyRef = params.currencyRef || null
-    const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-    const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-    const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-
-    const v: any = {
-      managerId: params.managerId,
-      currencyRef,
-      searchTerm: searchPattern,
-      reqLimit: params.requests?.limit ?? 20,
-      reqOffset: params.requests?.offset ?? 0,
-      reqOrderBy: params.requests?.orderBy ?? DEFAULT_REQ_ORDER,
-      planLimit: params.plans?.limit ?? 20,
-      planOffset: params.plans?.offset ?? 0,
-      planOrderBy: params.plans?.orderBy ?? DEFAULT_PLAN_ORDER,
-      payLimit: params.payments?.limit ?? 20,
-      payOffset: params.payments?.offset ?? 0,
-      payOrderBy: params.payments?.orderBy ?? DEFAULT_PAY_ORDER,
-      monthStart: params.monthStart ?? undefined,
-      monthEnd: params.monthEnd ?? undefined,
-      yearStart: params.yearStart ?? undefined,
-      reqCurrencyWhere,
-      planCurrencyWhere,
-      payCurrencyWhere
-    }
-
-    // Build status filter boolean expressions conditionally
-    // Only add status filter if we have a non-empty array
-    if (Array.isArray(params.requestsStatus) && params.requestsStatus.length > 0) {
-      v.reqStatusWhere = { status: { _in: params.requestsStatus } }
-    }
-    if (Array.isArray(params.plansStatus) && params.plansStatus.length > 0) {
-      v.planStatusWhere = { status: { _in: params.plansStatus } }
-    }
-    if (Array.isArray(params.paymentsStatus) && params.paymentsStatus.length > 0) {
-      v.payStatusWhere = { status: { _in: params.paymentsStatus } }
-    }
-    // If not provided, GraphQL will use defaults (empty objects that match everything)
-
-    return v
+    return buildOverviewVariables(params)
   }, [
     params.managerId,
     params.currencyRef,
+    params.reqStatsCurrencyRef,
+    params.planStatsCurrencyRef,
+    params.payStatsCurrencyRef,
     params.searchTerm,
     params.requests?.limit,
     params.requests?.offset,
@@ -300,7 +516,30 @@ export const useManagerExpensesOverview = (
     // Serialize status arrays for dependency comparison
     JSON.stringify(params.requestsStatus || []),
     JSON.stringify(params.plansStatus || []),
-    JSON.stringify(params.paymentsStatus || [])
+    JSON.stringify(params.plansStatusExclude || []),
+    JSON.stringify(params.paymentsStatus || []),
+    // Date range filters
+    params.plansEffectiveDateRange?.from,
+    params.plansEffectiveDateRange?.to,
+    params.plansStartDateRange?.from,
+    params.plansStartDateRange?.to,
+    params.plansEndDateRange?.from,
+    params.plansEndDateRange?.to,
+    params.plansPlanDateRange?.from,
+    params.plansPlanDateRange?.to,
+    // Plan type filter
+    JSON.stringify(params.plansTypeFilter || []),
+    // Request date range filters
+    params.requestsEffectiveDateRange?.from,
+    params.requestsEffectiveDateRange?.to,
+    params.requestsRequestDateRange?.from,
+    params.requestsRequestDateRange?.to,
+    params.requestsStartDateRange?.from,
+    params.requestsStartDateRange?.to,
+    params.requestsEndDateRange?.from,
+    params.requestsEndDateRange?.to,
+    // Request type filter
+    JSON.stringify(params.requestsTypeFilter || [])
   ])
 
   const run = useCallback(async () => {
@@ -311,11 +550,13 @@ export const useManagerExpensesOverview = (
     // Use cache to avoid flashes on tab switches
     const cached = cacheBySignature.get(signature)
     if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+      latestSignatureRef.current = signature
       setState(cached.data)
       setIsLoading(false)
       return
     }
 
+    latestSignatureRef.current = signature
     setIsLoading(true)
     try {
       let requestPromise = inFlightBySignature.get(signature)
@@ -327,22 +568,33 @@ export const useManagerExpensesOverview = (
       }
       const result: any = await requestPromise
 
+      // Ignore stale response if a newer request was started (e.g. filter + page reset)
+      if (latestSignatureRef.current !== signature) return
+
       // Extract and aggregate data using helper functions
       const distinctCurrencies = extractDistinctCurrencies(result)
+      const distinctCurrenciesFromPayments = extractDistinctCurrenciesFromPayments(result)
 
       const trendItems = Array.isArray(result?.MonthlyExpenseItemsForTrends) ? result.MonthlyExpenseItemsForTrends : []
       const monthlyExpenseTrends = buildMonthlyTrends(trendItems)
       const expenseCategories = aggregateExpenseCategories(trendItems)
 
       // Transform result into final state
-      const nextState = transformResultToState(result, distinctCurrencies, monthlyExpenseTrends, expenseCategories)
+      const nextState = transformResultToState(
+        result,
+        distinctCurrencies,
+        distinctCurrenciesFromPayments,
+        monthlyExpenseTrends,
+        expenseCategories
+      )
 
       setState(nextState)
       cacheBySignature.set(signature, { ts: Date.now(), data: nextState })
     } catch (e: any) {
+      if (latestSignatureRef.current !== signature) return
       setError(e?.message || 'Failed to load manager expenses overview')
     } finally {
-      setIsLoading(false)
+      if (latestSignatureRef.current === signature) setIsLoading(false)
     }
   }, [context.accessToken, graphqlClient, variables])
 

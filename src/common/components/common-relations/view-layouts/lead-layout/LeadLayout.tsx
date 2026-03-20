@@ -66,6 +66,12 @@ export interface LeadLayoutProps<TLead extends Lead = Lead, TQueryVariables = an
   readonly initialFilters?: Record<string, any>
   readonly hideFilters?: boolean
   readonly customPrimaryAction?: React.ReactNode
+  /**
+   * Pass statistics here instead of via config.leadStatistics so that statistics
+   * state updates do not recreate the config object and inadvertently re-trigger
+   * the GetLeads query via the queryVariables / loadData dependency chain.
+   */
+  readonly leadStatistics?: LeadStatisticsData
 }
 
 // Row Actions Component
@@ -108,8 +114,12 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
     dataTestId = 'lead-view',
     initialFilters = {},
     hideFilters = false,
-    customPrimaryAction
+    customPrimaryAction,
+    leadStatistics: leadStatisticsProp
   } = props
+
+  // Prefer the directly-passed prop; fall back to config for backwards compatibility
+  const activeLeadStatistics = leadStatisticsProp ?? config.leadStatistics
 
   // View State
   const [searchTerm, setSearchTerm] = useState('')
@@ -176,20 +186,21 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
   useEffect(() => {
     if (!context?.accessToken || !isInitialLoad) return
     loadData(true)
-  }, [context?.accessToken, isInitialLoad, loadData])
+  }, [context?.accessToken, isInitialLoad])
 
-  // Reload data when filters/search/sort change (skip initial load)
+  // Reload data when filters/search/sort change (skip initial load).
+  // loadData is intentionally omitted from deps: it is derived from queryVariables,
+  // so including it would cause the effect to fire twice on every query change.
   useEffect(() => {
     if (isInitialLoad || !context?.accessToken) return
     loadData(false)
-  }, [queryVariables, isInitialLoad, context?.accessToken, loadData])
+  }, [queryVariables, context?.accessToken])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
     loadData(false)
-    // Also refresh statistics when process completes
-    config.leadStatistics?.refetch?.()
-  }, [loadData, config.leadStatistics?.refetch])
+    activeLeadStatistics?.refetch?.()
+  }, [loadData, activeLeadStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
@@ -251,8 +262,8 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {config.leadStatistics && (
-        <LeadStatisticsLayout statistics={config.leadStatistics} data-testid={`${dataTestId}-statistics`} />
+      {activeLeadStatistics && (
+        <LeadStatisticsLayout statistics={activeLeadStatistics} data-testid={`${dataTestId}-statistics`} />
       )}
 
       {/* DataDisplay */}

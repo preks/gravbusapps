@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react'
-import { Input, Label } from '@newwork/nw-design-system'
+import { Input, Label, Button, DateInput } from '@newwork/nw-design-system'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import {
@@ -18,6 +18,9 @@ import {
   extractFieldType
 } from './utils/formSchemaUtils'
 import { SearchableUuidField } from './SearchableUuidField'
+import { FlowProposalFileField, type FlowProposalFileUploadHints } from './FlowProposalFileField'
+import { useFlowProposalFileUpload } from '../../context/FlowProposalFileUploadContext'
+import { useFlowProposalId } from '../../context/FlowProposalFormContext'
 
 interface SchemaFieldProps {
   name: string
@@ -30,6 +33,8 @@ interface SchemaFieldProps {
   formData: Record<string, any>
   onFieldValueChange?: (path: string, value: any) => void
   accessToken: string
+  /** Flow module name (e.g. customer-relations, investment-relations). Passed to SearchableUuidField for IRM vs CRM label resolution. */
+  moduleName?: string
 }
 
 export const SchemaField: React.FC<SchemaFieldProps> = ({
@@ -42,11 +47,12 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
   onChange,
   formData,
   onFieldValueChange,
-  accessToken
+  accessToken,
+  moduleName
 }) => {
   const fieldPath = path ? `${path}.${name}` : name
   const controlId = sanitizeControlId(fieldPath)
-  const label = formatFieldName(name)
+  const label = String(schema?.title ?? formatFieldName(name))
 
   // Inject styles for react-quill text selection visibility
   useEffect(() => {
@@ -110,12 +116,60 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
   }
 
   const fieldType = extractFieldType(schema)
+  const fileSource = (schema as any)?.['x-fileSource']
+  const fileUploadHints = (schema as any)?.['x-fileUpload'] as FlowProposalFileUploadHints | undefined
+  const isFlowProposalFileField = fileSource === 'flow_proposal' && !!fileUploadHints
+  const flowProposalId = useFlowProposalId()
+  const uploadFlowProposalFiles = useFlowProposalFileUpload()
 
   const renderField = () => {
+    if (isFlowProposalFileField) {
+      if (!flowProposalId) {
+        return (
+          <div className="gba:text-xs gba:text-muted-foreground">
+            File upload is not available (missing flow proposal id).
+          </div>
+        )
+      }
+
+      return (
+        <FlowProposalFileField
+          controlId={controlId}
+          label={label}
+          required={required}
+          disabled={disabled}
+          value={Array.isArray(value) ? value : []}
+          onChange={onChange}
+          onUpload={uploadFlowProposalFiles}
+          flowProposalId={flowProposalId}
+          fieldKey={name}
+          hints={fileUploadHints}
+        />
+      )
+    }
+
     switch (fieldType) {
       case 'string': {
         const rawEnumOptions = schema.enum ?? null
-        const rawOneOfOptions = schema.oneOf ?? null
+        let rawOneOfOptions = schema.oneOf ?? null
+
+        // Optional dependent dropdown: for documentType, filter type options by selected documentGroup.
+        // Backend should provide a mapping on the field schema:
+        // schema['x-typeOptionsByGroup'] = { [groupValue]: [typeValue1, typeValue2, ...] }
+        if (name === 'documentType' && rawOneOfOptions) {
+          const selectedGroup = (formData as any)?.documentGroup ?? (formData as any)?.document_group ?? undefined
+          const typeOptionsByGroup = (schema as any)['x-typeOptionsByGroup'] as Record<string, string[]> | undefined
+
+          if (typeOptionsByGroup && selectedGroup && Array.isArray(rawOneOfOptions)) {
+            const allowed = new Set(typeOptionsByGroup[selectedGroup] || [])
+            if (allowed.size > 0) {
+              rawOneOfOptions = (rawOneOfOptions as any[]).filter(option => {
+                const rawValue = (option as any)?.const ?? (option as any)?.value ?? option
+                return allowed.has(rawValue)
+              })
+            }
+          }
+        }
 
         if (rawEnumOptions || rawOneOfOptions) {
           type SelectOption = { id: string; label: string; rawValue: unknown }
@@ -139,6 +193,9 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
               (value === undefined || value === null ? '' : toOptionId(value))
           )
 
+          // Check if field should be disabled (endAssetConditionRef)
+          const isEndField = name === 'endAssetConditionRef'
+
           return (
             <select
               id={controlId}
@@ -148,7 +205,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 const selected = options.find((opt: SelectOption) => opt.id === e.target.value)
                 onChange(selected ? selected.rawValue : e.target.value)
               }}
-              disabled={disabled}
+              disabled={disabled || isEndField}
             >
               <option value="" disabled>
                 Select {String(label)}
@@ -173,6 +230,24 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 onChange(parsed ?? '')
               }}
               disabled={disabled}
+            />
+          )
+        }
+
+        if (schema.format === 'date') {
+          // Check if field should be disabled (endDate, endAssetConditionRef)
+          const isEndField = name === 'endDate' || name === 'endAssetConditionRef'
+
+          return (
+            <DateInput
+              type="date"
+              value={typeof value === 'string' ? value : ''}
+              onChange={(v: string | [string | null, string | null] | null) => {
+                const dateValue = typeof v === 'string' ? v : ''
+                onChange(dateValue)
+              }}
+              disabled={disabled || isEndField}
+              className="gba:w-full"
             />
           )
         }
@@ -230,6 +305,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
               disabled={disabled}
               value={typeof value === 'string' ? value : (value ?? '')}
               onChange={val => onChange(val)}
+              moduleName={moduleName}
             />
           )
         }
@@ -274,6 +350,135 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
             </Label>
           </div>
         )
+      case 'array': {
+        const arrayValue = Array.isArray(value) ? value : []
+        const itemsSchema = schema.items || { type: 'string' }
+        const itemType = extractFieldType(itemsSchema)
+
+        // Handle arrays of strings (most common case like addressLine)
+        if (itemType === 'string') {
+          return (
+            <div className="gba:space-y-2">
+              {arrayValue.map((item: any, index: number) => (
+                <div key={index} className="gba:flex gba:gap-2">
+                  <Input
+                    id={`${controlId}-${index}`}
+                    type="text"
+                    placeholder={`${label} ${index + 1}`}
+                    value={String(item ?? '')}
+                    onChange={e => {
+                      const newArray = [...arrayValue]
+                      newArray[index] = e.target.value
+                      onChange(newArray)
+                    }}
+                    disabled={disabled}
+                    className="gba:flex-1"
+                  />
+                  {!disabled && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        const newArray = arrayValue.filter((_: any, i: number) => i !== index)
+                        onChange(newArray)
+                      }}
+                      aria-label={`Remove ${label} ${index + 1}`}
+                    >
+                      ×
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {!disabled && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onChange([...arrayValue, ''])
+                  }}
+                >
+                  + Add {label}
+                </Button>
+              )}
+            </div>
+          )
+        }
+
+        // Handle arrays of objects (nested structures)
+        if (itemType === 'object' && itemsSchema.properties) {
+          return (
+            <div className="gba:space-y-4">
+              {arrayValue.map((item: any, index: number) => (
+                <div key={index} className="gba:border gba:border-border gba:rounded-md gba:p-4 gba:space-y-4">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <p className="gba:text-sm gba:font-medium">
+                      {String(label)} {index + 1}
+                    </p>
+                    {!disabled && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          const newArray = arrayValue.filter((_: any, i: number) => i !== index)
+                          onChange(newArray)
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  {Object.entries(itemsSchema.properties).map(([propName, propSchema]: [string, any]) => (
+                    <SchemaField
+                      key={`${fieldPath}.${index}.${propName}`}
+                      name={propName}
+                      path={`${fieldPath}.${index}`}
+                      schema={propSchema}
+                      required={itemsSchema.required?.includes(propName) || false}
+                      disabled={disabled}
+                      value={item?.[propName]}
+                      onChange={newValue => {
+                        const newArray = [...arrayValue]
+                        newArray[index] = { ...item, [propName]: newValue }
+                        onChange(newArray)
+                      }}
+                      formData={formData}
+                      onFieldValueChange={onFieldValueChange}
+                      accessToken={accessToken}
+                      moduleName={moduleName}
+                    />
+                  ))}
+                </div>
+              ))}
+              {!disabled && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newItem: any = {}
+                    Object.keys(itemsSchema.properties || {}).forEach(key => {
+                      newItem[key] = undefined
+                    })
+                    onChange([...arrayValue, newItem])
+                  }}
+                >
+                  + Add {label}
+                </Button>
+              )}
+            </div>
+          )
+        }
+
+        // Fallback for other array types
+        return (
+          <div className="gba:text-sm gba:text-muted-foreground">
+            Array type not fully supported: {toDisplayString(itemType)}
+          </div>
+        )
+      }
       case 'object': {
         if (!schema.properties) {
           return <div className="gba:text-sm gba:text-muted-foreground">No fields available</div>
@@ -295,6 +500,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 formData={formData}
                 onFieldValueChange={onFieldValueChange}
                 accessToken={accessToken}
+                moduleName={moduleName}
               />
             ))}
           </div>
@@ -311,6 +517,10 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
 
   if (schema.type === 'boolean') {
     return renderField()
+  }
+
+  if (isFlowProposalFileField) {
+    return <div className="gba:mb-4">{renderField()}</div>
   }
 
   return (

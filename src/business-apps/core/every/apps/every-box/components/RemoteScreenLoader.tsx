@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import ReactDOM from 'react-dom'
+import ReactJSXRuntime from 'react/jsx-runtime'
+import ReactJSXDevRuntime from 'react/jsx-dev-runtime'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import isPropValid from '@emotion/is-prop-valid'
 import {
-  loadRemoteComponent,
-  exposeRequiredDependencies
-} from '@/common/loaders/remote-component-loader/remoteComponentLoader'
+  injectImportProxy,
+  installDependenciesBootstrap,
+  loadRemoteComponentSimple
+} from '@newwork/remote-component-loader'
+import type { RemoteComponentProps } from '@newwork/remote-component-loader'
 import { Spinner, Alert, AlertDescription, AlertTitle, Button, useTranslation } from '@newwork/nw-design-system'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw, X } from 'lucide-react'
 import translations from '../_i18n'
 
 // CDN base URLs matching gravity-platform
@@ -16,14 +22,10 @@ const REMOTE_COMPONENT_CDN_BASE_PROD = 'https://nwcdnprodfiles.blob.core.windows
 const TOKEN_REFRESH_EVENT = 'com.newwork.token.shouldRefreshAuthorizationHeader'
 const MOBILE_TOKEN_UPDATED_EVENT = 'com.newwork.mobile.token.updated'
 
-// Interface for component props passed to loaded remote component
-interface RemoteComponentPassedProps {
-  accessToken: string
-  userInfo: BusinessAppContextProps['userInfo']
-  additionalData: BusinessAppContextProps['additionalData']
-  onClose: () => void
+type ExtendedRemoteComponentProps = RemoteComponentProps & {
+  onClose?: () => void
   onTaskCompleted?: (taskId: string) => void
-  onTaskUpdated: () => void
+  onTaskUpdated?: (payload?: unknown) => void
 }
 
 interface RemoteScreenLoaderProps extends BusinessAppContextProps {
@@ -31,10 +33,17 @@ interface RemoteScreenLoaderProps extends BusinessAppContextProps {
   version?: string
   onClose: () => void
   onTaskCompleted?: (taskId: string) => void
-  onTaskUpdated: () => void
+  onTaskUpdated?: (payload?: unknown) => void
   isLoadingMetadata?: boolean // Flag to show spinner while parent is loading metadata
   /** Custom cache key for component isolation (useful for loading same component multiple times) */
   cacheKey?: string
+  /**
+   * Optional content to render directly below the in-screen TaskDetailHeader.
+   * This is injected via a portal into the loaded screen's DOM when the header is detected.
+   *
+   * Note: This only works for native screens (not iframes).
+   */
+  belowHeaderSlot?: React.ReactNode
 }
 
 /**
@@ -53,7 +62,9 @@ interface RemoteScreenLoaderProps extends BusinessAppContextProps {
  * 3. Loads the component's JS and CSS files from CDN
  * 4. Handles chunk loading automatically via window.require
  * 5. Renders the loaded component with proper props
+ * 6. Passes onClose prop to all loaded components (forms decide if/how to use it)
  */
+
 export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
   componentPath,
   version,
@@ -64,17 +75,177 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
   onTaskCompleted,
   onTaskUpdated,
   isLoadingMetadata = false,
-  cacheKey: propCacheKey
+  cacheKey: propCacheKey,
+  belowHeaderSlot
 }) => {
   const { t } = useTranslation(translations)
-  const [loading, setLoading] = useState(false)
-  const [component, setComponent] = useState<React.ComponentType<any> | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [componentLoaded, setComponentLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notFound, setNotFound] = useState(false)
+  const [hasTaskHeader, setHasTaskHeader] = useState(false)
+  const [belowHeaderMount, setBelowHeaderMount] = useState<HTMLElement | null>(null)
   const prevVersionRef = useRef<string | undefined>(undefined)
   const prevCacheKeyRef = useRef<string | undefined>(undefined)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const belowHeaderMountRef = useRef<HTMLElement | null>(null)
 
-  // State for component props - allows hot-swapping token on refresh
-  const [componentProps, setComponentProps] = useState<RemoteComponentPassedProps>({
+  // Detect if loaded component has TaskDetailHeader using MutationObserver
+  useEffect(() => {
+    if (!wrapperRef.current || !componentLoaded) return
+
+    const checkForHeader = () => {
+      const header = wrapperRef.current?.querySelector('[data-task-detail-header="true"]')
+      const hasHeader = !!header
+      if (hasHeader !== hasTaskHeader) {
+        setHasTaskHeader(hasHeader)
+      }
+    }
+
+    // Check immediately
+    checkForHeader()
+
+    // Check after a short delay (for async rendering)
+    const timeoutId = setTimeout(checkForHeader, 50)
+
+    // Also check after a longer delay as fallback
+    const fallbackTimeoutId = setTimeout(checkForHeader, 200)
+
+    // Watch for changes in DOM (component might load async)
+    const observer = new MutationObserver(() => {
+      checkForHeader()
+    })
+
+    observer.observe(wrapperRef.current, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-task-detail-header']
+    })
+
+    return () => {
+      clearTimeout(timeoutId)
+      clearTimeout(fallbackTimeoutId)
+      observer.disconnect()
+    }
+  }, [componentLoaded, hasTaskHeader])
+
+  // Inject belowHeaderSlot directly below TaskDetailHeader (if present).
+  useEffect(() => {
+    if (!wrapperRef.current || !componentLoaded) return
+
+    // Cleanup any previously inserted mount node
+    const cleanup = () => {
+      if (belowHeaderMountRef.current && belowHeaderMountRef.current.parentElement) {
+        belowHeaderMountRef.current.parentElement.removeChild(belowHeaderMountRef.current)
+      }
+      belowHeaderMountRef.current = null
+      setBelowHeaderMount(null)
+    }
+
+    if (!belowHeaderSlot) {
+      cleanup()
+      return
+    }
+
+    const ensureMount = () => {
+      const root = wrapperRef.current
+      if (!root) return
+
+      const headerEl = root.querySelector('[data-task-detail-header="true"]') as HTMLElement | null
+
+      // Prefer inserting into the scrollable content container that follows the header (TaskFormLayout pattern)
+      const candidateContentEl = headerEl?.nextElementSibling as HTMLElement | null
+      const looksScrollable =
+        !!candidateContentEl &&
+        (candidateContentEl.classList.contains('gba:overflow-y-auto') ||
+          candidateContentEl.classList.contains('gba:overflow-auto') ||
+          (candidateContentEl.getAttribute('data-testid') || '').endsWith('-content'))
+
+      // Determine desired location (and move existing mount there if needed)
+      // We avoid brittle "nextSibling === desiredBefore" checks because desiredBefore can become the mount itself.
+      type Target =
+        | { type: 'scroll-content-start'; parent: HTMLElement; className: string }
+        | { type: 'after-header'; parent: HTMLElement; header: HTMLElement; className: string }
+        | { type: 'root-start'; parent: HTMLElement; className: string }
+
+      const target: Target =
+        looksScrollable && candidateContentEl
+          ? { type: 'scroll-content-start', parent: candidateContentEl, className: 'gba:space-y-4' }
+          : headerEl && headerEl.parentElement
+            ? { type: 'after-header', parent: headerEl.parentElement, header: headerEl, className: 'gba:px-6 gba:pt-4' }
+            : { type: 'root-start', parent: root, className: 'gba:px-6 gba:pt-4' }
+
+      // Create mount if missing
+      if (!belowHeaderMountRef.current) {
+        const mount = document.createElement('div')
+        mount.setAttribute('data-testid', 'task-ai-below-header')
+        mount.className = target.className
+        if (target.type === 'scroll-content-start') {
+          target.parent.insertBefore(mount, target.parent.firstChild)
+        } else if (target.type === 'after-header') {
+          target.header.insertAdjacentElement('afterend', mount)
+        } else {
+          target.parent.insertBefore(mount, target.parent.firstChild)
+        }
+        belowHeaderMountRef.current = mount
+        setBelowHeaderMount(mount)
+        return
+      }
+
+      // Ensure mount is at the desired location (this fixes timing issues where header appears later)
+      const mount = belowHeaderMountRef.current
+      if (mount.className !== target.className) {
+        mount.className = target.className
+      }
+
+      try {
+        if (target.type === 'scroll-content-start') {
+          // Must be the first child of the scroll container
+          if (mount.parentElement !== target.parent || target.parent.firstChild !== mount) {
+            target.parent.insertBefore(mount, target.parent.firstChild)
+          }
+        } else if (target.type === 'after-header') {
+          // Must be immediately after the header
+          if (mount.parentElement !== target.parent || target.header.nextSibling !== mount) {
+            target.header.insertAdjacentElement('afterend', mount)
+          }
+        } else {
+          // Must be the first child of the root
+          if (mount.parentElement !== target.parent || target.parent.firstChild !== mount) {
+            target.parent.insertBefore(mount, target.parent.firstChild)
+          }
+        }
+      } catch {
+        // If insertion fails for any reason, fall back to top of root
+        if (mount.parentElement !== root || root.firstChild !== mount) {
+          root.insertBefore(mount, root.firstChild)
+        }
+      }
+    }
+
+    // Initial attempt
+    ensureMount()
+
+    // Observe DOM changes (header/content might appear async)
+    const observer = new MutationObserver(() => {
+      // If mount exists but was removed by a re-render, reset and recreate
+      if (belowHeaderMountRef.current && !wrapperRef.current?.contains(belowHeaderMountRef.current)) {
+        belowHeaderMountRef.current = null
+        setBelowHeaderMount(null)
+      }
+      ensureMount()
+    })
+
+    observer.observe(wrapperRef.current, { childList: true, subtree: true })
+
+    return () => {
+      observer.disconnect()
+      cleanup()
+    }
+  }, [belowHeaderSlot, componentLoaded])
+
+  const [componentProps, setComponentProps] = useState<ExtendedRemoteComponentProps | null>({
     accessToken,
     userInfo,
     additionalData,
@@ -120,28 +291,50 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
       return ''
     }
 
-    // Clean path - remove leading slash if present
     const cleanPath = componentPath.startsWith('/') ? componentPath.substring(1) : componentPath
 
     if (!version) {
-      // No version - use standard main.css from DEV CDN
       return `${componentCdnBase}/${cleanPath}/main.css`
     }
 
-    // With version - use versioned CSS from PROD CDN
-    // Pattern: main-{version}.css (e.g., main-0.0.1-42.css)
     return `${componentCdnBase}/${cleanPath}/main-${version}.css`
   }, [componentCdnBase, componentPath, version])
 
-  // Expose dependencies once on mount
+  const componentUrl = useMemo(() => {
+    if (!componentCdnBase || !componentPath) {
+      return ''
+    }
+
+    if (!version) {
+      return `${componentCdnBase}${componentPath}/index.js`
+    }
+
+    return `${componentCdnBase}${componentPath}/index-${version}.js`
+  }, [componentCdnBase, componentPath, version])
+
+  // Ensure window has the required dependencies and CommonJS proxy installed
   useEffect(() => {
-    exposeRequiredDependencies()
+    const w = window as any
+    w.React = w.React || React
+    w.ReactDOM = w.ReactDOM || ReactDOM
+    w.ReactJSXRuntime = w.ReactJSXRuntime || (ReactJSXRuntime as any)
+    w.ReactJSXDevRuntime = w.ReactJSXDevRuntime || (ReactJSXDevRuntime as any)
+    injectImportProxy()
+    installDependenciesBootstrap()
+    // Extend require to provide @emotion/is-prop-valid (used by nw-design-system/framer-motion)
+    const origRequire = w.require
+    if (origRequire) {
+      w.require = function (moduleName: string) {
+        if (moduleName === '@emotion/is-prop-valid') return isPropValid
+        return origRequire(moduleName)
+      }
+    }
   }, [])
 
   // Update component props when parent props change
   useEffect(() => {
-    setComponentProps(prev => ({
-      ...prev,
+    setComponentProps((prev: ExtendedRemoteComponentProps | null) => ({
+      ...(prev ?? {}),
       accessToken,
       userInfo,
       additionalData,
@@ -171,14 +364,14 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     }
 
     // If we got a new token, hot-swap it
-    if (latestToken && latestToken !== componentProps.accessToken) {
+    if (latestToken && latestToken !== componentProps?.accessToken) {
       console.log('[RemoteScreenLoader] Token refreshed, updating component props')
-      setComponentProps(prev => ({
+      setComponentProps((prev: ExtendedRemoteComponentProps | null) => ({
         ...prev,
         accessToken: latestToken
       }))
     }
-  }, [componentProps.accessToken])
+  }, [componentProps?.accessToken])
 
   // Listen for token refresh events
   useEffect(() => {
@@ -289,67 +482,72 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
 
   // Load the component when path, version, or cacheKey changes
   useEffect(() => {
-    // Don't load if still waiting for metadata or no componentPath
     if (isLoadingMetadata || !componentPath) {
       return
     }
 
-    const loadComponent = async () => {
-      try {
-        // FIRST: Check if component is already available in globalThis
-        // This handles the case when reopening the same screen
-        const existingComponent = (globalThis as any)[cacheKey]
-        if (existingComponent && typeof existingComponent === 'function') {
-          console.log(`[RemoteScreenLoader] Component ${cacheKey} already available, using cached version`)
-          setComponent(() => existingComponent)
-          setError(null)
-          setLoading(false)
-          return
-        }
-
-        setLoading(true)
-        setError(null)
-        setComponent(null) // Reset component to show spinner
-
-        console.log(
-          `[RemoteScreenLoader] Loading component: ${componentName} (key: ${cacheKey}) from ${componentCdnBase}`,
-          version ? `(version: ${version})` : '(no version - dev mode)'
-        )
-
-        // Load the component from CDN
-        await loadRemoteComponent({
-          componentPath,
-          componentName,
-          version,
-          componentCdnBase,
-          cacheKey, // Pass cacheKey for isolation
-          timeout: 15000 // 15 second timeout (matching platform)
-        })
-
-        // Get the loaded component from globalThis (use cacheKey)
-        const loadedComponent = (globalThis as any)[cacheKey]
-
-        if (!loadedComponent) {
-          throw new Error(
-            `Component "${cacheKey}" not found on window after loading. Screen may not be published correctly.`
-          )
-        }
-
-        setComponent(() => loadedComponent)
-        setError(null) // Clear any previous errors
-        console.log(`[RemoteScreenLoader] Component ${cacheKey} loaded successfully`)
-      } catch (err) {
-        console.error('❌ [RemoteScreenLoader]', err)
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-        setError(errorMessage)
-        setComponent(null)
-      } finally {
-        setLoading(false)
-      }
+    if (!componentCdnBase || !componentUrl) {
+      setNotFound(true)
+      setLoading(false)
+      return
     }
 
-    loadComponent()
-  }, [componentPath, componentName, version, componentCdnBase, cacheKey, isLoadingMetadata])
+    setLoading(true)
+    setError(null)
+    setNotFound(false)
+    setComponentLoaded(false)
+
+    loadRemoteComponentSimple({
+      componentUrl,
+      componentName,
+      cacheKey,
+      timeout: 15000
+    })
+      .then(() => {
+        setComponentLoaded(true)
+        setLoading(false)
+      })
+      .catch(err => {
+        setError(err instanceof Error ? err.message : 'Unknown error occurred')
+        setLoading(false)
+      })
+  }, [componentPath, componentName, version, componentCdnBase, cacheKey, componentUrl, isLoadingMetadata])
+
+  // Send initial form data via custom event for content entry forms
+  // This allows the remote component to receive and use the data even if it doesn't read from additionalData
+  // IMPORTANT: This hook must be called BEFORE any conditional returns to maintain hooks order
+  const additionalDataRef = useRef<any>(null)
+  useEffect(() => {
+    additionalDataRef.current = componentProps?.additionalData
+  }, [componentProps?.additionalData])
+
+  useEffect(() => {
+    if (!componentLoaded || !additionalDataRef.current) return
+
+    // Check if this is content entry form data
+    const additionalData = additionalDataRef.current
+    const hasContentEntryData =
+      additionalData.title || additionalData.contentEntry?.title || additionalData.defaultValues?.title
+
+    if (hasContentEntryData) {
+      // Dispatch custom event with form data
+      const title = additionalData.title || additionalData.contentEntry?.title
+      const preview = additionalData.preview || additionalData.previewText || additionalData.contentEntry?.preview
+      const content = additionalData.content || additionalData.contentEntry?.content
+      const changeMode = additionalData.changeMode
+
+      const event = new CustomEvent('contentEntryFormData', {
+        detail: {
+          formData: additionalData,
+          title,
+          preview,
+          content,
+          changeMode
+        }
+      })
+      window.dispatchEvent(event)
+    }
+  }, [componentLoaded])
 
   // Retry handler for error state
   const handleRetry = () => {
@@ -366,11 +564,10 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     }
     setError(null)
     setLoading(true)
-    // Re-trigger the load effect by clearing and re-setting
-    setComponent(null)
+    setComponentLoaded(false)
+    setNotFound(false)
   }
 
-  // Show loading spinner while metadata is loading or component is loading
   if (isLoadingMetadata || loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[200px]">
@@ -379,7 +576,22 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     )
   }
 
-  // Show error state with retry option
+  if (notFound) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[200px] gba:p-6">
+        <Alert variant="destructive" className="gba:max-w-md">
+          <AlertCircle className="gba:h-4 gba:w-4" />
+          <AlertTitle>Screen not available</AlertTitle>
+          <AlertDescription className="gba:mt-2">
+            <p className="gba:mb-3">
+              Unable to determine the correct CDN location for this screen. Please verify the path and version.
+            </p>
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
   if (error) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[200px] gba:p-6">
@@ -398,8 +610,7 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     )
   }
 
-  // Show message if no component loaded (shouldn't happen normally)
-  if (!component) {
+  if (!componentLoaded || !componentProps) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[200px]">
         <Spinner size="lg" />
@@ -407,12 +618,40 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     )
   }
 
-  // Render the loaded component with all required props (using state for hot-swap support)
-  const LoadedComponent = component
+  const RemoteComponent = (globalThis as any)[cacheKey]
+  if (!RemoteComponent || typeof RemoteComponent !== 'function') {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[200px]">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
 
   return (
-    <div className="gba:animate-in gba:fade-in gba:duration-300 gba:pt-0 gba:px-0 gba:pb-0 gba:relative gba:h-full gba:flex gba:flex-col">
-      <LoadedComponent
+    <div
+      ref={wrapperRef}
+      className="gba-remote-screen-wrapper gba:animate-in gba:fade-in gba:duration-300 gba:pt-0 gba:px-0 gba:pb-0 gba:relative gba:h-full gba:flex gba:flex-col"
+    >
+      {belowHeaderSlot && belowHeaderMount && ReactDOM.createPortal(belowHeaderSlot, belowHeaderMount)}
+
+      {/* 
+        Floating close button - Only shown if loaded component doesn't have TaskDetailHeader
+        Hidden when hasTaskHeader is true (detected via MutationObserver)
+      */}
+      {!hasTaskHeader && componentLoaded && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={componentProps.onClose}
+          className="gba-floating-close-button gba:absolute gba:top-2 gba:right-2 gba:z-50 gba:rounded-full gba:hover:bg-muted gba:bg-card/80 gba:backdrop-blur-sm gba:shadow-md"
+          data-testid="remote-screen-close-button"
+          title={t('task-dialog-close', { defaultValue: 'Close' })}
+        >
+          <X className="gba:h-5 gba:w-5" />
+        </Button>
+      )}
+
+      <RemoteComponent
         accessToken={componentProps.accessToken}
         userInfo={componentProps.userInfo}
         additionalData={componentProps.additionalData}

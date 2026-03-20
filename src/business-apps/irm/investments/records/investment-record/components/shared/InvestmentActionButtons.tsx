@@ -1,11 +1,6 @@
 import React from 'react'
-import { AiButton } from '@newwork/nw-design-system'
-import { Upload } from 'lucide-react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { BaseInvestment } from '../../hooks/useInvestmentReportData'
-import { AppAction } from '@/components/app-action/AppAction'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { DirectApiGenerateButton } from './DirectApiGenerateButton'
 import { FlowBasedGenerateButton } from './FlowBasedGenerateButton'
 
@@ -111,68 +106,9 @@ export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
 }
 
 // =============================================================================
-// UPLOAD REPORT BUTTON
-// =============================================================================
-
-export interface UploadReportButtonProps extends BusinessAppContextProps {
-  /**
-   * Investment ID to pass to the upload flow
-   */
-  investmentId: string
-
-  /**
-   * Investment data for flow context (optional but recommended)
-   */
-  investment?: BaseInvestment
-
-  /**
-   * Button variant
-   */
-  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
-
-  /**
-   * Button size
-   */
-  size?: 'sm' | 'default' | 'lg'
-}
-
-export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
-  investmentId,
-  variant = 'default',
-  size = 'default',
-  accessToken
-}) => {
-  if (!investmentId || !accessToken) {
-    return null
-  }
-
-  return (
-    <AppAction
-      contextsArray={[FlowContextName.investmentReportUpload]}
-      externalContextData={{ investmentId }}
-      accessToken={accessToken}
-      emptyStateBehavior="enable"
-      prefixDataTestId="investment-record-upload-report"
-    >
-      <AiButton
-        variant={variant}
-        size={size}
-        showIcon={true}
-        icon={<Upload style={{ height: '1rem', width: '1rem' }} />}
-        iconPosition="before"
-        data-testid="upload-investment-report-button"
-      >
-        {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'Upload Report')}
-      </AiButton>
-    </AppAction>
-  )
-}
-
-// =============================================================================
 // EXPORTS
 // =============================================================================
 
 export default {
-  GenerateOnePagerButton,
-  UploadReportButton
+  GenerateOnePagerButton
 }

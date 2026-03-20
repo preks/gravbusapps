@@ -15,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ComposedChart, Bar, Line, XAxis, YAxis } from 'recharts'
 import { ChartLineUpIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/react'
-import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import { formatCurrencyCompact, extractCurrencyCode, formatAmount } from '@/common/utils/numberFormatter'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 import { useRealEstateTimelineAggregate } from '../hooks/useRealEstateTimelineAggregate'
@@ -43,15 +43,15 @@ const TimelineTooltip: React.FC<TimelineTooltipProps> = ({ active, payload, labe
           if (entry.dataKey === 'investmentCount') {
             formattedValue = `${entry.value}`
             properLabel = 'Investment Count'
-            dotColor = 'var(--color-investmentcount)'
+            dotColor = 'var(--color-investmentCount)'
           } else if (entry.dataKey === 'totalInvestmentAmount') {
             formattedValue = formatCurrency(entry.value as number, currency)
             properLabel = 'Total Investment Amount'
-            dotColor = 'var(--color-totalinvestmentamount)'
+            dotColor = 'var(--color-totalInvestmentAmount)'
           } else if (entry.dataKey === 'cumulativeInvestments') {
             formattedValue = `${entry.value}`
             properLabel = 'Cumulative Investments'
-            dotColor = 'var(--color-cumulativeinvestments)'
+            dotColor = 'var(--color-cumulativeInvestments)'
           }
 
           return (
@@ -96,11 +96,11 @@ const PerformanceTooltip: React.FC<PerformanceTooltipProps> = ({
           if (entry.dataKey === 'averageOccupancyRate') {
             properLabel = 'Average Occupancy Rate'
             formattedValue = `${(entry.value as number).toFixed(1)}%`
-            dotColor = 'var(--color-averageoccupancyrate)'
+            dotColor = 'var(--color-averageOccupancyRate)'
           } else if (entry.dataKey === 'totalPropertyValue') {
             properLabel = 'Total Property Value'
             formattedValue = formatCurrency(entry.value as number, currency)
-            dotColor = 'var(--color-totalpropertyvalue)'
+            dotColor = 'var(--color-totalPropertyValue)'
           }
 
           return (
@@ -138,11 +138,11 @@ const PropertyTypeTooltip: React.FC<PropertyTypeTooltipProps> = ({ active, paylo
           if (entry.dataKey === 'propertyCount') {
             properLabel = 'Property Count'
             formattedValue = `${entry.value}`
-            dotColor = 'var(--color-propertycount)'
+            dotColor = 'var(--color-propertyCount)'
           } else if (entry.dataKey === 'averageValue') {
             properLabel = 'Average Value'
             formattedValue = formatCurrency(entry.value as number)
-            dotColor = 'var(--color-averagevalue)'
+            dotColor = 'var(--color-averageValue)'
           }
 
           return (
@@ -205,7 +205,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
         yearRangeMap.set(rangeLabel, { yearRange: rangeLabel, totalValue: 0, count: 0, rangeStart })
       }
       const entry = yearRangeMap.get(rangeLabel)
-      entry.totalValue += inv.realEstateInvestment?.propertyValue || 0
+      entry.totalValue += inv.investment?.totalInvestmentAmount || 0
       entry.count += 1
     }
     return Array.from(yearRangeMap.values())
@@ -221,9 +221,9 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
   // Timeline Config
   const timelineConfig = useMemo(
     () => ({
-      investmentcount: { label: 'Investment Count' },
-      totalinvestmentamount: { label: 'Total Investment Amount' },
-      cumulativeinvestments: { label: 'Cumulative Investments' }
+      investmentCount: { label: 'Investment Count' },
+      totalInvestmentAmount: { label: 'Total Investment Amount' },
+      cumulativeInvestments: { label: 'Cumulative Investments' }
     }),
     []
   )
@@ -231,8 +231,8 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
   // Performance Config
   const performanceConfig = useMemo(
     () => ({
-      averageoccupancyrate: { label: 'Average Occupancy Rate' },
-      totalpropertyvalue: { label: 'Total Property Value' }
+      averageOccupancyRate: { label: 'Average Occupancy Rate' },
+      totalPropertyValue: { label: 'Total Property Value' }
     }),
     []
   )
@@ -240,8 +240,8 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
   // Building Year Config
   const buildingYearConfig = useMemo(
     () => ({
-      averagevalue: { label: 'Average Value' },
-      propertycount: { label: 'Property Count' }
+      averageValue: { label: 'Average Value' },
+      propertyCount: { label: 'Property Count' }
     }),
     []
   )
@@ -295,7 +295,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
             if (timelineLoading) {
               return (
                 <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center">
-                  <Spinner size="large" />
+                  <Spinner size="lg" />
                 </div>
               )
             }
@@ -310,32 +310,37 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
               <ChartContainer config={timelineConfig} className="gba:h-[400px] gba:w-full">
                 <ComposedChart data={filteredTimelineData}>
                   <XAxis dataKey="year" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
+                  <YAxis yAxisId="left" tickFormatter={value => formatAmount(value, 1)} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(timelineCurrencyFilter),
+                        undefined,
+                        1,
+                        true
+                      ).replace(/[€$£¥]/g, '')
+                    }
+                  />
                   <ChartTooltip content={renderTimelineTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
-                  <Bar
-                    yAxisId="left"
-                    dataKey="investmentCount"
-                    fill="var(--color-investmentcount)"
-                    name="Investment Count"
-                  />
+                  <Bar yAxisId="left" dataKey="investmentCount" fill="var(--color-investmentCount)" />
                   <Line
                     yAxisId="right"
                     type="monotone"
                     dataKey="totalInvestmentAmount"
-                    stroke="var(--color-totalinvestmentamount)"
+                    stroke="var(--color-totalInvestmentAmount)"
                     strokeWidth={3}
-                    name="Total Investment Amount"
                   />
                   <Line
                     yAxisId="left"
                     type="monotone"
                     dataKey="cumulativeInvestments"
-                    stroke="var(--color-cumulativeinvestments)"
+                    stroke="var(--color-cumulativeInvestments)"
                     strokeWidth={2}
                     strokeDasharray="5 5"
-                    name="Cumulative Investments"
                   />
                 </ComposedChart>
               </ChartContainer>
@@ -371,7 +376,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
             if (performanceLoading) {
               return (
                 <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center">
-                  <Spinner size="large" />
+                  <Spinner size="lg" />
                 </div>
               )
             }
@@ -386,25 +391,35 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
               <ChartContainer config={performanceConfig} className="gba:h-[400px] gba:w-full">
                 <ComposedChart data={filteredPerformanceData}>
                   <XAxis dataKey="year" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
+                  <YAxis yAxisId="left" tickFormatter={value => formatAmount(value, 1)} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(performanceCurrencyFilter),
+                        undefined,
+                        1,
+                        true
+                      ).replace(/[€$£¥]/g, '')
+                    }
+                  />
                   <ChartTooltip content={renderPerformanceTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Line
                     yAxisId="left"
                     type="monotone"
                     dataKey="averageOccupancyRate"
-                    stroke="var(--color-averageoccupancyrate)"
+                    stroke="var(--color-averageOccupancyRate)"
                     strokeWidth={3}
-                    name="Average Occupancy Rate"
                   />
                   <Line
                     yAxisId="right"
                     type="monotone"
                     dataKey="totalPropertyValue"
-                    stroke="var(--color-totalpropertyvalue)"
+                    stroke="var(--color-totalPropertyValue)"
                     strokeWidth={3}
-                    name="Total Property Value"
                   />
                 </ComposedChart>
               </ChartContainer>
@@ -439,18 +454,29 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
           <ChartContainer config={buildingYearConfig} className="gba:h-[400px] gba:w-full">
             <ComposedChart data={filteredBuildingYearData}>
               <XAxis dataKey="yearRange" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <YAxis yAxisId="left" tickFormatter={value => formatAmount(value, 1)} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tickFormatter={value =>
+                  formatCurrencyCompact(
+                    value,
+                    extractCurrencyCode(buildingYearCurrencyFilter),
+                    undefined,
+                    1,
+                    true
+                  ).replace(/[€$£¥]/g, '')
+                }
+              />
               <ChartTooltip content={renderPropertyTypeTooltip} />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar yAxisId="left" dataKey="propertyCount" fill="var(--color-propertycount)" name="Property Count" />
+              <Bar yAxisId="left" dataKey="propertyCount" fill="var(--color-propertyCount)" />
               <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="averageValue"
-                stroke="var(--color-averagevalue)"
+                stroke="var(--color-averageValue)"
                 strokeWidth={3}
-                name="Average Value"
               />
             </ComposedChart>
           </ChartContainer>

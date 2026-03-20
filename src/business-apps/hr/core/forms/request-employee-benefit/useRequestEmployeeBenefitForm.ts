@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getDefaultStartDate } from '@/business-apps/hr/core/apps/employee-record/utils/utils'
 import { BENEFIT_FORM_VALIDATION } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitFormValidation'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
+import { translatePeriod } from '@/business-apps/hr/core/utils/benefitExtractionUtils'
 import {
   buildBenefitSubmitPayload,
   composeValueWithCurrency,
@@ -73,6 +74,26 @@ export const useRequestEmployeeBenefitForm = ({
     }
   }, [startDate])
 
+  // Initialize provider: prefer selection from modal (selectedBenefit.providerRef), then first from benefitProviders or availableProviders
+  useEffect(() => {
+    const fromModal = selectedBenefit?.providerRef
+    const providerIds = benefitProviders.map(p => p.id)
+    const fromAvailable = selectedBenefit?.availableProviders?.map(p => p.id) ?? []
+    const validIds = new Set([...providerIds, ...fromAvailable])
+
+    if (fromModal && validIds.has(fromModal)) {
+      setProvider(fromModal)
+      return
+    }
+    if (!provider) {
+      if (benefitProviders.length > 0) {
+        setProvider(benefitProviders[0].id)
+      } else if (selectedBenefit?.availableProviders && selectedBenefit.availableProviders.length > 0) {
+        setProvider(selectedBenefit.availableProviders[0].id)
+      }
+    }
+  }, [benefitProviders, selectedBenefit])
+
   const {
     includedValueDisplay,
     resolvedPeriodDisplay,
@@ -86,11 +107,14 @@ export const useRequestEmployeeBenefitForm = ({
     [includedValueDisplay, countryCurrency.currencyCode]
   )
 
+  // Translate the period when it changes
+  const translatedPeriod = useMemo(() => translatePeriod(resolvedPeriodDisplay, t), [resolvedPeriodDisplay, t])
+
   useEffect(() => {
-    if (resolvedPeriodDisplay) {
-      setPeriod(resolvedPeriodDisplay)
+    if (translatedPeriod) {
+      setPeriod(translatedPeriod)
     }
-  }, [resolvedPeriodDisplay])
+  }, [translatedPeriod])
 
   const validateForm = useCallback(
     () =>
@@ -104,11 +128,19 @@ export const useRequestEmployeeBenefitForm = ({
 
   const isFormValid = useMemo(() => {
     const trimmedJustification = justification.trim()
-    return (
-      startDate.length > 0 &&
-      trimmedJustification.length >= BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH &&
-      trimmedJustification.length <= BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
-    )
+    // Start date is required
+    if (startDate.length === 0) return false
+
+    // Justification is optional, but if provided, must meet min/max length requirements
+    if (trimmedJustification.length > 0) {
+      return (
+        trimmedJustification.length >= BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH &&
+        trimmedJustification.length <= BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
+      )
+    }
+
+    // Form is valid if start date is present and justification is empty or meets requirements
+    return true
   }, [startDate, justification])
 
   const buildSubmitPayload = useCallback(
@@ -118,7 +150,6 @@ export const useRequestEmployeeBenefitForm = ({
         selectedBenefit,
         provider,
         derivedAmountNumber,
-        period,
         resolvedPeriodDisplay,
         countryCurrencyRef: countryCurrency.currencyRef,
         startDate,
@@ -132,7 +163,6 @@ export const useRequestEmployeeBenefitForm = ({
       selectedBenefit,
       provider,
       derivedAmountNumber,
-      period,
       resolvedPeriodDisplay,
       countryCurrency.currencyRef,
       startDate,

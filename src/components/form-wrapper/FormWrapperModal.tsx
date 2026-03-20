@@ -7,10 +7,13 @@ import {
   Form,
   DialogTitle,
   Alert,
-  toast
+  toast,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useForm, type Resolver, type UseFormReturn, type FieldValues } from 'react-hook-form'
+import type { ZodType } from 'zod'
 import { cn } from '@/common/utils/cn'
+import translations from './_i18n'
 
 export interface FormMessage {
   type: 'success' | 'error' | 'info'
@@ -38,6 +41,7 @@ interface FormWrapperModalProps {
   // Form handling
   form?: UseFormReturn<FieldValues>
   resolver?: Resolver<FieldValues>
+  schema?: ZodType<any>
   validateForm?: (_formData: FieldValues) => string[] | null
   isSubmitDisabled?: boolean
   preventDuplicateSubmission?: boolean
@@ -61,6 +65,10 @@ interface FormWrapperModalProps {
   // Test IDs
   submitButtonTestId?: string
   cancelButtonTestId?: string
+
+  // Validation behavior
+  /** When false, submit button ignores form validity and validation happens only on submit. Default: true */
+  validateBeforeSubmit?: boolean
 }
 
 const FormWrapperModal = ({
@@ -84,6 +92,7 @@ const FormWrapperModal = ({
   // Form handling
   form: externalForm,
   resolver,
+  schema,
   validateForm,
   isSubmitDisabled = false,
   preventDuplicateSubmission = true,
@@ -106,13 +115,20 @@ const FormWrapperModal = ({
 
   // Test IDs
   submitButtonTestId,
-  cancelButtonTestId
+  cancelButtonTestId,
+
+  // Validation behavior
+  validateBeforeSubmit = true
 }: FormWrapperModalProps) => {
+  const { t } = useTranslation(translations)
   const [isOpen, setIsOpen] = useState(open)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<FormMessage | null>(null)
   const isSubmittingRef = useRef(false)
-  const isEditingForm = useMemo(() => (isEditing ? 'Update' : 'Create'), [isEditing])
+  const isEditingForm = useMemo(
+    () => (isEditing ? t('submit-button-update') : t('submit-button-create')),
+    [isEditing, t]
+  )
 
   // Create internal form if no external form provided
   const internalForm = useForm<FieldValues>({ defaultValues, resolver, mode: 'onChange' })
@@ -122,10 +138,13 @@ const FormWrapperModal = ({
   }, [form.formState.isValid, form.formState.isDirty])
 
   useEffect(() => {
+    // Skip reset if using external form - it's already initialized with its own defaultValues
+    if (externalForm) return
+
     form.reset(defaultValues)
     form.clearErrors()
     setMessage(null)
-  }, [form, defaultValues])
+  }, [form, defaultValues, externalForm])
 
   useEffect(() => {
     if (errorMessage) {
@@ -192,7 +211,7 @@ const FormWrapperModal = ({
       } catch (error) {
         console.error('Form submission error:', error)
 
-        const defaultErrorMessage = 'Something went wrong'
+        const defaultErrorMessage = t('error-default')
         const errorMsg = error instanceof Error ? error.message : defaultErrorMessage
 
         setMessage({ type: 'error', message: errorMsg })
@@ -240,7 +259,10 @@ const FormWrapperModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       {childAddButton && <DialogTrigger asChild>{childAddButton}</DialogTrigger>}
-      <DialogContent data-testid={dataTestId} className={cn({ 'gba:!z-[1002]': isDrawerActive })}>
+      <DialogContent
+        data-testid={dataTestId}
+        className={cn('gba:max-h-screen gba:w-[553px] gba:overflow-y-auto', { 'gba:z-1002!': isDrawerActive })}
+      >
         <DialogTitle>{title}</DialogTitle>
         <div className={cn('gba:flex gba:flex-col gba:gap-4', contentClassName)}>
           <div className="gba:space-y-2">
@@ -254,10 +276,10 @@ const FormWrapperModal = ({
             </Alert>
           )}
 
-          <Form {...(form as UseFormReturn<FieldValues>)}>
+          <Form {...(form as UseFormReturn<FieldValues>)} schema={schema}>
             <form
               onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
-              className={cn('gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full', formClassName)}
+              className={cn('gba:flex gba:flex-col gba:w-full gba:h-full', formClassName)}
               data-testid={`${dataTestId}-form`}
             >
               <div className="gba:flex gba:flex-col gba:gap-4 gba:py-6" data-testid={`${dataTestId}-form-content`}>
@@ -274,16 +296,18 @@ const FormWrapperModal = ({
                     disabled={loading || isSubmitting}
                     data-testid={cancelButtonTestId || `${dataTestId}-cancel-button`}
                   >
-                    {cancelButtonText || 'Cancel'}
+                    {cancelButtonText || t('cancel-button')}
                   </Button>
                 )}
                 <Button
                   type="submit"
-                  disabled={loading || isSubmitting || isSubmitDisabled || !isValid || !isFormValid}
+                  disabled={
+                    loading || isSubmitting || isSubmitDisabled || !isValid || (validateBeforeSubmit && !isFormValid)
+                  }
                   variant={submitButtonVariant}
                   data-testid={submitButtonTestId || `${dataTestId}-submit-button`}
                 >
-                  {isSubmitting ? 'Saving...' : submitButtonText || isEditingForm}
+                  {isSubmitting ? t('submit-button-saving') : submitButtonText || isEditingForm}
                 </Button>
               </div>
             </form>

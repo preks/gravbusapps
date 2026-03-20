@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react'
-import { cn } from '@newwork/nw-design-system'
+import { cn, useLocale } from '@newwork/nw-design-system'
+import dayjs from 'dayjs'
+import { Phone } from 'lucide-react'
 import type { CalendarEvent, DateRange } from '../types'
 
 interface MonthViewProps {
@@ -8,10 +10,9 @@ interface MonthViewProps {
   events: CalendarEvent[]
   onEventClick: (event: CalendarEvent) => void
   onDayClick: (date: Date) => void
+  activeConversationCalls?: Map<string, any>
 }
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const WEEKDAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const MAX_EVENTS_VISIBLE = 2 // Reduced for better mobile fit
 
 interface CalendarDay {
@@ -30,7 +31,11 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
   )
 }
 
-const getCalendarDays = (currentDate: Date, events: CalendarEvent[]): CalendarDay[] => {
+const getCalendarDays = (
+  currentDate: Date,
+  events: CalendarEvent[],
+  weekStartsOnMonday: boolean = false
+): CalendarDay[] => {
   const days: CalendarDay[] = []
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -40,13 +45,29 @@ const getCalendarDays = (currentDate: Date, events: CalendarEvent[]): CalendarDa
   // Last day of the month
   const lastDay = new Date(year, month + 1, 0)
 
-  // Start from the Sunday of the week containing the first day
+  // Start from the first day of the week containing the first day
   const startDate = new Date(firstDay)
-  startDate.setDate(startDate.getDate() - startDate.getDay())
+  if (weekStartsOnMonday) {
+    // Monday = 1, Sunday = 0; adjust to start on Monday
+    const day = startDate.getDay()
+    const diff = day === 0 ? -6 : 1 - day // If Sunday, go back 6 days; else go to Monday
+    startDate.setDate(startDate.getDate() + diff)
+  } else {
+    // Start from Sunday
+    startDate.setDate(startDate.getDate() - startDate.getDay())
+  }
 
-  // End on the Saturday of the week containing the last day
+  // End on the last day of the week containing the last day
   const endDate = new Date(lastDay)
-  endDate.setDate(endDate.getDate() + (6 - endDate.getDay()))
+  if (weekStartsOnMonday) {
+    // End on Sunday
+    const day = endDate.getDay()
+    const diff = day === 0 ? 0 : 7 - day
+    endDate.setDate(endDate.getDate() + diff)
+  } else {
+    // End on Saturday
+    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()))
+  }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -77,17 +98,50 @@ const getCalendarDays = (currentDate: Date, events: CalendarEvent[]): CalendarDa
   return days
 }
 
-const formatEventTime = (date: Date | string): string => {
+const formatEventTime = (date: Date | string, locale?: string): string => {
   const d = date instanceof Date ? date : new Date(date)
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  const use24Hour = baseLocale === 'de' || baseLocale === 'ro'
+
   return d.toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true
+    hour12: !use24Hour
   })
 }
 
-export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEventClick, onDayClick }) => {
-  const calendarDays = useMemo(() => getCalendarDays(currentDate, events), [currentDate, events])
+export const MonthView: React.FC<MonthViewProps> = ({
+  currentDate,
+  events,
+  onEventClick,
+  onDayClick,
+  activeConversationCalls
+}) => {
+  const { locale } = useLocale()
+
+  // Compute base locale and week start setting first, before any useMemo hooks
+  const baseLocale = useMemo(() => locale?.split('-')[0]?.toLowerCase() || 'en', [locale])
+  const weekStartsOnMonday = useMemo(() => baseLocale === 'de' || baseLocale === 'ro', [baseLocale])
+
+  // Generate localized weekday names
+  // For Europe: Monday = 0, Tuesday = 1, ..., Sunday = 6
+  // For US: Sunday = 0, Monday = 1, ..., Saturday = 6
+  const weekdays = useMemo(() => {
+    const startDay = weekStartsOnMonday ? 1 : 0
+    return Array.from({ length: 7 }, (_, i) => {
+      const dayIndex = (startDay + i) % 7
+      const date = dayjs().day(dayIndex).locale(baseLocale)
+      return {
+        full: date.format('ddd'), // Short name (e.g., "Mon", "Die", "Lun")
+        short: date.format('dd') // Very short (e.g., "M", "D", "L")
+      }
+    })
+  }, [baseLocale, weekStartsOnMonday])
+
+  const calendarDays = useMemo(
+    () => getCalendarDays(currentDate, events, weekStartsOnMonday),
+    [currentDate, events, weekStartsOnMonday]
+  )
 
   // Group days into weeks
   const weeks = useMemo(() => {
@@ -102,13 +156,13 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
     <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden" data-testid="calendar-month-view">
       {/* Weekday headers */}
       <div className="gba:grid gba:grid-cols-7 gba:border-b gba:border-border/50 gba:bg-muted/30">
-        {WEEKDAYS.map((day, index) => (
+        {weekdays.map((day, index) => (
           <div
-            key={day}
+            key={index}
             className="gba:py-1 gba:sm:py-2 gba:text-center gba:text-[10px] gba:sm:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase"
           >
-            <span className="gba:hidden gba:sm:inline">{day}</span>
-            <span className="gba:sm:hidden">{WEEKDAYS_SHORT[index]}</span>
+            <span className="gba:hidden gba:sm:inline">{day.full}</span>
+            <span className="gba:sm:hidden">{day.short}</span>
           </div>
         ))}
       </div>
@@ -146,33 +200,44 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
 
                 {/* Events */}
                 <div className="gba:space-y-0.5">
-                  {day.events.slice(0, MAX_EVENTS_VISIBLE).map(event => (
-                    <button
-                      key={event.id}
-                      onClick={e => {
-                        e.stopPropagation()
-                        onEventClick(event)
-                      }}
-                      className={cn(
-                        'gba:w-full gba:text-left gba:px-1 gba:sm:px-1.5 gba:py-0.5 gba:rounded gba:text-[8px] gba:sm:text-[10px] gba:font-medium gba:truncate gba:transition-opacity gba:hover:opacity-80',
-                        event.status === 'cancelled' && 'gba:line-through gba:opacity-50'
-                      )}
-                      style={{
-                        backgroundColor: event.color,
-                        // eslint-disable-next-line newwork-local/no-hardcoded-colors -- contrast color for dynamic background
-                        color: 'white'
-                      }}
-                      data-testid={`calendar-event-${event.id}`}
-                    >
-                      <span className="gba:hidden gba:sm:inline">
-                        {!event.allDay && (
-                          <span className="gba:opacity-75 gba:mr-1">{formatEventTime(event.start)}</span>
+                  {day.events.slice(0, MAX_EVENTS_VISIBLE).map(event => {
+                    // Check if there's an active call for this event
+                    const callId = event.conversationId || event.id
+                    const hasActiveCall = !!activeConversationCalls?.get(callId)
+                    const isLive = event.status === 'in_progress' || hasActiveCall
+
+                    return (
+                      <button
+                        key={event.id}
+                        onClick={e => {
+                          e.stopPropagation()
+                          onEventClick(event)
+                        }}
+                        className={cn(
+                          'gba:w-full gba:text-left gba:px-1 gba:sm:px-1.5 gba:py-0.5 gba:rounded gba:text-[8px] gba:sm:text-[10px] gba:font-medium gba:truncate gba:transition-opacity gba:hover:opacity-80 gba:flex gba:items-center gba:gap-0.5',
+                          event.status === 'cancelled' && 'gba:line-through gba:opacity-50',
+                          isLive && 'gba:ring-1 gba:ring-success'
                         )}
-                        {event.title}
-                      </span>
-                      <span className="gba:sm:hidden">{event.title}</span>
-                    </button>
-                  ))}
+                        style={{
+                          backgroundColor: event.color,
+                          // eslint-disable-next-line newwork-local/no-hardcoded-colors -- contrast color for dynamic background
+                          color: 'white'
+                        }}
+                        data-testid={`calendar-event-${event.id}`}
+                      >
+                        {isLive && (
+                          <Phone className="gba:h-2 gba:w-2 gba:sm:h-2.5 gba:sm:w-2.5 gba:flex-shrink-0 gba:animate-pulse" />
+                        )}
+                        <span className="gba:hidden gba:sm:inline gba:truncate">
+                          {!event.allDay && (
+                            <span className="gba:opacity-75 gba:mr-1">{formatEventTime(event.start, locale)}</span>
+                          )}
+                          {event.title}
+                        </span>
+                        <span className="gba:sm:hidden gba:truncate">{event.title}</span>
+                      </button>
+                    )
+                  })}
 
                   {/* More events indicator */}
                   {day.events.length > MAX_EVENTS_VISIBLE && (

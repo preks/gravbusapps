@@ -287,7 +287,15 @@ export const buildInvestmentPayload = (
       }),
     ...(investment.identification && { identification: investment.identification }),
     ...(investment.investmentAccount?.id && { investmentAccount: investment.investmentAccount.id }), // Extract ID from account object
-    ...(investment.investmentOpportunity && { investmentOpportunity: investment.investmentOpportunity }),
+    // Extract ID from investmentOpportunity object (backend expects UUID string, not object)
+    ...(investment.investmentOpportunity && typeof investment.investmentOpportunity === 'string'
+      ? { investmentOpportunity: investment.investmentOpportunity }
+      : typeof investment.investmentOpportunity === 'object' &&
+          investment.investmentOpportunity !== null &&
+          'id' in investment.investmentOpportunity &&
+          (investment.investmentOpportunity as { id?: string }).id
+        ? { investmentOpportunity: (investment.investmentOpportunity as { id: string }).id }
+        : {}),
     ...(investment.loanRecipientInvestmentAccount?.id && {
       loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount.id
     }),
@@ -410,8 +418,19 @@ export const buildInvestmentPayload = (
       if (realEstateData.locality !== undefined) realEstatePayload.locality = realEstateData.locality
       if (realEstateData.buildingYear !== undefined) realEstatePayload.buildingYear = realEstateData.buildingYear
       if (realEstateData.size !== undefined) realEstatePayload.size = toNumber(realEstateData.size)
-      if (realEstateData.sizeMeasurementUnit?.id !== undefined)
-        realEstatePayload.sizeMeasurementUnitRef = realEstateData.sizeMeasurementUnit.id // Extract ID from catalog object
+      {
+        const sizeUnit = realEstateData.sizeMeasurementUnit
+        if (typeof sizeUnit === 'string' && sizeUnit.length > 0) {
+          realEstatePayload.sizeMeasurementUnitRef = sizeUnit
+        } else if (
+          sizeUnit &&
+          typeof sizeUnit === 'object' &&
+          !Array.isArray(sizeUnit) &&
+          (sizeUnit as CatalogEntry).id !== undefined
+        ) {
+          realEstatePayload.sizeMeasurementUnitRef = (sizeUnit as CatalogEntry).id
+        }
+      }
       if (realEstateData.loanAmount !== undefined) realEstatePayload.loanAmount = toNumber(realEstateData.loanAmount)
       if (realEstateData.loanInterestRate !== undefined)
         realEstatePayload.loanInterestRate = toNumber(realEstateData.loanInterestRate)
@@ -487,6 +506,11 @@ export const buildInvestmentPayload = (
       // Always set liquidFundInvestment (API requires exactly one subtype)
       investmentRequest.liquidFundInvestment = liquidFundPayload
       break
+
+    default:
+      // Generic/non-core groups: keep base investment payload only.
+      // Subtype-specific section is not required for these group types.
+      break
   }
 
   // Return the properly wrapped payload
@@ -516,6 +540,10 @@ export const isLiquidFundInvestment = (groupRef: string): boolean => {
   return getInvestmentGroupType(groupRef) === 'LIQUID_FUND'
 }
 
+export const isPrivateEquityInvestment = (groupRef: string): boolean => {
+  return getInvestmentGroupType(groupRef) === 'PRIVATE_EQUITY'
+}
+
 // ==============================
 // Investment Group References
 // ==============================
@@ -523,7 +551,8 @@ export const isLiquidFundInvestment = (groupRef: string): boolean => {
 export const INVESTMENT_GROUP_REFS = {
   EQUITY: 'InvestmentGroup:v1:EQUITY',
   REAL_ESTATE: 'InvestmentGroup:v1:REAL_ESTATE',
-  LIQUID_FUND: 'InvestmentGroup:v1:LIQUID_FUND'
+  LIQUID_FUND: 'InvestmentGroup:v1:LIQUID_FUND',
+  PRIVATE_EQUITY: 'InvestmentGroup:v1:PRIVATE_EQUITY'
 } as const
 
 export type InvestmentGroupType = keyof typeof INVESTMENT_GROUP_REFS

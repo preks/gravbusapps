@@ -1,10 +1,17 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // View filter types for Sales Activity 360
-export type ActivityViewFilter = 'all' | 'by-employee' | 'by-account' | 'by-lead' | 'by-opportunity' | 'by-contact'
+export type ActivityViewFilter =
+  | 'all'
+  | 'by-employee'
+  | 'by-account'
+  | 'by-lead'
+  | 'by-opportunity'
+  | 'by-contact'
+  | 'by-general'
 
 // Tab types
-export type ActivityTabType = 'list' | 'calendar'
+export type ActivityTabType = 'list' | 'calendar' | 'comparison'
 
 // View selection state
 export interface ViewSelectionState {

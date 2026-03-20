@@ -39,16 +39,37 @@ import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 
 /**
  * Customer Activity Query Variables Interface
- * Extends CommonActivityQueryVariables (no CRM-specific filters)
+ * Extends CommonActivityQueryVariables with CRM-specific reference type filter.
  */
-export type CustomerActivityQueryVariables = CommonActivityQueryVariables
+export interface CustomerActivityQueryVariables extends CommonActivityQueryVariables {
+  /** Filter by reference entity type: 'account' | 'contact' | 'lead' | 'opportunity' */
+  referenceTypes?: string[]
+}
 
 /**
  * Build Customer Activity query with fields mapping
  * CRM uses "SalesActivity" as entity name (not "CustomerActivity")
+ * Includes all reference relations (account, contact, lead, opportunity)
  */
 export const buildCustomerActivityQuery = (fields: typeof CustomerActivityFields = CustomerActivityFields): string => {
-  return buildActivityQuery('SalesActivity', fields)
+  // Build relation builders for common references
+  const relationBuilders: ActivityRelationBuilders = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: ActivityRelationFields = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildActivityQuery('SalesActivity', fields, relationBuilders, relationFields)
 }
 
 /**

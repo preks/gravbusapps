@@ -27,10 +27,11 @@ export function useCurrentUserPicture(employeeId: string | undefined, accessToke
         })
 
         if (result.Employee && result.Employee.length > 0) {
-          setPictureThumbnail(result.Employee[0].pictureThumbnail)
+          const thumbnail = result.Employee[0].pictureThumbnail
+          setPictureThumbnail(thumbnail)
         }
       } catch (error) {
-        console.error('Failed to fetch user picture:', error)
+        console.error('[useCurrentUserPicture] Failed to fetch user picture:', error)
       } finally {
         setIsLoading(false)
       }

@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { RecordLayout, Spinner } from '@newwork/nw-design-system'
+import { RecordLayout, Spinner, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
 import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action/AppAction'
+import { getInvestmentUiSubtypeFromData } from '@/common/data/investment/utils/investmentGroupRouting'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Bot } from 'lucide-react'
+import { ChartBarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInvestmentTileFields } from './hooks/useInvestmentTileFields'
 import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary'
-import { TrendingUp, Home, BarChart3 } from 'lucide-react'
 import { createHeaderMeta, getTypeSpecificDetailGroups } from './utils/investmentHeaderConfig'
 import { createInvestmentTabsConfig } from './utils/investmentTabConfig'
+import { getRecordGroupConfiguration } from './config/recordGroupConfigurations'
 
 type InvestmentRecordProps = BusinessAppContextProps
 
@@ -43,15 +44,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     if (investmentData.investmentType?.code) {
       return investmentData.investmentType.code
     }
-
-    // Fallback to group-based detection
-    const group = investmentData.investmentGroup?.code || ''
-    if (group.includes('EQUITY')) return 'equity'
-    if (group.includes('LIQUID_FUND')) return 'liquid_fund'
-    if (group.includes('REAL_ESTATE')) return 'real_estate'
-    if (group.includes('PRIVATE_EQUITY')) return 'private_equity'
-
-    return 'generic'
+    return getInvestmentUiSubtypeFromData(investmentData)
   }, [])
 
   // Extract type-specific data arrays
@@ -71,57 +64,29 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         : investmentData.liquidFundInvestment,
       realEstateInvestment: Array.isArray(investmentData.realEstateInvestment)
         ? investmentData.realEstateInvestment[0]
-        : investmentData.realEstateInvestment,
-      privateEquityInvestment: Array.isArray(investmentData.privateEquityInvestment)
-        ? investmentData.privateEquityInvestment[0]
-        : investmentData.privateEquityInvestment
+        : investmentData.realEstateInvestment
+      // Note: PRIVATE_EQUITY and other generic groups store data in investment.additionalProperties
     }
   }, [])
 
-  // Get icon based on investment group (hardcoded for now)
+  // Get icon based on investment group configuration
   const getInvestmentIcon = useCallback((investmentData: any) => {
-    if (!investmentData) return BarChart3
+    if (!investmentData) return ChartBarIcon
 
     const group = investmentData.investmentGroup?.code || ''
-    if (group.includes('EQUITY')) return TrendingUp
-    if (group.includes('REAL_ESTATE')) return Home
-    return BarChart3
+    const config = getRecordGroupConfiguration(group)
+    // Use configured icon or fallback to generic ChartBarIcon
+    return config.icon || ChartBarIcon
   }, [])
 
-  // Get display category based on investment group
+  // Get display category based on investment group configuration
   const getInvestmentCategory = useCallback((investmentData: any): string => {
     if (!investmentData) return getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT')
 
     const group = investmentData.investmentGroup?.code || ''
-    if (group.includes('EQUITY'))
-      return getTranslationFromI18nKeyAndLabel('crm.investments.category.equity', 'EQUITY INVESTMENT')
-    if (group.includes('LIQUID_FUND'))
-      return getTranslationFromI18nKeyAndLabel('crm.investments.category.liquidFund', 'LIQUID FUND INVESTMENT')
-    if (group.includes('REAL_ESTATE'))
-      return getTranslationFromI18nKeyAndLabel('crm.investments.category.realEstate', 'REAL ESTATE INVESTMENT')
-    if (group.includes('PRIVATE_EQUITY'))
-      return getTranslationFromI18nKeyAndLabel('crm.investments.category.privateEquity', 'PRIVATE EQUITY INVESTMENT')
-
-    return getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT')
-  }, [])
-
-  // Helper function to get the correct FlowContextName based on investment type
-  const getInvestmentFlowContext = useCallback((type: string): FlowContextName => {
-    switch (type?.toLowerCase()) {
-      case 'equity':
-        return FlowContextName.equityInvestmentEntity
-      case 'private_equity':
-      case 'privateequity':
-        return FlowContextName.privateEquityInvestmentEntity
-      case 'liquid_fund':
-      case 'liquidfund':
-        return FlowContextName.liquidFundInvestmentEntity
-      case 'real_estate':
-      case 'realestate':
-        return FlowContextName.realEstateInvestmentEntity
-      default:
-        return FlowContextName.investmentEntity // Fallback to generic investment entity
-    }
+    const config = getRecordGroupConfiguration(group)
+    // Use configured category label or fallback to generic 'INVESTMENT'
+    return config.categoryLabel || getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT')
   }, [])
 
   // Central hooks for data fetching
@@ -278,8 +243,8 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         variant="header"
         contexts={[
           {
-            context: getInvestmentFlowContext(investmentType),
-            contextData: { investmentId }
+            context: FlowContextName.investmentEntity,
+            contextData: { investmentId, dealType: 'DIVESTMENT_DEAL' }
           }
         ]}
         shareContext={{
@@ -292,7 +257,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         accessToken={props.accessToken}
       />
     ),
-    [investmentId, investmentType, investmentData?.name, props.accessToken]
+    [investmentId, investmentData, investmentType, investmentData?.name, props.accessToken]
   )
 
   // Loading state
@@ -328,31 +293,13 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
   // Header configuration using centralized utilities
   const headerMeta = createHeaderMeta(investment, investmentType, typeSpecificData, props.accessToken)
 
-  const actions: AiAction[] = [
-    {
-      key: 'ai-summary',
-      label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-      icon: <Bot size={16} />,
-      hook: aiSummaryHook,
-      config: {
-        entityType: 'investment',
-        loadingMessage: getTranslationFromI18nKeyAndLabel(
-          'crm.investments.ai.summary.loading',
-          'Generating AI Summary...'
-        ),
-        loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-          'crm.investments.ai.summary.subtitle',
-          'Analyzing investment data and activities'
-        )
-      }
-    }
-  ]
-
   const headerActions = (
     <AiActions
-      actions={actions}
+      entityType="investment"
+      entityId={investmentId || ''}
+      features={['summary']}
+      hooks={{ summary: aiSummaryHook }}
       dataTestId={`${investmentType}-update-button-${investmentId}`}
-      buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
     />
   )
 
@@ -377,8 +324,8 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     <div className="gba:investment-details-container" data-testid={`${investmentType}-investment-detail`}>
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={getInvestmentIcon(investment)}
-        headerCategory={getInvestmentCategory(investment)}
+        headerAvatar={<IconAvatar icon={getInvestmentIcon(investment)} variant="decorative" size="xl" />}
+        headerOverline={getInvestmentCategory(investment)}
         onBack={handleBack}
         headerTitle={
           investment?.name || getTranslationFromI18nKeyAndLabel('crm.investments.record.title', 'Investment Record')
@@ -386,8 +333,10 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        headerDetailGroups={headerDetailGroups}
-        subViews={subViewsConfig}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

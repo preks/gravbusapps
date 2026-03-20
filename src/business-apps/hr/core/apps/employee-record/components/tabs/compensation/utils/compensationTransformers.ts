@@ -76,11 +76,11 @@ export const transformEmployeeSalaryToCompensation = (
     return null
   }
 
-  // Determine effective date: prefer activeFrom, fallback to startDate, then createdAt
-  const effectiveDate = employeeSalary.activeFrom || employeeSalary.startDate || employeeSalary.createdAt || null
+  // Determine effective date: prefer startDate (used in approval flow), fallback to activeFrom, then createdAt
+  const effectiveDate = employeeSalary.startDate || employeeSalary.activeFrom || employeeSalary.createdAt || null
 
-  // Determine end date: prefer activeTo, fallback to endDate
-  const endDate = employeeSalary.activeTo || employeeSalary.endDate || null
+  // Determine end date: prefer endDate (used in approval flow), fallback to activeTo
+  const endDate = employeeSalary.endDate || employeeSalary.activeTo || null
 
   return {
     id: employeeSalary.id,
@@ -158,7 +158,9 @@ export const transformBenefit = (benefit: any): EmployeeBenefit => {
     endDate: benefit.endDate,
     status: benefit.status,
     benefitStatus: benefit.benefitStatus,
-    notes: benefit.notes || ''
+    notes: benefit.notes || '',
+    createdAt: benefit.createdAt,
+    updatedAt: benefit.updatedAt
   }
 }
 
@@ -222,16 +224,16 @@ export const transformEmployeeSalaryToHistory = (salary: EmployeeSalary) => {
   // Extract currency code from catalog reference format
   const currencyCode = salary.currency?.code || extractCurrencyCode(salary.currencyRef)
 
-  // Determine effective date: prefer activeFrom, fallback to startDate, then createdAt
-  let effectiveDate = salary.activeFrom || salary.startDate || salary.createdAt || null
+  // Determine effective date: prefer startDate (used in approval flow), fallback to activeFrom, then createdAt
+  let effectiveDate = salary.startDate || salary.activeFrom || salary.createdAt || null
 
   // Validate and normalize effectiveDate
   if (effectiveDate && Number.isNaN(new Date(effectiveDate).getTime())) {
     effectiveDate = null
   }
 
-  // Determine end date: prefer activeTo, fallback to endDate
-  let endDate = salary.activeTo || salary.endDate || null
+  // Determine end date: prefer endDate (used in approval flow), fallback to activeTo
+  let endDate = salary.endDate || salary.activeTo || null
 
   // Validate and normalize endDate
   if (endDate && Number.isNaN(new Date(endDate).getTime())) {

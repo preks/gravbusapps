@@ -13,14 +13,23 @@ export interface TaskOrApprovalSource {
   description?: string
   createdAt?: string
   dueDate?: string
-  assignedEmployee?: {
-    id: string
-    displayName?: string
-    firstName?: string
-    lastName?: string
-    fullName?: string
-    pictureThumbnail?: string
-  }
+  // Multiple assignees (many-to-many via TaskAssignee)
+  taskAssignees?: Array<{
+    id?: string
+    version?: number
+    taskStatus?: string | null
+    completedAt?: string | null
+    assignedUserId?: string | null
+    assignedEmployee?: {
+      id: string
+      displayName?: string
+      firstName?: string
+      lastName?: string
+      fullName?: string
+      pictureThumbnail?: string
+      userId?: string
+    }
+  }>
   taskStatus?: any // CatalogEntry
   taskPriority?: any // CatalogEntry
   taskType?: any // CatalogEntry
@@ -110,13 +119,22 @@ export const transformTaskOrApproval = (
   item: TaskOrApprovalSource,
   untitledFallback: string = 'Untitled Task'
 ): TaskItem => {
+  // Extract assignees from taskAssignees array (can be 0, 1, or many)
+  const assignees = item.taskAssignees?.map(ta => ta.assignedEmployee).filter(Boolean) || []
+  const assigneeEmployee = assignees.length > 0 ? assignees : undefined
+  const assignee =
+    assignees
+      .map(emp => emp?.displayName || emp?.fullName)
+      .filter(Boolean)
+      .join(', ') || undefined
+
   return {
     id: item.id,
     title: item.name || item.displayName || untitledFallback,
     description: item.description,
     createdAt: item.createdAt,
     due: item.dueDate,
-    assignee: item.assignedEmployee?.displayName || item.assignedEmployee?.fullName,
+    assignee,
     statusCode: (item.taskStatus?.value?.toUpperCase() || undefined) as
       | 'PENDING'
       | 'IN_PROGRESS'
@@ -126,11 +144,13 @@ export const transformTaskOrApproval = (
     taskStatus: item.taskStatus,
     taskPriority: item.taskPriority,
     taskType: item.taskType,
-    assigneeEmployee: item.assignedEmployee,
+    assigneeEmployee, // Array of employees (or undefined)
+    taskAssignees: item.taskAssignees, // Full junction table data with statuses
     taskTiming: item.taskTiming,
     startDate: item.startDate,
     creatorEmployee: item.creatorEmployee,
     documents: item.documents,
-    reference: buildTaskReference(item)
+    reference: buildTaskReference(item),
+    rawTask: item as any // Pass through for detail sheet
   }
 }

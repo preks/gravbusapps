@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 export interface AIInsight {
   id: string
@@ -50,12 +51,13 @@ export const useAIInsights = ({ accessToken, managerId }: UseAIInsightsProps): U
       // Add page context for manager dashboard
       const pageContext = {
         type: 'overview',
-        url: window.location.href,
+        url: globalThis.location.href,
         entity_name: 'employee'
       }
       form.append('current_page_context', JSON.stringify(pageContext))
 
-      const response = await fetch('/flowbot/api/agent/v2/chat', {
+      const baseUrl = resolveFlowbotBaseUrl()
+      const response = await fetch(`${baseUrl}/flowbot/api/agent/v2/chat`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,

@@ -13,6 +13,38 @@ import {
   taskFilterConfig
 } from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
+
+// CRM-specific filter config (exclude investment reference type)
+const crmTaskFilterConfig: FilterConfiguration = {
+  ...taskFilterConfig,
+  groups: taskFilterConfig.groups.map(group => {
+    if (group.id === 'reference-group') {
+      return {
+        ...group,
+        filters: group.filters.map(filter => {
+          if (filter.id === 'referenceType') {
+            return {
+              ...filter,
+              config: {
+                ...filter.config,
+                options: [
+                  { id: 'lead', label: 'Lead' },
+                  { id: 'account', label: 'Account' },
+                  { id: 'contact', label: 'Contact' },
+                  { id: 'opportunity', label: 'Opportunity' }
+                  // investment removed - only for IRM
+                ]
+              }
+            }
+          }
+          return filter
+        })
+      }
+    }
+    return group
+  })
+}
 
 // Helper function to process reference type filter
 const processReferenceTypeFilter = (selectedFilters: Record<string, any>, vars: CustomerTaskQueryVariables): void => {
@@ -83,19 +115,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
 
   const config: TaskViewConfig<CustomerTask, CustomerTaskQueryVariables> = useMemo(
     () => ({
-      fetchMyTasks: async (variables: CustomerTaskQueryVariables) => {
-        const employeeId = context.userInfo?.employeeDetails?.employeeId || context.userInfo?.id
-        const result = await fetchCustomerTasks({
-          ...variables,
-          assignedEmployeeIds: employeeId ? [employeeId] : []
-        })
-        return {
-          tasks: result.tasks as any,
-          total: result.total
-        }
-      },
-
-      fetchTeamTasks: async (variables: CustomerTaskQueryVariables) => {
+      fetchTasks: async (variables: CustomerTaskQueryVariables) => {
         const result = await fetchCustomerTasks(variables)
         return {
           tasks: result.tasks as any,
@@ -118,7 +138,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
         createdBy: 'Created By'
       },
 
-      baseFilterConfig: taskFilterConfig,
+      baseFilterConfig: crmTaskFilterConfig,
 
       buildQueryVariables: params => {
         const vars: CustomerTaskQueryVariables = {
@@ -159,7 +179,12 @@ export const TaskView: React.FC<TaskViewProps> = context => {
         createContext: FlowContextName.customerTaskCreate
       },
 
-      taskStatistics,
+      taskStatistics: {
+        statistics: taskStatistics.teamTasksStatistics,
+        isLoading: taskStatistics.isLoading,
+        error: taskStatistics.error,
+        refetch: taskStatistics.refetch
+      },
 
       rowActionsContextArray: [FlowContextName.customerTaskEntity],
       buildRowActionsExternalContextData: (row: { original: CustomerTask }) => {
@@ -199,6 +224,8 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       context={context}
       config={config}
       dataTestId="customer-task-view"
+      enableExport
+      exportFilenamePrefix="crm-tasks"
     />
   )
 }

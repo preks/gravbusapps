@@ -8,7 +8,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CurrencyStat } from './useExpenseCurrencies'
 
 // Define these as constants for stable references outside the hook
-const OTHER_OPTIONS = ['noreceiptfilter']
+const OTHER_OPTIONS: string[] = []
 
 export enum DataFilterType {
   CHECKBOX_GROUP = 'checkbox-group',
@@ -347,22 +347,21 @@ export const useExpenseItemsFilters = (
       // Map the lowercase status filters back to their uppercase enum values
       const statuses = statusFilters.map(f => f.toUpperCase())
 
-      const otherFilters = filtersToApply.filter(f => OTHER_OPTIONS.includes(f))
-
-      // Check if no receipt filter is selected
-      const hasNoReceiptFilter = otherFilters.includes('noreceiptfilter')
-
       // Process status filters
       if (statuses.length > 0) {
         // Convert all selected statuses from lowercase UI values to uppercase API values
         filter.status = statuses.map(status => status.toUpperCase())
       }
 
-      // Process expense date range filters (priority over time period filters)
+      // Process expense date range filters (priority over time period filters); allow partial range (from only or to only)
       const dateRangeToUse = expenseDateRangeParam || expenseDateRange
-      if (dateRangeToUse && dateRangeToUse[0] && dateRangeToUse[1]) {
-        filter.expenseDateStart = dateRangeToUse[0].toISOString().split('T')[0]
-        filter.expenseDateEnd = dateRangeToUse[1].toISOString().split('T')[0]
+      if (dateRangeToUse) {
+        if (dateRangeToUse[0]) {
+          filter.expenseDateStart = dateRangeToUse[0].toISOString().split('T')[0]
+        }
+        if (dateRangeToUse[1]) {
+          filter.expenseDateEnd = dateRangeToUse[1].toISOString().split('T')[0]
+        }
       }
       // Process date range filters (priority over time period filters)
       else if (startDateRange && startDateRange[0] && endDateRange && endDateRange[1]) {
@@ -371,11 +370,6 @@ export const useExpenseItemsFilters = (
       }
 
       // Expense type filter removed
-
-      // Process the No receipt filter
-      if (hasNoReceiptFilter) {
-        filter.noReceipt = true
-      }
 
       // Process amount range filters
       if (amountRange) {

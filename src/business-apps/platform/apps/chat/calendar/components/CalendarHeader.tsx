@@ -1,7 +1,16 @@
 import React from 'react'
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react'
 import type { CalendarView } from '../types'
+import translations from '../../_i18n'
 
 interface CalendarHeaderProps {
   viewTitle: string
@@ -11,6 +20,7 @@ interface CalendarHeaderProps {
   onNext: () => void
   onToday: () => void
   onCreateMeeting: () => void
+  onRefresh?: () => void
   pendingInvitationsCount: number
 }
 
@@ -22,8 +32,11 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   onNext,
   onToday,
   onCreateMeeting,
+  onRefresh,
   pendingInvitationsCount
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div
       className="gba:flex gba:items-center gba:justify-between gba:gap-1 gba:px-2 gba:py-1.5 gba:border-b gba:border-border/50 gba:bg-background gba:min-w-0"
@@ -59,7 +72,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           className="gba:h-6 gba:px-1.5 gba:text-[10px] gba:font-medium"
           data-testid="calendar-today-button"
         >
-          Today
+          {t('calendar-today')}
         </Button>
       </div>
 
@@ -79,15 +92,35 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
 
         {/* View selector - compact */}
         <Select value={view} onValueChange={v => onViewChange(v as CalendarView)}>
-          <SelectTrigger className="gba:w-[60px] gba:h-6 gba:text-[10px] gba:px-1.5" data-testid="calendar-view-select">
+          <SelectTrigger className="gba:w-[80px] gba:h-8 gba:text-[10px] gba:px-2" data-testid="calendar-view-select">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="day">Day</SelectItem>
-            <SelectItem value="week">Week</SelectItem>
-            <SelectItem value="month">Month</SelectItem>
+          <SelectContent className="gba:min-w-[120px]">
+            <SelectItem value="day" className="gba:text-sm gba:py-2">
+              {t('calendar-viewDay')}
+            </SelectItem>
+            <SelectItem value="week" className="gba:text-sm gba:py-2">
+              {t('calendar-viewWeek')}
+            </SelectItem>
+            <SelectItem value="month" className="gba:text-sm gba:py-2">
+              {t('calendar-viewMonth')}
+            </SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Refresh button - reload events for current time frame */}
+        {onRefresh && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onRefresh}
+            className="gba:h-6 gba:w-6 gba:flex-shrink-0"
+            data-testid="calendar-refresh-button"
+            title={t('calendar-refresh')}
+          >
+            <RefreshCw className="gba:h-3.5 gba:w-3.5" />
+          </Button>
+        )}
 
         {/* Create meeting button - always icon only to save space */}
         <Button

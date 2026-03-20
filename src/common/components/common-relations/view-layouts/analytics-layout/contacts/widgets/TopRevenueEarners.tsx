@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system'
-import { TrophyOutlined } from '@ant-design/icons'
+import { TrophyIcon } from '@phosphor-icons/react'
 
 export interface TopRevenueContact {
   id: string
@@ -22,7 +22,7 @@ export const TopRevenueEarners: React.FC<TopRevenueEarnersProps> = ({ contacts, 
     <Card data-testid="top-revenue-earners-section">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <TrophyOutlined />
+          <TrophyIcon size={16} />
           Top Revenue Earners
         </CardTitle>
       </CardHeader>

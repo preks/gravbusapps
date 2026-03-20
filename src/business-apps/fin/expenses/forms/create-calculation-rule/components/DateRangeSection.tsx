@@ -1,10 +1,7 @@
 import React from 'react'
-import { DateInputField } from '@newwork/gravity-ui-catalog'
-import {
-  getCurrentActiveUserLocale,
-  getDateFormat,
-  getTranslationFromI18nKeyAndLabel
-} from '@/common/utils/windowUtils'
+import { DateInput, Label } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import dayjs from 'dayjs'
 
 interface DateRangeSectionProps {
   isUpdate: boolean
@@ -33,57 +30,60 @@ const DateRangeSection: React.FC<DateRangeSectionProps> = ({
 }) => {
   return (
     <>
-      <div className={`gba:mb-4`} data-testid="ccr-valid-from-container">
-        <div className={`gba:relative`}>
-          <DateInputField
-            label={getTranslationFromI18nKeyAndLabel(
+      <div className="gba:mb-4" data-testid="ccr-valid-from-container">
+        <div className="gba:space-y-2">
+          <Label htmlFor="ccrValidFrom">
+            {getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_from_label',
               'Valid From'
-            )}
-            name="ccrValidFrom"
+            )}{' '}
+            *
+          </Label>
+          <DateInput
+            value={validFrom ? dayjs(validFrom).format('YYYY-MM-DD') : ''}
+            onChange={value => onChangeFrom(value ? new Date(value) : null)}
+            disabled={isUpdate}
             placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_placeholder',
               'Select Date'
             )}
+            outputFormat="iso"
+            captionLayout="dropdown"
             data-testid="ccr-valid-from-input"
-            value={validFrom as any}
-            disabled={isUpdate}
-            onChange={(field: any) => onChangeFrom(field?.value ? new Date(field.value) : null)}
             onBlur={onBlurFrom}
-            language={getCurrentActiveUserLocale().split('-')[0] as 'en' | 'de' | 'ro' | undefined}
-            format={getDateFormat('date.long')}
-            required
           />
           {showFromError && (
-            <div className="gba:mt-1 gba:pl-1 gba:text-[14px] gba:text-destructive" data-testid="ccr-valid-from-error">
+            <div className="gba:text-sm gba:text-destructive" data-testid="ccr-valid-from-error">
               {errors.validFrom}
             </div>
           )}
         </div>
       </div>
 
-      <div className={`gba:mb-4`} data-testid="ccr-valid-to-container">
-        <div className={`gba:relative`}>
-          <DateInputField
-            label={getTranslationFromI18nKeyAndLabel(
+      <div className="gba:mb-4" data-testid="ccr-valid-to-container">
+        <div className="gba:space-y-2">
+          <Label htmlFor="ccrValidTo">
+            {getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_to_label',
               'Valid To'
-            )}
-            name="ccrValidTo"
+            )}{' '}
+            *
+          </Label>
+          <DateInput
+            value={validTo ? dayjs(validTo).format('YYYY-MM-DD') : ''}
+            onChange={value => onChangeTo(value ? new Date(value) : null)}
+            disabled={false}
             placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_placeholder',
               'Select Date'
             )}
+            outputFormat="iso"
+            captionLayout="dropdown"
             data-testid="ccr-valid-to-input"
-            value={validTo as any}
-            onChange={(field: any) => onChangeTo(field?.value ? new Date(field.value) : null)}
             onBlur={onBlurTo}
-            language={getCurrentActiveUserLocale().split('-')[0] as 'en' | 'de' | 'ro' | undefined}
-            format={getDateFormat('date.long')}
-            required
           />
           {showToError && (
-            <div className="gba:mt-1 gba:pl-1 gba:text-[14px] gba:text-destructive" data-testid="ccr-valid-to-error">
+            <div className="gba:text-sm gba:text-destructive" data-testid="ccr-valid-to-error">
               {errors.validTo}
             </div>
           )}

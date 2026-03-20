@@ -4,22 +4,21 @@ import {
   GET_EMPLOYEE_BENEFITS_FOR_CATALOG,
   GET_EMPLOYEE_REGION_ID,
   GET_REGION_COUNTRY_ID,
-  GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS,
-  GET_BENEFIT_TYPES_WITH_TRANSLATIONS,
-  GET_BENEFIT_TYPES_WITH_TRANSLATIONS_EXCLUDE_HR_BACKOFFICE
+  GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS
 } from '../queries/benefitCatalogQueries'
 import { BENEFIT_TYPE_CATALOG, BENEFIT_TYPE_VERSION } from '../constants/benefitCatalogConstants'
 import {
   BenefitCatalogItem,
   BenefitsCatalogData,
   CatalogBenefitEntry,
+  ProviderEntry,
   GraphQLBenefitTypesResponse,
   GraphQLEmployeeBenefitsResponse,
   GraphQLCatalogEntry,
   GraphQLEmployeeBenefitResponse
 } from '../types/benefitCatalogTypes'
 import { EmployeeBenefit, CatalogEntry } from '../types/compensationTypes'
-import { BenefitStatus, isBenefitActive } from '../types/compensationEnums'
+import { BenefitStatus, isBenefitActive, isBenefitScheduledForStart } from '../types/compensationEnums'
 
 /**
  * Custom hook to fetch and manage benefits catalog
@@ -38,11 +37,7 @@ import { BenefitStatus, isBenefitActive } from '../types/compensationEnums'
  * @param employeeId - The employee ID
  * @param accessToken - Access token for API authentication
  */
-export const useBenefitsCatalog = (
-  employeeId: string,
-  accessToken: string,
-  options?: { excludeHrBackoffice?: boolean }
-) => {
+export const useBenefitsCatalog = (employeeId: string, accessToken: string) => {
   const [catalogData, setCatalogData] = useState<BenefitsCatalogData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -90,7 +85,10 @@ export const useBenefitsCatalog = (
       endDate: graphqlBenefit.endDate ?? null,
       status: graphqlBenefit.status ?? '',
       benefitStatus: graphqlBenefit.benefitStatus ?? '',
-      notes: graphqlBenefit.notes ?? ''
+      notes: graphqlBenefit.notes ?? '',
+      comments: graphqlBenefit.comments ?? undefined,
+      createdAt: graphqlBenefit.createdAt,
+      updatedAt: graphqlBenefit.updatedAt
     }
   }, [])
 
@@ -101,14 +99,70 @@ export const useBenefitsCatalog = (
   const mergeBenefitData = useCallback(
     (catalogEntries: CatalogBenefitEntry[], employeeBenefits: EmployeeBenefit[]): BenefitCatalogItem[] => {
       return catalogEntries.map(catalogEntry => {
-        // Find if employee has this benefit (check by benefitTypeRef matching catalog ID)
-        const employeeBenefit = employeeBenefits.find(eb => eb.benefitTypeRef === catalogEntry.id)
+        // Match by this entry's id or any merged catalog ids (same benefit type shown once)
+        const typeIds = catalogEntry.catalogIds ?? [catalogEntry.id]
+        const matchingBenefits = employeeBenefits.filter(eb => typeIds.includes(eb.benefitTypeRef))
 
-        // Check if benefit is active
-        const isActive = employeeBenefit ? isBenefitActive(employeeBenefit.benefitStatus) : false
+        // Check if there's a pending request for this benefit type
+        // Only count PENDING_COMPENSATION status (cancelled requests are naturally excluded)
+        const isPending = matchingBenefits.some(benefit => benefit.status === 'PENDING_COMPENSATION')
+
+        // Prioritize active benefits, then scheduled, then pending, then sort by creation date (most recent first)
+        const sortedBenefits = [...matchingBenefits].sort((a, b) => {
+          // Active benefits come first
+          const aActive = isBenefitActive(a)
+          const bActive = isBenefitActive(b)
+          if (aActive && !bActive) return -1
+          if (!aActive && bActive) return 1
+
+          // Scheduled benefits come next
+          const aScheduled = isBenefitScheduledForStart(a)
+          const bScheduled = isBenefitScheduledForStart(b)
+          if (aScheduled && !bScheduled) return -1
+          if (!aScheduled && bScheduled) return 1
+
+          // Pending benefits come next
+          const aPending = a.status === 'PENDING_COMPENSATION'
+          const bPending = b.status === 'PENDING_COMPENSATION'
+          if (aPending && !bPending) return -1
+          if (!aPending && bPending) return 1
+
+          // If both have same status, sort by creation date (newest first)
+          const aDate = new Date(a.createdAt || 0).getTime()
+          const bDate = new Date(b.createdAt || 0).getTime()
+          return bDate - aDate
+        })
+
+        // Use the first one from sorted list (most recent active, scheduled, pending, or historical)
+        const employeeBenefit = sortedBenefits[0]
+
+        // Check if this specific employee benefit instance is pending or cancelled
+        // Note: This is different from the aggregated isPending which checks if ANY benefit of this type is pending
+        const isEmployeeBenefitPending = employeeBenefit?.status === 'PENDING_COMPENSATION'
+        const isEmployeeBenefitCancelled = employeeBenefit?.status === 'CANCELLED_COMPENSATION'
+
+        // Check if benefit is active (includes date validation)
+        // CRITICAL DISTINCTION:
+        // - Pending ACTIVATION (benefitStatus != ACTIVE_BENEFIT): Should NOT be active - needs approval first
+        // - Pending DEACTIVATION (benefitStatus = ACTIVE_BENEFIT + status = PENDING_COMPENSATION): SHOULD be active until deactivation is approved
+        const isPendingActivation = isEmployeeBenefitPending && employeeBenefit?.benefitStatus !== BenefitStatus.ACTIVE
+
+        const isActive =
+          employeeBenefit && !isPendingActivation && !isEmployeeBenefitCancelled
+            ? isBenefitActive(employeeBenefit)
+            : false
+
+        // Check if benefit is scheduled to start in the future (approved but not started yet)
+        // CRITICAL: Pending activation and cancelled benefits should never be classified as scheduled - they need approval first
+        // But pending deactivation benefits can still be scheduled if they have a future start date
+        const isScheduled =
+          employeeBenefit && !isPendingActivation && !isEmployeeBenefitCancelled
+            ? isBenefitScheduledForStart(employeeBenefit)
+            : false
 
         // Determine action capabilities
-        const canRequest = !isActive // Can request if not currently active
+        // CRITICAL: Cannot request if benefit is active, scheduled, OR pending
+        const canRequest = !isActive && !isScheduled && !isPending && !isEmployeeBenefitCancelled
         const canDeactivate = isActive // Can deactivate if currently active
 
         // Store catalog entry with translations for runtime translation
@@ -126,6 +180,8 @@ export const useBenefitsCatalog = (
 
           // Employee benefit data (if exists)
           isActive,
+          isScheduled, // NEW: Indicates benefit is approved and scheduled for future start
+          isCancelled: isEmployeeBenefitCancelled,
           employeeBenefitId: employeeBenefit?.id,
           provider: employeeBenefit?.benefitProvider,
           providerRef: employeeBenefit?.benefitProviderRef,
@@ -136,12 +192,13 @@ export const useBenefitsCatalog = (
           startDate: employeeBenefit?.startDate ?? undefined,
           endDate: employeeBenefit?.endDate ?? undefined,
           notes: employeeBenefit?.notes ?? undefined,
+          comments: employeeBenefit?.comments ?? undefined,
           benefitStatus: employeeBenefit?.benefitStatus as BenefitStatus,
 
           // Action capabilities
           canRequest,
           canDeactivate,
-          isPending: false // Note: Pending status will be available when approval workflows are implemented
+          isPending // Detects if there's a pending request for this benefit type
         }
 
         return catalogItem
@@ -173,27 +230,28 @@ export const useBenefitsCatalog = (
       // Resolve employee country from employment region
       const countryId = await getEmployeeCountryId()
 
-      // Choose catalog query: prefer country-filtered when available
-      const catalogQuery =
-        countryId != null
-          ? GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS
-          : options?.excludeHrBackoffice
-            ? GET_BENEFIT_TYPES_WITH_TRANSLATIONS_EXCLUDE_HR_BACKOFFICE
-            : GET_BENEFIT_TYPES_WITH_TRANSLATIONS
+      // When no employment region (no country), do not show any benefits — avoid showing full unfiltered catalog (e.g. all German + Romanian benefits)
+      if (countryId == null) {
+        setCatalogData({
+          catalogBenefits: [],
+          activeBenefitsCount: 0,
+          scheduledBenefitsCount: 0,
+          availableBenefitsCount: 0,
+          totalBenefitsCount: 0
+        })
+        setLoading(false)
+        return
+      }
 
-      const catalogVariables =
-        countryId != null
-          ? {
-              catalogIdentifier: BENEFIT_TYPE_CATALOG,
-              catalogVersion: BENEFIT_TYPE_VERSION,
-              countryId
-            }
-          : {
-              catalogIdentifier: BENEFIT_TYPE_CATALOG,
-              catalogVersion: BENEFIT_TYPE_VERSION
-            }
+      // Catalog is always filtered by employee's country (from employment region)
+      const catalogQuery = GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS
+      const catalogVariables = {
+        catalogIdentifier: BENEFIT_TYPE_CATALOG,
+        catalogVersion: BENEFIT_TYPE_VERSION,
+        countryId
+      }
 
-      // Fetch catalog entries (filtered by country when available) in parallel with employee benefits
+      // Fetch catalog entries (filtered by country) in parallel with employee benefits
       const [catalogResult, employeeResult] = await Promise.all([
         graphqlClient.request<GraphQLBenefitTypesResponse>(catalogQuery, catalogVariables),
         employeeBenefitsPromise
@@ -244,17 +302,46 @@ export const useBenefitsCatalog = (
       }
       const filteredCatalogEntries = (catalogEntries || []).filter(entry => !isParentGroup(entry))
 
-      // Merge data using filtered catalog entries
-      const mergedBenefits = mergeBenefitData(filteredCatalogEntries, employeeBenefits)
+      // Deduplicate by benefit type (code): show one card per type, merge providers from all catalog entries with same code
+      const byCode = new Map<string, CatalogBenefitEntry[]>()
+      for (const entry of filteredCatalogEntries) {
+        const code = entry.code || entry.id
+        if (!byCode.has(code)) byCode.set(code, [])
+        byCode.get(code)!.push(entry)
+      }
+      const dedupedCatalogEntries: CatalogBenefitEntry[] = []
+      for (const [, entries] of byCode) {
+        const sorted = [...entries].sort((a, b) => a.displayOrder - b.displayOrder)
+        const primary = sorted[0]
+        const catalogIds = sorted.map(e => e.id)
+        const providerById = new Map<string, ProviderEntry>()
+        for (const e of sorted) {
+          for (const child of e.childEntries || []) {
+            providerById.set(child.id, child)
+          }
+        }
+        dedupedCatalogEntries.push({
+          ...primary,
+          id: primary.id,
+          catalogIds: catalogIds.length > 1 ? catalogIds : undefined,
+          childEntries: Array.from(providerById.values())
+        })
+      }
+      dedupedCatalogEntries.sort((a, b) => a.displayOrder - b.displayOrder)
+
+      // Merge data using deduplicated catalog entries (one per benefit type)
+      const mergedBenefits = mergeBenefitData(dedupedCatalogEntries, employeeBenefits)
 
       // Calculate statistics
       const activeBenefitsCount = mergedBenefits.filter(b => b.isActive).length
+      const scheduledBenefitsCount = mergedBenefits.filter(b => b.isScheduled).length
       const totalBenefitsCount = mergedBenefits.length
-      const availableBenefitsCount = totalBenefitsCount - activeBenefitsCount
+      const availableBenefitsCount = totalBenefitsCount - activeBenefitsCount - scheduledBenefitsCount
 
       setCatalogData({
         catalogBenefits: mergedBenefits,
         activeBenefitsCount,
+        scheduledBenefitsCount,
         availableBenefitsCount,
         totalBenefitsCount
       })
@@ -265,7 +352,7 @@ export const useBenefitsCatalog = (
     } finally {
       setLoading(false)
     }
-  }, [employeeId, accessToken, graphqlClient, mergeBenefitData, transformEmployeeBenefit])
+  }, [employeeId, accessToken, graphqlClient, mergeBenefitData, transformEmployeeBenefit, getEmployeeCountryId])
 
   useEffect(() => {
     fetchBenefitsCatalog()

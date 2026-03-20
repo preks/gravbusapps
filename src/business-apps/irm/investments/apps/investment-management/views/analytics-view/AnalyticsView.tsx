@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
-import { BarChart3, Droplets, Home, LayoutDashboard } from 'lucide-react'
+import { ChartBarIcon, DropIcon, HouseIcon, GaugeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -115,28 +115,28 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
           <TabsList className="gba:grid gba:w-full gba:grid-cols-4 gba:p-1">
             <TabsTrigger
               value="overview"
-              startIcon={<LayoutDashboard />}
+              startIcon={<GaugeIcon />}
               data-testid={formatDataTestId('AnalyticsView', 'OverviewTab')}
             >
               {getTranslationFromI18nKeyAndLabel('analytics.tabs.overview', 'Overview')}
             </TabsTrigger>
             <TabsTrigger
               value="equity"
-              startIcon={<BarChart3 />}
+              startIcon={<ChartBarIcon />}
               data-testid={formatDataTestId('AnalyticsView', 'EquityTab')}
             >
               {getTranslationFromI18nKeyAndLabel('analytics.tabs.equity', 'Equity Investments')}
             </TabsTrigger>
             <TabsTrigger
               value="liquid-funds"
-              startIcon={<Droplets />}
+              startIcon={<DropIcon />}
               data-testid={formatDataTestId('AnalyticsView', 'LiquidFundsTab')}
             >
               {getTranslationFromI18nKeyAndLabel('analytics.tabs.liquidFunds', 'Liquid Funds')}
             </TabsTrigger>
             <TabsTrigger
               value="real-estate"
-              startIcon={<Home />}
+              startIcon={<HouseIcon />}
               data-testid={formatDataTestId('AnalyticsView', 'RealEstateTab')}
             >
               {getTranslationFromI18nKeyAndLabel('analytics.tabs.realEstate', 'Real Estate')}

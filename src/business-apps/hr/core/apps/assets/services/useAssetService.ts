@@ -17,18 +17,19 @@ import {
   DELETE_ASSET,
   GET_EMPLOYEE_ASSETS_BY_ASSET,
   GET_CURRENT_ALLOCATION,
+  GET_EMPLOYEE_ASSET_BY_ID,
+  GET_ASSET_IDS_BY_EMPLOYEE_IDS,
   ALLOCATE_ASSET,
-  DEALLOCATE_ASSET,
   AssetQueryVariables,
   AssetByIdVariables,
   AssetStatisticsResponse,
   InsertAssetVariables,
   UpdateAssetVariables,
   DeleteAssetVariables,
-  AllocateAssetVariables,
-  DeallocateAssetVariables
+  AllocateAssetVariables
 } from '../queries/assetQueries'
 import { Asset, AssetAllocation, AssetStatistics, AssetStatus } from '../types'
+import { AssetProcessClient } from './AssetProcessClient'
 
 export const useAssetService = (context: BusinessAppContextProps) => {
   const graphQLClient = useGraphQLClient(context.accessToken)
@@ -50,6 +51,13 @@ export const useAssetService = (context: BusinessAppContextProps) => {
               _and: [baseWhere, variables.where]
             }
           }
+        }
+
+        // Employee filter (or any id filter): restrict to these asset IDs only
+        if (variables.assetIds !== undefined) {
+          const idCondition = { id: { _in: variables.assetIds } }
+          finalWhere =
+            finalWhere._and != null ? { _and: [...finalWhere._and, idCondition] } : { _and: [finalWhere, idCondition] }
         }
 
         const defaultVariables: AssetQueryVariables = {
@@ -85,7 +93,20 @@ export const useAssetService = (context: BusinessAppContextProps) => {
             currency: asset.currency,
             siteLocation: asset.siteLocation,
             createdAt: asset.createdAt,
-            updatedAt: asset.updatedAt
+            updatedAt: asset.updatedAt,
+            disposalStatus: asset.disposalStatus,
+            disposalOutcomeRef: asset.disposalOutcomeRef,
+            disposalDate: asset.disposalDate,
+            disposalReason: asset.disposalReason,
+            responsibleEmployeeId: asset.responsibleEmployeeId,
+            performerEmployeeId: asset.performerEmployeeId,
+            requireSanitization: asset.requireSanitization,
+            sanitizationMethodRef: asset.sanitizationMethodRef,
+            sanitizationExecutionDate: asset.sanitizationExecutionDate,
+            disposalOutcome: asset.disposalOutcome,
+            sanitizationMethod: asset.sanitizationMethod,
+            responsibleEmployee: asset.responsibleEmployee,
+            performerEmployee: asset.performerEmployee
           }
         })
 
@@ -132,7 +153,20 @@ export const useAssetService = (context: BusinessAppContextProps) => {
           currency: asset.currency,
           siteLocation: asset.siteLocation,
           createdAt: asset.createdAt,
-          updatedAt: asset.updatedAt
+          updatedAt: asset.updatedAt,
+          disposalStatus: asset.disposalStatus,
+          disposalOutcomeRef: asset.disposalOutcomeRef,
+          disposalDate: asset.disposalDate,
+          disposalReason: asset.disposalReason,
+          responsibleEmployeeId: asset.responsibleEmployeeId,
+          performerEmployeeId: asset.performerEmployeeId,
+          requireSanitization: asset.requireSanitization,
+          sanitizationMethodRef: asset.sanitizationMethodRef,
+          sanitizationExecutionDate: asset.sanitizationExecutionDate,
+          disposalOutcome: asset.disposalOutcome,
+          sanitizationMethod: asset.sanitizationMethod,
+          responsibleEmployee: asset.responsibleEmployee,
+          performerEmployee: asset.performerEmployee
         } as Asset
       } catch (error) {
         console.error('Error fetching asset by ID:', error)
@@ -150,7 +184,8 @@ export const useAssetService = (context: BusinessAppContextProps) => {
         totalAssets: result.totalAssets.aggregate.count,
         allocatedAssets: result.allocatedAssets.aggregate.count,
         availableAssets: result.availableAssets.aggregate.count,
-        underRepairAssets: result.underRepairAssets.aggregate.count
+        underRepairAssets: result.underRepairAssets.aggregate.count,
+        retiredAssets: result.retiredAssets.aggregate.count
       } as AssetStatistics
     } catch (error) {
       console.error('Error fetching asset statistics:', error)
@@ -342,6 +377,59 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
+  const getEmployeeAssetById = useCallback(
+    async (allocationId: string): Promise<AssetAllocation | null> => {
+      try {
+        const result = await graphQLClient.request<{ EmployeeAsset: any[] }>(GET_EMPLOYEE_ASSET_BY_ID, {
+          id: allocationId
+        })
+        if (!result.EmployeeAsset || result.EmployeeAsset.length === 0) return null
+        const alloc = result.EmployeeAsset[0]
+        return {
+          id: alloc.id,
+          assetId: alloc.assetId,
+          employeeId: alloc.employeeId,
+          startDate: alloc.startDate,
+          expectedEndDate: alloc.expectedEndDate,
+          endDate: alloc.endDate,
+          notes: alloc.notes,
+          version: alloc.version,
+          isDeleted: alloc.isDeleted,
+          startAssetConditionRef: alloc.startAssetConditionRef,
+          endAssetConditionRef: alloc.endAssetConditionRef,
+          employee: alloc.employee,
+          startAssetCondition: alloc.startAssetCondition,
+          endAssetCondition: alloc.endAssetCondition,
+          createdAt: alloc.createdAt,
+          updatedAt: alloc.updatedAt
+        } as AssetAllocation
+      } catch (error) {
+        console.error('Error fetching allocation by id:', error)
+        throw error
+      }
+    },
+    [graphQLClient]
+  )
+
+  /** Returns asset IDs that have a current allocation to one of the given employee IDs. */
+  const getAssetIdsByEmployeeIds = useCallback(
+    async (employeeIds: string[]): Promise<string[]> => {
+      if (!employeeIds.length) return []
+      try {
+        const result = await graphQLClient.request<{ EmployeeAsset: { assetId: string }[] }>(
+          GET_ASSET_IDS_BY_EMPLOYEE_IDS,
+          { employeeIds }
+        )
+        const ids = result.EmployeeAsset?.map(row => row.assetId) ?? []
+        return [...new Set(ids)]
+      } catch (error) {
+        console.error('Error fetching asset IDs by employee IDs:', error)
+        throw error
+      }
+    },
+    [graphQLClient]
+  )
+
   const allocateAsset = useCallback(
     async (allocationData: Omit<AssetAllocation, 'id' | 'version' | 'isDeleted' | 'createdAt' | 'updatedAt'>) => {
       try {
@@ -387,43 +475,21 @@ export const useAssetService = (context: BusinessAppContextProps) => {
   const deallocateAsset = useCallback(
     async (id: string, version: number, endDate: string, endAssetConditionRef?: string) => {
       try {
-        const variables: DeallocateAssetVariables = {
+        const client = new AssetProcessClient()
+        client.setAccessToken(context.accessToken)
+        await client.updateEmployeeAsset({
           id,
           version,
           endDate,
-          ...(endAssetConditionRef && { conditionEnd: endAssetConditionRef })
-        }
-
-        const result = await graphQLClient.request<{ update_EmployeeAsset: { returning: any[] } }>(
-          DEALLOCATE_ASSET,
-          variables
-        )
-
-        const alloc = result.update_EmployeeAsset.returning[0]
-        return {
-          id: alloc.id,
-          assetId: alloc.assetId,
-          employeeId: alloc.employeeId,
-          startDate: alloc.startDate,
-          expectedEndDate: alloc.expectedEndDate,
-          endDate: alloc.endDate,
-          notes: alloc.notes,
-          version: alloc.version,
-          isDeleted: alloc.isDeleted,
-          startAssetConditionRef: alloc.startAssetConditionRef,
-          endAssetConditionRef: alloc.endAssetConditionRef,
-          employee: alloc.employee,
-          startAssetCondition: alloc.startAssetCondition,
-          endAssetCondition: alloc.endAssetCondition,
-          createdAt: alloc.createdAt,
-          updatedAt: alloc.updatedAt
-        } as AssetAllocation
+          ...(endAssetConditionRef && { endAssetConditionRef })
+        })
+        return { id, version, endDate } as AssetAllocation
       } catch (error) {
         console.error('Error deallocating asset:', error)
         throw error
       }
     },
-    [graphQLClient]
+    [context.accessToken]
   )
 
   return useMemo(
@@ -436,6 +502,8 @@ export const useAssetService = (context: BusinessAppContextProps) => {
       deleteAsset,
       getAllocationsForAsset,
       getCurrentAllocation,
+      getEmployeeAssetById,
+      getAssetIdsByEmployeeIds,
       allocateAsset,
       deallocateAsset
     }),
@@ -448,6 +516,8 @@ export const useAssetService = (context: BusinessAppContextProps) => {
       deleteAsset,
       getAllocationsForAsset,
       getCurrentAllocation,
+      getEmployeeAssetById,
+      getAssetIdsByEmployeeIds,
       allocateAsset,
       deallocateAsset
     ]

@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { PiX } from 'react-icons/pi'
+import { XIcon } from '@phosphor-icons/react'
 //import { useTranslation } from 'react-i18next';
 
 /**
@@ -87,7 +87,7 @@ export const DataDetails: React.FC<DataDetailsProps> = ({ title, icon, children,
           aria-label="Close"
           data-testid="data-details-close-button"
         >
-          <PiX className="gba:h-4 gba:w-4" />
+          <XIcon className="gba:h-4 gba:w-4" />
         </Button>
       </div>
 

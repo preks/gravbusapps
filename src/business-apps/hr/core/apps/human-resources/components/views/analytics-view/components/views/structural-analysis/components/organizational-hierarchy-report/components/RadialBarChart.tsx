@@ -16,22 +16,21 @@ import {
   Table
 } from 'antd'
 import {
-  ReloadOutlined,
-  TeamOutlined,
-  ApartmentOutlined,
-  GlobalOutlined,
-  BankOutlined,
-  EyeOutlined,
-  SwitcherOutlined,
-  DollarCircleOutlined,
-  TableOutlined,
-  BarChartOutlined
-} from '@ant-design/icons'
+  ArrowsClockwiseIcon,
+  UsersIcon,
+  BuildingsIcon,
+  GlobeIcon,
+  BankIcon,
+  EyeIcon,
+  TreeStructureIcon,
+  CurrencyCircleDollarIcon,
+  TableIcon,
+  ChartBarIcon
+} from '@phosphor-icons/react'
 import {
   RadialBarChart as RechartsRadialBarChart,
   RadialBar,
   ResponsiveContainer,
-  Legend,
   Tooltip as RechartsTooltip
 } from 'recharts'
 import { SunburstVisualizationProps, HierarchyLevelReportData } from '../types/hierarchyTypes'
@@ -58,6 +57,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
 }) => {
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null)
   const { t } = useTranslation(hrTranslations)
+  // no manual tooltip management needed here
 
   // Colors are now handled through the colorMap from the data integration hook
 
@@ -155,7 +155,12 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       )
     },
     {
-      title: viewMode === 'company' ? t('hr-analytics-companies') : viewMode === 'costcenter' ? t('hr-analytics-cost-centers') : t('hr-analytics-countries'),
+      title:
+        viewMode === 'company'
+          ? t('hr-analytics-companies')
+          : viewMode === 'costcenter'
+            ? t('hr-analytics-cost-centers')
+            : t('hr-analytics-countries'),
       dataIndex: 'segments',
       key: 'segments',
       render: (segments: any[]) => (
@@ -195,16 +200,18 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
           <Title level={5} className="gba:m-0 gba:mb-2">
             {label}
           </Title>
-          <Text strong>{t('hr-analytics-total-employees')}: {data.total}</Text>
+          <Text strong>
+            {t('hr-analytics-total-employees')}: {data.total}
+          </Text>
           <Divider className="gba:my-2" />
           {Object.keys(data)
             .filter(
-              key =>
+              (key: string) =>
                 (key.startsWith('country_') || key.startsWith('company_') || key.startsWith('costcenter_')) &&
                 !key.endsWith('_name') &&
                 !key.endsWith('_color')
             )
-            .map(key => {
+            .map((key: string) => {
               const nameKey = `${key}_name`
               const colorKey = `${key}_color`
               const value = data[key]
@@ -228,6 +235,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
     return null
   }
 
+  // Note: Recharts builtin tooltip is replaced with a custom absolutely-positioned overlay to avoid jump
+
   if (isLoading) {
     return (
       <div
@@ -248,7 +257,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         type="error"
         showIcon
         action={
-          <Button size="small" onClick={onRefresh} icon={<ReloadOutlined />}>
+          <Button size="small" onClick={onRefresh} icon={<ArrowsClockwiseIcon size={16} />}>
             {t('common-retry')}
           </Button>
         }
@@ -265,10 +274,10 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
         <div className="gba:flex gba:items-center gba:gap-4">
           <Title level={3} className="gba:m-0 gba:text-foreground">
-            <ApartmentOutlined className="gba:mr-2 gba:text-info" />
+            <BuildingsIcon size={16} className="gba:mr-2 gba:text-info" />
             {t('hr-analytics-organizational-hierarchy-report')}
           </Title>
-          <Tag color="var(--nw-color-info-secondary)" icon={<TeamOutlined />}>
+          <Tag color="var(--nw-color-info-secondary)" icon={<UsersIcon size={16} />}>
             {statistics.totalEmployees} {t('hr-analytics-employees')}
           </Tag>
         </div>
@@ -276,7 +285,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         {/* View Mode Switcher */}
         <Space>
           <Text strong>
-            <EyeOutlined className="gba:mr-2" />
+            <EyeIcon size={16} className="gba:mr-2" />
             {t('hr-analytics-view-by')}
           </Text>
           <Radio.Group
@@ -290,18 +299,18 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
               value="location"
               data-testid="OrganizationalHierarchyReport-RadialBarChart-LocationModeButton"
             >
-              <GlobalOutlined className="gba:mr-1" />
+              <GlobeIcon size={16} className="gba:mr-1" />
               {t('hr-analytics-location')}
             </Radio.Button>
             <Radio.Button value="company" data-testid="OrganizationalHierarchyReport-RadialBarChart-CompanyModeButton">
-              <BankOutlined className="gba:mr-1" />
+              <BankIcon size={16} className="gba:mr-1" />
               {t('hr-analytics-company')}
             </Radio.Button>
             <Radio.Button
               value="costcenter"
               data-testid="OrganizationalHierarchyReport-RadialBarChart-CostCenterModeButton"
             >
-              <DollarCircleOutlined className="gba:mr-1" />
+              <CurrencyCircleDollarIcon size={16} className="gba:mr-1" />
               {t('hr-analytics-cost-center')}
             </Radio.Button>
           </Radio.Group>
@@ -311,8 +320,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       {/* Description */}
       <div className="gba:mb-6 gba:p-4 gba:bg-muted gba:rounded-lg gba:border gba:border-border">
         <Text className="gba:text-foreground">
-          {t('hr-analytics-organizational-hierarchy-report')}{' '}
-          {t('hr-analytics-organizational-hierarchy')}
+          {t('hr-analytics-organizational-hierarchy-report')} {t('hr-analytics-organizational-hierarchy')}
         </Text>
       </div>
 
@@ -323,7 +331,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             <Statistic
               title={t('hr-analytics-total-employees')}
               value={statistics.totalEmployees}
-              prefix={<TeamOutlined style={{ color: 'var(--nw-entity-employee)' }} />}
+              prefix={<UsersIcon size={16} style={{ color: 'var(--nw-entity-employee)' }} />}
               valueStyle={{ color: 'var(--nw-entity-employee)' }}
             />
           </Card>
@@ -331,9 +339,9 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title={t('hr-analytics-organizational-units')}
+              title={t('hr-analytics-departments-label')}
               value={statistics.totalOrganizationalUnits}
-              prefix={<ApartmentOutlined style={{ color: 'var(--nw-entity-department)' }} />}
+              prefix={<BuildingsIcon size={16} style={{ color: 'var(--nw-entity-department)' }} />}
               valueStyle={{ color: 'var(--nw-entity-department)' }}
             />
           </Card>
@@ -341,9 +349,9 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title={t('hr-analytics-hierarchy-levels')}
+              title={t('hr-analytics-levels-title')}
               value={statistics.maxLevels}
-              prefix={<SwitcherOutlined style={{ color: 'var(--nw-entity-strategy)' }} />}
+              prefix={<TreeStructureIcon size={16} style={{ color: 'var(--nw-entity-strategy)' }} />}
               valueStyle={{ color: 'var(--nw-entity-strategy)' }}
             />
           </Card>
@@ -351,7 +359,13 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title={viewMode === 'company' ? 'Companies' : viewMode === 'costcenter' ? 'Cost Centers' : 'Countries'}
+              title={
+                viewMode === 'company'
+                  ? t('hr-analytics-companies')
+                  : viewMode === 'costcenter'
+                    ? t('hr-analytics-cost-centers')
+                    : t('hr-analytics-countries')
+              }
               value={
                 viewMode === 'company'
                   ? statistics.companiesCount
@@ -361,11 +375,11 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
               }
               prefix={
                 viewMode === 'company' ? (
-                  <BankOutlined style={{ color: 'var(--nw-entity-order)' }} />
+                  <BankIcon size={16} style={{ color: 'var(--nw-entity-order)' }} />
                 ) : viewMode === 'costcenter' ? (
-                  <DollarCircleOutlined style={{ color: 'var(--nw-entity-department)' }} />
+                  <CurrencyCircleDollarIcon size={16} style={{ color: 'var(--nw-entity-department)' }} />
                 ) : (
-                  <GlobalOutlined style={{ color: 'var(--nw-entity-location)' }} />
+                  <GlobeIcon size={16} style={{ color: 'var(--nw-entity-location)' }} />
                 )
               }
               valueStyle={{
@@ -385,9 +399,13 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       <Card
         title={
           <span>
-            <BarChartOutlined className="gba:mr-2" />
+            <ChartBarIcon size={16} className="gba:mr-2" />
             {t('hr-analytics-organizational-hierarchy')} -{' '}
-            {viewMode === 'company' ? t('hr-analytics-by-company') : viewMode === 'costcenter' ? t('hr-analytics-by-cost-center') : t('hr-analytics-by-location')}
+            {viewMode === 'company'
+              ? t('hr-analytics-by-company')
+              : viewMode === 'costcenter'
+                ? t('hr-analytics-by-cost-center')
+                : t('hr-analytics-by-location')}
           </span>
         }
         className="gba:mb-6"
@@ -413,9 +431,10 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                       dataKey={segmentKey}
                       stackId="segments"
                       fill={getSegmentColor(segmentKey)}
+                      isAnimationActive={false}
                     />
                   ))}
-                  <Legend iconSize={8} layout="horizontal" verticalAlign="bottom" align="center" />
+                  {/* Legend removed to eliminate dots under the circles */}
                   <RechartsTooltip content={<CustomTooltip />} />
                 </RechartsRadialBarChart>
               </ResponsiveContainer>
@@ -427,7 +446,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             <Card
               title={
                 <span>
-                  <SwitcherOutlined className="gba:mr-2" />
+                  <TreeStructureIcon size={16} className="gba:mr-2" />
                   {t('hr-analytics-level-breakdown')}
                 </span>
               }
@@ -444,7 +463,9 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                   onClick={() => setSelectedLevel(selectedLevel === index ? null : index)}
                 >
                   <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
-                    <Text strong>{t('hr-analytics-level')} {index}</Text>
+                    <Text strong>
+                      {t('hr-analytics-level')} {index}
+                    </Text>
                     <Tag className="gba:text-info-secondary-foreground gba:bg-info-secondary/50">
                       {level.value} {t('hr-analytics-employees')}
                     </Tag>
@@ -465,9 +486,13 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       <Card
         title={
           <span>
-            <TableOutlined className="gba:mr-2" />
+            <TableIcon size={16} className="gba:mr-2" />
             {t('hr-analytics-detailed-level-report')} -{' '}
-            {viewMode === 'company' ? t('hr-analytics-by-company') : viewMode === 'costcenter' ? t('hr-analytics-by-cost-center') : t('hr-analytics-by-location')}
+            {viewMode === 'company'
+              ? t('hr-analytics-by-company')
+              : viewMode === 'costcenter'
+                ? t('hr-analytics-by-cost-center')
+                : t('hr-analytics-by-location')}
           </span>
         }
       >

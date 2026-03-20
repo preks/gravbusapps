@@ -1,5 +1,5 @@
 import React from 'react'
-import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons'
+import { CheckCircleIcon, XCircleIcon } from '@phosphor-icons/react'
 import type { Stage, StageCondition } from '@/components/stage-progression/types'
 
 interface OpportunityStageTooltipContentProps {
@@ -27,14 +27,18 @@ export const OpportunityStageTooltipContent: React.FC<OpportunityStageTooltipCon
           sortedConditions.map(condition => (
             <div key={condition.id} className="gba:flex gba:items-start gba:gap-2 gba:py-1 gba:text-xs">
               {condition.isCompleted ? (
-                <CheckCircleFilled
+                <CheckCircleIcon
+                  size={12}
+                  weight="fill"
                   className="gba:text-success"
-                  style={{ fontSize: '12px', marginTop: '2px', flexShrink: 0 }}
+                  style={{ marginTop: '2px', flexShrink: 0 }}
                 />
               ) : (
-                <CloseCircleFilled
+                <XCircleIcon
+                  size={12}
+                  weight="fill"
                   className="gba:text-muted-foreground"
-                  style={{ fontSize: '12px', marginTop: '2px', flexShrink: 0 }}
+                  style={{ marginTop: '2px', flexShrink: 0 }}
                 />
               )}
               <div className="gba:flex-1">

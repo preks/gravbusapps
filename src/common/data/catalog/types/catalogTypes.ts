@@ -152,7 +152,7 @@ export interface CatalogQueryVariables {
   catalogIdentifiers?: string[] // For fetching specific catalogs by identifier:version
   orderBy?: Array<{
     field: string
-    direction: 'ASC' | 'DESC'
+    direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | 'ASC_NULLS_FIRST' | 'DESC_NULLS_FIRST'
   }>
 }
 
@@ -181,11 +181,15 @@ export interface CatalogEntryQueryVariables {
   parentEntryId?: string
   includeChildEntries?: boolean
   // Additional precise filters
-  entryId?: string // fetch a single entry by id
+  entryId?: string | string[] // fetch one or multiple entries by id
   typeEquals?: string // filter by exact type equality
+  excludeCodes?: string[] // Exclude entries with codes matching these patterns (case-insensitive substring)
+  includeCodes?: string[] // Include only entries with codes matching these patterns (case-insensitive substring)
+  excludeTypes?: string[] // Exclude entries with types matching these patterns (case-insensitive substring)
+  includeTypes?: string[] // Include only entries with types matching these patterns (case-insensitive substring)
   orderBy?: Array<{
     field: string
-    direction: 'ASC' | 'DESC'
+    direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | 'ASC_NULLS_FIRST' | 'DESC_NULLS_FIRST'
   }>
 }
 

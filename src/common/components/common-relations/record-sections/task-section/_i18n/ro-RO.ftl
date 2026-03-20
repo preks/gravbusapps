@@ -1,0 +1,17 @@
+# Task Section & Quick-Add
+tasks-untitled = Sarcină fără titlu
+tasks-emptyState = Încă nu există sarcini. Creați prima sarcină.
+tasks-addQuick = Adăugare rapidă sarcină
+tasks-assignee = Atribuit
+tasks-selectAssignee = Selectați...
+tasks-type = Tip
+tasks-priority = Prioritate
+tasks-timingType = Tip programare
+tasks-pleaseSelect = Selectați...
+tasks-deadline = Termen limită
+tasks-taskDetails = Sarcină
+tasks-documents = Documente
+tasks-quickAddPlaceholder = Titlu sarcină...
+tasks-descriptionPlaceholder = Descriere...
+common-creating = Se creează...
+tasks-create = Creați

@@ -55,7 +55,6 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
     const formattedDate = formatDateWithTimezone(date)
     const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
 
-    // Use the getResource method
     return await flowClient.getResource(path)
   } catch {
     showToast(
@@ -161,6 +160,7 @@ export const fetchExpenseData = `query MyQuery($expenseId:uuid! ,$activeUserLoca
     expenseRequest {
       id
       title
+      status
     }
     title
     autoCalculated
@@ -279,6 +279,7 @@ export const getNewTypes = `query MyQuery($expenseRuleId: uuid, $objectFilter: j
     code
     name
     reimbursable
+    additionalProperties
     activeFrom
     activeTo
     expenseGroupRef
@@ -385,3 +386,12 @@ export const GET_EXPENSE_REQUESTS = `
     }
   }
 `
+
+/** Fetches the expense rule currency (id). Used only when expenseRuleId is present; variable is uuid! to satisfy schema. */
+export const getExpenseRuleCurrencyQuery = `query getExpenseRuleCurrency($expenseRuleId: uuid!) {
+  ExpenseRuleByPk(id: $expenseRuleId) {
+    currency {
+      id
+    }
+  }
+}`

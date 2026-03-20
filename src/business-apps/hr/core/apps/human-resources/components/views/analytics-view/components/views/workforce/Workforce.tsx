@@ -10,7 +10,7 @@ import {
   CardContent,
   useTranslation
 } from '@newwork/nw-design-system'
-import { PiTrendUp, PiArrowClockwise, PiUsers, PiBriefcase } from 'react-icons/pi'
+import { TrendUpIcon, ArrowClockwiseIcon, UsersIcon, BriefcaseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import HeadcountTrends from './components/tabs/HeadcountTrends'
 import TurnoverRetention from './components/tabs/TurnoverRetention'
@@ -83,7 +83,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
                 <p className="gba:text-destructive-secondary">{error}</p>
               </div>
               <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
-                <PiArrowClockwise />
+                <ArrowClockwiseIcon />
                 {t('common-retry')}
               </Button>
             </div>
@@ -106,10 +106,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
   }
 
   return (
-    <div
-      data-testid="workforce-view"
-      className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-full gba:p-6 gba:rounded-lg"
-    >
+    <div data-testid="workforce-view" className="gba:min-h-full gba:p-6 gba:rounded-lg">
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4">
@@ -127,7 +124,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
           data-testid={`${prefixDataTestId}-refresh-button`}
           className="gba:flex gba:items-center gba:gap-2"
         >
-          <PiArrowClockwise />
+          <ArrowClockwiseIcon />
           {t('common-refresh-data')}
         </Button>
       </div>
@@ -138,44 +135,38 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="gba:grid gba:w-full gba:max-w-5xl gba:grid-cols-3 gba:items-stretch gba:h-12 gba:gap-2">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full">
+        <TabsList className="gba:mb-4">
           <TabsTrigger
             value="headcount-trends"
             data-testid="headcount-trends-tab"
-            className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:h-12 gba:px-4 gba:py-0 gba:leading-none gba:min-w-0 gba:overflow-hidden"
+            className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
             title={t('hr-analytics-headcount-trends')}
           >
-            <span className="gba:shrink-0">
-              <PiTrendUp />
-            </span>
-            <span className="gba:flex-1 gba:min-w-0 gba:truncate gba:text-ellipsis gba:overflow-hidden">
+            <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+              <TrendUpIcon />
               {t('hr-analytics-headcount-trends')}
             </span>
           </TabsTrigger>
           <TabsTrigger
             value="turnover-retention"
             data-testid="turnover-retention-tab"
-            className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:h-12 gba:px-4 gba:py-0 gba:leading-none gba:min-w-0 gba:overflow-hidden"
+            className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
             title={t('hr-analytics-turnover-retention')}
           >
-            <span className="gba:shrink-0">
-              <PiUsers />
-            </span>
-            <span className="gba:flex-1 gba:min-w-0 gba:truncate gba:text-ellipsis gba:overflow-hidden">
+            <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+              <UsersIcon />
               {t('hr-analytics-turnover-retention')}
             </span>
           </TabsTrigger>
           <TabsTrigger
             value="employment"
             data-testid="employment-tab"
-            className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:h-12 gba:px-4 gba:py-0 gba:leading-none gba:min-w-0 gba:overflow-hidden"
+            className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
             title={t('hr-analytics-employment')}
           >
-            <span className="gba:shrink-0">
-              <PiBriefcase />
-            </span>
-            <span className="gba:flex-1 gba:min-w-0 gba:truncate gba:text-ellipsis gba:overflow-hidden">
+            <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+              <BriefcaseIcon />
               {t('hr-analytics-employment')}
             </span>
           </TabsTrigger>

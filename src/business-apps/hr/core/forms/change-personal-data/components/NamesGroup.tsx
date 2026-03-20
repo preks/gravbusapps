@@ -49,24 +49,21 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs, setValue }) 
   const computedDisplayName = partsDisplay.filter(Boolean).join(' ').trim()
 
   // Update displayName field whenever computedDisplayName changes
+  // Use a ref to track the last set value to avoid unnecessary updates
+  const lastDisplayNameRef = React.useRef(computedDisplayName)
   useEffect(() => {
-    setValue('displayName', computedDisplayName, { shouldValidate: false, shouldDirty: false })
+    if (lastDisplayNameRef.current !== computedDisplayName) {
+      setValue('displayName', computedDisplayName, { shouldValidate: false, shouldDirty: false })
+      lastDisplayNameRef.current = computedDisplayName
+    }
   }, [computedDisplayName, setValue])
 
   const validateNameFunction = (name: string): boolean => {
     const trimmed = (name || '').trim()
+    const nameRegex =
+      /^[A-Za-zÀ-ÿ\u0100-\u017F\u0218-\u021B]{2,}(?:(?:\s*-\s*|\s)[A-Za-zÀ-ÿ\u0100-\u017F\u0218-\u021B]{2,})*(?:\s*\([A-Za-zÀ-ÿ\u0100-\u017F\u0218-\u021B]+\))?$/
 
-    // Existing validation (kept as-is)
-    const baseRegex =
-      /^(?:[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,}(?:-[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,})?)(?: [a-zA-ZÀ-ÿ\u00f1\u00d1]{2,}(?:-[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,})?)*(?: \([a-zA-ZÀ-ÿ\u00f1\u00d1]+\))?$/
-
-    if (baseRegex.test(trimmed)) return true
-
-    // Enhancement: allow Croatian letters (Latin Extended-A: Ć Č Š Ž Đ and lowercase)
-    const croatianExtendedRegex =
-      /^(?:[A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,}(?:-[A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,})?)(?: [A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,}(?:-[A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,})?)*(?: \([A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]+\))?$/
-
-    return croatianExtendedRegex.test(trimmed)
+    return nameRegex.test(trimmed)
   }
 
   return (

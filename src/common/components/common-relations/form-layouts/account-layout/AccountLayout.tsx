@@ -11,6 +11,9 @@ interface AccountLayoutProps {
   // Business app context for EmployeeSelect
   businessAppContext?: BusinessAppContextProps
 
+  // Account contacts from loaded entity (with nested contact) for display - same pattern as ownerEmployee
+  accountContacts?: any[]
+
   // Owner employee from account data (to display immediately in EmployeeSelect)
   ownerEmployee?: any
 
@@ -50,12 +53,18 @@ interface AccountLayoutProps {
   // Ref to store current file and thumbnail (for handlePreSubmit in form component)
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
 
+  // Context for prospective field label (determines non-prospective label)
+  // REQUIRED: Must be explicitly set to 'crm' or 'irm' to ensure correct labels
+  accountContext: 'crm' | 'irm'
+
   // Loading state - shows skeletons while data is being fetched
   loading?: boolean
+  isStepActive?: boolean
 }
 
 const AccountLayout: React.FC<AccountLayoutProps> = ({
   businessAppContext,
+  accountContacts,
   ownerEmployee,
   entityId,
   annualRevenueCatalogIdentifier,
@@ -68,7 +77,9 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   communicationCustomFields,
   customSegments = [],
   avatarFileRef,
-  loading = false
+  accountContext,
+  loading = false,
+  isStepActive = true
 }) => {
   const { t } = useTranslation(translations)
 
@@ -106,12 +117,14 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
       {/* Account Information - Not in FormAccordion */}
       <AccountInformationSegment
         businessAppContext={businessAppContext}
+        accountContacts={accountContacts}
         ownerEmployee={ownerEmployee}
         entityId={entityId}
         useContacts={useContacts}
         customFields={accountInformationCustomFields}
         avatarFileRef={avatarFileRef}
         accountPriorityCatalogIdentifier={accountPriorityCatalogIdentifier}
+        accountContext={accountContext}
       />
 
       {/* Other Segments */}
@@ -119,7 +132,11 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         <CommunicationSegment customFields={communicationCustomFields} defaultChannelCodes={DEFAULT_ACCOUNT_CHANNELS} />
       </FormSection>
       <FormSection title={t('address-title')} value="address-information">
-        <AddressSegment customFields={addressCustomFields} />
+        <AddressSegment
+          businessAppContext={businessAppContext}
+          customFields={addressCustomFields}
+          isActive={isStepActive}
+        />
       </FormSection>
       <FormSection title={t('financial-title')} value="financial-information">
         <AccountDetailsSegment

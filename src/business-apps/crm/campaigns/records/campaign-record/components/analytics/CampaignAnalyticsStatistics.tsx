@@ -1,8 +1,9 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserOutlined, DollarOutlined, TrophyOutlined, BankOutlined } from '@ant-design/icons'
+import { UserIcon, CurrencyDollarIcon, TrophyIcon, BankIcon } from '@phosphor-icons/react'
 import { CampaignAnalyticsMetrics } from '../../queries/CampaignAnalyticsQueries'
 import { formatCurrencyCompact, formatPercentage } from '@/common/utils/numberFormatter'
+import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
 
 interface CampaignAnalyticsStatisticsProps {
   metrics: CampaignAnalyticsMetrics | null
@@ -49,8 +50,8 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       key: 'leads-performance',
       title: 'Total Leads',
       value: totalLeads,
-      prefix: <UserOutlined />,
-      color: '#1890ff',
+      prefix: <UserIcon />,
+      color: NW_CHART_COLOR_VARS[0],
       description: createCombinedDescription(
         'Leads generated from campaign',
         `${convertedLeads}/${totalLeads} converted (${formatPercentage(conversionRate)})`
@@ -62,8 +63,8 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       key: 'opportunities-performance',
       title: 'Total Opportunities',
       value: totalOpportunities,
-      prefix: <TrophyOutlined />,
-      color: '#722ed1',
+      prefix: <TrophyIcon />,
+      color: NW_CHART_COLOR_VARS[1],
       description: createCombinedDescription(
         'Opportunities created from campaign',
         `Win rate: ${formatPercentage(winRate)}`
@@ -75,8 +76,8 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       key: 'revenue-performance',
       title: 'Won Revenue',
       value: formatCurrencyCompact(wonRevenue),
-      prefix: <DollarOutlined />,
-      color: '#52c41a',
+      prefix: <CurrencyDollarIcon />,
+      color: NW_CHART_COLOR_VARS[2],
       valueIsString: true,
       description: createCombinedDescription(
         'Revenue from won opportunities',
@@ -89,8 +90,8 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       key: 'accounts-contacts',
       title: 'Total Accounts',
       value: totalAccounts,
-      prefix: <BankOutlined />,
-      color: '#fa8c16',
+      prefix: <BankIcon />,
+      color: NW_CHART_COLOR_VARS[3],
       description: createCombinedDescription('Accounts associated with campaign', `${totalContacts} contacts linked`)
     }
   ]

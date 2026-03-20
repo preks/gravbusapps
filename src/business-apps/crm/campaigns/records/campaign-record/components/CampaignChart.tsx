@@ -1,22 +1,35 @@
-import React, { useState } from 'react'
-import { AreaChart, Area, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { Card, CardContent, CardHeader, CardTitle, Button, Alert, Spinner, Checkbox } from '@newwork/nw-design-system'
-import { PiChartLine, PiEye } from 'react-icons/pi'
+import React, { useMemo, useState } from 'react'
+import { AreaChart, Area, XAxis, YAxis } from 'recharts'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Alert,
+  Spinner,
+  Checkbox,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig
+} from '@newwork/nw-design-system'
+import { ChartLineIcon, EyeIcon } from '@phosphor-icons/react'
 import { useCampaignChart } from '../hooks'
 import { CampaignChartProps, ChartTimeFilter } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const DATA_TEST_ID_PREFIX = 'CampaignChart'
 
-// Chart line configuration to eliminate duplication
 const CHART_LINE_CONFIG = [
-  { key: 'totalLeads' as const, label: 'Total Leads', color: '#3B82F6' },
-  { key: 'totalAccounts' as const, label: 'Total Accounts', color: '#52c41a' },
-  { key: 'totalContacts' as const, label: 'Total Contacts', color: '#722ed1' },
-  { key: 'totalOpportunities' as const, label: 'Total Opportunities', color: '#fa8c16' }
+  { key: 'totalLeads' as const, label: 'Total Leads' },
+  { key: 'totalAccounts' as const, label: 'Total Accounts' },
+  { key: 'totalContacts' as const, label: 'Total Contacts' },
+  { key: 'totalOpportunities' as const, label: 'Total Opportunities' }
 ] as const
 
-// Reusable CardHeader component for consistent header across states
 interface ChartCardHeaderProps {
   children?: React.ReactNode
 }
@@ -25,7 +38,7 @@ const ChartCardHeader: React.FC<ChartCardHeaderProps> = ({ children }) => (
   <CardHeader>
     <div className="gba:flex gba:items-center gba:justify-between">
       <CardTitle className="gba:flex gba:items-center gba:gap-2">
-        <PiChartLine size={20} />
+        <ChartLineIcon size={20} />
         {getTranslationFromI18nKeyAndLabel('campaign.chart.title', 'Campaign Performance Trends')}
       </CardTitle>
       {children}
@@ -33,8 +46,7 @@ const ChartCardHeader: React.FC<ChartCardHeaderProps> = ({ children }) => (
   </CardHeader>
 )
 
-const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...props }) => {
-  // Line visibility state
+const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, allEntities, ...props }) => {
   const [visibleLines, setVisibleLines] = useState({
     totalLeads: true,
     totalAccounts: true,
@@ -45,7 +57,18 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
   const { chartData, isLoading, error, timeFilter, setTimeFilter, refetch } = useCampaignChart(
     props,
     campaignId,
-    campaign
+    campaign,
+    allEntities
+  )
+
+  const areaChartConfig = useMemo<ChartConfig>(
+    () => ({
+      totalleads: { label: 'Total Leads' },
+      totalaccounts: { label: 'Total Accounts' },
+      totalcontacts: { label: 'Total Contacts' },
+      totalopportunities: { label: 'Total Opportunities' }
+    }),
+    []
   )
 
   const timeFilterOptions = [
@@ -55,7 +78,6 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
     { key: 'yearly' as ChartTimeFilter, label: 'Yearly' }
   ]
 
-  // Toggle line visibility
   const toggleLineVisibility = (lineKey: keyof typeof visibleLines) => {
     setVisibleLines(prev => ({
       ...prev,
@@ -63,17 +85,7 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
     }))
   }
 
-  // Custom tooltip formatter using CHART_LINE_CONFIG
-  const formatTooltip = (value: number | string, name: string): [number | string, string] => {
-    const lineConfig = CHART_LINE_CONFIG.find(line => line.key === name)
-    return [value, lineConfig?.label || name]
-  }
-
-  // Custom label formatter for X-axis
-  const formatXAxisLabel = (value: string) => {
-    // All time filters currently use the same format
-    return value
-  }
+  const formatXAxisLabel = (value: string) => value
 
   if (isLoading) {
     return (
@@ -131,11 +143,10 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
         </div>
       </ChartCardHeader>
       <CardHeader>
-        {/* Line Visibility Filters */}
         <div className="gba:border-t gba:border-border gba:pt-4">
           <div className="gba:flex gba:items-center gba:gap-6">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <PiEye size={16} className="gba:text-muted-foreground" />
+              <EyeIcon size={16} className="gba:text-muted-foreground" />
               <span className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel('campaign.chart.showLines', 'Show Lines:')}
               </span>
@@ -148,7 +159,12 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
                   data-testid={`${DATA_TEST_ID_PREFIX}-line-filter-${line.key}`}
                 >
                   <Checkbox checked={visibleLines[line.key]} onCheckedChange={() => toggleLineVisibility(line.key)} />
-                  <div className="gba:w-3 gba:h-3 gba:rounded" style={{ backgroundColor: line.color }} />
+                  <div
+                    className="gba:w-3 gba:h-3 gba:rounded"
+                    style={{
+                      backgroundColor: `var(--color-${line.key.toLowerCase()})`
+                    }}
+                  />
                   <span className="gba:text-sm gba:text-foreground">{line.label}</span>
                 </label>
               ))}
@@ -159,7 +175,7 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
       <CardContent>
         {!chartData?.data || chartData.data.length === 0 ? (
           <div className="gba:text-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}>
-            <PiChartLine className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
+            <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
             <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel('campaign.chart.noData.title', 'No data available')}
             </h3>
@@ -172,8 +188,7 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
           </div>
         ) : (
           <div className="gba:h-80" data-testid={`${DATA_TEST_ID_PREFIX}-chart`}>
-            <ResponsiveContainer width="100%" height="100%">
-              {/* eslint-disable newwork-local/no-hardcoded-colors */}
+            <ChartContainer config={areaChartConfig} className="gba:h-80 gba:w-full">
               <AreaChart
                 data={chartData.data}
                 margin={{
@@ -183,25 +198,25 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
                   bottom: 20
                 }}
               >
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} stroke="#666" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={formatXAxisLabel}
+                  stroke="var(--color-text-secondary)"
+                />
                 <YAxis
                   tick={{ fontSize: 12 }}
-                  stroke="#666"
-                  tickFormatter={value => Math.floor(value).toString()}
+                  stroke="var(--color-text-secondary)"
+                  tickFormatter={value => Math.floor(Number(value)).toString()}
                   domain={[0, 'dataMax']}
                   allowDecimals={false}
                 />
-                <Tooltip
-                  formatter={formatTooltip}
-                  labelFormatter={label => `Period: ${formatXAxisLabel(label)}`}
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    fontSize: '12px'
-                  }}
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent labelFormatter={label => `Period: ${formatXAxisLabel(String(label ?? ''))}`} />
+                  }
                 />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <ChartLegend content={<ChartLegendContent />} />
 
                 {CHART_LINE_CONFIG.map(
                   line =>
@@ -210,18 +225,22 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
                         key={line.key}
                         type="monotone"
                         dataKey={line.key}
-                        stroke={line.color}
-                        fill={line.color}
+                        stroke={`var(--color-${line.key.toLowerCase()})`}
+                        fill={`var(--color-${line.key.toLowerCase()})`}
                         fillOpacity={0.1}
                         strokeWidth={2}
                         dot={false}
-                        activeDot={{ r: 6, stroke: line.color, strokeWidth: 2 }}
+                        activeDot={{
+                          r: 6,
+                          stroke: `var(--color-${line.key.toLowerCase()})`,
+                          strokeWidth: 2
+                        }}
                         name={line.label}
                       />
                     )
                 )}
               </AreaChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         )}
       </CardContent>

@@ -1,9 +1,9 @@
 'use client'
 
 import React from 'react'
-import { Card } from '@newwork/nw-design-system'
+import { Card, CardContent } from '@newwork/nw-design-system'
 import { CompensationData } from '../../types/compensationTypes'
-import { PiCurrencyEur, PiGift, PiHeartbeat } from 'react-icons/pi'
+import { CurrencyEurIcon, GiftIcon, HeartbeatIcon } from '@phosphor-icons/react'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -67,139 +67,146 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
   return (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
       {/* Base Salary Card */}
-      <Card className="gba:p-6 gba:relative" data-testid="compensation-base-salary-card">
-        {/* Show pencil icon only for managers/HR admins (permission already excludes self-view) */}
-        {hasPermissionToAdjustSalary && (
-          <div className="gba:absolute gba:top-4 gba:right-4">
-            <AppAction
-              variant="update-secondary"
-              contexts={[
-                {
-                  context: FlowContextName.adjustEmployeeSalary,
-                  contextData: { employeeId: employeeId }
-                }
-              ]}
-              prefixDataTestId="adjust-employee-salary-action"
-              accessToken={accessToken}
-              data-testid="adjust-employee-salary-action-button"
-            />
-          </div>
-        )}
-        <div className="gba:min-h-[120px]">
-          <div className="gba:pr-20">
-            <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-base-salary')}</div>
-            {hasSalaryData ? (
-              <>
-                {/* Hourly-only mode: Show hourly as main display if it's the only data */}
-                {normalizedSalary.isHourlyOnly ? (
-                  <div className="gba:flex gba:items-baseline gba:gap-2">
-                    <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                      {loading ? '-' : formatCurrencyString(normalizedSalary.hourly, hourlyFormatOptions)}
+      <Card className="gba:relative" data-testid="compensation-base-salary-card">
+        <CardContent className="gba:p-6">
+          {/* Show pencil icon only for managers/HR admins (permission already excludes self-view) */}
+          {hasPermissionToAdjustSalary && (
+            <div className="gba:absolute gba:top-4 gba:right-4">
+              <AppAction
+                variant="update-secondary"
+                contexts={[
+                  {
+                    context: FlowContextName.adjustEmployeeSalary,
+                    contextData: { employeeId: employeeId }
+                  }
+                ]}
+                prefixDataTestId="adjust-employee-salary-action"
+                accessToken={accessToken}
+                data-testid="adjust-employee-salary-action-button"
+              />
+            </div>
+          )}
+          <div className="gba:min-h-[120px]">
+            <div className="gba:pr-20">
+              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-base-salary')}</div>
+              {hasSalaryData ? (
+                <>
+                  {/* Hourly-only mode: Show hourly as main display if it's the only data */}
+                  {normalizedSalary.isHourlyOnly ? (
+                    <div className="gba:flex gba:items-baseline gba:gap-2">
+                      <div className="gba:text-3xl gba:font-bold gba:text-foreground">
+                        {loading ? '-' : formatCurrencyString(normalizedSalary.hourly, hourlyFormatOptions)}
+                      </div>
+                      <div className="gba:text-sm gba:text-muted-foreground">{t('current-hourly')}</div>
                     </div>
-                    <div className="gba:text-sm gba:text-muted-foreground">{t('current-hourly')}</div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Standard mode: Show yearly/monthly with hierarchy, hourly if available */}
-                    {normalizedSalary.hasYearly && (
-                      <div className="gba:flex gba:items-baseline gba:gap-2">
-                        <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                          {loading ? '-' : formatCurrencyString(normalizedSalary.yearly, currencyFormatOptions)}
+                  ) : (
+                    <>
+                      {/* Standard mode: Show yearly/monthly with hierarchy, hourly if available */}
+                      {normalizedSalary.hasYearly && (
+                        <div className="gba:flex gba:items-baseline gba:gap-2">
+                          <div className="gba:text-3xl gba:font-bold gba:text-foreground">
+                            {loading ? '-' : formatCurrencyString(normalizedSalary.yearly, currencyFormatOptions)}
+                          </div>
+                          <div className="gba:text-sm gba:text-muted-foreground">{t('current-annually')}</div>
                         </div>
-                        <div className="gba:text-sm gba:text-muted-foreground">{t('current-annually')}</div>
-                      </div>
-                    )}
-                    {normalizedSalary.hasMonthly && (
-                      <div className="gba:text-sm gba:text-muted-foreground gba:mt-2">
-                        {formatCurrencyString(normalizedSalary.monthly, currencyFormatOptions)} / {t('current-monthly')}
-                      </div>
-                    )}
-                    {/* Hourly rate - show if provided AND we also have yearly/monthly (mixed mode) */}
-                    {normalizedSalary.hourlyWasProvided && !normalizedSalary.isHourlyOnly && (
-                      <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                        {formatCurrencyString(normalizedSalary.hourly, hourlyFormatOptions)} / {t('current-hourly')}
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
-            ) : (
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                {t('no-salary-record', 'No salary record')}
-              </div>
-            )}
+                      )}
+                      {normalizedSalary.hasMonthly && (
+                        <div className="gba:text-sm gba:text-muted-foreground gba:mt-2">
+                          {formatCurrencyString(normalizedSalary.monthly, currencyFormatOptions)} /{' '}
+                          {t('current-monthly')}
+                        </div>
+                      )}
+                      {/* Hourly rate - show if provided AND we also have yearly/monthly (mixed mode) */}
+                      {normalizedSalary.hourlyWasProvided && !normalizedSalary.isHourlyOnly && (
+                        <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">
+                          {formatCurrencyString(normalizedSalary.hourly, hourlyFormatOptions)} / {t('current-hourly')}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="gba:text-3xl gba:font-bold gba:text-foreground">
+                  {t('no-salary-record', 'No salary record')}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-        {/* Icon container - fixed position at bottom right of card */}
-        <div className="gba:absolute gba:bottom-4 gba:right-4">
-          <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-            <PiCurrencyEur className="gba:w-6 gba:h-6 gba:text-primary" />
+          {/* Icon container - fixed position at bottom right of card */}
+          <div className="gba:absolute gba:bottom-4 gba:right-4">
+            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
+              <CurrencyEurIcon className="gba:w-6 gba:h-6 gba:text-primary" />
+            </div>
           </div>
-        </div>
+        </CardContent>
       </Card>
 
       {/* Total Bonuses Card */}
-      <Card className="gba:p-6 gba:relative" data-testid="compensation-bonuses-card">
-        {/* Show pencil icon only for managers/HR admins (permission already excludes self-view) */}
-        {hasPermissionToGrantBonus && (
-          <div className="gba:absolute gba:top-4 gba:right-4">
-            <AppAction
-              variant="update-secondary"
-              contexts={[
-                {
-                  context: FlowContextName.grantEmployeeBonus,
-                  contextData: {
-                    employeeId: employeeId
+      <Card className="gba:relative" data-testid="compensation-bonuses-card">
+        <CardContent className="gba:p-6">
+          {/* Show pencil icon only for managers/HR admins (permission already excludes self-view) */}
+          {hasPermissionToGrantBonus && (
+            <div className="gba:absolute gba:top-4 gba:right-4">
+              <AppAction
+                variant="update-secondary"
+                contexts={[
+                  {
+                    context: FlowContextName.grantEmployeeBonus,
+                    contextData: {
+                      employeeId: employeeId
+                    }
                   }
-                }
-              ]}
-              prefixDataTestId="grant-employee-bonus-action"
-              accessToken={accessToken}
-              data-testid="grant-employee-bonus-action-button"
-            />
-          </div>
-        )}
-        <div className="gba:min-h-[120px]">
-          <div className="gba:pr-20">
-            <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-total-bonuses-ytd')}</div>
-            <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-              {loading
-                ? '-'
-                : formatCurrencyString(totalBonusesYTD, {
-                    currency: currencyCode,
-                    locale: locale,
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  })}
+                ]}
+                prefixDataTestId="grant-employee-bonus-action"
+                accessToken={accessToken}
+                data-testid="grant-employee-bonus-action-button"
+              />
             </div>
-            <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-              {activeBonusesCount} {activeBonusesCount === 1 ? t('current-bonus') : t('current-bonuses')}
+          )}
+          <div className="gba:min-h-[120px]">
+            <div className="gba:pr-20">
+              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-total-bonuses-ytd')}</div>
+              <div className="gba:text-3xl gba:font-bold gba:text-foreground">
+                {loading
+                  ? '-'
+                  : formatCurrencyString(totalBonusesYTD, {
+                      currency: currencyCode,
+                      locale: locale,
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0
+                    })}
+              </div>
+              <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                {activeBonusesCount} {activeBonusesCount === 1 ? t('current-bonus') : t('current-bonuses')}
+              </div>
             </div>
           </div>
-        </div>
-        {/* Icon container - fixed position at bottom right of card */}
-        <div className="gba:absolute gba:bottom-4 gba:right-4">
-          <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-            <PiGift className="gba:w-6 gba:h-6 gba:text-primary" />
+          {/* Icon container - fixed position at bottom right of card */}
+          <div className="gba:absolute gba:bottom-4 gba:right-4">
+            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
+              <GiftIcon className="gba:w-6 gba:h-6 gba:text-primary" />
+            </div>
           </div>
-        </div>
+        </CardContent>
       </Card>
 
       {/* Benefits Value Card */}
-      <Card className="gba:p-6 gba:relative" data-testid="compensation-benefits-card">
-        <div className="gba:min-h-[120px]">
-          <div className="gba:pr-20">
-            <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-benefits-value')}</div>
-            <div className="gba:text-3xl gba:font-bold gba:text-foreground">{activeBenefitsCount}</div>
-            <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('current-active-benefits')}</div>
+      <Card className="gba:relative" data-testid="compensation-benefits-card">
+        <CardContent className="gba:p-6">
+          <div className="gba:min-h-[120px]">
+            <div className="gba:pr-20">
+              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-benefits-value')}</div>
+              <div className="gba:text-3xl gba:font-bold gba:text-foreground">{activeBenefitsCount}</div>
+              <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('current-active-benefits')}</div>
+            </div>
           </div>
-        </div>
-        {/* Icon container - fixed position at bottom right of card */}
-        <div className="gba:absolute gba:bottom-4 gba:right-4">
-          <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-            <PiHeartbeat className="gba:w-6 gba:h-6 gba:text-primary" />
+          {/* Icon container - fixed position at bottom right of card */}
+          <div className="gba:absolute gba:bottom-4 gba:right-4">
+            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
+              <HeartbeatIcon className="gba:w-6 gba:h-6 gba:text-primary" />
+            </div>
           </div>
-        </div>
+        </CardContent>
       </Card>
     </div>
   )

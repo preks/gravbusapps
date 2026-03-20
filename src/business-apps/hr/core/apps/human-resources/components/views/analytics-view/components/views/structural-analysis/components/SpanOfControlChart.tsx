@@ -1,11 +1,11 @@
 import React from 'react'
-import { Card, Typography, Table, Tag, Progress, Tooltip as AntTooltip } from 'antd'
+import { Typography, Table, Tag, Progress, Tooltip as AntTooltip } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip } from 'recharts'
 import { SpanOfControlData, SpanOfControlSummary } from '../types/structuralTypes'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface SpanOfControlChartProps {
   data: SpanOfControlData[]
@@ -31,18 +31,6 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
 
   // Table columns configuration
   const columns = [
-    {
-      title: t('hr-analytics-top-manager'),
-      dataIndex: 'managerName',
-      key: 'managerName',
-      width: 200,
-      render: (text: string, record: SpanOfControlData) => (
-        <div>
-          <Text strong>{text}</Text>
-          {record.managerLevel && <div className="gba:text-xs gba:text-muted-foreground">{record.managerLevel}</div>}
-        </div>
-      )
-    },
     {
       title: t('hr-analytics-organizational-hierarchy'),
       dataIndex: 'organizationalUnit',
@@ -111,12 +99,12 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
   }
 
   return (
-    <div data-testid={`${prefixDataTestId}-SpanOfControlChart`}>
+    <div data-testid={`${prefixDataTestId}-SpanOfControlChart`} className="gba:grid gba:gap-6">
       {/* Summary Statistics */}
-      <Card className="gba:mb-4">
-        <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
+      <div>
+        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-span-of-control-summary')}
-        </Title>
+        </h3>
         <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gba:gap-4">
           <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.totalManagers}</div>
@@ -170,13 +158,13 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
             {t('hr-analytics-direct-reports')}
           </Text>
         </div>
-      </Card>
+      </div>
 
       {/* Bar Chart */}
-      <Card className="gba:mb-4">
-        <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
+      <div>
+        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-span-of-control-distribution')}
-        </Title>
+        </h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -190,18 +178,18 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-      </Card>
+      </div>
 
       {/* Detailed Table */}
-      <Card>
-        <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
+      <div>
+        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-detailed-span-of-control-analysis')}
-        </Title>
+        </h3>
         <Table
           dataSource={data}
           columns={columns}
           rowKey="managerId"
-          pagination={{ pageSize: 10, showSizeChanger: true }}
+          pagination={{ defaultPageSize: 10, showSizeChanger: true }}
           size="small"
           scroll={{ x: 800 }}
           rowClassName={record => {
@@ -215,7 +203,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
             }
           }}
         />
-      </Card>
+      </div>
     </div>
   )
 }

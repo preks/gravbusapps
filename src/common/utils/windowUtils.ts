@@ -1,8 +1,21 @@
-export function getCurrentActiveStructureId(): string {
+import dayjs from 'dayjs'
+export function getCurrentActiveStructureId(): string | null {
+  // Try primary source: activeStructureId
   if (window?.lowcoder?.activeStructureId) {
     return window.lowcoder.activeStructureId
   }
-  return '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+
+  // Try fallback: platformContext.structureId
+  if (window?.lowcoder?.platformContext?.structureId) {
+    return window.lowcoder.platformContext.structureId
+  }
+
+  // No valid structure ID available - return null instead of a hardcoded value
+  // This forces proper handling by the caller
+  console.warn(
+    '[getCurrentActiveStructureId] No active structure ID available. Check that window.lowcoder.activeStructureId or window.lowcoder.platformContext.structureId is set by the platform.'
+  )
+  return null
 }
 
 /**
@@ -92,7 +105,11 @@ export function getDateFormat(format: string): string {
   return 'DD.MM.YYYY'
 }
 
-export function getTranslationFromI18nKeyAndLabel(key: string, defaultValue: string, translationVariables?: {}) {
+export function getTranslationFromI18nKeyAndLabel(
+  key: string,
+  defaultValue: string,
+  translationVariables?: Record<string, unknown>
+) {
   if (globalThis.window === undefined) {
     return defaultValue
   }
@@ -111,18 +128,56 @@ export function getTranslationFromI18nKeyAndLabel(key: string, defaultValue: str
 
 export const formatDate = (
   dateValue: Date | string | undefined,
-  format = 'date.short',
-  customSpecificFormat = null
+  format: string = 'date.short',
+  customSpecificFormat: string | null = null
 ): string | undefined => {
   if (!dateValue) return dateValue
 
   const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return undefined
 
-  if (typeof window?.lowcoder?.i18n?.formatDate !== 'function') {
-    return date.toISOString()
+  // Prefer platform formatter when available; fall back if it returns nothing useful
+  if (typeof window?.lowcoder?.i18n?.formatDate === 'function') {
+    const out = window.lowcoder.i18n.formatDate(date, format, customSpecificFormat)
+    if (out != null && out !== '' && out !== '-') return out
   }
 
-  return window?.lowcoder?.i18n?.formatDate(date, format, customSpecificFormat)
+  // Fallback: format locally for dev/local or when platform returned invalid
+  try {
+    // If a specific format is provided, use dayjs to respect it
+    if (customSpecificFormat) {
+      return dayjs(date).format(customSpecificFormat)
+    }
+
+    const locale = getCurrentActiveUserLocale() || 'en-US'
+
+    // Map common keys to Intl options
+    const toLocale = (opts: Intl.DateTimeFormatOptions) => date.toLocaleDateString(locale, opts)
+    const toLocaleString = (opts: Intl.DateTimeFormatOptions) => date.toLocaleString(locale, opts)
+
+    switch (format) {
+      case 'date.short':
+        return toLocale({ year: '2-digit', month: '2-digit', day: '2-digit' })
+      case 'date.monthDay':
+        return toLocale({ month: 'short', day: 'numeric' })
+      case 'date.medium':
+        return toLocale({ year: 'numeric', month: 'short', day: '2-digit' })
+      case 'date.long':
+        return toLocale({ year: 'numeric', month: 'long', day: '2-digit' })
+      case 'datetime.short':
+      case 'dateTime.short':
+        return toLocaleString({ dateStyle: 'short', timeStyle: 'short' })
+      case 'fullDateTime.ISO':
+        return date.toISOString()
+      default:
+        // Attempt a dayjs parse of an arbitrary token format, else default short
+        if (/[YMD]/.test(format)) return dayjs(date).format(format)
+        return toLocale({ year: '2-digit', month: '2-digit', day: '2-digit' })
+    }
+  } catch {
+    // Safe final fallback
+    return dayjs(date).format('YYYY-MM-DD')
+  }
 }
 
 export const formatNumberFunction = (number: number | string, format: string = '0.00[,]00'): string => {

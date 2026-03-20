@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, IconAvatar, Badge } from '@newwork/nw-design-system'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { type LucideIcon } from 'lucide-react'
+import { TrendUpIcon, TrendDownIcon, MinusIcon, type Icon } from '@phosphor-icons/react'
 import { Investment } from '@/common/data/investment/types/investmentTypes'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 import { useCurrencySync } from '../../analytics-view/shared/hooks'
@@ -16,7 +15,7 @@ export interface SubType {
 
 export interface InvestmentGroup {
   name: string
-  icon: LucideIcon
+  icon: Icon
   investments: number
   groupInvestments: Investment[]
 }
@@ -30,7 +29,6 @@ interface InvestmentBreakdownCardProps {
   group: InvestmentGroup
   moduleColor?: 'ext1' | 'ext2' | 'ext3' | 'ext4' | 'ext5' | 'ext6' | 'ext7' | 'ext8'
   onNavigateToInvestmentType: (investmentType: string) => void
-  formatGroupName: (groupName: string) => string
   calculateTrendData: (investments: Investment[], groupName: string) => TrendData
   masterCurrency: string // Currency code like "EUR", "USD", etc.
   availableCurrencies: string[] // Array of currency codes
@@ -44,7 +42,6 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
   group,
   moduleColor,
   onNavigateToInvestmentType,
-  formatGroupName,
   calculateTrendData,
   masterCurrency,
   availableCurrencies
@@ -108,6 +105,8 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
     })
   }, [currencyFilteredInvestments, totalInvested, selectedCurrency])
   const handleNavigateClick = () => {
+    // Only map the specialized groups that have custom configurations
+    // All other groups (including Private Equity) will use the dynamic fallback
     const subtabMap: { [key: string]: string } = {
       Equity: 'equity',
       'Real Estate': 'real-estate',
@@ -118,7 +117,7 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
       LiquidFunds: 'liquid-funds'
     }
 
-    const subtab = subtabMap[group.name] || formatGroupName(group.name).toLowerCase().replace(' ', '-')
+    const subtab = subtabMap[group.name] || group.name.toLowerCase().replace(/\s+/g, '-')
 
     onNavigateToInvestmentType(subtab)
   }
@@ -131,14 +130,14 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
     if (trend.trend === 'neutral') {
       return (
         <Badge variant="outline" className="gba:flex gba:items-center gba:gap-1">
-          <Minus className="gba:w-3 gba:h-3" />
+          <MinusIcon className="gba:w-3 gba:h-3" />
           <span className="gba:text-xs">No change</span>
         </Badge>
       )
     }
 
     const variant = trend.trend === 'up' ? 'success' : 'destructive'
-    const Icon = trend.trend === 'up' ? TrendingUp : TrendingDown
+    const Icon = trend.trend === 'up' ? TrendUpIcon : TrendDownIcon
     const sign = trend.trend === 'up' ? '+' : '-'
 
     return (
@@ -149,6 +148,51 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
           {trend.percentage.toFixed(1)}%
         </span>
       </Badge>
+    )
+  }
+
+  // Render card content based on investment types availability
+  const renderCardContent = () => {
+    const hasValidTypes = subTypes.length > 0 && subTypes[0].name !== 'Unknown'
+    const hasInvestments = subTypes.length > 0
+
+    if (hasValidTypes) {
+      // Show investment types list
+      return (
+        <div className="gba:space-y-2">
+          <p className="gba:text-sm gba:font-medium gba:text-gray-700">Investment Types</p>
+          {subTypes.map(subType => (
+            <div key={subType.name} className="gba:flex gba:justify-between gba:items-center">
+              <p className="gba:text-sm gba:text-gray-600">{subType.name}</p>
+              <div className="gba:text-right">
+                <p className="gba:text-sm gba:font-medium">{subType.amount}</p>
+                <p className="gba:text-xs gba:text-gray-500">{subType.percentage}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (hasInvestments) {
+      // Show overview with total count
+      return (
+        <div className="gba:space-y-2">
+          <p className="gba:text-sm gba:font-medium gba:text-gray-700">Overview</p>
+          <div className="gba:flex gba:justify-between gba:items-center">
+            <p className="gba:text-sm gba:text-gray-600">Total Investments</p>
+            <p className="gba:text-sm gba:font-medium">{currencyFilteredInvestments.length}</p>
+          </div>
+        </div>
+      )
+    }
+
+    // Show empty state
+    return (
+      <div className="gba:space-y-2">
+        <p className="gba:text-sm gba:font-medium gba:text-gray-700">Overview</p>
+        <p className="gba:text-sm gba:text-gray-400 gba:text-center gba:py-4">No investments in {selectedCurrency}</p>
+      </div>
     )
   }
 
@@ -169,7 +213,7 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
             </div>
             <div className="gba:flex-1">
               <CardTitle>
-                <span>{formatGroupName(group.name)}</span>
+                <span>{group.name}</span>
               </CardTitle>
               <p className="gba:text-sm gba:text-gray-600">
                 {currencyFilteredInvestments.length} investments in {selectedCurrency}
@@ -205,25 +249,8 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
           </p>
         </div>
 
-        {/* Investment Types */}
-        <div className="gba:space-y-2">
-          <p className="gba:text-sm gba:font-medium gba:text-gray-700">Investment Types</p>
-          {subTypes.length > 0 ? (
-            subTypes.map(subType => (
-              <div key={subType.name} className="gba:flex gba:justify-between gba:items-center">
-                <p className="gba:text-sm gba:text-gray-600">{subType.name}</p>
-                <div className="gba:text-right">
-                  <p className="gba:text-sm gba:font-medium">{subType.amount}</p>
-                  <p className="gba:text-xs gba:text-gray-500">{subType.percentage}</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="gba:text-sm gba:text-gray-400 gba:text-center gba:py-4">
-              No investments in {selectedCurrency}
-            </p>
-          )}
-        </div>
+        {/* Investment Types or Overview */}
+        {renderCardContent()}
       </CardContent>
     </Card>
   )

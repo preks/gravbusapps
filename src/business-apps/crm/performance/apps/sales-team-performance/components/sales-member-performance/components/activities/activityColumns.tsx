@@ -1,7 +1,16 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
-import { Calendar } from 'lucide-react'
-import { PiPhone, PiEnvelope, PiUsers, PiListChecks, PiUser, PiBuilding, PiTarget, PiHandshake } from 'react-icons/pi'
+import {
+  CalendarIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  UsersIcon,
+  ListChecksIcon,
+  UserIcon,
+  BuildingIcon,
+  TargetIcon,
+  HandshakeIcon
+} from '@phosphor-icons/react'
 import { EmployeeActivity } from '../../hooks/useEmployeeActivitiesData'
 import { getEntityName, getEntityType } from '../../../../utils/activityHelpers'
 import { calculateActivityScore, getScoreBadgeVariant } from '../../../../utils/activityScoreCalculator'
@@ -11,15 +20,15 @@ import { formatDate } from '@/common/utils/windowUtils'
 const getActivityTypeIcon = (type: string) => {
   switch (type) {
     case 'Call':
-      return <PiPhone size={16} className="gba:text-success" />
+      return <PhoneIcon size={16} className="gba:text-foreground" />
     case 'Email':
-      return <PiEnvelope size={16} className="gba:text-primary" />
+      return <EnvelopeIcon size={16} />
     case 'Meeting':
-      return <PiUsers size={16} className="gba:text-warning" />
+      return <UsersIcon size={16} />
     case 'Task':
-      return <PiListChecks size={16} className="gba:text-accent" />
+      return <ListChecksIcon size={16} />
     default:
-      return <PiListChecks size={16} className="gba:text-muted-foreground" />
+      return <ListChecksIcon size={16} />
   }
 }
 
@@ -27,15 +36,15 @@ const getActivityTypeIcon = (type: string) => {
 const getEntityTypeIcon = (entityType: string) => {
   switch (entityType) {
     case 'Contact':
-      return <PiUser size={14} />
+      return <UserIcon size={14} />
     case 'Lead':
-      return <PiTarget size={14} />
+      return <TargetIcon size={14} />
     case 'Opportunity':
-      return <PiHandshake size={14} />
+      return <HandshakeIcon size={14} />
     case 'Account':
-      return <PiBuilding size={14} />
+      return <BuildingIcon size={14} />
     default:
-      return <PiUser size={14} />
+      return <UserIcon size={14} />
   }
 }
 
@@ -117,7 +126,7 @@ export const createActivityColumns = ({
       <div data-testid={`activity-created-${row.original.id}`}>
         {row.original.createdAt ? (
           <div className="gba:flex gba:items-center gba:gap-2">
-            <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+            <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400" />
             <span className="gba:text-sm">{formatDate(row.original.createdAt)}</span>
           </div>
         ) : (
@@ -133,7 +142,7 @@ export const createActivityColumns = ({
       <div data-testid={`activity-occurred-${row.original.id}`}>
         {row.original.occurredAt ? (
           <div className="gba:flex gba:items-center gba:gap-2">
-            <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+            <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400" />
             <span className="gba:text-sm">{formatDate(row.original.occurredAt)}</span>
           </div>
         ) : (

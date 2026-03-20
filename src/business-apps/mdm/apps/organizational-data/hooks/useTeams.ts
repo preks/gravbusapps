@@ -1,18 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { MatrixTeamApiResponse, Team } from '../types'
-
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 export const useTeams = (context: BusinessAppContextProps) => {
   const [teams, setTeams] = useState<Team[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const structureId = useRef<string>(context.additionalData?.structureId || 'active')
+  const structureId = useRef<string>(getCurrentActiveStructureId() ?? '')
 
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   // Transform API matrix team response to UI-friendly Team interface
   const transformTeam = (apiTeam: MatrixTeamApiResponse): Team => {
@@ -70,25 +68,20 @@ export const useTeams = (context: BusinessAppContextProps) => {
   // Fetch matrix teams from API
   const fetchTeams = useCallback(async (): Promise<Team[]> => {
     try {
-      if (!structureId) {
-        throw new Error('Structure ID is required to fetch teams')
+      const activeId = structureId.current || getCurrentActiveStructureId()
+      if (!activeId) {
+        throw new Error('No active structure found')
       }
-      const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
-        params: {
-          nodeType: 'cost_center'
-        },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
-        }
-      })
-      structureId.current = getStructureResponse.structure.structureId
+      structureId.current = activeId
 
-      const response = await restClient.get<MatrixTeamApiResponse[]>('/matrix-units', {
-        params: { structureId: structureId.current },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
+      const response = await orgchartClient.getMatrixUnits<MatrixTeamApiResponse[]>(
+        { structureId: structureId.current },
+        {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`
+          }
         }
-      })
+      )
 
       // Transform API response to UI-friendly format
       const transformedTeams = response.map(transformTeam)
@@ -106,7 +99,7 @@ export const useTeams = (context: BusinessAppContextProps) => {
       console.error('Error fetching teams:', error)
       throw new Error('Failed to fetch teams from orgchart API')
     }
-  }, [context.accessToken, context.additionalData?.structureId, restClient])
+  }, [context.accessToken, orgchartClient])
 
   // Load initial data
   const loadData = useCallback(async () => {

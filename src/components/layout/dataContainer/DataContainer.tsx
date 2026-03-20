@@ -104,6 +104,12 @@ export interface DataContainerProps<T extends DataControllerProps = DataControll
    * Set to false to avoid adding 'gba:pl-6' even when the filter is not shown.
    */
   addLeftPaddingWhenNoFilter?: boolean
+
+  /**
+   * If true, the filter sidebar is shown on the left by default when the page loads.
+   * Use this to keep consistency with views (e.g. Expenses) where the filter is visible by default.
+   */
+  defaultShowDataFilter?: boolean
 }
 
 export const DataContainer = <T extends DataControllerProps = DataControllerProps>({
@@ -117,10 +123,11 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
   contentBackground = 'gray',
   floatingDetails = false,
   onDetailsPanelClose = () => {},
-  addLeftPaddingWhenNoFilter = false
+  addLeftPaddingWhenNoFilter = false,
+  defaultShowDataFilter = false
 }: DataContainerProps<T>): JSX.Element => {
-  // Sidebar open/close state
-  const [showDataFilter, setShowDataFilter] = React.useState(false)
+  // Sidebar open/close state - allow showing filter by default for consistency (e.g. with Expenses view)
+  const [showDataFilter, setShowDataFilter] = React.useState(defaultShowDataFilter)
 
   const handleToggleDataFilter = React.useCallback(() => {
     setShowDataFilter(prev => !prev)

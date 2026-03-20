@@ -1,12 +1,11 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import type { ConversationTurn, UserTurn, AgentTurn, OutputItem } from '../types/models'
 import { OutputItemRenderer } from './OutputRenderers'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import EntityLink, { markdownUrlTransform } from './links/EntityLink'
+import { MarkdownWithChipsRenderer } from '@/common/components/markdown'
 import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
-import { Sparkle } from '@phosphor-icons/react'
+import { CheckCircleIcon, CopyIcon, PencilSimple, SparkleIcon } from '@phosphor-icons/react'
+import { Button } from '@newwork/nw-design-system'
 
 interface ConversationProps {
   turns: ConversationTurn[]
@@ -17,6 +16,8 @@ interface ConversationProps {
 
 // Build text with mentions converted to markdown links
 function buildTextWithMentions(text: string, mentions?: UserTurn['mentions']): string {
+  const hasMarkdownEntityLinks = /\[[^\]]+\]\([a-zA-Z0-9_]+:\/\/[^)]+\)/.test(text)
+  if (hasMarkdownEntityLinks) return text
   if (!mentions || mentions.length === 0) return text
   const withOffsets = mentions.filter(
     m => m.offsets && typeof m.offsets.start === 'number' && typeof m.offsets.end === 'number'
@@ -28,11 +29,8 @@ function buildTextWithMentions(text: string, mentions?: UserTurn['mentions']): s
     const end = m.offsets!.end
     const before = result.slice(0, start)
     const after = result.slice(end)
-    if (m.type === 'employees') {
-      result = `${before}[@${m.display}](employee://${m.id})${after}`
-    } else {
-      result = `${before}${m.display}${after}`
-    }
+    const protocol = (m.type || '').toLowerCase() === 'employees' ? 'employee' : m.type
+    result = `${before}[${m.display}](${protocol}://${m.id})${after}`
   }
   return result
 }
@@ -43,6 +41,8 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
   accessToken,
   userInfo
 }) => {
+  const [copied, setCopied] = useState(false)
+
   // Parse JSON messages to show user-friendly text
   let displayText = turn.text || ''
   try {
@@ -54,6 +54,17 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
     // Not JSON, use original text
   }
   const textWithMentions = buildTextWithMentions(displayText, turn.mentions)
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(displayText)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy text:', err)
+    }
+  }
 
   return (
     <div
@@ -91,32 +102,41 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
         <div className="gba:flex gba:items-end gba:gap-2 gba:justify-end">
           <div className="gba:relative gba:group">
             {/* Subtle glow effect */}
-            <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:rounded-[20px] gba:blur-md gba:opacity-0 group-hover:gba:opacity-30 gba:transition-opacity" />
+            <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:rounded-[20px] gba:blur-md gba:opacity-0 gba:group-hover:opacity-30 gba:transition-opacity" />
 
             <div className="gba:max-w-md gba:rounded-[20px] gba:px-5 gba:py-3 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:text-foreground gba:shadow-lg gba:relative">
-              <div className="gba:prose gba:max-w-none gba:text-sm">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    a: ({ href, children, ...props }) => {
-                      if (href && href.startsWith('employee://')) {
-                        return (
-                          <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted-foreground/20 gba:text-muted-foreground gba:font-medium">
-                            @{children}
-                          </span>
-                        )
-                      }
-                      return (
-                        <EntityLink href={href} accessToken={accessToken} {...props}>
-                          {children}
-                        </EntityLink>
-                      )
-                    }
-                  }}
-                  urlTransform={markdownUrlTransform}
+              <MarkdownWithChipsRenderer
+                content={textWithMentions}
+                accessToken={accessToken}
+                variant="chat"
+                renderHttpLinksAsChips={false}
+                className="gba:text-sm"
+              />
+              <div className="gba:absolute gba:top-4 gba:right-2 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-7 gba:w-7 gba:p-0"
+                  onClick={handleCopy}
+                  data-testid="user-message-copy-button"
                 >
-                  {textWithMentions}
-                </ReactMarkdown>
+                  {copied ? (
+                    <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+                  ) : (
+                    <CopyIcon className="gba:h-4 gba:w-4" />
+                  )}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-7 gba:w-7 gba:p-0"
+                  onClick={e => e.stopPropagation()}
+                  data-testid="user-message-edit-button"
+                  aria-label="Edit message"
+                >
+                  <PencilSimple className="gba:h-4 gba:w-4" />
+                </Button>
               </div>
             </div>
           </div>
@@ -189,11 +209,8 @@ const Conversation: React.FC<ConversationProps> = ({ turns, accessToken, sendMes
             data-testid="chat-agent-turn"
           >
             {/* Premium AI Avatar */}
-            <div className="gba:relative gba:flex-shrink-0">
-              <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:blur-md gba:opacity-40 gba:animate-pulse" />
-              <div className="gba:h-10 gba:w-10 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-lg">
-                <Sparkle className="gba:h-5 gba:w-5 gba:text-ai-foreground" weight="fill" />
-              </div>
+            <div className="gba:flex-shrink-0 gba:w-10 gba:h-10 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:shadow-lg">
+              <SparkleIcon className="gba:h-5 gba:w-5 gba:text-ai-foreground" weight="fill" />
             </div>
 
             {/* Message content */}

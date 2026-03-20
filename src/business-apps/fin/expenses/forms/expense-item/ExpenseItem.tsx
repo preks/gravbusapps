@@ -13,59 +13,10 @@ import { showToast } from '../../utils/notificationUtils'
 
 const { Title } = Typography
 
-const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
-  accessToken,
-  userInfo,
-  additionalData,
-  onClose
-}) => {
-  // Get URL query parameters
-  const [localAdditionalData, setLocalAdditionalData] = React.useState(() => {
-    return {
-      ...additionalData,
-      expenseRequestId: additionalData?.expenseRequestId,
-      itemCurrency: additionalData?.itemCurrency
-    }
-  })
-
-  // Update localAdditionalData when additionalData changes
-  React.useEffect(() => {
-    if (additionalData) {
-      setLocalAdditionalData((prevData: any) => ({
-        ...prevData,
-        ...additionalData,
-        // Prioritize additionalData over URL parameters
-        expenseRequestId: additionalData.expenseRequestId || prevData.expenseRequestId,
-        itemCurrency: additionalData.itemCurrency || prevData.itemCurrency
-      }))
-    }
-  }, [additionalData])
-
-  // For backward compatibility, still listen for the custom event
-  React.useEffect(() => {
-    const handleShowExpenseItem = (event: CustomEvent) => {
-      if (event.detail) {
-        const { expenseRequestId, itemCurrency } = event.detail
-
-        // Update additionalData with the parameters from the event
-        setLocalAdditionalData((prevData: any) => ({
-          ...prevData,
-          expenseRequestId,
-          itemCurrency
-        }))
-      }
-    }
-
-    // Add event listener
-    document.addEventListener('expense-item-show', handleShowExpenseItem as EventListener)
-
-    // Clean up
-    return () => {
-      document.removeEventListener('expense-item-show', handleShowExpenseItem as EventListener)
-    }
-  }, [])
-
-  const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void }> = ({ onClose }) => {
+// Move ExpenseItemContent outside to prevent recreation on every render
+// Memoize to prevent rerenders when props don't change
+const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void }> = React.memo(
+  ({ onClose }) => {
     const {
       form,
       currentStep,
@@ -111,25 +62,27 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
       try {
         await handleSubmit()
         if (onClose) {
-          // Pass true to indicate we should refetch the expense request data
-          // This is needed because we've created a new expense item
-          // The hideExpenseItem function in ExpenseRequestWizardContext will handle the refetch
           onClose(true)
         }
-      } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_summary_request.no_expense_items',
-            'No expense items created'
-          ),
-          'error'
-        )
+      } catch (error: any) {
+        // Currency validation errors are already toasted by the context - don't show duplicate
+        const isCurrencyError = error?.message?.toLowerCase()?.includes('currency')
+        if (!isCurrencyError) {
+          showToast(
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_summary_request.no_expense_items',
+              'No expense items created'
+            ),
+            'error'
+          )
+        }
+        throw error
       }
     }
 
     return (
       <div
-        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col"
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:relative"
         style={{ width: '100%', maxWidth: '800px', height: '100%', minHeight: 'calc(100vh - 10px)' }}
         data-testid="expense-item-main-container"
       >
@@ -142,11 +95,12 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
           <div style={{ width: '48px', height: '32px', flexShrink: 0 }}>
             {currentStep === FORM_STEPS.FORM && (
               <Button
-                variant="ghost"
+                variant="text"
                 onClick={() => {
                   setCurrentStep(FORM_STEPS.START)
                   setFileList([])
                 }}
+                style={{ padding: '0', height: 'auto', minWidth: 'auto' }}
                 className="gba:z-[1] gba:relative"
                 data-testid="back-button"
               >
@@ -156,9 +110,10 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
                     'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn',
                     'Back'
                   )}
-                  className="gba:w-6 gba:h-6"
+                  style={{ width: '24px', height: '24px' }}
                   width="24"
                   height="24"
+                  data-testid="back-button-icon"
                 />
               </Button>
             )}
@@ -217,14 +172,68 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
             handleRemovePosition={handleRemovePosition}
             loading={loading}
             calculateTotal={calculateTotal}
-            isEmbeddedInRequestWizard={Boolean(
-              localAdditionalData?.expenseRequestId && localAdditionalData.expenseRequestId !== '0'
-            )}
           />
         )}
       </div>
     )
+  },
+  (prevProps, nextProps) => {
+    // Only rerender if onClose function reference changes
+    return prevProps.onClose === nextProps.onClose
   }
+)
+
+const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
+  accessToken,
+  userInfo,
+  additionalData,
+  onClose
+}) => {
+  // Get URL query parameters
+  const [localAdditionalData, setLocalAdditionalData] = React.useState(() => {
+    return {
+      ...additionalData,
+      expenseRequestId: additionalData?.expenseRequestId,
+      itemCurrency: additionalData?.itemCurrency
+    }
+  })
+
+  // Update localAdditionalData when additionalData changes
+  React.useEffect(() => {
+    if (additionalData) {
+      setLocalAdditionalData((prevData: any) => ({
+        ...prevData,
+        ...additionalData,
+        // Prioritize additionalData over URL parameters
+        expenseRequestId: additionalData.expenseRequestId || prevData.expenseRequestId,
+        itemCurrency: additionalData.itemCurrency || prevData.itemCurrency
+      }))
+    }
+  }, [additionalData])
+
+  // For backward compatibility, still listen for the custom event
+  React.useEffect(() => {
+    const handleShowExpenseItem = (event: CustomEvent) => {
+      if (event.detail) {
+        const { expenseRequestId, itemCurrency } = event.detail
+
+        // Update additionalData with the parameters from the event
+        setLocalAdditionalData((prevData: any) => ({
+          ...prevData,
+          expenseRequestId,
+          itemCurrency
+        }))
+      }
+    }
+
+    // Add event listener
+    document.addEventListener('expense-item-show', handleShowExpenseItem as EventListener)
+
+    // Clean up
+    return () => {
+      document.removeEventListener('expense-item-show', handleShowExpenseItem as EventListener)
+    }
+  }, [])
 
   return (
     <ExpenseItemProvider accessToken={accessToken} userInfo={userInfo} additionalData={localAdditionalData}>

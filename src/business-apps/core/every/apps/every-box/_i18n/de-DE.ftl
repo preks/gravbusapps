@@ -6,6 +6,30 @@ every-box-blink-button = Blink
 every-box-tab-inflows = Eingang
 every-box-tab-outflows = Ausgang
 every-box-blink-description = Schnelle Aufgabe erstellen und zuweisen
+every-box-search-placeholder = Suchen...
+every-box-sort-label = Sortieren
+every-box-sort-newest = Neueste zuerst
+every-box-sort-oldest = Älteste zuerst
+every-box-sort-priority = Priorität
+every-box-refresh-label = Aktualisieren
+every-box-due-filter-label = Fälligkeit
+every-box-due-filter-any = Alle
+every-box-due-filter-overdue = Überfällig
+every-box-due-filter-due-soon = Fällig in <24h
+every-box-due-filter-has = Mit Fälligkeitsdatum
+every-box-due-filter-none = Ohne Fälligkeitsdatum
+
+# Filters Dropdown
+filters-dropdown-label = Filter
+filters-all = Alle
+filters-blinks = Blinks
+filters-approvals = Genehmigungen
+filters-completed = Erledigt
+filters-active-count = { $count } aktiv
+
+# Detail Panel
+detail-panel-empty = Wählen Sie eine Aufgabe aus, um Details anzuzeigen
+detail-panel-empty-flow = Wählen Sie einen Workflow aus, um Details anzuzeigen
 
 # Inbox View
 inbox-search-placeholder = Aufgaben suchen...
@@ -21,6 +45,7 @@ inbox-new-completed-tasks-description = Neue erledigte Aufgaben sind eingegangen
 inbox-error-title = Fehler beim Laden der Aufgaben
 inbox-showing-tasks = Zeige {$current} von {$total}{$hasMore} Aufgaben
 inbox-load-more = Mehr laden
+inbox-loading-more = Lade weitere Aufgaben...
 
 # Inbox Empty States
 inbox-empty-no-results = Keine Aufgaben gefunden für "{$query}"
@@ -60,9 +85,28 @@ blink-upload-error = Anhänge konnten nicht hochgeladen werden: {$error}
 task-card-overdue = Überfällig
 task-card-due-soon = Bald fällig
 task-card-due = Fällig {$date}
+task-card-due-in-hours = Fällig in {$hours}h
+task-card-overdue-hours = Überfällig {$hours}h
+task-card-due-in-days = Fällig in {$days}d
+task-card-overdue-days = Überfällig {$days}d
+task-card-tooltip-due-hours = Fällig in {$hours} Stunden
+task-card-tooltip-due-days = Fällig in {$days} Tagen
+task-card-tooltip-overdue-hours = Überfällig: {$hours} Stunden
+task-card-tooltip-overdue-days = Überfällig: {$days} Tage
+
+# Task meta actions (Everybox-service)
+task-meta-pin = Anheften
+task-meta-unpin = Lösen
+task-meta-mark-unread = Als ungelesen markieren
+task-meta-priority = Priorität
+task-meta-priority-none = Keine
+task-meta-priority-high = Hoch
+task-meta-priority-medium = Mittel
+task-meta-priority-low = Niedrig
 task-card-blink = Blink
 task-card-unknown-creator = Unbekannt
 task-card-untitled = Aufgabe ohne Titel
+task-card-pinned = Angeheftet
 
 # FlowCard Component
 flow-card-blink = Blink
@@ -100,6 +144,8 @@ task-completion-outcome-acknowledged = Bestätigt
 task-footer-reject = Ablehnen
 task-footer-reassign = Neu zuweisen
 task-footer-unclaim = Freigeben
+task-details-task-claimed = Aufgabe erfolgreich übernommen!
+task-details-task-unclaimed = Aufgabe erfolgreich freigegeben!
 
 # FlowDetailDialog Component
 flow-detail-loading = Wird geladen...
@@ -119,7 +165,6 @@ flow-detail-flow-steps = Workflow-Schritte
 flow-detail-step = Schritt {$number}: {$title}
 flow-detail-assigned-to = Zugewiesen an: {$name}
 flow-detail-completed-by = Abgeschlossen von: {$name}
-flow-detail-id = ID: {$id}
 
 # TaskDetailDialog Component
 task-dialog-completed-success = ✓ Aufgabe erfolgreich abgeschlossen!
@@ -141,15 +186,33 @@ completed-showing = Zeige {$current} von {$total} erledigten Aufgaben
 completed-load-more = Mehr laden
 
 # UniversalCflowTaskDetails Component
+task-details-related-links = Verwandte Links
+task-details-meeting-links = Meeting-Links
 task-details-related-to = Verknüpft mit
+task-details-meeting-recording-notice = Aufzeichnung und Transkription. Durch Ihre Teilnahme willigen Sie ein, einbezogen zu werden.
+task-details-meeting-participants = Teilnehmer
+task-details-meeting-participants-with-count = Teilnehmer ({$count})
+task-details-meeting-organiser = Organisator
+task-details-meeting-invitation-title-with-count = Meeting-Einladung: {$count} Teilnehmer
+task-details-meeting-participants-show-more = {$count} weitere anzeigen
+task-details-meeting-participants-show-less = Weniger anzeigen
+task-details-meeting-please-respond = Bitte antworten Sie auf diese Einladung.
+task-details-meeting-participant-view-profile = Profil anzeigen
+task-details-meeting-status-pending = Ausstehend
+task-details-meeting-status-accepted = Angenommen
+task-details-meeting-status-declined = Abgelehnt
+task-details-meeting-status-tentative = Vielleicht
 task-details-attachments = Anhänge ({$count})
 task-details-form = Formular
+task-due-date-label = Fällig
+task-start-date-label = Beginnt
 task-details-read-only = Nur lesen
 task-details-form-loading = Wird geladen...
 task-details-add-comment = Kommentar hinzufügen
 task-details-optional = (Optional)
 task-details-comment-placeholder = Kommentar eingeben...
 task-details-blink-info = Dies ist eine schnelle Blink-Aufgabe. Sie können sie hier direkt abschließen.
+task-details-blink-instruction-hint = Öffnen Sie den Link unten, um Ihre zugewiesene Kopie zu öffnen, füllen Sie sie aus und kehren Sie hierher zurück, um abzuschließen.
 task-details-unknown = Unbekannt
 task-details-untitled = Aufgabe ohne Titel
 task-details-claim-coming = Übernahme-Funktion kommt bald
@@ -211,3 +274,29 @@ formatter-priority-normal = Normal
 formatter-priority-high = Hoch
 formatter-priority-medium = Mittel
 formatter-priority-low = Niedrig
+
+# Due Date Labels
+due-date-days-overdue = { $days ->
+    [one] { $days }T überfällig
+   *[other] { $days }T überfällig
+}
+due-date-hours-overdue = { $hours ->
+    [one] { $hours }Std überfällig
+   *[other] { $hours }Std überfällig
+}
+due-date-hours-left = { $hours ->
+    [one] { $hours }Std übrig
+   *[other] { $hours }Std übrig
+}
+due-date-days-left = { $days ->
+    [one] { $days }T übrig
+   *[other] { $days }T übrig
+}
+
+# AI Assistant
+ai-assistant-applied = Angewendet
+ai-assistant-draft-helper = KI Schreibassistent
+ai-assistant-draft-placeholder = Nutzen Sie KI, um Ihre Antwort zu verfassen...
+ai-assistant-copy = Kopieren
+ai-assistant-copied = In Zwischenablage kopiert
+ai-assistant-ai-assisted = KI-unterstützt

@@ -3,13 +3,13 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { Card, Typography } from 'antd'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from './_i18n'
-import { MonthlySalaryForecast } from '../../../../hooks/useMonthlySalaryForecast'
+import { MonthlySalaryForecastData } from '../../../../hooks/useMonthlySalaryForecastEmployee'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 const { Title, Text } = Typography
 
 interface SalaryForecastChartProps {
-  data: MonthlySalaryForecast[]
+  data: MonthlySalaryForecastData[]
 }
 
 const CustomTooltip = ({ active, payload, t }: any) => {

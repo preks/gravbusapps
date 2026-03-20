@@ -36,20 +36,18 @@ import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/She
 import { VerticalTableProps } from '../../../generic-components/table/VerticalTable'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
 import CostCenterForm from '@/business-apps/mdm/forms/cost-center-form'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 export interface CostCentersTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
 const DATA_TEST_ID_PREFIX = 'CostCentersTab'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 const CostCentersTab: React.FC<CostCentersTabProps> = context => {
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
 
   const {
     costCenters,
@@ -138,6 +136,19 @@ const CostCentersTab: React.FC<CostCentersTabProps> = context => {
     [getEmployees, getOrgUnits, costCenterData]
   )
 
+  const handleDelete = useCallback(
+    async (costCenter: CostCenter | undefined) => {
+      if (!costCenter) return
+
+      await orgchartClient.deleteCostCenter(costCenter.id, {
+        headers: { Authorization: `Bearer ${context.accessToken}` }
+      })
+
+      refetch()
+    },
+    [orgchartClient, context.accessToken, refetch]
+  )
+
   const handleRowClick = useCallback(
     (record: CostCenter) => {
       setSelectedCostCenter(record)
@@ -185,19 +196,6 @@ const CostCentersTab: React.FC<CostCentersTabProps> = context => {
         description: organizationalUnit.description
       })),
     []
-  )
-
-  const handleDelete = useCallback(
-    async (costCenter: CostCenter) => {
-      if (!costCenter) return
-
-      await restClient.delete(`/cost-centers/${costCenter.id}`, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      })
-
-      refetch()
-    },
-    [restClient, context.accessToken, refetch]
   )
 
   const renderCostCenterTable = useCallback(

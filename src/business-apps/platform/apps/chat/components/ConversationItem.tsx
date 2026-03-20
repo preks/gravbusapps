@@ -9,23 +9,51 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator
 } from '@newwork/nw-design-system'
+import { ChatTextIcon, SignOutIcon } from '@phosphor-icons/react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon, UsersIcon, Sparkles } from 'lucide-react'
-import { SignOut } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  UserIcon,
+  UsersIcon,
+  SparklesIcon,
+  CalendarIcon,
+  PhoneCallIcon,
+  PinIcon,
+  BellOffIcon,
+  Bell,
+  Mail,
+  Phone,
+  Video
+} from 'lucide-react'
+import { UserStatusIndicator } from './UserStatusIndicator'
 
 interface ConversationItemProps {
   conversation: Conversation
   onClick: () => void
   onRemove?: (conversationId: string) => void
+  onPinChange?: (conversationId: string, isPinned: boolean) => void
+  onMuteChange?: (conversationId: string, isMuted: boolean) => void
+  onNudge?: (conversationId: string, toUserId: string) => void
+  onStartAudioCall?: (conversation: Conversation) => void
+  onStartVideoCall?: (conversation: Conversation) => void
+  isCallEnabled?: boolean
+  onMarkAsUnread?: (conversationId: string) => void
+  isMarkedAsUnread?: boolean
   isActive?: boolean
   currentUserId?: string | null
   compact?: boolean
   otherUserPresence?: UserPresence
   activeExpertCount?: number
+  isPinned?: boolean
+  isMuted?: boolean
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -41,7 +69,11 @@ const getOtherParticipant = (conversation: Conversation, currentUserId?: string 
   return otherParticipants[0] || null
 }
 
-const getConversationName = (conversation: Conversation, currentUserId?: string | null): string => {
+const getConversationName = (
+  conversation: Conversation,
+  currentUserId?: string | null,
+  t?: (key: string) => string
+): string => {
   if (conversation.name) {
     return conversation.name
   }
@@ -49,19 +81,18 @@ const getConversationName = (conversation: Conversation, currentUserId?: string 
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
   if (otherParticipant?.user) {
     const name = `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
-    return (
-      name || otherParticipant.user.username || getTranslationFromI18nKeyAndLabel('chat.unknownUser', 'Unknown User')
-    )
+    return name || otherParticipant.user.username || (t ? t('chat-unknownUser') : 'Unknown User')
   }
 
-  return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
+  return t ? t('chat-directMessage') : 'Direct Message'
 }
 
 // Presence status indicator component - only shows for online, not offline
-const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; className?: string }> = ({
-  status,
-  className = ''
-}) => {
+const PresenceIndicator: React.FC<{
+  status: 'online' | 'offline'
+  className?: string
+  t?: (key: string) => string
+}> = ({ status, className = '', t }) => {
   // Don't show indicator for offline status
   if (status === 'offline') return null
 
@@ -70,15 +101,15 @@ const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; className?: st
     offline: 'gba:bg-muted-foreground'
   }
 
-  const statusTitles = {
-    online: 'Online',
-    offline: 'Offline'
+  const getStatusTitle = (status: 'online' | 'offline'): string => {
+    if (!t) return status === 'online' ? 'Online' : 'Offline'
+    return status === 'online' ? t('chat-statusOnline') : t('chat-statusOffline')
   }
 
   return (
     <span
       className={`gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:rounded-full gba:border-2 gba:border-background ${statusColors[status]} ${className}`}
-      title={statusTitles[status]}
+      title={getStatusTitle(status)}
     />
   )
 }
@@ -87,14 +118,26 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   conversation,
   onClick,
   onRemove,
+  onPinChange,
+  onMuteChange,
+  onNudge,
+  onStartAudioCall,
+  onStartVideoCall,
+  isCallEnabled = false,
+  onMarkAsUnread,
+  isMarkedAsUnread = false,
   isActive = false,
   currentUserId = null,
   compact = false,
   otherUserPresence,
-  activeExpertCount = 0
+  activeExpertCount = 0,
+  isPinned = false,
+  isMuted = false,
+  t
 }) => {
-  const name = getConversationName(conversation, currentUserId)
+  const name = getConversationName(conversation, currentUserId, t)
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
+  const otherUserId = otherParticipant?.userId ?? otherParticipant?.user?.id
   const avatarUrl = otherParticipant?.user?.avatarUrl
 
   // Don't show unread count if:
@@ -111,33 +154,28 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const [isHovered, setIsHovered] = useState(false)
 
   // Only show presence for direct messages (default to offline if no presence data)
+  // Map 'away' to 'offline' for display purposes (PresenceIndicator only shows online/offline)
   const showPresence = conversation.type === 'direct'
-  const presenceStatus = otherUserPresence?.status || 'offline'
-  const hasActiveCall = conversation.type === 'group' && !!conversation.activeCall
+  const rawPresenceStatus = otherUserPresence?.state || 'offline'
+  const presenceStatus: 'online' | 'offline' = rawPresenceStatus === 'online' ? 'online' : 'offline'
+  const hasActiveCall = !!conversation.activeCall
+  const isDirectChat = conversation.type === 'direct'
+  const isGroupChat = conversation.type === 'group'
 
-  // Get names of participants currently in the call
-  const getParticipantsInCall = (): string[] => {
-    if (!hasActiveCall || !conversation.activeCall?.participantIds || !conversation.participants) {
-      return []
+  // Use enhanced status if available
+  const userStatus = otherUserPresence?.userStatus
+
+  // Determine call message key based on call type
+  const getCallMessageKey = (): string => {
+    if (conversation.metadata?.type === 'meeting') {
+      return 'chat-activeCallMeeting'
+    } else if (isDirectChat) {
+      return 'chat-activeCallDirect'
+    } else if (isGroupChat) {
+      return 'chat-activeCallGroup'
     }
-
-    const participantIds = conversation.activeCall.participantIds
-    return conversation.participants
-      .filter(p => {
-        const odId = p.userId || p.user?.id
-        return odId && participantIds.includes(odId)
-      })
-      .map(p => {
-        const user = p.user
-        if (!user) return 'Unknown'
-        const firstName = user.firstName || ''
-        const lastName = user.lastName || ''
-        const fullName = `${firstName} ${lastName}`.trim()
-        return fullName || user.displayName || user.username || 'Unknown'
-      })
+    return 'chat-activeCallInGroup' // fallback
   }
-
-  const participantsInCall = hasActiveCall ? getParticipantsInCall() : []
 
   const handleRemoveClick = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent conversation selection
@@ -154,176 +192,278 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
   return (
     <>
-      <div
-        onClick={onClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        className={`gba:w-full gba:flex gba:items-center gba:text-left gba:transition-all gba:duration-150 gba:relative gba:group gba:cursor-pointer gba:mx-1 gba:rounded-lg ${
-          compact ? 'gba:gap-2.5 gba:px-2.5 gba:py-2' : 'gba:gap-3 gba:px-3 gba:py-2.5'
-        } ${
-          isActive
-            ? hasActiveExperts
-              ? 'gba:bg-gradient-to-r gba:from-primary/10 gba:via-primary/10 gba:to-accent/10 gba:text-primary gba:border gba:border-primary/20'
-              : 'gba:bg-primary/10 gba:text-primary'
-            : hasActiveExperts
-              ? 'gba:bg-gradient-to-r gba:from-accent/5 gba:via-background gba:to-accent/5 gba:border gba:border-accent/20 hover:gba:border-accent/40'
-              : 'gba:hover:bg-muted/80'
-        }`}
-        style={{ width: 'calc(100% - 8px)' }}
-        data-testid={`conversation-item-${conversation.id}`}
-        role="button"
-        tabIndex={0}
-        onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onClick()
-          }
-        }}
-      >
-        <div className="gba:relative gba:flex-shrink-0">
-          {conversation.type === 'group' ? (
-            // Group chat: always show group icon
-            <div className="gba:relative">
-              <IconAvatar
-                className={`${avatarSize} ${hasActiveExperts ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background' : ''}`}
-                label={name}
-                icon={UsersIcon}
-              />
-              {hasActiveExperts && (
-                <div className="gba:absolute gba:-bottom-1 gba:-right-1 gba:w-4 gba:h-4 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:border-2 gba:border-background gba:shadow-md">
-                  <Sparkles className="gba:w-2.5 gba:h-2.5 gba:text-primary-foreground" />
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            onClick={onClick}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className={`gba:w-full gba:flex gba:items-center gba:text-left gba:transition-all gba:duration-150 gba:relative gba:group gba:cursor-pointer gba:mx-1 gba:rounded-lg ${
+              compact ? 'gba:gap-2.5 gba:px-2.5 gba:py-2' : 'gba:gap-3 gba:px-3 gba:py-2.5'
+            } ${
+              isActive
+                ? hasActiveExperts
+                  ? 'gba:bg-gradient-to-r gba:from-primary/10 gba:via-primary/10 gba:to-accent/10 gba:text-primary gba:border gba:border-primary/20'
+                  : 'gba:bg-primary/10 gba:text-primary'
+                : hasActiveExperts
+                  ? 'gba:bg-gradient-to-r gba:from-accent/5 gba:via-background gba:to-accent/5 gba:border gba:border-accent/20 hover:gba:border-accent/40'
+                  : 'gba:hover:bg-muted/80'
+            }`}
+            style={{ width: 'calc(100% - 8px)' }}
+            data-testid={`conversation-item-${conversation.id}`}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick()
+              }
+            }}
+          >
+            <div className="gba:relative gba:flex-shrink-0">
+              {conversation.type === 'group' ? (
+                // Group chat: show calendar icon for meeting chats, group icon for regular
+                <div className="gba:relative">
+                  <IconAvatar
+                    className={`${avatarSize} ${hasActiveExperts ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background' : ''}`}
+                    label={name}
+                    icon={conversation.metadata?.type === 'meeting' ? CalendarIcon : UsersIcon}
+                  />
+                  {hasActiveExperts && (
+                    <div className="gba:absolute gba:-bottom-1 gba:-right-1 gba:w-4 gba:h-4 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:border-2 gba:border-background gba:shadow-md">
+                      <SparklesIcon className="gba:w-2.5 gba:h-2.5 gba:text-primary-foreground" />
+                    </div>
+                  )}
                 </div>
+              ) : avatarUrl ? (
+                // Direct chat with avatar
+                <Avatar className={`${avatarSize} gba:ring-2 gba:ring-background`}>
+                  <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
+                </Avatar>
+              ) : (
+                // Direct chat without avatar
+                <IconAvatar className={avatarSize} label={name} icon={UserIcon} />
+              )}
+              {showPresence && userStatus ? (
+                <UserStatusIndicator status={userStatus} size="sm" className="gba:absolute gba:bottom-0 gba:right-0" />
+              ) : showPresence ? (
+                <PresenceIndicator status={presenceStatus} t={t} />
+              ) : null}
+            </div>
+
+            <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {isMuted && (
+                  <span
+                    className="gba:flex gba:flex-shrink-0"
+                    title={t('chat-muteConversation')}
+                    data-testid={`conversation-item-muted-indicator-${conversation.id}`}
+                  >
+                    <BellOffIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
+                  </span>
+                )}
+                <span
+                  className={`gba:font-medium gba:truncate ${compact ? 'gba:text-sm' : 'gba:text-sm'} ${isActive ? 'gba:text-primary' : 'gba:text-foreground'}`}
+                >
+                  {name}
+                </span>
+                {isPinned && (
+                  <PinIcon
+                    className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:flex-shrink-0"
+                    aria-hidden
+                    data-testid={`conversation-item-pinned-icon-${conversation.id}`}
+                  />
+                )}
+                {hasActiveCall && (
+                  <span className="gba:flex gba:items-center gba:text-success" title={t(getCallMessageKey())}>
+                    <PhoneCallIcon className="gba:w-4 gba:h-4" />
+                  </span>
+                )}
+                {(unreadCount > 0 || isMarkedAsUnread) &&
+                  (unreadCount > 0 ? (
+                    <Badge
+                      variant="default"
+                      className="gba:flex-shrink-0 gba:min-w-[18px] gba:h-[18px] gba:px-1 gba:text-[10px] gba:font-semibold"
+                      data-testid={`conversation-unread-${conversation.id}`}
+                    >
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Badge>
+                  ) : (
+                    <span
+                      className="gba:flex-shrink-0 gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary"
+                      title={t('chat-markAsUnread')}
+                      data-testid={`conversation-marked-unread-dot-${conversation.id}`}
+                      aria-hidden
+                    />
+                  ))}
+              </div>
+              {/* Show status message for online users in direct chats */}
+              {showPresence && userStatus?.statusMessage && presenceStatus !== 'offline' ? (
+                <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
+                  <ChatTextIcon size={12} weight="duotone" className="gba:flex-shrink-0" />
+                  <span className="gba:italic gba:truncate">{userStatus.statusMessage}</span>
+                </div>
+              ) : showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
+                <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
+                  {(() => {
+                    try {
+                      const lastSeenDate = new Date(otherUserPresence.lastSeen)
+
+                      // Check if date is valid
+                      if (isNaN(lastSeenDate.getTime())) {
+                        console.error('[ConversationItem] ❌ Invalid lastSeen date')
+                        return null
+                      }
+
+                      const now = new Date()
+                      const diffMs = now.getTime() - lastSeenDate.getTime()
+
+                      // Check for negative or invalid differences
+                      if (diffMs < 0 || isNaN(diffMs)) {
+                        return null
+                      }
+
+                      const diffMinutes = Math.floor(diffMs / (1000 * 60))
+                      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+                      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+                      // Show "just now" for very recent disconnections (< 1 minute)
+                      let lastSeenText: string
+                      if (diffMinutes < 60) {
+                        lastSeenText = t('chat-lastSeenMinutes', { minutes: diffMinutes })
+                      } else if (diffHours < 24) {
+                        lastSeenText = t('chat-lastSeenHours', { hours: diffHours })
+                      } else if (diffDays < 7) {
+                        lastSeenText = t('chat-lastSeenDays', { days: diffDays })
+                      } else {
+                        lastSeenText = t('chat-lastSeenLongAgo')
+                      }
+
+                      return lastSeenText
+                    } catch (error) {
+                      console.error('[ConversationItem] ❌ Error calculating last seen time:', error)
+                      return null
+                    }
+                  })()}
+                </p>
+              ) : conversation.lastMessage ? (
+                <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
+                  {conversation.lastMessage.content}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="gba:flex gba:items-center">
+              {onRemove && isHovered && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleRemoveClick}
+                  className="gba:h-7 gba:w-7 gba:opacity-70 gba:hover:opacity-100"
+                  data-testid={`conversation-item-remove-${conversation.id}`}
+                  title={conversation.type === 'group' ? t('chat-leaveConversation') : t('chat-removeConversation')}
+                >
+                  <SignOutIcon className="gba:w-3.5 gba:h-3.5" />
+                </Button>
               )}
             </div>
-          ) : avatarUrl ? (
-            // Direct chat with avatar
-            <Avatar className={`${avatarSize} gba:ring-2 gba:ring-background`}>
-              <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
-            </Avatar>
-          ) : (
-            // Direct chat without avatar
-            <IconAvatar className={avatarSize} label={name} icon={UserIcon} />
-          )}
-          {showPresence && <PresenceIndicator status={presenceStatus} />}
-        </div>
-
-        <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span
-              className={`gba:font-medium gba:truncate ${compact ? 'gba:text-sm' : 'gba:text-sm'} ${isActive ? 'gba:text-primary' : 'gba:text-foreground'}`}
-            >
-              {name}
-            </span>
-            {hasActiveCall && (
-              <span className="gba:text-[10px] gba:text-success gba:uppercase">
-                {getTranslationFromI18nKeyAndLabel('chat.activeCallShort', 'In Call')}
-              </span>
-            )}
-            {unreadCount > 0 && (
-              <Badge
-                variant="default"
-                className="gba:flex-shrink-0 gba:min-w-[18px] gba:h-[18px] gba:px-1 gba:text-[10px] gba:font-semibold"
-                data-testid={`conversation-unread-${conversation.id}`}
-              >
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </Badge>
-            )}
           </div>
-          {hasActiveCall && participantsInCall.length > 0 && !compact ? (
-            <p className="gba:text-xs gba:text-success gba:truncate gba:max-w-[180px]">
-              {participantsInCall.join(', ')}
-            </p>
-          ) : showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' && !compact ? (
-            <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
-              {(() => {
-                try {
-                  const lastSeenDate = new Date(otherUserPresence.lastSeen)
-                  // Check if date is valid
-                  if (isNaN(lastSeenDate.getTime())) {
-                    return null
-                  }
-
-                  const now = new Date()
-                  const diffMs = now.getTime() - lastSeenDate.getTime()
-
-                  // Check for negative or invalid differences
-                  if (diffMs < 0 || isNaN(diffMs)) {
-                    return null
-                  }
-
-                  const diffMinutes = Math.floor(diffMs / (1000 * 60))
-                  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-                  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-                  if (diffMinutes < 60) {
-                    return getTranslationFromI18nKeyAndLabel(
-                      'chat.lastSeenMinutes',
-                      `Last seen ${diffMinutes}m ago`
-                    ).replace('{minutes}', diffMinutes.toString())
-                  } else if (diffHours < 24) {
-                    return getTranslationFromI18nKeyAndLabel(
-                      'chat.lastSeenHours',
-                      `Last seen ${diffHours}h ago`
-                    ).replace('{hours}', diffHours.toString())
-                  } else if (diffDays < 7) {
-                    return getTranslationFromI18nKeyAndLabel('chat.lastSeenDays', `Last seen ${diffDays}d ago`).replace(
-                      '{days}',
-                      diffDays.toString()
-                    )
-                  } else {
-                    return getTranslationFromI18nKeyAndLabel('chat.lastSeenLongAgo', 'Last seen a while ago')
-                  }
-                } catch (error) {
-                  console.error('Error calculating last seen time:', error)
-                  return null
-                }
-              })()}
-            </p>
-          ) : conversation.lastMessage && !compact ? (
-            <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
-              {conversation.lastMessage.content}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="gba:flex gba:items-center">
-          {onRemove && isHovered && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleRemoveClick}
-              className="gba:h-7 gba:w-7 gba:opacity-70 gba:hover:opacity-100"
-              data-testid={`conversation-item-remove-${conversation.id}`}
-              title={
-                conversation.type === 'group'
-                  ? getTranslationFromI18nKeyAndLabel('chat.leaveConversation', 'Leave conversation')
-                  : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')
-              }
+        </ContextMenuTrigger>
+        <ContextMenuContent
+          className="gba:min-w-48 gba:p-1.5"
+          data-testid={`conversation-item-context-menu-${conversation.id}`}
+        >
+          {onPinChange && (
+            <ContextMenuItem
+              className="gba:px-3 gba:py-2 gba:gap-2"
+              onSelect={() => onPinChange(conversation.id, !isPinned)}
+              data-testid={`conversation-item-context-menu-pin-${conversation.id}`}
             >
-              <SignOut className="gba:w-3.5 gba:h-3.5" />
-            </Button>
+              <PinIcon className="gba:w-4 gba:h-4" />
+              {isPinned ? t('chat-unpinConversation') : t('chat-pinConversation')}
+            </ContextMenuItem>
           )}
-        </div>
-      </div>
+          {onMuteChange && (
+            <ContextMenuItem
+              className="gba:px-3 gba:py-2 gba:gap-2"
+              onSelect={() => onMuteChange(conversation.id, !isMuted)}
+              data-testid={`conversation-item-context-menu-mute-${conversation.id}`}
+            >
+              <BellOffIcon className="gba:w-4 gba:h-4" />
+              {isMuted ? t('chat-unmuteConversation') : t('chat-muteConversation')}
+            </ContextMenuItem>
+          )}
+          {onNudge && conversation.type === 'direct' && otherUserId && (
+            <ContextMenuItem
+              className="gba:px-3 gba:py-2 gba:gap-2"
+              onSelect={() => onNudge(conversation.id, otherUserId)}
+              data-testid={`conversation-item-context-menu-nudge-${conversation.id}`}
+            >
+              <Bell className="gba:w-4 gba:h-4" />
+              {t('chat-sendNudge')}
+            </ContextMenuItem>
+          )}
+          {isCallEnabled && (conversation.type === 'direct' || conversation.type === 'group') && (
+            <>
+              {onStartAudioCall && (
+                <ContextMenuItem
+                  className="gba:px-3 gba:py-2 gba:gap-2"
+                  onSelect={() => onStartAudioCall(conversation)}
+                  data-testid={`conversation-item-context-menu-audio-call-${conversation.id}`}
+                >
+                  <Phone className="gba:w-4 gba:h-4" />
+                  {t('chat-startAudioCall')}
+                </ContextMenuItem>
+              )}
+              {onStartVideoCall && (
+                <ContextMenuItem
+                  className="gba:px-3 gba:py-2 gba:gap-2"
+                  onSelect={() => onStartVideoCall(conversation)}
+                  data-testid={`conversation-item-context-menu-video-call-${conversation.id}`}
+                >
+                  <Video className="gba:w-4 gba:h-4" />
+                  {t('chat-startVideoCall')}
+                </ContextMenuItem>
+              )}
+            </>
+          )}
+          {onMarkAsUnread && (
+            <ContextMenuItem
+              className="gba:px-3 gba:py-2 gba:gap-2"
+              onSelect={() => onMarkAsUnread(conversation.id)}
+              data-testid={`conversation-item-context-menu-mark-unread-${conversation.id}`}
+            >
+              <Mail className="gba:w-4 gba:h-4" />
+              {t('chat-markAsUnread')}
+            </ContextMenuItem>
+          )}
+          {onRemove && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                variant="destructive"
+                className="gba:px-3 gba:py-2 gba:gap-2"
+                onSelect={() => setShowRemoveDialog(true)}
+                data-testid={`conversation-item-context-menu-remove-${conversation.id}`}
+              >
+                <SignOutIcon className="gba:w-4 gba:h-4" />
+                {conversation.type === 'group' ? t('chat-leaveConversation') : t('chat-removeConversation')}
+              </ContextMenuItem>
+            </>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
 
       <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {conversation.type === 'group'
-                ? getTranslationFromI18nKeyAndLabel('chat.leaveConversationTitle', 'Leave conversation?')
-                : getTranslationFromI18nKeyAndLabel('chat.removeConversationTitle', 'Remove conversation?')}
+              {conversation.type === 'group' ? t('chat-leaveConversationTitle') : t('chat-removeConversationTitle')}
             </DialogTitle>
             <DialogDescription>
               {conversation.type === 'group'
-                ? getTranslationFromI18nKeyAndLabel(
-                    'chat.leaveConversationDescription',
-                    'You will no longer receive messages from this conversation. You can be added back by other participants.'
-                  )
-                : getTranslationFromI18nKeyAndLabel(
-                    'chat.removeConversationDescription',
-                    'This will remove the conversation from your list. You can always start a new conversation.'
-                  )}
+                ? t('chat-leaveConversationDescription')
+                : t('chat-removeConversationDescription')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -332,12 +472,10 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               onClick={() => setShowRemoveDialog(false)}
               data-testid="conversation-item-remove-cancel"
             >
-              {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+              {t('common-cancel')}
             </Button>
             <Button variant="destructive" onClick={handleConfirmRemove} data-testid="conversation-item-remove-confirm">
-              {conversation.type === 'group'
-                ? getTranslationFromI18nKeyAndLabel('chat.leave', 'Leave')
-                : getTranslationFromI18nKeyAndLabel('chat.remove', 'Remove')}
+              {conversation.type === 'group' ? t('chat-leave') : t('chat-remove')}
             </Button>
           </DialogFooter>
         </DialogContent>

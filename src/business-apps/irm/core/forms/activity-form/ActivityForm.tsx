@@ -4,7 +4,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ActivityLayout, activitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { ActivitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
-import { validateActivityData } from '@/common/components/common-relations/form-segments/activity-segment/utils'
 import {
   type InvestmentActivity,
   buildInvestmentActivityPayload
@@ -53,12 +52,8 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
   const investmentId = additionalData?.investmentId || initialParameters?.investmentId || null
 
-  // Determine if entity selection should be shown
-  // For investment context, we hide entity selection since investment + account context is sufficient
-  // Otherwise, show selection if no entity is provided from context
-  const isInvestmentContext = Boolean(investmentId)
-  const hasEntityFromContext = accountId || leadId || contactId || opportunityId
-  const shouldShowEntitySelection = !isInvestmentContext && !hasEntityFromContext
+  // Get occurredAt from additionalData or initialParameters (for calendar quick actions)
+  const occurredAt = additionalData?.occurredAt || initialParameters?.occurredAt || null
 
   const {
     entities,
@@ -73,7 +68,11 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
 
   const form = useForm<z.infer<typeof activitySchema>>({
     resolver: zodResolver(activitySchema),
-    defaultValues: mapToFormValues(activity || {}, activitySchema) as any,
+    defaultValues: {
+      ...mapToFormValues(activity || {}, activitySchema),
+      // Include occurredAt from context if provided (e.g., from calendar quick action or drag & drop)
+      ...(occurredAt ? { occurredAt } : {})
+    } as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -89,11 +88,29 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [accountId, contactId, opportunityId, leadId, investmentId, activity]
   )
 
+  // Calculate if entity selection should be shown (no entity context exists)
+  const shouldShowEntitySelection = useMemo(
+    () =>
+      !(
+        relatedEntityIds.accountId ||
+        relatedEntityIds.contactId ||
+        relatedEntityIds.opportunityId ||
+        relatedEntityIds.leadId ||
+        relatedEntityIds.investmentId
+      ),
+    [relatedEntityIds]
+  )
+
   const activityRef = useRef(activity)
   useEffect(() => {
     if (activityRef.current?.id !== activity?.id) {
       form.reset(mapToFormValues(activity || {}, activitySchema) as any)
       activityRef.current = activity
+
+      // Re-apply override occurredAt from drag & drop or context (after DB data loads)
+      if (occurredAt && activity) {
+        form.setValue('occurredAt', occurredAt)
+      }
 
       // Hydrate first found entity
       const entity = [
@@ -108,7 +125,14 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         hydrateEntityById(entity.type, entity.id)
       }
     }
-  }, [activity?.id, activity, form, hydrateEntityById])
+  }, [activity?.id, activity, form, hydrateEntityById, occurredAt])
+
+  useEffect(() => {
+    if (accessToken && !activityId) {
+      // Only trigger initial search in create mode
+      searchEntities('')
+    }
+  }, [accessToken, activityId, searchEntities])
 
   const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
     try {
@@ -178,18 +202,13 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   )
 
   useEffect(() => {
-    if (shouldShowEntitySelection) {
-      searchEntities('')
-    }
-  }, [shouldShowEntitySelection, searchEntities])
-
-  useEffect(() => {
-    if (!accountId && !contactId && !opportunityId && !leadId) return
+    if (!accountId && !contactId && !opportunityId && !leadId && !investmentId) return
     const hasEntity = Boolean(
       form.getValues('accountId') ||
         form.getValues('contactId') ||
         form.getValues('opportunityId') ||
-        form.getValues('leadId')
+        form.getValues('leadId') ||
+        form.getValues('investmentId')
     )
     if (hasEntity) return
 
@@ -210,8 +229,12 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       form.setValue('leadId', leadId)
       form.setValue('relatedEntityId', leadId)
       hydrateEntityById('lead', leadId)
+    } else if (investmentId) {
+      form.setValue('investmentId', investmentId)
+      form.setValue('relatedEntityId', investmentId)
+      hydrateEntityById('investment', investmentId)
     }
-  }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
+  }, [accountId, contactId, opportunityId, leadId, investmentId, form, hydrateEntityById])
 
   const handleAdditionalEntityChange = useCallback(
     (type: string, entityId: string | null) => {
@@ -238,14 +261,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     }
   }, [relatedEntityIds.investmentId, form, handleAdditionalEntityChange])
 
-  const validateForm = useCallback(
-    (data: any): string[] | null => {
-      // For investment context, we don't require entity selection since investment context is sufficient
-      return validateActivityData(data, { requireEntity: shouldShowEntitySelection })
-    },
-    [shouldShowEntitySelection]
-  )
-
   const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
@@ -271,7 +286,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         formData={form.getValues()}
         form={form}
         schema={activitySchema}
-        validateForm={validateForm}
         submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
         cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
         data-testid={formatDataTestId('investment-activity-form', 'Form')}

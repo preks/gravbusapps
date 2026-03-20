@@ -8,7 +8,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  EmptyState
 } from '@newwork/nw-design-system'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
@@ -16,8 +17,6 @@ import { UserIcon, BriefcaseIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
-import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
-import EmptyState from '@/components/empty-state/EmptyState'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contactId?: string
@@ -79,16 +78,16 @@ const ContactSection: React.FC<ContactSectionProps> = ({ contact, contacts, clas
   }
 
   const config = {
-    type: 'AppActionButton' as const,
+    type: 'AppAction' as const,
     config: {
+      variant: 'header' as const,
       contextsArray: actionButtonProps.contextsArray || [FlowContextName.customerContactEntity],
       externalContextData: {
         ...actionButtonProps.externalContextData,
         contactId: contactIdToUse // Override with current page contactId (must come after spread)
       },
       prefixDataTestId: actionButtonProps.prefixDataTestId || 'contact-section-action',
-      emptyStateBehavior: 'enable' as const,
-      deferMainContextRequestsUntilClick: true
+      emptyStateBehavior: 'enable' as const
     }
   }
 
@@ -119,8 +118,10 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
     return (
       <div className="gba:w-full gba:relative gba:flex gba:flex-col gba:h-full">
         <EmptyState
+          type="no-data"
           title="No Contact Data"
           description="No contact data is available for this object. Update its details to see the information here."
+          data-testid="contact-section-empty-state"
         />
       </div>
     )
@@ -135,18 +136,10 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
     return parts.length > 0 ? parts.join(' ') : '-'
   }
 
-  // Get contact type from extended contact object (passed from parent via accountContacts/opportunityContacts)
-  const contactType = (contact as any)?.contactType
-
-  // Helper function to build secondary info (Position • Contact Type)
+  // Helper function to build secondary info (e.g. job position)
   const buildSecondaryInfo = () => {
     const parts = []
     if (contact?.jobPosition) parts.push(contact.jobPosition)
-
-    // Add contact type if available
-    const contactTypeLabel = getContactTypeLabel(contactType)
-    if (contactTypeLabel) parts.push(contactTypeLabel)
-
     return parts.length > 0 ? parts.join(' • ') : null
   }
 

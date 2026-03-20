@@ -17,11 +17,10 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { PiX } from 'react-icons/pi'
+import { XIcon } from '@phosphor-icons/react'
 import { Building2 } from 'lucide-react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { INVESTMENT_ACCOUNT_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
 import { ContactTypeLabels } from '@/common/data/relations/constants/contactConstants'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -53,13 +52,17 @@ interface AccountSegmentProps {
   // Type selector mode: 'accountType' (catalog) or 'contactType' (enum)
   typeMode?: 'accountType' | 'contactType'
 
+  // Catalog identifier for account type (required when typeMode is 'accountType')
+  // e.g., 'CustomerAccountType:v1' for CRM, 'InvestmentAccountType:v1' for IRM
+  accountTypeCatalogIdentifier?: string
+
   // Account search results
   accounts: AccountSegmentOption[]
   accountsLoading: boolean
   accountsError: string | null
   searchAccounts: (search: string) => void
 
-  // Account contacts with full data (for display)
+  // Account contacts from loaded entity (with nested account) for display - same pattern as account form
   accountContacts?: any[]
 
   // Test ID prefix
@@ -78,8 +81,9 @@ const AccountItem: React.FC<{
   accountIdFieldName: string
   accountTypeFieldName: string
   typeMode: 'accountType' | 'contactType'
+  accountTypeCatalogIdentifier?: string
   accountIndex: number
-  accountContacts: any[]
+  accountContacts?: any[]
   accounts: AccountSegmentOption[]
   onRemove: () => void
   dataTestId?: string
@@ -89,6 +93,7 @@ const AccountItem: React.FC<{
   accountIdFieldName,
   accountTypeFieldName,
   typeMode,
+  accountTypeCatalogIdentifier,
   accountIndex,
   accountContacts,
   accounts,
@@ -101,16 +106,12 @@ const AccountItem: React.FC<{
   // Watch the account ID to get display data
   const accountId = form.watch(`${fieldArrayName}.${accountIndex}.${accountIdFieldName}`)
 
-  // Get account display data from accountContacts (junction table records) or accounts (search results)
+  // Get account display data from accountContacts (from loaded entity) or accounts (search results)
   const accountData = React.useMemo(() => {
-    // First, try to find in accountContacts (junction table with nested data)
-    const accountContact = accountContacts.find((ac: any) => {
-      // Handle both investmentAccount (for investments) and account (for opportunities)
-      const id = ac.investmentAccount?.id || ac.account?.id || ac.investmentAccountId || ac.accountId
+    const accountContact = accountContacts?.find((ac: any) => {
+      const id = ac.account?.id || ac.investmentAccount?.id || ac.accountId || ac.investmentAccountId
       return id === accountId
     })
-
-    // Extract account object - could be 'account' or 'investmentAccount'
     const account = accountContact?.account || accountContact?.investmentAccount
 
     if (account) {
@@ -182,16 +183,16 @@ const AccountItem: React.FC<{
                       ))}
                     </SelectContent>
                   </Select>
-                ) : (
+                ) : accountTypeCatalogIdentifier ? (
                   <CatalogSelect
-                    catalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
+                    catalogIdentifier={accountTypeCatalogIdentifier}
                     value={field.value || ''}
                     onValueChange={v => field.onChange(v || '')}
                     data-testid={formatDataTestId(dataTestId || 'account-segment', `account-type-${accountIndex}`)}
                     placeholder="Select type..."
                     disabled={disabled}
                   />
-                )}
+                ) : null}
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -210,7 +211,7 @@ const AccountItem: React.FC<{
         aria-label={`Remove ${accountData.name}`}
         disabled={disabled}
       >
-        <PiX className="gba:w-4 gba:h-4" />
+        <XIcon className="gba:w-4 gba:h-4" />
       </Button>
     </div>
   )
@@ -221,16 +222,25 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
   accountIdFieldName,
   accountTypeFieldName,
   typeMode = 'accountType',
+  accountTypeCatalogIdentifier,
+  accountContacts,
   accounts,
   accountsLoading,
   accountsError,
   searchAccounts,
-  accountContacts = [],
   dataTestId = 'account-segment',
   disabled = false,
   error
 }) => {
   const form = useFormContext<any>()
+
+  // Validation: accountTypeCatalogIdentifier is required when typeMode is 'accountType'
+  if (typeMode === 'accountType' && !accountTypeCatalogIdentifier) {
+    console.error(
+      '[AccountSegment] accountTypeCatalogIdentifier is required when typeMode is "accountType". ' +
+        'Please provide the module-specific catalog identifier (e.g., CustomerAccountType:v1 or InvestmentAccountType:v1)'
+    )
+  }
 
   // Use field array for multiple accounts
   const { fields, append, remove } = useFieldArray({
@@ -289,6 +299,7 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
               accountIdFieldName={accountIdFieldName}
               accountTypeFieldName={accountTypeFieldName}
               typeMode={typeMode}
+              accountTypeCatalogIdentifier={accountTypeCatalogIdentifier}
               accountIndex={index}
               accountContacts={accountContacts}
               accounts={accounts}

@@ -255,11 +255,14 @@ export const ChangeWorkingHoursForm: React.FC = () => {
         }
         data-testid="change-working-hours-form"
         onSubmit={async (values: WorkingHoursFormValues) => {
-          return buildSubmitPayload(values, {
+          const payload = buildSubmitPayload(values, {
             weeklySum: typeof weeklySum === 'number' ? weeklySum : 0,
             workingDays: typeof workingDays === 'number' ? workingDays : 0,
             fte: typeof fte === 'number' ? fte : 0
           })
+          return {
+            ...payload
+          }
         }}
       >
         <div className="gba:flex-1 gba:flex gba:flex-col gba:justify-between">

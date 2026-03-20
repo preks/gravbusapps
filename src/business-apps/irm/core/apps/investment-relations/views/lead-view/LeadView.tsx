@@ -1,10 +1,6 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  LeadLayout,
-  type LeadViewConfig,
-  type LeadStatisticsData
-} from '@/common/components/common-relations/view-layouts/lead-layout'
+import { LeadLayout, type LeadViewConfig } from '@/common/components/common-relations/view-layouts/lead-layout'
 import { type InvestmentLead, INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/types/investmentLeadTypes'
 import {
   commonLeadColumns,
@@ -65,26 +61,14 @@ const copyLeadFilters = (
 export type LeadViewProps = BusinessAppContextProps
 
 export const LeadView: React.FC<LeadViewProps> = context => {
-  const { accessToken } = context
-
   // Data Hooks
   const { fetchInvestmentLeads } = useInvestmentLeads(context)
   const leadStatistics = useInvestmentLeadStatistics(context)
 
-  // Statistics - Transform hook data to LeadStatisticsData format
-  const leadStatisticsData: LeadStatisticsData | undefined = useMemo(() => {
-    return {
-      recentLeads: leadStatistics.recentLeads,
-      hotLeads: leadStatistics.hotLeads,
-      conversionRate: leadStatistics.conversionRate,
-      topSource: leadStatistics.topSource,
-      isLoading: leadStatistics.isLoading,
-      error: leadStatistics.error,
-      refetch: leadStatistics.refetch
-    }
-  }, [leadStatistics])
-
-  // Config
+  // Config — leadStatistics is intentionally excluded so that statistics state
+  // updates (isLoading, recentLeads, etc.) do not recreate config, which would
+  // cascade into new queryVariables/loadData references and re-fire GetInvestmentLeads.
+  // leadStatistics is passed as a separate prop to LeadLayout instead.
   const config: LeadViewConfig<InvestmentLead, InvestmentLeadQueryVariables> = useMemo(
     () => ({
       fetchLeads: fetchInvestmentLeads,
@@ -118,30 +102,20 @@ export const LeadView: React.FC<LeadViewProps> = context => {
 
         const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
 
-        // Process date range filters using helper
         processLeadDateRanges(params.selectedFilters, vars)
-
-        // Handle sensitive filter using helper
         processSensitiveFilter(params.selectedFilters, vars)
-
-        // Copy all other filters using helper
         copyLeadFilters(params.selectedFilters, dateRangeKeys, vars)
 
-        // Use column ID directly - buildOrderBy will use descriptors (INVESTMENT_LEAD_DESCRIPTORS)
-        // to resolve correct GraphQL paths (e.g., leadStatus.value, ownerEmployee.displayName)
-        // Special handling for composite 'lead' column
         if (params.sorting.length > 0) {
           const columnId = params.sorting[0].id
           const direction = params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
 
           if (columnId === 'lead') {
-            // Sort by firstName, then lastName
             vars.orderBy = [
               { field: 'firstName', direction },
               { field: 'lastName', direction }
             ]
           } else {
-            // Use column ID directly - buildOrderBy will resolve paths via descriptors
             vars.orderBy = [{ field: columnId as any, direction }]
           }
         } else {
@@ -155,7 +129,6 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         createContext: FlowContextName.investmentLeadCreate
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/irm/lead-record', { leadId: id }),
-      leadStatistics: leadStatisticsData,
       rowActionsContextArray: [FlowContextName.investmentLeadEntity],
       buildRowActionsExternalContextData: (row: { original: InvestmentLead }) => ({
         leadId: row.original.id
@@ -171,10 +144,12 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         addLead: { key: 'irm:lead.addLead', default: 'Add Lead' }
       }
     }),
-    [fetchInvestmentLeads, leadStatisticsData, accessToken]
+    [fetchInvestmentLeads]
   )
 
-  return <LeadLayout context={context} config={config} dataTestId="investment-lead-view" />
+  return (
+    <LeadLayout context={context} config={config} leadStatistics={leadStatistics} dataTestId="investment-lead-view" />
+  )
 }
 
 export default LeadView

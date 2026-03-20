@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataFilter'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../utils'
+import { getAdvancePaymentStatusFilterLabel } from '../utils'
+import { advancePaymentFilterStatuses } from './availableFilterStatuses'
 import { useCurrencyStore } from '../store/useCurrencyStore'
 import { useAdvancePaymentCurrencies } from './useAdvancePaymentCurrencies'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -34,8 +35,7 @@ export const useAdvancePaymentFilters = ({
   managerId
 }: UseAdvancePaymentFiltersProps = {}): UseAdvancePaymentFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('')
-  // No default filter - show all advance payments initially
-  const [statusFilter, setStatusFilter] = useState<string[] | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string[] | null>(['PENDING'])
   // Local primary currency for advance payments (independent from global store)
   const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string>('')
   const [userHasSelectedCurrency, setUserHasSelectedCurrency] = useState(false)
@@ -143,40 +143,17 @@ export const useAdvancePaymentFilters = ({
     ]
   )
 
-  // Define the statuses that should be used for filtering with the correct mappings
-  // Include all relevant statuses from the ExpenseStatus enum to match backend values
-  const availableFilterStatuses: ExpenseStatus[] = [
-    ExpenseStatus.PREPARED,
-    ExpenseStatus.CREATED,
-    ExpenseStatus.ASSIGNED,
-    ExpenseStatus.PENDING,
-    ExpenseStatus.APPROVED,
-    ExpenseStatus.RETURNED,
-    ExpenseStatus.REJECTED,
-    ExpenseStatus.VERIFIED,
-    ExpenseStatus.BOOKED,
-    ExpenseStatus.PAID,
-    ExpenseStatus.CLOSED,
-    ExpenseStatus.DISCARDED,
-    ExpenseStatus.TRANSFERRED
-  ]
+  const availableFilterStatuses = advancePaymentFilterStatuses
 
-  // Create a mapping of filter IDs to their display labels
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
-
-    // Add status filters - use the getAdvancePaymentStatusDisplay function for consistent translated labels
     for (const status of availableFilterStatuses) {
-      const display = getAdvancePaymentStatusDisplay(status)
-      map[status] = display.label
+      map[status] = getAdvancePaymentStatusFilterLabel(status)
     }
-
-    // Add currency filters from dynamic data (safe access)
     const availableCurrencies = Array.isArray(dynamicCurrencies) ? dynamicCurrencies : []
     for (const currency of availableCurrencies) {
       map[currency] = currency
     }
-
     return map
   }, [availableFilterStatuses, dynamicCurrencies])
 

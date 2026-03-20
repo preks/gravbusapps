@@ -27,6 +27,15 @@ import {
 } from '../../selects/reference-select/entityHandlingUtils'
 import translations from './_i18n'
 
+// Entity option type for entity selection
+export interface EntityOption {
+  id: string
+  name: string
+  type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment'
+  subtitle?: string
+  pictureThumbnail?: string
+}
+
 // Base Activity interface with all common fields
 export interface Activity {
   id?: string
@@ -67,13 +76,7 @@ export interface ActivitySegmentProps {
 
   // Entity selection (still needs entities array until EntitySelect is refactored)
   showEntitySelection?: boolean
-  entities?: Array<{
-    id: string
-    name: string
-    type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment'
-    subtitle?: string
-    pictureThumbnail?: string
-  }>
+  entities?: EntityOption[]
   entitiesLoading?: boolean
   onEntitySearch?: (searchTerm: string) => void
   entitiesHasMore?: boolean
@@ -95,8 +98,8 @@ export interface ActivitySegmentProps {
     id: string
     name?: string
     version?: number
-    mimeType?: string
-    fileSize?: number
+    mimeType?: string | null
+    fileSize?: number | null
     fileInfo?: any
   }>
   onDocumentRemove?: (documentId: string) => void
@@ -161,7 +164,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     // Handle common entity types (account, contact, opportunity, lead)
     const commonEntityApplied = applyInitialCommonEntityFromContext(initialEntityFromContext as CommonEntityContext, {
       form,
-      useIdFields: false
+      useIdFields: true
     })
 
     // If no common entity was applied, handle additional entity types (e.g. investmentId) via handler
@@ -313,7 +316,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                     if (form) {
                       const handleEntityChange = createCommonEntitySelectHandler({
                         form,
-                        useIdFields: false,
+                        useIdFields: true,
                         entities: entities || [],
                         onAdditionalEntityChange
                       })

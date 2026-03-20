@@ -1,11 +1,8 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Separator,
   Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Spinner,
   Alert,
   AlertDescription,
@@ -18,22 +15,20 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import {
-  FileImageOutlined,
-  FilePdfOutlined,
-  FileWordOutlined,
-  FileExcelOutlined,
-  FileOutlined
-} from '@ant-design/icons'
-import { FileClient } from '@/common/network/files/FileClient'
+import { ImageIcon, FilePdfIcon, FileDocIcon, FileXlsIcon, FileIcon } from '@phosphor-icons/react'
+import { useFileClient } from '@/common/network/files/useFileClient'
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems'
 import { getExpenseItemStatusDisplay } from '../../../utils'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
 import { Badge } from '@newwork/nw-design-system'
 import type { UploadFile } from 'antd/es/upload/interface'
+import {
+  DetailsPanelContent,
+  type DetailsPanelField
+} from '../../../../../common/components/details-panel/DetailsPanelContent'
 
 // Utility function to truncate file names
 const truncateFileName = (fileName: string, maxLength: number = 15): string => {
@@ -119,15 +114,8 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
     }
   }, [selectedItem])
 
-  // Create FileClient with proper authorization
-  const fileClient = useMemo(() => {
-    const client = new FileClient()
-    // Set authorization header if we have an access token
-    if (contextProps.accessToken) {
-      client.setAccessToken(contextProps.accessToken)
-    }
-    return client
-  }, [contextProps.accessToken])
+  // Use FileClient hook for proper authorization
+  const fileClient = useFileClient(contextProps)
 
   /**
    * Extracts file ID from URL or returns the provided ID
@@ -298,14 +286,14 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
             // Helper: Render icon by file type
             const renderFileIcon = () => {
               if (fileType.includes('pdf') || ext === 'pdf')
-                return <FilePdfOutlined className="gba:text-red-500" style={{ fontSize: 32 }} />
+                return <FilePdfIcon size={32} className="gba:text-red-500" />
               if (fileType.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext))
-                return <FileImageOutlined className="gba:text-blue-500" style={{ fontSize: 32 }} />
+                return <ImageIcon size={32} className="gba:text-blue-500" />
               if (fileType.includes('word') || ['doc', 'docx'].includes(ext))
-                return <FileWordOutlined className="gba:text-blue-700" style={{ fontSize: 32 }} />
+                return <FileDocIcon size={32} className="gba:text-blue-700" />
               if (fileType.includes('excel') || ['xls', 'xlsx', 'csv'].includes(ext))
-                return <FileExcelOutlined className="gba:text-green-700" style={{ fontSize: 32 }} />
-              return <FileOutlined className="gba:text-gray-500" style={{ fontSize: 32 }} />
+                return <FileXlsIcon size={32} className="gba:text-green-700" />
+              return <FileIcon size={32} className="gba:text-gray-500" />
             }
 
             // Helper: Render preview by file type
@@ -334,7 +322,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
                     }}
                     data-testid={`expense-file-pdf-thumb-${idx}`}
                   >
-                    <FilePdfOutlined className="gba:text-red-500" style={{ fontSize: 48 }} />
+                    <FilePdfIcon size={48} className="gba:text-red-500" />
                   </div>
                 )
               }
@@ -406,7 +394,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
         data-testid="expense-file-empty"
       >
         <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
-          <FileImageOutlined style={{ fontSize: '48px', color: 'border' }} />
+          <ImageIcon size={48} style={{ color: 'border' }} />
           <p className="gba:text-sm gba:text-gray-600">
             {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_receipt_attached', 'No receipt attached')}
           </p>
@@ -439,177 +427,112 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
   const displayItem = detailedItem || selectedItem
   if (!displayItem) return null
 
+  const statusConfig = getExpenseItemStatusDisplay(displayItem.status)
+  const statusBadge = (
+    <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-item-status-badge">
+      {statusConfig.label}
+    </Badge>
+  )
+
+  const fields: DetailsPanelField[] = [
+    {
+      label: getTranslationFromI18nKeyAndLabel('common.code', 'Code'),
+      value: typeof displayItem.code === 'string' ? displayItem.code : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+      value: statusBadge
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date'),
+      value: displayItem.expenseDate ? formatDate(displayItem.expenseDate, 'date.long') : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.invoice_date', 'Invoice Date'),
+      value: displayItem.invoiceDate ? formatDate(displayItem.invoiceDate, 'date.long') : 'N/A'
+    },
+    ...(typeof displayItem.description === 'string' && displayItem.description
+      ? [
+          {
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_item.change_expense_item_container.current_description_label',
+              'Description'
+            ),
+            value: displayItem.description
+          }
+        ]
+      : []),
+    {
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_item.change_expense_item_container.current_e_class_label',
+        'Expense Class'
+      ),
+      value: displayItem.expenseClass?.value ? getCatalogValue(displayItem.expenseClass) : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
+        'Cost Center'
+      ),
+      value: displayItem.costCenter?.name ? String(displayItem.costCenter.name) : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:travel_region_rule.travel_region_rule_details_list.amount',
+        'Amount'
+      ),
+      value: formatCurrencyDisplay(displayItem.reimbursableAmount, displayItem.currency?.code)
+    }
+  ]
+
+  const availableActions = generateExpenseItemActions(
+    displayItem,
+    {
+      employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+      accessToken: contextProps.accessToken || '',
+      onClose: onClose
+    },
+    { includeDetails: false, includeAssignToRequest: true }
+  )
+
   return (
     <div className="gba:space-y-6">
-      {/* Header: Title, Code, Status Badge, Action Button */}
-      <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
-        <div>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-1">
-            {typeof displayItem.title === 'string' ? displayItem.title : ''}
-          </h2>
-          <p className="gba:text-sm gba:text-gray-600">
-            {typeof displayItem.code === 'string' ? displayItem.code : ''}
-          </p>
+      {availableActions.length > 0 ? (
+        <div className="gba:flex gba:justify-end">
+          <AppAction
+            variant="table-row"
+            customActions={availableActions}
+            prefixDataTestId="expense-item-details-action"
+            accessToken={contextProps.accessToken}
+            emptyState="disable"
+            lazyLoad
+            data-testid="expense-item-details-action-button"
+          >
+            <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+              />
+            </svg>
+          </AppAction>
         </div>
-        <div className="gba:flex gba:items-center gba:gap-3">
-          {(() => {
-            const statusConfig = getExpenseItemStatusDisplay(displayItem.status)
-            return (
-              <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-item-status-badge">
-                {statusConfig.label}
-              </Badge>
-            )
-          })()}
-          {(() => {
-            const availableActions = generateExpenseItemActions(
-              displayItem,
-              {
-                employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
-                accessToken: contextProps.accessToken || '',
-                onClose: onClose
-              },
-              {
-                includeDetails: false,
-                includeAssignToRequest: true
-              }
-            )
+      ) : null}
 
-            // Only show action button if there are available actions
-            if (availableActions.length > 0) {
-              return (
-                <div className="gba:flex gba:justify-start gba:gap-2" onClick={e => e.stopPropagation()}>
-                  <AppActionButton
-                    data-testid="expense-item-details-action-button"
-                    size="icon"
-                    staticFlowData={availableActions}
-                    prefixDataTestId="expense-item-details-action"
-                    accessToken={contextProps.accessToken}
-                    emptyStateBehavior="disable"
-                    deferMainContextRequestsUntilClick={true}
-                  />
-                </div>
-              )
-            }
-            return null
-          })()}
-        </div>
-      </div>
-
-      {/* Dates Section */}
-      <Card>
-        <CardContent className="gba:p-4 gba:space-y-3">
-          {displayItem.expenseDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date')}:{' '}
-                {formatDate(displayItem.expenseDate, 'date.long')}
-              </span>
-            </div>
-          )}
-          {displayItem.invoiceDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_item_list.expense_table.invoice_date',
-                  'Invoice Date'
-                )}
-                : {formatDate(displayItem.invoiceDate, 'date.long')}
-              </span>
-            </div>
-          )}
-          {!displayItem.expenseDate && !displayItem.invoiceDate && (
-            <div className="gba:text-center gba:py-4 gba:text-sm gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.no_date_information_available',
-                'No date information available'
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Description Section */}
-      {typeof displayItem.description === 'string' && displayItem.description && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="gba:text-base gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_item.change_expense_item_container.current_description_label',
-                'Description'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="gba:text-sm gba:text-gray-700">{displayItem.description}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Details Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:text-base gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details_title', 'Item Details')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:space-y-3 gba:text-sm">
-            {displayItem.employee && displayItem.employee.fullName && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_overview.side_bar.requester',
-                    'Requester'
-                  )}
-                  :
-                </span>
-                <span className="gba:text-gray-900">{String(displayItem.employee.fullName)}</span>
-              </div>
-            )}
-            {displayItem.expenseClass && displayItem.expenseClass.value && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_item.change_expense_item_container.current_e_class_label',
-                    'Expense Class'
-                  )}
-                  :
-                </span>
-                <span className="gba:text-gray-900">{getCatalogValue(displayItem.expenseClass)}</span>
-              </div>
-            )}
-            {displayItem.costCenter && displayItem.costCenter.name && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-                    'Cost Center'
-                  )}
-                  :
-                </span>
-                <span className="gba:text-gray-900">{String(displayItem.costCenter.name)}</span>
-              </div>
-            )}
-            <div className="gba:flex gba:justify-between">
-              <span className="gba:font-medium gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:travel_region_rule.travel_region_rule_details_list.amount',
-                  'Amount'
-                )}
-                :
-              </span>
-              <span className="gba:text-gray-900 gba:font-semibold">
-                {formatCurrencyDisplay(displayItem.reimbursableAmount, displayItem.currency?.code)}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Separator />
-
-      {/* File Viewer Section */}
-      <div className="gba:mt-2">{renderAttachmentPreview()}</div>
+      <DetailsPanelContent
+        dataTestIdPrefix="expense-item-details"
+        title={typeof displayItem.title === 'string' ? displayItem.title : 'Expense Item Details'}
+        subtitle={typeof displayItem.code === 'string' ? displayItem.code : undefined}
+        fields={fields}
+        showHeader={false}
+        extraContent={
+          <>
+            <Separator />
+            <div className="gba:mt-2">{renderAttachmentPreview()}</div>
+          </>
+        }
+      />
 
       {/* Image Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

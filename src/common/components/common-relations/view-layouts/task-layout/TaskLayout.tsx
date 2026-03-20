@@ -2,12 +2,14 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useTaskExport } from './hooks/useTaskExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskListLayout } from './components/TaskListLayout'
-import { TaskStatisticsLayout } from './components/TaskStatisticsLayout'
+import { SingleTaskStatistics } from './components/SingleTaskStatistics'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { Task, TaskReference } from '@/common/data/relations/types/taskTypes'
 import { TaskDetailSheet } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
@@ -17,21 +19,24 @@ import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from './utils/filterHelpers'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
-export type TaskTabKey = 'my' | 'team'
+/**
+ * Task Statistics Data (Single Set)
+ */
+export interface TaskStatisticsData {
+  totalTasks: { value: number }
+  inProgress: { value: number }
+  completed: { value: number }
+  overdue: { value: number }
+}
 
 /**
- * Task View Configuration
+ * Task View Configuration (Single-Tab Mode - Team Tasks Only)
  * Generic configuration for TaskLayout with domain-specific types
  * @template TTask - Task type extending Task (e.g., CustomerTask, InvestmentTask)
  * @template TQueryVariables - GraphQL query variables type
  */
 export interface TaskViewConfig<TTask extends Task = Task, TQueryVariables = any> {
-  fetchMyTasks: (variables: TQueryVariables) => Promise<{
-    tasks?: TTask[]
-    total?: number
-  }>
-
-  fetchTeamTasks: (variables: TQueryVariables) => Promise<{
+  fetchTasks: (variables: TQueryVariables) => Promise<{
     tasks?: TTask[]
     total?: number
   }>
@@ -58,18 +63,7 @@ export interface TaskViewConfig<TTask extends Task = Task, TQueryVariables = any
   }
 
   taskStatistics: {
-    myTasksStatistics: {
-      totalTasks: { value: number }
-      inProgress: { value: number }
-      completed: { value: number }
-      overdue: { value: number }
-    }
-    teamTasksStatistics: {
-      totalTasks: { value: number }
-      inProgress: { value: number }
-      completed: { value: number }
-      overdue: { value: number }
-    }
+    statistics: TaskStatisticsData
     isLoading: boolean
     error: Error | null
     refetch: () => void
@@ -95,6 +89,14 @@ export interface TaskLayoutProps<TTask extends Task = Task, TQueryVariables = an
   initialFilters?: Record<string, any>
   hideFilters?: boolean
   customPrimaryAction?: React.ReactNode
+  enableExport?: boolean
+  exportFilenamePrefix?: string
+}
+
+const getTaskExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
+  if (isExporting) return 'Exporting…'
+  if (totalCount === 0) return 'No data to export'
+  return `Export ${totalCount} tasks as ${format}`
 }
 
 /**
@@ -140,47 +142,21 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     dataTestId = 'task-view',
     initialFilters = {},
     hideFilters = false,
-    customPrimaryAction
+    customPrimaryAction,
+    enableExport = false,
+    exportFilenamePrefix = 'tasks'
   } = props
   const { accessToken, userInfo } = context
 
-  // View State
-  const [currentSection, setCurrentSection] = useState<TaskTabKey>('my')
+  // View State (Single Tab - Team Tasks Only)
   const [selectedTask, setSelectedTask] = useState<TTask | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
 
-  // My Tasks State (independent)
-  const [mySearchTerm, setMySearchTerm] = useState('')
-  const [mySelectedFilters, setMySelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [mySorting, setMySorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
-  const [myPagination, setMyPagination] = useState({ pageIndex: 0, pageSize: 20 })
-
-  // Team Tasks State (independent)
-  const [teamSearchTerm, setTeamSearchTerm] = useState('')
-  const [teamSelectedFilters, setTeamSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [teamSorting, setTeamSorting] = useState<Array<{ id: string; desc: boolean }>>([
-    { id: 'createdAt', desc: true }
-  ])
-  const [teamPagination, setTeamPagination] = useState({ pageIndex: 0, pageSize: 20 })
-
-  // Computed: Current section's state
-  const searchTerm = currentSection === 'my' ? mySearchTerm : teamSearchTerm
-  const selectedFilters = currentSection === 'my' ? mySelectedFilters : teamSelectedFilters
-  const sorting = currentSection === 'my' ? mySorting : teamSorting
-  const pagination = currentSection === 'my' ? myPagination : teamPagination
-
-  // My Tasks Visibility (hide assignedTo column)
-  const [myVisibleColumns, setMyVisibleColumns] = useState<string[]>([
-    'name',
-    'taskType',
-    'taskPriority',
-    'taskStatus',
-    'reference',
-    'dueDate',
-    'createdAt'
-  ])
-
-  // Team Tasks Visibility (show assignedTo column)
-  const [teamVisibleColumns, setTeamVisibleColumns] = useState<string[]>([
+  // Column Visibility (Team Tasks - show assignedTo column)
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'name',
     'assignedTo',
     'taskType',
@@ -191,21 +167,11 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     'createdAt'
   ])
 
-  const visibleColumns = currentSection === 'my' ? myVisibleColumns : teamVisibleColumns
-  const setVisibleColumns = currentSection === 'my' ? setMyVisibleColumns : setTeamVisibleColumns
-
-  // My Tasks Data State
-  const [myTasks, setMyTasks] = useState<TTask[]>([])
-  const [myTotalCount, setMyTotalCount] = useState(0)
-  const [myLoading, setMyLoading] = useState(true)
-  const [myError, setMyError] = useState<string | null>(null)
-
-  // Team Tasks Data State
-  const [teamTasks, setTeamTasks] = useState<TTask[]>([])
-  const [teamTotalCount, setTeamTotalCount] = useState(0)
-  const [teamLoading, setTeamLoading] = useState(true)
-  const [teamError, setTeamError] = useState<string | null>(null)
-
+  // Data State
+  const [tasks, setTasks] = useState<TTask[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   // Use centralized filter groups hook
@@ -217,6 +183,9 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   }, [config.baseFilterConfig, config.descriptors, filterGroups])
 
   // Query Variables
+  // Build query variables from filter state
+  // NOTE: Deliberately NOT including config.buildQueryVariables in deps - function is stable
+  // We only want to rebuild when actual query params (pagination, filters, etc.) change
   const queryVariables = useMemo(
     () =>
       config.buildQueryVariables({
@@ -226,132 +195,67 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         sorting,
         userInfo
       }),
-    [pagination, searchTerm, selectedFilters, sorting, config, userInfo]
+    [pagination, searchTerm, selectedFilters, sorting, userInfo]
   )
 
-  // Load My Tasks
-  const loadMyTasks = useCallback(
+  // Load Tasks
+  // NOTE: Deliberately NOT including config.fetchTasks in deps - function is stable
+  // We only want to recreate when accessToken or queryVariables actually change
+  const loadTasks = useCallback(
     async (showLoading: boolean = true) => {
       if (!accessToken) return
 
-      if (showLoading) setMyLoading(true)
-      setMyError(null)
+      if (showLoading) setIsLoading(true)
+      setError(null)
 
       try {
-        const result = await config.fetchMyTasks(queryVariables)
-        setMyTasks(result.tasks || [])
-        setMyTotalCount(result.total || 0)
+        const result = await config.fetchTasks(queryVariables)
+        setTasks(result.tasks || [])
+        setTotalCount(result.total || 0)
       } catch (err) {
-        setMyError(err instanceof Error ? err.message : 'Unknown error occurred')
+        setError(err instanceof Error ? err.message : 'Unknown error occurred')
       } finally {
-        if (showLoading) setMyLoading(false)
+        if (showLoading) setIsLoading(false)
+        setIsInitialLoad(false)
       }
     },
-    [accessToken, config, queryVariables]
+    [accessToken, queryVariables]
   )
 
-  // Load Team Tasks
-  const loadTeamTasks = useCallback(
-    async (showLoading: boolean = true) => {
-      if (!accessToken) return
-
-      if (showLoading) setTeamLoading(true)
-      setTeamError(null)
-
-      try {
-        const result = await config.fetchTeamTasks(queryVariables)
-        setTeamTasks(result.tasks || [])
-        setTeamTotalCount(result.total || 0)
-      } catch (err) {
-        setTeamError(err instanceof Error ? err.message : 'Unknown error occurred')
-      } finally {
-        if (showLoading) setTeamLoading(false)
-      }
-    },
-    [accessToken, config, queryVariables]
-  )
-
-  // Initial parallel load: Load BOTH my and team tasks for badge counts
+  // Initial load
+  // NOTE: Deliberately NOT including loadTasks in deps - we only want initial load once when mounted
   useEffect(() => {
     if (!accessToken || !isInitialLoad) return
+    loadTasks(true)
+  }, [accessToken, isInitialLoad])
 
-    const loadBothSections = async () => {
-      await Promise.all([loadMyTasks(true), loadTeamTasks(true)])
-      setIsInitialLoad(false)
-    }
-
-    loadBothSections()
-  }, [accessToken, isInitialLoad, loadMyTasks, loadTeamTasks])
-
-  // Reload data when filters/search/sort change (only for active section, skip initial load)
+  // Reload data when filters/search/sort change (skip initial load)
+  // NOTE: Deliberately NOT including loadTasks or isInitialLoad in deps
+  // isInitialLoad is used as a guard but shouldn't trigger re-runs
   useEffect(() => {
     if (isInitialLoad || !accessToken) return
-
-    if (currentSection === 'my') {
-      loadMyTasks(false)
-    } else {
-      loadTeamTasks(false)
-    }
-  }, [queryVariables, currentSection, isInitialLoad, accessToken, loadMyTasks, loadTeamTasks])
+    loadTasks(false)
+  }, [queryVariables, accessToken])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
-    loadMyTasks(false)
-    loadTeamTasks(false)
+    loadTasks(false)
     // Also refresh statistics when process completes
     config.taskStatistics?.refetch?.()
-  }, [loadMyTasks, loadTeamTasks, config.taskStatistics?.refetch])
+  }, [loadTasks, config.taskStatistics])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
-  // Event Handlers (section-aware)
-  const handleSearch = useCallback(
-    (value: string) => {
-      if (currentSection === 'my') {
-        setMySearchTerm(value)
-        setMyPagination(prev => ({ ...prev, pageIndex: 0 }))
-      } else {
-        setTeamSearchTerm(value)
-        setTeamPagination(prev => ({ ...prev, pageIndex: 0 }))
-      }
-    },
-    [currentSection]
-  )
+  // Event Handlers
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
 
-  const handleFilterUpdate = useCallback(
-    (filters: Record<string, any>) => {
-      if (currentSection === 'my') {
-        setMySelectedFilters(filters)
-        setMyPagination(prev => ({ ...prev, pageIndex: 0 }))
-      } else {
-        setTeamSelectedFilters(filters)
-        setTeamPagination(prev => ({ ...prev, pageIndex: 0 }))
-      }
-    },
-    [currentSection]
-  )
-
-  const handleSortingChange = useCallback(
-    (newSorting: Array<{ id: string; desc: boolean }>) => {
-      if (currentSection === 'my') {
-        setMySorting(newSorting)
-      } else {
-        setTeamSorting(newSorting)
-      }
-    },
-    [currentSection]
-  )
-
-  const handlePaginationChange = useCallback(
-    (newPagination: { pageIndex: number; pageSize: number }) => {
-      if (currentSection === 'my') {
-        setMyPagination(newPagination)
-      } else {
-        setTeamPagination(newPagination)
-      }
-    },
-    [currentSection]
-  )
+  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
+    setSelectedFilters(filters)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
 
   const handleTaskClick = useCallback(
     (task: TTask) => {
@@ -366,43 +270,22 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     [config]
   )
 
-  const handleRefreshStatistics = useCallback(() => {
-    loadMyTasks(false)
-    loadTeamTasks(false)
-  }, [loadMyTasks, loadTeamTasks])
-
-  // Columns (filter assignedTo for my tasks)
-  const allColumns = useMemo(() => config.createColumns(), [config])
-  const columns = useMemo(
-    () => (currentSection === 'my' ? allColumns.filter(col => col.id !== 'assignedTo') : allColumns),
-    [allColumns, currentSection]
-  )
+  // Columns (Team Tasks - include assignedTo column)
+  const columns = useMemo(() => config.createColumns(), [config])
 
   const availableColumns = useMemo(
-    () =>
-      currentSection === 'my'
-        ? [
-            { id: 'name', label: 'Task' },
-            { id: 'taskType', label: 'Type' },
-            { id: 'taskPriority', label: 'Priority' },
-            { id: 'taskStatus', label: 'Status' },
-            { id: 'reference', label: 'Reference' },
-            { id: 'dueDate', label: 'Due Date' },
-            { id: 'createdBy', label: 'Created By' },
-            { id: 'createdAt', label: 'Created' }
-          ]
-        : [
-            { id: 'name', label: 'Task' },
-            { id: 'assignedTo', label: 'Assigned To' },
-            { id: 'taskType', label: 'Type' },
-            { id: 'taskPriority', label: 'Priority' },
-            { id: 'taskStatus', label: 'Status' },
-            { id: 'reference', label: 'Reference' },
-            { id: 'dueDate', label: 'Due Date' },
-            { id: 'createdBy', label: 'Created By' },
-            { id: 'createdAt', label: 'Created' }
-          ],
-    [currentSection]
+    () => [
+      { id: 'name', label: 'Task' },
+      { id: 'assignedTo', label: 'Assigned To' },
+      { id: 'taskType', label: 'Type' },
+      { id: 'taskPriority', label: 'Priority' },
+      { id: 'taskStatus', label: 'Status' },
+      { id: 'reference', label: 'Reference' },
+      { id: 'dueDate', label: 'Due Date' },
+      { id: 'createdBy', label: 'Created By' },
+      { id: 'createdAt', label: 'Created' }
+    ],
+    []
   )
 
   // Row actions
@@ -411,107 +294,135 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     [config, accessToken]
   )
 
-  // Current section data
-  const currentData = currentSection === 'my' ? myTasks : teamTasks
-  const currentTotal = currentSection === 'my' ? myTotalCount : teamTotalCount
-  const currentLoading = currentSection === 'my' ? myLoading : teamLoading
-  const currentError = currentSection === 'my' ? myError : teamError
+  const sortableColumns = useMemo(() => {
+    const availableColumnIds = availableColumns.map(col => col.id)
+    return deriveSortableColumns(config.descriptors, config.columnLabels, availableColumnIds)
+  }, [config.descriptors, config.columnLabels, availableColumns])
+
+  // Export hook — always called (hooks must not be conditional)
+  const { isExporting, handleExportCsv, handleExportExcel } = useTaskExport({
+    fetchTasks: config.fetchTasks as any,
+    queryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  // Export buttons — only rendered when enableExport is true
+  const exportButtons = useMemo(() => {
+    if (!enableExport) return null
+    const csvTitle = getTaskExportButtonTitle(isExporting, totalCount, 'CSV')
+    const excelTitle = getTaskExportButtonTitle(isExporting, totalCount, 'Excel')
+    return (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="task-export-csv-button"
+          title={csvTitle}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="task-export-excel-button"
+          title={excelTitle}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'Excel'}
+        </Button>
+      </>
+    )
+  }, [enableExport, isExporting, totalCount, handleExportCsv, handleExportExcel])
 
   return (
     <div data-testid={dataTestId}>
-      {/* Statistics */}
+      {/* Statistics - Single set for Team Tasks */}
       {config.taskStatistics && (
-        <TaskStatisticsLayout
-          myTasksStatistics={config.taskStatistics.myTasksStatistics}
-          teamTasksStatistics={config.taskStatistics.teamTasksStatistics}
+        <SingleTaskStatistics
+          statistics={config.taskStatistics.statistics}
           isLoading={config.taskStatistics.isLoading}
           error={config.taskStatistics.error}
           onRetry={() => {
             config.taskStatistics.refetch()
-            handleRefreshStatistics()
+            loadTasks(false)
           }}
         />
       )}
-      {/* DataDisplay with titleSections as Tabs gba:bg-white gba:px-6 gba:rounded-xl gba:border*/}
-      <div className="">
-        <DataDisplay
-          titleSections={[
-            {
-              id: 'my',
-              label: getTranslationFromI18nKeyAndLabel('common:myTasks', 'My Tasks'),
-              metadata: {
-                count: myTotalCount,
-                isLoading: myLoading
-              }
-            },
-            {
-              id: 'team',
-              label: getTranslationFromI18nKeyAndLabel('common:teamTasks', 'Team Tasks'),
-              metadata: {
-                count: teamTotalCount,
-                isLoading: teamLoading
-              }
+
+      {/* DataDisplay - Single section for Team Tasks */}
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'team',
+            label: getTranslationFromI18nKeyAndLabel('common:teamTasks', 'Team Tasks'),
+            metadata: {
+              count: totalCount,
+              isLoading: isLoading
             }
-          ]}
-          currentSection={currentSection}
-          onSectionChange={value => setCurrentSection(value as TaskTabKey)}
-          searchValue={searchTerm}
-          searchPlaceholder={getTranslationFromI18nKeyAndLabel('common:searchTasks', 'Search tasks...')}
-          onSearchChange={handleSearch}
-          filters={hideFilters ? undefined : selectedFilters}
-          filterConfiguration={hideFilters ? undefined : dynamicFilterConfig}
-          onFilterChange={hideFilters ? undefined : handleFilterUpdate}
-          sorting={sorting}
-          sortableColumns={useMemo(() => {
-            const availableColumnIds = availableColumns.map(col => col.id)
-            return deriveSortableColumns(config.descriptors, config.columnLabels, availableColumnIds)
-          }, [config.descriptors, config.columnLabels, availableColumns])}
-          onSortingChange={handleSortingChange}
-          availableColumns={availableColumns}
-          visibleColumns={visibleColumns}
-          onVisibleColumnsChange={setVisibleColumns}
-          primaryAction={
-            customPrimaryAction ||
-            (config.flowContexts.createContext ? (
-              <AppAction
-                contextsArray={[config.flowContexts.createContext]}
-                externalContextData={config.flowContexts.createContextData}
-                accessToken={accessToken}
-                data-testid="add-task-action"
-                emptyStateBehavior="hide"
-              >
-                <Button size="sm" variant="default" data-testid="add-task-button" type="button">
-                  <Plus size={16} />
-                  {getTranslationFromI18nKeyAndLabel('common:addTask', 'Add Task')}
-                </Button>
-              </AppAction>
-            ) : undefined)
           }
-          toolbarDensity="default"
-          enableLiveFiltering={true}
-          filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterTasks', 'Filter Tasks')}
-          filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-            'common:filterTasksDescription',
-            'Apply filters to narrow down the task list'
-          )}
-        >
-          <TaskListLayout<TTask>
-            data={currentData}
-            loading={currentLoading}
-            error={currentError}
-            totalCount={currentTotal}
-            columns={columns.filter(col => visibleColumns.includes(col.id as string))}
-            sorting={sorting}
-            onSortingChange={handleSortingChange}
-            pagination={pagination}
-            onPaginationChange={handlePaginationChange}
-            actions={rowActions}
-            onRowClick={handleTaskClick}
-            dataTestId={`${dataTestId}-${currentSection}`}
-          />
-        </DataDisplay>
-      </div>
-      {/* Task Detail Sheet - integrated into layout */}
+        ]}
+        currentSection="team"
+        searchValue={searchTerm}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel('common:searchTasks', 'Search tasks...')}
+        onSearchChange={handleSearch}
+        filters={hideFilters ? undefined : selectedFilters}
+        filterConfiguration={hideFilters ? undefined : dynamicFilterConfig}
+        onFilterChange={hideFilters ? undefined : handleFilterUpdate}
+        sorting={sorting}
+        sortableColumns={sortableColumns}
+        onSortingChange={setSorting}
+        availableColumns={availableColumns}
+        visibleColumns={visibleColumns}
+        onVisibleColumnsChange={setVisibleColumns}
+        primaryAction={
+          customPrimaryAction ||
+          (config.flowContexts.createContext ? (
+            <AppAction
+              contextsArray={[config.flowContexts.createContext]}
+              externalContextData={config.flowContexts.createContextData}
+              accessToken={accessToken}
+              data-testid="add-task-action"
+              emptyStateBehavior="hide"
+            >
+              <Button size="sm" variant="default" data-testid="add-task-button" type="button">
+                <Plus size={16} />
+                {getTranslationFromI18nKeyAndLabel('common:addTask', 'Add Task')}
+              </Button>
+            </AppAction>
+          ) : undefined)
+        }
+        secondaryActions={exportButtons}
+        toolbarDensity="default"
+        enableLiveFiltering={true}
+        filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterTasks', 'Filter Tasks')}
+        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
+          'common:filterTasksDescription',
+          'Apply filters to narrow down the task list'
+        )}
+      >
+        <TaskListLayout<TTask>
+          data={tasks}
+          loading={isLoading}
+          error={error}
+          totalCount={totalCount}
+          columns={columns.filter(col => visibleColumns.includes(col.id as string))}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          actions={rowActions}
+          onRowClick={handleTaskClick}
+          dataTestId={`${dataTestId}-team`}
+        />
+      </DataDisplay>
+
+      {/* Task Detail Sheet */}
       <TaskDetailSheet
         task={selectedTask as any}
         open={!!selectedTask}
@@ -521,6 +432,11 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         buildReferenceUrl={config.buildReferenceUrl}
         data-testid={`${dataTestId}-detail-sheet`}
         businessAppContext={context}
+        accessToken={accessToken}
+        assignedUserId={selectedTask?.taskAssignees?.[0]?.assignedUserId}
+        currentUserId={userInfo?.id}
+        flowContext={config.rowActionsContextArray?.[0]}
+        onTaskCompleted={() => loadTasks(false)}
       />
     </div>
   )

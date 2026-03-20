@@ -1,0 +1,559 @@
+# Hero
+nh-parent-label = Every Office
+nh-title = Notes
+nh-tabs-aria-label = Note sections
+nh-tab-my-notes = My Notes
+nh-tab-shared = Shared
+nh-tab-pinned = Pinned
+nh-tab-recent = Recent
+nh-tab-archived = Archived
+nh-refresh = Refresh
+
+sidebar-back-to-desk = Back to Desk
+sidebar-expand = Expand sidebar
+sidebar-collapse = Collapse sidebar
+sidebar-brand-title = Notes
+sidebar-section-notes = Notes
+sidebar-section-recent = Recent
+sidebar-brand-subtitle = NEWWORK Apps
+sidebar-new = New
+sidebar-home = Home
+sidebar-my-items = My Notes
+sidebar-shared = Shared with me
+sidebar-pinned = Pinned
+sidebar-recent = Recent
+sidebar-archived = Archived
+sidebar-storage = Storage
+sidebar-storage-cloud = Cloud storage
+sidebar-storage-notes = { $count } notes
+
+menu-new-text-title = Text Note
+menu-new-text-description = Type with keyboard
+menu-new-handwriting-title = Handwriting Note
+menu-new-handwriting-description = Write with Apple Pencil
+menu-new-folder-title = New Folder
+menu-new-folder-description = Organize notes into groups
+menu-new-template-title = From Template
+menu-new-template-description = Choose a template
+
+header-sort = Sort
+header-search-placeholder = Search...
+sort-name = Name
+sort-modified = Modified
+sort-created = Created
+table-owner = Owner
+
+empty-pinned-title = No pinned notes
+empty-pinned-description = Pin your important notes to access them quickly.
+empty-shared-title = Nothing shared with you
+empty-shared-description = When someone shares a note with you, it will appear here.
+empty-archived-title = No archived notes
+empty-archived-description = Archived notes will appear here.
+empty-default-title = No notes yet
+empty-default-description = Create your first note to get started.
+empty-create-note = Create Note
+
+menu-open = Open
+menu-share = Share
+menu-copy-link = Copy link
+menu-duplicate = Duplicate
+menu-pin = Pin
+menu-unpin = Unpin
+menu-remove-favorite = Remove from favorites
+menu-add-favorite = Add to favorites
+menu-archive = Archive
+menu-delete = Delete
+
+bulk-selected = {$count} selected
+
+owner-you = You
+owner-unknown = Unknown
+title-untitled-note = Untitled Note
+title-untitled = Untitled
+label-shared = Shared
+shared-with-count = Shared with { $count } { $count ->
+  [one] person
+ *[other] people
+}
+shared-click-manage = Click to manage
+
+confirm-delete = Are you sure you want to delete this note?
+toast-note-duplicated = Note duplicated
+toast-note-unpinned = Note unpinned
+toast-note-pinned = Note pinned
+toast-note-archived = Note archived
+toast-link-copied = Link copied to clipboard
+toast-favorite-removed = Removed from favorites
+toast-favorite-added = Added to favorites
+toast-text-note-created = Text note created
+toast-folder-created = Folder created
+toast-note-moved = Note moved to folder
+toast-move-failed = Failed to move note
+folder-new-folder-name = New Folder
+
+# Relative time
+time-just-now = Just now
+time-yesterday = Yesterday
+time-minutes-ago = { $count }m ago
+time-hours-ago = { $count }h ago
+time-days-ago = { $count }d ago
+time-days-ago-plural = { $count } days ago
+
+# FolderTreeSidebar
+folder-add-note-inside = Add Note Inside
+folder-rename = Rename
+menu-rename = Rename
+folder-move-to = Move to...
+folder-folders = Folders
+folder-new-note = New Note
+folder-collapse-sidebar = Collapse Sidebar
+folder-all-notes = All Notes
+folder-favorites = Favorites
+folder-archive = Archive
+folder-no-folders = No folders yet
+folder-create-to-start = Create a note to get started
+folder-settings = Settings
+
+# ShareNoteDialog
+share-title = Share "{ $title }"
+share-description = Share this note with team members. They'll be able to collaborate in real-time.
+share-add-people = Add People
+share-search-placeholder = Search by name or email...
+share-searching = Searching...
+share-sharing = Sharing...
+share-no-users = No users found
+share-selected-count = Selected ({ $count })
+share-permission-label = Permission:
+share-permission-view = Can View
+share-permission-view-desc = Can view but not make changes
+share-permission-comment = Can Comment
+share-permission-comment-desc = Can view and add comments
+share-permission-edit = Can Edit
+share-permission-edit-desc = Can view and edit content
+share-permission-owner = Owner
+share-permission-owner-desc = Full access including sharing
+share-success-blink = Shared successfully! Blink notifications sent.
+share-share-with = Share with { $count } { $count ->
+  [one] person
+ *[other] people
+}
+share-people-with-access = People with access
+share-label-owner = Owner
+share-not-shared = Not shared with anyone yet
+share-add-above = Add people above to share this note
+share-done = Done
+share-error-select = Please select at least one user to share with
+share-error-failed = Failed to share note. Please try again.
+share-toast-success = Shared "{ $title }" with { $count } { $count ->
+  [one] person
+ *[other] people
+}!
+
+# ManageSharesDialog
+manage-title = Manage Sharing
+manage-description = Manage who has access to "{ $title }"
+manage-retry = Retry
+manage-load-failed = Failed to load sharing information
+manage-people-tab = People ({ $count })
+manage-links-tab = Share Links ({ $count })
+manage-not-shared = This note hasn't been shared with anyone yet.
+manage-shared-at = Shared { $date }
+manage-create-link = Create Share Link
+manage-permission = Permission
+manage-expires-optional = Expires (optional)
+manage-permission-view-label = View
+manage-permission-comment-label = Comment
+manage-permission-edit-label = Edit
+manage-can-view = Can view
+manage-can-comment = Can comment
+manage-can-edit = Can edit
+manage-creating = Creating...
+manage-create-link-btn = Create Link
+manage-no-links = No share links created yet.
+manage-active = Active
+manage-inactive = Inactive
+manage-created-at = Created { $date }
+manage-expires-at = Expires { $date }
+manage-uses-count = { $count } uses
+manage-toast-permission = Permission updated
+manage-toast-revoked = Access revoked
+manage-toast-link-created = Link created and copied to clipboard!
+manage-toast-link-copied = Link copied to clipboard!
+manage-toast-link-deactivated = Link deactivated
+manage-toast-link-deleted = Link deleted
+
+# SearchCommand
+search-placeholder = Search notes or type a command...
+search-to-close = to close
+search-searching = Searching...
+search-no-results = No results found for "{ $query }"
+search-try-different = Try a different search term
+search-start-typing = Start typing to search notes
+search-category-recent = Recent
+search-category-notes = Notes
+search-category-actions = Quick Actions
+search-category-create = Create
+search-new-note = New Note
+search-new-note-desc = Create a blank note
+search-new-folder = New Folder
+search-new-folder-desc = Create a new folder
+search-go-pinned = Go to Pinned
+search-go-pinned-desc = View pinned notes
+search-go-archive = Go to Archive
+search-go-archive-desc = View archived notes
+search-go-shared = Go to Shared
+search-go-shared-desc = View shared notes
+search-to-navigate = to navigate
+search-to-select = to select
+search-k-to-open = K to open
+
+# NotePreviewCard
+preview-shared-by = Shared by { $name }
+preview-notes-count = { $count } { $count ->
+  [one] note
+ *[other] notes
+}
+preview-menu-edit = Edit
+preview-menu-move-to = Move to...
+preview-menu-manage-shares = Manage Shares
+
+# ActionItemsModal
+action-items-title = Action Items
+action-items-desc = Assign action items to team members. Selected items will be sent as blinks.
+action-items-tip = Tip: edit wording, remove items you don't want, then assign.
+action-items-add = Add
+action-items-assign-all = Assign all
+action-items-assign-all-desc = Apply one assignee to all action items (you can still change per item).
+action-items-assign-all-to = Assign all to…
+action-items-search = Search employees...
+action-items-no-employees = No employees found
+action-items-load-more = Load more
+action-items-loading = Loading...
+action-items-cancel = Cancel
+action-items-no-items = No action items found
+action-items-empty = Empty action item
+action-items-placeholder = Write an action item...
+action-items-save = Save
+action-items-assign-to = Assign to...
+action-items-sending = Sending...
+action-items-send-blinks = Send { $count } Blink{ $count ->
+  [one]
+ *[other] s
+}
+action-items-clear-all = Clear all assignees
+action-items-toast-select = Select at least one action item with text + assignee
+action-items-toast-sent = Sent { $count } action item{ $count ->
+  [one]
+ *[other] s
+} as blinks
+action-items-toast-failed-single = Failed to send { $count } action item
+action-items-toast-failed-plural = Failed to send { $count } action items
+action-items-toast-error = Failed to send action items
+action-items-blink-failed = Failed to send blink
+
+# TransformMenu
+transform-label = Transform
+transform-copy-text = Copy as Text
+transform-copy-text-desc = Extract and copy text
+transform-to-text = Convert to Text
+transform-to-text-desc = Replace with typed text
+transform-create-text-note = Create Text Note
+transform-create-text-note-desc = New note with text
+transform-summarize = Summarize
+transform-summarize-desc = AI summary of content
+transform-action-items = Extract Action Items
+transform-action-items-desc = Find tasks and to-dos
+transform-translate = Translate
+transform-translate-desc = Choose target language
+
+# SummaryPanel
+summary-title = AI Summary
+summary-copy-aria = Copy summary
+summary-delete-aria = Delete summary
+summary-collapse-aria = Collapse summary
+summary-expand-aria = Expand summary
+
+# TranslationPanel
+translation-title = Translation
+translation-to = to { $language }
+translation-copy-aria = Copy translation
+translation-delete-aria = Delete translation
+translation-collapse-aria = Collapse translation
+translation-expand-aria = Expand translation
+
+# Kanban
+kanban-column-todo = To Do
+kanban-column-in-progress = In Progress
+kanban-column-done = Done
+kanban-filter-all = Show all cards
+
+# TemplateGallery
+template-title = Choose a Template
+template-description = Start with a pre-built template to save time
+template-search-placeholder = Search templates...
+template-tab-all = All
+template-no-templates = No templates found
+template-try-different = Try a different search term
+template-category-meetings = Meetings
+template-category-projects = Projects
+template-category-personal = Personal
+template-category-work = Work
+template-category-other = Other
+template-built-in = Built-in
+template-cancel = Cancel
+template-blank-note = Blank Note
+template-blank-desc = Start with a clean slate
+template-start-blank = Start Blank
+
+# NoteEditor
+editor-back = Back
+editor-saving = Saving...
+editor-unsaved = Unsaved changes
+editor-not-saved = Not saved
+editor-saved-just-now = Saved just now
+editor-saved-1-min = Saved 1 minute ago
+editor-saved-mins = Saved { $count } minutes ago
+editor-saved-at = Saved at { $time }
+editor-word-count = { $count } words
+editor-char-count = { $count } characters
+editor-synced = Synced
+editor-error-unknown = Unknown error
+editor-color-default = Default
+editor-color-red = Red
+editor-color-orange = Orange
+editor-color-yellow = Yellow
+editor-color-green = Green
+editor-color-teal = Teal
+editor-color-blue = Blue
+editor-color-purple = Purple
+editor-color-pink = Pink
+editor-color-gray = Gray
+editor-format-bold = Bold (⌘B)
+editor-format-italic = Italic (⌘I)
+editor-format-underline = Underline (⌘U)
+editor-format-strikethrough = Strikethrough
+editor-format-heading-1 = Heading 1
+editor-format-heading-2 = Heading 2
+editor-format-heading-3 = Heading 3
+editor-format-bullet-list = Bullet List
+editor-format-numbered-list = Numbered List
+editor-format-task-list = Task List
+editor-format-quote = Quote
+editor-format-code-block = Code Block
+editor-format-mention = Mention Entity (@)
+editor-format-insert-kanban = Insert Kanban Board
+editor-add-to-kanban = Add to Kanban
+editor-create-kanban-board = Create Kanban Board
+editor-items-count = { $count } items
+editor-cards-count = { $count } cards
+editor-kanban-fallback = Kanban
+editor-active-collaborators = { $count } active
+editor-comments-tooltip = Comments (Right-click on text to add inline comment)
+editor-placeholder = Start writing... Type @ to mention entities
+editor-title-placeholder = Untitled
+editor-drag-open-tooltip = Drag to move • Click to open { $label }
+editor-entity-unknown = Unknown
+editor-entity-fallback = entity
+editor-change-color = Change color
+editor-share-tooltip = Share
+editor-pin-tooltip = Pin
+editor-unpin-tooltip = Unpin
+editor-locked = Locked
+editor-note-menu = Note
+editor-version-history = Version History
+editor-save-checkpoint = Save Checkpoint
+editor-unlock-note = Unlock Note
+editor-lock-note = Lock Note
+editor-publish = Publish...
+editor-duplicate = Duplicate
+editor-export = Export
+editor-archive = Archive
+editor-delete = Delete
+editor-toast-not-authenticated = Not authenticated
+editor-toast-no-text = No text to transform
+editor-toast-transform-failed = Transform failed
+editor-toast-copied = Copied to clipboard
+editor-toast-plain-text-copied = Plain text copied
+editor-toast-copied-create-manually = Copied (create note manually)
+editor-toast-summary-generated = Summary generated
+editor-toast-translation-created = Translation created
+editor-toast-translation-deleted = Translation deleted
+editor-toast-action-items-found = Found { $count } action item{ $count ->
+  [one]
+ *[other] s
+}
+editor-toast-no-action-items = No action items found
+
+# EntityMention (mention dropdown)
+entity-searching = Searching...
+entity-no-results = No results for "{ $query }"
+entity-type-to-search = Type to search entities
+entity-results-hint = { $count } result{ $count ->
+  [one]
+ *[other] s
+} • Use ↑↓ to navigate, Enter to select
+
+# useNotes
+notes-load-failed = Failed to load notes
+notes-load-note-failed = Failed to load note
+
+# Transform errors (TransformService, TextTransformService)
+transform-error-no-handwriting = No handwriting to transform
+transform-error-no-text = No text to transform
+transform-error-ocr-not-configured = OCR service not configured. Please contact administrator to set up OpenAI API key.
+transform-error-no-text-found = No text found in drawing
+transform-error-ocr-failed = OCR failed: { $message }
+transform-error-no-action-items = No action items found in the note.
+transform-error-no-action-items-short = No action items found.
+transform-error-ai-failed-hint = AI transformation failed: { $message }. Please try again or use "{ $copyTextAction }" to get the raw OCR result.
+transform-error-transform-failed = Transform failed
+transform-error-transform-failed-message = Transform failed: { $message }
+transform-error-ai-failed = AI transform failed
+
+# ShareNoteDialog Blink
+share-someone = Someone
+share-blink-note-shared = Note Shared
+share-blink-message = { $initiator } shared the note "{ $title }" with you. Click the link below to open it.
+
+# KanbanBoard
+kanban-user-fallback = User { $id }
+
+# Export (noteExportUtils)
+export-untitled = Untitled
+export-untitled-filename = untitled
+
+# Template names/descriptions (noteTemplates)
+template-name-meeting-notes = Meeting Notes
+template-desc-meeting-notes = Capture meeting agenda, attendees, and action items
+template-name-daily-journal = Daily Journal
+template-desc-daily-journal = Reflect on your day with prompts for gratitude and goals
+template-name-project-plan = Project Plan
+template-desc-project-plan = Structure your project with goals, milestones, and tasks
+template-name-weekly-review = Weekly Review
+template-desc-weekly-review = Review your week and plan for the next one
+template-name-brainstorm = Brainstorm
+template-desc-brainstorm = Capture ideas freely with mind mapping structure
+template-name-1on1 = 1:1 Meeting
+template-desc-1on1 = Template for one-on-one meetings with team members
+template-name-bug-report = Bug Report
+template-desc-bug-report = Document bugs with steps to reproduce and expected behavior
+
+# Translation language names (for UI display)
+translation-language-en = English
+translation-language-de = German
+translation-language-es = Spanish
+translation-language-fr = French
+translation-language-it = Italian
+translation-language-pt = Portuguese
+translation-language-nl = Dutch
+translation-language-pl = Polish
+translation-language-ru = Russian
+translation-language-zh = Chinese
+translation-language-ja = Japanese
+translation-language-ko = Korean
+translation-language-ar = Arabic
+
+# Quick Access
+qa-all-notes = All Notes
+qa-favorites = Favorites
+qa-pinned = Pinned
+qa-shared = Shared with Me
+qa-recent = Recent
+qa-archived = Archived
+
+# Tree sidebar
+tree-label = Notes
+tree-empty = No notes in tree
+tree-drag-hint = Drag to reorder or nest notes
+tree-drop-inside = Drop inside
+tree-drop-after = Drop after
+
+# Keyboard shortcuts
+shortcut-toggle-sidebar = Toggle sidebar (⌘B)
+shortcut-new-note = New note (⌘N)
+shortcut-search = Search (⌘K)
+
+# useNoteTree
+note-tree-load-failed = Failed to load note tree
+
+# HandwritingNote
+handwriting-untitled = Untitled
+handwriting-save-failed = Failed to save
+handwriting-not-authenticated = Not authenticated
+handwriting-no-content = No handwriting to transform
+handwriting-transform-failed = Transform failed
+handwriting-copied = ✓ Copied to clipboard!
+handwriting-converted = ✓ Converted to text!
+handwriting-text-extracted = ✓ Text extracted!
+handwriting-note-created = ✓ Text note created!
+handwriting-copied-not-available = ✓ Copied (note creation not available)
+handwriting-summary-generated = ✓ Summary generated!
+handwriting-action-items-found = ✓ Found { $count } action item{ $count ->
+  [one]
+ *[other] s
+}!
+handwriting-no-action-items = No action items found in the note.
+handwriting-translation-created = ✓ Translation created!
+handwriting-translation-deleted = ✓ Translation deleted
+handwriting-loaded-existing = Loaded { $count } existing action item{ $count ->
+  [one]
+ *[other] s
+}
+handwriting-save-title = Save
+handwriting-saving = Saving...
+handwriting-dismiss-aria = Dismiss
+handwriting-tasks = Tasks ({ $count })
+handwriting-action-items = Action Items
+handwriting-action-items-desc = Status of blinks created from this note.
+handwriting-clear-confirm = Clear all handwriting?
+
+# HandwritingToolbar
+toolbar-color = Color:
+toolbar-size = Size:
+toolbar-paper = Paper:
+toolbar-undo = Undo last stroke
+toolbar-clear = Clear all
+toolbar-pen-black = Black
+toolbar-pen-blue = Blue
+toolbar-pen-red = Red
+toolbar-pen-green = Green
+toolbar-pen-purple = Purple
+toolbar-pen-fine = Fine
+toolbar-pen-medium = Medium
+toolbar-pen-bold = Bold
+toolbar-paper-lined = Lined
+toolbar-paper-grid = Grid
+toolbar-paper-dotted = Dotted
+toolbar-paper-plain = Plain
+
+# ActionItemsList
+action-items-list-empty = No action items yet. Use "Transform → Extract Action Items" to create blinks.
+action-items-status-completed = Completed
+action-items-status-in-progress = In progress
+action-items-status-failed = Failed
+action-items-status-canceled = Canceled
+action-items-status-unknown = Unknown
+action-items-sent = Sent: { $date }
+action-items-completed = Completed: { $date }
+
+# Synced missing keys
+kanban-add = Hinzufügen
+kanban-assign-customize = Zuweisen und anpassen
+kanban-assign-to = Zuweisen an
+kanban-card-color = Kartenfarbe
+kanban-color-blue = Blau
+kanban-color-default = Standard
+kanban-color-green = Grün
+kanban-color-orange = Orange
+kanban-color-pink = Pink
+kanban-color-purple = Lila
+kanban-color-red = Rot
+kanban-color-yellow = Gelb
+kanban-column = Spalte
+kanban-empty = Leer
+kanban-linked-to-task = Mit Aufgabeneintrag verknüpft
+kanban-new-column = Neue Spalte
+kanban-no-participants = Keine Teilnehmer
+kanban-placeholder-enter-content = Karteninhalt eingeben...
+kanban-unassign = Zuweisung aufheben
+search-key-esc = Esc

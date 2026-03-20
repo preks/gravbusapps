@@ -9,6 +9,8 @@ export interface EmployeeFormValues {
   employmentTypeId: string
   contractTypeId: string
   hireDate: string
+  fixedTermUntil: string
+  fixedTermReason: string
 }
 
 export interface SelectOption {
@@ -42,6 +44,7 @@ export interface EmployeeContextState {
   // Job position specific methods
   searchJobPositions: (searchTerm?: string) => void
   loadMoreJobPositions: () => void
+  refetchJobPositions: () => void
   hasMoreJobPositions: boolean
   jobPositionsError: string | null
   jobPositionsLoading: boolean

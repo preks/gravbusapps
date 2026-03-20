@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
-import { PaperPlaneTilt, Paperclip, At, X, File } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useEntityMentions } from '../hooks/useEntityMentions'
-import { EntityMentionPopover } from './EntityMentionPopover'
-import type { EntityReference, MessageEntityReference } from '../types'
+import { PaperPlaneTilt, Paperclip, At, XIcon, File } from '@phosphor-icons/react'
+import { useEntityMentions, type EntityReference, type MessageEntityReference } from '@/common/hooks/useEntityMentions'
+import { EntityMentionPopover } from '@/common/components/entity-mentions'
+import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
+import type { Message } from '../types'
 
 // Persist focus state across unmounts caused by parent re-renders
 let lastHadFocus = false
@@ -18,7 +18,13 @@ interface Attachment {
 }
 
 interface MessageInputProps {
-  onSend: (content: string, entityReferences?: MessageEntityReference[], attachments?: Attachment[]) => void
+  onSend: (
+    content: string,
+    entityReferences?: MessageEntityReference[],
+    attachments?: Attachment[],
+    parentId?: string,
+    quotedMessageId?: string
+  ) => void
   onTypingStart: () => void
   onTypingStop: () => void
   disabled?: boolean
@@ -35,6 +41,9 @@ interface MessageInputProps {
   onFocusReady?: (focusFn: () => void) => void
   // Every Experts active in conversation
   activeExperts?: ActiveExpert[]
+  t: (key: string, params?: Record<string, any>) => string
+  quotedMessage?: Message | null
+  onCancelQuote?: () => void
 }
 
 export const MessageInput: React.FC<MessageInputProps> = memo(
@@ -43,15 +52,19 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     onTypingStart,
     onTypingStop,
     disabled = false,
-    placeholder = getTranslationFromI18nKeyAndLabel('chat.input.placeholder', 'Type a message...'),
+    placeholder,
     compact = false,
     accessToken = '',
     value: controlledValue,
     onChange,
     onRegisterMentionReady,
     onFocusReady,
-    activeExperts = []
+    activeExperts = [],
+    t,
+    quotedMessage,
+    onCancelQuote
   }) => {
+    const placeholderText = placeholder || t('chat-input-placeholder')
     const [uncontrolledValue, setUncontrolledValue] = useState('')
     const value = controlledValue !== undefined ? controlledValue : uncontrolledValue
     const [isTyping, setIsTyping] = useState(false)
@@ -68,6 +81,28 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     const lastProcessedPrependRef = useRef<string | null>(null)
     const isTypingRef = useRef<boolean>(false)
 
+    const searchDocuments = useCallback(
+      async (query: string): Promise<EntityReference[]> => {
+        if (!accessToken) return []
+        DocumentApiService.setAccessToken(accessToken)
+        const docs = await DocumentApiService.listDocuments({
+          search: query || undefined,
+          limit: 5,
+          includeShared: true
+        })
+        const lowerQuery = query.toLowerCase()
+        return docs
+          .filter(doc => !query || (doc.title || '').toLowerCase().includes(lowerQuery))
+          .map(doc => ({
+            id: doc.id,
+            type: 'document' as const,
+            name: doc.title || 'Untitled Document',
+            subtitle: `Document${doc.status ? ` • ${doc.status}` : ''}`
+          }))
+      },
+      [accessToken]
+    )
+
     const {
       entities,
       isLoading,
@@ -79,7 +114,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       removeMention: removeMentionFromHook,
       closeMention,
       registerMentionEntity
-    } = useEntityMentions(accessToken, activeExperts)
+    } = useEntityMentions(accessToken, { activeExperts, searchDocuments })
 
     // Helper to update value (works for both controlled and uncontrolled)
     const setValue = useCallback(
@@ -146,8 +181,8 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
           selection.addRange(range)
         }
       } else if (inputRef.current) {
-        inputRef.current.focus({ preventScroll: true })
         const cursorPosition = inputRef.current.value.length
+        inputRef.current.focus({ preventScroll: true })
         inputRef.current.setSelectionRange(cursorPosition, cursorPosition)
       }
     }, [])
@@ -193,10 +228,13 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
           }
         }
 
+        const quotedMessageId = quotedMessage?.id
         onSend(
           trimmedValue,
           entitiesToSend.length > 0 ? entitiesToSend : undefined,
-          attachments.length > 0 ? attachments : undefined
+          attachments.length > 0 ? attachments : undefined,
+          undefined,
+          quotedMessageId
         )
         if (controlledValue !== undefined) {
           onChange?.('')
@@ -207,6 +245,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
         setIsTyping(false)
         onTypingStop()
         clearMentions()
+        onCancelQuote?.()
 
         // Clear timers
         if (typingTimerRef.current) {
@@ -496,12 +535,13 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     }
 
     // Debug mount/unmount to detect remounts that could wipe state
-    useEffect(() => {
-      console.debug('[MessageInput] mount')
-      return () => {
-        console.debug('[MessageInput] unmount')
-      }
-    }, [])
+    // Track component lifecycle for debugging if needed
+    // useEffect(() => {
+    //   console.debug('[MessageInput] mount')
+    //   return () => {
+    //     console.debug('[MessageInput] unmount')
+    //   }
+    // }, [])
 
     // Reset selected index when entities change
     useEffect(() => {
@@ -570,7 +610,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
         // Add mention badge as inline HTML
         const showAvatar = mention.type === 'employee' && mention.pictureThumbnail
-        html += `<span contenteditable="false" class="mention-badge" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; background-color: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); margin: 0 0.125rem; vertical-align: middle; user-select: none; cursor: default;">`
+        html += `<span contenteditable="false" class="mention-badge" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; background-color: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); font-family: inherit; font-size: inherit; font-weight: inherit; margin: 0 0.125rem; vertical-align: middle; user-select: none; cursor: default;">`
         if (showAvatar) {
           html += `<img src="data:image/jpeg;base64,${mention.pictureThumbnail}" alt="${mention.name.replace(/"/g, '&quot;')}" style="width: 0.75rem; height: 0.75rem; border-radius: 9999px; object-fit: cover;" />`
         } else {
@@ -904,10 +944,14 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       [scheduleFocusRestoration]
     )
 
-    // Restore focus after re-renders if we had focus - run on every render
+    // Restore focus after ACTUAL remounts only (not every render)
+    // Track if this is the initial mount
+    const hasRestoredFocusRef = useRef(false)
+
     useLayoutEffect(() => {
-      // Restore focus if this input had focus before unmount
-      if ((shouldRestoreFocusRef.current || lastHadFocus) && inputRef.current) {
+      // Only restore focus once after the initial mount, not on every render
+      if ((shouldRestoreFocusRef.current || lastHadFocus) && inputRef.current && !hasRestoredFocusRef.current) {
+        hasRestoredFocusRef.current = true
         // Use requestAnimationFrame to ensure DOM is ready
         requestAnimationFrame(() => {
           if (inputRef.current && (shouldRestoreFocusRef.current || lastHadFocus)) {
@@ -916,7 +960,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
           }
         })
       }
-    }) // No dependencies - run on every render to catch remounts
+    }) // No dependencies - run on every render to catch remounts, but only restore once
 
     useEffect(() => {
       const activeElement = document.activeElement
@@ -963,11 +1007,44 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
     const hasContent = value.trim() || attachments.length > 0
 
+    const quotedName =
+      quotedMessage?.sender?.displayName ||
+      [quotedMessage?.sender?.firstName, quotedMessage?.sender?.lastName].filter(Boolean).join(' ').trim() ||
+      quotedMessage?.sender?.username ||
+      t('chat-user')
+
     return (
       <div
         className="gba:flex gba:flex-col gba:border-t gba:border-border/50 gba:bg-background/80 gba:backdrop-blur-sm gba:flex-shrink-0"
         data-testid="message-input"
       >
+        {/* Quoting strip */}
+        {quotedMessage && (
+          <div
+            className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:border-b gba:border-border/50 gba:bg-muted/30"
+            data-testid="message-input-quoting"
+          >
+            <span className="gba:text-xs gba:text-muted-foreground">
+              {t('chat-quoting-name', { name: quotedName })}
+            </span>
+            {quotedMessage.content && (
+              <span className="gba:text-xs gba:text-foreground/80 gba:truncate gba:max-w-[200px]">
+                {quotedMessage.content.length > 60 ? `${quotedMessage.content.slice(0, 60)}…` : quotedMessage.content}
+              </span>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="gba:ml-auto gba:flex-shrink-0 gba:h-6 gba:w-6"
+              onClick={onCancelQuote}
+              aria-label={t('chat-cancel-quote')}
+              data-testid="message-input-quoting-cancel"
+            >
+              <XIcon className="gba:w-3.5 gba:h-3.5" />
+            </Button>
+          </div>
+        )}
         {/* Attachment Preview */}
         {attachments.length > 0 && (
           <div className="gba:flex gba:gap-2 gba:p-2 gba:pb-0 gba:flex-wrap">
@@ -1031,7 +1108,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
               className={`gba:flex-shrink-0 gba:text-muted-foreground gba:hover:text-foreground ${
                 compact ? 'gba:h-7 gba:w-7' : 'gba:h-8 gba:w-8'
               }`}
-              title={getTranslationFromI18nKeyAndLabel('chat.attach', 'Attach file')}
+              title={t('chat-attach')}
               data-testid="message-attach-button"
             >
               <Paperclip className={compact ? 'gba:w-4 gba:h-4' : 'gba:w-4.5 gba:h-4.5'} />
@@ -1048,7 +1125,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
               className={`gba:flex-shrink-0 gba:text-muted-foreground gba:hover:text-foreground ${
                 compact ? 'gba:h-7 gba:w-7' : 'gba:h-8 gba:w-8'
               }`}
-              title={getTranslationFromI18nKeyAndLabel('chat.mention', 'Mention entity')}
+              title={t('chat-mention')}
               data-testid="message-mention-button"
             >
               <At className={compact ? 'gba:w-4 gba:h-4' : 'gba:w-4.5 gba:h-4.5'} />
@@ -1077,11 +1154,11 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
                 onKeyDown={handleKeyDown}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
-                data-placeholder={placeholder}
+                data-placeholder={placeholderText}
                 className={`gba:w-full gba:bg-muted/50 gba:border-0 focus-visible:gba:ring-1 focus-visible:gba:ring-primary/50 gba:rounded-md gba:px-3 gba:py-2 gba:outline-none gba:min-h-[36px] ${
                   compact ? 'gba:h-8 gba:text-sm' : 'gba:h-9'
                 } ${
-                  !value && placeholder
+                  !value && placeholderText
                     ? 'before:content-[attr(data-placeholder)] before:text-muted-foreground before:pointer-events-none'
                     : ''
                 }`}
@@ -1099,7 +1176,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
                 onKeyDown={handleKeyDown}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
-                placeholder={placeholder}
+                placeholder={placeholderText}
                 disabled={disabled}
                 className={`gba:w-full gba:bg-muted/50 gba:border-0 focus-visible:gba:ring-1 focus-visible:gba:ring-primary/50 ${
                   compact ? 'gba:h-8 gba:text-sm' : 'gba:h-9'

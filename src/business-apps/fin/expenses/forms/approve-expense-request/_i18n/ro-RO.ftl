@@ -28,6 +28,7 @@ label-request-id = ID cerere
 label-type = Tip
 label-title = Titlu
 label-comment = Comentariu
+label-employee-comment = Comentariul angajatului
 label-cost-center = Centru de cost
 label-project = Proiect
 label-currency = Monedă

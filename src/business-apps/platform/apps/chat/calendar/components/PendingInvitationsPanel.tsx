@@ -1,7 +1,29 @@
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge, IconAvatar, Spinner } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Badge,
+  IconAvatar,
+  Spinner,
+  useLocale
+} from '@newwork/nw-design-system'
+import dayjs from 'dayjs'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import isToday from 'dayjs/plugin/isToday'
+import isTomorrow from 'dayjs/plugin/isTomorrow'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
 import { Clock, User, Check, X, HelpCircle, Bell } from 'lucide-react'
-import type { Meeting, InvitationStatus } from '../types'
+import { useChatTranslation } from '../../contexts/TranslationContext'
+import { type Meeting, InvitationStatus } from '../types'
+
+dayjs.extend(localizedFormat)
+dayjs.extend(isToday)
+dayjs.extend(isTomorrow)
 
 interface PendingInvitationsPanelProps {
   invitations: Meeting[]
@@ -10,26 +32,18 @@ interface PendingInvitationsPanelProps {
   onViewDetails: (meeting: Meeting) => void
 }
 
-const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr)
-  const today = new Date()
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
+const formatDate = (dateStr: string, locale: string, t: (key: string) => string): string => {
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  const date = dayjs(dateStr)
 
-  if (date.toDateString() === today.toDateString()) {
-    return `Today at ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+  if (date.isToday()) {
+    return `${t('formatter-today')} ${date.locale(baseLocale).format('LT')}`
   }
-  if (date.toDateString() === tomorrow.toDateString()) {
-    return `Tomorrow at ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+  if (date.isTomorrow()) {
+    return `${t('formatter-tomorrow')} ${date.locale(baseLocale).format('LT')}`
   }
 
-  return date.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  })
+  return date.locale(baseLocale).format('ddd, MMM D, LT')
 }
 
 export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = ({
@@ -38,6 +52,9 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
   onRespond,
   onViewDetails
 }) => {
+  const t = useChatTranslation()
+  const { locale } = useLocale()
+
   if (isLoading) {
     return (
       <Card className="gba:mb-4">
@@ -88,7 +105,7 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
 
                   <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:mt-1">
                     <Clock className="gba:h-3 gba:w-3" />
-                    <span>{formatDate(meeting.startTime)}</span>
+                    <span>{formatDate(meeting.startTime, locale, t)}</span>
                   </div>
 
                   <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:mt-1">
@@ -96,13 +113,28 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
                     <span>from {organizerName}</span>
                   </div>
 
+                  {(meeting.transcriptionEnabled === true || meeting.metadata?.aiTranscriptionEnabled === true) && (
+                    <div
+                      className="gba:flex gba:items-center gba:gap-2 gba:mt-2"
+                      data-testid="pending-invitations-recording-notice"
+                    >
+                      <span
+                        className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                        aria-hidden
+                      />
+                      <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                        {t('chat-call-recordingTranscriptNotice')}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Quick response buttons */}
                   <div className="gba:flex gba:gap-2 gba:mt-3">
                     <Button
                       size="sm"
                       variant="outline"
                       className="gba:h-7 gba:text-xs gba:flex-1 gba:text-success gba:border-success/30 gba:hover:bg-success/10"
-                      onClick={() => onRespond(meeting.id, 'accepted')}
+                      onClick={() => onRespond(meeting.id, InvitationStatus.ACCEPTED)}
                     >
                       <Check className="gba:h-3 gba:w-3 gba:mr-1" />
                       Accept
@@ -111,7 +143,7 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
                       size="sm"
                       variant="outline"
                       className="gba:h-7 gba:text-xs gba:flex-1"
-                      onClick={() => onRespond(meeting.id, 'tentative')}
+                      onClick={() => onRespond(meeting.id, InvitationStatus.TENTATIVE)}
                     >
                       <HelpCircle className="gba:h-3 gba:w-3 gba:mr-1" />
                       Maybe
@@ -120,7 +152,7 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
                       size="sm"
                       variant="outline"
                       className="gba:h-7 gba:text-xs gba:flex-1 gba:text-destructive gba:border-destructive/30 gba:hover:bg-destructive/10"
-                      onClick={() => onRespond(meeting.id, 'declined')}
+                      onClick={() => onRespond(meeting.id, InvitationStatus.DECLINED)}
                     >
                       <X className="gba:h-3 gba:w-3 gba:mr-1" />
                       Decline

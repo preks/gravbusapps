@@ -10,6 +10,17 @@ export interface TaskEmployee {
   avatar?: string
   initials?: string
   pictureThumbnail?: string
+  userId?: string // Add userId for permission checks
+}
+
+export interface TaskAssigneeWithEmployee {
+  id: string
+  version?: number
+  assignedEmployee?: TaskEmployee
+  assignedEmployeeId?: string
+  assignedUserId?: string
+  taskStatus?: string
+  completedAt?: string
 }
 
 export interface TaskReference {
@@ -22,8 +33,8 @@ export interface TaskReference {
 export interface TaskDocument {
   id: string
   name: string
-  mimeType?: string
-  fileSize?: number
+  mimeType?: string | null
+  fileSize?: number | null
   version?: number
   description?: string
   documentGroupRef?: string
@@ -37,8 +48,10 @@ export interface Task {
   id: string
   name: string
   code?: string
+  businessKey?: string // Process business key shared by all task instances
   description?: string
-  assignedTo?: TaskEmployee // Optional - tasks can be unassigned
+  assignedTo?: TaskEmployee | TaskEmployee[] // Optional - can be single or array of assignees
+  taskAssignees?: TaskAssigneeWithEmployee[] // NEW: Junction table data with individual statuses
   type?: string // Optional - may not always have a type
   priority?: 'high' | 'medium' | 'urgent' | 'low' // Optional
   status?: 'in_progress' | 'pending' | 'completed' | 'overdue' // Optional

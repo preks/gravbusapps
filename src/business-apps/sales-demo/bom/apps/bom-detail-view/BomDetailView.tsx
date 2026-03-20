@@ -1,19 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { Row, Col, Card, Tabs, Statistic, Tag, Space, Typography, Button, Descriptions, Table } from 'antd'
-import {
-  PiCube,
-  PiArrowLeft,
-  PiEye,
-  PiTreeStructure,
-  PiGear,
-  PiCalendar,
-  PiDatabase,
-  PiArrowUp,
-  PiArrowDown,
-  PiMinus,
-  PiWarning,
-  PiCheckCircle
-} from 'react-icons/pi'
+import { CubeIcon, ArrowLeftIcon, EyeIcon, TreeStructureIcon, GearIcon, CalendarIcon, DatabaseIcon, ArrowUpIcon, ArrowDownIcon, MinusIcon, WarningIcon, CheckCircleIcon } from '@phosphor-icons/react'
 // import { ActionButton } from '@newwork/gravity-ui-catalog';
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -57,9 +44,9 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
 
   // Helper function to get trend icon
   const getTrendIcon = (trend: number) => {
-    if (trend > 0) return <PiArrowUp className="gba:text-green-500" />
-    if (trend < 0) return <PiArrowDown className="gba:text-red-500" />
-    return <PiMinus className="gba:text-gray-400" />
+    if (trend > 0) return <ArrowUpIcon className="gba:text-green-500" />
+    if (trend < 0) return <ArrowDownIcon className="gba:text-red-500" />
+    return <MinusIcon className="gba:text-gray-400" />
   }
 
   // Helper function to format date
@@ -191,7 +178,7 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
       render: (record: any) => (
         <Space direction="vertical" size="small">
           {record.isCritical && (
-            <Tag color="red" size="small" icon={<PiWarning />}>
+            <Tag color="red" size="small" icon={<WarningIcon />}>
               Critical
             </Tag>
           )}
@@ -212,18 +199,18 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
         <Row align="middle" justify="space-between">
           <Col>
             <div className="gba:flex gba:items-center gba:gap-4">
-              <Button type="text" icon={<PiArrowLeft />} onClick={handleBack} data-testid="back-button">
+              <Button type="text" icon={<ArrowLeftIcon />} onClick={handleBack} data-testid="back-button">
                 Back to Overview
               </Button>
               <div>
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <PiCube className="gba:text-2xl gba:text-blue-500" />
+                  <CubeIcon className="gba:text-2xl gba:text-blue-500" />
                   <Title level={3} className="gba:m-0">
                     {bom.name}
                   </Title>
                   <Tag
                     color={getBomStatusColor(bom.bomStatus)}
-                    icon={isCurrentlyActive() ? <PiCheckCircle /> : <PiWarning />}
+                    icon={isCurrentlyActive() ? <CheckCircleIcon /> : <WarningIcon />}
                   >
                     {bom.bomStatus}
                   </Tag>
@@ -285,7 +272,7 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
               key: 'overview',
               label: (
                 <Space>
-                  <PiEye />
+                  <EyeIcon />
                   <span>Overview</span>
                 </Space>
               ),
@@ -298,7 +285,7 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
                         <Statistic
                           title="Total Components"
                           value={kpiData?.totalComponents.value || 0}
-                          prefix={<PiGear />}
+                          prefix={<GearIcon />}
                           suffix={
                             <Space>
                               {getTrendIcon(kpiData?.totalComponents.trend || 0)}
@@ -350,7 +337,7 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
                         <Statistic
                           title="Critical Components"
                           value={kpiData?.criticalComponents.value || 0}
-                          prefix={<PiWarning />}
+                          prefix={<WarningIcon />}
                           suffix={
                             <Space>
                               {getTrendIcon(kpiData?.criticalComponents.trend || 0)}
@@ -393,7 +380,7 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
                           <Descriptions.Item label="Status">
                             <Tag
                               color={getBomStatusColor(bom.bomStatus)}
-                              icon={isCurrentlyActive() ? <PiCheckCircle /> : <PiWarning />}
+                              icon={isCurrentlyActive() ? <CheckCircleIcon /> : <WarningIcon />}
                             >
                               {isCurrentlyActive() ? 'Currently Active' : bom.bomStatus}
                             </Tag>
@@ -409,7 +396,7 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
               key: 'structure',
               label: (
                 <Space>
-                  <PiTreeStructure />
+                  <TreeStructureIcon />
                   <span>BOM Structure</span>
                 </Space>
               ),
@@ -423,7 +410,7 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
               key: 'components',
               label: (
                 <Space>
-                  <PiGear />
+                  <GearIcon />
                   <span>Components</span>
                 </Space>
               ),
@@ -450,7 +437,7 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
               key: 'validity',
               label: (
                 <Space>
-                  <PiCalendar />
+                  <CalendarIcon />
                   <span>Validity & Lifecycle</span>
                 </Space>
               ),
@@ -467,7 +454,7 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
                           <Descriptions.Item label="Current Status">
                             <Tag
                               color={getBomStatusColor(bom.bomStatus)}
-                              icon={isCurrentlyActive() ? <PiCheckCircle /> : <PiWarning />}
+                              icon={isCurrentlyActive() ? <CheckCircleIcon /> : <WarningIcon />}
                             >
                               {isCurrentlyActive() ? 'Currently Active' : bom.bomStatus}
                             </Tag>
@@ -495,7 +482,7 @@ const BomDetailView: React.FC<BomDetailViewProps> = ({ accessToken, bomId, onBac
               key: 'system',
               label: (
                 <Space>
-                  <PiDatabase />
+                  <DatabaseIcon />
                   <span>System Information</span>
                 </Space>
               ),

@@ -21,9 +21,9 @@ export const taskSchema = z.object({
   templateStartDate: z.string().nullable().optional(),
 
   // Task catalog references
-  taskTypeRef: z.string().nullable().optional(),
+  taskTypeRef: z.string().min(1, 'Type is required'),
   taskPriorityRef: z.string().min(1, 'Priority is required'),
-  taskStatusRef: z.string().min(1, 'Status is required'),
+  taskStatusRef: z.string().nullable().optional(), // Backend computed, not required from user
   taskTemplateId: z.string().nullable().optional(),
 
   // Related entities (IDs only for form)
@@ -40,6 +40,24 @@ export const taskSchema = z.object({
   assignedEmployee: z.any().optional(),
   creatorEmployee: z.any().optional(),
 
+  // Task Assignees (multiple assignees support - junction table)
+  taskAssignees: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        version: z.number().optional(),
+        assignedEmployeeId: z.string().optional(),
+        assignedUserId: z.string().nullable().optional(),
+        taskStatus: z.string().nullable().optional(),
+        completedAt: z.string().nullable().optional()
+      })
+    )
+    .optional(),
+
+  // Helper fields for MultiEmployeeSelect (not sent to backend)
+  assignedEmployeeIds: z.array(z.string()).optional(),
+  assignedEmployees: z.array(z.any()).optional(),
+
   // Documents
   documents: z
     .array(
@@ -47,8 +65,8 @@ export const taskSchema = z.object({
         id: z.string(),
         name: z.string().optional(),
         version: z.number().optional(),
-        mimeType: z.string().optional(),
-        fileSize: z.number().optional(),
+        mimeType: z.string().nullable().optional(),
+        fileSize: z.number().nullable().optional(),
         fileInfo: z.any().optional()
       })
     )
@@ -56,12 +74,11 @@ export const taskSchema = z.object({
 
   // Other fields
   source: z.string().nullable().optional(),
-  taskTiming: z.string().nullable().optional(),
 
   // Legacy/helper fields
   files: z.any().optional(),
   _pendingFiles: z.array(z.instanceof(File)).optional(),
-  relatedEntityId: z.string().nullable().optional()
+  relatedEntityId: z.string().min(1, 'Related entity is required')
 })
 
 export type TaskSchema = z.infer<typeof taskSchema>

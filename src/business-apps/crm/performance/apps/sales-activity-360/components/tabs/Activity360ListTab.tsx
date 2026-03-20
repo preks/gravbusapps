@@ -24,10 +24,26 @@ interface Activity360ListTabProps extends Pick<BusinessAppContextProps, 'accessT
   entityId?: string
 }
 
-// Query to get all employees for "all" view
+// Sales Associate capability name for filtering (consistent with Sales Performance module)
+const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
+// Query to get sales associates only - consistent with Sales Performance module
+// This ensures Sales Activity 360 shows the same employees as Sales Performance dashboards
 const GET_ALL_EMPLOYEES = `
   query GetAllEmployees {
-    Employee(where: { isDeleted: { _eq: false } }, limit: 1000) {
+    Employee(
+      where: { 
+        isDeleted: { _eq: false }
+        employeePosition: {
+          employeeCapabilities: {
+            capability: {
+              name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+            }
+          }
+        }
+      }
+      limit: 1000
+    ) {
       id
       fullName
     }
@@ -37,15 +53,14 @@ const GET_ALL_EMPLOYEES = `
 export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessToken, userInfo, filter, entityId }) => {
   const [search, setSearch] = useState('')
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'occurredAt', desc: true }])
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'ownerEmployee.displayName',
-    'title',
-    'activityType.value',
+    'occurredAt',
+    'ownerEmployee.fullName',
     'reference',
-    'createdAt',
-    'occurredAt'
+    'activityType.value',
+    'title'
   ])
   const [allEmployeeIds, setAllEmployeeIds] = useState<string[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(true)
@@ -154,7 +169,7 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
   }, [selectedFilters, entityFilters, convertToTeamFilters])
 
   const sortField = useMemo(() => {
-    if (sorting.length === 0) return 'createdAt'
+    if (sorting.length === 0) return 'occurredAt'
     return sorting[0].id as any
   }, [sorting])
 
@@ -230,19 +245,23 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
         filterSheetTitle="Filter Activities"
         filterSheetDescription="Apply filters to narrow down the activity list"
       >
-        <DataTable<TeamSalesActivity>
-          data={activities}
-          columns={columns}
-          loading={loading}
-          totalCount={total}
-          pagination={pagination}
-          sorting={sorting}
-          onPaginationChange={setPagination}
-          onSortingChange={setSorting}
-          enablePagination
-          enableSorting
-          enableSelection={false}
-        />
+        <div className="gba:w-full gba:overflow-x-auto">
+          <DataTable<TeamSalesActivity>
+            data={activities}
+            columns={columns}
+            loading={loading}
+            totalCount={total}
+            pagination={pagination}
+            sorting={sorting}
+            onPaginationChange={setPagination}
+            onSortingChange={setSorting}
+            enablePagination
+            enableSorting
+            enableSelection={false}
+            enableResizing={false}
+            tableLayout="fixed"
+          />
+        </div>
       </DataDisplay>
 
       {error && (

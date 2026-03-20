@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -11,6 +11,19 @@ import TaskSection from '@/common/components/common-relations/record-sections/ta
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import type { HomeViewProps } from './types'
 import { buildCustomerAccountFromLead, buildCustomerContactFromLead } from '../../utils/leadDataTransformers'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/customer/constants/customerCatalogs'
+import {
+  APPROVAL_TASK_TYPE_REF,
+  APP_NAME,
+  FILE_CONTEXT,
+  getFileEntityFromType
+} from '@/common/data/customer/constants/customerConstants'
+import { getReferenceEntityType } from '@/common/data/customer/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import { buildCustomerTaskPayload } from '@/common/data/customer/types/customerTaskTypes'
+import { buildCustomerActivityPayload } from '@/common/data/customer/types/customerActivityTypes'
+import { buildCustomerNotePayload } from '@/common/data/customer/types/customerNoteTypes'
 
 // Build reference URLs for CRM context
 const buildReferenceUrl = (reference: TaskReference): string => {
@@ -43,13 +56,52 @@ export const HomeView: React.FC<HomeViewProps> = ({
   taskActionProps,
   approvalActionProps,
   accessToken,
+  userInfo,
   ...props
 }) => {
+  const fileClient = useFileClient({ accessToken, userInfo })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [userInfo, fileClient]
+  )
+  const activityPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [userInfo, fileClient]
+  )
+  const notePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false
+    }),
+    [userInfo, fileClient]
+  )
+
   return (
     <>
-      {/* Account Section - 1/3 width */}
+      {/* Account Section - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'account-section',
@@ -65,9 +117,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         data-testid="lead-account-section-wrapper"
       />
 
-      {/* Contact Section - 1/3 width */}
+      {/* Contact Section - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'contact-section',
@@ -83,9 +135,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         data-testid="lead-contact-section-wrapper"
       />
 
-      {/* Activities Section - 1/3 width, full height */}
+      {/* Activities & Notes Section - 1/2 width, spans 2 rows */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2 gba:min-h-196 gba:max-h-196"
         sections={[
           {
             id: 'activities-section',
@@ -93,6 +145,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
+              userInfo,
+              leadId,
               activities: activities,
               activitiesLoading: sectionsLoading,
               activitiesError: sectionsError,
@@ -107,16 +161,42 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: { leadId },
                 prefixDataTestId: 'lead-activity-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              activityTypeCatalog: ACTIVITY_TYPE,
+              buildActivityPayload: buildCustomerActivityPayload,
+              preSubmit: activityPreSubmit
+            }
+          },
+          {
+            id: 'notes-section',
+            component: NoteSection as React.ComponentType<any>,
+            props: {
+              ...props,
+              accessToken,
+              leadId,
+              preSubmit: notePreSubmit,
+              notes: notes,
+              noteActionProps: {
+                ...noteActionProps,
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.customerNoteEntity],
+                externalContextData: { leadId },
+                prefixDataTestId: 'lead-note-entity',
+                emptyStateBehavior: 'enable'
+              },
+              buildNotePayload: buildCustomerNotePayload,
+              'data-testid': 'lead-notes-section'
             }
           }
         ]}
-        data-testid="lead-activities-section-wrapper"
+        data-testid="lead-activities-notes-section-wrapper"
       />
 
-      {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
+      {/* Tasks & Approvals - 1/2 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'tasks-section',
@@ -124,6 +204,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
+              userInfo,
               leadId: leadId,
               buildReferenceUrl,
               tasks: tasks,
@@ -137,6 +218,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 prefixDataTestId: 'lead-task-entity',
                 emptyStateBehavior: 'enable'
               },
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildCustomerTaskPayload,
+              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit,
               'data-testid': 'lead-tasks-section'
             }
           },
@@ -146,6 +232,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
+              userInfo,
               leadId: leadId,
               buildReferenceUrl,
               tasks: approvals,
@@ -160,39 +247,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 emptyStateBehavior: 'enable'
               },
               sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approval Tasks'),
+              typeCatalog: TASK_TYPE,
+              buildTaskPayload: buildCustomerTaskPayload,
+              priorityCatalog: TASK_PRIORITY,
+              isApprovalTaskSection: true,
+              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit,
               'data-testid': 'lead-approvals-section'
             }
           }
         ]}
         data-testid="lead-tasks-approvals-section-wrapper"
-      />
-
-      {/* Notes Section - 2/3 width, spans 3 rows */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-3"
-        sections={[
-          {
-            id: 'notes-section',
-            component: NoteSection,
-            props: {
-              ...props,
-              accessToken,
-              notes: notes,
-              noteActionProps: {
-                ...noteActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.customerNoteEntity],
-                externalContextData: { leadId },
-                prefixDataTestId: 'lead-note-entity',
-                emptyStateBehavior: 'enable'
-              },
-              'data-testid': 'lead-notes-section'
-            }
-          }
-        ]}
-        data-testid="lead-notes-section-wrapper"
       />
     </>
   )

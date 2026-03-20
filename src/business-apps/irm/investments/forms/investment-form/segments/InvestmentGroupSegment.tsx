@@ -7,66 +7,85 @@ import { InvestmentType } from '@/common/data/investment/hooks/useInvestmentType
 
 const prefixDataTestId = 'investment-form-group-select-segment'
 
-// Normalized map for investment group detection
-const INVESTMENT_GROUP_MAP: Record<string, string> = {
-  // Liquid Fund variations
-  'liquid-fund': 'InvestmentGroup:v1:LIQUID_FUND',
-  liquid_fund: 'InvestmentGroup:v1:LIQUID_FUND',
-  'liquid-funds': 'InvestmentGroup:v1:LIQUID_FUND',
-  liquid_funds: 'InvestmentGroup:v1:LIQUID_FUND',
-  LIQUID_FUND: 'InvestmentGroup:v1:LIQUID_FUND',
-  'LIQUID-FUND': 'InvestmentGroup:v1:LIQUID_FUND',
-  LIQUID_FUNDS: 'InvestmentGroup:v1:LIQUID_FUND',
-  'LIQUID-FUNDS': 'InvestmentGroup:v1:LIQUID_FUND',
+/**
+ * Detects investment group from input string by matching against catalog data.
+ * This is fully dynamic and works with any groups defined in the catalog.
+ *
+ * @param input - String to match (could be ID, tabId, code, or display name)
+ * @param investmentGroups - Array of investment groups from catalog
+ * @returns Full investment group ID if match found, null otherwise
+ */
+const detectGroupFromCatalog = (
+  input: string | null | undefined,
+  investmentGroups: InvestmentType[]
+): string | null => {
+  if (!input || investmentGroups.length === 0) return null
 
-  // Real Estate variations
-  'real-estate': 'InvestmentGroup:v1:REAL_ESTATE',
-  real_estate: 'InvestmentGroup:v1:REAL_ESTATE',
-  REAL_ESTATE: 'InvestmentGroup:v1:REAL_ESTATE',
-  'REAL-ESTATE': 'InvestmentGroup:v1:REAL_ESTATE',
-  realestate: 'InvestmentGroup:v1:REAL_ESTATE',
-  REALESTATE: 'InvestmentGroup:v1:REAL_ESTATE',
-
-  // Equity variations
-  equity: 'InvestmentGroup:v1:EQUITY',
-  EQUITY: 'InvestmentGroup:v1:EQUITY',
-  equities: 'InvestmentGroup:v1:EQUITY',
-  EQUITIES: 'InvestmentGroup:v1:EQUITY'
-}
-
-// Single function to detect investment group from any string input
-const detectGroupFromString = (input: string | null | undefined): string | null => {
-  if (!input) return null
-
-  // Direct lookup first
-  if (INVESTMENT_GROUP_MAP[input]) {
-    return INVESTMENT_GROUP_MAP[input]
+  // 1. If input is already a full investment group ID, validate it exists and return
+  if (input.startsWith('InvestmentGroup:v1:')) {
+    return investmentGroups.some(g => g.id === input) ? input : null
   }
 
-  // Partial match for URLs and complex strings
-  for (const [key, value] of Object.entries(INVESTMENT_GROUP_MAP)) {
-    if (input.includes(key)) {
-      return value
-    }
-  }
+  const normalizedInput = input.toLowerCase().trim()
+
+  // 2. Try exact match against tabId (highest confidence)
+  // tabId format: code.toLowerCase().replace(/_/g, '-')
+  // This handles cases like "private-equity", "equity", "test", etc.
+  const tabIdMatch = investmentGroups.find(group => {
+    const tabId = group.code.toLowerCase().replace(/_/g, '-')
+    return tabId === normalizedInput
+  })
+  if (tabIdMatch) return tabIdMatch.id
+
+  // 3. Try exact match against code (case-insensitive)
+  const codeMatch = investmentGroups.find(group => group.code.toLowerCase() === normalizedInput)
+  if (codeMatch) return codeMatch.id
+
+  // 4. Try exact match against displayValue/value (case-insensitive)
+  const displayMatch = investmentGroups.find(group => {
+    const display = (group.displayValue || group.value || '').toLowerCase()
+    return display === normalizedInput
+  })
+  if (displayMatch) return displayMatch.id
+
+  // 5. Only as last resort: check if input contains the tabId as a complete word
+  // Use word boundary matching to avoid "private-equity" matching "equity"
+  const partialMatch = investmentGroups.find(group => {
+    const tabId = group.code.toLowerCase().replace(/_/g, '-')
+    // Match whole word only (e.g., /\bequity\b/ matches "equity" but not "private-equity")
+    const regex = new RegExp(`\\b${tabId}\\b`, 'i')
+    return regex.test(input)
+  })
+  if (partialMatch) return partialMatch.id
 
   return null
 }
 
-// Consolidated detection function with single responsibility
+/**
+ * Consolidated detection function that attempts to auto-detect investment group
+ * from various context sources (additionalData, URL params, referrer, etc.)
+ *
+ * @param businessAppContext - Business app context containing additionalData
+ * @param investmentGroups - Array of investment groups from catalog
+ * @param onGroupSelect - Callback to invoke when group is detected
+ * @param setIsDetectingContext - State setter for detection loading state
+ * @param setContextDetectionComplete - State setter for detection completion
+ * @returns true if group was detected and selected, false otherwise
+ */
 const detectInvestmentGroup = (
   businessAppContext: any,
+  investmentGroups: InvestmentType[],
   onGroupSelect: (group: string) => void,
   setIsDetectingContext: (value: boolean) => void,
   setContextDetectionComplete: (value: boolean) => void
 ): boolean => {
   try {
-    // Ordered source evaluation
+    // Ordered source evaluation (priority from highest to lowest)
     const sources = [
-      // 1. Business app context data (primary)
-      businessAppContext?.additionalData?.fromSubView,
+      // 1. Business app context data (primary) - direct from button click
+      businessAppContext?.additionalData?.investmentGroup, // Direct group ID (highest priority)
+      businessAppContext?.additionalData?.fromSubView, // Tab ID from button
       businessAppContext?.additionalData?.subView,
-      businessAppContext?.additionalData?.investmentGroup,
       businessAppContext?.additionalData?.fromView,
       businessAppContext?.additionalData?.view,
 
@@ -82,9 +101,9 @@ const detectInvestmentGroup = (
       globalThis.location.href
     ]
 
-    // Find first valid investment group
+    // Find first valid investment group from catalog
     for (const source of sources) {
-      const detectedGroup = detectGroupFromString(source)
+      const detectedGroup = detectGroupFromCatalog(source, investmentGroups)
       if (detectedGroup) {
         // Special case: Skip auto-detection for overview/all contexts
         if (source) {
@@ -152,18 +171,23 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       return false
     }
 
+    // Don't auto-detect if groups haven't loaded yet - wait for useEffect
+    if (investmentGroups.length === 0) {
+      return false
+    }
+
     try {
       // Use simplified detection to determine if auto-detection is possible
       const sources = [
+        businessAppContext?.additionalData?.investmentGroup,
         businessAppContext?.additionalData?.fromSubView,
         businessAppContext?.additionalData?.subView,
-        businessAppContext?.additionalData?.investmentGroup,
         new URLSearchParams(globalThis.location.search).get('fromSubView'),
         new URLSearchParams(globalThis.location.search).get('subView')
       ]
 
       for (const source of sources) {
-        if (detectGroupFromString(source)) {
+        if (detectGroupFromCatalog(source, investmentGroups)) {
           // Skip auto-detection for overview/all contexts
           if (source) {
             const normalized = source.trim().toLowerCase()
@@ -187,7 +211,7 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
 
   // Guard to prevent duplicate detection calls
   const isDetectingLocal = useRef(false)
-  const hasDetected = useRef(!shouldAutoDetect)
+  const hasDetected = useRef(false)
 
   // Auto-detect investment group from URL context
   useEffect(() => {
@@ -196,16 +220,36 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       return
     }
 
+    // Wait for investmentGroups to be loaded before attempting detection
+    if (investmentGroups.length === 0) {
+      return
+    }
+
+    // Skip detection if explicitly disabled
+    if (skipAutoDetection) {
+      setIsDetectingContext(false)
+      setContextDetectionComplete(true)
+      hasDetected.current = true
+      return
+    }
+
     // Set guard before detection
     isDetectingLocal.current = true
+    setIsDetectingContext(true)
 
-    // Use consolidated detection function
-    detectInvestmentGroup(businessAppContext, onGroupSelect, setIsDetectingContext, setContextDetectionComplete)
+    // Use consolidated detection function with catalog data
+    detectInvestmentGroup(
+      businessAppContext,
+      investmentGroups,
+      onGroupSelect,
+      setIsDetectingContext,
+      setContextDetectionComplete
+    )
 
     // Update guards after detection
     hasDetected.current = true
     isDetectingLocal.current = false
-  }, [onGroupSelect, businessAppContext])
+  }, [onGroupSelect, businessAppContext, investmentGroups, skipAutoDetection])
 
   return (
     <div data-testid={formatDataTestId(prefixDataTestId, 'container')} className="gba:p-6">

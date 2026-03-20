@@ -1,4 +1,10 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useLocale } from '@newwork/nw-design-system'
+import dayjs from 'dayjs'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
 import { CalendarApiClient, createCalendarApiClient } from '../calendarApiClient'
 import type {
   CalendarView,
@@ -12,10 +18,14 @@ import type {
 } from '../types'
 import { getWeekRange, getMonthRange, getDayRange } from '../types'
 
+dayjs.extend(localizedFormat)
+
 interface UseCalendarOptions {
   accessToken: string
   apiUrl: string
   wsUrl?: string
+  /** External calendar events to merge with internal events */
+  externalEvents?: CalendarEvent[]
 }
 
 interface UseCalendarReturn {
@@ -56,10 +66,11 @@ interface UseCalendarReturn {
   viewTitle: string
 }
 
-export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCalendarReturn => {
+export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCalendarOptions): UseCalendarReturn => {
+  const { locale } = useLocale()
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
   const [view, setView] = useState<CalendarView>('day')
-  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [internalEvents, setInternalEvents] = useState<CalendarEvent[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<Meeting[]>([])
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -87,32 +98,40 @@ export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCal
 
   // Generate view title
   const viewTitle = useMemo((): string => {
-    const options: Intl.DateTimeFormatOptions = { month: 'long', year: 'numeric' }
+    const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
 
     switch (view) {
-      case 'day':
-        return currentDate.toLocaleDateString(undefined, {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric'
-        })
+      case 'day': {
+        // German and Romanian use day before month with leading zero (e.g., "Freitag, 09. Januar 2026")
+        const dayFormat = baseLocale === 'de' || baseLocale === 'ro' ? 'dddd, DD. MMMM YYYY' : 'dddd, MMMM D, YYYY'
+        return dayjs(currentDate).locale(baseLocale).format(dayFormat)
+      }
       case 'week': {
-        const weekStart = dateRange.start
-        const weekEnd = dateRange.end
-        if (weekStart.getMonth() === weekEnd.getMonth()) {
-          return `${weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} - ${weekEnd.getDate()}, ${weekEnd.getFullYear()}`
+        const weekStart = dayjs(dateRange.start).locale(baseLocale)
+        const weekEnd = dayjs(dateRange.end).locale(baseLocale)
+
+        // German and Romanian use day before month with leading zero
+        if (baseLocale === 'de' || baseLocale === 'ro') {
+          if (weekStart.month() === weekEnd.month()) {
+            return `${weekStart.format('DD.')} - ${weekEnd.format('DD. MMMM YYYY')}`
+          }
+          return `${weekStart.format('DD. MMM')} - ${weekEnd.format('DD. MMM YYYY')}`
         }
-        return `${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+
+        // English format
+        if (weekStart.month() === weekEnd.month()) {
+          return `${weekStart.format('MMMM D')} - ${weekEnd.format('D, YYYY')}`
+        }
+        return `${weekStart.format('MMM D')} - ${weekEnd.format('MMM D, YYYY')}`
       }
       case 'month':
-        return currentDate.toLocaleDateString(undefined, options)
+        return dayjs(currentDate).locale(baseLocale).format('MMMM YYYY')
       default:
-        return currentDate.toLocaleDateString(undefined, options)
+        return dayjs(currentDate).locale(baseLocale).format('MMMM YYYY')
     }
-  }, [currentDate, view, dateRange])
+  }, [currentDate, view, dateRange, locale])
 
-  // Load events for current date range
+  // Load internal events for current date range (stable callback for manual refresh)
   const loadEvents = useCallback(async () => {
     if (!apiClient) return
 
@@ -121,7 +140,14 @@ export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCal
 
     try {
       const loadedEvents = await apiClient.getCalendarEvents(dateRange.start, dateRange.end)
-      setEvents(loadedEvents)
+
+      // Mark internal events with source
+      setInternalEvents(
+        loadedEvents.map(evt => ({
+          ...evt,
+          source: 'internal' as const
+        }))
+      )
     } catch (err) {
       console.error('Error loading calendar events:', err)
       setError('Failed to load calendar events')
@@ -129,6 +155,60 @@ export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCal
       setIsLoading(false)
     }
   }, [apiClient, dateRange])
+
+  // Load events only when date range actually changes (stable deps to avoid request storm)
+  const rangeStartMs = dateRange.start.getTime()
+  const rangeEndMs = dateRange.end.getTime()
+  useEffect(() => {
+    if (!apiClient) return
+
+    let cancelled = false
+    setIsLoading(true)
+    setError(null)
+
+    const start = new Date(rangeStartMs)
+    const end = new Date(rangeEndMs)
+    apiClient
+      .getCalendarEvents(start, end)
+      .then(loadedEvents => {
+        if (cancelled) return
+        setInternalEvents(
+          loadedEvents.map(evt => ({
+            ...evt,
+            source: 'internal' as const
+          }))
+        )
+      })
+      .catch(err => {
+        if (!cancelled) {
+          console.error('Error loading calendar events:', err)
+          setError('Failed to load calendar events')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [apiClient, rangeStartMs, rangeEndMs])
+
+  // Merge internal + external events (does not re-fetch when external events change)
+  const events = useMemo(() => {
+    const rangeStart = dateRange.start.getTime()
+    const rangeEnd = dateRange.end.getTime()
+    const filteredExternal = externalEvents.filter(evt => {
+      const evtStart = evt.start.getTime()
+      const evtEnd = evt.end.getTime()
+      return evtStart < rangeEnd && evtEnd > rangeStart
+    })
+
+    // Filter out cancelled/deleted meetings and sort by start time
+    return [...internalEvents, ...filteredExternal]
+      .filter(event => event.status !== 'cancelled')
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+  }, [internalEvents, externalEvents, dateRange])
 
   // Load pending invitations
   const loadInvitations = useCallback(async () => {
@@ -141,11 +221,6 @@ export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCal
       console.error('Error loading pending invitations:', err)
     }
   }, [apiClient])
-
-  // Load events when date range changes
-  useEffect(() => {
-    loadEvents()
-  }, [loadEvents])
 
   // Load invitations on mount
   useEffect(() => {

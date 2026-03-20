@@ -3,32 +3,50 @@ import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-s
 import { User, Calendar } from 'lucide-react'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { formatDate } from '@/common/utils/windowUtils'
-import { PiPhone, PiEnvelope, PiUsers, PiListChecks, PiUser, PiBuilding, PiTarget, PiHandshake } from 'react-icons/pi'
+import dayjs from 'dayjs'
+import {
+  PhoneIcon,
+  EnvelopeIcon,
+  UsersIcon,
+  ListChecksIcon,
+  UserIcon,
+  BuildingIcon,
+  TargetIcon,
+  HandshakeIcon
+} from '@phosphor-icons/react'
+// Format date helper
+const formatDateDisplay = (date: string | Date | undefined): string => {
+  if (!date) return '-'
+  const d = dayjs(date)
+  if (!d.isValid()) return '-'
+  return d.format('MMM D, YYYY')
+}
 
-// Get activity type icon
+// Get activity type icon — no colour classes; inherits black from badge override
 const getActivityTypeIcon = (type: string) => {
   switch (type) {
     case 'Call':
-      return <PiPhone size={16} className="gba:text-success" />
+      return <PhoneIcon size={16} />
     case 'Email':
-      return <PiEnvelope size={16} className="gba:text-primary" />
+      return <EnvelopeIcon size={16} />
     case 'Meeting':
-      return <PiUsers size={16} className="gba:text-warning" />
+      return <UsersIcon size={16} />
     case 'Task':
-      return <PiListChecks size={16} className="gba:text-accent" />
+      return <ListChecksIcon size={16} />
     default:
-      return <PiListChecks size={16} className="gba:text-muted-foreground" />
+      return <ListChecksIcon size={16} />
   }
 }
 
 // Get activity type badge variant
-const getActivityTypeVariant = (type: string): 'default' | 'secondary' | 'success' | 'warning' | 'destructive' => {
+const getActivityTypeVariant = (
+  type: string
+): 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline' => {
   switch (type) {
     case 'Call':
       return 'success'
     case 'Email':
-      return 'default'
+      return 'outline'
     case 'Meeting':
       return 'warning'
     case 'Task':
@@ -42,26 +60,32 @@ const getActivityTypeVariant = (type: string): 'default' | 'secondary' | 'succes
 const getEntityTypeIcon = (entityType: string) => {
   switch (entityType) {
     case 'Contact':
-      return <PiUser size={14} />
+      return <UserIcon size={14} />
     case 'Lead':
-      return <PiTarget size={14} />
+      return <TargetIcon size={14} />
     case 'Opportunity':
-      return <PiHandshake size={14} />
+      return <HandshakeIcon size={14} />
     case 'Account':
-      return <PiBuilding size={14} />
+      return <BuildingIcon size={14} />
+    case 'Investment':
+      return <HandshakeIcon size={14} />
     default:
-      return <PiUser size={14} />
+      return <UserIcon size={14} />
   }
 }
 
 // Get entity name from activity
-const getEntityName = (activity: Activity): string => {
+const getEntityName = (activity: Activity): string | null => {
   if (activity.account?.name) {
     return activity.account.name
   }
   if (activity.contact) {
     const contactName = `${activity.contact.firstName || ''} ${activity.contact.lastName || ''}`.trim()
     if (contactName) return contactName
+  }
+  // Check for investment (IRM-specific)
+  if ((activity as any).investment?.name) {
+    return (activity as any).investment.name
   }
   if (activity.lead) {
     // Lead doesn't have a name field - use firstName/lastName or companyName
@@ -72,31 +96,39 @@ const getEntityName = (activity: Activity): string => {
   if (activity.opportunity?.name) {
     return activity.opportunity.name
   }
-  return 'No reference'
+  return null
 }
 
 // Get entity type from activity
-const getEntityType = (activity: Activity): string => {
+const getEntityType = (activity: Activity): string | null => {
   // Match the same logic as getEntityName - check actual data, not just IDs
   if (activity.account?.name) return 'Account'
   if (activity.contact?.firstName || activity.contact?.lastName) return 'Contact'
+  // Check for investment (IRM-specific)
+  if ((activity as any).investment?.name) return 'Investment'
   if (activity.lead?.companyName || activity.lead?.firstName || activity.lead?.lastName) return 'Lead'
   if (activity.opportunity?.name) return 'Opportunity'
-  return 'No reference'
+  return null
 }
 
 // Handle entity reference click
 const handleEntityReferenceClick = (activity: Activity) => {
   let url = ''
 
+  // Determine app context (crm or irm) based on whether investment exists
+  const isIRM = (activity as any).investmentId !== undefined
+  const appPrefix = isIRM ? 'irm' : 'crm'
+
   if (activity.accountId) {
-    url = buildPlatformUrl('/platform/crm/account-record', { accountId: activity.accountId })
+    url = buildPlatformUrl(`/platform/${appPrefix}/account-record`, { accountId: activity.accountId })
   } else if (activity.contactId) {
-    url = buildPlatformUrl('/platform/crm/contact-record', { contactId: activity.contactId })
+    url = buildPlatformUrl(`/platform/${appPrefix}/contact-record`, { contactId: activity.contactId })
+  } else if ((activity as any).investmentId) {
+    url = buildPlatformUrl('/platform/irm/investment-record', { investmentId: (activity as any).investmentId })
   } else if (activity.leadId) {
-    url = buildPlatformUrl('/platform/crm/lead-record', { leadId: activity.leadId })
+    url = buildPlatformUrl(`/platform/${appPrefix}/lead-record`, { leadId: activity.leadId })
   } else if (activity.opportunityId) {
-    url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: activity.opportunityId })
+    url = buildPlatformUrl(`/platform/${appPrefix}/opportunity-record`, { opportunityId: activity.opportunityId })
   }
 
   if (url) {
@@ -203,8 +235,8 @@ export const createActivityColumns = (config: ActivityColumnsConfig = {}): Colum
       cell: ({ row }) => {
         const title = safeString(row.original.title)
         return (
-          <div className="gba:flex gba:flex-col gba:gap-1">
-            <span className="gba:text-sm gba:font-medium" title={title}>
+          <div className="gba:flex gba:flex-col gba:gap-1 gba:overflow-hidden gba:max-w-[250px]">
+            <span className="gba:text-sm gba:font-medium gba:truncate" title={title}>
               {title || '-'}
             </span>
             {row.original.description && (
@@ -224,7 +256,7 @@ export const createActivityColumns = (config: ActivityColumnsConfig = {}): Colum
       cell: ({ row }) => {
         const type = row.original.activityType?.value || 'Other'
         return (
-          <Badge variant={getActivityTypeVariant(type)} className="gba:gap-1.5">
+          <Badge variant={getActivityTypeVariant(type)} className="gba:gap-1.5 gba:!text-black">
             {getActivityTypeIcon(type)}
             <span>{type}</span>
           </Badge>
@@ -241,12 +273,18 @@ export const createActivityColumns = (config: ActivityColumnsConfig = {}): Colum
         const entityName = getEntityName(activity)
         const entityType = getEntityType(activity)
 
-        // Check if we have actual reference data (not just IDs)
-        const hasReference = entityName !== 'No reference' && entityType !== 'No reference'
+        // Check if we have actual reference data (entityName and entityType will be null if no reference)
+        const hasReference = entityName !== null && entityType !== null
 
-        // If no reference, show simple text
+        // If no reference, show "General"
         if (!hasReference) {
-          return <span className="gba:text-sm gba:text-muted-foreground gba:italic">No reference</span>
+          return (
+            <div className="gba:flex gba:items-center gba:gap-1.5">
+              <Badge variant="outline" className="gba:text-xs">
+                General
+              </Badge>
+            </div>
+          )
         }
 
         // If we have a reference, show clickable button with name and type
@@ -258,10 +296,13 @@ export const createActivityColumns = (config: ActivityColumnsConfig = {}): Colum
         return (
           <button
             type="button"
-            className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:w-full"
+            className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:overflow-hidden gba:max-w-[200px]"
             onClick={handleClick}
           >
-            <span className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline" title={entityName}>
+            <span
+              className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline gba:truncate"
+              title={entityName}
+            >
               {entityName}
             </span>
             <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
@@ -278,7 +319,7 @@ export const createActivityColumns = (config: ActivityColumnsConfig = {}): Colum
       header: 'Created',
       size: 150,
       cell: ({ row }) => {
-        const date = formatDate(row.original.createdAt)
+        const date = formatDateDisplay(row.original.createdAt)
         return (
           <div className="gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -293,7 +334,7 @@ export const createActivityColumns = (config: ActivityColumnsConfig = {}): Colum
       header: 'Occurred',
       size: 150,
       cell: ({ row }) => {
-        const date = formatDate(row.original.occurredAt)
+        const date = formatDateDisplay(row.original.occurredAt)
         return (
           <div className="gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />

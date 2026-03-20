@@ -20,12 +20,13 @@ import {
   AlertDescription
 } from '@newwork/nw-design-system'
 import { Network, Type, CheckCircle, AlertCircle, Copy, X, Loader2, TestTube2 } from 'lucide-react'
-import { FlowTemplate } from '../../types/flowTemplate'
+import { FlowTemplate, InputType } from '../../types/flowTemplate'
 import { TreeNode as TreeNodeType } from '../../types/expressionTree'
 import { CatalogMetadata } from '../../types/catalogTypes'
 import { BaseEntity, isBaseEntity, getEntityDisplayLabel, getEntityDescription } from '../../types/baseEntity'
 import { TreeNavigator } from './TreeNavigator'
 import { QuickActions } from './QuickActions'
+import { HumanReadablePreview } from './HumanReadablePreview'
 import { buildExpressionTree, pathToExpression } from '../../utils/expressionTreeBuilder'
 import { useExpressionValidator } from '../../hooks/useExpressionValidator'
 import { useExpressionTesting } from '../../hooks/useExpressionTesting'
@@ -66,9 +67,9 @@ const validateExpressionStrict = (value: string): { isValid: boolean; message?: 
   })
 
   // Check if remaining text contains suspicious characters
-  // Allow: letters, numbers, spaces, basic punctuation (. , ! ? : ; - _ / \)
-  // Disallow: @ # $ % ^ & * ( ) + = { } [ ] | < >
-  const suspiciousCharPattern = /[@#$%^&*+={}[\]|<>]/
+  // Allow: letters, numbers, spaces, most punctuation including @ ; ` < >
+  // Disallow: # $ % ^ & * ( ) + = { } [ ] | (expression-like characters)
+  const suspiciousCharPattern = /[#$%^&*+={}[\]|]/
 
   if (suspiciousCharPattern.test(remainingText)) {
     const suspiciousChars = remainingText.match(suspiciousCharPattern)
@@ -120,6 +121,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const [recentExpressions, setRecentExpressions] = useState<string[]>([])
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [cursorPosition, setCursorPosition] = useState<number>(0)
+  const [readableMap, setReadableMap] = useState<Record<string, string>>({})
 
   // Catalog state - NEW
   const [catalogs, setCatalogs] = useState<CatalogMetadata[]>([])
@@ -158,7 +160,8 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const { testExpression, testResult, isTesting, clearResult } = useExpressionTesting(
     template,
     stepIndex,
-    context.accessToken
+    context.accessToken,
+    context.userInfo?.id // Pass authenticated user ID for orgchart expression testing
   )
 
   // Sync local value with prop
@@ -306,6 +309,14 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const handleInputKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const target = e.target as HTMLTextAreaElement
     setCursorPosition(target.selectionStart || 0)
+  }
+
+  /**
+   * Build human-readable label for a node selection
+   * Returns just the label - the HumanReadablePreview component handles visual display
+   */
+  const buildReadableLabel = (node: TreeNodeType): string => {
+    return node.label || node.description || 'Field'
   }
 
   /**
@@ -564,52 +575,157 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
     }, 0)
   }
 
-  const handleNodeSelect = (node: TreeNodeType) => {
-    // Handle catalog browser click - load entries
-    if (node.type === 'catalog-browser') {
-      if (node.metadata?.offset) {
-        // This is a "Load More" button
-        handleLoadMore(node)
-      } else if (node.metadata?.loadingState === 'idle') {
-        // Initial browse click
-        handleBrowseEntries(node)
-      }
-      return
-    }
+  // --- Node Selection Handlers (extracted to reduce complexity) ---
 
-    // Handle entity browser click - now handled by inline search UI in TreeNode
-    // The search input will appear, and user will trigger search via handleEntitySearch
-    if (node.type === 'entity-browser') {
-      // Don't auto-browse anymore - let the inline search UI handle it
-      return
+  const handleCatalogBrowserSelect = (node: TreeNodeType) => {
+    if (node.metadata?.offset) {
+      handleLoadMore(node)
+    } else if (node.metadata?.loadingState === 'idle') {
+      handleBrowseEntries(node)
     }
+  }
 
-    // Handle entity instance or entity field with expression template
-    if ((node.type === 'entity-instance' || node.type === 'entity-field') && node.expressionTemplate) {
-      insertAtCursor(node.expressionTemplate)
-      return
-    }
+  const handleEntityInstanceSelect = (node: TreeNodeType) => {
+    if (!node.expressionTemplate) return
 
-    // Handle catalog entry click - insert entry reference
-    if (node.type === 'catalog-entry' && node.expressionTemplate) {
-      insertAtCursor(node.expressionTemplate)
-      return
-    }
+    const entityType = (node.metadata?.entityType || 'employee').toLowerCase()
+    const idExpr = node.expressionTemplate
+    const formatted = `${entityType}://${idExpr}`
 
-    // Handle regular field selection
-    if (node.type === 'field' && node.path) {
-      // Build expression from path for workflow/steps fields
-      const expression = pathToExpression(node.path)
+    setReadableMap(prev => ({ ...prev, [idExpr]: node.label || 'Entity' }))
+    insertAtCursor(formatted)
+  }
+
+  const handleEntityFieldSelect = (node: TreeNodeType) => {
+    if (!node.expressionTemplate) return
+
+    const exprKey = node.expressionTemplate
+    setReadableMap(prev => ({ ...prev, [exprKey]: node.label || 'Field' }))
+    insertAtCursor(node.expressionTemplate)
+  }
+
+  const handleCatalogEntrySelect = (node: TreeNodeType) => {
+    if (!node.expressionTemplate) return
+
+    const readable = buildReadableLabel(node)
+    const exprKey = node.expressionTemplate
+    setReadableMap(prev => ({ ...prev, [exprKey]: readable }))
+    insertAtCursor(node.expressionTemplate)
+  }
+
+  const handleOrgChartFieldSelect = (node: TreeNodeType) => {
+    if (node.expressionTemplate) {
+      // Replace ID_PLACEHOLDER with $workflow.initiator as the most common use case
+      // User can edit if needed
+      const expression = node.expressionTemplate.replace('ID_PLACEHOLDER', '$workflow.initiator')
       insertAtCursor(expression)
-    } else if (node.type === 'catalog-field' || node.type === 'catalog-container') {
-      // Use pre-built expression template for catalog fields
-      if (node.expressionTemplate) {
-        insertAtCursor(node.expressionTemplate)
-      } else if (node.expressionPath) {
-        // Fallback to expressionPath (wrap in braces if needed)
-        const expression = node.expressionPath.startsWith('{{') ? node.expressionPath : `{{${node.expressionPath}}}`
-        insertAtCursor(expression)
-      }
+    }
+  }
+
+  const handleFieldSelect = (node: TreeNodeType) => {
+    if (!node.path) return
+
+    // OrgChart field click - handle separately
+    if (node.type === 'orgchart-field') {
+      handleOrgChartFieldSelect(node)
+      return
+    }
+
+    // Entity fields from static entity schema
+    if (node.path[0] === '$entity') {
+      const expression = pathToExpression(node.path)
+      setReadableMap(prev => ({ ...prev, [expression]: node.label || 'Entity Field' }))
+      insertAtCursor(expression)
+      return
+    }
+
+    // File inputs: insert file URL with fileId, name, and download path
+    if (node.metadata?.inputType === InputType.FILE) {
+      handleFileFieldSelect(node)
+      return
+    }
+
+    // Entity data source fields (SELECT/MULTISELECT with entity data)
+    if (node.metadata?.dataSourceType === 'ENTITY' && node.metadata?.dataSourceEntity) {
+      handleEntityDataSourceFieldSelect(node)
+      return
+    }
+
+    // Default: workflow/steps fields
+    const expression = pathToExpression(node.path)
+    const readable = buildReadableLabel(node)
+    setReadableMap(prev => ({ ...prev, [expression]: readable }))
+    insertAtCursor(expression)
+  }
+
+  const handleFileFieldSelect = (node: TreeNodeType) => {
+    if (!node.path) return
+
+    const idExpr = pathToExpression([...node.path, '[0]', 'fileId'])
+    const fileNameExpr = pathToExpression([...node.path, '[0]', 'fileName'])
+    const downloadExpr = pathToExpression([...node.path, '[0]', 'downloadPath'])
+    const fileLink = `file://${idExpr}/name/${fileNameExpr}/url/${downloadExpr}`
+
+    setReadableMap(prev => ({
+      ...prev,
+      [idExpr]: node.label || 'File ID',
+      [fileNameExpr]: node.label || 'File Name',
+      [downloadExpr]: node.label ? `${node.label} Download` : 'File Download'
+    }))
+    insertAtCursor(fileLink)
+  }
+
+  const handleEntityDataSourceFieldSelect = (node: TreeNodeType) => {
+    if (!node.path) return
+
+    const entityType = (node.metadata?.dataSourceEntity as string).toLowerCase()
+    const idExpr = pathToExpression(node.path)
+    const entityRef = `${entityType}://${idExpr}`
+
+    setReadableMap(prev => ({ ...prev, [idExpr]: node.label || 'Entity' }))
+    insertAtCursor(entityRef)
+  }
+
+  const handleCatalogFieldSelect = (node: TreeNodeType) => {
+    if (node.expressionTemplate) {
+      const readable = buildReadableLabel(node)
+      const exprKey = node.expressionTemplate
+      setReadableMap(prev => ({ ...prev, [exprKey]: readable }))
+      insertAtCursor(node.expressionTemplate)
+    } else if (node.expressionPath) {
+      const expression = node.expressionPath.startsWith('{{') ? node.expressionPath : `{{${node.expressionPath}}}`
+      const readable = buildReadableLabel(node)
+      setReadableMap(prev => ({ ...prev, [expression]: readable }))
+      insertAtCursor(expression)
+    }
+  }
+
+  // --- Main Node Selection Handler ---
+
+  const handleNodeSelect = (node: TreeNodeType) => {
+    switch (node.type) {
+      case 'catalog-browser':
+        handleCatalogBrowserSelect(node)
+        break
+      case 'entity-browser':
+        // Handled by inline search UI in TreeNode
+        break
+      case 'entity-instance':
+        handleEntityInstanceSelect(node)
+        break
+      case 'entity-field':
+        handleEntityFieldSelect(node)
+        break
+      case 'catalog-entry':
+        handleCatalogEntrySelect(node)
+        break
+      case 'field':
+        handleFieldSelect(node)
+        break
+      case 'catalog-field':
+      case 'catalog-container':
+        handleCatalogFieldSelect(node)
+        break
     }
   }
 
@@ -832,6 +948,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
 
   const handleClear = () => {
     setLocalValue('')
+    setReadableMap({})
   }
 
   const handleCopy = () => {
@@ -958,6 +1075,23 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
                 {validationResult && validationResult.isValid && localValue.trim() && (
                   <div className="gba:text-xs gba:text-gray-500">
                     Note: Field names are validated at runtime when the workflow executes
+                  </div>
+                )}
+                {/* Human-readable preview with rich pill components */}
+                {localValue.trim() && (
+                  <div className="gba:space-y-2 gba:rounded-lg gba:border gba:border-muted gba:bg-muted/30 gba:p-3">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Badge variant="secondary" className="gba:text-xs">
+                        Human-readable
+                      </Badge>
+                      <span className="gba:text-xs gba:text-muted-foreground">Contextual view of expressions</span>
+                    </div>
+                    <HumanReadablePreview
+                      value={localValue}
+                      template={template}
+                      readableOverrides={readableMap}
+                      data-testid={`${testId}-preview`}
+                    />
                   </div>
                 )}
               </div>
@@ -1104,27 +1238,103 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
                       </div>
                     </div>
 
-                    {/* Future Features Section */}
-                    <div className="gba:border-t gba:pt-4">
-                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base gba:text-gray-500">Coming Soon</h4>
-                      <p className="gba:text-xs gba:text-gray-500 gba:mb-3 gba:italic">
-                        These features are planned for future releases
+                    {/* OrgChart Section */}
+                    <div>
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base">OrgChart - Organizational Hierarchy</h4>
+                      <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
+                        Access managers, skip-level managers, and direct reports based on organizational structure
                       </p>
-                      <div className="gba:space-y-3 gba:opacity-50">
+                      <div className="gba:space-y-2">
+                        <div>
+                          <h5 className="gba:font-medium gba:mb-1 gba:text-sm gba:text-blue-700">
+                            By User ID (Recommended)
+                          </h5>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.managerByUserId[$workflow.initiator]}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My manager (user ID)
+                            </span>
+                          </code>
+                        </div>
+                        <div>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.managerByUserId[$workflow.initiator].name}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My manager's display name
+                            </span>
+                          </code>
+                        </div>
+                        <div>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.skipLevelManagerByUserId[$workflow.initiator]}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My director (skip-level manager)
+                            </span>
+                          </code>
+                        </div>
+                        <div>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.directReportsByUserId[$workflow.initiator]}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My team members (array of user IDs)
+                            </span>
+                          </code>
+                        </div>
+                      </div>
+                      <div className="gba:mt-3 gba:space-y-2">
+                        <h5 className="gba:font-medium gba:mb-1 gba:text-sm gba:text-gray-700">By Employee ID</h5>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$orgchart.manager[$workflow.input.employeeId]}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Manager of specific employee
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$orgchart.manager[$workflow.input.employeeId].email}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Manager's email address
+                          </span>
+                        </code>
+                      </div>
+                      <div className="gba:mt-3 gba:space-y-2">
+                        <h5 className="gba:font-medium gba:mb-1 gba:text-sm gba:text-blue-700">ID Conversion</h5>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$orgchart.userIdByEmployeeId[$steps.step_0.formData.selectedEmployee]}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Convert employeeId from form to userId (for assignments)
+                          </span>
+                        </code>
+                      </div>
+                    </div>
+
+                    {/* Catalog & Entity Section */}
+                    <div>
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base">Catalog & Entity Data</h4>
+                      <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
+                        Access catalog entries and entity records
+                      </p>
+                      <div className="gba:space-y-2">
                         <div>
                           <h5 className="gba:font-medium gba:mb-1 gba:text-sm">Catalog Data</h5>
-                          <code className="gba:block gba:p-2 gba:bg-gray-50 gba:rounded gba:text-xs">
-                            {'{{$catalog.asset-management[0].name}}'}
+                          <code className="gba:block gba:p-2 gba:bg-gray-100 gba:rounded gba:text-xs gba:font-mono">
+                            {"{{$catalog.asset-management['asset-001'].name}}"}
                             <br />
-                            {'{{$catalog.employees[emp-001].email}}'}
+                            {"{{$catalog.employees['emp-001'].email}}"}
                           </code>
                         </div>
                         <div>
                           <h5 className="gba:font-medium gba:mb-1 gba:text-sm">Entity References</h5>
-                          <code className="gba:block gba:p-2 gba:bg-gray-50 gba:rounded gba:text-xs">
-                            {'{{$entity.ticket.TKT-123.subject}}'}
+                          <code className="gba:block gba:p-2 gba:bg-gray-100 gba:rounded gba:text-xs gba:font-mono">
+                            {'{{$entity.employee.emp-123.firstName}}'}
                             <br />
-                            {'{{$entity.employee.{{$workflow.initiator}}.email}}'}
+                            {'{{$entity.department.dept-456.name}}'}
                           </code>
                         </div>
                       </div>
@@ -1174,13 +1384,23 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
               </AlertTitle>
               <AlertDescription className="nw:mt-2">
                 {testResult.success ? (
-                  <div className="nw:space-y-1">
+                  <div className="nw:space-y-2">
+                    {testResult.info && (
+                      <div className="nw:text-xs nw:bg-blue-50 nw:px-2 nw:py-1 nw:rounded nw:text-blue-800">
+                        ℹ️ {testResult.info}
+                      </div>
+                    )}
                     <div className="nw:flex nw:items-start nw:gap-2">
                       <span className="nw:text-xs nw:text-muted-foreground nw:shrink-0">Resolved to:</span>
                       <code className="nw:bg-muted nw:px-2 nw:py-1 nw:rounded nw:text-sm nw:flex-1 nw:break-all">
                         {testResult.resolvedValue}
                       </code>
                     </div>
+                    {testResult.warning && (
+                      <div className="nw:text-xs nw:bg-yellow-50 nw:px-2 nw:py-1 nw:rounded nw:text-yellow-800">
+                        ⚠️ {testResult.warning}
+                      </div>
+                    )}
                     <div className="nw:text-muted-foreground nw:text-xs nw:italic">
                       Resolved in {testResult.resolvedIn} using sample data
                     </div>

@@ -10,15 +10,13 @@ import {
   Textarea,
   Combobox
 } from '@newwork/nw-design-system'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useTranslation } from 'react-i18next'
 import { Capability, CapabilityLayer } from '../../apps/organizational-data/components/tabs/CapabilitiesTab'
 import { FormWrapperModal } from '@/components/form-wrapper'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 const DATA_TEST_ID_PREFIX = 'CapabilityForm'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 export interface CapabilityFormProps extends BusinessAppContextProps {
   capability?: Capability
@@ -49,7 +47,7 @@ const CapabilityForm: React.FC<CapabilityFormProps> = ({
   layers = []
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const { t } = useTranslation('master-data')
 
   const [loading, setLoading] = useState(false)
@@ -82,11 +80,11 @@ const CapabilityForm: React.FC<CapabilityFormProps> = ({
       }
 
       if (capability) {
-        await restClient.put(`/capabilities/${capability.id}`, capabilityData, {
+        await orgchartClient.updateCapability(capability.id, capabilityData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       } else {
-        await restClient.post(`/capabilities`, capabilityData, {
+        await orgchartClient.createCapability(capabilityData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       }
@@ -149,7 +147,7 @@ const CapabilityForm: React.FC<CapabilityFormProps> = ({
         )}
       />
 
-      <style jsx>{`
+      <style>{`
         [data-slot='popover-content'] {
           z-index: 1002 !important;
         }

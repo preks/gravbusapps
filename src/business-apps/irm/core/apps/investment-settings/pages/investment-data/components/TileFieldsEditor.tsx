@@ -9,8 +9,8 @@ import {
   DragEndEvent
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
-import { Button, Card, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { PiPlus } from 'react-icons/pi'
+import { Button, Card, Alert, AlertDescription, EmptyState } from '@newwork/nw-design-system'
+import { PlusIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TileField } from '../types'
 import { SortableTileItem } from './SortableTileItem'
@@ -96,12 +96,13 @@ export const TileFieldsEditor: React.FC<TileFieldsEditorProps> = ({
   }
 
   return (
-    <div className="gba:space-y-4" data-testid={prefixDataTestId}>
+    <div className="gba:space-y-6" data-testid={prefixDataTestId}>
       <Card className="gba:p-6" data-testid={`${prefixDataTestId}-container`}>
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
           <h3 className="gba:text-lg gba:font-semibold gba:m-0">Tile Fields Configuration</h3>
           <Button onClick={handleAddTile} data-testid={`${prefixDataTestId}-add-button`}>
-            <PiPlus /> Add Tile
+            <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+            Add Tile
           </Button>
         </div>
 
@@ -119,11 +120,16 @@ export const TileFieldsEditor: React.FC<TileFieldsEditorProps> = ({
         )}
 
         {normalizedTileFields.length === 0 ? (
-          <Alert data-testid={`${prefixDataTestId}-no-tiles`}>
-            {isInherited
-              ? 'No tile fields configured in the parent group.'
-              : 'No tile fields configured. Click "Add Tile" to create one.'}
-          </Alert>
+          <div data-testid={`${prefixDataTestId}-no-tiles`}>
+            <EmptyState
+              title={isInherited ? 'No tile fields in parent group' : 'No tile fields configured yet'}
+              description={
+                isInherited
+                  ? 'The parent group has no tile fields configured'
+                  : 'Click "Add Tile" to create your first tile field'
+              }
+            />
+          </div>
         ) : (
           <DndContext
             sensors={sensors}

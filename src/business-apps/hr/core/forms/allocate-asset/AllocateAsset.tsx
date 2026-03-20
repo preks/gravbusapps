@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Form,
@@ -13,13 +13,15 @@ import {
   SelectContent,
   SelectItem,
   Textarea,
-  DateInput
+  DateInput,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import dayjs from 'dayjs'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -31,6 +33,7 @@ import { useAssetFormData } from '../return-asset/hooks/useAssetFormData'
 import { useAssetVersion } from '../return-asset/hooks/useAssetVersion'
 import { dispatchProcessCompletionEvents } from '../return-asset/utils/processEventUtils'
 import { useAssetService } from '../../apps/assets/services/useAssetService'
+import assetsTranslations from '../../apps/assets/_i18n'
 
 type FormValues = {
   employeeId: string
@@ -41,7 +44,7 @@ type FormValues = {
 }
 
 const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
-  const { additionalData } = context
+  const { additionalData, userInfo } = context
   const { assetId, existingAsset, assetVersion, assetDisplayName } = useAssetFormData(additionalData)
   const { resolveAssetVersion } = useAssetVersion(context, {
     assetId,
@@ -54,7 +57,8 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
   const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
   const [allocationError, setAllocationError] = React.useState<string | null>(null)
 
-  const { getAllocationsForAsset } = useAssetService(context)
+  const { t } = useTranslation(assetsTranslations)
+  const { getAllocationsForAsset, deallocateAsset } = useAssetService(context)
 
   useEffect(() => {
     const checkLocale = () => {
@@ -71,26 +75,56 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
     return () => clearInterval(interval)
   }, [currentLocale])
 
+  const acquisitionDate = existingAsset?.acquisitionDate
+
+  const issueDateBeforePurchaseMessage = t('issue-date-not-before-purchase')
+
+  const isStartDateBeforeAcquisition = useCallback(
+    (startDateStr: string): boolean => {
+      if (!startDateStr || !acquisitionDate) return false
+      let start = dayjs(startDateStr).startOf('day')
+      if (!start.isValid() && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(startDateStr.trim())) {
+        const [d, m, y] = startDateStr.split('/').map(Number)
+        start = dayjs(new Date(y, m - 1, d))
+      }
+      const acquisition = dayjs(acquisitionDate).startOf('day')
+      if (!start.isValid() || !acquisition.isValid()) return false
+      return start.isBefore(acquisition)
+    },
+    [acquisitionDate]
+  )
+
   const formSchema = useMemo(
     () =>
-      z.object({
-        employeeId: z
-          .string()
-          .min(
-            1,
-            getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.please_select_employee', 'Please select an employee')
-          ),
-        startDate: z
-          .string()
-          .min(
-            1,
-            getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start_date_required', 'Start date is required')
-          ),
-        expectedEndDate: z.string().optional(),
-        startAssetConditionRef: z.string().optional(),
-        notes: z.string().optional()
-      }),
-    [currentLocale]
+      z
+        .object({
+          employeeId: z
+            .string()
+            .min(
+              1,
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_assets.please_select_employee',
+                'Please select an employee'
+              )
+            ),
+          startDate: z
+            .string()
+            .min(
+              1,
+              getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start_date_required', 'Start date is required')
+            ),
+          expectedEndDate: z.string().optional(),
+          startAssetConditionRef: z.string().optional(),
+          notes: z.string().optional()
+        })
+        .refine(
+          data => {
+            if (!data.startDate || !acquisitionDate) return true
+            return !isStartDateBeforeAcquisition(data.startDate)
+          },
+          { message: issueDateBeforePurchaseMessage, path: ['startDate'] }
+        ),
+    [currentLocale, acquisitionDate, isStartDateBeforeAcquisition, issueDateBeforePurchaseMessage]
   )
 
   const {
@@ -108,12 +142,19 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
   const { options: conditionOptions, isLoading: conditionsLoading } = useAssetConditionCatalog(context)
 
+  const defaultStartDate = useMemo(() => {
+    const today = dayjs().format('YYYY-MM-DD')
+    if (!acquisitionDate) return today
+    const acquisitionStr = dayjs(acquisitionDate).format('YYYY-MM-DD')
+    return dayjs(today).isBefore(dayjs(acquisitionStr), 'day') ? acquisitionStr : today
+  }, [acquisitionDate])
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     mode: 'onChange',
     defaultValues: {
       employeeId: '',
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: defaultStartDate,
       expectedEndDate: '',
       startAssetConditionRef: '',
       notes: ''
@@ -174,20 +215,50 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         const today = new Date()
         today.setHours(0, 0, 0, 0)
 
+        // New allocation start must be on or after the latest return date (and today)
+        let latestReturnDate: Date | null = null
+        for (const allocation of existingAllocations) {
+          if (allocation.isDeleted || !allocation.endDate) continue
+          const end = new Date(allocation.endDate)
+          if (Number.isNaN(end.getTime())) continue
+          end.setHours(0, 0, 0, 0)
+          if (!latestReturnDate || end > latestReturnDate) {
+            latestReturnDate = end
+          }
+        }
+        const minAllowedStart = latestReturnDate && latestReturnDate > today ? latestReturnDate : today
+        if (newStart < minAllowedStart) {
+          const minDateStr = formatDate(minAllowedStart, 'date.short') ?? minAllowedStart.toLocaleDateString()
+          return getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_assets.start-date-not-before-last-return',
+            `Allocation start date must be on or after the last return date (${minDateStr}).`
+          )
+        }
+
         for (const allocation of existingAllocations) {
           if (allocation.isDeleted) continue
           if (allocation.endDate) continue
+          if (!allocation.startDate || allocation.startDate.trim() === '') continue
+          const existingStart = new Date(allocation.startDate)
+          if (Number.isNaN(existingStart.getTime())) continue
+          existingStart.setHours(0, 0, 0, 0)
+          if (existingStart.getTime() === 0) continue
+
           if (allocation.expectedEndDate) {
             const expectedEnd = new Date(allocation.expectedEndDate)
             expectedEnd.setHours(0, 0, 0, 0)
             if (expectedEnd < today) continue
           }
-
-          const existingStart = new Date(allocation.startDate)
-          existingStart.setHours(0, 0, 0, 0)
           const existingEnd = allocation.expectedEndDate ? new Date(allocation.expectedEndDate) : null
           if (existingEnd) {
             existingEnd.setHours(0, 0, 0, 0)
+          }
+
+          if (newEnd === null && existingEnd === null) {
+            return getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.multiple_open_allocations_error',
+              'Cannot create multiple open-ended allocations for the same asset'
+            )
           }
 
           const hasOverlap =
@@ -240,7 +311,8 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee')} *
             </Label>
             <Select onValueChange={field.onChange} value={field.value} disabled={employeesLoading}>
-              <SelectTrigger id="employeeId" data-testid="employee-select">
+              <style>{`#employeeId [data-job-title] { display: none !important; }`}</style>
+              <SelectTrigger id="employeeId" data-testid="employee-select" className="gba:w-full">
                 <SelectValue
                   placeholder={
                     employeesLoading
@@ -279,12 +351,17 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   </div>
                 ) : (
                   filteredEmployees.map(employee => (
-                    <SelectItem key={employee.id} value={employee.id} data-testid={`employee-option-${employee.id}`}>
+                    <SelectItem
+                      key={employee.id}
+                      value={employee.id}
+                      data-testid={`employee-option-${employee.id}`}
+                      textValue={employee.name}
+                    >
                       <div className="gba:flex gba:flex-col">
                         <span className="gba:font-medium">{employee.name}</span>
-                        {(employee.jobTitle || employee.department) && (
-                          <span className="gba:text-xs gba:text-muted-foreground">
-                            {[employee.jobTitle, employee.department].filter(Boolean).join(' • ')}
+                        {employee.jobTitle && (
+                          <span data-job-title className="gba:text-xs gba:text-muted-foreground">
+                            {employee.jobTitle}
                           </span>
                         )}
                       </div>
@@ -298,58 +375,15 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         )}
       />
 
-      <FormField
-        control={form.control}
-        name="startDate"
-        render={({ field }) => (
-          <FormItem>
-            <Label htmlFor="startDate" data-testid="start-date-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocation_start_date', 'Allocation Start Date')} *
-            </Label>
-            <DateInput
-              type="date"
-              value={field.value || ''}
-              onChange={(v: string | [string | null, string | null] | null) => {
-                const dateValue = typeof v === 'string' ? v : ''
-                field.onChange(dateValue)
-                setAllocationError(null)
-                form.clearErrors('startDate')
-                form.clearErrors('expectedEndDate')
-
-                if (dateValue) {
-                  const expectedEndDate = form.getValues('expectedEndDate')
-                  checkAllocationOverlap(dateValue, expectedEndDate).then(error => {
-                    if (error) {
-                      setAllocationError(error)
-                      form.setError('startDate', { type: 'manual', message: error })
-                    } else {
-                      form.clearErrors('startDate')
-                      form.clearErrors('expectedEndDate')
-                    }
-                  })
-                }
-              }}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
-                'Please Select'
-              )}
-              className="gba:w-full"
-              data-testid="start-date-input"
-            />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="expectedEndDate"
-        render={({ field }) => {
-          const startDate = form.watch('startDate')
-
-          return (
-            <FormItem>
-              <Label htmlFor="expectedEndDate" data-testid="expected-end-date-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return_date', 'Expected Return Date')}
+      <div className="gba:flex gba:gap-4 gba:items-start">
+        <FormField
+          control={form.control}
+          name="startDate"
+          render={({ field }) => (
+            <FormItem className="gba:flex-1 gba:min-w-0">
+              <Label htmlFor="startDate" data-testid="start-date-label">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocation_start_date', 'Allocation Start Date')}{' '}
+                *
               </Label>
               <DateInput
                 type="date"
@@ -361,11 +395,20 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   form.clearErrors('startDate')
                   form.clearErrors('expectedEndDate')
 
-                  if (dateValue && startDate) {
-                    checkAllocationOverlap(startDate, dateValue).then(error => {
+                  if (dateValue) {
+                    if (isStartDateBeforeAcquisition(dateValue)) {
+                      form.setError('startDate', {
+                        type: 'manual',
+                        message: issueDateBeforePurchaseMessage
+                      })
+                      return
+                    }
+                    form.trigger('startDate')
+                    const expectedEndDate = form.getValues('expectedEndDate')
+                    checkAllocationOverlap(dateValue, expectedEndDate).then(error => {
                       if (error) {
                         setAllocationError(error)
-                        form.setError('expectedEndDate', { type: 'manual', message: error })
+                        form.setError('startDate', { type: 'manual', message: error })
                       } else {
                         form.clearErrors('startDate')
                         form.clearErrors('expectedEndDate')
@@ -378,17 +421,66 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   'Please Select'
                 )}
                 className="gba:w-full"
-                data-testid="expected-end-date-input"
+                data-testid="start-date-input"
               />
-              {allocationError && (
-                <p className="gba:text-sm gba:font-medium gba:text-destructive" data-testid="allocation-overlap-error">
-                  {allocationError}
-                </p>
-              )}
             </FormItem>
-          )
-        }}
-      />
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="expectedEndDate"
+          render={({ field }) => {
+            const startDate = form.watch('startDate')
+
+            return (
+              <FormItem className="gba:flex-1 gba:min-w-0">
+                <Label htmlFor="expectedEndDate" data-testid="expected-end-date-label">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return_date', 'Expected Return Date')}
+                </Label>
+                <DateInput
+                  type="date"
+                  value={field.value || ''}
+                  onChange={(v: string | [string | null, string | null] | null) => {
+                    const dateValue = typeof v === 'string' ? v : ''
+                    field.onChange(dateValue)
+                    setAllocationError(null)
+                    form.clearErrors('startDate')
+                    form.clearErrors('expectedEndDate')
+
+                    if (dateValue && startDate) {
+                      checkAllocationOverlap(startDate, dateValue).then(error => {
+                        if (error) {
+                          setAllocationError(error)
+                          form.setError('expectedEndDate', { type: 'manual', message: error })
+                        } else {
+                          form.clearErrors('startDate')
+                          form.clearErrors('expectedEndDate')
+                        }
+                      })
+                    }
+                  }}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
+                    'Please Select'
+                  )}
+                  className="gba:w-full"
+                  data-testid="expected-end-date-input"
+                />
+              </FormItem>
+            )
+          }}
+        />
+      </div>
+      {(form.formState.errors.startDate?.message ||
+        form.formState.errors.expectedEndDate?.message ||
+        allocationError) && (
+        <p className="gba:text-sm gba:font-medium gba:text-destructive gba:mt-1" data-testid="start-date-error">
+          {form.formState.errors.startDate?.message ||
+            form.formState.errors.expectedEndDate?.message ||
+            allocationError}
+        </p>
+      )}
 
       <FormField
         control={form.control}
@@ -517,6 +609,11 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
                   const values = form.getValues()
 
+                  if (values.startDate && acquisitionDate && isStartDateBeforeAcquisition(values.startDate)) {
+                    form.setError('startDate', { type: 'manual', message: issueDateBeforePurchaseMessage })
+                    return
+                  }
+
                   if (values.startDate) {
                     const overlapError = await checkAllocationOverlap(values.startDate, values.expectedEndDate)
                     if (overlapError) {
@@ -527,6 +624,8 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   }
 
                   setIsSubmitting(true)
+                  const assetStatusUpdated = false
+
                   try {
                     if (!assetId) {
                       throw new Error(
@@ -548,6 +647,19 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
                     const currentAssetVersion = await resolveAssetVersion()
 
+                    // Close any active allocation so only one person has the asset at a time
+                    const allocations = await getAllocationsForAsset(assetId)
+                    const newStartDate = values.startDate
+                    const endDateForPrevious =
+                      newStartDate && dayjs(newStartDate).isValid()
+                        ? dayjs(newStartDate).subtract(1, 'day').format('YYYY-MM-DD')
+                        : new Date().toISOString().slice(0, 10)
+                    for (const alloc of allocations) {
+                      if (!alloc.endDate) {
+                        await deallocateAsset(alloc.id, alloc.version, endDateForPrevious)
+                      }
+                    }
+
                     const employeeAssetPayload: CreateEmployeeAssetPayload = {
                       startDate: values.startDate,
                       employee: values.employeeId,
@@ -566,38 +678,70 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       employeeAssetPayload.notes = values.notes
                     }
 
-                    const promises: Promise<any>[] = [
-                      assetProcessClient.createEmployeeAsset(employeeAssetPayload),
-                      assetProcessClient.updateAsset({
-                        id: assetId,
-                        version: currentAssetVersion,
-                        assetStatus: AssetStatus.ALLOCATED
-                      })
-                    ]
+                    const allocatorUserId = userInfo?.id ?? ''
+                    const selectedEmployee = employees.find(e => e.id === values.employeeId)
+                    const employeeUserId = selectedEmployee?.userId ?? ''
 
-                    const results = await Promise.all(promises)
+                    if (!allocatorUserId) {
+                      throw new Error(
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.allocator_user_required',
+                          'Unable to identify the current user. Please sign in again.'
+                        )
+                      )
+                    }
+
+                    if (!employeeUserId) {
+                      throw new Error(
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.employee_user_required',
+                          'The selected employee has no user account. Please select another employee or contact HR.'
+                        )
+                      )
+                    }
+
+                    const processResponse = await assetProcessClient.startAllocateAssetToEmployee({
+                      employeeAsset: employeeAssetPayload,
+                      allocatorUserId,
+                      employeeUserId
+                    })
 
                     dispatchProcessContinueEvent('pse_submit', {})
 
+                    // Asset remains PENDING_ASSET until employee acknowledges; then process sets ALLOCATED_ASSET
                     dispatchProcessCompletionEvents({
                       resolution: 'success',
-                      processName: 'allocateAsset',
+                      processName: 'allocateAssetToEmployee',
                       domain: 'employee',
                       response: {
                         employeeAsset: {
-                          id: results[0]?.id || results[0]?.employeeAsset?.id,
+                          id: processResponse?.id || processResponse?.employeeAsset?.id,
                           assetId: assetId,
                           employeeId: values.employeeId
                         },
                         asset: {
                           id: assetId,
                           version: currentAssetVersion,
-                          assetStatus: AssetStatus.ALLOCATED
+                          assetStatus: AssetStatus.PENDING
                         }
                       }
                     })
                   } catch (error) {
-                    console.error('Error allocating asset:', error)
+                    if (assetStatusUpdated && assetId) {
+                      try {
+                        const rollbackVersion = await resolveAssetVersion()
+                        if (rollbackVersion !== undefined) {
+                          await assetProcessClient.updateAsset({
+                            id: assetId,
+                            version: rollbackVersion,
+                            assetStatus: AssetStatus.AVAILABLE
+                          })
+                        }
+                      } catch {
+                        // Rollback failed
+                      }
+                    }
+
                     setIsSubmitting(false)
                     throw error
                   }

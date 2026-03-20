@@ -8,8 +8,12 @@ import {
   CURRENCY_CATALOG_QUERY,
   EMPLOYEE_WORKING_CONDITION_QUERY,
   EMPLOYEE_WORKING_HOURS_QUERY,
-  EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY
+  EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY,
+  GET_EMPLOYEE_REGION_ID,
+  GET_REGION_COUNTRY_ID,
+  GET_COUNTRY_OBJECT_VALUE
 } from './AdjustEmployeeSalaryQueries'
+import { fetchCountryCurrency } from '../request-employee-benefit/utils/fetchCountryCurrency'
 import type {
   AdjustEmployeeSalaryContextData,
   EmployeeDataResponse,
@@ -21,6 +25,8 @@ import type {
   FormMode,
   CurrencyOption
 } from './types'
+import { formatDate } from '@/common/utils/windowUtils'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 
 interface CurrencyCatalogResponse {
   CatalogEntry: Array<{
@@ -62,15 +68,8 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
   const [error, setError] = useState<string | null>(null)
 
   const employeeId: string | undefined = useMemo(() => {
-    // Extract employeeId with priority: externalContextData (from AppAction) > process payload > direct > userInfo
-    const externalContext = (additionalData as any)?.externalContextData || {}
-    return (
-      externalContext?.employeeId || // From AppAction externalContextData (highest priority)
-      additionalData?.psi_taskPayload?.employeeId ||
-      additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
-      additionalData?.employeeId ||
-      userInfo?.employeeDetails?.employeeId
-    )
+    const id = extractEmployeeId(additionalData, userInfo)
+    return id || undefined
   }, [additionalData, userInfo])
 
   const fetchData = useCallback(async () => {
@@ -83,6 +82,8 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
     setError(null)
     try {
       const empVariables = { idEmployee: employeeId }
+      const today = formatDate(new Date(), 'date.ISO') || new Date().toISOString().split('T')[0]
+      const empVariablesWithDate = { idEmployee: employeeId, today }
 
       // Fetch all queries in parallel to prevent UI twitch
       const [
@@ -95,7 +96,7 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
         bankAccountData
       ] = await Promise.all([
         graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables),
-        graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariables),
+        graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariablesWithDate),
         graphqlClient.request<SalaryAdjustReasonCatalogResponse>(SALARY_ADJUST_REASON_CATALOG_QUERY),
         graphqlClient.request<CurrencyCatalogResponse>(CURRENCY_CATALOG_QUERY),
         graphqlClient.request<EmployeeWorkingConditionResponse>(EMPLOYEE_WORKING_CONDITION_QUERY, empVariables),
@@ -122,6 +123,30 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
       // Extract bank account currency (first record if exists)
       const bankAccountCurrency = bankAccountData?.EmployeeBankAccount?.[0]?.currencyRef || null
 
+      // Resolve currency from employment region's country (for preset in assign mode)
+      let countryCurrencyRef: string | null = null
+      let hasEmploymentRegion = false
+      try {
+        const regionRes = await graphqlClient.request<{
+          Employee?: Array<{ workingCondition?: Array<{ region?: { id: string } }> }>
+        }>(GET_EMPLOYEE_REGION_ID, { employeeId })
+        const regionId = regionRes?.Employee?.[0]?.workingCondition?.[0]?.region?.id
+        hasEmploymentRegion = Boolean(regionId)
+        if (regionId) {
+          const countryRes = await graphqlClient.request<{ CatalogEntry?: Array<{ additionalValue3?: string }> }>(
+            GET_REGION_COUNTRY_ID,
+            { regionId }
+          )
+          const countryId = countryRes?.CatalogEntry?.[0]?.additionalValue3
+          if (countryId) {
+            const countryCurrency = await fetchCountryCurrency(graphqlClient, countryId, GET_COUNTRY_OBJECT_VALUE)
+            countryCurrencyRef = countryCurrency.currencyRef
+          }
+        }
+      } catch {
+        // Non-fatal: leave countryCurrencyRef null, hasEmploymentRegion stays false
+      }
+
       // Map currency catalog entries to CurrencyOption format
       const currencies: CurrencyOption[] = (currencyCatalog?.CatalogEntry || [])
         .map(entry => ({
@@ -147,7 +172,9 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
         formMode,
         hireDate,
         weeklyHours,
-        bankAccountCurrency
+        bankAccountCurrency,
+        countryCurrencyRef,
+        hasEmploymentRegion
       })
       setIsLoading(false)
     } catch (e: any) {

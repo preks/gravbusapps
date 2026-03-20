@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { User, Building2, Calendar } from 'lucide-react'
+import { User, Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { type Contact, createContactDescriptors, ContactFields } from '@/common/data/relations/types/contactTypes'
 import {
@@ -8,7 +8,6 @@ import {
   formatCommunicationChannelValue
 } from '@/common/data/common/utils/communicationChannelUtils'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
-import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 // Helper to safely convert values to strings
@@ -51,29 +50,12 @@ const getOwnerName = (contact: Contact) => {
   return '-'
 }
 
-// Helper to get primary account (first in accountContacts array)
-const getPrimaryAccount = (contact: Contact) => {
-  return contact.accountContacts?.[0]?.account
-}
-
-// Helper to get contact type from primary accountContact relation
-const getPrimaryContactType = (contact: Contact) => {
-  return contact.accountContacts?.[0]?.contactType
-}
-
-/**
- * Options for commonContactColumns
- */
-export interface CommonContactColumnsOptions {
-  buildAccountRecordUrl?: (accountId: string) => string
-}
-
 /**
  * Default Contact Columns
  * Uses Contact (the CORRECT structure)
  * Contacts must be mapped via contactMapper before passing to these columns
  */
-export const commonContactColumns = (options?: CommonContactColumnsOptions): ColumnDef<Contact>[] => [
+export const commonContactColumns = (): ColumnDef<Contact>[] => [
   {
     id: 'contact',
     accessorFn: row => getContactName(row),
@@ -177,58 +159,6 @@ export const commonContactColumns = (options?: CommonContactColumnsOptions): Col
           })}
           {channels.length > 3 && <span className="gba:text-xs gba:text-gray-500">+{channels.length - 3} more</span>}
         </div>
-      )
-    }
-  },
-  {
-    id: 'accountContacts',
-    accessorFn: row => getPrimaryAccount(row)?.name || '',
-    header: 'Account',
-    size: 200,
-    minSize: 180,
-    maxSize: 280,
-    enableResizing: false,
-    enableSorting: false,
-    cell: ({ row }) => {
-      const account = getPrimaryAccount(row.original)
-      const contactType = getPrimaryContactType(row.original)
-      const contactTypeLabel = contactType ? getContactTypeLabel(contactType) : null
-
-      if (!account) {
-        return <span className="gba:text-sm gba:text-muted-foreground">No account</span>
-      }
-
-      const imageUrl = account.pictureThumbnail ? `data:image/gif;base64,${account.pictureThumbnail}` : undefined
-
-      return (
-        <button
-          type="button"
-          onClick={e => {
-            e.stopPropagation()
-            if (options?.buildAccountRecordUrl && account.id) {
-              navigateTo(options.buildAccountRecordUrl(account.id))
-            }
-          }}
-          className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:group gba:bg-transparent gba:border-0 gba:p-0 gba:w-full gba:text-left"
-          data-testid={`contact-account-link-${row.original.id}`}
-        >
-          <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
-            {imageUrl && <AvatarImage src={imageUrl} alt={account.name} />}
-            <AvatarFallback>
-              <Building2 className="gba:h-4 gba:w-4" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="gba:min-w-0 gba:flex-1">
-            <div className="gba:font-medium gba:truncate gba:text-sm gba:group-hover:gba:text-primary gba:transition-colors">
-              {account.name}
-            </div>
-            {contactTypeLabel && (
-              <div className="gba:text-xs gba:text-muted-foreground gba:truncate" title={contactTypeLabel}>
-                {contactTypeLabel}
-              </div>
-            )}
-          </div>
-        </button>
       )
     }
   },
@@ -341,7 +271,6 @@ const CONTACT_COLUMN_LABELS: Record<string, string> = {
   fullName: 'Full Name',
   department: 'Department',
   jobPosition: 'Job Position',
-  account: 'Account',
   ownerEmployee: 'Owner',
   createdAt: 'Created Date',
   updatedAt: 'Updated Date'
@@ -358,7 +287,6 @@ export const defaultContactSortableColumns = deriveSortableColumns(
 export const defaultVisibleContactColumns = [
   'contact',
   'communicationChannels',
-  'account',
   'department',
   'createdAt',
   'ownerEmployee'
@@ -370,5 +298,5 @@ export const defaultVisibleContactColumns = [
  */
 export const defaultAvailableContactColumns = deriveAvailableColumns(commonContactColumns())
 
-// Note: communicationChannels and account are computed/related fields and cannot be sorted in GraphQL
+// Note: communicationChannels is a computed/related field and cannot be sorted in GraphQL
 // Only include database fields in sortableColumns above

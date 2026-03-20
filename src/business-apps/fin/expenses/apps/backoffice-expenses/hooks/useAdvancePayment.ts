@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
+import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
@@ -7,12 +8,14 @@ import {
   GET_ADVANCE_PAYMENT_REPORTERS
 } from '../queries/advancePayment.queries'
 import { AdvancePaymentItem, AdvancePaymentStatisticsData } from '../types'
+import {
+  buildNumericRangeCondition,
+  buildSearchCondition as buildSearchConditionBase,
+  buildStatusFilterCondition
+} from './queryFilterUtils'
 
-// ⚡ BEST PRACTICE: Query limit enforcement for safety (like leads)
-const MAX_QUERY_LIMIT = 1000
-const enforceQueryLimit = (limit: number): number => {
-  return Math.min(limit, MAX_QUERY_LIMIT)
-}
+import { enforceQueryLimit, extractUniqueStatuses } from '../utils/sharedUtils'
+import { buildEmployeeDisplayName } from './backofficeReportUtils'
 
 // Type definition for GraphQL orderBy clause
 type OrderDirection = 'ASC' | 'DESC'
@@ -20,7 +23,7 @@ type OrderByValue = OrderDirection | { [field: string]: OrderByValue }
 type OrderByEntry = { [field: string]: OrderByValue }
 type OrderByClause = OrderByEntry[]
 
-export interface FetchPaymentsOptions {
+interface FetchPaymentsOptions {
   searchTerm?: string
   page?: number
   pageSize?: number
@@ -31,9 +34,12 @@ export interface FetchPaymentsOptions {
   advanceMax?: string
   reporter?: string
   currencyRef?: string
+  departmentId?: string
+  dateFrom?: string
+  dateTo?: string
 }
 
-export interface AdvancePaymentsResult {
+interface AdvancePaymentsResult {
   payments: AdvancePaymentItem[]
   isLoading: boolean
   error: any
@@ -47,7 +53,7 @@ export interface AdvancePaymentsResult {
   setOrderBy: (orderBy: OrderByClause) => void
 }
 
-export interface UseAdvancePaymentsProps extends BusinessAppContextProps {
+interface UseAdvancePaymentsProps extends BusinessAppContextProps {
   isActive?: boolean // ⚡ PERFORMANCE: Only initialize loading state when tab is active
 }
 
@@ -69,70 +75,32 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
   const client = useGraphqlClient(accessToken)
   const [orderBy, setOrderBy] = useState<OrderByClause>([{ createdAt: 'DESC' }])
 
-  // Helper: Build status filter condition (reduces cognitive complexity)
-  const buildStatusCondition = (status?: string): any[] => {
-    if (!status || status === 'all' || status === '') return []
-
-    if (status.includes(',')) {
-      const statusArray = status
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean)
-      return statusArray.length > 0 ? [{ status: { _in: statusArray } }] : []
-    }
-
-    return [{ status: { _eq: status } }]
-  }
-
   // Helper: Build search condition (reduces cognitive complexity)
   const buildSearchCondition = (searchTerm: string): any[] => {
-    if (!searchTerm || searchTerm.trim() === '') return []
-
-    const searchValue = `%${searchTerm.trim()}%`
-    return [
-      {
-        _or: [
-          { code: { _ilike: searchValue } },
-          { description: { _ilike: searchValue } },
-          { expensePlan: { code: { _ilike: searchValue } } },
-          { expensePlan: { title: { _ilike: searchValue } } },
-          { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
-          { expensePlan: { employee: { lastName: { _ilike: searchValue } } } }
-        ]
-      }
-    ]
+    return buildSearchConditionBase(searchTerm, searchValue => [
+      { code: { _ilike: searchValue } },
+      { description: { _ilike: searchValue } },
+      { expensePlan: { code: { _ilike: searchValue } } },
+      { expensePlan: { title: { _ilike: searchValue } } },
+      { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
+      { expensePlan: { employee: { lastName: { _ilike: searchValue } } } },
+      { expensePlan: { employee: { employeePosition: { organizationalUnit: { name: { _ilike: searchValue } } } } } },
+      { expensePlan: { employee: { employeePosition: { costCenter: { name: { _ilike: searchValue } } } } } },
+      { paymentMethod: { _ilike: searchValue } }
+    ])
   }
 
   // Helper: Build amount filter condition (reduces cognitive complexity)
   const buildAmountFilterCondition = (amountMin?: string, amountMax?: string): any[] => {
-    if (!amountMin && !amountMax) return []
-
-    const amountConditions: any = {}
-    if (amountMin) amountConditions._gte = Number.parseFloat(amountMin)
-    if (amountMax) amountConditions._lte = Number.parseFloat(amountMax)
-
-    if (Object.keys(amountConditions).length === 0) return []
-
-    return [
-      {
-        expensePlan: {
-          totalAmount: amountConditions
-        }
+    return buildNumericRangeCondition(amountMin, amountMax, amountConditions => ({
+      expensePlan: {
+        totalAmount: amountConditions
       }
-    ]
+    }))
   }
 
-  // Helper: Build advance filter condition (reduces cognitive complexity)
   const buildAdvanceFilterCondition = (advanceMin?: string, advanceMax?: string): any[] => {
-    if (!advanceMin && !advanceMax) return []
-
-    const advanceConditions: any = {}
-    if (advanceMin) advanceConditions._gte = Number.parseFloat(advanceMin)
-    if (advanceMax) advanceConditions._lte = Number.parseFloat(advanceMax)
-
-    if (Object.keys(advanceConditions).length === 0) return []
-
-    return [{ amount: advanceConditions }]
+    return buildNumericRangeCondition(advanceMin, advanceMax, range => ({ amount: range }))
   }
 
   // Helper: Build reporter filter condition (reduces cognitive complexity)
@@ -152,8 +120,7 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         return {
           _or: [
             { expensePlan: { employee: { firstName: { _ilike: partValue } } } },
-            { expensePlan: { employee: { lastName: { _ilike: partValue } } } },
-            { expensePlan: { employee: { displayName: { _ilike: partValue } } } }
+            { expensePlan: { employee: { lastName: { _ilike: partValue } } } }
           ]
         }
       })
@@ -175,22 +142,28 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
     advanceMin?: string,
     advanceMax?: string,
     reporter?: string,
-    currencyRef?: string
+    currencyRef?: string,
+    departmentId?: string,
+    dateFrom?: string,
+    dateTo?: string
   ) => {
     const offset = (page - 1) * pageSize
 
-    // Build conditions array using extracted helpers
+    const hasExplicitStatusFilter = status && status !== 'all' && status !== ''
+    const defaultStatusExclusion = hasExplicitStatusFilter
+      ? [{ status: { _nin: ['CREATED', 'DISCARDED'] } }]
+      : [{ status: { _nin: ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED'] } }]
+
     const conditions: any[] = [
       { isDeleted: { _eq: false } },
-      { status: { _nin: ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED'] } },
-      ...buildStatusCondition(status),
+      ...defaultStatusExclusion,
+      ...buildStatusFilterCondition(status),
       ...buildSearchCondition(searchTerm),
       ...buildAmountFilterCondition(amountMin, amountMax),
       ...buildAdvanceFilterCondition(advanceMin, advanceMax),
       ...buildReporterFilterCondition(reporter)
     ]
 
-    // Add currency filter if provided
     if (currencyRef && currencyRef.trim() !== '') {
       conditions.push({
         expensePlan: {
@@ -199,7 +172,27 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       })
     }
 
-    // Build the where clause
+    if (departmentId && departmentId.trim() !== '') {
+      conditions.push({
+        expensePlan: {
+          employee: {
+            employeePosition: {
+              organizationalUnitId: { _eq: departmentId }
+            }
+          }
+        }
+      })
+    }
+
+    if (dateFrom || dateTo) {
+      const dateConditions: any = {}
+      if (dateFrom) dateConditions._gte = dayjs(dateFrom).startOf('day').format('YYYY-MM-DD[T]HH:mm:ss')
+      if (dateTo) dateConditions._lte = dayjs(dateTo).endOf('day').format('YYYY-MM-DD[T]HH:mm:ss')
+      conditions.push({
+        expensePlan: { startDate: dateConditions }
+      })
+    }
+
     const whereClause = conditions.length > 0 ? { _and: conditions } : {}
 
     return {
@@ -218,14 +211,8 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       description: payment.description,
       status: payment.status ?? 'PENDING',
       title: payment.expensePlan?.title,
-      employeeDisplayName: payment.expensePlan?.employee
-        ? `${payment.expensePlan.employee.firstName || ''} ${payment.expensePlan.employee.lastName || ''}`.trim()
-        : 'N/A',
-      employeeFullName:
-        payment.expensePlan?.employee?.fullName ||
-        (payment.expensePlan?.employee
-          ? `${payment.expensePlan.employee.firstName || ''} ${payment.expensePlan.employee.lastName || ''}`.trim()
-          : 'N/A'),
+      employeeDisplayName: buildEmployeeDisplayName(payment.expensePlan?.employee) || 'N/A',
+      employeeFullName: buildEmployeeDisplayName(payment.expensePlan?.employee) || 'N/A',
       amount: payment.amount,
       startDate: payment.expensePlan?.startDate,
       paymentMethod: payment.paymentMethod,
@@ -268,7 +255,10 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         advanceMin,
         advanceMax,
         reporter,
-        currencyRef
+        currencyRef,
+        departmentId,
+        dateFrom,
+        dateTo
       } = options
       if (!accessToken) {
         setError(new Error('Access token not found.'))
@@ -276,7 +266,6 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         return
       }
 
-      // Build request key from all parameters
       const requestKey = JSON.stringify({
         searchTerm,
         page,
@@ -288,7 +277,10 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         advanceMax,
         reporter,
         orderBy,
-        currencyRef
+        currencyRef,
+        departmentId,
+        dateFrom,
+        dateTo
       })
 
       // ⚡ DEDUPLICATION: Only block identical requests, not all requests while loading
@@ -315,7 +307,10 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
           advanceMin,
           advanceMax,
           reporter,
-          currencyRef
+          currencyRef,
+          departmentId,
+          dateFrom,
+          dateTo
         )
 
         const data = await client.request(GET_ADVANCE_PAYMENTS, variables)
@@ -351,9 +346,6 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
    * To refresh statistics, call fetchPayments() instead.
    */
   const fetchAdvancePaymentStatistics = useCallback(async () => {
-    console.warn(
-      '[Advance Payments] DEPRECATED: Statistics are now automatically fetched with fetchPayments(). This function is a no-op.'
-    )
     // Statistics are automatically fetched in fetchPayments() - no action needed
   }, [])
 
@@ -376,49 +368,25 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         const reporters = new Set<string>()
         data?.AdvancePayment?.forEach((payment: any) => {
           if (payment.expensePlan?.employee) {
-            const firstName = payment.expensePlan.employee.firstName || ''
-            const lastName = payment.expensePlan.employee.lastName || ''
-            const displayName = payment.expensePlan.employee.displayName || ''
-
-            const fullName = `${firstName} ${lastName}`.trim()
-            if (fullName) {
-              reporters.add(fullName)
-            }
-            if (displayName) {
-              reporters.add(displayName)
-            }
+            const name = buildEmployeeDisplayName(payment.expensePlan.employee)
+            if (name) reporters.add(name)
           }
         })
 
         return Array.from(reporters).sort()
-      } catch (err: any) {
-        console.error('Error searching reporters:', err)
+      } catch {
         return []
       }
     },
     [client, accessToken]
   )
 
-  // ⚡ OPTIMIZED: Use lightweight query with distinct_on to get unique statuses
   const searchStatuses = useCallback(async (): Promise<string[]> => {
-    if (!accessToken) {
-      throw new Error('Access token not found.')
-    }
-
+    if (!accessToken) throw new Error('Access token not found.')
     try {
       const data = await client.request(GET_ADVANCE_PAYMENT_STATUSES, {})
-
-      // Extract unique statuses from the results
-      const statuses = new Set<string>()
-      data?.AdvancePayment?.forEach((payment: any) => {
-        if (payment.status) {
-          statuses.add(payment.status)
-        }
-      })
-
-      return Array.from(statuses).sort()
-    } catch (err: any) {
-      console.error('Error searching statuses:', err)
+      return extractUniqueStatuses(data?.AdvancePayment || [])
+    } catch {
       return []
     }
   }, [client, accessToken])

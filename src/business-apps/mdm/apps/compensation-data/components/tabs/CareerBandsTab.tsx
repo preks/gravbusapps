@@ -23,7 +23,7 @@ import {
   CreditCardIcon,
   CurrencyCircleDollarIcon,
   BankIcon,
-  SquaresFourIcon,
+  GaugeIcon,
   InfoIcon,
   XCircleIcon
 } from '@phosphor-icons/react'
@@ -249,7 +249,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = context => {
       {
         redirectLink: `/mdm/organizational-data?structure=${selectedJobLevelDetail.id}`,
         color: 'orange',
-        icon: SquaresFourIcon,
+        icon: GaugeIcon,
         title: 'Organizational Positions',
         description: ` View organizational units and positions with ${selectedJobLevelDetail.name} level`
       }

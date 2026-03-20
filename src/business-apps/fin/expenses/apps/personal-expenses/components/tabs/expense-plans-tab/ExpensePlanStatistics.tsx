@@ -1,6 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import React, { useMemo, useCallback } from 'react'
-import { FileTextOutlined, DollarOutlined, CalendarOutlined, CompassOutlined } from '@ant-design/icons'
+import { FileTextIcon, CurrencyDollarIcon, CalendarIcon, CompassIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { formatCurrencyDisplay } from '../../../utils'
 import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
@@ -13,6 +13,7 @@ interface ExpensePlanStatisticsProps {
   pendingApproval: number
   topDestination: string | any // Can be string or catalog entry object
   statsLoading?: boolean
+  destinationLoading?: boolean
   statsError?: Error | null
   fetchPlanStatistics?: () => void
   onWidgetClick?: (widgetKey: string) => void
@@ -30,6 +31,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   pendingApproval,
   topDestination,
   statsLoading = false,
+  destinationLoading = false,
   statsError = null,
   fetchPlanStatistics = () => {},
   onWidgetClick,
@@ -39,6 +41,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   currencyCode = 'EUR'
 }) => {
   // Calculate summary statistics with memoization
+  // All hooks must be called before any early returns to comply with Rules of Hooks
   const currentMonthName = getTranslatedMonthName(new Date())
 
   // Use closed plans data for total plans widget
@@ -113,15 +116,41 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
         return
       }
 
+      // Prevent clicking destination widget when it's loading
+      if (widgetKey === 'top-destinations' && destinationLoading) {
+        return
+      }
+
       // Provide immediate visual feedback - let parent component handle all filtering
       if (onWidgetClick) {
         onWidgetClick(widgetKey)
       }
     },
-    [onWidgetClick, statsLoading]
+    [onWidgetClick, statsLoading, destinationLoading]
   )
 
-  // Transform the stats data into widgets format
+  // Compute destination value and description separately to avoid nested ternary operations
+  const destinationValue = useMemo(() => {
+    if (destinationLoading) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')
+    }
+    if (topDestination && topDestination !== 'N/A') {
+      return getCatalogValue(topDestination)
+    }
+    return topDestination
+  }, [destinationLoading, topDestination])
+
+  const destinationDescription = useMemo(() => {
+    if (destinationLoading) {
+      return ''
+    }
+    if (topDestination && topDestination !== 'N/A') {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.most_frequent', 'Most frequent')
+    }
+    return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_data_available', 'No data available')
+  }, [destinationLoading, topDestination])
+
+  // No-trend widgets: value, empty row, footer (same layout as expense dashboard)
   const widgets: WidgetItem[] = useMemo(
     () => [
       {
@@ -131,7 +160,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: totalPlans,
-        prefix: <FileTextOutlined />,
+        prefix: <FileTextIcon />,
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -152,7 +181,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: `${formatCurrencyDisplay(String(totalEstimated ?? '0'), currencyCode)}`,
-        prefix: <DollarOutlined />,
+        prefix: <CurrencyDollarIcon size={16} />,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -168,26 +197,30 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
         key: 'pending-approval',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_approval', 'Pending Approval'),
         value: pendingApproval,
-        prefix: <CalendarOutlined />,
+        prefix: <CalendarIcon size={16} />,
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 6 },
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action', 'Requires action'),
+        footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action', 'Requires action'),
+        trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'pending-approval',
         onClick: () => handleWidgetClick('pending-approval')
       },
       {
         key: 'top-destinations',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination', 'Top Destination'),
-        value: topDestination && topDestination !== 'N/A' ? getCatalogValue(topDestination) : topDestination,
-        prefix: <CompassOutlined />,
+        value: destinationValue,
+        prefix: <CompassIcon size={16} />,
         color: '#722ed1',
         span: { xs: 24, sm: 12, md: 6 },
-        description:
-          topDestination && topDestination !== 'N/A'
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.most_frequent', 'Most frequent')
-            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_data_available', 'No data available'),
+        valueIsString: true,
+        footer: destinationDescription,
+        trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'top-destinations',
         onClick: () => {
+          // Prevent clicking when loading or when there's no valid destination data
+          if (destinationLoading || !topDestination || topDestination === 'N/A') {
+            return
+          }
           handleWidgetClick('top-destinations')
         }
       }
@@ -197,12 +230,14 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       totalPlans,
       totalEstimated,
       pendingApproval,
-      topDestination,
+      destinationValue,
+      destinationDescription,
       plansTrend,
       estimatedAmountTrend,
       activeWidgetKey,
       handleWidgetClick,
-      statsLoading
+      destinationLoading,
+      topDestination
     ]
   )
 
@@ -214,6 +249,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       onRetry={fetchPlanStatistics}
       onWidgetClick={onWidgetClick}
       skeletonCount={4}
+      useWidgetStructureForLoading={true}
       emptyText={getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.no_expense_plan_statistics_available',
         'No expense plan statistics available.'

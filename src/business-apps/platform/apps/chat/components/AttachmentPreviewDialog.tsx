@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from '@newwork/nw-design-system'
 import { X, Download } from 'lucide-react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { MessageAttachment } from './MessageAttachments'
 import { isPreviewable } from './utils/attachmentUtils'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface AttachmentPreviewDialogProps {
   open: boolean
@@ -21,6 +21,7 @@ export const AttachmentPreviewDialog: React.FC<AttachmentPreviewDialogProps> = (
   objectUrl,
   onClose
 }) => {
+  const t = useChatTranslation()
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
 
   if (!attachment) return null
@@ -118,9 +119,7 @@ export const AttachmentPreviewDialog: React.FC<AttachmentPreviewDialogProps> = (
             />
           )}
           {!isImage && !isPdf && (
-            <div className="gba:text-sm gba:text-muted-foreground gba:p-8">
-              {getTranslationFromI18nKeyAndLabel('chat.preview.unsupported', 'Preview not available.')}
-            </div>
+            <div className="gba:text-sm gba:text-muted-foreground gba:p-8">{t('chat-preview-unsupported')}</div>
           )}
         </div>
 
@@ -132,12 +131,12 @@ export const AttachmentPreviewDialog: React.FC<AttachmentPreviewDialogProps> = (
             onClick={() => window.open(attachment.url, '_blank', 'noopener,noreferrer')}
             data-testid="attachment-open-newtab"
           >
-            {getTranslationFromI18nKeyAndLabel('chat.preview.openNewTab', 'Open in new tab')}
+            {t('chat-preview-openNewTab')}
           </Button>
           <Button variant="default" size="sm" asChild data-testid="attachment-download">
             <a href={src} download={attachment.name}>
               <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('chat.preview.download', 'Download')}
+              {t('chat-preview-download')}
             </a>
           </Button>
         </div>

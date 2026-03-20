@@ -6,13 +6,7 @@ import {
   getCatalogValue
 } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import {
-  ruleDataQuery,
-  getLastCalculationRule,
-  getExpenseRuleFlagById,
-  getCalculationRule,
-  getExpenseRuleAggregateByCode
-} from '../queries/CreateCalculationRuleQueries'
+import { getEditModeData, getCreateModeData } from '../queries/CreateCalculationRuleQueries'
 
 export type FormState = {
   ruleCode: string
@@ -55,6 +49,7 @@ export const initialFormState: FormState = {
 type FormAction =
   | { type: 'SET_FIELD'; field: keyof FormState; value: any }
   | { type: 'HYDRATE'; payload: Partial<FormState> }
+  | { type: 'RESET' }
 
 const formReducer = (state: FormState, action: FormAction): FormState => {
   switch (action.type) {
@@ -62,6 +57,8 @@ const formReducer = (state: FormState, action: FormAction): FormState => {
       return { ...state, [action.field]: action.value } as FormState
     case 'HYDRATE':
       return { ...state, ...action.payload } as FormState
+    case 'RESET':
+      return { ...initialFormState, validFrom: new Date(), validTo: new Date('9999-12-31') }
     default:
       return state
   }
@@ -94,9 +91,10 @@ const touchedReducer = (state: TouchedState, action: TouchedAction): TouchedStat
 export interface UseCCRParams {
   accessToken: string
   navigationPayload: any | null
+  open?: boolean
 }
 
-export const useCreateCalculationRuleForm = ({ accessToken, navigationPayload }: UseCCRParams) => {
+export const useCreateCalculationRuleForm = ({ accessToken, navigationPayload, open = true }: UseCCRParams) => {
   const [formState, dispatch] = useReducer(formReducer, initialFormState)
   const [errors, dispatchErrors] = useReducer(errorsReducer, {} as ErrorsState)
   const [touched, dispatchTouched] = useReducer(touchedReducer, {} as TouchedState)
@@ -109,105 +107,138 @@ export const useCreateCalculationRuleForm = ({ accessToken, navigationPayload }:
   const [lastRuleId, setLastRuleId] = useState<string | null>(null)
   const [existingFlag, setExistingFlag] = useState<any | null>(null)
   const [prefilledRule, setPrefilledRule] = useState<any | null>(null)
-  const [codeDuplicate, setCodeDuplicate] = useState<boolean>(false)
   const [flagsLoaded, setFlagsLoaded] = useState<boolean>(false)
+  // Initialize to true for update mode (safer default - prevents edits until usage check completes)
+  const [isRuleUsed, setIsRuleUsed] = useState<boolean>(!!navigationPayload?.id)
   const initialSnapshotRef = useRef<any | null>(null)
 
   const isUpdate = !!navigationPayload?.id
   const graphqlClient = useGraphQLClient(accessToken)
 
-  // Data sources
+  // CREATE MODE: Reset form when opening in create mode (not update mode)
   useEffect(() => {
-    const fetchRuleData = async () => {
-      if (!accessToken) return
-      try {
-        const res = await graphqlClient.request(ruleDataQuery, {
-          activeUserLocale: getCurrentActiveUserLocale()
-        })
-        setCalculationTypes(res?.CalculationTypes || [])
-        setCurrencies((res?.Currencies || []).map((c: any) => ({ id: c.id, code: c.code })))
-        setCountries(res?.Countries || [])
-      } catch {
-        // silent
-      }
-    }
-    fetchRuleData()
-  }, [accessToken, graphqlClient])
+    if (!open || isUpdate) return
 
-  // On modal mount: fetch last rule and then its flag (or flag by navigation id)
+    // Reset form to initial state for new rule creation
+    dispatch({ type: 'RESET' })
+    dispatchTouched({ type: 'RESET' })
+    setFormSubmitted(false)
+    setHasInteracted(false)
+    setStandardValidationFailed(false)
+    setLastRuleId(null)
+    setExistingFlag(null)
+    setPrefilledRule(null)
+    setFlagsLoaded(false)
+    setIsRuleUsed(false)
+    initialSnapshotRef.current = null
+  }, [open, isUpdate])
+
+  // EDIT MODE: Immediately hydrate form from navigationPayload (data already passed from list)
   useEffect(() => {
+    if (!open || !isUpdate || !navigationPayload) return
+
+    // Immediately hydrate form with data passed from the list - no waiting for API
+    const rule = navigationPayload
+    setPrefilledRule(rule)
+    setLastRuleId(rule.id)
+
+    const hydrated: Partial<FormState> = {
+      ruleCode: rule.code || '',
+      ruleName: rule.name || '',
+      calculationTypeId: rule.calculationTypeRef || rule.calculationType?.id || null,
+      validFrom: rule.activeFrom ? new Date(rule.activeFrom) : new Date(),
+      validTo: rule.activeTo ? new Date(rule.activeTo) : new Date('9999-12-31'),
+      isStandard: !!rule.standard,
+      currencyId: rule.currencyRef || rule.currency?.id || null,
+      advancePaymentCode: rule.advancePaymentCode || '',
+      taxesCode: rule.taxesCode || '',
+      nonPayableCode: rule.nonpayableCode || '',
+      useLastCountry: !!rule.useLastCountry,
+      deductionLimit: !!rule.deductionLimit,
+      useSingleCurrency: !!rule.useSingleCurrency,
+      countryRefId: rule.countryRef || null,
+      austrianAbroad: false, // Will be updated when flags load
+      romanianCalculation: false // Will be updated when flags load
+    }
+    dispatch({ type: 'HYDRATE', payload: hydrated })
+  }, [open, isUpdate, navigationPayload])
+
+  // Fetch additional data (catalogs, flags, usage check) in background
+  useEffect(() => {
+    if (!open) return // Don't fetch data when modal is closed
+
     let cancelled = false
     ;(async () => {
+      if (!accessToken) return
+
       try {
-        const lastRule = await graphqlClient.request<any>(getLastCalculationRule)
-        const candidateId = navigationPayload?.id || lastRule?.ExpenseRule?.[0]?.id || null
-        if (cancelled) return
-        setLastRuleId(candidateId)
-        if (candidateId) {
-          const flagsRes = await graphqlClient.request<any>(getExpenseRuleFlagById, { id: candidateId })
+        if (isUpdate && navigationPayload?.id) {
+          // EDIT MODE: Fetch only catalogs + flags + usage (rule data already from navigationPayload)
+          const res = await graphqlClient.request<any>(getEditModeData, {
+            calculationId: navigationPayload.id,
+            activeUserLocale: getCurrentActiveUserLocale()
+          })
+
           if (cancelled) return
-          const flag = flagsRes?.ExpenseRuleFlag?.[0] || null
-          setExistingFlag(flag)
-          const austrian = flag && flag.name === 'Austrian Abroad' && flag.value === 'true'
-          const romanian = flag && flag.name === 'Romanian Calculation' && flag.value === 'true'
-          if (austrian || romanian) {
-            dispatch({ type: 'SET_FIELD', field: 'austrianAbroad', value: !!austrian })
-            dispatch({ type: 'SET_FIELD', field: 'romanianCalculation', value: !!romanian })
-          }
+
+          // Set catalog data
+          setCalculationTypes(res?.CalculationTypes || [])
+          setCurrencies((res?.Currencies || []).map((c: any) => ({ id: c.id, code: c.code })))
+          setCountries(res?.Countries || [])
+
+          // Process ALL flags and update form
+          const flags = res?.ExpenseRuleFlag || []
+          // Find the first active flag (we store the first for update operations)
+          setExistingFlag(flags[0] || null)
+
+          // Check ALL flags for Austrian and Romanian settings
+          const austrianFlag = flags.find((f: any) => f.name === 'Austrian Abroad' && f.value === 'true')
+          const romanianFlag = flags.find((f: any) => f.name === 'Romanian Calculation' && f.value === 'true')
+
+          // Update form with found flag values
+          dispatch({
+            type: 'HYDRATE',
+            payload: {
+              austrianAbroad: !!austrianFlag,
+              romanianCalculation: !!romanianFlag
+            }
+          })
+
+          // Process usage check - determine if rule has been used
+          const planCount = res?.planCount?.aggregate?.count || 0
+          const requestCount = res?.requestCount?.aggregate?.count || 0
+          const itemCount = res?.itemCount?.aggregate?.count || 0
+          setIsRuleUsed(planCount > 0 || requestCount > 0 || itemCount > 0)
+
           setFlagsLoaded(true)
         } else {
-          setExistingFlag(null)
+          // CREATE MODE: Fetch catalogs + last rule in ONE call
+          const res = await graphqlClient.request<any>(getCreateModeData, {
+            activeUserLocale: getCurrentActiveUserLocale()
+          })
+
+          if (cancelled) return
+
+          // Set catalog data
+          setCalculationTypes(res?.CalculationTypes || [])
+          setCurrencies((res?.Currencies || []).map((c: any) => ({ id: c.id, code: c.code })))
+          setCountries(res?.Countries || [])
+
+          // Set last rule reference
+          const lastRule = res?.ExpenseRule?.[0] || null
+          setLastRuleId(lastRule?.id || null)
           setFlagsLoaded(true)
         }
-      } catch {
-        if (!cancelled) {
-          setLastRuleId(null)
-          setExistingFlag(null)
-        }
+      } catch (err) {
+        console.error('Error fetching form data:', err)
         setFlagsLoaded(true)
       }
     })()
-    return () => {
-      cancelled = true
-    }
-  }, [graphqlClient, navigationPayload?.id])
 
-  // Update mode: prefill form fields from server
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      if (!isUpdate || !navigationPayload?.id) return
-      try {
-        const res = await graphqlClient.request<any>(getCalculationRule, { calculationId: navigationPayload.id })
-        if (cancelled) return
-        const rule = res?.ExpenseRule?.[0] || null
-        if (!rule) return
-        setPrefilledRule(rule)
-        const hydrated: Partial<FormState> = {
-          ruleCode: rule.code || '',
-          ruleName: rule.name || '',
-          calculationTypeId: rule.calculationTypeRef || null,
-          validFrom: rule.activeFrom ? new Date(rule.activeFrom) : new Date(),
-          validTo: rule.activeTo ? new Date(rule.activeTo) : new Date('9999-12-31'),
-          isStandard: !!rule.standard,
-          currencyId: rule.currencyRef || rule.currency?.id || null,
-          advancePaymentCode: rule.advancePaymentCode || '',
-          taxesCode: rule.taxesCode || '',
-          nonPayableCode: rule.nonpayableCode || '',
-          useLastCountry: !!rule.useLastCountry,
-          deductionLimit: !!rule.deductionLimit,
-          useSingleCurrency: !!rule.useSingleCurrency,
-          countryRefId: rule.countryRef || null
-        }
-        dispatch({ type: 'HYDRATE', payload: hydrated })
-      } catch {
-        // ignore
-      }
-    })()
     return () => {
       cancelled = true
     }
-  }, [isUpdate, navigationPayload?.id, graphqlClient])
+  }, [open, accessToken, isUpdate, navigationPayload?.id])
 
   // Validation
   useEffect(() => {
@@ -218,11 +249,6 @@ export const useCreateCalculationRuleForm = ({ accessToken, navigationPayload }:
       newErrors.code = getTranslationFromI18nKeyAndLabel(
         'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.is_code_unique_first',
         "The 'Rule Code' field is required."
-      )
-    } else if (codeDuplicate) {
-      newErrors.code = getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.is_code_unique_second',
-        'This code already exists'
       )
     }
     if (!trimmedName) {
@@ -277,35 +303,8 @@ export const useCreateCalculationRuleForm = ({ accessToken, navigationPayload }:
     formState.isStandard,
     formState.currencyId,
     formState.countryRefId,
-    standardValidationFailed,
-    codeDuplicate
+    standardValidationFailed
   ])
-
-  // Code uniqueness check
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const code = (formState.ruleCode || '').trim()
-      if (!code) {
-        setCodeDuplicate(false)
-        return
-      }
-      try {
-        const res = await graphqlClient.request<any>(getExpenseRuleAggregateByCode, {
-          codeValue: code,
-          ruleId: isUpdate ? navigationPayload?.id : null
-        })
-        if (cancelled) return
-        const count = res?.ExpenseRuleAggregate?.aggregate?.count || 0
-        setCodeDuplicate(count > 0)
-      } catch {
-        if (!cancelled) setCodeDuplicate(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [formState.ruleCode, graphqlClient, isUpdate, navigationPayload?.id])
 
   const hasErrors = useMemo(() => Object.values(errors).some(msg => !!msg), [errors])
 
@@ -379,9 +378,9 @@ export const useCreateCalculationRuleForm = ({ accessToken, navigationPayload }:
     lastRuleId,
     existingFlag,
     prefilledRule,
-    codeDuplicate,
     flagsLoaded,
     isUpdate,
+    isRuleUsed,
     hasErrors,
     noInitialValuesChanged,
     initialSnapshotRef,

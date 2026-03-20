@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout, Button } from '@newwork/nw-design-system'
-import { TrendingDown, DollarSign, BarChart3, LayoutDashboard } from 'lucide-react'
+import { TrendDownIcon, CurrencyDollarIcon, ChartBarIcon, GaugeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -19,28 +19,28 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <LayoutDashboard />,
+      icon: <GaugeIcon />,
       label: getTranslationFromI18nKeyAndLabel('portfolio', 'Portfolio')
     },
     {
       key: 'investments',
-      icon: <DollarSign />,
+      icon: <CurrencyDollarIcon />,
       label: getTranslationFromI18nKeyAndLabel('investments', 'Investments')
     },
     {
       key: 'reports',
-      icon: <TrendingDown />,
+      icon: <TrendDownIcon />,
       label: getTranslationFromI18nKeyAndLabel('reports', 'Reports')
     },
 
     {
       key: 'divestments',
-      icon: <TrendingDown />,
+      icon: <TrendDownIcon />,
       label: getTranslationFromI18nKeyAndLabel('divestments', 'Divestments')
     },
     {
       key: 'analytics',
-      icon: <BarChart3 />,
+      icon: <ChartBarIcon />,
       label: getTranslationFromI18nKeyAndLabel('analytics', 'Analytics')
     }
   ]
@@ -57,19 +57,11 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
     return viewOptions[0].key
   }
 
-  // Investments subview handling (moved from InvestmentRelations)
-  const getInitialInvestmentsSubView = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const subViewFromUrl = urlParams.get('subView')
-    const valid = ['overview', 'equity', 'real-estate', 'liquid-funds']
-    if (subViewFromUrl && valid.includes(subViewFromUrl)) {
-      return subViewFromUrl
-    }
-    return 'overview'
-  }
-
   const [activeView, setActiveView] = useState<string>(getInitialView())
-  const [investmentsSubTab, setInvestmentsSubTab] = useState<string>(getInitialInvestmentsSubView())
+  const [investmentsSubTab, setInvestmentsSubTab] = useState<string>(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('subView') || 'overview'
+  })
 
   const handleNavigateToInvestments = (subTab?: string) => {
     setActiveView('investments')
@@ -140,13 +132,13 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
       const newView = getInitialView()
       setActiveView(newView)
       if (newView === 'investments') {
-        const newInvestmentsSubView = getInitialInvestmentsSubView()
-        setInvestmentsSubTab(newInvestmentsSubView)
+        const urlParams = new URLSearchParams(globalThis.location.search)
+        setInvestmentsSubTab(urlParams.get('subView') || 'overview')
       }
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [])
 
   const renderViewContent = () => {
@@ -206,7 +198,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
   return (
     <div data-testid="investment-management-app">
       <PageLayout
-        headerIcon={BarChart3}
+        headerIcon={ChartBarIcon}
         headerTitle={getTranslationFromI18nKeyAndLabel('investment_management', 'Investment Management')}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           'investment_management_description',

@@ -1,7 +1,17 @@
 // Account Layout Components
-export { AccountLayout, type AccountLayoutProps, type AccountViewConfig } from './AccountLayout'
+export {
+  AccountLayout,
+  type AccountLayoutProps,
+  type AccountViewConfig,
+  type QuickFiltersRenderProps
+} from './AccountLayout'
 export { AccountListLayout, type AccountListLayoutProps } from './components/AccountListLayout'
 export { AccountStatisticsLayout, type AccountStatisticsData } from './components/AccountStatisticsLayout'
+export {
+  AccountQuickFilters,
+  type QuickFilterType,
+  type AccountQuickFiltersProps
+} from './components/AccountQuickFilters'
 
 // Types
 export type { Account } from '@/common/data/relations/types/accountTypes'

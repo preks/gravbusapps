@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import {
-  BankOutlined,
-  TrophyOutlined,
-  DollarOutlined,
-  TeamOutlined,
-  BuildOutlined,
-  RiseOutlined
-} from '@ant-design/icons'
+  BankIcon,
+  TrophyIcon,
+  CurrencyDollarIcon,
+  UsersIcon,
+  BuildingsIcon,
+  TrendUpIcon
+} from '@phosphor-icons/react'
 
 interface TrendData {
   current: number
@@ -63,7 +63,7 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
       key: 'recent-accounts',
       title: 'Recent Accounts',
       value: recentAccounts?.current || 0,
-      prefix: <BuildOutlined />,
+      prefix: <BuildingsIcon size={16} />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Past 2 weeks',
@@ -73,17 +73,17 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
       key: 'active-accounts',
       title: 'Active Accounts',
       value: activeAccounts?.current || 0,
-      prefix: <RiseOutlined />,
+      prefix: <TrendUpIcon size={16} />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'With opportunities',
+      description: 'With active opportunities',
       trend: createTrend(activeAccounts, 'vs last month')
     },
     {
       key: 'accounts-this-year',
       title: 'Accounts This Year',
       value: accountsThisYear?.current || 0,
-      prefix: <TrophyOutlined />,
+      prefix: <TrophyIcon size={16} />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'New accounts',
@@ -93,7 +93,7 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
       key: 'total-accounts',
       title: 'Total Accounts',
       value: totalAccounts?.current || 0,
-      prefix: <TeamOutlined />,
+      prefix: <UsersIcon size={16} />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'All accounts',
@@ -107,7 +107,7 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
       key: 'recent-accounts',
       title: 'Recent Accounts',
       value: recentAccounts?.current || 0,
-      prefix: <TeamOutlined />,
+      prefix: <UsersIcon size={16} />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Past 2 weeks',
@@ -117,17 +117,17 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
       key: 'active-accounts',
       title: 'Active Accounts',
       value: activeAccounts?.current || 0,
-      prefix: <BankOutlined />,
+      prefix: <BankIcon size={16} />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Currently active',
+      description: 'With active opportunities',
       trend: createTrend(activeAccounts, 'vs last month')
     },
     {
       key: 'this-year',
       title: 'This Year',
       value: accountsThisYear?.current || 0,
-      prefix: <TrophyOutlined />,
+      prefix: <TrophyIcon size={16} />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'New accounts',
@@ -137,7 +137,7 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
       key: 'total-accounts',
       title: 'Total Accounts',
       value: totalAccounts?.current || 0,
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon size={16} />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'All accounts',

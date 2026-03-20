@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCatalogValue } from '@/common/utils/windowUtils'
 
 interface UseVacationApprovalDataProps {
@@ -16,6 +16,7 @@ interface UseVacationApprovalDataProps {
 
 interface EmployeeData {
   id: string
+  userId?: string // User ID for chat integration
   displayName: string
   firstName?: string
   lastName?: string
@@ -37,7 +38,7 @@ export const useVacationApprovalData = ({
   const [isLoadingSubstitute, setIsLoadingSubstitute] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const graphqlClient = useGraphqlClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   // Fetch employee data
   useEffect(() => {
@@ -50,6 +51,7 @@ export const useVacationApprovalData = ({
           query GetEmployee($employeeId: uuid!) {
             Employee(where: {id: {_eq: $employeeId}}, limit: 1) {
               id
+              userId
               firstName
               lastName
               displayName
@@ -99,6 +101,7 @@ export const useVacationApprovalData = ({
 
           setEmployeeData({
             id: employee.id,
+            userId: employee.userId,
             displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
             firstName: employee.firstName,
             lastName: employee.lastName,

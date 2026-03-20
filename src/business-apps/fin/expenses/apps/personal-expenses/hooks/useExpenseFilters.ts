@@ -8,7 +8,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 // Define these as constants for stable references outside the hook
 const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days']
 const EXPENSE_TYPE_OPTIONS = ['expense', 'trip']
-const OTHER_OPTIONS = ['noreceiptfilter']
+const OTHER_OPTIONS: string[] = []
 
 // Interface for the return type of useExpenseFilters
 export interface UseExpenseFiltersReturn {
@@ -227,11 +227,6 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
       const statuses = statusFilters.map(f => f.toUpperCase())
 
       const expenseTypes = filtersToApply.filter(f => f !== 'expenseDateRange' && EXPENSE_TYPE_OPTIONS.includes(f))
-      const otherFilters = filtersToApply.filter(f => f !== 'expenseDateRange' && OTHER_OPTIONS.includes(f))
-
-      // Check if no receipt filter is selected
-      const hasNoReceiptFilter = otherFilters.includes('noreceiptfilter')
-
       // Process status filters
       if (statuses.length > 0) {
         // Convert all selected statuses from lowercase UI values to uppercase API values
@@ -279,11 +274,6 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
         } else if (selectedType === 'trip') {
           filter.expenseClass = { value: 'Trip' }
         }
-      }
-
-      // Process the No receipt filter
-      if (hasNoReceiptFilter) {
-        filter.noReceipt = true
       }
 
       return filter

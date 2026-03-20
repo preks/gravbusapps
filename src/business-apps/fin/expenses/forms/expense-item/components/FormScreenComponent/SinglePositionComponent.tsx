@@ -26,7 +26,7 @@ export const SinglePositionComponent: React.FC<SinglePositionComponentProps> = (
   handleExpenseGroupChange,
   handleExpenseTypeChange
 }) => {
-  const { isProcessingFiles, form, handleCurrencyChange } = useExpenseItem()
+  const { isProcessingFiles, form, handleCurrencyChange, hasLinkedExpenseRequest } = useExpenseItem()
 
   return (
     <div data-testid="single-position-container">
@@ -48,6 +48,7 @@ export const SinglePositionComponent: React.FC<SinglePositionComponentProps> = (
           handleCurrencyChange={handleCurrencyChange}
           form={form}
           showCurrencyField={true}
+          hasLinkedExpenseRequest={hasLinkedExpenseRequest}
         />
       ))}
     </div>

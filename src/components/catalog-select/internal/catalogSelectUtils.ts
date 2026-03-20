@@ -10,6 +10,12 @@ export interface ActiveFilters {
   typeEquals?: string
 }
 
+type CatalogSelectValueState = {
+  value?: string | null
+}
+
+export type CatalogSelectExternalValue = string | string[] | null
+
 /**
  * Gets the localized value for a catalog entry based on the provided locale.
  * Falls back to the default value if:
@@ -42,16 +48,18 @@ export const getLocalizedValue = (entry: CatalogEntry, locale?: string): string 
 /**
  * Converts catalog entries to option format for select/combobox.
  * Supports localization when locale is provided.
- * Includes icon from additionalValue3 if available.
+ * Includes code, type (stable identifiers) and icon from additionalValue3 if available.
  *
  * @param entries - Array of catalog entries
  * @param locale - Optional locale code for translations
- * @returns Array of options with value, label, and optional icon
+ * @returns Array of options with value, label, code, type, and optional icon
  */
 export const toOptions = (entries: CatalogEntry[], locale?: string) =>
   entries.map(e => ({
     value: e.id,
     label: getLocalizedValue(e, locale),
+    code: e.code, // Include code for stable filtering
+    type: e.type, // Include type for classification filtering
     icon: e.additionalValue3 || undefined
   }))
 
@@ -74,6 +82,36 @@ export const buildFiltersSignature = (filters: ActiveFilters): string => {
     p: filters.parentEntryId || null,
     t: filters.typeEquals || null
   })
+}
+
+export const resolveCatalogSelectFieldValue = (
+  fieldId: string,
+  externalValues?: Record<string, CatalogSelectExternalValue>,
+  stateById?: Record<string, CatalogSelectValueState | undefined>
+): string => {
+  if (externalValues && Object.prototype.hasOwnProperty.call(externalValues, fieldId)) {
+    const externalValue = externalValues[fieldId]
+    return typeof externalValue === 'string' ? externalValue : ''
+  }
+
+  return stateById?.[fieldId]?.value || ''
+}
+
+export const resolveCatalogSelectFieldValues = (
+  fieldId: string,
+  externalValues?: Record<string, CatalogSelectExternalValue>,
+  stateById?: Record<string, CatalogSelectValueState | undefined>
+): string[] => {
+  if (externalValues && Object.prototype.hasOwnProperty.call(externalValues, fieldId)) {
+    const externalValue = externalValues[fieldId]
+    if (Array.isArray(externalValue)) {
+      return externalValue.filter((value): value is string => typeof value === 'string' && value.length > 0)
+    }
+    return typeof externalValue === 'string' && externalValue.length > 0 ? [externalValue] : []
+  }
+
+  const stateValue = stateById?.[fieldId]?.value
+  return typeof stateValue === 'string' && stateValue.length > 0 ? [stateValue] : []
 }
 
 export const isValueValidForFilters = (

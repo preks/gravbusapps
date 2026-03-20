@@ -1,10 +1,6 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  LeadLayout,
-  type LeadViewConfig,
-  type LeadStatisticsData
-} from '@/common/components/common-relations/view-layouts/lead-layout'
+import { LeadLayout, type LeadViewConfig } from '@/common/components/common-relations/view-layouts/lead-layout'
 import { type CustomerLead, CUSTOMER_LEAD_DESCRIPTORS } from '@/common/data/customer/types/customerLeadTypes'
 import {
   commonLeadColumns,
@@ -88,20 +84,10 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   const { fetchCustomerLeads } = useCustomerLeads(context)
   const leadStatistics = useCustomerLeadStatistics(context)
 
-  // Statistics - Transform hook data to LeadStatisticsData format
-  const leadStatisticsData: LeadStatisticsData | undefined = useMemo(() => {
-    return {
-      recentLeads: leadStatistics.recentLeads,
-      hotLeads: leadStatistics.hotLeads,
-      conversionRate: leadStatistics.conversionRate,
-      topSource: leadStatistics.topSource,
-      isLoading: leadStatistics.isLoading,
-      error: leadStatistics.error,
-      refetch: leadStatistics.refetch
-    }
-  }, [leadStatistics])
-
-  // Config
+  // Config — leadStatistics is intentionally excluded so that statistics state
+  // updates (isLoading, recentLeads, etc.) do not recreate config, which would
+  // cascade into new queryVariables/loadData references and re-fire GetLeads.
+  // leadStatistics is passed as a separate prop to LeadLayout instead.
   const config: LeadViewConfig<CustomerLead, CustomerLeadQueryVariables> = useMemo(
     () => ({
       fetchLeads: fetchCustomerLeads,
@@ -146,7 +132,6 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         createContext: FlowContextName.customerLeadCreate
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/crm/lead-record', { leadId: id }),
-      leadStatistics: leadStatisticsData,
       rowActionsContextArray: [FlowContextName.customerLeadEntity],
       buildRowActionsExternalContextData: (row: { original: CustomerLead }) => ({
         leadId: row.original.id
@@ -162,10 +147,12 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         addLead: { key: 'crm:lead.addLead', default: 'Add Lead' }
       }
     }),
-    [fetchCustomerLeads, leadStatisticsData, accessToken]
+    [fetchCustomerLeads, accessToken]
   )
 
-  return <LeadLayout context={context} config={config} dataTestId="customer-lead-view" />
+  return (
+    <LeadLayout context={context} config={config} leadStatistics={leadStatistics} dataTestId="customer-lead-view" />
+  )
 }
 
 export default LeadView

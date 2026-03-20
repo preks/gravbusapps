@@ -1,0 +1,385 @@
+/**
+ * useComments Hook
+ *
+ * Reusable hook for comment management across Documents, Notes, and Spreadsheets.
+ * Provides functionality for document-level and inline comments, threading, and real-time updates.
+ *
+ * NOTE: This requires backend comments API to be implemented first.
+ */
+
+import { useState, useCallback, useEffect } from 'react'
+import type { Comment, CommentQueryOptions, CreateCommentInput } from '../types/versioning'
+
+export interface UseCommentsOptions {
+  entityId: string
+  entityType: 'document' | 'note' | 'spreadsheet_app'
+  apiService?: {
+    createComment: (id: string, comment: CreateCommentInput) => Promise<Comment | null>
+    listComments: (id: string, options?: CommentQueryOptions) => Promise<Comment[]>
+    updateComment: (commentId: string, updates: Partial<Comment>) => Promise<Comment | null>
+    resolveComment: (commentId: string) => Promise<boolean>
+    deleteComment: (commentId: string) => Promise<boolean>
+    replyToComment: (commentId: string, reply: string) => Promise<Comment | null>
+  }
+  autoRefreshInterval?: number // ms, default 0 (disabled - use WebSocket events instead)
+  onCommentCreated?: (comment: Comment) => void
+  onCommentResolved?: (comment: Comment) => void
+  onError?: (error: Error) => void
+  /** Translation function for user-facing error messages */
+  t?: (key: string, vars?: Record<string, string | number>) => string
+}
+
+export interface UseCommentsState {
+  comments: Comment[]
+  unresolvedCount: number
+  isLoading: boolean
+  error: string | null
+}
+
+export interface UseCommentsActions {
+  loadComments: (options?: CommentQueryOptions) => Promise<void>
+  createComment: (input: CreateCommentInput) => Promise<Comment | null>
+  updateComment: (commentId: string, updates: Partial<Comment>) => Promise<Comment | null>
+  resolveComment: (commentId: string) => Promise<boolean>
+  unresolveComment: (commentId: string) => Promise<boolean>
+  deleteComment: (commentId: string) => Promise<boolean>
+  replyToComment: (commentId: string, reply: string) => Promise<Comment | null>
+  clearError: () => void
+}
+
+export interface UseCommentsReturn extends UseCommentsState, UseCommentsActions {}
+
+/**
+ * Hook for managing comments
+ *
+ * TODO: Implement once backend comments API is ready
+ */
+export function useComments(options: UseCommentsOptions): UseCommentsReturn {
+  const {
+    entityId,
+    apiService,
+    autoRefreshInterval = 0, // Disabled by default - use WebSocket events
+    onCommentCreated,
+    onCommentResolved,
+    onError,
+    t
+  } = options
+
+  // State
+  const [state, setState] = useState<UseCommentsState>({
+    comments: [],
+    unresolvedCount: 0,
+    isLoading: false,
+    error: null
+  })
+
+  /**
+   * Load comments
+   */
+  const loadComments = useCallback(
+    async (queryOptions?: CommentQueryOptions) => {
+      if (!apiService) {
+        console.warn('[useComments] Backend API not yet implemented')
+        return
+      }
+
+      setState(prev => ({ ...prev, isLoading: true, error: null }))
+
+      try {
+        const comments = await apiService.listComments(entityId, queryOptions)
+        const unresolvedCount = comments.filter(c => !c.resolvedAt && !c.parentId).length
+
+        setState(prev => ({
+          ...prev,
+          comments,
+          unresolvedCount,
+          isLoading: false
+        }))
+      } catch (error) {
+        const errorMessage = t
+          ? t('shared-error-load-comments')
+          : error instanceof Error
+            ? error.message
+            : String(error)
+        setState(prev => ({
+          ...prev,
+          error: errorMessage,
+          isLoading: false
+        }))
+
+        if (onError) {
+          onError(error instanceof Error ? error : new Error(errorMessage))
+        }
+      }
+    },
+    [entityId, apiService, onError, t]
+  )
+
+  /**
+   * Create a new comment
+   */
+  const createComment = useCallback(
+    async (input: CreateCommentInput): Promise<Comment | null> => {
+      if (!apiService) {
+        console.warn('[useComments] Backend API not yet implemented')
+        return null
+      }
+
+      try {
+        const comment = await apiService.createComment(entityId, input)
+
+        if (comment) {
+          setState(prev => ({
+            ...prev,
+            comments: [...prev.comments, comment],
+            unresolvedCount: comment.parentId ? prev.unresolvedCount : prev.unresolvedCount + 1
+          }))
+
+          if (onCommentCreated) {
+            onCommentCreated(comment)
+          }
+        }
+
+        return comment
+      } catch (error) {
+        if (onError) {
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(t ? t('shared-error-create-comment') : error instanceof Error ? error.message : String(error))
+          )
+        }
+        return null
+      }
+    },
+    [entityId, apiService, onCommentCreated, onError, t]
+  )
+
+  /**
+   * Update a comment
+   */
+  const updateComment = useCallback(
+    async (commentId: string, updates: Partial<Comment>): Promise<Comment | null> => {
+      if (!apiService) {
+        console.warn('[useComments] Backend API not yet implemented')
+        return null
+      }
+
+      try {
+        const updated = await apiService.updateComment(commentId, updates)
+
+        if (updated) {
+          setState(prev => ({
+            ...prev,
+            comments: prev.comments.map(c => (c.id === commentId ? updated : c))
+          }))
+        }
+
+        return updated
+      } catch (error) {
+        if (onError) {
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(t ? t('shared-error-update-comment') : error instanceof Error ? error.message : String(error))
+          )
+        }
+        return null
+      }
+    },
+    [apiService, onError, t]
+  )
+
+  /**
+   * Resolve a comment
+   */
+  const resolveComment = useCallback(
+    async (commentId: string): Promise<boolean> => {
+      if (!apiService) {
+        console.warn('[useComments] Backend API not yet implemented')
+        return false
+      }
+
+      try {
+        const success = await apiService.resolveComment(commentId)
+
+        if (success) {
+          // Reload comments to get the resolved state from backend
+          await loadComments({ includeResolved: true, includeReplies: true })
+
+          const comment = state.comments.find(c => c.id === commentId)
+          if (comment && onCommentResolved) {
+            onCommentResolved(comment)
+          }
+        }
+
+        return success
+      } catch (error) {
+        if (onError) {
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(
+                  t ? t('shared-error-resolve-comment') : error instanceof Error ? error.message : String(error)
+                )
+          )
+        }
+        return false
+      }
+    },
+    [apiService, loadComments, state.comments, onCommentResolved, onError, t]
+  )
+
+  /**
+   * Unresolve a comment
+   */
+  const unresolveComment = useCallback(
+    async (commentId: string): Promise<boolean> => {
+      if (!apiService) {
+        console.warn('[useComments] Backend API not yet implemented')
+        return false
+      }
+
+      try {
+        // This would need a backend endpoint for unresolving
+        const updated = await apiService.updateComment(commentId, { resolvedAt: undefined })
+
+        if (updated) {
+          setState(prev => ({
+            ...prev,
+            comments: prev.comments.map(c => (c.id === commentId ? updated : c)),
+            unresolvedCount: prev.unresolvedCount + 1
+          }))
+          return true
+        }
+
+        return false
+      } catch (error) {
+        if (onError) {
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(
+                  t ? t('shared-error-unresolve-comment') : error instanceof Error ? error.message : String(error)
+                )
+          )
+        }
+        return false
+      }
+    },
+    [apiService, onError, t]
+  )
+
+  /**
+   * Delete a comment
+   */
+  const deleteComment = useCallback(
+    async (commentId: string): Promise<boolean> => {
+      if (!apiService) {
+        console.warn('[useComments] Backend API not yet implemented')
+        return false
+      }
+
+      try {
+        const success = await apiService.deleteComment(commentId)
+
+        if (success) {
+          const comment = state.comments.find(c => c.id === commentId)
+          setState(prev => ({
+            ...prev,
+            comments: prev.comments.filter(c => c.id !== commentId && c.parentId !== commentId),
+            unresolvedCount:
+              comment && !comment.resolvedAt && !comment.parentId ? prev.unresolvedCount - 1 : prev.unresolvedCount
+          }))
+        }
+
+        return success
+      } catch (error) {
+        if (onError) {
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(t ? t('shared-error-delete-comment') : error instanceof Error ? error.message : String(error))
+          )
+        }
+        return false
+      }
+    },
+    [apiService, state.comments, onError, t]
+  )
+
+  /**
+   * Reply to a comment
+   */
+  const replyToComment = useCallback(
+    async (commentId: string, reply: string): Promise<Comment | null> => {
+      if (!apiService) {
+        console.warn('[useComments] Backend API not yet implemented')
+        return null
+      }
+
+      try {
+        const replyComment = await apiService.replyToComment(commentId, reply)
+
+        if (replyComment) {
+          setState(prev => ({
+            ...prev,
+            comments: [...prev.comments, replyComment]
+          }))
+        }
+
+        return replyComment
+      } catch (error) {
+        if (onError) {
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(t ? t('shared-error-reply-comment') : error instanceof Error ? error.message : String(error))
+          )
+        }
+        return null
+      }
+    },
+    [apiService, onError, t]
+  )
+
+  /**
+   * Clear error
+   */
+  const clearError = useCallback(() => {
+    setState(prev => ({ ...prev, error: null }))
+  }, [])
+
+  // Load comments on mount - only if entityId is not empty
+  useEffect(() => {
+    if (entityId && entityId.trim() !== '' && apiService) {
+      loadComments({ includeResolved: true, includeReplies: true })
+    }
+  }, [entityId, apiService, loadComments])
+
+  // Auto-refresh (disabled by default - use WebSocket events for real-time updates)
+  useEffect(() => {
+    if (!apiService || !autoRefreshInterval || autoRefreshInterval === 0) return
+
+    const interval = setInterval(() => {
+      loadComments({ includeResolved: true, includeReplies: true })
+    }, autoRefreshInterval)
+
+    return () => clearInterval(interval)
+  }, [apiService, autoRefreshInterval, loadComments])
+
+  return {
+    // State
+    ...state,
+
+    // Actions
+    loadComments,
+    createComment,
+    updateComment,
+    resolveComment,
+    unresolveComment,
+    deleteComment,
+    replyToComment,
+    clearError
+  }
+}

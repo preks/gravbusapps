@@ -1,0 +1,131 @@
+sidebar-brand-title = Drive
+sidebar-my-drive = My Drive
+sidebar-shared = Shared with me
+sidebar-recent = Recent
+sidebar-favorites = Favorites
+sidebar-trash = Trash
+sidebar-spaces = Spaces
+
+hero-parent-label = Every Office
+hero-drive-title = Drive
+hero-new-button = New
+hero-tabs-aria-label = Drive sections
+hero-tab-my-drive = My Drive
+hero-tab-shared = Shared
+hero-tab-recent = Recent
+hero-tab-favorites = Favorites
+hero-tab-trash = Trash
+
+header-search-placeholder = Search in Drive...
+header-new-folder = New folder
+header-upload-file = Upload file
+header-import-external = Import external
+header-new-document = New document
+header-new-note = New note
+header-new-spreadsheet = New spreadsheet
+header-new-slides = New slides
+
+breadcrumb-root = My Drive
+breadcrumb-shared = Shared with me
+breadcrumb-recent = Recent
+breadcrumb-favorites = Favorites
+breadcrumb-trash = Trash
+
+empty-my-drive = Your drive is empty
+empty-my-drive-desc = Create folders and files to get started
+empty-shared = Nothing shared with you yet
+empty-shared-desc = Files and folders shared with you will appear here
+empty-recent = No recent files
+empty-recent-desc = Files you open will appear here
+empty-favorites = No favorites yet
+empty-favorites-desc = Star items to find them quickly later
+empty-trash = Trash is empty
+empty-trash-desc = Items you delete will appear here for 30 days
+
+action-open = Open
+action-move = Move to...
+action-rename = Rename
+action-star = Add to favorites
+action-unstar = Remove from favorites
+action-trash = Move to trash
+action-restore = Restore
+action-delete-forever = Delete forever
+action-empty-trash = Empty trash
+action-download = Download
+action-cancel = Cancel
+action-share = Share
+action-open-in-hub = Open in editor
+
+search-title = Search Drive
+search-no-results = No results found
+search-placeholder = Type to search across all your files...
+
+shared-folder-badge = Shared
+shared-folder-banner = You are viewing a shared folder
+
+create-folder-title = New folder
+create-folder-placeholder = Folder name
+create-folder-confirm = Create
+
+share-dialog-title = Share
+share-dialog-description = Share "{$title}" with others
+share-dialog-add-people = Add people
+share-dialog-search-placeholder = Search by name...
+share-dialog-default-permission = Default permission
+share-dialog-can-view = Can view
+share-dialog-can-comment = Can comment
+share-dialog-can-edit = Can edit
+share-dialog-can-admin = Full access
+share-dialog-people-access = People with access ({$count})
+share-dialog-no-people = No people found for "{$query}"
+share-dialog-message-label = Add a message (optional)
+share-dialog-message-placeholder = Let them know why you're sharing...
+share-dialog-share-button = Share
+share-dialog-sharing = Sharing...
+share-dialog-error-select = Select at least one person to share with
+share-dialog-error-failed = Failed to share. Please try again.
+share-dialog-error-general = Something went wrong. Please try again.
+share-dialog-success-title = Shared successfully
+share-dialog-success-single = Shared with {$name}
+share-dialog-success-multi = Shared with {$count} people
+share-dialog-toast = Shared with {$count} people
+share-dialog-info = People you share with will be able to find this in their "Shared with me" section.
+share-dialog-link-section = Share link
+share-dialog-link-create = Create link
+share-dialog-link-copy = Copy link
+share-dialog-link-copied = Link copied to clipboard
+share-dialog-link-deactivate = Deactivate
+share-dialog-link-active = Active
+share-dialog-link-inactive = Inactive
+share-dialog-link-uses = {$count} uses
+share-dialog-manage-title = Manage access
+share-dialog-revoke = Remove
+share-permission-view = View
+share-permission-comment = Comment
+share-permission-edit = Edit
+share-permission-admin = Admin
+common-cancel = Cancel
+preview-title = Preview
+preview-download = Download
+preview-loading = Loading preview…
+preview-error = Could not load preview
+
+dropzone-title = Drop files here
+dropzone-description = Drop files and folders to upload them to your drive
+
+shortcut-add = Add shortcut to My Drive
+shortcut-remove = Remove shortcut
+shortcut-badge = Shortcut
+add-to-my-drive = Add to My Drive
+cannot-move-out-of-shared = Items cannot be moved out of a shared folder
+
+delete-confirm-title = Move to trash?
+delete-confirm-single = "{$name}" will be moved to trash. You can restore it within 30 days.
+delete-confirm-multi = {$count} items will be moved to trash. You can restore them within 30 days.
+delete-confirm-action = Move to trash
+delete-confirm-cancel = Cancel
+
+bulk-actions-selected = {$count} selected
+bulk-actions-trash = Delete
+bulk-actions-move = Move
+bulk-actions-download = Download

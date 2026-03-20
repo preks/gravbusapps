@@ -12,7 +12,7 @@ import {
   Input,
   Button
 } from '@newwork/nw-design-system'
-import { Plus } from 'lucide-react'
+import { PlusIcon } from '@phosphor-icons/react'
 import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
 import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentPpmForecastComponentProps, PpmForecastFormData } from '../types'
@@ -20,7 +20,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import {
   extractInvestmentId,
-  parseAdditionalProperties,
+  getSubtypeOrInvestmentAdditionalProperties,
   validateInvestmentData,
   INVESTMENT_ERRORS
 } from '../utils/investmentPopupUtils'
@@ -51,13 +51,6 @@ const convertForecastsToObject = (
   }
 
   return forecastsObject
-}
-
-/**
- * Helper: Get equity investment from polymorphic structure
- */
-const getEquityInvestment = (investment: any) => {
-  return Array.isArray(investment.equityInvestment) ? investment.equityInvestment[0] : investment.equityInvestment
 }
 
 // Validation: At least one of turnover or EBITDA must be provided
@@ -114,11 +107,7 @@ export const InvestmentPpmForecastComponent: React.FC<InvestmentPpmForecastCompo
   // Load existing forecast data from additionalProperties
   useEffect(() => {
     if (investment) {
-      const equityInvestment = Array.isArray(investment.equityInvestment)
-        ? investment.equityInvestment[0]
-        : investment.equityInvestment
-
-      const additionalProps = parseAdditionalProperties(equityInvestment?.additionalProperties)
+      const additionalProps = getSubtypeOrInvestmentAdditionalProperties(investment)
       const existingForecasts = additionalProps?.forecasts || {}
 
       if (Object.keys(existingForecasts).length > 0) {
@@ -157,9 +146,8 @@ export const InvestmentPpmForecastComponent: React.FC<InvestmentPpmForecastCompo
       }))
     )
 
-    // Get current additionalProperties using helper
-    const equityInvestment = getEquityInvestment(investment)
-    const currentAdditionalProps = parseAdditionalProperties(equityInvestment?.additionalProperties)
+    // Get current additionalProperties from active subtype or generic investment
+    const currentAdditionalProps = getSubtypeOrInvestmentAdditionalProperties(investment)
 
     // Update forecasts in additionalProperties
     const updatedAdditionalProps = {
@@ -313,7 +301,7 @@ export const InvestmentPpmForecastComponent: React.FC<InvestmentPpmForecastCompo
             data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
             className="gba:w-full"
           >
-            <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+            <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
             {getTranslationFromI18nKeyAndLabel('investment.ppmForecast.addRow', 'Add Forecast Year')}
           </Button>
         </div>

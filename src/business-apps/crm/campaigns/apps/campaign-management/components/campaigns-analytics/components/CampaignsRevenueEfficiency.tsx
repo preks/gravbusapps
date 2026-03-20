@@ -1,15 +1,18 @@
-import React, { useState } from 'react'
-import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ComposedChart, Bar, Line, Legend, Cell, Treemap } from 'recharts'
-import { DotChartOutlined, BarChartOutlined, AppstoreOutlined } from '@ant-design/icons'
+import React, { useMemo, useState } from 'react'
+import { ScatterChart, Scatter, XAxis, YAxis, ComposedChart, Bar, Line, Treemap } from 'recharts'
+import { ChartScatterIcon, ChartBarIcon, GridFourIcon } from '@phosphor-icons/react'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig
+} from '@newwork/nw-design-system'
 import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
-import { CHART_COLORS, CHART_COLOR_ARRAY } from '../../../utils/chartColors'
-import {
-  TooltipWrapper,
-  TooltipDataLine,
-  ChartContainer
-} from '@/common/components/customer/campaign-management/ChartHelpers'
+import { NW_CHART_COLOR_VARS, nwChartColorAt } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
+import { TooltipWrapper, TooltipDataLine } from '@/common/components/customer/campaign-management/ChartHelpers'
 import { ChartCard, ChartTypeSwitcher } from '@/common/components/customer/campaign-management/ChartCard'
 
 /**
@@ -37,19 +40,19 @@ const EfficiencyScatterTooltip: React.FC<EfficiencyScatterTooltipProps> = ({ act
         <TooltipDataLine
           label="Revenue/Lead"
           value={formatCurrencyCompact(data.revenuePerLead, 'USD')}
-          color={CHART_COLORS.success}
+          color={NW_CHART_COLOR_VARS[1]}
         />
-        <TooltipDataLine label="Win Rate" value={`${data.winRate.toFixed(1)}%`} color={CHART_COLORS.primary} />
+        <TooltipDataLine label="Win Rate" value={`${data.winRate.toFixed(1)}%`} color={NW_CHART_COLOR_VARS[0]} />
         <TooltipDataLine
           label="Efficiency Score"
           value={`${data.efficiencyScore.toFixed(1)}%`}
-          color={CHART_COLORS.accent}
+          color={NW_CHART_COLOR_VARS[2]}
         />
-        <TooltipDataLine label="Total Leads" value={data.leadsCount} color={CHART_COLORS.warning} />
+        <TooltipDataLine label="Total Leads" value={data.leadsCount} color={NW_CHART_COLOR_VARS[3]} />
         <TooltipDataLine
           label="Total Revenue"
           value={formatCurrencyCompact(data.revenue, 'USD')}
-          color={CHART_COLORS.danger}
+          color={NW_CHART_COLOR_VARS[4]}
         />
       </TooltipWrapper>
     )
@@ -84,20 +87,20 @@ const EfficiencyTreemapTooltip: React.FC<EfficiencyTreemapTooltipProps> = ({ act
           <TooltipDataLine
             label="Revenue"
             value={`${formatCurrencyCompact(data.size || 0, 'USD')} (${percentage}%)`}
-            color={CHART_COLORS.success}
+            color={NW_CHART_COLOR_VARS[1]}
           />
           {data.revenuePerLead && (
             <TooltipDataLine
               label="Revenue/Lead"
               value={formatCurrencyCompact(data.revenuePerLead, 'USD')}
-              color={CHART_COLORS.primary}
+              color={NW_CHART_COLOR_VARS[0]}
             />
           )}
           {data.efficiencyScore && (
             <TooltipDataLine
               label="Efficiency Score"
               value={`${data.efficiencyScore.toFixed(1)}%`}
-              color={CHART_COLORS.accent}
+              color={NW_CHART_COLOR_VARS[2]}
             />
           )}
         </TooltipWrapper>
@@ -131,19 +134,19 @@ const EfficiencyComposedTooltip: React.FC<EfficiencyComposedTooltipProps> = ({ a
         <TooltipDataLine
           label="Revenue/Lead"
           value={formatCurrencyCompact(data.revenuePerLead, 'USD')}
-          color={CHART_COLORS.success}
+          color={NW_CHART_COLOR_VARS[1]}
         />
         <TooltipDataLine
           label="Revenue/Opp"
           value={formatCurrencyCompact(data.revenuePerOpportunity, 'USD')}
-          color={CHART_COLORS.primary}
+          color={NW_CHART_COLOR_VARS[0]}
         />
         <TooltipDataLine
           label="Efficiency Score"
           value={`${data.efficiencyScore.toFixed(1)}%`}
-          color={CHART_COLORS.accent}
+          color={NW_CHART_COLOR_VARS[2]}
         />
-        <TooltipDataLine label="Win Rate" value={`${data.winRate.toFixed(1)}%`} color={CHART_COLORS.warning} />
+        <TooltipDataLine label="Win Rate" value={`${data.winRate.toFixed(1)}%`} color={NW_CHART_COLOR_VARS[3]} />
       </TooltipWrapper>
     )
   }
@@ -158,7 +161,16 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
 }) => {
   const [chartType, setChartType] = useState<'scatter' | 'composed' | 'treemap'>('scatter')
 
-  // Prepare efficiency data (no filtering needed - already filtered by GraphQL query)
+  const scatterChartConfig = useMemo<ChartConfig>(() => ({ scatter: { label: 'Campaigns' } }), [])
+  const composedChartConfig = useMemo<ChartConfig>(
+    () => ({
+      revenueperlead: { label: 'Revenue per Lead' },
+      efficiencyscore: { label: 'Efficiency Score (%)' }
+    }),
+    []
+  )
+  const treemapChartConfig = useMemo<ChartConfig>(() => ({ segments: { label: 'Revenue share' } }), [])
+
   const efficiencyData = efficiencyComparisons
     .map(campaign => ({
       id: campaign.campaignId,
@@ -182,6 +194,10 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
       status: campaign.status
     }))
     .sort((a, b) => b.efficiencyScore - a.efficiencyScore)
+    .map((entry, index) => ({
+      ...entry,
+      fill: nwChartColorAt(index)
+    }))
 
   // Calculate total revenue for treemap tooltip
   const totalRevenue = efficiencyData.reduce((sum, item) => sum + item.revenue, 0)
@@ -190,8 +206,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
     switch (chartType) {
       case 'scatter':
         return (
-          <ChartContainer>
-            {}
+          <ChartContainer config={scatterChartConfig} className="gba:h-[500px] gba:w-full">
             <ScatterChart data={efficiencyData} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
               <XAxis
                 type="number"
@@ -206,31 +221,25 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
                 name="Win Rate"
                 label={{ value: 'Win Rate (%)', angle: -90, position: 'insideLeft' }}
               />
-              <Tooltip content={<EfficiencyScatterTooltip />} />
-              <Scatter name="Campaigns" dataKey="winRate" fill={CHART_COLORS.accent}>
-                {efficiencyData.map((entry, index) => (
-                  <Cell key={`cell-${entry.id}`} fill={CHART_COLOR_ARRAY[index % CHART_COLOR_ARRAY.length]} />
-                ))}
-              </Scatter>
+              <ChartTooltip content={<EfficiencyScatterTooltip />} />
+              <Scatter name="Campaigns" dataKey="winRate" fill="var(--color-scatter)" />
             </ScatterChart>
-            {}
           </ChartContainer>
         )
 
       case 'composed':
         return (
-          <ChartContainer>
-            {}
+          <ChartContainer config={composedChartConfig} className="gba:h-[500px] gba:w-full">
             <ComposedChart data={efficiencyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
               <YAxis yAxisId="revenue" orientation="left" tickFormatter={val => formatCurrencyCompact(val, 'USD')} />
               <YAxis yAxisId="score" orientation="right" domain={[0, 100]} />
-              <Tooltip content={<EfficiencyComposedTooltip />} />
-              <Legend />
+              <ChartTooltip content={<EfficiencyComposedTooltip />} />
+              <ChartLegend content={<ChartLegendContent />} />
               <Bar
                 yAxisId="revenue"
                 dataKey="revenuePerLead"
-                fill={CHART_COLORS.success}
+                fill="var(--color-revenueperlead)"
                 name="Revenue per Lead"
                 radius={[4, 4, 0, 0]}
               />
@@ -238,45 +247,40 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
                 yAxisId="score"
                 type="monotone"
                 dataKey="efficiencyScore"
-                stroke={CHART_COLORS.accent}
+                stroke="var(--color-efficiencyscore)"
                 strokeWidth={3}
                 name="Efficiency Score (%)"
-                dot={{ fill: CHART_COLORS.accent, strokeWidth: 2, r: 4 }}
+                dot={{ fill: 'var(--color-efficiencyscore)', strokeWidth: 2, r: 4 }}
               />
             </ComposedChart>
-            {}
           </ChartContainer>
         )
 
       case 'treemap':
         return (
-          <ChartContainer>
-            {/* eslint-disable newwork-local/no-hardcoded-colors */}
+          <ChartContainer config={treemapChartConfig} className="gba:h-[500px] gba:w-full">
             {efficiencyData.length > 0 ? (
               <Treemap
                 data={efficiencyData.map((campaign, index) => ({
                   name: campaign.name,
                   fullName: campaign.fullName,
                   size: campaign.revenue,
-                  fill: CHART_COLOR_ARRAY[index % CHART_COLOR_ARRAY.length],
+                  fill: nwChartColorAt(index),
                   revenuePerLead: campaign.revenuePerLead,
                   efficiencyScore: campaign.efficiencyScore
                 }))}
                 dataKey="size"
                 aspectRatio={4 / 3}
-                stroke="#fff"
-                fill={CHART_COLORS.accent}
+                stroke="var(--color-border-default)"
+                fill="var(--nw-chart-3)"
               >
-                <Tooltip content={<EfficiencyTreemapTooltip totalRevenue={totalRevenue} />} />
+                <ChartTooltip content={<EfficiencyTreemapTooltip totalRevenue={totalRevenue} />} />
               </Treemap>
             ) : (
               <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-                <span style={{ color: 'var(--color-text-secondary)' }}>
-                  No data available for treemap visualization
-                </span>
+                <span className="gba:text-muted-foreground">No data available for treemap visualization</span>
               </div>
             )}
-            {/* eslint-enable newwork-local/no-hardcoded-colors */}
           </ChartContainer>
         )
 
@@ -302,9 +306,9 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
       headerActions={
         <ChartTypeSwitcher
           options={[
-            { value: 'scatter' as const, label: 'Scatter', icon: <DotChartOutlined /> },
-            { value: 'composed' as const, label: 'Composed', icon: <BarChartOutlined /> },
-            { value: 'treemap' as const, label: 'Treemap', icon: <AppstoreOutlined /> }
+            { value: 'scatter' as const, label: 'Scatter', icon: <ChartScatterIcon /> },
+            { value: 'composed' as const, label: 'Composed', icon: <ChartBarIcon /> },
+            { value: 'treemap' as const, label: 'Treemap', icon: <GridFourIcon /> }
           ]}
           activeType={chartType}
           onChange={setChartType}
@@ -315,29 +319,25 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
     >
       <>
         {/* Efficiency Insights - Horizontal Layout */}
-        <div className="gba:mb-3 gba:p-3 gba:rounded-lg" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
+        <div className="gba:mb-3 gba:p-3 gba:rounded-lg gba:bg-muted">
           <div className="gba:flex gba:justify-between gba:items-center gba:text-sm gba:gap-3">
             <div className="gba:text-center gba:flex-1">
-              <span className="gba:font-semibold" style={{ color: 'var(--color-success-600)' }}>
+              <span className="gba:font-semibold gba:text-[var(--nw-chart-2)]">
                 {efficiencyData.length > 0
                   ? formatCurrencyCompact(Math.max(...efficiencyData.map(c => c.revenuePerLead)), 'USD')
                   : '$0'}
               </span>
-              <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>
-                Best Rev/Lead
-              </span>
+              <span className="gba:ml-1 gba:text-muted-foreground">Best Rev/Lead</span>
             </div>
             <div className="gba:text-center gba:flex-1">
-              <span className="gba:font-semibold" style={{ color: 'var(--color-primary-600)' }}>
+              <span className="gba:font-semibold gba:text-[var(--nw-chart-1)]">
                 {efficiencyData.length > 0 ? Math.max(...efficiencyData.map(c => c.efficiencyScore)).toFixed(1) : '0.0'}
                 %
               </span>
-              <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>
-                Top Score
-              </span>
+              <span className="gba:ml-1 gba:text-muted-foreground">Top Score</span>
             </div>
             <div className="gba:text-center gba:flex-1">
-              <span className="gba:font-semibold" style={{ color: 'var(--color-warning-600)' }}>
+              <span className="gba:font-semibold gba:text-[var(--nw-chart-4)]">
                 {efficiencyData.length > 0
                   ? formatCurrencyCompact(
                       efficiencyData.reduce((sum, c) => sum + c.revenuePerLead, 0) / efficiencyData.length,
@@ -345,17 +345,11 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
                     )
                   : '$0'}
               </span>
-              <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>
-                Avg Rev/Lead
-              </span>
+              <span className="gba:ml-1 gba:text-muted-foreground">Avg Rev/Lead</span>
             </div>
             <div className="gba:text-center gba:flex-1">
-              <span className="gba:font-semibold" style={{ color: 'var(--color-purple-600)' }}>
-                {efficiencyData[0]?.name || 'N/A'}
-              </span>
-              <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>
-                Most Efficient
-              </span>
+              <span className="gba:font-semibold gba:text-[var(--nw-chart-5)]">{efficiencyData[0]?.name || 'N/A'}</span>
+              <span className="gba:ml-1 gba:text-muted-foreground">Most Efficient</span>
             </div>
           </div>
         </div>
@@ -363,7 +357,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
         {renderChart()}
 
         {/* Chart explanation */}
-        <div className="gba:mt-4 gba:text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+        <div className="gba:mt-4 gba:text-xs gba:text-muted-foreground">
           {chartType === 'scatter' && (
             <p>
               <strong>Scatter Plot:</strong> Revenue per Lead vs Win Rate. Color intensity indicates efficiency score.

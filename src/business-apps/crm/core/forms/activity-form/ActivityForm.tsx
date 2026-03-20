@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useCustomerActivity } from '@/common/data/customer/hooks/useCustomerActivity'
 import { useCustomerRelatedEntities } from '@/common/data/customer/hooks/useCustomerRelatedEntities'
+import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { type CustomerActivity, buildCustomerActivityPayload } from '@/common/data/customer/types/customerActivityTypes'
 import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/customer/constants/customerConstants'
@@ -18,6 +19,44 @@ import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getReferenceEntityType } from '@/common/data/customer/utils'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { env } from '@/common/env/EnvUtils'
+
+/** Fire-and-forget link of email message to CRM entity in document-service */
+const linkEmailToCrmEntity = (
+  values: Record<string, any>,
+  emailMessageIdOverride?: string | null,
+  accessToken?: string | null
+) => {
+  const msgId = values.additionalProperties?.emailMessageId || emailMessageIdOverride
+  if (!msgId || !accessToken) return
+
+  const entityType = values.accountId
+    ? 'Account'
+    : values.contactId
+      ? 'Contact'
+      : values.opportunityId
+        ? 'Opportunity'
+        : values.leadId
+          ? 'Lead'
+          : null
+  const entityId = values.accountId || values.contactId || values.opportunityId || values.leadId
+  if (!entityType || !entityId) return
+
+  // Call document-service REST API directly (avoids cross-screen-bundle imports)
+  const publicUrl = env('NEXT_PUBLIC_DOCUMENT_SERVICE_URL')
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+  const apiUrl = publicUrl || (baseUrl ? `${baseUrl.replace(/\/$/, '')}/document/api/v1` : null)
+  if (!apiUrl) return
+
+  fetch(`${apiUrl}/emails/messages/${msgId}/crm-link`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({ crmEntityType: entityType, crmEntityId: entityId })
+  }).catch(err => console.error('Email CRM link failed:', err))
+}
 
 export interface ActivityFormProps extends BusinessAppContextProps {
   onSuccess?: (activity: Partial<ActivitySchema>) => void
@@ -48,9 +87,20 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
 
-  // Determine if entity selection should be shown
-  const hasEntityFromContext = accountId || contactId || opportunityId || leadId
-  const shouldShowEntitySelection = !hasEntityFromContext
+  // Get occurredAt from additionalData or initialParameters (for calendar quick actions)
+  const occurredAt = additionalData?.occurredAt || initialParameters?.occurredAt || null
+
+  // Email-to-CRM prefill values (from Email app booking flow)
+  const emailPrefill = useMemo(() => {
+    const title = additionalData?.title || initialParameters?.title || null
+    const description = additionalData?.description || initialParameters?.description || null
+    const source = additionalData?.source || initialParameters?.source || null
+    const emailMessageId = additionalData?.emailMessageId || initialParameters?.emailMessageId || null
+    const emailActivityTypeHint =
+      additionalData?.emailActivityTypeHint || initialParameters?.emailActivityTypeHint || null
+    if (!emailMessageId) return null
+    return { title, description, source, emailMessageId, emailActivityTypeHint }
+  }, [additionalData, initialParameters])
 
   const {
     entities,
@@ -65,7 +115,23 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
 
   const form = useForm<z.infer<typeof activitySchema>>({
     resolver: zodResolver(activitySchema),
-    defaultValues: mapToFormValues(activity || {}, activitySchema) as any,
+    defaultValues: {
+      ...mapToFormValues(activity || {}, activitySchema),
+      // Include occurredAt from context if provided (e.g., from calendar quick action or drag & drop)
+      ...(occurredAt ? { occurredAt } : {}),
+      // Email-to-CRM prefill: title, description, source, and stash emailMessageId
+      ...(emailPrefill
+        ? {
+            ...(emailPrefill.title ? { title: emailPrefill.title } : {}),
+            ...(emailPrefill.description ? { description: emailPrefill.description } : {}),
+            ...(emailPrefill.source ? { source: emailPrefill.source } : {}),
+            additionalProperties: {
+              ...(activity?.additionalProperties || {}),
+              emailMessageId: emailPrefill.emailMessageId
+            }
+          }
+        : {})
+    } as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -80,6 +146,18 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [accountId, contactId, opportunityId, leadId, activity]
   )
 
+  // Calculate if entity selection should be shown (no entity context exists)
+  const shouldShowEntitySelection = useMemo(
+    () =>
+      !(
+        relatedEntityIds.accountId ||
+        relatedEntityIds.contactId ||
+        relatedEntityIds.opportunityId ||
+        relatedEntityIds.leadId
+      ),
+    [relatedEntityIds]
+  )
+
   const activityRef = useRef(activity)
 
   const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
@@ -90,6 +168,14 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
 
       // Build payload (buildPayload will include creator fields from activityData)
       const { salesActivity } = buildCustomerActivityPayload(data as Partial<CustomerActivity>)
+
+      // Ensure additionalProperties with emailMessageId is included in payload
+      if (data.additionalProperties?.emailMessageId) {
+        salesActivity.additionalProperties = {
+          ...(salesActivity.additionalProperties || {}),
+          emailMessageId: data.additionalProperties.emailMessageId
+        }
+      }
 
       return {
         salesActivity
@@ -114,8 +200,10 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   )
 
   const handleSuccess = useCallback(() => {
-    onSuccess?.(form.getValues())
-  }, [onSuccess, form])
+    const values = form.getValues()
+    linkEmailToCrmEntity(values, emailPrefill?.emailMessageId, accessToken)
+    onSuccess?.(values)
+  }, [onSuccess, form, emailPrefill, accessToken])
 
   const handleCancel = useCallback(() => {
     onCancel?.()
@@ -153,6 +241,11 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       form.reset(mapToFormValues(activity || {}, activitySchema) as any)
       activityRef.current = activity
 
+      // Re-apply override occurredAt from drag & drop or context (after DB data loads)
+      if (occurredAt && activity) {
+        form.setValue('occurredAt', occurredAt)
+      }
+
       // Hydrate first found entity
       const entity = [
         { type: 'account' as const, id: activity?.accountId },
@@ -165,13 +258,14 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         hydrateEntityById(entity.type, entity.id)
       }
     }
-  }, [activity?.id, activity, form, hydrateEntityById])
+  }, [activity?.id, activity, form, hydrateEntityById, occurredAt])
 
   useEffect(() => {
-    if (shouldShowEntitySelection) {
+    if (accessToken && !activityId) {
+      // Only trigger initial search in create mode
       searchEntities('')
     }
-  }, [shouldShowEntitySelection, searchEntities])
+  }, [accessToken, activityId, searchEntities])
 
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
@@ -202,6 +296,36 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       hydrateEntityById('lead', leadId)
     }
   }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
+
+  // Auto-resolve email activity type from catalog when emailActivityTypeHint is present
+  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: accessToken || '' })
+  const emailTypeResolvedRef = useRef(false)
+
+  useEffect(() => {
+    if (!emailPrefill?.emailActivityTypeHint || !accessToken || emailTypeResolvedRef.current) return
+    if (form.getValues('activityTypeRef')) return // Already has a type set
+
+    const resolveEmailType = async () => {
+      try {
+        const { entries } = await fetchCatalogEntriesByIdentifier('SalesActivityType:v1')
+        const hint = emailPrefill.emailActivityTypeHint.toLowerCase()
+        const match = entries.find(
+          e =>
+            e.code?.toLowerCase() === hint ||
+            e.value?.toLowerCase() === hint ||
+            e.code?.toLowerCase().includes(hint) ||
+            e.value?.toLowerCase().includes(hint)
+        )
+        if (match?.id) {
+          form.setValue('activityTypeRef', match.id)
+          emailTypeResolvedRef.current = true
+        }
+      } catch (err) {
+        console.error('Failed to resolve email activity type:', err)
+      }
+    }
+    resolveEmailType()
+  }, [emailPrefill, accessToken, form, fetchCatalogEntriesByIdentifier])
 
   const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {

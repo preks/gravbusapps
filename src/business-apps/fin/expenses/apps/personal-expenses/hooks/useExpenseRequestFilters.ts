@@ -81,9 +81,13 @@ export interface UseExpenseRequestFiltersReturn {
   handleFilterChange: (filterId: string, selected: boolean) => void
   clearFilters: () => void
   getFilters: () => ExpenseRequestWhereClause
-  setStartDateRange: (dateRange: [Date | null, Date | null] | null) => void
-  setEndDateRange: (dateRange: [Date | null, Date | null] | null) => void
+  requestDateRange: [Date | null, Date | null] | null
   setRequestDateRange: (dateRange: [Date | null, Date | null] | null) => void
+  startDateRange: [Date | null, Date | null] | null
+  setStartDateRange: (dateRange: [Date | null, Date | null] | null) => void
+  endDateRange: [Date | null, Date | null] | null
+  setEndDateRange: (dateRange: [Date | null, Date | null] | null) => void
+  effectiveDateRange: [Date | null, Date | null] | null
   setEffectiveDateRange: (dateRange: [Date | null, Date | null] | null) => void
   filterLabelMap: Record<string, string>
   addFilter: (filterId: string) => void
@@ -185,35 +189,6 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
         }),
         hideSearch: true
       },
-      // {
-      //   id: 'timePeriod',
-      //   title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.period_title', 'Time Period'),
-      //   filters: [
-      //     { id: 'last30days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_30_days', 'Last 30 days'), selected: selectedFilters.includes('last30days') },
-      //     { id: 'last90days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_90_days', 'Last 90 days'), selected: selectedFilters.includes('last90days') },
-      //     { id: 'last180days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_180_days', 'Last 180 days'), selected: selectedFilters.includes('last180days') }
-      //   ]
-      // },
-      {
-        id: 'requestType',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
-          'Request Type'
-        ),
-        type: 'radio' as any,
-        filters: [
-          {
-            id: 'ExpenseRequestType:v1:EXPENSES',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.general_expense', 'General Expense'),
-            selected: selectedFilters.includes('ExpenseRequestType:v1:EXPENSES')
-          },
-          {
-            id: 'ExpenseRequestType:v1:TRIP',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'),
-            selected: selectedFilters.includes('ExpenseRequestType:v1:TRIP')
-          }
-        ]
-      },
       {
         id: 'status',
         title: getTranslationFromI18nKeyAndLabel(
@@ -228,6 +203,26 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
             selected: selectedFilters.includes(id)
           }
         })
+      },
+      {
+        id: 'requestType',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
+          'Request Type'
+        ),
+        type: 'radio' as any,
+        filters: [
+          {
+            id: 'ExpenseRequestType:v1:EXPENSES',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense'),
+            selected: selectedFilters.includes('ExpenseRequestType:v1:EXPENSES')
+          },
+          {
+            id: 'ExpenseRequestType:v1:TRIP',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'),
+            selected: selectedFilters.includes('ExpenseRequestType:v1:TRIP')
+          }
+        ]
       }
     ],
     [selectedFilters, startDateRange, endDateRange, requestDateRange, effectiveDateRange]
@@ -258,8 +253,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       // 'last90days': 'Last 90 days',
       // 'last180days': 'Last 180 days',
       'ExpenseRequestType:v1:EXPENSES': getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request.general_expense',
-        'General Expense'
+        'lowcoder:personal_expenses.expense',
+        'Expense'
       ),
       'ExpenseRequestType:v1:TRIP': getTranslationFromI18nKeyAndLabel(
         'lowcoder:approve_expense_plan.tab_container.trip_header',
@@ -516,9 +511,13 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     handleFilterChange,
     clearFilters: clearAllFilters,
     getFilters,
-    setStartDateRange,
-    setEndDateRange,
+    requestDateRange,
     setRequestDateRange,
+    startDateRange,
+    setStartDateRange,
+    endDateRange,
+    setEndDateRange,
+    effectiveDateRange,
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,

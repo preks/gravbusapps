@@ -2,7 +2,8 @@ import React, { useMemo } from 'react'
 import { Badge } from '@newwork/nw-design-system'
 import { GripVertical, UserCheck, UserPlus, BarChart3, CheckCircle, Cpu } from 'lucide-react'
 
-import ReactFlow, {
+import {
+  ReactFlow,
   Node,
   Edge,
   Controls,
@@ -15,8 +16,8 @@ import ReactFlow, {
   Position,
   OnConnect,
   addEdge
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 import { FlowStep } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 
 export interface FlowRendererProps {
@@ -152,15 +153,22 @@ const StepNode = ({ data }: { data: any }) => {
             <Badge
               variant="outline"
               className={`gba:text-xs gba:flex gba:items-center gba:gap-1 ${
-                data.assignmentMode === 'ASSIGN'
+                data.assignmentMode === 'ASSIGN' || data.assignmentMode === 'ASSIGN_SINGLE'
                   ? 'gba:bg-green-100 gba:text-green-700 gba:border-green-300'
-                  : 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-300'
+                  : data.assignmentMode === 'ASSIGN_DEFERRED'
+                    ? 'gba:bg-teal-100 gba:text-teal-700 gba:border-teal-300'
+                    : 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-300'
               }`}
             >
-              {data.assignmentMode === 'ASSIGN' ? (
+              {data.assignmentMode === 'ASSIGN' || data.assignmentMode === 'ASSIGN_SINGLE' ? (
                 <>
                   <UserPlus className="gba:h-3 gba:w-3" />
                   Assign
+                </>
+              ) : data.assignmentMode === 'ASSIGN_DEFERRED' ? (
+                <>
+                  <UserPlus className="gba:h-3 gba:w-3" />
+                  Assign Deferred
                 </>
               ) : (
                 <>

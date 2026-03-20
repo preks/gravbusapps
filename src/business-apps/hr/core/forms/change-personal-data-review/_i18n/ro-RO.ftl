@@ -35,3 +35,7 @@ label-school-qualification = Calificare școlară
 
 # Error States
 error-loading-title = Eroare la încărcarea datelor personale
+error-cannot-approve-own-changes = Nu puteți aproba propriile modificări de date personale. Vă rugăm să solicitați unui alt manager HR să le verifice și să le aprobe.
+
+# Warning States
+warning-own-change-title = Nu se pot aproba propriile modificări

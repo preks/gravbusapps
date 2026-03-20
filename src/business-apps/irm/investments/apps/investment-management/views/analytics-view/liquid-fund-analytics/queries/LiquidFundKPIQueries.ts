@@ -1,13 +1,10 @@
-import { useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { createKPIQueryHook } from '@/common/data/investment/queries/GenericKPIQueries'
 
 export interface LiquidFundKPIData {
   totalInvestments: number
   totalAmountInvested: number
-  totalMarketValue: number
   averageInvestmentValue: number
-  averageMarketValue: number
+  activeInvestments: number
 }
 
 export interface LiquidFundKPIComparison {
@@ -15,115 +12,80 @@ export interface LiquidFundKPIComparison {
   previous: LiquidFundKPIData
 }
 
-export const GET_LIQUID_FUND_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?: string): string => {
-  // Currency filter condition
-  const currencyCondition = currencyFilter ? `{ currency: { code: { _eq: "${currencyFilter}" } } }` : ''
+const AVERAGE_FALLBACK = 0
 
-  return `
-    query GetLiquidFundKPIsWithComparison {
-      # Current data (all liquid fund investments)
-      currentAggregate: InvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { liquidFundInvestment: {} }
-            ${currencyCondition}
-          ]
-        }
-      ) {
-        aggregate {
-          count
-          sum {
-            totalInvestmentAmount
-            investmentMarketValue
-          }
-        }
-      }
-      
-      # Previous period data (liquid fund investments existing 91 days ago)
-      previousAggregate: InvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { createdAt: { _lte: "${comparisonDate}" } }
-            { liquidFundInvestment: {} }
-            ${currencyCondition}
-          ]
-        }
-      ) {
-        aggregate {
-          count
-          sum {
-            totalInvestmentAmount
-            investmentMarketValue
-          }
+/**
+ * Hook to fetch liquid fund KPI data with period comparison
+ * Uses generic KPI query factory with Liquid Fund specific configuration
+ */
+const useGetLiquidFundKPIsBase = createKPIQueryHook<LiquidFundKPIData>({
+  groupName: 'LiquidFund',
+  groupFilterCondition: { liquidFundInvestment: { id: { _isNull: false } } },
+  additionalWhereClauses: [
+    {
+      name: 'activeWhere',
+      conditions: [{ investmentStatus: { value: { _eq: 'Active' } } }]
+    }
+  ],
+  queryFields: `
+    # Current data (liquid fund investments only)
+    currentAggregate: InvestmentAggregate(where: $currentWhere) {
+      aggregate {
+        count
+        sum {
+          totalInvestmentAmount
         }
       }
     }
-  `
-}
-
-export interface LiquidFundKPIResponse {
-  currentAggregate: {
-    aggregate: {
-      count: number
-      sum: {
-        totalInvestmentAmount: number | null
-        investmentMarketValue: number | null
+    
+    # Current active investments count
+    currentActiveAggregate: InvestmentAggregate(where: $currentActiveWhere) {
+      aggregate {
+        count
       }
     }
-  }
-  previousAggregate: {
-    aggregate: {
-      count: number
-      sum: {
-        totalInvestmentAmount: number | null
-        investmentMarketValue: number | null
+    
+    # Previous period data
+    previousAggregate: InvestmentAggregate(where: $previousWhere) {
+      aggregate {
+        count
+        sum {
+          totalInvestmentAmount
+        }
       }
     }
-  }
-}
-
-export const useGetLiquidFundKPIs = (context: BusinessAppContextProps, currency?: string) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const fetchLiquidFundKPIs = useCallback(async (): Promise<LiquidFundKPIComparison> => {
-    // Calculate date 91 days ago for comparison
-    const quarterAgo = new Date()
-    quarterAgo.setDate(quarterAgo.getDate() - 91)
-    const comparisonDate = quarterAgo.toISOString()
-
-    const query = GET_LIQUID_FUND_KPIS_WITH_COMPARISON(comparisonDate, currency)
-    const result = await graphqlClient.request<LiquidFundKPIResponse>(query)
-
-    // Transform current data
-    const currentCount = result.currentAggregate.aggregate.count
-    const currentTotalAmount = result.currentAggregate.aggregate.sum.totalInvestmentAmount || 0
-    const currentMarketValue = result.currentAggregate.aggregate.sum.investmentMarketValue || 0
-
-    const current: LiquidFundKPIData = {
-      totalInvestments: currentCount,
-      totalAmountInvested: currentTotalAmount,
-      totalMarketValue: currentMarketValue,
-      averageInvestmentValue: currentCount > 0 ? currentTotalAmount / currentCount : 0,
-      averageMarketValue: currentCount > 0 ? currentMarketValue / currentCount : 0
+    
+    # Previous active investments count
+    previousActiveAggregate: InvestmentAggregate(where: $previousActiveWhere) {
+      aggregate {
+        count
+      }
     }
-
-    // Use actual historical data
-    const previousCount = result.previousAggregate.aggregate.count
-    const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0
-    const previousMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0
-
-    const previous: LiquidFundKPIData = {
-      totalInvestments: previousCount,
-      totalAmountInvested: previousTotalAmount,
-      totalMarketValue: previousMarketValue,
-      averageInvestmentValue: previousCount > 0 ? previousTotalAmount / previousCount : 0,
-      averageMarketValue: previousCount > 0 ? previousMarketValue / previousCount : 0
+  `,
+  transformResult: data => ({
+    current: {
+      totalInvestments: data.currentAggregate?.aggregate?.count || 0,
+      totalAmountInvested: data.currentAggregate?.aggregate?.sum?.totalInvestmentAmount || 0,
+      activeInvestments: data.currentActiveAggregate?.aggregate?.count || 0,
+      averageInvestmentValue:
+        data.currentAggregate?.aggregate?.count > 0
+          ? (data.currentAggregate.aggregate.sum?.totalInvestmentAmount || 0) / data.currentAggregate.aggregate.count
+          : AVERAGE_FALLBACK
+    },
+    previous: {
+      totalInvestments: data.previousAggregate?.aggregate?.count || 0,
+      totalAmountInvested: data.previousAggregate?.aggregate?.sum?.totalInvestmentAmount || 0,
+      activeInvestments: data.previousActiveAggregate?.aggregate?.count || 0,
+      averageInvestmentValue:
+        data.previousAggregate?.aggregate?.count > 0
+          ? (data.previousAggregate.aggregate.sum?.totalInvestmentAmount || 0) / data.previousAggregate.aggregate.count
+          : AVERAGE_FALLBACK
     }
+  })
+})
 
-    return { current, previous }
-  }, [graphqlClient, currency])
-
-  return { fetchLiquidFundKPIs }
+// Export with consistent API
+export const useGetLiquidFundKPIs = (context: any) => {
+  const hook = useGetLiquidFundKPIsBase(context)
+  return { fetchLiquidFundKPIs: hook.fetchLiquidFundKPIs }
 }

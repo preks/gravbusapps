@@ -1,14 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { Conversation, Message, ConversationParticipant } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useUserManagementClient } from './useUserManagementClient'
-import { useEmployeeAvatars } from './useEmployeeAvatars'
+import { useEmployeeAvatarsCache } from './useEmployeeAvatarsCache'
+import { sortConversationsPinThenTime } from '../utils/conversationSort'
 
 interface UseConversationsOptions {
-  apiClient: ChatApiClient
+  apiClient: ChatApiClient | null | undefined
   accessToken: string
   enabled?: boolean
 }
+
+export type ConversationFilterKind = 'all' | 'direct' | 'group' | 'meeting'
 
 export function useConversations({ apiClient, accessToken, enabled = true }: UseConversationsOptions) {
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -18,17 +21,33 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   const [hasMore, setHasMore] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const isLoadingRef = useRef(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
+  const loadConversationsPromiseRef = useRef<Promise<void> | null>(null)
   const LIMIT = 20
+
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [filterKind, setFilterKind] = useState<ConversationFilterKind>('all')
+  const [unreadOnly, setUnreadOnly] = useState(false)
+
+  useEffect(() => {
+    if (!search.trim()) {
+      setDebouncedSearch('')
+      return
+    }
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350)
+    return () => clearTimeout(timer)
+  }, [search])
 
   // Use user management client to fetch real user data
   const { getUsersByIds } = useUserManagementClient(accessToken)
-  const { fetchAvatarsWithEmployeeIds } = useEmployeeAvatars(accessToken)
+  const { requestAvatars, cacheVersion } = useEmployeeAvatarsCache(accessToken)
 
   // Helper function to enrich conversations with real user data and avatars
   // Only enriches user data for placeholder users (who haven't logged in yet)
-  // But fetches avatars for ALL participants
+  // Avatars are loaded non-blocking from cache or fetched in background
   const enrichConversations = useCallback(
-    async (conversations: Conversation[]): Promise<Conversation[]> => {
+    async (conversations: Conversation[], options: { skipUserDataFetch?: boolean } = {}): Promise<Conversation[]> => {
       if (!conversations || conversations.length === 0) {
         return conversations
       }
@@ -43,23 +62,23 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           conv.participants?.forEach(p => {
             if (p.user?.id) {
               allParticipantIds.add(p.user.id)
-              // Check for placeholder email pattern
-              if (p.user?.email?.includes('@placeholder.local')) {
+              // Check for placeholder email pattern (only if not skipping)
+              if (!options.skipUserDataFetch && p.user?.email?.includes('@placeholder.local')) {
                 placeholderUserIds.add(p.user.id)
               }
             }
           })
         })
 
-        // Fetch avatars and employeeIds for ALL participants (parallel request)
-        const employeeInfoMapPromise = fetchAvatarsWithEmployeeIds(Array.from(allParticipantIds))
+        // Get avatars and employeeIds non-blocking (returns cached + triggers background fetch)
+        const employeeInfoMap = requestAvatars(Array.from(allParticipantIds))
 
-        // Fetch real user data only for placeholder users (parallel request)
-        const userDataMapPromise =
-          placeholderUserIds.size > 0 ? getUsersByIds(Array.from(placeholderUserIds)) : Promise.resolve(new Map())
-
-        // Wait for both requests to complete
-        const [employeeInfoMap, userDataMap] = await Promise.all([employeeInfoMapPromise, userDataMapPromise])
+        // Fetch real user data only for placeholder users
+        // Skip entirely if flag is set or no placeholder users found
+        const userDataMap =
+          !options.skipUserDataFetch && placeholderUserIds.size > 0
+            ? await getUsersByIds(Array.from(placeholderUserIds))
+            : new Map()
 
         // Enrich conversations with user data, avatars, and employeeIds
         const enrichedConversations = conversations.map(
@@ -107,59 +126,143 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         )
 
         return enrichedConversations
-      } catch (error) {
-        console.error('Error enriching conversations with user data:', error)
+      } catch {
         return conversations
       }
     },
-    [getUsersByIds, fetchAvatarsWithEmployeeIds]
+    [getUsersByIds, requestAvatars]
+  )
+
+  // Fast enrichment - only adds avatars (non-blocking), no user data fetch
+  // Use this when conversation already has complete user data (e.g., from getConversationById)
+  const enrichConversationsWithAvatarsOnly = useCallback(
+    (conversations: Conversation[]): Conversation[] => {
+      if (!conversations || conversations.length === 0) {
+        return conversations
+      }
+
+      try {
+        // Extract all participant user IDs
+        const allParticipantIds = new Set<string>()
+        conversations.forEach(conv => {
+          conv.participants?.forEach(p => {
+            if (p.user?.id) {
+              allParticipantIds.add(p.user.id)
+            }
+          })
+        })
+
+        // Get avatars non-blocking (returns cached + triggers background fetch)
+        const employeeInfoMap = requestAvatars(Array.from(allParticipantIds))
+
+        // Enrich conversations with avatars and employeeIds (synchronous, from cache)
+        return conversations.map(
+          (conv: Conversation): Conversation => ({
+            ...conv,
+            participants: conv.participants?.map((p: ConversationParticipant) => {
+              const employeeInfo = employeeInfoMap.get(p?.user?.id || '')
+              if (employeeInfo && p?.user) {
+                return {
+                  ...p,
+                  user: {
+                    ...p.user,
+                    avatarUrl: employeeInfo.avatarUrl || p.user.avatarUrl,
+                    employeeId: employeeInfo.employeeId || p.user.employeeId
+                  }
+                }
+              }
+              return p
+            })
+          })
+        )
+      } catch {
+        return conversations
+      }
+    },
+    [requestAvatars]
   )
 
   const loadConversations = useCallback(async () => {
     if (!enabled || isLoadingRef.current || !apiClient) return
 
-    try {
-      isLoadingRef.current = true
-      setIsLoading(true)
-      setError(null)
-      setCurrentPage(1)
-
-      const response = await apiClient.getConversations(1, LIMIT)
-      // Handle both response structures: { data: [...] } or { conversations: [...] }
-      const conversationsData = response.data || (response as any).conversations || []
-      const total = response.total || 0
-
-      // Check if there are more conversations to load
-      setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
-
-      // Enrich conversations with real user data from User Management Service
-      const enrichedConversations = await enrichConversations(conversationsData)
-
-      // Sort by most recent activity (lastMessage or updatedAt)
-      const sortedConversations = enrichedConversations.sort((a, b) => {
-        const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
-        const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
-        return new Date(bTime).getTime() - new Date(aTime).getTime()
-      })
-
-      setConversations(sortedConversations)
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to load conversations'))
-      console.error('Error loading conversations:', err)
-    } finally {
-      setIsLoading(false)
-      isLoadingRef.current = false
+    // Request deduplication: if a request is already in flight, return that promise
+    if (loadConversationsPromiseRef.current) {
+      return loadConversationsPromiseRef.current
     }
-  }, [apiClient, accessToken, enabled, enrichConversations, LIMIT])
+
+    const loadPromise = (async () => {
+      try {
+        isLoadingRef.current = true
+        setIsLoading(true)
+        setError(null)
+        setCurrentPage(1)
+
+        // When Unread filter is on we fetch all and filter client-side so "marked as unread" (dot) conversations are included
+        const response = await apiClient.getConversations(1, LIMIT, {
+          search: debouncedSearch || undefined,
+          filter: filterKind,
+          unreadOnly: unreadOnly ? false : undefined
+        })
+        // Handle both response structures: { data: [...] } or { conversations: [...] }
+        const conversationsData = response.data || (response as any).conversations || []
+        const total = response.total || 0
+
+        // Check if there are more conversations to load
+        setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
+
+        // For initial load, use fast avatar-only enrichment (synchronous, no blocking)
+        // The API returns full user data, so we don't need to fetch placeholder users
+        // This prevents the "no conversation" flash while waiting for enrichment
+        const enrichedConversations = !hasLoadedOnce
+          ? enrichConversationsWithAvatarsOnly(conversationsData)
+          : await enrichConversations(conversationsData)
+
+        const sortedConversations = [...enrichedConversations].sort(sortConversationsPinThenTime)
+
+        // Set conversations and clear loading in same tick to prevent flash
+        setConversations(sortedConversations)
+        setHasLoadedOnce(true)
+        setIsLoading(false)
+        isLoadingRef.current = false
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Failed to load conversations'))
+        setIsLoading(false)
+        isLoadingRef.current = false
+      } finally {
+        // Clear the promise ref when done
+        loadConversationsPromiseRef.current = null
+      }
+    })()
+
+    // Store the promise for deduplication
+    loadConversationsPromiseRef.current = loadPromise
+    return loadPromise
+  }, [
+    apiClient,
+    accessToken,
+    enabled,
+    enrichConversations,
+    enrichConversationsWithAvatarsOnly,
+    hasLoadedOnce,
+    LIMIT,
+    debouncedSearch,
+    filterKind,
+    unreadOnly
+  ])
 
   const loadMoreConversations = useCallback(async () => {
     if (!enabled || isLoadingMore || !hasMore || !apiClient) return
 
     try {
+      setError(null)
       setIsLoadingMore(true)
       const nextPage = currentPage + 1
 
-      const response = await apiClient.getConversations(nextPage, LIMIT)
+      const response = await apiClient.getConversations(nextPage, LIMIT, {
+        search: debouncedSearch || undefined,
+        filter: filterKind,
+        unreadOnly: unreadOnly ? false : undefined
+      })
       const conversationsData = response.data || (response as any).conversations || []
       const total = response.total || 0
 
@@ -169,119 +272,122 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       // Enrich new conversations
       const enrichedConversations = await enrichConversations(conversationsData)
 
-      // Append to existing conversations
-      setConversations(prev => [...prev, ...enrichedConversations])
+      setConversations(prev => {
+        const existingIds = new Set(prev.map(c => c.id))
+        const newConversations = enrichedConversations.filter(c => !existingIds.has(c.id))
+        return [...prev, ...newConversations].sort(sortConversationsPinThenTime)
+      })
       setCurrentPage(nextPage)
     } catch (err) {
-      console.error('Error loading more conversations:', err)
+      setError(err instanceof Error ? err : new Error('Failed to load more conversations'))
     } finally {
       setIsLoadingMore(false)
     }
-  }, [apiClient, enabled, isLoadingMore, hasMore, currentPage, conversations.length, enrichConversations, LIMIT])
+  }, [
+    apiClient,
+    enabled,
+    isLoadingMore,
+    hasMore,
+    currentPage,
+    conversations.length,
+    enrichConversations,
+    LIMIT,
+    debouncedSearch,
+    filterKind,
+    unreadOnly
+  ])
 
   const updateConversation = useCallback((conversationId: string, updates: Partial<Conversation>) => {
     setConversations(prev => {
       const updated = prev.map(conv => (conv.id === conversationId ? { ...conv, ...updates } : conv))
-      // Re-sort if updatedAt changed
-      if (updates.updatedAt || updates.lastMessage) {
-        return updated.sort((a, b) => {
-          const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
-          const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
-          return new Date(bTime).getTime() - new Date(aTime).getTime()
-        })
+      const needsResort =
+        updates.updatedAt !== undefined ||
+        updates.lastMessage !== undefined ||
+        updates.lastMessageAt !== undefined ||
+        updates.isPinned !== undefined ||
+        updates.pinnedOrder !== undefined
+      if (needsResort) {
+        return [...updated].sort(sortConversationsPinThenTime)
       }
       return updated
     })
   }, [])
 
   const addConversation = useCallback(
-    async (conversation: Conversation): Promise<Conversation> => {
-      // Enrich the new conversation with real user data
-      const enriched = await enrichConversations([conversation])
-      const enrichedConversation = enriched[0] || conversation
+    async (conversation: Conversation, options: { fastEnrich?: boolean } = {}): Promise<Conversation> => {
+      // Fast enrichment (avatars only, non-blocking) or full enrichment (with user data fetch)
+      const enrichedConversation = options.fastEnrich
+        ? enrichConversationsWithAvatarsOnly([conversation])[0] || conversation
+        : (await enrichConversations([conversation]))[0] || conversation
 
       setConversations(prev => {
-        // Check if conversation already exists
-        if (prev.some((c: Conversation) => c.id === conversation.id)) {
-          return prev.map((c: Conversation) => (c.id === conversation.id ? enrichedConversation : c))
-        }
-        return [enrichedConversation, ...prev]
+        const existing = prev.findIndex((c: Conversation) => c.id === conversation.id)
+        const next =
+          existing >= 0
+            ? prev.map((c: Conversation) => (c.id === conversation.id ? enrichedConversation : c))
+            : [enrichedConversation, ...prev]
+        return [...next].sort(sortConversationsPinThenTime)
       })
 
       // Return enriched conversation so caller can use it
       return enrichedConversation
     },
-    [enrichConversations]
+    [enrichConversations, enrichConversationsWithAvatarsOnly]
   )
 
   const updateConversationLastMessage = useCallback(
     async (conversationId: string, message: Message) => {
-      console.log(
-        '[useConversations] Updating last message for conversation:',
-        conversationId,
-        'Message:',
-        message.content?.substring(0, 30)
-      )
-
       setConversations(prev => {
-        // Check if conversation exists
-        const convExists = prev.some(c => c.id === conversationId)
+        // OPTIMIZATION: Find conversation index in single pass (faster than some() + map())
+        let convIndex = -1
+        for (let i = 0; i < prev.length; i++) {
+          if (prev[i].id === conversationId) {
+            convIndex = i
+            break
+          }
+        }
 
-        if (!convExists) {
-          console.warn('[useConversations] Conversation not found in list:', conversationId, '- fetching from API')
-
+        if (convIndex === -1) {
           // Trigger async fetch of the missing conversation
           // This happens when a message arrives for a conversation that's not in the paginated list
           if (apiClient) {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[useConversations] Conversation not in list, fetching by id', { conversationId })
+            }
             apiClient
               .getConversationById(conversationId)
               .then(async conversation => {
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[useConversations] Fetched missing conversation, adding to list', { conversationId })
+                }
                 // Enrich before adding
                 const enriched = await enrichConversations([conversation])
                 const enrichedConv = enriched[0] || conversation
 
-                // Add to top of list with the new message
                 setConversations(currentConvs => {
                   const withNew = [{ ...enrichedConv, lastMessage: message, unreadCount: 1 }, ...currentConvs]
-                  // Sort to ensure correct order
-                  return withNew.sort((a, b) => {
-                    const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
-                    const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
-                    return new Date(bTime).getTime() - new Date(aTime).getTime()
-                  })
+                  return [...withNew].sort(sortConversationsPinThenTime)
                 })
               })
               .catch(err => {
-                console.error('[useConversations] Failed to fetch missing conversation:', err)
+                console.error('[useConversations] Failed to fetch missing conversation', {
+                  conversationId,
+                  message: err instanceof Error ? err.message : String(err)
+                })
               })
+          } else if (process.env.NODE_ENV === 'development') {
+            console.log('[useConversations] Conversation not in list but apiClient is null, skipping fetch', {
+              conversationId
+            })
           }
 
           return prev
         }
 
-        // Update the conversation
-        const updated = prev.map(conv =>
-          conv.id === conversationId
-            ? {
-                ...conv,
-                lastMessage: message,
-                updatedAt: new Date().toISOString()
-              }
-            : conv
+        const updated = prev.map((conv, i) =>
+          i === convIndex ? { ...conv, lastMessage: message, updatedAt: new Date().toISOString() } : conv
         )
-
-        // Re-sort by most recent activity (move updated conversation to top)
-        const sorted = updated.sort((a, b) => {
-          const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
-          const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
-          return new Date(bTime).getTime() - new Date(aTime).getTime()
-        })
-
-        console.log(
-          '[useConversations] Re-sorted conversations, top 3:',
-          sorted.slice(0, 3).map(c => ({ id: c.id, name: c.name || 'Direct' }))
-        )
-        return sorted
+        return [...updated].sort(sortConversationsPinThenTime)
       })
     },
     [apiClient, enrichConversations]
@@ -292,23 +398,27 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   }, [])
 
   const incrementUnreadCount = useCallback((conversationId: string) => {
-    console.log('[useConversations] Incrementing unread count for conversation:', conversationId)
     setConversations(prev => {
-      const convExists = prev.some(c => c.id === conversationId)
+      // OPTIMIZATION: Find and update in single pass (no some() + map())
+      let convIndex = -1
+      for (let i = 0; i < prev.length; i++) {
+        if (prev[i].id === conversationId) {
+          convIndex = i
+          break
+        }
+      }
 
-      if (!convExists) {
-        console.warn('[useConversations] Cannot increment unread count - conversation not in list:', conversationId)
+      if (convIndex === -1) {
         return prev
       }
 
-      return prev.map(conv => {
-        if (conv.id === conversationId) {
-          const newCount = (conv.unreadCount || 0) + 1
-          console.log('[useConversations] New unread count for', conversationId, ':', newCount)
-          return { ...conv, unreadCount: newCount }
-        }
-        return conv
-      })
+      // Update only the found conversation (avoids full array map)
+      const newArray = [...prev]
+      newArray[convIndex] = {
+        ...prev[convIndex],
+        unreadCount: (prev[convIndex].unreadCount || 0) + 1
+      }
+      return newArray
     })
   }, [])
 
@@ -318,25 +428,76 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
   // Load conversations on mount
   useEffect(() => {
-    if (enabled) {
+    if (enabled && apiClient) {
       loadConversations()
     }
-  }, [enabled])
+    // Cleanup: clear the promise ref on unmount to ensure fresh loads
+    return () => {
+      loadConversationsPromiseRef.current = null
+    }
+  }, [enabled, apiClient, loadConversations])
 
-  return {
-    conversations,
-    isLoading,
-    isLoadingMore,
-    hasMore,
-    error,
-    loadConversations,
-    loadMoreConversations,
-    updateConversation,
-    addConversation,
-    updateConversationLastMessage,
-    markConversationAsRead,
-    incrementUnreadCount,
-    removeConversation,
-    enrichConversations // Export for use in websocket handlers
-  }
+  // Re-enrich conversations when avatars are loaded from cache
+  // Use fast enrichment to avoid re-fetching user data
+  // Use ref to avoid re-running on every conversations change (only when cacheVersion increments)
+  const conversationsRef = useRef(conversations)
+  useEffect(() => {
+    conversationsRef.current = conversations
+  }, [conversations])
+
+  useEffect(() => {
+    const currentConversations = conversationsRef.current
+    if (currentConversations.length > 0 && cacheVersion > 0) {
+      const enriched = enrichConversationsWithAvatarsOnly(currentConversations)
+      const uniqueEnriched = enriched.filter((conv, index, arr) => arr.findIndex(c => c.id === conv.id) === index)
+      setConversations([...uniqueEnriched].sort(sortConversationsPinThenTime))
+    }
+  }, [cacheVersion, enrichConversationsWithAvatarsOnly])
+
+  // PERFORMANCE: Memoize return object to prevent cascade re-renders
+  return useMemo(
+    () => ({
+      conversations,
+      isLoading,
+      isLoadingMore,
+      hasMore,
+      error,
+      loadConversations,
+      loadMoreConversations,
+      updateConversation,
+      addConversation,
+      updateConversationLastMessage,
+      markConversationAsRead,
+      incrementUnreadCount,
+      removeConversation,
+      enrichConversations, // Export for use in websocket handlers (full enrichment with user data fetch)
+      enrichConversationsWithAvatarsOnly, // Export for fast enrichment (avatars only, no blocking)
+      search,
+      filterKind,
+      unreadOnly,
+      setSearch,
+      setFilterKind,
+      setUnreadOnly
+    }),
+    [
+      conversations,
+      isLoading,
+      isLoadingMore,
+      hasMore,
+      error,
+      loadConversations,
+      loadMoreConversations,
+      updateConversation,
+      addConversation,
+      updateConversationLastMessage,
+      markConversationAsRead,
+      incrementUnreadCount,
+      removeConversation,
+      enrichConversations,
+      enrichConversationsWithAvatarsOnly,
+      search,
+      filterKind,
+      unreadOnly
+    ]
+  )
 }

@@ -132,7 +132,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
         handlePreSubmit={handlePreSubmit}
         formData={form.getValues()}
         form={form}
-        schema={accountSchema}
+        schema={investmentAccountSchema}
         data-testid={formatDataTestId('investment-account-form', 'Form')}
         submitButtonText={account?.id ? 'Update Account' : 'Create Account'}
         isSubmitDisabled={loading}
@@ -140,6 +140,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
         {/* Account Layout */}
         <AccountLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
+          accountContacts={account?.accountContacts}
           ownerEmployee={account?.ownerEmployee}
           entityId={account?.id || accountId}
           annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
@@ -147,6 +148,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
           accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
           useContacts={useContacts}
           avatarFileRef={avatarFileRef}
+          accountContext="irm"
           loading={loading && !!accountId}
         />
       </AppActionForm>

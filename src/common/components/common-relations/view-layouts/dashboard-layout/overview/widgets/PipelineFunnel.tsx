@@ -9,11 +9,13 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
+  EmptyState
 } from '@newwork/nw-design-system'
 import { FunnelChart, Funnel, LabelList } from 'recharts'
 import { FunnelSimpleIcon } from '@phosphor-icons/react'
 import { CurrencyFilter } from '@/business-apps/irm/investments/apps/investment-management/views/analytics-view/shared/components/CurrencyFilter'
+import { formatCurrencyCompact as formatCurrency } from '@/common/utils/numberFormatter'
 
 export interface AggregatedFunnelStage {
   stage: string
@@ -31,30 +33,6 @@ export interface PipelineFunnelProps {
   availableCurrencies?: string[]
   selectedCurrency?: string
   onCurrencyChange?: (currency: string) => void
-}
-
-const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
-  try {
-    // Use compact notation for large numbers
-    const abs = Math.abs(amount)
-    if (abs >= 1_000_000) {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currencyCode,
-        notation: 'compact',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 1
-      }).format(amount)
-    }
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  } catch {
-    return `${currencyCode} ${amount.toLocaleString()}`
-  }
 }
 
 const toKey = (value: string): string =>
@@ -174,14 +152,17 @@ const renderCustomLabel = (chartData: any[], currencyCode: string) => (props: an
 
 export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
   aggregatedFunnel,
-  title = 'All Pipeline - Current Year',
+  title = 'All Pipeline',
   description = 'Opportunity progression by stage',
   headerIcon,
   moduleColor = 'default',
-  availableCurrencies = ['EUR'],
-  selectedCurrency = 'EUR',
+  availableCurrencies,
+  selectedCurrency,
   onCurrencyChange
 }) => {
+  // Use EUR as fallback if currency not provided
+  const currencyCode = selectedCurrency || 'EUR'
+
   const dataKey = 'value'
   const nameKey = 'stage'
 
@@ -248,10 +229,10 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
+        {availableCurrencies && availableCurrencies.length > 0 && onCurrencyChange && (
           <div className="gba:mb-4">
             <CurrencyFilter
-              value={selectedCurrency || 'EUR'}
+              value={currencyCode}
               onChange={onCurrencyChange}
               currencies={availableCurrencies}
               showLabel={true}
@@ -274,7 +255,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                     cy="50%"
                     isAnimationActive={true}
                   >
-                    <LabelList content={renderCustomLabel(chartData, selectedCurrency)} />
+                    <LabelList content={renderCustomLabel(chartData, currencyCode)} />
                   </Funnel>
                   <ChartTooltip content={<ChartTooltipContent hideLabel labelKey={dataKey} nameKey={nameKey} />} />
                 </FunnelChart>
@@ -297,7 +278,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                     </div>
                     <div className="gba:text-right">
                       <div className="gba:font-medium gba:text-gray-900">
-                        {formatCurrency(stage.value, selectedCurrency)}
+                        {formatCurrency(stage.value, currencyCode)}
                       </div>
                       <div className="gba:text-xs gba:text-gray-500">
                         {stage.count} opp{stage.count !== 1 ? 's' : ''}
@@ -319,9 +300,12 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
             </div>
           </div>
         ) : (
-          <div className="gba:text-center gba:py-8">
-            <div className="gba:text-gray-500">No funnel data available</div>
-          </div>
+          <EmptyState
+            type="no-data"
+            title="No Funnel Data"
+            description="No funnel data available"
+            data-testid="pipeline-funnel-empty-state"
+          />
         )}
       </CardContent>
     </Card>

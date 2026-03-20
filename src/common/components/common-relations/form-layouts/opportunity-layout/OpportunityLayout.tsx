@@ -34,6 +34,7 @@ interface OpportunityLayoutProps {
   stageCatalogIdentifier?: string
   opportunityStatusCatalogIdentifier?: string
   opportunityForecastCatalogIdentifier?: string
+  accountTypeCatalogIdentifier?: string
   currencyCatalogIdentifier?: string
   opportunityInformationCustomFields?: React.ReactNode
   opportunityPipelineCustomFields?: React.ReactNode
@@ -44,6 +45,10 @@ interface OpportunityLayoutProps {
 
   // Hide related entities (account/contact) sections - useful in Lead Convert context
   hideRelatedEntities?: boolean
+
+  // Show dynamic stage required indicator (for conditional validation - IRM)
+  // Set to false when stage is always required (CRM)
+  showDynamicStageRequired?: boolean
 }
 
 const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
@@ -61,12 +66,14 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   stageCatalogIdentifier,
   opportunityStatusCatalogIdentifier,
   opportunityForecastCatalogIdentifier,
+  accountTypeCatalogIdentifier,
   currencyCatalogIdentifier = CURRENCY,
   opportunityInformationCustomFields,
   opportunityPipelineCustomFields,
   customSegments = [],
   loading = false,
-  hideRelatedEntities = false
+  hideRelatedEntities = false,
+  showDynamicStageRequired = true
 }) => {
   const { t } = useTranslation(translations)
 
@@ -107,6 +114,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
         customFields={opportunityInformationCustomFields}
         hideRelatedEntities={hideRelatedEntities}
         opportunityForecastCatalogIdentifier={opportunityForecastCatalogIdentifier}
+        accountTypeCatalogIdentifier={accountTypeCatalogIdentifier}
         currencyCatalogIdentifier={currencyCatalogIdentifier}
       />
       <FormSection title={t('pipeline-title')} value="pipeline-stage">
@@ -115,6 +123,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
           stageCatalogIdentifier={stageCatalogIdentifier}
           opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
           customFields={opportunityPipelineCustomFields}
+          showDynamicStageRequired={showDynamicStageRequired}
         />
       </FormSection>
       {customSegments.map(segment => (

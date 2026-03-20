@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useMemo } from 'react'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
-import { Form, Row, Col } from 'antd'
+import { Form, Row, Col, Alert, Upload } from 'antd'
 import { Badge } from '@newwork/nw-design-system'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from '../../types'
 import UploadComponent from '../UploadComponent'
@@ -8,13 +8,13 @@ import SinglePositionComponent from './SinglePositionComponent'
 import MultiPositionComponent from './MultiPositionComponent'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 
-import { Alert } from 'antd'
 import {
   getCurrentActiveUserLocale,
   getDateFormat,
   getTranslationFromI18nKeyAndLabel
 } from '../../../../../../../common/utils/windowUtils'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { DEFAULT_CURRENCY_ID } from '../../constants/constants'
 
 interface FormScreenComponentProps {
@@ -40,7 +40,6 @@ interface FormScreenComponentProps {
   handleRemovePosition: (positionId: string) => void
   loading: boolean
   calculateTotal: () => number
-  isEmbeddedInRequestWizard?: boolean
 }
 
 export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
@@ -64,15 +63,83 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   handleExpenseTypeChange,
   handleAddPosition,
   handleRemovePosition,
-  calculateTotal,
-  isEmbeddedInRequestWizard = false
+  calculateTotal
 }) => {
   const t = getTranslationFromI18nKeyAndLabel
-  const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode, additionalData } =
-    useExpenseItem()
+  const ALLOWED_FILE_TYPES = ['.pdf', '.PDF', '.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG']
+  const {
+    isProcessingFiles,
+    isFormDisabled,
+    isCreating,
+    expenseRuleError,
+    receiptCurrencyError,
+    hasLinkedExpenseRequest,
+    handleCurrencyChange,
+    isEditMode,
+    additionalData,
+    supportingFileList,
+    setSupportingFileList,
+    requiredAttachmentInstructions
+  } = useExpenseItem()
+
+  // Calculate isEmbeddedInRequestWizard from additionalData
+  const isEmbeddedInRequestWizard = Boolean(additionalData?.expenseRequestId && additionalData.expenseRequestId !== '0')
 
   const selectedExpenseRequestId = Form.useWatch('expenseRequestId', form)
   const hadBackendRequestRef = useRef(false)
+  const prevPositionsLengthRef = useRef(positions.length)
+  const lastPositionCardRef = useRef<HTMLDivElement | null>(null)
+  const supportingUploadUidRef = useRef(0)
+  const requiresSupportingDocument = requiredAttachmentInstructions.length > 0
+
+  const createSupportingUploadUid = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+
+    supportingUploadUidRef.current += 1
+    return `supporting-upload-${Date.now()}-${supportingUploadUidRef.current}`
+  }
+
+  const validateSupportingFileType = (file: File) => {
+    const isValidType = ALLOWED_FILE_TYPES.some(type => {
+      const extension = `.${file.name.split('.').pop()}`
+      return type.toLowerCase() === extension.toLowerCase()
+    })
+
+    if (!isValidType) {
+      showToast(
+        t(
+          'lowcoder:create_expense_type_item.error_file_type_message',
+          'File type not supported. Please upload PDF, JPG, JPEG, or PNG files only.'
+        ),
+        'error'
+      )
+    }
+
+    return isValidType
+  }
+
+  const handleSupportingBeforeUpload = (file: File) => {
+    if (!validateSupportingFileType(file)) {
+      return Upload.LIST_IGNORE
+    }
+
+    setSupportingFileList([
+      ...supportingFileList,
+      {
+        uid: createSupportingUploadUid(),
+        name: file.name,
+        status: 'done',
+        originFileObj: file
+      }
+    ])
+    return false
+  }
+
+  const handleSupportingRemove = (file: any) => {
+    setSupportingFileList(supportingFileList.filter(item => item.uid !== file.uid))
+  }
 
   useEffect(() => {
     if (hadBackendRequestRef.current || !isEditMode) {
@@ -84,6 +151,20 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       hadBackendRequestRef.current = true
     }
   }, [form, isEditMode, selectedExpenseRequestId])
+
+  // When a new position is added in multi-position mode, scroll to it and focus the card (ref-based, no DOM query)
+  useEffect(() => {
+    if (!multiPosition || positions.length <= prevPositionsLengthRef.current) {
+      prevPositionsLengthRef.current = positions.length
+      return
+    }
+    prevPositionsLengthRef.current = positions.length
+    const frameId = requestAnimationFrame(() => {
+      lastPositionCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      lastPositionCardRef.current?.focus()
+    })
+    return () => cancelAnimationFrame(frameId)
+  }, [multiPosition, positions.length])
 
   const expenseRequestOptions = useMemo(() => {
     return expenseRequests.map(request => {
@@ -153,27 +234,38 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       e.stopPropagation()
       e.preventDefault()
 
-      setTimeout(async () => {
-        try {
-          await form.validateFields()
+      try {
+        await form.validateFields()
 
-          if (expenseRuleError) {
-            return
-          }
+        if (expenseRuleError) {
+          return
+        }
 
-          handleSubmit()
-        } catch (errorInfo) {
-          const firstErrorField = (errorInfo as any)?.errorFields?.[0]?.name?.[0]
-          if (firstErrorField) {
-            const element = document.querySelector(`[name="${firstErrorField}"]`)
-            if (element) {
-              element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            }
+        if (requiresSupportingDocument && supportingFileList.length === 0) {
+          showToast(
+            t(
+              'lowcoder:create_expense_item.missing_additional_attachment',
+              'Please upload the required supporting document.'
+            ),
+            'error'
+          )
+          return
+        }
+
+        await handleSubmit()
+      } catch (errorInfo: any) {
+        // Handle form validation errors - scroll to first invalid field
+        const firstErrorField = errorInfo?.errorFields?.[0]?.name?.[0]
+        if (firstErrorField) {
+          const element = document.querySelector(`[name="${firstErrorField}"]`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
           }
         }
-      }, 0)
+        // Currency/submission errors are already handled by context with toast
+      }
     },
-    [form, expenseRuleError, handleSubmit]
+    [form, expenseRuleError, handleSubmit, requiresSupportingDocument, supportingFileList.length]
   )
 
   return (
@@ -191,6 +283,44 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       <div className="gba:m-0 gba:mb-[30px]" data-testid="form-upload-container">
         <UploadComponent fileList={fileList} setFileList={setFileList} />
       </div>
+
+      {requiresSupportingDocument && (
+        <div className="gba:mb-4" data-testid="supporting-document-container">
+          {requiredAttachmentInstructions.map(instruction => (
+            <Alert
+              key={instruction}
+              message={instruction}
+              type="info"
+              showIcon
+              className="gba:mb-2"
+              data-testid="supporting-document-instruction"
+            />
+          ))}
+          <Upload
+            listType="text"
+            fileList={supportingFileList}
+            beforeUpload={handleSupportingBeforeUpload}
+            onRemove={handleSupportingRemove}
+            multiple={true}
+            accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG"
+            disabled={isProcessingFiles || isFormDisabled}
+            data-testid="supporting-document-upload"
+          >
+            <Button variant="secondary" data-testid="supporting-document-upload-button">
+              {t('lowcoder:create_expense_item.attach_supporting_document', 'Attach Supporting Document')}
+            </Button>
+          </Upload>
+        </div>
+      )}
+
+      {receiptCurrencyError && fileList && fileList.length > 0 && (
+        <div
+          className="gba:mb-4 gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:px-4 gba:py-3"
+          data-testid="receipt-currency-error-container"
+        >
+          {receiptCurrencyError}
+        </div>
+      )}
 
       <div className="gba:mb-4" data-testid="title-field-container">
         <div className="gba:relative">
@@ -329,6 +459,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           handleExpenseGroupChange={handleExpenseGroupChange}
           handleExpenseTypeChange={handleExpenseTypeChange}
           handleRemovePosition={handleRemovePosition}
+          lastPositionCardRef={lastPositionCardRef}
         />
       )}
 
@@ -373,6 +504,18 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             </Form.Item>
           </Col>
           <Col span={12} data-testid="total-currency-col">
+            {hasLinkedExpenseRequest && (
+              <Alert
+                message={t(
+                  'lowcoder:create_expense_item.linked_request_currency_warning',
+                  'Currency cannot be changed while the expense item is linked to an expense request. Please change or remove the expense request first.'
+                )}
+                type="warning"
+                showIcon
+                className="gba:mb-2"
+                data-testid="linked-request-currency-warning"
+              />
+            )}
             <Form.Item
               name="currency"
               rules={[
@@ -393,7 +536,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
                   'Currency'
                 )}
-                disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency')}
+                disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency') || hasLinkedExpenseRequest}
                 name="currency"
                 data-testid="total-currency-select"
                 isDataSorted={false}
@@ -485,7 +628,12 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button
           variant="primary"
           onClick={handleCreateClick}
-          disabled={isProcessingFiles || (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId)}
+          disabled={
+            isCreating ||
+            isProcessingFiles ||
+            (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId) ||
+            !!receiptCurrencyError
+          }
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"

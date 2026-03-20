@@ -26,7 +26,8 @@ export const transformInvestment = (
       ? investment.liquidFundInvestment[0]
       : investment.liquidFundInvestment
     ;(mappedValues as any).liquidFundInvestment = liquidFund
-    liquidFundTypeId = liquidFund?.investmentLiquidFundTypeRef || null
+    // Check both Ref field and nested object for liquid fund type ID
+    liquidFundTypeId = liquidFund?.investmentLiquidFundTypeRef || liquidFund?.investmentLiquidFundType?.id || null
   }
 
   if (investment.equityInvestment) {
@@ -40,7 +41,18 @@ export const transformInvestment = (
     const realEstate = Array.isArray(investment.realEstateInvestment)
       ? investment.realEstateInvestment[0]
       : investment.realEstateInvestment
-    ;(mappedValues as any).realEstateInvestment = realEstate
+    // Form uses realEstateInvestment.sizeMeasurementUnit (no Ref). CatalogSelect accepts string id or { id }.
+    // When GraphQL returns null for the nested object but sizeMeasurementUnitRef is set, prefill from ref.
+    const unit = realEstate?.sizeMeasurementUnit
+    const hasUnitObject =
+      unit &&
+      typeof unit === 'object' &&
+      !Array.isArray(unit) &&
+      typeof (unit as { id?: string }).id === 'string' &&
+      (unit as { id?: string }).id!.length > 0
+    const unitRef = realEstate?.sizeMeasurementUnitRef
+    ;(mappedValues as any).realEstateInvestment =
+      !hasUnitObject && unitRef ? { ...realEstate, sizeMeasurementUnit: unitRef } : realEstate
   }
 
   // Convert to single investmentTypeId
@@ -61,6 +73,19 @@ export const transformInvestment = (
         code: 'ACTIVE'
       } as any
     }
+  }
+
+  // Explicitly preserve investmentAccounts array for update mode prefill (same as investment-report-form)
+  if (investment.investmentAccounts && mappedValues.investment) {
+    ;(mappedValues.investment as any).investmentAccounts = investment.investmentAccounts
+  }
+
+  // Explicitly preserve company for update mode prefill (CompanySelect needs company object for initialCompany)
+  if (investment.company && mappedValues.investment) {
+    ;(mappedValues.investment as any).company = investment.company
+  }
+  if (investment.companyId && mappedValues.investment) {
+    ;(mappedValues.investment as any).companyId = investment.companyId
   }
 
   // Convert null to undefined for optional fields (schema expects string | undefined, not null)

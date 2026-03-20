@@ -2,31 +2,42 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import { Card } from '@newwork/gravity-ui-catalog'
+import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
-import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
 import { AppAction } from '@/components/app-action/AppAction'
+import translations from '../../_i18n'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { formatNumberFunction } from '../../../../../../../common/utils/windowUtils'
+import { formatDate, formatNumberFunction, getCatalogValue } from '../../../../../../../common/utils/windowUtils'
+import { parseLocalizedNumber } from '../../../../../../../common/utils/numberFormatter'
 import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog'
 import { useReligionCatalog } from '../../hooks/useReligionCatalog'
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
-import { getCatalogValue } from '../../../../../../../common/utils/windowUtils'
+import { useEmploymentRegionLabel } from '../../hooks/useEmploymentRegionLabel'
 
 interface EmploymentTabProps {
   employee: Employee
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
   userInfo?: UserInfoProps // Current user info
+  /** When true, show the Change Tax Details edit button (HR role only). */
+  showChangeTaxDetailsButton?: boolean
 }
 
 /**
  * Employment Tab Component
  * Displays employment-related information about the employee
  */
-const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) => {
-  // Using isSelfView from props instead of calculating it locally
+const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, showChangeTaxDetailsButton = false }) => {
+  const { t } = useTranslation(translations)
+  const workingCondition = employee.workingCondition?.[0]
+  const primaryAddress = employee.addresses?.find(addr => addr.type === 'PRIMARY')
+  const addressCountryId = primaryAddress?.country?.id ?? ''
+  const regionLabelLinkedToAddress = useEmploymentRegionLabel(
+    accessToken,
+    workingCondition?.regionRef,
+    addressCountryId || undefined
+  )
   // Fetch health insurance type catalog for health insurance type mapping
   const { getHealthInsuranceTypeValueById, loading: loadingHealthInsuranceTypes } =
     useHealthInsuranceTypeCatalog(accessToken)
@@ -37,74 +48,77 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
   // Prepare organizational data
   const organizationalData = [
     {
-      label: 'Employee ID',
+      label: t('employment-label-employee-id'),
       value: employee.code || ''
     },
     {
-      label: 'Company',
+      label: t('employment-label-company'),
       value: employee.employeePosition?.company?.name || ''
     },
     {
-      label: 'Job Position',
+      label: t('employment-label-job-position'),
       value: employee.employeePosition?.jobPosition?.name || ''
     },
     {
-      label: 'Location',
+      label: t('employment-label-location'),
       value: employee.employeePosition?.siteLocation?.name || ''
     },
     {
-      label: 'Organizational Unit',
+      label: t('employment-label-organizational-unit'),
       value: employee.employeePosition?.organizationalUnit?.name || ''
     },
     {
-      label: 'Workspace',
+      label: t('employment-label-workspace'),
       value: employee.workspace || ''
     },
     {
-      label: 'Management Level',
+      label: t('employment-label-management-level'),
       value: ''
     },
     {
-      label: 'Cost Center',
+      label: t('employment-label-cost-center'),
       value: employee.employeePosition?.costCenter?.name || ''
     }
   ]
 
-  // Prepare working conditions data
   const getWorkingConditionsData = () => {
-    const workingCondition = employee.workingCondition?.[0]
+    const regionDisplay = regionLabelLinkedToAddress || ''
 
     return [
       {
-        label: 'Employment Type',
+        label: t('employment-label-employment-type'),
         value: getCatalogValue(workingCondition?.employmentType) || ''
       },
       {
-        label: 'Hire Date',
+        label: t('employment-label-hire-date'),
         value: workingCondition?.hireDate ? dayjs(workingCondition.hireDate).format('MMM D, YYYY') : ''
       },
       {
-        label: 'Contract Type',
+        label: t('employment-label-contract-type'),
         value: getCatalogValue(workingCondition?.contractType) || ''
       },
       {
-        label: 'Probation End Date',
+        label: t('employment-label-probation-end-date'),
         value: workingCondition?.probationEnd ? dayjs(workingCondition.probationEnd).format('MMM D, YYYY') : ''
       },
       {
-        label: 'Remote',
+        label: t('employment-label-remote'),
         value: workingCondition?.remote?.value || ''
       },
       {
-        label: 'Exit Date',
+        label: t('employment-label-exit-date'),
         value: workingCondition?.exitDate ? dayjs(workingCondition.exitDate).format('MMM D, YYYY') : ''
       },
       {
-        label: 'Region',
-        value: workingCondition?.region?.value || ''
+        label: 'Exit Reason',
+        value: workingCondition?.additionalProperties?.fixedTermReason || ''
       },
       {
-        label: 'Vacation Entitlement (Days)',
+        label: t('employment-label-region'),
+        value: regionDisplay || '-'
+      },
+      {
+        label: t('employment-label-vacation-entitlement-days'),
         value: workingCondition?.vacationDays?.toString() || ''
       }
     ]
@@ -146,18 +160,18 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
 
     return [
       {
-        label: 'Weekly Hours',
+        label: t('employment-label-weekly-hours'),
         value: computedWeeklyHours.toString() || ''
       },
       {
-        label: 'FTE (Full-Time Equivalent)',
+        label: t('employment-label-fte'),
         value:
           workingHours?.fullTimeEquivalent !== undefined && workingHours?.fullTimeEquivalent !== null
             ? workingHours.fullTimeEquivalent.toString()
             : ''
       },
       {
-        label: 'Days per Week',
+        label: t('employment-label-days-per-week'),
         value: computedWeeklyDays.toString() || ''
       }
     ]
@@ -169,27 +183,27 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
   const getPayrollData = () => {
     return [
       {
-        label: 'Salary Group',
+        label: t('employment-label-salary-group'),
         value: employee.employeePosition?.costCenter?.name || ''
       },
       {
-        label: 'Payment Method',
+        label: t('employment-label-payment-method'),
         value: 'Direct Deposit'
       },
       {
-        label: 'Bank Account',
+        label: t('employment-label-bank-account'),
         value: employee.bankAccounts?.[0]?.iban || ''
       },
       {
-        label: 'Bank Name',
+        label: t('employment-label-bank-name'),
         value: employee.bankAccounts?.[0]?.bankName || ''
       },
       {
-        label: 'Account Holder',
+        label: t('employment-label-account-holder'),
         value: employee.bankAccounts?.[0]?.accountHolder || ''
       },
       {
-        label: 'Full-Time Equivalent',
+        label: t('employment-label-full-time-equivalent'),
         value: employee.fullTimeEquivalent?.toString() || ''
       }
     ]
@@ -197,53 +211,87 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
 
   const payrollData = getPayrollData()
 
+  // Employee country from working condition region (parentEntry = country)
+  const employeeCountryCode = employee.workingCondition?.[0]?.region?.parentEntry?.code ?? null
+  const isEmployeeInGermany = employeeCountryCode != null && String(employeeCountryCode).trim().toUpperCase() === 'DE'
+
   // Prepare tax information data (combined from both tabs)
   const getTaxInformationData = () => {
     const taxDetails = employee.taxDetails?.[0] || {}
+    const additionalProps = taxDetails.additionalProperties ?? {}
 
-    return [
-      // Tax information from both tabs
+    const rows: Array<{ label: string; value: string }> = [
       {
-        label: 'Tax Number',
+        label: t('employment-label-tax-number'),
         value: taxDetails.taxNumber || ''
       },
       {
-        label: 'Tax Identification Number',
+        label: t('employment-label-tax-identification-number'),
         value: taxDetails.taxIdentificationNumber || ''
       },
       {
-        label: 'Social Security Number',
+        label: t('employment-label-social-security-number'),
         value: taxDetails.socialSecurityNumber || ''
       },
       {
-        label: 'Tax Bracket',
-        value: loadingTaxBrackets ? 'Loading...' : getTaxBracketValueById(taxDetails.taxBracketRef || '')
+        label: t('employment-label-tax-bracket'),
+        value: loadingTaxBrackets ? t('common-loading') : getTaxBracketValueById(taxDetails.taxBracketRef || '')
       },
-      // Church affiliation from Details tab
       {
-        label: 'Church Affiliation',
-        value: loadingReligions ? 'Loading...' : getReligionValueById(taxDetails.taxableChurchAffiliationRef || '')
+        label: t('employment-label-church-affiliation'),
+        value: loadingReligions
+          ? t('common-loading')
+          : getReligionValueById(taxDetails.taxableChurchAffiliationRef || '')
       },
-      // Child allowance present in both tabs - formatted according to user locale
       {
-        label: 'Child Tax Allowance',
+        label: t('employment-label-child-tax-allowance'),
         value:
           taxDetails.childTaxAllowance !== undefined && taxDetails.childTaxAllowance !== null
             ? formatNumberFunction(taxDetails.childTaxAllowance.toString())
             : ''
       },
-      // Health insurance info from Employment tab
       {
-        label: 'Health Insurance',
+        label: t('employment-label-health-insurance'),
         value: taxDetails.healthInsuranceName || ''
       },
       {
-        label: 'Type Of Health Insurance',
+        label: t('employment-label-type-of-health-insurance'),
         value: loadingHealthInsuranceTypes
-          ? 'Loading...'
+          ? t('common-loading')
           : getHealthInsuranceTypeValueById(taxDetails.healthInsuranceTypeRef || '')
+      },
+      {
+        label: t('employment-label-last-updated'),
+        value:
+          taxDetails.updatedAt != null && taxDetails.updatedAt !== ''
+            ? (formatDate(taxDetails.updatedAt, 'datetime.short') ?? '')
+            : ''
       }
     ]
+
+    if (isEmployeeInGermany) {
+      rows.push(
+        {
+          label: t('employment-label-request-at-office'),
+          value: additionalProps.requestAtTaxOffice === true ? t('common-yes') : t('common-no')
+        },
+        {
+          label: t('employment-label-employee-tax-office'),
+          value: String(additionalProps.employeeTaxOffice ?? '')
+        },
+        {
+          label: t('employment-label-individual-free-amount'),
+          value: (() => {
+            const raw = String(additionalProps.individualFreeAmount ?? '').trim()
+            if (!raw) return ''
+            const parsed = parseLocalizedNumber(raw)
+            return Number.isNaN(parsed) ? raw : formatNumberFunction(parsed)
+          })()
+        }
+      )
+    }
+
+    return rows
   }
 
   const taxInformationData = getTaxInformationData()
@@ -254,11 +302,15 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
       {data.map(item => (
         <div
           key={`${item.label}-${item.value}`}
-          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors"
+          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors gba:min-w-0"
           data-testid={`employment-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
         >
-          <span className="gba:text-sm gba:text-muted-foreground gba:mb-0.5">{item.label}</span>
-          <span className="gba:font-medium gba:text-foreground">{item.value || '-'}</span>
+          <span className="gba:text-xs gba:text-muted-foreground gba:mb-0.5 gba:truncate gba:block" title={item.label}>
+            {item.label}
+          </span>
+          <span className="gba:font-medium gba:text-sm gba:text-foreground gba:truncate gba:block" title={item.value}>
+            {item.value || '-'}
+          </span>
         </div>
       ))}
     </div>
@@ -269,102 +321,98 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
       {/* Employment Overview Headline */}
       <div className="gba:employment-header" data-testid="employment-header">
         <div className="gba:font-bold gba:text-2xl" data-testid="employment-title">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.employment_overview', 'Employment Data')}
+          {t('employment-overview')}
         </div>
         <div className="gba:text-muted-foreground gba:text-lg gba:mb-4" data-testid="employment-description">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:hr_employee.employment_description',
-            'View employment information and working conditions'
-          )}
+          {t('employment-description')}
         </div>
       </div>
 
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="employment-cards">
         {/* Employment Profile Card */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="employment-section-profile"
-        >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Employment Profile</h3>
-          </div>
-          {renderDataItems(organizationalData)}
+        <Card data-testid="employment-section-profile">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-profile')}</h3>
+            </div>
+            {renderDataItems(organizationalData)}
+          </CardContent>
         </Card>
 
         {/* Working Conditions Card */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="employment-section-conditions"
-        >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Working Conditions</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="employee-working-conditions-edit-button"
-              contexts={[
-                { context: FlowContextName.updateEmployeeWorkingCondition, contextData: { employeeId: employee?.id } }
-              ]}
-              prefixDataTestId="employee-working-conditions-edit"
-              accessToken={accessToken}
-            />
-          </div>
-          {renderDataItems(workingConditionsData)}
+        <Card data-testid="employment-section-conditions">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-working-conditions')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="employee-working-conditions-edit-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeWorkingCondition, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="employee-working-conditions-edit"
+                accessToken={accessToken}
+              />
+            </div>
+            {renderDataItems(workingConditionsData)}
+          </CardContent>
         </Card>
 
         {/* Working Hours Card */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="employment-section-hours"
-        >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Working Hours</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="employee-working-hours-edit-button"
-              contexts={[
-                { context: FlowContextName.updateEmployeeWorkingHours, contextData: { employeeId: employee?.id } }
-              ]}
-              prefixDataTestId="employee-working-hours-edit"
-              accessToken={accessToken}
-            />
-          </div>
-          {renderDataItems(workingHoursData)}
+        <Card data-testid="employment-section-hours">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-working-hours')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="employee-working-hours-edit-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeWorkingHours, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="employee-working-hours-edit"
+                accessToken={accessToken}
+              />
+            </div>
+            {renderDataItems(workingHoursData)}
+          </CardContent>
         </Card>
 
         {/* Payroll Card */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="employment-section-payroll"
-        >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Payroll</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="employment-bank-account-action-button"
-              contexts={[
-                { context: FlowContextName.updateEmployeeBankAccount, contextData: { employeeId: employee?.id } }
-              ]}
-              prefixDataTestId="employment-bank-account-action"
-              accessToken={accessToken}
-            />
-          </div>
-          {renderDataItems(payrollData)}
+        <Card data-testid="employment-section-payroll">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-payroll')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="employment-bank-account-action-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeBankAccount, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="employment-bank-account-action"
+                accessToken={accessToken}
+              />
+            </div>
+            {renderDataItems(payrollData)}
+          </CardContent>
         </Card>
 
         {/* Tax Information Card */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="employment-section-tax"
-        >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Tax Information</h3>
-          </div>
-          {renderDataItems(taxInformationData)}
+        <Card data-testid="employment-section-tax">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-tax-information')}</h3>
+              {showChangeTaxDetailsButton && (
+                <AppAction
+                  variant="update-secondary"
+                  data-testid="employee-tax-information-edit-button"
+                  contexts={[{ context: FlowContextName.changeTaxDetails, contextData: { employeeId: employee?.id } }]}
+                  prefixDataTestId="employee-tax-information-edit"
+                  accessToken={accessToken}
+                />
+              )}
+            </div>
+            {renderDataItems(taxInformationData)}
+          </CardContent>
         </Card>
       </div>
     </div>
