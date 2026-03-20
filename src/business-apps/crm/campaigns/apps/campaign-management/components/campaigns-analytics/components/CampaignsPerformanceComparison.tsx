@@ -21,8 +21,8 @@ const PerformanceTooltip: React.FC<PerformanceTooltipProps> = ({ active, payload
   if (active && payload?.length) {
     const data = payload[0].payload
     return (
-      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Campaign: {label}</div>
+      <div className="gba:bg-card gba:text-card-foreground gba:p-3 gba:border gba:border-border gba:rounded-lg gba:shadow-md">
+        <div className="gba:mb-2 gba:font-medium gba:text-foreground">Campaign: {label}</div>
         {payload.map((entry: any) => (
           <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
             <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: entry.color }} />
