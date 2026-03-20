@@ -50,6 +50,19 @@ export const toOptionId = (value: unknown): string => {
  */
 export const formatFieldName = (name: string): string => {
   if (!name) return ''
+
+  const lowerName = name.toLowerCase()
+
+  // Employee ID should display as "Employee"
+  if (lowerName === 'employeeid') {
+    return 'Employee'
+  }
+
+  // Sender Employee ID should display as "Sender Employee"
+  if (lowerName === 'senderemployeeid') {
+    return 'Sender Employee'
+  }
+
   let processedName = name
   if (processedName.endsWith('Ref')) {
     processedName = processedName.slice(0, -3)
