@@ -63,49 +63,8 @@ import {
 } from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
 import { TransitionPreview } from './TransitionPreview'
+import { sanitizeImageSourceUrl } from '@/common/utils/safeUrlUtils'
 import translations from '../_i18n'
-
-/**
- * Sanitizes a URL to prevent XSS attacks in img src attributes.
- * Only allows safe protocols: https, http, data:image, blob, and relative paths.
- */
-function sanitizeImageUrl(url: string | undefined): string {
-  if (!url) return ''
-
-  const trimmedUrl = url.trim()
-  if (!trimmedUrl) return ''
-
-  // Allow relative paths
-  if (trimmedUrl.startsWith('/') || trimmedUrl.startsWith('./') || trimmedUrl.startsWith('../')) {
-    return trimmedUrl
-  }
-
-  // Allow blob URLs (from file uploads)
-  if (trimmedUrl.startsWith('blob:')) {
-    return trimmedUrl
-  }
-
-  // Allow data URLs but only for images
-  if (trimmedUrl.startsWith('data:')) {
-    if (trimmedUrl.startsWith('data:image/')) {
-      return trimmedUrl
-    }
-    return ''
-  }
-
-  // Allow http/https URLs
-  try {
-    const parsedUrl = new URL(trimmedUrl)
-    if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
-      return trimmedUrl
-    }
-  } catch {
-    // Invalid URL format
-    return ''
-  }
-
-  return ''
-}
 
 const TRANSITION_TYPES: { value: SlideTransitionType; label: string }[] = [
   { value: 'none', label: 'transition-none' },
@@ -731,14 +690,10 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             {/* Current image preview */}
             <div className="gba:w-full gba:h-20 gba:rounded gba:overflow-hidden gba:bg-muted gba:border">
-              {sanitizeImageUrl(imageElement.src) && (
-                <img
-                  // nosemgrep: react-insecure-url
-                  // snyk-ignore: URL is validated by sanitizeImageUrl
-                  src={sanitizeImageUrl(imageElement.src)}
-                  alt=""
-                  className="gba:w-full gba:h-full gba:object-contain"
-                />
+              {sanitizeImageSourceUrl(imageElement.src, { allowRelative: true, allowBlob: true, allowData: true }) && (
+                <div className="gba:flex gba:h-full gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground">
+                  {t('props-image-preview-ready')}
+                </div>
               )}
             </div>
 
