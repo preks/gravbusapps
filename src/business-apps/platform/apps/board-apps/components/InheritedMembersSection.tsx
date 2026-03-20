@@ -48,7 +48,7 @@ export const InheritedMembersSection: React.FC<InheritedMembersSectionProps> = (
       const ok = await CollectionApiService.updateMemberRole(collectionId, memberId, role)
       if (ok) {
         onMembersChanged(members.map(m => (m.id === memberId ? { ...m, role } : m)))
-        toast.success('Collection role updated')
+        toast.success('Space role updated')
         onSharesChanged?.()
       } else {
         toast.error('Failed to update role')
@@ -62,14 +62,14 @@ export const InheritedMembersSection: React.FC<InheritedMembersSectionProps> = (
       if (!collectionId) return
       if (
         !confirm(
-          `Remove ${userName || 'this member'} from the collection? They will lose access to all boards in this collection.`
+          `Remove ${userName || 'this member'} from this space? They will lose access to all boards in this space.`
         )
       )
         return
       const ok = await CollectionApiService.removeMember(collectionId, memberId)
       if (ok) {
         onMembersChanged(members.filter(m => m.id !== memberId))
-        toast.success('Member removed from collection')
+        toast.success('Member removed from space')
         onSharesChanged?.()
       } else {
         toast.error('Failed to remove member')
@@ -84,7 +84,7 @@ export const InheritedMembersSection: React.FC<InheritedMembersSectionProps> = (
     <div className="gba:space-y-1 gba:mb-4">
       <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground gba:mb-2">
         <FolderClosed className="gba:w-3.5 gba:h-3.5" />
-        Via collection &quot;{collectionName || 'collection'}&quot;
+        Via space &quot;{collectionName || 'space'}&quot;
       </div>
       <div className="gba:border gba:rounded-md gba:divide-y gba:max-h-52 gba:overflow-y-auto">
         {members.map(member => {
@@ -103,7 +103,7 @@ export const InheritedMembersSection: React.FC<InheritedMembersSectionProps> = (
               <div className="gba:flex-1 gba:min-w-0">
                 <p className="gba:font-medium gba:text-sm gba:truncate">{member.userName || member.userId}</p>
                 <p className="gba:text-xs gba:text-muted-foreground">
-                  Collection member{hasOverride ? ' · board override active' : ''}
+                  Space member{hasOverride ? ' · board override active' : ''}
                 </p>
               </div>
               {isOwner ? (

@@ -16,7 +16,8 @@ import {
   Share2,
   Pencil,
   Trash2,
-  Plus
+  Plus,
+  ExternalLink
 } from 'lucide-react'
 import type { BoardCollection } from '../../types/collection'
 import type { BoardSummary } from '../../types/board'
@@ -37,6 +38,7 @@ export interface CollectionTreeProps {
   onShareBoard?: (boardId: string) => void
   onRenameBoard?: (boardId: string) => void
   onDeleteBoard?: (boardId: string) => void
+  onOpenInSpaces?: (collectionId: string) => void
   'data-testid'?: string
 }
 
@@ -56,6 +58,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   onShareBoard,
   onRenameBoard,
   onDeleteBoard,
+  onOpenInSpaces,
   'data-testid': testId = 'collection-tree'
 }) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
@@ -82,7 +85,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   if (collections.length === 0) {
     return (
       <div className="gba:px-4 gba:py-3">
-        <p className="gba:text-xs gba:text-white/40 gba:text-center">No collections yet</p>
+        <p className="gba:text-xs gba:text-white/40 gba:text-center">No spaces yet</p>
       </div>
     )
   }
@@ -160,12 +163,16 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                     <DropdownMenuItem onClick={() => onRenameCollection(collection.id)}>
                       <Pencil className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Rename
                     </DropdownMenuItem>
+                    {onOpenInSpaces && (
+                      <DropdownMenuItem onClick={() => onOpenInSpaces(collection.id)}>
+                        <ExternalLink className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Open in Spaces
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="gba:text-destructive"
                       onClick={() => {
-                        if (confirm('Delete this collection? Boards will not be deleted.'))
-                          onDeleteCollection(collection.id)
+                        if (confirm('Delete this space? Boards will not be deleted.')) onDeleteCollection(collection.id)
                       }}
                     >
                       <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Delete

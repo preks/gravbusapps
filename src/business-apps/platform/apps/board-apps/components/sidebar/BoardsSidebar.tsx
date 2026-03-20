@@ -45,6 +45,7 @@ export interface BoardsSidebarProps {
   onShareBoard?: (boardId: string) => void
   onRenameBoard?: (boardId: string) => void
   onDeleteBoard?: (boardId: string) => void
+  onOpenInSpaces?: (collectionId: string) => void
   onCollapse: () => void
   onResizeStart: (e: React.MouseEvent) => void
   'data-testid'?: string
@@ -76,6 +77,7 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
   onShareBoard,
   onRenameBoard,
   onDeleteBoard,
+  onOpenInSpaces,
   onCollapse,
   onResizeStart,
   'data-testid': testId = 'boards-sidebar'
@@ -118,7 +120,7 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
               <Sparkles className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> New Board with AI
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onCreateCollection} data-testid={`${testId}-new-collection`}>
-              <FolderPlus className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> New Collection
+              <FolderPlus className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> New Space
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -172,9 +174,7 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
 
         {/* Collections Label */}
         <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-1">
-          <span className="gba:text-xs gba:font-medium gba:text-white/40 gba:uppercase gba:tracking-wider">
-            Collections
-          </span>
+          <span className="gba:text-xs gba:font-medium gba:text-white/40 gba:uppercase gba:tracking-wider">Spaces</span>
           <Button
             variant="ghost"
             size="sm"
@@ -204,6 +204,7 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
             onShareBoard={onShareBoard}
             onRenameBoard={onRenameBoard}
             onDeleteBoard={onDeleteBoard}
+            onOpenInSpaces={onOpenInSpaces}
             data-testid={`${testId}-tree`}
           />
         </div>

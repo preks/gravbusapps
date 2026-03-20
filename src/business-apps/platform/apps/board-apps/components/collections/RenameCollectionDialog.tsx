@@ -25,7 +25,7 @@ export const RenameCollectionDialog: React.FC<RenameCollectionDialogProps> = ({
   onOpenChange,
   currentName,
   onSubmit,
-  title = 'Rename Collection',
+  title = 'Rename Space',
   placeholder = 'Name',
   'data-testid': testId = 'rename-collection-dialog'
 }) => {
