@@ -1,5 +1,7 @@
 # Change Tax Details - Bezeichnungen und Validierungsmeldungen
 
+change-tax-details-title = Steuerdaten ändern
+request-at-tax-office = Anfrage beim Finanzamt
 employee-tax-office = Finanzamt des Arbeitnehmers
 individual-free-amount = Individueller Freibetrag
 health-insurance-document-upload = Dokument hochladen
