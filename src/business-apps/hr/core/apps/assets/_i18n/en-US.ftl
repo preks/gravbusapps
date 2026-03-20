@@ -45,7 +45,6 @@ not_available = N/A
 present = Present
 current = Current
 employee = Employee
-type_to_search_employee = Type to search for an employee
 start = Start
 end = End
 start_condition = Start condition

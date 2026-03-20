@@ -567,8 +567,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       {
         id: 'employee',
         title: tAssets('employee'),
-        backendSearch: employeeBackendSearch,
-        emptyMessage: tAssets('type_to_search_employee')
+        backendSearch: employeeBackendSearch
       },
       {
         id: 'category',
