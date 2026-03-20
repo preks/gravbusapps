@@ -8,7 +8,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, TabsList, TabsTrigger, toast } from '@newwork/nw-design-system'
 
 // Components
 import {
@@ -245,6 +245,17 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     },
     [updateSpace]
   )
+
+  const handleDeleteSpace = useCallback(async (): Promise<boolean> => {
+    const ok = await deleteSpace()
+    if (ok) {
+      toast.success('Space deleted')
+      handleBack()
+    } else {
+      toast.error('Could not delete space. Only the owner can delete a space.')
+    }
+    return ok
+  }, [deleteSpace, handleBack])
 
   const handleShare = useCallback(() => {
     setInviteDialogOpen(true)
@@ -592,6 +603,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         onOpenChange={setSettingsDialogOpen}
         space={space}
         onSave={handleSaveSettings}
+        isOwner={isOwner}
+        onDeleteSpace={isOwner ? handleDeleteSpace : undefined}
         data-testid={`${testId}-settings-dialog`}
       />
     </div>

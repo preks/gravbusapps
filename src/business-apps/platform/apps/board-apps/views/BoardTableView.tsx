@@ -26,7 +26,7 @@ import type { ServerFilterParams } from '../hooks/useTableFilterSort'
 import { useFlowExpandableRows } from '../hooks/useFlowExpandableRows'
 
 const VirtuosoTable = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>((props, ref) => (
-  <table ref={ref} className="gba:w-max gba:min-w-full gba:border-collapse gba:text-xs gba:table-fixed" {...props} />
+  <table ref={ref} className="gba:w-max gba:min-w-full gba:border-collapse gba:text-xs" {...props} />
 ))
 VirtuosoTable.displayName = 'VirtuosoTable'
 
