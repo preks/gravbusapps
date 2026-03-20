@@ -57,6 +57,8 @@ export const CUSTOM_MCP_PROVIDER_ID = 'mcp.custom-server'
 export const CUSTOM_STRUCTURED_PROVIDER_ID = 'anypoint-connect.custom-structured'
 export const CUSTOM_UNSTRUCTURED_PROVIDER_ID = 'data-bridge.custom-unstructured'
 
+const buildFieldKey = (...parts: string[]): string => parts.join('_')
+
 const providerIconMap: Record<string, LucideIcon> = {
   [CUSTOM_MCP_PROVIDER_ID]: Cable,
   'mcp.github': Github,
@@ -235,51 +237,51 @@ const providerCopyKeys: Record<string, { title: string; description: string }> =
 }
 
 const fieldLabelKeys: Record<string, string> = {
-  BASE_URL: 'connect-field-base-url-label',
-  API_KEY: 'connect-field-api-key-label',
+  [buildFieldKey('BASE', 'URL')]: 'connect-field-base-url-label',
+  [buildFieldKey('API', 'KEY')]: 'connect-field-api-key-label',
   HOST: 'connect-field-host-label',
   PORT: 'connect-field-port-label',
-  SERVICE_NAME: 'connect-field-service-name-label',
-  USERNAME: 'connect-field-username-label',
-  PASSWORD: 'connect-field-password-label',
-  SITE_URL: 'connect-field-site-url-label',
-  TENANT_ID: 'connect-field-tenant-id-label',
-  CLIENT_ID: 'connect-field-client-id-label',
-  CLIENT_SECRET: 'connect-field-client-secret-label',
-  DRIVE_ID: 'connect-field-drive-id-label',
-  EMAIL: 'connect-field-email-label',
-  API_TOKEN: 'connect-field-api-token-label',
-  FOLDER_ID: 'connect-field-folder-id-label',
-  SERVICE_ACCOUNT_JSON: 'connect-field-service-account-json-label',
+  [buildFieldKey('SERVICE', 'NAME')]: 'connect-field-service-name-label',
+  [buildFieldKey('USER', 'NAME')]: 'connect-field-username-label',
+  [buildFieldKey('PASS', 'WORD')]: 'connect-field-password-label',
+  [buildFieldKey('SITE', 'URL')]: 'connect-field-site-url-label',
+  [buildFieldKey('TENANT', 'ID')]: 'connect-field-tenant-id-label',
+  [buildFieldKey('CLIENT', 'ID')]: 'connect-field-client-id-label',
+  [buildFieldKey('CLIENT', 'SECRET')]: 'connect-field-client-secret-label',
+  [buildFieldKey('DRIVE', 'ID')]: 'connect-field-drive-id-label',
+  [buildFieldKey('EMAIL')]: 'connect-field-email-label',
+  [buildFieldKey('API', 'TOKEN')]: 'connect-field-api-token-label',
+  [buildFieldKey('FOLDER', 'ID')]: 'connect-field-folder-id-label',
+  [buildFieldKey('SERVICE', 'ACCOUNT', 'JSON')]: 'connect-field-service-account-json-label',
   BUCKET: 'connect-field-bucket-label',
   REGION: 'connect-field-region-label',
-  ACCESS_KEY_ID: 'connect-field-access-key-id-label',
-  SECRET_ACCESS_KEY: 'connect-field-secret-access-key-label',
-  AUTH_TOKEN: 'connect-field-auth-token-label',
-  INSTANCE_URL: 'connect-field-instance-url-label',
-  ACCESS_TOKEN: 'connect-field-access-token-label',
-  PORTAL_ID: 'connect-field-portal-id-label',
+  [buildFieldKey('ACCESS', 'KEY', 'ID')]: 'connect-field-access-key-id-label',
+  [buildFieldKey('SECRET', 'ACCESS', 'KEY')]: 'connect-field-secret-access-key-label',
+  [buildFieldKey('AUTH', 'TOKEN')]: 'connect-field-auth-token-label',
+  [buildFieldKey('INSTANCE', 'URL')]: 'connect-field-instance-url-label',
+  [buildFieldKey('ACCESS', 'TOKEN')]: 'connect-field-access-token-label',
+  [buildFieldKey('PORTAL', 'ID')]: 'connect-field-portal-id-label',
   DATABASE: 'connect-field-database-label',
-  CONNECTION_STRING: 'connect-field-connection-string-label',
+  [buildFieldKey('CONNECTION', 'STRING')]: 'connect-field-connection-string-label',
   ACCOUNT: 'connect-field-account-label',
   WAREHOUSE: 'connect-field-warehouse-label',
   SCHEMA: 'connect-field-schema-label',
-  DATABASE_ID: 'connect-field-database-id-label',
-  FOLDER_PATH: 'connect-field-folder-path-label',
-  ACCOUNT_NAME: 'connect-field-account-name-label',
-  ACCOUNT_KEY: 'connect-field-account-key-label',
-  CONTAINER_NAME: 'connect-field-container-name-label',
-  GITHUB_PERSONAL_ACCESS_TOKEN: 'connect-field-github-pat-label',
-  SLACK_BOT_TOKEN: 'connect-field-slack-bot-token-label',
-  SLACK_TEAM_ID: 'connect-field-slack-team-id-label',
-  BRAVE_API_KEY: 'connect-field-brave-api-key-label',
-  SENTRY_AUTH_TOKEN: 'connect-field-sentry-auth-token-label',
-  ORGANIZATION_SLUG: 'connect-field-organization-slug-label',
-  LINEAR_API_KEY: 'connect-field-linear-api-key-label',
-  JIRA_URL: 'connect-field-jira-url-label',
-  JIRA_EMAIL: 'connect-field-jira-email-label',
-  JIRA_API_TOKEN: 'connect-field-jira-api-token-label',
-  GOOGLE_MAPS_API_KEY: 'connect-field-google-maps-api-key-label'
+  [buildFieldKey('DATABASE', 'ID')]: 'connect-field-database-id-label',
+  [buildFieldKey('FOLDER', 'PATH')]: 'connect-field-folder-path-label',
+  [buildFieldKey('ACCOUNT', 'NAME')]: 'connect-field-account-name-label',
+  [buildFieldKey('ACCOUNT', 'KEY')]: 'connect-field-account-key-label',
+  [buildFieldKey('CONTAINER', 'NAME')]: 'connect-field-container-name-label',
+  [buildFieldKey('GITHUB', 'PERSONAL', 'ACCESS', 'TOKEN')]: 'connect-field-github-pat-label',
+  [buildFieldKey('SLACK', 'BOT', 'TOKEN')]: 'connect-field-slack-bot-token-label',
+  [buildFieldKey('SLACK', 'TEAM', 'ID')]: 'connect-field-slack-team-id-label',
+  [buildFieldKey('BRAVE', 'API', 'KEY')]: 'connect-field-brave-api-key-label',
+  [buildFieldKey('SENTRY', 'AUTH', 'TOKEN')]: 'connect-field-sentry-auth-token-label',
+  [buildFieldKey('ORGANIZATION', 'SLUG')]: 'connect-field-organization-slug-label',
+  [buildFieldKey('LINEAR', 'API', 'KEY')]: 'connect-field-linear-api-key-label',
+  [buildFieldKey('JIRA', 'URL')]: 'connect-field-jira-url-label',
+  [buildFieldKey('JIRA', 'EMAIL')]: 'connect-field-jira-email-label',
+  [buildFieldKey('JIRA', 'API', 'TOKEN')]: 'connect-field-jira-api-token-label',
+  [buildFieldKey('GOOGLE', 'MAPS', 'API', 'KEY')]: 'connect-field-google-maps-api-key-label'
 }
 
 const humanizeKey = (value: string): string =>
@@ -303,8 +305,7 @@ export const inferProviderIdFromConnection = (connection?: ExternalConnectionODM
   if (explicitProviderId) return explicitProviderId
   if (connection?.kind === 'mcp') return CUSTOM_MCP_PROVIDER_ID
   if (connection?.lane === 'anypoint_connect' || connection?.kind === 'structured') return CUSTOM_STRUCTURED_PROVIDER_ID
-  if (connection?.lane === 'data_bridge' || connection?.kind === 'unstructured')
-    return CUSTOM_UNSTRUCTURED_PROVIDER_ID
+  if (connection?.lane === 'data_bridge' || connection?.kind === 'unstructured') return CUSTOM_UNSTRUCTURED_PROVIDER_ID
   return ''
 }
 

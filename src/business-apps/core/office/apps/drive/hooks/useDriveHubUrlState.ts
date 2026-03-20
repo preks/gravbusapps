@@ -1,12 +1,58 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { DriveSection, DriveViewMode, DriveSortBy } from '../types/drive.types'
 
+const DRIVE_ID_PATTERN = /^[A-Za-z0-9:_-]{1,128}$/
+
 interface DriveHubUrlState {
   section: DriveSection
   folderId: string | null
   viewMode: DriveViewMode
   sortBy: DriveSortBy
   page: number
+}
+
+const parseDriveSection = (value: string | null): DriveSection => {
+  switch (value) {
+    case 'shared':
+      return 'shared'
+    case 'recent':
+      return 'recent'
+    case 'favorites':
+      return 'favorites'
+    case 'trash':
+      return 'trash'
+    default:
+      return 'my-drive'
+  }
+}
+
+const parseDriveViewMode = (value: string | null): DriveViewMode => {
+  switch (value) {
+    case 'grid':
+      return 'grid'
+    default:
+      return 'list'
+  }
+}
+
+const parseDriveSortBy = (value: string | null): DriveSortBy => {
+  switch (value) {
+    case 'name':
+      return 'name'
+    case 'createdAt':
+      return 'createdAt'
+    case 'size':
+      return 'size'
+    default:
+      return 'updatedAt'
+  }
+}
+
+const sanitizeFolderId = (value: string | null): string | null => (value && DRIVE_ID_PATTERN.test(value) ? value : null)
+
+const sanitizePage = (value: string | null): number => {
+  const parsed = Number.parseInt(value ?? '1', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
 }
 
 export function useDriveHubUrlState(): [DriveHubUrlState, (updates: Partial<DriveHubUrlState>) => void] {
@@ -16,11 +62,11 @@ export function useDriveHubUrlState(): [DriveHubUrlState, (updates: Partial<Driv
     }
     const params = new URLSearchParams(window.location.search)
     return {
-      section: (params.get('section') as DriveSection) ?? 'my-drive',
-      folderId: params.get('folderId') ?? null,
-      viewMode: (params.get('viewMode') as DriveViewMode) ?? 'list',
-      sortBy: (params.get('sortBy') as DriveSortBy) ?? 'updatedAt',
-      page: parseInt(params.get('page') ?? '1', 10) || 1
+      section: parseDriveSection(params.get('section')),
+      folderId: sanitizeFolderId(params.get('folderId')),
+      viewMode: parseDriveViewMode(params.get('viewMode')),
+      sortBy: parseDriveSortBy(params.get('sortBy')),
+      page: sanitizePage(params.get('page'))
     }
   }
 
