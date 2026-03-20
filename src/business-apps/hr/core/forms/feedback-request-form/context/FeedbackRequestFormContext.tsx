@@ -159,7 +159,19 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
       return
     }
 
-    if (!currentUserEmployeeId) {
+    const targetSubjectUserId =
+      businessAppContext.additionalData?.subjectUserId ||
+      businessAppContext.additionalData?.flowContext?.subjectUserId ||
+      businessAppContext.additionalData?.contextData?.subjectUserId ||
+      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.subjectUserId ||
+      businessAppContext.additionalData?.receiverUserId ||
+      businessAppContext.additionalData?.flowContext?.receiverUserId ||
+      businessAppContext.additionalData?.contextData?.receiverUserId ||
+      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.receiverUserId ||
+      businessAppContext.userInfo?.id ||
+      currentUserEmployeeId
+
+    if (!targetSubjectUserId) {
       setError(getTranslationFromI18nKeyAndLabel('feedback.request.noCurrentUser', 'Unable to identify current user'))
       return
     }
@@ -197,7 +209,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
 
         await client.bulkRequestFeedback({
           requestedFromList: remainingRequested,
-          creatorUserId: currentUserEmployeeId,
+          subjectUserId: targetSubjectUserId,
           requestMessage: formValues.requestMessage
         })
 
@@ -205,7 +217,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
         const payload: FeedbackRequestPayload = {
           requestedFrom: firstRequested,
           requestedFromList,
-          creatorUserId: currentUserEmployeeId,
+          subjectUserId: targetSubjectUserId,
           requestMessage: formValues.requestMessage,
           completeNotification: {
             type: 'success',
@@ -218,7 +230,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
         const payload: FeedbackRequestPayload = {
           requestedFrom: requestedFromList[0],
           requestedFromList,
-          creatorUserId: currentUserEmployeeId,
+          subjectUserId: targetSubjectUserId,
           requestMessage: formValues.requestMessage,
           completeNotification: {
             type: 'success',
@@ -237,7 +249,15 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
       )
       setIsLoading(false)
     }
-  }, [formValues, currentUserEmployeeId, preSelectedEmployee, getEmployeeById, businessAppContext.accessToken])
+  }, [
+    formValues,
+    currentUserEmployeeId,
+    preSelectedEmployee,
+    getEmployeeById,
+    businessAppContext.accessToken,
+    businessAppContext.additionalData,
+    businessAppContext.userInfo?.id
+  ])
 
   const handleCancel = useCallback(async () => {
     try {

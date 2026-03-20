@@ -83,6 +83,17 @@ const FeedbackRequestFormComponent: React.FC = () => {
     }
 
     const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
+    const targetSubjectUserId =
+      businessAppContext.additionalData?.subjectUserId ||
+      businessAppContext.additionalData?.flowContext?.subjectUserId ||
+      businessAppContext.additionalData?.contextData?.subjectUserId ||
+      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.subjectUserId ||
+      businessAppContext.additionalData?.receiverUserId ||
+      businessAppContext.additionalData?.flowContext?.receiverUserId ||
+      businessAppContext.additionalData?.contextData?.receiverUserId ||
+      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.receiverUserId ||
+      businessAppContext.userInfo?.id ||
+      currentUserEmployeeId
 
     // Resolve employees to get userIds where available
     const resolvedEmployees = selectedIds
@@ -100,13 +111,13 @@ const FeedbackRequestFormComponent: React.FC = () => {
       const [firstRequested, ...remainingRequested] = requestedFromList
       await client.bulkRequestFeedback({
         requestedFromList: remainingRequested,
-        creatorUserId: currentUserEmployeeId as string,
+        subjectUserId: targetSubjectUserId as string,
         requestMessage: formValues.requestMessage
       })
       const payload: FeedbackRequestPayload = {
         requestedFrom: firstRequested,
         requestedFromList,
-        creatorUserId: currentUserEmployeeId as string,
+        subjectUserId: targetSubjectUserId as string,
         requestMessage: formValues.requestMessage,
         completeNotification: {
           type: 'success',
@@ -119,7 +130,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
     const payload: FeedbackRequestPayload = {
       requestedFrom: requestedFromList[0]!,
       requestedFromList,
-      creatorUserId: currentUserEmployeeId as string,
+      subjectUserId: targetSubjectUserId as string,
       requestMessage: formValues.requestMessage,
       completeNotification: {
         type: 'success',
@@ -133,6 +144,8 @@ const FeedbackRequestFormComponent: React.FC = () => {
     formValues.employeeId,
     formValues.requestMessage,
     businessAppContext.accessToken,
+    businessAppContext.additionalData,
+    businessAppContext.userInfo?.id,
     businessAppContext.userInfo?.employeeDetails?.employeeId,
     getEmployeeById,
     preSelectedEmployee,

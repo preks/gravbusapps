@@ -11,6 +11,7 @@ interface FeedbackHubHeaderProps {
   accessToken: string
   isSelfView: boolean
   currentUserEmployeeId: string
+  canRequestFeedbackOnBehalf?: boolean
 }
 
 const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({
@@ -18,7 +19,8 @@ const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({
   employee,
   accessToken,
   isSelfView,
-  currentUserEmployeeId
+  currentUserEmployeeId,
+  canRequestFeedbackOnBehalf = false
 }) => (
   <div>
     <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:items-center gba:gap-4">
@@ -37,7 +39,7 @@ const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({
                   // Resolve flow permissions against current user context.
                   employeeId: currentUserEmployeeId,
                   // Prefill modal target with viewed employee.
-                  receiverId: employee?.userId,
+                  receiverId: employee?.userId || employee?.additionalProperties?.userId,
                   targetEmployeeId: employee?.id
                 }
               }
@@ -55,7 +57,17 @@ const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({
           contexts={[
             {
               context: FlowContextName.employeeRequestFeedback,
-              contextData: { employeeId: employee?.id, isRequestingFeedback: true }
+              contextData:
+                !isSelfView && canRequestFeedbackOnBehalf
+                  ? {
+                      // Keep initiator context as current user.
+                      employeeId: currentUserEmployeeId,
+                      // Run the request flow on behalf of the viewed employee.
+                      targetEmployeeId: employee?.id,
+                      subjectUserId: employee?.userId || employee?.additionalProperties?.userId,
+                      isRequestingFeedback: true
+                    }
+                  : { employeeId: currentUserEmployeeId, isRequestingFeedback: true }
             }
           ]}
           prefixDataTestId="request-feedback"
