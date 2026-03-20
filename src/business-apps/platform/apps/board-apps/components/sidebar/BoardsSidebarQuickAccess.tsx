@@ -42,7 +42,7 @@ export const BoardsSidebarQuickAccess: React.FC<BoardsSidebarQuickAccessProps> =
           key={item.key}
           className={`gba:w-full gba:flex gba:items-center gba:gap-2.5 gba:px-2.5 gba:py-1.5 gba:rounded-md gba:text-sm gba:transition-colors ${
             isActive
-              ? 'gba:bg-card-decorative gba:text-decorative-foreground gba:font-medium gba:shadow-sm gba:border gba:border-white/10'
+              ? 'gba:bg-primary/8 gba:text-foreground gba:border gba:border-primary/15'
               : 'gba:text-muted-foreground gba:hover:bg-background/60 gba:hover:text-foreground'
           }`}
           onClick={() => onSectionChange(item.key)}
@@ -52,7 +52,7 @@ export const BoardsSidebarQuickAccess: React.FC<BoardsSidebarQuickAccessProps> =
           <span className="gba:flex-1 gba:text-left gba:truncate">{item.label}</span>
           {count !== undefined && count > 0 && (
             <span
-              className={`gba:text-xs gba:tabular-nums ${isActive ? 'gba:text-decorative-foreground/70' : 'gba:text-muted-foreground/70'}`}
+              className={`gba:text-xs gba:tabular-nums ${isActive ? 'gba:text-muted-foreground' : 'gba:text-muted-foreground/70'}`}
             >
               {count}
             </span>
