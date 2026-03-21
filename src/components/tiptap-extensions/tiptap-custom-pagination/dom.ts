@@ -32,11 +32,6 @@ export function renderHeaderFooterDisplayContent(
   content.dataset.rmPlaceholder = placeholder
 
   if (isEmpty) {
-    const placeholderElement = document.createElement('span')
-    placeholderElement.className = 'rm-page-region-placeholder'
-    placeholderElement.textContent = placeholder
-    placeholderElement.setAttribute('contenteditable', 'false')
-    content.appendChild(placeholderElement)
     return
   }
 
@@ -142,7 +137,6 @@ export function ensurePagesStyles(targetDocument: Document) {
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: 4px;
       width: 100%;
       box-sizing: border-box;
       overflow: hidden;
@@ -244,37 +238,6 @@ export function ensurePagesStyles(targetDocument: Document) {
       padding-left: 0;
       padding-right: 0;
     }
-    .rm-pages-root .rm-page-region-placeholder {
-      display: inline-block;
-      color: #9aa0a6;
-    }
-    .rm-pages-root .rm-page-region-meta {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      min-height: 20px;
-      color: #5f6368;
-      font-size: 11px;
-      line-height: 16px;
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-page-region-meta-header {
-      border-bottom: 1px solid #e8eaed;
-      padding-bottom: 4px;
-    }
-    .rm-pages-root .rm-page-region-meta-footer {
-      border-top: 1px solid #e8eaed;
-      padding-top: 4px;
-    }
-    .rm-pages-root .rm-page-region-label {
-      font-weight: 500;
-      letter-spacing: 0.01em;
-    }
-    .rm-pages-root .rm-page-region-hint {
-      opacity: 0;
-      transition: opacity 120ms ease;
-    }
     .rm-pages-root .rm-page-header-region[data-rm-editable="true"],
     .rm-pages-root .rm-page-footer-region[data-rm-editable="true"],
     .rm-pages-root .rm-first-page-header[data-rm-editable="true"] {
@@ -285,13 +248,24 @@ export function ensurePagesStyles(targetDocument: Document) {
     .rm-pages-root .rm-first-page-header[data-rm-editable="true"]:hover {
       background: transparent;
     }
-    .rm-pages-root .rm-page-header-region[data-rm-editable="true"]:hover .rm-page-region-hint,
-    .rm-pages-root .rm-page-footer-region[data-rm-editable="true"]:hover .rm-page-region-hint,
-    .rm-pages-root .rm-first-page-header[data-rm-editable="true"]:hover .rm-page-region-hint,
-    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-region-hint,
-    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-region-hint,
-    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-region-hint {
-      opacity: 1;
+    .rm-pages-root .rm-page-header-region[data-rm-has-visible-content="true"]::after,
+    .rm-pages-root .rm-first-page-header[data-rm-has-visible-content="true"]::after {
+      content: '';
+      position: absolute;
+      left: var(--rm-page-margin-left);
+      right: var(--rm-page-margin-right);
+      bottom: 0;
+      border-bottom: 1px solid #e8eaed;
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-page-footer-region[data-rm-has-visible-content="true"]::before {
+      content: '';
+      position: absolute;
+      left: var(--rm-page-margin-left);
+      right: var(--rm-page-margin-right);
+      top: 0;
+      border-top: 1px solid #e8eaed;
+      pointer-events: none;
     }
     .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-header-content:not(.rm-page-overlay-editor),
     .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-footer-content:not(.rm-page-overlay-editor),
@@ -466,8 +440,7 @@ export function createHeaderFooterRegion(params: {
   const { type, pageNumber, totalPages, options, storage, extensions, onOpenEditor, firstPage } = params
   const uiLabels = {
     headerLabel: options.uiLabels?.headerLabel ?? 'Header',
-    footerLabel: options.uiLabels?.footerLabel ?? 'Footer',
-    doubleClickHint: options.uiLabels?.doubleClickHint ?? 'Double-click to edit'
+    footerLabel: options.uiLabels?.footerLabel ?? 'Footer'
   }
   const displayContent = resolveDisplayContent(
     storage,
@@ -507,6 +480,8 @@ export function createHeaderFooterRegion(params: {
   bodyLayout.dataset.rmPageNumberLayout = 'true'
 
   const pageNumberSlot = createPageNumberSlotElement(options, type, pageNumber)
+  const hasVisibleRegionContent = !isEmptyHeaderFooterHtml(displayContent.html) || pageNumberSlot !== null
+  region.dataset.rmHasVisibleContent = hasVisibleRegionContent ? 'true' : 'false'
   if (pageNumberSlot) {
     bodyLayout.dataset.rmPageNumberActive = 'true'
     bodyLayout.dataset.rmPageNumberAlign = pageNumberSlot.dataset.rmPageNumberAlign ?? 'center'
@@ -517,26 +492,7 @@ export function createHeaderFooterRegion(params: {
   if (pageNumberSlot) {
     bodyLayout.append(pageNumberSlot)
   }
-
-  const meta = document.createElement('div')
-  meta.className = `rm-page-region-meta rm-page-region-meta-${type}`
-  meta.setAttribute('contenteditable', 'false')
-
-  const label = document.createElement('span')
-  label.className = 'rm-page-region-label'
-  label.textContent = type === 'header' ? uiLabels.headerLabel : uiLabels.footerLabel
-
-  const hint = document.createElement('span')
-  hint.className = 'rm-page-region-hint'
-  hint.textContent = uiLabels.doubleClickHint
-
-  meta.append(label, hint)
-
-  if (type === 'header') {
-    inner.append(bodyLayout, meta)
-  } else {
-    inner.append(meta, bodyLayout)
-  }
+  inner.append(bodyLayout)
   region.appendChild(inner)
   requestAnimationFrame(() => layoutPageNumberSlots(region))
 
