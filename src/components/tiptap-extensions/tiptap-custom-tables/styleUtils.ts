@@ -1,18 +1,30 @@
 import type {
   TableAlignment,
+  TableBorderSideAttributes,
+  TableBorderStyle,
   TableCellStyleAttributes,
   TableCellTextAlignment,
+  TableTheme,
   TableCellVerticalAlignment,
   TableWidthMode
 } from './types'
 import {
   TABLE_ALIGNMENTS,
+  TABLE_BORDER_STYLES,
   TABLE_CELL_TEXT_ALIGNMENTS,
   TABLE_CELL_VERTICAL_ALIGNMENTS,
+  TABLE_THEMES,
   TABLE_WIDTH_MODES
 } from './types'
 
-export function normalizeTableWidth(value: string | undefined | null): string | null {
+const BORDER_SIDE_KEYS = [
+  { attrPrefix: 'Top', css: 'top' },
+  { attrPrefix: 'Right', css: 'right' },
+  { attrPrefix: 'Bottom', css: 'bottom' },
+  { attrPrefix: 'Left', css: 'left' }
+] as const
+
+export function normalizeCssLength(value: string | undefined | null): string | null {
   const normalized = value?.trim()
   if (!normalized) return null
 
@@ -25,6 +37,10 @@ export function normalizeTableWidth(value: string | undefined | null): string | 
   }
 
   return null
+}
+
+export function normalizeTableWidth(value: string | undefined | null): string | null {
+  return normalizeCssLength(value)
 }
 
 export function normalizeTableAlign(value: string | undefined | null): TableAlignment | null {
@@ -65,6 +81,18 @@ export function normalizeColorValue(value: string | undefined | null): string | 
   return null
 }
 
+export function normalizeBorderStyle(value: string | undefined | null): TableBorderStyle | null {
+  const normalized = value?.trim().toLowerCase()
+  if (!normalized) return null
+  return TABLE_BORDER_STYLES.includes(normalized as TableBorderStyle) ? (normalized as TableBorderStyle) : null
+}
+
+export function normalizeTableTheme(value: string | undefined | null): TableTheme | null {
+  const normalized = value?.trim().toLowerCase()
+  if (!normalized) return null
+  return TABLE_THEMES.includes(normalized as TableTheme) ? (normalized as TableTheme) : null
+}
+
 function getAlignmentStyle(align: TableAlignment) {
   switch (align) {
     case 'center':
@@ -79,16 +107,17 @@ function getAlignmentStyle(align: TableAlignment) {
 
 export function getTableStyle(width: string, align: TableAlignment, mode: TableWidthMode) {
   const alignmentStyle = getAlignmentStyle(align)
+  const borderReset = 'border: none;'
 
   if (mode === 'auto-fit-window') {
-    return `width: 100%; max-width: 100%; ${alignmentStyle}`
+    return `width: 100%; max-width: 100%; ${alignmentStyle} ${borderReset}`
   }
 
   if (mode === 'auto-fit-content') {
-    return `width: max-content; max-width: 100%; ${alignmentStyle}`
+    return `width: max-content; max-width: 100%; ${alignmentStyle} ${borderReset}`
   }
 
-  return `width: ${width}; ${alignmentStyle}`
+  return `width: ${width}; ${alignmentStyle} ${borderReset}`
 }
 
 export function getTableWrapperStyle(width: string, align: TableAlignment, mode: TableWidthMode) {
@@ -113,6 +142,14 @@ export function getColStyleDeclaration(minWidth: number, width: number | undefin
   return ['min-width', `${minWidth}px`]
 }
 
+function getBorderSideValue<T extends keyof TableBorderSideAttributes>(
+  attributes: TableCellStyleAttributes,
+  side: 'Top' | 'Right' | 'Bottom' | 'Left',
+  suffix: 'Style' | 'Width' | 'Color'
+) {
+  return attributes[`border${side}${suffix}` as T]
+}
+
 export function getCellStyle(attributes: TableCellStyleAttributes) {
   const styles: string[] = []
 
@@ -121,5 +158,43 @@ export function getCellStyle(attributes: TableCellStyleAttributes) {
   if (attributes.backgroundColor) styles.push(`background-color: ${attributes.backgroundColor}`)
   if (attributes.borderColor) styles.push(`border-color: ${attributes.borderColor}`)
 
+  for (const side of BORDER_SIDE_KEYS) {
+    const borderStyle = normalizeBorderStyle(getBorderSideValue(attributes, side.attrPrefix, 'Style') as string | null)
+    const borderWidth = normalizeCssLength(getBorderSideValue(attributes, side.attrPrefix, 'Width') as string | null)
+    const borderColor =
+      normalizeColorValue(getBorderSideValue(attributes, side.attrPrefix, 'Color') as string | null) ??
+      normalizeColorValue(attributes.borderColor)
+
+    if (borderStyle === 'none') {
+      styles.push(`border-${side.css}: none`)
+      continue
+    }
+
+    if (borderStyle) styles.push(`border-${side.css}-style: ${borderStyle}`)
+    if (borderWidth) styles.push(`border-${side.css}-width: ${borderWidth}`)
+    if (borderColor) styles.push(`border-${side.css}-color: ${borderColor}`)
+  }
+
   return styles.join('; ')
+}
+
+export function getNormalizedCellStyleAttributes(attributes: Record<string, unknown>): TableCellStyleAttributes {
+  return {
+    cellTextAlign: normalizeCellTextAlign(attributes.cellTextAlign as string | null),
+    cellVerticalAlign: normalizeCellVerticalAlign(attributes.cellVerticalAlign as string | null),
+    backgroundColor: normalizeColorValue(attributes.backgroundColor as string | null),
+    borderColor: normalizeColorValue(attributes.borderColor as string | null),
+    borderTopStyle: normalizeBorderStyle(attributes.borderTopStyle as string | null),
+    borderTopWidth: normalizeCssLength(attributes.borderTopWidth as string | null),
+    borderTopColor: normalizeColorValue(attributes.borderTopColor as string | null),
+    borderRightStyle: normalizeBorderStyle(attributes.borderRightStyle as string | null),
+    borderRightWidth: normalizeCssLength(attributes.borderRightWidth as string | null),
+    borderRightColor: normalizeColorValue(attributes.borderRightColor as string | null),
+    borderBottomStyle: normalizeBorderStyle(attributes.borderBottomStyle as string | null),
+    borderBottomWidth: normalizeCssLength(attributes.borderBottomWidth as string | null),
+    borderBottomColor: normalizeColorValue(attributes.borderBottomColor as string | null),
+    borderLeftStyle: normalizeBorderStyle(attributes.borderLeftStyle as string | null),
+    borderLeftWidth: normalizeCssLength(attributes.borderLeftWidth as string | null),
+    borderLeftColor: normalizeColorValue(attributes.borderLeftColor as string | null)
+  }
 }

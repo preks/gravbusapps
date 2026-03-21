@@ -1,7 +1,12 @@
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { TableMap, cellAround } from '@tiptap/pm/tables'
 import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { findSafeSplitRow, getTableRows, isHeaderRow, rowHasMergedCells } from './tablePaginationUtils'
+import {
+  getTableRowCount,
+  resolveMergedTableRows,
+  resolveSplitTableRows,
+  rowHasMergedCells
+} from './tablePaginationUtils'
 
 export interface TableContext {
   table: ProseMirrorNode
@@ -110,20 +115,12 @@ export function splitTableAtRow(
 ) {
   const table = state.doc.nodeAt(tablePos)
   if (table?.type?.name !== 'table') return false
-  if (splitRowIndex <= 0 || splitRowIndex >= table.childCount) return false
+  if (splitRowIndex <= 0 || splitRowIndex >= getTableRowCount(table)) return false
 
-  const safeSplitIndex = findSafeSplitRow(table, splitRowIndex)
-  if (safeSplitIndex < 1) return false
-
-  const rows = getTableRows(table)
-
-  const firstRows = rows.slice(0, safeSplitIndex).map(cloneNode)
-  const remainingRows = rows.slice(safeSplitIndex).map(cloneNode)
-  if (!firstRows.length || !remainingRows.length) return false
+  const splitRows = resolveSplitTableRows(table, splitRowIndex, options)
+  if (!splitRows) return false
 
   const paginationSplitId = getPaginationSplitId(state, table, tablePos)
-  const repeatHeaderRow = options.repeatHeaderRow === true && isHeaderRow(rows[0])
-  const continuationRows = repeatHeaderRow ? [cloneNode(rows[0]), ...remainingRows] : remainingRows
   const leadingTableAttrs = {
     ...table.attrs,
     paginationSplitId
@@ -132,8 +129,16 @@ export function splitTableAtRow(
     ...table.attrs,
     paginationSplitId
   }
-  const leadingTable = table.type.create(leadingTableAttrs, Fragment.fromArray(firstRows), table.marks)
-  const continuationTable = table.type.create(continuationTableAttrs, Fragment.fromArray(continuationRows), table.marks)
+  const leadingTable = table.type.create(
+    leadingTableAttrs,
+    Fragment.fromArray(splitRows.leadingRows.map(cloneNode)),
+    table.marks
+  )
+  const continuationTable = table.type.create(
+    continuationTableAttrs,
+    Fragment.fromArray(splitRows.continuationRows.map(cloneNode)),
+    table.marks
+  )
 
   tr.replaceWith(tablePos, tablePos + table.nodeSize, Fragment.fromArray([leadingTable, continuationTable]))
   return true
@@ -158,15 +163,63 @@ export function mergeAdjacentPaginationTables(state: EditorState, tr: Transactio
     return false
   }
 
-  const firstRows = getTableRows(firstTable).map(cloneNode)
-  const secondRows = getTableRows(secondTable)
-  const trailingRows = secondRows.slice(isHeaderRow(firstRows[0]) && isHeaderRow(secondRows[0]) ? 1 : 0).map(cloneNode)
-  const mergedRows = [...firstRows, ...trailingRows]
-
+  const mergedRows = resolveMergedTableRows(firstTable, secondTable).map(cloneNode)
   if (!mergedRows.length) return false
 
   const mergedTable = firstTable.type.create(firstTable.attrs, Fragment.fromArray(mergedRows), firstTable.marks)
   tr.replaceWith(firstTablePos, secondTablePos + secondTable.nodeSize, mergedTable)
+  return true
+}
+
+export function rebalanceAdjacentPaginationTables(
+  state: EditorState,
+  tr: Transaction,
+  firstTablePos: number,
+  splitRowIndex: number,
+  options: SplitTableOptions = {}
+) {
+  const firstTable = state.doc.nodeAt(firstTablePos)
+  if (firstTable?.type?.name !== 'table') return false
+
+  const secondTablePos = firstTablePos + firstTable.nodeSize
+  const secondTable = state.doc.nodeAt(secondTablePos)
+  if (secondTable?.type?.name !== 'table') return false
+
+  const firstSplitId = firstTable.attrs.paginationSplitId
+  const secondSplitId = secondTable.attrs.paginationSplitId
+  if (
+    typeof firstSplitId !== 'string' ||
+    firstSplitId.length === 0 ||
+    typeof secondSplitId !== 'string' ||
+    secondSplitId !== firstSplitId
+  ) {
+    return false
+  }
+
+  const mergedRows = resolveMergedTableRows(firstTable, secondTable).map(cloneNode)
+  if (splitRowIndex <= 0 || splitRowIndex >= mergedRows.length) return false
+
+  const mergedTable = firstTable.type.create(firstTable.attrs, Fragment.fromArray(mergedRows), firstTable.marks)
+  const splitRows = resolveSplitTableRows(mergedTable, splitRowIndex, options)
+  if (!splitRows) return false
+  if (splitRows.safeSplitIndex === getTableRowCount(firstTable)) return false
+
+  const leadingTable = firstTable.type.create(
+    firstTable.attrs,
+    Fragment.fromArray(splitRows.leadingRows.map(cloneNode)),
+    firstTable.marks
+  )
+  const continuationTable = firstTable.type.create(
+    secondTable.attrs,
+    Fragment.fromArray(splitRows.continuationRows.map(cloneNode)),
+    secondTable.marks
+  )
+
+  tr.replaceWith(
+    firstTablePos,
+    secondTablePos + secondTable.nodeSize,
+    Fragment.fromArray([leadingTable, continuationTable])
+  )
   return true
 }
 

@@ -6,41 +6,61 @@ export interface HeaderFooterPresetItem {
   html: string
 }
 
+function createHeaderFooterPresetCell(content: string, align: 'left' | 'center' | 'right') {
+  const paragraph = content.length > 0 ? `<p>${content}</p>` : '<p></p>'
+
+  return `<td style="text-align: ${align}; vertical-align: middle; border-color: #d1d5db">${paragraph}</td>`
+}
+
+function createThreeColumnPreset(cells: { left?: string; center?: string; right?: string }) {
+  return [
+    '<table style="width: 100%">',
+    '<tbody>',
+    '<tr>',
+    createHeaderFooterPresetCell(cells.left ?? '', 'left'),
+    createHeaderFooterPresetCell(cells.center ?? '', 'center'),
+    createHeaderFooterPresetCell(cells.right ?? '', 'right'),
+    '</tr>',
+    '</tbody>',
+    '</table>'
+  ].join('')
+}
+
 export const HEADER_PRESETS: HeaderFooterPresetItem[] = [
-  { id: 'blank', labelKey: 'header-footer-sidebar-preset-blank', html: '<p></p>' },
+  { id: 'blank', labelKey: 'header-footer-sidebar-preset-blank', html: createThreeColumnPreset({}) },
   {
     id: 'title-left',
     labelKey: 'header-footer-sidebar-preset-header-title-left',
-    html: '<p style="text-align: left"></p>'
+    html: createThreeColumnPreset({})
   },
   {
     id: 'title-center',
     labelKey: 'header-footer-sidebar-preset-header-title-center',
-    html: '<p style="text-align: center"></p>'
+    html: createThreeColumnPreset({})
   },
   {
     id: 'page-right',
     labelKey: 'header-footer-sidebar-preset-header-page-right',
-    html: '<p style="text-align: right">{page}</p>'
+    html: createThreeColumnPreset({ right: '{page}' })
   }
 ]
 
 export const FOOTER_PRESETS: HeaderFooterPresetItem[] = [
-  { id: 'blank', labelKey: 'header-footer-sidebar-preset-blank', html: '<p></p>' },
+  { id: 'blank', labelKey: 'header-footer-sidebar-preset-blank', html: createThreeColumnPreset({}) },
   {
     id: 'page-center',
     labelKey: 'header-footer-sidebar-preset-footer-page-center',
-    html: '<p style="text-align: center">{page}</p>'
+    html: createThreeColumnPreset({ center: '{page}' })
   },
   {
     id: 'page-of-total',
     labelKey: 'header-footer-sidebar-preset-footer-page-total',
-    html: '<p style="text-align: center">Page {page} of {total}</p>'
+    html: createThreeColumnPreset({ center: 'Page {page} of {total}' })
   },
   {
     id: 'page-right',
     labelKey: 'header-footer-sidebar-preset-footer-page-right',
-    html: '<p style="text-align: right">{page}</p>'
+    html: createThreeColumnPreset({ right: '{page}' })
   }
 ]
 

@@ -133,6 +133,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { Table, TableCell, TableHeader, TableRow } from '@/components/tiptap-extensions/tiptap-custom-tables'
+import { getSelectedTableRectContext } from '@/components/tiptap-extensions/tiptap-custom-tables/tableFormattingUtils'
 import { handleTiptapTabKey } from '@/components/tiptap-extensions/tiptapTabKeyHandler'
 import type { CustomImageAttributes } from '@/components/tiptap-extensions/tiptap-custom-image'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
@@ -148,6 +149,7 @@ import { LinkDialog, type LinkDialogInitialValues, type LinkDialogMode } from '.
 import { LinkBubbleMenu } from './LinkBubbleMenu'
 import { ImageSettingsSidebar, type SelectedImageSidebarState } from './ImageSettingsSidebar'
 import { HeaderFooterSettingsSidebar } from './HeaderFooterSettingsSidebar'
+import { TableSettingsSidebar, type SelectedTableSidebarState } from './TableSettingsSidebar'
 import { InsertImageDialog } from './InsertImageDialog'
 import { InsertTableDialog } from './InsertTableDialog'
 import { PageNumbersDialog } from './PageNumbersDialog'
@@ -180,6 +182,11 @@ const CLOSED_IMAGE_SIDEBAR: SelectedImageSidebarState = {
   nodeSize: null,
   attrs: null
 }
+const CLOSED_TABLE_SIDEBAR: SelectedTableSidebarState = {
+  open: false,
+  editor: null,
+  tablePos: null
+}
 
 /** Matches fixed Image / header-footer sidebars so the canvas clears the overlay */
 const DOCUMENT_EDITOR_RIGHT_SIDEBAR_WIDTH_PX = 360
@@ -208,6 +215,15 @@ function getSelectedImageState(editor: TiptapEditor): Omit<SelectedImageSidebarS
   }
 
   return null
+}
+
+function getSelectedTableState(editor: TiptapEditor): Omit<SelectedTableSidebarState, 'open' | 'editor'> | null {
+  const context = getSelectedTableRectContext(editor.state, 'table')
+  if (!context) return null
+
+  return {
+    tablePos: context.tablePos
+  }
 }
 
 function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean {
@@ -828,6 +844,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         activeEditorType: null,
         activePageNumber: null
       })
+      selectedTableSidebarRef.current = CLOSED_TABLE_SIDEBAR
+      setSelectedTableSidebar(CLOSED_TABLE_SIDEBAR)
     }, [document?.id])
 
     // Versioning UI state
@@ -847,6 +865,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     type NavigationPanelTab = 'headings' | 'find' | 'replace'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [selectedImageSidebar, setSelectedImageSidebar] = useState<SelectedImageSidebarState>(CLOSED_IMAGE_SIDEBAR)
+    const [selectedTableSidebar, setSelectedTableSidebar] = useState<SelectedTableSidebarState>(CLOSED_TABLE_SIDEBAR)
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
@@ -865,6 +884,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [aiSelectionSnapshotHtml, setAiSelectionSnapshotHtml] = useState('')
     const panelCommentAnchorRef = useRef<PanelCommentAnchor | null>(null)
     const selectedImageSidebarRef = useRef<SelectedImageSidebarState>(CLOSED_IMAGE_SIDEBAR)
+    const selectedTableSidebarRef = useRef<SelectedTableSidebarState>(CLOSED_TABLE_SIDEBAR)
     const activeEditorRef = useRef<ReturnType<typeof useEditor> | null>(null)
     const everyAiFallbackPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const suppressYjsSnapshotSaveRef = useRef(false)
@@ -896,13 +916,20 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [aiSelectionSnapshot, aiSelectionSnapshotHtml])
     const hasLongAiSelectionPreview = aiSelectionPreviewText.length > 220
     const documentRightPanelOffset = rightSidebar === 'comments' ? 412 : rightSidebar === 'ai' ? 496 : 16
+    const showTableSidebar =
+      selectedTableSidebar.open &&
+      selectedTableSidebar.editor != null &&
+      selectedTableSidebar.tablePos != null &&
+      !(selectedImageSidebar.open && selectedImageSidebar.editor === selectedTableSidebar.editor)
     const showHeaderFooterSidebar =
       isHeaderFooterEditing &&
       pagesEditorState.activeEditor != null &&
+      !showTableSidebar &&
       !(selectedImageSidebar.open && selectedImageSidebar.editor === pagesEditorState.activeEditor)
 
     const documentEditorRightReservePx =
       showHeaderFooterSidebar ||
+      showTableSidebar ||
       (selectedImageSidebar.open && selectedImageSidebar.pos != null && selectedImageSidebar.attrs != null)
         ? DOCUMENT_EDITOR_RIGHT_SIDEBAR_WIDTH_PX + documentRightPanelOffset
         : undefined
@@ -1648,6 +1675,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     event.target instanceof Element &&
                     (editorChromeRef.current?.contains(event.target) ||
                       event.target.closest('[data-testid^="document-header-footer-settings-sidebar"]') !== null ||
+                      event.target.closest('[data-testid^="document-table-settings-sidebar"]') !== null ||
                       event.target.closest('[data-testid^="document-page-numbers-dialog"]') !== null),
                   documentTitle: (document?.title || initialTitle || '').trim(),
                   pageNumberRegion: pagesFormattingConfig.pageNumberRegion,
@@ -1744,6 +1772,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       selectedImageSidebarRef.current = selectedImageSidebar
     }, [selectedImageSidebar])
 
+    useEffect(() => {
+      selectedTableSidebarRef.current = selectedTableSidebar
+    }, [selectedTableSidebar])
+
     const setSelectedImageSidebarState = useCallback((next: SelectedImageSidebarState) => {
       selectedImageSidebarRef.current = next
       setSelectedImageSidebar(current => {
@@ -1754,6 +1786,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           current.nodeSize === next.nodeSize &&
           current.attrs === next.attrs
         ) {
+          return current
+        }
+
+        return next
+      })
+    }, [])
+
+    const setSelectedTableSidebarState = useCallback((next: SelectedTableSidebarState) => {
+      selectedTableSidebarRef.current = next
+      setSelectedTableSidebar(current => {
+        if (current.open === next.open && current.editor === next.editor && current.tablePos === next.tablePos) {
           return current
         }
 
@@ -1881,6 +1924,116 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [editor, activeEditor, setSelectedImageSidebarState])
 
     useEffect(() => {
+      if (!editor && !activeEditor) {
+        setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
+        return
+      }
+
+      const editors: TiptapEditor[] = []
+      if (activeEditor) editors.push(activeEditor)
+      if (editor && editor !== activeEditor) editors.push(editor)
+
+      const getPersistedSelectedTableSidebar = (
+        sourceEditor?: TiptapEditor,
+        transaction?: ProseMirrorTransaction
+      ): SelectedTableSidebarState | null => {
+        const current = selectedTableSidebarRef.current
+        if (!current.open || !current.editor || current.tablePos == null) return null
+
+        const targetEditor = sourceEditor === current.editor ? sourceEditor : current.editor
+        if (!targetEditor) return null
+
+        const mappedPos =
+          transaction && sourceEditor === current.editor ? transaction.mapping.mapResult(current.tablePos) : null
+
+        if (mappedPos?.deleted) {
+          return null
+        }
+
+        const nextPos = mappedPos?.pos ?? current.tablePos
+        const node = targetEditor.state.doc.nodeAt(nextPos)
+        if (!node || node.type.name !== 'table') {
+          return null
+        }
+
+        return {
+          open: true,
+          editor: targetEditor,
+          tablePos: nextPos
+        }
+      }
+
+      const syncSelectedTableSidebar = (sourceEditor?: TiptapEditor) => {
+        const editorCandidates = sourceEditor ? [sourceEditor, ...editors.filter(ed => ed !== sourceEditor)] : editors
+        const match = editorCandidates
+          .map(ed => ({ editor: ed, tableSelection: getSelectedTableState(ed) }))
+          .find(entry => entry.tableSelection !== null)
+
+        if (!match?.tableSelection) {
+          const persisted = getPersistedSelectedTableSidebar(sourceEditor)
+          if (persisted) {
+            setSelectedTableSidebarState(persisted)
+            return
+          }
+
+          setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
+          return
+        }
+
+        setSelectedTableSidebarState({
+          open: true,
+          editor: match.editor,
+          tablePos: match.tableSelection.tablePos
+        })
+      }
+
+      const refreshSelectedTableSidebar = (sourceEditor: TiptapEditor) => {
+        const current = selectedTableSidebarRef.current
+        if (current.open && current.editor && sourceEditor !== current.editor) {
+          return
+        }
+
+        const persisted = getPersistedSelectedTableSidebar(sourceEditor)
+        if (!persisted || persisted.editor !== sourceEditor) {
+          setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
+          return
+        }
+
+        setSelectedTableSidebarState(persisted)
+      }
+
+      syncSelectedTableSidebar()
+      const subs: Array<{
+        ed: TiptapEditor
+        selectionFn: () => void
+        transactionFn: (payload: { transaction: ProseMirrorTransaction }) => void
+      }> = []
+
+      for (const ed of editors) {
+        const selectionFn = () => syncSelectedTableSidebar(ed)
+        const transactionFn = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+          if (transaction.selectionSet) {
+            syncSelectedTableSidebar(ed)
+            return
+          }
+
+          refreshSelectedTableSidebar(ed)
+        }
+
+        ed.on('selectionUpdate', selectionFn)
+        ed.on('transaction', transactionFn)
+        subs.push({ ed, selectionFn, transactionFn })
+      }
+
+      return () => {
+        for (const { ed, selectionFn, transactionFn } of subs) {
+          ed.off('selectionUpdate', selectionFn)
+          ed.off('transaction', transactionFn)
+        }
+      }
+    }, [editor, activeEditor, setSelectedTableSidebarState])
+
+    useEffect(() => {
       if (!editor) return
       const editors: NonNullable<typeof editor>[] = []
       if (editor) editors.push(editor)
@@ -1933,6 +2086,31 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         globalThis.document.removeEventListener('pointerdown', handlePointerDown, true)
       }
     }, [selectedImageSidebar.open, setSelectedImageSidebarState])
+
+    useEffect(() => {
+      if (!selectedTableSidebar.open) return
+
+      const handlePointerDown = (event: PointerEvent) => {
+        const target = event.target
+        if (!(target instanceof HTMLElement)) return
+
+        if (target.closest('[data-testid="document-table-settings-sidebar"]')) {
+          return
+        }
+
+        if (target.closest('.ProseMirror table')) {
+          return
+        }
+
+        setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
+      }
+
+      globalThis.document.addEventListener('pointerdown', handlePointerDown, true)
+
+      return () => {
+        globalThis.document.removeEventListener('pointerdown', handlePointerDown, true)
+      }
+    }, [selectedTableSidebar.open, setSelectedTableSidebarState])
 
     const pagesOptionsSyncEditorRef = useRef<typeof editor | null>(null)
 
@@ -2394,6 +2572,23 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       replaceImagePosRef.current = null
       setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
     }, [setSelectedImageSidebarState])
+
+    const closeTableSettingsSidebar = useCallback(() => {
+      setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
+    }, [setSelectedTableSidebarState])
+
+    const openTableSettingsSidebar = useCallback(() => {
+      if (!activeEditor) return
+
+      const selection = getSelectedTableState(activeEditor)
+      if (!selection) return
+
+      setSelectedTableSidebarState({
+        open: true,
+        editor: activeEditor,
+        tablePos: selection.tablePos
+      })
+    }, [activeEditor, setSelectedTableSidebarState])
 
     const handleReplaceSelectedImage = useCallback(
       (src: string) => {
@@ -3074,6 +3269,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onOpenLinkDialog={openLinkDialog}
             onOpenInsertImageDialog={openInsertImageDialog}
             onOpenInsertTableDialog={() => setShowInsertTableDialog(true)}
+            onOpenTableSidebar={openTableSettingsSidebar}
             onOpenPageNumbersDialog={editor ? () => setPageNumbersDialogOpen(true) : undefined}
             onOpenFind={() => openNavigationPanelTab('find')}
             onOpenReplace={() => openNavigationPanelTab('replace')}
@@ -3506,6 +3702,69 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           font-weight: bold;
         }
 
+        .paged-document-editor .ProseMirror table[data-table-theme="blue"] {
+          --editor-table-theme-solid: #2563eb;
+          --editor-table-theme-soft: #dbeafe;
+          --editor-table-theme-soft-alt: #eff6ff;
+        }
+
+        .paged-document-editor .ProseMirror table[data-table-theme="teal"] {
+          --editor-table-theme-solid: #0f766e;
+          --editor-table-theme-soft: #ccfbf1;
+          --editor-table-theme-soft-alt: #f0fdfa;
+        }
+
+        .paged-document-editor .ProseMirror table[data-table-theme="green"] {
+          --editor-table-theme-solid: #15803d;
+          --editor-table-theme-soft: #dcfce7;
+          --editor-table-theme-soft-alt: #f0fdf4;
+        }
+
+        .paged-document-editor .ProseMirror table[data-table-theme="orange"] {
+          --editor-table-theme-solid: #c2410c;
+          --editor-table-theme-soft: #ffedd5;
+          --editor-table-theme-soft-alt: #fff7ed;
+        }
+
+        .paged-document-editor .ProseMirror table[data-table-theme="purple"] {
+          --editor-table-theme-solid: #7c3aed;
+          --editor-table-theme-soft: #ede9fe;
+          --editor-table-theme-soft-alt: #f5f3ff;
+        }
+
+        .paged-document-editor .ProseMirror table[data-table-theme="gray"] {
+          --editor-table-theme-solid: #4b5563;
+          --editor-table-theme-soft: #e5e7eb;
+          --editor-table-theme-soft-alt: #f3f4f6;
+        }
+
+        .paged-document-editor .ProseMirror table[data-table-style-header-row="true"] > tbody > tr:first-child > td,
+        .paged-document-editor .ProseMirror table[data-table-style-header-row="true"] > tbody > tr:first-child > th {
+          background: var(--editor-table-theme-solid, #2563eb);
+          color: #fff;
+          border-color: var(--editor-table-theme-solid, #2563eb);
+          font-weight: 600;
+        }
+
+        .paged-document-editor .ProseMirror table[data-table-style-first-column="true"] > tbody > tr > :first-child {
+          background: var(--editor-table-theme-soft, #dbeafe);
+          font-weight: 600;
+        }
+
+        .paged-document-editor .ProseMirror table[data-table-style-last-column="true"] > tbody > tr > :last-child {
+          background: var(--editor-table-theme-soft, #dbeafe);
+          font-weight: 600;
+        }
+
+        .paged-document-editor .ProseMirror table[data-table-style-banded-rows="true"] > tbody > tr:nth-child(even) > td,
+        .paged-document-editor .ProseMirror table[data-table-style-banded-rows="true"] > tbody > tr:nth-child(even) > th {
+          background: var(--editor-table-theme-soft-alt, #eff6ff);
+        }
+
+        .paged-document-editor .ProseMirror table[data-table-style-banded-columns="true"] > tbody > tr > :nth-child(even) {
+          background: var(--editor-table-theme-soft-alt, #eff6ff);
+        }
+
         /* Let header rows behave nicely in print/page flows */
         .paged-document-editor .ProseMirror thead {
           display: table-header-group;
@@ -3924,6 +4183,34 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             data-testid="document-header-footer-settings-sidebar"
           />
         )}
+
+        {selectedTableSidebar.open &&
+          selectedTableSidebar.tablePos != null &&
+          (selectedTableSidebar.editor || activeEditor) && (
+            <TableSettingsSidebar
+              editor={selectedTableSidebar.editor || activeEditor}
+              table={selectedTableSidebar}
+              contextSubtitle={
+                selectedTableSidebar.open &&
+                editor &&
+                selectedTableSidebar.editor &&
+                selectedTableSidebar.editor !== editor &&
+                pagesEditorState.activeEditorType === 'header'
+                  ? t('table-sidebar-in-header-context')
+                  : selectedTableSidebar.open &&
+                      editor &&
+                      selectedTableSidebar.editor &&
+                      selectedTableSidebar.editor !== editor &&
+                      pagesEditorState.activeEditorType === 'footer'
+                    ? t('table-sidebar-in-footer-context')
+                    : undefined
+              }
+              headerHeight={measuredHeaderHeight || 120}
+              rightOffset={documentRightPanelOffset}
+              onClose={closeTableSettingsSidebar}
+              data-testid="document-table-settings-sidebar"
+            />
+          )}
 
         {(selectedImageSidebar.editor || activeEditor) && (
           <ImageSettingsSidebar

@@ -5,6 +5,10 @@ export interface TableRowGroupRange {
   endIndex: number
 }
 
+interface ResolveSplitTableRowsOptions {
+  repeatHeaderRow?: boolean
+}
+
 export function getTableRows(table: ProseMirrorNode) {
   const rows: ProseMirrorNode[] = []
 
@@ -24,6 +28,10 @@ export function getTableRows(table: ProseMirrorNode) {
   })
 
   return rows
+}
+
+export function getTableRowCount(table: ProseMirrorNode) {
+  return getTableRows(table).length
 }
 
 export function rowHasMergedCells(row: ProseMirrorNode) {
@@ -94,6 +102,58 @@ export function getTableRowGroups(table: ProseMirrorNode): TableRowGroupRange[] 
 
 export function serializeTableRowGroups(groups: TableRowGroupRange[]) {
   return groups.map(group => `${group.startIndex}-${group.endIndex}`).join(',')
+}
+
+export function getMergedSecondTableRowOffset(firstTable: ProseMirrorNode, secondTable: ProseMirrorNode) {
+  const firstRows = getTableRows(firstTable)
+  const secondRows = getTableRows(secondTable)
+  return isHeaderRow(firstRows[0]) && isHeaderRow(secondRows[0]) ? 1 : 0
+}
+
+export function resolveMergedTableRows(firstTable: ProseMirrorNode, secondTable: ProseMirrorNode) {
+  const firstRows = getTableRows(firstTable)
+  const secondRows = getTableRows(secondTable)
+  return [...firstRows, ...secondRows.slice(getMergedSecondTableRowOffset(firstTable, secondTable))]
+}
+
+export function resolveMergedSplitIndex(
+  firstTable: ProseMirrorNode,
+  secondTable: ProseMirrorNode,
+  secondTableSplitIndex: number
+) {
+  return (
+    getTableRowCount(firstTable) +
+    Math.max(0, secondTableSplitIndex - getMergedSecondTableRowOffset(firstTable, secondTable))
+  )
+}
+
+export function resolveSplitTableRows(
+  table: ProseMirrorNode,
+  proposedSplitIndex: number,
+  options: ResolveSplitTableRowsOptions = {}
+) {
+  const rows = getTableRows(table)
+  if (proposedSplitIndex <= 0 || proposedSplitIndex >= rows.length) {
+    return null
+  }
+
+  const safeSplitIndex = findSafeSplitRow(table, proposedSplitIndex)
+  if (safeSplitIndex < 1 || safeSplitIndex >= rows.length) {
+    return null
+  }
+
+  const leadingRows = rows.slice(0, safeSplitIndex)
+  const remainingRows = rows.slice(safeSplitIndex)
+  if (!leadingRows.length || !remainingRows.length) {
+    return null
+  }
+
+  return {
+    safeSplitIndex,
+    leadingRows,
+    continuationRows:
+      options.repeatHeaderRow === true && isHeaderRow(rows[0]) ? [rows[0], ...remainingRows] : remainingRows
+  }
 }
 
 export function tableHasRowSpanCrossingAt(table: ProseMirrorNode, splitIndex: number) {

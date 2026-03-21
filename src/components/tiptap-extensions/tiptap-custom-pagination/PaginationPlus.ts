@@ -43,6 +43,7 @@ import {
 } from './utils'
 import {
   mergeAdjacentPaginationTables,
+  rebalanceAdjacentPaginationTables,
   splitTableAtRow
 } from '@/components/tiptap-extensions/tiptap-custom-tables/tableSelectionUtils'
 
@@ -173,6 +174,33 @@ interface TablePaginationHeuristicsResolution {
   allowMerge: boolean
   allowSplit: boolean
 }
+
+type DeferredRepaginationOutcome =
+  | {
+      type: 'refresh'
+      nextPreferSplitAfterRefresh: boolean
+    }
+  | {
+      type: 'split'
+      candidate: {
+        tablePos: number
+        splitRowIndex: number
+      }
+      candidateKey: string
+    }
+  | {
+      type: 'merge'
+      candidate: {
+        firstTablePos: number
+        secondTablePos: number
+        paginationSplitId: string
+      }
+      candidateKey: string
+    }
+  | {
+      type: 'none'
+      nextPreferSplitAfterRefresh: boolean
+    }
 
 type DocChangeOrigin = 'external' | 'pagination-owned' | 'hydration-owned' | null
 
@@ -312,11 +340,10 @@ export function resolveRunawayPageGrowth(
 }
 
 export function resolveTablePaginationHeuristics(
-  docChangedSinceLastUpdate: boolean,
   cappedPageCount: number | null,
   hasActiveEditor: boolean
 ): TablePaginationHeuristicsResolution {
-  if (docChangedSinceLastUpdate || hasActiveEditor) {
+  if (hasActiveEditor) {
     return {
       allowMerge: false,
       allowSplit: false
@@ -326,6 +353,107 @@ export function resolveTablePaginationHeuristics(
   return {
     allowMerge: cappedPageCount === null,
     allowSplit: true
+  }
+}
+
+function getTableSplitCandidateKey(
+  candidate: { tablePos: number; splitRowIndex: number; mode?: 'split' | 'rebalance' } | null
+) {
+  return candidate ? `${candidate.mode ?? 'split'}:${candidate.tablePos}:${candidate.splitRowIndex}` : null
+}
+
+function getTableMergeCandidateKey(
+  candidate: { paginationSplitId: string; firstTablePos: number; secondTablePos: number } | null
+) {
+  return candidate ? `${candidate.paginationSplitId}:${candidate.firstTablePos}:${candidate.secondTablePos}` : null
+}
+
+export function resolveDeferredRepaginationOutcome(options: {
+  currentPageCount: number
+  measuredPageCount: number
+  allowMerge: boolean
+  allowSplit: boolean
+  preferSplitAfterRefresh: boolean
+  splitCandidate: {
+    tablePos: number
+    splitRowIndex: number
+  } | null
+  mergeCandidate: {
+    firstTablePos: number
+    secondTablePos: number
+    paginationSplitId: string
+  } | null
+  rejectedSplitKey: string | null
+  rejectedMergeKey: string | null
+}): DeferredRepaginationOutcome {
+  const {
+    currentPageCount,
+    measuredPageCount,
+    allowMerge,
+    allowSplit,
+    preferSplitAfterRefresh,
+    splitCandidate,
+    mergeCandidate,
+    rejectedSplitKey,
+    rejectedMergeKey
+  } = options
+
+  const splitCandidateKey = getTableSplitCandidateKey(splitCandidate)
+  const mergeCandidateKey = getTableMergeCandidateKey(mergeCandidate)
+  const canSplit =
+    allowSplit && splitCandidate !== null && splitCandidateKey !== null && splitCandidateKey !== rejectedSplitKey
+  const canMerge =
+    allowMerge && mergeCandidate !== null && mergeCandidateKey !== null && mergeCandidateKey !== rejectedMergeKey
+
+  if (measuredPageCount < currentPageCount && canMerge && splitCandidateKey === null) {
+    return {
+      type: 'merge',
+      candidate: mergeCandidate,
+      candidateKey: mergeCandidateKey
+    }
+  }
+
+  if (measuredPageCount !== currentPageCount) {
+    return {
+      type: 'refresh',
+      nextPreferSplitAfterRefresh: measuredPageCount > currentPageCount
+    }
+  }
+
+  if (preferSplitAfterRefresh) {
+    if (canSplit) {
+      return {
+        type: 'split',
+        candidate: splitCandidate,
+        candidateKey: splitCandidateKey
+      }
+    }
+
+    return {
+      type: 'none',
+      nextPreferSplitAfterRefresh: false
+    }
+  }
+
+  if (canMerge && splitCandidateKey === null) {
+    return {
+      type: 'merge',
+      candidate: mergeCandidate,
+      candidateKey: mergeCandidateKey
+    }
+  }
+
+  if (canSplit) {
+    return {
+      type: 'split',
+      candidate: splitCandidate,
+      candidateKey: splitCandidateKey
+    }
+  }
+
+  return {
+    type: 'none',
+    nextPreferSplitAfterRefresh: false
   }
 }
 
@@ -511,6 +639,69 @@ export function resolvePaginationBodyClick(
   return clampedPosition == null ? { action: 'block' } : { action: 'set', position: clampedPosition }
 }
 
+type SelectionNavigationDirection = 'forward' | 'backward' | null
+
+function resolveOverflowTargetBodyBand(
+  bodyBands: PageBodyBand[],
+  caretRect: ReturnType<EditorView['coordsAtPos']>,
+  direction: SelectionNavigationDirection
+): PageBodyBand {
+  const caretCenterY = (caretRect.top + caretRect.bottom) / 2
+  let previousBodyBand: PageBodyBand | null = null
+
+  for (const bodyBand of bodyBands) {
+    if (caretCenterY < bodyBand.top) {
+      return direction === 'backward' && previousBodyBand ? previousBodyBand : bodyBand
+    }
+
+    previousBodyBand = bodyBand
+  }
+
+  for (let index = 0; index < bodyBands.length - 1; index += 1) {
+    if (caretCenterY <= bodyBands[index].bottom) {
+      return direction === 'backward' ? bodyBands[index] : bodyBands[index + 1]
+    }
+  }
+
+  return bodyBands[bodyBands.length - 1]
+}
+
+export function resolvePaginationSelectionBodyOverflow(
+  view: EditorView,
+  direction: SelectionNavigationDirection = null
+): { position: number } | null {
+  if (!view.state.selection.empty) return null
+
+  const bodyBands = getPageBodyBands(view.dom)
+  if (!bodyBands.length) return null
+
+  const caretRect = getCaretRectAtPosition(view, view.state.selection.head)
+  if (!caretRect) return null
+
+  if (bodyBands.some(bodyBand => isCaretRectWithinBand(caretRect, bodyBand))) {
+    return null
+  }
+
+  const targetBand = resolveOverflowTargetBodyBand(bodyBands, caretRect, direction)
+
+  const targetX = Math.min(
+    Math.max((caretRect.left + caretRect.right) / 2, targetBand.left + 1),
+    Math.max(targetBand.left + 1, targetBand.right - 1)
+  )
+  const targetY =
+    caretRect.bottom < targetBand.top
+      ? targetBand.top + 1
+      : caretRect.top > targetBand.bottom
+        ? targetBand.bottom - 1
+        : Math.min(
+            Math.max((caretRect.top + caretRect.bottom) / 2, targetBand.top + 1),
+            Math.max(targetBand.top + 1, targetBand.bottom - 1)
+          )
+
+  const clampedPosition = findClampedBodyPosition(view, targetBand, targetX, targetY)
+  return clampedPosition == null || clampedPosition === view.state.selection.head ? null : { position: clampedPosition }
+}
+
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     pages: {
@@ -635,20 +826,21 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     let measuredHeaderHeights = new Map<number, number>()
     let measuredFooterHeights = new Map<number, number>()
     let refreshQueued = false
-    let tableMergeQueued = false
-    let tableSplitQueued = false
-    let queuedTableMergeKey: string | null = null
-    let rejectedTableMergeKey: string | null = null
-    let queuedTableSplitKey: string | null = null
-    let rejectedTableSplitKey: string | null = null
-    let retriedTableSplitKey: string | null = null
-    let prioritizeTableSplitAfterRefresh = false
     let lastKnownDoc: PMNode | null = null
+    let lastKnownSelectionHead: number | null = null
     let lastDocChangeOrigin: DocChangeOrigin = null
     let previousAddPagesMeasurement: AddPagesMeasurementSnapshot | null = null
     let runawayGrowthCapPageCount: number | null = null
+    let rejectedTableMergeKey: string | null = null
+    let rejectedTableSplitKey: string | null = null
+    let retriedTableSplitKey: string | null = null
+    let preferSplitAfterRefresh = false
+    let deferredRepaginationFrameOne: number | null = null
+    let deferredRepaginationFrameTwo: number | null = null
+    let deferredRepaginationView: EditorView | null = null
 
     const requestRefresh = (view: EditorView) => {
+      clearDeferredRepaginationEvaluation()
       const transaction = view.state.tr.setMeta(REFRESH_META, true)
       view.dispatch(transaction)
     }
@@ -664,88 +856,191 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       })
     }
 
-    const queueTableSplit = (view: EditorView, expectedCandidateKey: string) => {
-      if (tableSplitQueued) return
-      tableSplitQueued = true
-      queuedTableSplitKey = expectedCandidateKey
+    const clearDeferredRepaginationEvaluation = () => {
+      if (deferredRepaginationFrameOne !== null) {
+        cancelAnimationFrame(deferredRepaginationFrameOne)
+        deferredRepaginationFrameOne = null
+      }
+      if (deferredRepaginationFrameTwo !== null) {
+        cancelAnimationFrame(deferredRepaginationFrameTwo)
+        deferredRepaginationFrameTwo = null
+      }
+      deferredRepaginationView = null
+    }
 
-      requestAnimationFrame(() => {
-        tableSplitQueued = false
-        if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
+    const runDeferredRepaginationEvaluation = (view: EditorView) => {
+      if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
 
-        const candidate = findOverflowingTableSplit(view)
-        if (!candidate) {
-          queuedTableSplitKey = null
-          rejectedTableSplitKey = null
-          retriedTableSplitKey = null
+      const storage = this.storage
+      const options = getRuntimeOptions(editor, extensionOptions)
+      syncStorageFromOptions(storage, options)
+      applyRootStyles(view.dom, storage.pageFormat, options)
+      const measured = applyMeasuredPageHeightsToView(view, storage, options)
+      measuredHeaderHeights = measured.headerHeights
+      measuredFooterHeights = measured.footerHeights
+
+      const currentPageCount = Math.max(1, getExistingPageCount(view) || storage.pageCount)
+      let pageCountDebugInfo: PageCountDebugInfo | null = null
+      const rawMeasuredPageCount = getMeasuredPageCount(view, storage, options, measured, info => {
+        pageCountDebugInfo = info
+      })
+      const runawayPageGrowthResolution = resolveRunawayPageGrowth(
+        previousAddPagesMeasurement,
+        runawayGrowthCapPageCount,
+        currentPageCount,
+        rawMeasuredPageCount,
+        pageCountDebugInfo,
+        false,
+        false
+      )
+      const measuredPageCount = runawayPageGrowthResolution.effectivePageCount
+      runawayGrowthCapPageCount = runawayPageGrowthResolution.cappedPageCount
+      storage.pageCount = currentPageCount
+
+      const nextAddPagesMeasurement = toAddPagesMeasurementSnapshot(
+        currentPageCount,
+        rawMeasuredPageCount,
+        pageCountDebugInfo
+      )
+
+      const tablePaginationHeuristics = resolveTablePaginationHeuristics(
+        runawayGrowthCapPageCount,
+        storage.activeEditorType !== null
+      )
+      const splitCandidate = tablePaginationHeuristics.allowSplit ? findOverflowingTableSplit(view) : null
+      const mergeCandidate =
+        tablePaginationHeuristics.allowMerge && splitCandidate == null ? findMergeableTableFragments(view) : null
+
+      const outcome = resolveDeferredRepaginationOutcome({
+        currentPageCount,
+        measuredPageCount,
+        allowMerge: tablePaginationHeuristics.allowMerge,
+        allowSplit: tablePaginationHeuristics.allowSplit,
+        preferSplitAfterRefresh,
+        splitCandidate,
+        mergeCandidate,
+        rejectedSplitKey: rejectedTableSplitKey,
+        rejectedMergeKey: rejectedTableMergeKey
+      })
+
+      previousAddPagesMeasurement = runawayGrowthCapPageCount === null ? nextAddPagesMeasurement : null
+
+      if (outcome.type === 'refresh') {
+        preferSplitAfterRefresh = outcome.nextPreferSplitAfterRefresh
+        storage.pageCount = measuredPageCount
+        requestRefresh(view)
+        scheduleDeferredRepaginationEvaluation(view)
+        return
+      }
+
+      if (outcome.type === 'split') {
+        const liveCandidate = findOverflowingTableSplit(view)
+        const liveCandidateKey = getTableSplitCandidateKey(liveCandidate)
+        if (!liveCandidate || liveCandidateKey !== outcome.candidateKey) {
+          if (liveCandidateKey === null) {
+            rejectedTableSplitKey = null
+            retriedTableSplitKey = null
+          }
+          refreshPageMinHeight(view.dom)
           return
         }
 
-        const candidateKey = `${candidate.tablePos}:${candidate.splitRowIndex}`
-        if (queuedTableSplitKey !== null && candidateKey !== queuedTableSplitKey) {
-          queuedTableSplitKey = null
-        }
-        if (retriedTableSplitKey !== null && candidateKey !== retriedTableSplitKey) {
-          retriedTableSplitKey = null
-        }
-
         const tr = view.state.tr.setMeta(PAGINATION_OWNED_DOC_CHANGE_META, true)
-        const didSplit = splitTableAtRow(view.state, tr, candidate.tablePos, candidate.splitRowIndex)
+        const didSplit =
+          liveCandidate.mode === 'rebalance'
+            ? rebalanceAdjacentPaginationTables(view.state, tr, liveCandidate.tablePos, liveCandidate.splitRowIndex)
+            : splitTableAtRow(view.state, tr, liveCandidate.tablePos, liveCandidate.splitRowIndex)
 
         if (!didSplit) {
-          if (retriedTableSplitKey !== candidateKey) {
-            queuedTableSplitKey = null
-            retriedTableSplitKey = candidateKey
-            queueRefresh(view)
+          if (retriedTableSplitKey !== outcome.candidateKey) {
+            retriedTableSplitKey = outcome.candidateKey
+            preferSplitAfterRefresh = true
+            requestRefresh(view)
+            scheduleDeferredRepaginationEvaluation(view)
             return
           }
 
-          queuedTableSplitKey = candidateKey
-          rejectedTableSplitKey = candidateKey
+          rejectedTableSplitKey = outcome.candidateKey
           retriedTableSplitKey = null
+          refreshPageMinHeight(view.dom)
           return
         }
 
-        queuedTableSplitKey = null
         rejectedTableSplitKey = null
+        rejectedTableMergeKey = null
         retriedTableSplitKey = null
+        preferSplitAfterRefresh = true
         view.dispatch(tr)
-      })
-    }
+        scheduleDeferredRepaginationEvaluation(view)
+        return
+      }
 
-    const queueTableMerge = (view: EditorView, expectedCandidateKey: string) => {
-      if (tableMergeQueued) return
-      tableMergeQueued = true
-      queuedTableMergeKey = expectedCandidateKey
+      if (outcome.type === 'merge') {
+        preferSplitAfterRefresh = false
 
-      requestAnimationFrame(() => {
-        tableMergeQueued = false
-        if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
-
-        const candidate = findMergeableTableFragments(view)
-        if (!candidate) {
-          queuedTableMergeKey = null
-          rejectedTableMergeKey = null
+        if (findOverflowingTableSplit(view) !== null) {
+          refreshPageMinHeight(view.dom)
           return
         }
 
-        const candidateKey = `${candidate.paginationSplitId}:${candidate.firstTablePos}:${candidate.secondTablePos}`
-        if (queuedTableMergeKey !== null && candidateKey !== queuedTableMergeKey) {
-          queuedTableMergeKey = null
+        const liveCandidate = findMergeableTableFragments(view)
+
+        const liveCandidateKey = getTableMergeCandidateKey(liveCandidate)
+        if (!liveCandidate || liveCandidateKey !== outcome.candidateKey) {
+          if (liveCandidateKey === null) {
+            rejectedTableMergeKey = null
+          }
+          refreshPageMinHeight(view.dom)
+          return
         }
 
         const tr = view.state.tr.setMeta(PAGINATION_OWNED_DOC_CHANGE_META, true)
-        const didMerge = mergeAdjacentPaginationTables(view.state, tr, candidate.firstTablePos)
+        const didMerge = mergeAdjacentPaginationTables(view.state, tr, liveCandidate.firstTablePos)
 
         if (!didMerge) {
-          queuedTableMergeKey = candidateKey
-          rejectedTableMergeKey = candidateKey
+          rejectedTableMergeKey = outcome.candidateKey
+          refreshPageMinHeight(view.dom)
           return
         }
 
-        queuedTableMergeKey = null
         rejectedTableMergeKey = null
+        rejectedTableSplitKey = null
         view.dispatch(tr)
+        scheduleDeferredRepaginationEvaluation(view)
+        return
+      }
+
+      preferSplitAfterRefresh = outcome.nextPreferSplitAfterRefresh
+
+      if (splitCandidate === null) {
+        rejectedTableSplitKey = null
+        retriedTableSplitKey = null
+      }
+      if (mergeCandidate === null) {
+        rejectedTableMergeKey = null
+      }
+
+      refreshPageMinHeight(view.dom)
+    }
+
+    const scheduleDeferredRepaginationEvaluation = (view: EditorView) => {
+      deferredRepaginationView = view
+      if (deferredRepaginationFrameOne !== null) {
+        cancelAnimationFrame(deferredRepaginationFrameOne)
+      }
+      if (deferredRepaginationFrameTwo !== null) {
+        cancelAnimationFrame(deferredRepaginationFrameTwo)
+      }
+
+      deferredRepaginationFrameOne = requestAnimationFrame(() => {
+        deferredRepaginationFrameOne = null
+        deferredRepaginationFrameTwo = requestAnimationFrame(() => {
+          deferredRepaginationFrameTwo = null
+          const scheduledView = deferredRepaginationView
+          deferredRepaginationView = null
+          if (!scheduledView) return
+          runDeferredRepaginationEvaluation(scheduledView)
+        })
       })
     }
 
@@ -943,133 +1238,65 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             measuredHeaderHeights = measured.headerHeights
             measuredFooterHeights = measured.footerHeights
 
-            const currentPageCount = Math.max(1, getExistingPageCount(updatedView) || storage.pageCount)
-            let pageCountDebugInfo: PageCountDebugInfo | null = null
-            const rawMeasuredPageCount = getMeasuredPageCount(updatedView, storage, options, measured, info => {
-              pageCountDebugInfo = info
-            })
             const currentDoc = updatedView.state.doc
             const docChangedSinceLastUpdate = lastKnownDoc !== null && currentDoc !== lastKnownDoc
             const paginationOwnedDocChange = docChangedSinceLastUpdate && lastDocChangeOrigin === 'pagination-owned'
             const hydrationOwnedDocChange = docChangedSinceLastUpdate && lastDocChangeOrigin === 'hydration-owned'
             const externalDocChange = docChangedSinceLastUpdate && !paginationOwnedDocChange && !hydrationOwnedDocChange
-            const runawayPageGrowthResolution = resolveRunawayPageGrowth(
-              previousAddPagesMeasurement,
-              runawayGrowthCapPageCount,
-              currentPageCount,
-              rawMeasuredPageCount,
-              pageCountDebugInfo,
-              docChangedSinceLastUpdate,
-              externalDocChange
-            )
-            const measuredPageCount = runawayPageGrowthResolution.effectivePageCount
+            const currentSelectionHead = updatedView.state.selection.head
+            const selectionDirection: SelectionNavigationDirection =
+              lastKnownSelectionHead == null || currentSelectionHead === lastKnownSelectionHead
+                ? null
+                : currentSelectionHead > lastKnownSelectionHead
+                  ? 'forward'
+                  : 'backward'
 
-            if (docChangedSinceLastUpdate) {
-              queuedTableMergeKey = null
+            if (docChangedSinceLastUpdate && !paginationOwnedDocChange) {
               rejectedTableMergeKey = null
-              queuedTableSplitKey = null
               rejectedTableSplitKey = null
               retriedTableSplitKey = null
-              prioritizeTableSplitAfterRefresh = false
+              preferSplitAfterRefresh = false
               previousAddPagesMeasurement = null
               if (externalDocChange) {
                 runawayGrowthCapPageCount = null
               }
             }
             lastKnownDoc = currentDoc
-            runawayGrowthCapPageCount = runawayPageGrowthResolution.cappedPageCount
 
-            storage.pageCount = currentPageCount
-            const nextAddPagesMeasurement = toAddPagesMeasurementSnapshot(
-              currentPageCount,
-              rawMeasuredPageCount,
-              pageCountDebugInfo
-            )
+            if (storage.activeEditorType === null && !updatedView.composing) {
+              const selectionOverflow = resolvePaginationSelectionBodyOverflow(updatedView, selectionDirection)
+              if (selectionOverflow) {
+                const currentPageCount = Math.max(1, getExistingPageCount(updatedView) || storage.pageCount)
+                const rawMeasuredPageCount = getMeasuredPageCount(updatedView, storage, options, measured)
 
-            // Rebuild the page decoration layout before attempting table split/merge decisions.
-            // Without this guard, split/merge heuristics can run against stale page bands from the
-            // previous render and immediately oscillate between both operations.
-            if (measuredPageCount !== currentPageCount) {
-              storage.pageCount = measuredPageCount
-              previousAddPagesMeasurement = runawayGrowthCapPageCount === null ? nextAddPagesMeasurement : null
-              if (storage.activeEditorType === null) {
-                prioritizeTableSplitAfterRefresh = true
-                queueRefresh(updatedView)
+                if (rawMeasuredPageCount > currentPageCount) {
+                  storage.pageCount = rawMeasuredPageCount
+                  requestRefresh(updatedView)
+                  return
+                }
+
+                updatedView.dispatch(
+                  updatedView.state.tr.setSelection(
+                    TextSelection.create(updatedView.state.doc, selectionOverflow.position)
+                  )
+                )
+                if (docChangedSinceLastUpdate || paginationOwnedDocChange) {
+                  scheduleDeferredRepaginationEvaluation(updatedView)
+                }
+                refreshPageMinHeight(updatedView.dom)
                 return
               }
             }
 
-            previousAddPagesMeasurement = runawayGrowthCapPageCount === null ? nextAddPagesMeasurement : null
-
-            const tablePaginationHeuristics = resolveTablePaginationHeuristics(
-              docChangedSinceLastUpdate,
-              runawayGrowthCapPageCount,
-              storage.activeEditorType !== null
-            )
-            const shouldPrioritizeTableSplit = prioritizeTableSplitAfterRefresh && tablePaginationHeuristics.allowSplit
-
-            const tryQueueTableSplit = () => {
-              const candidate = findOverflowingTableSplit(updatedView)
-              const candidateKey = candidate ? `${candidate.tablePos}:${candidate.splitRowIndex}` : null
-
-              if (
-                candidateKey !== null &&
-                candidateKey !== rejectedTableSplitKey &&
-                candidateKey !== queuedTableSplitKey
-              ) {
-                queueTableSplit(updatedView, candidateKey)
-                return true
-              }
-
-              if (candidateKey === null) {
-                queuedTableSplitKey = null
-                rejectedTableSplitKey = null
-                retriedTableSplitKey = null
-              }
-
-              return false
+            if (storage.activeEditorType === null && (externalDocChange || paginationOwnedDocChange)) {
+              scheduleDeferredRepaginationEvaluation(updatedView)
             }
 
-            // Skip merge on active runaway suppression to avoid re-inflating the layout,
-            // but still allow a safe split so pushed tables can consume the remaining page body.
-            if (shouldPrioritizeTableSplit) {
-              prioritizeTableSplitAfterRefresh = false
-              if (tryQueueTableSplit()) {
-                return
-              }
-            }
-
-            if (tablePaginationHeuristics.allowMerge) {
-              const mergeCandidate = findMergeableTableFragments(updatedView)
-              const mergeCandidateKey = mergeCandidate
-                ? `${mergeCandidate.paginationSplitId}:${mergeCandidate.firstTablePos}:${mergeCandidate.secondTablePos}`
-                : null
-
-              if (
-                mergeCandidateKey !== null &&
-                mergeCandidateKey !== rejectedTableMergeKey &&
-                mergeCandidateKey !== queuedTableMergeKey
-              ) {
-                queueTableMerge(updatedView, mergeCandidateKey)
-                return
-              }
-
-              if (mergeCandidateKey === null) {
-                queuedTableMergeKey = null
-                rejectedTableMergeKey = null
-              }
-            } else if (!docChangedSinceLastUpdate) {
-              queuedTableMergeKey = null
-              rejectedTableMergeKey = null
-            }
-
-            if (tablePaginationHeuristics.allowSplit && !shouldPrioritizeTableSplit) {
-              if (tryQueueTableSplit()) {
-                return
-              }
-            }
-
+            lastKnownSelectionHead = currentSelectionHead
             refreshPageMinHeight(updatedView.dom)
+          },
+          destroy: () => {
+            clearDeferredRepaginationEvaluation()
           }
         })
       }),

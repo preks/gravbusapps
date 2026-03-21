@@ -176,6 +176,21 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: none;
       -webkit-user-select: none;
     }
+    .rm-pages-root .rm-page-header-content table,
+    .rm-pages-root .rm-page-footer-content table {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .rm-pages-root .rm-page-header-content td[data-cell-border-color],
+    .rm-pages-root .rm-page-footer-content td[data-cell-border-color],
+    .rm-pages-root .rm-page-header-content th[data-cell-border-color],
+    .rm-pages-root .rm-page-footer-content th[data-cell-border-color] {
+      border: 0;
+      padding: 0;
+    }
     .rm-pages-root .rm-page-region-layout {
       position: relative;
       width: 100%;
@@ -356,6 +371,19 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: text;
       white-space: break-spaces;
       tab-size: 4;
+    }
+    .rm-pages-root .rm-page-overlay-editor table {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .rm-pages-root .rm-page-overlay-editor td[data-cell-border-color],
+    .rm-pages-root .rm-page-overlay-editor th[data-cell-border-color] {
+      border-style: dashed;
+      border-width: 1px;
+      padding: 2px 6px;
     }
     .rm-pages-root .rm-page-inline-editor {
       width: 100%;

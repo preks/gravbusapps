@@ -4,6 +4,7 @@ import {
   getTableStyle,
   getTableWrapperStyle,
   normalizeTableAlign,
+  normalizeTableTheme,
   normalizeTableWidth,
   normalizeTableWidthMode
 } from './styleUtils'
@@ -24,6 +25,13 @@ export class CustomTableView extends TiptapTableView {
     this.table.dataset.tableWidth = width
     this.table.dataset.tableAlign = align
     this.table.dataset.tableWidthMode = mode
+    this.table.dataset.tableBorderHidden = node.attrs.tableBorderHidden === true ? 'true' : 'false'
+    this.table.dataset.tableTheme = normalizeTableTheme(node.attrs.tableTheme) ?? 'blue'
+    this.table.dataset.tableStyleHeaderRow = node.attrs.styleHeaderRow === false ? 'false' : 'true'
+    this.table.dataset.tableStyleFirstColumn = node.attrs.styleFirstColumn === true ? 'true' : 'false'
+    this.table.dataset.tableStyleLastColumn = node.attrs.styleLastColumn === true ? 'true' : 'false'
+    this.table.dataset.tableStyleBandedRows = node.attrs.styleBandedRows === true ? 'true' : 'false'
+    this.table.dataset.tableStyleBandedColumns = node.attrs.styleBandedColumns === true ? 'true' : 'false'
   }
 
   constructor(node: ProseMirrorNode, cellMinWidth: number) {

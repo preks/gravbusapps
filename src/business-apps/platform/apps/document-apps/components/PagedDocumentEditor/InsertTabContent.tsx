@@ -15,6 +15,7 @@ interface InsertTabContentProps {
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
   onOpenInsertTableDialog?: () => void
+  onOpenTableSidebar?: () => void
   onOpenPageNumbersDialog?: () => void
   onInsertPageBreak?: () => void
   testId?: string
@@ -25,6 +26,7 @@ export function InsertTabContent({
   onOpenLinkDialog,
   onOpenInsertImageDialog,
   onOpenInsertTableDialog,
+  onOpenTableSidebar,
   onOpenPageNumbersDialog,
   onInsertPageBreak,
   testId = 'editor-toolbar'
@@ -83,7 +85,7 @@ export function InsertTabContent({
       <ToolbarButton onClick={insertTable} tooltip={t('editor-toolbar-insert-table')}>
         <Table className="gba:h-4 gba:w-4" />
       </ToolbarButton>
-      <TableToolsMenu editor={editor} t={t} testId={testId} />
+      <TableToolsMenu editor={editor} t={t} testId={testId} onOpenSidebar={onOpenTableSidebar} />
       {onOpenPageNumbersDialog && (
         <ToolbarButton onClick={onOpenPageNumbersDialog} tooltip={t('editor-toolbar-page-numbers')}>
           <Hash className="gba:h-4 gba:w-4" />

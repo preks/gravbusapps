@@ -3,9 +3,31 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { CustomTableView } from './CustomTableView'
+import {
+  applyBorderPresetToSelection,
+  setSelectedColumnsWidthPx,
+  setSelectedRowsHeight,
+  updateSelectedTableFragments,
+  type TableBorderPreset
+} from './tableFormattingUtils'
 import { duplicateCurrentColumn, duplicateCurrentRow } from './tableSelectionUtils'
-import { getTableStyle, normalizeTableAlign, normalizeTableWidth, normalizeTableWidthMode } from './styleUtils'
-import type { TableAlignment, CustomTableOptions, SetTableLayoutOptions, TableWidthMode } from './types'
+import {
+  getTableStyle,
+  normalizeCssLength,
+  normalizeTableAlign,
+  normalizeTableTheme,
+  normalizeTableWidth,
+  normalizeTableWidthMode
+} from './styleUtils'
+import type {
+  TableAlignment,
+  CustomTableOptions,
+  SetTableLayoutOptions,
+  SetTableStyleOptions,
+  TableBorderStyle,
+  TableTheme,
+  TableWidthMode
+} from './types'
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -14,6 +36,18 @@ declare module '@tiptap/core' {
       setTableAlign: (align: TableAlignment) => ReturnType
       setTableWidthMode: (mode: TableWidthMode) => ReturnType
       setTableLayout: (options: SetTableLayoutOptions) => ReturnType
+      setTableTheme: (theme: TableTheme) => ReturnType
+      setTableStyleOptions: (options: SetTableStyleOptions) => ReturnType
+      setSelectedRowHeight: (height: string | null) => ReturnType
+      setSelectedColumnWidth: (width: string | null) => ReturnType
+      distributeRowsEvenly: (height: string) => ReturnType
+      distributeColumnsEvenly: (width: string) => ReturnType
+      applyTableBorderPreset: (options: {
+        preset: TableBorderPreset
+        style?: TableBorderStyle | null
+        width?: string | null
+        color?: string | null
+      }) => ReturnType
       duplicateRow: () => ReturnType
       duplicateColumn: () => ReturnType
     }
@@ -61,15 +95,28 @@ function getCurrentTableLayout(
 }
 
 function updateCurrentTable(state: EditorState, tr: Transaction, nodeName: string, attrs: Record<string, unknown>) {
-  const table = findParentTable(state, nodeName)
-  if (!table) return false
-
-  tr.setNodeMarkup(table.pos, undefined, {
-    ...table.node.attrs,
+  return updateSelectedTableFragments(state, tr, nodeName, currentAttrs => ({
+    ...currentAttrs,
     ...attrs
-  })
+  }))
+}
 
-  return true
+function normalizeColumnWidthToPx(width: string | null) {
+  if (width == null) return null
+
+  const normalized = width.trim()
+  if (!normalized) return null
+
+  const numeric = Number.parseFloat(normalized.replace(',', '.'))
+  if (!Number.isFinite(numeric) || numeric <= 0) return null
+
+  if (/cm$/i.test(normalized)) return Math.round((numeric * 96) / 2.54)
+  if (/mm$/i.test(normalized)) return Math.round((numeric * 96) / 25.4)
+  if (/in$/i.test(normalized)) return Math.round(numeric * 96)
+  if (/pt$/i.test(normalized)) return Math.round((numeric * 96) / 72)
+  if (/px$/i.test(normalized) || /^\d+(\.\d+)?$/.test(normalized)) return Math.round(numeric)
+
+  return null
 }
 
 export const CustomTable = TiptapTable.extend<CustomTableOptions>({
@@ -168,6 +215,58 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
             'data-pagination-split-id': attributes.paginationSplitId
           }
         }
+      },
+      tableBorderHidden: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-table-border-hidden') === 'true',
+        renderHTML: attributes => ({
+          'data-table-border-hidden': attributes.tableBorderHidden === true ? 'true' : 'false'
+        })
+      },
+      tableTheme: {
+        default: 'blue',
+        parseHTML: element => normalizeTableTheme(element.getAttribute('data-table-theme')) ?? 'blue',
+        renderHTML: attributes => {
+          const tableTheme = normalizeTableTheme(attributes.tableTheme) ?? 'blue'
+          return {
+            'data-table-theme': tableTheme
+          }
+        }
+      },
+      styleHeaderRow: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-table-style-header-row') === 'true',
+        renderHTML: attributes => ({
+          'data-table-style-header-row': attributes.styleHeaderRow === true ? 'true' : 'false'
+        })
+      },
+      styleFirstColumn: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-table-style-first-column') === 'true',
+        renderHTML: attributes => ({
+          'data-table-style-first-column': attributes.styleFirstColumn === true ? 'true' : 'false'
+        })
+      },
+      styleLastColumn: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-table-style-last-column') === 'true',
+        renderHTML: attributes => ({
+          'data-table-style-last-column': attributes.styleLastColumn === true ? 'true' : 'false'
+        })
+      },
+      styleBandedRows: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-table-style-banded-rows') === 'true',
+        renderHTML: attributes => ({
+          'data-table-style-banded-rows': attributes.styleBandedRows === true ? 'true' : 'false'
+        })
+      },
+      styleBandedColumns: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-table-style-banded-columns') === 'true',
+        renderHTML: attributes => ({
+          'data-table-style-banded-columns': attributes.styleBandedColumns === true ? 'true' : 'false'
+        })
       }
     }
   },
@@ -254,6 +353,99 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
           if (!Object.keys(nextAttrs).length) return false
 
           const updated = updateCurrentTable(state, tr, this.name, nextAttrs)
+          if (!updated) return false
+
+          dispatch?.(tr)
+          return true
+        },
+      setTableTheme:
+        theme =>
+        ({ state, tr, dispatch }) => {
+          const normalizedTheme = normalizeTableTheme(theme)
+          if (!normalizedTheme) return false
+
+          const updated = updateCurrentTable(state, tr, this.name, { tableTheme: normalizedTheme })
+          if (!updated) return false
+
+          dispatch?.(tr)
+          return true
+        },
+      setTableStyleOptions:
+        options =>
+        ({ state, tr, dispatch }) => {
+          const nextAttrs: Record<string, unknown> = {}
+
+          if (options.theme != null) {
+            const normalizedTheme = normalizeTableTheme(options.theme)
+            if (!normalizedTheme) return false
+            nextAttrs.tableTheme = normalizedTheme
+          }
+
+          if (options.styleHeaderRow != null) nextAttrs.styleHeaderRow = options.styleHeaderRow
+          if (options.styleFirstColumn != null) nextAttrs.styleFirstColumn = options.styleFirstColumn
+          if (options.styleLastColumn != null) nextAttrs.styleLastColumn = options.styleLastColumn
+          if (options.styleBandedRows != null) nextAttrs.styleBandedRows = options.styleBandedRows
+          if (options.styleBandedColumns != null) nextAttrs.styleBandedColumns = options.styleBandedColumns
+          if (!Object.keys(nextAttrs).length) return false
+
+          const updated = updateCurrentTable(state, tr, this.name, nextAttrs)
+          if (!updated) return false
+
+          dispatch?.(tr)
+          return true
+        },
+      setSelectedRowHeight:
+        height =>
+        ({ state, tr, dispatch }) => {
+          const normalizedHeight = height == null ? null : normalizeCssLength(height)
+          if (height != null && !normalizedHeight) return false
+
+          const updated = setSelectedRowsHeight(state, tr, this.name, normalizedHeight)
+          if (!updated) return false
+
+          dispatch?.(tr)
+          return true
+        },
+      setSelectedColumnWidth:
+        width =>
+        ({ state, tr, dispatch }) => {
+          const normalizedWidth = width == null ? null : normalizeColumnWidthToPx(width)
+          if (width != null && normalizedWidth == null) return false
+
+          const updated = setSelectedColumnsWidthPx(state, tr, this.name, normalizedWidth)
+          if (!updated) return false
+
+          dispatch?.(tr)
+          return true
+        },
+      distributeRowsEvenly:
+        height =>
+        ({ state, tr, dispatch }) => {
+          const normalizedHeight = normalizeCssLength(height)
+          if (!normalizedHeight) return false
+
+          const updated = setSelectedRowsHeight(state, tr, this.name, normalizedHeight)
+          if (!updated) return false
+
+          dispatch?.(tr)
+          return true
+        },
+      distributeColumnsEvenly:
+        width =>
+        ({ state, tr, dispatch }) => {
+          const normalizedWidth = normalizeColumnWidthToPx(width)
+          if (normalizedWidth == null) return false
+
+          const updated = setSelectedColumnsWidthPx(state, tr, this.name, normalizedWidth)
+          if (!updated) return false
+
+          dispatch?.(tr)
+          return true
+        },
+      applyTableBorderPreset:
+        options =>
+        ({ state, tr, dispatch }) => {
+          const updated = applyBorderPresetToSelection(state, tr, this.name, options)
           if (!updated) return false
 
           dispatch?.(tr)
