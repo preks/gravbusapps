@@ -1,5 +1,6 @@
 import {
   resolveDeferredRepaginationOutcome,
+  resolvePaginationBodyClick,
   resolvePaginationSelectionBodyOverflow,
   resolveTablePaginationHeuristics
 } from '../PaginationPlus'
@@ -337,6 +338,39 @@ describe('resolvePaginationSelectionBodyOverflow', () => {
     expect(resolvePaginationSelectionBodyOverflow(view, 'forward')).toEqual({ position: 12 })
   })
 
+  it('waits for the next page body instead of snapping forward overflow back into the last visible page', () => {
+    const editorDom = document.createElement('div')
+    const firstBodyBand = document.createElement('div')
+
+    firstBodyBand.className = 'rm-page-body-layer'
+    firstBodyBand.dataset.rmPageNumber = '1'
+    editorDom.append(firstBodyBand)
+    document.body.appendChild(editorDom)
+
+    setRect(firstBodyBand, { top: 100, bottom: 300, left: 20, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        selection: {
+          empty: true,
+          head: 10
+        }
+      },
+      coordsAtPos: () => ({
+        top: 330,
+        bottom: 348,
+        left: 70,
+        right: 70
+      }),
+      posAtCoords: () => ({
+        pos: 7
+      })
+    } as never
+
+    expect(resolvePaginationSelectionBodyOverflow(view, 'forward')).toBeNull()
+  })
+
   it('routes footer-gap overflow back to the previous page body when navigating backward', () => {
     const editorDom = document.createElement('div')
     const firstBodyBand = document.createElement('div')
@@ -499,5 +533,68 @@ describe('resolvePaginationSelectionBodyOverflow', () => {
     } as never
 
     expect(resolvePaginationSelectionBodyOverflow(view, 'backward')).toEqual({ position: 7 })
+  })
+})
+
+describe('resolvePaginationBodyClick', () => {
+  function setRect(element: HTMLElement, rect: { top: number; bottom: number; left?: number; right?: number }) {
+    Object.defineProperty(element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: rect.left ?? 0,
+        y: rect.top,
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left ?? 0,
+        right: rect.right ?? 100,
+        width: (rect.right ?? 100) - (rect.left ?? 0),
+        height: rect.bottom - rect.top,
+        toJSON: () => ''
+      })
+    })
+  }
+
+  it('sets the caret explicitly when clicking into a blank first paragraph', () => {
+    const editorDom = document.createElement('div')
+    const bodyBand = document.createElement('div')
+
+    bodyBand.className = 'rm-page-body-layer'
+    bodyBand.dataset.rmPageNumber = '1'
+    editorDom.appendChild(bodyBand)
+    document.body.appendChild(editorDom)
+
+    setRect(bodyBand, { top: 100, bottom: 300, left: 20, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          resolve: () => ({
+            parent: {
+              type: {
+                name: 'paragraph'
+              },
+              content: {
+                size: 0
+              }
+            },
+            parentOffset: 0,
+            nodeBefore: null,
+            nodeAfter: null
+          })
+        }
+      },
+      coordsAtPos: () => ({
+        top: 150,
+        bottom: 168,
+        left: 72,
+        right: 72
+      }),
+      posAtCoords: () => ({
+        pos: 1
+      })
+    } as never
+
+    expect(resolvePaginationBodyClick(view, 72, 158)).toEqual({ action: 'set', position: 1 })
   })
 })

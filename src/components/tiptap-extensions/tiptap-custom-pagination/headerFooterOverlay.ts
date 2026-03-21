@@ -1,7 +1,7 @@
 import { Editor, type Extension } from '@tiptap/core'
 import { handleTiptapTabKey } from '../tiptapTabKeyHandler'
 import type { HeaderFooterEditorType, PagesHeaderFooter, PagesOptions, PagesStorage, PageVariantKey } from './types'
-import { renderHeaderFooterDisplayContent } from './dom'
+import { isEmptyHeaderFooterHtml, renderHeaderFooterDisplayContent } from './dom'
 import { layoutPageNumberSlots } from './pageNumberSlotLayout'
 import {
   getHeaderFooterExtensions,
@@ -24,13 +24,15 @@ interface OpenOverlayParams {
 }
 
 interface ActiveOverlay {
-  overlay: HTMLElement
   editor: Editor
   pageNumber: number
   type: HeaderFooterEditorType
   variant: PageVariantKey
   cleanup: () => void
   previousEditable: boolean
+  target: HTMLElement
+  contentHost: HTMLElement
+  shellEditableSnapshot: Array<{ element: HTMLElement; contentEditable: string | null }>
 }
 
 export class HeaderFooterOverlayManager {
@@ -47,14 +49,12 @@ export class HeaderFooterOverlayManager {
     this.close()
 
     const { target, type, pageNumber, clickPosition, initialContent, storage, options } = params
-    const overlay = document.createElement('div')
-    const overlayLayout = document.createElement('div')
-    const editorHost = document.createElement('div')
     const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
-    const contentClass = type === 'header' ? 'rm-page-header-content' : 'rm-page-footer-content'
-    const visibleContent = target.querySelector(contentSelector) as HTMLElement | null
-    const layoutRoot = target.querySelector('[data-rm-page-number-layout="true"]') as HTMLElement | null
+    const shellSelector = type === 'header' ? '.rm-page-header' : '.rm-page-footer'
+    const contentHost = target.querySelector(contentSelector) as HTMLElement | null
+    const shellHost = target.querySelector(shellSelector) as HTMLElement | null
     const hint = target.querySelector('.rm-page-region-hint') as HTMLElement | null
+    const pageNumberSlot = target.querySelector('[data-rm-page-number-slot="true"]') as HTMLElement | null
     const variant = resolveVariantForPage(pageNumber, options)
     const accentColor =
       type === 'header'
@@ -65,137 +65,36 @@ export class HeaderFooterOverlayManager {
     const placeholderLabel =
       type === 'header' ? (options.uiLabels?.headerLabel ?? 'Header') : (options.uiLabels?.footerLabel ?? 'Footer')
 
-    overlay.className = 'rm-page-overlay'
-    overlay.dataset.rmOverlayType = type
-    overlay.style.setProperty('--rm-overlay-accent', accentColor)
-    editorHost.className = `rm-page-overlay-editor ${contentClass}`
-    overlayLayout.className = 'rm-page-region-layout rm-page-overlay-layout'
-
-    let geometrySyncFrame: number | null = null
-
-    const syncOverlayLayoutMetadata = (sourceLayoutRoot: HTMLElement | null) => {
-      delete overlayLayout.dataset.rmPageNumberActive
-      delete overlayLayout.dataset.rmPageNumberAlign
-      delete overlayLayout.dataset.rmPageNumberRegion
-      delete overlayLayout.dataset.rmPageNumberOdd
-      delete overlayLayout.dataset.rmPageNumberBelow
-
-      if (!sourceLayoutRoot) return
-
-      if (sourceLayoutRoot.dataset.rmPageNumberActive) {
-        overlayLayout.dataset.rmPageNumberActive = sourceLayoutRoot.dataset.rmPageNumberActive
-      }
-      if (sourceLayoutRoot.dataset.rmPageNumberAlign) {
-        overlayLayout.dataset.rmPageNumberAlign = sourceLayoutRoot.dataset.rmPageNumberAlign
-      }
-      if (sourceLayoutRoot.dataset.rmPageNumberRegion) {
-        overlayLayout.dataset.rmPageNumberRegion = sourceLayoutRoot.dataset.rmPageNumberRegion
-      }
-      if (sourceLayoutRoot.dataset.rmPageNumberOdd) {
-        overlayLayout.dataset.rmPageNumberOdd = sourceLayoutRoot.dataset.rmPageNumberOdd
-      }
-      if (sourceLayoutRoot.dataset.rmPageNumberBelow) {
-        overlayLayout.dataset.rmPageNumberBelow = sourceLayoutRoot.dataset.rmPageNumberBelow
-      }
-    }
-
-    const syncOverlayGeometry = () => {
-      const liveLayoutRoot = target.querySelector('[data-rm-page-number-layout="true"]') as HTMLElement | null
-      const liveVisibleContent = target.querySelector(contentSelector) as HTMLElement | null
-      syncOverlayLayoutMetadata(liveLayoutRoot)
-
-      if (liveLayoutRoot) {
-        const targetRect = target.getBoundingClientRect()
-        const layoutRect = liveLayoutRoot.getBoundingClientRect()
-        overlayLayout.style.position = 'absolute'
-        overlayLayout.style.top = `${Math.max(0, layoutRect.top - targetRect.top)}px`
-        overlayLayout.style.left = `${Math.max(0, layoutRect.left - targetRect.left)}px`
-        overlayLayout.style.right = `${Math.max(0, targetRect.right - layoutRect.right)}px`
-        overlayLayout.style.bottom = `${Math.max(0, targetRect.bottom - layoutRect.bottom)}px`
-        overlayLayout.style.display = 'flex'
-        overlayLayout.style.flexDirection = 'column'
-        overlayLayout.style.minHeight = '0'
-        editorHost.style.position = 'relative'
-        editorHost.style.top = ''
-        editorHost.style.left = ''
-        editorHost.style.right = ''
-        editorHost.style.bottom = ''
-
-        if (!overlay.contains(overlayLayout)) {
-          overlay.append(overlayLayout)
-        }
-        if (!overlayLayout.contains(editorHost)) {
-          overlayLayout.append(editorHost)
-        }
-        return
-      }
-
-      if (!liveVisibleContent) return
-
-      const targetRect = target.getBoundingClientRect()
-      const contentRect = liveVisibleContent.getBoundingClientRect()
-      const topInset = Math.max(0, contentRect.top - targetRect.top)
-      const leftInset = Math.max(0, contentRect.left - targetRect.left)
-      const rightInset = Math.max(0, targetRect.right - contentRect.right)
-      const bottomInset = Math.max(0, targetRect.bottom - contentRect.bottom)
-
-      if (overlayLayout.parentElement === overlay) {
-        overlayLayout.remove()
-      }
-
-      if (!overlay.contains(editorHost)) {
-        overlay.append(editorHost)
-      }
-
-      editorHost.style.position = 'absolute'
-      editorHost.style.top = `${topInset}px`
-      editorHost.style.left = `${leftInset}px`
-      editorHost.style.right = `${rightInset}px`
-      editorHost.style.bottom = `${bottomInset}px`
-    }
-
-    const scheduleOverlayGeometrySync = () => {
-      if (geometrySyncFrame !== null) {
-        cancelAnimationFrame(geometrySyncFrame)
-      }
-
-      geometrySyncFrame = requestAnimationFrame(() => {
-        geometrySyncFrame = null
-        if (!overlay.isConnected || !target.isConnected) return
-        layoutPageNumberSlots(target)
-        syncOverlayGeometry()
-      })
-    }
-
-    syncOverlayLayoutMetadata(layoutRoot)
-
-    const stopPointerPropagation = (event: MouseEvent) => {
-      event.stopPropagation()
-    }
-    overlay.addEventListener('mousedown', stopPointerPropagation, true)
-    overlay.addEventListener('mouseup', stopPointerPropagation, true)
-    overlay.addEventListener('click', stopPointerPropagation, true)
-    overlay.addEventListener('dblclick', stopPointerPropagation)
-
-    target.dataset.rmOverlayActive = 'true'
-    if (layoutRoot) {
-      overlayLayout.append(editorHost)
-      overlay.append(overlayLayout)
-    } else {
-      overlay.append(editorHost)
-    }
-    target.appendChild(overlay)
-    syncOverlayGeometry()
-    if (hint) {
-      hint.textContent = activeHint
+    if (!(contentHost instanceof HTMLElement)) {
+      return
     }
 
     const previousEditable = this.hostEditor.isEditable
     this.hostEditor.setEditable(false, false)
+    const shellEditableElements = [target, shellHost].filter(
+      (element): element is HTMLElement => element instanceof HTMLElement
+    )
+    const shellEditableSnapshot = shellEditableElements.map(element => ({
+      element,
+      contentEditable: element.getAttribute('contenteditable')
+    }))
+
+    target.dataset.rmOverlayActive = 'true'
+    target.dataset.rmHasVisibleContent = 'true'
+    shellEditableElements.forEach(element => {
+      element.setAttribute('contenteditable', 'true')
+    })
+    contentHost.classList.add('rm-page-inline-editor')
+    contentHost.style.setProperty('--rm-overlay-accent', accentColor)
+    contentHost.setAttribute('contenteditable', 'true')
+    contentHost.replaceChildren()
+    if (hint) {
+      hint.textContent = activeHint
+    }
 
     const overlayEditorRef: { current: Editor | null } = { current: null }
-    const overlayEditor = new Editor({
-      element: editorHost,
+    const inlineEditor = new Editor({
+      element: contentHost,
       extensions: getHeaderFooterExtensions(params.extensions),
       content: initialContent,
       editable: true,
@@ -208,7 +107,7 @@ export class HeaderFooterOverlayManager {
         }
       }
     })
-    overlayEditorRef.current = overlayEditor
+    overlayEditorRef.current = inlineEditor
 
     const htmlForVisibleRegion = (rawHtml: string) => {
       const total = Math.max(1, storage.pageCount)
@@ -219,23 +118,18 @@ export class HeaderFooterOverlayManager {
       })
     }
 
-    const syncOverlayContentToStorage = () => {
-      const html = overlayEditor.getHTML()
-      const json = overlayEditor.getJSON()
+    const syncStoredContent = () => {
+      const html = inlineEditor.getHTML()
+      const json = inlineEditor.getJSON()
 
       setStoredVariantContent(storage, type, variant, {
         html,
         json
       })
 
-      if (visibleContent) {
-        renderHeaderFooterDisplayContent(visibleContent, htmlForVisibleRegion(html), placeholderLabel)
-        layoutPageNumberSlots(target)
-        syncOverlayGeometry()
-      }
-
+      target.dataset.rmHasVisibleContent = 'true'
+      layoutPageNumberSlots(target)
       params.onUpdate?.()
-      scheduleOverlayGeometrySync()
     }
 
     const notifyActiveEditorChange = () => {
@@ -277,11 +171,11 @@ export class HeaderFooterOverlayManager {
       })
     }
 
-    overlayEditor.on('update', syncOverlayContentToStorage)
+    inlineEditor.on('update', syncStoredContent)
 
     const handleDocumentMouseDown = (event: MouseEvent) => {
       const targetNode = event.target as Node | null
-      if (targetNode && overlay.contains(targetNode)) return
+      if (targetNode && target.contains(targetNode)) return
 
       const targetElement = event.target instanceof Element ? event.target : null
       if (targetElement?.closest('[data-testid^="document-header-footer-settings-sidebar"]')) return
@@ -293,7 +187,7 @@ export class HeaderFooterOverlayManager {
     }
 
     const handleDocumentDoubleClick = (event: MouseEvent) => {
-      if (overlay.contains(event.target as Node)) return
+      if (target.contains(event.target as Node)) return
 
       const nextRegion = resolveHeaderFooterRegionTarget(event.target)
       if (nextRegion && nextRegion.element !== target) {
@@ -330,51 +224,60 @@ export class HeaderFooterOverlayManager {
     document.addEventListener('keydown', handleEscape, true)
 
     const cleanup = () => {
-      if (geometrySyncFrame !== null) {
-        cancelAnimationFrame(geometrySyncFrame)
-        geometrySyncFrame = null
-      }
       document.removeEventListener('mousedown', handleDocumentMouseDown, true)
       document.removeEventListener('dblclick', handleDocumentDoubleClick, true)
       document.removeEventListener('keydown', handleEscape, true)
-      overlay.removeEventListener('mousedown', stopPointerPropagation, true)
-      overlay.removeEventListener('mouseup', stopPointerPropagation, true)
-      overlay.removeEventListener('click', stopPointerPropagation, true)
-      overlay.removeEventListener('dblclick', stopPointerPropagation)
-      overlayEditor.off('update', syncOverlayContentToStorage)
-      const finalHtml = overlayEditor.getHTML()
-      overlayEditor.destroy()
-      if (visibleContent) {
-        renderHeaderFooterDisplayContent(visibleContent, htmlForVisibleRegion(finalHtml), placeholderLabel)
-        requestAnimationFrame(() => layoutPageNumberSlots(target))
-      }
-      overlay.remove()
+      inlineEditor.off('update', syncStoredContent)
+
+      const finalHtml = inlineEditor.getHTML()
+      inlineEditor.destroy()
+
+      contentHost.classList.remove('rm-page-inline-editor')
+      contentHost.style.removeProperty('--rm-overlay-accent')
+      contentHost.setAttribute('contenteditable', 'false')
+      shellEditableSnapshot.forEach(({ element, contentEditable }) => {
+        if (contentEditable === null) {
+          element.removeAttribute('contenteditable')
+        } else {
+          element.setAttribute('contenteditable', contentEditable)
+        }
+      })
+      renderHeaderFooterDisplayContent(contentHost, htmlForVisibleRegion(finalHtml), placeholderLabel)
+
+      const hasVisibleRegionContent =
+        !isEmptyHeaderFooterHtml(htmlForVisibleRegion(finalHtml)) || pageNumberSlot !== null
+      target.dataset.rmHasVisibleContent = hasVisibleRegionContent ? 'true' : 'false'
       delete target.dataset.rmOverlayActive
+
       if (hint) {
         hint.textContent = inactiveHint
       }
+
+      requestAnimationFrame(() => layoutPageNumberSlots(target))
       this.hostEditor.setEditable(previousEditable, false)
       params.onClose()
     }
 
     this.activeOverlay = {
-      overlay,
-      editor: overlayEditor,
+      editor: inlineEditor,
       pageNumber,
       type,
       variant,
       cleanup,
-      previousEditable
+      previousEditable,
+      target,
+      contentHost,
+      shellEditableSnapshot
     }
 
-    storage.activeEditor = overlayEditor
+    storage.activeEditor = inlineEditor
     storage.activeEditorType = type
     storage.activePageNumber = pageNumber
     notifyActiveEditorChange()
     requestAnimationFrame(() => {
-      if (this.activeOverlay?.editor !== overlayEditor) return
-      scheduleOverlayGeometrySync()
-      focusOverlayEditor(overlayEditor, clickPosition)
+      if (this.activeOverlay?.editor !== inlineEditor) return
+      layoutPageNumberSlots(target)
+      focusEditor(inlineEditor, clickPosition)
     })
   }
 
@@ -413,7 +316,7 @@ export class HeaderFooterOverlayManager {
         ? (options.headerAccentColor ?? options.accentColor ?? '#6366f1')
         : (options.footerAccentColor ?? options.accentColor ?? '#6366f1')
 
-    this.activeOverlay.overlay.style.setProperty('--rm-overlay-accent', color)
+    this.activeOverlay.contentHost.style.setProperty('--rm-overlay-accent', color)
   }
 
   suppressNextCloseNotificationOnce() {
@@ -422,7 +325,7 @@ export class HeaderFooterOverlayManager {
   }
 }
 
-function focusOverlayEditor(editor: Editor, clickPosition?: { clientX: number; clientY: number }) {
+function focusEditor(editor: Editor, clickPosition?: { clientX: number; clientY: number }) {
   const position = resolveEditorPositionFromClick(editor, clickPosition)
   editor.commands.focus(position ?? 'end')
 }

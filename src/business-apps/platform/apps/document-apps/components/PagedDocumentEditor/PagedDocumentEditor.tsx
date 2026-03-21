@@ -3692,10 +3692,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           border-collapse: collapse;
           max-width: 100%;
           table-layout: fixed;
-          margin: 16pt 0;
-          background: #fff;
-          border: 1pt solid #d0d0d0;
-          border-radius: 4pt;
           break-inside: auto;
           page-break-inside: auto;
         }
@@ -3828,14 +3824,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           border-radius: 4pt;
         }
 
+        /* Keep the first body line visually empty and clickable, like a blank page in Word. */
+        .paged-document-editor .ProseMirror p.is-editor-empty:first-child {
+          min-height: 1em;
+          cursor: text;
+        }
+
         /* Placeholder styling */
         .paged-document-editor .ProseMirror p.is-editor-empty:first-child::before {
-          content: attr(data-placeholder);
-          float: left;
-          color: #aaa;
+          content: '';
           pointer-events: none;
           height: 0;
-          font-style: italic;
         }
 
         /* Selection styling */

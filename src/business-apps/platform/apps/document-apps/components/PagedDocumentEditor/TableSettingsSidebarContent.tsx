@@ -12,7 +12,7 @@ import {
   Switch,
   useTranslation
 } from '@newwork/nw-design-system'
-import type { TableTheme, TableWidthMode } from '@/components/tiptap-extensions/tiptap-custom-tables'
+import type { TableBorderStyle, TableTheme, TableWidthMode } from '@/components/tiptap-extensions/tiptap-custom-tables'
 import translations from '../../_i18n'
 import { TableBorderControlsSection } from './TableBorderControlsSection'
 import { useTableSidebarActions } from './useTableSidebarActions'
@@ -31,6 +31,16 @@ const TABLE_WIDTH_MODE_OPTIONS: ReadonlyArray<{ value: TableWidthMode; labelKey:
   { value: 'auto-fit-content', labelKey: 'editor-toolbar-table-width-autofit-content' },
   { value: 'manual', labelKey: 'table-sidebar-width-mode-manual' }
 ]
+
+const TABLE_SHELL_BORDER_STYLE_OPTIONS: ReadonlyArray<{ value: TableBorderStyle; labelKey: string }> = [
+  { value: 'none', labelKey: 'table-sidebar-border-none' },
+  { value: 'solid', labelKey: 'table-sidebar-border-style-solid' },
+  { value: 'dashed', labelKey: 'table-sidebar-border-style-dashed' },
+  { value: 'dotted', labelKey: 'table-sidebar-border-style-dotted' },
+  { value: 'double', labelKey: 'table-sidebar-border-style-double' }
+]
+
+const TABLE_SHELL_BORDER_WIDTH_OPTIONS = ['0.75pt', '1pt', '1.5pt', '2.25pt', '3pt'] as const
 
 const FILL_OPTIONS: ReadonlyArray<{ value: string; labelKey: string }> = [
   { value: '#E0F2FE', labelKey: 'table-sidebar-fill-blue' },
@@ -66,6 +76,9 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
   const [tableWidthInput, setTableWidthInput] = useState(values.tableWidth)
   const [rowHeightInput, setRowHeightInput] = useState(values.rowHeight)
   const [columnWidthInput, setColumnWidthInput] = useState(formatCentimeterValue(values.columnWidthPx))
+  const [tableBackgroundInput, setTableBackgroundInput] = useState(values.tableBackgroundColor)
+  const [tableBorderColorInput, setTableBorderColorInput] = useState(values.tableBorderColor)
+  const [tableBorderRadiusInput, setTableBorderRadiusInput] = useState(values.tableBorderRadius)
 
   useEffect(() => {
     setTableWidthInput(values.tableWidth)
@@ -78,6 +91,18 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
   useEffect(() => {
     setColumnWidthInput(formatCentimeterValue(values.columnWidthPx))
   }, [values.columnWidthPx])
+
+  useEffect(() => {
+    setTableBackgroundInput(values.tableBackgroundColor)
+  }, [values.tableBackgroundColor])
+
+  useEffect(() => {
+    setTableBorderColorInput(values.tableBorderColor)
+  }, [values.tableBorderColor])
+
+  useEffect(() => {
+    setTableBorderRadiusInput(values.tableBorderRadius)
+  }, [values.tableBorderRadius])
 
   const selectionLabel = useMemo(() => t('table-sidebar-selection-summary', selectionMetrics), [selectionMetrics, t])
 
@@ -105,6 +130,126 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
               {t(option.labelKey)}
             </Button>
           ))}
+        </div>
+
+        <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+          <div className="gba:space-y-1">
+            <Label htmlFor={`${testId}-table-background`} className="gba:text-xs gba:text-muted-foreground">
+              {t('table-sidebar-surface-background')}
+            </Label>
+            <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
+              <Input
+                id={`${testId}-table-background`}
+                value={tableBackgroundInput}
+                onChange={event => setTableBackgroundInput(event.target.value)}
+                placeholder="#FFFFFF"
+                data-testid={`${testId}-table-background`}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onMouseDown={preventEditorBlurOnMouseDown}
+                onClick={() => actions.setTableStyleOptions({ tableBackgroundColor: tableBackgroundInput })}
+                data-testid={`${testId}-table-background-apply`}
+              >
+                {t('table-sidebar-apply')}
+              </Button>
+            </div>
+          </div>
+          <div className="gba:space-y-1">
+            <Label htmlFor={`${testId}-table-border-radius`} className="gba:text-xs gba:text-muted-foreground">
+              {t('table-sidebar-surface-radius')}
+            </Label>
+            <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
+              <Input
+                id={`${testId}-table-border-radius`}
+                value={tableBorderRadiusInput}
+                onChange={event => setTableBorderRadiusInput(event.target.value)}
+                placeholder="4pt"
+                data-testid={`${testId}-table-border-radius`}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onMouseDown={preventEditorBlurOnMouseDown}
+                onClick={() => actions.setTableStyleOptions({ tableBorderRadius: tableBorderRadiusInput })}
+                data-testid={`${testId}-table-border-radius-apply`}
+              >
+                {t('table-sidebar-apply')}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+          <div className="gba:space-y-1">
+            <Label htmlFor={`${testId}-table-border-style`} className="gba:text-xs gba:text-muted-foreground">
+              {t('table-sidebar-surface-border-style')}
+            </Label>
+            <Select
+              value={values.tableBorderStyle}
+              onValueChange={value => actions.setTableStyleOptions({ tableBorderStyle: value as TableBorderStyle })}
+            >
+              <SelectTrigger id={`${testId}-table-border-style`} data-testid={`${testId}-table-border-style`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TABLE_SHELL_BORDER_STYLE_OPTIONS.map(option => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    data-testid={`${testId}-table-border-style-${option.value}`}
+                  >
+                    {t(option.labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="gba:space-y-1">
+            <Label htmlFor={`${testId}-table-border-width`} className="gba:text-xs gba:text-muted-foreground">
+              {t('table-sidebar-surface-border-width')}
+            </Label>
+            <Select
+              value={values.tableBorderWidth}
+              onValueChange={value => actions.setTableStyleOptions({ tableBorderWidth: value })}
+            >
+              <SelectTrigger id={`${testId}-table-border-width`} data-testid={`${testId}-table-border-width`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TABLE_SHELL_BORDER_WIDTH_OPTIONS.map(option => (
+                  <SelectItem key={option} value={option} data-testid={`${testId}-table-border-width-${option}`}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="gba:space-y-1">
+          <Label htmlFor={`${testId}-table-border-color`} className="gba:text-xs gba:text-muted-foreground">
+            {t('table-sidebar-surface-border-color')}
+          </Label>
+          <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
+            <Input
+              id={`${testId}-table-border-color`}
+              value={tableBorderColorInput}
+              onChange={event => setTableBorderColorInput(event.target.value)}
+              placeholder="#D0D0D0"
+              data-testid={`${testId}-table-border-color`}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onMouseDown={preventEditorBlurOnMouseDown}
+              onClick={() => actions.setTableStyleOptions({ tableBorderColor: tableBorderColorInput })}
+              data-testid={`${testId}-table-border-color-apply`}
+            >
+              {t('table-sidebar-apply')}
+            </Button>
+          </div>
         </div>
 
         <div className="gba:grid gba:grid-cols-2 gba:gap-3">

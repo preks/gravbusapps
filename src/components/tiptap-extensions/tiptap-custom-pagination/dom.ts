@@ -11,7 +11,7 @@ import {
 
 const STYLE_ATTR = 'data-rm-pages-style'
 
-function isEmptyHeaderFooterHtml(html: string | null | undefined) {
+export function isEmptyHeaderFooterHtml(html: string | null | undefined) {
   if (!html) return true
 
   const container = document.createElement('div')
@@ -186,20 +186,104 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: none;
       -webkit-user-select: none;
     }
+    .rm-pages-root .rm-page-header-content .tableWrapper,
+    .rm-pages-root .rm-page-footer-content .tableWrapper {
+      overflow: visible;
+      max-width: 100%;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
     .rm-pages-root .rm-page-header-content table,
     .rm-pages-root .rm-page-footer-content table {
-      width: 100%;
       max-width: 100%;
       margin: 0;
       border-collapse: collapse;
       table-layout: fixed;
     }
-    .rm-pages-root .rm-page-header-content td[data-cell-border-color],
-    .rm-pages-root .rm-page-footer-content td[data-cell-border-color],
-    .rm-pages-root .rm-page-header-content th[data-cell-border-color],
-    .rm-pages-root .rm-page-footer-content th[data-cell-border-color] {
-      border: 0;
-      padding: 0;
+    .rm-pages-root .rm-page-header-content td,
+    .rm-pages-root .rm-page-footer-content td,
+    .rm-pages-root .rm-page-header-content th,
+    .rm-pages-root .rm-page-footer-content th {
+      border: 1pt solid #333;
+      padding: 4pt 6pt;
+      text-align: start;
+      vertical-align: top;
+      font-size: 0.875rem;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .rm-pages-root .rm-page-header-content th,
+    .rm-pages-root .rm-page-footer-content th {
+      background: #f5f5f5;
+      font-weight: bold;
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-theme="blue"],
+    .rm-pages-root .rm-page-footer-content table[data-table-theme="blue"] {
+      --editor-table-theme-solid: #2563eb;
+      --editor-table-theme-soft: #dbeafe;
+      --editor-table-theme-soft-alt: #eff6ff;
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-theme="teal"],
+    .rm-pages-root .rm-page-footer-content table[data-table-theme="teal"] {
+      --editor-table-theme-solid: #0f766e;
+      --editor-table-theme-soft: #ccfbf1;
+      --editor-table-theme-soft-alt: #f0fdfa;
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-theme="green"],
+    .rm-pages-root .rm-page-footer-content table[data-table-theme="green"] {
+      --editor-table-theme-solid: #15803d;
+      --editor-table-theme-soft: #dcfce7;
+      --editor-table-theme-soft-alt: #f0fdf4;
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-theme="orange"],
+    .rm-pages-root .rm-page-footer-content table[data-table-theme="orange"] {
+      --editor-table-theme-solid: #c2410c;
+      --editor-table-theme-soft: #ffedd5;
+      --editor-table-theme-soft-alt: #fff7ed;
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-theme="purple"],
+    .rm-pages-root .rm-page-footer-content table[data-table-theme="purple"] {
+      --editor-table-theme-solid: #7c3aed;
+      --editor-table-theme-soft: #ede9fe;
+      --editor-table-theme-soft-alt: #f5f3ff;
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-theme="gray"],
+    .rm-pages-root .rm-page-footer-content table[data-table-theme="gray"] {
+      --editor-table-theme-solid: #4b5563;
+      --editor-table-theme-soft: #e5e7eb;
+      --editor-table-theme-soft-alt: #f3f4f6;
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-style-header-row="true"] > tbody > tr:first-child > td,
+    .rm-pages-root .rm-page-header-content table[data-table-style-header-row="true"] > tbody > tr:first-child > th,
+    .rm-pages-root .rm-page-footer-content table[data-table-style-header-row="true"] > tbody > tr:first-child > td,
+    .rm-pages-root .rm-page-footer-content table[data-table-style-header-row="true"] > tbody > tr:first-child > th {
+      background: var(--editor-table-theme-solid, #2563eb);
+      color: #fff;
+      border-color: var(--editor-table-theme-solid, #2563eb);
+      font-weight: 600;
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-style-first-column="true"] > tbody > tr > :first-child,
+    .rm-pages-root .rm-page-footer-content table[data-table-style-first-column="true"] > tbody > tr > :first-child {
+      background: var(--editor-table-theme-soft, #dbeafe);
+      font-weight: 600;
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-style-last-column="true"] > tbody > tr > :last-child,
+    .rm-pages-root .rm-page-footer-content table[data-table-style-last-column="true"] > tbody > tr > :last-child {
+      background: var(--editor-table-theme-soft, #dbeafe);
+      font-weight: 600;
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-style-banded-rows="true"] > tbody > tr:nth-child(even) > td,
+    .rm-pages-root .rm-page-header-content table[data-table-style-banded-rows="true"] > tbody > tr:nth-child(even) > th,
+    .rm-pages-root .rm-page-footer-content table[data-table-style-banded-rows="true"] > tbody > tr:nth-child(even) > td,
+    .rm-pages-root .rm-page-footer-content table[data-table-style-banded-rows="true"] > tbody > tr:nth-child(even) > th {
+      background: var(--editor-table-theme-soft-alt, #eff6ff);
+    }
+    .rm-pages-root .rm-page-header-content table[data-table-style-banded-columns="true"] > tbody > tr > :nth-child(even),
+    .rm-pages-root .rm-page-footer-content table[data-table-style-banded-columns="true"] > tbody > tr > :nth-child(even) {
+      background: var(--editor-table-theme-soft-alt, #eff6ff);
     }
     .rm-pages-root .rm-page-region-layout {
       position: relative;
@@ -283,14 +367,9 @@ export function ensurePagesStyles(targetDocument: Document) {
       border-top: 1px solid var(--rm-footer-divider-accent, #6366f1);
       pointer-events: none;
     }
-    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"]::after,
-    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"]::after,
-    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"]::before {
-      content: none;
-    }
-    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-header-content:not(.rm-page-overlay-editor),
-    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-footer-content:not(.rm-page-overlay-editor),
-    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-header-content:not(.rm-page-overlay-editor) {
+    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-header-content:not(.rm-page-overlay-editor):not(.rm-page-inline-editor),
+    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-footer-content:not(.rm-page-overlay-editor):not(.rm-page-inline-editor),
+    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"] .rm-page-header-content:not(.rm-page-overlay-editor):not(.rm-page-inline-editor) {
       visibility: hidden;
       pointer-events: none;
       user-select: none;
@@ -386,12 +465,54 @@ export function ensurePagesStyles(targetDocument: Document) {
       background: transparent;
       caret-color: var(--rm-overlay-accent, #6366f1);
       user-select: text;
+      -webkit-user-select: text;
+      pointer-events: auto;
+      overflow: visible;
     }
     .rm-pages-root .rm-page-inline-editor .ProseMirror {
+      width: 100%;
+      min-height: 0;
+      box-sizing: border-box;
       outline: none;
       user-select: text;
       white-space: break-spaces;
       tab-size: 4;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror p {
+      min-height: 1em;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror .tableWrapper {
+      overflow: visible;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror table {
+      max-width: 100%;
+      margin: 0;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after {
+      z-index: 2;
+      position: absolute;
+      content: "";
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      background: rgba(200, 200, 255, 0.4);
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror .column-resize-handle {
+      position: absolute;
+      right: -2px;
+      top: 0;
+      bottom: -2px;
+      width: 4px;
+      background-color: #adf;
+      pointer-events: none;
     }
     .rm-pages-root .rm-page-overlay[data-rm-overlay-type="header"] .rm-page-overlay-editor .ProseMirror {
     }

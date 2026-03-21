@@ -12,8 +12,12 @@ import {
 } from './tableFormattingUtils'
 import { duplicateCurrentColumn, duplicateCurrentRow } from './tableSelectionUtils'
 import {
+  getNormalizedTableSurfaceStyleAttributes,
   getTableStyle,
+  getTableSurfaceStyle,
   normalizeCssLength,
+  normalizeBorderStyle,
+  normalizeColorValue,
   normalizeTableAlign,
   normalizeTableTheme,
   normalizeTableWidth,
@@ -28,6 +32,12 @@ import type {
   TableTheme,
   TableWidthMode
 } from './types'
+
+const DEFAULT_TABLE_BACKGROUND_COLOR = '#ffffff'
+const DEFAULT_TABLE_BORDER_STYLE: TableBorderStyle = 'solid'
+const DEFAULT_TABLE_BORDER_WIDTH = '1pt'
+const DEFAULT_TABLE_BORDER_COLOR = '#d0d0d0'
+const DEFAULT_TABLE_BORDER_RADIUS = '4pt'
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -101,6 +111,26 @@ function updateCurrentTable(state: EditorState, tr: Transaction, nodeName: strin
   }))
 }
 
+function getRenderedTableStyle(
+  attributes: Record<string, unknown>,
+  defaults: Pick<CustomTableOptions, 'defaultTableWidth' | 'defaultTableAlign' | 'defaultTableWidthMode'>
+) {
+  const width = normalizeTableWidth(attributes.tableWidth as string | null) ?? defaults.defaultTableWidth
+  const align = normalizeTableAlign(attributes.tableAlign as string | null) ?? defaults.defaultTableAlign
+  const mode = normalizeTableWidthMode(attributes.tableWidthMode as string | null) ?? defaults.defaultTableWidthMode
+  const surfaceStyle = getTableSurfaceStyle(
+    getNormalizedTableSurfaceStyleAttributes({
+      tableBackgroundColor: attributes.tableBackgroundColor ?? DEFAULT_TABLE_BACKGROUND_COLOR,
+      tableBorderStyle: attributes.tableBorderStyle ?? DEFAULT_TABLE_BORDER_STYLE,
+      tableBorderWidth: attributes.tableBorderWidth ?? DEFAULT_TABLE_BORDER_WIDTH,
+      tableBorderColor: attributes.tableBorderColor ?? DEFAULT_TABLE_BORDER_COLOR,
+      tableBorderRadius: attributes.tableBorderRadius ?? DEFAULT_TABLE_BORDER_RADIUS
+    })
+  )
+
+  return [getTableStyle(width, align, mode), surfaceStyle].filter(Boolean).join('; ')
+}
+
 function normalizeColumnWidthToPx(width: string | null) {
   if (width == null) return null
 
@@ -156,12 +186,10 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
         },
         renderHTML: attributes => {
           const width = normalizeTableWidth(attributes.tableWidth) ?? this.options.defaultTableWidth
-          const align = normalizeTableAlign(attributes.tableAlign) ?? this.options.defaultTableAlign
-          const mode = normalizeTableWidthMode(attributes.tableWidthMode) ?? this.options.defaultTableWidthMode
 
           return {
             'data-table-width': width,
-            style: getTableStyle(width, align, mode)
+            style: getRenderedTableStyle(attributes, this.options)
           }
         }
       },
@@ -175,13 +203,11 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
           )
         },
         renderHTML: attributes => {
-          const width = normalizeTableWidth(attributes.tableWidth) ?? this.options.defaultTableWidth
           const align = normalizeTableAlign(attributes.tableAlign) ?? this.options.defaultTableAlign
-          const mode = normalizeTableWidthMode(attributes.tableWidthMode) ?? this.options.defaultTableWidthMode
 
           return {
             'data-table-align': align,
-            style: getTableStyle(width, align, mode)
+            style: getRenderedTableStyle(attributes, this.options)
           }
         }
       },
@@ -193,13 +219,11 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
           )
         },
         renderHTML: attributes => {
-          const width = normalizeTableWidth(attributes.tableWidth) ?? this.options.defaultTableWidth
-          const align = normalizeTableAlign(attributes.tableAlign) ?? this.options.defaultTableAlign
           const mode = normalizeTableWidthMode(attributes.tableWidthMode) ?? this.options.defaultTableWidthMode
 
           return {
             'data-table-width-mode': mode,
-            style: getTableStyle(width, align, mode)
+            style: getRenderedTableStyle(attributes, this.options)
           }
         }
       },
@@ -232,6 +256,57 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
             'data-table-theme': tableTheme
           }
         }
+      },
+      tableBackgroundColor: {
+        default: DEFAULT_TABLE_BACKGROUND_COLOR,
+        parseHTML: element =>
+          normalizeColorValue(element.getAttribute('data-table-background-color')) ??
+          (element instanceof HTMLElement ? normalizeColorValue(element.style.backgroundColor) : null) ??
+          DEFAULT_TABLE_BACKGROUND_COLOR,
+        renderHTML: attributes => ({
+          'data-table-background-color':
+            normalizeColorValue(attributes.tableBackgroundColor) ?? DEFAULT_TABLE_BACKGROUND_COLOR
+        })
+      },
+      tableBorderStyle: {
+        default: DEFAULT_TABLE_BORDER_STYLE,
+        parseHTML: element =>
+          normalizeBorderStyle(element.getAttribute('data-table-border-style')) ??
+          (element instanceof HTMLElement ? normalizeBorderStyle(element.style.borderStyle) : null) ??
+          DEFAULT_TABLE_BORDER_STYLE,
+        renderHTML: attributes => ({
+          'data-table-border-style': normalizeBorderStyle(attributes.tableBorderStyle) ?? DEFAULT_TABLE_BORDER_STYLE
+        })
+      },
+      tableBorderWidth: {
+        default: DEFAULT_TABLE_BORDER_WIDTH,
+        parseHTML: element =>
+          normalizeCssLength(element.getAttribute('data-table-border-width')) ??
+          (element instanceof HTMLElement ? normalizeCssLength(element.style.borderWidth) : null) ??
+          DEFAULT_TABLE_BORDER_WIDTH,
+        renderHTML: attributes => ({
+          'data-table-border-width': normalizeCssLength(attributes.tableBorderWidth) ?? DEFAULT_TABLE_BORDER_WIDTH
+        })
+      },
+      tableBorderColor: {
+        default: DEFAULT_TABLE_BORDER_COLOR,
+        parseHTML: element =>
+          normalizeColorValue(element.getAttribute('data-table-border-color')) ??
+          (element instanceof HTMLElement ? normalizeColorValue(element.style.borderColor) : null) ??
+          DEFAULT_TABLE_BORDER_COLOR,
+        renderHTML: attributes => ({
+          'data-table-border-color': normalizeColorValue(attributes.tableBorderColor) ?? DEFAULT_TABLE_BORDER_COLOR
+        })
+      },
+      tableBorderRadius: {
+        default: DEFAULT_TABLE_BORDER_RADIUS,
+        parseHTML: element =>
+          normalizeCssLength(element.getAttribute('data-table-border-radius')) ??
+          (element instanceof HTMLElement ? normalizeCssLength(element.style.borderRadius) : null) ??
+          DEFAULT_TABLE_BORDER_RADIUS,
+        renderHTML: attributes => ({
+          'data-table-border-radius': normalizeCssLength(attributes.tableBorderRadius) ?? DEFAULT_TABLE_BORDER_RADIUS
+        })
       },
       styleHeaderRow: {
         default: false,
@@ -386,6 +461,46 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
           if (options.styleLastColumn != null) nextAttrs.styleLastColumn = options.styleLastColumn
           if (options.styleBandedRows != null) nextAttrs.styleBandedRows = options.styleBandedRows
           if (options.styleBandedColumns != null) nextAttrs.styleBandedColumns = options.styleBandedColumns
+          if (options.tableBackgroundColor !== undefined) {
+            const normalizedColor =
+              options.tableBackgroundColor == null || options.tableBackgroundColor.trim() === ''
+                ? DEFAULT_TABLE_BACKGROUND_COLOR
+                : normalizeColorValue(options.tableBackgroundColor)
+            if (!normalizedColor) return false
+            nextAttrs.tableBackgroundColor = normalizedColor
+          }
+          if (options.tableBorderStyle !== undefined) {
+            const normalizedStyle =
+              options.tableBorderStyle == null
+                ? DEFAULT_TABLE_BORDER_STYLE
+                : normalizeBorderStyle(options.tableBorderStyle)
+            if (!normalizedStyle) return false
+            nextAttrs.tableBorderStyle = normalizedStyle
+          }
+          if (options.tableBorderWidth !== undefined) {
+            const normalizedWidth =
+              options.tableBorderWidth == null || options.tableBorderWidth.trim() === ''
+                ? DEFAULT_TABLE_BORDER_WIDTH
+                : normalizeCssLength(options.tableBorderWidth)
+            if (!normalizedWidth) return false
+            nextAttrs.tableBorderWidth = normalizedWidth
+          }
+          if (options.tableBorderColor !== undefined) {
+            const normalizedColor =
+              options.tableBorderColor == null || options.tableBorderColor.trim() === ''
+                ? DEFAULT_TABLE_BORDER_COLOR
+                : normalizeColorValue(options.tableBorderColor)
+            if (!normalizedColor) return false
+            nextAttrs.tableBorderColor = normalizedColor
+          }
+          if (options.tableBorderRadius !== undefined) {
+            const normalizedRadius =
+              options.tableBorderRadius == null || options.tableBorderRadius.trim() === ''
+                ? DEFAULT_TABLE_BORDER_RADIUS
+                : normalizeCssLength(options.tableBorderRadius)
+            if (!normalizedRadius) return false
+            nextAttrs.tableBorderRadius = normalizedRadius
+          }
           if (!Object.keys(nextAttrs).length) return false
 
           const updated = updateCurrentTable(state, tr, this.name, nextAttrs)

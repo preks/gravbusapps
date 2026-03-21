@@ -33,6 +33,19 @@ export interface SetTableStyleOptions {
   styleLastColumn?: boolean
   styleBandedRows?: boolean
   styleBandedColumns?: boolean
+  tableBackgroundColor?: string | null
+  tableBorderStyle?: TableBorderStyle | null
+  tableBorderWidth?: string | null
+  tableBorderColor?: string | null
+  tableBorderRadius?: string | null
+}
+
+export interface TableSurfaceStyleAttributes {
+  tableBackgroundColor?: string | null
+  tableBorderStyle?: TableBorderStyle | null
+  tableBorderWidth?: string | null
+  tableBorderColor?: string | null
+  tableBorderRadius?: string | null
 }
 
 export interface TableBorderSideAttributes {

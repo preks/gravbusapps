@@ -530,6 +530,15 @@ function isParagraphNodeEmpty(node: PMNode | null | undefined) {
   return !!node && node.type.name === 'paragraph' && node.content.size === 0
 }
 
+function isEmptyParagraphPosition(view: EditorView, position: number) {
+  const resolvedPosition = resolveDocumentPosition(view, position)
+  return (
+    !!resolvedPosition &&
+    resolvedPosition.parent.type.name === 'paragraph' &&
+    resolvedPosition.parent.content.size === 0
+  )
+}
+
 function isStableBodyPosition(
   view: EditorView,
   bodyBand: PageBodyBand,
@@ -554,7 +563,7 @@ function isStableBodyPosition(
   }
 
   if (resolvedPosition.parent.content.size === 0) {
-    return false
+    return true
   }
 
   const isParagraphBoundary =
@@ -631,6 +640,9 @@ export function resolvePaginationBodyClick(
   const initialPosition = getPositionAtCoords(view, clientX, clientY)
   if (initialPosition != null) {
     if (isStableBodyPosition(view, bodyBand, initialPosition, clientX, clientY)) {
+      if (isEmptyParagraphPosition(view, initialPosition)) {
+        return { action: 'set', position: initialPosition }
+      }
       return { action: 'allow' }
     }
   }
@@ -710,7 +722,7 @@ function resolveOverflowTargetBodyBand(
   bodyBands: PageBodyBand[],
   caretRect: ReturnType<EditorView['coordsAtPos']>,
   direction: SelectionNavigationDirection
-): PageBodyBand {
+): PageBodyBand | null {
   const caretCenterY = (caretRect.top + caretRect.bottom) / 2
   let previousBodyBand: PageBodyBand | null = null
 
@@ -726,6 +738,10 @@ function resolveOverflowTargetBodyBand(
     if (caretCenterY <= bodyBands[index].bottom) {
       return direction === 'backward' ? bodyBands[index] : bodyBands[index + 1]
     }
+  }
+
+  if (direction === 'forward' && previousBodyBand && caretCenterY > previousBodyBand.bottom) {
+    return null
   }
 
   return bodyBands[bodyBands.length - 1]
@@ -748,6 +764,7 @@ export function resolvePaginationSelectionBodyOverflow(
   }
 
   const targetBand = resolveOverflowTargetBodyBand(bodyBands, caretRect, direction)
+  if (!targetBand) return null
 
   const targetX = Math.min(
     Math.max((caretRect.left + caretRect.right) / 2, targetBand.left + 1),
@@ -892,7 +909,6 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     const extensionOptions = this.options
     let measuredHeaderHeights = new Map<number, number>()
     let measuredFooterHeights = new Map<number, number>()
-    let refreshQueued = false
     let lastKnownDoc: PMNode | null = null
     let lastKnownSelectionHead: number | null = null
     let lastDocChangeOrigin: DocChangeOrigin = null
@@ -910,17 +926,6 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       clearDeferredRepaginationEvaluation()
       const transaction = view.state.tr.setMeta(REFRESH_META, true)
       view.dispatch(transaction)
-    }
-
-    const queueRefresh = (view: EditorView) => {
-      if (refreshQueued) return
-      refreshQueued = true
-
-      requestAnimationFrame(() => {
-        refreshQueued = false
-        if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
-        requestRefresh(view)
-      })
     }
 
     const clearDeferredRepaginationEvaluation = () => {
@@ -1159,8 +1164,21 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           storage.pageCount = currentPageCount
 
           if (measuredPageCount !== currentPageCount) {
+            const activeEditor = { type, pageNumber } as const
             storage.pageCount = measuredPageCount
-            queueRefresh(mountedView)
+            overlayManager.close()
+            requestAnimationFrame(() => {
+              const refreshedView = getMountedEditorView(editor)
+              if (!refreshedView) return
+
+              const refreshedTarget = refreshedView.dom.querySelector(
+                `[data-rm-editor-type="${type}"][data-rm-page-number="${pageNumber}"]`
+              )
+              if (refreshedTarget instanceof HTMLElement) {
+                openEditor(activeEditor.type, activeEditor.pageNumber, refreshedTarget)
+              }
+            })
+            return
           }
 
           refreshPageMinHeight(mountedView.dom)
@@ -1485,11 +1503,13 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           storage.pageCount = currentPageCount
 
           if (measuredPageCount !== currentPageCount) {
+            const activeEditor = { type, pageNumber } as const
             storage.pageCount = measuredPageCount
-            if (storage.activeEditorType === null) {
-              refresh(editor)
-              return
-            }
+            overlayManager.close()
+            requestAnimationFrame(() => {
+              reopenActiveEditorAfterRefresh(editor, activeEditor)
+            })
+            return
           }
 
           refreshPageMinHeight(mountedView.dom)

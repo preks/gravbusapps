@@ -171,6 +171,23 @@ describe('measureHeaderFooterContentHeights', () => {
     Object.defineProperty(element, 'scrollHeight', { configurable: true, value: height })
   }
 
+  function setRect(element: HTMLElement, rect: { top: number; bottom: number; left?: number; right?: number }) {
+    Object.defineProperty(element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: rect.left ?? 0,
+        y: rect.top,
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left ?? 0,
+        right: rect.right ?? 100,
+        width: (rect.right ?? 100) - (rect.left ?? 0),
+        height: rect.bottom - rect.top,
+        toJSON: () => ''
+      })
+    })
+  }
+
   it('measures the inner region layout without double-counting shell padding', () => {
     const editorDom = document.createElement('div')
     const headerRegion = document.createElement('div')
@@ -222,5 +239,75 @@ describe('measureHeaderFooterContentHeights', () => {
 
     expect(measured.headerHeights.get(1)).toBe(20)
     expect(measured.footerHeights.get(1)).toBe(24)
+  })
+
+  it('counts a trailing empty paragraph inside an active inline editor', () => {
+    const editorDom = document.createElement('div')
+    const headerRegion = document.createElement('div')
+    const headerShell = document.createElement('div')
+    const headerLayout = document.createElement('div')
+    const contentHost = document.createElement('div')
+    const proseMirror = document.createElement('div')
+    const paragraph = document.createElement('p')
+    const trailingBreak = document.createElement('br')
+
+    headerRegion.dataset.rmEditorType = 'header'
+    headerRegion.dataset.rmPageNumber = '1'
+    headerShell.className = 'rm-page-header'
+    headerLayout.className = 'rm-page-region-layout'
+    contentHost.className = 'rm-page-header-content rm-page-inline-editor'
+    contentHost.dataset.rmPageNumberBody = 'true'
+    proseMirror.className = 'tiptap ProseMirror'
+    trailingBreak.className = 'ProseMirror-trailingBreak'
+
+    paragraph.appendChild(trailingBreak)
+    proseMirror.appendChild(paragraph)
+    contentHost.appendChild(proseMirror)
+    headerLayout.appendChild(contentHost)
+    headerShell.appendChild(headerLayout)
+    headerRegion.appendChild(headerShell)
+    editorDom.appendChild(headerRegion)
+    document.body.appendChild(editorDom)
+
+    setMeasuredHeight(headerLayout, 0)
+    setMeasuredHeight(contentHost, 0)
+    setMeasuredHeight(proseMirror, 0)
+    setMeasuredHeight(paragraph, 0)
+
+    setRect(headerLayout, { top: 0, bottom: 0 })
+    setRect(contentHost, { top: 0, bottom: 0 })
+    setRect(proseMirror, { top: 0, bottom: 0 })
+    setRect(paragraph, { top: 0, bottom: 0 })
+
+    const computedStyleSpy = jest.spyOn(window, 'getComputedStyle').mockImplementation(
+      () =>
+        ({
+          lineHeight: '18px',
+          fontSize: '16px'
+        }) as CSSStyleDeclaration
+    )
+
+    const measured = measureHeaderFooterContentHeights(
+      editorDom,
+      1,
+      {
+        width: 800,
+        height: 1000,
+        margins: {
+          top: 96,
+          right: 96,
+          bottom: 96,
+          left: 96
+        }
+      },
+      {
+        headerTopMargin: 48,
+        footerBottomMargin: 48
+      }
+    )
+
+    computedStyleSpy.mockRestore()
+
+    expect(measured.headerHeights.get(1)).toBe(18)
   })
 })

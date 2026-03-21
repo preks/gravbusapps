@@ -4,6 +4,7 @@ import type {
   TableBorderStyle,
   TableCellStyleAttributes,
   TableCellTextAlignment,
+  TableSurfaceStyleAttributes,
   TableTheme,
   TableCellVerticalAlignment,
   TableWidthMode
@@ -107,17 +108,16 @@ function getAlignmentStyle(align: TableAlignment) {
 
 export function getTableStyle(width: string, align: TableAlignment, mode: TableWidthMode) {
   const alignmentStyle = getAlignmentStyle(align)
-  const borderReset = 'border: none;'
 
   if (mode === 'auto-fit-window') {
-    return `width: 100%; max-width: 100%; ${alignmentStyle} ${borderReset}`
+    return `width: 100%; max-width: 100%; ${alignmentStyle}`
   }
 
   if (mode === 'auto-fit-content') {
-    return `width: max-content; max-width: 100%; ${alignmentStyle} ${borderReset}`
+    return `width: max-content; max-width: 100%; ${alignmentStyle}`
   }
 
-  return `width: ${width}; ${alignmentStyle} ${borderReset}`
+  return `width: ${width}; ${alignmentStyle}`
 }
 
 export function getTableWrapperStyle(width: string, align: TableAlignment, mode: TableWidthMode) {
@@ -132,6 +132,24 @@ export function getTableWrapperStyle(width: string, align: TableAlignment, mode:
   }
 
   return `width: ${width}; max-width: 100%; ${alignmentStyle}`
+}
+
+export function getTableSurfaceStyle(attributes: TableSurfaceStyleAttributes) {
+  const styles: string[] = []
+
+  if (attributes.tableBackgroundColor) styles.push(`background-color: ${attributes.tableBackgroundColor}`)
+
+  if (attributes.tableBorderStyle === 'none') {
+    styles.push('border: none')
+  } else {
+    if (attributes.tableBorderStyle) styles.push(`border-style: ${attributes.tableBorderStyle}`)
+    if (attributes.tableBorderWidth) styles.push(`border-width: ${attributes.tableBorderWidth}`)
+    if (attributes.tableBorderColor) styles.push(`border-color: ${attributes.tableBorderColor}`)
+  }
+
+  if (attributes.tableBorderRadius) styles.push(`border-radius: ${attributes.tableBorderRadius}`)
+
+  return styles.join('; ')
 }
 
 export function getColStyleDeclaration(minWidth: number, width: number | undefined): [string, string] {
@@ -196,5 +214,17 @@ export function getNormalizedCellStyleAttributes(attributes: Record<string, unkn
     borderLeftStyle: normalizeBorderStyle(attributes.borderLeftStyle as string | null),
     borderLeftWidth: normalizeCssLength(attributes.borderLeftWidth as string | null),
     borderLeftColor: normalizeColorValue(attributes.borderLeftColor as string | null)
+  }
+}
+
+export function getNormalizedTableSurfaceStyleAttributes(
+  attributes: Record<string, unknown>
+): TableSurfaceStyleAttributes {
+  return {
+    tableBackgroundColor: normalizeColorValue(attributes.tableBackgroundColor as string | null),
+    tableBorderStyle: normalizeBorderStyle(attributes.tableBorderStyle as string | null),
+    tableBorderWidth: normalizeCssLength(attributes.tableBorderWidth as string | null),
+    tableBorderColor: normalizeColorValue(attributes.tableBorderColor as string | null),
+    tableBorderRadius: normalizeCssLength(attributes.tableBorderRadius as string | null)
   }
 }

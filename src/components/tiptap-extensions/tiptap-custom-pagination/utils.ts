@@ -652,6 +652,30 @@ function getFooterMeasurementSelector(pageNumber: number): string {
   return `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"] .rm-page-region-layout`
 }
 
+function getLastMeasurableChild(root: HTMLElement): HTMLElement | null {
+  return root.lastElementChild as HTMLElement | null
+}
+
+function readHeaderFooterRegionHeight(regionLayout: HTMLElement | null) {
+  if (!regionLayout) return 0
+
+  let measuredHeight = readMeasuredElementHeight(regionLayout)
+  const contentRoot = regionLayout.querySelector('[data-rm-page-number-body="true"]') as HTMLElement | null
+  if (!contentRoot) return measuredHeight
+
+  measuredHeight = Math.max(measuredHeight, getElementLayoutHeight(contentRoot))
+
+  const liveContentRoot = (contentRoot.querySelector('.ProseMirror') as HTMLElement | null) ?? contentRoot
+  measuredHeight = Math.max(measuredHeight, getElementLayoutHeight(liveContentRoot))
+
+  const lastBlock = getLastMeasurableChild(liveContentRoot)
+  if (lastBlock) {
+    measuredHeight = Math.max(measuredHeight, getMeasuredElementBottomInEditor(liveContentRoot, lastBlock))
+  }
+
+  return measuredHeight
+}
+
 export function measureHeaderFooterContentHeights(
   editorDom: HTMLElement,
   totalPages: number,
@@ -665,12 +689,16 @@ export function measureHeaderFooterContentHeights(
     const headerHeight = clampHeaderContentHeight(
       pageFormat,
       storage,
-      readMeasuredElementHeight(editorDom.querySelector(getHeaderMeasurementSelector(pageNumber)) as HTMLElement | null)
+      readHeaderFooterRegionHeight(
+        editorDom.querySelector(getHeaderMeasurementSelector(pageNumber)) as HTMLElement | null
+      )
     )
     const footerHeight = clampFooterContentHeight(
       pageFormat,
       storage,
-      readMeasuredElementHeight(editorDom.querySelector(getFooterMeasurementSelector(pageNumber)) as HTMLElement | null)
+      readHeaderFooterRegionHeight(
+        editorDom.querySelector(getFooterMeasurementSelector(pageNumber)) as HTMLElement | null
+      )
     )
 
     headerHeights.set(pageNumber, headerHeight)
