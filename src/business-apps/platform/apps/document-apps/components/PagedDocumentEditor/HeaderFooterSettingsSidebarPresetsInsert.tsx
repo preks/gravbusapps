@@ -27,6 +27,7 @@ export interface HeaderFooterSettingsSidebarPresetsInsertProps {
   onOpenDate: () => void
   onOpenPageNumbers: () => void
   onQuickPageNumberPlacement: (position: 'header' | 'footer', alignment: PageNumberAlignment) => void
+  onRemovePageNumber: () => void
 }
 
 const PAGE_NUMBER_ALIGNMENTS: PageNumberAlignment[] = ['left', 'center', 'right', 'inside', 'outside']
@@ -39,7 +40,8 @@ export function HeaderFooterSettingsSidebarPresetsInsert({
   canInsertInOverlay,
   onOpenDate,
   onOpenPageNumbers,
-  onQuickPageNumberPlacement
+  onQuickPageNumberPlacement,
+  onRemovePageNumber
 }: Readonly<HeaderFooterSettingsSidebarPresetsInsertProps>) {
   const { t } = useTranslation(translations)
   const onMouseDown = headerFooterSidebarPreventBlur
@@ -157,6 +159,10 @@ export function HeaderFooterSettingsSidebarPresetsInsert({
                   ))}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onRemovePageNumber} data-testid={`${testId}-pn-remove`}>
+                {t('header-footer-sidebar-page-number-remove')}
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => onOpenPageNumbers()} data-testid={`${testId}-pn-dialog`}>
                 {t('header-footer-sidebar-page-numbers-dialog')}

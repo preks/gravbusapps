@@ -25,6 +25,7 @@ export interface HeaderFooterSettingsSidebarContentProps {
   canInsertInOverlay: boolean
   onOpenPageNumbers: () => void
   onQuickPageNumberPlacement: (position: 'header' | 'footer', alignment: PageNumberAlignment) => void
+  onRemovePageNumber: () => void
 }
 
 export function HeaderFooterSettingsSidebarContent(props: Readonly<HeaderFooterSettingsSidebarContentProps>) {
@@ -48,7 +49,8 @@ export function HeaderFooterSettingsSidebarContent(props: Readonly<HeaderFooterS
     insertInOverlay,
     canInsertInOverlay,
     onOpenPageNumbers,
-    onQuickPageNumberPlacement
+    onQuickPageNumberPlacement,
+    onRemovePageNumber
   } = props
 
   return (
@@ -62,6 +64,7 @@ export function HeaderFooterSettingsSidebarContent(props: Readonly<HeaderFooterS
         onOpenDate={onOpenDate}
         onOpenPageNumbers={onOpenPageNumbers}
         onQuickPageNumberPlacement={onQuickPageNumberPlacement}
+        onRemovePageNumber={onRemovePageNumber}
       />
 
       <Separator />

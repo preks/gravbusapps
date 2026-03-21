@@ -154,7 +154,9 @@ import { InsertImageDialog } from './InsertImageDialog'
 import { InsertTableDialog } from './InsertTableDialog'
 import { PageNumbersDialog } from './PageNumbersDialog'
 import {
+  mergePagesFormattingAfterPageNumbersRemove,
   mergePagesFormattingAfterPageNumbersApply,
+  removePageNumberPlacement,
   type ApplyPageNumberPlacementParams
 } from './applyPageNumberPlacement'
 import { NavigationPanel } from './NavigationPanel'
@@ -2509,6 +2511,19 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [handlePageNumbersApply]
     )
 
+    const handlePageNumbersRemove = useCallback(() => {
+      if (editor) {
+        removePageNumberPlacement(editor)
+      }
+
+      const merged = mergePagesFormattingAfterPageNumbersRemove(layoutFormattingRef.current.pages)
+      const lf = layoutFormattingRef.current
+      const nextFormatting: DocumentFormatting = { ...lf, pages: merged }
+      const persisted = buildPersistedFormatting(nextFormatting, merged)
+      handlePageSetupApply(persisted)
+      setHasUnsavedChanges(true)
+    }, [buildPersistedFormatting, editor, handlePageSetupApply])
+
     const persistPagesFromEditor = useCallback(() => {
       const ed = editorRef.current as { storage?: { pages?: PagesStorage } } | null
       if (!ed?.storage?.pages) return
@@ -4175,6 +4190,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               setPageNumbersDialogOpen(true)
             }}
             onQuickPageNumberPlacement={handleQuickPageNumberPlacement}
+            onRemovePageNumber={handlePageNumbersRemove}
             headerHeight={measuredHeaderHeight || 120}
             rightOffset={documentRightPanelOffset}
             onClose={() => {

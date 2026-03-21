@@ -46,8 +46,9 @@ export class HeaderFooterOverlayManager {
   open(params: OpenOverlayParams) {
     this.close()
 
-    const { target, type, pageNumber, initialContent, storage, options } = params
+    const { target, type, pageNumber, clickPosition, initialContent, storage, options } = params
     const overlay = document.createElement('div')
+    const overlayLayout = document.createElement('div')
     const editorHost = document.createElement('div')
     const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
     const contentClass = type === 'header' ? 'rm-page-header-content' : 'rm-page-footer-content'
@@ -68,20 +69,105 @@ export class HeaderFooterOverlayManager {
     overlay.dataset.rmOverlayType = type
     overlay.style.setProperty('--rm-overlay-accent', accentColor)
     editorHost.className = `rm-page-overlay-editor ${contentClass}`
+    overlayLayout.className = 'rm-page-region-layout rm-page-overlay-layout'
 
-    if (visibleContent && !layoutRoot) {
+    let geometrySyncFrame: number | null = null
+
+    const syncOverlayLayoutMetadata = (sourceLayoutRoot: HTMLElement | null) => {
+      delete overlayLayout.dataset.rmPageNumberActive
+      delete overlayLayout.dataset.rmPageNumberAlign
+      delete overlayLayout.dataset.rmPageNumberRegion
+      delete overlayLayout.dataset.rmPageNumberOdd
+      delete overlayLayout.dataset.rmPageNumberBelow
+
+      if (!sourceLayoutRoot) return
+
+      if (sourceLayoutRoot.dataset.rmPageNumberActive) {
+        overlayLayout.dataset.rmPageNumberActive = sourceLayoutRoot.dataset.rmPageNumberActive
+      }
+      if (sourceLayoutRoot.dataset.rmPageNumberAlign) {
+        overlayLayout.dataset.rmPageNumberAlign = sourceLayoutRoot.dataset.rmPageNumberAlign
+      }
+      if (sourceLayoutRoot.dataset.rmPageNumberRegion) {
+        overlayLayout.dataset.rmPageNumberRegion = sourceLayoutRoot.dataset.rmPageNumberRegion
+      }
+      if (sourceLayoutRoot.dataset.rmPageNumberOdd) {
+        overlayLayout.dataset.rmPageNumberOdd = sourceLayoutRoot.dataset.rmPageNumberOdd
+      }
+      if (sourceLayoutRoot.dataset.rmPageNumberBelow) {
+        overlayLayout.dataset.rmPageNumberBelow = sourceLayoutRoot.dataset.rmPageNumberBelow
+      }
+    }
+
+    const syncOverlayGeometry = () => {
+      const liveLayoutRoot = target.querySelector('[data-rm-page-number-layout="true"]') as HTMLElement | null
+      const liveVisibleContent = target.querySelector(contentSelector) as HTMLElement | null
+      syncOverlayLayoutMetadata(liveLayoutRoot)
+
+      if (liveLayoutRoot) {
+        const targetRect = target.getBoundingClientRect()
+        const layoutRect = liveLayoutRoot.getBoundingClientRect()
+        overlayLayout.style.position = 'absolute'
+        overlayLayout.style.top = `${Math.max(0, layoutRect.top - targetRect.top)}px`
+        overlayLayout.style.left = `${Math.max(0, layoutRect.left - targetRect.left)}px`
+        overlayLayout.style.right = `${Math.max(0, targetRect.right - layoutRect.right)}px`
+        overlayLayout.style.bottom = `${Math.max(0, targetRect.bottom - layoutRect.bottom)}px`
+        overlayLayout.style.display = 'flex'
+        overlayLayout.style.flexDirection = 'column'
+        overlayLayout.style.minHeight = '0'
+        editorHost.style.position = 'relative'
+        editorHost.style.top = ''
+        editorHost.style.left = ''
+        editorHost.style.right = ''
+        editorHost.style.bottom = ''
+
+        if (!overlay.contains(overlayLayout)) {
+          overlay.append(overlayLayout)
+        }
+        if (!overlayLayout.contains(editorHost)) {
+          overlayLayout.append(editorHost)
+        }
+        return
+      }
+
+      if (!liveVisibleContent) return
+
       const targetRect = target.getBoundingClientRect()
-      const contentRect = visibleContent.getBoundingClientRect()
+      const contentRect = liveVisibleContent.getBoundingClientRect()
       const topInset = Math.max(0, contentRect.top - targetRect.top)
       const leftInset = Math.max(0, contentRect.left - targetRect.left)
       const rightInset = Math.max(0, targetRect.right - contentRect.right)
       const bottomInset = Math.max(0, targetRect.bottom - contentRect.bottom)
 
-      overlay.style.top = `${topInset}px`
-      overlay.style.left = `${leftInset}px`
-      overlay.style.right = `${rightInset}px`
-      overlay.style.bottom = `${bottomInset}px`
+      if (overlayLayout.parentElement === overlay) {
+        overlayLayout.remove()
+      }
+
+      if (!overlay.contains(editorHost)) {
+        overlay.append(editorHost)
+      }
+
+      editorHost.style.position = 'absolute'
+      editorHost.style.top = `${topInset}px`
+      editorHost.style.left = `${leftInset}px`
+      editorHost.style.right = `${rightInset}px`
+      editorHost.style.bottom = `${bottomInset}px`
     }
+
+    const scheduleOverlayGeometrySync = () => {
+      if (geometrySyncFrame !== null) {
+        cancelAnimationFrame(geometrySyncFrame)
+      }
+
+      geometrySyncFrame = requestAnimationFrame(() => {
+        geometrySyncFrame = null
+        if (!overlay.isConnected || !target.isConnected) return
+        layoutPageNumberSlots(target)
+        syncOverlayGeometry()
+      })
+    }
+
+    syncOverlayLayoutMetadata(layoutRoot)
 
     const stopPointerPropagation = (event: MouseEvent) => {
       event.stopPropagation()
@@ -92,8 +178,14 @@ export class HeaderFooterOverlayManager {
     overlay.addEventListener('dblclick', stopPointerPropagation)
 
     target.dataset.rmOverlayActive = 'true'
-    overlay.append(editorHost)
-    ;(layoutRoot ?? target).appendChild(overlay)
+    if (layoutRoot) {
+      overlayLayout.append(editorHost)
+      overlay.append(overlayLayout)
+    } else {
+      overlay.append(editorHost)
+    }
+    target.appendChild(overlay)
+    syncOverlayGeometry()
     if (hint) {
       hint.textContent = activeHint
     }
@@ -138,10 +230,12 @@ export class HeaderFooterOverlayManager {
 
       if (visibleContent) {
         renderHeaderFooterDisplayContent(visibleContent, htmlForVisibleRegion(html), placeholderLabel)
-        requestAnimationFrame(() => layoutPageNumberSlots(target))
+        layoutPageNumberSlots(target)
+        syncOverlayGeometry()
       }
 
       params.onUpdate?.()
+      scheduleOverlayGeometrySync()
     }
 
     const notifyActiveEditorChange = () => {
@@ -152,11 +246,20 @@ export class HeaderFooterOverlayManager {
       })
     }
 
-    const switchToRegion = (nextRegion: { element: HTMLElement; type: HeaderFooterEditorType; pageNumber: number }) => {
+    const switchToRegion = (
+      nextRegion: { element: HTMLElement; type: HeaderFooterEditorType; pageNumber: number },
+      nextClickPosition?: { clientX: number; clientY: number }
+    ) => {
       const commands = this.hostEditor.commands as {
         closeHeaderFooterEditors?: () => boolean
-        openHeaderEditor?: (params: { pageNumber: number }) => boolean
-        openFooterEditor?: (params: { pageNumber: number }) => boolean
+        openHeaderEditor?: (params: {
+          pageNumber: number
+          clickPosition?: { clientX: number; clientY: number }
+        }) => boolean
+        openFooterEditor?: (params: {
+          pageNumber: number
+          clickPosition?: { clientX: number; clientY: number }
+        }) => boolean
       }
 
       this.suppressNextCloseNotification = true
@@ -167,9 +270,9 @@ export class HeaderFooterOverlayManager {
 
       requestAnimationFrame(() => {
         if (nextRegion.type === 'header') {
-          commands.openHeaderEditor?.({ pageNumber: nextRegion.pageNumber })
+          commands.openHeaderEditor?.({ pageNumber: nextRegion.pageNumber, clickPosition: nextClickPosition })
         } else {
-          commands.openFooterEditor?.({ pageNumber: nextRegion.pageNumber })
+          commands.openFooterEditor?.({ pageNumber: nextRegion.pageNumber, clickPosition: nextClickPosition })
         }
       })
     }
@@ -196,7 +299,10 @@ export class HeaderFooterOverlayManager {
       if (nextRegion && nextRegion.element !== target) {
         event.preventDefault()
         event.stopPropagation()
-        switchToRegion(nextRegion)
+        switchToRegion(nextRegion, {
+          clientX: event.clientX,
+          clientY: event.clientY
+        })
         return
       }
 
@@ -224,6 +330,10 @@ export class HeaderFooterOverlayManager {
     document.addEventListener('keydown', handleEscape, true)
 
     const cleanup = () => {
+      if (geometrySyncFrame !== null) {
+        cancelAnimationFrame(geometrySyncFrame)
+        geometrySyncFrame = null
+      }
       document.removeEventListener('mousedown', handleDocumentMouseDown, true)
       document.removeEventListener('dblclick', handleDocumentDoubleClick, true)
       document.removeEventListener('keydown', handleEscape, true)
@@ -263,7 +373,8 @@ export class HeaderFooterOverlayManager {
     notifyActiveEditorChange()
     requestAnimationFrame(() => {
       if (this.activeOverlay?.editor !== overlayEditor) return
-      focusOverlayEditor(overlayEditor)
+      scheduleOverlayGeometrySync()
+      focusOverlayEditor(overlayEditor, clickPosition)
     })
   }
 
@@ -319,10 +430,25 @@ function focusOverlayEditor(editor: Editor, clickPosition?: { clientX: number; c
 function resolveEditorPositionFromClick(editor: Editor, clickPosition?: { clientX: number; clientY: number }) {
   if (!clickPosition) return null
 
+  let resolvedLeft = clickPosition.clientX
+  let resolvedTop = clickPosition.clientY
+  const editorRect = editor.view.dom.getBoundingClientRect()
+
+  if (editorRect.width > 0 && editorRect.height > 0) {
+    resolvedLeft = Math.min(
+      Math.max(resolvedLeft, editorRect.left + 1),
+      Math.max(editorRect.left + 1, editorRect.right - 1)
+    )
+    resolvedTop = Math.min(
+      Math.max(resolvedTop, editorRect.top + 1),
+      Math.max(editorRect.top + 1, editorRect.bottom - 1)
+    )
+  }
+
   try {
     const positionAtCoords = editor.view.posAtCoords({
-      left: clickPosition.clientX,
-      top: clickPosition.clientY
+      left: resolvedLeft,
+      top: resolvedTop
     })
     if (positionAtCoords?.pos != null) {
       return positionAtCoords.pos
@@ -336,7 +462,7 @@ function resolveEditorPositionFromClick(editor: Editor, clickPosition?: { client
   }
 
   try {
-    const caretPosition = ownerDocument.caretPositionFromPoint?.(clickPosition.clientX, clickPosition.clientY)
+    const caretPosition = ownerDocument.caretPositionFromPoint?.(resolvedLeft, resolvedTop)
     if (caretPosition?.offsetNode) {
       return editor.view.posAtDOM(caretPosition.offsetNode, caretPosition.offset)
     }

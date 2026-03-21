@@ -13,6 +13,20 @@ type PagesOptionField =
   | 'footerOdd'
   | 'footerEven'
 
+const PERSISTED_PAGE_CONTENT_FIELDS: Array<
+  keyof Pick<
+    DocumentPagesFormatting,
+    | 'header'
+    | 'footer'
+    | 'headerFirstPage'
+    | 'footerFirstPage'
+    | 'headerOdd'
+    | 'headerEven'
+    | 'footerOdd'
+    | 'footerEven'
+  >
+> = ['header', 'footer', 'headerFirstPage', 'footerFirstPage', 'headerOdd', 'headerEven', 'footerOdd', 'footerEven']
+
 const STORAGE_HTML_FIELD_BY_OPTION: Record<PagesOptionField, keyof NonNullable<Editor['storage']>['pages']> = {
   header: 'headerHTML',
   footer: 'footerHTML',
@@ -36,6 +50,18 @@ function stripHtmlToText(value: string): string {
 function isStandalonePageNumberTemplate(value: string | null | undefined): boolean {
   if (!value) return false
   return stripHtmlToText(value) === '{page}'
+}
+
+function clearStandalonePageNumberTemplates(pages: DocumentPagesFormatting): DocumentPagesFormatting {
+  const next: DocumentPagesFormatting = { ...pages }
+
+  PERSISTED_PAGE_CONTENT_FIELDS.forEach(field => {
+    if (isStandalonePageNumberTemplate(next[field])) {
+      next[field] = null
+    }
+  })
+
+  return next
 }
 
 function getLegacyStandaloneTemplateResetUpdates(editor: Editor): Partial<PagesOptionUpdates> {
@@ -92,6 +118,24 @@ export function applyPageNumberPlacement(editor: Editor, params: ApplyPageNumber
   return ok
 }
 
+export function removePageNumberPlacement(editor: Editor): boolean {
+  const cmds = editor.commands as { setPagesOptions?: (u: PagesOptionUpdates) => boolean }
+  const updates: PagesOptionUpdates = {
+    ...getLegacyStandaloneTemplateResetUpdates(editor),
+    pageNumberRegion: null,
+    pageNumberAlignment: null
+  }
+
+  const ok = cmds.setPagesOptions?.(updates) ?? false
+  if (import.meta.env.DEV) {
+    console.info('[document-pages-debug] removePageNumberPlacement → setPagesOptions', {
+      updates,
+      returned: ok
+    })
+  }
+  return ok
+}
+
 /** Builds persisted pages formatting matching {@link applyPageNumberPlacement} (for layout / Yjs after OK). */
 export function mergePagesFormattingAfterPageNumbersApply(
   prev: DocumentPagesFormatting | undefined,
@@ -109,4 +153,14 @@ export function mergePagesFormattingAfterPageNumbersApply(
   }
 
   return sanitizeStandalonePageNumberTemplates(normalizeStoredPagesFormatting(next)) ?? next
+}
+
+export function mergePagesFormattingAfterPageNumbersRemove(
+  prev: DocumentPagesFormatting | undefined
+): DocumentPagesFormatting {
+  const next = clearStandalonePageNumberTemplates(normalizeStoredPagesFormatting(prev) ?? {})
+  delete next.pageNumberRegion
+  delete next.pageNumberAlignment
+
+  return normalizeStoredPagesFormatting(next) ?? next
 }

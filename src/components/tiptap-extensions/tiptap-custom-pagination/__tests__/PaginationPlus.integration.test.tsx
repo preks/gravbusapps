@@ -396,4 +396,108 @@ describe('resolvePaginationSelectionBodyOverflow', () => {
 
     expect(resolvePaginationSelectionBodyOverflow(view, 'backward')).toEqual({ position: 7 })
   })
+
+  it('lands on the first line of the next page body when navigating forward across a page boundary', () => {
+    const editorDom = document.createElement('div')
+    const firstBodyBand = document.createElement('div')
+    const secondBodyBand = document.createElement('div')
+
+    firstBodyBand.className = 'rm-page-body-layer'
+    firstBodyBand.dataset.rmPageNumber = '1'
+    secondBodyBand.className = 'rm-page-body-layer'
+    secondBodyBand.dataset.rmPageNumber = '2'
+    editorDom.append(firstBodyBand, secondBodyBand)
+    document.body.appendChild(editorDom)
+
+    setRect(firstBodyBand, { top: 100, bottom: 300, left: 20, right: 180 })
+    setRect(secondBodyBand, { top: 380, bottom: 580, left: 20, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        selection: {
+          empty: true,
+          head: 10
+        }
+      },
+      coordsAtPos: (position: number) =>
+        position === 12
+          ? {
+              top: 384,
+              bottom: 402,
+              left: 70,
+              right: 70
+            }
+          : position === 13
+            ? {
+                top: 414,
+                bottom: 432,
+                left: 70,
+                right: 70
+              }
+            : {
+                top: 330,
+                bottom: 348,
+                left: 70,
+                right: 70
+              },
+      posAtCoords: ({ top }: { top: number }) => ({
+        pos: top < 408 ? 12 : 13
+      })
+    } as never
+
+    expect(resolvePaginationSelectionBodyOverflow(view, 'forward')).toEqual({ position: 12 })
+  })
+
+  it('lands on the last line of the previous page body when navigating backward across a page boundary', () => {
+    const editorDom = document.createElement('div')
+    const firstBodyBand = document.createElement('div')
+    const secondBodyBand = document.createElement('div')
+
+    firstBodyBand.className = 'rm-page-body-layer'
+    firstBodyBand.dataset.rmPageNumber = '1'
+    secondBodyBand.className = 'rm-page-body-layer'
+    secondBodyBand.dataset.rmPageNumber = '2'
+    editorDom.append(firstBodyBand, secondBodyBand)
+    document.body.appendChild(editorDom)
+
+    setRect(firstBodyBand, { top: 100, bottom: 300, left: 20, right: 180 })
+    setRect(secondBodyBand, { top: 380, bottom: 580, left: 20, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        selection: {
+          empty: true,
+          head: 15
+        }
+      },
+      coordsAtPos: (position: number) =>
+        position === 7
+          ? {
+              top: 280,
+              bottom: 298,
+              left: 70,
+              right: 70
+            }
+          : position === 6
+            ? {
+                top: 250,
+                bottom: 268,
+                left: 70,
+                right: 70
+              }
+            : {
+                top: 330,
+                bottom: 348,
+                left: 70,
+                right: 70
+              },
+      posAtCoords: ({ top }: { top: number }) => ({
+        pos: top > 274 ? 7 : 6
+      })
+    } as never
+
+    expect(resolvePaginationSelectionBodyOverflow(view, 'backward')).toEqual({ position: 7 })
+  })
 })

@@ -23,6 +23,7 @@ export interface HeaderFooterSettingsSidebarProps {
   onPersistPagesFromEditor: () => void
   onOpenPageNumbers: () => void
   onQuickPageNumberPlacement: (position: 'header' | 'footer', alignment: PageNumberAlignment) => void
+  onRemovePageNumber: () => void
   headerHeight?: number
   rightOffset?: number
   onClose: () => void
@@ -48,6 +49,7 @@ export function HeaderFooterSettingsSidebar({
   onPersistPagesFromEditor,
   onOpenPageNumbers,
   onQuickPageNumberPlacement,
+  onRemovePageNumber,
   headerHeight = 120,
   rightOffset = 16,
   onClose,
@@ -129,6 +131,7 @@ export function HeaderFooterSettingsSidebar({
               canInsertInOverlay={overlayEditor != null}
               onOpenPageNumbers={onOpenPageNumbers}
               onQuickPageNumberPlacement={onQuickPageNumberPlacement}
+              onRemovePageNumber={onRemovePageNumber}
             />
           </ScrollArea>
         </div>

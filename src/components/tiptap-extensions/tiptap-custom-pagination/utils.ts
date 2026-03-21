@@ -645,11 +645,11 @@ export function getPageContentHeight(pageFormat: PageFormat): number {
 }
 
 function getHeaderMeasurementSelector(pageNumber: number): string {
-  return `[data-rm-editor-type="header"][data-rm-page-number="${pageNumber}"] .rm-page-header`
+  return `[data-rm-editor-type="header"][data-rm-page-number="${pageNumber}"] .rm-page-region-layout`
 }
 
 function getFooterMeasurementSelector(pageNumber: number): string {
-  return `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"] .rm-page-footer`
+  return `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"] .rm-page-region-layout`
 }
 
 export function measureHeaderFooterContentHeights(

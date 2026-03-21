@@ -39,6 +39,10 @@ export interface StoredHeaderFooterContent {
 
 export interface OpenHeaderFooterEditorParams {
   pageNumber: number
+  clickPosition?: {
+    clientX: number
+    clientY: number
+  }
 }
 
 export type PreventCloseCallback = (event: MouseEvent) => boolean
@@ -76,10 +80,10 @@ export interface PagesOptionUpdates {
   footerAccentColor?: string
   /** Resolved at display time for `{title}` in headers/footers */
   documentTitle?: string
-  pageNumberRegion?: HeaderFooterEditorType
+  pageNumberRegion?: HeaderFooterEditorType | null
   pageNumberNumeralStyle?: PageNumberNumeralStyle
   pageNumberStartAt?: number
-  pageNumberAlignment?: PageNumberAlignment
+  pageNumberAlignment?: PageNumberAlignment | null
   pageNumberShowOnFirstPage?: boolean
 }
 

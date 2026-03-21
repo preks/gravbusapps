@@ -641,6 +641,71 @@ export function resolvePaginationBodyClick(
 
 type SelectionNavigationDirection = 'forward' | 'backward' | null
 
+function getBodyBandProbeXs(bodyBand: PageBodyBand, preferredX: number) {
+  const minX = bodyBand.left + 1
+  const maxX = Math.max(minX, bodyBand.right - 1)
+  const clampedX = Math.min(Math.max(preferredX, minX), maxX)
+  const middleX = Math.round((bodyBand.left + bodyBand.right) / 2)
+
+  return Array.from(
+    new Set([clampedX, minX + 12, middleX, maxX - 12].map(value => Math.min(Math.max(value, minX), maxX)))
+  )
+}
+
+function findDirectionalBodyPosition(
+  view: EditorView,
+  bodyBand: PageBodyBand,
+  direction: Exclude<SelectionNavigationDirection, null>,
+  preferredX: number
+) {
+  const minY = bodyBand.top + 1
+  const maxY = Math.max(minY, bodyBand.bottom - 1)
+  const probeXs = getBodyBandProbeXs(bodyBand, preferredX)
+  const probeYs: number[] = []
+  const step = 8
+
+  if (direction === 'forward') {
+    for (let probeY = minY; probeY <= maxY; probeY += step) {
+      probeYs.push(probeY)
+    }
+    if (probeYs[probeYs.length - 1] !== maxY) {
+      probeYs.push(maxY)
+    }
+  } else {
+    for (let probeY = maxY; probeY >= minY; probeY -= step) {
+      probeYs.push(probeY)
+    }
+    if (probeYs[probeYs.length - 1] !== minY) {
+      probeYs.push(minY)
+    }
+  }
+
+  let bestCandidate: { position: number; score: number } | null = null
+
+  for (const probeY of probeYs) {
+    for (const probeX of probeXs) {
+      const position = getPositionAtCoords(view, probeX, probeY)
+      if (position == null) continue
+
+      const caretRect = getCaretRectAtPosition(view, position)
+      if (!caretRect || !isCaretRectWithinBand(caretRect, bodyBand)) continue
+
+      const edgeDistance =
+        direction === 'forward'
+          ? Math.max(0, caretRect.top - bodyBand.top)
+          : Math.max(0, bodyBand.bottom - caretRect.bottom)
+      const horizontalDistance = Math.abs((caretRect.left + caretRect.right) / 2 - preferredX)
+      const score = edgeDistance * 1000 + horizontalDistance
+
+      if (!bestCandidate || score < bestCandidate.score) {
+        bestCandidate = { position, score }
+      }
+    }
+  }
+
+  return bestCandidate?.position ?? null
+}
+
 function resolveOverflowTargetBodyBand(
   bodyBands: PageBodyBand[],
   caretRect: ReturnType<EditorView['coordsAtPos']>,
@@ -698,7 +763,9 @@ export function resolvePaginationSelectionBodyOverflow(
             Math.max(targetBand.top + 1, targetBand.bottom - 1)
           )
 
-  const clampedPosition = findClampedBodyPosition(view, targetBand, targetX, targetY)
+  const clampedPosition =
+    (direction ? findDirectionalBodyPosition(view, targetBand, direction, targetX) : null) ??
+    findClampedBodyPosition(view, targetBand, targetX, targetY)
   return clampedPosition == null || clampedPosition === view.state.selection.head ? null : { position: clampedPosition }
 }
 
@@ -1371,7 +1438,12 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       })
     }
 
-    const openEditorByType = (editor: typeof this.editor, type: 'header' | 'footer', pageNumber: number) => {
+    const openEditorByType = (
+      editor: typeof this.editor,
+      type: 'header' | 'footer',
+      pageNumber: number,
+      clickPosition?: { clientX: number; clientY: number }
+    ) => {
       const storage = editor.storage.pages
       const options = getRuntimeOptions(editor, extensionOptions)
       const totalPages = storage.getPageCount()
@@ -1398,7 +1470,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         type,
         pageNumber,
         target,
-        clickPosition: undefined,
+        clickPosition,
         initialContent: getInitialEditorContent(storage, options, type, pageNumber, totalPages),
         storage,
         options,
@@ -1491,10 +1563,16 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       if (updates.headerAccentColor !== undefined) options.headerAccentColor = updates.headerAccentColor
       if (updates.footerAccentColor !== undefined) options.footerAccentColor = updates.footerAccentColor
       if (updates.documentTitle !== undefined) options.documentTitle = updates.documentTitle
-      if (updates.pageNumberRegion !== undefined) options.pageNumberRegion = updates.pageNumberRegion
+      if (updates.pageNumberRegion !== undefined) {
+        if (updates.pageNumberRegion === null) delete options.pageNumberRegion
+        else options.pageNumberRegion = updates.pageNumberRegion
+      }
       if (updates.pageNumberNumeralStyle !== undefined) options.pageNumberNumeralStyle = updates.pageNumberNumeralStyle
       if (updates.pageNumberStartAt !== undefined) options.pageNumberStartAt = updates.pageNumberStartAt
-      if (updates.pageNumberAlignment !== undefined) options.pageNumberAlignment = updates.pageNumberAlignment
+      if (updates.pageNumberAlignment !== undefined) {
+        if (updates.pageNumberAlignment === null) delete options.pageNumberAlignment
+        else options.pageNumberAlignment = updates.pageNumberAlignment
+      }
       if (updates.pageNumberShowOnFirstPage !== undefined)
         options.pageNumberShowOnFirstPage = updates.pageNumberShowOnFirstPage
     }
@@ -1625,13 +1703,13 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           return refresh(editor)
         },
       openHeaderEditor:
-        ({ pageNumber }) =>
+        ({ pageNumber, clickPosition }) =>
         ({ editor }) =>
-          openEditorByType(editor, 'header', pageNumber),
+          openEditorByType(editor, 'header', pageNumber, clickPosition),
       openFooterEditor:
-        ({ pageNumber }) =>
+        ({ pageNumber, clickPosition }) =>
         ({ editor }) =>
-          openEditorByType(editor, 'footer', pageNumber),
+          openEditorByType(editor, 'footer', pageNumber, clickPosition),
       closeHeaderFooterEditors:
         () =>
         ({ editor }) => {

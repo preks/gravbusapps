@@ -21,6 +21,22 @@ function isEmptyHeaderFooterHtml(html: string | null | undefined) {
   return container.querySelector('img, table, hr, iframe, svg, video, audio, canvas, object, embed') === null
 }
 
+function normalizeHeaderFooterDisplayHtml(html: string) {
+  const container = document.createElement('div')
+  container.innerHTML = html
+
+  for (const paragraph of Array.from(container.querySelectorAll('p'))) {
+    if (paragraph.textContent?.length) continue
+    if (paragraph.querySelector('img, table, hr, iframe, svg, video, audio, canvas, object, embed')) continue
+
+    const displayBreak = document.createElement('br')
+    displayBreak.dataset.rmDisplayEmptyLine = 'true'
+    paragraph.replaceChildren(displayBreak)
+  }
+
+  return container.innerHTML
+}
+
 export function renderHeaderFooterDisplayContent(
   content: HTMLElement,
   html: string | null | undefined,
@@ -35,7 +51,7 @@ export function renderHeaderFooterDisplayContent(
     return
   }
 
-  content.innerHTML = html ?? ''
+  content.innerHTML = normalizeHeaderFooterDisplayHtml(html ?? '')
 }
 
 function createPageNumberSlotElement(
@@ -149,13 +165,13 @@ export function ensurePagesStyles(targetDocument: Document) {
     }
     .rm-pages-root .rm-page-header {
       justify-content: flex-start;
-      padding-top: var(--rm-page-margin-top);
+      padding-top: var(--rm-header-top-margin);
       padding-bottom: 0;
     }
     .rm-pages-root .rm-page-footer {
       justify-content: flex-end;
       padding-top: 0;
-      padding-bottom: var(--rm-page-margin-bottom);
+      padding-bottom: var(--rm-footer-bottom-margin);
     }
     .rm-pages-root .rm-page-header-content,
     .rm-pages-root .rm-page-footer-content {
@@ -255,7 +271,7 @@ export function ensurePagesStyles(targetDocument: Document) {
       left: var(--rm-page-margin-left);
       right: var(--rm-page-margin-right);
       bottom: 0;
-      border-bottom: 1px solid #e8eaed;
+      border-bottom: 1px solid var(--rm-header-divider-accent, #6366f1);
       pointer-events: none;
     }
     .rm-pages-root .rm-page-footer-region[data-rm-has-visible-content="true"]::before {
@@ -264,8 +280,13 @@ export function ensurePagesStyles(targetDocument: Document) {
       left: var(--rm-page-margin-left);
       right: var(--rm-page-margin-right);
       top: 0;
-      border-top: 1px solid #e8eaed;
+      border-top: 1px solid var(--rm-footer-divider-accent, #6366f1);
       pointer-events: none;
+    }
+    .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"]::after,
+    .rm-pages-root .rm-first-page-header[data-rm-overlay-active="true"]::after,
+    .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"]::before {
+      content: none;
     }
     .rm-pages-root .rm-page-header-region[data-rm-overlay-active="true"] .rm-page-header-content:not(.rm-page-overlay-editor),
     .rm-pages-root .rm-page-footer-region[data-rm-overlay-active="true"] .rm-page-footer-content:not(.rm-page-overlay-editor),
@@ -284,10 +305,10 @@ export function ensurePagesStyles(targetDocument: Document) {
       z-index: 5;
     }
     .rm-pages-root .rm-page-overlay[data-rm-overlay-type="header"] {
-      border-bottom: 0;
+      border-bottom: 1px solid var(--rm-overlay-accent, #6366f1);
     }
     .rm-pages-root .rm-page-overlay[data-rm-overlay-type="footer"] {
-      border-top: 0;
+      border-top: 1px solid var(--rm-overlay-accent, #6366f1);
     }
     .rm-pages-root .rm-page-overlay-toolbar {
       display: flex;
@@ -461,6 +482,12 @@ export function createHeaderFooterRegion(params: {
   region.dataset.rmEditorType = type
   region.dataset.rmEditable = 'true'
   region.setAttribute('contenteditable', 'false')
+  region.style.setProperty(
+    type === 'header' ? '--rm-header-divider-accent' : '--rm-footer-divider-accent',
+    type === 'header'
+      ? (options.headerAccentColor ?? options.accentColor ?? '#6366f1')
+      : (options.footerAccentColor ?? options.accentColor ?? '#6366f1')
+  )
 
   const inner = document.createElement('div')
   inner.className = type === 'header' ? 'rm-page-header' : 'rm-page-footer'
