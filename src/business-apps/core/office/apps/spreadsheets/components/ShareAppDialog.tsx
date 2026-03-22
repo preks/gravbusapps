@@ -5,7 +5,7 @@
  * and manage existing shares.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -240,6 +240,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
   >([])
   const [sentSuccess, setSentSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Employee search - use the same pattern as ShareEntityDialog
   const { employees: searchResults, loading: isSearching, search: searchEmployees } = useEmployeeSearch(accessToken)
@@ -294,6 +295,10 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
   // Reset form when dialog closes - same pattern as ShareEntityDialog
   useEffect(() => {
     if (!open) {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current)
+        closeTimeoutRef.current = null
+      }
       setSearchQuery('')
       setSelectedUsers([])
       setSelectedUserPermissions({})
@@ -301,6 +306,28 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
       setSentSuccess(false)
     }
   }, [open])
+
+  // Cleanup any delayed close timer when unmounting.
+  useEffect(
+    () => () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current)
+        closeTimeoutRef.current = null
+      }
+    },
+    []
+  )
+
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen && closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current)
+        closeTimeoutRef.current = null
+      }
+      onOpenChange(nextOpen)
+    },
+    [onOpenChange]
+  )
 
   /**
    * Toggle user selection
@@ -357,7 +384,9 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
     setError(null)
 
     try {
-      const shares = selectedUsers
+      const usersToShare = [...selectedUsers]
+
+      const shares = usersToShare
         .map(user => {
           const userId = (user.userId || user.id) as string
           const selectedPermission = selectedUserPermissions[userId] || 'view'
@@ -369,7 +398,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
         .filter(share => Boolean(share.userId))
 
       // Pass known user details so the Hub doesn't need to re-fetch them
-      const userDetails = selectedUsers.map(u => ({
+      const userDetails = usersToShare.map(u => ({
         userId: (u.userId || u.id) as string,
         displayName: u.displayName,
         avatar: u.pictureThumbnail,
@@ -378,36 +407,42 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
       const success = await onShare(shares, userDetails)
 
       if (success) {
-        // Send Blink notifications
-        const assigneeUserIds = selectedUsers.map(u => u.userId || u.id).filter(Boolean) as string[]
-        if (assigneeUserIds.length > 0) {
-          const blinkResult = await sendBlinkNotifications(accessToken, {
-            appName,
-            appId,
-            appFilePath,
-            assigneeUserIds,
-            initiatorId: currentUserId,
-            initiatorName: currentUserName
-          })
-
-          if (!blinkResult.success) {
-            console.warn('[ShareAppDialog] Failed to send Blink notifications:', blinkResult.error)
-            // Don't fail the share if Blink fails - sharing still succeeded
-          }
-        }
-
         setSentSuccess(true)
         setSelectedUsers([])
         setSearchQuery('')
-        await onRefreshShares()
 
         // Show success toast
-        const count = selectedUsers.length
+        const count = usersToShare.length
         toast.success(`Shared "${appName}" with ${count} ${count === 1 ? 'person' : 'people'}!`)
 
+        // Run post-share network work in background so modal stays responsive.
+        void (async () => {
+          try {
+            const assigneeUserIds = usersToShare.map(u => u.userId || u.id).filter(Boolean) as string[]
+            if (assigneeUserIds.length > 0) {
+              const blinkResult = await sendBlinkNotifications(accessToken, {
+                appName,
+                appId,
+                appFilePath,
+                assigneeUserIds,
+                initiatorId: currentUserId,
+                initiatorName: currentUserName
+              })
+
+              if (!blinkResult.success) {
+                console.warn('[ShareAppDialog] Failed to send Blink notifications:', blinkResult.error)
+              }
+            }
+
+            await onRefreshShares()
+          } catch (backgroundError) {
+            console.warn('[ShareAppDialog] Post-share background tasks failed:', backgroundError)
+          }
+        })()
+
         // Close dialog after a short delay
-        setTimeout(() => {
-          onOpenChange(false)
+        closeTimeoutRef.current = setTimeout(() => {
+          handleDialogOpenChange(false)
         }, 1500)
       } else {
         setError('Failed to share app. Please try again.')
@@ -428,7 +463,8 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
     appFilePath,
     currentUserId,
     currentUserName,
-    onOpenChange
+    onRefreshShares,
+    handleDialogOpenChange
   ])
 
   /**
@@ -461,7 +497,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="gba:max-w-lg" data-testid="share-app-dialog">
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
@@ -602,8 +638,8 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
 
               {/* Success Message */}
               {sentSuccess && (
-                <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-success-secondary/20 gba:rounded-lg gba:text-success-foreground">
-                  <CheckCircle className="gba:w-5 gba:h-5" />
+                <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:rounded-lg gba:border gba:border-success/30 gba:bg-success/15 gba:text-success">
+                  <CheckCircle className="gba:w-5 gba:h-5 gba:text-success" />
                   <p className="gba:text-sm gba:font-medium">Shared successfully! Blink notifications sent.</p>
                 </div>
               )}
@@ -703,7 +739,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>
             Close
           </Button>
         </DialogFooter>

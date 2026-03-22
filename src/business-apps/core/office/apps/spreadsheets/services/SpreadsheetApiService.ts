@@ -1261,6 +1261,10 @@ export const SpreadsheetApiService = {
         content: JSON.stringify(versionData.contentSnapshot),
         createdAt: versionData.createdAt as string,
         createdBy: versionData.changedBy as string,
+        createdByName:
+          (versionData.changedByName as string | undefined) || (versionData.createdByName as string | undefined),
+        createdByAvatar:
+          (versionData.changedByAvatar as string | undefined) || (versionData.createdByAvatar as string | undefined),
         changeDescription: versionData.changeSummary as string | undefined,
         isCheckpoint: !versionData.isAutoSave,
         isAutoSave: versionData.isAutoSave as boolean,
@@ -1287,6 +1291,8 @@ export const SpreadsheetApiService = {
         content: JSON.stringify(v.contentSnapshot || {}),
         createdAt: v.createdAt as string,
         createdBy: v.changedBy as string,
+        createdByName: (v.changedByName as string | undefined) || (v.createdByName as string | undefined),
+        createdByAvatar: (v.changedByAvatar as string | undefined) || (v.createdByAvatar as string | undefined),
         changeDescription: v.changeSummary as string | undefined,
         isCheckpoint: !v.isAutoSave,
         isAutoSave: v.isAutoSave as boolean,
@@ -1377,6 +1383,8 @@ export const SpreadsheetApiService = {
         content: JSON.stringify(v.contentSnapshot),
         createdAt: v.createdAt as string,
         createdBy: v.changedBy as string,
+        createdByName: (v.changedByName as string | undefined) || (v.createdByName as string | undefined),
+        createdByAvatar: (v.changedByAvatar as string | undefined) || (v.createdByAvatar as string | undefined),
         changeDescription: v.changeSummary as string | undefined,
         isCheckpoint: !v.isAutoSave,
         isAutoSave: v.isAutoSave as boolean,

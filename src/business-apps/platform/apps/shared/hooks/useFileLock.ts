@@ -8,6 +8,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import type { Socket } from 'socket.io-client'
 import type { FileLock, LockFileInput } from '../types/versioning'
 
 function computeLockFlags(lock: FileLock | null, currentUserId?: string): { isLockedByMe: boolean; canEdit: boolean } {
@@ -38,6 +39,8 @@ export interface UseFileLockOptions {
     forceUnlock?: (id: string) => Promise<boolean>
   }
   autoRefreshInterval?: number // ms, default 5000 (5 seconds)
+  /** Optional collaboration socket for lock push events (e.g., spreadsheets) */
+  realtimeSocket?: Socket | null
   /** When true, editing stays blocked until first lock check finishes. */
   blockEditingUntilLockResolved?: boolean
   onLockAcquired?: (lock: FileLock) => void
@@ -79,6 +82,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
     currentUserId,
     apiService,
     autoRefreshInterval = 5000,
+    realtimeSocket,
     blockEditingUntilLockResolved = false,
     onLockAcquired,
     onLockReleased,
@@ -332,6 +336,78 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
       }
     }
   }, [apiService, autoRefreshInterval, checkLockStatus])
+
+  // Optional real-time lock updates via collaboration socket.
+  // This is opt-in: only callers that pass a socket receive push updates.
+  useEffect(() => {
+    if (!realtimeSocket) return
+
+    const handleLockAcquired = (data: {
+      lock?: {
+        lockedBy?: string
+        lockedByName?: string
+        lockedByAvatar?: string
+        lockedAt?: string
+        lockExpiry?: string
+        lockReason?: string
+      }
+    }) => {
+      const incoming = data?.lock
+      if (!incoming) return
+      const lock: FileLock = {
+        isLocked: true,
+        lockedBy: incoming.lockedBy,
+        lockedByName: incoming.lockedByName,
+        lockedByAvatar: incoming.lockedByAvatar,
+        lockedAt: incoming.lockedAt,
+        lockExpiry: incoming.lockExpiry,
+        lockReason: incoming.lockReason
+      }
+      if (isExpired(lock)) {
+        onLockExpiredRef.current?.()
+        setState(prev => ({
+          ...prev,
+          lock: markUnlocked(lock),
+          canEdit: true,
+          isLockedByMe: false
+        }))
+        return
+      }
+      const { canEdit, isLockedByMe } = computeLockFlags(lock, currentUserId)
+      setState(prev => ({
+        ...prev,
+        lock,
+        canEdit,
+        isLockedByMe,
+        error: null
+      }))
+    }
+
+    const handleLockReleased = () => {
+      setState(prev => ({
+        ...prev,
+        lock: null,
+        canEdit: true,
+        isLockedByMe: false,
+        error: null
+      }))
+    }
+
+    const handleConnect = () => {
+      // Re-sync after reconnect in case events were missed.
+      void checkLockStatus()
+    }
+
+    realtimeSocket.on('lock:acquired', handleLockAcquired)
+    realtimeSocket.on('lock:released', handleLockReleased)
+    realtimeSocket.on('connect', handleConnect)
+
+    return () => {
+      realtimeSocket.off('lock:acquired', handleLockAcquired)
+      realtimeSocket.off('lock:released', handleLockReleased)
+      realtimeSocket.off('connect', handleConnect)
+    }
+  }, [realtimeSocket, currentUserId, checkLockStatus])
 
   return {
     // State

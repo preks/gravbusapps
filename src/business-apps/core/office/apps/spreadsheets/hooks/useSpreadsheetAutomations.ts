@@ -24,6 +24,7 @@ import { getDefaultTrackingColumns } from '../components/automations/TrackingCol
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { fetchRecipientsData } from '../utils/fetchRecipientData'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
 
 /**
  * Ensure essential recipient tracking columns are always present.
@@ -64,7 +65,14 @@ export interface UseSpreadsheetAutomationsParams {
   /** Callback when new rows should be added (from bulk collection responses) */
   onAddRows?: (rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => void
   /** Callback when existing rows should be updated (when responses come back) */
-  onUpdateRows?: (updates: Array<{ workflowId: string; cells: Record<string, unknown> }>) => void
+  onUpdateRows?: (
+    updates: Array<{
+      workflowId: string
+      recipientId?: string
+      cells: Record<string, unknown>
+      columnLabels?: Record<string, string>
+    }>
+  ) => void
   /** Enable status polling */
   enablePolling?: boolean
   /** Poll interval in milliseconds */
@@ -125,7 +133,10 @@ export interface UseSpreadsheetAutomationsResult {
   fetchBulkCollectionResponses: () => Promise<void>
 
   /** Complete the Excel Collection task for the current user (when viewing a collection copy) */
-  completeExcelCollectionTask: (copyAppId: string) => Promise<{ success: boolean; error?: string }>
+  completeExcelCollectionTask: (
+    copyAppId: string,
+    formData?: Record<string, unknown>
+  ) => Promise<{ success: boolean; error?: string }>
   /** Check if user has an open Excel Collection task for this app (fallback when settings lack the flag) */
   hasExcelCollectionTaskForApp: (copyAppId: string) => Promise<boolean>
 
@@ -219,6 +230,17 @@ function buildWorkflowLinks(
   }))
 }
 
+async function fetchTemplateFormColumns(templateAppId: string): Promise<Array<{ name: string; label: string }>> {
+  const app = await SpreadsheetApiService.getApp(templateAppId)
+  if (!app?.sheets?.length) return []
+  const sheet = app.sheets[0]
+  const columns = sheet.columns || []
+  return columns
+    .filter(col => col.isVisible !== false && !isTrackingColumn(col.name) && !isTrackingColumn(col.id))
+    .map(col => ({ name: col.name, label: (col.label || col.name).trim() }))
+    .filter(col => col.label)
+}
+
 async function buildInitialCollectionRows(params: {
   automation: SpreadsheetAutomation
   workflows: Array<{ rowId: string; workflowId: string }>
@@ -236,6 +258,13 @@ async function buildInitialCollectionRows(params: {
 
   graphQLClient.setAccessToken(accessToken)
   const recipientDataMap = await fetchRecipientsData(graphQLClient, recipientIds)
+
+  let formFieldColumns: Array<{ name: string; label: string }> = []
+  let columnLabels: Record<string, string> = {}
+  if (automation.type === 'excel_collection' && automation.collectionConfig?.templateSpreadsheetId) {
+    formFieldColumns = await fetchTemplateFormColumns(automation.collectionConfig.templateSpreadsheetId)
+    columnLabels = Object.fromEntries(formFieldColumns.map(c => [c.name, c.label]))
+  }
 
   return workflows.map(wf => {
     const recipientId = wf.rowId.replace('recipient_', '')
@@ -262,6 +291,10 @@ async function buildInitialCollectionRows(params: {
       cells[statusColumnName] = 'Sent'
     }
 
+    for (const col of formFieldColumns) {
+      cells[col.name] = ''
+    }
+
     return {
       cells,
       metadata: {
@@ -269,7 +302,8 @@ async function buildInitialCollectionRows(params: {
         recipientId,
         automationId: automation.id,
         isBulkCollectionPending: true,
-        trackingColumns
+        trackingColumns,
+        ...(Object.keys(columnLabels).length > 0 ? { columnLabels } : {})
       }
     }
   })
@@ -372,7 +406,10 @@ function buildRowUpdate(params: {
     }
   }
 
+  const columnLabels = (response.formData.__columnLabels__ as Record<string, string> | undefined) || undefined
+
   for (const [key, value] of Object.entries(response.formData)) {
+    if (key === '__columnLabels__') continue
     const columnName = columnIdToName.get(key) || key
     if (!cells[columnName] && columnName !== statusColumn && !isTrackingColumn(columnName)) {
       cells[columnName] = value
@@ -382,7 +419,8 @@ function buildRowUpdate(params: {
   return {
     workflowId: String(response.workflowId || '').trim(),
     recipientId: String(response.responderId || '').trim() || undefined,
-    cells
+    cells,
+    columnLabels
   }
 }
 
@@ -1128,12 +1166,12 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
   // Complete Excel Collection task (when viewing a collection copy)
   const completeExcelCollectionTask = useCallback(
-    async (copyAppId: string): Promise<{ success: boolean; error?: string }> => {
+    async (copyAppId: string, formData?: Record<string, unknown>): Promise<{ success: boolean; error?: string }> => {
       const service = automationServiceRef.current
       if (!service) {
         return { success: false, error: 'Service not available' }
       }
-      return service.findAndCompleteExcelCollectionTask(copyAppId, currentUserId)
+      return service.findAndCompleteExcelCollectionTask(copyAppId, currentUserId, formData)
     },
     [currentUserId]
   )

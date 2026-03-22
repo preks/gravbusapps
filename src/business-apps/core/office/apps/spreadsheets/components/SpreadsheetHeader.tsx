@@ -30,7 +30,7 @@ import {
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
 import { SpreadsheetActionsMenu } from './SpreadsheetActionsMenu'
-import { AutoSaveIndicator } from '../../../../../platform/apps/shared/components/AutoSaveIndicator'
+import { SpreadsheetSaveStatus } from './SpreadsheetSaveStatus'
 import { StatusBadge } from '../../../../../platform/apps/shared/components/StatusBadge'
 import type { SpreadsheetApp, SpreadsheetSheet } from '../types'
 import type { PublishStatus } from '../../../../../platform/apps/shared/types/versioning'
@@ -86,6 +86,7 @@ function BreadcrumbSection({ onBack, app }: { onBack?: () => void; app: Spreadsh
 
 function EditingToolbar({
   versioning,
+  persistenceError,
   onShowCheckpointDialog,
   showComments,
   setShowComments,
@@ -94,6 +95,7 @@ function EditingToolbar({
   fileLock
 }: {
   versioning: { isSaving: boolean; lastSaveTime: Date | null; hasUnsavedChanges: boolean }
+  persistenceError?: string | null
   onShowCheckpointDialog: () => void
   showComments: boolean
   setShowComments: (show: boolean) => void
@@ -107,12 +109,13 @@ function EditingToolbar({
   const isLocked = fileLock.lock?.isLocked ?? false
   return (
     <div className="gba:flex gba:items-center gba:gap-1.5">
-      <AutoSaveIndicator
+      <SpreadsheetSaveStatus
         isSaving={versioning.isSaving}
         lastSaveTime={versioning.lastSaveTime}
         hasUnsavedChanges={versioning.hasUnsavedChanges}
         onManualSave={onShowCheckpointDialog}
-        data-testid="spreadsheet-auto-save-indicator"
+        persistenceError={persistenceError}
+        data-testid="spreadsheet-save-status"
       />
       <Button
         variant={showComments ? 'default' : 'ghost'}
@@ -239,12 +242,14 @@ export interface SpreadsheetHeaderProps {
   isEntityDataLoading: boolean
   onRefreshEntityData: () => void
 
-  // Versioning
+  // Versioning + merged sheet persistence (cells / rows / snapshot)
   versioning: {
     isSaving: boolean
     lastSaveTime: Date | null
     hasUnsavedChanges: boolean
   }
+  /** Last sheet persistence error message (inline status + warning ring) */
+  persistenceError?: string | null
   onShowCheckpointDialog: () => void
   onShowVersionHistory: () => void
 
@@ -289,6 +294,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   isEntityDataLoading,
   onRefreshEntityData,
   versioning,
+  persistenceError,
   onShowCheckpointDialog,
   onShowVersionHistory,
   publishingStatus,
@@ -324,6 +330,8 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
       )
     : null
 
+  const normalizedPublishStatus = getNormalizedPublishStatus(publishingStatus)
+
   return (
     <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
       <div className="gba:flex gba:items-center gba:justify-between gba:min-w-0 gba:w-full">
@@ -343,7 +351,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
 
           <div className="gba:h-6 gba:w-px gba:bg-border/50" />
 
-          {!isCollectionCopy && <StatusBadge status={getNormalizedPublishStatus(publishingStatus)} />}
+          {!isCollectionCopy && normalizedPublishStatus !== 'draft' && <StatusBadge status={normalizedPublishStatus} />}
 
           {!isEditing && (
             <Badge
@@ -359,6 +367,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
           {isEditing && (
             <EditingToolbar
               versioning={versioning}
+              persistenceError={persistenceError}
               onShowCheckpointDialog={onShowCheckpointDialog}
               showComments={showComments}
               setShowComments={setShowComments}
