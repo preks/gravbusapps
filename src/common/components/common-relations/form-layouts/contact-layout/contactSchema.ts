@@ -13,7 +13,6 @@ export const contactSchema = z.object({
   notesSummary: z.string().nullable().optional(),
   jobPosition: z.string().nullable().optional(),
   department: z.string().nullable().optional(),
-  type: z.string().nullable().optional(),
   code: z.string().nullable().optional(),
   communicationChannels: z
     .array(

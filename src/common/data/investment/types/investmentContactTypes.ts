@@ -94,11 +94,6 @@ export const buildInvestmentContactPayload = (contact: Partial<InvestmentContact
     delete basePayload.communicationChannels
   }
 
-  // Omit type when empty so backend does not receive "" (enum coercion error)
-  if (basePayload.type === '') {
-    delete basePayload.type
-  }
-
   return {
     investmentContact: basePayload
   }

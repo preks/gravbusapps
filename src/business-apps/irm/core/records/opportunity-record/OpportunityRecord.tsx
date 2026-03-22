@@ -429,7 +429,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const approvalActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.investmentTaskCreate],
-      externalContextData: { opportunityId, typeRef: APPROVAL_TASK_TYPE_REF },
+      externalContextData: {
+        opportunityId,
+        opportunity: opportunityId,
+        typeRef: APPROVAL_TASK_TYPE_REF,
+        investmentTask: { opportunity: opportunityId, type: APPROVAL_TASK_TYPE_REF }
+      },
       prefixDataTestId: 'opportunity-approval'
     }),
     [opportunityId]

@@ -30,7 +30,6 @@ function buildInvestmentContactSummary(contact: InvestmentContactRecord): Analyt
     department: contact.department,
     academicTitle: contact.academicTitle?.value,
     language: contact.language?.value,
-    contactType: contact.contactType,
     birthDate: contact.birthDate,
     createdAt: contact.createdAt,
     updatedAt: contact.updatedAt,
@@ -116,12 +115,11 @@ function buildInvestmentContactAssociates(contact: InvestmentContactRecord): Ana
 }
 
 function buildInvestmentContactMetrics(params: {
-  contact: InvestmentContactRecord
   activityCount: number
   taskCount: number
   noteCount: number
 }): AnalyticsMetric[] {
-  const { contact, activityCount, taskCount, noteCount } = params
+  const { activityCount, taskCount, noteCount } = params
   const metrics: AnalyticsMetric[] = []
 
   metrics.push({
@@ -143,14 +141,6 @@ function buildInvestmentContactMetrics(params: {
       id: 'investment_contact.notes.total',
       label: 'Notes',
       value: noteCount
-    })
-  }
-
-  if (contact.contactType) {
-    metrics.push({
-      id: 'investment_contact.type.current',
-      label: 'Contact Type',
-      value: contact.contactType
     })
   }
 
@@ -261,7 +251,6 @@ function buildInvestmentContactRaw(
     department: contact.department,
     academicTitle: contact.academicTitle?.value,
     salutation: contact.salutation?.value,
-    contactType: contact.contactType,
     birthDate: contact.birthDate,
     createdAt: contact.createdAt,
     updatedAt: contact.updatedAt,
@@ -362,7 +351,6 @@ export async function buildInvestmentContactAnalytics(params: {
   const links = buildInvestmentContactLinks(contact)
 
   const metrics = buildInvestmentContactMetrics({
-    contact,
     activityCount: activities.length,
     taskCount: tasks.length,
     noteCount: notes.length

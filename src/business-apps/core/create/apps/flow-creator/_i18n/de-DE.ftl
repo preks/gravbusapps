@@ -175,6 +175,8 @@ task-input-params-empty = Keine Parameter gefunden.
 task-input-params-system = Systemparameter
 task-input-params-user = Benutzerparameter
 task-input-params-pick = Wert auswählen
+task-input-params-expression-placeholder = Tippen Sie {{, um Flow-Daten zuzuordnen.
+task-input-params-unmapped = Nicht zugeordnet
 
 # EveryAI Agent output schema
 task-output-schema-title = Ausgabeschema
@@ -279,6 +281,7 @@ decision-ai-taskexpert-picker-desc = Wählen Sie aus, welcher Task Expert diese 
 decision-ai-taskexpert-picker-placeholder = Task Expert auswählen...
 decision-ai-taskexpert-picker-search = Task Experts durchsuchen...
 decision-ai-taskexpert-picker-empty = Keine Task Experts gefunden.
+decision-ai-taskexpert-params-desc = Ordnen Sie jeden Prompt-Parameter explizit dem Flow-Kontext zu, der an den ausgewählten Task Expert gesendet werden soll.
 decision-ai-taskexpert-reasoning-label = Reasoning-Output-Mapping
 decision-ai-taskexpert-reasoning-desc = Optional. Wählen Sie das Ausgabefeld, das als Begründung für den menschlichen Fallback verwendet wird.
 decision-ai-taskexpert-reasoning-placeholder = Ausgabefeld auswählen (optional)

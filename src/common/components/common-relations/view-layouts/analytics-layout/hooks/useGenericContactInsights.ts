@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 
 export interface ContactInsightAccount {
   accountId: string
@@ -18,7 +17,6 @@ export interface ContactInsightRecent {
 
 export interface ContactInsightsData {
   totalContacts: number
-  contactsByType: { type: string; count: number; percentage: number }[]
   topAccountsByContacts: ContactInsightAccount[]
   recentContacts: ContactInsightRecent[]
 }
@@ -26,7 +24,6 @@ export interface ContactInsightsData {
 export interface ContactInsightsConfig {
   contactEntity: string // 'Contact' or 'InvestmentContact'
   contactAggregate: string // 'ContactAggregate' or 'InvestmentContactAggregate'
-  typeField: string // 'contactType' or 'type'
   accountRelationEntity: string // 'Contact' or 'InvestmentAccountContact'
   accountRelationField: string // 'accountId' or 'contact'
   accountLookupWhere: string // 'accountId: { _isNull: false }' or 'contact: { isDeleted: { _eq: false } }, accountId: { _isNull: false }'
@@ -43,7 +40,6 @@ export interface ContactInsightsConfig {
 export const useGenericContactInsights = (accessToken: string, config: ContactInsightsConfig) => {
   const [data, setData] = useState<ContactInsightsData>({
     totalContacts: 0,
-    contactsByType: [],
     topAccountsByContacts: [],
     recentContacts: []
   })
@@ -60,19 +56,9 @@ export const useGenericContactInsights = (accessToken: string, config: ContactIn
       try {
         setIsLoading(true)
 
-        // Step 1: Get distinct contact types and accounts
+        // Step 1: Get distinct accounts
         const distinctQuery = `
           query GetDistinctContactAttributes {
-            # Get distinct contact types
-            distinctContactTypes: ${config.contactEntity}(
-              where: { isDeleted: { _eq: false } }
-              distinctOn: [${config.typeField}]
-              limit: 10
-            ) {
-              ${config.typeField}
-            }
-
-            # Get distinct accounts
             distinctAccounts: ${config.accountRelationEntity}(
               where: { 
                 ${config.accountLookupWhere}
@@ -89,29 +75,8 @@ export const useGenericContactInsights = (accessToken: string, config: ContactIn
 
         const distinctResult = await graphqlClient.request<any>(distinctQuery)
 
-        const distinctContactTypes = distinctResult.distinctContactTypes || []
         const distinctAccounts = distinctResult.distinctAccounts || []
-
-        // Step 2: Build dynamic aggregate query for contact types and accounts
-        const nonNullTypes = distinctContactTypes.filter((item: any) => item[config.typeField] !== null)
         const nonNullAccounts = distinctAccounts.filter((acc: any) => acc.accountId !== null)
-
-        const typeAggregates = nonNullTypes
-          .map((item: any, index: number) => {
-            const typeValue = item[config.typeField]
-            const escapedType = typeValue.replace(/"/g, String.raw`\"`)
-            return `
-              type_${index}: ${config.contactAggregate}(
-                where: {
-                  isDeleted: { _eq: false }
-                  ${config.typeField}: { _eq: "${escapedType}" }
-                }
-              ) {
-                aggregate { count }
-              }
-            `
-          })
-          .join('\n')
 
         const accountAggregates = nonNullAccounts
           .map((acc: any, index: number) => {
@@ -129,7 +94,7 @@ export const useGenericContactInsights = (accessToken: string, config: ContactIn
           })
           .join('\n')
 
-        // Step 3: Execute main aggregate query
+        // Step 2: Execute main aggregate query
         const query = `
           query GetContactInsightsAggregates {
             # Total contacts
@@ -149,7 +114,6 @@ export const useGenericContactInsights = (accessToken: string, config: ContactIn
               aggregate { count }
             }
 
-            ${typeAggregates}
             ${accountAggregates}
 
             # Recent contacts (only 5 - acceptable to fetch)
@@ -172,28 +136,6 @@ export const useGenericContactInsights = (accessToken: string, config: ContactIn
         // Process results
         const totalContacts = result.totalContacts?.aggregate?.count || 0
         const contactsWithoutAccounts = result.contactsWithoutAccounts?.aggregate?.count || 0
-
-        // Process contacts by type
-        const typeCounts = nonNullTypes.map((item: any, index: number) => ({
-          type: item[config.typeField],
-          count: result[`type_${index}`]?.aggregate?.count || 0
-        }))
-
-        // Calculate NULL/Unassigned count
-        const sumOfKnownTypes = typeCounts.reduce((sum: number, item: any) => sum + item.count, 0)
-        const nullTypeCount = totalContacts - sumOfKnownTypes
-
-        const allTypeCounts = [...typeCounts, ...(nullTypeCount > 0 ? [{ type: null, count: nullTypeCount }] : [])]
-
-        const contactsByType = allTypeCounts
-          .map(item => ({
-            type: getContactTypeLabel(item.type) || 'Unassigned',
-            count: item.count,
-            percentage: totalContacts > 0 ? Math.round((item.count / totalContacts) * 100) : 0
-          }))
-          .filter(item => item.count > 0)
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 6)
 
         // Process top accounts by contacts
         const accountsWithCounts = nonNullAccounts.map((acc: any, index: number) => ({
@@ -242,7 +184,6 @@ export const useGenericContactInsights = (accessToken: string, config: ContactIn
 
         setData({
           totalContacts,
-          contactsByType,
           topAccountsByContacts,
           recentContacts
         })
@@ -259,7 +200,6 @@ export const useGenericContactInsights = (accessToken: string, config: ContactIn
     graphqlClient,
     config.contactEntity,
     config.contactAggregate,
-    config.typeField,
     config.accountRelationEntity,
     config.accountRelationField,
     config.accountLookupWhere,

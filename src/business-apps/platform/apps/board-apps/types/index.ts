@@ -94,3 +94,5 @@ export type {
   ColumnProfile,
   DataProfile
 } from './analytics'
+
+export type { BoardCollection, CollectionMember, CollectionMemberRole } from './collection'

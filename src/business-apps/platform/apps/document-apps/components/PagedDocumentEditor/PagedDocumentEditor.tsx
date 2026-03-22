@@ -885,8 +885,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       console.error('[PagedDocumentEditor] Collaboration error:', error)
     }, [])
 
-    // Get access token for collaboration and avatar fetching - prefer prop, fallback to localStorage
-    const accessToken = accessTokenProp || localStorage.getItem('business-app-ide-access-token') || ''
+    // Only use the injected access token so editor behavior never depends on browser storage.
+    const accessToken = accessTokenProp || ''
 
     useEffect(() => {
       flowbotClient.setAccessToken(accessToken)

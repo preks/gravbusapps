@@ -45,7 +45,6 @@ export const baseContactImportFields: TargetFieldDefinition[] = [
   { value: 'ownerEmployeeId', label: 'Owner Employee ID', type: 'direct' },
 
   // Additional
-  { value: 'type', label: 'Contact Type', type: 'direct' },
   { value: 'code', label: 'Contact Code', type: 'direct' },
   { value: 'description', label: 'Description', type: 'direct' },
   { value: 'notesSummary', label: 'Notes Summary', type: 'direct' }

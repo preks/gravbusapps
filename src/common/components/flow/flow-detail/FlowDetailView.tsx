@@ -91,6 +91,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
               <ReadonlyTemplateFlowCanvas
                 accessToken={accessToken || ''}
                 templateId={flowData.templateId}
+                templateVersion={flowData.templateVersion}
                 title="Flow"
                 description="This flow view reflects completed and in-progress steps directly on the graph."
                 emptyTitle="No flow definition available"

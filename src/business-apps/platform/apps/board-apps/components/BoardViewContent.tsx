@@ -57,6 +57,7 @@ export interface BoardViewContentProps {
   onRenameQuickFilter?: (id: string, name: string) => void
   onDeleteQuickFilter?: (id: string) => void
   onReorderRow?: (rowId: string, afterRowId: string | null, beforeRowId: string | null) => Promise<void>
+  onReorderColumns?: (reordered: import('../types').BoardColumn[]) => void
   peopleLookup?: Map<string, import('../types/columns').SelectOption>
   focusedCells?: Map<string, import('../hooks/useBoardPresence').CellPresenceEntry>
   onCellFocus?: (rowId: string, columnId: string) => void
@@ -98,6 +99,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
   onRenameQuickFilter,
   onDeleteQuickFilter,
   onReorderRow,
+  onReorderColumns,
   peopleLookup,
   focusedCells,
   onCellFocus,
@@ -186,6 +188,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
             onRenameQuickFilter={onRenameQuickFilter}
             onDeleteQuickFilter={onDeleteQuickFilter}
             onReorderRow={onReorderRow}
+            onReorderColumns={onReorderColumns}
             peopleLookup={peopleLookup}
             focusedCells={focusedCells}
             onCellFocus={onCellFocus}

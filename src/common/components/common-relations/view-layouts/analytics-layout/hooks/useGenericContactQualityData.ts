@@ -12,13 +12,12 @@ export interface ContactQualityConfig {
   contactEntity: string // 'Contact' or 'InvestmentContact'
   contactAggregate: string // 'ContactAggregate' or 'InvestmentContactAggregate'
   accountField: string // 'accountId' or 'investmentAccountContact.accountId'
-  typeField: string // 'contactType' or 'type'
 }
 
 /**
  * Generic Contact Quality Data Hook using ONLY aggregate queries
  * Pattern: 100% aggregates - NO full record fetches!
- * Quality score based on 6-7 fields: firstName, lastName, email, phone, account, type
+ * Quality score based on 5 fields: firstName, lastName, email, phone, account
  * Configurable for both CRM and IRM
  */
 export const useGenericContactQualityData = (accessToken: string, config: ContactQualityConfig) => {
@@ -102,15 +101,6 @@ export const useGenericContactQualityData = (accessToken: string, config: Contac
               aggregate { count }
             }
 
-            contactsWithType: ${config.contactAggregate}(
-              where: {
-                isDeleted: { _eq: false }
-                ${config.typeField}: { _neq: "" }
-              }
-            ) {
-              aggregate { count }
-            }
-
             # Issues summary
             missingEmails: ${config.contactAggregate}(
               where: {
@@ -149,7 +139,6 @@ export const useGenericContactQualityData = (accessToken: string, config: Contac
         const contactsWithAccount = result.contactsWithAccount?.aggregate?.count || 0
         const contactsWithFirstName = result.contactsWithFirstName?.aggregate?.count || 0
         const contactsWithLastName = result.contactsWithLastName?.aggregate?.count || 0
-        const contactsWithType = result.contactsWithType?.aggregate?.count || 0
         const missingEmails = result.missingEmails?.aggregate?.count || 0
         const missingPhones = result.missingPhones?.aggregate?.count || 0
         const missingAccounts = result.missingAccounts?.aggregate?.count || 0
@@ -173,29 +162,22 @@ export const useGenericContactQualityData = (accessToken: string, config: Contac
             completed: contactsWithAccount,
             total: totalContacts,
             percentage: totalContacts > 0 ? Math.round((contactsWithAccount / totalContacts) * 100) : 0
-          },
-          {
-            metric: 'Contact Type',
-            completed: contactsWithType,
-            total: totalContacts,
-            percentage: totalContacts > 0 ? Math.round((contactsWithType / totalContacts) * 100) : 0
           }
         ]
 
         // Calculate overall quality score from aggregate completeness percentages
-        // Quality scoring: firstName(1) + lastName(1) + email(1) + phone(1) + account(2) + type(1) = 8 points
+        // Quality scoring: firstName(1) + lastName(1) + email(1) + phone(1) + account(2) = 6 points
         const fieldCompleteness = [
           contactsWithFirstName / totalContacts, // 1 point
           contactsWithLastName / totalContacts, // 1 point
           contactsWithEmail / totalContacts, // 1 point
           contactsWithPhone / totalContacts, // 1 point
           contactsWithAccount / totalContacts, // 2 points (weighted)
-          contactsWithAccount / totalContacts, // (counted twice for 2-point weight)
-          contactsWithType / totalContacts // 1 point
+          contactsWithAccount / totalContacts // (counted twice for 2-point weight)
         ]
 
-        // Average completeness across all fields (8 points total)
-        const avgCompleteness = fieldCompleteness.reduce((sum, val) => sum + val, 0) / 8
+        // Average completeness across all fields (6 points total)
+        const avgCompleteness = fieldCompleteness.reduce((sum, val) => sum + val, 0) / 6
         const overallScore = Math.round(avgCompleteness * 100)
 
         // Estimate quality distribution based on aggregate completeness levels
@@ -250,7 +232,7 @@ export const useGenericContactQualityData = (accessToken: string, config: Contac
     }
 
     fetchData()
-  }, [accessToken, graphqlClient, config.contactAggregate, config.accountField, config.typeField])
+  }, [accessToken, graphqlClient, config.contactAggregate, config.accountField])
 
   return { data, isLoading }
 }

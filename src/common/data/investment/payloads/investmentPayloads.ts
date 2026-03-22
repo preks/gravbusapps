@@ -418,8 +418,19 @@ export const buildInvestmentPayload = (
       if (realEstateData.locality !== undefined) realEstatePayload.locality = realEstateData.locality
       if (realEstateData.buildingYear !== undefined) realEstatePayload.buildingYear = realEstateData.buildingYear
       if (realEstateData.size !== undefined) realEstatePayload.size = toNumber(realEstateData.size)
-      if (realEstateData.sizeMeasurementUnit?.id !== undefined)
-        realEstatePayload.sizeMeasurementUnitRef = realEstateData.sizeMeasurementUnit.id // Extract ID from catalog object
+      {
+        const sizeUnit = realEstateData.sizeMeasurementUnit
+        if (typeof sizeUnit === 'string' && sizeUnit.length > 0) {
+          realEstatePayload.sizeMeasurementUnitRef = sizeUnit
+        } else if (
+          sizeUnit &&
+          typeof sizeUnit === 'object' &&
+          !Array.isArray(sizeUnit) &&
+          (sizeUnit as CatalogEntry).id !== undefined
+        ) {
+          realEstatePayload.sizeMeasurementUnitRef = (sizeUnit as CatalogEntry).id
+        }
+      }
       if (realEstateData.loanAmount !== undefined) realEstatePayload.loanAmount = toNumber(realEstateData.loanAmount)
       if (realEstateData.loanInterestRate !== undefined)
         realEstatePayload.loanInterestRate = toNumber(realEstateData.loanInterestRate)

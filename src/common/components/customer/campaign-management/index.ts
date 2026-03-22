@@ -8,6 +8,6 @@ export type {
 } from './types/CampaignManagementLayoutTypes'
 
 // Chart components
-export { TooltipWrapper, TooltipDataLine, ChartContainer } from './ChartHelpers'
+export { TooltipWrapper, TooltipDataLine } from './ChartHelpers'
 export { ChartCard, ChartTypeSwitcher } from './ChartCard'
 export type { ChartCardProps, ChartTypeSwitcherProps } from './ChartCard'

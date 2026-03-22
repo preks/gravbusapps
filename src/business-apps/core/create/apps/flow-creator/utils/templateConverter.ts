@@ -326,6 +326,8 @@ export function studioGraphToTemplate(
           instructions: aiCfg.instructions,
           humanInstructions: aiCfg.humanInstructions ?? '',
           mapping: aiCfg.mapping,
+          systemParamsMap: aiCfg.systemParamsMap,
+          userParamsMap: aiCfg.userParamsMap,
           reasoningPath: aiCfg.reasoningPath,
           escalation: aiCfg.escalation
         }

@@ -1,6 +1,4 @@
 import { useCallback } from 'react'
-import { fileClient } from '@/common/network/files/FileClient'
-import { blobToDataUrl } from '../utils/exportUtils'
 import { resolveImageSrcToDataUrl } from '../utils/imageDataUrlResolver'
 
 export type GetImageDataUrlForExport = (src: string) => Promise<string | null>
@@ -10,13 +8,5 @@ export type GetImageDataUrlForExport = (src: string) => Promise<string | null>
  * Used by DocumentEditor and PagedDocumentEditor to keep getImageDataUrl complexity low.
  */
 export function useImageDataUrlResolver(accessToken: string | null | undefined): GetImageDataUrlForExport {
-  return useCallback(
-    (src: string) =>
-      resolveImageSrcToDataUrl(src, {
-        accessToken,
-        fileClient,
-        blobToDataUrl
-      }),
-    [accessToken]
-  )
+  return useCallback((src: string) => resolveImageSrcToDataUrl(src), [accessToken])
 }

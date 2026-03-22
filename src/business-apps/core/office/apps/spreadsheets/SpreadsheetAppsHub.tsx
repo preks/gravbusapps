@@ -89,6 +89,7 @@ import { useHubPagination } from '@/business-apps/platform/apps/shared/hooks/use
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
 import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
+import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
 
 // Services
 import { generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
@@ -1090,10 +1091,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const handleBack = useCallback(() => {
     // Check if there's a space return URL in sessionStorage (takes priority)
     try {
-      const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+      const spaceReturnUrl = sanitizeSameOriginReturnUrl(sessionStorage.getItem('space_return_url'))
       if (spaceReturnUrl) {
         sessionStorage.removeItem('space_return_url')
-        globalThis.window.location.href = spaceReturnUrl
+        navigateTo(spaceReturnUrl)
         return
       }
     } catch (e) {
@@ -1102,10 +1103,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
     // Fallback: Check if there's a returnUrl parameter
     const params = new URLSearchParams(globalThis.window.location.search)
-    const returnUrl = params.get('returnUrl')
+    const returnUrl = sanitizeSameOriginReturnUrl(params.get('returnUrl'))
 
     if (returnUrl) {
-      globalThis.window.location.href = returnUrl
+      navigateTo(returnUrl)
       return
     }
 

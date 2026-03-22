@@ -23,6 +23,7 @@ type TaskExpertRow = PromptODM & { id: string }
 
 interface TaskExpertsSpaceProps extends BusinessAppContextProps {
   translations: { enUS: string; deDE: string; roRO: string }
+  labelsReady?: boolean
   onViewPrompt: (id: string, name: string) => void
   onEditPrompt: (id: string, name: string) => void
   refreshKey: number
@@ -41,6 +42,7 @@ const buildSortParam = (sorting: SortingState): string | null => {
 
 export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   translations,
+  labelsReady = false,
   onViewPrompt,
   onEditPrompt,
   refreshKey,
@@ -92,7 +94,7 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   // Transform prompts to add id property (DataTable requires id, not _id)
   const data: TaskExpertRow[] = useMemo(() => prompts.map(p => ({ ...p, id: p._id || p.name })), [prompts])
 
-  const columns = useMemo(() => createTaskExpertColumns(t, workspaceMap), [t, workspaceMap])
+  const columns = useMemo(() => createTaskExpertColumns(t, workspaceMap), [t, workspaceMap, labelsReady])
 
   // Refresh when parent signals
   useEffect(() => {

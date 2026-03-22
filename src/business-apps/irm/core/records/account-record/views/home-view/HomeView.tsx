@@ -255,7 +255,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments
               error: sectionsError,
               actionButtonProps: {
                 contextsArray: [FlowContextName.investmentEntity],
-                externalContextData: { accountId },
+                externalContextData: { accountId, dealType: 'DIVESTMENT_DEAL' },
                 prefixDataTestId: 'account-investment'
               }
             }

@@ -18,6 +18,7 @@ import {
 import type { DriveItem } from '../types/drive.types'
 import { getFileTypeLabel, formatFileSize } from '../types/drive.types'
 import { DriveApiService } from '../services/DriveApiService'
+import { createSafeObjectUrl } from '@/common/utils/safeUrlUtils'
 
 interface DriveFilePreviewDialogProps {
   item: DriveItem | null
@@ -98,7 +99,12 @@ export const DriveFilePreviewDialog: React.FC<DriveFilePreviewDialogProps> = ({
     setError(null)
 
     DriveApiService.getFilePreviewBlob(item.id)
-      .then(({ url }) => {
+      .then(({ blob, mimeType }) => {
+        const url = createSafeObjectUrl(blob, currentMimeType => {
+          const effectiveMimeType = (currentMimeType || mimeType || '').toLowerCase()
+          return effectiveMimeType.startsWith('image/') || effectiveMimeType === 'application/pdf'
+        })
+        if (!url) throw new Error('Unsupported preview type')
         if (revoked) {
           URL.revokeObjectURL(url)
           return

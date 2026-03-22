@@ -769,6 +769,15 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                       }
                     : undefined
                 }
+                onReorderColumns={
+                  canEdit && onSheetUpdate
+                    ? reorderedVisible => {
+                        const hidden = activeSheet!.columns.filter(c => !c.isVisible)
+                        const nextColumns = [...reorderedVisible, ...hidden].map((c, i) => ({ ...c, order: i }))
+                        void onSheetUpdate(board.id, activeSheet!.id, { columns: nextColumns } as any)
+                      }
+                    : undefined
+                }
                 onUpdateDashboardWidgets={
                   canEdit && onSheetUpdate && activeView
                     ? widgets => {
