@@ -334,6 +334,81 @@ describe('calculatePageCount', () => {
       )
     ).toBe(3)
   })
+
+  it('measures overflow against the last page body instead of the last breaker', () => {
+    const editorDom = document.createElement('div')
+    const paginationElement = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const breaker = document.createElement('div')
+    const paragraph = document.createElement('p')
+    const textNode = document.createTextNode('body')
+
+    paginationElement.dataset.rmPagination = 'true'
+    pageBreak.className = 'rm-page-break'
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    breaker.className = 'breaker'
+    paragraph.appendChild(textNode)
+    pageBreak.append(bodyLayer, breaker)
+    paginationElement.appendChild(pageBreak)
+    editorDom.append(paginationElement, paragraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 260 })
+    setRect(bodyLayer, { top: 0, bottom: 100 })
+    setRect(breaker, { top: 10, bottom: 20 })
+    setRect(paragraph, { top: 60, bottom: 100 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(paragraph, 'offsetHeight', { configurable: true, value: 40 })
+    Object.defineProperty(paragraph, 'clientHeight', { configurable: true, value: 40 })
+    Object.defineProperty(paragraph, 'scrollHeight', { configurable: true, value: 40 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          firstChild: { type: { name: 'paragraph' }, childCount: 1, textContent: 'body' },
+          content: {
+            size: 8
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos: () => ({
+        top: 64,
+        bottom: 76,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: textNode,
+        offset: 0
+      })
+    } as never
+
+    expect(
+      calculatePageCount(
+        view,
+        {
+          width: 100,
+          height: 120,
+          margins: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0
+          }
+        },
+        0
+      )
+    ).toBe(1)
+  })
 })
 
 describe('measureHeaderFooterContentHeights', () => {

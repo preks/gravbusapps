@@ -1,5 +1,6 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { EditorView } from '@tiptap/pm/view'
+import { logPaginationDebug } from '../tiptap-custom-pagination/utils'
 import { getTablePaginationSplitId, getTableRuntimeChainKey } from './tablePaginationIdentity'
 import {
   findSafeSplitRow,
@@ -29,6 +30,27 @@ export interface MergeableTableFragmentsCandidate {
   secondTablePos: number
   paginationChainKey: string
   paginationSplitId: string
+}
+
+function summarizeSplitCandidate(candidate: TableOverflowSplitCandidate) {
+  return {
+    key: `${candidate.paginationChainKey}:${candidate.mode}:${candidate.tablePos}:${candidate.splitRowIndex}`,
+    paginationChainKey: candidate.paginationChainKey,
+    mode: candidate.mode,
+    tablePos: candidate.tablePos,
+    splitRowIndex: candidate.splitRowIndex,
+    paginationSplitId: candidate.paginationSplitId
+  }
+}
+
+function summarizeMergeCandidate(candidate: MergeableTableFragmentsCandidate) {
+  return {
+    key: `${candidate.paginationChainKey}:${candidate.firstTablePos}:${candidate.secondTablePos}`,
+    paginationChainKey: candidate.paginationChainKey,
+    firstTablePos: candidate.firstTablePos,
+    secondTablePos: candidate.secondTablePos,
+    paginationSplitId: candidate.paginationSplitId
+  }
 }
 
 const TABLE_SPLIT_OVERFLOW_HYSTERESIS_PX = 2
@@ -370,7 +392,14 @@ export function findOverflowingTableSplitCandidates(
   view: EditorView,
   bodyBands: TablePaginationBodyBand[]
 ): TableOverflowSplitCandidate[] {
-  if (!bodyBands.length) return []
+  if (!bodyBands.length) {
+    logPaginationDebug('table-detection-split-candidates', {
+      bodyBandCount: 0,
+      candidateCount: 0,
+      candidates: []
+    })
+    return []
+  }
 
   const tolerance = 1
   const overflowThreshold = tolerance + TABLE_SPLIT_OVERFLOW_HYSTERESIS_PX
@@ -456,6 +485,11 @@ export function findOverflowingTableSplitCandidates(
     return true
   })
 
+  logPaginationDebug('table-detection-split-candidates', {
+    bodyBandCount: bodyBands.length,
+    candidateCount: candidates.length,
+    candidates: candidates.map(summarizeSplitCandidate)
+  })
   return candidates
 }
 
@@ -470,7 +504,14 @@ export function findMergeableTableFragmentCandidates(
   view: EditorView,
   bodyBands: TablePaginationBodyBand[]
 ): MergeableTableFragmentsCandidate[] {
-  if (!bodyBands.length) return []
+  if (!bodyBands.length) {
+    logPaginationDebug('table-detection-merge-candidates', {
+      bodyBandCount: 0,
+      candidateCount: 0,
+      candidates: []
+    })
+    return []
+  }
 
   const tolerance = 1
   let previousTable: {
@@ -542,6 +583,11 @@ export function findMergeableTableFragmentCandidates(
     return true
   })
 
+  logPaginationDebug('table-detection-merge-candidates', {
+    bodyBandCount: bodyBands.length,
+    candidateCount: candidates.length,
+    candidates: candidates.map(summarizeMergeCandidate)
+  })
   return candidates
 }
 

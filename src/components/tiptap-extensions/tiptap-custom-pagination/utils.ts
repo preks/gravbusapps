@@ -50,9 +50,15 @@ export interface PageCountDebugInfo {
   selectionBottom: number
   measuredBottom: number
   pageContentHeight: number
-  lastPageBreakBottom: number | null
+  lastPageBodyBottom: number | null
   lastPageGap: number | null
   lowerBound: number | null
+}
+
+export interface PageBodyMeasurementBand {
+  pageNumber: number
+  top: number
+  bottom: number
 }
 
 export const PAGE_COUNT_ADD_HYSTERESIS_PX = 1
@@ -60,6 +66,18 @@ export const PAGE_COUNT_REMOVE_HYSTERESIS_PX = 24
 export const TABLE_SPLIT_OVERFLOW_HYSTERESIS_PX = 2
 export const TABLE_SPLIT_RETURN_HYSTERESIS_PX = 10
 export const TABLE_MERGE_SAFETY_MARGIN_PX = 12
+
+const PAGINATION_DEBUG_FLAG = '__RM_PAGINATION_DEBUG'
+let paginationDebugSequence = 0
+
+export function logPaginationDebug(event: string, payload: unknown) {
+  if (!(globalThis as typeof globalThis & { [PAGINATION_DEBUG_FLAG]?: boolean })[PAGINATION_DEBUG_FLAG]) {
+    return
+  }
+
+  paginationDebugSequence += 1
+  console.log(`[pagination:${paginationDebugSequence}] ${event}`, payload)
+}
 
 interface PageCountGapResolution {
   reason: 'add-pages' | 'keep-existing' | 'remove-pages'
@@ -736,6 +754,23 @@ function getMeasuredElementBottomInEditor(editorDom: HTMLElement, element: HTMLE
   )
 }
 
+export function getPageBodyMeasurementBands(editorDom: HTMLElement): PageBodyMeasurementBand[] {
+  const editorRect = editorDom.getBoundingClientRect()
+
+  return Array.from(editorDom.querySelectorAll('.rm-page-body-layer[data-rm-page-number]'))
+    .filter((element): element is HTMLElement => element instanceof HTMLElement)
+    .map(element => {
+      const rect = element.getBoundingClientRect()
+      return {
+        pageNumber: Number(element.dataset.rmPageNumber ?? '0'),
+        top: rect.top - editorRect.top + editorDom.scrollTop,
+        bottom: rect.bottom - editorRect.top + editorDom.scrollTop
+      }
+    })
+    .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
+    .sort((left, right) => left.pageNumber - right.pageNumber)
+}
+
 function getBlockMeasurementElementAtPosition(view: EditorView, position: number): HTMLElement | null {
   try {
     const domAtPos = view.domAtPos(position)
@@ -837,8 +872,13 @@ export function calculatePageCount(
   pageGap: number,
   layoutOptions: PageCountLayoutOptions = {}
 ): number {
+  const emitDebug = (info: PageCountDebugInfo) => {
+    layoutOptions.onDebug?.(info)
+    logPaginationDebug('calculate-page-count', info)
+  }
+
   if (isEffectivelyEmptyDocument(view.state.doc)) {
-    layoutOptions.onDebug?.({
+    emitDebug({
       reason: 'empty-doc',
       hasPaginationElement: false,
       currentPageCount: 0,
@@ -848,7 +888,7 @@ export function calculatePageCount(
       selectionBottom: 0,
       measuredBottom: 0,
       pageContentHeight: getPageBodyHeightForCount(pageFormat, layoutOptions, 1),
-      lastPageBreakBottom: null,
+      lastPageBodyBottom: null,
       lastPageGap: null,
       lowerBound: null
     })
@@ -874,16 +914,20 @@ export function calculatePageCount(
       : selectionIsRange
         ? Math.max(contentBottom, selectionBottom)
         : contentBottom
-  const pageContentHeight = getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
+  const pageBodyBands = getPageBodyMeasurementBands(editorDom)
+  const lastPageBodyBand =
+    pageBodyBands.find(band => band.pageNumber === currentPageCount) ?? pageBodyBands[pageBodyBands.length - 1] ?? null
+  const pageContentHeight =
+    lastPageBodyBand !== null
+      ? Math.max(1, lastPageBodyBand.bottom - lastPageBodyBand.top)
+      : getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
 
   if (paginationElement) {
-    const lastPageBreakRaw = paginationElement.lastElementChild?.querySelector('.breaker')
-    const lastPageBreak = lastPageBreakRaw instanceof HTMLElement ? lastPageBreakRaw : null
-    const canMeasurePagination = lastPageBreak !== null && (contentBottom !== null || selectionBottom > 0)
+    const canMeasurePagination = lastPageBodyBand !== null && (contentBottom !== null || selectionBottom > 0)
 
     if (!canMeasurePagination) {
       const resultPageCount = Math.max(1, currentPageCount)
-      layoutOptions.onDebug?.({
+      emitDebug({
         reason: 'existing-no-op',
         hasPaginationElement: true,
         currentPageCount,
@@ -893,15 +937,14 @@ export function calculatePageCount(
         selectionBottom,
         measuredBottom,
         pageContentHeight,
-        lastPageBreakBottom: lastPageBreak ? getMeasuredElementBottomInEditor(editorDom, lastPageBreak) : null,
+        lastPageBodyBottom: lastPageBodyBand?.bottom ?? null,
         lastPageGap: null,
         lowerBound: null
       })
       return resultPageCount
     }
 
-    const lastPageBreakBottom = getMeasuredElementBottomInEditor(editorDom, lastPageBreak)
-    const lastPageGap = measuredBottom - lastPageBreakBottom
+    const lastPageGap = measuredBottom - lastPageBodyBand.bottom
 
     const gapResolution = resolvePageCountFromLastPageGap({
       currentPageCount,
@@ -912,7 +955,7 @@ export function calculatePageCount(
     })
 
     if (gapResolution.reason === 'add-pages') {
-      layoutOptions.onDebug?.({
+      emitDebug({
         reason: 'add-pages',
         hasPaginationElement: true,
         currentPageCount,
@@ -922,7 +965,7 @@ export function calculatePageCount(
         selectionBottom,
         measuredBottom,
         pageContentHeight,
-        lastPageBreakBottom,
+        lastPageBodyBottom: lastPageBodyBand.bottom,
         lastPageGap,
         lowerBound: gapResolution.lowerBound
       })
@@ -930,7 +973,7 @@ export function calculatePageCount(
     }
 
     if (gapResolution.reason === 'keep-existing') {
-      layoutOptions.onDebug?.({
+      emitDebug({
         reason: 'keep-existing',
         hasPaginationElement: true,
         currentPageCount,
@@ -940,14 +983,14 @@ export function calculatePageCount(
         selectionBottom,
         measuredBottom,
         pageContentHeight,
-        lastPageBreakBottom,
+        lastPageBodyBottom: lastPageBodyBand.bottom,
         lastPageGap,
         lowerBound: gapResolution.lowerBound
       })
       return currentPageCount
     }
 
-    layoutOptions.onDebug?.({
+    emitDebug({
       reason: 'remove-pages',
       hasPaginationElement: true,
       currentPageCount,
@@ -957,7 +1000,7 @@ export function calculatePageCount(
       selectionBottom,
       measuredBottom,
       pageContentHeight,
-      lastPageBreakBottom,
+      lastPageBodyBottom: lastPageBodyBand.bottom,
       lastPageGap,
       lowerBound: gapResolution.lowerBound
     })
@@ -965,7 +1008,7 @@ export function calculatePageCount(
   }
 
   if (contentBottom === null && selectionBottom <= 0) {
-    layoutOptions.onDebug?.({
+    emitDebug({
       reason: 'initial-count',
       hasPaginationElement: false,
       currentPageCount,
@@ -975,7 +1018,7 @@ export function calculatePageCount(
       selectionBottom,
       measuredBottom,
       pageContentHeight,
-      lastPageBreakBottom: null,
+      lastPageBodyBottom: null,
       lastPageGap: null,
       lowerBound: null
     })
@@ -985,7 +1028,7 @@ export function calculatePageCount(
   const editorHeight = Math.max(measuredBottom, 1)
   const initialPageContentHeight = getPageBodyHeightForCount(pageFormat, layoutOptions, 1)
   const resultPageCount = Math.max(1, Math.ceil(editorHeight / Math.max(1, initialPageContentHeight)))
-  layoutOptions.onDebug?.({
+  emitDebug({
     reason: 'initial-count',
     hasPaginationElement: false,
     currentPageCount,
@@ -995,7 +1038,7 @@ export function calculatePageCount(
     selectionBottom,
     measuredBottom,
     pageContentHeight: initialPageContentHeight,
-    lastPageBreakBottom: null,
+    lastPageBodyBottom: null,
     lastPageGap: null,
     lowerBound: null
   })

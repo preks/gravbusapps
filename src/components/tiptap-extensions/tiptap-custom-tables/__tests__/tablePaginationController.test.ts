@@ -1,7 +1,7 @@
 import type { EditorView } from '@tiptap/pm/view'
 import { createTablePaginationController } from '../tablePaginationController'
 import { findMergeableTableFragmentCandidates, findOverflowingTableSplitCandidates } from '../tablePaginationDetection'
-import { splitTableAtRow } from '../tableSelectionUtils'
+import { mergeAdjacentPaginationTables, splitTableAtRow } from '../tableSelectionUtils'
 
 jest.mock('../tablePaginationDetection', () => ({
   findMergeableTableFragmentCandidates: jest.fn(),
@@ -9,11 +9,13 @@ jest.mock('../tablePaginationDetection', () => ({
 }))
 
 jest.mock('../tableSelectionUtils', () => ({
+  mergeAdjacentPaginationTables: jest.fn(),
   splitTableAtRow: jest.fn()
 }))
 
 const mockedFindMergeCandidates = jest.mocked(findMergeableTableFragmentCandidates)
 const mockedFindSplitCandidates = jest.mocked(findOverflowingTableSplitCandidates)
+const mockedMergeAdjacentPaginationTables = jest.mocked(mergeAdjacentPaginationTables)
 const mockedSplitTableAtRow = jest.mocked(splitTableAtRow)
 
 function createView() {
@@ -32,6 +34,7 @@ describe('tablePaginationController', () => {
   beforeEach(() => {
     mockedFindMergeCandidates.mockReset()
     mockedFindSplitCandidates.mockReset()
+    mockedMergeAdjacentPaginationTables.mockReset()
     mockedSplitTableAtRow.mockReset()
   })
 
@@ -69,6 +72,7 @@ describe('tablePaginationController', () => {
       })
     ).toEqual({
       type: 'request-refresh',
+      progress: 'refresh',
       scheduleEvaluation: true
     })
 
@@ -81,7 +85,9 @@ describe('tablePaginationController', () => {
         bodyBands: []
       })
     ).toEqual({
-      type: 'none'
+      type: 'none',
+      progress: 'none',
+      reason: 'split-returned-false-twice'
     })
 
     const thirdResult = controller.evaluate({
@@ -94,6 +100,9 @@ describe('tablePaginationController', () => {
 
     expect(thirdResult).toMatchObject({
       type: 'dispatch',
+      progress: 'structural',
+      dispatchType: 'split',
+      candidateKey: 'chain-b:split:40:3',
       scheduleEvaluation: true
     })
     expect(mockedSplitTableAtRow).toHaveBeenLastCalledWith(view.state, view.state.tr, 40, 3)
@@ -134,6 +143,7 @@ describe('tablePaginationController', () => {
     ).toEqual({
       type: 'refresh',
       pageCount: 2,
+      progress: 'refresh',
       scheduleEvaluation: true
     })
 
@@ -147,6 +157,9 @@ describe('tablePaginationController', () => {
 
     expect(stablePassResult).toMatchObject({
       type: 'dispatch',
+      progress: 'structural',
+      dispatchType: 'split',
+      candidateKey: 'chain-b:split:40:3',
       scheduleEvaluation: true
     })
     expect(mockedSplitTableAtRow).toHaveBeenLastCalledWith(view.state, view.state.tr, 40, 3)
@@ -178,6 +191,7 @@ describe('tablePaginationController', () => {
     ).toEqual({
       type: 'refresh',
       pageCount: 2,
+      progress: 'refresh',
       scheduleEvaluation: true
     })
 
@@ -191,8 +205,106 @@ describe('tablePaginationController', () => {
 
     expect(stablePassResult).toMatchObject({
       type: 'dispatch',
+      progress: 'structural',
+      dispatchType: 'split',
+      candidateKey: 'chain-preferred:split:22:4',
       scheduleEvaluation: true
     })
     expect(mockedSplitTableAtRow).toHaveBeenCalledWith(view.state, view.state.tr, 22, 4)
+  })
+
+  it('stops dispatching the same split candidate again on the same stable page count', () => {
+    const controller = createTablePaginationController('owned')
+    const view = createView()
+    const splitCandidate = {
+      mode: 'split' as const,
+      tablePos: 22,
+      splitRowIndex: 4,
+      paginationChainKey: 'chain-repeat-split',
+      paginationSplitId: null
+    }
+
+    mockedFindSplitCandidates.mockImplementation(() => [splitCandidate])
+    mockedFindMergeCandidates.mockReturnValue([])
+    mockedSplitTableAtRow.mockReturnValue(true)
+
+    expect(
+      controller.evaluate({
+        view,
+        currentPageCount: 2,
+        measuredPageCount: 2,
+        heuristics: { allowMerge: true, allowSplit: true },
+        bodyBands: []
+      })
+    ).toMatchObject({
+      type: 'dispatch',
+      progress: 'structural',
+      dispatchType: 'split',
+      candidateKey: 'chain-repeat-split:split:22:4',
+      scheduleEvaluation: true
+    })
+
+    expect(
+      controller.evaluate({
+        view,
+        currentPageCount: 2,
+        measuredPageCount: 2,
+        heuristics: { allowMerge: true, allowSplit: true },
+        bodyBands: []
+      })
+    ).toEqual({
+      type: 'none',
+      progress: 'none',
+      reason: 'repeat-successful-split-candidate'
+    })
+
+    expect(mockedSplitTableAtRow).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops dispatching the same merge candidate again on the same stable page count', () => {
+    const controller = createTablePaginationController('owned')
+    const view = createView()
+    const mergeCandidate = {
+      paginationChainKey: 'chain-repeat-merge',
+      paginationSplitId: 'pagination-split-repeat',
+      firstTablePos: 20,
+      secondTablePos: 56
+    }
+
+    mockedFindSplitCandidates.mockReturnValue([])
+    mockedFindMergeCandidates.mockImplementation(() => [mergeCandidate])
+    mockedMergeAdjacentPaginationTables.mockReturnValue(true)
+
+    expect(
+      controller.evaluate({
+        view,
+        currentPageCount: 2,
+        measuredPageCount: 2,
+        heuristics: { allowMerge: true, allowSplit: true },
+        bodyBands: []
+      })
+    ).toMatchObject({
+      type: 'dispatch',
+      progress: 'structural',
+      dispatchType: 'merge',
+      candidateKey: 'chain-repeat-merge:20:56',
+      scheduleEvaluation: true
+    })
+
+    expect(
+      controller.evaluate({
+        view,
+        currentPageCount: 2,
+        measuredPageCount: 2,
+        heuristics: { allowMerge: true, allowSplit: true },
+        bodyBands: []
+      })
+    ).toEqual({
+      type: 'none',
+      progress: 'none',
+      reason: 'repeat-successful-merge-candidate'
+    })
+
+    expect(mockedMergeAdjacentPaginationTables).toHaveBeenCalledTimes(1)
   })
 })

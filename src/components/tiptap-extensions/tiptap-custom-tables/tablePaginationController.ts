@@ -1,5 +1,6 @@
 import type { Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
+import { logPaginationDebug } from '../tiptap-custom-pagination/utils'
 import {
   findMergeableTableFragmentCandidates,
   findOverflowingTableSplitCandidates,
@@ -17,6 +18,10 @@ interface TablePaginationChainState {
   rejectedSplitKey: string | null
   rejectedMergeKey: string | null
   retriedSplitKey: string | null
+  lastSuccessfulSplitKey: string | null
+  lastSuccessfulSplitPageCount: number | null
+  lastSuccessfulMergeKey: string | null
+  lastSuccessfulMergePageCount: number | null
 }
 
 interface ResolveDeferredRepaginationOutcomeOptions {
@@ -59,20 +64,56 @@ export type TablePaginationControllerResult =
   | {
       type: 'refresh'
       pageCount: number
+      progress: 'refresh'
       scheduleEvaluation: boolean
     }
   | {
       type: 'request-refresh'
+      progress: 'refresh'
       scheduleEvaluation: boolean
     }
   | {
       type: 'dispatch'
+      dispatchType: 'split' | 'merge'
+      candidateKey: string
+      progress: 'structural'
       transaction: Transaction
       scheduleEvaluation: boolean
     }
   | {
       type: 'none'
+      progress: 'none'
+      reason:
+        | 'split-candidate-disappeared'
+        | 'repeat-successful-split-candidate'
+        | 'split-returned-false-twice'
+        | 'merge-blocked-by-split-candidates'
+        | 'merge-candidate-disappeared'
+        | 'repeat-successful-merge-candidate'
+        | 'merge-returned-false'
+        | 'no-eligible-candidates'
     }
+
+function summarizeSplitCandidate(candidate: TableOverflowSplitCandidate) {
+  return {
+    key: getSplitCandidateKey(candidate),
+    paginationChainKey: candidate.paginationChainKey,
+    mode: candidate.mode,
+    tablePos: candidate.tablePos,
+    splitRowIndex: candidate.splitRowIndex,
+    paginationSplitId: candidate.paginationSplitId
+  }
+}
+
+function summarizeMergeCandidate(candidate: MergeableTableFragmentsCandidate) {
+  return {
+    key: getMergeCandidateKey(candidate),
+    paginationChainKey: candidate.paginationChainKey,
+    firstTablePos: candidate.firstTablePos,
+    secondTablePos: candidate.secondTablePos,
+    paginationSplitId: candidate.paginationSplitId
+  }
+}
 
 function getChainState(
   chainStateByKey: Map<string, TablePaginationChainState>,
@@ -86,7 +127,11 @@ function getChainState(
   const nextState: TablePaginationChainState = {
     rejectedSplitKey: null,
     rejectedMergeKey: null,
-    retriedSplitKey: null
+    retriedSplitKey: null,
+    lastSuccessfulSplitKey: null,
+    lastSuccessfulSplitPageCount: null,
+    lastSuccessfulMergeKey: null,
+    lastSuccessfulMergePageCount: null
   }
   chainStateByKey.set(chainKey, nextState)
   return nextState
@@ -247,9 +292,13 @@ function pruneChainState(
     if (!activeSplitChains.has(chainKey)) {
       chainState.rejectedSplitKey = null
       chainState.retriedSplitKey = null
+      chainState.lastSuccessfulSplitKey = null
+      chainState.lastSuccessfulSplitPageCount = null
     }
     if (!activeMergeChains.has(chainKey)) {
       chainState.rejectedMergeKey = null
+      chainState.lastSuccessfulMergeKey = null
+      chainState.lastSuccessfulMergePageCount = null
     }
   })
 }
@@ -280,6 +329,19 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
 
       pruneChainState(chainStateByKey, splitCandidates, mergeCandidates)
 
+      logPaginationDebug('table-controller-evaluation', {
+        currentPageCount,
+        measuredPageCount,
+        allowSplit: heuristics.allowSplit,
+        allowMerge: heuristics.allowMerge,
+        preferredSplitChainKey,
+        bodyBandCount: bodyBands.length,
+        splitCandidateCount: splitCandidates.length,
+        mergeCandidateCount: mergeCandidates.length,
+        splitCandidates: splitCandidates.map(summarizeSplitCandidate),
+        mergeCandidates: mergeCandidates.map(summarizeMergeCandidate)
+      })
+
       const outcome = resolveDeferredRepaginationOutcome({
         currentPageCount,
         measuredPageCount,
@@ -293,9 +355,16 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
 
       if (outcome.type === 'refresh') {
         preferredSplitChainKey = outcome.preferredSplitChainKey
+        logPaginationDebug('table-controller-outcome', {
+          type: 'refresh',
+          currentPageCount,
+          measuredPageCount,
+          preferredSplitChainKey
+        })
         return {
           type: 'refresh',
           pageCount: measuredPageCount,
+          progress: 'refresh',
           scheduleEvaluation: true
         }
       }
@@ -310,8 +379,35 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
         if (!liveCandidate) {
           chainState.rejectedSplitKey = null
           chainState.retriedSplitKey = null
+          logPaginationDebug('table-controller-outcome', {
+            type: 'none',
+            reason: 'split-candidate-disappeared',
+            candidateKey: outcome.candidateKey
+          })
           return {
-            type: 'none'
+            type: 'none',
+            progress: 'none',
+            reason: 'split-candidate-disappeared'
+          }
+        }
+
+        if (
+          chainState.lastSuccessfulSplitKey === outcome.candidateKey &&
+          chainState.lastSuccessfulSplitPageCount === currentPageCount
+        ) {
+          chainState.rejectedSplitKey = outcome.candidateKey
+          chainState.retriedSplitKey = null
+          preferredSplitChainKey = null
+          logPaginationDebug('table-controller-outcome', {
+            type: 'none',
+            reason: 'repeat-successful-split-candidate',
+            currentPageCount,
+            candidate: summarizeSplitCandidate(liveCandidate)
+          })
+          return {
+            type: 'none',
+            progress: 'none',
+            reason: 'repeat-successful-split-candidate'
           }
         }
 
@@ -325,26 +421,57 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
           if (chainState.retriedSplitKey !== outcome.candidateKey) {
             chainState.retriedSplitKey = outcome.candidateKey
             preferredSplitChainKey = liveCandidate.paginationChainKey
+            logPaginationDebug('table-controller-outcome', {
+              type: 'request-refresh',
+              reason: 'split-returned-false-first-time',
+              currentPageCount,
+              candidate: summarizeSplitCandidate(liveCandidate)
+            })
             return {
               type: 'request-refresh',
+              progress: 'refresh',
               scheduleEvaluation: true
             }
           }
 
           chainState.rejectedSplitKey = outcome.candidateKey
           chainState.retriedSplitKey = null
+          logPaginationDebug('table-controller-outcome', {
+            type: 'none',
+            reason: 'split-returned-false-twice',
+            currentPageCount,
+            candidate: summarizeSplitCandidate(liveCandidate)
+          })
           return {
-            type: 'none'
+            type: 'none',
+            progress: 'none',
+            reason: 'split-returned-false-twice'
           }
         }
 
         chainState.rejectedSplitKey = null
         chainState.rejectedMergeKey = null
         chainState.retriedSplitKey = null
+        chainState.lastSuccessfulSplitKey = outcome.candidateKey
+        chainState.lastSuccessfulSplitPageCount = currentPageCount
+        chainState.lastSuccessfulMergeKey = null
+        chainState.lastSuccessfulMergePageCount = null
         preferredSplitChainKey = liveCandidate.paginationChainKey
+
+        logPaginationDebug('table-controller-outcome', {
+          type: 'dispatch',
+          dispatchType: 'split',
+          currentPageCount,
+          measuredPageCount,
+          candidate: summarizeSplitCandidate(liveCandidate),
+          transactionStepCount: (tr as Transaction & { steps?: unknown[] }).steps?.length ?? 0
+        })
 
         return {
           type: 'dispatch',
+          dispatchType: 'split',
+          candidateKey: outcome.candidateKey,
+          progress: 'structural',
           transaction: tr,
           scheduleEvaluation: true
         }
@@ -354,8 +481,16 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
         preferredSplitChainKey = null
 
         if (findOverflowingTableSplitCandidates(view, bodyBands).length > 0) {
+          logPaginationDebug('table-controller-outcome', {
+            type: 'none',
+            reason: 'merge-blocked-by-split-candidates',
+            currentPageCount,
+            measuredPageCount
+          })
           return {
-            type: 'none'
+            type: 'none',
+            progress: 'none',
+            reason: 'merge-blocked-by-split-candidates'
           }
         }
 
@@ -367,8 +502,33 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
 
         if (!liveCandidate) {
           chainState.rejectedMergeKey = null
+          logPaginationDebug('table-controller-outcome', {
+            type: 'none',
+            reason: 'merge-candidate-disappeared',
+            candidateKey: outcome.candidateKey
+          })
           return {
-            type: 'none'
+            type: 'none',
+            progress: 'none',
+            reason: 'merge-candidate-disappeared'
+          }
+        }
+
+        if (
+          chainState.lastSuccessfulMergeKey === outcome.candidateKey &&
+          chainState.lastSuccessfulMergePageCount === currentPageCount
+        ) {
+          chainState.rejectedMergeKey = outcome.candidateKey
+          logPaginationDebug('table-controller-outcome', {
+            type: 'none',
+            reason: 'repeat-successful-merge-candidate',
+            currentPageCount,
+            candidate: summarizeMergeCandidate(liveCandidate)
+          })
+          return {
+            type: 'none',
+            progress: 'none',
+            reason: 'repeat-successful-merge-candidate'
           }
         }
 
@@ -377,17 +537,41 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
 
         if (!didMerge) {
           chainState.rejectedMergeKey = outcome.candidateKey
+          logPaginationDebug('table-controller-outcome', {
+            type: 'none',
+            reason: 'merge-returned-false',
+            currentPageCount,
+            candidate: summarizeMergeCandidate(liveCandidate)
+          })
           return {
-            type: 'none'
+            type: 'none',
+            progress: 'none',
+            reason: 'merge-returned-false'
           }
         }
 
         chainState.rejectedMergeKey = null
         chainState.rejectedSplitKey = null
         chainState.retriedSplitKey = null
+        chainState.lastSuccessfulMergeKey = outcome.candidateKey
+        chainState.lastSuccessfulMergePageCount = currentPageCount
+        chainState.lastSuccessfulSplitKey = null
+        chainState.lastSuccessfulSplitPageCount = null
+
+        logPaginationDebug('table-controller-outcome', {
+          type: 'dispatch',
+          dispatchType: 'merge',
+          currentPageCount,
+          measuredPageCount,
+          candidate: summarizeMergeCandidate(liveCandidate),
+          transactionStepCount: (tr as Transaction & { steps?: unknown[] }).steps?.length ?? 0
+        })
 
         return {
           type: 'dispatch',
+          dispatchType: 'merge',
+          candidateKey: outcome.candidateKey,
+          progress: 'structural',
           transaction: tr,
           scheduleEvaluation: true
         }
@@ -395,8 +579,18 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
 
       preferredSplitChainKey = outcome.preferredSplitChainKey
 
+      logPaginationDebug('table-controller-outcome', {
+        type: 'none',
+        reason: 'no-eligible-candidates',
+        currentPageCount,
+        measuredPageCount,
+        preferredSplitChainKey
+      })
+
       return {
-        type: 'none'
+        type: 'none',
+        progress: 'none',
+        reason: 'no-eligible-candidates'
       }
     }
   }

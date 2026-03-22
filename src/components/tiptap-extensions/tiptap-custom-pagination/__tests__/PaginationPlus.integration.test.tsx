@@ -2,8 +2,11 @@ import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import {
   INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+  MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS,
   createSafePaginationSelection,
+  resolveRunawayPageGrowth,
   resolveDeferredRepaginationOutcome,
+  resolveImmediateTableStabilizationDecision,
   resolvePaginationBodyClick,
   resolvePaginationSelectionBodyOverflow,
   resolveTablePaginationHeuristics,
@@ -181,6 +184,47 @@ describe('resolveDeferredRepaginationOutcome', () => {
   })
 })
 
+describe('resolveRunawayPageGrowth', () => {
+  it('caps runaway add-page growth when the gap does not shrink enough after a refresh', () => {
+    expect(
+      resolveRunawayPageGrowth(
+        {
+          currentPageCount: 2,
+          measuredPageCount: 14,
+          lastPageGap: 12000,
+          pageContentHeight: 1000
+        },
+        null,
+        14,
+        26,
+        {
+          reason: 'add-pages',
+          hasPaginationElement: true,
+          currentPageCount: 14,
+          resultPageCount: 26,
+          contentBottom: 25000,
+          documentBottom: 25000,
+          selectionBottom: 0,
+          measuredBottom: 25000,
+          pageContentHeight: 1000,
+          lastPageBodyBottom: 13040,
+          lastPageGap: 11960,
+          lowerBound: -976
+        },
+        false,
+        false
+      )
+    ).toMatchObject({
+      effectivePageCount: 14,
+      cappedPageCount: 14,
+      suppressionActive: true,
+      runawayPageGrowthCheck: {
+        shouldStabilize: true
+      }
+    })
+  })
+})
+
 describe('shouldDeferTablePaginationEvaluation', () => {
   it('defers table pagination while page body bands are still incomplete', () => {
     expect(
@@ -230,6 +274,56 @@ describe('shouldRetryDeferredRepaginationStabilization', () => {
         tableMeasurementsPending: true
       })
     ).toBe(false)
+  })
+})
+
+describe('resolveImmediateTableStabilizationDecision', () => {
+  it('continues batching while structural progress stays within the bounded action budget', () => {
+    expect(
+      resolveImmediateTableStabilizationDecision({
+        result: {
+          type: 'dispatch',
+          dispatchType: 'split',
+          candidateKey: 'split:10:2',
+          progress: 'structural',
+          transaction: {} as never,
+          scheduleEvaluation: true
+        },
+        actionsPerformed: 1,
+        maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS
+      })
+    ).toBe('continue')
+  })
+
+  it('schedules a follow-up pass once the bounded action budget is exhausted', () => {
+    expect(
+      resolveImmediateTableStabilizationDecision({
+        result: {
+          type: 'dispatch',
+          dispatchType: 'merge',
+          candidateKey: 'pagination-split-1:10:20',
+          progress: 'structural',
+          transaction: {} as never,
+          scheduleEvaluation: true
+        },
+        actionsPerformed: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS,
+        maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS
+      })
+    ).toBe('schedule')
+  })
+
+  it('stops immediately for bookkeeping-only outcomes', () => {
+    expect(
+      resolveImmediateTableStabilizationDecision({
+        result: {
+          type: 'none',
+          progress: 'none',
+          reason: 'repeat-successful-split-candidate'
+        },
+        actionsPerformed: 1,
+        maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS
+      })
+    ).toBe('stop')
   })
 })
 

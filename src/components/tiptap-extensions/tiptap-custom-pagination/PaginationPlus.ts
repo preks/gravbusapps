@@ -31,19 +31,21 @@ import {
   createStorageFromOptions,
   getHeaderFooterExtensions,
   getInitialEditorContent,
+  getPageBodyMeasurementBands,
   getPageLayoutHeights,
   getPageSpacerHeight,
   getExistingPageCount,
+  logPaginationDebug,
   type PageCountDebugInfo,
   measureHeaderFooterContentHeights,
   resolvePageFormat,
   syncStorageFromOptions
 } from './utils'
+import { hasPendingTableMeasurements } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationDetection'
 import {
-  hasPendingTableMeasurements,
-  type TablePaginationBodyBand
-} from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationDetection'
-import { createTablePaginationController } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
+  createTablePaginationController,
+  type TablePaginationControllerResult
+} from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
 
 const REFRESH_META = 'RM_PAGES_REFRESH'
 const REFRESH_AND_STABILIZE_META = 'RM_PAGES_REFRESH_AND_STABILIZE'
@@ -142,6 +144,50 @@ function getMeasuredPageCount(
   })
 }
 
+function resolveMeasuredPageCountSnapshot(options: {
+  view: EditorView
+  storage: PagesStorage
+  runtimeOptions: PagesOptions
+  measured: ReturnType<typeof applyMeasuredPageHeightsToView>
+  currentPageCount: number
+  previousAddPagesMeasurement: AddPagesMeasurementSnapshot | null
+  cappedPageCount: number | null
+  docChangedSinceLastUpdate: boolean
+  resetDueToDocChange: boolean
+}) {
+  const {
+    view,
+    storage,
+    runtimeOptions,
+    measured,
+    currentPageCount,
+    previousAddPagesMeasurement,
+    cappedPageCount,
+    docChangedSinceLastUpdate,
+    resetDueToDocChange
+  } = options
+  let pageCountDebugInfo: PageCountDebugInfo | null = null
+  const rawMeasuredPageCount = getMeasuredPageCount(view, storage, runtimeOptions, measured, info => {
+    pageCountDebugInfo = info
+  })
+  const runawayPageGrowthResolution = resolveRunawayPageGrowth(
+    previousAddPagesMeasurement,
+    cappedPageCount,
+    currentPageCount,
+    rawMeasuredPageCount,
+    pageCountDebugInfo,
+    docChangedSinceLastUpdate,
+    resetDueToDocChange
+  )
+
+  return {
+    rawMeasuredPageCount,
+    measuredPageCount: runawayPageGrowthResolution.effectivePageCount,
+    pageCountDebugInfo,
+    runawayPageGrowthResolution
+  }
+}
+
 interface PageBodyBand {
   pageNumber: number
   left: number
@@ -209,6 +255,7 @@ type DocChangeOrigin = 'external' | 'pagination-owned' | 'hydration-owned' | nul
 
 const MIN_EXPECTED_GAP_SHRINK_RATIO = 0.5
 export const INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS = 4
+export const MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS = 4
 
 const NO_RUNAWAY_PAGE_GROWTH_CHECK: RunawayPageGrowthCheck = {
   shouldStabilize: false,
@@ -378,6 +425,24 @@ export function shouldRetryDeferredRepaginationStabilization(options: {
   return attemptsRemaining > 0 && (deferTableEvaluation || tableMeasurementsPending)
 }
 
+export function resolveImmediateTableStabilizationDecision(options: {
+  result: TablePaginationControllerResult
+  actionsPerformed: number
+  maxActionsPerPass: number
+}) {
+  const { result, actionsPerformed, maxActionsPerPass } = options
+
+  if (result.type !== 'dispatch' || result.progress !== 'structural') {
+    return 'stop' as const
+  }
+
+  if (!result.scheduleEvaluation) {
+    return 'stop' as const
+  }
+
+  return actionsPerformed < maxActionsPerPass ? ('continue' as const) : ('schedule' as const)
+}
+
 export function shouldScheduleDeferredRepaginationOnUpdate(options: {
   activeEditorType: PagesStorage['activeEditorType']
   externalDocChange: boolean
@@ -525,23 +590,6 @@ export function getPageBodyBands(editorDom: HTMLElement): PageBodyBand[] {
         right: rect.right,
         top: rect.top,
         bottom: rect.bottom
-      }
-    })
-    .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
-    .sort((left, right) => left.pageNumber - right.pageNumber)
-}
-
-function getPageBodyMeasurementBands(editorDom: HTMLElement): TablePaginationBodyBand[] {
-  const editorRect = editorDom.getBoundingClientRect()
-
-  return Array.from(editorDom.querySelectorAll('.rm-page-body-layer[data-rm-page-number]'))
-    .filter((element): element is HTMLElement => element instanceof HTMLElement)
-    .map(element => {
-      const rect = element.getBoundingClientRect()
-      return {
-        pageNumber: Number(element.dataset.rmPageNumber ?? '0'),
-        top: rect.top - editorRect.top + editorDom.scrollTop,
-        bottom: rect.bottom - editorRect.top + editorDom.scrollTop
       }
     })
     .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
@@ -1038,11 +1086,20 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     let deferredRepaginationView: EditorView | null = null
     let deferredRepaginationStabilizationAttempts = 0
     let pendingRefreshDrivenStabilization = false
+    let deferredRepaginationPassId = 0
+    let headerPageCountPassId = 0
+    let suppressPaginationOwnedDeferredScheduling = false
     const tablePaginationController = createTablePaginationController(PAGINATION_OWNED_DOC_CHANGE_META)
     const getDeferredStabilizationAttemptCount = (view: EditorView) =>
       documentHasTables(view.state.doc) ? INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS : 1
 
-    const requestRefresh = (view: EditorView) => {
+    const requestRefresh = (view: EditorView, source = 'unknown') => {
+      logPaginationDebug('request-refresh', {
+        source,
+        existingPageCount: getExistingPageCount(view),
+        storedPageCount: this.storage.pageCount,
+        stabilizationAttemptsRemaining: deferredRepaginationStabilizationAttempts
+      })
       clearDeferredRepaginationEvaluation()
       const transaction = view.state.tr.setMeta(REFRESH_META, true)
       view.dispatch(transaction)
@@ -1063,113 +1120,223 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     const runDeferredRepaginationEvaluation = (view: EditorView) => {
       if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) return
 
+      const evaluationId = ++deferredRepaginationPassId
       const storage = this.storage
-      const options = getRuntimeOptions(editor, extensionOptions)
-      syncStorageFromOptions(storage, options)
-      applyRootStyles(view.dom, storage.pageFormat, options)
-      const measured = applyMeasuredPageHeightsToView(view, storage, options)
-      measuredHeaderHeights = measured.headerHeights
-      measuredFooterHeights = measured.footerHeights
+      let structuralActionsPerformed = 0
+      let loopIteration = 0
 
-      const currentPageCount = getCurrentKnownPageCount(getExistingPageCount(view), storage.pageCount)
-      let pageCountDebugInfo: PageCountDebugInfo | null = null
-      const rawMeasuredPageCount = getMeasuredPageCount(view, storage, options, measured, info => {
-        pageCountDebugInfo = info
-      })
-      const runawayPageGrowthResolution = resolveRunawayPageGrowth(
-        previousAddPagesMeasurement,
-        runawayGrowthCapPageCount,
-        currentPageCount,
-        rawMeasuredPageCount,
-        pageCountDebugInfo,
-        false,
-        false
-      )
-      const measuredPageCount = runawayPageGrowthResolution.effectivePageCount
-      runawayGrowthCapPageCount = runawayPageGrowthResolution.cappedPageCount
-      storage.pageCount = currentPageCount
+      while (!(view as EditorView & { isDestroyed?: boolean }).isDestroyed) {
+        loopIteration += 1
 
-      const nextAddPagesMeasurement = toAddPagesMeasurementSnapshot(
-        currentPageCount,
-        rawMeasuredPageCount,
-        pageCountDebugInfo
-      )
+        const options = getRuntimeOptions(editor, extensionOptions)
+        syncStorageFromOptions(storage, options)
+        applyRootStyles(view.dom, storage.pageFormat, options)
+        const measured = applyMeasuredPageHeightsToView(view, storage, options)
+        measuredHeaderHeights = measured.headerHeights
+        measuredFooterHeights = measured.footerHeights
 
-      const tableBodyBands = getPageBodyMeasurementBands(view.dom)
-      const tablePaginationHeuristics = resolveTablePaginationHeuristics(
-        runawayGrowthCapPageCount,
-        storage.activeEditorType !== null
-      )
-      const hasTables = documentHasTables(view.state.doc)
-      const deferTableEvaluation =
-        tablePaginationHeuristics.allowSplit &&
-        shouldDeferTablePaginationEvaluation({
-          hasTables,
+        const currentPageCount = getCurrentKnownPageCount(getExistingPageCount(view), storage.pageCount)
+        const { rawMeasuredPageCount, measuredPageCount, pageCountDebugInfo, runawayPageGrowthResolution } =
+          resolveMeasuredPageCountSnapshot({
+            view,
+            storage,
+            runtimeOptions: options,
+            measured,
+            currentPageCount,
+            previousAddPagesMeasurement,
+            cappedPageCount: runawayGrowthCapPageCount,
+            docChangedSinceLastUpdate: false,
+            resetDueToDocChange: false
+          })
+        runawayGrowthCapPageCount = runawayPageGrowthResolution.cappedPageCount
+        storage.pageCount = currentPageCount
+
+        const nextAddPagesMeasurement = toAddPagesMeasurementSnapshot(
           currentPageCount,
-          bodyBandCount: tableBodyBands.length
-        })
-      const tableMeasurementsPending =
-        hasTables &&
-        (tablePaginationHeuristics.allowSplit || tablePaginationHeuristics.allowMerge) &&
-        !deferTableEvaluation &&
-        hasPendingTableMeasurements(view)
+          rawMeasuredPageCount,
+          pageCountDebugInfo
+        )
 
-      if (
-        shouldRetryDeferredRepaginationStabilization({
-          attemptsRemaining: deferredRepaginationStabilizationAttempts,
+        const tableBodyBands = getPageBodyMeasurementBands(view.dom)
+        const tablePaginationHeuristics = resolveTablePaginationHeuristics(
+          runawayGrowthCapPageCount,
+          storage.activeEditorType !== null
+        )
+        const hasTables = documentHasTables(view.state.doc)
+        const deferTableEvaluation =
+          tablePaginationHeuristics.allowSplit &&
+          shouldDeferTablePaginationEvaluation({
+            hasTables,
+            currentPageCount,
+            bodyBandCount: tableBodyBands.length
+          })
+        const tableMeasurementsPending =
+          hasTables &&
+          (tablePaginationHeuristics.allowSplit || tablePaginationHeuristics.allowMerge) &&
+          !deferTableEvaluation &&
+          hasPendingTableMeasurements(view)
+        const pageCountReason = (pageCountDebugInfo as PageCountDebugInfo | null)?.reason ?? null
+        const lastMeasuredPageGap = (pageCountDebugInfo as PageCountDebugInfo | null)?.lastPageGap ?? null
+
+        logPaginationDebug('deferred-repagination-evaluation', {
+          evaluationId,
+          loopIteration,
+          structuralActionsPerformed,
+          currentPageCount,
+          storedPageCount: storage.pageCount,
+          rawMeasuredPageCount,
+          effectiveMeasuredPageCount: measuredPageCount,
+          cappedPageCount: runawayGrowthCapPageCount,
+          suppressionActive: runawayPageGrowthResolution.suppressionActive,
+          runawayShouldStabilize: runawayPageGrowthResolution.runawayPageGrowthCheck.shouldStabilize,
+          runawayGapShrinkRatio: runawayPageGrowthResolution.runawayPageGrowthCheck.gapShrinkRatio,
+          pageCountReason,
+          lastPageGap: lastMeasuredPageGap,
+          bodyBandCount: tableBodyBands.length,
+          hasTables,
           deferTableEvaluation,
-          tableMeasurementsPending
+          tableMeasurementsPending,
+          stabilizationAttemptsRemaining: deferredRepaginationStabilizationAttempts
         })
-      ) {
-        previousAddPagesMeasurement = null
-        deferredRepaginationStabilizationAttempts = Math.max(0, deferredRepaginationStabilizationAttempts - 1)
-        scheduleDeferredRepaginationEvaluation(view)
+
+        if (
+          shouldRetryDeferredRepaginationStabilization({
+            attemptsRemaining: deferredRepaginationStabilizationAttempts,
+            deferTableEvaluation,
+            tableMeasurementsPending
+          })
+        ) {
+          logPaginationDebug('deferred-repagination-retry', {
+            evaluationId,
+            loopIteration,
+            deferTableEvaluation,
+            tableMeasurementsPending,
+            stabilizationAttemptsRemaining: deferredRepaginationStabilizationAttempts
+          })
+          previousAddPagesMeasurement = null
+          deferredRepaginationStabilizationAttempts = Math.max(0, deferredRepaginationStabilizationAttempts - 1)
+          scheduleDeferredRepaginationEvaluation(view)
+          refreshPageMinHeight(view.dom)
+          return
+        }
+
+        if (deferTableEvaluation || tableMeasurementsPending) {
+          logPaginationDebug('deferred-repagination-blocked', {
+            evaluationId,
+            loopIteration,
+            deferTableEvaluation,
+            tableMeasurementsPending,
+            stabilizationAttemptsRemaining: deferredRepaginationStabilizationAttempts
+          })
+          previousAddPagesMeasurement = null
+          refreshPageMinHeight(view.dom)
+          return
+        }
+
+        previousAddPagesMeasurement = runawayGrowthCapPageCount === null ? nextAddPagesMeasurement : null
+        const tablePaginationResult = tablePaginationController.evaluate({
+          view,
+          currentPageCount,
+          measuredPageCount,
+          heuristics: tablePaginationHeuristics,
+          bodyBands: tableBodyBands
+        })
+
+        if (tablePaginationResult.type === 'refresh') {
+          logPaginationDebug('deferred-repagination-outcome', {
+            evaluationId,
+            loopIteration,
+            outcome: tablePaginationResult.type,
+            progress: tablePaginationResult.progress,
+            nextPageCount: tablePaginationResult.pageCount,
+            scheduleEvaluation: tablePaginationResult.scheduleEvaluation
+          })
+          storage.pageCount = tablePaginationResult.pageCount
+          requestRefresh(view, 'table-pagination-refresh')
+          if (tablePaginationResult.scheduleEvaluation) {
+            scheduleDeferredRepaginationEvaluation(view)
+          }
+          return
+        }
+
+        if (tablePaginationResult.type === 'request-refresh') {
+          logPaginationDebug('deferred-repagination-outcome', {
+            evaluationId,
+            loopIteration,
+            outcome: tablePaginationResult.type,
+            progress: tablePaginationResult.progress,
+            scheduleEvaluation: tablePaginationResult.scheduleEvaluation
+          })
+          requestRefresh(view, 'table-pagination-request-refresh')
+          if (tablePaginationResult.scheduleEvaluation) {
+            scheduleDeferredRepaginationEvaluation(view)
+          }
+          return
+        }
+
+        if (tablePaginationResult.type === 'dispatch') {
+          structuralActionsPerformed += 1
+          logPaginationDebug('deferred-repagination-outcome', {
+            evaluationId,
+            loopIteration,
+            outcome: tablePaginationResult.type,
+            progress: tablePaginationResult.progress,
+            dispatchType: tablePaginationResult.dispatchType,
+            candidateKey: tablePaginationResult.candidateKey,
+            scheduleEvaluation: tablePaginationResult.scheduleEvaluation
+          })
+          suppressPaginationOwnedDeferredScheduling = true
+          try {
+            view.dispatch(tablePaginationResult.transaction)
+          } finally {
+            suppressPaginationOwnedDeferredScheduling = false
+          }
+          previousAddPagesMeasurement = null
+
+          const immediateDecision = resolveImmediateTableStabilizationDecision({
+            result: tablePaginationResult,
+            actionsPerformed: structuralActionsPerformed,
+            maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS
+          })
+
+          if (immediateDecision === 'continue') {
+            logPaginationDebug('deferred-repagination-batch-continue', {
+              evaluationId,
+              loopIteration,
+              structuralActionsPerformed,
+              maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS,
+              dispatchType: tablePaginationResult.dispatchType,
+              candidateKey: tablePaginationResult.candidateKey
+            })
+            continue
+          }
+
+          if (immediateDecision === 'schedule' || tablePaginationResult.scheduleEvaluation) {
+            logPaginationDebug('deferred-repagination-batch-schedule', {
+              evaluationId,
+              loopIteration,
+              structuralActionsPerformed,
+              maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS,
+              dispatchType: tablePaginationResult.dispatchType,
+              candidateKey: tablePaginationResult.candidateKey
+            })
+            scheduleDeferredRepaginationEvaluation(view)
+          }
+          refreshPageMinHeight(view.dom)
+          return
+        }
+
+        logPaginationDebug('deferred-repagination-outcome', {
+          evaluationId,
+          loopIteration,
+          outcome: tablePaginationResult.type,
+          progress: tablePaginationResult.progress,
+          reason: tablePaginationResult.reason
+        })
+        deferredRepaginationStabilizationAttempts = 0
         refreshPageMinHeight(view.dom)
         return
       }
-
-      if (deferTableEvaluation || tableMeasurementsPending) {
-        previousAddPagesMeasurement = null
-        refreshPageMinHeight(view.dom)
-        return
-      }
-
-      previousAddPagesMeasurement = runawayGrowthCapPageCount === null ? nextAddPagesMeasurement : null
-      const tablePaginationResult = tablePaginationController.evaluate({
-        view,
-        currentPageCount,
-        measuredPageCount,
-        heuristics: tablePaginationHeuristics,
-        bodyBands: tableBodyBands
-      })
-
-      if (tablePaginationResult.type === 'refresh') {
-        storage.pageCount = tablePaginationResult.pageCount
-        requestRefresh(view)
-        if (tablePaginationResult.scheduleEvaluation) {
-          scheduleDeferredRepaginationEvaluation(view)
-        }
-        return
-      }
-
-      if (tablePaginationResult.type === 'request-refresh') {
-        requestRefresh(view)
-        if (tablePaginationResult.scheduleEvaluation) {
-          scheduleDeferredRepaginationEvaluation(view)
-        }
-        return
-      }
-
-      if (tablePaginationResult.type === 'dispatch') {
-        view.dispatch(tablePaginationResult.transaction)
-        if (tablePaginationResult.scheduleEvaluation) {
-          scheduleDeferredRepaginationEvaluation(view)
-        }
-        return
-      }
-
-      deferredRepaginationStabilizationAttempts = 0
-      refreshPageMinHeight(view.dom)
     }
 
     const scheduleDeferredRepaginationEvaluation = (view: EditorView, minimumStabilizationAttempts = 0) => {
@@ -1233,15 +1400,17 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           measuredHeaderHeights = measured.headerHeights
           measuredFooterHeights = measured.footerHeights
           const currentPageCount = getCurrentKnownPageCount(getExistingPageCount(mountedView), storage.pageCount)
-          let pageCountDebugInfo: PageCountDebugInfo | null = null
-          const rawMeasuredPageCount = getMeasuredPageCount(mountedView, storage, options, measured, info => {
-            pageCountDebugInfo = info
+          const { measuredPageCount } = resolveMeasuredPageCountSnapshot({
+            view: mountedView,
+            storage,
+            runtimeOptions: options,
+            measured,
+            currentPageCount,
+            previousAddPagesMeasurement,
+            cappedPageCount: runawayGrowthCapPageCount,
+            docChangedSinceLastUpdate: false,
+            resetDueToDocChange: false
           })
-          const measuredPageCount = applyRunawayPageGrowthCap(
-            rawMeasuredPageCount,
-            pageCountDebugInfo,
-            runawayGrowthCapPageCount
-          )
           storage.pageCount = currentPageCount
 
           if (measuredPageCount !== currentPageCount) {
@@ -1267,7 +1436,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         onClose: () => {
           const mountedView = getMountedEditorView(editor)
           if (!mountedView) return
-          requestRefresh(mountedView)
+          requestRefresh(mountedView, 'overlay-close')
         }
       })
     }
@@ -1280,18 +1449,27 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             const storage = this.storage
             const options = getRuntimeOptions(editor, extensionOptions)
             syncStorageFromOptions(storage, options)
-            let pageCountDebugInfo: PageCountDebugInfo | null = null
-            const rawTotalPages = calculatePageCount(view, storage.pageFormat, options.pageGap, {
-              storage,
+            const currentPageCount = getCurrentKnownPageCount(getExistingPageCount(view), storage.pageCount)
+            const measured = {
               headerHeights: measuredHeaderHeights,
-              footerHeights: measuredFooterHeights,
-              defaultHeaderHeight: options.headerHeight,
-              defaultFooterHeight: options.footerHeight,
-              onDebug: info => {
-                pageCountDebugInfo = info
-              }
+              footerHeights: measuredFooterHeights
+            }
+            const { measuredPageCount, runawayPageGrowthResolution } = resolveMeasuredPageCountSnapshot({
+              view,
+              storage,
+              runtimeOptions: options,
+              measured,
+              currentPageCount,
+              previousAddPagesMeasurement,
+              cappedPageCount: runawayGrowthCapPageCount,
+              docChangedSinceLastUpdate: false,
+              resetDueToDocChange: false
             })
-            const totalPages = applyRunawayPageGrowthCap(rawTotalPages, pageCountDebugInfo, runawayGrowthCapPageCount)
+            const storedPageCount =
+              runawayPageGrowthResolution.cappedPageCount === null
+                ? storage.pageCount
+                : Math.min(storage.pageCount, runawayPageGrowthResolution.cappedPageCount)
+            const totalPages = Math.max(storedPageCount, measuredPageCount)
             storage.pageCount = totalPages
 
             return createPaginationWrapper({
@@ -1310,27 +1488,44 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           view => {
             const storage = this.storage
             const options = getRuntimeOptions(editor, extensionOptions)
-            let pageCountDebugInfo: PageCountDebugInfo | null = null
-            const rawTotalPages = calculatePageCount(view, storage.pageFormat, options.pageGap, {
-              storage,
+            const currentPageCount = getCurrentKnownPageCount(getExistingPageCount(view), storage.pageCount)
+            const measured = {
               headerHeights: measuredHeaderHeights,
-              footerHeights: measuredFooterHeights,
-              defaultHeaderHeight: options.headerHeight,
-              defaultFooterHeight: options.footerHeight,
-              onDebug: info => {
-                pageCountDebugInfo = info
-              }
-            })
-            const cappedTotalPages = applyRunawayPageGrowthCap(
-              rawTotalPages,
-              pageCountDebugInfo,
-              runawayGrowthCapPageCount
-            )
+              footerHeights: measuredFooterHeights
+            }
+            const { rawMeasuredPageCount, measuredPageCount, pageCountDebugInfo, runawayPageGrowthResolution } =
+              resolveMeasuredPageCountSnapshot({
+                view,
+                storage,
+                runtimeOptions: options,
+                measured,
+                currentPageCount,
+                previousAddPagesMeasurement,
+                cappedPageCount: runawayGrowthCapPageCount,
+                docChangedSinceLastUpdate: false,
+                resetDueToDocChange: false
+              })
+            const cappedTotalPages = measuredPageCount
             const storedPageCount =
-              runawayGrowthCapPageCount === null
+              runawayPageGrowthResolution.cappedPageCount === null
                 ? storage.pageCount
-                : Math.min(storage.pageCount, runawayGrowthCapPageCount)
+                : Math.min(storage.pageCount, runawayPageGrowthResolution.cappedPageCount)
             const totalPages = Math.max(storedPageCount, cappedTotalPages)
+            const widgetPassId = ++headerPageCountPassId
+            const pageCountReason = (pageCountDebugInfo as PageCountDebugInfo | null)?.reason ?? null
+            const lastMeasuredPageGap = (pageCountDebugInfo as PageCountDebugInfo | null)?.lastPageGap ?? null
+
+            logPaginationDebug('header-total-pages', {
+              widgetPassId,
+              rawTotalPages: rawMeasuredPageCount,
+              cappedTotalPages,
+              storedPageCount,
+              storagePageCount: storage.pageCount,
+              totalPages,
+              cappedPageCount: runawayPageGrowthResolution.cappedPageCount,
+              pageCountReason,
+              lastPageGap: lastMeasuredPageGap
+            })
 
             return createFirstPageHeader({
               totalPages,
@@ -1436,11 +1631,26 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
               const selectionOverflow = resolvePaginationSelectionBodyOverflow(updatedView, selectionDirection)
               if (selectionOverflow) {
                 const currentPageCount = getCurrentKnownPageCount(getExistingPageCount(updatedView), storage.pageCount)
-                const rawMeasuredPageCount = getMeasuredPageCount(updatedView, storage, options, measured)
+                const { measuredPageCount } = resolveMeasuredPageCountSnapshot({
+                  view: updatedView,
+                  storage,
+                  runtimeOptions: options,
+                  measured,
+                  currentPageCount,
+                  previousAddPagesMeasurement,
+                  cappedPageCount: runawayGrowthCapPageCount,
+                  docChangedSinceLastUpdate: false,
+                  resetDueToDocChange: false
+                })
 
-                if (rawMeasuredPageCount > currentPageCount) {
-                  storage.pageCount = rawMeasuredPageCount
-                  requestRefresh(updatedView)
+                if (measuredPageCount > currentPageCount) {
+                  logPaginationDebug('selection-overflow-refresh', {
+                    currentPageCount,
+                    rawMeasuredPageCount: measuredPageCount,
+                    selectionHead: updatedView.state.selection.head
+                  })
+                  storage.pageCount = measuredPageCount
+                  requestRefresh(updatedView, 'selection-overflow')
                   return
                 }
 
@@ -1473,7 +1683,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
               shouldScheduleDeferredRepaginationOnUpdate({
                 activeEditorType: storage.activeEditorType,
                 externalDocChange,
-                paginationOwnedDocChange,
+                paginationOwnedDocChange: paginationOwnedDocChange && !suppressPaginationOwnedDeferredScheduling,
                 hydrationOwnedDocChange
               })
             ) {
