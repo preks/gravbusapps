@@ -108,6 +108,30 @@ describe('tablePaginationController', () => {
     expect(mockedSplitTableAtRow).toHaveBeenLastCalledWith(view.state, view.state.tr, 40, 3)
   })
 
+  it('still refreshes upward when there is no split candidate to apply yet', () => {
+    const controller = createTablePaginationController('owned')
+    const view = createView()
+
+    mockedFindSplitCandidates.mockReturnValue([])
+    mockedFindMergeCandidates.mockReturnValue([])
+
+    expect(
+      controller.evaluate({
+        view,
+        currentPageCount: 14,
+        measuredPageCount: 26,
+        heuristics: { allowMerge: true, allowSplit: true },
+        bodyBands: []
+      })
+    ).toEqual({
+      type: 'refresh',
+      pageCount: 26,
+      hasSplitPressure: false,
+      progress: 'refresh',
+      scheduleEvaluation: true
+    })
+  })
+
   it('continues with another available chain after the preferred chain disappears', () => {
     const controller = createTablePaginationController('owned')
     const view = createView()
@@ -143,6 +167,7 @@ describe('tablePaginationController', () => {
     ).toEqual({
       type: 'refresh',
       pageCount: 2,
+      hasSplitPressure: true,
       progress: 'refresh',
       scheduleEvaluation: true
     })
@@ -191,6 +216,7 @@ describe('tablePaginationController', () => {
     ).toEqual({
       type: 'refresh',
       pageCount: 2,
+      hasSplitPressure: true,
       progress: 'refresh',
       scheduleEvaluation: true
     })

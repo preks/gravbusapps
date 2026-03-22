@@ -64,6 +64,7 @@ export type TablePaginationControllerResult =
   | {
       type: 'refresh'
       pageCount: number
+      hasSplitPressure: boolean
       progress: 'refresh'
       scheduleEvaluation: boolean
     }
@@ -355,15 +356,18 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
 
       if (outcome.type === 'refresh') {
         preferredSplitChainKey = outcome.preferredSplitChainKey
+        const hasSplitPressure = splitCandidates.length > 0
         logPaginationDebug('table-controller-outcome', {
           type: 'refresh',
           currentPageCount,
           measuredPageCount,
-          preferredSplitChainKey
+          preferredSplitChainKey,
+          hasSplitPressure
         })
         return {
           type: 'refresh',
           pageCount: measuredPageCount,
+          hasSplitPressure,
           progress: 'refresh',
           scheduleEvaluation: true
         }

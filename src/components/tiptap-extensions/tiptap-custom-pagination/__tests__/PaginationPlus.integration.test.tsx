@@ -1,15 +1,20 @@
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import {
+  DEFAULT_TABLE_STABILIZATION_ACTIONS_PER_PASS,
   INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
   MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS,
   createSafePaginationSelection,
   resolveRunawayPageGrowth,
   resolveDeferredRepaginationOutcome,
+  resolveDeferredTableRefreshResult,
   resolveImmediateTableStabilizationDecision,
+  resolvePaginationWidgetTotalPages,
+  resolveTableStabilizationActionBudget,
   resolvePaginationBodyClick,
   resolvePaginationSelectionBodyOverflow,
   resolveTablePaginationHeuristics,
+  shouldDeferUpwardTableRefreshAcceptance,
   shouldRetryDeferredRepaginationStabilization,
   shouldScheduleDeferredRepaginationOnUpdate,
   shouldDeferTablePaginationEvaluation
@@ -64,6 +69,27 @@ describe('resolveDeferredRepaginationOutcome', () => {
     ).toMatchObject({
       type: 'split',
       candidateKey: 'split:12:3'
+    })
+  })
+
+  it('still refreshes page growth when there is no safe split candidate yet', () => {
+    const heuristics = resolveTablePaginationHeuristics(null, false)
+
+    expect(
+      resolveDeferredRepaginationOutcome({
+        currentPageCount: 1,
+        measuredPageCount: 2,
+        allowMerge: heuristics.allowMerge,
+        allowSplit: heuristics.allowSplit,
+        preferSplitAfterRefresh: false,
+        splitCandidate: null,
+        mergeCandidate: null,
+        rejectedSplitKey: null,
+        rejectedMergeKey: null
+      })
+    ).toEqual({
+      type: 'refresh',
+      nextPreferSplitAfterRefresh: true
     })
   })
 
@@ -324,6 +350,200 @@ describe('resolveImmediateTableStabilizationDecision', () => {
         maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS
       })
     ).toBe('stop')
+  })
+})
+
+describe('resolveTableStabilizationActionBudget', () => {
+  it('keeps the default budget while page count is still unstable', () => {
+    expect(
+      resolveTableStabilizationActionBudget({
+        currentPageCount: 14,
+        measuredPageCount: 26,
+        result: {
+          type: 'dispatch',
+          dispatchType: 'split',
+          candidateKey: 'split:10:2',
+          progress: 'structural',
+          transaction: {} as never,
+          scheduleEvaluation: true
+        }
+      })
+    ).toBe(DEFAULT_TABLE_STABILIZATION_ACTIONS_PER_PASS)
+  })
+
+  it('raises the budget for stable structural table work', () => {
+    expect(
+      resolveTableStabilizationActionBudget({
+        currentPageCount: 26,
+        measuredPageCount: 26,
+        result: {
+          type: 'dispatch',
+          dispatchType: 'split',
+          candidateKey: 'split:10:2',
+          progress: 'structural',
+          transaction: {} as never,
+          scheduleEvaluation: true
+        }
+      })
+    ).toBe(MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS)
+  })
+
+  it('falls back to the default budget for non-structural outcomes', () => {
+    expect(
+      resolveTableStabilizationActionBudget({
+        currentPageCount: 13,
+        measuredPageCount: 13,
+        result: {
+          type: 'none',
+          progress: 'none',
+          reason: 'no-eligible-candidates'
+        }
+      })
+    ).toBe(DEFAULT_TABLE_STABILIZATION_ACTIONS_PER_PASS)
+  })
+})
+
+describe('shouldDeferUpwardTableRefreshAcceptance', () => {
+  it('defers upward refresh acceptance while split pressure still exists', () => {
+    expect(
+      shouldDeferUpwardTableRefreshAcceptance({
+        currentPageCount: 14,
+        result: {
+          type: 'refresh',
+          pageCount: 26,
+          hasSplitPressure: true,
+          progress: 'refresh',
+          scheduleEvaluation: true
+        }
+      })
+    ).toBe(true)
+  })
+
+  it('keeps immediate refresh acceptance when growth has no split pressure', () => {
+    expect(
+      shouldDeferUpwardTableRefreshAcceptance({
+        currentPageCount: 14,
+        result: {
+          type: 'refresh',
+          pageCount: 26,
+          hasSplitPressure: false,
+          progress: 'refresh',
+          scheduleEvaluation: true
+        }
+      })
+    ).toBe(false)
+  })
+
+  it('keeps downward refreshes immediate even when split heuristics are enabled', () => {
+    expect(
+      shouldDeferUpwardTableRefreshAcceptance({
+        currentPageCount: 26,
+        result: {
+          type: 'refresh',
+          pageCount: 14,
+          hasSplitPressure: false,
+          progress: 'refresh',
+          scheduleEvaluation: true
+        }
+      })
+    ).toBe(false)
+  })
+})
+
+describe('resolveDeferredTableRefreshResult', () => {
+  it('uses the fallback structural outcome before accepting upward growth', () => {
+    const refreshResult = {
+      type: 'refresh' as const,
+      pageCount: 26,
+      hasSplitPressure: true,
+      progress: 'refresh' as const,
+      scheduleEvaluation: true
+    }
+    const fallbackResult = {
+      type: 'request-refresh' as const,
+      progress: 'refresh' as const,
+      scheduleEvaluation: true
+    }
+
+    expect(
+      resolveDeferredTableRefreshResult({
+        currentPageCount: 14,
+        refreshResult,
+        fallbackResult
+      })
+    ).toEqual({
+      deferred: true,
+      effectiveMeasuredPageCount: 14,
+      result: fallbackResult
+    })
+  })
+
+  it('accepts the larger page count once the bounded fallback pass cannot make progress', () => {
+    const refreshResult = {
+      type: 'refresh' as const,
+      pageCount: 26,
+      hasSplitPressure: true,
+      progress: 'refresh' as const,
+      scheduleEvaluation: true
+    }
+
+    expect(
+      resolveDeferredTableRefreshResult({
+        currentPageCount: 14,
+        refreshResult,
+        fallbackResult: {
+          type: 'none',
+          progress: 'none',
+          reason: 'repeat-successful-split-candidate'
+        }
+      })
+    ).toEqual({
+      deferred: false,
+      effectiveMeasuredPageCount: 26,
+      result: refreshResult
+    })
+  })
+})
+
+describe('resolvePaginationWidgetTotalPages', () => {
+  it('holds the current page count when pagination-owned stabilization suppresses upward growth', () => {
+    expect(
+      resolvePaginationWidgetTotalPages({
+        storedPageCount: 14,
+        measuredPageCount: 26,
+        growthSuppressionPageCount: 14
+      })
+    ).toBe(14)
+  })
+
+  it('clamps a previously promoted stored count back to the suppressed page count', () => {
+    expect(
+      resolvePaginationWidgetTotalPages({
+        storedPageCount: 26,
+        measuredPageCount: 26,
+        growthSuppressionPageCount: 14
+      })
+    ).toBe(14)
+  })
+
+  it('still preserves the existing page count until a downward refresh is explicitly accepted', () => {
+    expect(
+      resolvePaginationWidgetTotalPages({
+        storedPageCount: 14,
+        measuredPageCount: 13,
+        growthSuppressionPageCount: 14
+      })
+    ).toBe(14)
+  })
+
+  it('allows normal upward growth once suppression is cleared', () => {
+    expect(
+      resolvePaginationWidgetTotalPages({
+        storedPageCount: 14,
+        measuredPageCount: 26,
+        growthSuppressionPageCount: null
+      })
+    ).toBe(26)
   })
 })
 
