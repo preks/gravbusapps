@@ -170,6 +170,43 @@ function resolveTableRowElement(
   return getMeasuredTableRows(getTableMeasurementElement(tableDom))[rowEntry.rowIndex] ?? null
 }
 
+export function hasPendingTableMeasurements(view: EditorView): boolean {
+  let pending = false
+
+  view.state.doc.descendants((node, pos) => {
+    if (node.type.name !== 'table') return true
+
+    const rowEntries = getTableRowEntries(node, pos)
+    const columnCount = getTableColumnCount(node)
+    if (rowEntries.length < 2 || columnCount < 1) {
+      return true
+    }
+
+    const tableDom = view.nodeDOM(pos)
+    if (!(tableDom instanceof HTMLElement)) {
+      pending = true
+      return false
+    }
+
+    const tableMeasurementElement = getTableMeasurementElement(tableDom)
+    if (getElementLayoutHeight(tableMeasurementElement) <= 0) {
+      pending = true
+      return false
+    }
+
+    for (const rowEntry of rowEntries) {
+      if (!(resolveTableRowElement(view, pos, rowEntry) instanceof HTMLTableRowElement)) {
+        pending = true
+        return false
+      }
+    }
+
+    return true
+  })
+
+  return pending
+}
+
 function getRepeatedHeaderHeight(
   firstTableNode: ProseMirrorNode,
   secondTableNode: ProseMirrorNode,

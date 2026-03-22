@@ -1,4 +1,6 @@
 import {
+  calculatePageCount,
+  getDocumentContentBottom,
   PAGE_COUNT_ADD_HYSTERESIS_PX,
   PAGE_COUNT_REMOVE_HYSTERESIS_PX,
   getSelectionBottom,
@@ -161,6 +163,176 @@ describe('getSelectionBottom', () => {
     } as never
 
     expect(getSelectionBottom(view)).toBe(59)
+  })
+})
+
+describe('getDocumentContentBottom', () => {
+  function setRect(element: HTMLElement, rect: { top: number; bottom: number; left?: number; right?: number }) {
+    Object.defineProperty(element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: rect.left ?? 0,
+        y: rect.top,
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left ?? 0,
+        right: rect.right ?? 100,
+        width: (rect.right ?? 100) - (rect.left ?? 0),
+        height: rect.bottom - rect.top,
+        toJSON: () => ''
+      })
+    })
+  }
+
+  it('measures the rendered document tail even when the current selection is earlier', () => {
+    const editorDom = document.createElement('div')
+    const firstParagraph = document.createElement('p')
+    const secondParagraph = document.createElement('p')
+    const firstTextNode = document.createTextNode('first')
+    const secondTextNode = document.createTextNode('second')
+
+    firstParagraph.appendChild(firstTextNode)
+    secondParagraph.appendChild(secondTextNode)
+    editorDom.append(firstParagraph, secondParagraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 260 })
+    setRect(firstParagraph, { top: 10, bottom: 40 })
+    setRect(secondParagraph, { top: 180, bottom: 220 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(firstParagraph, 'offsetHeight', { configurable: true, value: 30 })
+    Object.defineProperty(firstParagraph, 'clientHeight', { configurable: true, value: 30 })
+    Object.defineProperty(firstParagraph, 'scrollHeight', { configurable: true, value: 30 })
+    Object.defineProperty(secondParagraph, 'offsetHeight', { configurable: true, value: 40 })
+    Object.defineProperty(secondParagraph, 'clientHeight', { configurable: true, value: 40 })
+    Object.defineProperty(secondParagraph, 'scrollHeight', { configurable: true, value: 40 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          content: {
+            size: 10
+          }
+        }
+      },
+      coordsAtPos: (position: number) =>
+        position >= 9
+          ? {
+              top: 184,
+              bottom: 208,
+              left: 12,
+              right: 12
+            }
+          : {
+              top: 12,
+              bottom: 24,
+              left: 12,
+              right: 12
+            },
+      domAtPos: (position: number) => ({
+        node: position >= 9 ? secondTextNode : firstTextNode,
+        offset: 0
+      })
+    } as never
+
+    expect(getDocumentContentBottom(view)).toBe(220)
+  })
+})
+
+describe('calculatePageCount', () => {
+  function setRect(element: HTMLElement, rect: { top: number; bottom: number; left?: number; right?: number }) {
+    Object.defineProperty(element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: rect.left ?? 0,
+        y: rect.top,
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left ?? 0,
+        right: rect.right ?? 100,
+        width: (rect.right ?? 100) - (rect.left ?? 0),
+        height: rect.bottom - rect.top,
+        toJSON: () => ''
+      })
+    })
+  }
+
+  it('uses the document bottom for initial page counts when the caret is still near the top', () => {
+    const editorDom = document.createElement('div')
+    const firstParagraph = document.createElement('p')
+    const secondParagraph = document.createElement('p')
+    const firstTextNode = document.createTextNode('first')
+    const secondTextNode = document.createTextNode('second')
+
+    firstParagraph.appendChild(firstTextNode)
+    secondParagraph.appendChild(secondTextNode)
+    editorDom.append(firstParagraph, secondParagraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 260 })
+    setRect(firstParagraph, { top: 10, bottom: 40 })
+    setRect(secondParagraph, { top: 180, bottom: 220 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(firstParagraph, 'offsetHeight', { configurable: true, value: 30 })
+    Object.defineProperty(firstParagraph, 'clientHeight', { configurable: true, value: 30 })
+    Object.defineProperty(firstParagraph, 'scrollHeight', { configurable: true, value: 30 })
+    Object.defineProperty(secondParagraph, 'offsetHeight', { configurable: true, value: 40 })
+    Object.defineProperty(secondParagraph, 'clientHeight', { configurable: true, value: 40 })
+    Object.defineProperty(secondParagraph, 'scrollHeight', { configurable: true, value: 40 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          content: {
+            size: 10
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos: (position: number) =>
+        position >= 9
+          ? {
+              top: 184,
+              bottom: 208,
+              left: 12,
+              right: 12
+            }
+          : {
+              top: 12,
+              bottom: 24,
+              left: 12,
+              right: 12
+            },
+      domAtPos: (position: number) => ({
+        node: position >= 9 ? secondTextNode : firstTextNode,
+        offset: 0
+      })
+    } as never
+
+    expect(
+      calculatePageCount(
+        view,
+        {
+          width: 100,
+          height: 100,
+          margins: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0
+          }
+        },
+        0
+      )
+    ).toBe(3)
   })
 })
 

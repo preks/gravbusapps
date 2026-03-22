@@ -39,10 +39,14 @@ import {
   resolvePageFormat,
   syncStorageFromOptions
 } from './utils'
-import { type TablePaginationBodyBand } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationDetection'
+import {
+  hasPendingTableMeasurements,
+  type TablePaginationBodyBand
+} from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationDetection'
 import { createTablePaginationController } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
 
 const REFRESH_META = 'RM_PAGES_REFRESH'
+const REFRESH_AND_STABILIZE_META = 'RM_PAGES_REFRESH_AND_STABILIZE'
 const PAGINATION_OWNED_DOC_CHANGE_META = 'RM_PAGES_OWNED_DOC_CHANGE'
 const paginationKey = new PluginKey<DecorationSet>('rm-pages-pagination')
 const hardBreakKey = new PluginKey<DecorationSet>('rm-pages-hard-breaks')
@@ -204,6 +208,7 @@ type DeferredRepaginationOutcome =
 type DocChangeOrigin = 'external' | 'pagination-owned' | 'hydration-owned' | null
 
 const MIN_EXPECTED_GAP_SHRINK_RATIO = 0.5
+export const INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS = 4
 
 const NO_RUNAWAY_PAGE_GROWTH_CHECK: RunawayPageGrowthCheck = {
   shouldStabilize: false,
@@ -362,6 +367,15 @@ export function shouldDeferTablePaginationEvaluation(options: {
 }) {
   const { hasTables, currentPageCount, bodyBandCount } = options
   return hasTables && currentPageCount > 0 && bodyBandCount < currentPageCount
+}
+
+export function shouldRetryDeferredRepaginationStabilization(options: {
+  attemptsRemaining: number
+  deferTableEvaluation: boolean
+  tableMeasurementsPending: boolean
+}) {
+  const { attemptsRemaining, deferTableEvaluation, tableMeasurementsPending } = options
+  return attemptsRemaining > 0 && (deferTableEvaluation || tableMeasurementsPending)
 }
 
 export function shouldScheduleDeferredRepaginationOnUpdate(options: {
@@ -894,6 +908,7 @@ declare module '@tiptap/core' {
     pages: {
       setPagesOptions: (updates: PagesOptionUpdates) => ReturnType
       refreshPages: () => ReturnType
+      refreshPagesAndStabilize: () => ReturnType
       setPageFormat: (pageFormat: PageFormatInput) => ReturnType
       setHeader: (header: PagesHeaderFooter) => ReturnType
       setFooter: (footer: PagesHeaderFooter) => ReturnType
@@ -1021,7 +1036,11 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     let deferredRepaginationFrameOne: number | null = null
     let deferredRepaginationFrameTwo: number | null = null
     let deferredRepaginationView: EditorView | null = null
+    let deferredRepaginationStabilizationAttempts = 0
+    let pendingRefreshDrivenStabilization = false
     const tablePaginationController = createTablePaginationController(PAGINATION_OWNED_DOC_CHANGE_META)
+    const getDeferredStabilizationAttemptCount = (view: EditorView) =>
+      documentHasTables(view.state.doc) ? INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS : 1
 
     const requestRefresh = (view: EditorView) => {
       clearDeferredRepaginationEvaluation()
@@ -1082,17 +1101,35 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         storage.activeEditorType !== null
       )
       const hasTables = documentHasTables(view.state.doc)
-
-      if (
+      const deferTableEvaluation =
         tablePaginationHeuristics.allowSplit &&
         shouldDeferTablePaginationEvaluation({
           hasTables,
           currentPageCount,
           bodyBandCount: tableBodyBands.length
         })
+      const tableMeasurementsPending =
+        hasTables &&
+        (tablePaginationHeuristics.allowSplit || tablePaginationHeuristics.allowMerge) &&
+        !deferTableEvaluation &&
+        hasPendingTableMeasurements(view)
+
+      if (
+        shouldRetryDeferredRepaginationStabilization({
+          attemptsRemaining: deferredRepaginationStabilizationAttempts,
+          deferTableEvaluation,
+          tableMeasurementsPending
+        })
       ) {
         previousAddPagesMeasurement = null
+        deferredRepaginationStabilizationAttempts = Math.max(0, deferredRepaginationStabilizationAttempts - 1)
         scheduleDeferredRepaginationEvaluation(view)
+        refreshPageMinHeight(view.dom)
+        return
+      }
+
+      if (deferTableEvaluation || tableMeasurementsPending) {
+        previousAddPagesMeasurement = null
         refreshPageMinHeight(view.dom)
         return
       }
@@ -1131,10 +1168,15 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         return
       }
 
+      deferredRepaginationStabilizationAttempts = 0
       refreshPageMinHeight(view.dom)
     }
 
-    const scheduleDeferredRepaginationEvaluation = (view: EditorView) => {
+    const scheduleDeferredRepaginationEvaluation = (view: EditorView, minimumStabilizationAttempts = 0) => {
+      deferredRepaginationStabilizationAttempts = Math.max(
+        deferredRepaginationStabilizationAttempts,
+        minimumStabilizationAttempts
+      )
       deferredRepaginationView = view
       if (deferredRepaginationFrameOne !== null) {
         cancelAnimationFrame(deferredRepaginationFrameOne)
@@ -1319,6 +1361,9 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
               }
             } else if (tr.getMeta(REFRESH_META)) {
               lastDocChangeOrigin = null
+              if (tr.getMeta(REFRESH_AND_STABILIZE_META) === true) {
+                pendingRefreshDrivenStabilization = true
+              }
             }
 
             return tr.docChanged || tr.getMeta(REFRESH_META) ? buildPageDecorations() : oldValue
@@ -1365,6 +1410,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             measuredFooterHeights = measured.footerHeights
 
             const currentDoc = updatedView.state.doc
+            const isInitialViewUpdate = lastKnownDoc === null
             const docChangedSinceLastUpdate = lastKnownDoc !== null && currentDoc !== lastKnownDoc
             const paginationOwnedDocChange = docChangedSinceLastUpdate && lastDocChangeOrigin === 'pagination-owned'
             const hydrationOwnedDocChange = docChangedSinceLastUpdate && lastDocChangeOrigin === 'hydration-owned'
@@ -1412,6 +1458,15 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
                 refreshPageMinHeight(updatedView.dom)
                 return
               }
+            }
+
+            if (pendingRefreshDrivenStabilization && storage.activeEditorType === null) {
+              pendingRefreshDrivenStabilization = false
+              scheduleDeferredRepaginationEvaluation(updatedView, getDeferredStabilizationAttemptCount(updatedView))
+            }
+
+            if (isInitialViewUpdate && storage.activeEditorType === null && documentHasTables(currentDoc)) {
+              scheduleDeferredRepaginationEvaluation(updatedView, getDeferredStabilizationAttemptCount(updatedView))
             }
 
             if (
@@ -1475,6 +1530,19 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
 
       applyRootStyles(view.dom, storage.pageFormat, options)
       view.dispatch(editor.state.tr.setMeta(REFRESH_META, true))
+      return true
+    }
+
+    const refreshAndStabilize = (editor: typeof this.editor) => {
+      const storage = editor.storage.pages
+      const options = getRuntimeOptions(editor, extensionOptions)
+      syncStorageFromOptions(storage, options)
+      syncEditorStorage(editor as unknown as { storage: Record<string, unknown> }, storage)
+      const view = getMountedEditorView(editor)
+      if (!view) return true
+
+      applyRootStyles(view.dom, storage.pageFormat, options)
+      view.dispatch(editor.state.tr.setMeta(REFRESH_META, true).setMeta(REFRESH_AND_STABILIZE_META, true))
       return true
     }
 
@@ -1650,6 +1718,10 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         () =>
         ({ editor }) =>
           refresh(editor),
+      refreshPagesAndStabilize:
+        () =>
+        ({ editor }) =>
+          refreshAndStabilize(editor),
       setPagesOptions:
         updates =>
         ({ editor }) => {

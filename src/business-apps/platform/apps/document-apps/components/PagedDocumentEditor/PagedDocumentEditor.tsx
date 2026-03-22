@@ -179,15 +179,24 @@ const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
 const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
 
 function schedulePostHydrationPaginationRefresh(editor: TiptapEditor) {
+  const refreshPagination = () => {
+    if (editor.commands.refreshPagesAndStabilize) {
+      editor.commands.refreshPagesAndStabilize()
+      return
+    }
+
+    editor.commands.refreshPages?.()
+  }
+
   requestAnimationFrame(() => {
     if (!editor.isDestroyed) {
-      editor.commands.refreshPages?.()
+      refreshPagination()
     }
   })
 
   setTimeout(() => {
     if (!editor.isDestroyed) {
-      editor.commands.refreshPages?.()
+      refreshPagination()
     }
   }, 120)
 }

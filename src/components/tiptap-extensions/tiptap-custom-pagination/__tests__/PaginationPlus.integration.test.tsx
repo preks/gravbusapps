@@ -1,11 +1,13 @@
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import {
+  INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
   createSafePaginationSelection,
   resolveDeferredRepaginationOutcome,
   resolvePaginationBodyClick,
   resolvePaginationSelectionBodyOverflow,
   resolveTablePaginationHeuristics,
+  shouldRetryDeferredRepaginationStabilization,
   shouldScheduleDeferredRepaginationOnUpdate,
   shouldDeferTablePaginationEvaluation
 } from '../PaginationPlus'
@@ -204,6 +206,28 @@ describe('shouldDeferTablePaginationEvaluation', () => {
         hasTables: true,
         currentPageCount: 3,
         bodyBandCount: 3
+      })
+    ).toBe(false)
+  })
+})
+
+describe('shouldRetryDeferredRepaginationStabilization', () => {
+  it('retries while bounded stabilization attempts remain and measurements are still pending', () => {
+    expect(
+      shouldRetryDeferredRepaginationStabilization({
+        attemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+        deferTableEvaluation: false,
+        tableMeasurementsPending: true
+      })
+    ).toBe(true)
+  })
+
+  it('stops retrying once the bounded stabilization budget is exhausted', () => {
+    expect(
+      shouldRetryDeferredRepaginationStabilization({
+        attemptsRemaining: 0,
+        deferTableEvaluation: true,
+        tableMeasurementsPending: true
       })
     ).toBe(false)
   })

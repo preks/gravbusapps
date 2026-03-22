@@ -1,5 +1,9 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { findAdjacentPaginationTableFragments, findOverflowingTableSplitCandidates } from '../tablePaginationDetection'
+import {
+  findAdjacentPaginationTableFragments,
+  findOverflowingTableSplitCandidates,
+  hasPendingTableMeasurements
+} from '../tablePaginationDetection'
 
 function createMockNode(
   typeName: string,
@@ -295,6 +299,99 @@ describe('tablePaginationDetection', () => {
           paginationSplitId: null
         }
       ])
+    } finally {
+      editorDom.remove()
+    }
+  })
+
+  it('reports pending table measurements when not all table rows are mounted yet', () => {
+    const firstRow = createRow([createCell('tableCell'), createCell('tableCell')])
+    const secondRow = createRow([createCell('tableCell'), createCell('tableCell')])
+    const table = createMockNode('table', [firstRow, secondRow], {
+      paginationChainId: 'pagination-chain-pending'
+    })
+    const doc = createMockNode('doc', [table])
+
+    const editorDom = document.createElement('div')
+    const tableDom = document.createElement('table')
+    const tbody = document.createElement('tbody')
+    const firstRowDom = document.createElement('tr')
+
+    tableDom.appendChild(tbody)
+    tbody.appendChild(firstRowDom)
+    editorDom.appendChild(tableDom)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 400 })
+    setRect(tableDom, { top: 10, bottom: 130 })
+    setRect(firstRowDom, { top: 10, bottom: 40 })
+
+    Object.defineProperty(tableDom, 'offsetHeight', { configurable: true, value: 120 })
+    Object.defineProperty(tableDom, 'clientHeight', { configurable: true, value: 120 })
+    Object.defineProperty(tableDom, 'scrollHeight', { configurable: true, value: 120 })
+
+    try {
+      expect(
+        hasPendingTableMeasurements({
+          dom: editorDom,
+          state: {
+            doc
+          },
+          nodeDOM: (pos: number) => {
+            if (pos === 0) return tableDom
+            if (pos === 1) return firstRowDom
+            return null
+          }
+        } as never)
+      ).toBe(true)
+    } finally {
+      editorDom.remove()
+    }
+  })
+
+  it('does not report pending table measurements once every table row is measurable', () => {
+    const firstRow = createRow([createCell('tableCell'), createCell('tableCell')])
+    const secondRow = createRow([createCell('tableCell'), createCell('tableCell')])
+    const table = createMockNode('table', [firstRow, secondRow], {
+      paginationChainId: 'pagination-chain-ready'
+    })
+    const doc = createMockNode('doc', [table])
+
+    const editorDom = document.createElement('div')
+    const tableDom = document.createElement('table')
+    const tbody = document.createElement('tbody')
+    const firstRowDom = document.createElement('tr')
+    const secondRowDom = document.createElement('tr')
+
+    tableDom.appendChild(tbody)
+    tbody.append(firstRowDom, secondRowDom)
+    editorDom.appendChild(tableDom)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 400 })
+    setRect(tableDom, { top: 10, bottom: 130 })
+    setRect(firstRowDom, { top: 10, bottom: 40 })
+    setRect(secondRowDom, { top: 60, bottom: 120 })
+
+    Object.defineProperty(tableDom, 'offsetHeight', { configurable: true, value: 120 })
+    Object.defineProperty(tableDom, 'clientHeight', { configurable: true, value: 120 })
+    Object.defineProperty(tableDom, 'scrollHeight', { configurable: true, value: 120 })
+
+    try {
+      expect(
+        hasPendingTableMeasurements({
+          dom: editorDom,
+          state: {
+            doc
+          },
+          nodeDOM: (pos: number) => {
+            if (pos === 0) return tableDom
+            if (pos === 1) return firstRowDom
+            if (pos === 5) return secondRowDom
+            return null
+          }
+        } as never)
+      ).toBe(false)
     } finally {
       editorDom.remove()
     }

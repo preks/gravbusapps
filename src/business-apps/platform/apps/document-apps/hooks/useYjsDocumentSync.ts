@@ -25,17 +25,27 @@ type HydrationRefreshableEditor = {
   commands: {
     setContent: (editorHtml: string, emit?: boolean) => void
     refreshPages?: () => boolean
+    refreshPagesAndStabilize?: () => boolean
   }
   getHTML?: () => string
 }
 
 function schedulePostHydrationPaginationRefresh(editor: HydrationRefreshableEditor) {
-  requestAnimationFrame(() => {
+  const refreshPagination = () => {
+    if (editor.commands.refreshPagesAndStabilize) {
+      editor.commands.refreshPagesAndStabilize()
+      return
+    }
+
     editor.commands.refreshPages?.()
+  }
+
+  requestAnimationFrame(() => {
+    refreshPagination()
   })
 
   setTimeout(() => {
-    editor.commands.refreshPages?.()
+    refreshPagination()
   }, 120)
 }
 

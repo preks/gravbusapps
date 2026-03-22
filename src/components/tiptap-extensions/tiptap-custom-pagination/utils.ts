@@ -46,6 +46,7 @@ export interface PageCountDebugInfo {
   currentPageCount: number
   resultPageCount: number
   contentBottom: number | null
+  documentBottom: number | null
   selectionBottom: number
   measuredBottom: number
   pageContentHeight: number
@@ -776,6 +777,29 @@ export function getSelectionBottom(view: EditorView): number {
   return selectionBottom
 }
 
+export function getDocumentContentBottom(view: EditorView): number {
+  const editorRect = view.dom.getBoundingClientRect()
+  const documentEnd = view.state.doc.content.size
+  const positions = Array.from(new Set([documentEnd, Math.max(0, documentEnd - 1)]))
+  let documentBottom = 0
+
+  for (const position of positions) {
+    try {
+      const coords = view.coordsAtPos(position)
+      documentBottom = Math.max(documentBottom, coords.bottom - editorRect.top + view.dom.scrollTop)
+    } catch {
+      // Ignore positions that cannot be resolved while the DOM is updating.
+    }
+
+    const blockMeasurementElement = getBlockMeasurementElementAtPosition(view, position)
+    if (blockMeasurementElement) {
+      documentBottom = Math.max(documentBottom, getMeasuredElementBottomInEditor(view.dom, blockMeasurementElement))
+    }
+  }
+
+  return documentBottom
+}
+
 function getPageBodyHeightForCount(
   pageFormat: PageFormat,
   layoutOptions: PageCountLayoutOptions,
@@ -820,6 +844,7 @@ export function calculatePageCount(
       currentPageCount: 0,
       resultPageCount: 1,
       contentBottom: null,
+      documentBottom: null,
       selectionBottom: 0,
       measuredBottom: 0,
       pageContentHeight: getPageBodyHeightForCount(pageFormat, layoutOptions, 1),
@@ -834,15 +859,27 @@ export function calculatePageCount(
   const paginationElement = editorDom.querySelector('[data-rm-pagination]')
   const currentPageCount = getExistingPageCount(view)
   const lastContentElement = getLastContentElement(editorDom)
+  const documentBottom = (() => {
+    const measuredDocumentBottom = getDocumentContentBottom(view)
+    return measuredDocumentBottom > 0 ? measuredDocumentBottom : null
+  })()
   const selectionBottom = getSelectionBottom(view)
-  const contentBottom = lastContentElement ? getMeasuredElementBottomInEditor(editorDom, lastContentElement) : null
-  const measuredBottom = contentBottom === null ? selectionBottom : Math.max(contentBottom, selectionBottom)
+  const lastContentBottom = lastContentElement ? getMeasuredElementBottomInEditor(editorDom, lastContentElement) : null
+  const contentBottomCandidates = [lastContentBottom, documentBottom].filter((value): value is number => value !== null)
+  const contentBottom = contentBottomCandidates.length > 0 ? Math.max(...contentBottomCandidates) : null
+  const selectionIsRange = view.state.selection.from !== view.state.selection.to
+  const measuredBottom =
+    contentBottom === null
+      ? selectionBottom
+      : selectionIsRange
+        ? Math.max(contentBottom, selectionBottom)
+        : contentBottom
   const pageContentHeight = getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
 
   if (paginationElement) {
     const lastPageBreakRaw = paginationElement.lastElementChild?.querySelector('.breaker')
     const lastPageBreak = lastPageBreakRaw instanceof HTMLElement ? lastPageBreakRaw : null
-    const canMeasurePagination = lastPageBreak !== null && (lastContentElement !== null || selectionBottom > 0)
+    const canMeasurePagination = lastPageBreak !== null && (contentBottom !== null || selectionBottom > 0)
 
     if (!canMeasurePagination) {
       const resultPageCount = Math.max(1, currentPageCount)
@@ -852,6 +889,7 @@ export function calculatePageCount(
         currentPageCount,
         resultPageCount,
         contentBottom,
+        documentBottom,
         selectionBottom,
         measuredBottom,
         pageContentHeight,
@@ -880,6 +918,7 @@ export function calculatePageCount(
         currentPageCount,
         resultPageCount: gapResolution.resultPageCount,
         contentBottom,
+        documentBottom,
         selectionBottom,
         measuredBottom,
         pageContentHeight,
@@ -897,6 +936,7 @@ export function calculatePageCount(
         currentPageCount,
         resultPageCount: currentPageCount,
         contentBottom,
+        documentBottom,
         selectionBottom,
         measuredBottom,
         pageContentHeight,
@@ -913,6 +953,7 @@ export function calculatePageCount(
       currentPageCount,
       resultPageCount: gapResolution.resultPageCount,
       contentBottom,
+      documentBottom,
       selectionBottom,
       measuredBottom,
       pageContentHeight,
@@ -923,13 +964,14 @@ export function calculatePageCount(
     return gapResolution.resultPageCount
   }
 
-  if (!lastContentElement && selectionBottom <= 0) {
+  if (contentBottom === null && selectionBottom <= 0) {
     layoutOptions.onDebug?.({
       reason: 'initial-count',
       hasPaginationElement: false,
       currentPageCount,
       resultPageCount: 1,
       contentBottom,
+      documentBottom,
       selectionBottom,
       measuredBottom,
       pageContentHeight,
@@ -949,6 +991,7 @@ export function calculatePageCount(
     currentPageCount,
     resultPageCount,
     contentBottom,
+    documentBottom,
     selectionBottom,
     measuredBottom,
     pageContentHeight: initialPageContentHeight,
