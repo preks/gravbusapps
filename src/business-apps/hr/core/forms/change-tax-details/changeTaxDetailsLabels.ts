@@ -21,10 +21,7 @@ export function getChangeTaxDetailsLabels(getMessage: GetMessage, t: TranslateFn
       'Social Security Number'
     ),
     childTaxAllowance: getMessage('lowcoder:change_tax_information.child_tax_allowance', 'Child Tax Allowance'),
-    requestAtTaxOffice: getMessage(
-      'lowcoder:change_tax_information.request_at_tax_office_text',
-      'Request at tax office'
-    ),
+    requestAtTaxOffice: t('request-at-tax-office'),
     healthInsuranceDocumentUpload: t('health-insurance-document-upload'),
     documentType: t('document-type'),
     requiredDocumentType: t('required-document-type-text'),

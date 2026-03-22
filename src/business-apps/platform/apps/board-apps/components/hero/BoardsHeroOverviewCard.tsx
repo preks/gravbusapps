@@ -34,10 +34,6 @@ function buildSparkline(boards: BoardSummary[]) {
   })
 }
 
-/**
- * Glass-style overview card on the hero — real data from stats + boards.
- * Matches the "Portfolio Overview" card layout from the IRM+ Hub screenshot.
- */
 export const BoardsHeroOverviewCard: React.FC<BoardsHeroOverviewCardProps> = ({
   stats,
   boards,
@@ -66,17 +62,17 @@ export const BoardsHeroOverviewCard: React.FC<BoardsHeroOverviewCardProps> = ({
   if (isLoading && !stats) {
     return (
       <div
-        className="gba:rounded-xl gba:backdrop-blur-xl gba:bg-inverse/8 gba:border gba:border-inverse/10 gba:p-5 gba:space-y-4"
+        className="gba:rounded-xl gba:bg-card-decorative gba:border gba:border-white/10 gba:p-5 gba:space-y-4 gba:h-full"
         data-testid={testId}
       >
-        <Skeleton className="gba:h-4 gba:w-28 gba:bg-inverse/15" />
-        <Skeleton className="gba:h-10 gba:w-16 gba:bg-inverse/15" />
-        <Skeleton className="gba:h-12 gba:w-full gba:bg-inverse/10" />
+        <Skeleton className="gba:h-4 gba:w-28 gba:bg-white/15" />
+        <Skeleton className="gba:h-10 gba:w-16 gba:bg-white/15" />
+        <Skeleton className="gba:h-12 gba:w-full gba:bg-white/10" />
         <div className="gba:space-y-2">
           {[0, 1, 2].map(i => (
             <div key={i} className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <Skeleton className="gba:h-8 gba:bg-inverse/10" />
-              <Skeleton className="gba:h-8 gba:bg-inverse/10" />
+              <Skeleton className="gba:h-8 gba:bg-white/10" />
+              <Skeleton className="gba:h-8 gba:bg-white/10" />
             </div>
           ))}
         </div>
@@ -86,20 +82,20 @@ export const BoardsHeroOverviewCard: React.FC<BoardsHeroOverviewCardProps> = ({
 
   return (
     <div
-      className="gba:rounded-xl gba:backdrop-blur-xl gba:bg-inverse/8 gba:border gba:border-inverse/10 gba:p-5 gba:h-full"
+      className="gba:rounded-xl gba:bg-card-decorative gba:border gba:border-white/10 gba:p-5 gba:h-full"
       data-testid={testId}
     >
-      <h3 className="gba:text-sm gba:font-semibold gba:text-inverse gba:mb-4">Board Overview</h3>
+      <h3 className="gba:text-sm gba:font-semibold gba:text-white gba:mb-4">Board Overview</h3>
 
       {/* Primary metric row */}
       <div className="gba:mb-1">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-          <span className="gba:text-xs gba:text-inverse/50">Total Boards</span>
-          <Badge variant="outline" size="xs" className="gba:bg-inverse/10 gba:text-inverse/60 gba:border-inverse/15">
+          <span className="gba:text-xs gba:text-white/50">Total Boards</span>
+          <Badge variant="outline" size="xs" className="gba:bg-white/10 gba:text-white/60 gba:border-white/15">
             All time
           </Badge>
         </div>
-        <p className="gba:text-4xl gba:font-bold gba:text-inverse gba:tracking-tight">{stats?.totalBoards ?? 0}</p>
+        <p className="gba:text-4xl gba:font-bold gba:text-white gba:tracking-tight">{stats?.totalBoards ?? 0}</p>
         <span className="gba:inline-flex gba:items-center gba:mt-1.5 gba:px-2 gba:py-0.5 gba:rounded-full gba:text-[11px] gba:font-semibold gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground">
           {growth.positive ? '↑' : '↓'} {growth.label}
         </span>
@@ -115,7 +111,7 @@ export const BoardsHeroOverviewCard: React.FC<BoardsHeroOverviewCardProps> = ({
       </div>
 
       {/* KPI grid */}
-      <div className="gba:space-y-3 gba:pt-2 gba:border-t gba:border-inverse/10">
+      <div className="gba:space-y-3 gba:pt-2 gba:border-t gba:border-white/10">
         {kpiPairs.map(([left, right], i) => (
           <div key={i} className="gba:grid gba:grid-cols-2 gba:gap-x-6">
             <KpiCell label={left.label} value={left.value} testId={`${testId}-kpi-${i}-l`} />
@@ -124,7 +120,7 @@ export const BoardsHeroOverviewCard: React.FC<BoardsHeroOverviewCardProps> = ({
         ))}
       </div>
 
-      <p className="gba:text-xs gba:text-inverse/40 gba:mt-4 gba:italic">
+      <p className="gba:text-xs gba:text-white/40 gba:mt-4 gba:italic">
         {(stats?.overdueItems ?? 0) === 0
           ? 'All boards performing on track'
           : `${stats!.overdueItems} items need attention`}
@@ -138,8 +134,8 @@ type KpiDatum = { label: string; value: string }
 function KpiCell({ label, value, testId }: { label: string; value: string; testId: string }) {
   return (
     <div data-testid={testId}>
-      <p className="gba:text-[10px] gba:text-inverse/40 gba:leading-none gba:mb-0.5">{label}</p>
-      <p className="gba:text-sm gba:font-semibold gba:text-inverse">{value}</p>
+      <p className="gba:text-[10px] gba:text-white/40 gba:leading-none gba:mb-0.5">{label}</p>
+      <p className="gba:text-sm gba:font-semibold gba:text-white">{value}</p>
     </div>
   )
 }

@@ -296,8 +296,18 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
       const points = layoutEdgePoints[edge.id]
       const edgeActions = getEdgeActions?.(edge.id) ?? {}
       const targetStatus = executionState?.nodeStates[edge.target]
+      const sourceStatus = executionState?.nodeStates[edge.source]
+      const isParallelActiveEdge =
+        sourceNode?.type === 'fork' &&
+        edge.direction === 'forward' &&
+        (executionState?.activeNodeId === edge.source ||
+          sourceStatus === 'active' ||
+          (executionState?.pathNodeIds?.includes(edge.source) === true &&
+            executionState?.pathNodeIds?.includes(edge.target) === true))
       const edgeState =
-        executionState?.pathEdgeIds?.includes(edge.id) || executionState?.activeNodeId === edge.target
+        executionState?.pathEdgeIds?.includes(edge.id) ||
+        executionState?.activeNodeId === edge.target ||
+        isParallelActiveEdge
           ? 'active'
           : targetStatus === 'failed'
             ? 'failed'

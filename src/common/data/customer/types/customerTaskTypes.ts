@@ -91,9 +91,15 @@ export const CustomerTaskFormFields = {
  * Uses createTaskDescriptors with CustomerTaskFields mapping
  */
 export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
-  ...createTaskDescriptors(CustomerTaskFields as Record<keyof typeof TaskFields, string>).filter(
-    d => !['comments', 'opportunityStageCondition'].includes(d.key)
-  ),
+  ...createTaskDescriptors(CustomerTaskFields as Record<keyof typeof TaskFields, string>)
+    .filter(d => !['comments', 'opportunityStageCondition'].includes(d.key))
+    .map(d => {
+      // SalesTaskOrderBy has no taskAssignees (or nested assignee) ordering — avoid validation errors
+      if (d.key === 'taskAssignees' || d.key === 'assignedTo') {
+        return { ...d, enableSort: false }
+      }
+      return d
+    }),
   {
     key: 'comments',
     searchPaths: ['comment'],

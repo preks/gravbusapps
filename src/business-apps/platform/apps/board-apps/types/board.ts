@@ -116,6 +116,7 @@ export interface BoardSummary {
   status: BoardStatus
   sheetCount: number
   rowCount: number
+  spaceId?: string
   createdAt: string
   updatedAt: string
   permission?: string

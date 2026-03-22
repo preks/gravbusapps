@@ -1,5 +1,7 @@
 # Change Tax Details - Etichete și mesaje de validare
 
+change-tax-details-title = Modifică detaliile fiscale
+request-at-tax-office = Solicitare la oficiul fiscal
 employee-tax-office = Oficiul fiscal al angajatului
 individual-free-amount = Sumă neimpozabilă individuală
 health-insurance-document-upload = Încarcă document

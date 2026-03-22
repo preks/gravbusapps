@@ -20,6 +20,7 @@ interface FeedbackHubKpiGridProps {
 }
 
 const trendLabel = (value: number) => (value > 0 ? `+${value}` : String(value))
+const trendPositive = (value: number) => (value === 0 ? undefined : value > 0)
 
 const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
   t,
@@ -40,7 +41,7 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
         iconColor: 'var(--nw-info)',
         trend: {
           value: trendLabel(kpis.receivedTrend),
-          positive: kpis.receivedTrend >= 0,
+          positive: trendPositive(kpis.receivedTrend),
           description: t('feedback-hub-kpi-trend-vs-30d')
         }
       },
@@ -52,7 +53,7 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
         iconColor: 'var(--nw-success)',
         trend: {
           value: trendLabel(kpis.givenTrend),
-          positive: kpis.givenTrend >= 0,
+          positive: trendPositive(kpis.givenTrend),
           description: t('feedback-hub-kpi-trend-vs-30d')
         }
       },
@@ -64,7 +65,7 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
         iconColor: 'var(--nw-decorative)',
         trend: {
           value: trendLabel(kpis.contributorTrend),
-          positive: kpis.contributorTrend >= 0,
+          positive: trendPositive(kpis.contributorTrend),
           description: t('feedback-hub-kpi-trend-vs-30d')
         }
       }

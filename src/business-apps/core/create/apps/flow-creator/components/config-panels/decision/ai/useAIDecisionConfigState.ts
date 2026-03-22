@@ -6,7 +6,9 @@ import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes
 import type { AIExecutor } from './DecisionExecutorTabs'
 import { buildDefaultTaskExpertMapping } from './taskExpertMappingUtils'
 import { useDecisionTaskExperts } from './useDecisionTaskExperts'
+import { useDecisionTaskExpertPromptMetadata } from './useDecisionTaskExpertPromptMetadata'
 import { useTaskExpertMappingSuggestions } from './useTaskExpertMappingSuggestions'
+import { syncPromptParamMap } from '../../../../utils/promptParameterUtils'
 
 const DEFAULT_EVERYAI_FALLBACK_MESSAGE =
   "The AI couldn't decide. Please select the most appropriate outcome.\n\nDecision instructions:\n{{$steps.self.decisionInstructions}}\n\nReasoning:\n{{$steps.self.resultData.reasoning}}"
@@ -59,6 +61,8 @@ export function useAIDecisionConfigState({ config, update, studioData }: Params)
             instructions: '',
             humanInstructions: '',
             mapping: undefined,
+            systemParamsMap: undefined,
+            userParamsMap: undefined,
             reasoningPath: undefined,
             escalation: defaultEscalation
           }
@@ -89,12 +93,27 @@ export function useAIDecisionConfigState({ config, update, studioData }: Params)
   const ai = getAiConfigOrDefault(advancedExecutor)
 
   const allAgents = studioData.agents ?? []
-  const { decisionTaskExperts, selectedTaskExpert, decisionResultEnumOptions } = useDecisionTaskExperts(
-    allAgents,
-    ai.promptId
+  const { decisionTaskExperts } = useDecisionTaskExperts(allAgents, ai.promptId)
+  const {
+    selectedTaskExpert,
+    selectedTaskExpertMeta,
+    promptParams,
+    promptParamsLoading,
+    promptParamsResolved,
+    taskExpertVersions,
+    taskExpertVersionsLoading
+  } = useDecisionTaskExpertPromptMetadata({
+    promptId: ai.promptId,
+    promptVersion: ai.promptVersion,
+    decisionTaskExperts,
+    studioData
+  })
+  const decisionResultEnumOptions = useMemo(
+    () => extractDecisionResultEnumFromSchema(selectedTaskExpertMeta?.response_schema),
+    [selectedTaskExpertMeta]
   )
   const { schemaPaths: taskExpertSchemaPaths, suggestions: taskExpertMappingExpressionSuggestions } =
-    useTaskExpertMappingSuggestions(allAgents, ai.promptId)
+    useTaskExpertMappingSuggestions(selectedTaskExpertMeta)
 
   const mappingWrapperConfig = useMemo(() => {
     const mappingConditions = ai.mapping?.conditions ?? []
@@ -131,10 +150,38 @@ export function useAIDecisionConfigState({ config, update, studioData }: Params)
 
   useEffect(() => {
     if (ai.executor !== 'TASK_EXPERT') return
+    if (!String(ai.promptId || '').trim()) return
+    if (!promptParamsResolved) return
+
+    const { map: systemParamsMap, changed: systemChanged } = syncPromptParamMap(ai.systemParamsMap, promptParams.system)
+    const { map: userParamsMap, changed: userChanged } = syncPromptParamMap(ai.userParamsMap, promptParams.user)
+    if (!systemChanged && !userChanged) return
+
+    update({
+      aiConfig: {
+        ...getAiConfigOrDefault('TASK_EXPERT'),
+        executor: 'TASK_EXPERT',
+        systemParamsMap,
+        userParamsMap
+      }
+    })
+  }, [
+    ai.executor,
+    ai.promptId,
+    ai.systemParamsMap,
+    ai.userParamsMap,
+    getAiConfigOrDefault,
+    promptParams,
+    promptParamsResolved,
+    update
+  ])
+
+  useEffect(() => {
+    if (ai.executor !== 'TASK_EXPERT') return
     const promptId = String(ai.promptId || '').trim()
     if (!promptId) return
 
-    const agent = decisionTaskExperts.find(a => a._id === promptId)
+    const agent = selectedTaskExpertMeta
     if (!agent) return
 
     const nextPromptName = agent.name ?? undefined
@@ -163,8 +210,8 @@ export function useAIDecisionConfigState({ config, update, studioData }: Params)
     ai.promptName,
     ai.promptUserContent,
     ai.promptVersion,
-    decisionTaskExperts,
     getAiConfigOrDefault,
+    selectedTaskExpertMeta,
     update
   ])
 
@@ -203,11 +250,27 @@ export function useAIDecisionConfigState({ config, update, studioData }: Params)
           promptName: agent?.name ?? undefined,
           promptVersion: typeof agent?.version === 'number' ? agent.version : undefined,
           promptUserContent: agent?.user_content?.template ?? undefined,
+          systemParamsMap: undefined,
+          userParamsMap: undefined,
           mapping: buildDefaultTaskExpertMapping(config.branches, enumOpts)
         }
       })
     },
     [config.branches, decisionTaskExperts, getAiConfigOrDefault, update]
+  )
+
+  const onChangeTaskExpertVersion = useCallback(
+    (promptVersion: number) => {
+      const base = getAiConfigOrDefault('TASK_EXPERT')
+      update({
+        aiConfig: {
+          ...base,
+          executor: 'TASK_EXPERT',
+          promptVersion
+        }
+      })
+    },
+    [getAiConfigOrDefault, update]
   )
 
   const changeExecutor = useCallback(
@@ -222,6 +285,8 @@ export function useAIDecisionConfigState({ config, update, studioData }: Params)
             promptVersion: undefined,
             promptUserContent: undefined,
             mapping: undefined,
+            systemParamsMap: undefined,
+            userParamsMap: undefined,
             reasoningPath: undefined
           }
         })
@@ -256,7 +321,9 @@ export function useAIDecisionConfigState({ config, update, studioData }: Params)
           promptName: undefined,
           promptVersion: undefined,
           promptUserContent: undefined,
-          mapping: buildDefaultTaskExpertMapping(config.branches, undefined)
+          mapping: buildDefaultTaskExpertMapping(config.branches, undefined),
+          systemParamsMap: undefined,
+          userParamsMap: undefined
         }
       })
     },
@@ -279,6 +346,10 @@ export function useAIDecisionConfigState({ config, update, studioData }: Params)
     getAiConfigOrDefault,
     decisionTaskExperts,
     selectedTaskExpert,
+    promptParams,
+    promptParamsLoading,
+    taskExpertVersions,
+    taskExpertVersionsLoading,
     decisionResultEnumOptions,
     taskExpertSchemaPaths,
     taskExpertMappingExpressionSuggestions,
@@ -286,6 +357,7 @@ export function useAIDecisionConfigState({ config, update, studioData }: Params)
     mappingWrapperUpdate,
     onSelectPolicy,
     onSelectTaskExpert,
+    onChangeTaskExpertVersion,
     changeExecutor,
     onChangeReasoningPath
   }

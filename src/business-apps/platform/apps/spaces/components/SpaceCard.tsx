@@ -6,7 +6,7 @@
 
 import React from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import { Users, Globe, Lock, ArrowRight, FolderOpen } from 'lucide-react'
+import { Users, Globe, Lock, ArrowRight, FolderOpen, Trash2 } from 'lucide-react'
 import type { Space } from '../types/space.types'
 
 export interface SpaceCardProps {
@@ -20,6 +20,7 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({
   space,
   onClick,
   isOwner = false,
+  onRequestDelete,
   'data-testid': testId = 'space-card'
 }) => {
   const contentCounts = space.settings?.contentCounts || { documents: 0, spreadsheets: 0, notes: 0, total: 0 }
@@ -38,19 +39,35 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({
             <div className="gba:h-11 gba:w-11 gba:rounded-xl gba:bg-decorative-foreground/15 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:group-hover:gba:bg-decorative-foreground/20 gba:transition-colors">
               <FolderOpen className="gba:h-5 gba:w-5 gba:text-decorative-foreground" />
             </div>
-            <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:h-5 gba:rounded-full gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:text-[11px] gba:font-medium gba:flex-shrink-0">
-              {space.isPublic ? (
-                <>
-                  <Globe className="gba:w-3 gba:h-3" />
-                  Public
-                </>
-              ) : (
-                <>
-                  <Lock className="gba:w-3 gba:h-3" />
-                  Private
-                </>
+            <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
+              {isOwner && onRequestDelete && (
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation()
+                    onRequestDelete()
+                  }}
+                  className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-destructive-foreground/80 hover:gba:bg-destructive/15 hover:gba:text-destructive-foreground gba:transition-colors"
+                  data-testid={`${testId}-delete-trigger`}
+                  aria-label="Delete space"
+                >
+                  <Trash2 className="gba:w-4 gba:h-4" />
+                </button>
               )}
-            </span>
+              <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:h-5 gba:rounded-full gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:text-[11px] gba:font-medium">
+                {space.isPublic ? (
+                  <>
+                    <Globe className="gba:w-3 gba:h-3" />
+                    Public
+                  </>
+                ) : (
+                  <>
+                    <Lock className="gba:w-3 gba:h-3" />
+                    Private
+                  </>
+                )}
+              </span>
+            </div>
           </div>
 
           <h3 className="gba:mt-3 gba:text-base gba:font-semibold gba:text-decorative-foreground gba:line-clamp-2 group-hover:gba:text-decorative-foreground/90 gba:transition-colors">

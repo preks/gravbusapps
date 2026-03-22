@@ -13,9 +13,9 @@ interface BoardsHomeActionItemsProps {
 const DOT_BG: Record<string, string> = {
   destructive: 'gba:bg-desk-badge-golden',
   warning: 'gba:bg-desk-badge-golden/70',
-  success: 'gba:bg-decorative-foreground/50',
-  info: 'gba:bg-decorative-foreground/30',
-  muted: 'gba:bg-decorative-foreground/20',
+  success: 'gba:bg-muted-foreground/50',
+  info: 'gba:bg-muted-foreground/30',
+  muted: 'gba:bg-muted-foreground/20',
   primary: 'gba:bg-desk-badge-golden'
 }
 
@@ -48,33 +48,31 @@ function TaskRow({
   onNavigate: (boardId: string, sheetId: string, rowId: string) => void
   testId: string
 }) {
-  const dotBg = DOT_BG[item.statusColor || 'muted'] || 'gba:bg-decorative-foreground/40'
+  const dotBg = DOT_BG[item.statusColor || 'muted'] || 'gba:bg-muted-foreground/40'
   const deadlineText = formatDeadline(item.deadline)
   const overdue = isOverdue(item.deadline)
 
   return (
     <button
-      className="gba:w-full gba:text-left gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:rounded-lg gba:hover:bg-decorative-foreground/10 gba:transition-colors gba:group"
+      className="gba:w-full gba:text-left gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:rounded-lg gba:hover:bg-accent gba:transition-colors gba:group"
       onClick={() => onNavigate(item.boardId, item.sheetId, item.rowId)}
       data-testid={testId}
     >
       <span className={`gba:w-1.5 gba:h-1.5 gba:rounded-full gba:flex-shrink-0 ${dotBg}`} />
-      <span className="gba:text-sm gba:text-decorative-foreground gba:truncate gba:flex-1 gba:min-w-0">
-        {item.title}
-      </span>
+      <span className="gba:text-sm gba:text-foreground gba:truncate gba:flex-1 gba:min-w-0">{item.title}</span>
 
       <div className="gba:flex gba:items-center gba:gap-2.5 gba:flex-shrink-0">
-        <span className="gba:text-xs gba:text-decorative-foreground/50 gba:hidden gba:sm:inline gba:truncate gba:max-w-28">
+        <span className="gba:text-xs gba:text-muted-foreground gba:hidden gba:sm:inline gba:truncate gba:max-w-28">
           {item.boardName}
         </span>
         {deadlineText && (
           <span
-            className={`gba:text-xs gba:tabular-nums gba:whitespace-nowrap ${overdue ? 'gba:text-desk-badge-golden gba:font-medium' : 'gba:text-decorative-foreground/60'}`}
+            className={`gba:text-xs gba:tabular-nums gba:whitespace-nowrap ${overdue ? 'gba:text-desk-badge-golden gba:font-medium' : 'gba:text-muted-foreground'}`}
           >
             {deadlineText}
           </span>
         )}
-        <ChevronRight className="gba:w-3.5 gba:h-3.5 gba:text-decorative-foreground/40 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity" />
+        <ChevronRight className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground/60 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity" />
       </div>
     </button>
   )
@@ -105,14 +103,14 @@ function SectionBlock({
 
   return (
     <div data-testid={`${testId}-${section.key}`}>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:px-5 gba:py-2.5 gba:bg-decorative-foreground/8">
+      <div className="gba:flex gba:items-center gba:gap-2 gba:px-5 gba:py-2.5 gba:bg-muted/50">
         {section.icon}
         <span className={`gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider ${section.colorClass}`}>
           {section.title}
         </span>
         <Badge
           variant="outline"
-          className="gba:text-xs gba:tabular-nums gba:ml-auto gba:h-5 gba:px-1.5 gba:border-decorative-foreground/20 gba:text-decorative-foreground/70"
+          className="gba:text-xs gba:tabular-nums gba:ml-auto gba:h-5 gba:px-1.5 gba:border-border gba:text-muted-foreground"
         >
           {section.items.length}
         </Badge>
@@ -132,7 +130,7 @@ function SectionBlock({
       {hasMore && (
         <div className="gba:px-5 gba:py-1.5">
           <button
-            className="gba:text-xs gba:text-decorative-foreground/70 gba:hover:text-decorative-foreground gba:transition-colors gba:font-medium"
+            className="gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:font-medium"
             onClick={() => setShowAll(s => !s)}
             data-testid={`${testId}-${section.key}-toggle`}
           >
@@ -176,18 +174,18 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
       all.push({
         key: 'week',
         title: 'This week',
-        icon: <CalendarClock className="gba:w-3.5 gba:h-3.5 gba:text-decorative-foreground/60" />,
+        icon: <CalendarClock className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />,
         items: myWork.dueThisWeek,
-        colorClass: 'gba:text-decorative-foreground/60'
+        colorClass: 'gba:text-muted-foreground'
       })
     }
     if (myWork.upcoming.length > 0) {
       all.push({
         key: 'upcoming',
         title: 'Upcoming',
-        icon: <CalendarClock className="gba:w-3.5 gba:h-3.5 gba:text-decorative-foreground/50" />,
+        icon: <CalendarClock className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground/70" />,
         items: myWork.upcoming,
-        colorClass: 'gba:text-decorative-foreground/50'
+        colorClass: 'gba:text-muted-foreground/70'
       })
     }
     if (myWork.blocked.length > 0) {
@@ -206,16 +204,16 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
 
   if (isLoading) {
     return (
-      <Card className="gba:overflow-hidden gba:bg-card-decorative gba:border-0" data-testid={testId}>
+      <Card className="gba:overflow-hidden" data-testid={testId}>
         <div className="gba:px-5 gba:py-4">
-          <div className="gba:h-5 gba:w-28 gba:bg-decorative-foreground/20 gba:rounded gba:animate-pulse" />
+          <div className="gba:h-5 gba:w-28 gba:bg-muted gba:rounded gba:animate-pulse" />
         </div>
         <div className="gba:p-2 gba:space-y-0.5">
           {[1, 2, 3, 4, 5].map(i => (
             <div key={i} className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5">
-              <div className="gba:h-1.5 gba:w-1.5 gba:bg-decorative-foreground/20 gba:rounded-full gba:animate-pulse" />
-              <div className="gba:flex-1 gba:h-4 gba:bg-decorative-foreground/15 gba:rounded gba:animate-pulse" />
-              <div className="gba:h-3.5 gba:w-14 gba:bg-decorative-foreground/15 gba:rounded gba:animate-pulse" />
+              <div className="gba:h-1.5 gba:w-1.5 gba:bg-muted gba:rounded-full gba:animate-pulse" />
+              <div className="gba:flex-1 gba:h-4 gba:bg-muted gba:rounded gba:animate-pulse" />
+              <div className="gba:h-3.5 gba:w-14 gba:bg-muted gba:rounded gba:animate-pulse" />
             </div>
           ))}
         </div>
@@ -225,27 +223,22 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
 
   if (totalItems === 0 && myWork) {
     return (
-      <Card className="gba:overflow-hidden gba:bg-card-decorative gba:border-0" data-testid={testId}>
+      <Card className="gba:overflow-hidden" data-testid={testId}>
         <div className="gba:flex gba:flex-col gba:items-center gba:text-center gba:px-5 gba:py-10">
-          <CheckCircle2 className="gba:w-8 gba:h-8 gba:text-decorative-foreground gba:mb-3" />
-          <p className="gba:text-sm gba:font-semibold gba:text-decorative-foreground">All caught up</p>
-          <p className="gba:text-xs gba:text-decorative-foreground/70 gba:mt-1">
-            No tasks need your attention right now.
-          </p>
+          <CheckCircle2 className="gba:w-8 gba:h-8 gba:text-muted-foreground gba:mb-3" />
+          <p className="gba:text-sm gba:font-semibold gba:text-foreground">All caught up</p>
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">No tasks need your attention right now.</p>
         </div>
       </Card>
     )
   }
 
   return (
-    <Card className="gba:overflow-hidden gba:bg-card-decorative gba:border-0" data-testid={testId}>
+    <Card className="gba:overflow-hidden" data-testid={testId}>
       <div className="gba:flex gba:items-center gba:justify-between gba:px-5 gba:py-4">
         <div className="gba:flex gba:items-center gba:gap-2.5">
-          <h2 className="gba:text-base gba:font-semibold gba:text-decorative-foreground">My Tasks</h2>
-          <Badge
-            variant="secondary"
-            className="gba:text-xs gba:tabular-nums gba:bg-decorative-foreground/20 gba:text-decorative-foreground gba:border-0"
-          >
+          <h2 className="gba:text-base gba:font-semibold gba:text-foreground">My Tasks</h2>
+          <Badge variant="secondary" className="gba:text-xs gba:tabular-nums">
             {totalItems}
           </Badge>
         </div>
@@ -263,7 +256,7 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
         </div>
       </div>
 
-      <div className="gba:divide-y gba:divide-decorative-foreground/10">
+      <div className="gba:divide-y gba:divide-border">
         {sections.map(section => (
           <SectionBlock key={section.key} section={section} onNavigate={onNavigateToItem} testId={testId} />
         ))}
@@ -288,24 +281,24 @@ function CompletedSection({
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="gba:border-t gba:border-decorative-foreground/10" data-testid={`${testId}-completed`}>
+    <div className="gba:border-t gba:border-border" data-testid={`${testId}-completed`}>
       <button
-        className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-5 gba:py-3 gba:text-left gba:bg-decorative-foreground/8 gba:hover:bg-decorative-foreground/12 gba:transition-colors"
+        className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-5 gba:py-3 gba:text-left gba:bg-muted/50 gba:hover:bg-muted gba:transition-colors"
         onClick={() => setExpanded(e => !e)}
         data-testid={`${testId}-completed-toggle`}
       >
-        <CheckCircle2 className="gba:w-3.5 gba:h-3.5 gba:text-decorative-foreground/50" />
-        <span className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-decorative-foreground/70 gba:flex-1">
+        <CheckCircle2 className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
+        <span className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-muted-foreground gba:flex-1">
           Completed
         </span>
         <Badge
           variant="outline"
-          className="gba:text-xs gba:tabular-nums gba:h-5 gba:px-1.5 gba:border-decorative-foreground/20 gba:text-decorative-foreground/70"
+          className="gba:text-xs gba:tabular-nums gba:h-5 gba:px-1.5 gba:border-border gba:text-muted-foreground"
         >
           {items.length}
         </Badge>
         <ChevronDown
-          className={`gba:w-3.5 gba:h-3.5 gba:text-decorative-foreground/50 gba:transition-transform ${expanded ? 'gba:rotate-180' : ''}`}
+          className={`gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:transition-transform ${expanded ? 'gba:rotate-180' : ''}`}
         />
       </button>
       {expanded && (

@@ -41,7 +41,18 @@ export const transformInvestment = (
     const realEstate = Array.isArray(investment.realEstateInvestment)
       ? investment.realEstateInvestment[0]
       : investment.realEstateInvestment
-    ;(mappedValues as any).realEstateInvestment = realEstate
+    // Form uses realEstateInvestment.sizeMeasurementUnit (no Ref). CatalogSelect accepts string id or { id }.
+    // When GraphQL returns null for the nested object but sizeMeasurementUnitRef is set, prefill from ref.
+    const unit = realEstate?.sizeMeasurementUnit
+    const hasUnitObject =
+      unit &&
+      typeof unit === 'object' &&
+      !Array.isArray(unit) &&
+      typeof (unit as { id?: string }).id === 'string' &&
+      (unit as { id?: string }).id!.length > 0
+    const unitRef = realEstate?.sizeMeasurementUnitRef
+    ;(mappedValues as any).realEstateInvestment =
+      !hasUnitObject && unitRef ? { ...realEstate, sizeMeasurementUnit: unitRef } : realEstate
   }
 
   // Convert to single investmentTypeId

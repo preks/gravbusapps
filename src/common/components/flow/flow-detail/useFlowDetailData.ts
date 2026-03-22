@@ -171,6 +171,7 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
           flowId: progress.rootWorkflowId,
           flowName: progress.rootWorkflowName || 'Unknown Workflow',
           templateId: progress.templateId,
+          templateVersion: Number.isFinite(Number(progress.templateVersion)) ? Number(progress.templateVersion) : null,
           status: progress.workflowStatus,
           startTime: progress.timeInsights?.workflowStartTime || new Date().toISOString(),
           updateTime: progress.timeInsights?.lastActivityTime || new Date().toISOString(),

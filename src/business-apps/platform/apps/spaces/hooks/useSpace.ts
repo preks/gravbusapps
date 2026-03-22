@@ -19,6 +19,7 @@ export interface UseSpaceResult {
   addMember: (input: AddMemberInput) => Promise<SpaceMember | null>
   updateMember: (userId: string, role: string) => Promise<SpaceMember | null>
   removeMember: (userId: string) => Promise<boolean>
+  deleteSpace: () => Promise<boolean>
 }
 
 export function useSpace(
@@ -203,6 +204,37 @@ export function useSpace(
     [spaceId, accessToken, refresh]
   )
 
+  const deleteSpace = useCallback(async (): Promise<boolean> => {
+    if (!spaceId || !accessToken) {
+      setError('Not authenticated')
+      return false
+    }
+
+    try {
+      setError(null)
+      const response = await fetch(`${API_URL}/spaces/${spaceId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      })
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}))
+        const msg = typeof body?.message === 'string' ? body.message : `Failed to delete space (${response.status})`
+        throw new Error(msg)
+      }
+
+      setSpace(null)
+      return true
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete space'
+      setError(message)
+      console.error('[useSpace] Delete space error:', err)
+      return false
+    }
+  }, [spaceId, accessToken])
+
   useEffect(() => {
     if (spaceId && accessToken) {
       refresh()
@@ -217,6 +249,7 @@ export function useSpace(
     updateSpace,
     addMember,
     updateMember,
-    removeMember
+    removeMember,
+    deleteSpace
   }
 }

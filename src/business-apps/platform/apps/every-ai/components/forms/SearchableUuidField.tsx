@@ -53,6 +53,12 @@ export const SearchableUuidField: React.FC<SearchableUuidFieldProps> = ({
   // Determine entity type from field name
   const entityType: EntityType = getEntityTypeFromFieldName(fieldName)
 
+  // Fetch selected employee details if value exists and entity type is employee
+  const { state: employeeDetailsState } = useEmployeeDetails(
+    entityType === 'employee' && value ? value : '',
+    entityType === 'employee' && value ? accessToken : ''
+  )
+
   // Use appropriate search hook based on entity type
   const { employees, isLoading: employeeLoading } = useEmployeeSearchLight(
     entityType === 'employee' ? accessToken : '',
@@ -115,12 +121,53 @@ export const SearchableUuidField: React.FC<SearchableUuidFieldProps> = ({
         }
       case 'employee':
       default:
+        // Add selected employee to options if it exists and is not already in the list
+        const employeeOptions = employees.map(e => ({
+          value: e.id,
+          label: `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || e.id
+        }))
+
+        // If we have a selected value, ensure it's in options
+        if (value) {
+          // Check if selected value already exists in options
+          const existsInOptions = employeeOptions.some(opt => opt.value === value)
+
+          if (!existsInOptions) {
+            // If employee details are loaded, use them
+            if (employeeDetailsState.state === 'success' && employeeDetailsState.employee) {
+              const selectedEmployee = employeeDetailsState.employee
+              const selectedOption = {
+                value: selectedEmployee.id,
+                label:
+                  `${selectedEmployee.firstName ?? ''} ${selectedEmployee.lastName ?? ''}`.trim() || selectedEmployee.id
+              }
+              employeeOptions.unshift(selectedOption) // Add to beginning
+            } else {
+              // Always add value to options (even if loading) so Combobox can display it
+              // This ensures the selected value is visible even before employee details load
+              employeeOptions.unshift({
+                value: value,
+                label:
+                  employeeDetailsState.state === 'success' && employeeDetailsState.employee
+                    ? `${employeeDetailsState.employee.firstName ?? ''} ${employeeDetailsState.employee.lastName ?? ''}`.trim() ||
+                      value
+                    : value // Show UUID until employee details load
+              })
+            }
+          } else if (employeeDetailsState.state === 'success' && employeeDetailsState.employee) {
+            // Update existing option label if employee details are loaded
+            const optionIndex = employeeOptions.findIndex(opt => opt.value === value)
+            if (optionIndex !== -1) {
+              const selectedEmployee = employeeDetailsState.employee
+              employeeOptions[optionIndex].label =
+                `${selectedEmployee.firstName ?? ''} ${selectedEmployee.lastName ?? ''}`.trim() || value
+            }
+          }
+        }
+
         return {
-          options: employees.map(e => ({
-            value: e.id,
-            label: `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || e.id
-          })),
-          isLoading: employeeLoading
+          options: employeeOptions,
+          isLoading: employeeLoading || (value && employeeDetailsState.state === 'loading')
         }
     }
   }, [
@@ -134,7 +181,9 @@ export const SearchableUuidField: React.FC<SearchableUuidFieldProps> = ({
     accountLoading,
     contactLoading,
     leadLoading,
-    opportunityLoading
+    opportunityLoading,
+    value,
+    employeeDetailsState
   ])
 
   // When value is pre-filled (e.g. from flow proposal) but not in options yet (no search),
