@@ -281,6 +281,24 @@ function createTrackingHeaderRow(updatedColumns: SpreadsheetColumn[]): Record<st
   )
 }
 
+function mergeColumnLabelsFromRowMetadata(
+  rows: Array<{ metadata?: Record<string, unknown> }>
+): Record<string, string> | undefined {
+  const merged: Record<string, string> = {}
+  let hasAny = false
+  for (const row of rows) {
+    const labels = row.metadata?.columnLabels as Record<string, string> | undefined
+    if (!labels || typeof labels !== 'object') continue
+    for (const [name, label] of Object.entries(labels)) {
+      if (typeof label === 'string' && label.trim()) {
+        merged[name] = label.trim()
+        hasAny = true
+      }
+    }
+  }
+  return hasAny ? merged : undefined
+}
+
 function mergeColumnLabelsFromUpdates(
   updates: Array<{ columnLabels?: Record<string, string> }>
 ): Record<string, string> | undefined {
@@ -798,7 +816,8 @@ export function useSpreadsheetBulkRows({
       // Collect field names and find new ones
       const allFieldNames = collectFieldNames(rows, INTERNAL_METADATA_FIELDS)
       const newFieldNames = findNewFields(allFieldNames, activeSheet.columns)
-      const newColumns = createColumnsForFields(newFieldNames)
+      const mergedColumnLabels = mergeColumnLabelsFromRowMetadata(rows)
+      const newColumns = createColumnsForFields(newFieldNames, mergedColumnLabels)
       const updatedColumns = mergeColumns(activeSheet.columns, newColumns)
 
       const columnMap = buildColumnLookupMap(updatedColumns)
