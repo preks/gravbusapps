@@ -21,6 +21,24 @@ import {
 
 const SNAPSHOT_SAVE_DELAY_MS = 2000
 
+type HydrationRefreshableEditor = {
+  commands: {
+    setContent: (editorHtml: string, emit?: boolean) => void
+    refreshPages?: () => boolean
+  }
+  getHTML?: () => string
+}
+
+function schedulePostHydrationPaginationRefresh(editor: HydrationRefreshableEditor) {
+  requestAnimationFrame(() => {
+    editor.commands.refreshPages?.()
+  })
+
+  setTimeout(() => {
+    editor.commands.refreshPages?.()
+  }, 120)
+}
+
 export interface UseYjsDocumentSyncParams {
   documentId: string | undefined
   collaborationSocket: Socket | null
@@ -128,10 +146,7 @@ export function useYjsDocumentSync({
         await new Promise(resolve => setTimeout(resolve, 25))
       }
 
-      const ed = editorRef.current as {
-        commands: { setContent: (editorHtml: string, emit?: boolean) => void }
-        getHTML?: () => string
-      } | null
+      const ed = editorRef.current as HydrationRefreshableEditor | null
 
       if (!ed) {
         throw new Error('Editor not ready for content apply')
@@ -145,7 +160,8 @@ export function useYjsDocumentSync({
         }
         markNextPaginationHydrationDocChange(ed)
         ed.commands.setContent(normalizedHtml, true)
-        await new Promise(resolve => setTimeout(resolve, 100))
+        schedulePostHydrationPaginationRefresh(ed)
+        await new Promise(resolve => setTimeout(resolve, 140))
       } finally {
         setTimeout(() => {
           if (suppressSnapshotSaveRef) {

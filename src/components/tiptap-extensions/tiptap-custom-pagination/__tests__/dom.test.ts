@@ -32,6 +32,8 @@ describe('ensurePagesStyles', () => {
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-header-content .tableWrapper')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-header-content table[data-table-theme="blue"]')
     expect(style?.textContent).toContain('table[data-table-style-header-row="true"] > tbody > tr:first-child > td')
+    expect(style?.textContent).toContain('.rm-pages-root .rm-page-header-region[contenteditable="true"]')
+    expect(style?.textContent).toContain('.rm-pages-root .rm-first-page-header > .rm-page-header')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .tableWrapper')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .column-resize-handle')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after')

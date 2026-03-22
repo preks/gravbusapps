@@ -3,6 +3,7 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { CustomTableView } from './CustomTableView'
+import { createTablePaginationMetadataPlugin } from './tablePaginationMetadata'
 import {
   applyBorderPresetToSelection,
   setSelectedColumnsWidthPx,
@@ -150,6 +151,8 @@ function normalizeColumnWidthToPx(width: string | null) {
 }
 
 export const CustomTable = TiptapTable.extend<CustomTableOptions>({
+  content: 'tableRow+',
+
   addOptions(): CustomTableOptions {
     const parentOptions = this.parent?.() ?? {
       HTMLAttributes: {},
@@ -237,6 +240,32 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
 
           return {
             'data-pagination-split-id': attributes.paginationSplitId
+          }
+        }
+      },
+      paginationChainId: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-pagination-chain-id'),
+        renderHTML: attributes => {
+          if (typeof attributes.paginationChainId !== 'string' || attributes.paginationChainId.length === 0) {
+            return {}
+          }
+
+          return {
+            'data-pagination-chain-id': attributes.paginationChainId
+          }
+        }
+      },
+      paginationRowGroups: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-pagination-row-groups'),
+        renderHTML: attributes => {
+          if (typeof attributes.paginationRowGroups !== 'string' || attributes.paginationRowGroups.length === 0) {
+            return {}
+          }
+
+          return {
+            'data-pagination-row-groups': attributes.paginationRowGroups
           }
         }
       },
@@ -344,6 +373,10 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
         })
       }
     }
+  },
+
+  addProseMirrorPlugins() {
+    return [...(this.parent?.() ?? []), createTablePaginationMetadataPlugin(this.name)]
   },
 
   addCommands() {

@@ -1,6 +1,6 @@
 import { Editor, Extension } from '@tiptap/core'
 import type { Node as PMNode } from 'prosemirror-model'
-import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, Selection } from '@tiptap/pm/state'
 import {
   AddMarkStep,
   AttrStep,
@@ -29,8 +29,6 @@ import type {
 import {
   calculatePageCount,
   createStorageFromOptions,
-  findMergeableTableFragments,
-  findOverflowingTableSplit,
   getHeaderFooterExtensions,
   getInitialEditorContent,
   getPageLayoutHeights,
@@ -41,11 +39,8 @@ import {
   resolvePageFormat,
   syncStorageFromOptions
 } from './utils'
-import {
-  mergeAdjacentPaginationTables,
-  rebalanceAdjacentPaginationTables,
-  splitTableAtRow
-} from '@/components/tiptap-extensions/tiptap-custom-tables/tableSelectionUtils'
+import { type TablePaginationBodyBand } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationDetection'
+import { createTablePaginationController } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
 
 const REFRESH_META = 'RM_PAGES_REFRESH'
 const PAGINATION_OWNED_DOC_CHANGE_META = 'RM_PAGES_OWNED_DOC_CHANGE'
@@ -82,8 +77,12 @@ function getMountedEditorView(editor: Editor): EditorView | null {
   return candidate ?? null
 }
 
+function getCurrentKnownPageCount(existingPageCount: number, storedPageCount: number) {
+  return Math.max(1, existingPageCount, storedPageCount)
+}
+
 function applyMeasuredPageHeightsToView(view: EditorView, storage: PagesStorage, options: PagesOptions) {
-  const pageCount = Math.max(1, getExistingPageCount(view) || storage.pageCount)
+  const pageCount = getCurrentKnownPageCount(getExistingPageCount(view), storage.pageCount)
   const measured = measureHeaderFooterContentHeights(view.dom, pageCount, storage.pageFormat, storage)
   let smallestBodyHeight = Number.POSITIVE_INFINITY
 
@@ -356,6 +355,30 @@ export function resolveTablePaginationHeuristics(
   }
 }
 
+export function shouldDeferTablePaginationEvaluation(options: {
+  hasTables: boolean
+  currentPageCount: number
+  bodyBandCount: number
+}) {
+  const { hasTables, currentPageCount, bodyBandCount } = options
+  return hasTables && currentPageCount > 0 && bodyBandCount < currentPageCount
+}
+
+export function shouldScheduleDeferredRepaginationOnUpdate(options: {
+  activeEditorType: PagesStorage['activeEditorType']
+  externalDocChange: boolean
+  paginationOwnedDocChange: boolean
+  hydrationOwnedDocChange: boolean
+}) {
+  const { activeEditorType, externalDocChange, paginationOwnedDocChange, hydrationOwnedDocChange } = options
+
+  if (activeEditorType !== null) {
+    return false
+  }
+
+  return externalDocChange || paginationOwnedDocChange || hydrationOwnedDocChange
+}
+
 function getTableSplitCandidateKey(
   candidate: { tablePos: number; splitRowIndex: number; mode?: 'split' | 'rebalance' } | null
 ) {
@@ -494,6 +517,48 @@ export function getPageBodyBands(editorDom: HTMLElement): PageBodyBand[] {
     .sort((left, right) => left.pageNumber - right.pageNumber)
 }
 
+function getPageBodyMeasurementBands(editorDom: HTMLElement): TablePaginationBodyBand[] {
+  const editorRect = editorDom.getBoundingClientRect()
+
+  return Array.from(editorDom.querySelectorAll('.rm-page-body-layer[data-rm-page-number]'))
+    .filter((element): element is HTMLElement => element instanceof HTMLElement)
+    .map(element => {
+      const rect = element.getBoundingClientRect()
+      return {
+        pageNumber: Number(element.dataset.rmPageNumber ?? '0'),
+        top: rect.top - editorRect.top + editorDom.scrollTop,
+        bottom: rect.bottom - editorRect.top + editorDom.scrollTop
+      }
+    })
+    .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
+    .sort((left, right) => left.pageNumber - right.pageNumber)
+}
+
+function documentHasTables(doc: PMNode) {
+  let hasTables = false
+
+  doc.descendants(node => {
+    if (node.type.name === 'table') {
+      hasTables = true
+      return false
+    }
+
+    return true
+  })
+
+  return hasTables
+}
+
+export function createSafePaginationSelection(doc: PMNode, position: number, bias: 1 | -1 = 1) {
+  const clampedPosition = Math.max(0, Math.min(position, doc.content.size))
+
+  try {
+    return Selection.near(doc.resolve(clampedPosition), bias)
+  } catch {
+    return bias < 0 ? Selection.atEnd(doc) : Selection.atStart(doc)
+  }
+}
+
 function isCaretRectWithinBand(
   caretRect: ReturnType<EditorView['coordsAtPos']>,
   bodyBand: PageBodyBand,
@@ -537,6 +602,38 @@ function isEmptyParagraphPosition(view: EditorView, position: number) {
     resolvedPosition.parent.type.name === 'paragraph' &&
     resolvedPosition.parent.content.size === 0
   )
+}
+
+function resolveEmptyFirstParagraphClick(
+  view: EditorView,
+  bodyBand: PageBodyBand | null,
+  clickX: number,
+  clickY: number
+) {
+  const firstNode = view.state.doc.firstChild
+  if (!firstNode || firstNode.type.name !== 'paragraph' || firstNode.content.size !== 0) {
+    return null
+  }
+
+  const firstParagraphPosition = 1
+  const caretRect = getCaretRectAtPosition(view, firstParagraphPosition)
+  if (!caretRect) {
+    return null
+  }
+
+  const horizontalLeft = bodyBand?.left ?? caretRect.left - 1
+  const horizontalRight = bodyBand?.right ?? caretRect.right + 1
+  if (clickX < horizontalLeft || clickX > horizontalRight) {
+    return null
+  }
+
+  const lineHeight = Math.max(1, caretRect.bottom - caretRect.top)
+  const verticalTolerance = Math.max(10, Math.min(36, lineHeight * 1.5))
+  if (clickY < caretRect.top - verticalTolerance || clickY > caretRect.bottom + verticalTolerance) {
+    return null
+  }
+
+  return firstParagraphPosition
 }
 
 function isStableBodyPosition(
@@ -633,6 +730,12 @@ export function resolvePaginationBodyClick(
 ): PaginationBodyClickResolution {
   const bodyBands = getPageBodyBands(view.dom)
   if (!bodyBands.length) return { action: 'allow' }
+
+  const firstPageBodyBand = bodyBands.find(band => band.pageNumber === 1) ?? bodyBands[0] ?? null
+  const emptyFirstParagraphPosition = resolveEmptyFirstParagraphClick(view, firstPageBodyBand, clientX, clientY)
+  if (emptyFirstParagraphPosition != null) {
+    return { action: 'set', position: emptyFirstParagraphPosition }
+  }
 
   const bodyBand = bodyBands.find(band => clientY >= band.top && clientY <= band.bottom)
   if (!bodyBand) return { action: 'block' }
@@ -790,6 +893,7 @@ declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     pages: {
       setPagesOptions: (updates: PagesOptionUpdates) => ReturnType
+      refreshPages: () => ReturnType
       setPageFormat: (pageFormat: PageFormatInput) => ReturnType
       setHeader: (header: PagesHeaderFooter) => ReturnType
       setFooter: (footer: PagesHeaderFooter) => ReturnType
@@ -914,13 +1018,10 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     let lastDocChangeOrigin: DocChangeOrigin = null
     let previousAddPagesMeasurement: AddPagesMeasurementSnapshot | null = null
     let runawayGrowthCapPageCount: number | null = null
-    let rejectedTableMergeKey: string | null = null
-    let rejectedTableSplitKey: string | null = null
-    let retriedTableSplitKey: string | null = null
-    let preferSplitAfterRefresh = false
     let deferredRepaginationFrameOne: number | null = null
     let deferredRepaginationFrameTwo: number | null = null
     let deferredRepaginationView: EditorView | null = null
+    const tablePaginationController = createTablePaginationController(PAGINATION_OWNED_DOC_CHANGE_META)
 
     const requestRefresh = (view: EditorView) => {
       clearDeferredRepaginationEvaluation()
@@ -951,7 +1052,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       measuredHeaderHeights = measured.headerHeights
       measuredFooterHeights = measured.footerHeights
 
-      const currentPageCount = Math.max(1, getExistingPageCount(view) || storage.pageCount)
+      const currentPageCount = getCurrentKnownPageCount(getExistingPageCount(view), storage.pageCount)
       let pageCountDebugInfo: PageCountDebugInfo | null = null
       const rawMeasuredPageCount = getMeasuredPageCount(view, storage, options, measured, info => {
         pageCountDebugInfo = info
@@ -975,121 +1076,59 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
         pageCountDebugInfo
       )
 
+      const tableBodyBands = getPageBodyMeasurementBands(view.dom)
       const tablePaginationHeuristics = resolveTablePaginationHeuristics(
         runawayGrowthCapPageCount,
         storage.activeEditorType !== null
       )
-      const splitCandidate = tablePaginationHeuristics.allowSplit ? findOverflowingTableSplit(view) : null
-      const mergeCandidate =
-        tablePaginationHeuristics.allowMerge && splitCandidate == null ? findMergeableTableFragments(view) : null
+      const hasTables = documentHasTables(view.state.doc)
 
-      const outcome = resolveDeferredRepaginationOutcome({
-        currentPageCount,
-        measuredPageCount,
-        allowMerge: tablePaginationHeuristics.allowMerge,
-        allowSplit: tablePaginationHeuristics.allowSplit,
-        preferSplitAfterRefresh,
-        splitCandidate,
-        mergeCandidate,
-        rejectedSplitKey: rejectedTableSplitKey,
-        rejectedMergeKey: rejectedTableMergeKey
-      })
+      if (
+        tablePaginationHeuristics.allowSplit &&
+        shouldDeferTablePaginationEvaluation({
+          hasTables,
+          currentPageCount,
+          bodyBandCount: tableBodyBands.length
+        })
+      ) {
+        previousAddPagesMeasurement = null
+        scheduleDeferredRepaginationEvaluation(view)
+        refreshPageMinHeight(view.dom)
+        return
+      }
 
       previousAddPagesMeasurement = runawayGrowthCapPageCount === null ? nextAddPagesMeasurement : null
+      const tablePaginationResult = tablePaginationController.evaluate({
+        view,
+        currentPageCount,
+        measuredPageCount,
+        heuristics: tablePaginationHeuristics,
+        bodyBands: tableBodyBands
+      })
 
-      if (outcome.type === 'refresh') {
-        preferSplitAfterRefresh = outcome.nextPreferSplitAfterRefresh
-        storage.pageCount = measuredPageCount
+      if (tablePaginationResult.type === 'refresh') {
+        storage.pageCount = tablePaginationResult.pageCount
         requestRefresh(view)
-        scheduleDeferredRepaginationEvaluation(view)
+        if (tablePaginationResult.scheduleEvaluation) {
+          scheduleDeferredRepaginationEvaluation(view)
+        }
         return
       }
 
-      if (outcome.type === 'split') {
-        const liveCandidate = findOverflowingTableSplit(view)
-        const liveCandidateKey = getTableSplitCandidateKey(liveCandidate)
-        if (!liveCandidate || liveCandidateKey !== outcome.candidateKey) {
-          if (liveCandidateKey === null) {
-            rejectedTableSplitKey = null
-            retriedTableSplitKey = null
-          }
-          refreshPageMinHeight(view.dom)
-          return
+      if (tablePaginationResult.type === 'request-refresh') {
+        requestRefresh(view)
+        if (tablePaginationResult.scheduleEvaluation) {
+          scheduleDeferredRepaginationEvaluation(view)
         }
-
-        const tr = view.state.tr.setMeta(PAGINATION_OWNED_DOC_CHANGE_META, true)
-        const didSplit =
-          liveCandidate.mode === 'rebalance'
-            ? rebalanceAdjacentPaginationTables(view.state, tr, liveCandidate.tablePos, liveCandidate.splitRowIndex)
-            : splitTableAtRow(view.state, tr, liveCandidate.tablePos, liveCandidate.splitRowIndex)
-
-        if (!didSplit) {
-          if (retriedTableSplitKey !== outcome.candidateKey) {
-            retriedTableSplitKey = outcome.candidateKey
-            preferSplitAfterRefresh = true
-            requestRefresh(view)
-            scheduleDeferredRepaginationEvaluation(view)
-            return
-          }
-
-          rejectedTableSplitKey = outcome.candidateKey
-          retriedTableSplitKey = null
-          refreshPageMinHeight(view.dom)
-          return
-        }
-
-        rejectedTableSplitKey = null
-        rejectedTableMergeKey = null
-        retriedTableSplitKey = null
-        preferSplitAfterRefresh = true
-        view.dispatch(tr)
-        scheduleDeferredRepaginationEvaluation(view)
         return
       }
 
-      if (outcome.type === 'merge') {
-        preferSplitAfterRefresh = false
-
-        if (findOverflowingTableSplit(view) !== null) {
-          refreshPageMinHeight(view.dom)
-          return
+      if (tablePaginationResult.type === 'dispatch') {
+        view.dispatch(tablePaginationResult.transaction)
+        if (tablePaginationResult.scheduleEvaluation) {
+          scheduleDeferredRepaginationEvaluation(view)
         }
-
-        const liveCandidate = findMergeableTableFragments(view)
-
-        const liveCandidateKey = getTableMergeCandidateKey(liveCandidate)
-        if (!liveCandidate || liveCandidateKey !== outcome.candidateKey) {
-          if (liveCandidateKey === null) {
-            rejectedTableMergeKey = null
-          }
-          refreshPageMinHeight(view.dom)
-          return
-        }
-
-        const tr = view.state.tr.setMeta(PAGINATION_OWNED_DOC_CHANGE_META, true)
-        const didMerge = mergeAdjacentPaginationTables(view.state, tr, liveCandidate.firstTablePos)
-
-        if (!didMerge) {
-          rejectedTableMergeKey = outcome.candidateKey
-          refreshPageMinHeight(view.dom)
-          return
-        }
-
-        rejectedTableMergeKey = null
-        rejectedTableSplitKey = null
-        view.dispatch(tr)
-        scheduleDeferredRepaginationEvaluation(view)
         return
-      }
-
-      preferSplitAfterRefresh = outcome.nextPreferSplitAfterRefresh
-
-      if (splitCandidate === null) {
-        rejectedTableSplitKey = null
-        retriedTableSplitKey = null
-      }
-      if (mergeCandidate === null) {
-        rejectedTableMergeKey = null
       }
 
       refreshPageMinHeight(view.dom)
@@ -1151,7 +1190,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           const measured = applyMeasuredPageHeightsToView(mountedView, storage, options)
           measuredHeaderHeights = measured.headerHeights
           measuredFooterHeights = measured.footerHeights
-          const currentPageCount = Math.max(1, getExistingPageCount(mountedView) || storage.pageCount)
+          const currentPageCount = getCurrentKnownPageCount(getExistingPageCount(mountedView), storage.pageCount)
           let pageCountDebugInfo: PageCountDebugInfo | null = null
           const rawMeasuredPageCount = getMeasuredPageCount(mountedView, storage, options, measured, info => {
             pageCountDebugInfo = info
@@ -1304,8 +1343,10 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
               mouseEvent.stopPropagation()
 
               if (resolution.action === 'set') {
-                const selection = TextSelection.create(view.state.doc, resolution.position)
-                view.dispatch(view.state.tr.setSelection(selection))
+                const selection = createSafePaginationSelection(view.state.doc, resolution.position)
+                if (!selection.eq(view.state.selection)) {
+                  view.dispatch(view.state.tr.setSelection(selection))
+                }
                 view.focus()
               }
 
@@ -1337,10 +1378,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
                   : 'backward'
 
             if (docChangedSinceLastUpdate && !paginationOwnedDocChange) {
-              rejectedTableMergeKey = null
-              rejectedTableSplitKey = null
-              retriedTableSplitKey = null
-              preferSplitAfterRefresh = false
+              tablePaginationController.reset()
               previousAddPagesMeasurement = null
               if (externalDocChange) {
                 runawayGrowthCapPageCount = null
@@ -1351,7 +1389,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
             if (storage.activeEditorType === null && !updatedView.composing) {
               const selectionOverflow = resolvePaginationSelectionBodyOverflow(updatedView, selectionDirection)
               if (selectionOverflow) {
-                const currentPageCount = Math.max(1, getExistingPageCount(updatedView) || storage.pageCount)
+                const currentPageCount = getCurrentKnownPageCount(getExistingPageCount(updatedView), storage.pageCount)
                 const rawMeasuredPageCount = getMeasuredPageCount(updatedView, storage, options, measured)
 
                 if (rawMeasuredPageCount > currentPageCount) {
@@ -1360,12 +1398,15 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
                   return
                 }
 
-                updatedView.dispatch(
-                  updatedView.state.tr.setSelection(
-                    TextSelection.create(updatedView.state.doc, selectionOverflow.position)
-                  )
+                const nextSelection = createSafePaginationSelection(
+                  updatedView.state.doc,
+                  selectionOverflow.position,
+                  selectionDirection === 'backward' ? -1 : 1
                 )
-                if (docChangedSinceLastUpdate || paginationOwnedDocChange) {
+                if (!nextSelection.eq(updatedView.state.selection)) {
+                  updatedView.dispatch(updatedView.state.tr.setSelection(nextSelection))
+                }
+                if (docChangedSinceLastUpdate || paginationOwnedDocChange || hydrationOwnedDocChange) {
                   scheduleDeferredRepaginationEvaluation(updatedView)
                 }
                 refreshPageMinHeight(updatedView.dom)
@@ -1373,7 +1414,14 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
               }
             }
 
-            if (storage.activeEditorType === null && (externalDocChange || paginationOwnedDocChange)) {
+            if (
+              shouldScheduleDeferredRepaginationOnUpdate({
+                activeEditorType: storage.activeEditorType,
+                externalDocChange,
+                paginationOwnedDocChange,
+                hydrationOwnedDocChange
+              })
+            ) {
               scheduleDeferredRepaginationEvaluation(updatedView)
             }
 
@@ -1498,7 +1546,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
           if (!mountedView) return
 
           const measured = applyMeasuredPageHeightsToView(mountedView, storage, options)
-          const currentPageCount = Math.max(1, getExistingPageCount(mountedView) || storage.pageCount)
+          const currentPageCount = getCurrentKnownPageCount(getExistingPageCount(mountedView), storage.pageCount)
           const measuredPageCount = getMeasuredPageCount(mountedView, storage, options, measured)
           storage.pageCount = currentPageCount
 
@@ -1598,6 +1646,10 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
     }
 
     return {
+      refreshPages:
+        () =>
+        ({ editor }) =>
+          refresh(editor),
       setPagesOptions:
         updates =>
         ({ editor }) => {

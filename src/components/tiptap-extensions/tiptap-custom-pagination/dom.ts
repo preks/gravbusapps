@@ -147,6 +147,10 @@ export function ensurePagesStyles(targetDocument: Document) {
       margin-left: calc(-1 * var(--rm-page-margin-left));
       margin-right: calc(-1 * var(--rm-page-margin-right));
       z-index: 2;
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-first-page-header > .rm-page-header {
+      pointer-events: auto;
     }
     .rm-pages-root .rm-page-header,
     .rm-pages-root .rm-page-footer {
@@ -373,6 +377,30 @@ export function ensurePagesStyles(targetDocument: Document) {
       visibility: hidden;
       pointer-events: none;
       user-select: none;
+    }
+    .rm-pages-root .rm-page-header-region[contenteditable="true"],
+    .rm-pages-root .rm-page-footer-region[contenteditable="true"],
+    .rm-pages-root .rm-first-page-header[contenteditable="true"],
+    .rm-pages-root .rm-page-header[contenteditable="true"],
+    .rm-pages-root .rm-page-footer[contenteditable="true"],
+    .rm-pages-root .rm-page-header-content[contenteditable="true"],
+    .rm-pages-root .rm-page-footer-content[contenteditable="true"],
+    .rm-pages-root .rm-page-header-region[contenteditable="true"]:focus,
+    .rm-pages-root .rm-page-footer-region[contenteditable="true"]:focus,
+    .rm-pages-root .rm-first-page-header[contenteditable="true"]:focus,
+    .rm-pages-root .rm-page-header[contenteditable="true"]:focus,
+    .rm-pages-root .rm-page-footer[contenteditable="true"]:focus,
+    .rm-pages-root .rm-page-header-content[contenteditable="true"]:focus,
+    .rm-pages-root .rm-page-footer-content[contenteditable="true"]:focus,
+    .rm-pages-root .rm-page-header-region[contenteditable="true"]:focus-visible,
+    .rm-pages-root .rm-page-footer-region[contenteditable="true"]:focus-visible,
+    .rm-pages-root .rm-first-page-header[contenteditable="true"]:focus-visible,
+    .rm-pages-root .rm-page-header[contenteditable="true"]:focus-visible,
+    .rm-pages-root .rm-page-footer[contenteditable="true"]:focus-visible,
+    .rm-pages-root .rm-page-header-content[contenteditable="true"]:focus-visible,
+    .rm-pages-root .rm-page-footer-content[contenteditable="true"]:focus-visible {
+      outline: none;
+      box-shadow: none;
     }
     .rm-pages-root .rm-page-overlay {
       position: absolute;

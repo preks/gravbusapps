@@ -1,6 +1,7 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { CellSelection, TableMap, cellAround } from '@tiptap/pm/tables'
+import { getTableRuntimeChainKey } from './tablePaginationIdentity'
 import type { TableBorderStyle } from './types'
 import { normalizeBorderStyle, normalizeColorValue, normalizeCssLength } from './styleUtils'
 
@@ -139,38 +140,22 @@ function getLinkedSelectedTableContext(state: EditorState, tableNodeName: string
   const current = getSelectedTableRectContext(state, tableNodeName)
   if (!current) return null
 
-  const paginationSplitId =
-    typeof current.table.attrs.paginationSplitId === 'string' && current.table.attrs.paginationSplitId.length > 0
-      ? current.table.attrs.paginationSplitId
-      : null
+  const paginationChainKey = getTableRuntimeChainKey(current.table, current.tablePos)
 
   const baseFragments: Array<Omit<TableFragmentContext, 'logicalRowStart' | 'logicalRowEnd'>> = []
 
-  if (paginationSplitId) {
-    state.doc.descendants((node, pos) => {
-      if (
-        node.type.name === tableNodeName &&
-        typeof node.attrs.paginationSplitId === 'string' &&
-        node.attrs.paginationSplitId === paginationSplitId
-      ) {
-        baseFragments.push({
-          table: node,
-          tablePos: pos,
-          tableStart: pos + 1,
-          map: TableMap.get(node)
-        })
-      }
+  state.doc.descendants((node, pos) => {
+    if (node.type.name === tableNodeName && getTableRuntimeChainKey(node, pos) === paginationChainKey) {
+      baseFragments.push({
+        table: node,
+        tablePos: pos,
+        tableStart: pos + 1,
+        map: TableMap.get(node)
+      })
+    }
 
-      return true
-    })
-  } else {
-    baseFragments.push({
-      table: current.table,
-      tablePos: current.tablePos,
-      tableStart: current.tableStart,
-      map: current.map
-    })
-  }
+    return true
+  })
 
   let logicalRowStart = 0
   const fragments = baseFragments.map(fragment => {

@@ -1,8 +1,13 @@
+import { Editor } from '@tiptap/core'
+import StarterKit from '@tiptap/starter-kit'
 import {
+  createSafePaginationSelection,
   resolveDeferredRepaginationOutcome,
   resolvePaginationBodyClick,
   resolvePaginationSelectionBodyOverflow,
-  resolveTablePaginationHeuristics
+  resolveTablePaginationHeuristics,
+  shouldScheduleDeferredRepaginationOnUpdate,
+  shouldDeferTablePaginationEvaluation
 } from '../PaginationPlus'
 
 describe('resolveDeferredRepaginationOutcome', () => {
@@ -171,6 +176,60 @@ describe('resolveDeferredRepaginationOutcome', () => {
       type: 'merge',
       candidateKey: 'pagination-split-7:25:77'
     })
+  })
+})
+
+describe('shouldDeferTablePaginationEvaluation', () => {
+  it('defers table pagination while page body bands are still incomplete', () => {
+    expect(
+      shouldDeferTablePaginationEvaluation({
+        hasTables: true,
+        currentPageCount: 3,
+        bodyBandCount: 2
+      })
+    ).toBe(true)
+  })
+
+  it('does not defer when there are no tables or when all page body bands are ready', () => {
+    expect(
+      shouldDeferTablePaginationEvaluation({
+        hasTables: false,
+        currentPageCount: 3,
+        bodyBandCount: 0
+      })
+    ).toBe(false)
+
+    expect(
+      shouldDeferTablePaginationEvaluation({
+        hasTables: true,
+        currentPageCount: 3,
+        bodyBandCount: 3
+      })
+    ).toBe(false)
+  })
+})
+
+describe('shouldScheduleDeferredRepaginationOnUpdate', () => {
+  it('schedules deferred repagination after hydration-owned content loads', () => {
+    expect(
+      shouldScheduleDeferredRepaginationOnUpdate({
+        activeEditorType: null,
+        externalDocChange: false,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: true
+      })
+    ).toBe(true)
+  })
+
+  it('does not schedule while a header or footer editor is active', () => {
+    expect(
+      shouldScheduleDeferredRepaginationOnUpdate({
+        activeEditorType: 'header',
+        externalDocChange: true,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: true
+      })
+    ).toBe(false)
   })
 })
 
@@ -554,7 +613,7 @@ describe('resolvePaginationBodyClick', () => {
     })
   }
 
-  it('sets the caret explicitly when clicking into a blank first paragraph', () => {
+  it('maps a blank first-line click to the first paragraph even when coords lookup misses', () => {
     const editorDom = document.createElement('div')
     const bodyBand = document.createElement('div')
 
@@ -569,6 +628,14 @@ describe('resolvePaginationBodyClick', () => {
       dom: editorDom,
       state: {
         doc: {
+          firstChild: {
+            type: {
+              name: 'paragraph'
+            },
+            content: {
+              size: 0
+            }
+          },
           resolve: () => ({
             parent: {
               type: {
@@ -590,11 +657,83 @@ describe('resolvePaginationBodyClick', () => {
         left: 72,
         right: 72
       }),
-      posAtCoords: () => ({
-        pos: 1
-      })
+      posAtCoords: () => null
     } as never
 
     expect(resolvePaginationBodyClick(view, 72, 158)).toEqual({ action: 'set', position: 1 })
+  })
+
+  it('maps a blank first-line click to the first paragraph even when it sits above the body band', () => {
+    const editorDom = document.createElement('div')
+    const bodyBand = document.createElement('div')
+
+    bodyBand.className = 'rm-page-body-layer'
+    bodyBand.dataset.rmPageNumber = '1'
+    editorDom.appendChild(bodyBand)
+    document.body.appendChild(editorDom)
+
+    setRect(bodyBand, { top: 180, bottom: 320, left: 20, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          firstChild: {
+            type: {
+              name: 'paragraph'
+            },
+            content: {
+              size: 0
+            }
+          },
+          resolve: () => ({
+            parent: {
+              type: {
+                name: 'paragraph'
+              },
+              content: {
+                size: 0
+              }
+            },
+            parentOffset: 0,
+            nodeBefore: null,
+            nodeAfter: null
+          })
+        }
+      },
+      coordsAtPos: () => ({
+        top: 150,
+        bottom: 168,
+        left: 72,
+        right: 72
+      }),
+      posAtCoords: () => null
+    } as never
+
+    expect(resolvePaginationBodyClick(view, 72, 158)).toEqual({ action: 'set', position: 1 })
+  })
+})
+
+describe('createSafePaginationSelection', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('falls back to a valid paragraph selection when given a root-level position', () => {
+    const element = document.createElement('div')
+    document.body.appendChild(element)
+
+    const editor = new Editor({
+      element,
+      extensions: [StarterKit],
+      content: '<p>alpha</p>'
+    })
+
+    const selection = createSafePaginationSelection(editor.state.doc, 0)
+
+    expect(selection.$from.parent.type.name).toBe('paragraph')
+    expect(selection.from).toBeGreaterThanOrEqual(1)
+
+    editor.destroy()
   })
 })

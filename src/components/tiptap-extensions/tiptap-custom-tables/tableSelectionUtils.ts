@@ -2,7 +2,16 @@ import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { TableMap, cellAround } from '@tiptap/pm/tables'
 import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import {
+  createPaginationChainId,
+  createPaginationSplitId,
+  getTablePaginationChainId,
+  getTablePaginationSplitId
+} from './tablePaginationIdentity'
+import {
+  buildTableChildrenFromRows,
   getTableRowCount,
+  getTableRowEntries,
+  getSerializedTableRowGroupsForRows,
   resolveMergedTableRows,
   resolveSplitTableRows,
   rowHasMergedCells
@@ -20,26 +29,19 @@ interface SplitTableOptions {
   repeatHeaderRow?: boolean
 }
 
-let paginationSplitIdCounter = 0
-
 interface RowInfo {
   node: ProseMirrorNode
-  offset: number
+  pos: number
 }
 
-function getRowInfo(table: ProseMirrorNode, rowIndex: number): RowInfo | null {
-  let match: RowInfo | null = null
+function getRowInfo(table: ProseMirrorNode, tablePos: number, rowIndex: number): RowInfo | null {
+  const rowEntry = getTableRowEntries(table, tablePos).find(entry => entry.rowIndex === rowIndex)
+  if (!rowEntry) return null
 
-  table.forEach((rowNode, offset, index) => {
-    if (index === rowIndex) {
-      match = {
-        node: rowNode,
-        offset
-      }
-    }
-  })
-
-  return match
+  return {
+    node: rowEntry.node,
+    pos: rowEntry.rowPos
+  }
 }
 
 export function getCurrentTableContext(state: EditorState, tableNodeName: string): TableContext | null {
@@ -89,12 +91,12 @@ function getAdjacentTableFragment(
 }
 
 function getPaginationSplitId(state: EditorState, table: ProseMirrorNode, tablePos: number) {
-  if (typeof table.attrs.paginationSplitId === 'string' && table.attrs.paginationSplitId.length > 0) {
-    const existingSplitId = table.attrs.paginationSplitId
+  const existingSplitId = getTablePaginationSplitId(table)
+  if (existingSplitId) {
     const previousFragment = getAdjacentTableFragment(state, tablePos, 'previous')
     const nextFragment = getAdjacentTableFragment(state, tablePos, 'next')
     const hasAdjacentFragment = [previousFragment, nextFragment].some(
-      fragment => fragment?.attrs.paginationSplitId === existingSplitId
+      fragment => fragment !== null && getTablePaginationSplitId(fragment) === existingSplitId
     )
 
     if (hasAdjacentFragment) {
@@ -102,8 +104,11 @@ function getPaginationSplitId(state: EditorState, table: ProseMirrorNode, tableP
     }
   }
 
-  paginationSplitIdCounter += 1
-  return `pagination-split-${paginationSplitIdCounter}`
+  return createPaginationSplitId()
+}
+
+function getPaginationChainId(table: ProseMirrorNode) {
+  return getTablePaginationChainId(table) ?? createPaginationChainId()
 }
 
 export function splitTableAtRow(
@@ -121,22 +126,27 @@ export function splitTableAtRow(
   if (!splitRows) return false
 
   const paginationSplitId = getPaginationSplitId(state, table, tablePos)
+  const paginationChainId = getPaginationChainId(table)
   const leadingTableAttrs = {
     ...table.attrs,
-    paginationSplitId
+    paginationChainId,
+    paginationSplitId,
+    paginationRowGroups: getSerializedTableRowGroupsForRows(splitRows.leadingRows)
   }
   const continuationTableAttrs = {
     ...table.attrs,
-    paginationSplitId
+    paginationChainId,
+    paginationSplitId,
+    paginationRowGroups: getSerializedTableRowGroupsForRows(splitRows.continuationRows)
   }
   const leadingTable = table.type.create(
     leadingTableAttrs,
-    Fragment.fromArray(splitRows.leadingRows.map(cloneNode)),
+    Fragment.fromArray(buildTableChildrenFromRows(table, splitRows.leadingRows.map(cloneNode))),
     table.marks
   )
   const continuationTable = table.type.create(
     continuationTableAttrs,
-    Fragment.fromArray(splitRows.continuationRows.map(cloneNode)),
+    Fragment.fromArray(buildTableChildrenFromRows(table, splitRows.continuationRows.map(cloneNode))),
     table.marks
   )
 
@@ -166,7 +176,15 @@ export function mergeAdjacentPaginationTables(state: EditorState, tr: Transactio
   const mergedRows = resolveMergedTableRows(firstTable, secondTable).map(cloneNode)
   if (!mergedRows.length) return false
 
-  const mergedTable = firstTable.type.create(firstTable.attrs, Fragment.fromArray(mergedRows), firstTable.marks)
+  const mergedTable = firstTable.type.create(
+    {
+      ...firstTable.attrs,
+      paginationChainId: getPaginationChainId(firstTable),
+      paginationRowGroups: getSerializedTableRowGroupsForRows(mergedRows)
+    },
+    Fragment.fromArray(buildTableChildrenFromRows(firstTable, mergedRows)),
+    firstTable.marks
+  )
   tr.replaceWith(firstTablePos, secondTablePos + secondTable.nodeSize, mergedTable)
   return true
 }
@@ -199,19 +217,35 @@ export function rebalanceAdjacentPaginationTables(
   const mergedRows = resolveMergedTableRows(firstTable, secondTable).map(cloneNode)
   if (splitRowIndex <= 0 || splitRowIndex >= mergedRows.length) return false
 
-  const mergedTable = firstTable.type.create(firstTable.attrs, Fragment.fromArray(mergedRows), firstTable.marks)
+  const mergedTable = firstTable.type.create(
+    {
+      ...firstTable.attrs,
+      paginationChainId: getPaginationChainId(firstTable),
+      paginationRowGroups: getSerializedTableRowGroupsForRows(mergedRows)
+    },
+    Fragment.fromArray(buildTableChildrenFromRows(firstTable, mergedRows)),
+    firstTable.marks
+  )
   const splitRows = resolveSplitTableRows(mergedTable, splitRowIndex, options)
   if (!splitRows) return false
   if (splitRows.safeSplitIndex === getTableRowCount(firstTable)) return false
 
   const leadingTable = firstTable.type.create(
-    firstTable.attrs,
-    Fragment.fromArray(splitRows.leadingRows.map(cloneNode)),
+    {
+      ...firstTable.attrs,
+      paginationChainId: getPaginationChainId(firstTable),
+      paginationRowGroups: getSerializedTableRowGroupsForRows(splitRows.leadingRows)
+    },
+    Fragment.fromArray(buildTableChildrenFromRows(firstTable, splitRows.leadingRows.map(cloneNode))),
     firstTable.marks
   )
   const continuationTable = firstTable.type.create(
-    secondTable.attrs,
-    Fragment.fromArray(splitRows.continuationRows.map(cloneNode)),
+    {
+      ...secondTable.attrs,
+      paginationChainId: getPaginationChainId(firstTable),
+      paginationRowGroups: getSerializedTableRowGroupsForRows(splitRows.continuationRows)
+    },
+    Fragment.fromArray(buildTableChildrenFromRows(secondTable, splitRows.continuationRows.map(cloneNode))),
     secondTable.marks
   )
 
@@ -227,11 +261,11 @@ export function duplicateCurrentRow(state: EditorState, tr: Transaction, tableNo
   const context = getCurrentTableContext(state, tableNodeName)
   if (!context) return false
 
-  const rowInfo = getRowInfo(context.table, context.rowIndex)
+  const rowInfo = getRowInfo(context.table, context.tablePos, context.rowIndex)
   if (!rowInfo || rowHasMergedCells(rowInfo.node)) return false
 
   const clonedRow = cloneNode(rowInfo.node)
-  const insertPos = context.tablePos + 1 + rowInfo.offset + rowInfo.node.nodeSize
+  const insertPos = rowInfo.pos + rowInfo.node.nodeSize
 
   tr.insert(insertPos, clonedRow)
   return true
@@ -256,8 +290,8 @@ export function duplicateCurrentColumn(state: EditorState, tr: Transaction, tabl
 
   const rowEntries: Array<{ rowInfo: RowInfo; insertOffset: number; clonedCell: ProseMirrorNode }> = []
 
-  for (let rowIndex = 0; rowIndex < context.table.childCount; rowIndex += 1) {
-    const rowInfo = getRowInfo(context.table, rowIndex)
+  for (let rowIndex = 0; rowIndex < getTableRowCount(context.table); rowIndex += 1) {
+    const rowInfo = getRowInfo(context.table, context.tablePos, rowIndex)
     if (!rowInfo || rowInfo.node.childCount <= context.columnIndex) return false
 
     const sourceCell = rowInfo.node.child(context.columnIndex)
@@ -277,8 +311,7 @@ export function duplicateCurrentColumn(state: EditorState, tr: Transaction, tabl
 
   for (let index = rowEntries.length - 1; index >= 0; index -= 1) {
     const entry = rowEntries[index]
-    const rowPos = context.tablePos + 1 + entry.rowInfo.offset
-    tr.insert(rowPos + 1 + entry.insertOffset, entry.clonedCell)
+    tr.insert(entry.rowInfo.pos + 1 + entry.insertOffset, entry.clonedCell)
   }
 
   return true

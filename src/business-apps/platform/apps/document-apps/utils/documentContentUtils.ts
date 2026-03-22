@@ -61,7 +61,8 @@ const PRESERVED_HTML_TAGS = new Set([
   'ul'
 ])
 
-const PAGINATION_SPLIT_ATTRIBUTE_PATTERN = /\b(?:paginationSplitId|data-pagination-split-id)=/i
+const PAGINATION_RUNTIME_ATTRIBUTE_PATTERN =
+  /\b(?:paginationSplitId|data-pagination-split-id|paginationChainId|data-pagination-chain-id|paginationRowGroups|data-pagination-row-groups)=/i
 const TABLE_SECTION_TAG_NAMES = new Set(['tbody', 'thead', 'tfoot', 'tr', 'tablerow'])
 
 function getAttributeValue(element: Element, name: string): string | null {
@@ -81,6 +82,14 @@ function removePaginationRuntimeAttributes(element: Element) {
   element.removeAttribute('paginationsplitid')
   element.removeAttribute('data-pagination-split-id')
   element.removeAttribute('dataPaginationSplitId')
+  element.removeAttribute('paginationChainId')
+  element.removeAttribute('paginationchainid')
+  element.removeAttribute('data-pagination-chain-id')
+  element.removeAttribute('dataPaginationChainId')
+  element.removeAttribute('paginationRowGroups')
+  element.removeAttribute('paginationrowgroups')
+  element.removeAttribute('data-pagination-row-groups')
+  element.removeAttribute('dataPaginationRowGroups')
 }
 
 function isWhitespaceTextNode(node: Node): boolean {
@@ -126,10 +135,10 @@ function mergeAdjacentPaginationTables(root: Element | DocumentFragment) {
   let childNode = root.firstChild
 
   while (childNode) {
-    const nextNode = childNode.nextSibling
+    const currentNode = childNode
 
-    if (childNode.nodeType === Node.ELEMENT_NODE) {
-      const childElement = childNode as Element
+    if (currentNode.nodeType === Node.ELEMENT_NODE) {
+      const childElement = currentNode as Element
       mergeAdjacentPaginationTables(childElement)
 
       if (childElement.tagName.toLowerCase() === 'table') {
@@ -152,7 +161,7 @@ function mergeAdjacentPaginationTables(root: Element | DocumentFragment) {
       removePaginationRuntimeAttributes(childElement)
     }
 
-    childNode = nextNode
+    childNode = currentNode.nextSibling
   }
 }
 
@@ -364,9 +373,11 @@ export function containsCustomDocumentTags(html: string): boolean {
 }
 
 export function sanitizePaginationRuntimeHtml(html: string): string {
-  if (!html.trim() || !PAGINATION_SPLIT_ATTRIBUTE_PATTERN.test(html)) {
+  if (!html.trim() || !PAGINATION_RUNTIME_ATTRIBUTE_PATTERN.test(html)) {
     return html
   }
+
+  // Canonical persistence stays as standard merged HTML tables without runtime pagination metadata.
 
   try {
     if (globalThis.DOMParser === undefined || globalThis.document === undefined) {

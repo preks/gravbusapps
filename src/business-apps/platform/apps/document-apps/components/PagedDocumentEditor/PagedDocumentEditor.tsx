@@ -177,6 +177,21 @@ const AUTOCOMPLETE_DEBOUNCE_MS = 350
 const AUTOCOMPLETE_ROLLOUT_STORAGE_KEY = 'document-autocomplete-rollout'
 const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
 const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
+
+function schedulePostHydrationPaginationRefresh(editor: TiptapEditor) {
+  requestAnimationFrame(() => {
+    if (!editor.isDestroyed) {
+      editor.commands.refreshPages?.()
+    }
+  })
+
+  setTimeout(() => {
+    if (!editor.isDestroyed) {
+      editor.commands.refreshPages?.()
+    }
+  }, 120)
+}
+
 const CLOSED_IMAGE_SIDEBAR: SelectedImageSidebarState = {
   open: false,
   editor: null,
@@ -2921,6 +2936,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
           markNextPaginationHydrationDocChange(editor)
           editor.commands.setContent(normalizedHtml, { emitUpdate: true })
+          schedulePostHydrationPaginationRefresh(editor)
           await new Promise(resolve => setTimeout(resolve, 0))
 
           const applied = areHtmlSemanticallyEquivalent(sanitizePaginationRuntimeHtml(editor.getHTML()), normalizedHtml)
@@ -3927,6 +3943,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               if (success && editor && versionData.content) {
                 markNextPaginationHydrationDocChange(editor)
                 editor.commands.setContent(normalizeDocumentHtmlForEditor(versionData.content))
+                schedulePostHydrationPaginationRefresh(editor)
                 setTitle(versionData.title)
                 setHasUnsavedChanges(false)
                 setLastSaved(new Date())
