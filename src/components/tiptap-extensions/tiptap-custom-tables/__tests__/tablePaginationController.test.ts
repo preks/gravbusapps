@@ -84,19 +84,7 @@ describe('tablePaginationController', () => {
       type: 'none'
     })
 
-    expect(
-      controller.evaluate({
-        view,
-        currentPageCount: 2,
-        measuredPageCount: 2,
-        heuristics: { allowMerge: true, allowSplit: true },
-        bodyBands: []
-      })
-    ).toEqual({
-      type: 'none'
-    })
-
-    const fourthResult = controller.evaluate({
+    const thirdResult = controller.evaluate({
       view,
       currentPageCount: 2,
       measuredPageCount: 2,
@@ -104,7 +92,60 @@ describe('tablePaginationController', () => {
       bodyBands: []
     })
 
-    expect(fourthResult).toMatchObject({
+    expect(thirdResult).toMatchObject({
+      type: 'dispatch',
+      scheduleEvaluation: true
+    })
+    expect(mockedSplitTableAtRow).toHaveBeenLastCalledWith(view.state, view.state.tr, 40, 3)
+  })
+
+  it('continues with another available chain after the preferred chain disappears', () => {
+    const controller = createTablePaginationController('owned')
+    const view = createView()
+    const preferredCandidate = {
+      mode: 'split' as const,
+      tablePos: 10,
+      splitRowIndex: 2,
+      paginationChainKey: 'chain-a',
+      paginationSplitId: null
+    }
+    const fallbackCandidate = {
+      mode: 'split' as const,
+      tablePos: 40,
+      splitRowIndex: 3,
+      paginationChainKey: 'chain-b',
+      paginationSplitId: null
+    }
+
+    mockedFindSplitCandidates
+      .mockImplementationOnce(() => [preferredCandidate])
+      .mockImplementation(() => [fallbackCandidate])
+    mockedFindMergeCandidates.mockReturnValue([])
+    mockedSplitTableAtRow.mockReturnValue(true)
+
+    expect(
+      controller.evaluate({
+        view,
+        currentPageCount: 1,
+        measuredPageCount: 2,
+        heuristics: { allowMerge: true, allowSplit: true },
+        bodyBands: []
+      })
+    ).toEqual({
+      type: 'refresh',
+      pageCount: 2,
+      scheduleEvaluation: true
+    })
+
+    const stablePassResult = controller.evaluate({
+      view,
+      currentPageCount: 2,
+      measuredPageCount: 2,
+      heuristics: { allowMerge: true, allowSplit: true },
+      bodyBands: []
+    })
+
+    expect(stablePassResult).toMatchObject({
       type: 'dispatch',
       scheduleEvaluation: true
     })

@@ -176,11 +176,19 @@ function resolveDeferredRepaginationOutcome(
   }
 
   if (preferredSplitChainKey) {
-    if (splitCandidate && splitCandidate.paginationChainKey === preferredSplitChainKey) {
+    if (splitCandidate) {
       return {
         type: 'split',
         candidate: splitCandidate,
         candidateKey: getSplitCandidateKey(splitCandidate)
+      }
+    }
+
+    if (mergeCandidate && splitCandidates.length === 0) {
+      return {
+        type: 'merge',
+        candidate: mergeCandidate,
+        candidateKey: getMergeCandidateKey(mergeCandidate)
       }
     }
 
