@@ -252,6 +252,16 @@ let supportsOperationBatchEndpoint: boolean | null = null
 // null => unknown, true => available, false => unavailable (skip snapshot API calls).
 let supportsUniverSnapshotEndpoint: boolean | null = null
 
+/**
+ * If we previously cached "univer-snapshot API unavailable" (404/501), clear that so the next save probes again.
+ * A transient failure or deploy mismatch otherwise disables snapshot uploads for the entire session (no network calls).
+ */
+export function revalidateSpreadsheetUniverSnapshotAfterIdleTab(): void {
+  if (supportsUniverSnapshotEndpoint === false) {
+    supportsUniverSnapshotEndpoint = null
+  }
+}
+
 // Map backend permission to frontend permission
 function mapPermission(backendPermission: string | undefined): SpreadsheetApp['permission'] {
   if (!backendPermission) return undefined
