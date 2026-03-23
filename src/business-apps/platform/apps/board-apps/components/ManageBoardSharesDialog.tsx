@@ -26,6 +26,7 @@ import { Users, Eye, Pencil, MessageSquare, Trash2, AlertCircle, UserPlus } from
 import type { BoardPermission } from '../types'
 import { useBoardSharesData } from '../hooks/useBoardSharesData'
 import { InheritedMembersSection } from './InheritedMembersSection'
+import { preventDialogCloseOnSelectOutside } from '../utils/preventDialogCloseOnSelectOutside'
 
 export interface ManageBoardSharesDialogProps {
   open: boolean
@@ -89,7 +90,12 @@ export const ManageBoardSharesDialog: React.FC<ManageBoardSharesDialogProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-lg" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg"
+        data-testid={testId}
+        onPointerDownOutside={preventDialogCloseOnSelectOutside}
+        onInteractOutside={preventDialogCloseOnSelectOutside}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Users className="gba:w-5 gba:h-5 gba:text-primary" />
@@ -165,6 +171,7 @@ export const ManageBoardSharesDialog: React.FC<ManageBoardSharesDialogProps> = (
                       </p>
                     </div>
                     <Select
+                      key={`${share.id}-permission`}
                       value={share.permission}
                       onValueChange={v => handleUpdatePermission(share.id, v as BoardPermission)}
                       disabled={updatingShareId === share.id}
