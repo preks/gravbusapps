@@ -311,6 +311,7 @@ request-correction-date-absence-error = Această dată este o sărbătoare sau o
 notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
 notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă
+notification-feedback-request-sent-success-on-behalf = Cererea de feedback a fost trimisă
 
 # ============================================
 # Create Employee Form

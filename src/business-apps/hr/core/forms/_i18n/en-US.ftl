@@ -314,6 +314,7 @@ request-correction-date-absence-error = This date is a bank holiday or absence a
 notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
 notification-working-hours-updated-success = Working hours updates are sent for HR approval
 notification-feedback-request-sent-success = Your feedback request has been sent
+notification-feedback-request-sent-success-on-behalf = The feedback request has been sent
 
 # ============================================
 # Create Employee Form

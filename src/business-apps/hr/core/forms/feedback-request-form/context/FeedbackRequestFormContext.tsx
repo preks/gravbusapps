@@ -170,6 +170,15 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
       businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.receiverUserId ||
       businessAppContext.userInfo?.id ||
       currentUserEmployeeId
+    const isOnBehalfRequest = Boolean(
+      businessAppContext.additionalData?.targetEmployeeId ||
+        businessAppContext.additionalData?.flowContext?.targetEmployeeId ||
+        businessAppContext.additionalData?.contextData?.targetEmployeeId ||
+        businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.targetEmployeeId
+    )
+    const successMessageKey = isOnBehalfRequest
+      ? 'notification-feedback-request-sent-success-on-behalf'
+      : 'notification-feedback-request-sent-success'
 
     if (!targetSubjectUserId) {
       setError(getTranslationFromI18nKeyAndLabel('feedback.request.noCurrentUser', 'Unable to identify current user'))
@@ -221,7 +230,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
           requestMessage: formValues.requestMessage,
           completeNotification: {
             type: 'success',
-            message: t('notification-feedback-request-sent-success')
+            message: t(successMessageKey)
           }
         }
         dispatchProcessContinueEvent('pse_submit', payload)
@@ -234,7 +243,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
           requestMessage: formValues.requestMessage,
           completeNotification: {
             type: 'success',
-            message: t('notification-feedback-request-sent-success')
+            message: t(successMessageKey)
           }
         }
         dispatchProcessContinueEvent('pse_submit', payload)

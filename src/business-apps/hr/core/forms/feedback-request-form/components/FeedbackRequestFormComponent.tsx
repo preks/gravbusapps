@@ -94,6 +94,15 @@ const FeedbackRequestFormComponent: React.FC = () => {
       businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.receiverUserId ||
       businessAppContext.userInfo?.id ||
       currentUserEmployeeId
+    const isOnBehalfRequest = Boolean(
+      businessAppContext.additionalData?.targetEmployeeId ||
+        businessAppContext.additionalData?.flowContext?.targetEmployeeId ||
+        businessAppContext.additionalData?.contextData?.targetEmployeeId ||
+        businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.targetEmployeeId
+    )
+    const successMessageKey = isOnBehalfRequest
+      ? 'notification-feedback-request-sent-success-on-behalf'
+      : 'notification-feedback-request-sent-success'
 
     // Resolve employees to get userIds where available
     const resolvedEmployees = selectedIds
@@ -121,7 +130,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
         requestMessage: formValues.requestMessage,
         completeNotification: {
           type: 'success',
-          message: t('notification-feedback-request-sent-success')
+          message: t(successMessageKey)
         }
       }
       return payload
@@ -134,7 +143,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
       requestMessage: formValues.requestMessage,
       completeNotification: {
         type: 'success',
-        message: t('notification-feedback-request-sent-success')
+        message: t(successMessageKey)
       }
     }
 

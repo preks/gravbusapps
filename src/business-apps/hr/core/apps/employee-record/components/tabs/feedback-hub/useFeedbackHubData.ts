@@ -252,7 +252,7 @@ export const useFeedbackHubData = ({
           tasks
             .map((task: any) => {
               const subjectUserId = task?.subjectUserId || task?.inputs?.subjectUserId
-              const legacyReceiverUserId = task?.receiverUserId || task?.inputs?.receiverUserId
+              const legacyReceiverUserId = task?.receiverId || task?.inputs?.receiverId
               const legacyCreatorUserId = task?.creatorUserId || task?.inputs?.creatorUserId
               return subjectUserId || legacyReceiverUserId || legacyCreatorUserId
             })
@@ -283,8 +283,8 @@ export const useFeedbackHubData = ({
         const requesterUserId =
           task?.subjectUserId ||
           task?.inputs?.subjectUserId ||
-          task?.receiverUserId ||
-          task?.inputs?.receiverUserId ||
+          task?.receiverId ||
+          task?.inputs?.receiverId ||
           task?.creatorUserId ||
           task?.inputs?.creatorUserId ||
           null
