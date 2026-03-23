@@ -243,6 +243,40 @@ describe('runPaginationPluginViewUpdate', () => {
     )
   })
 
+  it('defers overflow correction while a doc change settles without caret navigation', () => {
+    const previousDoc = createDoc('prev')
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: previousDoc,
+        lastKnownSelectionHead: 10
+      },
+      currentDoc: createDoc('next'),
+      currentSelectionHead: 10,
+      selectionOverflow: { position: 7 }
+    })
+    const resolveSelectionOverflow = jest.fn(() => harness.selectionOverflow)
+
+    runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 6,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(resolveSelectionOverflow).not.toHaveBeenCalled()
+    expect(harness.callbacks.onDispatchSelection).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRequestRefresh).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
+  })
+
   it('schedules initial stabilization for first view update with tables', () => {
     const harness = createHarness({
       state: {

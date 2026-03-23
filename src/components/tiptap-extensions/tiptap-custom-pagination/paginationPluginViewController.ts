@@ -81,6 +81,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
     options.state.lastKnownSelectionHead,
     currentSelectionHead
   )
+  const shouldDeferSelectionOverflowResolution = docChangedSinceLastUpdate && selectionDirection === null
   let hasTablesCache: boolean | null = null
   const resolveHasTables = () => {
     if (hasTablesCache !== null) {
@@ -101,7 +102,11 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
     }
   }
 
-  if (storage.activeEditorType === null && !(view as EditorView & { composing?: boolean }).composing) {
+  if (
+    storage.activeEditorType === null &&
+    !(view as EditorView & { composing?: boolean }).composing &&
+    !shouldDeferSelectionOverflowResolution
+  ) {
     const selectionOverflow = options.resolveSelectionOverflow(view, selectionDirection)
     if (selectionOverflow) {
       const measurementState = options.resolveMeasurementState(nextState)
