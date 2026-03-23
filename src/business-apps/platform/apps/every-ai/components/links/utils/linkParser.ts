@@ -4,6 +4,8 @@
 export interface LinkFragmentMetadata {
   /** Alternate entity ID for redirect resolution */
   alternateId?: string
+  /** Message ID for deep-linking into a chat conversation */
+  messageId?: string
 }
 
 /**
@@ -72,7 +74,8 @@ export function decodeUrlFragment(fragment: string | null): LinkFragmentMetadata
     if (!parsed || typeof parsed !== 'object') return null
 
     return {
-      alternateId: typeof parsed.alternateId === 'string' ? parsed.alternateId : undefined
+      alternateId: typeof parsed.alternateId === 'string' ? parsed.alternateId : undefined,
+      messageId: typeof parsed.messageId === 'string' ? parsed.messageId : undefined
     }
   } catch {
     return null

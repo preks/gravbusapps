@@ -150,6 +150,16 @@ export type NavigationData = {
   reason: string
 }
 
+export type ChatReferenceData = {
+  type: 'chat_reference'
+  conversation_id: string
+  message_id?: string
+  conversation_type?: string
+  snippet: string
+  sender_name?: string
+  timestamp?: string
+}
+
 export type { AssetSummaryData, TeamAvailabilityData }
 export type { CrmFunnelData }
 export type DisplayData =
@@ -165,6 +175,7 @@ export type DisplayData =
   | CrmFunnelData
   | AssetSummaryData
   | TeamAvailabilityData
+  | ChatReferenceData
 
 export type NextStepProposal = {
   heading: string

@@ -475,6 +475,8 @@ async function saveAgentMessage(sessionId: string, outputs: OutputItem[], access
             content += `[Table: ${data.title || 'Data Table'}]\n`
           } else if (data.type === 'entity') {
             content += `[Entity: ${data.entity} - ${data.id}]\n`
+          } else if (data.type === 'chat_reference') {
+            content += `[Chat: ${data.sender_name || 'Conversation'} - ${data.snippet?.slice(0, 80)}]\n`
           } else {
             content += `[${data.type}]\n`
           }

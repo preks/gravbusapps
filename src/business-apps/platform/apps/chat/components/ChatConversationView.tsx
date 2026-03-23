@@ -69,6 +69,7 @@ export interface ChatConversationViewProps {
   ) => void
   onFocusReady: (fn: () => void) => void
   ensureMessageInList?: (messageId: string) => Promise<boolean>
+  initialMessageId?: string | null
 }
 
 export function ChatConversationView({
@@ -121,7 +122,8 @@ export function ChatConversationView({
   onDraftChange,
   onRegisterMentionReady,
   onFocusReady,
-  ensureMessageInList
+  ensureMessageInList,
+  initialMessageId
 }: Readonly<ChatConversationViewProps>) {
   const [scrollToMessageId, setScrollToMessageId] = useState<string | null>(null)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
@@ -133,10 +135,10 @@ export function ChatConversationView({
   const onReplyWithQuote = (msg: Message) => setQuotedMessage(msg)
 
   const navigateToMessage = useCallback(
-    async (messageId: string) => {
-      if (!activeConversationId || !ensureMessageInList) return
+    async (messageId: string): Promise<boolean> => {
+      if (!activeConversationId || !ensureMessageInList) return false
       const found = await ensureMessageInList(messageId)
-      if (!found) return
+      if (!found) return false
       // Defer scroll/highlight until after React has committed the new messages to the DOM
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -149,9 +151,33 @@ export function ChatConversationView({
           }, 5000)
         })
       })
+      return true
     },
     [activeConversationId, ensureMessageInList]
   )
+  const initialMessageProcessed = useRef(false)
+  useEffect(() => {
+    if (!initialMessageId || initialMessageProcessed.current) return
+    if (messagesLoading) return
+    if (!activeConversationId || !ensureMessageInList) return
+
+    let cancelled = false
+
+    void navigateToMessage(initialMessageId).then(navigated => {
+      if (!cancelled && navigated) {
+        initialMessageProcessed.current = true
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [initialMessageId, activeConversationId, ensureMessageInList, navigateToMessage, messagesLoading])
+
+  useEffect(() => {
+    initialMessageProcessed.current = false
+  }, [activeConversationId, initialMessageId])
+
   const { fetchAvatars } = useEmployeeAvatars(accessToken ?? '')
   const messageSearch = useMessageSearch({
     apiClient,

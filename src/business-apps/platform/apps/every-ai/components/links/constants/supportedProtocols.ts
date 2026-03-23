@@ -234,7 +234,10 @@ export const SUPPORTED_PROTOCOLS = [
   'workflow_template',
   'meetings',
   'note',
-  'document'
+  'document',
+  'chat_conversation',
+  // Legacy alias; resolves to chat_conversation via PROTOCOL_REDIRECTS.
+  'chat_message'
 ] as const
 
 export type SupportedProtocol = (typeof SUPPORTED_PROTOCOLS)[number]
