@@ -128,6 +128,15 @@ const ChatInner: React.FC<ChatProps> = memo(
       injectNudgeStyles()
     }, [])
 
+    // Reset URL processing refs on mount to allow restoration after hard refresh
+    useEffect(() => {
+      // Only reset if there's a conversationId in URL (user refreshed with a conversation open)
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
+      if (urlParams.get('conversationId')) {
+        conversationIdFromUrlProcessed.current = false
+      }
+    }, [])
+
     // Initialize global minimized call renderer once on mount
     // This ensures the minimized call persists even when Chat unmounts
     // TEMPORARILY DISABLED - causing portal conflicts
