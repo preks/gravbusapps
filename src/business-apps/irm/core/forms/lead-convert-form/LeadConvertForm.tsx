@@ -429,37 +429,23 @@ export const ConvertInvestmentLeadForm = ({
     updateDynamicFieldsFromLeadData
   ])
 
-  // Use central hooks for accounts and contacts - extract refetch directly
-  const {
-    accounts: accountsList,
-    total: accountsTotal,
-    loading: accountsLoading,
-    error: accountsError,
-    refetch: refetchAccounts
-  } = useInvestmentAccountsList(businessAppContext, { limit: 20 })
+  // Accounts with infinite scroll
+  const accountsData = useInvestmentAccountsList(businessAppContext, { limit: 20 })
+  const accountsList = accountsData.accounts as any[]
+  const accountsLoading = accountsData.loading
+  const accountsError = accountsData.error
+  const searchAccounts = accountsData.search
+  const loadMoreAccounts = accountsData.loadMore
+  const hasMoreAccounts = accountsData.hasMore
 
-  const {
-    contacts: contactsList,
-    total: contactsTotal,
-    loading: contactsLoading,
-    error: contactsError,
-    refetch: refetchContacts
-  } = useInvestmentContactsList(businessAppContext, { limit: 20 })
-
-  // Memoize search functions to prevent re-renders - use refetch directly
-  const searchAccounts = useCallback(
-    (search: string) => {
-      refetchAccounts({ search, limit: 20, offset: 0 })
-    },
-    [refetchAccounts]
-  )
-
-  const searchContacts = useCallback(
-    (search: string) => {
-      refetchContacts({ search, limit: 20, offset: 0 })
-    },
-    [refetchContacts]
-  )
+  // Contacts with infinite scroll
+  const contactsData = useInvestmentContactsList(businessAppContext, { limit: 20 })
+  const contactsList = contactsData.contacts as any[]
+  const contactsLoading = contactsData.loading
+  const contactsError = contactsData.error
+  const searchContacts = contactsData.search
+  const loadMoreContacts = contactsData.loadMore
+  const hasMoreContacts = contactsData.hasMore
 
   // Transform accounts to SelectOption[] (like AccountInformationSegment does)
   const accountOptions = useMemo<AccountSelectOption[]>(() => {
@@ -610,9 +596,13 @@ export const ConvertInvestmentLeadForm = ({
           accounts={accountOptions}
           isLoadingAccounts={accountsLoading}
           searchAccounts={searchAccounts}
+          hasMoreAccounts={hasMoreAccounts}
+          onLoadMoreAccounts={loadMoreAccounts}
           contacts={contactOptions}
           isLoadingContacts={contactsLoading}
           searchContacts={searchContacts}
+          hasMoreContacts={hasMoreContacts}
+          onLoadMoreContacts={loadMoreContacts}
           loading={loading}
         />
       )
@@ -638,7 +628,9 @@ export const ConvertInvestmentLeadForm = ({
                 contacts: contactsList,
                 loading: contactsLoading,
                 error: contactsError,
-                refetch: refetchContacts
+                hasMore: hasMoreContacts,
+                search: searchContacts,
+                loadMore: loadMoreContacts
               }}
               loading={loading}
               avatarFileRef={accountAvatarFileRef}
@@ -666,7 +658,9 @@ export const ConvertInvestmentLeadForm = ({
                 accounts: accountsList,
                 loading: accountsLoading,
                 error: accountsError,
-                refetch: refetchAccounts
+                hasMore: hasMoreAccounts,
+                search: searchAccounts,
+                loadMore: loadMoreAccounts
               }}
               loading={loading}
               avatarFileRef={contactAvatarFileRef}
@@ -691,17 +685,19 @@ export const ConvertInvestmentLeadForm = ({
               ownerEmployee={leadData?.ownerEmployee}
               useAccounts={{
                 accounts: accountsList,
-                total: accountsTotal,
                 loading: accountsLoading,
                 error: accountsError,
-                refetch: refetchAccounts
+                hasMore: hasMoreAccounts,
+                search: searchAccounts,
+                loadMore: loadMoreAccounts
               }}
               useContacts={{
                 contacts: contactsList,
-                total: contactsTotal,
                 loading: contactsLoading,
                 error: contactsError,
-                refetch: refetchContacts
+                hasMore: hasMoreContacts,
+                search: searchContacts,
+                loadMore: loadMoreContacts
               }}
               loading={!isOpportunityFormReady}
               pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
@@ -743,20 +739,20 @@ export const ConvertInvestmentLeadForm = ({
     accountsLoading,
     contactsLoading,
     searchAccounts,
+    loadMoreAccounts,
+    hasMoreAccounts,
     searchContacts,
+    loadMoreContacts,
+    hasMoreContacts,
     businessAppContext,
     accountForm,
     contactForm,
     opportunityForm,
     leadData?.ownerEmployee?.id,
     contactsList.length,
-    contactsTotal,
     contactsError,
-    refetchContacts,
     accountsList.length,
-    accountsTotal,
     accountsError,
-    refetchAccounts,
     loading,
     baseOpportunityValuesWithTypeId.investmentTypeId,
     formFieldsDefinition ? JSON.stringify(formFieldsDefinition) : null,
