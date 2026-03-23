@@ -278,7 +278,9 @@ export const CollectionApiService = {
 
   async getMembers(collectionId: string): Promise<CollectionMember[]> {
     try {
-      const space = await apiRequest<SpaceApiResponse>(`/spaces/${collectionId}`)
+      const space = await apiRequest<SpaceApiResponse>(
+        `/spaces/${encodeURIComponent(collectionId)}?includeMembers=true`
+      )
       return (space.members || []).map(mapToMember)
     } catch {
       return []
