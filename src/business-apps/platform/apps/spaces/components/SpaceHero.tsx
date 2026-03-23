@@ -25,7 +25,8 @@ export interface SpaceHeroProps {
   space: Space
   members?: EnrichedSpaceMember[]
   ownerInfo?: OwnerInfo
-  isOwner?: boolean
+  /** Owner and space admin: show settings (delete in dialog remains owner-only) */
+  canOpenSpaceSettings?: boolean
   canEdit?: boolean
   onBack?: () => void
   onSettings?: () => void
@@ -50,7 +51,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
   space,
   members = [],
   ownerInfo,
-  isOwner = false,
+  canOpenSpaceSettings = false,
   canEdit = false,
   onBack,
   onSettings,
@@ -81,7 +82,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
             </Button>
 
             <div className="gba:flex gba:gap-2">
-              {isOwner && (
+              {canOpenSpaceSettings && (
                 <Button
                   variant="ghost"
                   size="icon"
