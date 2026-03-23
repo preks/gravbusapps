@@ -112,10 +112,14 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
   }, [open, loadMembers])
 
   const handleRoleChange = useCallback(
-    async (memberId: string, role: CollectionMemberRole) => {
-      const ok = await CollectionApiService.updateMemberRole(collectionId, memberId, role)
+    async (userId: string, role: CollectionMemberRole) => {
+      if (!userId) {
+        toast.error('Cannot update role: missing user id')
+        return
+      }
+      const ok = await CollectionApiService.updateMemberRole(collectionId, userId, role)
       if (ok) {
-        setMembers(prev => prev.map(m => (m.id === memberId ? { ...m, role } : m)))
+        setMembers(prev => prev.map(m => (m.userId === userId ? { ...m, role } : m)))
         onMembersChanged?.()
         toast.success('Role updated')
       }
@@ -124,11 +128,15 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
   )
 
   const handleRemove = useCallback(
-    async (memberId: string, userName?: string) => {
+    async (userId: string, userName?: string) => {
+      if (!userId) {
+        toast.error('Cannot remove member: missing user id')
+        return
+      }
       if (!confirm(`Remove ${userName || 'this member'} from this space?`)) return
-      const ok = await CollectionApiService.removeMember(collectionId, memberId)
+      const ok = await CollectionApiService.removeMember(collectionId, userId)
       if (ok) {
-        setMembers(prev => prev.filter(m => m.id !== memberId))
+        setMembers(prev => prev.filter(m => m.userId !== userId))
         onMembersChanged?.()
         toast.success('Member removed')
       }
@@ -211,7 +219,7 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
                           variant="ghost"
                           size="sm"
                           className="gba:h-7 gba:w-7 gba:p-0 gba:text-muted-foreground gba:hover:text-destructive"
-                          onClick={() => handleRemove(member.id, member.userName)}
+                          onClick={() => handleRemove(member.userId, member.userName)}
                           data-testid={`${testId}-remove-${member.id}`}
                         >
                           <X className="gba:w-3.5 gba:h-3.5" />

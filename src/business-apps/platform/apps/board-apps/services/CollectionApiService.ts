@@ -267,9 +267,13 @@ export const CollectionApiService = {
     }
   },
 
-  async updateMemberRole(collectionId: string, memberId: string, role: CollectionMemberRole): Promise<boolean> {
+  /**
+   * Document service routes use the member's user id in the path (same as Spaces `useSpace`),
+   * not the space-membership row id — using the latter returns 404 "Member not found".
+   */
+  async updateMemberRole(collectionId: string, userId: string, role: CollectionMemberRole): Promise<boolean> {
     try {
-      await apiRequest(`/spaces/${collectionId}/members/${memberId}`, {
+      await apiRequest(`/spaces/${collectionId}/members/${userId}`, {
         method: 'PATCH',
         body: JSON.stringify({ role })
       })
@@ -279,9 +283,9 @@ export const CollectionApiService = {
     }
   },
 
-  async removeMember(collectionId: string, memberId: string): Promise<boolean> {
+  async removeMember(collectionId: string, userId: string): Promise<boolean> {
     try {
-      await apiRequest(`/spaces/${collectionId}/members/${memberId}`, {
+      await apiRequest(`/spaces/${collectionId}/members/${userId}`, {
         method: 'DELETE'
       })
       return true
