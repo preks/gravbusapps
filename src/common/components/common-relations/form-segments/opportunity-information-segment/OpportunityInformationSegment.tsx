@@ -36,18 +36,24 @@ interface OpportunityInformationSegmentProps {
   // Account selection hook result - raw entities and refetch function
   useAccounts?: {
     accounts: any[]
-    total: number
+    total?: number
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   // Contact selection hook result - raw entities and refetch function
   useContacts?: {
     contacts: any[]
-    total: number
+    total?: number
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   // Custom fields (context-specific, e.g., CRM Sales Campaign, IRM Deal Type)
   customFields?: React.ReactNode
@@ -97,14 +103,16 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
     }))
   }, [useAccounts?.accounts])
 
-  // Search function for accounts - calls refetch with search variables
+  // Search function for accounts — prefers stateful `search`, falls back to `refetch`
   const searchAccounts = useCallback(
     (searchTerm: string) => {
-      if (useAccounts?.refetch) {
+      if (useAccounts?.search) {
+        useAccounts.search(searchTerm)
+      } else if (useAccounts?.refetch) {
         useAccounts.refetch({ search: searchTerm, offset: 0 })
       }
     },
-    [useAccounts?.refetch]
+    [useAccounts?.search, useAccounts?.refetch]
   )
 
   // Transform contacts to ContactSegmentOption[]
@@ -134,14 +142,16 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
     })
   }, [useContacts?.contacts])
 
-  // Search function for contacts - calls refetch with search variables
+  // Search function for contacts — prefers stateful `search`, falls back to `refetch`
   const searchContacts = useCallback(
     (searchTerm: string) => {
-      if (useContacts?.refetch) {
+      if (useContacts?.search) {
+        useContacts.search(searchTerm)
+      } else if (useContacts?.refetch) {
         useContacts.refetch({ search: searchTerm, offset: 0 })
       }
     },
-    [useContacts?.refetch]
+    [useContacts?.search, useContacts?.refetch]
   )
 
   return (
@@ -322,6 +332,8 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
               accountsLoading={useAccounts.loading}
               accountsError={useAccounts.error}
               searchAccounts={searchAccounts}
+              hasMore={useAccounts.hasMore}
+              onLoadMore={useAccounts.loadMore}
               accountContacts={opportunityAccounts || []}
               dataTestId="opportunity-segment-accounts"
             />
@@ -342,6 +354,8 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
               contactsLoading={useContacts.loading}
               contactsError={useContacts.error}
               searchContacts={searchContacts}
+              hasMore={useContacts.hasMore}
+              onLoadMore={useContacts.loadMore}
               contactRelations={opportunityContacts || []}
               dataTestId="opportunity-segment-contacts"
             />

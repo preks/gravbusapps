@@ -52,6 +52,8 @@ interface ContactSegmentProps {
   contactsLoading: boolean
   contactsError: string | null
   searchContacts: (search: string) => void
+  hasMore?: boolean
+  onLoadMore?: () => void
 
   // Contact relations with full data (for display)
   contactRelations?: any[]
@@ -221,6 +223,8 @@ const ContactSegment: React.FC<ContactSegmentProps> = ({
   contactsLoading,
   contactsError,
   searchContacts,
+  hasMore,
+  onLoadMore,
   contactRelations = [],
   dataTestId = 'contact-segment',
   disabled = false,
@@ -309,6 +313,9 @@ const ContactSegment: React.FC<ContactSegmentProps> = ({
         disabled={disabled || contactsLoading}
         loading={contactsLoading}
         onSearch={searchContacts}
+        searchDebounce={300}
+        hasMore={Boolean(hasMore)}
+        onLoadMore={onLoadMore}
         data-testid={formatDataTestId(dataTestId, 'add-contact-combobox')}
       />
 
