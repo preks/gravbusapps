@@ -41,6 +41,8 @@ import {
   parseContractTypeJson,
   serializeContractTypeAdditionalJson
 } from '../../utils/catalogEntryMetadata'
+import { CatalogLookupDataTableShell } from '../CatalogLookupDataTableShell'
+import { CatalogMultilineCellText } from '../CatalogMultilineCellText'
 
 export interface ContractType {
   id: string
@@ -219,16 +221,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         accessorKey: 'description',
         header: t('ct-table-header-description'),
         enableSorting: true,
-        cell: ({ getValue }) => {
-          const description = (getValue() as string | undefined) ?? '-'
-          return (
-            <div className="gba:min-w-0 gba:max-w-full gba:overflow-hidden">
-              <div className="gba:whitespace-normal gba:break-all" title={description}>
-                {description}
-              </div>
-            </div>
-          )
-        }
+        cell: ({ getValue }) => <CatalogMultilineCellText text={(getValue() as string | undefined) ?? '-'} />
       },
       {
         accessorKey: 'probationPeriod',
@@ -306,7 +299,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
     })
 
     return (
-      <div className="gba:min-w-0 gba:w-full gba:[&_td]:overflow-hidden gba:[&_td]:align-top">
+      <CatalogLookupDataTableShell>
         <DataTable
           data={dataTable}
           columns={columns as ColumnDef<ContractTypeTable>[]}
@@ -317,7 +310,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           enableResizing={false}
           tableLayout="fixed"
         />
-      </div>
+      </CatalogLookupDataTableShell>
     )
   }
 

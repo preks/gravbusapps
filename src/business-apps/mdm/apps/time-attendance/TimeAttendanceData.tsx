@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster } from '@newwork/nw-design-system'
 import { ClockIcon } from '@phosphor-icons/react'
+import { useTabQueryParamSync } from '../../hooks/useTabQueryParamSync'
 import { TimeTypesTab } from './components/tabs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import DayTypesTab from './components/tabs/DayTypesTab'
@@ -25,47 +26,8 @@ export interface TimeAttendanceDataProps extends BusinessAppContextProps {
 
 const DATA_TEST_ID = 'TimeAttendanceData'
 
-// Helper function to get initial tab from URL
-const getInitialTab = (): TimeAttendanceTabs => {
-  if (globalThis.window !== undefined) {
-    const urlParams = new URLSearchParams(globalThis.window.location.search)
-    const tabParam = urlParams.get('tab')
-
-    if (tabParam && Object.values(TimeAttendanceTabs).includes(tabParam as TimeAttendanceTabs)) {
-      return tabParam as TimeAttendanceTabs
-    }
-  }
-  return TimeAttendanceTabs.TIME_TYPES
-}
-
 const TimeAttendanceData: React.FC<TimeAttendanceDataProps> = ({ className, prefixDataTestId, ...contextProps }) => {
-  const [selectedTab, setSelectedTab] = useState<TimeAttendanceTabs>(getInitialTab)
-
-  useEffect(() => {
-    const setTabFromUrl = () => {
-      // Check URL query parameter
-      const urlParams = new URLSearchParams(globalThis.window.location.search)
-      const tabParam = urlParams.get('tab')
-
-      if (tabParam && Object.values(TimeAttendanceTabs).includes(tabParam as TimeAttendanceTabs)) {
-        setSelectedTab(tabParam as TimeAttendanceTabs)
-      }
-    }
-
-    setTabFromUrl()
-    globalThis.window.addEventListener('popstate', setTabFromUrl)
-    return () => {
-      globalThis.window.removeEventListener('popstate', setTabFromUrl)
-    }
-  }, [])
-
-  const onChangeTab = (value: string) => {
-    // Update URL with query parameter
-    const url = new URL(globalThis.window.location.href)
-    url.searchParams.set('tab', value)
-    history.replaceState(null, '', url.toString())
-    setSelectedTab(value as TimeAttendanceTabs)
-  }
+  const [selectedTab, onChangeTab] = useTabQueryParamSync(TimeAttendanceTabs, TimeAttendanceTabs.TIME_TYPES)
 
   const tabItems = [
     {

@@ -36,6 +36,8 @@ import {
 } from '@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { mergeCatalogEntryForPut, parseEmploymentMetadata } from '../../utils/catalogEntryMetadata'
+import { CatalogLookupDataTableShell } from '../CatalogLookupDataTableShell'
+import { CatalogMultilineCellText } from '../CatalogMultilineCellText'
 
 export interface EmploymentType {
   id: string
@@ -199,31 +201,13 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
         accessorKey: 'value',
         header: t('table-header-name'),
         enableSorting: true,
-        cell: ({ getValue }) => {
-          const name = getValue() as string
-          return (
-            <div className="gba:min-w-0 gba:max-w-full gba:overflow-hidden">
-              <div className="gba:whitespace-normal gba:break-all gba:font-semibold" title={name}>
-                {name}
-              </div>
-            </div>
-          )
-        }
+        cell: ({ getValue }) => <CatalogMultilineCellText text={getValue() as string} bold />
       },
       {
         accessorKey: 'description',
         header: t('table-header-description'),
         enableSorting: true,
-        cell: ({ getValue }) => {
-          const description = getValue()
-          return (
-            <div className="gba:flex gba:min-w-0 gba:max-w-xl gba:items-center">
-              <div className="gba:w-full gba:truncate" title={description as string}>
-                {(description as string) ?? '-'}
-              </div>
-            </div>
-          )
-        }
+        cell: ({ getValue }) => <CatalogMultilineCellText text={(getValue() as string | undefined) ?? '-'} />
       },
       {
         id: 'actions',
@@ -276,7 +260,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
     ]
 
     return (
-      <div className="gba:min-w-0 gba:w-full gba:[&_td]:overflow-hidden gba:[&_td]:align-top">
+      <CatalogLookupDataTableShell>
         <DataTable
           data={dataTable}
           columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
@@ -287,7 +271,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
           enableResizing={false}
           tableLayout="fixed"
         />
-      </div>
+      </CatalogLookupDataTableShell>
     )
   }
 

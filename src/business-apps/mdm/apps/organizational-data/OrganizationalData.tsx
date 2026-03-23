@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster } from '@newwork/nw-design-system'
+import { useTabQueryParamSync } from '../../hooks/useTabQueryParamSync'
 import CompaniesTab from './components/tabs/CompaniesTab'
 import { SiteLocationsTab } from './components/tabs/SiteLocationsTab'
 import { CapabilitiesTab } from './components/tabs/CapabilitiesTab'
@@ -27,48 +28,9 @@ export interface OrganizationalDataProps extends BusinessAppContextProps {
 
 const DATA_TEST_ID = 'OrganizationalData'
 
-// Helper function to get initial tab from URL
-const getInitialTab = (): OrganizationalDataTabs => {
-  if (typeof window !== 'undefined') {
-    const urlParams = new URLSearchParams(window.location.search)
-    const tabParam = urlParams.get('tab')
-
-    if (tabParam && Object.values(OrganizationalDataTabs).includes(tabParam as OrganizationalDataTabs)) {
-      return tabParam as OrganizationalDataTabs
-    }
-  }
-  return OrganizationalDataTabs.COMPANIES
-}
-
 const OrganizationalData: React.FC<OrganizationalDataProps> = ({ className, prefixDataTestId, ...contextProps }) => {
   const { t } = useTranslation()
-  const [selectedTab, setSelectedTab] = useState<OrganizationalDataTabs>(getInitialTab)
-
-  useEffect(() => {
-    const setTabFromUrl = () => {
-      // Check URL query parameter
-      const urlParams = new URLSearchParams(window.location.search)
-      const tabParam = urlParams.get('tab')
-
-      if (tabParam && Object.values(OrganizationalDataTabs).includes(tabParam as OrganizationalDataTabs)) {
-        setSelectedTab(tabParam as OrganizationalDataTabs)
-      }
-    }
-
-    setTabFromUrl()
-    window.addEventListener('popstate', setTabFromUrl)
-    return () => {
-      window.removeEventListener('popstate', setTabFromUrl)
-    }
-  }, [])
-
-  const onChangeTab = (value: string) => {
-    // Update URL with query parameter
-    const url = new URL(window.location.href)
-    url.searchParams.set('tab', value)
-    history.replaceState(null, '', url.toString())
-    setSelectedTab(value as OrganizationalDataTabs)
-  }
+  const [selectedTab, onChangeTab] = useTabQueryParamSync(OrganizationalDataTabs, OrganizationalDataTabs.COMPANIES)
 
   const tabItems = [
     {
