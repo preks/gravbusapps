@@ -338,6 +338,7 @@ export const ShareCollectionDialog: React.FC<ShareCollectionDialogProps> = ({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="viewer">Viewer</SelectItem>
                           <SelectItem value="editor">Editor</SelectItem>
                         </SelectContent>

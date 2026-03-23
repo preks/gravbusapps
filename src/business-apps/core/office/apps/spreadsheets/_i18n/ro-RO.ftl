@@ -446,3 +446,13 @@ sa-error-no-token = Token de acces indisponibil
 sa-error-load = Nu s-au putut încărca automatizările
 sa-error-run = Nu s-a putut executa automatizarea
 sa-error-stop = Nu s-a putut opri execuția
+
+# Save status (inline header, not pill)
+spreadsheet-save-just-now = Salvat chiar acum
+
+# Save / persistence indicator (viewer header)
+persist-cell-failed = Modificările celulelor nu au putut fi salvate. Încearcă din nou sau reîmprospătează pagina.
+persist-row-update-failed = Modificările rândului nu au putut fi salvate.
+persist-row-delete-failed = Rândul nu a putut fi șters.
+persist-rows-add-failed = Rândurile noi nu au putut fi salvate.
+persist-snapshot-failed = Aspectul foii nu a putut fi salvat pe server.

@@ -2,5 +2,9 @@
   {
     "key": "NEXT_PUBLIC_ORGCHART_API_URL",
     "values": ["${NEXT_PUBLIC_BASE_URL}", "https://newwork-dev.newwork.com"]
+  },
+  {
+    "key": "NEXT_PUBLIC_PROMPT_MANAGER_API_URL",
+    "values": ["${NEXT_PUBLIC_BASE_URL}/prompt-manager"]
   }
 ]

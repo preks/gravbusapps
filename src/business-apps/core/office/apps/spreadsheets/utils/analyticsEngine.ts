@@ -61,6 +61,15 @@ function looksNumeric(value: unknown): boolean {
   return Number.isFinite(n)
 }
 
+function hasMeaningfulValue(value: unknown): boolean {
+  const extracted = extractValue(value)
+  if (extracted == null) return false
+  if (typeof extracted === 'string') return extracted.trim().length > 0
+  if (typeof extracted === 'number') return Number.isFinite(extracted)
+  if (typeof extracted === 'boolean') return true
+  return String(extracted).trim().length > 0
+}
+
 /**
  * Columns suitable for chart Y-axis (values). Includes:
  * - Explicit numeric types
@@ -71,7 +80,12 @@ export function getChartableValueColumns(
   columns: SpreadsheetColumn[],
   rows: Array<Record<string, unknown>>
 ): SpreadsheetColumn[] {
-  const explicitNumeric = columns.filter(c => numericColumnTypes.has(c.type))
+  const hasDataForColumn = (column: SpreadsheetColumn): boolean => {
+    const keys = [column.name, column.id, (column as { label?: string }).label].filter(Boolean)
+    return rows.some(row => keys.some(key => hasMeaningfulValue(row[key])))
+  }
+
+  const explicitNumeric = columns.filter(c => numericColumnTypes.has(c.type) && hasDataForColumn(c))
   if (explicitNumeric.length > 0) return explicitNumeric
 
   const sampleSize = Math.min(50, Math.max(5, rows.length))
@@ -88,7 +102,7 @@ export function getChartableValueColumns(
   })
   if (inferred.length > 0) return inferred
 
-  return columns.filter(c => !nonValueColumnTypes.has(c.type))
+  return columns.filter(c => !nonValueColumnTypes.has(c.type) && hasDataForColumn(c))
 }
 
 /** Extract raw value from Univer cell objects { v, m, ... } or plain values */

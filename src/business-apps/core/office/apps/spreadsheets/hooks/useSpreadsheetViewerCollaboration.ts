@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import type { Socket } from 'socket.io-client'
 import { useCollaboration } from '../../../../../platform/apps/shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type {
@@ -87,6 +88,7 @@ export interface SpreadsheetViewerCollaborationState {
 
   // Collaboration state
   isCollaborationConnected: boolean
+  socket: Socket | null
   emitOperation: (operation: Omit<CollaborationOperation, 'userId' | 'timestamp'>) => void
   emitCursor: (position: { line?: number; column?: number; offset?: number; path?: string[] }) => void
 }
@@ -128,6 +130,7 @@ export function useSpreadsheetViewerCollaboration({
   const {
     participants: rawParticipants,
     isConnected: isCollaborationConnected,
+    socket,
     emitOperation,
     emitCursor
   } = useCollaboration({
@@ -338,6 +341,7 @@ export function useSpreadsheetViewerCollaboration({
     currentUserAvatar,
     currentUserIdRef,
     isCollaborationConnected,
+    socket,
     emitOperation,
     emitCursor
   }
