@@ -918,3 +918,21 @@ template-purpose-help = Define what this slide is for
 template-inferring = Detecting slide purposes...
 template-inference-complete = Slide purposes detected
 template-inference-failed = Could not detect purposes automatically
+
+# Layout Picker
+layout-change = Layout
+layout-duplicate-slides = Duplicate Selected Slides
+layout-browse-templates = Browse Templates...
+
+# Slide Master View
+slideshow-slide-master = Slide Master
+master-view-title = Slide Master View
+master-insert-layout = Insert Layout
+master-close = Close Master View
+master-new-layout = Custom Layout
+master-layout-added = Layout added
+master-layout-duplicated = Layout duplicated
+master-layout-deleted = Layout deleted
+master-delete-last-layout-error = Cannot delete the last layout
+master-editing-master = Editing: Slide Master
+master-editing-layout = Editing Layout

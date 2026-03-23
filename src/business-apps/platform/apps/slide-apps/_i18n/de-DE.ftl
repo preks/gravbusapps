@@ -835,3 +835,21 @@ template-purpose-help = Definieren Sie den Zweck dieser Folie
 template-inferring = Folienzwecke werden erkannt...
 template-inference-complete = Folienzwecke erkannt
 template-inference-failed = Zwecke konnten nicht automatisch erkannt werden
+
+# Layoutauswahl
+layout-change = Layout
+layout-duplicate-slides = Ausgewählte Folien duplizieren
+layout-browse-templates = Vorlagen durchsuchen...
+
+# Folienmaster-Ansicht
+slideshow-slide-master = Folienmaster
+master-view-title = Folienmaster-Ansicht
+master-insert-layout = Layout einfügen
+master-close = Masteransicht schließen
+master-new-layout = Benutzerdefiniertes Layout
+master-layout-added = Layout hinzugefügt
+master-layout-duplicated = Layout dupliziert
+master-layout-deleted = Layout gelöscht
+master-delete-last-layout-error = Das letzte Layout kann nicht gelöscht werden
+master-editing-master = Bearbeitung: Folienmaster
+master-editing-layout = Layout bearbeiten

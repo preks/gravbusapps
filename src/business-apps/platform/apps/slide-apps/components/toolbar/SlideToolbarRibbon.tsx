@@ -44,7 +44,11 @@ export interface SlideToolbarRibbonProps {
   onShowLinkDialog: () => void
   onUpdateTheme: (themeId: string) => void
   onToggleSpellCheck: () => void
-  onApplyTemplate: (slides: SlideData[], themeId: string) => void
+  onApplyTemplate: (
+    slides: SlideData[],
+    themeId: string,
+    masters?: import('../../types/slideMaster').SlideMaster[]
+  ) => void
   onPresent?: () => void
   onPresenterView?: () => void
   onPresentInWindow?: () => void
@@ -56,6 +60,9 @@ export interface SlideToolbarRibbonProps {
   onExportPdf?: () => void
   onRefineSlide?: () => void
   onGenerateSlides?: () => void
+  onOpenMasterView?: () => void
+  masters?: import('../../types/slideMaster').SlideMaster[]
+  onChangeLayout?: (layoutId: string, masterId: string) => void
   'data-testid'?: string
 }
 
@@ -99,6 +106,9 @@ export function SlideToolbarRibbon({
   onExportPdf,
   onRefineSlide,
   onGenerateSlides,
+  onOpenMasterView,
+  masters,
+  onChangeLayout,
   'data-testid': testId = 'slide-toolbar'
 }: Readonly<SlideToolbarRibbonProps>) {
   const { t } = useTranslation(translations)
@@ -143,7 +153,7 @@ export function SlideToolbarRibbon({
       </div>
 
       <section
-        className="gba:flex gba:flex-wrap gba:items-center gba:gap-0 gba:p-2 gba:min-h-[40px]"
+        className="gba:flex gba:items-center gba:gap-0 gba:p-2 gba:min-h-[48px] gba:overflow-x-auto"
         aria-label={t(`ribbon-tab-${activeTab}`)}
         data-testid={ribbonTestId}
       >
@@ -167,6 +177,8 @@ export function SlideToolbarRibbon({
             onShowLinkDialog={onShowLinkDialog}
             onUpdateTheme={onUpdateTheme}
             onToggleSpellCheck={onToggleSpellCheck}
+            masters={masters}
+            onChangeLayout={onChangeLayout}
             testId={testId}
           />
         )}
@@ -200,6 +212,7 @@ export function SlideToolbarRibbon({
             onSaveNow={onSaveNow || (() => {})}
             onExportPptx={onExportPptx || (() => {})}
             onExportPdf={onExportPdf || (() => {})}
+            onOpenMasterView={onOpenMasterView}
             testId={testId}
           />
         )}

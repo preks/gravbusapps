@@ -790,3 +790,21 @@ template-purpose-help = Definiți scopul acestui slide
 template-inferring = Se detectează scopurile slide-urilor...
 template-inference-complete = Scopurile slide-urilor detectate
 template-inference-failed = Scopurile nu au putut fi detectate automat
+
+# Selector layout
+layout-change = Layout
+layout-duplicate-slides = Duplică slide-urile selectate
+layout-browse-templates = Răsfoiește șabloane...
+
+# Vizualizare Slide Master
+slideshow-slide-master = Slide Master
+master-view-title = Vizualizare Slide Master
+master-insert-layout = Inserează layout
+master-close = Închide vizualizarea Master
+master-new-layout = Layout personalizat
+master-layout-added = Layout adăugat
+master-layout-duplicated = Layout duplicat
+master-layout-deleted = Layout șters
+master-delete-last-layout-error = Nu se poate șterge ultimul layout
+master-editing-master = Editare: Slide Master
+master-editing-layout = Editare layout

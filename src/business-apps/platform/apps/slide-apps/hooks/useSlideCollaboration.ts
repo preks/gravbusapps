@@ -16,6 +16,7 @@ import { useCollaboration } from '../../shared/hooks/useCollaboration'
 import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
 import type { SlideParticipant } from '../../shared/services/CollaborationClient'
 import type { SlideData, AnySlideElement } from '../components/slideElements'
+import type { SlideMaster } from '../types/slideMaster'
 
 export interface UseSlideCollaborationOptions {
   slideId: string
@@ -34,12 +35,14 @@ export interface UseSlideCollaborationOptions {
 export interface UseSlideCollaborationReturn {
   slides: SlideData[]
   themeId: string
+  masters: SlideMaster[] | undefined
   participants: SlideParticipant[]
   isSynced: boolean
   isInitialized: boolean
   awareness: Awareness
   updateSlides: (slides: SlideData[]) => void
   updateTheme: (themeId: string) => void
+  updateMasters: (masters: SlideMaster[]) => void
   updateSlide: (index: number, updates: Partial<SlideData>) => void
   updateElement: (slideIndex: number, elementId: string, updates: Partial<AnySlideElement>) => void
   addSlide: (slide: SlideData, position?: number) => void
@@ -204,6 +207,7 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
   // Local state (initialize with initial data if provided)
   const [slides, setSlides] = useState<SlideData[]>(initialSlides || [])
   const [themeId, setThemeId] = useState(initialThemeId || 'corporate')
+  const [masters, setMastersState] = useState<SlideMaster[] | undefined>(undefined)
   const [isSynced, setIsSynced] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
   const providerRef = useRef<SocketIoYjsProvider | null>(null)
@@ -377,6 +381,14 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
       if (theme) {
         setThemeId(prevTheme => (prevTheme !== theme ? theme : prevTheme))
       }
+      const mastersJson = yMeta.get('masters') as SlideMaster[] | undefined
+      if (mastersJson) {
+        setMastersState(prev => {
+          const prevStr = JSON.stringify(prev)
+          const newStr = JSON.stringify(mastersJson)
+          return prevStr !== newStr ? mastersJson : prev
+        })
+      }
     }
 
     ySlides.observeDeep(handleSlidesChange)
@@ -403,6 +415,13 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
   const updateTheme = useCallback(
     (newThemeId: string) => {
       yMeta.set('themeId', newThemeId)
+    },
+    [yMeta]
+  )
+
+  const updateMasters = useCallback(
+    (newMasters: SlideMaster[]) => {
+      yMeta.set('masters', newMasters)
     },
     [yMeta]
   )
@@ -513,10 +532,14 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
     (contentJson: Record<string, unknown>) => {
       const snapshotSlides = (contentJson.slides as SlideData[] | undefined) || []
       const snapshotThemeId = (contentJson.themeId as string | undefined) || 'corporate'
+      const snapshotMasters = contentJson.masters as SlideMaster[] | undefined
 
       Y.transact(ydoc, () => {
         slidesToYjs(snapshotSlides, ySlides)
         yMeta.set('themeId', snapshotThemeId)
+        if (snapshotMasters) {
+          yMeta.set('masters', snapshotMasters)
+        }
       })
     },
     [ydoc, ySlides, yMeta]
@@ -525,12 +548,14 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
   return {
     slides,
     themeId,
+    masters,
     participants,
     isSynced,
     isInitialized,
     awareness,
     updateSlides,
     updateTheme,
+    updateMasters,
     updateSlide,
     updateElement,
     addSlide,
