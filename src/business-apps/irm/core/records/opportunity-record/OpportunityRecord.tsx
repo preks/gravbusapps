@@ -1047,6 +1047,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: TaskSection,
                   props: {
                     ...props,
+                    opportunityId,
                     sectionTitle: 'Approval Tasks',
                     buildReferenceUrl,
                     tasks: approvals,
