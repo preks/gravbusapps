@@ -1,4 +1,5 @@
 import type { DocumentLayoutRuntimeState, DocumentLayoutSnapshot } from '../../../types'
+import { useApplyDocumentLayoutTableFragmentsBridge } from './useApplyDocumentLayoutTableFragmentsBridge'
 import { useApplyDocumentLayoutViewportMarkers } from './useApplyDocumentLayoutViewportMarkers'
 import { useApplyDocumentLayoutWindowedBreakers } from './useApplyDocumentLayoutWindowedBreakers'
 import { useApplyDocumentLayoutWindowedChrome } from './useApplyDocumentLayoutWindowedChrome'
@@ -24,6 +25,11 @@ export function usePagedDocumentLayoutState(
     usePaginationLayoutSnapshot(params)
   const layoutViewportModel = useDocumentLayoutViewportModel(layoutSnapshot, currentPage)
 
+  useApplyDocumentLayoutTableFragmentsBridge({
+    editorContainerRef: params.editorContainerRef,
+    layoutDocument: params.editor?.state.doc ?? null,
+    viewportModel: layoutViewportModel
+  })
   useApplyDocumentLayoutViewportMarkers({
     editorContainerRef: params.editorContainerRef,
     layoutNavigationState,

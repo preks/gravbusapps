@@ -1,5 +1,6 @@
 import type { Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
+import type { PaginationLayoutTableFragment } from '../tiptap-custom-pagination/layoutTableFragmentsBridge'
 import { logPaginationDebug } from '../tiptap-custom-pagination/utils'
 import {
   findMergeableTableFragmentCandidates,
@@ -85,6 +86,7 @@ export type TablePaginationControllerResult =
       type: 'none'
       progress: 'none'
       reason:
+        | 'layout-fragment-pagination-satisfied'
         | 'split-candidate-disappeared'
         | 'repeat-successful-split-candidate'
         | 'split-returned-false-twice'
@@ -320,8 +322,9 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
       measuredPageCount: number
       heuristics: TablePaginationHeuristics
       bodyBands: TablePaginationBodyBand[]
+      layoutTableFragments?: PaginationLayoutTableFragment[]
     }): TablePaginationControllerResult {
-      const { view, currentPageCount, measuredPageCount, heuristics, bodyBands } = options
+      const { view, currentPageCount, measuredPageCount, heuristics, bodyBands, layoutTableFragments = [] } = options
       const splitCandidates = heuristics.allowSplit ? findOverflowingTableSplitCandidates(view, bodyBands) : []
       const mergeCandidates =
         heuristics.allowMerge && splitCandidates.length === 0
@@ -337,6 +340,7 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
         allowMerge: heuristics.allowMerge,
         preferredSplitChainKey,
         bodyBandCount: bodyBands.length,
+        layoutTableFragmentCount: layoutTableFragments.length,
         splitCandidateCount: splitCandidates.length,
         mergeCandidateCount: mergeCandidates.length,
         splitCandidates: splitCandidates.map(summarizeSplitCandidate),
