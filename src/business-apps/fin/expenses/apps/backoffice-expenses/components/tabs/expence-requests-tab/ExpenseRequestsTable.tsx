@@ -41,7 +41,8 @@ import {
   useExpenseRequestFilters,
   useExpenseRequestPdf,
   useExpenseRequestActions,
-  useExpenseRequestTransfer
+  useExpenseRequestTransfer,
+  useExpenseRequestSelection
 } from './hooks'
 
 const DATA_TEST_ID_PREFIX = 'expense-requests'
@@ -106,14 +107,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   })
 
   const [selectedExpense, setSelectedExpense] = useState<ExpenseData | null>(null)
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
-  const [selectedRecords, setSelectedRecords] = useState<ExpenseData[]>([])
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([])
 
-  const clearSelection = useCallback(() => {
-    setSelectedRecords([])
-    setSelectedRowKeys([])
-  }, [])
+  const {
+    selectedRowKeys,
+    selectedRecords,
+    clearSelection,
+    handleSelectRecord,
+    handleSelectAllRecords,
+    hasBookableSelected,
+    allBookableSelected,
+    bookableRecordsCount,
+    selectedBookableCount
+  } = useExpenseRequestSelection(expenses)
 
   const { isPdfModalVisible, pdfUrl, pdfLoading, pdfError, handlePrintExpenseRequest, handleClosePdfModal } =
     useExpenseRequestPdf(props)
@@ -240,33 +246,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     setSelectedExpense(null)
   }, [])
 
-  const handleSelectRecord = useCallback((record: ExpenseData, checked: boolean) => {
-    if (record.status !== 'BOOKED') {
-      return
-    }
-    if (checked) {
-      setSelectedRecords(prev => [...prev, record])
-      setSelectedRowKeys(prev => [...prev, record.id])
-    } else {
-      setSelectedRecords(prev => prev.filter(r => r.id !== record.id))
-      setSelectedRowKeys(prev => prev.filter(key => key !== record.id))
-    }
-  }, [])
-
-  const handleSelectAllRecords = useCallback(
-    (checked: boolean) => {
-      if (checked) {
-        const bookableRecords = expenses?.filter(expense => expense.status === 'BOOKED') || []
-        setSelectedRecords(bookableRecords)
-        setSelectedRowKeys(bookableRecords.map(record => record.id))
-      } else {
-        setSelectedRecords([])
-        setSelectedRowKeys([])
-      }
-    },
-    [expenses]
-  )
-
   const handleBulkTransfer = useCallback(() => {
     if (selectedRecords.length > 0) {
       const bookableRecords = selectedRecords.filter(record => record.status === 'BOOKED')
@@ -275,30 +254,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       }
     }
   }, [selectedRecords, handleBulkTransferPayment])
-
-  const hasBookableSelected = useMemo(
-    () => selectedRecords.some(record => record.status === 'BOOKED'),
-    [selectedRecords]
-  )
-
-  const allBookableSelected = useMemo(() => {
-    const bookableRecords = expenses?.filter(expense => expense.status === 'BOOKED') || []
-    return (
-      selectedRecords.length > 0 &&
-      selectedRecords.length === bookableRecords.length &&
-      selectedRecords.every(record => record.status === 'BOOKED')
-    )
-  }, [selectedRecords, expenses])
-
-  const bookableRecordsCount = useMemo(
-    () => expenses?.filter(expense => expense.status === 'BOOKED').length || 0,
-    [expenses]
-  )
-
-  const selectedBookableCount = useMemo(
-    () => selectedRecords.filter(r => r.status === 'BOOKED').length,
-    [selectedRecords]
-  )
 
   const tableChrome = useMemo((): BackofficeExpenseRequestTableChrome => {
     return {
