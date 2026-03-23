@@ -43,7 +43,7 @@ export const StartNode: React.FC<{ data: StartNodeData }> = ({ data }) => {
   const Icon = TRIGGER_ICONS[triggerType] ?? Play
 
   const borderClass = isSelected ? 'gba:border-primary' : getStatusRing(data.status, data.isOnActivePath)
-  const bgClass = isSelected ? 'gba:bg-accent' : 'gba:bg-card'
+  const bgClass = 'gba:bg-card'
 
   return (
     <button

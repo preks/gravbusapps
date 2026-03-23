@@ -18,6 +18,14 @@ export interface UseAssetsOptions {
   locationFilter?: string[]
   /** Employee filter: when array with length > 0, only assets with current allocation to one of these employee ids */
   employeeFilter?: string[]
+  /** acquisitionDate _gte (inclusive range start), YYYY-MM-DD */
+  acquisitionDateFrom?: string
+  /** acquisitionDate _lte (inclusive range end), YYYY-MM-DD */
+  acquisitionDateTo?: string
+  /** disposalDate _gte (inclusive range start), YYYY-MM-DD */
+  disposalDateFrom?: string
+  /** disposalDate _lte (inclusive range end), YYYY-MM-DD */
+  disposalDateTo?: string
   sortField?: string
   sortOrder?: 'ASC' | 'DESC'
 }
@@ -31,6 +39,10 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
     categoryFilter,
     locationFilter,
     employeeFilter,
+    acquisitionDateFrom,
+    acquisitionDateTo,
+    disposalDateFrom,
+    disposalDateTo,
     sortField,
     sortOrder
   } = options
@@ -120,9 +132,42 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
       conditions.push({ siteLocationId: { _in: locationFilter } })
     }
 
+    // Acquisition date – inclusive range (_gte / _lte), YYYY-MM-DD
+    const acquisitionCmp: { _gte?: string; _lte?: string } = {}
+    if (acquisitionDateFrom?.trim()) {
+      acquisitionCmp._gte = acquisitionDateFrom.trim()
+    }
+    if (acquisitionDateTo?.trim()) {
+      acquisitionCmp._lte = acquisitionDateTo.trim()
+    }
+    if (Object.keys(acquisitionCmp).length > 0) {
+      conditions.push({ acquisitionDate: acquisitionCmp })
+    }
+
+    // Disposal date – inclusive range
+    const disposalCmp: { _gte?: string; _lte?: string } = {}
+    if (disposalDateFrom?.trim()) {
+      disposalCmp._gte = disposalDateFrom.trim()
+    }
+    if (disposalDateTo?.trim()) {
+      disposalCmp._lte = disposalDateTo.trim()
+    }
+    if (Object.keys(disposalCmp).length > 0) {
+      conditions.push({ disposalDate: disposalCmp })
+    }
+
     // Employee filter is applied in loadAssets by first fetching asset IDs from EmployeeAsset, then id _in (see loadAssets)
     return conditions.length > 0 ? { _and: conditions } : { isDeleted: { _eq: false } }
-  }, [search, statusFilter, categoryFilter, locationFilter])
+  }, [
+    search,
+    statusFilter,
+    categoryFilter,
+    locationFilter,
+    acquisitionDateFrom,
+    acquisitionDateTo,
+    disposalDateFrom,
+    disposalDateTo
+  ])
 
   // Build orderBy for GraphQL query (must be an array)
   const buildOrderBy = useCallback((): any[] => {

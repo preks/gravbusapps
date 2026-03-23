@@ -78,11 +78,7 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
     [t]
   )
 
-  const title = useMemo(
-    () =>
-      getTranslationFromI18nKeyAndLabel('lowcoder:change_tax_details.change_tax_details_title', 'Change Tax Details'),
-    []
-  )
+  const title = useMemo(() => t('change-tax-details-title'), [t])
 
   const labels = useMemo(() => getChangeTaxDetailsLabels(getMessage, t), [getMessage, t])
 

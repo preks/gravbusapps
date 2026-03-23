@@ -61,6 +61,7 @@ export interface InvestmentOpportunity extends Opportunity {
   investmentStakeType?: CatalogEntry // IRM specific
   investmentStakeTypeRef?: string // IRM specific
   investmentType?: CatalogEntry // IRM specific
+  investmentTypeId?: string // Form-only leaf type ID used by investment prospect layouts
   investmentTypeRef?: string // IRM specific
   loanAmount?: number // IRM specific
   loanInterestRate?: number // IRM specific

@@ -240,6 +240,73 @@ describe('templateConverter', () => {
     expect(rebuiltDecision.config.links).toEqual([{ type: 'URL', name: 'Guide', url: 'https://example.com/guide' }])
   })
 
+  it('persists decision task expert param mappings across save and load', () => {
+    const decisionNode = makeDecisionNode('d-taskexpert', 'Decision Task Expert')
+    ;(decisionNode.config as any).decisionMode = 'AI'
+    ;(decisionNode.config as any).aiConfig = {
+      executor: 'TASK_EXPERT',
+      promptId: 'prompt-123',
+      promptName: 'Warranty Decision Expert',
+      promptVersion: 4,
+      promptUserContent: 'Context: {context}\nSerial: {serial}',
+      systemParamsMap: {
+        tenantName: '{{$workflow.context.tenantName}}'
+      },
+      userParamsMap: {
+        context: '{{$workflow.input}}',
+        serial: '{{$workflow.input.serial}}'
+      },
+      humanInstructions: 'Please review the AI decision.',
+      mapping: {
+        conditions: [{ expression: "$steps.self.resultData.decisionResult == 'approve'", branchId: 'approve-branch' }]
+      },
+      escalation: {
+        mode: 'USER',
+        assignment: { targets: null, assignmentMode: AssignmentMode.CLAIM }
+      }
+    }
+
+    const nodes: StudioNode[] = [
+      makeStartNode(),
+      decisionNode,
+      makeTaskNode('approve', 'Approved'),
+      makeTaskNode('reject', 'Rejected'),
+      makeEndNode()
+    ]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-d', source: START_ID, target: 'd-taskexpert', direction: 'forward' } as any,
+      {
+        id: 'approve-branch',
+        source: 'd-taskexpert',
+        target: 'approve',
+        direction: 'forward',
+        label: 'Approve'
+      } as any,
+      { id: 'reject-branch', source: 'd-taskexpert', target: 'reject', direction: 'forward', label: 'Reject' } as any,
+      { id: 'e-approve-end', source: 'approve', target: END_ID, direction: 'forward' } as any,
+      { id: 'e-reject-end', source: 'reject', target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Decision Task Expert') as any
+    expect(template.steps[0].aiConfig.systemParamsMap).toEqual({
+      tenantName: '{{$workflow.context.tenantName}}'
+    })
+    expect(template.steps[0].aiConfig.userParamsMap).toEqual({
+      context: '{{$workflow.input}}',
+      serial: '{{$workflow.input.serial}}'
+    })
+
+    const rebuilt = templateToStudioGraph(template)
+    const rebuiltDecision = rebuilt.nodes.find(n => n.id === 'd-taskexpert') as any
+    expect(rebuiltDecision.config.aiConfig.systemParamsMap).toEqual({
+      tenantName: '{{$workflow.context.tenantName}}'
+    })
+    expect(rebuiltDecision.config.aiConfig.userParamsMap).toEqual({
+      context: '{{$workflow.input}}',
+      serial: '{{$workflow.input.serial}}'
+    })
+  })
+
   it('persists function output schema and pinned version across save/load', () => {
     const functionSchema = {
       type: 'object',

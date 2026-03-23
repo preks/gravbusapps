@@ -106,6 +106,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
 
   const { saveFlow, loadFlow, isLoading: isLoadingTemplate } = useFlowStudioClient(accessToken)
   const urlFlowIdOnMount = getFlowIdFromUrl()
+  const [labelsReady, setLabelsReady] = useState(false)
   const [view, setView] = useState<'list' | 'designer'>(templateId || urlFlowIdOnMount ? 'designer' : 'list')
   const [labelsOpen, setLabelsOpen] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
@@ -121,6 +122,10 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     },
     [setMode]
   )
+
+  useEffect(() => {
+    setLabelsReady(true)
+  }, [])
 
   const tagPills = useMemo(() => {
     const tags = (templateTags || {}) as Record<string, unknown>
@@ -154,6 +159,14 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   }, [templateTags])
 
   const hasAnyTags = tagPills.length > 0
+
+  const appEyebrowLabel = useMemo(() => t('app-eyebrow'), [t, labelsReady])
+  const appTitlePlaceholder = useMemo(() => t('app-title'), [t, labelsReady])
+  const appDescriptionLabel = useMemo(() => t('app-description'), [t, labelsReady])
+  const listTitleLabel = useMemo(() => t('list-title'), [t, labelsReady])
+  const listSubtitleLabel = useMemo(() => t('list-subtitle'), [t, labelsReady])
+  const studioBackToListLabel = useMemo(() => t('studio-back-to-list'), [t, labelsReady])
+  const listCreateLabel = useMemo(() => t('list-create'), [t, labelsReady])
 
   const getSaveErrorMessage = useCallback(
     (error: unknown) => (error instanceof Error ? error.message : 'Failed to save flow'),
@@ -310,7 +323,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
               </div>
               <div className="gba:flex gba:flex-col gba:gap-0.5">
                 <span className="gba:text-xs gba:font-medium gba:tracking-[0.3em] gba:text-white/60 gba:uppercase">
-                  {t('app-eyebrow')}
+                  {appEyebrowLabel}
                 </span>
                 {view === 'designer' ? (
                   <>
@@ -319,17 +332,17 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                       value={templateName}
                       onChange={e => setTemplateMetadata({ name: e.target.value })}
                       className="gba:text-xl gba:font-semibold gba:bg-transparent gba:border-none gba:outline-none gba:p-0 gba:leading-tight gba:text-white placeholder:gba:text-white/50"
-                      placeholder={t('app-title')}
+                      placeholder={appTitlePlaceholder}
                       data-testid={`${testId}-name-input`}
                     />
-                    <span className="gba:text-sm gba:text-white/80">{t('app-description')}</span>
+                    <span className="gba:text-sm gba:text-white/80">{appDescriptionLabel}</span>
                   </>
                 ) : (
                   <>
                     <div className="gba:text-xl gba:font-semibold gba:text-white" data-testid={`${testId}-list-title`}>
-                      {t('list-title')}
+                      {listTitleLabel}
                     </div>
-                    <span className="gba:text-sm gba:text-white/80">{t('list-subtitle')}</span>
+                    <span className="gba:text-sm gba:text-white/80">{listSubtitleLabel}</span>
                   </>
                 )}
               </div>
@@ -346,7 +359,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                   type="button"
                 >
                   <ArrowLeft className="gba:h-4 gba:w-4 gba:mr-1" />
-                  {t('studio-back-to-list')}
+                  {studioBackToListLabel}
                 </Button>
               </div>
             )}
@@ -362,7 +375,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                   type="button"
                 >
                   <ListPlus className="gba:h-4 gba:w-4 gba:mr-1" />
-                  {t('list-create')}
+                  {listCreateLabel}
                 </Button>
               </div>
             )}

@@ -7,9 +7,14 @@ import {
   Spinner,
   Alert,
   AlertDescription,
-  Button
+  Button,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  type ChartConfig
 } from '@newwork/nw-design-system'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { LineChart, Line, XAxis, YAxis } from 'recharts'
 import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import {
   CampaignsAnalyticsComponentProps,
@@ -18,7 +23,7 @@ import {
   CampaignsTimelineData
 } from '../types/CampaignsAnalyticsTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { CHART_COLORS } from '../../../utils/chartColors'
+import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
 import { TooltipWrapper, TooltipDataLine } from '@/common/components/customer/campaign-management/ChartHelpers'
 import dayjs from 'dayjs'
 
@@ -50,30 +55,32 @@ const TimelineTooltip: React.FC<TimelineTooltipProps> = ({ active, payload, labe
     const data = payload[0].payload
     return (
       <TooltipWrapper title={label || 'Timeline'}>
-        <TooltipDataLine label="Campaigns" value={data.cumulativeCampaigns} color={CHART_COLORS.primary} />
-        <TooltipDataLine label="Leads" value={data.cumulativeLeads} color={CHART_COLORS.success} />
-        <TooltipDataLine label="Accounts" value={data.cumulativeAccounts} color={CHART_COLORS.accent} />
-        <TooltipDataLine label="Contacts" value={data.cumulativeContacts} color={CHART_COLORS.warning} />
-        <TooltipDataLine label="Opportunities" value={data.cumulativeOpportunities} color={CHART_COLORS.danger} />
+        <TooltipDataLine label="Campaigns" value={data.cumulativeCampaigns} color={NW_CHART_COLOR_VARS[0]} />
+        <TooltipDataLine label="Leads" value={data.cumulativeLeads} color={NW_CHART_COLOR_VARS[1]} />
+        <TooltipDataLine label="Accounts" value={data.cumulativeAccounts} color={NW_CHART_COLOR_VARS[2]} />
+        <TooltipDataLine label="Contacts" value={data.cumulativeContacts} color={NW_CHART_COLOR_VARS[3]} />
+        <TooltipDataLine label="Opportunities" value={data.cumulativeOpportunities} color={NW_CHART_COLOR_VARS[4]} />
       </TooltipWrapper>
     )
   }
   return null
 }
 
-// Line configuration to eliminate duplication
 const LINE_CONFIG = [
-  { key: 'cumulativeCampaigns', dataKey: 'cumulativeCampaigns', name: 'Campaigns', color: CHART_COLORS.primary },
-  { key: 'cumulativeLeads', dataKey: 'cumulativeLeads', name: 'Leads', color: CHART_COLORS.success },
-  { key: 'cumulativeAccounts', dataKey: 'cumulativeAccounts', name: 'Accounts', color: CHART_COLORS.accent },
-  { key: 'cumulativeContacts', dataKey: 'cumulativeContacts', name: 'Contacts', color: CHART_COLORS.warning },
-  {
-    key: 'cumulativeOpportunities',
-    dataKey: 'cumulativeOpportunities',
-    name: 'Opportunities',
-    color: CHART_COLORS.danger
-  }
+  { key: 'cumulativeCampaigns', dataKey: 'cumulativeCampaigns', name: 'Campaigns' },
+  { key: 'cumulativeLeads', dataKey: 'cumulativeLeads', name: 'Leads' },
+  { key: 'cumulativeAccounts', dataKey: 'cumulativeAccounts', name: 'Accounts' },
+  { key: 'cumulativeContacts', dataKey: 'cumulativeContacts', name: 'Contacts' },
+  { key: 'cumulativeOpportunities', dataKey: 'cumulativeOpportunities', name: 'Opportunities' }
 ] as const
+
+const TIMELINE_CHART_CONFIG: ChartConfig = {
+  cumulativecampaigns: { label: 'Campaigns' },
+  cumulativeleads: { label: 'Leads' },
+  cumulativeaccounts: { label: 'Accounts' },
+  cumulativecontacts: { label: 'Contacts' },
+  cumulativeopportunities: { label: 'Opportunities' }
+}
 
 const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
   timelineAnalysis = [],
@@ -383,7 +390,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
       </CardHeader>
       <CardContent className="gba:p-6">
         {aggregateTimelineData.length === 0 ? (
-          <div className="gba:text-center gba:py-8" style={{ color: 'var(--color-text-secondary)' }}>
+          <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'campaigns.analytics.timelineAnalysis.noData',
               'No timeline data available'
@@ -391,7 +398,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
           </div>
         ) : (
           <div className="gba:h-[500px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer config={TIMELINE_CHART_CONFIG} className="gba:h-[500px] gba:w-full">
               <LineChart
                 data={aggregateTimelineData}
                 margin={{ top: 20, right: 30, left: 20, bottom: timelinePeriod === 'historical' ? 30 : 50 }}
@@ -405,8 +412,8 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
                   height={timelinePeriod === 'historical' ? 30 : 80}
                 />
                 <YAxis />
-                <Tooltip content={<TimelineTooltip />} />
-                <Legend />
+                <ChartTooltip content={<TimelineTooltip />} />
+                <ChartLegend content={<ChartLegendContent />} />
 
                 {LINE_CONFIG.map(
                   lineConfig =>
@@ -415,7 +422,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
                         key={lineConfig.key}
                         type="monotone"
                         dataKey={lineConfig.dataKey}
-                        stroke={lineConfig.color}
+                        stroke={`var(--color-${lineConfig.dataKey.toLowerCase()})`}
                         name={lineConfig.name}
                         strokeWidth={2}
                         dot={{ r: 3 }}
@@ -423,7 +430,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
                     )
                 )}
               </LineChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         )}
       </CardContent>

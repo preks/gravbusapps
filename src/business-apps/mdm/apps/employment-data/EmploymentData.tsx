@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster, useTranslation } from '@newwork/nw-design-system'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { BriefcaseIcon } from '@phosphor-icons/react'
 import { EmploymentTypesTab } from './components/tabs/EmploymentTypesTab'
 import { ContractTypesTab } from './components/tabs/ContractTypesTab'
-import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster } from '@newwork/nw-design-system'
+import translations from './_i18n'
 
 export enum EmploymentDataTabs {
   EMPLOYMENT_TYPES = 'employment-types',
@@ -33,7 +33,7 @@ const getInitialTab = (): EmploymentDataTabs => {
 }
 
 const EmploymentData: React.FC<EmploymentDataProps> = ({ className, prefixDataTestId, ...contextProps }) => {
-  const { t } = useTranslation()
+  const { t } = useTranslation(translations)
   const [selectedTab, setSelectedTab] = useState<EmploymentDataTabs>(getInitialTab)
 
   useEffect(() => {
@@ -65,19 +65,15 @@ const EmploymentData: React.FC<EmploymentDataProps> = ({ className, prefixDataTe
   return (
     <PageLayout
       headerIcon={<BriefcaseIcon />}
-      headerLabel={t('hr.employment_data', 'Employment Data')}
-      className={`${className ? className : ''} gba:!overflow-y-visible`}
+      headerLabel={t('page-title')}
+      className={`${className ? className : ''} gba:overflow-y-visible!`}
       contentContainer={
-        <div className="gba:w-full gba:h-full gba:!overflow-y-auto" style={{ padding: '24px' }}>
+        <div className="gba:w-full gba:h-full gba:overflow-y-auto!" style={{ padding: '24px' }}>
           <div data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}>
             <Tabs value={selectedTab} onValueChange={onChangeTab} className="gba:w-full">
               <TabsList className="gba:w-full">
-                <TabsTrigger value={EmploymentDataTabs.EMPLOYMENT_TYPES}>
-                  {t('hr.employment_types', 'Employment Types')}
-                </TabsTrigger>
-                <TabsTrigger value={EmploymentDataTabs.CONTRACT_TYPES}>
-                  {t('hr.contract_types', 'Contract Types')}
-                </TabsTrigger>
+                <TabsTrigger value={EmploymentDataTabs.EMPLOYMENT_TYPES}>{t('tab-employment-types')}</TabsTrigger>
+                <TabsTrigger value={EmploymentDataTabs.CONTRACT_TYPES}>{t('tab-contract-types')}</TabsTrigger>
               </TabsList>
 
               <TabsContent value={EmploymentDataTabs.EMPLOYMENT_TYPES}>

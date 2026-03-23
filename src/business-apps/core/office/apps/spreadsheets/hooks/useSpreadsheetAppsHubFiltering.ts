@@ -18,6 +18,7 @@ export interface UseSpreadsheetAppsHubFilteringParams {
   currentUserId: string
   activeSection: SpreadsheetHubSidebarSection
   favorites: Set<string>
+  taskAppIds?: Set<string>
   searchQuery: string
   sortBy: SpreadsheetHubSortBy
   sortOrder: SpreadsheetHubSortOrder
@@ -65,19 +66,12 @@ function isExcelCollectionCopy(app: SpreadsheetAppSummary): boolean {
   return hasCollectionCopyMarkers
 }
 
-function hasContributorAccess(app: SpreadsheetAppSummary, currentUserId: string): boolean {
-  if (isOwner(app, currentUserId)) return true
-  return (
-    app.permission === 'owner' ||
-    app.permission === 'admin' ||
-    app.permission === 'edit' ||
-    app.permission === 'view' ||
-    app.isShared === true
-  )
-}
-
 function isExcelCollectionTaskForCurrentUser(app: SpreadsheetAppSummary, currentUserId: string): boolean {
-  return isExcelCollectionCopy(app) && hasContributorAccess(app, currentUserId)
+  // listApps already returns only apps visible to the current user.
+  // Do not gate by permission flags here because some environments omit them
+  // for collection copies, which would hide valid tasks from recipients.
+  void currentUserId
+  return isExcelCollectionCopy(app)
 }
 
 function filterBySection(params: {
@@ -85,9 +79,13 @@ function filterBySection(params: {
   activeSection: SpreadsheetHubSidebarSection
   currentUserId: string
   favorites: Set<string>
+  taskAppIds?: Set<string>
 }): SpreadsheetAppSummary[] {
-  const { apps, activeSection, currentUserId, favorites } = params
+  const { apps, activeSection, currentUserId, favorites, taskAppIds } = params
   const taskApps = apps.filter(app => isExcelCollectionTaskForCurrentUser(app, currentUserId))
+  const fallbackTaskApps = taskAppIds && taskAppIds.size > 0 ? apps.filter(app => taskAppIds.has(app.id)) : []
+  const allTaskApps = [...taskApps, ...fallbackTaskApps]
+  const uniqueTaskApps = allTaskApps.filter((app, index) => allTaskApps.findIndex(a => a.id === app.id) === index)
   // Keep all collection copies out of the regular hub lists.
   const visibleApps = apps.filter(app => !isExcelCollectionCopy(app))
 
@@ -97,7 +95,7 @@ function filterBySection(params: {
     case 'shared':
       return visibleApps.filter(app => app.isShared && !isOwner(app, currentUserId))
     case 'tasks':
-      return taskApps
+      return uniqueTaskApps
     case 'favorites':
       return visibleApps.filter(app => favorites.has(app.id))
     case 'recent':
@@ -143,15 +141,15 @@ function sortApps(
 export function useSpreadsheetAppsHubFiltering(
   params: UseSpreadsheetAppsHubFilteringParams
 ): UseSpreadsheetAppsHubFilteringReturn {
-  const { apps, currentUserId, activeSection, favorites, searchQuery, sortBy, sortOrder } = params
+  const { apps, currentUserId, activeSection, favorites, taskAppIds, searchQuery, sortBy, sortOrder } = params
 
   const filteredApps = useMemo(() => {
-    const sectionFiltered = filterBySection({ apps, activeSection, currentUserId, favorites })
+    const sectionFiltered = filterBySection({ apps, activeSection, currentUserId, favorites, taskAppIds })
     const searched = applySearchFilter(sectionFiltered, searchQuery)
     const sorted = [...searched]
     sortApps(sorted, sortBy, sortOrder)
     return sorted
-  }, [activeSection, apps, currentUserId, favorites, searchQuery, sortBy, sortOrder])
+  }, [activeSection, apps, currentUserId, favorites, taskAppIds, searchQuery, sortBy, sortOrder])
 
   return { filteredApps }
 }

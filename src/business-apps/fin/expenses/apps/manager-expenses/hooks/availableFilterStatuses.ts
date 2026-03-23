@@ -24,15 +24,13 @@ export const planFilterStatuses: ExpenseStatus[] = [
   ExpenseStatus.DISCARDED
 ]
 
+// Same status options as backoffice; order follows lifecycle (table: PREPARED → … → TRANSFERRED).
 export const advancePaymentFilterStatuses: ExpenseStatus[] = [
-  ExpenseStatus.CREATED,
   ExpenseStatus.PREPARED,
   ExpenseStatus.PENDING,
   ExpenseStatus.APPROVED,
-  ExpenseStatus.RETURNED,
   ExpenseStatus.REJECTED,
-  ExpenseStatus.VERIFIED,
   ExpenseStatus.BOOKED,
-  ExpenseStatus.TRANSFERRED,
-  ExpenseStatus.PAID
+  ExpenseStatus.PAID,
+  ExpenseStatus.TRANSFERRED
 ]

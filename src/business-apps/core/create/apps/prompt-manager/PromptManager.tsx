@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import '@newwork/nw-design-system/style'
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger, useTranslation } from '@newwork/nw-design-system'
 import { Bot, ListPlus } from 'lucide-react'
@@ -77,6 +77,7 @@ const parseUrlAction = (search: string): UrlAction => {
 
 const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(translations)
+  const [labelsReady, setLabelsReady] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [viewingPromptId, setViewingPromptId] = useState<string | null>(null)
   const [viewingPromptName, setViewingPromptName] = useState<string>('')
@@ -97,6 +98,11 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
     }
     globalThis.addEventListener?.('popstate', onPop)
     return () => globalThis.removeEventListener?.('popstate', onPop)
+  }, [])
+
+  // Force one post-mount rerender so late i18n bundle registration does not leave raw keys on first paint.
+  useEffect(() => {
+    setLabelsReady(true)
   }, [])
 
   // Handle URL parameter for direct expert access
@@ -207,7 +213,17 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
   }, [])
 
   const renderToolsTab = () => <ToolsSpace {...context} />
-  const renderMonitoringTab = () => <MonitoringTab {...context} />
+  const renderMonitoringTab = () => <MonitoringTab {...context} labelsReady={labelsReady} />
+
+  const pageTitle = useMemo(() => t('page-title'), [t, labelsReady])
+  const pageDescription = useMemo(() => t('page-description'), [t, labelsReady])
+  const createTaskExpertLabel = useMemo(() => t('create-task-expert'), [t, labelsReady])
+  const editTaskExpertLabel = useMemo(() => t('edit-task-expert'), [t, labelsReady])
+  const viewTaskExpertLabel = useMemo(() => t('view-task-expert'), [t, labelsReady])
+  const newTaskExpertLabel = useMemo(() => t('new-task-expert'), [t, labelsReady])
+  const taskExpertsTabLabel = useMemo(() => t('tab-task-experts'), [t, labelsReady])
+  const monitoringTabLabel = useMemo(() => t('tab-monitoring'), [t, labelsReady])
+  const toolsTabLabel = useMemo(() => t('tab-tools'), [t, labelsReady])
 
   // Create mode
   if (isCreateOpen) {
@@ -216,8 +232,8 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
         <CreateHeroHeader
           icon={Bot}
           appLabel="Create"
-          title={t('create-task-expert')}
-          description={t('page-description')}
+          title={createTaskExpertLabel}
+          description={pageDescription}
           data-testid="prompt-manager-hero"
         />
         <div className="gba:flex gba:flex-1 gba:overflow-hidden">
@@ -246,8 +262,8 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
         <CreateHeroHeader
           icon={Bot}
           appLabel="Create"
-          title={editingPromptName || t('edit-task-expert')}
-          description={t('page-description')}
+          title={editingPromptName || editTaskExpertLabel}
+          description={pageDescription}
           data-testid="prompt-manager-hero"
         />
         <div className="gba:flex gba:flex-1 gba:overflow-hidden">
@@ -283,8 +299,8 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
         <CreateHeroHeader
           icon={Bot}
           appLabel="Create"
-          title={viewingPromptName || t('view-task-expert')}
-          description={t('page-description')}
+          title={viewingPromptName || viewTaskExpertLabel}
+          description={pageDescription}
           data-testid="prompt-manager-hero"
         />
         <div className="gba:flex gba:flex-1 gba:overflow-hidden">
@@ -308,8 +324,8 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
       <CreateHeroHeader
         icon={Bot}
         appLabel="Create"
-        title={t('page-title')}
-        description={t('page-description')}
+        title={pageTitle}
+        description={pageDescription}
         actions={
           <Button
             variant="secondary"
@@ -320,7 +336,7 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
             type="button"
           >
             <ListPlus className="gba:h-4 gba:w-4 gba:mr-1" />
-            {t('new-task-expert')}
+            {newTaskExpertLabel}
           </Button>
         }
         data-testid="prompt-manager-hero"
@@ -330,13 +346,13 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
           <Tabs value={activeTab} onValueChange={v => setTabAndUrl(v as any)} className="gba:w-full">
             <TabsList className="gba:mb-4" data-testid="prompt-manager-tabs">
               <TabsTrigger value="task-experts" data-testid="prompt-manager-tab-task-experts">
-                {t('tab-task-experts')}
+                {taskExpertsTabLabel}
               </TabsTrigger>
               <TabsTrigger value="monitoring" data-testid="prompt-manager-tab-monitoring">
-                {t('tab-monitoring')}
+                {monitoringTabLabel}
               </TabsTrigger>
               <TabsTrigger value="tools" data-testid="prompt-manager-tab-tools">
-                {t('tab-tools')}
+                {toolsTabLabel}
               </TabsTrigger>
             </TabsList>
 
@@ -344,6 +360,7 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
               <TaskExpertsSpace
                 {...context}
                 translations={translations}
+                labelsReady={labelsReady}
                 onViewPrompt={onViewPrompt}
                 onEditPrompt={onEditPrompt}
                 refreshKey={shouldRefresh}

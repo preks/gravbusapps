@@ -80,7 +80,7 @@ export const opportunitySchemaBase = z.object({
 })
 
 // Helper function to add pipeline/stage validation refinement
-export const addPipelineStageRefinement = <T extends typeof opportunitySchemaBase>(schema: T) => {
+export const addPipelineStageRefinement = <T extends z.ZodObject<any>>(schema: T) => {
   return schema.refine(
     data => {
       // If pipeline is selected, stage must also be selected

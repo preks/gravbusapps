@@ -305,6 +305,7 @@ export const BoardApiService = {
         status: app.status as BoardStatus,
         sheetCount: sheets.length,
         rowCount: (app.rowCount as number) ?? 0,
+        spaceId: app.spaceId as string | undefined,
         createdAt: app.createdAt as string,
         updatedAt: app.updatedAt as string,
         permission: mapPermission(app.permission as string | undefined),

@@ -1,5 +1,7 @@
 # Change Tax Details - Labels (when not in lowcoder) and validation messages
 
+change-tax-details-title = Change Tax Details
+request-at-tax-office = Request at tax office
 employee-tax-office = Employee's Tax Office
 individual-free-amount = Individual Free Amount
 health-insurance-document-upload = Upload document
