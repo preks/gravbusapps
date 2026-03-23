@@ -5,3 +5,5 @@ export { default as ExpenseRequestTableActions } from './ExpenseRequestTableActi
 export { default as ExpenseRequestTableRow } from './ExpenseRequestTableRow'
 export { default as ExpenseRequestPagination } from './ExpenseRequestPagination'
 export { default as ExpenseRequestsDataTable } from './ExpenseRequestsDataTable'
+export { default as ExpenseRequestsTableExportOverlay } from './ExpenseRequestsTableExportOverlay'
+export { default as BackofficeExpenseRequestDetailsSheet } from './BackofficeExpenseRequestDetailsSheet'

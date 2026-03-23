@@ -6,9 +6,12 @@ const DEFAULT_ORDER: unknown[] = [{ createdAt: 'DESC' }, { id: 'DESC' }]
  * Maps list sort field + direction to the GraphQL `orderBy` array for {@link GET_EXPENSE_REQUESTS}.
  */
 export function buildBackofficeExpenseRequestOrderBy(
-  field: ExpenseRequestListSortField,
-  order: 'ASC' | 'DESC'
+  field: ExpenseRequestListSortField | null,
+  order: 'ASC' | 'DESC' | null
 ): unknown[] {
+  if (!field || !order) {
+    return []
+  }
   switch (field) {
     case 'title':
       return [{ title: order }, { id: order }]

@@ -26,6 +26,7 @@ export interface EmployeeLike {
 
 export interface DateColumnOptions {
   formatDate: (value: string | null | undefined) => string
+  sortDescFirst?: boolean
 }
 
 /**
@@ -44,13 +45,20 @@ export function createDateColumn<T extends object>(
   accessor: (keyof T & string) | ((row: T) => string | null | undefined),
   options: DateColumnOptions
 ): ColumnDef<T> {
-  const { formatDate } = options
+  const { formatDate, sortDescFirst } = options
   const hasFn = typeof accessor === 'function'
+  const accessorFn = hasFn
+    ? (accessor as (row: T) => string | null | undefined)
+    : (row: T) => {
+        const key = accessor as keyof T & string
+        return (row as Record<string, string | null | undefined>)[key] ?? null
+      }
   return {
     id,
-    ...(hasFn ? { accessorFn: accessor as (row: T) => string | null | undefined } : { accessorKey: accessor }),
+    accessorFn,
     header,
     enableSorting: true,
+    ...(sortDescFirst !== undefined ? { sortDescFirst } : {}),
     size: 110,
     minSize: 90,
     maxSize: 150,

@@ -68,7 +68,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
   return [
     {
       id: 'employee',
-      accessorKey: 'employee',
+      accessorFn: (row: ExpenseData) => row.employee,
       header: t('header-employee'),
       enableSorting: true,
       size: 200,
@@ -78,7 +78,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     },
     {
       id: 'employeeCode',
-      accessorKey: 'employeeCode',
+      accessorFn: (row: ExpenseData) => row.employeeCode,
       header: t('header-employee-code'),
       enableSorting: true,
       size: 140,
@@ -100,7 +100,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     },
     {
       id: 'requestNumber',
-      accessorKey: 'code',
+      accessorFn: (row: ExpenseData) => row.code,
       header: t('header-request-number'),
       enableSorting: true,
       size: 140,
@@ -110,7 +110,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     },
     {
       id: 'title',
-      accessorKey: 'title',
+      accessorFn: (row: ExpenseData) => row.title,
       header: t('header-title'),
       enableSorting: true,
       size: 200,
@@ -120,7 +120,10 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     },
     createDateColumn<ExpenseData>('startDate', t('header-start-date'), 'startDate', { formatDate }),
     createDateColumn<ExpenseData>('endDate', t('header-end-date'), 'endDate', { formatDate }),
-    createDateColumn<ExpenseData>('createdAt', t('header-creation-date'), row => row.creationDate, { formatDate }),
+    createDateColumn<ExpenseData>('createdAt', t('header-creation-date'), row => row.creationDate, {
+      formatDate,
+      sortDescFirst: true
+    }),
     createStatusBadgeColumn<ExpenseData>(
       'status',
       t('header-status'),
@@ -133,7 +136,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     ),
     {
       id: 'totalRemainingAmount',
-      accessorKey: 'totalRemainingAmount',
+      accessorFn: (row: ExpenseData) => row.totalRemainingAmount,
       header: t('header-remaining-amount'),
       enableSorting: true,
       size: 150,

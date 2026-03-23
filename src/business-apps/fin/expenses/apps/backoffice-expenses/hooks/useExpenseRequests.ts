@@ -19,9 +19,9 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
 
   // Single source of truth for sorting state
   const [sorting, setSorting] = useState<{
-    field: ExpenseRequestListSortField
-    order: 'ASC' | 'DESC'
-    lastField: ExpenseRequestListSortField
+    field: ExpenseRequestListSortField | null
+    order: 'ASC' | 'DESC' | null
+    lastField: ExpenseRequestListSortField | null
   }>({ field: 'createdAt', order: 'DESC', lastField: 'createdAt' })
 
   // Derived orderBy for the data hook
@@ -74,7 +74,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
   const updateSorting = useCallback(
     (field: ExpenseRequestListSortField) => {
       let order: 'ASC' | 'DESC' = 'ASC'
-      if (sorting.lastField === field) {
+      if (sorting.lastField === field && sorting.order) {
         order = sorting.order === 'ASC' ? 'DESC' : 'ASC'
       }
       setSorting({ field, order, lastField: field })
@@ -83,7 +83,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
     [sorting.lastField, sorting.order]
   )
 
-  const applySorting = useCallback((field: ExpenseRequestListSortField, order: 'ASC' | 'DESC') => {
+  const applySorting = useCallback((field: ExpenseRequestListSortField | null, order: 'ASC' | 'DESC' | null) => {
     setSorting(prev => {
       if (prev.field === field && prev.order === order) {
         return prev
