@@ -1,16 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import {
-  BoardApiService,
-  setBoardApiAuthTokenProvider
-} from '@/business-apps/platform/apps/board-apps/services/BoardApiService'
+import { useState, useEffect, useCallback } from 'react'
 import { buildBoardFromTemplate } from '@/business-apps/platform/apps/board-apps/templates/boardTemplateTypes'
 import {
   buildProjectBoardTemplate,
   type ProjectBoardInput
 } from '@/business-apps/platform/apps/board-apps/templates/projectBoardTemplate'
-import type { Board, BoardSummary } from '@/business-apps/platform/apps/board-apps/types'
 import type { Project } from '../../project-management/types'
 import { Navigation } from '@/common/utils/navigationUtils'
+import { boardApiClient, type BoardMin, type BoardSummaryMin } from '../services/boardApiClient'
 
 interface ProjectBoardMap {
   [projectId: string]: { boardId: string; boardName: string }
@@ -25,56 +21,51 @@ export function useProjectBoard({ accessToken, projects }: UseProjectBoardOption
   const [projectBoardMap, setProjectBoardMap] = useState<ProjectBoardMap>({})
   const [isLoading, setIsLoading] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
-  const authInitialized = useRef(false)
-
-  useEffect(() => {
-    if (accessToken && !authInitialized.current) {
-      setBoardApiAuthTokenProvider(() => accessToken)
-      authInitialized.current = true
-    }
-  }, [accessToken])
 
   const loadProjectBoardMap = useCallback(async () => {
     if (!accessToken || projects.length === 0) return
 
     setIsLoading(true)
     try {
-      const boards = await BoardApiService.listBoards({ limit: 100 })
+      const boards = await boardApiClient.listBoards(accessToken, { limit: 100 })
       const map: ProjectBoardMap = {}
       for (const board of boards) {
-        const pid = (board.settings as Record<string, unknown> | undefined)?.projectId as string | undefined
+        const pid = board.settings?.projectId as string | undefined
         if (pid) {
           map[pid] = { boardId: board.id, boardName: board.name }
         }
       }
       setProjectBoardMap(map)
     } catch (err) {
-      console.error('Failed to load project board map:', err)
+      console.error('Failed to load project board map:', err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsLoading(false)
     }
   }, [accessToken, projects.length])
 
   useEffect(() => {
-    if (authInitialized.current && projects.length > 0) {
+    if (accessToken && projects.length > 0) {
       loadProjectBoardMap()
     }
   }, [loadProjectBoardMap])
 
-  const findProjectBoard = useCallback(async (projectId: string): Promise<BoardSummary | null> => {
-    try {
-      const boards = await BoardApiService.listBoards({ projectId })
-      return boards.length > 0 ? boards[0] : null
-    } catch {
-      return null
-    }
-  }, [])
+  const findProjectBoard = useCallback(
+    async (projectId: string): Promise<BoardSummaryMin | null> => {
+      try {
+        const boards = await boardApiClient.listBoards(accessToken, { projectId })
+        return boards.length > 0 ? boards[0] : null
+      } catch {
+        return null
+      }
+    },
+    [accessToken]
+  )
 
   const createProjectBoard = useCallback(
     async (
       project: Project,
       members: Array<{ employeeId: string; role?: string; name?: string }>
-    ): Promise<Board | null> => {
+    ): Promise<BoardMin | null> => {
       const existing = projectBoardMap[project.id]
       if (existing) {
         console.warn(`Board already exists for project ${project.id}`)
@@ -105,14 +96,12 @@ export function useProjectBoard({ accessToken, projects }: UseProjectBoardOption
         const template = buildProjectBoardTemplate(input)
         const boardData = buildBoardFromTemplate(template)
 
-        boardData.settings = {
-          ...boardData.settings,
-          projectId: project.id
-        } as Board['settings']
-        boardData.status = 'promoted'
-        boardData.description = template.description
-
-        const board = await BoardApiService.createBoard(boardData)
+        const board = await boardApiClient.createBoard(accessToken, {
+          ...boardData,
+          settings: { ...(boardData.settings as Record<string, unknown>), projectId: project.id },
+          status: 'promoted',
+          description: template.description
+        })
 
         const firstSheet = board.sheets?.[0]
         if (firstSheet) {
@@ -122,17 +111,19 @@ export function useProjectBoard({ accessToken, projects }: UseProjectBoardOption
             await Promise.all(
               seedRows
                 .slice(i, i + BATCH)
-                .map(rowData => BoardApiService.createRow(board.id, firstSheet.id, rowData).catch(() => null))
+                .map(rowData =>
+                  boardApiClient.createRow(accessToken, board.id, firstSheet.id, rowData).catch(() => null)
+                )
             )
           }
         }
 
         if (members.length > 0) {
-          const memberShares = members.map(m => ({
-            userId: m.employeeId,
-            permission: 'edit' as const
-          }))
-          await BoardApiService.shareBoard(board.id, memberShares).catch(() => null)
+          await boardApiClient.shareBoard(
+            accessToken,
+            board.id,
+            members.map(m => ({ userId: m.employeeId, permission: 'edit' }))
+          )
         }
 
         setProjectBoardMap(prev => ({
@@ -142,13 +133,13 @@ export function useProjectBoard({ accessToken, projects }: UseProjectBoardOption
 
         return board
       } catch (err) {
-        console.error('Failed to create project board:', err)
+        console.error('Failed to create project board:', err instanceof Error ? err.message : 'Unknown error')
         return null
       } finally {
         setIsCreating(false)
       }
     },
-    [projectBoardMap]
+    [accessToken, projectBoardMap]
   )
 
   const syncProjectBoard = useCallback(
@@ -159,11 +150,11 @@ export function useProjectBoard({ accessToken, projects }: UseProjectBoardOption
     ): Promise<{ synced: boolean; changes: string[] }> => {
       const changes: string[] = []
       try {
-        const board = await BoardApiService.getBoard(boardId)
+        const board = await boardApiClient.getBoard(accessToken, boardId)
         if (!board) return { synced: false, changes }
 
         if (board.name !== project.name) {
-          await BoardApiService.updateBoard(boardId, { name: project.name })
+          await boardApiClient.updateBoard(accessToken, boardId, { name: project.name })
           changes.push(`Board name updated to "${project.name}"`)
           setProjectBoardMap(prev => ({
             ...prev,
@@ -172,14 +163,15 @@ export function useProjectBoard({ accessToken, projects }: UseProjectBoardOption
         }
 
         if (members.length > 0) {
-          const existingShares = await BoardApiService.getBoardSharedUsers(boardId)
+          const existingShares = await boardApiClient.getBoardSharedUsers(accessToken, boardId)
           const existingUserIds = new Set(existingShares.map(s => s.userId))
           const newMembers = members.filter(m => !existingUserIds.has(m.employeeId))
 
           if (newMembers.length > 0) {
-            await BoardApiService.shareBoard(
+            await boardApiClient.shareBoard(
+              accessToken,
               boardId,
-              newMembers.map(m => ({ userId: m.employeeId, permission: 'edit' as const }))
+              newMembers.map(m => ({ userId: m.employeeId, permission: 'edit' }))
             )
             changes.push(`${newMembers.length} new member(s) added to board`)
           }
@@ -187,11 +179,11 @@ export function useProjectBoard({ accessToken, projects }: UseProjectBoardOption
 
         return { synced: true, changes }
       } catch (err) {
-        console.error('Failed to sync project board:', err)
+        console.error('Failed to sync project board:', err instanceof Error ? err.message : 'Unknown error')
         return { synced: false, changes }
       }
     },
-    []
+    [accessToken]
   )
 
   const getBoardUrl = useCallback((boardId: string): string => {

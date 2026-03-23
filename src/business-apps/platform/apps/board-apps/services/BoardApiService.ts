@@ -284,15 +284,13 @@ export const BoardApiService = {
     status?: BoardStatus
     search?: string
     page?: number
-    limit?: number
-    projectId?: string
+    liimit?: number
   }): Promise<BoardSummary[]> {
     const params = new URLSearchParams()
     if (options?.status) params.set('status', options.status)
     if (options?.search) params.set('search', options.search)
     if (options?.page) params.set('page', String(options.page))
     if (options?.limit) params.set('limit', String(options.limit))
-    if (options?.projectId) params.set('projectId', options.projectId)
 
     const qs = params.toString()
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(`/boards${qs ? `?${qs}` : ''}`)
