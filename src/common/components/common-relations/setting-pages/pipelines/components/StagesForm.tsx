@@ -30,12 +30,17 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { PipelineStageEntry } from '../hooks/usePipelineSettings'
 import { usePipelineUsageCheck } from '../hooks/usePipelineUsageCheck'
+import { getPipelineUsageCheckSource } from '../utils/catalogConfig'
+import { usePipelineStageTypes } from '../hooks/usePipelineStageTypes'
+import type { StageTypeBadgeVariant } from '../utils/pipelineStageTypeVariant'
 import StageForm from './StageForm'
 
 interface StagesFormProps extends BusinessAppContextProps {
   pipeline: any
   catalogConfig: {
+    pipelineCatalog?: string
     stageCatalog: string
+    stageTypeCatalog?: string
     conditionCatalog?: string
     version?: string
   }
@@ -45,24 +50,26 @@ interface StagesFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-// Stage type configurations for UI
-const STAGE_TYPE_CONFIGS = {
-  DISCOVERY: { label: 'Discovery', variant: 'offline' as const },
-  QUALIFICATION: { label: 'Qualification', variant: 'info' as const },
-  NEGOTIATION: { label: 'Negotiation', variant: 'warning' as const },
-  CLOSED_WON: { label: 'Closed Won', variant: 'success' as const },
-  CLOSED_LOST: { label: 'Closed Lost', variant: 'destructive' as const }
-} as const
-
 // Draggable Stage Card Component
 const DraggableStageCard: React.FC<{
   stage: PipelineStageEntry
   conditionCount: number
+  stageTypeOptions: { value: string; label: string }[]
+  variantMap: Record<string, StageTypeBadgeVariant>
   prefixDataTestId?: string
   onEdit: (stage: PipelineStageEntry) => void
   onDelete: (stage: PipelineStageEntry) => void
   onViewConditions: (stage: PipelineStageEntry) => void
-}> = ({ stage, conditionCount, prefixDataTestId, onEdit, onDelete, onViewConditions }) => {
+}> = ({
+  stage,
+  conditionCount,
+  stageTypeOptions,
+  variantMap,
+  prefixDataTestId,
+  onEdit,
+  onDelete,
+  onViewConditions
+}) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: stage.id
   })
@@ -73,7 +80,9 @@ const DraggableStageCard: React.FC<{
   }
 
   const stageType = stage.type || stage.alternativeCode || 'DISCOVERY'
-  const stageConfig = STAGE_TYPE_CONFIGS[stageType as keyof typeof STAGE_TYPE_CONFIGS] || STAGE_TYPE_CONFIGS.DISCOVERY
+  const stageTypeOption = stageTypeOptions.find(opt => opt.value.toUpperCase() === stageType.toUpperCase())
+  const stageLabel = stageTypeOption?.label ?? stage.value ?? stageType
+  const stageVariant = variantMap[stageType] ?? variantMap[stageType.toUpperCase()] ?? 'outline'
 
   return (
     <Card
@@ -118,8 +127,8 @@ const DraggableStageCard: React.FC<{
               <h5 className="gba:text-foreground gba:font-medium gba:text-sm gba:leading-tight gba:truncate">
                 {stage.value}
               </h5>
-              <Badge variant={stageConfig.variant} className="gba:text-xs gba:px-1.5 gba:py-0.5">
-                {stageConfig.label}
+              <Badge variant={stageVariant} className="gba:text-xs gba:px-1.5 gba:py-0.5">
+                {stageLabel}
               </Badge>
             </div>
           </div>
@@ -177,7 +186,15 @@ const StagesForm: React.FC<StagesFormProps> = ({
   >(null)
 
   const catalogClient = useCatalogManagerClient(accessToken)
-  const { checkStageUsage } = usePipelineUsageCheck(accessToken, 'CRM')
+  const { checkStageUsage } = usePipelineUsageCheck(
+    accessToken,
+    getPipelineUsageCheckSource(catalogConfig.pipelineCatalog ?? 'SalesPipeline')
+  )
+  const { options: stageTypeOptions, variantMap } = usePipelineStageTypes(
+    accessToken,
+    catalogConfig.stageTypeCatalog,
+    catalogConfig.version || 'v1'
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -516,6 +533,8 @@ const StagesForm: React.FC<StagesFormProps> = ({
                     <DraggableStageCard
                       stage={stage}
                       conditionCount={conditionCounts[stage.id] || 0}
+                      stageTypeOptions={stageTypeOptions}
+                      variantMap={variantMap}
                       prefixDataTestId={prefixDataTestId}
                       onEdit={openEditModal}
                       onDelete={handleDeleteStage}
@@ -536,6 +555,8 @@ const StagesForm: React.FC<StagesFormProps> = ({
                 <DraggableStageCard
                   stage={activeStage}
                   conditionCount={conditionCounts[activeStage.id] || 0}
+                  stageTypeOptions={stageTypeOptions}
+                  variantMap={variantMap}
                   prefixDataTestId={prefixDataTestId}
                   onEdit={() => {}}
                   onDelete={() => {}}

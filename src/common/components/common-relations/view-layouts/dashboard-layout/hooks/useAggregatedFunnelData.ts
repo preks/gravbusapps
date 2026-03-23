@@ -17,6 +17,17 @@ export interface AggregatedFunnelConfig {
   stageFieldPath: string
   /** Stage ref field (e.g., 'salesPipelineStageRef', 'opportunityPipelineStageRef') */
   stageRefField: string
+  /** Optional stage type catalog for catalog-driven funnel stages (e.g. SalesPipelineStageType, InvestmentOpportunityPipelineStageType) */
+  stageTypeCatalog?: string
+  /** Catalog version (default 'v1') */
+  version?: string
+}
+
+/** Stage type from catalog for funnel ordering and labels */
+export interface CatalogStageType {
+  code: string
+  name: string
+  order: number
 }
 
 // Helper: Format stage names to proper case
@@ -194,6 +205,8 @@ export interface UseAggregatedFunnelDataProps {
   currentYear?: number | null // null means no year filter
   enabled?: boolean
   config: AggregatedFunnelConfig
+  /** When provided, funnel stages and order come from this catalog (CRM/IRM stage type catalog) */
+  catalogStageTypes?: CatalogStageType[]
 }
 
 export interface UseAggregatedFunnelDataReturn {
@@ -223,7 +236,8 @@ export const useAggregatedFunnelData = ({
   selectedCurrency = 'EUR',
   currentYear = null, // null means no year filter
   enabled = true,
-  config
+  config,
+  catalogStageTypes
 }: UseAggregatedFunnelDataProps): UseAggregatedFunnelDataReturn => {
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -261,7 +275,8 @@ export const useAggregatedFunnelData = ({
   const processStageAggregates = (
     result: any,
     stageTypes: string[],
-    stageTypeMap: Map<string, StageInfo>
+    stageTypeMap: Map<string, StageInfo>,
+    includeZeroCountStages: boolean = false
   ): { funnelData: AggregatedFunnelStage[]; total: number } => {
     const funnelDataWithOrder: Array<AggregatedFunnelStage & { order: number }> = []
     let total = 0
@@ -272,14 +287,14 @@ export const useAggregatedFunnelData = ({
       const count = aggregate?.count || 0
       const sum = aggregate?.sum?.estimatedAmount || 0
 
-      if (count > 0 || sum > 0) {
+      if (count > 0 || sum > 0 || includeZeroCountStages) {
         const stageInfo = stageTypeMap.get(stageType)
         funnelDataWithOrder.push({
           stage: stageInfo?.name || stageType,
           count,
           value: sum,
           color: undefined,
-          order: stageInfo?.order || 999
+          order: stageInfo?.order ?? 999
         })
         total += sum
       }
@@ -305,32 +320,52 @@ export const useAggregatedFunnelData = ({
       const { hasYearFilter, currentYearStart, currentYearEnd } = prepareYearFilter(currentYear)
       const currencyFilter = selectedCurrency ? `Currency:v1:${selectedCurrency}` : null
 
-      // 🎯 OPTIMIZATION: Fetch or reuse cached static data
-      const stageTypeMap = await fetchOrReuseCachedData({
-        graphqlClient,
-        config,
-        dateRange: hasYearFilter
-          ? {
-              start: currentYearStart!,
-              end: currentYearEnd!
-            }
-          : undefined,
-        cacheParams: {
-          pipelineRefsKey,
-          currentYear: currentYear ?? 'all'
-        },
-        staticDataCache,
-        setAvailableCurrencies
-      })
+      let stageTypeMap: Map<string, StageInfo>
+      let stageTypes: string[]
+      let includeZeroCountStages: boolean
 
-      if (!stageTypeMap) {
-        setAggregatedFunnel([])
-        setTotalPipelineValue(0)
-        return
+      if (catalogStageTypes && catalogStageTypes.length > 0) {
+        // Catalog-driven: use stage types from CRM/IRM stage type catalog
+        stageTypeMap = new Map(catalogStageTypes.map(s => [s.code, { order: s.order, name: s.name }]))
+        stageTypes = catalogStageTypes.map(s => s.code)
+        includeZeroCountStages = true
+        // Fetch currencies only (no cache reuse for catalog path)
+        const uniqueCurrencies = await fetchDistinctCurrencies(
+          graphqlClient,
+          config,
+          currentYearStart,
+          currentYearEnd,
+          config.stageFieldPath
+        )
+        setAvailableCurrencies(uniqueCurrencies.length > 0 ? uniqueCurrencies : ['EUR'])
+      } else {
+        // Data-driven: discover stage types from opportunities
+        const map = await fetchOrReuseCachedData({
+          graphqlClient,
+          config,
+          dateRange: hasYearFilter
+            ? {
+                start: currentYearStart!,
+                end: currentYearEnd!
+              }
+            : undefined,
+          cacheParams: {
+            pipelineRefsKey,
+            currentYear: currentYear ?? 'all'
+          },
+          staticDataCache,
+          setAvailableCurrencies
+        })
+
+        if (!map) {
+          setAggregatedFunnel([])
+          setTotalPipelineValue(0)
+          return
+        }
+        stageTypeMap = map
+        stageTypes = Array.from(stageTypeMap.keys())
+        includeZeroCountStages = false
       }
-
-      // Step 2: Build dynamic query with stage aggregates for each discovered stage type (ALWAYS RUNS)
-      const stageTypes: string[] = Array.from(stageTypeMap.keys())
 
       const buildStageAggregate = (stageType: string) => {
         // Create valid GraphQL alias (replace special characters)
@@ -376,8 +411,8 @@ export const useAggregatedFunnelData = ({
 
       const result = await graphqlClient.request<any>(aggregatesQuery, aggregatesVariables)
 
-      // Process stage aggregates dynamically using catalog data
-      const { funnelData, total } = processStageAggregates(result, stageTypes, stageTypeMap)
+      // Process stage aggregates (include zero-count stages when using catalog)
+      const { funnelData, total } = processStageAggregates(result, stageTypes, stageTypeMap, includeZeroCountStages)
 
       setAggregatedFunnel(funnelData)
       setTotalPipelineValue(total)
@@ -388,7 +423,7 @@ export const useAggregatedFunnelData = ({
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, pipelineRefsKey, selectedCurrency, currentYear, enabled, config, graphqlClient])
+  }, [accessToken, pipelineRefsKey, selectedCurrency, currentYear, enabled, config, graphqlClient, catalogStageTypes])
 
   useEffect(() => {
     if (enabled) {

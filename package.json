@@ -53,7 +53,7 @@
     "@mediapipe/selfie_segmentation": "^0.1.1675465747",
     "@monaco-editor/react": "^4.7.0",
     "@newwork/gravity-ui-catalog": "^7.10.29",
-    "@newwork/nw-design-system": "^0.91.0-586",
+    "@newwork/nw-design-system": "^0.92.0-589",
     "@newwork/remote-component-loader": "^0.1.4",
     "@tiptap/extension-bubble-menu": "^3.15.3",
     "@tiptap/extension-character-count": "^3.15.3",

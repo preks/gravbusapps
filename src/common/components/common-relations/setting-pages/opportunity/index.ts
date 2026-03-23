@@ -1,2 +1,6 @@
 export { OpportunitySettingsLayout } from './OpportunitySettingsLayout'
-export type { OpportunitySettingsConfig, OpportunitySettingsLayoutProps } from './OpportunitySettingsLayout'
+export type {
+  OpportunitySettingsConfig,
+  OpportunitySettingsLayoutProps,
+  OpportunitySettingsTab
+} from './OpportunitySettingsLayout'

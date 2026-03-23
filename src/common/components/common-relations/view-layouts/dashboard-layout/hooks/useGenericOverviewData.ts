@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { useAggregatedFunnelData, type AggregatedFunnelConfig } from './useAggregatedFunnelData'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
+import { useAggregatedFunnelData, type AggregatedFunnelConfig, type CatalogStageType } from './useAggregatedFunnelData'
+import { usePipelineStageTypes } from '@/common/components/common-relations/setting-pages/pipelines/hooks/usePipelineStageTypes'
 import { useLeadSourceData, type LeadSourceConfig } from './useLeadSourceData'
 import { useOpportunityStatusData, type OpportunityStatusConfig } from './useOpportunityStatusData'
 import { useRecentRecordsData, type RecentRecordsConfig } from './useRecentRecordsData'
@@ -87,6 +88,21 @@ export const useGenericOverviewData = (
 
   // Use shared hooks with config parameters extracted from comprehensive config
   const pipelineRefs = pipelines.map(p => p.ref)
+  const funnelConfig = config.aggregatedFunnel
+  const { options: funnelStageTypeOptions } = usePipelineStageTypes(
+    accessToken,
+    funnelConfig.stageTypeCatalog,
+    funnelConfig.version || 'v1'
+  )
+  const catalogStageTypes: CatalogStageType[] | undefined = useMemo(() => {
+    if (!funnelConfig.stageTypeCatalog || funnelStageTypeOptions.length === 0) return undefined
+    return funnelStageTypeOptions.map((o, i) => ({
+      code: o.value,
+      name: o.label,
+      order: i
+    }))
+  }, [funnelConfig.stageTypeCatalog, funnelStageTypeOptions])
+
   const {
     aggregatedFunnel: sharedAggregatedFunnel,
     availableCurrencies: sharedAvailableCurrencies,
@@ -97,7 +113,8 @@ export const useGenericOverviewData = (
     selectedCurrency,
     currentYear: null, // null = no year filter, show all opportunities
     enabled: shouldFetch,
-    config: config.aggregatedFunnel
+    config: funnelConfig,
+    catalogStageTypes
   })
 
   const { leadSources: sharedLeadSources, totalLeadCount: sharedTotalLeadCount } = useLeadSourceData({
