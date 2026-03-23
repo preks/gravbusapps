@@ -93,6 +93,50 @@ interface ChatInputProps {
   onOpenPreferences?: () => void
 }
 
+interface StandardMenuOptionProps {
+  onClick: () => void
+  darkMode: boolean
+  goldRgb: string
+  disabled?: boolean
+  label: React.ReactNode
+  icon: React.ReactNode
+  badge?: React.ReactNode
+}
+
+function StandardMenuOption({
+  onClick,
+  darkMode,
+  goldRgb,
+  disabled,
+  label,
+  icon,
+  badge
+}: StandardMenuOptionProps): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`gba:group/option gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-xl gba:px-3 gba:py-2.5 gba:text-left gba:text-sm gba:transition-all gba:duration-200 ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
+      onMouseEnter={e => {
+        if (!darkMode) (e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
+      }}
+      onMouseLeave={e => {
+        if (!darkMode) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+      }}
+      disabled={disabled}
+    >
+      <div
+        className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
+        style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
+      >
+        {icon}
+      </div>
+      <span className="gba:font-medium">{label}</span>
+      {badge}
+    </button>
+  )
+}
+
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   onClear,
@@ -721,70 +765,52 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   >
                     <div className="gba:flex gba:flex-col gba:gap-1">
                       {/* Attach File */}
-                      <button
+                      <StandardMenuOption
                         onClick={() => fileInputRef.current?.click()}
-                        className={`gba:group/option gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-xl gba:px-3 gba:py-2.5 gba:text-left gba:text-sm gba:transition-all gba:duration-200 ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
-                        onMouseEnter={e => {
-                          if (!darkMode)
-                            (e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
-                        }}
-                        onMouseLeave={e => {
-                          if (!darkMode) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
-                        }}
+                        darkMode={darkMode}
+                        goldRgb={goldRgb}
                         disabled={disabled}
-                      >
-                        <div
-                          className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
-                          style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
-                        >
+                        icon={
                           <PaperclipIcon
                             className="gba:h-4 gba:w-4"
                             style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                             weight="bold"
                           />
-                        </div>
-                        <span className="gba:font-medium">{t('chat-menu-attach-file')}</span>
-                        {files.length > 0 && (
-                          <span
-                            className="gba:ml-auto gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold"
-                            style={{
-                              background: darkMode
-                                ? 'rgba(96, 165, 250, 0.3)'
-                                : `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`,
-                              color: darkMode ? 'white' : 'var(--nw-ai-foreground)'
-                            }}
-                          >
-                            {files.length}
-                          </span>
-                        )}
-                      </button>
+                        }
+                        label={t('chat-menu-attach-file')}
+                        badge={
+                          files.length > 0 ? (
+                            <span
+                              className="gba:ml-auto gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold"
+                              style={{
+                                background: darkMode
+                                  ? 'rgba(96, 165, 250, 0.3)'
+                                  : `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`,
+                                color: darkMode ? 'white' : 'var(--nw-ai-foreground)'
+                              }}
+                            >
+                              {files.length}
+                            </span>
+                          ) : null
+                        }
+                      />
 
                       {/* Take Photo - only on mobile with camera */}
                       {isMobileWithCamera && (
-                        <button
+                        <StandardMenuOption
                           onClick={() => cameraInputRef.current?.click()}
-                          className={`gba:group/option gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-xl gba:px-3 gba:py-2.5 gba:text-left gba:text-sm gba:transition-all gba:duration-200 ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
-                          onMouseEnter={e => {
-                            if (!darkMode)
-                              (e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
-                          }}
-                          onMouseLeave={e => {
-                            if (!darkMode) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
-                          }}
+                          darkMode={darkMode}
+                          goldRgb={goldRgb}
                           disabled={disabled}
-                        >
-                          <div
-                            className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
-                            style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
-                          >
+                          icon={
                             <CameraIcon
                               className="gba:h-4 gba:w-4"
                               style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                               weight="bold"
                             />
-                          </div>
-                          <span className="gba:font-medium">{t('chat-menu-take-photo')}</span>
-                        </button>
+                          }
+                          label={t('chat-menu-take-photo')}
+                        />
                       )}
 
                       {/* Mention Entity */}
@@ -881,35 +907,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       </button>
 
                       {/* My Preferences */}
-                      <button
+                      <StandardMenuOption
                         onClick={() => {
                           onOpenPreferences?.()
                         }}
-                        className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
-                        onMouseEnter={e => {
-                          if (!darkMode) {
-                            ;(e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
-                          }
-                        }}
-                        onMouseLeave={e => {
-                          if (!darkMode) {
-                            ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
-                          }
-                        }}
+                        darkMode={darkMode}
+                        goldRgb={goldRgb}
                         disabled={disabled}
-                      >
-                        <div
-                          className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
-                          style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
-                        >
+                        icon={
                           <UserCircleIcon
                             className="gba:h-4 gba:w-4"
                             style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                             weight="bold"
                           />
-                        </div>
-                        <span className="gba:font-medium">{t('chat-menu-my-preferences')}</span>
-                      </button>
+                        }
+                        label={t('chat-menu-my-preferences')}
+                      />
 
                       {/* Divider */}
                       <div
@@ -922,7 +935,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       />
 
                       {/* New Chat */}
-                      <button
+                      <StandardMenuOption
                         onClick={() => {
                           setValue('')
                           clearFiles()
@@ -930,31 +943,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           onClear()
                           focusTextarea()
                         }}
-                        className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
-                        onMouseEnter={e => {
-                          if (!darkMode) {
-                            ;(e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
-                          }
-                        }}
-                        onMouseLeave={e => {
-                          if (!darkMode) {
-                            ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
-                          }
-                        }}
+                        darkMode={darkMode}
+                        goldRgb={goldRgb}
                         disabled={disabled}
-                      >
-                        <div
-                          className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
-                          style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
-                        >
+                        icon={
                           <PlusIcon
                             className="gba:h-4 gba:w-4"
                             style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                             weight="bold"
                           />
-                        </div>
-                        <span className="gba:font-medium">{t('chat-menu-new-chat')}</span>
-                      </button>
+                        }
+                        label={t('chat-menu-new-chat')}
+                      />
                     </div>
                   </PopoverContent>
                 </Popover>
