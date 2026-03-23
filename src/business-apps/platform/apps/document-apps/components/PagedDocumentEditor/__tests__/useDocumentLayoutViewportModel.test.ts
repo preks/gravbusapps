@@ -5,6 +5,7 @@ import { useDocumentLayoutViewportModel } from '../hooks/useDocumentLayoutViewpo
 describe('useDocumentLayoutViewportModel', () => {
   it('derives mounted-page metadata and sparse-flow state from the layout snapshot', () => {
     const layoutSnapshot: DocumentLayoutSnapshot = {
+      documentVersion: 1,
       layoutVersion: 3,
       source: 'incremental-layout-engine',
       pageCount: 6,
@@ -24,16 +25,31 @@ describe('useDocumentLayoutViewportModel', () => {
         { flowIndex: 4, pageRange: { startPage: 5, endPage: 6 }, kind: 'spacer', isMounted: false }
       ],
       mountedRange: { startPage: 2, endPage: 4 },
+      pageBounds: [
+        { pageNumber: 2, top: 100, bottom: 200, left: 10, right: 110 },
+        { pageNumber: 3, top: 210, bottom: 310, left: 10, right: 110 },
+        { pageNumber: 4, top: 320, bottom: 420, left: 10, right: 110 }
+      ],
       mountedPageBodyBounds: [
         { pageNumber: 2, top: 100, bottom: 200, left: 10, right: 110 },
         { pageNumber: 3, top: 210, bottom: 310, left: 10, right: 110 },
         { pageNumber: 4, top: 320, bottom: 420, left: 10, right: 110 }
       ],
+      pageSpans: [],
+      retainedPageSpans: [],
       pagePositionRanges: [
         { pageNumber: 2, startPos: 20, endPos: 39 },
         { pageNumber: 3, startPos: 40, endPos: 59 },
         { pageNumber: 4, startPos: 60, endPos: 79 }
       ],
+      pageChromeMetrics: [],
+      anchors: {
+        comments: [],
+        images: [],
+        links: [],
+        tables: []
+      },
+      tableFragments: [],
       activeRange: { startPage: 2, endPage: 4 },
       activePages: [
         { pageNumber: 2, flowIndex: 1, mountedIndex: 0, isMounted: true },
@@ -45,6 +61,8 @@ describe('useDocumentLayoutViewportModel', () => {
     const { result } = renderHook(() => useDocumentLayoutViewportModel(layoutSnapshot, 3))
 
     expect(result.current).toEqual({
+      documentVersion: 1,
+      layoutVersion: 3,
       source: 'incremental-layout-engine',
       totalPages: 6,
       activeRange: { startPage: 2, endPage: 4 },
@@ -53,6 +71,11 @@ describe('useDocumentLayoutViewportModel', () => {
       mountedRange: { startPage: 2, endPage: 4 },
       mountedPageNumbers: [2, 3, 4],
       mountedPageCount: 3,
+      pageBounds: [
+        { pageNumber: 2, top: 100, bottom: 200, left: 10, right: 110 },
+        { pageNumber: 3, top: 210, bottom: 310, left: 10, right: 110 },
+        { pageNumber: 4, top: 320, bottom: 420, left: 10, right: 110 }
+      ],
       mountedPageBodyBounds: [
         { pageNumber: 2, top: 100, bottom: 200, left: 10, right: 110 },
         { pageNumber: 3, top: 210, bottom: 310, left: 10, right: 110 },
@@ -73,6 +96,16 @@ describe('useDocumentLayoutViewportModel', () => {
         { pageNumber: 3, startPos: 40, endPos: 59 },
         { pageNumber: 4, startPos: 60, endPos: 79 }
       ],
+      pageSpans: [],
+      retainedPageSpans: [],
+      pageChromeMetrics: [],
+      anchors: {
+        comments: [],
+        images: [],
+        links: [],
+        tables: []
+      },
+      tableFragments: [],
       hasSparseFlow: true,
       isWindowed: true,
       containsCurrentPage: true,
@@ -83,6 +116,7 @@ describe('useDocumentLayoutViewportModel', () => {
 
   it('changes the window key when the mounted sparse state changes under the same active range', () => {
     const sparseSnapshot: DocumentLayoutSnapshot = {
+      documentVersion: 1,
       layoutVersion: 4,
       source: 'incremental-layout-engine',
       pageCount: 4,
@@ -99,14 +133,28 @@ describe('useDocumentLayoutViewportModel', () => {
         { flowIndex: 3, pageRange: { startPage: 4, endPage: 4 }, kind: 'spacer', isMounted: false }
       ],
       mountedRange: { startPage: 2, endPage: 3 },
+      pageBounds: [
+        { pageNumber: 2, top: 100, bottom: 200, left: 10, right: 110 },
+        { pageNumber: 3, top: 210, bottom: 310, left: 10, right: 110 }
+      ],
       mountedPageBodyBounds: [
         { pageNumber: 2, top: 100, bottom: 200, left: 10, right: 110 },
         { pageNumber: 3, top: 210, bottom: 310, left: 10, right: 110 }
       ],
+      pageSpans: [],
+      retainedPageSpans: [],
       pagePositionRanges: [
         { pageNumber: 2, startPos: 20, endPos: 39 },
         { pageNumber: 3, startPos: 40, endPos: 59 }
       ],
+      pageChromeMetrics: [],
+      anchors: {
+        comments: [],
+        images: [],
+        links: [],
+        tables: []
+      },
+      tableFragments: [],
       activeRange: { startPage: 2, endPage: 3 },
       activePages: [
         { pageNumber: 2, flowIndex: 1, mountedIndex: 0, isMounted: true },

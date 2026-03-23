@@ -1,10 +1,12 @@
 import type { Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
-import type { PaginationLayoutTableFragment } from '../tiptap-custom-pagination/layoutTableFragmentsBridge'
+import type { PaginationLayoutTableFragmentsState } from '../tiptap-custom-pagination/layoutTableFragmentsBridge'
 import { logPaginationDebug } from '../tiptap-custom-pagination/utils'
 import {
   findMergeableTableFragmentCandidates,
+  findMergeableTableFragmentCandidatesFromLayoutFragments,
   findOverflowingTableSplitCandidates,
+  findOverflowingTableSplitCandidatesFromLayoutFragments,
   type MergeableTableFragmentsCandidate,
   type TableOverflowSplitCandidate,
   type TablePaginationBodyBand
@@ -61,6 +63,16 @@ export interface TablePaginationHeuristics {
   allowSplit: boolean
 }
 
+export type TablePaginationCandidateAuthority = 'legacy-dom' | 'layout-fragment-guided'
+export type TablePaginationCandidateParityStatus = 'unavailable' | 'match' | 'mismatch'
+
+interface ResolvedTablePaginationCandidates {
+  authority: TablePaginationCandidateAuthority
+  parityStatus: TablePaginationCandidateParityStatus
+  splitCandidates: TableOverflowSplitCandidate[]
+  mergeCandidates: MergeableTableFragmentsCandidate[]
+}
+
 export type TablePaginationControllerResult =
   | {
       type: 'refresh'
@@ -115,6 +127,70 @@ function summarizeMergeCandidate(candidate: MergeableTableFragmentsCandidate) {
     firstTablePos: candidate.firstTablePos,
     secondTablePos: candidate.secondTablePos,
     paginationSplitId: candidate.paginationSplitId
+  }
+}
+
+function haveMatchingCandidateKeys<TCandidate>(
+  left: TCandidate[],
+  right: TCandidate[],
+  getKey: (candidate: TCandidate) => string
+) {
+  if (left.length !== right.length) {
+    return false
+  }
+
+  return left.every((candidate, index) => getKey(candidate) === getKey(right[index] as TCandidate))
+}
+
+export function resolveTablePaginationCandidateAuthority(options: {
+  layoutTableFragmentsState: Pick<PaginationLayoutTableFragmentsState, 'fragments' | 'status'>
+  legacySplitCandidates: TableOverflowSplitCandidate[]
+  legacyMergeCandidates: MergeableTableFragmentsCandidate[]
+  fragmentGuidedSplitCandidates: TableOverflowSplitCandidate[]
+  fragmentGuidedMergeCandidates: MergeableTableFragmentsCandidate[]
+}): ResolvedTablePaginationCandidates {
+  const {
+    layoutTableFragmentsState,
+    legacySplitCandidates,
+    legacyMergeCandidates,
+    fragmentGuidedSplitCandidates,
+    fragmentGuidedMergeCandidates
+  } = options
+
+  if (layoutTableFragmentsState.status !== 'ready' || layoutTableFragmentsState.fragments.length === 0) {
+    return {
+      authority: 'legacy-dom',
+      parityStatus: 'unavailable',
+      splitCandidates: legacySplitCandidates,
+      mergeCandidates: legacyMergeCandidates
+    }
+  }
+
+  const splitCandidatesMatch = haveMatchingCandidateKeys(
+    legacySplitCandidates,
+    fragmentGuidedSplitCandidates,
+    getSplitCandidateKey
+  )
+  const mergeCandidatesMatch = haveMatchingCandidateKeys(
+    legacyMergeCandidates,
+    fragmentGuidedMergeCandidates,
+    getMergeCandidateKey
+  )
+
+  if (!splitCandidatesMatch || !mergeCandidatesMatch) {
+    return {
+      authority: 'legacy-dom',
+      parityStatus: 'mismatch',
+      splitCandidates: legacySplitCandidates,
+      mergeCandidates: legacyMergeCandidates
+    }
+  }
+
+  return {
+    authority: 'layout-fragment-guided',
+    parityStatus: 'match',
+    splitCandidates: fragmentGuidedSplitCandidates,
+    mergeCandidates: fragmentGuidedMergeCandidates
   }
 }
 
@@ -322,14 +398,49 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
       measuredPageCount: number
       heuristics: TablePaginationHeuristics
       bodyBands: TablePaginationBodyBand[]
-      layoutTableFragments?: PaginationLayoutTableFragment[]
+      layoutTableFragmentsState?: PaginationLayoutTableFragmentsState
     }): TablePaginationControllerResult {
-      const { view, currentPageCount, measuredPageCount, heuristics, bodyBands, layoutTableFragments = [] } = options
-      const splitCandidates = heuristics.allowSplit ? findOverflowingTableSplitCandidates(view, bodyBands) : []
-      const mergeCandidates =
-        heuristics.allowMerge && splitCandidates.length === 0
+      const {
+        view,
+        currentPageCount,
+        measuredPageCount,
+        heuristics,
+        bodyBands,
+        layoutTableFragmentsState = {
+          fragments: [],
+          status: 'missing',
+          documentVersion: null,
+          layoutVersion: null
+        }
+      } = options
+      const legacySplitCandidates = heuristics.allowSplit ? findOverflowingTableSplitCandidates(view, bodyBands) : []
+      const legacyMergeCandidates =
+        heuristics.allowMerge && legacySplitCandidates.length === 0
           ? findMergeableTableFragmentCandidates(view, bodyBands)
           : []
+      const fragmentGuidedSplitCandidates =
+        heuristics.allowSplit && layoutTableFragmentsState.status === 'ready'
+          ? findOverflowingTableSplitCandidatesFromLayoutFragments(view, bodyBands, layoutTableFragmentsState.fragments)
+          : []
+      const fragmentGuidedMergeCandidates =
+        heuristics.allowMerge &&
+        layoutTableFragmentsState.status === 'ready' &&
+        fragmentGuidedSplitCandidates.length === 0
+          ? findMergeableTableFragmentCandidatesFromLayoutFragments(
+              view,
+              bodyBands,
+              layoutTableFragmentsState.fragments
+            )
+          : []
+      const resolvedCandidates = resolveTablePaginationCandidateAuthority({
+        layoutTableFragmentsState,
+        legacySplitCandidates,
+        legacyMergeCandidates,
+        fragmentGuidedSplitCandidates,
+        fragmentGuidedMergeCandidates
+      })
+      const splitCandidates = resolvedCandidates.splitCandidates
+      const mergeCandidates = resolvedCandidates.mergeCandidates
 
       pruneChainState(chainStateByKey, splitCandidates, mergeCandidates)
 
@@ -340,7 +451,15 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
         allowMerge: heuristics.allowMerge,
         preferredSplitChainKey,
         bodyBandCount: bodyBands.length,
-        layoutTableFragmentCount: layoutTableFragments.length,
+        layoutTableFragmentCount: layoutTableFragmentsState.fragments.length,
+        layoutTableFragmentsStatus: layoutTableFragmentsState.status,
+        layoutTableFragmentsLayoutVersion: layoutTableFragmentsState.layoutVersion,
+        candidateAuthority: resolvedCandidates.authority,
+        candidateParityStatus: resolvedCandidates.parityStatus,
+        legacySplitCandidateCount: legacySplitCandidates.length,
+        legacyMergeCandidateCount: legacyMergeCandidates.length,
+        fragmentGuidedSplitCandidateCount: fragmentGuidedSplitCandidates.length,
+        fragmentGuidedMergeCandidateCount: fragmentGuidedMergeCandidates.length,
         splitCandidateCount: splitCandidates.length,
         mergeCandidateCount: mergeCandidates.length,
         splitCandidates: splitCandidates.map(summarizeSplitCandidate),

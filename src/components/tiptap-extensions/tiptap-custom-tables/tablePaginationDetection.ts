@@ -1,5 +1,6 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { EditorView } from '@tiptap/pm/view'
+import type { PaginationLayoutTableFragment } from '../tiptap-custom-pagination/layoutTableFragmentsBridge'
 import { logPaginationDebug } from '../tiptap-custom-pagination/utils'
 import { getTablePaginationSplitId, getTableRuntimeChainKey } from './tablePaginationIdentity'
 import {
@@ -37,6 +38,14 @@ type TableRowEntry = {
   rowIndex: number
 }
 
+type TableSplitCandidateScanOptions = {
+  allowedTablePositions?: ReadonlySet<number> | null
+}
+
+type TableMergeCandidateScanOptions = {
+  allowedChainKeys?: ReadonlySet<string> | null
+}
+
 type EditorMeasurementResolver = {
   getElementTopInEditor: (element: HTMLElement) => number
   getElementBottomInEditor: (element: HTMLElement) => number
@@ -62,6 +71,71 @@ function summarizeMergeCandidate(candidate: MergeableTableFragmentsCandidate) {
     secondTablePos: candidate.secondTablePos,
     paginationSplitId: candidate.paginationSplitId
   }
+}
+
+function groupPaginationLayoutTableFragments(
+  layoutTableFragments: readonly PaginationLayoutTableFragment[]
+): Map<string, PaginationLayoutTableFragment[]> {
+  const fragmentsByChainKey = new Map<string, PaginationLayoutTableFragment[]>()
+
+  layoutTableFragments.forEach(fragment => {
+    const existingChainFragments = fragmentsByChainKey.get(fragment.paginationChainKey) ?? []
+    existingChainFragments.push(fragment)
+    fragmentsByChainKey.set(fragment.paginationChainKey, existingChainFragments)
+  })
+
+  fragmentsByChainKey.forEach(fragments => {
+    fragments.sort((left, right) => {
+      if (left.fragmentIndex !== right.fragmentIndex) {
+        return left.fragmentIndex - right.fragmentIndex
+      }
+
+      return left.tablePos - right.tablePos
+    })
+  })
+
+  return fragmentsByChainKey
+}
+
+function resolveLayoutFragmentSplitTablePositions(
+  layoutTableFragments: readonly PaginationLayoutTableFragment[]
+): Set<number> {
+  const tablePositions = new Set<number>()
+
+  groupPaginationLayoutTableFragments(layoutTableFragments).forEach(chainFragments => {
+    const hasCrossPagePressure = chainFragments.some(fragment => fragment.pageNumbers.length > 1)
+    if (!hasCrossPagePressure) {
+      return
+    }
+
+    if (chainFragments.length === 1) {
+      const onlyFragment = chainFragments[0]
+      if (onlyFragment) {
+        tablePositions.add(onlyFragment.tablePos)
+      }
+      return
+    }
+
+    chainFragments.forEach(fragment => {
+      tablePositions.add(fragment.tablePos)
+    })
+  })
+
+  return tablePositions
+}
+
+function resolveLayoutFragmentMergeChainKeys(
+  layoutTableFragments: readonly PaginationLayoutTableFragment[]
+): Set<string> {
+  const chainKeys = new Set<string>()
+
+  groupPaginationLayoutTableFragments(layoutTableFragments).forEach((chainFragments, chainKey) => {
+    if (chainFragments.length > 1) {
+      chainKeys.add(chainKey)
+    }
+  })
+
+  return chainKeys
 }
 
 const TABLE_SPLIT_OVERFLOW_HYSTERESIS_PX = 2
@@ -450,16 +524,12 @@ function getCollapsedBlockGap(previousElement: HTMLElement, nextElement: HTMLEle
   return Math.max(getElementMarginBottom(previousElement), getElementMarginTop(nextElement))
 }
 
-export function findOverflowingTableSplitCandidates(
+function scanOverflowingTableSplitCandidates(
   view: EditorView,
-  bodyBands: TablePaginationBodyBand[]
+  bodyBands: TablePaginationBodyBand[],
+  options: TableSplitCandidateScanOptions = {}
 ): TableOverflowSplitCandidate[] {
   if (!bodyBands.length) {
-    logPaginationDebug('table-detection-split-candidates', {
-      bodyBandCount: 0,
-      candidateCount: 0,
-      candidates: []
-    })
     return []
   }
 
@@ -470,6 +540,9 @@ export function findOverflowingTableSplitCandidates(
 
   view.state.doc.descendants((node, pos) => {
     if (node.type.name !== 'table') return true
+    if (options.allowedTablePositions && !options.allowedTablePositions.has(pos)) {
+      return true
+    }
 
     const rowEntries = getTableRowEntries(node, pos)
     const columnCount = getTableColumnCount(node)
@@ -554,11 +627,43 @@ export function findOverflowingTableSplitCandidates(
     return true
   })
 
+  return candidates
+}
+
+export function findOverflowingTableSplitCandidates(
+  view: EditorView,
+  bodyBands: TablePaginationBodyBand[]
+): TableOverflowSplitCandidate[] {
+  const candidates = scanOverflowingTableSplitCandidates(view, bodyBands)
   logPaginationDebug('table-detection-split-candidates', {
     bodyBandCount: bodyBands.length,
     candidateCount: candidates.length,
     candidates: candidates.map(summarizeSplitCandidate)
   })
+  return candidates
+}
+
+export function findOverflowingTableSplitCandidatesFromLayoutFragments(
+  view: EditorView,
+  bodyBands: TablePaginationBodyBand[],
+  layoutTableFragments: readonly PaginationLayoutTableFragment[]
+): TableOverflowSplitCandidate[] {
+  const allowedTablePositions = resolveLayoutFragmentSplitTablePositions(layoutTableFragments)
+  const candidates =
+    allowedTablePositions.size === 0
+      ? []
+      : scanOverflowingTableSplitCandidates(view, bodyBands, {
+          allowedTablePositions
+        })
+
+  logPaginationDebug('table-detection-fragment-split-candidates', {
+    bodyBandCount: bodyBands.length,
+    layoutTableFragmentCount: layoutTableFragments.length,
+    scannedTableCount: allowedTablePositions.size,
+    candidateCount: candidates.length,
+    candidates: candidates.map(summarizeSplitCandidate)
+  })
+
   return candidates
 }
 
@@ -569,16 +674,12 @@ export function findOverflowingTableSplit(
   return findOverflowingTableSplitCandidates(view, bodyBands)[0] ?? null
 }
 
-export function findMergeableTableFragmentCandidates(
+function scanMergeableTableFragmentCandidates(
   view: EditorView,
-  bodyBands: TablePaginationBodyBand[]
+  bodyBands: TablePaginationBodyBand[],
+  options: TableMergeCandidateScanOptions = {}
 ): MergeableTableFragmentsCandidate[] {
   if (!bodyBands.length) {
-    logPaginationDebug('table-detection-merge-candidates', {
-      bodyBandCount: 0,
-      candidateCount: 0,
-      candidates: []
-    })
     return []
   }
 
@@ -598,6 +699,10 @@ export function findMergeableTableFragmentCandidates(
     if (node.type.name !== 'table') return true
 
     const paginationChainKey = getTableRuntimeChainKey(node, pos)
+    if (options.allowedChainKeys && !options.allowedChainKeys.has(paginationChainKey)) {
+      previousTable = null
+      return true
+    }
     const paginationSplitId = getTablePaginationSplitId(node)
     if (!paginationSplitId) {
       previousTable = null
@@ -653,11 +758,43 @@ export function findMergeableTableFragmentCandidates(
     return true
   })
 
+  return candidates
+}
+
+export function findMergeableTableFragmentCandidates(
+  view: EditorView,
+  bodyBands: TablePaginationBodyBand[]
+): MergeableTableFragmentsCandidate[] {
+  const candidates = scanMergeableTableFragmentCandidates(view, bodyBands)
   logPaginationDebug('table-detection-merge-candidates', {
     bodyBandCount: bodyBands.length,
     candidateCount: candidates.length,
     candidates: candidates.map(summarizeMergeCandidate)
   })
+  return candidates
+}
+
+export function findMergeableTableFragmentCandidatesFromLayoutFragments(
+  view: EditorView,
+  bodyBands: TablePaginationBodyBand[],
+  layoutTableFragments: readonly PaginationLayoutTableFragment[]
+): MergeableTableFragmentsCandidate[] {
+  const allowedChainKeys = resolveLayoutFragmentMergeChainKeys(layoutTableFragments)
+  const candidates =
+    allowedChainKeys.size === 0
+      ? []
+      : scanMergeableTableFragmentCandidates(view, bodyBands, {
+          allowedChainKeys
+        })
+
+  logPaginationDebug('table-detection-fragment-merge-candidates', {
+    bodyBandCount: bodyBands.length,
+    layoutTableFragmentCount: layoutTableFragments.length,
+    scannedChainCount: allowedChainKeys.size,
+    candidateCount: candidates.length,
+    candidates: candidates.map(summarizeMergeCandidate)
+  })
+
   return candidates
 }
 

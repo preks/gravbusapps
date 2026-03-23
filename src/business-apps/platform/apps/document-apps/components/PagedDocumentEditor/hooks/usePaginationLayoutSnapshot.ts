@@ -570,10 +570,7 @@ export function usePaginationLayoutSnapshot({
           request.scope === 'viewport'
             ? previous.anchors
             : collectDocumentLayoutAnchors(editor, measuredPageSpans, measurement.layout.mountedPageBodyBounds)
-        const tableFragments =
-          request.scope === 'viewport'
-            ? previous.tableFragments
-            : collectDocumentLayoutTableFragments(editor, measuredPageSpans)
+        const tableFragments = collectDocumentLayoutTableFragments(editor, measuredPageSpans)
 
         nextSnapshot = createLayoutSnapshot(
           nextDocumentVersion,

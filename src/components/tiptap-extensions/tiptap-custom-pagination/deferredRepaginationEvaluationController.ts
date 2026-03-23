@@ -10,7 +10,10 @@ import {
   resolveTablePaginationHeuristics,
   shouldDeferTablePaginationEvaluation
 } from './paginationStabilizationPolicy'
-import { readPaginationLayoutTableFragments } from './layoutTableFragmentsBridge'
+import {
+  createMissingPaginationLayoutTableFragmentsState,
+  readPaginationLayoutTableFragmentsState
+} from './layoutTableFragmentsBridge'
 import type { PagesOptions, PagesStorage } from './types'
 import type { PageBodyMeasurementBand } from './utils'
 import type { TablePaginationControllerResult } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
@@ -50,7 +53,7 @@ export function runDeferredRepaginationEvaluationLoop(options: {
     measuredPageCount: number
     heuristics: ReturnType<typeof resolveDeferredRepaginationPreflight>['tablePaginationHeuristics']
     bodyBands: PageBodyMeasurementBand[]
-    layoutTableFragments: ReturnType<typeof readPaginationLayoutTableFragments>
+    layoutTableFragmentsState: ReturnType<typeof readPaginationLayoutTableFragmentsState>
   }) => TablePaginationControllerResult
   onLogDebug: (event: string, payload: Record<string, unknown>) => void
   onSetPreviousAddPagesMeasurement: (next: AddPagesMeasurementSnapshot | null) => void
@@ -118,9 +121,9 @@ export function runDeferredRepaginationEvaluationLoop(options: {
     const hasTables = options.documentHasTables(options.view)
     const shouldInspectTableLayout = hasTables && !hasActiveEditor
     const tableBodyBands = shouldInspectTableLayout ? options.getBodyMeasurementBands(options.view.dom) : []
-    const layoutTableFragments = hasTables
-      ? readPaginationLayoutTableFragments(options.view.dom, options.view.state.doc)
-      : []
+    const layoutTableFragmentsState = hasTables
+      ? readPaginationLayoutTableFragmentsState(options.view.dom, options.view.state.doc)
+      : createMissingPaginationLayoutTableFragmentsState()
     const tablePaginationHeuristics = resolveTablePaginationHeuristics(
       runawayPageGrowthResolution.cappedPageCount,
       hasActiveEditor
@@ -163,7 +166,9 @@ export function runDeferredRepaginationEvaluationLoop(options: {
       pageCountReason,
       lastPageGap: lastMeasuredPageGap,
       bodyBandCount: tableBodyBands.length,
-      layoutTableFragmentCount: layoutTableFragments.length,
+      layoutTableFragmentCount: layoutTableFragmentsState.fragments.length,
+      layoutTableFragmentsStatus: layoutTableFragmentsState.status,
+      layoutTableFragmentsLayoutVersion: layoutTableFragmentsState.layoutVersion,
       hasTables,
       deferTableEvaluation: deferredRepaginationPreflight.deferTableEvaluation,
       tableMeasurementsPending: deferredRepaginationPreflight.tableMeasurementsPending,
@@ -188,7 +193,7 @@ export function runDeferredRepaginationEvaluationLoop(options: {
           measuredPageCount: measuredPageCountForEvaluation,
           heuristics: deferredRepaginationPreflight.tablePaginationHeuristics,
           bodyBands: tableBodyBands,
-          layoutTableFragments
+          layoutTableFragmentsState
         }),
       onLogDebug: options.onLogDebug,
       onSetPreviousAddPagesMeasurement: options.onSetPreviousAddPagesMeasurement,

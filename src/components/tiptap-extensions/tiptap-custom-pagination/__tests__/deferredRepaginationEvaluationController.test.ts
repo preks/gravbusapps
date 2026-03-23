@@ -281,9 +281,8 @@ describe('runDeferredRepaginationEvaluationLoop', () => {
     const viewport = document.createElement('div')
     viewport.className = 'document-editor-viewport'
     viewport.appendChild(base.view.dom)
-    writePaginationLayoutTableFragments(
-      base.view.dom,
-      [
+    writePaginationLayoutTableFragments(base.view.dom, {
+      fragments: [
         {
           tablePos: 22,
           pageNumbers: [1, 2],
@@ -294,15 +293,21 @@ describe('runDeferredRepaginationEvaluationLoop', () => {
           fragmentCount: 1
         }
       ],
-      base.view.state.doc as object
-    )
+      doc: base.view.state.doc as object,
+      documentVersion: 2,
+      layoutVersion: 3
+    })
     const evaluateTablePagination = jest.fn(
       ({
-        layoutTableFragments
+        layoutTableFragmentsState
       }: {
-        layoutTableFragments: Array<{ paginationChainKey: string; pageNumbers: number[] }>
+        layoutTableFragmentsState: {
+          fragments: Array<{ paginationChainKey: string; pageNumbers: number[] }>
+          status: string
+        }
       }) => {
-        expect(layoutTableFragments).toEqual([
+        expect(layoutTableFragmentsState.status).toBe('ready')
+        expect(layoutTableFragmentsState.fragments).toEqual([
           expect.objectContaining({
             tablePos: 22,
             pageNumbers: [1, 2],
@@ -375,9 +380,8 @@ describe('runDeferredRepaginationEvaluationLoop', () => {
     const viewport = document.createElement('div')
     viewport.className = 'document-editor-viewport'
     viewport.appendChild(base.view.dom)
-    writePaginationLayoutTableFragments(
-      base.view.dom,
-      [
+    writePaginationLayoutTableFragments(base.view.dom, {
+      fragments: [
         {
           tablePos: 22,
           pageNumbers: [1, 2],
@@ -388,11 +392,18 @@ describe('runDeferredRepaginationEvaluationLoop', () => {
           fragmentCount: 1
         }
       ],
-      {} as object
-    )
+      doc: {} as object,
+      documentVersion: 2,
+      layoutVersion: 3
+    })
     const evaluateTablePagination = jest.fn(
-      ({ layoutTableFragments }: { layoutTableFragments: Array<{ paginationChainKey: string }> }) => {
-        expect(layoutTableFragments).toEqual([])
+      ({
+        layoutTableFragmentsState
+      }: {
+        layoutTableFragmentsState: { fragments: Array<{ paginationChainKey: string }>; status: string }
+      }) => {
+        expect(layoutTableFragmentsState.status).toBe('stale-doc')
+        expect(layoutTableFragmentsState.fragments).toEqual([])
 
         return {
           type: 'none' as const,
@@ -423,6 +434,102 @@ describe('runDeferredRepaginationEvaluationLoop', () => {
       setRunawayGrowthCapPageCount: base.setRunawayGrowthCapPageCount,
       setMeasuredHeights: jest.fn(),
       measureHeights: jest.fn(() => createMeasuredHeights(20)),
+      documentHasTables: jest.fn(() => true),
+      getBodyMeasurementBands: jest.fn(() => [{ pageNumber: 1, top: 0, bottom: 800 }]),
+      hasPendingTableMeasurements: jest.fn(() => false),
+      getStabilizationAttemptsRemaining: jest.fn(() => 1),
+      runPass: jest.fn(({ evaluate }) => {
+        evaluate(2)
+        return {
+          handled: true,
+          shouldContinueLoop: false,
+          structuralActionsDelta: 0
+        }
+      }),
+      evaluateTablePagination,
+      onLogDebug: jest.fn(),
+      onSetPreviousAddPagesMeasurement: base.onSetPreviousAddPagesMeasurement,
+      onClearPreviousAddPagesMeasurement: jest.fn(),
+      onSetGrowthSuppression: jest.fn(),
+      onClearGrowthSuppression: jest.fn(),
+      onDecrementStabilizationAttempts: jest.fn(),
+      onScheduleEvaluation: jest.fn(),
+      onRefreshLayoutBounds: jest.fn(),
+      onResetStabilizationAttempts: jest.fn(),
+      onRequestRefresh: jest.fn(),
+      onDispatch: jest.fn()
+    })
+
+    expect(result.handled).toBe(true)
+    expect(evaluateTablePagination).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores bridged layout fragments when the viewport has moved to a newer layout version', () => {
+    const base = createBaseOptions()
+    const viewport = document.createElement('div')
+    viewport.className = 'document-editor-viewport'
+    viewport.dataset.layoutVersion = '4'
+    viewport.dataset.layoutDocumentVersion = '2'
+    viewport.appendChild(base.view.dom)
+    writePaginationLayoutTableFragments(base.view.dom, {
+      fragments: [
+        {
+          tablePos: 22,
+          pageNumbers: [1, 2],
+          rowCount: 8,
+          paginationChainKey: 'chain-fragment-stale-layout',
+          paginationSplitId: null,
+          fragmentIndex: 0,
+          fragmentCount: 1
+        }
+      ],
+      doc: base.view.state.doc as object,
+      documentVersion: 2,
+      layoutVersion: 3
+    })
+    const evaluateTablePagination = jest.fn(
+      ({
+        layoutTableFragmentsState
+      }: {
+        layoutTableFragmentsState: {
+          fragments: Array<{ paginationChainKey: string }>
+          status: string
+          layoutVersion: number | null
+        }
+      }) => {
+        expect(layoutTableFragmentsState.status).toBe('stale-layout')
+        expect(layoutTableFragmentsState.layoutVersion).toBe(3)
+        expect(layoutTableFragmentsState.fragments).toEqual([])
+
+        return {
+          type: 'none' as const,
+          progress: 'none' as const,
+          reason: 'no-eligible-candidates' as const
+        }
+      }
+    )
+
+    const result = runDeferredRepaginationEvaluationLoop({
+      view: base.view,
+      evaluationId: 16,
+      storage: base.storage,
+      getRuntimeOptions: () => ({}) as never,
+      syncStorageFromOptions: jest.fn(),
+      syncRootPresentation: jest.fn(),
+      resolveMeasurementState: jest.fn(() =>
+        createMeasurementState({
+          measured: createMeasuredHeights(22),
+          currentPageCount: 2,
+          rawMeasuredPageCount: 2,
+          measuredPageCount: 2,
+          cappedPageCount: null
+        })
+      ),
+      getPreviousAddPagesMeasurement: base.getPreviousAddPagesMeasurement,
+      getRunawayGrowthCapPageCount: base.getRunawayGrowthCapPageCount,
+      setRunawayGrowthCapPageCount: base.setRunawayGrowthCapPageCount,
+      setMeasuredHeights: jest.fn(),
+      measureHeights: jest.fn(() => createMeasuredHeights(22)),
       documentHasTables: jest.fn(() => true),
       getBodyMeasurementBands: jest.fn(() => [{ pageNumber: 1, top: 0, bottom: 800 }]),
       hasPendingTableMeasurements: jest.fn(() => false),

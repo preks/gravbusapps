@@ -1,6 +1,11 @@
 import type { EditorView } from '@tiptap/pm/view'
-import { createTablePaginationController } from '../tablePaginationController'
-import { findMergeableTableFragmentCandidates, findOverflowingTableSplitCandidates } from '../tablePaginationDetection'
+import { createTablePaginationController, resolveTablePaginationCandidateAuthority } from '../tablePaginationController'
+import {
+  findMergeableTableFragmentCandidates,
+  findMergeableTableFragmentCandidatesFromLayoutFragments,
+  findOverflowingTableSplitCandidates,
+  findOverflowingTableSplitCandidatesFromLayoutFragments
+} from '../tablePaginationDetection'
 import {
   mergeAdjacentPaginationTables,
   rebalanceAdjacentPaginationTables,
@@ -9,6 +14,8 @@ import {
 
 jest.mock('../tablePaginationDetection', () => ({
   findMergeableTableFragmentCandidates: jest.fn(),
+  findMergeableTableFragmentCandidatesFromLayoutFragments: jest.fn(),
+  findOverflowingTableSplitCandidatesFromLayoutFragments: jest.fn(),
   findOverflowingTableSplitCandidates: jest.fn()
 }))
 
@@ -19,10 +26,32 @@ jest.mock('../tableSelectionUtils', () => ({
 }))
 
 const mockedFindMergeCandidates = jest.mocked(findMergeableTableFragmentCandidates)
+const mockedFindFragmentMergeCandidates = jest.mocked(findMergeableTableFragmentCandidatesFromLayoutFragments)
 const mockedFindSplitCandidates = jest.mocked(findOverflowingTableSplitCandidates)
+const mockedFindFragmentSplitCandidates = jest.mocked(findOverflowingTableSplitCandidatesFromLayoutFragments)
 const mockedMergeAdjacentPaginationTables = jest.mocked(mergeAdjacentPaginationTables)
 const mockedRebalanceAdjacentPaginationTables = jest.mocked(rebalanceAdjacentPaginationTables)
 const mockedSplitTableAtRow = jest.mocked(splitTableAtRow)
+
+function createLayoutTableFragmentsState(
+  fragments: Array<{
+    tablePos: number
+    pageNumbers: number[]
+    rowCount: number
+    paginationChainKey: string
+    paginationSplitId: string | null
+    fragmentIndex: number
+    fragmentCount: number
+  }>,
+  status: 'missing' | 'stale-doc' | 'stale-layout' | 'ready' = 'ready'
+) {
+  return {
+    fragments,
+    status,
+    documentVersion: 3,
+    layoutVersion: 7
+  }
+}
 
 function createView() {
   const transaction = {
@@ -39,10 +68,114 @@ function createView() {
 describe('tablePaginationController', () => {
   beforeEach(() => {
     mockedFindMergeCandidates.mockReset()
+    mockedFindFragmentMergeCandidates.mockReset().mockReturnValue([])
     mockedFindSplitCandidates.mockReset()
+    mockedFindFragmentSplitCandidates.mockReset().mockReturnValue([])
     mockedMergeAdjacentPaginationTables.mockReset()
     mockedRebalanceAdjacentPaginationTables.mockReset()
     mockedSplitTableAtRow.mockReset()
+  })
+
+  it('prefers legacy candidates when layout fragment parity is unavailable', () => {
+    const splitCandidate = {
+      mode: 'split' as const,
+      tablePos: 22,
+      splitRowIndex: 4,
+      paginationChainKey: 'chain-a',
+      paginationSplitId: null
+    }
+
+    expect(
+      resolveTablePaginationCandidateAuthority({
+        layoutTableFragmentsState: createLayoutTableFragmentsState([], 'missing'),
+        legacySplitCandidates: [splitCandidate],
+        legacyMergeCandidates: [],
+        fragmentGuidedSplitCandidates: [],
+        fragmentGuidedMergeCandidates: []
+      })
+    ).toMatchObject({
+      authority: 'legacy-dom',
+      parityStatus: 'unavailable',
+      splitCandidates: [splitCandidate],
+      mergeCandidates: []
+    })
+  })
+
+  it('falls back to legacy candidates when fragment-guided candidates do not match parity', () => {
+    const legacySplitCandidate = {
+      mode: 'split' as const,
+      tablePos: 22,
+      splitRowIndex: 4,
+      paginationChainKey: 'chain-a',
+      paginationSplitId: null
+    }
+    const fragmentSplitCandidate = {
+      mode: 'split' as const,
+      tablePos: 40,
+      splitRowIndex: 3,
+      paginationChainKey: 'chain-b',
+      paginationSplitId: null
+    }
+
+    expect(
+      resolveTablePaginationCandidateAuthority({
+        layoutTableFragmentsState: createLayoutTableFragmentsState([
+          {
+            tablePos: 22,
+            pageNumbers: [1, 2],
+            rowCount: 8,
+            paginationChainKey: 'chain-a',
+            paginationSplitId: null,
+            fragmentIndex: 0,
+            fragmentCount: 1
+          }
+        ]),
+        legacySplitCandidates: [legacySplitCandidate],
+        legacyMergeCandidates: [],
+        fragmentGuidedSplitCandidates: [fragmentSplitCandidate],
+        fragmentGuidedMergeCandidates: []
+      })
+    ).toMatchObject({
+      authority: 'legacy-dom',
+      parityStatus: 'mismatch',
+      splitCandidates: [legacySplitCandidate],
+      mergeCandidates: []
+    })
+  })
+
+  it('allows fragment-guided authority when candidate keys match exactly', () => {
+    const splitCandidate = {
+      mode: 'split' as const,
+      tablePos: 22,
+      splitRowIndex: 4,
+      paginationChainKey: 'chain-a',
+      paginationSplitId: null
+    }
+
+    expect(
+      resolveTablePaginationCandidateAuthority({
+        layoutTableFragmentsState: createLayoutTableFragmentsState([
+          {
+            tablePos: 22,
+            pageNumbers: [1, 2],
+            rowCount: 8,
+            paginationChainKey: 'chain-a',
+            paginationSplitId: null,
+            fragmentIndex: 0,
+            fragmentCount: 1
+          }
+        ]),
+        legacySplitCandidates: [splitCandidate],
+        legacyMergeCandidates: [],
+        fragmentGuidedSplitCandidates: [splitCandidate],
+        fragmentGuidedMergeCandidates: []
+      })
+    ).toMatchObject({
+      authority: 'layout-fragment-guided',
+      parityStatus: 'match',
+      splitCandidates: [splitCandidate],
+      mergeCandidates: []
+    })
   })
 
   it('moves on to another chain after one split candidate is rejected twice', () => {
@@ -351,7 +484,7 @@ describe('tablePaginationController', () => {
         measuredPageCount: 2,
         heuristics: { allowMerge: true, allowSplit: true },
         bodyBands: [],
-        layoutTableFragments: [
+        layoutTableFragmentsState: createLayoutTableFragmentsState([
           {
             tablePos: 22,
             pageNumbers: [1, 2],
@@ -361,7 +494,7 @@ describe('tablePaginationController', () => {
             fragmentIndex: 0,
             fragmentCount: 1
           }
-        ]
+        ])
       })
     ).toMatchObject({
       type: 'dispatch',
@@ -396,7 +529,7 @@ describe('tablePaginationController', () => {
         measuredPageCount: 2,
         heuristics: { allowMerge: true, allowSplit: true },
         bodyBands: [],
-        layoutTableFragments: [
+        layoutTableFragmentsState: createLayoutTableFragmentsState([
           {
             tablePos: 22,
             pageNumbers: [1],
@@ -415,7 +548,7 @@ describe('tablePaginationController', () => {
             fragmentIndex: 1,
             fragmentCount: 2
           }
-        ]
+        ])
       })
     ).toMatchObject({
       type: 'dispatch',
@@ -450,7 +583,7 @@ describe('tablePaginationController', () => {
         measuredPageCount: 2,
         heuristics: { allowMerge: true, allowSplit: true },
         bodyBands: [],
-        layoutTableFragments: [
+        layoutTableFragmentsState: createLayoutTableFragmentsState([
           {
             tablePos: 22,
             pageNumbers: [1],
@@ -469,7 +602,7 @@ describe('tablePaginationController', () => {
             fragmentIndex: 1,
             fragmentCount: 2
           }
-        ]
+        ])
       })
     ).toMatchObject({
       type: 'dispatch',
@@ -514,7 +647,7 @@ describe('tablePaginationController', () => {
         measuredPageCount: 2,
         heuristics: { allowMerge: true, allowSplit: true },
         bodyBands: [],
-        layoutTableFragments: [
+        layoutTableFragmentsState: createLayoutTableFragmentsState([
           {
             tablePos: 22,
             pageNumbers: [1],
@@ -533,7 +666,7 @@ describe('tablePaginationController', () => {
             fragmentIndex: 1,
             fragmentCount: 2
           }
-        ]
+        ])
       })
     ).toMatchObject({
       type: 'dispatch',
@@ -614,7 +747,7 @@ describe('tablePaginationController', () => {
         measuredPageCount: 2,
         heuristics: { allowMerge: true, allowSplit: true },
         bodyBands: [],
-        layoutTableFragments: [
+        layoutTableFragmentsState: createLayoutTableFragmentsState([
           {
             tablePos: 20,
             pageNumbers: [1],
@@ -633,7 +766,7 @@ describe('tablePaginationController', () => {
             fragmentIndex: 1,
             fragmentCount: 2
           }
-        ]
+        ])
       })
     ).toMatchObject({
       type: 'dispatch',

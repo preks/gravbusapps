@@ -13,6 +13,7 @@ import type {
 
 export interface DocumentLayoutViewportModel {
   documentVersion: number
+  layoutVersion: number
   source: DocumentLayoutSource
   totalPages: number
   activeRange: DocumentLayoutPageRange
@@ -79,6 +80,7 @@ export function useDocumentLayoutViewportModel(
 
     return {
       documentVersion: layoutSnapshot.documentVersion,
+      layoutVersion: layoutSnapshot.layoutVersion,
       source: layoutSnapshot.source,
       totalPages,
       activeRange,
@@ -110,6 +112,7 @@ export function useDocumentLayoutViewportModel(
     layoutSnapshot.activeRange,
     layoutSnapshot.anchors,
     layoutSnapshot.documentVersion,
+    layoutSnapshot.layoutVersion,
     layoutSnapshot.mountedRange,
     layoutSnapshot.mountedPageBodyBounds,
     layoutSnapshot.pageBounds,

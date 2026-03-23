@@ -5,7 +5,7 @@ import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportMod
 interface UseApplyDocumentLayoutTableFragmentsBridgeParams {
   editorContainerRef: MutableRefObject<HTMLDivElement | null>
   layoutDocument: object | null
-  viewportModel: Pick<DocumentLayoutViewportModel, 'tableFragments'>
+  viewportModel: Pick<DocumentLayoutViewportModel, 'documentVersion' | 'layoutVersion' | 'tableFragments'>
 }
 
 export function useApplyDocumentLayoutTableFragmentsBridge({
@@ -14,9 +14,8 @@ export function useApplyDocumentLayoutTableFragmentsBridge({
   viewportModel
 }: UseApplyDocumentLayoutTableFragmentsBridgeParams): void {
   useEffect(() => {
-    writePaginationLayoutTableFragments(
-      editorContainerRef.current,
-      viewportModel.tableFragments.map(fragment => ({
+    writePaginationLayoutTableFragments(editorContainerRef.current, {
+      fragments: viewportModel.tableFragments.map(fragment => ({
         tablePos: fragment.tablePos,
         pageNumbers: fragment.pageNumbers,
         rowCount: fragment.rowCount,
@@ -25,7 +24,15 @@ export function useApplyDocumentLayoutTableFragmentsBridge({
         fragmentIndex: fragment.fragmentIndex,
         fragmentCount: fragment.fragmentCount
       })),
-      layoutDocument
-    )
-  }, [editorContainerRef, layoutDocument, viewportModel.tableFragments])
+      doc: layoutDocument,
+      documentVersion: viewportModel.documentVersion,
+      layoutVersion: viewportModel.layoutVersion
+    })
+  }, [
+    editorContainerRef,
+    layoutDocument,
+    viewportModel.documentVersion,
+    viewportModel.layoutVersion,
+    viewportModel.tableFragments
+  ])
 }

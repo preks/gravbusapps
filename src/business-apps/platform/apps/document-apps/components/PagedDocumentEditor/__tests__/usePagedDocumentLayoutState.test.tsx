@@ -57,6 +57,7 @@ describe('usePagedDocumentLayoutState', () => {
     } as MutableRefObject<HTMLDivElement | null>
     const handleScroll = jest.fn()
     const layoutSnapshot: DocumentLayoutSnapshot = {
+      documentVersion: 1,
       layoutVersion: 2,
       source: 'incremental-layout-engine',
       pageCount: 4,
@@ -73,12 +74,29 @@ describe('usePagedDocumentLayoutState', () => {
         { flowIndex: 3, pageRange: { startPage: 4, endPage: 4 }, kind: 'page-break', isMounted: true }
       ],
       mountedRange: { startPage: 1, endPage: 4 },
+      pageBounds: [
+        { pageNumber: 1, top: 0, bottom: 90, left: 10, right: 110 },
+        { pageNumber: 2, top: 100, bottom: 190, left: 10, right: 110 },
+        { pageNumber: 3, top: 200, bottom: 290, left: 10, right: 110 },
+        { pageNumber: 4, top: 300, bottom: 390, left: 10, right: 110 }
+      ],
       mountedPageBodyBounds: [
         { pageNumber: 1, top: 0, bottom: 90, left: 10, right: 110 },
         { pageNumber: 2, top: 100, bottom: 190, left: 10, right: 110 },
         { pageNumber: 3, top: 200, bottom: 290, left: 10, right: 110 },
         { pageNumber: 4, top: 300, bottom: 390, left: 10, right: 110 }
       ],
+      pageSpans: [],
+      retainedPageSpans: [],
+      pagePositionRanges: [],
+      pageChromeMetrics: [],
+      anchors: {
+        comments: [],
+        images: [],
+        links: [],
+        tables: []
+      },
+      tableFragments: [],
       activeRange: { startPage: 2, endPage: 3 },
       activePages: [
         { pageNumber: 2, flowIndex: 1, mountedIndex: 1, isMounted: true },
@@ -106,6 +124,8 @@ describe('usePagedDocumentLayoutState', () => {
       lastResolvedRange: { startPage: 1, endPage: 4 }
     }
     const layoutViewportModel: DocumentLayoutViewportModel = {
+      documentVersion: 1,
+      layoutVersion: 2,
       source: 'incremental-layout-engine',
       totalPages: 4,
       activeRange: { startPage: 2, endPage: 3 },
@@ -114,6 +134,12 @@ describe('usePagedDocumentLayoutState', () => {
       mountedRange: { startPage: 1, endPage: 4 },
       mountedPageNumbers: [1, 2, 3, 4],
       mountedPageCount: 4,
+      pageBounds: [
+        { pageNumber: 1, top: 0, bottom: 90, left: 10, right: 110 },
+        { pageNumber: 2, top: 100, bottom: 190, left: 10, right: 110 },
+        { pageNumber: 3, top: 200, bottom: 290, left: 10, right: 110 },
+        { pageNumber: 4, top: 300, bottom: 390, left: 10, right: 110 }
+      ],
       mountedPageBodyBounds: [
         { pageNumber: 1, top: 0, bottom: 90, left: 10, right: 110 },
         { pageNumber: 2, top: 100, bottom: 190, left: 10, right: 110 },
@@ -124,6 +150,18 @@ describe('usePagedDocumentLayoutState', () => {
         { pageNumber: 2, top: 100, bottom: 190, left: 10, right: 110 },
         { pageNumber: 3, top: 200, bottom: 290, left: 10, right: 110 }
       ],
+      pageSpans: [],
+      retainedPageSpans: [],
+      pagePositionRanges: [],
+      activePagePositionRanges: [],
+      pageChromeMetrics: [],
+      anchors: {
+        comments: [],
+        images: [],
+        links: [],
+        tables: []
+      },
+      tableFragments: [],
       hasSparseFlow: false,
       isWindowed: true,
       containsCurrentPage: true,

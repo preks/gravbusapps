@@ -1042,6 +1042,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             data-layout-window-key={layoutViewportModel.windowKey}
             data-layout-current-page-in-window={layoutViewportModel.containsCurrentPage ? 'true' : 'false'}
             data-layout-document-version={layoutViewportModel.documentVersion}
+            data-layout-version={layoutViewportModel.layoutVersion}
             data-layout-page-span-count={layoutViewportModel.pageSpans.length}
             data-layout-table-fragment-count={layoutViewportModel.tableFragments.length}
             data-layout-runtime-status={runtimeState.status}
