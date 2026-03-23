@@ -112,7 +112,6 @@ import { emitDocumentActivity, emitDocumentActivityEnd } from '../../../spaces/h
 import { buildDocumentEditAdditionInfo } from '@/common/utils/buildDocumentEditPrompt'
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { Table, TableCell, TableHeader, TableRow } from '@/components/tiptap-extensions/tiptap-custom-tables'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
@@ -656,6 +655,34 @@ function parseIsoDateMs(value?: string): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+/** Minimum time between local typing and applying remote collaboration content (ms). */
+const DOCUMENT_REMOTE_TYPING_GUARD_MS = 1500
+
+/** Interval for optional HTTP poll when live sync needs a fallback (ms). */
+const DOCUMENT_LIVE_SYNC_POLL_INTERVAL_MS = 8000
+
+/**
+ * When true, poll the document API while Yjs reports synced (emergency fallback).
+ * Off by default.
+ */
+const ENABLE_DOCUMENT_LIVE_SYNC_POLL_FALLBACK = false
+
+const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-editor-autocomplete-toggle'
+const AUTOCOMPLETE_DEBOUNCE_MS = 400
+
+const AUTOCOMPLETE_PLUGIN_KEY = new PluginKey('document-autocomplete-ghost')
+const CURRENT_SELECTION_PLUGIN_KEY = new PluginKey('document-current-selection-highlight')
+
+function isDocumentPaginationDisabled(): boolean {
+  if (globalThis.window === undefined) return false
+  return globalThis.window.localStorage.getItem('document-editor-pagination-debug-disabled') === 'true'
+}
+
+function isAutocompleteRolloutEnabled(): boolean {
+  if (globalThis.window === undefined) return true
+  return globalThis.window.localStorage.getItem('document-editor-autocomplete-rollout-disabled') !== 'true'
+}
+
 function useNavigationPanelState(): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
   const [show, setShow] = useState(() => {
     if (globalThis.window === undefined) return false
@@ -716,11 +743,28 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [currentPage, setCurrentPage] = useState(1)
     const [layoutFormatting, setLayoutFormatting] = useState<DocumentFormatting>(() => getDefaultPageLayout())
 
+    type PagesEditorHeaderFooterState = {
+      activeEditor: unknown | null
+      activeEditorType: 'header' | 'footer' | null
+      activePageNumber: number | null
+    }
+    const [pagesEditorState, setPagesEditorState] = useState<PagesEditorHeaderFooterState>({
+      activeEditor: null,
+      activeEditorType: null,
+      activePageNumber: null
+    })
+
     const editorContainerRef = useRef<HTMLDivElement | null>(null)
     const editorChromeRef = useRef<HTMLDivElement | null>(null)
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const titleInputRef = useRef<HTMLInputElement>(null)
     const editorRef = useRef<any>(null) // Store editor instance
+    const lastRemoteUpdateMsRef = useRef(0)
+    const isApplyingRemoteContentRef = useRef(false)
+    const lastLocalTypingMsRef = useRef(0)
+    const pendingRemoteContentRef = useRef<string | null>(null)
+    const pendingRemoteTitleRef = useRef<string | null>(null)
+    const pendingRemoteApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
       DocumentApiService.setAccessToken(accessTokenProp || null)
