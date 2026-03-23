@@ -55,7 +55,7 @@ function formatTimestamp(raw: string): string {
   if (!raw) return ''
   try {
     const d = new Date(raw.replace(' ', 'T'))
-    if (isNaN(d.getTime())) return raw
+    if (Number.isNaN(d.getTime())) return raw
     const month = d.toLocaleString('en', { month: 'short' })
     const day = d.getDate()
     const hours = String(d.getHours()).padStart(2, '0')
@@ -108,8 +108,8 @@ export const ChatSnippetDisplay: React.FC<ChatSnippetDisplayProps> = ({ data }) 
       <CardContent className="gba:px-3 gba:py-3">
         <div className="gba:space-y-3">
           {messages.length > 0 ? (
-            messages.map((msg, i) => (
-              <div key={i} className="gba:flex gba:gap-2 gba:flex-row">
+            messages.map(msg => (
+              <div key={`${msg.timestamp}-${msg.sender}`} className="gba:flex gba:gap-2 gba:flex-row">
                 <div className="gba:flex-shrink-0 gba:w-8 gba:h-8">
                   <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center">
                     <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
