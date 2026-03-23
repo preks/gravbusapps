@@ -36,6 +36,7 @@ const SECTION_TABS: SectionTab[] = [
 export interface SpreadsheetHeroProps {
   activeSection: SpreadsheetSection
   onSectionChange: (section: SpreadsheetSection) => void
+  tabBadges?: Partial<Record<SpreadsheetSection, { count: number; highlight?: boolean }>>
   newButton?: React.ReactNode
   t: (key: string) => string
   'data-testid'?: string
@@ -44,6 +45,7 @@ export interface SpreadsheetHeroProps {
 export const SpreadsheetHero: React.FC<SpreadsheetHeroProps> = ({
   activeSection,
   onSectionChange,
+  tabBadges,
   newButton,
   t,
   'data-testid': testId = 'spreadsheet-hero'
@@ -100,6 +102,9 @@ export const SpreadsheetHero: React.FC<SpreadsheetHeroProps> = ({
         >
           {SECTION_TABS.map(tab => {
             const isActive = activeSection === tab.id
+            const badge = tabBadges?.[tab.id]
+            const hasBadge = typeof badge?.count === 'number' && badge.count > 0
+            const shouldHighlight = Boolean(badge?.highlight && hasBadge)
             return (
               <button
                 key={tab.id}
@@ -111,11 +116,28 @@ export const SpreadsheetHero: React.FC<SpreadsheetHeroProps> = ({
                   'gba:px-4 gba:py-2 gba:rounded-lg gba:text-sm gba:font-medium gba:transition-all gba:duration-200 gba:border gba:cursor-pointer',
                   isActive
                     ? 'gba:bg-white/20 gba:text-white gba:border-white/30 gba:backdrop-blur-sm gba:shadow-sm'
-                    : 'gba:bg-transparent gba:text-white/55 gba:border-transparent hover:gba:text-white/90 hover:gba:bg-white/10'
+                    : shouldHighlight
+                      ? 'gba:bg-white/10 gba:text-white gba:border-white/20 hover:gba:bg-white/20'
+                      : 'gba:bg-transparent gba:text-white/55 gba:border-transparent hover:gba:text-white/90 hover:gba:bg-white/10'
                 ].join(' ')}
                 data-testid={`${testId}-tab-${tab.id}`}
               >
-                {t(tab.labelKey)}
+                <span className="gba:flex gba:items-center gba:gap-2">
+                  <span>{t(tab.labelKey)}</span>
+                  {hasBadge && (
+                    <span
+                      className={[
+                        'gba:inline-flex gba:min-w-5 gba:h-5 gba:px-1.5 gba:items-center gba:justify-center gba:rounded-full gba:text-[11px] gba:font-semibold',
+                        shouldHighlight
+                          ? 'gba:bg-warning gba:text-warning-foreground'
+                          : 'gba:bg-white/20 gba:text-white'
+                      ].join(' ')}
+                      data-testid={`${testId}-tab-${tab.id}-badge`}
+                    >
+                      {badge?.count}
+                    </span>
+                  )}
+                </span>
               </button>
             )
           })}

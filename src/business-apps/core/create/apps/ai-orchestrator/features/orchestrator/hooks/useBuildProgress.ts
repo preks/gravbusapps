@@ -65,12 +65,16 @@ export interface UseBuildProgressResult {
   buildLogs: BuildLogEntry[]
   isProgressEstimated: boolean
   eventLedger: BuildProgressEvent[]
+  wiringWarnings: string[]
+  hasWiringWarnings: boolean
+  buildSummaryMessage: string | null
   startBuild: (
     skipComponents?: string[],
     sessionId?: string,
     repoId?: string,
     createdBy?: ExecuteRequest['createdBy']
   ) => Promise<void>
+  startWiringRetry: (sessionId?: string, repoId?: string) => Promise<void>
   cancelBuild: () => void
   resetProgress: () => void
 }
@@ -647,6 +651,8 @@ export function useBuildProgress({
   const [buildError, setBuildError] = useState<string | null>(null)
   const [buildDuration, setBuildDuration] = useState(0)
   const [eventLedger, setEventLedger] = useState<BuildProgressEvent[]>([])
+  const [wiringWarnings, setWiringWarnings] = useState<string[]>([])
+  const [buildSummaryMessage, setBuildSummaryMessage] = useState<string | null>(null)
 
   const abortControllerRef = useRef<AbortController | null>(null)
   const buildStartTimeRef = useRef<number>(0)
@@ -670,6 +676,8 @@ export function useBuildProgress({
     setEventLedger([])
     setBuildDuration(0)
     setBuildError(null)
+    setWiringWarnings([])
+    setBuildSummaryMessage(null)
     completedCallbackSentRef.current = false
     progressSamplingRef.current.clear()
   }, [])
@@ -708,6 +716,13 @@ export function useBuildProgress({
       if (event.eventType === 'heartbeat') return
       const shouldProcessEvent = sampleComponentProgress(event, progressSamplingRef.current)
       if (shouldProcessEvent === false) return
+
+      if (
+        (event.eventType === 'wiring_completed' || event.eventType === 'build_complete') &&
+        event.wiringWarnings?.length
+      ) {
+        setWiringWarnings(event.wiringWarnings)
+      }
 
       syncComponentWithPlan(event, onComponentUpdateRef.current)
       setEventLedger(prev => pushEvent(prev, event))
@@ -775,6 +790,7 @@ export function useBuildProgress({
       setBuildError(null)
       setBuildDuration(0)
       setEventLedger([])
+      setBuildSummaryMessage(null)
 
       const request: ExecuteRequest = {
         jobId: plan.jobId,
@@ -796,8 +812,42 @@ export function useBuildProgress({
           if (abortControllerRef.current?.signal.aborted) return
           void reconcileAfterStreamEnd()
         },
-        abortControllerRef.current.signal
+        abortControllerRef.current.signal,
+        content => setBuildSummaryMessage(content)
       )
+    },
+    [client, handleProgressEvent, onError, plan, reconcileAfterStreamEnd, reconcileAfterStreamFailure]
+  )
+
+  const startWiringRetry = useCallback(
+    async (sessionId?: string, repoId?: string) => {
+      if (!plan) {
+        onError?.('No build plan available for wiring retry')
+        return
+      }
+
+      abortControllerRef.current?.abort()
+      abortControllerRef.current = new AbortController()
+      completedCallbackSentRef.current = false
+      progressSamplingRef.current.clear()
+      setIsBuilding(true)
+      setBuildError(null)
+      setWiringWarnings([])
+      setEventLedger([])
+      setBuildSummaryMessage(null)
+
+      await client.executeWiringRetry(plan.jobId, sessionId, repoId, handleProgressEvent, {
+        onError: error => {
+          if (abortControllerRef.current?.signal.aborted) return
+          void reconcileAfterStreamFailure(error)
+        },
+        onComplete: () => {
+          if (abortControllerRef.current?.signal.aborted) return
+          void reconcileAfterStreamEnd()
+        },
+        signal: abortControllerRef.current.signal,
+        onResponse: content => setBuildSummaryMessage(content)
+      })
     },
     [client, handleProgressEvent, onError, plan, reconcileAfterStreamEnd, reconcileAfterStreamFailure]
   )
@@ -837,7 +887,11 @@ export function useBuildProgress({
     buildLogs: derived.buildLogs,
     isProgressEstimated: derived.isProgressEstimated,
     eventLedger,
+    wiringWarnings,
+    hasWiringWarnings: wiringWarnings.length > 0,
+    buildSummaryMessage,
     startBuild,
+    startWiringRetry,
     cancelBuild,
     resetProgress
   }

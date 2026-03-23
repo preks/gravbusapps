@@ -1,4 +1,4 @@
-import { promptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { executeContentPromptByJson } from '@/common/data/content/prompts'
 
@@ -28,8 +28,10 @@ export interface ContentEntryOutput {
 }
 
 export class ContentEntryAIService {
-  constructor(accessToken: string) {
-    promptManagerClient.setAccessToken(accessToken)
+  constructor(
+    private readonly promptManagerClient: PromptManagerClient,
+    accessToken: string
+  ) {
     graphQLClient.setAccessToken(accessToken)
   }
 
@@ -168,7 +170,7 @@ export class ContentEntryAIService {
       contentTagNames: existingContent?.contentTagNames
     }
 
-    const response = await executeContentPromptByJson(promptManagerClient, 'ContentArticleWriter', {
+    const response = await executeContentPromptByJson(this.promptManagerClient, 'ContentArticleWriter', {
       user_params: userParams
     })
     const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content)

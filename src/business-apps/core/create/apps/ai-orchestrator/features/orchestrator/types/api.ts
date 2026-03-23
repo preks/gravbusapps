@@ -36,7 +36,14 @@ export interface AnalyzeResponse {
   error?: string
 }
 
-export type TurnIntent = 'auto' | 'plan_create' | 'plan_refine' | 'build_execute' | 'ui_mutate' | 'publish'
+export type TurnIntent =
+  | 'auto'
+  | 'plan_create'
+  | 'plan_refine'
+  | 'build_execute'
+  | 'ui_mutate'
+  | 'publish'
+  | 'wiring_retry'
 export type TurnScope = 'ui_only' | 'orchestrator_full'
 
 export interface TurnRequest {

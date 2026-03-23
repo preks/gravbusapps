@@ -185,7 +185,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
             variant="ghost"
             size="icon"
             onClick={handleDotClick}
-            className="gba:fixed gba:bottom-2.5 gba:right-2.5 gba:h-4 gba:w-4 gba:p-0 gba:opacity-20 gba:hover:opacity-80 gba:transition-opacity gba:z-50"
+            className="gba:fixed gba:bottom-2.5 gba:right-2.5 gba:h-4 gba:w-4 gba:p-0 gba:opacity-20 gba:hover:opacity-80 gba:transition-opacity gba:z-[2147483647]"
             aria-label="Report issue"
             data-testid="dev-report-dot"
           >

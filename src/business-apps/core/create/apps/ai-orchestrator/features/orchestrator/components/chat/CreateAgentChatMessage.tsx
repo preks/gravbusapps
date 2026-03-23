@@ -4,6 +4,7 @@
  */
 
 import React, { useMemo, useState, useCallback } from 'react'
+import Markdown from 'react-markdown'
 import {
   Bot,
   User,
@@ -146,6 +147,7 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
 }) => {
   const [thinkingState, setThinkingState] = useState<Record<string, boolean>>({})
   const [toolProgressState, setToolProgressState] = useState<Record<string, boolean>>({})
+  const [userMessageExpandState, setUserMessageExpandState] = useState<Record<string, boolean>>({})
   const [copyFeedback, setCopyFeedback] = useState(false)
   const [customDecisionInstruction, setCustomDecisionInstruction] = useState('')
   const isUser = message.role === 'user'
@@ -218,8 +220,13 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
         >
           {isUser ? (
             <>
-              {message.content || (isStreaming && <StreamingDots />)}
-              {isStreaming && message.content && <StreamingCursor />}
+              {renderCollapsibleUserMessage(
+                message,
+                isStreaming,
+                isUser,
+                userMessageExpandState,
+                setUserMessageExpandState
+              )}
             </>
           ) : (
             <div className="gba:space-y-2">
@@ -249,7 +256,9 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
                           <span className="gba:text-sm gba:font-medium gba:text-foreground">{option.title}</span>
-                          <span className="gba:text-[11px] gba:text-muted-foreground">{option.riskLevel ?? 'medium'} risk</span>
+                          <span className="gba:text-[11px] gba:text-muted-foreground">
+                            {option.riskLevel ?? 'medium'} risk
+                          </span>
                         </div>
                         {option.description ? (
                           <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground gba:whitespace-pre-wrap">
@@ -309,14 +318,21 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
           }`}
         >
           {isUser && Array.isArray(editorDisplays) && editorDisplays.length > 1 && (
-            <div className="gba:flex gba:items-center gba:-space-x-1" title={editorDisplays.map(display => display.name).join(', ')}>
+            <div
+              className="gba:flex gba:items-center gba:-space-x-1"
+              title={editorDisplays.map(display => display.name).join(', ')}
+            >
               {editorDisplays.slice(0, 4).map((display, index) => (
                 <span
                   key={`${message.id}-${display.name}-${index}`}
                   className="gba:w-5 gba:h-5 gba:rounded-full gba:bg-muted gba:border gba:border-background gba:overflow-hidden gba:flex gba:items-center gba:justify-center"
                 >
                   {display.avatar ? (
-                    <AvatarImage src={display.avatar} alt={display.name} className="gba:w-full gba:h-full gba:object-cover" />
+                    <AvatarImage
+                      src={display.avatar}
+                      alt={display.name}
+                      className="gba:w-full gba:h-full gba:object-cover"
+                    />
                   ) : (
                     <span className="gba:text-[10px] gba:font-semibold gba:text-foreground">{display.initials}</span>
                   )}
@@ -535,37 +551,138 @@ function renderThinkingEntry(
   )
 }
 
+const MARKDOWN_COMPONENTS: Record<string, React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLElement>>>> = {
+  p: ({ children, ...props }) => (
+    <p className="gba:mb-2 last:gba:mb-0" {...props}>
+      {children}
+    </p>
+  ),
+  strong: ({ children, ...props }) => (
+    <strong className="gba:font-semibold" {...props}>
+      {children}
+    </strong>
+  ),
+  ul: ({ children, ...props }) => (
+    <ul className="gba:list-disc gba:pl-5 gba:mb-2 gba:space-y-0.5 last:gba:mb-0" {...props}>
+      {children}
+    </ul>
+  ),
+  ol: ({ children, ...props }) => (
+    <ol className="gba:list-decimal gba:pl-5 gba:mb-2 gba:space-y-0.5 last:gba:mb-0" {...props}>
+      {children}
+    </ol>
+  ),
+  li: ({ children, ...props }) => (
+    <li className="gba:text-sm" {...props}>
+      {children}
+    </li>
+  ),
+  a: ({ children, ...props }) => (
+    <a
+      className="gba:text-primary gba:underline hover:gba:opacity-80"
+      target="_blank"
+      rel="noreferrer noopener"
+      {...props}
+    >
+      {children}
+    </a>
+  )
+}
+
 function renderResponseEntry(
   entry: Extract<TimelineEntry, { type: 'block' }>,
   message: CreateChatMessage
 ): React.ReactNode {
   const content = entry.block.content
-  const urlPattern = /(https?:\/\/[^\s]+|\/platform\/[^\s]+)/g
-  const parts = content.split(urlPattern)
   return (
-    <div
-      key={`${message.id}-response-${entry.position}`}
-      className="gba:whitespace-pre-wrap gba:text-sm gba:text-foreground"
-    >
-      {parts.map((part, index) => {
-        const isLink = /^(https?:\/\/[^\s]+|\/platform\/[^\s]+)$/.test(part)
-        if (!isLink) {
-          return <React.Fragment key={`${message.id}-resp-${entry.position}-${index}`}>{part}</React.Fragment>
-        }
-        const href = part.startsWith('/platform/') ? part : part
-        return (
-          <a
-            key={`${message.id}-resp-link-${entry.position}-${index}`}
-            href={href}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="gba:text-primary gba:underline hover:gba:opacity-80"
-          >
-            {part}
-          </a>
-        )
-      })}
+    <div key={`${message.id}-response-${entry.position}`} className="gba:text-sm gba:text-foreground">
+      <Markdown components={MARKDOWN_COMPONENTS}>{content}</Markdown>
     </div>
+  )
+}
+
+const MAX_COLLAPSED_CHARS = 500
+const PREVIEW_CHARS = 400
+
+function truncateAtWordBoundary(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text
+  const truncated = text.slice(0, maxLength)
+  const lastSpace = truncated.lastIndexOf(' ')
+  return lastSpace > maxLength * 0.7 ? truncated.slice(0, lastSpace) : truncated
+}
+
+function renderCollapsibleUserMessage(
+  message: CreateChatMessage,
+  isStreaming: boolean,
+  isUser: boolean,
+  userMessageExpandState: Record<string, boolean>,
+  setUserMessageExpandState: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
+): React.ReactNode {
+  const content = message.content || ''
+
+  if (isStreaming) {
+    return (
+      <>
+        {content || <StreamingDots />}
+        {content && <StreamingCursor />}
+      </>
+    )
+  }
+
+  if (!content || content.length <= MAX_COLLAPSED_CHARS) {
+    return content
+  }
+
+  const messageKey = `${message.id}-user-message`
+  const isExpanded = userMessageExpandState[messageKey] ?? false
+
+  if (isExpanded) {
+    return (
+      <>
+        <div className="gba:whitespace-pre-wrap">{content}</div>
+        <button
+          type="button"
+          className={`gba:flex gba:items-center gba:gap-1 gba:mt-2 gba:text-xs gba:transition-colors ${
+            isUser
+              ? 'gba:text-primary-foreground/70 gba:hover:text-primary-foreground'
+              : 'gba:text-muted-foreground gba:hover:text-foreground'
+          }`}
+          onClick={() =>
+            setUserMessageExpandState(prev => ({
+              ...prev,
+              [messageKey]: false
+            }))
+          }
+        >
+          <ChevronDown className="gba:h-3 gba:w-3" />
+          <span>Show less</span>
+        </button>
+      </>
+    )
+  }
+
+  const preview = truncateAtWordBoundary(content, PREVIEW_CHARS)
+  return (
+    <>
+      <div className="gba:whitespace-pre-wrap">{preview}...</div>
+      <button
+        type="button"
+        className={`gba:flex gba:items-center gba:gap-1 gba:mt-2 gba:text-xs gba:transition-colors ${
+          isUser
+            ? 'gba:text-primary-foreground/70 gba:hover:text-primary-foreground'
+            : 'gba:text-muted-foreground gba:hover:text-foreground'
+        }`}
+        onClick={() =>
+          setUserMessageExpandState(prev => ({
+            ...prev,
+            [messageKey]: true
+          }))
+        }
+      >
+        <ChevronRight className="gba:h-3 gba:w-3" />
+        <span>Show more</span>
+      </button>
+    </>
   )
 }
 

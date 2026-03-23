@@ -20,6 +20,7 @@ import { Users, X, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CollectionMember, CollectionMemberRole } from '../../types/collection'
 import { CollectionApiService } from '../../services/CollectionApiService'
+import { preventDialogCloseOnSelectOutside } from '../../utils/preventDialogCloseOnSelectOutside'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEES_LIGHT_BY_USER_IDS } from '@/common/data/employee/queries/employeeQueries'
 
@@ -36,6 +37,7 @@ export interface ManageCollectionMembersDialogProps {
 
 const ROLE_LABELS: Record<CollectionMemberRole, string> = {
   owner: 'Owner',
+  admin: 'Admin',
   editor: 'Editor',
   viewer: 'Viewer'
 }
@@ -112,25 +114,37 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
   }, [open, loadMembers])
 
   const handleRoleChange = useCallback(
-    async (memberId: string, role: CollectionMemberRole) => {
-      const ok = await CollectionApiService.updateMemberRole(collectionId, memberId, role)
+    async (member: CollectionMember, role: CollectionMemberRole) => {
+      if (!member.userId?.trim() && !member.teamId?.trim()) {
+        toast.error('Cannot update role: missing user or team id')
+        return
+      }
+      const ok = await CollectionApiService.updateMemberRole(collectionId, member, role)
       if (ok) {
-        setMembers(prev => prev.map(m => (m.id === memberId ? { ...m, role } : m)))
+        setMembers(prev => prev.map(m => (m.id === member.id ? { ...m, role } : m)))
         onMembersChanged?.()
         toast.success('Role updated')
+      } else {
+        toast.error('Failed to update role')
       }
     },
     [collectionId, onMembersChanged]
   )
 
   const handleRemove = useCallback(
-    async (memberId: string, userName?: string) => {
+    async (member: CollectionMember, userName?: string) => {
+      if (!member.userId?.trim() && !member.teamId?.trim()) {
+        toast.error('Cannot remove member: missing user or team id')
+        return
+      }
       if (!confirm(`Remove ${userName || 'this member'} from this space?`)) return
-      const ok = await CollectionApiService.removeMember(collectionId, memberId)
+      const ok = await CollectionApiService.removeMember(collectionId, member)
       if (ok) {
-        setMembers(prev => prev.filter(m => m.id !== memberId))
+        setMembers(prev => prev.filter(m => m.id !== member.id))
         onMembersChanged?.()
         toast.success('Member removed')
+      } else {
+        toast.error('Failed to remove member')
       }
     },
     [collectionId, onMembersChanged]
@@ -146,7 +160,12 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-lg" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg"
+        data-testid={testId}
+        onPointerDownOutside={preventDialogCloseOnSelectOutside}
+        onInteractOutside={preventDialogCloseOnSelectOutside}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Users className="gba:w-5 gba:h-5 gba:text-primary" />
@@ -196,22 +215,24 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
                     ) : (
                       <>
                         <Select
+                          key={`${member.id}-role`}
                           value={member.role}
-                          onValueChange={v => handleRoleChange(member.id, v as CollectionMemberRole)}
+                          onValueChange={v => handleRoleChange(member, v as CollectionMemberRole)}
                         >
                           <SelectTrigger className="gba:w-28 gba:h-7 gba:text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="editor">Editor</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
+                            <SelectItem value="admin">{ROLE_LABELS.admin}</SelectItem>
+                            <SelectItem value="editor">{ROLE_LABELS.editor}</SelectItem>
+                            <SelectItem value="viewer">{ROLE_LABELS.viewer}</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button
                           variant="ghost"
                           size="sm"
                           className="gba:h-7 gba:w-7 gba:p-0 gba:text-muted-foreground gba:hover:text-destructive"
-                          onClick={() => handleRemove(member.id, member.userName)}
+                          onClick={() => handleRemove(member, member.userName)}
                           data-testid={`${testId}-remove-${member.id}`}
                         >
                           <X className="gba:w-3.5 gba:h-3.5" />

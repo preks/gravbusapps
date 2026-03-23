@@ -1,5 +1,5 @@
 // Customer Contact hooks - list and by-id operations for contacts
-import { useCallback, useState, useEffect, useMemo } from 'react'
+import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -360,7 +360,10 @@ export interface UseCustomerContactsListResult {
   total: number
   loading: boolean
   error: string | null
-  refetch: (variables?: CustomerContactQueryVariables) => Promise<void>
+  hasMore: boolean
+  search: (searchTerm: string) => void
+  loadMore: () => void
+  refetch: () => Promise<void>
 }
 
 export function useCustomerContactsList(
@@ -371,26 +374,42 @@ export function useCustomerContactsList(
 
   // Memoize variables to prevent infinite loops when object is recreated on each render
   const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+  const pageSize = stableVariables?.limit || 20
 
   const [state, setState] = useState({
     contacts: [] as CustomerContact[],
     total: 0,
     loading: true,
-    error: null as string | null
+    error: null as string | null,
+    hasMore: false
   })
 
-  const fetchContacts = useCallback(
-    async (queryVariables?: CustomerContactQueryVariables) => {
+  // Refs for synchronous tracking — React setState is async so we cannot rely on
+  // state values inside loadMore guard; refs update immediately.
+  const isFetchingRef = useRef(false)
+  const currentSearchRef = useRef('')
+  const currentOffsetRef = useRef(0)
+
+  const fetchPage = useCallback(
+    async (searchTerm: string, offset: number, append: boolean) => {
+      // Synchronous guard — prevents the Combobox intersection observer from
+      // triggering concurrent fetches with the same offset before React re-renders.
+      if (isFetchingRef.current) return
       if (!context.accessToken) {
         setState(prev => ({ ...prev, loading: false }))
         return
       }
 
+      isFetchingRef.current = true
       setState(prev => ({ ...prev, loading: true, error: null }))
 
       try {
-        const vars = { ...stableVariables, ...queryVariables }
-        const query = buildCustomerContactQuery()
+        const vars: CustomerContactQueryVariables = { ...stableVariables, limit: pageSize, offset }
+        if (searchTerm.trim()) {
+          vars.search = searchTerm.trim()
+        } else {
+          delete vars.search
+        }
 
         const customConditions: Record<string, any>[] = []
         if (vars.hasEmail) customConditions.push({ email: { _isNull: false, _neq: '' } })
@@ -398,42 +417,73 @@ export function useCustomerContactsList(
         if (vars.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
         if (vars.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
 
+        const query = buildCustomerContactQuery()
         const whereCondition = buildCustomerContactWhereCondition(vars, [], customConditions)
         const orderBy = buildCustomerContactOrderBy(vars.orderBy || [])
 
         const graphQLVariables: Record<string, any> = {
-          limit: Math.min(vars.limit || 50, 100),
-          offset: vars.offset || 0,
+          limit: pageSize,
+          offset,
           where: whereCondition,
-          orderBy: orderBy
+          orderBy
         }
 
         const result = await graphqlClient.request<CustomerContactListQueryResponse>(query, graphQLVariables)
-        const contacts = result.Contact.map(toCustomerContact)
+        const newContacts = result.Contact.map(toCustomerContact)
         const total = result.ContactAggregate?.aggregate?.count || 0
+        const newOffset = offset + newContacts.length
+        // If we received a full page, there may be more; less than a full page means we're done.
+        const hasMore = newContacts.length === pageSize
 
-        setState({ contacts, total, loading: false, error: null })
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch customer contacts'
+        currentOffsetRef.current = newOffset
 
         setState(prev => ({
-          ...prev,
-          contacts: [],
-          total: 0,
+          contacts: append ? [...prev.contacts, ...newContacts] : newContacts,
+          total,
           loading: false,
-          error: errorMessage
+          error: null,
+          hasMore
         }))
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch customer contacts'
+        setState(prev => ({ ...prev, loading: false, error: errorMessage }))
+      } finally {
+        isFetchingRef.current = false
       }
     },
-    [context.accessToken, graphqlClient, stableVariables]
+    [context.accessToken, graphqlClient, stableVariables, pageSize]
   )
 
   useEffect(() => {
-    fetchContacts()
-  }, [fetchContacts])
+    currentSearchRef.current = ''
+    currentOffsetRef.current = 0
+    fetchPage('', 0, false)
+  }, [fetchPage])
+
+  const search = useCallback(
+    (searchTerm: string) => {
+      currentSearchRef.current = searchTerm
+      currentOffsetRef.current = 0
+      fetchPage(searchTerm, 0, false)
+    },
+    [fetchPage]
+  )
+
+  const loadMore = useCallback(() => {
+    if (state.hasMore && !isFetchingRef.current) {
+      fetchPage(currentSearchRef.current, currentOffsetRef.current, true)
+    }
+  }, [fetchPage, state.hasMore])
+
+  const refetch = useCallback(async () => {
+    currentOffsetRef.current = 0
+    await fetchPage(currentSearchRef.current, 0, false)
+  }, [fetchPage])
 
   return {
     ...state,
-    refetch: fetchContacts
+    search,
+    loadMore,
+    refetch
   }
 }

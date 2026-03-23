@@ -1,4 +1,4 @@
-import { promptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { executeContentPromptByJson } from '@/common/data/content/prompts'
 
@@ -74,15 +74,13 @@ export interface ContentArticleAnalyzerOutput {
 }
 
 export class ContentArticleAnalyzerService {
-  constructor(accessToken: string) {
-    promptManagerClient.setAccessToken(accessToken)
-  }
+  constructor(private readonly promptManagerClient: PromptManagerClient) {}
 
   async analyzeArticle(input: ContentArticleAnalyzerInput): Promise<ContentArticleAnalyzerOutput> {
     const contentEntryText = this.formatContentEntry(input.contentEntry)
     const descendantsText = this.formatDescendants(input.descendants)
 
-    const response = await executeContentPromptByJson(promptManagerClient, 'ContentArticleAnalyzer', {
+    const response = await executeContentPromptByJson(this.promptManagerClient, 'ContentArticleAnalyzer', {
       user_params: {
         contentEntry: contentEntryText,
         descendants: descendantsText,

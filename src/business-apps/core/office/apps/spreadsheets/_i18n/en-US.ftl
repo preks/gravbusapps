@@ -446,3 +446,13 @@ sa-error-no-token = Access token not available
 sa-error-load = Failed to load automations
 sa-error-run = Failed to run automation
 sa-error-stop = Failed to stop run
+
+# Save status (inline header, not pill)
+spreadsheet-save-just-now = Saved just now
+
+# Save / persistence indicator (viewer header)
+persist-cell-failed = Could not save cell changes. Try again or refresh the page.
+persist-row-update-failed = Could not save row changes.
+persist-row-delete-failed = Could not delete the row.
+persist-rows-add-failed = Could not save new rows.
+persist-snapshot-failed = Could not save sheet layout to the server.

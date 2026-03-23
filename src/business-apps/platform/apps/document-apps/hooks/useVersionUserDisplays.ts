@@ -28,9 +28,10 @@ export function useVersionUserDisplays(versions: Version[], accessToken: string)
 
     const fetchUserDisplays = async () => {
       try {
-        const query = `
+        const byUserIdQuery = `
           query GetEmployeeVersionDisplays($userIds: [String!]) {
             Employee(where: {userId: {_in: $userIds}}) {
+              id
               userId
               firstName
               lastName
@@ -38,18 +39,20 @@ export function useVersionUserDisplays(versions: Version[], accessToken: string)
             }
           }
         `
-        const result = await graphqlClient.request<{
+
+        const byUserIdResult = await graphqlClient.request<{
           Employee: Array<{
+            id: string
             userId: string
             firstName: string | null
             lastName: string | null
             pictureThumbnail: string | null
           }>
-        }>(query, { userIds })
+        }>(byUserIdQuery, { userIds })
 
         const map: Record<string, VersionUserDisplay> = {}
-        result?.Employee?.forEach(emp => {
-          const displayName = [emp.firstName, emp.lastName].filter(Boolean).join(' ').trim() || emp.userId
+        byUserIdResult?.Employee?.forEach(emp => {
+          const displayName = [emp.firstName, emp.lastName].filter(Boolean).join(' ').trim() || emp.userId || emp.id
           let avatarUrl: string | undefined
           if (emp.pictureThumbnail && emp.pictureThumbnail.length > 0) {
             avatarUrl = emp.pictureThumbnail.startsWith('data:')
@@ -57,7 +60,47 @@ export function useVersionUserDisplays(versions: Version[], accessToken: string)
               : `data:image/png;base64,${emp.pictureThumbnail}`
           }
           map[emp.userId] = { displayName, avatarUrl }
+          map[emp.id] = { displayName, avatarUrl }
         })
+
+        // Some version authors are stored as Employee.id UUIDs, not userId.
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        const uuidIdsMissing = userIds.filter(id => uuidRegex.test(id) && !map[id])
+        if (uuidIdsMissing.length > 0) {
+          const byEmployeeIdQuery = `
+            query GetEmployeeVersionDisplaysById($employeeIds: [uuid!]!) {
+              Employee(where: { id: { _in: $employeeIds } }) {
+                id
+                userId
+                firstName
+                lastName
+                pictureThumbnail
+              }
+            }
+          `
+          const byEmployeeIdResult = await graphqlClient.request<{
+            Employee: Array<{
+              id: string
+              userId: string
+              firstName: string | null
+              lastName: string | null
+              pictureThumbnail: string | null
+            }>
+          }>(byEmployeeIdQuery, { employeeIds: uuidIdsMissing })
+
+          byEmployeeIdResult?.Employee?.forEach(emp => {
+            const displayName = [emp.firstName, emp.lastName].filter(Boolean).join(' ').trim() || emp.userId || emp.id
+            let avatarUrl: string | undefined
+            if (emp.pictureThumbnail && emp.pictureThumbnail.length > 0) {
+              avatarUrl = emp.pictureThumbnail.startsWith('data:')
+                ? emp.pictureThumbnail
+                : `data:image/png;base64,${emp.pictureThumbnail}`
+            }
+            map[emp.id] = { displayName, avatarUrl }
+            map[emp.userId] = { displayName, avatarUrl }
+          })
+        }
+
         setUserDisplayMap(map)
       } catch (error) {
         console.error('[useVersionUserDisplays] Failed to fetch user displays:', error)

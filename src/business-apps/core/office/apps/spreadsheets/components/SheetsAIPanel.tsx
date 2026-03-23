@@ -29,6 +29,22 @@ export interface SheetsAIPanelProps {
 const isRowEmpty = (row: Record<string, unknown>): boolean =>
   Object.values(row).every(value => value == null || (typeof value === 'string' && value.trim() === ''))
 
+const getCellText = (value: unknown): string => {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : ''
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  if (typeof value === 'object') {
+    const objectValue = value as { v?: unknown; m?: unknown; f?: unknown }
+    if (objectValue.v !== undefined && objectValue.v !== null) return getCellText(objectValue.v)
+    if (objectValue.m !== undefined && objectValue.m !== null) return getCellText(objectValue.m)
+    if (typeof objectValue.f === 'string') return objectValue.f.trim()
+  }
+  return ''
+}
+
+const hasMeaningfulValue = (value: unknown): boolean => getCellText(value).length > 0
+
 export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsAIPanel({
   isOpen,
   onClose,
@@ -81,38 +97,58 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
       return next
     })
   }, [baseRows, columns, headerMap])
-  const columnsForInsights = useMemo(
+  const columnsForAI = useMemo(
     () =>
       columns.map(column => ({
         ...column,
+        name: (headerMap?.get(column.name) || '').trim() || column.name,
         label: headerMap?.get(column.name) || column.label
       })),
     [columns, headerMap]
   )
+  const aiContext = useMemo(() => {
+    const populatedColumns = columnsForAI.filter(column =>
+      normalizedRows.some(row => hasMeaningfulValue(row[column.name]))
+    )
+    const populatedRows = normalizedRows
+      .map(row => {
+        const next: Record<string, unknown> = {}
+        populatedColumns.forEach(column => {
+          const value = row[column.name]
+          if (hasMeaningfulValue(value)) next[column.name] = value
+        })
+        return next
+      })
+      .filter(row => Object.keys(row).length > 0)
+    return {
+      columns: populatedColumns,
+      rows: populatedRows
+    }
+  }, [columnsForAI, normalizedRows])
 
   const formula = useSheetsAIFormula({
     accessToken,
-    columns,
-    sheetData: normalizedRows,
+    columns: aiContext.columns,
+    sheetData: aiContext.rows,
     onApplyFormula
   })
   const analyze = useSheetsAIAnalyze({
     accessToken,
     sheetName,
-    columns,
-    sheetData: normalizedRows
+    columns: aiContext.columns,
+    sheetData: aiContext.rows
   })
   const review = useSheetsAIReview({
     accessToken,
     sheetName,
-    columns,
-    sheetData: normalizedRows
+    columns: aiContext.columns,
+    sheetData: aiContext.rows
   })
   const { insights, insightsError, isLoadingInsights, generateInsights } = useSpreadsheetAnalyticsAI({
     accessToken,
     sheetName,
-    columns: columnsForInsights,
-    sheetData: normalizedRows
+    columns: aiContext.columns,
+    sheetData: aiContext.rows
   })
 
   if (isOpen) {
@@ -492,7 +528,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
                     </div>
                     <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">No insights yet</p>
                     <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[220px] gba:mb-4">
-                      Run AI insights to analyze trends and anomalies.
+                      Generate business summary, trend interpretation, and executive direction.
                     </p>
                     {insightsError && (
                       <p className="gba:w-full gba:max-w-[260px] gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/30 gba:rounded-md gba:p-2 gba:mb-3">

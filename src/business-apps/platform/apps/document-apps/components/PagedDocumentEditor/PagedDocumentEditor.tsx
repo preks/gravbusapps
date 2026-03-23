@@ -134,6 +134,23 @@ export interface PagedDocumentEditorRef {
   insertAtCursor: (htmlOrText: string) => void
 }
 
+function parseIsoDateMs(value?: string): number {
+  if (!value) return 0
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+/** Minimum time between local typing and applying remote collaboration content (ms). */
+const DOCUMENT_REMOTE_TYPING_GUARD_MS = 1500
+
+/** Interval for optional HTTP poll when live sync needs a fallback (ms). */
+const DOCUMENT_LIVE_SYNC_POLL_INTERVAL_MS = 8000
+
+/**
+ * When true, poll the document API while Yjs reports synced (emergency fallback).
+ * Off by default.
+ */
+const ENABLE_DOCUMENT_LIVE_SYNC_POLL_FALLBACK = false
 function useNavigationPanelState(): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
   const [show, setShow] = useState(() => {
     if (globalThis.window === undefined) return false
@@ -180,17 +197,76 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const editorContainerRef = useRef<HTMLDivElement | null>(null)
     const editorChromeRef = useRef<HTMLDivElement | null>(null)
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-    const editorRef = useRef<any>(null) // Store editor instance
     const [pagesEditorState, setPagesEditorState] = useState<ActivePagesEditorState>({
       activeEditor: null,
       activeEditorType: null,
       activePageNumber: null
     })
+    const editorRef = useRef<any>(null) // Store editor instance
+    const lastRemoteUpdateMsRef = useRef(0)
+    const isApplyingRemoteContentRef = useRef(false)
+    const lastLocalTypingMsRef = useRef(0)
+    const pendingRemoteContentRef = useRef<string | null>(null)
+    const pendingRemoteTitleRef = useRef<string | null>(null)
+    const pendingRemoteApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
       DocumentApiService.setAccessToken(accessTokenProp || null)
     }, [accessTokenProp])
 
+    useEffect(() => {
+      lastRemoteUpdateMsRef.current = parseIsoDateMs(document?.updatedAt)
+    }, [document?.id, document?.updatedAt])
+
+    useEffect(() => {
+      if (!document?.id) return
+
+      type FlowbotDocumentStreamCompleteDetail = {
+        documentId?: string
+        mode?: 'document' | 'selection'
+        changed?: boolean
+        changeSummary?: string
+      }
+
+      const handleFlowbotDocumentStreamComplete = async (evt: Event) => {
+        const customEvent = evt as CustomEvent<FlowbotDocumentStreamCompleteDetail>
+        const targetDocumentId = customEvent.detail?.documentId
+        if (!targetDocumentId || targetDocumentId !== document.id) return
+
+        try {
+          const latest = await DocumentApiService.getDocument(document.id)
+          if (!latest || !editorRef.current) return
+
+          const nextTitle = latest.title || title
+          setTitle(nextTitle)
+
+          const latestHtml = latest.content || '<p></p>'
+          const currentHtml = editorRef.current.getHTML?.() || ''
+          if (latestHtml && latestHtml !== currentHtml) {
+            isApplyingRemoteContentRef.current = true
+            editorRef.current.commands?.setContent?.(latestHtml, false)
+            queueMicrotask(() => {
+              isApplyingRemoteContentRef.current = false
+            })
+          }
+
+          setLastSaved(new Date())
+          setHasUnsavedChanges(false)
+        } catch (error) {
+          console.error('[PagedDocumentEditor] Failed to refresh document after stream commit:', error)
+        }
+      }
+
+      globalThis.window.addEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
+      return () => {
+        globalThis.window.removeEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
+      }
+    }, [document?.id, title])
+
+    const resolvedLayout = resolvePageLayout(layoutFormatting)
+    const paginationConfig = getPaginationConfigFromFormatting(layoutFormatting)
+    const pagesFormattingConfig = getPagesConfigFromFormatting(layoutFormatting)
+    const pageColor = resolvedLayout.pageColor ?? DEFAULT_PAGE_COLOR
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
     const paginationDebugDisabled = useMemo(() => isDocumentPaginationDisabled(), [])
 
@@ -222,6 +298,82 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       console.error('[PagedDocumentEditor] Collaboration error:', error)
     }, [])
 
+    const applyRemoteOperationContent = useCallback(
+      (nextHtml: string, nextTitle?: string) => {
+        const editorInstance = editorRef.current as {
+          getHTML?: () => string
+          commands?: { setContent?: (html: string, emit?: boolean) => void }
+        } | null
+        if (!editorInstance || !nextHtml) return
+
+        const currentHtml = editorInstance.getHTML?.() || ''
+        if (currentHtml === nextHtml) return
+
+        isApplyingRemoteContentRef.current = true
+        editorInstance.commands?.setContent?.(nextHtml, false)
+        queueMicrotask(() => {
+          isApplyingRemoteContentRef.current = false
+        })
+        if (nextTitle) {
+          setTitle(prev => (prev === nextTitle ? prev : nextTitle))
+        }
+        setLastSaved(new Date())
+        setHasUnsavedChanges(false)
+      },
+      [setLastSaved, setHasUnsavedChanges]
+    )
+
+    const onCollaborationOperationReceived = useCallback(
+      (payload: {
+        userId: string
+        userName: string
+        operation: {
+          type: string
+          data?: unknown
+        }
+        version?: number
+        timestamp: number
+      }) => {
+        if (!document?.id) return
+        if (payload?.operation?.type !== 'content_update') return
+
+        const operationData =
+          payload.operation.data && typeof payload.operation.data === 'object'
+            ? (payload.operation.data as Record<string, unknown>)
+            : null
+        const source = typeof operationData?.source === 'string' ? operationData.source : ''
+        if (typeof source === 'string' && !source.startsWith('flowbot_realtime')) {
+          return
+        }
+
+        const nextHtml = typeof operationData?.content === 'string' ? operationData.content : null
+        if (!nextHtml) return
+        const nextTitle = typeof operationData?.title === 'string' ? operationData.title : null
+        const typingAgeMs = Date.now() - lastLocalTypingMsRef.current
+        if (typingAgeMs < DOCUMENT_REMOTE_TYPING_GUARD_MS) {
+          pendingRemoteContentRef.current = nextHtml
+          pendingRemoteTitleRef.current = nextTitle
+          if (pendingRemoteApplyTimeoutRef.current) {
+            clearTimeout(pendingRemoteApplyTimeoutRef.current)
+          }
+          pendingRemoteApplyTimeoutRef.current = setTimeout(() => {
+            pendingRemoteApplyTimeoutRef.current = null
+            const pendingHtml = pendingRemoteContentRef.current
+            const pendingTitle = pendingRemoteTitleRef.current || undefined
+            pendingRemoteContentRef.current = null
+            pendingRemoteTitleRef.current = null
+            if (pendingHtml) {
+              applyRemoteOperationContent(pendingHtml, pendingTitle)
+            }
+          }, DOCUMENT_REMOTE_TYPING_GUARD_MS)
+          return
+        }
+
+        applyRemoteOperationContent(nextHtml, nextTitle || undefined)
+      },
+      [applyRemoteOperationContent, document?.id]
+    )
+
     // Only use the injected access token so editor behavior never depends on browser storage.
     const accessToken = accessTokenProp || ''
 
@@ -237,6 +389,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       entityId,
       enabled: !!document?.id,
       accessToken,
+      onOperationReceived: onCollaborationOperationReceived,
       onError: onErrorCallback
     })
 
@@ -330,6 +483,68 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       activeEditorType: pagesEditorState.activeEditorType,
       onPersistFormatting
     })
+
+    useEffect(() => {
+      if (!ENABLE_DOCUMENT_LIVE_SYNC_POLL_FALLBACK) return
+      if (!document?.id || !isYjsSynced) return
+
+      let cancelled = false
+
+      const pollLatestDocumentState = async () => {
+        try {
+          const latest = await DocumentApiService.getDocument(document.id)
+          if (!latest || cancelled) return
+
+          const latestUpdatedAtMs = parseIsoDateMs(latest.updatedAt)
+          if (latestUpdatedAtMs <= lastRemoteUpdateMsRef.current) return
+          lastRemoteUpdateMsRef.current = latestUpdatedAtMs
+
+          const editorInstance = editorRef.current as {
+            getHTML?: () => string
+            commands?: { setContent?: (html: string, emit?: boolean) => void }
+          } | null
+          if (!editorInstance) return
+
+          const latestHtml = latest.content || '<p></p>'
+          const currentHtml = editorInstance.getHTML?.() || ''
+          if (latestHtml && latestHtml !== currentHtml) {
+            isApplyingRemoteContentRef.current = true
+            editorInstance.commands?.setContent?.(latestHtml, false)
+            queueMicrotask(() => {
+              isApplyingRemoteContentRef.current = false
+            })
+          }
+
+          const nextTitle = latest.title || title
+          setTitle(prev => (prev === nextTitle ? prev : nextTitle))
+          setLastSaved(new Date(latestUpdatedAtMs || Date.now()))
+          setHasUnsavedChanges(false)
+        } catch (error) {
+          if (!cancelled) {
+            console.error('[PagedDocumentEditor] Live sync poll failed:', error)
+          }
+        }
+      }
+
+      void pollLatestDocumentState()
+      const pollInterval = globalThis.window.setInterval(() => {
+        void pollLatestDocumentState()
+      }, DOCUMENT_LIVE_SYNC_POLL_INTERVAL_MS)
+
+      return () => {
+        cancelled = true
+        globalThis.window.clearInterval(pollInterval)
+      }
+    }, [document?.id, isYjsSynced, title])
+
+    useEffect(() => {
+      return () => {
+        if (pendingRemoteApplyTimeoutRef.current) {
+          clearTimeout(pendingRemoteApplyTimeoutRef.current)
+          pendingRemoteApplyTimeoutRef.current = null
+        }
+      }
+    }, [])
 
     // Seed collaborative title once synced (do not overwrite an existing value from the room).
     useEffect(() => {
