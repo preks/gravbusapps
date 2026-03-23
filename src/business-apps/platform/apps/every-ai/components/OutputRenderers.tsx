@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Button, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
@@ -143,6 +144,8 @@ class FlowProposalBoundary extends React.Component<FlowProposalBoundaryProps, Fl
 
 // Premium Loading Display with AI animation
 export const LoadingDisplay: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div
       className="gba:flex gba:items-center gba:justify-between gba:gap-4 gba:p-6 gba:rounded-2xl gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border gba:border-border"
@@ -160,7 +163,7 @@ export const LoadingDisplay: React.FC<{ onCancel?: () => void }> = ({ onCancel }
         />
       </div>
       <span className="gba:text-sm gba:text-muted-foreground gba:font-medium gba:animate-pulse">
-        EveryAI is thinking...
+        {t('everyai-thinking')}
       </span>
       {onCancel && (
         <button
