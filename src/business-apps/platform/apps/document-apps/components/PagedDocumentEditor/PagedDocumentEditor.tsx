@@ -263,10 +263,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       }
     }, [document?.id, title])
 
-    const resolvedLayout = resolvePageLayout(layoutFormatting)
-    const paginationConfig = getPaginationConfigFromFormatting(layoutFormatting)
-    const pagesFormattingConfig = getPagesConfigFromFormatting(layoutFormatting)
-    const pageColor = resolvedLayout.pageColor ?? DEFAULT_PAGE_COLOR
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
     const paginationDebugDisabled = useMemo(() => isDocumentPaginationDisabled(), [])
 
