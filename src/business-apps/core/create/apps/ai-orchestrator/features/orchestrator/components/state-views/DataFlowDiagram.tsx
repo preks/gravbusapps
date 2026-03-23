@@ -29,6 +29,11 @@ import type { ComponentSpec, ComponentType } from '../../types/components'
 
 const MIN_SCALE = 0.55
 
+/** Stable SVG id for arrow markers (must match defs id and url(#...); avoid array index drift). */
+function diagramEdgeMarkerDomId(edgeId: string): string {
+  return `dataflow-mk-${edgeId.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+}
+
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<string, string> = {
@@ -49,9 +54,9 @@ const STATUS_ICON: Record<string, React.ElementType> = {
   error: XCircle
 }
 const STATUS_COLOR: Record<string, string> = {
-  completed: '#10b981',
-  reused: '#6366f1',
-  error: '#ef4444'
+  completed: 'var(--nw-success)',
+  reused: 'var(--nw-info)',
+  error: 'var(--nw-destructive)'
 }
 
 // ─── Detail panel ─────────────────────────────────────────────────────────────
@@ -80,7 +85,7 @@ function DetailPanel({
   const accent = TYPE_COLORS[component.type]
   const TypeIcon = typeIcons[component.type] ?? Box
   const StatusIcon = STATUS_ICON[component.status] ?? Clock
-  const statusColor = STATUS_COLOR[component.status] ?? '#9ca3af'
+  const statusColor = STATUS_COLOR[component.status] ?? 'var(--nw-muted-foreground)'
   const description = component.userFriendlyDescription || component.description
 
   return (
@@ -92,9 +97,9 @@ function DetailPanel({
         width: 240,
         zIndex: 40,
         background: 'hsl(var(--background))',
-        border: `1.5px solid ${accent}55`,
+        border: `1.5px solid color-mix(in srgb, ${accent} 33%, transparent)`,
         borderRadius: 14,
-        boxShadow: `0 -4px 24px rgba(0,0,0,0.10), 0 0 0 1px ${accent}1a`,
+        boxShadow: `0 -4px 24px color-mix(in srgb, hsl(var(--foreground)) 6%, transparent), 0 0 0 1px color-mix(in srgb, ${accent} 10%, transparent)`,
         overflow: 'hidden',
         animation: 'panelIn 0.16s ease'
       }}
@@ -110,7 +115,7 @@ function DetailPanel({
                 height: 30,
                 borderRadius: 9,
                 background: TYPE_BG_COLORS[component.type],
-                border: `1.5px solid ${accent}44`,
+                border: `1.5px solid color-mix(in srgb, ${accent} 27%, transparent)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -167,7 +172,7 @@ function DetailPanel({
         </div>
 
         {description && (
-          <p style={{ fontSize: 10.5, color: 'hsl(var(--muted-foreground))', lineHeight: 1.5, margin: 0 }}>
+          <p style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', lineHeight: 1.5, margin: 0 }}>
             {description}
           </p>
         )}
@@ -177,8 +182,8 @@ function DetailPanel({
             display: 'inline-flex',
             alignItems: 'center',
             gap: 5,
-            background: `${statusColor}18`,
-            border: `1px solid ${statusColor}44`,
+            background: `color-mix(in srgb, ${statusColor} 9%, transparent)`,
+            border: `1px solid color-mix(in srgb, ${statusColor} 27%, transparent)`,
             borderRadius: 20,
             padding: '2px 8px',
             width: 'fit-content'
@@ -207,7 +212,7 @@ function DetailPanel({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {component.dependencies.slice(0, 5).map(depId => {
                 const dep = componentsById.get(depId)
-                const c = dep ? TYPE_COLORS[dep.type] : '#9ca3af'
+                const c = dep ? TYPE_COLORS[dep.type] : 'var(--nw-muted-foreground)'
                 return (
                   <div
                     key={depId}
@@ -215,8 +220,8 @@ function DetailPanel({
                       fontSize: 10,
                       fontWeight: 500,
                       color: c,
-                      background: `${c}14`,
-                      border: `1px solid ${c}30`,
+                      background: `color-mix(in srgb, ${c} 8%, transparent)`,
+                      border: `1px solid color-mix(in srgb, ${c} 19%, transparent)`,
                       borderRadius: 6,
                       padding: '2px 8px'
                     }}
@@ -250,18 +255,20 @@ function LayerHeader({ type, x, count }: Readonly<{ type: ComponentType; x: numb
         alignItems: 'center',
         justifyContent: 'center',
         gap: 5,
-        padding: '5px 8px',
+        padding: '6px 10px',
         background: TYPE_BG_COLORS[type],
-        border: `1px solid ${color}40`,
+        border: `1.5px solid color-mix(in srgb, ${color} 60%, transparent)`,
         borderRadius: 8,
         boxSizing: 'border-box'
       }}
     >
-      <TypeIcon size={11} style={{ color }} />
-      <span style={{ fontSize: 10, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <TypeIcon size={12} style={{ color }} />
+      <span style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         {TYPE_LAYER_LABELS[type]}
       </span>
-      <span style={{ fontSize: 9, color: `${color}99`, fontWeight: 500 }}>({count})</span>
+      <span style={{ fontSize: 9, color: `color-mix(in srgb, ${color} 60%, transparent)`, fontWeight: 500 }}>
+        ({count})
+      </span>
     </div>
   )
 }
@@ -421,22 +428,35 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
               aria-hidden="true"
             >
               <defs>
-                {edges.map((edge, i) => (
-                  <marker
-                    key={`mk-${edge.id}`}
-                    id={`mk-${i}`}
-                    markerWidth="8"
-                    markerHeight="8"
-                    refX="6"
-                    refY="3.5"
-                    orient="auto"
-                  >
-                    <path d="M 0 0 L 7 3.5 L 0 7 z" fill={edge.color} opacity="0.9" />
-                  </marker>
+                {edges.map(edge => (
+                  <React.Fragment key={edge.id}>
+                    {/* Forward arrow marker (end of path) */}
+                    <marker
+                      id={diagramEdgeMarkerDomId(edge.id)}
+                      markerWidth="8"
+                      markerHeight="8"
+                      refX="6"
+                      refY="3.5"
+                      orient="auto"
+                    >
+                      <path d="M 0 0 L 7 3.5 L 0 7 z" fill={edge.color} opacity="0.9" />
+                    </marker>
+                    {/* Backward arrow marker (start of path) for bidirectional edges */}
+                    <marker
+                      id={`${diagramEdgeMarkerDomId(edge.id)}-back`}
+                      markerWidth="8"
+                      markerHeight="8"
+                      refX="1"
+                      refY="3.5"
+                      orient="auto"
+                    >
+                      <path d="M 7 0 L 0 3.5 L 7 7 z" fill={edge.color} opacity="0.9" />
+                    </marker>
+                  </React.Fragment>
                 ))}
               </defs>
 
-              {edges.map((edge, i) => {
+              {edges.map((edge, edgeIndex) => {
                 const srcNode = nodeById.get(edge.sourceId)
                 const tgtNode = nodeById.get(edge.targetId)
                 if (!srcNode || !tgtNode) return null
@@ -446,22 +466,27 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
                 const dimmed = selected !== null && selected.id !== edge.sourceId && selected.id !== edge.targetId
                 const highlighted =
                   selected !== null && (selected.id === edge.sourceId || selected.id === edge.targetId)
+                const markerId = diagramEdgeMarkerDomId(edge.id)
 
                 return (
-                  <g key={edge.id} opacity={dimmed ? 0.06 : 1} style={{ transition: 'opacity 0.2s ease' }}>
-                    {/* Faint static track */}
-                    <path d={d} fill="none" stroke={edge.color} strokeWidth="2.5" opacity="0.14" />
+                  <g key={edge.id} opacity={dimmed ? 0.12 : 1} style={{ transition: 'opacity 0.2s ease' }}>
+                    {/* Static track */}
+                    <path d={d} fill="none" stroke={edge.color} strokeWidth="3" opacity="0.28" />
                     {/* Animated flowing dashes */}
                     <path
                       d={d}
                       fill="none"
                       stroke={edge.color}
-                      strokeWidth="2"
+                      strokeWidth="2.5"
                       strokeLinecap="round"
                       strokeDasharray="7 5"
-                      opacity="0.72"
-                      markerEnd={`url(#mk-${i})`}
-                      style={{ animation: 'flowDash 1.6s linear infinite', animationDelay: `${i * -0.3}s` }}
+                      opacity="0.9"
+                      markerEnd={`url(#${markerId})`}
+                      markerStart={edge.isBidirectional ? `url(#${markerId}-back)` : undefined}
+                      style={{
+                        animation: 'flowDash 1.6s linear infinite',
+                        animationDelay: `${edgeIndex * -0.3}s`
+                      }}
                     />
                     {/* Edge label pill — only when this edge's endpoint is selected */}
                     {highlighted && (
@@ -555,22 +580,22 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
           const color = TYPE_COLORS[type]
           const TypeIcon = typeIcons[type] ?? Box
           return (
-            <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div
                 style={{
-                  width: 17,
-                  height: 17,
-                  borderRadius: 5,
+                  width: 20,
+                  height: 20,
+                  borderRadius: 6,
                   background: TYPE_BG_COLORS[type],
-                  border: `1.5px solid ${color}`,
+                  border: `2px solid ${color}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}
               >
-                <TypeIcon size={10} style={{ color }} />
+                <TypeIcon size={11} style={{ color }} />
               </div>
-              <span style={{ fontSize: 10, fontWeight: 500, color: 'hsl(var(--foreground))' }}>{typeLabels[type]}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--foreground))' }}>{typeLabels[type]}</span>
             </div>
           )
         })}

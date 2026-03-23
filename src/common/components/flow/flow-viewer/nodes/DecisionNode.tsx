@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react'
 import { Badge } from '@newwork/nw-design-system'
 import { GitBranch, User, Bot, Calculator } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'
+import { NODE_META_BADGE_COMPACT_CLASS } from './nodeBadgeStyles'
 import type { DecisionMode, StepStatus } from '../types/viewerTypes'
 
 interface DecisionNodeData {
@@ -10,6 +11,7 @@ interface DecisionNodeData {
   decisionMode?: DecisionMode
   isSelected?: boolean
   status?: StepStatus
+  isOnActivePath?: boolean
   onSelect?: () => void
   testId?: string
 }
@@ -26,19 +28,18 @@ const MODE_LABELS: Record<DecisionMode, string> = {
   LOGIC: 'Logic'
 }
 
-function getStatusBorder(status?: StepStatus, isSelected?: boolean): string {
-  if (isSelected) return 'gba:border-primary gba:shadow-md'
+function getStatusBorder(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
+  if (isSelected) return 'gba:border-primary'
+  if (isOnActivePath) return 'gba:border-info'
   if (status === 'completed') return 'gba:border-success'
-  if (status === 'active') return 'gba:border-primary'
+  if (status === 'active') return 'gba:border-info'
   if (status === 'failed') return 'gba:border-destructive'
   return 'gba:border-border'
 }
 
-function getStatusBg(status?: StepStatus, isSelected?: boolean): string {
-  if (isSelected) return 'gba:bg-accent'
-  if (status === 'active') return 'gba:bg-accent'
-  if (status === 'completed') return 'gba:bg-success-secondary'
-  if (status === 'failed') return 'gba:bg-destructive-secondary'
+function getStatusBg(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
+  if (isSelected) return 'gba:bg-card'
+  if (isOnActivePath) return 'gba:bg-card'
   return 'gba:bg-card'
 }
 
@@ -50,8 +51,8 @@ export const DecisionNode: React.FC<{ data: DecisionNodeData }> = ({ data }) => 
   const mode = data.decisionMode ?? 'LOGIC'
   const ModeIcon = MODE_ICONS[mode]
 
-  const borderClass = getStatusBorder(data.status, data.isSelected)
-  const bgClass = getStatusBg(data.status, data.isSelected)
+  const borderClass = getStatusBorder(data.status, data.isSelected, data.isOnActivePath)
+  const bgClass = getStatusBg(data.status, data.isSelected, data.isOnActivePath)
 
   return (
     <button
@@ -127,7 +128,7 @@ export const DecisionNode: React.FC<{ data: DecisionNodeData }> = ({ data }) => 
             <div className="gba:text-xs gba:font-semibold gba:text-foreground gba:max-w-[80px] gba:truncate gba:text-center">
               {data.label}
             </div>
-            <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+            <Badge variant="outline" className={NODE_META_BADGE_COMPACT_CLASS}>
               {MODE_LABELS[mode]}
             </Badge>
           </div>

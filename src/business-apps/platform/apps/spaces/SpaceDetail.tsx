@@ -8,7 +8,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, TabsList, TabsTrigger, toast } from '@newwork/nw-design-system'
 
 // Components
 import {
@@ -68,7 +68,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
-  // Fetch space data
+  // Fetch space data (keep hook result for deleteSpace so the callback always closes over the real API)
+  const spaceData = useSpace(spaceId, accessToken, true)
   const {
     space,
     isLoading: spaceLoading,
@@ -77,7 +78,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     addMember,
     updateMember,
     removeMember
-  } = useSpace(spaceId, accessToken, true)
+  } = spaceData
   const {
     documents,
     notes,
@@ -231,7 +232,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     if (onNavigateToHub) {
       onNavigateToHub()
     } else {
-      navigateTo(buildPlatformUrl('/platform/spaces'))
+      navigateTo(buildPlatformUrl('/platform/every-office/spaces'))
     }
   }, [onNavigateToHub])
 
@@ -245,6 +246,17 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     },
     [updateSpace]
   )
+
+  const handleDeleteSpace = useCallback(async (): Promise<boolean> => {
+    const ok = await spaceData.deleteSpace()
+    if (ok) {
+      toast.success('Space deleted')
+      handleBack()
+    } else {
+      toast.error('Could not delete space. Only the owner can delete a space.')
+    }
+    return ok
+  }, [spaceData.deleteSpace, handleBack])
 
   const handleShare = useCallback(() => {
     setInviteDialogOpen(true)
@@ -273,14 +285,11 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
   const handleItemClick = useCallback(
     (item: SpaceContentItem) => {
-      const isProduction = process.env.NODE_ENV === 'production'
       let url: string
       const spaceParam = `spaceId=${encodeURIComponent(spaceId)}`
 
       // Store the current space URL in sessionStorage for the back button
-      const currentSpaceUrl = isProduction
-        ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
-        : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
+      const currentSpaceUrl = `/platform/every-office/spaces?spaceId=${encodeURIComponent(spaceId)}`
 
       try {
         sessionStorage.setItem('space_return_url', currentSpaceUrl)
@@ -290,24 +299,16 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
       switch (item.type) {
         case 'document':
-          url = isProduction
-            ? `/platform/documents?docId=${item.id}&view=editor`
-            : `/platform/apps/document-apps?docId=${item.id}&view=editor`
+          url = `/platform/every-office/documents?docId=${item.id}&view=editor`
           break
         case 'note':
-          url = isProduction
-            ? `/platform/notes?noteId=${item.id}&view=editor`
-            : `/platform/apps/note-apps?noteId=${item.id}&view=editor`
+          url = `/platform/every-office/notes?noteId=${item.id}&view=editor`
           break
         case 'spreadsheet':
-          url = isProduction
-            ? `/platform/spreadsheets?appId=${item.id}&view=viewer`
-            : `/platform/apps/spreadsheet-apps?appId=${item.id}&view=viewer`
+          url = `/platform/every-office/spreadsheets?appId=${item.id}&view=viewer`
           break
         case 'slide':
-          url = isProduction
-            ? `/platform/slides?slideId=${item.id}&view=editor`
-            : `/platform/apps/slide-apps?slideId=${item.id}&view=editor`
+          url = `/platform/every-office/slides?slideId=${item.id}&view=editor`
           break
       }
 
@@ -417,7 +418,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         space={space}
         members={enrichedMembers}
         ownerInfo={ownerInfo}
-        isOwner={isOwner}
+        canOpenSpaceSettings={canManageMembers}
         canEdit={canEdit}
         onBack={handleBack}
         onSettings={handleSettings}
@@ -603,6 +604,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         onOpenChange={setSettingsDialogOpen}
         space={space}
         onSave={handleSaveSettings}
+        isOwner={isOwner}
+        onDeleteSpace={isOwner ? handleDeleteSpace : undefined}
         data-testid={`${testId}-settings-dialog`}
       />
     </div>

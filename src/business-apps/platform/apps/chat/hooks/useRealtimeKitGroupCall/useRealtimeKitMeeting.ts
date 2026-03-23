@@ -196,7 +196,11 @@ export function useRealtimeKitMeeting(params: {
       hostId: callState.hostId,
       startTime: callState.callStartTime,
       duration: callState.duration,
-      callImplementation: 'realtime-kit' as const
+      callImplementation: 'realtime-kit' as const,
+      conversationName: callState.conversationName,
+      conversationType: callState.conversationType,
+      calendarMeetingId: callState.calendarMeetingId,
+      transcriptionEnabled: callState.transcriptionEnabled
     }),
     [
       callState.roomId,
@@ -205,6 +209,10 @@ export function useRealtimeKitMeeting(params: {
       callState.isMinimized,
       callState.hostId,
       callState.callStartTime,
+      callState.conversationName,
+      callState.conversationType,
+      callState.calendarMeetingId,
+      callState.transcriptionEnabled,
       media.isMuted,
       media.isVideoEnabled,
       screenShare.isScreenSharing,

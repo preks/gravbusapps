@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react'
-import { Input, Label, Button } from '@newwork/nw-design-system'
+import { Input, Label, Button, DateInput } from '@newwork/nw-design-system'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import {
@@ -193,6 +193,9 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
               (value === undefined || value === null ? '' : toOptionId(value))
           )
 
+          // Check if field should be disabled (endAssetConditionRef)
+          const isEndField = name === 'endAssetConditionRef'
+
           return (
             <select
               id={controlId}
@@ -202,7 +205,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 const selected = options.find((opt: SelectOption) => opt.id === e.target.value)
                 onChange(selected ? selected.rawValue : e.target.value)
               }}
-              disabled={disabled}
+              disabled={disabled || isEndField}
             >
               <option value="" disabled>
                 Select {String(label)}
@@ -227,6 +230,24 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 onChange(parsed ?? '')
               }}
               disabled={disabled}
+            />
+          )
+        }
+
+        if (schema.format === 'date') {
+          // Check if field should be disabled (endDate, endAssetConditionRef)
+          const isEndField = name === 'endDate' || name === 'endAssetConditionRef'
+
+          return (
+            <DateInput
+              type="date"
+              value={typeof value === 'string' ? value : ''}
+              onChange={(v: string | [string | null, string | null] | null) => {
+                const dateValue = typeof v === 'string' ? v : ''
+                onChange(dateValue)
+              }}
+              disabled={disabled || isEndField}
+              className="gba:w-full"
             />
           )
         }

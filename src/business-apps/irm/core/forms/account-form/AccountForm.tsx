@@ -30,7 +30,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
   const { account, loading, error } = useInvestmentAccount(accessToken || '', accountId)
 
   // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
-  // Contact selection hook - using new declarative list hook
+  // Contact selection with infinite scroll
   const useContacts = useInvestmentContactsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
   // File client for avatar upload
@@ -140,6 +140,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
         {/* Account Layout */}
         <AccountLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
+          accountContacts={account?.accountContacts}
           ownerEmployee={account?.ownerEmployee}
           entityId={account?.id || accountId}
           annualRevenueCatalogIdentifier={ANNUAL_REVENUE}

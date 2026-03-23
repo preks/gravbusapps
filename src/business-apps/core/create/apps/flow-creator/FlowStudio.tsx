@@ -15,11 +15,19 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
   useTranslation
 } from '@newwork/nw-design-system'
 import { ArrowLeft, ListPlus, Workflow } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import translations from './_i18n'
 import { FlowStudioCanvas } from './components/canvas/FlowStudioCanvas'
 import { NodeContextMenu } from './components/shared/NodeContextMenu'
@@ -32,13 +40,8 @@ import { FlowStudioListView } from './views/FlowStudioListView'
 
 import { useFlowStudioClient } from './hooks/useFlowStudioClient'
 
-// Video background - same logic as EveryPagesHero and SpaceHero
-const hostedVideoUrl = import.meta?.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (import.meta !== undefined && import.meta.env?.DEV && localVideoUrl)
-const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
-
 const FLOW_ID_PARAM = 'flowId'
+const UNTITLED_FLOW_NAME = 'Untitled Flow'
 
 function getFlowIdFromUrl(): string | null {
   if (globalThis.window === undefined) return null
@@ -63,6 +66,11 @@ function updateUrlWithFlowId(flowId: string | null, push = false): void {
   }
 }
 
+function isUntitledTemplateName(value: string): boolean {
+  const trimmed = String(value || '').trim()
+  return trimmed.length === 0 || trimmed === UNTITLED_FLOW_NAME
+}
+
 interface FlowStudioProps extends BusinessAppContextProps {
   /** Optional template ID to load for editing */
   templateId?: string
@@ -77,7 +85,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   accessToken,
   userInfo,
   templateId,
-  onSave,
+  onSave: onSaveComplete,
   onCancel,
   'data-testid': testId = 'flow-studio'
 }) => {
@@ -90,18 +98,23 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const templateTags = useFlowStudioStore(s => s.templateTags)
   const setTemplateTags = useFlowStudioStore(s => s.setTemplateTags)
   const isDirty = useFlowStudioStore(s => s.isDirty)
+  const nodes = useFlowStudioStore(s => s.nodes)
+  const edges = useFlowStudioStore(s => s.edges)
   const resetStore = useFlowStudioStore(s => s.resetStore)
   const selectNode = useFlowStudioStore(s => s.selectNode)
   const selectEdge = useFlowStudioStore(s => s.selectEdge)
 
-  const { loadFlow, isLoading: isLoadingTemplate } = useFlowStudioClient(accessToken)
+  const { saveFlow, loadFlow, isLoading: isLoadingTemplate } = useFlowStudioClient(accessToken)
   const urlFlowIdOnMount = getFlowIdFromUrl()
+  const [labelsReady, setLabelsReady] = useState(false)
   const [view, setView] = useState<'list' | 'designer'>(templateId || urlFlowIdOnMount ? 'designer' : 'list')
   const [labelsOpen, setLabelsOpen] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
-
-  // Keyboard shortcuts
-  useKeyboardShortcuts({ onSave, enabled: true })
+  const [saveNameDialogOpen, setSaveNameDialogOpen] = useState(false)
+  const [pendingTemplateName, setPendingTemplateName] = useState('')
+  const [saveNameError, setSaveNameError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [showValidationIssues, setShowValidationIssues] = useState(false)
 
   const handleModeChange = useCallback(
     (newMode: DesignerMode) => {
@@ -109,6 +122,10 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     },
     [setMode]
   )
+
+  useEffect(() => {
+    setLabelsReady(true)
+  }, [])
 
   const tagPills = useMemo(() => {
     const tags = (templateTags || {}) as Record<string, unknown>
@@ -143,8 +160,22 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
 
   const hasAnyTags = tagPills.length > 0
 
+  const appEyebrowLabel = useMemo(() => t('app-eyebrow'), [t, labelsReady])
+  const appTitlePlaceholder = useMemo(() => t('app-title'), [t, labelsReady])
+  const appDescriptionLabel = useMemo(() => t('app-description'), [t, labelsReady])
+  const listTitleLabel = useMemo(() => t('list-title'), [t, labelsReady])
+  const listSubtitleLabel = useMemo(() => t('list-subtitle'), [t, labelsReady])
+  const studioBackToListLabel = useMemo(() => t('studio-back-to-list'), [t, labelsReady])
+  const listCreateLabel = useMemo(() => t('list-create'), [t, labelsReady])
+
+  const getSaveErrorMessage = useCallback(
+    (error: unknown) => (error instanceof Error ? error.message : 'Failed to save flow'),
+    []
+  )
+
   const openTemplateFromList = useCallback(
     async (id: string) => {
+      setSaveError(null)
       updateUrlWithFlowId(id, true)
       setView('designer')
       try {
@@ -157,12 +188,14 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   )
 
   const createNewFlow = useCallback(() => {
+    setSaveError(null)
     updateUrlWithFlowId(null)
     resetStore()
     setView('designer')
   }, [resetStore])
 
   const backToList = useCallback(() => {
+    setSaveError(null)
     updateUrlWithFlowId(null)
     selectNode(null)
     selectEdge(null)
@@ -187,6 +220,62 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     setMode(currentMode)
     backToList()
   }, [backToList, mode, resetStore, setMode])
+
+  const executeSave = useCallback(async () => {
+    setSaveError(null)
+    await saveFlow()
+    setShowValidationIssues(false)
+    onSaveComplete?.()
+  }, [onSaveComplete, saveFlow])
+
+  const requestSave = useCallback(async () => {
+    if (view !== 'designer') return
+    setShowValidationIssues(true)
+
+    if (!isUntitledTemplateName(templateName)) {
+      try {
+        await executeSave()
+      } catch (error) {
+        setSaveError(getSaveErrorMessage(error))
+      }
+      return
+    }
+
+    setPendingTemplateName('')
+    setSaveNameError(null)
+    setSaveNameDialogOpen(true)
+  }, [executeSave, getSaveErrorMessage, templateName, view])
+
+  useEffect(() => {
+    setShowValidationIssues(false)
+  }, [edges, nodes])
+
+  const confirmSaveWithName = useCallback(async () => {
+    const trimmedName = pendingTemplateName.trim()
+
+    if (isUntitledTemplateName(trimmedName)) {
+      setSaveNameError(t('studio-save-name-validation'))
+      return
+    }
+
+    setTemplateMetadata({ name: trimmedName })
+    setSaveNameError(null)
+
+    try {
+      await executeSave()
+      setSaveNameDialogOpen(false)
+    } catch (error) {
+      const message = getSaveErrorMessage(error)
+      setSaveError(message)
+      setSaveNameError(message)
+      // Keep the dialog open so the user can retry after the save error is resolved.
+    }
+  }, [executeSave, getSaveErrorMessage, pendingTemplateName, setTemplateMetadata, t])
+
+  useEffect(() => {
+    if (!saveNameDialogOpen) return
+    setSaveNameError(null)
+  }, [saveNameDialogOpen])
 
   // Load flow when templateId prop is set (parent control)
   useEffect(() => {
@@ -217,39 +306,13 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [loadFlow])
 
+  useKeyboardShortcuts({ onSave: requestSave, enabled: view === 'designer' })
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background" data-testid={testId}>
-      {/* Hero header with video / animated gradient background */}
       <div className="gba:relative gba:overflow-hidden gba:shrink-0" data-testid={`${testId}-hero`}>
-        {/* Video background when available, otherwise canvas animation */}
-        {useVideo ? (
-          <video
-            src={HERO_VIDEO_SRC}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden="true"
-            tabIndex={-1}
-            data-testid={`${testId}-hero-video`}
-          />
-        ) : (
-          <SpaceHeroBackground />
-        )}
-
-        {/* Dark overlay for text readability */}
-        {/* eslint-disable newwork-local/no-hardcoded-colors */}
-        <div
-          className="gba:absolute gba:inset-0 gba:pointer-events-none"
-          style={{
-            background:
-              'linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)'
-          }}
-          aria-hidden
-        />
-        {/* eslint-enable newwork-local/no-hardcoded-colors */}
+        <PremiumHeroBackground data-testid={`${testId}-hero-background`} />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
         {/* Content */}
         <div className="gba:relative gba:px-6 gba:py-5">
@@ -260,7 +323,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
               </div>
               <div className="gba:flex gba:flex-col gba:gap-0.5">
                 <span className="gba:text-xs gba:font-medium gba:tracking-[0.3em] gba:text-white/60 gba:uppercase">
-                  {t('app-eyebrow')}
+                  {appEyebrowLabel}
                 </span>
                 {view === 'designer' ? (
                   <>
@@ -269,17 +332,17 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                       value={templateName}
                       onChange={e => setTemplateMetadata({ name: e.target.value })}
                       className="gba:text-xl gba:font-semibold gba:bg-transparent gba:border-none gba:outline-none gba:p-0 gba:leading-tight gba:text-white placeholder:gba:text-white/50"
-                      placeholder={t('app-title')}
+                      placeholder={appTitlePlaceholder}
                       data-testid={`${testId}-name-input`}
                     />
-                    <span className="gba:text-sm gba:text-white/80">{t('app-description')}</span>
+                    <span className="gba:text-sm gba:text-white/80">{appDescriptionLabel}</span>
                   </>
                 ) : (
                   <>
                     <div className="gba:text-xl gba:font-semibold gba:text-white" data-testid={`${testId}-list-title`}>
-                      {t('list-title')}
+                      {listTitleLabel}
                     </div>
-                    <span className="gba:text-sm gba:text-white/80">{t('list-subtitle')}</span>
+                    <span className="gba:text-sm gba:text-white/80">{listSubtitleLabel}</span>
                   </>
                 )}
               </div>
@@ -296,7 +359,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                   type="button"
                 >
                   <ArrowLeft className="gba:h-4 gba:w-4 gba:mr-1" />
-                  {t('studio-back-to-list')}
+                  {studioBackToListLabel}
                 </Button>
               </div>
             )}
@@ -312,7 +375,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                   type="button"
                 >
                   <ListPlus className="gba:h-4 gba:w-4 gba:mr-1" />
-                  {t('list-create')}
+                  {listCreateLabel}
                 </Button>
               </div>
             )}
@@ -387,13 +450,25 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
             data-testid={`${testId}-list`}
           />
         ) : (
-          <FlowStudioCanvas
-            accessToken={accessToken}
-            userInfo={userInfo}
-            mode={mode}
-            onModeChange={handleModeChange}
-            data-testid={`${testId}-canvas`}
-          />
+          <div className="gba:flex gba:flex-1 gba:flex-col gba:min-h-0">
+            {saveError ? (
+              <div
+                className="gba:border-b gba:border-destructive-secondary gba:bg-destructive-secondary gba:px-5 gba:py-3"
+                data-testid={`${testId}-save-error`}
+              >
+                <p className="gba:text-sm gba:text-destructive-secondary-foreground">{saveError}</p>
+              </div>
+            ) : null}
+            <FlowStudioCanvas
+              accessToken={accessToken}
+              userInfo={userInfo}
+              mode={mode}
+              onModeChange={handleModeChange}
+              onSave={requestSave}
+              showValidationIssues={showValidationIssues}
+              data-testid={`${testId}-canvas`}
+            />
+          </div>
         )}
       </div>
 
@@ -415,6 +490,77 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
           data-testid={`${testId}-labels-dialog`}
         />
       )}
+
+      <Dialog
+        open={saveNameDialogOpen}
+        onOpenChange={open => {
+          setSaveNameDialogOpen(open)
+          if (!open) {
+            setPendingTemplateName('')
+            setSaveNameError(null)
+          }
+        }}
+      >
+        <DialogContent className="gba:max-w-md" data-testid={`${testId}-save-name-dialog`}>
+          <DialogHeader>
+            <DialogTitle data-testid={`${testId}-save-name-title`}>{t('studio-save-name-title')}</DialogTitle>
+            <DialogDescription data-testid={`${testId}-save-name-description`}>
+              {t('studio-save-name-description')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="gba:flex gba:flex-col gba:gap-2">
+            <Label htmlFor={`${testId}-save-name-input`}>{t('studio-save-name-label')}</Label>
+            <Input
+              id={`${testId}-save-name-input`}
+              value={pendingTemplateName}
+              onChange={event => {
+                setPendingTemplateName(event.target.value)
+                if (saveError) {
+                  setSaveError(null)
+                }
+                if (saveNameError) {
+                  setSaveNameError(null)
+                }
+              }}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  void confirmSaveWithName()
+                }
+              }}
+              placeholder={t('studio-save-name-placeholder')}
+              autoFocus
+              data-testid={`${testId}-save-name-input`}
+            />
+            {saveNameError ? (
+              <p className="gba:text-sm gba:text-destructive" data-testid={`${testId}-save-name-error`}>
+                {saveNameError}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter className="gba:gap-2">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => {
+                setSaveNameDialogOpen(false)
+                setPendingTemplateName('')
+                setSaveNameError(null)
+              }}
+              data-testid={`${testId}-save-name-cancel`}
+            >
+              {t('studio-save-name-cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void confirmSaveWithName()}
+              data-testid={`${testId}-save-name-confirm`}
+            >
+              {t('studio-save-name-confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={discardOpen} onOpenChange={open => !open && setDiscardOpen(false)}>
         <AlertDialogContent data-testid={`${testId}-discard-dialog`}>

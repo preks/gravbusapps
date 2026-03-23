@@ -10,7 +10,8 @@ import type {
   InputBlock,
   SummaryField,
   EventSubscription,
-  TaskPriority
+  TaskPriority,
+  Link
 } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import type { FlowTags } from '@/business-apps/flow/types'
 
@@ -55,6 +56,7 @@ export interface TaskNodeConfig {
   title: string
   message?: string
   form?: InputBlock[]
+  links?: Link[]
   assignment: TaskAssignment
   dueInMinutes?: number
   defaultPriority?: TaskPriority
@@ -65,6 +67,11 @@ export interface TaskNodeConfig {
     version?: number
     inputExpressionMap?: Record<string, string>
     outputExpressionMap?: Record<string, string>
+    /**
+     * Derived from the selected function version so downstream steps can map structured resultData.
+     * This is studio-only state and is intentionally not persisted to the saved flow template.
+     */
+    outputSchema?: unknown
   }
   agentConfig?: {
     promptId: string
@@ -94,10 +101,25 @@ export interface TaskNodeConfig {
 export interface DecisionNodeConfig {
   nodeType: 'decision'
   decisionMode: DecisionMode
+  links?: Link[]
   branches: DecisionBranch[]
   defaultBranch?: string
+  /**
+   * Approval "Reject behavior" (send-back / rework loop).
+   * Stored on the decision so it can be used by USER/AI/LOGIC decisions.
+   */
+  rejectRework?: {
+    targetNodeId?: string
+    requireReason: boolean
+    preserveData: boolean
+    maxIterations?: number
+  }
   userConfig?: {
     userDecisionType?: UserDecisionType
+    /** Optional title shown on the user task created by this decision */
+    title?: string
+    /** Optional message shown on the user task created by this decision */
+    message?: string
     assignment: TaskAssignment
     options: Array<{ id: string; label: string }>
     timeoutMinutes?: number
@@ -120,6 +142,13 @@ export interface DecisionNodeConfig {
      * Task Expert prompt id (Prompt Manager) used when executor is TASK_EXPERT.
      */
     promptId?: string
+    /**
+     * Snapshot of the selected Task Expert prompt metadata and user instructions (without system content).
+     * Used to show the "original decision instructions" in the human fallback task message at runtime.
+     */
+    promptName?: string
+    promptVersion?: number
+    promptUserContent?: string
     policyDocumentId?: string
     policyDocumentTitle?: string
     policyDocumentVersion?: string
@@ -139,6 +168,16 @@ export interface DecisionNodeConfig {
     mapping?: {
       conditions: Array<{ expression: string; branchId: string }>
     }
+    /**
+     * Explicit Prompt Manager system parameter mappings for TASK_EXPERT decisions.
+     * Keys come from the selected prompt definition and values are studio expressions.
+     */
+    systemParamsMap?: Record<string, string>
+    /**
+     * Explicit Prompt Manager user parameter mappings for TASK_EXPERT decisions.
+     * Keys come from the selected prompt definition and values are studio expressions.
+     */
+    userParamsMap?: Record<string, string>
     /**
      * Optional path used to extract a reasoning string from the task expert output (resultData).
      * Example: \"reasoning\" or \"result.reasoning\"
@@ -300,6 +339,13 @@ export interface FlowStudioActions {
 
   // Dirty state
   markClean: () => void
+
+  /**
+   * When a form field key changes, rewrite any expressions that reference it.
+   * This keeps flow-context references stable when we auto-generate "speakable" keys.
+   */
+  rewriteExpressionsForStartFieldRename: (oldKey: string, newKey: string) => void
+  rewriteExpressionsForTaskFieldRename: (taskNodeId: string, oldKey: string, newKey: string) => void
 
   // Confirmations
   confirmPendingDelete: () => void

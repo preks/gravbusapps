@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Button, Alert, Card } from 'antd'
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowStep, FlowStepType, AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
 import { FlowStepEditor } from './FlowStepEditor'
@@ -161,7 +161,7 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
             )}
           </p>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={addStep} data-testid={`${testId}-add-step`}>
+        <Button type="primary" icon={<PlusIcon size={16} />} onClick={addStep} data-testid={`${testId}-add-step`}>
           {getTranslationFromI18nKeyAndLabel('flow.creator.addStep', 'Add Step')}
         </Button>
       </div>
@@ -226,7 +226,7 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
                   type="text"
                   danger
                   size="small"
-                  icon={<DeleteOutlined />}
+                  icon={<TrashIcon size={16} />}
                   onClick={() => removeStep(index)}
                   title={getTranslationFromI18nKeyAndLabel('flow.creator.removeStep', 'Remove Step')}
                   data-testid={`${testId}-remove-step-${index}`}
@@ -242,7 +242,7 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
         <Card className="gba:text-center gba:py-8">
           <div className="gba:space-y-4">
             <div className="gba:text-gray-500">
-              <PlusOutlined className="gba:text-4xl gba:mb-2" />
+              <PlusIcon size={40} className="gba:text-4xl gba:mb-2" />
               <p className="gba:text-lg">
                 {getTranslationFromI18nKeyAndLabel('flow.creator.noSteps', 'No steps defined yet')}
               </p>
@@ -250,7 +250,7 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
                 {getTranslationFromI18nKeyAndLabel('flow.creator.addFirstStep', 'Add your first step to get started')}
               </p>
             </div>
-            <Button type="primary" icon={<PlusOutlined />} onClick={addStep} data-testid={`${testId}-add-first-step`}>
+            <Button type="primary" icon={<PlusIcon size={16} />} onClick={addStep} data-testid={`${testId}-add-first-step`}>
               {getTranslationFromI18nKeyAndLabel('flow.creator.addFirstStep', 'Add First Step')}
             </Button>
           </div>

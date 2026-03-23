@@ -9,7 +9,6 @@ export const useContactInsights = (accessToken: string) => {
     () => ({
       contactEntity: 'Contact',
       contactAggregate: 'ContactAggregate',
-      typeField: 'contactType',
       accountRelationEntity: 'Contact',
       accountRelationField: 'accountId',
       accountLookupWhere: 'accountId: { _isNull: false }',

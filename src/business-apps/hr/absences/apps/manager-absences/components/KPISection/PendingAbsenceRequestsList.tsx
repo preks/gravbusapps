@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card } from '@newwork/nw-design-system'
-import { RiTimeLine } from '@remixicon/react'
+import { ClockIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -120,7 +120,7 @@ export const RecentAbsenceRequestsList: React.FC<RecentAbsenceRequestsListProps>
             )}
           </div>
         </div>
-        <RiTimeLine className="gba:h-6 gba:w-6 gba:text-muted-foreground gba:ml-2" />
+        <ClockIcon size={24} className="gba:h-6 gba:w-6 gba:text-muted-foreground gba:ml-2" />
       </div>
 
       <div className="gba:flex gba:flex-col gba:gap-2 gba:px-6 gba:pb-6">

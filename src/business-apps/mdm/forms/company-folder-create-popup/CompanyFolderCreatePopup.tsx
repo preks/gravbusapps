@@ -17,11 +17,10 @@ import {
   SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { env } from '@/common/env/EnvUtils'
 import type { Company } from '@/common/data/orgchart/types/companyTypes'
 import translations from './_i18n'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 export interface CompanyFolderCreatePopupProps {
   open: boolean
@@ -61,7 +60,7 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
   const [folders, setFolders] = useState<{ id: string; name: string }[]>([])
   const [loadingFolders, setLoadingFolders] = useState(false)
 
-  const restClient = useRestClient(env('NEXT_PUBLIC_ORGCHART_API_URL'))
+  const orgchartClient = useOrgchartClient(accessToken)
   const graphqlClient = useGraphQLClient(accessToken)
 
   // Pre-fill form in update mode
@@ -187,7 +186,7 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
       const payload = buildCompanyPayloadWithFolder(newFolder)
 
       // Submit to API - PUT to company endpoint with complete payload
-      await restClient.put(`/orgchart/api/v1/companies/${companyId}`, payload, {
+      await orgchartClient.updateCompany(companyId, payload, {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
 

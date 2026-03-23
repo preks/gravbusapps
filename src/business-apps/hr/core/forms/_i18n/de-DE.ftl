@@ -35,6 +35,7 @@ adjust-salary-duplicate-month-warning = Für diesen Monat existiert bereits eine
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Gehalt zuweisen
+assign-salary-no-employment-region-warning = Für diesen Mitarbeiter muss eine Beschäftigungsregion festgelegt werden, um die richtige Währung und Compliance zu gewährleisten. Bitte legen Sie die Beschäftigungsregion in der Mitarbeiterakte fest.
 assign-salary-type = Vergütungsart
 assign-salary-type-required = Vergütungsart ist erforderlich. Bitte wählen Sie eine Vergütungsart.
 assign-salary-type-yearly-monthly = Monatsgehalt
@@ -90,6 +91,7 @@ action-enter-placeholder = Bitte eingeben
 
 # Form Title
 form-title = Mitarbeiterbonus gewähren
+grant-bonus-no-employment-region-warning = Für diesen Mitarbeiter muss eine Beschäftigungsregion festgelegt werden, um die richtige Währung und Compliance zu gewährleisten. Bitte legen Sie die Beschäftigungsregion in der Mitarbeiterakte fest.
 
 # Form Actions
 action-cancel = Abbrechen
@@ -305,6 +307,7 @@ working-conditions-unit-year = { $count ->
 
 # Create Request Correction Form
 complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
+request-correction-date-absence-error = Dieses Datum ist ein Feiertag oder eine Abwesenheit und kann nicht für eine Korrekturanfrage verwendet werden.
 notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
 notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet

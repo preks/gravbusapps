@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Progress, Card, Steps, Tag, Typography, Space, Button, Tooltip, Spin, Alert } from 'antd'
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  PlayCircleOutlined,
-  DownloadOutlined,
-  ReloadOutlined
-} from '@ant-design/icons'
+import {ArrowClockwiseIcon, ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, DownloadIcon, PlayCircleIcon} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFlowProgressClient, FlowOverview } from '@/common/network/flows/useFlowProgressClient'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -70,15 +64,15 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
   const getStepIcon = (status: string) => {
     switch (status) {
       case 'COMPLETED':
-        return <CheckCircleOutlined className="gba:text-green-500" />
+        return <CheckCircleIcon size={16} className="gba:text-green-500" />
       case 'IN_PROGRESS':
-        return <PlayCircleOutlined className="gba:text-blue-500" />
+        return <PlayCircleIcon className="gba:text-blue-500" />
       case 'SCHEDULED':
-        return <ClockCircleOutlined className="gba:text-orange-500" />
+        return <ClockIcon size={16} className="gba:text-orange-500" />
       case 'QUEUED':
-        return <ClockCircleOutlined className="gba:text-gray-400" />
+        return <ClockIcon size={16} className="gba:text-gray-400" />
       default:
-        return <ClockCircleOutlined className="gba:text-gray-400" />
+        return <ClockIcon size={16} className="gba:text-gray-400" />
     }
   }
 
@@ -118,7 +112,7 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
           type="error"
           showIcon
           action={
-            <Button size="small" onClick={loadFlowData} icon={<ReloadOutlined />}>
+            <Button size="small" onClick={loadFlowData} icon={<ArrowsClockwiseIcon size={16} />}>
               Retry
             </Button>
           }
@@ -173,12 +167,12 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
             <Tag color={flowData.status === 'RUNNING' ? 'processing' : 'default'}>{flowData.status}</Tag>
             {refreshInterval && (
               <Tooltip title="Auto-refreshing">
-                <Button icon={<ReloadOutlined spin={loading} />} size="small" type="text" onClick={loadFlowData} />
+                <Button icon={<ArrowClockwiseIcon spin={loading} />} size="small" type="text" onClick={loadFlowData} />
               </Tooltip>
             )}
             {showExport && (
               <Button
-                icon={<DownloadOutlined />}
+                icon={<DownloadIcon size={16} />}
                 onClick={handleExport}
                 size="small"
                 data-testid={`${prefixDataTestId}-export-button`}

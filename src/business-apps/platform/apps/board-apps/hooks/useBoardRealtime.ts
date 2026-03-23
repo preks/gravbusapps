@@ -10,13 +10,49 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
+export type BoardRealtimeEventType =
+  | 'row.created'
+  | 'row.updated'
+  | 'row.deleted'
+  | 'row.reordered'
+  | 'column.updated'
+  | 'sheet.updated'
+  | 'view.updated'
+  | 'group.updated'
+  | 'sheet.externalSync.progress'
+  | 'sheet.externalSync.completed'
+  | 'sheet.externalSync.failed'
+  | 'sheet.externalSync.cancelled'
+
+export interface BoardRealtimeRowPayload {
+  id: string
+  data: Record<string, unknown>
+  position?: number
+  sortKey?: string
+  groupId?: string | null
+  parentRowId?: string | null
+  createdBy?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface BoardRealtimeEvent {
-  type: 'row.created' | 'row.updated' | 'row.deleted' | 'column.updated' | 'view.updated' | 'group.updated'
+  type: BoardRealtimeEventType
   boardId: string
   sheetId?: string
   rowId?: string
+  runId?: string
+  status?: string
+  totalFetched?: number
+  totalSynced?: number
+  estimatedTotal?: number | null
+  lastMessage?: string | null
+  syncedCount?: number
+  error?: string
   data?: Record<string, unknown>
   actorUserId?: string
+  row?: BoardRealtimeRowPayload
+  columns?: unknown[]
   timestamp: string
 }
 
@@ -31,6 +67,7 @@ export interface UseBoardRealtimeReturn {
   isConnected: boolean
   enable: () => void
   disable: () => void
+  socket: Socket | null
 }
 
 export function useBoardRealtime({
@@ -59,11 +96,16 @@ export function useBoardRealtime({
       return
     }
 
-    const apiUrl = getDocumentServiceApiUrl().replace('/api/v1', '')
+    const apiUrl = getDocumentServiceApiUrl().replace(/\/api\/v1$/, '')
+    const urlObj = new URL(apiUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3002')
+    const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
+    const servicePath = urlObj.pathname
+    const socketPath = isLocalhost ? '/socket.io' : `${servicePath}/socket.io`
 
-    const socket = io(`${apiUrl}/boards`, {
+    const socket = io(`${urlObj.origin}/boards`, {
       auth: { token: accessToken },
       query: { boardId },
+      path: socketPath,
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 2000,
@@ -89,7 +131,7 @@ export function useBoardRealtime({
   const enable = useCallback(() => setIsEnabled(true), [])
   const disable = useCallback(() => setIsEnabled(false), [])
 
-  return { isConnected, enable, disable }
+  return { isConnected, enable, disable, socket: socketRef.current }
 }
 
 /**

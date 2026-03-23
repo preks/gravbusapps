@@ -887,9 +887,13 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
       const mentions = entityReferences
         ?.filter(ref => (ref.type as string) !== 'ai_assistant')
         .map(ref => {
-          const isDocument = ['document_article', 'knowledge_article', 'intranet_article', 'news_article'].includes(
-            ref.type as string
-          )
+          const isDocument = [
+            'document',
+            'document_article',
+            'knowledge_article',
+            'intranet_article',
+            'news_article'
+          ].includes(ref.type as string)
 
           // Build data object with document content if available
           const data: any = {

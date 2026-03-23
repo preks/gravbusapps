@@ -128,6 +128,8 @@ export interface CalendarEvent {
   recurrenceEndDate?: Date
   reminderMinutes?: number[]
   metadata?: Record<string, any>
+  /** Whether AI transcription/recording is enabled for this meeting */
+  transcriptionEnabled?: boolean
   /** Source of the event: internal meeting or external provider */
   source?: CalendarEventSource
   /** External provider event ID */

@@ -43,6 +43,10 @@ export interface UseBoardAppsReturn {
   updateRow: (boardId: string, sheetId: string, rowId: string, data: Record<string, unknown>) => Promise<void>
   deleteRow: (boardId: string, sheetId: string, rowId: string) => Promise<boolean>
   shareBoard: (boardId: string, userIds: string[], permission: BoardPermission) => Promise<boolean>
+  patchRowCreated: (row: BoardRow) => void
+  patchRowUpdated: (row: BoardRow) => void
+  patchRowDeleted: (rowId: string) => void
+  patchSheetColumns: (sheetId: string, columns: unknown[]) => void
 }
 
 export function useBoardApps(accessToken: string): UseBoardAppsReturn {
@@ -188,17 +192,20 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
         append?: boolean
       }
     ) => {
-      const callKey = `${boardId}:${sheetId}:${options?.page ?? 1}:${options?.limit ?? 50}:${options?.filters ?? ''}:${options?.sorts ?? ''}:${options?.append ?? false}`
+      const callKey = `${boardId}:${sheetId}:${options?.page ?? 1}:${options?.limit ?? 50}:${options?.sort ?? ''}:${options?.sortOrder ?? ''}:${options?.filters ?? ''}:${options?.filterConnector ?? ''}:${options?.sorts ?? ''}:${options?.search ?? ''}:${options?.groupBy ?? ''}:${options?.append ?? false}`
       if (callKey === loadRowsKeyRef.current) return
       loadRowsKeyRef.current = callKey
       setRowsLoading(true)
       try {
         const result = await BoardApiService.getRows(boardId, sheetId, options)
+        const MAX_LOADED_ROWS = 500
         if (options?.append) {
           setRows(prev => {
             const existingIds = new Set(prev.map(r => r.id))
             const newItems = result.items.filter(r => !existingIds.has(r.id))
-            return newItems.length > 0 ? [...prev, ...newItems] : prev
+            if (newItems.length === 0) return prev
+            const merged = [...prev, ...newItems]
+            return merged.length > MAX_LOADED_ROWS ? merged.slice(merged.length - MAX_LOADED_ROWS) : merged
           })
         } else {
           setRows(result.items)
@@ -230,10 +237,19 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
 
   const updateRow = useCallback(
     async (boardId: string, sheetId: string, rowId: string, data: Record<string, unknown>) => {
+      let snapshot: BoardRow | undefined
+      setRows(prev =>
+        prev.map(r => {
+          if (r.id !== rowId) return r
+          snapshot = r
+          return { ...r, data: { ...r.data, ...data } }
+        })
+      )
       try {
         const updated = await BoardApiService.updateRow(boardId, sheetId, rowId, data)
         setRows(prev => prev.map(r => (r.id !== rowId ? r : updated)))
       } catch (err) {
+        if (snapshot) setRows(prev => prev.map(r => (r.id !== rowId ? r : snapshot!)))
         setError(err instanceof Error ? err.message : 'Failed to update row')
       }
     },
@@ -263,6 +279,37 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
     [refreshBoards]
   )
 
+  const patchRowCreated = useCallback((row: BoardRow) => {
+    setRows(prev => {
+      if (prev.some(r => r.id === row.id)) return prev
+      return [...prev, row]
+    })
+    setRowsTotal(prev => prev + 1)
+  }, [])
+
+  const patchRowUpdated = useCallback((row: BoardRow) => {
+    setRows(prev => prev.map(r => (r.id !== row.id ? r : row)))
+  }, [])
+
+  const patchRowDeleted = useCallback((rowId: string) => {
+    setRows(prev => {
+      const filtered = prev.filter(r => r.id !== rowId)
+      if (filtered.length === prev.length) return prev
+      return filtered
+    })
+    setRowsTotal(prev => Math.max(0, prev - 1))
+  }, [])
+
+  const patchSheetColumns = useCallback((sheetId: string, columns: unknown[]) => {
+    setCurrentBoard(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        sheets: prev.sheets.map(s => (s.id !== sheetId ? s : { ...s, columns: columns as BoardSheet['columns'] }))
+      }
+    })
+  }, [])
+
   return {
     boards,
     currentBoard,
@@ -283,6 +330,10 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
     createRow,
     updateRow,
     deleteRow,
-    shareBoard
+    shareBoard,
+    patchRowCreated,
+    patchRowUpdated,
+    patchRowDeleted,
+    patchSheetColumns
   }
 }

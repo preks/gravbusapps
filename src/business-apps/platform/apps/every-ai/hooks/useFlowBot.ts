@@ -747,6 +747,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
   const [state, setState] = useState<ConversationState>(loadState)
   const [isLoading, setIsLoading] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const sessionIdRef = useRef<string | null>(null)
   const lastFetchedSessionIdRef = useRef<string | null>(null)
   const [prechatSuggestions, setPrechatSuggestions] = useState<string[]>([])
@@ -984,13 +985,22 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   }, [accessToken, state.sessionId, state.conversation.length])
 
   const sendMessage = useCallback(
-    async (userInputText: string, files: File[], isThinking: boolean = false, isSearching: boolean = false) => {
+    async (
+      userInputText: string,
+      files: File[],
+      isThinking: boolean = false,
+      isSearching: boolean = false,
+      additionInfo?: string,
+      skills?: string[],
+      mentions?: Array<{ id: string; type: string; display: string }>
+    ) => {
       if (!userInputText.trim() && files.length === 0) return
       if (inFlightRef.current) return
 
       try {
         inFlightRef.current = true
         setIsLoading(true)
+        setIsGenerating(true)
 
         // Reset agent outputs tracking for this new message
         currentAgentOutputsRef.current = []
@@ -1028,6 +1038,19 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         form.append('user_input_text', userInputText)
         form.append('llm_model', isThinking ? 'o4-mini' : LLM_MODEL)
         form.append('use_web_search_tool', (isSearching ?? false).toString())
+        // Append when explicitly provided (including empty string) so callers can
+        // force inclusion of the multipart field for document-edit flows.
+        if (additionInfo !== undefined) {
+          form.append('addition_info', additionInfo)
+        }
+        if (skills !== undefined) {
+          skills.forEach(skill => {
+            form.append('skills', skill)
+          })
+        }
+        if (mentions && mentions.length > 0) {
+          form.append('mentions', JSON.stringify(mentions))
+        }
 
         const currentPagePayload = await buildCurrentPageContextPayload()
         form.append('current_page_context', JSON.stringify(currentPagePayload))
@@ -1187,6 +1210,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         pruneEphemeralOutputsFromLastAgentTurn()
         inFlightRef.current = false
         setIsLoading(false)
+        setIsGenerating(false)
         abortControllerRef.current = null
         // Reset agent outputs tracking
         currentAgentOutputsRef.current = []
@@ -1301,6 +1325,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     // Reset loading state
     inFlightRef.current = false
     setIsLoading(false)
+    setIsGenerating(false)
 
     return userMessageText
   }, [accessToken, state.sessionId, state.conversation])
@@ -1583,6 +1608,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   return {
     conversation: state.conversation,
     isLoading,
+    isGenerating,
     sendMessage,
     editMessage,
     attachFiles,

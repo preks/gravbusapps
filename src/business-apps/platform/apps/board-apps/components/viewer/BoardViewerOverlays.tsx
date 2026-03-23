@@ -17,6 +17,7 @@ export interface BoardViewerOverlaysProps {
   onSheetUpdate?: (boardId: string, sheetId: string, updates: Partial<BoardSheet>) => Promise<BoardSheet | null>
   onOpenImport?: () => void
   onOpenFlowImport?: () => void
+  onOpenExternalImport?: () => void
 
   isSearchOpen: boolean
   setIsSearchOpen: (open: boolean) => void
@@ -40,6 +41,7 @@ export const BoardViewerOverlays: React.FC<BoardViewerOverlaysProps> = ({
   onSheetUpdate,
   onOpenImport,
   onOpenFlowImport,
+  onOpenExternalImport,
   isSearchOpen,
   setIsSearchOpen,
   isSettingsOpen,
@@ -93,6 +95,7 @@ export const BoardViewerOverlays: React.FC<BoardViewerOverlaysProps> = ({
         }
         onOpenImport={onOpenImport}
         onOpenFlowImport={onOpenFlowImport}
+        onOpenExternalImport={onOpenExternalImport}
         data-testid={`${testId}-settings-sheet`}
       />
 

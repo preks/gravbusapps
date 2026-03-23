@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
-import { Search, Plus, X } from 'lucide-react'
+import { Search, Plus, Upload, X } from 'lucide-react'
 interface SessionQuickActionsProps {
   searchQuery: string
   onSearchChange: (query: string) => void
   onCreateSession: () => void
+  onImportFolderAsNewApp?: (files: File[]) => void | Promise<void>
+  isImportingFolder?: boolean
   disabled?: boolean
   'data-testid'?: string
 }
@@ -13,11 +15,14 @@ export const SessionQuickActions: React.FC<SessionQuickActionsProps> = ({
   searchQuery,
   onSearchChange,
   onCreateSession,
+  onImportFolderAsNewApp,
+  isImportingFolder = false,
   disabled = false,
   'data-testid': testId = 'session-quick-actions'
 }) => {
   const [isFocused, setIsFocused] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -39,6 +44,18 @@ export const SessionQuickActions: React.FC<SessionQuickActionsProps> = ({
   const handleClear = () => {
     onSearchChange('')
     inputRef.current?.focus()
+  }
+
+  const handleImportClick = () => {
+    if (!onImportFolderAsNewApp || disabled || isImportingFolder) return
+    folderInputRef.current?.click()
+  }
+
+  const handleFolderSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || [])
+    event.target.value = ''
+    if (!onImportFolderAsNewApp || selectedFiles.length === 0) return
+    await onImportFolderAsNewApp(selectedFiles)
   }
 
   return (
@@ -103,6 +120,27 @@ export const SessionQuickActions: React.FC<SessionQuickActionsProps> = ({
               <Plus className="gba:w-4 gba:h-4" />
               New Session
             </Button>
+            {onImportFolderAsNewApp && (
+              <Button
+                onClick={handleImportClick}
+                disabled={disabled || isImportingFolder}
+                className="gba:gap-2"
+                variant="outline"
+                size="lg"
+                data-testid={`${testId}-import-new-app`}
+              >
+                <Upload className="gba:w-4 gba:h-4" />
+                {isImportingFolder ? 'Importing Folder...' : 'Import Folder as New App'}
+              </Button>
+            )}
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              onChange={handleFolderSelected}
+              className="gba:hidden"
+              {...({ webkitdirectory: 'true', directory: 'true' } as Record<string, string>)}
+            />
           </div>
         </div>
 

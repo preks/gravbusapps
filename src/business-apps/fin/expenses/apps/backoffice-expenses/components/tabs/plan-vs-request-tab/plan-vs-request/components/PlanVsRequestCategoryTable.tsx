@@ -10,9 +10,10 @@ import {
   TableHead,
   TableRow,
   TableCell,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../../../../_i18n'
 
 interface CategoryData {
   id: string
@@ -37,17 +38,15 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
   breakdownTotals,
   formatCurrency
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <Card data-testid="details-list">
       <CardHeader>
-        <CardTitle>
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.category_breakdown', 'Category Breakdown')}
-        </CardTitle>
+        <CardTitle>{t('pvr-category-breakdown')}</CardTitle>
         <div className="gba:text-sm gba:text-muted-foreground gba:mt-2" data-testid="category-totals">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.previous_total', 'Previous Total')}:{' '}
-          {formatCurrency(breakdownTotals.prev)} {' | '}
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.current_total', 'Current Total')}:{' '}
-          {formatCurrency(breakdownTotals.curr)} {' | '}
+          {t('pvr-previous-total')}: {formatCurrency(breakdownTotals.prev)} {' | '}
+          {t('pvr-current-total')}: {formatCurrency(breakdownTotals.curr)} {' | '}
           Δ%:{' '}
           {breakdownTotals.prev > 0
             ? Math.abs(((breakdownTotals.curr - breakdownTotals.prev) / breakdownTotals.prev) * 100).toFixed(1)
@@ -59,16 +58,10 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
         <Table data-testid="category-breakdown-table">
           <TableHeader data-testid="category-breakdown-header">
             <TableRow>
-              <TableHead>{getTranslationFromI18nKeyAndLabel('expense.category', 'Category')}</TableHead>
-              <TableHead className="gba:text-right">
-                {getTranslationFromI18nKeyAndLabel('expense.previous', 'Previous')}
-              </TableHead>
-              <TableHead className="gba:text-right">
-                {getTranslationFromI18nKeyAndLabel('expense.current', 'Current')}
-              </TableHead>
-              <TableHead className="gba:text-right">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:cards.variance', 'Variance')}
-              </TableHead>
+              <TableHead>{t('pvr-category')}</TableHead>
+              <TableHead className="gba:text-right">{t('pvr-previous')}</TableHead>
+              <TableHead className="gba:text-right">{t('pvr-current')}</TableHead>
+              <TableHead className="gba:text-right">{t('pvr-variance')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody data-testid="category-breakdown-body">
@@ -79,7 +72,7 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
                   className="gba:py-4 gba:text-center gba:text-muted-foreground"
                   data-testid="category-breakdown-empty-state"
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:cards.no_category_data', 'No category data available.')}
+                  {t('pvr-no-category-data')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -103,7 +96,7 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
                   <TableCell className="gba:text-right" data-testid={`category-variance-cell-${cat.id}`}>
                     {cat.previousPeriodAmount === 0 && cat.currentPeriodAmount > 0 ? (
                       <Badge variant="info" className="gba:font-medium">
-                        {getTranslationFromI18nKeyAndLabel('expense.newSpend', 'New spend')}
+                        {t('pvr-new-spend')}
                       </Badge>
                     ) : (
                       <Badge variant={cat.variance >= 0 ? 'destructive' : 'success'} className="gba:font-medium">

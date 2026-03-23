@@ -74,7 +74,7 @@ const LeadPersonSegment: React.FC<LeadPersonSegmentProps> = ({ customFields }) =
         )}
       />
 
-      {/* Email and Phone - Side by side */}
+      {/* Email, Phone, Secondary Number - Grid */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
         <FormField
           control={form.control}
@@ -121,7 +121,54 @@ const LeadPersonSegment: React.FC<LeadPersonSegmentProps> = ({ customFields }) =
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="secondaryNumber"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('lead-segment-secondary-number')}</FormLabel>
+              <FormControl>
+                <Input
+                  type="tel"
+                  placeholder={t('lead-segment-placeholder-enter')}
+                  data-testid="lead-segment-secondary-number"
+                  value={field.value || ''}
+                  onChange={e => field.onChange(e.target.value)}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
+
+      {/* LinkedIn URL */}
+      <FormField
+        control={form.control}
+        name="linkedinUrl"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('lead-segment-linkedin-url')}</FormLabel>
+            <FormControl>
+              <Input
+                type="url"
+                placeholder={t('lead-segment-placeholder-enter')}
+                data-testid="lead-segment-linkedin-url"
+                value={field.value || ''}
+                onChange={e => field.onChange(e.target.value)}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       {/* Custom fields injection point */}
       {customFields && <div>{customFields}</div>}

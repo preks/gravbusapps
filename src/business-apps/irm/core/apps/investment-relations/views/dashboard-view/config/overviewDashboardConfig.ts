@@ -51,7 +51,9 @@ export const irmOverviewDashboardConfig = {
     aggregateTable: 'InvestmentOpportunityAggregate',
     pipelineFieldName: 'opportunityPipelineRef',
     stageFieldPath: 'opportunityPipelineStage',
-    stageRefField: 'opportunityPipelineStageRef'
+    stageRefField: 'opportunityPipelineStageRef',
+    stageTypeCatalog: 'InvestmentOpportunityPipelineStageType',
+    version: 'v1'
   },
 
   // Active Tasks

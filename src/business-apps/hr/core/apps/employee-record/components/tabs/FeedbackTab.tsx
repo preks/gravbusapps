@@ -25,6 +25,8 @@ interface FeedbackTabProps {
   userInfo?: UserInfoProps
   employeeFeedback?: EmployeeFeedback[]
   isSelfView: boolean
+  /** When true, AI Insights button is shown (self-view, manager of employee, or HR). Default true. */
+  canViewAiInsights?: boolean
 }
 
 const FeedbackTab: React.FC<FeedbackTabProps> = ({
@@ -32,7 +34,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   accessToken,
   employeeId,
   userInfo,
-  isSelfView = false
+  isSelfView = false,
+  canViewAiInsights = true
 }) => {
   const { t } = useTranslation(translations)
   const graphQLClient = useGraphqlClient(accessToken)
@@ -179,7 +182,13 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
   return (
     <div className="gba:space-y-6" data-testid="feedback-tab">
-      <FeedbackHubHeader t={t} employee={employee} accessToken={accessToken} />
+      <FeedbackHubHeader
+        t={t}
+        employee={employee}
+        accessToken={accessToken}
+        isSelfView={isSelfView}
+        currentUserEmployeeId={currentUserEmployeeId}
+      />
 
       <FeedbackHubKpiGrid
         t={t}
@@ -191,6 +200,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           setPendingRequestsPage(1)
           setShowPendingPanel(true)
         }}
+        isSelfView={isSelfView}
       />
 
       <FeedbackToolbar
@@ -225,6 +235,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           setDateTo('')
           setTypeFilter('all')
         }}
+        visibilityFilterLockedToPublic={!isSelfView}
       />
 
       {kpiLoading && !showPendingPanel && (
@@ -233,9 +244,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         </div>
       )}
 
-      <div className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6">
+      <div className={isSelfView ? 'gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6' : 'gba:space-y-6'}>
         <FeedbackListSection
-          title={t('feedback-hub-section-received-title', { total: receivedTotal })}
+          title={t('feedback-hub-section-received-visible-title', { visible: receivedTotal })}
           loading={receivedLoading}
           feedbackList={receivedList}
           emptyLabel={t('feedback-hub-empty-received')}
@@ -247,24 +258,27 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           publicBadgeLabel={t('feedback-hub-badge-public')}
           showMoreLabel={t('feedback-hub-show-more')}
           showLessLabel={t('feedback-hub-show-less')}
+          unknownSenderLabel={t('feedback-hub-unknown-sender')}
           headerAction={
-            <Button
-              variant="outline"
-              size="sm"
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid="analyze-received-insights-button"
-              disabled={receivedList.length === 0 || analyzingInsights.received}
-              onClick={handleOpenReceivedInsights}
-            >
-              {analyzingInsights.received ? (
-                <Spinner size="sm" />
-              ) : (
-                <SparkleIcon className="gba:h-4 gba:w-4" weight="fill" />
-              )}
-              {analyzingInsights.received
-                ? t('feedback-hub-ai-insights-analyzing')
-                : t('feedback-hub-ai-insights-button')}
-            </Button>
+            canViewAiInsights ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gba:flex gba:items-center gba:gap-2"
+                data-testid="analyze-received-insights-button"
+                disabled={receivedList.length === 0 || analyzingInsights.received}
+                onClick={handleOpenReceivedInsights}
+              >
+                {analyzingInsights.received ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <SparkleIcon className="gba:h-4 gba:w-4" weight="fill" />
+                )}
+                {analyzingInsights.received
+                  ? t('feedback-hub-ai-insights-analyzing')
+                  : t('feedback-hub-ai-insights-button')}
+              </Button>
+            ) : undefined
           }
           showBackContent={openInsights.received}
           footerContent={
@@ -280,49 +294,54 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           }
         />
 
-        <FeedbackListSection
-          title={t('feedback-hub-section-given-title', { total: givenTotal })}
-          loading={givenLoading}
-          feedbackList={givenList}
-          emptyLabel={t('feedback-hub-empty-given')}
-          total={givenTotal}
-          currentPage={givenPage}
-          onPreviousPage={() => setGivenPage(p => Math.max(1, p - 1))}
-          onNextPage={() => setGivenPage(p => Math.min(Math.ceil(givenTotal / FEEDBACK_LIST_LIMIT), p + 1))}
-          privateBadgeLabel={t('feedback-hub-badge-private')}
-          publicBadgeLabel={t('feedback-hub-badge-public')}
-          showMoreLabel={t('feedback-hub-show-more')}
-          showLessLabel={t('feedback-hub-show-less')}
-          headerAction={
-            <Button
-              variant="outline"
-              size="sm"
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid="analyze-given-insights-button"
-              disabled={givenList.length === 0 || analyzingInsights.given}
-              onClick={handleOpenGivenInsights}
-            >
-              {analyzingInsights.given ? (
-                <Spinner size="sm" />
-              ) : (
-                <SparkleIcon className="gba:h-4 gba:w-4" weight="fill" />
-              )}
-              {analyzingInsights.given ? t('feedback-hub-ai-insights-analyzing') : t('feedback-hub-ai-insights-button')}
-            </Button>
-          }
-          showBackContent={openInsights.given}
-          footerContent={
-            openInsights.given ? (
-              <FeedbackAnalysisPanel
-                result={analysisResults.given}
-                isAnalyzing={analyzingInsights.given}
-                error={analyzingInsights.given ? analysisError : null}
-                entryCount={givenList.length}
-                onClose={handleCloseGivenInsights}
-              />
-            ) : undefined
-          }
-        />
+        {isSelfView && (
+          <FeedbackListSection
+            title={t('feedback-hub-section-given-title', { total: givenTotal })}
+            loading={givenLoading}
+            feedbackList={givenList}
+            emptyLabel={t('feedback-hub-empty-given')}
+            total={givenTotal}
+            currentPage={givenPage}
+            onPreviousPage={() => setGivenPage(p => Math.max(1, p - 1))}
+            onNextPage={() => setGivenPage(p => Math.min(Math.ceil(givenTotal / FEEDBACK_LIST_LIMIT), p + 1))}
+            privateBadgeLabel={t('feedback-hub-badge-private')}
+            publicBadgeLabel={t('feedback-hub-badge-public')}
+            showMoreLabel={t('feedback-hub-show-more')}
+            showLessLabel={t('feedback-hub-show-less')}
+            unknownSenderLabel={t('feedback-hub-unknown-sender')}
+            headerAction={
+              <Button
+                variant="outline"
+                size="sm"
+                className="gba:flex gba:items-center gba:gap-2"
+                data-testid="analyze-given-insights-button"
+                disabled={givenList.length === 0 || analyzingInsights.given}
+                onClick={handleOpenGivenInsights}
+              >
+                {analyzingInsights.given ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <SparkleIcon className="gba:h-4 gba:w-4" weight="fill" />
+                )}
+                {analyzingInsights.given
+                  ? t('feedback-hub-ai-insights-analyzing')
+                  : t('feedback-hub-ai-insights-button')}
+              </Button>
+            }
+            showBackContent={openInsights.given}
+            footerContent={
+              openInsights.given ? (
+                <FeedbackAnalysisPanel
+                  result={analysisResults.given}
+                  isAnalyzing={analyzingInsights.given}
+                  error={analyzingInsights.given ? analysisError : null}
+                  entryCount={givenList.length}
+                  onClose={handleCloseGivenInsights}
+                />
+              ) : undefined
+            }
+          />
+        )}
       </div>
 
       <PendingRequestsSheet

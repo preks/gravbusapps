@@ -5,84 +5,53 @@ import {
   CampaignChartDataPoint,
   ChartTimeFilter,
   UseCampaignChartReturn,
-  CampaignRecord
+  CampaignRecord,
+  CampaignEntity
 } from '../types'
-import { useCampaignRecordQueries } from '../queries'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import isoWeek from 'dayjs/plugin/isoWeek'
 import advancedFormat from 'dayjs/plugin/advancedFormat'
 
-// Extend dayjs with required plugins
 dayjs.extend(weekday)
 dayjs.extend(isoWeek)
 dayjs.extend(advancedFormat)
 
 export const useCampaignChart = (
-  context: BusinessAppContextProps,
+  _context: BusinessAppContextProps,
   campaignId: string,
-  campaign: CampaignRecord | null
+  campaign: CampaignRecord | null,
+  allEntities: CampaignEntity[]
 ): UseCampaignChartReturn => {
   const [chartData, setChartData] = useState<CampaignChartData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [timeFilter, setTimeFilter] = useState<ChartTimeFilter>('weekly')
 
-  // Get access to campaign queries
-  const { fetchCampaignEntities } = useCampaignRecordQueries(context)
-
-  // Generate chart data based on entity creation dates
-  const generateChartDataWithRealCounts = useCallback(
-    async (
-      startDate: string,
-      endDate: string,
-      filter: ChartTimeFilter,
-      campaignId: string
-    ): Promise<CampaignChartDataPoint[]> => {
+  const generateChartData = useCallback(
+    (startDate: string, endDate: string, filter: ChartTimeFilter, entities: CampaignEntity[]): CampaignChartDataPoint[] => {
       const start = dayjs(startDate)
       const end = dayjs(endDate)
       const data: CampaignChartDataPoint[] = []
 
-      // Get all entities in this campaign with their creation dates
-      const entitiesResult = await fetchCampaignEntities({
-        campaignId,
-        offset: 0,
-        limit: 1000 // Get all entities
-      })
+      const leads = entities.filter(e => e.type === 'lead')
+      const accounts = entities.filter(e => e.type === 'account')
+      const contacts = entities.filter(e => e.type === 'contact')
+      const opportunities = entities.filter(e => e.type === 'opportunity')
 
-      // Helper function to count entities created in a specific time period
-      const countEntitiesInPeriod = (
-        entities: Array<{ createdAt: string }>,
-        periodStart: dayjs.Dayjs,
-        periodEnd: dayjs.Dayjs
-      ) => {
-        return entities.filter(entity => {
-          const createdAt = dayjs(entity.createdAt)
-          // For daily filter: entity must be created on the exact same day as periodStart
-          if (filter === 'daily') {
-            return createdAt.isSame(periodStart, 'day')
-          }
-          // For weekly filter: entity must be created within the week
-          if (filter === 'weekly') {
-            return createdAt.isSame(periodStart, 'week')
-          }
-          // For monthly filter: entity must be created within the month
-          if (filter === 'monthly') {
-            return createdAt.isSame(periodStart, 'month')
-          }
-          // For yearly filter: entity must be created within the year
-          if (filter === 'yearly') {
-            return createdAt.isSame(periodStart, 'year')
-          }
-          // Fallback to range check
+      const countInPeriod = (list: CampaignEntity[], periodStart: dayjs.Dayjs, periodEnd: dayjs.Dayjs) =>
+        list.filter(entity => {
+          const createdAt = dayjs(entity.creationDate)
+          if (filter === 'daily') return createdAt.isSame(periodStart, 'day')
+          if (filter === 'weekly') return createdAt.isSame(periodStart, 'week')
+          if (filter === 'monthly') return createdAt.isSame(periodStart, 'month')
+          if (filter === 'yearly') return createdAt.isSame(periodStart, 'year')
           return (
             (createdAt.isSame(periodStart, 'day') || createdAt.isAfter(periodStart)) &&
             (createdAt.isSame(periodEnd, 'day') || createdAt.isBefore(periodEnd))
           )
         }).length
-      }
 
-      let current = start
       let increment: dayjs.ManipulateType
       let format: string
 
@@ -105,25 +74,21 @@ export const useCampaignChart = (
           format = '[Week of] MMM DD'
       }
 
-      // Generate time periods across campaign duration
+      let current = start
       while (current.isBefore(end) || current.isSame(end, 'day')) {
         const periodStart = current
         const periodEnd = current.add(1, increment).subtract(1, 'day')
-
-        // Count entities created within this time period
-        const leadsInPeriod = countEntitiesInPeriod(entitiesResult.leads || [], periodStart, periodEnd)
-        const accountsInPeriod = countEntitiesInPeriod(entitiesResult.accounts || [], periodStart, periodEnd)
-        const contactsInPeriod = countEntitiesInPeriod(entitiesResult.contacts || [], periodStart, periodEnd)
-        const opportunitiesInPeriod = countEntitiesInPeriod(entitiesResult.opportunities || [], periodStart, periodEnd)
+        const leadsInPeriod = countInPeriod(leads, periodStart, periodEnd)
+        const opportunitiesInPeriod = countInPeriod(opportunities, periodStart, periodEnd)
 
         data.push({
           date: current.format(format),
           totalLeads: leadsInPeriod,
-          totalAccounts: accountsInPeriod,
-          totalContacts: contactsInPeriod,
+          totalAccounts: countInPeriod(accounts, periodStart, periodEnd),
+          totalContacts: countInPeriod(contacts, periodStart, periodEnd),
           totalOpportunities: opportunitiesInPeriod,
-          convertedLeads: Math.floor(leadsInPeriod * 0.15), // Estimated 15% conversion
-          wonOpportunities: Math.floor(opportunitiesInPeriod * 0.25) // Estimated 25% win rate
+          convertedLeads: Math.floor(leadsInPeriod * 0.15),
+          wonOpportunities: Math.floor(opportunitiesInPeriod * 0.25)
         })
 
         current = current.add(1, increment)
@@ -131,10 +96,10 @@ export const useCampaignChart = (
 
       return data
     },
-    [fetchCampaignEntities]
+    []
   )
 
-  const loadChartData = useCallback(async () => {
+  const loadChartData = useCallback(() => {
     if (!campaignId || !campaign) {
       setError('No campaign data available')
       setIsLoading(false)
@@ -151,7 +116,6 @@ export const useCampaignChart = (
     setError(null)
 
     try {
-      // Validate dates before processing
       const startDate = dayjs(campaign.startDate)
       const endDate = dayjs(campaign.endDate)
 
@@ -163,20 +127,15 @@ export const useCampaignChart = (
         throw new Error('Campaign start date cannot be after end date')
       }
 
-      // Generate chart data with actual entity counts from the database
-      const data = await generateChartDataWithRealCounts(campaign.startDate, campaign.endDate, timeFilter, campaignId)
-
-      setChartData({
-        data,
-        timeFilter
-      })
+      const data = generateChartData(campaign.startDate, campaign.endDate, timeFilter, allEntities)
+      setChartData({ data, timeFilter })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate chart data')
       setChartData(null)
     } finally {
       setIsLoading(false)
     }
-  }, [campaignId, campaign, timeFilter, generateChartDataWithRealCounts])
+  }, [campaignId, campaign, timeFilter, allEntities, generateChartData])
 
   const refetch = useCallback(() => {
     loadChartData()
@@ -190,7 +149,7 @@ export const useCampaignChart = (
     if (campaignId && campaign) {
       loadChartData()
     }
-  }, [campaignId, campaign, timeFilter, loadChartData])
+  }, [campaignId, campaign, timeFilter, allEntities, loadChartData])
 
   return {
     chartData,

@@ -131,9 +131,17 @@ export const InvestmentTaskFormFields = {
  * NOTE: assignedEmployeeIds filtering handled separately via taskAssignees relationship
  */
 export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
-  ...createTaskDescriptors(InvestmentTaskFields as Record<keyof typeof TaskFields, string>).filter(
-    d => d.key !== 'reference' && d.key !== 'assignedEmployeeIds' // Remove assignedEmployeeIds - handled via taskAssignees
-  ),
+  ...createTaskDescriptors(InvestmentTaskFields as Record<keyof typeof TaskFields, string>)
+    .filter(
+      d => d.key !== 'reference' && d.key !== 'assignedEmployeeIds' // Remove assignedEmployeeIds - handled via taskAssignees
+    )
+    .map(d => {
+      // InvestmentTaskOrderBy has no taskAssignees (or nested assignee) ordering — avoid validation errors
+      if (d.key === 'taskAssignees' || d.key === 'assignedTo') {
+        return { ...d, enableSort: false }
+      }
+      return d
+    }),
   {
     key: 'reference',
     searchPaths: [

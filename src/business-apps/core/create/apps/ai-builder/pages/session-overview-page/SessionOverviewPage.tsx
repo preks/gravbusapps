@@ -16,6 +16,8 @@ export interface SessionOverviewPageProps {
   onSelectSession: (sessionId: string) => void | Promise<void>
   onCreateSession: () => void | Promise<void>
   onDeleteSession: (sessionId: string) => Promise<void>
+  onImportFolderAsNewApp?: (files: File[]) => void | Promise<void>
+  isImportingFolderAsNewApp?: boolean
 }
 
 export const SessionOverviewPage: React.FC<SessionOverviewPageProps> = ({
@@ -24,7 +26,9 @@ export const SessionOverviewPage: React.FC<SessionOverviewPageProps> = ({
   sessions,
   onSelectSession,
   onCreateSession,
-  onDeleteSession
+  onDeleteSession,
+  onImportFolderAsNewApp,
+  isImportingFolderAsNewApp = false
 }) => {
   const [showAdminSettings, setShowAdminSettings] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -113,6 +117,8 @@ export const SessionOverviewPage: React.FC<SessionOverviewPageProps> = ({
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onCreateSession={handleCreateSession}
+          onImportFolderAsNewApp={onImportFolderAsNewApp}
+          isImportingFolder={isImportingFolderAsNewApp}
           disabled={disabled}
         />
 

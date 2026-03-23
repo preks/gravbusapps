@@ -1,12 +1,14 @@
 /**
- * Shared constants and ToolbarButton for the document editor ribbon.
+ * Shared constants and compact toolbar primitives for the document editor.
  */
 
 import React from 'react'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
 
+export const DEFAULT_FONT_FAMILY = 'Times New Roman, serif'
+
 export const FONT_FAMILY_KEYS: Record<string, string> = {
-  '': 'editor-font-default',
+  '': 'editor-font-times',
   'Arial, sans-serif': 'editor-font-arial',
   'Times New Roman, serif': 'editor-font-times',
   'Georgia, serif': 'editor-font-georgia',
@@ -180,7 +182,7 @@ export const ToolbarButton: React.FC<{
           size="sm"
           onClick={onClick}
           disabled={disabled}
-          className="gba:h-8 gba:w-8 gba:p-0"
+          className="gba:h-8 gba:w-8 gba:rounded-md gba:p-0 gba:text-muted-foreground hover:gba:text-foreground"
         >
           {children}
         </Button>
@@ -203,11 +205,12 @@ export function RibbonGroup({
 }>) {
   return (
     <div
-      className="gba:flex gba:items-center gba:gap-1.5 gba:border-r gba:border-border gba:pr-2 gba:mr-2 gba:last:border-r-0 gba:last:pr-0 gba:last:mr-0"
+      className="gba:flex gba:items-center gba:gap-1 gba:pr-2 gba:mr-2 gba:border-r gba:border-border/60 gba:last:border-r-0 gba:last:pr-0 gba:last:mr-0"
+      aria-label={label}
       data-testid={testId}
     >
-      <span className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap">{label}</span>
-      <div className="gba:flex gba:items-center gba:gap-0.5">{children}</div>
+      <span className="gba:sr-only">{label}</span>
+      <div className="gba:flex gba:items-center gba:gap-0.5 gba:min-w-0">{children}</div>
     </div>
   )
 }

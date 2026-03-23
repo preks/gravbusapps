@@ -11,6 +11,7 @@ import type { UseOrchestratorClientResult } from '../hooks/useOrchestratorClient
 import type { UseBuildProgressResult } from '../hooks/useBuildProgress'
 import type { OrchestratorHandlers } from '../hooks/useOrchestratorHandlers'
 import type { BuildPhase } from '../types'
+import type { BuildPlan } from '../types/build'
 import { AnalyzingView, ReviewView, BuildingView, CompleteView, ErrorView } from '../components/state-views'
 import { CanvasHeader } from '../components/canvas/CanvasHeader'
 
@@ -22,8 +23,21 @@ interface OrchestratorCanvasContentProps {
   completedPhases: BuildPhase[]
   accessToken: string
   userInfo?: any
+  builtBy?: any
+  builtByLoading?: boolean
   previewRefreshToken: number
   isRestoringSession?: boolean
+  onPublish?: () => Promise<void> | void
+  onSaveVersion?: () => Promise<void> | void
+  isSavingVersion?: boolean
+  onDownloadPackage?: () => Promise<void> | void
+  onImportFolder?: (files: File[], mode: 'update' | 'new') => Promise<void> | void
+  isImportingFolder?: boolean
+  reviewCanvasMode?: 'plan' | 'currentBuild'
+  completedBuildSnapshot?: BuildPlan | null
+  canShowExistingBuild?: boolean
+  onShowExistingBuild?: () => void
+  onShowReviewPlan?: () => void
 }
 
 export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps> = ({
@@ -34,16 +48,38 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
   completedPhases,
   accessToken,
   userInfo,
+  builtBy,
+  builtByLoading,
   previewRefreshToken,
-  isRestoringSession = false
+  isRestoringSession = false,
+  onPublish,
+  onSaveVersion,
+  isSavingVersion = false,
+  onDownloadPackage,
+  onImportFolder,
+  isImportingFolder = false,
+  reviewCanvasMode = 'plan',
+  completedBuildSnapshot = null,
+  canShowExistingBuild = false,
+  onShowExistingBuild,
+  onShowReviewPlan
 }) => {
+  const handlePublish = async () => {
+    if (onPublish) {
+      await onPublish()
+      return
+    }
+
+    await orchestratorClient.publishApp()
+  }
+
   // Determine title based on state
   const getTitle = () => {
     switch (state.viewState) {
       case 'analyzing':
         return 'Analyzing...'
       case 'review':
-        return 'Build Plan'
+        return reviewCanvasMode === 'currentBuild' ? 'Current App' : 'Build Plan'
       case 'building':
         return 'Building'
       case 'complete':
@@ -59,9 +95,22 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
   const getHeaderActions = () => {
     if (state.viewState === 'review') {
       return (
-        <Button variant="ghost" size="sm" onClick={handlers.handleReset} disabled={orchestratorClient.isAnalyzing}>
-          ← Start Over
-        </Button>
+        <>
+          {reviewCanvasMode === 'currentBuild' ? (
+            <Button variant="outline" size="sm" onClick={onShowReviewPlan}>
+              Back to Plan
+            </Button>
+          ) : (
+            canShowExistingBuild && (
+              <Button variant="outline" size="sm" onClick={onShowExistingBuild}>
+                Skip Plan
+              </Button>
+            )
+          )}
+          <Button variant="ghost" size="sm" onClick={handlers.handleReset} disabled={orchestratorClient.isAnalyzing}>
+            ← Start Over
+          </Button>
+        </>
       )
     }
     if (state.viewState === 'building' && buildProgress.isBuilding) {
@@ -80,6 +129,36 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
         return <AnalyzingView thinkingSteps={state.thinkingSteps} analysisProgress={state.analysisProgress} />
 
       case 'review':
+        if (reviewCanvasMode === 'currentBuild' && completedBuildSnapshot) {
+          return (
+            <CompleteView
+              components={completedBuildSnapshot.components}
+              jobId={completedBuildSnapshot.jobId}
+              buildDuration={buildProgress.buildDuration}
+              prompt={completedBuildSnapshot.originalPrompt}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              builtBy={builtBy}
+              builtByLoading={builtByLoading}
+              previewRefreshToken={previewRefreshToken}
+              onReset={handlers.handleReset}
+              appMetadata={completedBuildSnapshot.appMetadata}
+              analysis={completedBuildSnapshot.analysis}
+              userSummary={completedBuildSnapshot.userSummary}
+              createdAt={completedBuildSnapshot.createdAt}
+              isPublishing={orchestratorClient.isPublishing}
+              publishSuccess={orchestratorClient.publishSuccess}
+              publishError={orchestratorClient.publishError}
+              onPublish={handlePublish}
+              onSaveVersion={onSaveVersion}
+              isSavingVersion={isSavingVersion}
+              onDownloadPackage={onDownloadPackage}
+              onImportFolder={onImportFolder}
+              isImportingFolder={isImportingFolder}
+              isRestoringSession={isRestoringSession}
+            />
+          )
+        }
         if (!orchestratorClient.currentPlan) return null
         return (
           <ReviewView
@@ -116,10 +195,11 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             reusedCount={buildProgress.reusedCount}
             totalCount={buildProgress.totalCount}
             failedCount={buildProgress.failedCount}
-            buildLogs={state.buildLogs}
+            buildLogs={buildProgress.buildLogs}
             phaseMessage={buildProgress.phaseMessage}
             isBuilding={buildProgress.isBuilding}
             tiles={buildProgress.tiles}
+            isProgressEstimated={buildProgress.isProgressEstimated}
             appMetadata={orchestratorClient.currentPlan?.appMetadata}
           />
         )
@@ -134,6 +214,8 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             prompt={state.userPrompt}
             accessToken={accessToken}
             userInfo={userInfo}
+            builtBy={builtBy}
+            builtByLoading={builtByLoading}
             previewRefreshToken={previewRefreshToken}
             onReset={handlers.handleReset}
             appMetadata={orchestratorClient.currentPlan.appMetadata}
@@ -143,8 +225,15 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             isPublishing={orchestratorClient.isPublishing}
             publishSuccess={orchestratorClient.publishSuccess}
             publishError={orchestratorClient.publishError}
-            onPublish={orchestratorClient.publishApp}
+            onPublish={handlePublish}
+            onSaveVersion={onSaveVersion}
+            isSavingVersion={isSavingVersion}
+            onDownloadPackage={onDownloadPackage}
+            onImportFolder={onImportFolder}
+            isImportingFolder={isImportingFolder}
             isRestoringSession={isRestoringSession}
+            wiringWarnings={buildProgress.wiringWarnings}
+            onRetryWiring={handlers.handleWiringRetry}
           />
         )
 

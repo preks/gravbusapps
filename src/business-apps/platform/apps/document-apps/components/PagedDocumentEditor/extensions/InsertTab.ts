@@ -11,7 +11,8 @@ function isInsideTableCell(editor: {
   const { state } = editor
   const $pos = state.selection.$from
   for (let d = $pos.depth; d > 0; d--) {
-    if ($pos.node(d).type.name === 'tableCell') return true
+    const nodeName = $pos.node(d).type.name
+    if (nodeName === 'tableCell' || nodeName === 'tableHeader') return true
   }
   return false
 }

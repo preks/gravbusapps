@@ -96,6 +96,8 @@ export const useGetExpenseItems = (
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState<number>(0)
   const abortControllerRef = useRef<AbortController | null>(null) // For request cancellation
+  const itemsRef = useRef<ExpenseItem[]>([]) // For checking existing data inside fetchItems (avoid loading flash on sort/pagination)
+  const lastDisplayedCacheKeyRef = useRef<string>('')
   // Page cache: stores results by cache key (search, filters, page, pageSize, sortField, sortOrder)
   const pageCacheRef = useRef<Map<string, { items: ExpenseItem[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map()) // Track in-flight requests
@@ -136,7 +138,7 @@ export const useGetExpenseItems = (
     return where
   }, [])
 
-  // Helper function to add search filters to where clause
+  // Helper function to add search filters to where clause (status excluded – use Status filter for that)
   const addSearchFilters = useCallback((where: Record<string, any>, searchTerm: string): void => {
     const trimmedSearch = (searchTerm || '').trim()
     // Only add search filter if there's an actual search term (not '%' which means "all items")
@@ -145,7 +147,6 @@ export const useGetExpenseItems = (
       where._or = [
         { title: { _ilike: pattern } },
         { code: { _ilike: pattern } },
-        { status: { _ilike: pattern } },
         { expenseClass: { value: { _ilike: pattern } } },
         { expenseClass: { translations: { value: { _ilike: pattern } } } },
         { costCenter: { name: { _ilike: pattern } } }
@@ -301,12 +302,18 @@ export const useGetExpenseItems = (
       // Check cache first - if page is cached and not forcing refresh, return immediately
       const cachedData = pageCacheRef.current.get(cacheKey)
       if (cachedData && !options?.force) {
-        // Return cached data immediately - no loading state
+        lastDisplayedCacheKeyRef.current = cacheKey
         setItems(cachedData.items)
         setTotalCount(cachedData.totalCount)
         setIsLoading(false)
         setError(null)
         return
+      }
+
+      // Only show table loading when we have no data yet (initial load); skip for sort/pagination so the table doesn't rerender/flash (same as plans tab)
+      const hasExistingListData = (itemsRef.current?.length ?? 0) > 0
+      if (!hasExistingListData) {
+        setIsLoading(true)
       }
 
       // Cancel previous request if it exists
@@ -331,7 +338,7 @@ export const useGetExpenseItems = (
 
           // Cache the result
           pageCacheRef.current.set(cacheKey, { items: mappedItems, totalCount: finalCount })
-
+          lastDisplayedCacheKeyRef.current = cacheKey
           setItems(mappedItems)
           setTotalCount(finalCount)
           setIsLoading(false)
@@ -342,7 +349,6 @@ export const useGetExpenseItems = (
         }
       }
 
-      setIsLoading(true)
       setError(null)
 
       try {
@@ -371,7 +377,7 @@ export const useGetExpenseItems = (
 
         // Cache the result
         pageCacheRef.current.set(cacheKey, { items: mappedItems, totalCount: finalCount })
-
+        lastDisplayedCacheKeyRef.current = cacheKey
         setItems(mappedItems)
         setTotalCount(finalCount)
       } catch (err) {
@@ -395,6 +401,10 @@ export const useGetExpenseItems = (
       generateCacheKey
     ]
   )
+
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
 
   // Initial fetch on component mount (configurable)
   useEffect(() => {

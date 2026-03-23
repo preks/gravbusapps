@@ -1,12 +1,14 @@
 import React, { useCallback, useMemo } from 'react'
-import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { CalendarOutlined, FileTextOutlined } from '@ant-design/icons'
+import { WidgetItem } from '@/components/widget-group'
+import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
+import { CalendarIcon, CurrencyDollarIcon, FileTextIcon } from '@phosphor-icons/react'
+import { CurrencyPrefix } from '../../../common/components/CurrencyPrefix'
 import { ExpenseStatus } from '../../../utils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans' // Assuming this type is exported from your hook
+import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans'
 
-interface ExpensePlanStatisticsProps {
+export interface ExpensePlanStatisticsProps {
   planStats: ExpensePlanStatistics | null
   statsLoading: boolean
   statsError: Error | null
@@ -14,6 +16,8 @@ interface ExpensePlanStatisticsProps {
   activeFilter: ExpenseStatus[] | null
   onFilterChange: (filter: ExpenseStatus[] | null) => void
   currencyFilter?: string | null
+  /** Currency used for formatting amounts/labels when no filter is set (e.g. most used currency). */
+  displayCurrency?: string | null
 }
 
 const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
@@ -23,10 +27,10 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
   fetchPlanStatistics,
   activeFilter,
   onFilterChange,
-  currencyFilter
+  currencyFilter,
+  displayCurrency: displayCurrencyProp
 }) => {
-  // Use only the currency filter passed from parent - no global store dependency
-  const displayCurrency = currencyFilter || 'EUR'
+  const displayCurrency = displayCurrencyProp ?? currencyFilter ?? 'EUR'
   // Handle card click
   const handleCardClick = useCallback(
     (filterKey: ExpenseStatus | null) => {
@@ -45,46 +49,6 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
     [activeFilter, onFilterChange]
   )
 
-  // Handle widget clicks from WidgetGroup
-  const handleWidgetClick = useCallback(
-    (widgetKey: string) => {
-      switch (widgetKey) {
-        case 'pending-approval':
-          handleCardClick(ExpenseStatus.PENDING)
-          break
-        case 'total-plans': {
-          // "Submitted" plans (CREATED/DISCARDED are hidden from Plans tab)
-          const submittedStatuses = [
-            ExpenseStatus.PREPARED,
-            ExpenseStatus.ASSIGNED,
-            ExpenseStatus.PENDING,
-            ExpenseStatus.APPROVED,
-            ExpenseStatus.VERIFIED,
-            ExpenseStatus.BOOKED,
-            ExpenseStatus.PAID,
-            ExpenseStatus.CLOSED,
-            ExpenseStatus.TRANSFERRED
-          ]
-          const isTotalPlansFilterActive =
-            activeFilter?.length === 9 && submittedStatuses.every(status => activeFilter.includes(status))
-
-          if (isTotalPlansFilterActive) {
-            onFilterChange(null)
-          } else {
-            onFilterChange(submittedStatuses)
-          }
-          break
-        }
-        case 'total-amount':
-          // No filtering for total amount card
-          break
-        default:
-          break
-      }
-    },
-    [activeFilter, onFilterChange, handleCardClick]
-  )
-
   // Transform the stats data into widgets format
   const widgets: WidgetItem[] = useMemo(() => {
     if (!planStats) return []
@@ -97,7 +61,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'Pending Approval'
         ),
         value: planStats.pendingCount.toString(),
-        prefix: <CalendarOutlined />,
+        prefix: <CurrencyPrefix icon={CalendarIcon} currency={displayCurrency} />,
         color: 'var(--nw-warning)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
@@ -114,7 +78,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'Total Plans (Submitted)'
         ),
         value: planStats.totalCount.toString(),
-        prefix: <FileTextOutlined />,
+        prefix: <CurrencyPrefix icon={FileTextIcon} currency={displayCurrency} />,
         color: 'var(--nw-primary)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
@@ -122,9 +86,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'All submitted plans'
         ),
         active: !!(
-          activeFilter?.length === 9 &&
+          activeFilter?.length === 8 &&
           [
-            ExpenseStatus.PREPARED,
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
             ExpenseStatus.APPROVED,
@@ -137,7 +100,6 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         ),
         onClick: () => {
           const submittedStatuses = [
-            ExpenseStatus.PREPARED,
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
             ExpenseStatus.APPROVED,
@@ -148,7 +110,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             ExpenseStatus.TRANSFERRED
           ]
           const isTotalPlansFilterActive =
-            activeFilter?.length === 9 && submittedStatuses.every(status => activeFilter?.includes(status))
+            activeFilter?.length === 8 && submittedStatuses.every(status => activeFilter?.includes(status))
           if (isTotalPlansFilterActive) {
             onFilterChange(null)
           } else {
@@ -165,11 +127,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         value: planStats.sumTotalAmount
           ? formatCurrencyDisplay(planStats.sumTotalAmount, displayCurrency)
           : formatCurrencyDisplay(0, displayCurrency),
-        prefix: (
-          <span className="gba:font-medium" data-testid="expense-plan-stats-total-currency-code">
-            {displayCurrency}
-          </span>
-        ),
+        prefix: <CurrencyDollarIcon size={16} data-testid="expense-plan-stats-total-amount-icon" />,
         color: 'var(--nw-success)',
         valueIsString: true,
 
@@ -182,7 +140,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
   }, [planStats, activeFilter, handleCardClick, displayCurrency])
 
   return (
-    <WidgetGroup
+    <ManagerClickableWidgetGroup
       widgets={widgets}
       isLoading={statsLoading}
       error={statsError ? 'Failed to load statistics' : undefined}
@@ -194,8 +152,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       )}
       cardBackground="transparent"
       className="gba:py-0 gba:bg-transparent"
-      onWidgetClick={handleWidgetClick}
       hoverable={true}
+      data-testid="expense-plans-stats"
     />
   )
 }

@@ -28,11 +28,10 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     searchTerm,
     setSearchTerm,
     statusFilter,
-    // setStatusFilter,
     amountRange,
-    // setAmountRange,
     advanceRange,
-    // setAdvanceRange,
+    setAmountRange,
+    setAdvanceRange,
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
@@ -166,14 +165,16 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
       {...contextProps}
       search={searchTerm}
       onSearchChange={handleSearchChange}
-      activeFilter={statusFilter} // Pass raw status values - DataController will handle display
-      onFilterChange={setFilters} // Use enhanced setFilters for individual filter removal
-      onClearFilters={handleClearAllFiltersNoParams} // Use wrapper for clear all
+      activeFilter={statusFilter}
+      onFilterChange={setFilters}
+      onClearFilters={handleClearAllFiltersNoParams}
       filterGroups={filterGroups}
       handleFilterChange={handleFilterChange}
       filterLabelMap={filterLabelMap}
       amountRange={amountRange}
       advanceRange={advanceRange}
+      setAmountRange={setAmountRange}
+      setAdvanceRange={setAdvanceRange}
       selectedFilters={selectedFilters}
       removeFilter={removeFilter}
       tableRefreshTrigger={tableRefreshTrigger}

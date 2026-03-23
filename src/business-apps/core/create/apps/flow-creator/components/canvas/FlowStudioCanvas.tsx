@@ -1,21 +1,21 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { DesignerMode } from '../../types/studioTypes'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import { CanvasToolbar } from './CanvasToolbar'
 import { ConfigPanelContainer } from '../config-panels/ConfigPanelContainer'
 import { useFlowValidation } from '../../hooks/useFlowValidation'
-import { useFlowStudioClient } from '../../hooks/useFlowStudioClient'
 import { useFlowStudioData } from '../../hooks/useFlowStudioData'
 import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
 import type { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
-import type { StepStatus } from '@/common/components/flow/flow-viewer/types/viewerTypes'
-
-type SimStatus = 'pending' | 'active' | 'completed'
+import type { FunctionVersionMeta } from '@/common/network/functions/FunctionsServiceClient'
+import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
 interface FlowStudioCanvasProps extends BusinessAppContextProps {
   mode: DesignerMode
   onModeChange?: (mode: DesignerMode) => void
+  onSave?: () => Promise<void> | void
+  showValidationIssues?: boolean
   'data-testid'?: string
 }
 
@@ -23,6 +23,8 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   accessToken,
   mode,
   onModeChange,
+  onSave,
+  showValidationIssues = false,
   'data-testid': testId = 'flow-studio-canvas'
 }) => {
   const storeNodes = useFlowStudioStore(s => s.nodes)
@@ -36,15 +38,15 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   const openEdgeDetails = useFlowStudioStore(s => s.openEdgeDetails)
   const openEdgeInsert = useFlowStudioStore(s => s.openEdgeInsert)
   const toGraphDefinition = useFlowStudioStore(s => s.toGraphDefinition)
-  const { saveFlow } = useFlowStudioClient(accessToken)
   const studioData = useFlowStudioData(accessToken)
-  const { errors, warnings } = useFlowValidation()
-  const [simStatuses, setSimStatuses] = useState<Record<string, SimStatus>>({})
+  const { issues, errors, warnings } = useFlowValidation()
   const prevContentKeyRef = useRef<string>('')
   const prevDefinitionRef = useRef<ReturnType<typeof toGraphDefinition>>({
     nodes: [],
     edges: []
   })
+  const functionVersionsCacheRef = useRef<Map<string, FunctionVersionMeta[]>>(new Map())
+  const agentVersionsCacheRef = useRef<Map<string, PromptODM[]>>(new Map())
 
   const definition = useMemo(() => {
     const next = toGraphDefinition()
@@ -67,10 +69,192 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
     return next
   }, [toGraphDefinition, storeNodes, storeEdges])
 
-  const executionState = useMemo<{ nodeStates: Record<string, StepStatus> }>(
-    () => ({ nodeStates: simStatuses }),
-    [simStatuses]
-  )
+  useEffect(() => {
+    let cancelled = false
+
+    const schemasEqual = (left: unknown, right: unknown): boolean =>
+      JSON.stringify(left ?? null) === JSON.stringify(right ?? null)
+
+    const run = async () => {
+      const functionsById = new Map(studioData.functions.map(fn => [fn.id, fn]))
+      const agentsById = new Map(
+        studioData.agents.map(agent => [String(agent._id || '').trim(), agent] as const).filter(([id]) => Boolean(id))
+      )
+
+      const functionNodesNeedingVersions = storeNodes.filter(node => {
+        if (node.type !== 'task' || node.config.nodeType !== 'task') return false
+        if (node.config.stepType !== 'FUNCTION') return false
+        const functionId = String(node.config.functionConfig?.functionId || '').trim()
+        if (!functionId) return false
+        const version = Number(node.config.functionConfig?.version)
+        if (!Number.isFinite(version)) return false
+        const latest = functionsById.get(functionId)?.latestVersion?.version
+        return latest !== version && !functionVersionsCacheRef.current.has(functionId)
+      })
+
+      const uniqueFunctionIds = Array.from(
+        new Set(
+          functionNodesNeedingVersions
+            .map(node => String(node.config.functionConfig?.functionId || '').trim())
+            .filter(Boolean)
+        )
+      )
+      const taskExpertNodesNeedingVersions = storeNodes.filter(node => {
+        if (node.type !== 'task' || node.config.nodeType !== 'task') return false
+        if (node.config.stepType !== 'AI_TASK_EXPERT') return false
+        const promptId = String(node.config.agentConfig?.promptId || '').trim()
+        if (!promptId) return false
+        const version = Number(node.config.agentConfig?.version)
+        if (!Number.isFinite(version)) return false
+        const latest = Number(agentsById.get(promptId)?.version)
+        if (!Number.isFinite(latest)) return false
+        return latest !== version && !agentVersionsCacheRef.current.has(promptId)
+      })
+      const uniquePromptIds = Array.from(
+        new Set(
+          taskExpertNodesNeedingVersions
+            .map(node => String(node.config.agentConfig?.promptId || '').trim())
+            .filter(Boolean)
+        )
+      )
+
+      if (uniqueFunctionIds.length > 0) {
+        await Promise.all(
+          uniqueFunctionIds.map(async functionId => {
+            try {
+              const versions = await studioData.loadFunctionVersions(functionId)
+              if (!cancelled) {
+                functionVersionsCacheRef.current.set(functionId, versions)
+              }
+            } catch {
+              if (!cancelled) {
+                functionVersionsCacheRef.current.set(functionId, [])
+              }
+            }
+          })
+        )
+      }
+      if (uniquePromptIds.length > 0) {
+        await Promise.all(
+          uniquePromptIds.map(async promptId => {
+            try {
+              const versions = await studioData.loadAgentVersions(promptId)
+              if (!cancelled) {
+                agentVersionsCacheRef.current.set(promptId, versions)
+              }
+            } catch {
+              if (!cancelled) {
+                agentVersionsCacheRef.current.set(promptId, [])
+              }
+            }
+          })
+        )
+      }
+
+      if (cancelled) return
+
+      let changed = false
+      const nextNodes = storeNodes.map(node => {
+        if (node.type !== 'task' || node.config.nodeType !== 'task') return node
+
+        if (node.config.stepType === 'FUNCTION') {
+          const functionId = String(node.config.functionConfig?.functionId || '').trim()
+          if (!functionId) return node
+
+          const latestFunction = functionsById.get(functionId)
+          const latestVersionRaw = Number(latestFunction?.latestVersion?.version)
+          const selectedVersion = Number(node.config.functionConfig?.version)
+          const desiredVersion = Number.isFinite(selectedVersion)
+            ? selectedVersion
+            : Number.isFinite(latestVersionRaw)
+              ? latestVersionRaw
+              : undefined
+          const desiredSchema =
+            typeof desiredVersion === 'number' && latestVersionRaw !== desiredVersion
+              ? functionVersionsCacheRef.current.get(functionId)?.find(version => version.version === desiredVersion)
+                  ?.outputSchema
+              : latestFunction?.latestVersion?.outputSchema
+
+          if (
+            node.config.functionConfig?.version === desiredVersion &&
+            schemasEqual(node.config.functionConfig?.outputSchema, desiredSchema)
+          ) {
+            return node
+          }
+
+          changed = true
+          return {
+            ...node,
+            config: {
+              ...node.config,
+              functionConfig: {
+                ...node.config.functionConfig,
+                version: desiredVersion,
+                outputSchema: desiredSchema
+              }
+            }
+          }
+        }
+
+        if (node.config.stepType === 'AI_TASK_EXPERT') {
+          const promptId = String(node.config.agentConfig?.promptId || '').trim()
+          if (!promptId) return node
+
+          const latestPrompt = agentsById.get(promptId)
+          const latestVersionRaw = Number(latestPrompt?.version)
+          const selectedVersion = Number(node.config.agentConfig?.version)
+          const desiredVersion = Number.isFinite(selectedVersion)
+            ? selectedVersion
+            : Number.isFinite(latestVersionRaw)
+              ? latestVersionRaw
+              : undefined
+          const desiredSchema =
+            typeof desiredVersion === 'number' && latestVersionRaw !== desiredVersion
+              ? agentVersionsCacheRef.current.get(promptId)?.find(version => Number(version.version) === desiredVersion)
+                  ?.response_schema
+              : latestPrompt?.response_schema
+
+          if (
+            node.config.agentConfig?.version === desiredVersion &&
+            schemasEqual(node.config.agentConfig?.outputSchema, desiredSchema)
+          ) {
+            return node
+          }
+
+          changed = true
+          return {
+            ...node,
+            config: {
+              ...node.config,
+              agentConfig: {
+                ...node.config.agentConfig,
+                version: desiredVersion,
+                outputSchema: desiredSchema
+              }
+            }
+          }
+        }
+
+        return node
+      })
+
+      if (changed && !cancelled) {
+        useFlowStudioStore.setState({ nodes: nextNodes })
+      }
+    }
+
+    run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    storeNodes,
+    studioData.agents,
+    studioData.functions,
+    studioData.loadAgentVersions,
+    studioData.loadFunctionVersions
+  ])
 
   const onConnect = useCallback(
     (connection: { source: string; target: string }) => {
@@ -130,51 +314,6 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
     [storeEdges, openEdgeInsert, insertNodeOnEdge]
   )
 
-  const onSave = useCallback(async () => {
-    await saveFlow()
-  }, [saveFlow])
-
-  const onSimulate = useCallback(() => {
-    const start = storeNodes.find(node => node.type === 'start')
-    if (!start) return
-    const forwardEdges = storeEdges.filter(
-      edge => String((edge as { direction?: string }).direction ?? 'forward').toLowerCase() === 'forward'
-    )
-    const nextBySource = new Map<string, string[]>()
-    for (const edge of forwardEdges) {
-      nextBySource.set(edge.source, [...(nextBySource.get(edge.source) ?? []), edge.target])
-    }
-    const route: string[] = []
-    const visited = new Set<string>()
-    const queue = [start.id]
-    while (queue.length > 0) {
-      const current = queue.shift()!
-      if (visited.has(current)) continue
-      visited.add(current)
-      route.push(current)
-      for (const next of nextBySource.get(current) ?? []) queue.push(next)
-    }
-    setSimStatuses({})
-    const advanceSimStatus =
-      (nodeId: string) =>
-      (
-        prev: Record<string, 'pending' | 'active' | 'completed'>
-      ): Record<string, 'pending' | 'active' | 'completed'> => {
-        const next = { ...prev }
-        for (const key of Object.keys(next)) {
-          if (next[key] === 'active') next[key] = 'completed'
-        }
-        next[nodeId] = 'active'
-        return next
-      }
-    route.forEach((nodeId, index) => {
-      setTimeout(() => {
-        setSimStatuses(advanceSimStatus(nodeId))
-        selectNode(nodeId)
-      }, index * 600)
-    })
-  }, [selectNode, storeEdges, storeNodes])
-
   const rightPanel =
     selectedNodeId || selectedEdgeId ? (
       <ConfigPanelContainer
@@ -184,19 +323,26 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
         data-testid={`${testId}-config-panel`}
       />
     ) : null
+  const visibleIssues = issues.slice(0, 6)
 
   return (
     <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>
-      <CanvasToolbar
-        onSave={onSave}
-        onSimulate={onSimulate}
-        mode={mode}
-        onModeChange={onModeChange}
-        data-testid={`${testId}-toolbar`}
-      />
-      {(errors.length > 0 || warnings.length > 0) && (
-        <div className="gba:px-3 gba:py-1.5 gba:border-b gba:border-border gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:text-xs">
-          {errors.length > 0 ? `${errors.length} errors` : 'No errors'} · {warnings.length} warnings
+      <CanvasToolbar onSave={onSave} mode={mode} onModeChange={onModeChange} data-testid={`${testId}-toolbar`} />
+      {showValidationIssues && (errors.length > 0 || warnings.length > 0) && (
+        <div className="gba:px-3 gba:py-2 gba:border-b gba:border-border gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:text-xs">
+          <div className="gba:font-medium">
+            {errors.length > 0 ? `${errors.length} errors` : 'No errors'} · {warnings.length} warnings
+          </div>
+          <div className="gba:mt-1.5 gba:flex gba:flex-col gba:gap-1" data-testid={`${testId}-validation-issues`}>
+            {visibleIssues.map(issue => (
+              <div key={issue.id} className="gba:truncate" title={issue.message}>
+                {issue.severity === 'error' ? 'Error' : 'Warning'}: {issue.message}
+              </div>
+            ))}
+            {issues.length > visibleIssues.length ? (
+              <div className="gba:text-[11px] gba:opacity-80">+ {issues.length - visibleIssues.length} more issues</div>
+            ) : null}
+          </div>
         </div>
       )}
       <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col" data-testid={`${testId}-surface`}>
@@ -206,7 +352,6 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
           onNodeSelect={selectNode}
           selectedEdgeId={selectedEdgeId}
           onEdgeSelect={selectEdge}
-          executionState={executionState}
         >
           <FlowCanvas
             definition={definition}

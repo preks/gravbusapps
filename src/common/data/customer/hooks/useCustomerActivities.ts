@@ -44,7 +44,33 @@ export const useCustomerActivities = (context: BusinessAppContextProps) => {
     async (variables: CustomerActivityQueryVariables = {}): Promise<CustomerActivityListData> => {
       const query = buildCustomerActivityQuery()
 
-      const whereCondition = buildCustomerActivityWhereCondition(variables)
+      // Build custom OR conditions for reference type filter
+      // Use nested relationship paths (same pattern as useCustomerTasks)
+      const customConditions: Record<string, any>[] = []
+      if (variables.referenceTypes && variables.referenceTypes.length > 0) {
+        const referenceConditions = variables.referenceTypes
+          .map(type => {
+            switch (type) {
+              case 'account':
+                return { account: { id: { _neq: null } } }
+              case 'contact':
+                return { contact: { id: { _neq: null } } }
+              case 'lead':
+                return { lead: { id: { _neq: null } } }
+              case 'opportunity':
+                return { opportunity: { id: { _neq: null } } }
+              default:
+                return null
+            }
+          })
+          .filter(c => c !== null)
+
+        if (referenceConditions.length > 0) {
+          customConditions.push({ _or: referenceConditions })
+        }
+      }
+
+      const whereCondition = buildCustomerActivityWhereCondition(variables, [], customConditions)
 
       const orderBy = buildCustomerActivityOrderBy(variables.orderBy || [])
       if (orderBy.length === 0) {
@@ -52,7 +78,7 @@ export const useCustomerActivities = (context: BusinessAppContextProps) => {
       }
 
       const graphQLVariables: Record<string, any> = {
-        limit: Math.min(variables.limit || 50, 100),
+        limit: variables.limit || 50,
         offset: variables.offset || 0,
         where: whereCondition,
         orderBy: orderBy

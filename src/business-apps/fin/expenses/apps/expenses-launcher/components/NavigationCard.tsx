@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, IconAvatar } from '@newwork/nw-design-system'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { formatCurrencyLocalized } from '@/business-apps/fin/expenses/apps/expenses-launcher/utils/currencyUtils'
-import * as RemixIcons from '@remixicon/react'
 import { NavigationCardProps } from '../types'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
@@ -13,8 +13,7 @@ const DEFAULT_KPI_VALUES = {
 } as const
 
 const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManagerView, showFinanceView }) => {
-  // Get the icon component dynamically
-  const IconComponent = (RemixIcons as any)[area.icon] || RemixIcons.RiQuestionLine
+  const IconComponent = area.icon
 
   const handleButtonClick = (event: React.MouseEvent) => {
     event.stopPropagation()
@@ -435,7 +434,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
         data-testid={testId}
       >
         <span className="gba:text-gray-700 gba:font-medium">{label}</span>
-        <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+        <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
       </div>
     )
   }

@@ -3,6 +3,7 @@ import { Button, Input } from '@newwork/nw-design-system'
 import { PaperPlaneTilt, Paperclip, At, XIcon, File } from '@phosphor-icons/react'
 import { useEntityMentions, type EntityReference, type MessageEntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
+import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
 import type { Message } from '../types'
 
@@ -80,6 +81,28 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     const lastProcessedPrependRef = useRef<string | null>(null)
     const isTypingRef = useRef<boolean>(false)
 
+    const searchDocuments = useCallback(
+      async (query: string): Promise<EntityReference[]> => {
+        if (!accessToken) return []
+        DocumentApiService.setAccessToken(accessToken)
+        const docs = await DocumentApiService.listDocuments({
+          search: query || undefined,
+          limit: 5,
+          includeShared: true
+        })
+        const lowerQuery = query.toLowerCase()
+        return docs
+          .filter(doc => !query || (doc.title || '').toLowerCase().includes(lowerQuery))
+          .map(doc => ({
+            id: doc.id,
+            type: 'document' as const,
+            name: doc.title || 'Untitled Document',
+            subtitle: `Document${doc.status ? ` • ${doc.status}` : ''}`
+          }))
+      },
+      [accessToken]
+    )
+
     const {
       entities,
       isLoading,
@@ -91,7 +114,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       removeMention: removeMentionFromHook,
       closeMention,
       registerMentionEntity
-    } = useEntityMentions(accessToken, { activeExperts })
+    } = useEntityMentions(accessToken, { activeExperts, searchDocuments })
 
     // Helper to update value (works for both controlled and uncontrolled)
     const setValue = useCallback(
@@ -587,7 +610,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
         // Add mention badge as inline HTML
         const showAvatar = mention.type === 'employee' && mention.pictureThumbnail
-        html += `<span contenteditable="false" class="mention-badge" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; background-color: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); margin: 0 0.125rem; vertical-align: middle; user-select: none; cursor: default;">`
+        html += `<span contenteditable="false" class="mention-badge" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; background-color: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); font-family: inherit; font-size: inherit; font-weight: inherit; margin: 0 0.125rem; vertical-align: middle; user-select: none; cursor: default;">`
         if (showAvatar) {
           html += `<img src="data:image/jpeg;base64,${mention.pictureThumbnail}" alt="${mention.name.replace(/"/g, '&quot;')}" style="width: 0.75rem; height: 0.75rem; border-radius: 9999px; object-fit: cover;" />`
         } else {

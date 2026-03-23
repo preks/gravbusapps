@@ -105,7 +105,10 @@ export const sanitizeInvestmentReport = (
       {
         ...formData.equityInvestment,
         date: reportDate,
-        scope: reportScope as ReportScope | undefined
+        scope: reportScope as ReportScope | undefined,
+        ...(formData.equityInvestment.equityInvestmentId
+          ? { equityInvestmentId: formData.equityInvestment.equityInvestmentId }
+          : {})
       }
     ] as any[]
   } else if (selectedSubtype === 'liquidFund' && formData.liquidFundInvestment) {
@@ -115,7 +118,10 @@ export const sanitizeInvestmentReport = (
         date: reportDate,
         scope: reportScope as ReportScope | undefined,
         // Add liquidFundTypeId if present
-        ...(liquidFundTypeId ? { investmentLiquidFundTypeRef: liquidFundTypeId } : {})
+        ...(liquidFundTypeId ? { investmentLiquidFundTypeRef: liquidFundTypeId } : {}),
+        ...(formData.liquidFundInvestment.liquidFundInvestmentId
+          ? { liquidFundInvestmentId: formData.liquidFundInvestment.liquidFundInvestmentId }
+          : {})
       } as any
     ]
   } else if (selectedSubtype === 'realEstate' && formData.realEstateInvestment) {
@@ -123,7 +129,10 @@ export const sanitizeInvestmentReport = (
       {
         ...formData.realEstateInvestment,
         date: reportDate,
-        scope: reportScope as ReportScope | undefined
+        scope: reportScope as ReportScope | undefined,
+        ...(formData.realEstateInvestment.realEstateInvestmentId
+          ? { realEstateInvestmentId: formData.realEstateInvestment.realEstateInvestmentId }
+          : {})
       }
     ] as any[]
   }

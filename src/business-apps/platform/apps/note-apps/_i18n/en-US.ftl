@@ -1,7 +1,20 @@
+# Hero
+nh-parent-label = Every Office
+nh-title = Notes
+nh-tabs-aria-label = Note sections
+nh-tab-my-notes = My Notes
+nh-tab-shared = Shared
+nh-tab-pinned = Pinned
+nh-tab-recent = Recent
+nh-tab-archived = Archived
+nh-refresh = Refresh
+
 sidebar-back-to-desk = Back to Desk
 sidebar-expand = Expand sidebar
 sidebar-collapse = Collapse sidebar
 sidebar-brand-title = Notes
+sidebar-section-notes = Notes
+sidebar-section-recent = Recent
 sidebar-brand-subtitle = NEWWORK Apps
 sidebar-new = New
 sidebar-home = Home
@@ -18,6 +31,8 @@ menu-new-text-title = Text Note
 menu-new-text-description = Type with keyboard
 menu-new-handwriting-title = Handwriting Note
 menu-new-handwriting-description = Write with Apple Pencil
+menu-new-folder-title = New Folder
+menu-new-folder-description = Organize notes into groups
 menu-new-template-title = From Template
 menu-new-template-description = Choose a template
 
@@ -49,6 +64,8 @@ menu-add-favorite = Add to favorites
 menu-archive = Archive
 menu-delete = Delete
 
+bulk-selected = {$count} selected
+
 owner-you = You
 owner-unknown = Unknown
 title-untitled-note = Untitled Note
@@ -69,6 +86,10 @@ toast-link-copied = Link copied to clipboard
 toast-favorite-removed = Removed from favorites
 toast-favorite-added = Added to favorites
 toast-text-note-created = Text note created
+toast-folder-created = Folder created
+toast-note-moved = Note moved to folder
+toast-move-failed = Failed to move note
+folder-new-folder-name = New Folder
 
 # Relative time
 time-just-now = Just now
@@ -81,6 +102,7 @@ time-days-ago-plural = { $count } days ago
 # FolderTreeSidebar
 folder-add-note-inside = Add Note Inside
 folder-rename = Rename
+menu-rename = Rename
 folder-move-to = Move to...
 folder-folders = Folders
 folder-new-note = New Note
@@ -430,6 +452,26 @@ translation-language-zh = Chinese
 translation-language-ja = Japanese
 translation-language-ko = Korean
 translation-language-ar = Arabic
+
+# Quick Access
+qa-all-notes = All Notes
+qa-favorites = Favorites
+qa-pinned = Pinned
+qa-shared = Shared with Me
+qa-recent = Recent
+qa-archived = Archived
+
+# Tree sidebar
+tree-label = Notes
+tree-empty = No notes in tree
+tree-drag-hint = Drag to reorder or nest notes
+tree-drop-inside = Drop inside
+tree-drop-after = Drop after
+
+# Keyboard shortcuts
+shortcut-toggle-sidebar = Toggle sidebar (⌘B)
+shortcut-new-note = New note (⌘N)
+shortcut-search = Search (⌘K)
 
 # useNoteTree
 note-tree-load-failed = Failed to load note tree

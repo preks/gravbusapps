@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react'
-import { Button, Badge, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { Button, Badge, Popover, PopoverContent, PopoverTrigger, Spinner } from '@newwork/nw-design-system'
 import { Filter, ArrowUpDown, Plus, X, Search } from 'lucide-react'
 import type { BoardColumn, BoardQuickFilter, ViewFilter, ViewSort, FilterConnector } from '../../types'
 import { getDefaultOperator } from '../../utils/filterOperators'
@@ -29,6 +29,7 @@ interface FilterSortToolbarProps {
   onClearAll: () => void
   quickSearch: string
   onQuickSearchChange: (v: string) => void
+  isSearching?: boolean
   quickFilters?: BoardQuickFilter[]
   activeQuickFilterIds?: string[]
   onToggleQuickFilter?: (id: string) => void
@@ -55,6 +56,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
   onClearAll,
   quickSearch,
   onQuickSearchChange,
+  isSearching,
   quickFilters,
   activeQuickFilterIds,
   onToggleQuickFilter,
@@ -115,12 +117,15 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
       {/* Quick search */}
       <div className="gba:relative gba:flex gba:items-center">
         <Search className="gba:absolute gba:left-2 gba:w-3 gba:h-3 gba:text-muted-foreground gba:pointer-events-none" />
+        {isSearching ? (
+          <Spinner size="sm" className="gba:absolute gba:right-2 gba:w-3 gba:h-3 gba:text-muted-foreground" />
+        ) : null}
         <input
           type="text"
           value={quickSearch}
           onChange={e => onQuickSearchChange(e.target.value)}
           placeholder="Search..."
-          className="gba:h-7 gba:pl-7 gba:pr-2 gba:text-xs gba:rounded-md gba:border gba:border-border gba:bg-background gba:outline-none gba:focus:ring-1 gba:focus:ring-primary gba:w-44 gba:transition-all gba:placeholder-muted-foreground"
+          className="gba:h-7 gba:pl-7 gba:pr-7 gba:text-xs gba:rounded-md gba:border gba:border-border gba:bg-background gba:outline-none gba:focus:ring-1 gba:focus:ring-primary gba:w-44 gba:transition-all gba:placeholder-muted-foreground"
           data-testid={`${testId}-search`}
         />
       </div>

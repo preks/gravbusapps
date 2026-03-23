@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Alert, AlertDescription, Button } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Button, Card, CardContent } from '@newwork/nw-design-system'
 import {
   UserIcon,
   CurrencyDollarIcon,
@@ -28,18 +28,10 @@ const StatCard: React.FC<StatCardProps> = ({ icon, iconColor, label, value, subt
       <span className="gba:text-xs" style={{ color: iconColor }}>
         {icon}
       </span>
-      <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-        {label}
-      </span>
+      <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">{label}</span>
     </div>
-    <div className="gba:text-sm gba:font-bold" style={{ color: 'var(--color-text-primary)' }}>
-      {value}
-    </div>
-    {subtitle && (
-      <div className="gba:text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-        {subtitle}
-      </div>
-    )}
+    <div className="gba:text-sm gba:font-bold gba:text-foreground">{value}</div>
+    {subtitle && <div className="gba:text-xs gba:text-muted-foreground">{subtitle}</div>}
   </div>
 )
 
@@ -50,15 +42,16 @@ interface EmptyStateProps {
 }
 
 const EmptyState: React.FC<EmptyStateProps> = ({ icon, message }) => (
-  <div className="gba:p-8 gba:text-center gba:rounded-lg" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
-    <div className="gba:text-3xl gba:mb-2">{icon}</div>
-    <div style={{ color: 'var(--color-text-secondary)' }}>{message}</div>
-  </div>
+  <Card className="gba:border-dashed">
+    <CardContent className="gba:p-8 gba:text-center">
+      <div className="gba:text-3xl gba:mb-2 gba:text-muted-foreground">{icon}</div>
+      <p className="gba:text-sm gba:text-muted-foreground">{message}</p>
+    </CardContent>
+  </Card>
 )
 
 // Reusable performance card component
 interface PerformanceCardProps {
-  id: string
   name: string
   subtitle?: string
   index: number
@@ -75,7 +68,6 @@ interface PerformanceCardProps {
 }
 
 const PerformanceCard: React.FC<PerformanceCardProps> = ({
-  id,
   name,
   subtitle,
   index,
@@ -84,54 +76,33 @@ const PerformanceCard: React.FC<PerformanceCardProps> = ({
   revenueLabel = 'Revenue',
   testIdPrefix
 }) => (
-  <div
-    key={id}
-    className="gba:p-4 gba:rounded-lg"
-    style={{
-      backgroundColor: 'var(--color-surface-primary)',
-      boxShadow: 'var(--shadow-md)',
-      border: 'var(--border-width-thin) solid var(--color-border-default)'
-    }}
-    data-testid={`${testIdPrefix}-${index}`}
-  >
-    <div className="gba:flex gba:items-center gba:justify-between">
-      <div className="gba:flex gba:items-center gba:gap-3">
-        {index === 0 && <TrophyIcon className="gba:text-lg" style={{ color: 'var(--color-warning-500)' }} />}
-        <div>
-          <h4 className="gba:text-sm gba:font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            {name}
-          </h4>
-          <span
-            className="gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:font-medium"
-            style={{
-              backgroundColor: 'var(--color-surface-secondary)',
-              color: 'var(--color-text-primary)'
-            }}
-          >
-            #{index + 1}
-          </span>
-          {subtitle && (
-            <div className="gba:text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-              {subtitle}
+  <Card data-testid={`${testIdPrefix}-${index}`}>
+    <CardContent className="gba:p-4">
+      <div className="gba:flex gba:flex-col gba:gap-4 gba:sm:flex-row gba:sm:items-center gba:sm:justify-between">
+        <div className="gba:flex gba:items-start gba:gap-3 gba:min-w-0">
+          {index === 0 && <TrophyIcon className="gba:text-lg gba:shrink-0 gba:text-[var(--nw-chart-4)]" aria-hidden />}
+          <div className="gba:min-w-0">
+            <h4 className="gba:text-sm gba:font-semibold gba:text-foreground gba:truncate">{name}</h4>
+            <span className="gba:inline-block gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:font-medium gba:bg-muted gba:text-foreground gba:mt-1">
+              #{index + 1}
+            </span>
+            {subtitle && <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{subtitle}</div>}
+          </div>
+        </div>
+        <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:sm:gap-6 gba:flex-1 gba:justify-end">
+          {stats.map(stat => (
+            <StatCard key={stat.label} {...stat} />
+          ))}
+          <div className="gba:text-center gba:w-full gba:border-t gba:border-border gba:pt-4 gba:sm:w-auto gba:sm:border-t-0 gba:sm:border-l gba:sm:pt-0 gba:sm:pl-4 gba:min-w-24">
+            <div className="gba:text-xs gba:mb-1 gba:text-muted-foreground">{revenueLabel}</div>
+            <div className="gba:text-lg gba:font-bold gba:text-[var(--nw-chart-2)]">
+              {formatCurrencyCompact(revenue, 'USD')}
             </div>
-          )}
-        </div>
-      </div>
-      <div className="gba:flex gba:items-center gba:gap-6">
-        {stats.map(stat => (
-          <StatCard key={stat.label} {...stat} />
-        ))}
-        <div className="gba:text-center gba:pl-4 gba:border-l" style={{ borderColor: 'var(--color-border-default)' }}>
-          <div className="gba:text-xs gba:mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-            {revenueLabel}
-          </div>
-          <div className="gba:text-lg gba:font-bold" style={{ color: 'var(--color-success-600)' }}>
-            {formatCurrencyCompact(revenue, 'USD')}
           </div>
         </div>
       </div>
-    </div>
-  </div>
+    </CardContent>
+  </Card>
 )
 
 // Map employee analytics item into the performer UI model
@@ -250,11 +221,8 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
   if (isLoading) {
     return (
       <div className="gba:p-8 gba:text-center" data-testid="campaigns-top-performers-loading">
-        <div
-          className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:mx-auto gba:mb-4"
-          style={{ borderColor: 'var(--color-primary-500)' }}
-        />
-        <p style={{ color: 'var(--color-text-secondary)' }}>
+        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-primary gba:mx-auto gba:mb-4" />
+        <p className="gba:text-sm gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.loading', 'Loading top performers...')}
         </p>
       </div>
@@ -263,37 +231,35 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
 
   if (error) {
     return (
-      <div
-        className="gba:p-6 gba:rounded-lg gba:shadow-md"
-        style={{ backgroundColor: 'var(--color-surface-primary)' }}
-        data-testid="campaigns-top-performers-error"
-      >
-        <Alert variant="destructive">
-          <AlertDescription>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <div>
-                <div className="gba:font-semibold gba:mb-1">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'campaigns.analytics.topPerformers.errorTitle',
-                    'Error Loading Top Performers'
-                  )}
+      <Card data-testid="campaigns-top-performers-error">
+        <CardContent className="gba:p-6">
+          <Alert variant="destructive">
+            <AlertDescription>
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <div>
+                  <div className="gba:font-semibold gba:mb-1">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'campaigns.analytics.topPerformers.errorTitle',
+                      'Error Loading Top Performers'
+                    )}
+                  </div>
+                  <div>{error}</div>
                 </div>
-                <div>{error}</div>
+                {onRetry && (
+                  <Button variant="outline" size="sm" onClick={onRetry}>
+                    {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
+                  </Button>
+                )}
               </div>
-              {onRetry && (
-                <Button variant="outline" size="sm" onClick={onRetry}>
-                  {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
-                </Button>
-              )}
-            </div>
-          </AlertDescription>
-        </Alert>
-      </div>
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
     )
   }
 
   // UI matching record view with tabs
-  const performers = (topEmployees || []).map(mapEmployeeToPerformer)
+  const performers = (topEmployees || []).slice(0, 5).map(mapEmployeeToPerformer)
 
   // Build tabs for Top Campaigns and Top Employees
   return (
@@ -312,7 +278,7 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
             key: 'campaigns',
             children: (
               <div
-                className="gba:space-y-6 gba:bg-white gba:pb-6"
+                className="gba:space-y-4 gba:bg-muted gba:rounded-lg gba:p-4"
                 style={{ maxHeight: '480px', overflowY: 'auto', overflowX: 'hidden' }}
                 data-testid="top-campaigns-list"
               >
@@ -322,7 +288,6 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
                     .map((c, index) => (
                       <PerformanceCard
                         key={c.campaignId}
-                        id={c.campaignId}
                         name={c.campaignName}
                         subtitle={`${c.campaignType} • ${c.status}`}
                         index={index}
@@ -354,7 +319,7 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
             key: 'employees',
             children: (
               <div
-                className="gba:space-y-6 gba:bg-white gba:pb-6"
+                className="gba:space-y-4 gba:bg-muted gba:rounded-lg gba:p-4"
                 style={{ maxHeight: '480px', overflowY: 'auto', overflowX: 'hidden' }}
                 data-testid="top-employees-list"
               >
@@ -362,7 +327,6 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
                   performers.map((performer: PerformerData, index: number) => (
                     <PerformanceCard
                       key={performer.employeeId}
-                      id={performer.employeeId}
                       name={performer.employeeName}
                       index={index}
                       stats={buildPerformerStats(performer)}

@@ -9,15 +9,9 @@
  * - sharedDocuments: Documents shared with this user by others
  */
 
-const PROMPT_MANAGER_ENDPOINT = '/prompt-manager/api/v1/user-data'
-const DOCUMENT_INDEX_KEY = 'document-apps-index'
+import { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
-interface UserDataResponse {
-  user_id: string
-  key: string
-  data: DocumentSyncData
-  updated_at: string
-}
+const DOCUMENT_INDEX_KEY = 'document-apps-index'
 
 export interface SharedDocumentEntry {
   documentId: string
@@ -36,12 +30,22 @@ export interface DocumentSyncData {
   updatedAt: string
 }
 
-export class DocumentDataSyncService {
-  private accessToken: string
-  private userId: string
+function createAuthorizedPromptManagerClient(accessToken: string) {
+  const promptManagerClient = new PromptManagerClient()
+  promptManagerClient.setAccessToken(accessToken)
+  return promptManagerClient
+}
 
-  constructor(accessToken: string, userId: string) {
-    this.accessToken = accessToken
+export class DocumentDataSyncService {
+  private readonly promptManagerClient: PromptManagerClient
+  private readonly userId: string
+
+  constructor(
+    accessToken: string,
+    userId: string,
+    promptManagerClient = createAuthorizedPromptManagerClient(accessToken)
+  ) {
+    this.promptManagerClient = promptManagerClient
     this.userId = userId
   }
 
@@ -49,34 +53,12 @@ export class DocumentDataSyncService {
    * Get the full sync data from the backend
    */
   async getSyncData(): Promise<DocumentSyncData | null> {
-    const url = `${PROMPT_MANAGER_ENDPOINT}/${DOCUMENT_INDEX_KEY}?user_id=${encodeURIComponent(this.userId)}`
-
     try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.status === 404 || response.status === 204) {
+      const response = await this.promptManagerClient.getUserData<DocumentSyncData>(DOCUMENT_INDEX_KEY, this.userId)
+      if (!response?.data) {
         return null
       }
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.warn('[DocumentSync] Failed to get sync data:', response.status, errorText)
-        return null
-      }
-
-      const data: UserDataResponse | null = await response.json()
-
-      if (!data || !data.data) {
-        return null
-      }
-
-      return data.data
+      return response.data
     } catch (error) {
       console.warn('[DocumentSync] Error getting sync data:', error)
       return null
@@ -104,24 +86,8 @@ export class DocumentDataSyncService {
    * Save the full sync data
    */
   async saveSyncData(data: DocumentSyncData): Promise<boolean> {
-    const url = `${PROMPT_MANAGER_ENDPOINT}/${DOCUMENT_INDEX_KEY}?user_id=${encodeURIComponent(this.userId)}`
-
     try {
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ data })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.warn('[DocumentSync] Failed to save sync data:', response.status, errorText)
-        return false
-      }
-
+      await this.promptManagerClient.putUserData(DOCUMENT_INDEX_KEY, this.userId, data)
       return true
     } catch (error) {
       console.warn('[DocumentSync] Error saving sync data:', error)
@@ -155,28 +121,18 @@ export class DocumentDataSyncService {
   ): Promise<boolean> {
     try {
       // Get recipient's current sync data
-      const response = await fetch(
-        `${PROMPT_MANAGER_ENDPOINT}/${DOCUMENT_INDEX_KEY}?user_id=${encodeURIComponent(recipientUserId)}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
-
       let recipientData: DocumentSyncData = {
         indexFilePath: '',
         sharedDocuments: [],
         updatedAt: new Date().toISOString()
       }
 
-      if (response.ok) {
-        const data: UserDataResponse | null = await response.json()
-        if (data?.data) {
-          recipientData = data.data
-        }
+      const existingRecipientData = await this.promptManagerClient.getUserData<DocumentSyncData>(
+        DOCUMENT_INDEX_KEY,
+        recipientUserId
+      )
+      if (existingRecipientData?.data) {
+        recipientData = existingRecipientData.data
       }
 
       // Check if document is already shared
@@ -203,23 +159,7 @@ export class DocumentDataSyncService {
       recipientData.updatedAt = new Date().toISOString()
 
       // Save recipient's updated sync data
-      const saveResponse = await fetch(
-        `${PROMPT_MANAGER_ENDPOINT}/${DOCUMENT_INDEX_KEY}?user_id=${encodeURIComponent(recipientUserId)}`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ data: recipientData })
-        }
-      )
-
-      if (!saveResponse.ok) {
-        console.warn('[DocumentSync] Failed to share with user:', saveResponse.status)
-        return false
-      }
-
+      await this.promptManagerClient.putUserData(DOCUMENT_INDEX_KEY, recipientUserId, recipientData)
       return true
     } catch (error) {
       console.warn('[DocumentSync] Error sharing document:', error)
@@ -233,44 +173,21 @@ export class DocumentDataSyncService {
   async revokeDocumentAccess(recipientUserId: string, documentId: string): Promise<boolean> {
     try {
       // Get recipient's current sync data
-      const response = await fetch(
-        `${PROMPT_MANAGER_ENDPOINT}/${DOCUMENT_INDEX_KEY}?user_id=${encodeURIComponent(recipientUserId)}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
+      const existingRecipientData = await this.promptManagerClient.getUserData<DocumentSyncData>(
+        DOCUMENT_INDEX_KEY,
+        recipientUserId
       )
-
-      if (!response.ok) {
+      if (!existingRecipientData?.data) {
         return false
       }
 
-      const data: UserDataResponse | null = await response.json()
-      if (!data?.data) {
-        return false
-      }
-
-      const recipientData = data.data
+      const recipientData = existingRecipientData.data
       recipientData.sharedDocuments = recipientData.sharedDocuments.filter(d => d.documentId !== documentId)
       recipientData.updatedAt = new Date().toISOString()
 
       // Save updated sync data
-      const saveResponse = await fetch(
-        `${PROMPT_MANAGER_ENDPOINT}/${DOCUMENT_INDEX_KEY}?user_id=${encodeURIComponent(recipientUserId)}`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ data: recipientData })
-        }
-      )
-
-      return saveResponse.ok
+      await this.promptManagerClient.putUserData(DOCUMENT_INDEX_KEY, recipientUserId, recipientData)
+      return true
     } catch (error) {
       console.warn('[DocumentSync] Error revoking access:', error)
       return false

@@ -11,6 +11,21 @@ export interface AnalyzeRequest {
   prompt: string
   context?: Record<string, unknown>
   answers?: Record<string, string>
+  /** Optional existing session context to create a plan against an already prepared app session. */
+  sessionId?: string
+  /** Optional existing repository context paired with sessionId. */
+  repoId?: string
+  /** Builder identity (user who initiated the build) */
+  createdBy?: {
+    id: string
+    employeeId?: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+    email?: string
+    pictureThumbnail?: string
+    consentToStorePii?: boolean
+  }
 }
 
 // Response from analyze endpoint
@@ -19,6 +34,59 @@ export interface AnalyzeResponse {
   plan?: BuildPlan
   refinementSummary?: string
   error?: string
+}
+
+export type TurnIntent =
+  | 'auto'
+  | 'plan_create'
+  | 'plan_refine'
+  | 'build_execute'
+  | 'ui_mutate'
+  | 'publish'
+  | 'wiring_retry'
+export type TurnScope = 'ui_only' | 'orchestrator_full'
+
+export interface TurnRequest {
+  intent: TurnIntent
+  scope: TurnScope
+  prompt?: string
+  jobId?: string
+  sessionId?: string
+  repoId?: string
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+  plan?: BuildPlan
+  skipComponents?: string[]
+  context?: Record<string, unknown>
+  answers?: Record<string, string>
+  versionType?: 'major' | 'minor'
+  versionNote?: string
+  customSystemPrompt?: string
+  createdBy?: AnalyzeRequest['createdBy']
+}
+
+export interface TurnEvent {
+  type: string
+  eventType?: string
+  error?: string
+  message?: string
+  content?: string
+  data?: unknown
+  plan?: BuildPlan
+  metadata?: Record<string, unknown>
+  result?: unknown
+  jobId?: string
+  status?: string
+  timestamp?: string
+  [key: string]: unknown
+}
+
+export interface AnalyzeStreamEvent {
+  type: string
+  content?: string
+  progress?: number
+  metadata?: Record<string, unknown>
+  result?: AnalyzeResponse
+  timestamp?: string
 }
 
 // Request to execute a build plan
@@ -30,6 +98,17 @@ export interface ExecuteRequest {
   sessionId?: string
   /** Reuse existing repo when refining / executing again; omit on first run */
   repoId?: string
+  /** Builder identity (user who initiated the build) */
+  createdBy?: {
+    id: string
+    employeeId?: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+    email?: string
+    pictureThumbnail?: string
+    consentToStorePii?: boolean
+  }
 }
 
 // Request to update an existing build plan
@@ -43,6 +122,7 @@ export interface UpdatePlanRequest {
 // Request to refine an existing build plan with natural language feedback
 export interface RefinePlanRequest {
   feedback: string
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
 }
 
 // Query params for list plans (GET /orchestration/plans)
@@ -74,4 +154,92 @@ export interface ListPlansResponse {
   data: BuildPlan[]
   paging: ListPlansPaging
   _links: ListPlansLinks
+}
+
+export interface DraftCheckpoint {
+  checkpointId: string
+  jobId: string
+  sessionId: string
+  repoId?: string | null
+  name?: string | null
+  chatCheckpointMessageId?: string | null
+  snapshot: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateDraftCheckpointRequest {
+  jobId: string
+  sessionId: string
+  repoId?: string
+  name?: string
+  chatCheckpointMessageId?: string
+  snapshot?: Record<string, unknown>
+}
+
+export interface RestoreDraftCheckpointRequest {
+  checkpointId: string
+  sessionId?: string
+  applyPlanSnapshot?: boolean
+}
+
+export interface RestoreDraftCheckpointResponse {
+  checkpoint: DraftCheckpoint
+  planRestored?: boolean
+  draftDatamodels: Array<Record<string, unknown>>
+  datamodelArtifacts: Array<Record<string, unknown>>
+}
+
+export interface ResolveDraftCheckpointByMessageParams {
+  sessionId: string
+  chatCheckpointMessageId: string
+  jobId?: string
+}
+
+export interface OrchestrationStateNode {
+  id: string
+  label: string
+  terminal: boolean
+}
+
+export interface OrchestrationStateTransition {
+  from: string
+  to: string
+  label: string
+}
+
+export interface OrchestrationStateMachineResponse {
+  states: OrchestrationStateNode[]
+  transitions: OrchestrationStateTransition[]
+}
+
+export interface JobsByStateJobSummary {
+  jobId: string
+  state: string
+  originalPrompt: string
+  currentPhase?: string | null
+  sessionId?: string | null
+  repoId?: string | null
+  startedAt?: string | null
+  completedAt?: string | null
+  createdAt: string
+}
+
+export interface JobsByStateBucket {
+  state: string
+  count: number
+  jobs: JobsByStateJobSummary[]
+}
+
+export interface JobsByStateResponse {
+  buckets: JobsByStateBucket[]
+}
+
+export interface JobsPageResponse {
+  data: JobsByStateJobSummary[]
+  paging: {
+    limit: number
+    offset: number
+    totalRecords: number
+  }
 }

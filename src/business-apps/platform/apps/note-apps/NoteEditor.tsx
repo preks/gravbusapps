@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
+import './note-editor.css'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -74,7 +75,8 @@ import {
   ListTodo,
   RefreshCw,
   LayoutGrid,
-  Plus
+  Plus,
+  PanelLeft
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCollaboration } from '../shared/hooks/useCollaboration'
@@ -90,8 +92,6 @@ import { useEditorKeyboardIsolation } from '../shared/hooks/useEditorKeyboardIso
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../spaces/hooks/useSpaceDocumentActivity'
 import { VersionHistory } from '../shared/components/VersionHistory'
 import { CheckpointDialog } from '../shared/components/CheckpointDialog'
-import { AutoSaveIndicator } from '../shared/components/AutoSaveIndicator'
-import { StatusBadge } from '../shared/components/StatusBadge'
 import { PublishDialog } from '../shared/components/PublishDialog'
 import { CommentPanel } from '../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../shared/components/InlineCommentPopover'
@@ -135,7 +135,7 @@ import noteAppTranslations from './_i18n'
 
 // Note color mapping (labels via i18n key editor-color-{value})
 const noteColors: Array<{ value: NoteColor; class: string }> = [
-  { value: 'default', class: 'gba:bg-card' },
+  { value: 'default', class: 'gba:bg-sidebar' },
   { value: 'red', class: 'gba:bg-red-100 dark:gba:bg-red-900/20' },
   { value: 'orange', class: 'gba:bg-orange-100 dark:gba:bg-orange-900/20' },
   { value: 'yellow', class: 'gba:bg-yellow-100 dark:gba:bg-yellow-900/20' },
@@ -255,6 +255,10 @@ export interface NoteEditorProps extends Partial<BusinessAppContextProps> {
   onDuplicate?: () => void
   onColorChange?: (color: NoteColor) => void
   isReadOnly?: boolean
+  isSidebarCollapsed?: boolean
+  onToggleSidebar?: () => void
+  onTitleChanged?: (noteId: string, newTitle: string) => void
+  onContentSaved?: (noteId: string) => void
   'data-testid'?: string
 }
 
@@ -272,6 +276,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   onDuplicate,
   onColorChange,
   isReadOnly = false,
+  isSidebarCollapsed,
+  onToggleSidebar,
+  onTitleChanged,
+  onContentSaved,
   accessToken: accessTokenProp,
   userInfo,
   'data-testid': testId = 'note-editor'
@@ -284,10 +292,29 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [noteColor, setNoteColor] = useState<NoteColor>(note.color || 'default')
 
+  const prevNoteIdRef = useRef(note.id)
+  if (prevNoteIdRef.current !== note.id) {
+    prevNoteIdRef.current = note.id
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+      autoSaveTimeoutRef.current = null
+    }
+    setTitle(note.title || '')
+    setNoteColor(note.color || 'default')
+    setLastSaved(new Date(note.updatedAt))
+    setHasUnsavedChanges(false)
+    setIsSaving(false)
+  }
+
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const editorRef = useRef<any>(null)
   const editorContainerRef = useRef<HTMLDivElement>(null)
+
+  const noteIdRef = useRef(note.id)
+  const titleRef = useRef(title)
+  noteIdRef.current = note.id
+  titleRef.current = title
 
   // AI Transform + Action Items state (persisted in note.contentJson)
   const initialMeta = (note.contentJson as Record<string, unknown> | undefined) || undefined
@@ -587,30 +614,35 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const scheduleSnapshotSave = useCallback(
     (currentEditor: any) => {
       if (!note.id || isReadOnly) return
-      // Allow saving even if Yjs sync hasn't completed
+      if (currentEditor !== editorRef.current) return
 
+      const scheduledForNoteId = note.id
       setHasUnsavedChanges(true)
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current)
       }
 
       autoSaveTimeoutRef.current = setTimeout(() => {
+        if (noteIdRef.current !== scheduledForNoteId) return
         const html = currentEditor?.getHTML?.() || ''
-        NoteApiService.updateNote(note.id, {
-          title,
+        NoteApiService.updateNote(scheduledForNoteId, {
+          title: titleRef.current,
           content: html,
           createVersion: false
         })
           .then(() => {
-            setLastSaved(new Date())
-            setHasUnsavedChanges(false)
+            if (noteIdRef.current === scheduledForNoteId) {
+              setLastSaved(new Date())
+              setHasUnsavedChanges(false)
+              onContentSaved?.(scheduledForNoteId)
+            }
           })
           .catch(error => {
             console.error('[NoteEditor] Snapshot save failed:', error)
           })
       }, 2000)
     },
-    [note.id, isReadOnly, title]
+    [note.id, isReadOnly, onContentSaved]
   )
 
   useEffect(() => {
@@ -1180,11 +1212,33 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   }, [editor, isReadOnly])
 
-  // Cleanup
+  const flushSave = useCallback(() => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+      autoSaveTimeoutRef.current = null
+    }
+    const id = noteIdRef.current
+    const currentTitle = titleRef.current
+    const html = editorRef.current?.getHTML?.()
+    if (!id || isReadOnly || !html) return
+    NoteApiService.updateNote(id, { title: currentTitle, content: html, createVersion: false }).catch(() => {})
+  }, [isReadOnly])
+
+  const handleBack = useCallback(() => {
+    void flushSave()
+    onBack()
+  }, [flushSave, onBack])
+
   useEffect(() => {
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current)
+      }
+      const id = noteIdRef.current
+      const currentTitle = titleRef.current
+      const html = editorRef.current?.getHTML?.()
+      if (id && !isReadOnly && html) {
+        NoteApiService.updateNote(id, { title: currentTitle, content: html, createVersion: false }).catch(() => {})
       }
     }
   }, [])
@@ -1201,28 +1255,31 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         clearTimeout(autoSaveTimeoutRef.current)
       }
 
+      const targetNoteId = note.id
       autoSaveTimeoutRef.current = setTimeout(async () => {
-        if (isReadOnly) return
+        if (isReadOnly || noteIdRef.current !== targetNoteId) return
 
         const html = editor?.getHTML() || note.content || ''
 
-        if (note.id) {
+        if (targetNoteId) {
           try {
-            await NoteApiService.updateNote(note.id, {
+            await NoteApiService.updateNote(targetNoteId, {
               title: newTitle,
               content: html,
               createVersion: false
             })
-            setLastSaved(new Date())
-            setHasUnsavedChanges(false)
-            console.log('[NoteEditor] Auto-saved title:', newTitle)
+            if (noteIdRef.current === targetNoteId) {
+              setLastSaved(new Date())
+              setHasUnsavedChanges(false)
+            }
+            onTitleChanged?.(targetNoteId, newTitle)
           } catch (error) {
             console.error('[NoteEditor] Title auto-save failed:', error)
           }
         }
       }, 1500)
     },
-    [editor, note.id, note.content, isReadOnly]
+    [editor, note.id, note.content, isReadOnly, onTitleChanged]
   )
 
   // Handle title keydown - Enter moves to editor
@@ -1753,196 +1810,189 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   return (
     <div className={`gba:flex gba:flex-col gba:h-full ${bgColorClass}`} data-testid={testId}>
-      {/* Header - Modern spreadsheet-style */}
-      <div className="gba:border-b gba:bg-card gba:sticky gba:top-0 gba:z-10">
-        <div className="gba:px-4 gba:py-2">
+      {/* Header */}
+      <div className="gba:border-b gba:border-sidebar-border/40 gba:bg-sidebar gba:sticky gba:top-0 gba:z-10">
+        <div className="gba:px-4 gba:py-1.5">
           <div className="gba:flex gba:items-center gba:justify-between">
-            {/* Left side - Back & Title */}
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <Button variant="ghost" size="sm" onClick={onBack} className="gba:gap-2">
+            {/* Left side */}
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {isSidebarCollapsed && onToggleSidebar && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="gba:h-8 gba:w-8"
+                  onClick={onToggleSidebar}
+                  data-testid="editor-expand-sidebar"
+                >
+                  <PanelLeft className="gba:w-4 gba:h-4" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBack}
+                className="gba:gap-1.5 gba:text-muted-foreground hover:gba:text-foreground"
+              >
                 <ArrowLeft className="gba:w-4 gba:h-4" />
                 {t('editor-back')}
               </Button>
 
-              <Separator orientation="vertical" className="gba:h-6" />
-
-              {/* Note icon/emoji */}
-              <div className="gba:flex gba:items-center gba:gap-3">
-                <div className="gba:w-9 gba:h-9 gba:rounded-lg gba:bg-gradient-to-br gba:from-amber-500/20 gba:to-orange-500/20 gba:flex gba:items-center gba:justify-center gba:text-lg">
-                  {note.icon || '📝'}
-                </div>
-                <div className="gba:flex gba:flex-col">
-                  <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:max-w-[200px]">
-                    {title || t('title-untitled-note')}
-                  </span>
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-                    {isSaving ? (
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                        {t('editor-saving')}
-                      </span>
-                    ) : hasUnsavedChanges ? (
-                      <span className="gba:flex gba:items-center gba:gap-1 gba:text-warning-foreground">
-                        <Clock className="gba:w-3 gba:h-3" />
-                        {t('editor-unsaved')}
-                      </span>
-                    ) : lastSaved ? (
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
-                        {formatLastSaved(lastSaved)}
-                      </span>
-                    ) : null}
-                    <span>•</span>
-                    <span>{t('editor-word-count', { count: wordCount })}</span>
-                  </div>
-                </div>
-              </div>
+              <span className="gba:text-xs gba:text-muted-foreground/60 gba:hidden gba:sm:inline-flex gba:items-center gba:gap-1.5">
+                {isSaving ? (
+                  <>
+                    <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
+                    {t('editor-saving')}
+                  </>
+                ) : hasUnsavedChanges ? (
+                  <>
+                    <Clock className="gba:w-3 gba:h-3" />
+                    {t('editor-unsaved')}
+                  </>
+                ) : lastSaved ? (
+                  <>
+                    <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
+                    {formatLastSaved(lastSaved)}
+                  </>
+                ) : null}
+                <span className="gba:mx-0.5">·</span>
+                {t('editor-word-count', { count: wordCount })}
+              </span>
             </div>
 
             {/* Right side - Actions */}
-            <div className="gba:flex gba:items-center gba:gap-2">
-              {/* Action items panel button for iPad/mobile (only when tasks exist) */}
-              {actionItemFlows.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActionItemsPanelOpen(true)}
-                  className="gba:gap-2 gba:lg:hidden"
-                  data-testid={`${testId}-action-items-open`}
-                >
-                  <ListTodo className="gba:w-4 gba:h-4" />
-                  {t('handwriting-tasks', { count: actionItemFlows.length })}
-                </Button>
-              )}
-
+            <div className="gba:flex gba:items-center gba:gap-0.5">
               {/* Active collaborators */}
               {participants.length > 0 && (
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2 gba:pr-2 gba:border-r">
+                <div className="gba:flex gba:items-center gba:gap-1.5 gba:mr-1.5 gba:pr-1.5 gba:border-r gba:border-sidebar-border/40">
                   <PresenceIndicator participants={participants} maxVisible={4} size="sm" showLabel={false} />
-                  <span className="gba:text-xs gba:text-muted-foreground">
+                  <span className="gba:text-[11px] gba:text-muted-foreground/60 gba:hidden gba:md:inline">
                     {t('editor-active-collaborators', { count: participants.length })}
                   </span>
                 </div>
               )}
 
-              {/* Color picker */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="gba:h-8 gba:w-8">
-                          <Palette className="gba:w-4 gba:h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <div className="gba:grid gba:grid-cols-5 gba:gap-1 gba:p-2">
-                          {noteColors.map(color => (
-                            <button
-                              key={color.value}
-                              className={`gba:w-6 gba:h-6 gba:rounded-full gba:border-2 gba:transition-transform hover:gba:scale-110 ${
-                                noteColor === color.value
-                                  ? 'gba:border-primary gba:scale-110'
-                                  : 'gba:border-transparent'
-                              } ${color.class}`}
-                              onClick={() => handleColorChange(color.value)}
-                              title={t(`editor-color-${color.value}`)}
-                            />
-                          ))}
-                        </div>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('editor-change-color')}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              {/* Share button */}
-              {onShare && (
-                <TooltipProvider>
+              {/* Icon actions group */}
+              <TooltipProvider delayDuration={300}>
+                {/* Color picker */}
+                <DropdownMenu>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="gba:h-8 gba:w-8" onClick={onShare}>
-                        <Share2 className="gba:w-4 gba:h-4" />
-                      </Button>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="gba:h-7 gba:w-7 gba:text-muted-foreground hover:gba:text-foreground"
+                        >
+                          <Palette className="gba:w-3.5 gba:h-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
                     </TooltipTrigger>
-                    <TooltipContent>{t('editor-share-tooltip')}</TooltipContent>
+                    <TooltipContent>{t('editor-change-color')}</TooltipContent>
                   </Tooltip>
-                </TooltipProvider>
-              )}
+                  <DropdownMenuContent align="end">
+                    <div className="gba:grid gba:grid-cols-5 gba:gap-1 gba:p-2">
+                      {noteColors.map(color => (
+                        <button
+                          key={color.value}
+                          className={`gba:w-6 gba:h-6 gba:rounded-full gba:border-2 gba:transition-transform hover:gba:scale-110 ${
+                            noteColor === color.value ? 'gba:border-primary gba:scale-110' : 'gba:border-transparent'
+                          } ${color.class}`}
+                          onClick={() => handleColorChange(color.value)}
+                          title={t(`editor-color-${color.value}`)}
+                        />
+                      ))}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-              {/* Pin button */}
-              {onTogglePin && (
-                <TooltipProvider>
+                {/* Share */}
+                {onShare && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className={`gba:h-8 gba:w-8 ${note.isPinned ? 'gba:text-amber-500' : ''}`}
+                        className="gba:h-7 gba:w-7 gba:text-muted-foreground hover:gba:text-foreground"
+                        onClick={onShare}
+                      >
+                        <Share2 className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-share-tooltip')}</TooltipContent>
+                  </Tooltip>
+                )}
+
+                {/* Pin */}
+                {onTogglePin && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`gba:h-7 gba:w-7 ${note.isPinned ? 'gba:text-primary' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
                         onClick={onTogglePin}
                       >
-                        <Pin className={`gba:w-4 gba:h-4 ${note.isPinned ? 'gba:fill-current' : ''}`} />
+                        <Pin className={`gba:w-3.5 gba:h-3.5 ${note.isPinned ? 'gba:fill-current' : ''}`} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
                       {note.isPinned ? t('editor-unpin-tooltip') : t('editor-pin-tooltip')}
                     </TooltipContent>
                   </Tooltip>
-                </TooltipProvider>
-              )}
-
-              {/* Versioning Features - Clean */}
-              <Separator orientation="vertical" className="gba:h-6" />
-
-              {/* Auto-save indicator */}
-              <AutoSaveIndicator
-                isSaving={versioning.isSaving}
-                lastSaveTime={versioning.lastSaveTime}
-                hasUnsavedChanges={versioning.hasUnsavedChanges}
-                onManualSave={() => setShowCheckpointDialog(true)}
-                data-testid="note-auto-save-indicator"
-              />
-
-              {/* Comments button */}
-              <Button
-                variant={showComments ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setShowComments(!showComments)}
-                title={t('editor-comments-tooltip')}
-                data-testid="note-comments-button"
-                className="gba:h-8"
-              >
-                <MessageSquare className="gba:w-4 gba:h-4" />
-                {comments.unresolvedCount > 0 && (
-                  <Badge variant="warning" className="gba:ml-1 gba:px-1 gba:py-0 gba:h-4 gba:text-xs">
-                    {comments.unresolvedCount}
-                  </Badge>
                 )}
-              </Button>
 
-              {/* Lock status (compact) */}
-              {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
-                <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
-                  <LockIcon className="gba:h-3 gba:w-3" />
-                  {t('editor-locked')}
-                </Badge>
+                {/* Comments */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setShowComments(!showComments)}
+                      data-testid="note-comments-button"
+                      className={`gba:h-7 gba:w-7 gba:relative ${showComments ? 'gba:text-primary' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
+                    >
+                      <MessageSquare className="gba:w-3.5 gba:h-3.5" />
+                      {comments.unresolvedCount > 0 && (
+                        <span className="gba:absolute gba:-top-0.5 gba:-right-0.5 gba:w-3.5 gba:h-3.5 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:text-[9px] gba:flex gba:items-center gba:justify-center gba:font-medium">
+                          {comments.unresolvedCount}
+                        </span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('editor-comments-tooltip')}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Divider */}
+              <div className="gba:w-px gba:h-4 gba:bg-sidebar-border/40 gba:mx-1" />
+
+              {/* Action items (mobile only) */}
+              {actionItemFlows.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActionItemsPanelOpen(true)}
+                  className="gba:gap-1.5 gba:h-7 gba:text-xs gba:text-muted-foreground hover:gba:text-foreground gba:lg:hidden"
+                  data-testid={`${testId}-action-items-open`}
+                >
+                  <ListTodo className="gba:w-3.5 gba:h-3.5" />
+                  {actionItemFlows.length}
+                </Button>
               )}
 
-              {/* Status badge */}
-              <StatusBadge status={publishing.metadata?.status || 'draft'} />
-
-              <Separator orientation="vertical" className="gba:h-6" />
-
-              {/* Note Actions Menu */}
+              {/* Note actions overflow menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('editor-note-menu')}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gba:h-7 gba:px-2 gba:text-xs gba:text-muted-foreground hover:gba:text-foreground gba:gap-1"
+                  >
+                    <FileText className="gba:w-3.5 gba:h-3.5" />
+                    <span className="gba:hidden gba:sm:inline">{t('editor-note-menu')}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="gba:w-48">
                   <DropdownMenuItem onClick={() => setShowVersionHistory(true)}>
                     <History className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('editor-version-history')}
@@ -1996,13 +2046,14 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Transform (AI) - positioned at far right */}
+              {/* Transform (AI) */}
               {!isReadOnly && (
                 <TransformMenu
                   onTransform={handleTextTransform}
                   isProcessing={isTransforming}
                   disabled={!editor}
                   mode="text"
+                  compact
                 />
               )}
             </div>
@@ -2010,298 +2061,225 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         </div>
       </div>
 
-      {/* Formatting Toolbar */}
-      {editor && !isReadOnly && (
-        <div className="gba:border-b gba:bg-muted/30 gba:px-4 gba:py-2">
-          <div className="gba:flex gba:items-center gba:gap-1 gba:flex-wrap">
-            {/* Text formatting */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('bold') ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleBold().run()}
-                  >
-                    <Bold className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-bold')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('italic') ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleItalic().run()}
-                  >
-                    <Italic className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-italic')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('underline') ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleUnderline().run()}
-                  >
-                    <UnderlineIcon className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-underline')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('strike') ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleStrike().run()}
-                  >
-                    <Strikethrough className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-strikethrough')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-            {/* Headings */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('heading', { level: 1 }) ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                  >
-                    <Heading1 className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-heading-1')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('heading', { level: 2 }) ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                  >
-                    <Heading2 className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-heading-2')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('heading', { level: 3 }) ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                  >
-                    <Heading3 className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-heading-3')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-            {/* Lists */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('bulletList') ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleBulletList().run()}
-                  >
-                    <List className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-bullet-list')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('orderedList') ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                  >
-                    <ListOrdered className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-numbered-list')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('taskList') ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleTaskList().run()}
-                  >
-                    <CheckSquare className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-task-list')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-            {/* Quote and Code */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('blockquote') ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                  >
-                    <Quote className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-quote')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={editor.isActive('codeBlock') ? 'secondary' : 'ghost'}
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-                  >
-                    <Code className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-code-block')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-            {/* Drawing */}
-            {/* Mention Entity */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => {
-                      editor?.chain().focus().insertContent('@').run()
-                    }}
-                  >
-                    <AtSign className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-mention')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-            {/* Kanban Board */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="gba:h-8 gba:w-8"
-                    onClick={() => {
-                      if (!editor || !isYjsSynced) return
-                      const debugEnabled = (() => {
-                        try {
-                          return (
-                            window.localStorage.getItem('debug:note-apps') === '1' ||
-                            window.localStorage.getItem('debug:kanban') === '1'
-                          )
-                        } catch {
-                          return false
-                        }
-                      })()
-
-                      const kanbanId = `kanban-${Date.now()}`
-                      const ok = editor.chain().focus().insertKanban({ id: kanbanId }).run()
-                      if (debugEnabled) {
-                        const hasKanban = (id: string) => {
-                          let found = false
-                          editor.state.doc.descendants(node => {
-                            if (node.type.name === 'kanban' && node.attrs?.id === id) {
-                              found = true
-                              return false
-                            }
-                          })
-                          return found
-                        }
-
-                        const immediate = hasKanban(kanbanId)
-                        console.debug('[NoteEditor][Kanban] insert result:', { ok, kanbanId, immediate })
-                        window.setTimeout(() => {
-                          console.debug('[NoteEditor][Kanban] after 2500ms present:', {
-                            kanbanId,
-                            present: hasKanban(kanbanId)
-                          })
-                        }, 2500)
-                      }
-                    }}
-                    data-testid="note-editor-insert-kanban"
-                    disabled={!isYjsSynced}
-                  >
-                    <LayoutGrid className="gba:w-4 gba:h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('editor-format-insert-kanban')}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-      )}
-
       {/* Editor Area */}
       <div className="gba:flex-1 gba:flex gba:overflow-hidden">
         <div className="gba:flex-1 gba:overflow-auto gba:relative">
-          <div className="gba:max-w-3xl gba:lg:max-w-4xl gba:xl:max-w-5xl gba:2xl:max-w-6xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:md:px-8 gba:py-6 gba:md:py-8">
+          {/* Formatting Toolbar -- sticky inside scroll area for frosted glass blur */}
+          {editor && !isReadOnly && (
+            <div className="gba:sticky gba:top-0 gba:z-[9] gba:bg-sidebar/70 gba:backdrop-blur-md gba:backdrop-saturate-125 gba:px-6 gba:py-1.5 gba:border-b gba:border-sidebar-border/10">
+              <div className="gba:max-w-3xl gba:lg:max-w-[48rem] gba:mx-auto gba:flex gba:items-center gba:gap-1 gba:flex-wrap">
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('bold') ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleBold().run()}
+                      >
+                        <Bold className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-bold')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('italic') ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleItalic().run()}
+                      >
+                        <Italic className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-italic')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('underline') ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleUnderline().run()}
+                      >
+                        <UnderlineIcon className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-underline')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('strike') ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleStrike().run()}
+                      >
+                        <Strikethrough className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-strikethrough')}</TooltipContent>
+                  </Tooltip>
+
+                  <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('heading', { level: 1 }) ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                      >
+                        <Heading1 className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-heading-1')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('heading', { level: 2 }) ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                      >
+                        <Heading2 className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-heading-2')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('heading', { level: 3 }) ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                      >
+                        <Heading3 className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-heading-3')}</TooltipContent>
+                  </Tooltip>
+
+                  <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('bulletList') ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleBulletList().run()}
+                      >
+                        <List className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-bullet-list')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('orderedList') ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                      >
+                        <ListOrdered className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-numbered-list')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('taskList') ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleTaskList().run()}
+                      >
+                        <CheckSquare className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-task-list')}</TooltipContent>
+                  </Tooltip>
+
+                  <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('blockquote') ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                      >
+                        <Quote className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-quote')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={editor.isActive('codeBlock') ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                      >
+                        <Code className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-code-block')}</TooltipContent>
+                  </Tooltip>
+
+                  <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => {
+                          editor?.chain().focus().insertContent('@').run()
+                        }}
+                      >
+                        <AtSign className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-mention')}</TooltipContent>
+                  </Tooltip>
+
+                  <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => {
+                          if (!editor || !isYjsSynced) return
+                          const kanbanId = `kanban-${Date.now()}`
+                          editor.chain().focus().insertKanban({ id: kanbanId }).run()
+                        }}
+                        data-testid="note-editor-insert-kanban"
+                        disabled={!isYjsSynced}
+                      >
+                        <LayoutGrid className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-insert-kanban')}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+          )}
+
+          <div className="gba:max-w-3xl gba:lg:max-w-[48rem] gba:mx-auto gba:px-6 gba:sm:px-8 gba:md:px-12 gba:py-8 gba:md:py-12">
             {/* Title */}
             <input
               ref={titleInputRef}
@@ -2311,7 +2289,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               onKeyDown={handleTitleKeyDown}
               placeholder={t('editor-title-placeholder')}
               disabled={isReadOnly}
-              className="gba:w-full gba:text-4xl gba:font-bold gba:bg-transparent gba:border-0 gba:outline-none gba:mb-4 gba:text-foreground placeholder:gba:text-muted-foreground/50"
+              className="gba:w-full gba:text-3xl gba:md:text-4xl gba:font-display gba:font-semibold gba:tracking-tight gba:bg-transparent gba:border-0 gba:outline-none gba:mb-6 gba:text-foreground placeholder:gba:text-muted-foreground/30"
               data-testid="note-editor-title-input"
             />
 
@@ -2453,13 +2431,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       <style>{`
         .note-editor-content .ProseMirror {
           outline: none;
-          font-size: 16px;
-          line-height: 1.75;
+          font-family: 'Inter', var(--font-sans);
+          font-size: 1rem;
+          line-height: 1.8;
           color: hsl(var(--foreground));
           min-height: 300px;
           user-select: text;
           -webkit-user-select: text;
-          -moz-user-select: text;
+          -moz-osx-font-smoothing: grayscale;
+          -webkit-font-smoothing: antialiased;
           cursor: text;
         }
 
@@ -2469,40 +2449,45 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
 
         .note-editor-content .ProseMirror p {
-          margin: 0 0 1rem 0;
+          margin: 0 0 0.75em 0;
         }
 
         .note-editor-content .ProseMirror h1 {
+          font-family: var(--font-display);
           font-size: 2rem;
-          font-weight: 700;
-          margin: 2rem 0 1rem 0;
+          font-weight: 600;
+          letter-spacing: -0.025em;
+          margin: 1.5em 0 0.5em 0;
           line-height: 1.2;
         }
 
         .note-editor-content .ProseMirror h2 {
+          font-family: var(--font-display);
           font-size: 1.5rem;
           font-weight: 600;
-          margin: 1.5rem 0 0.75rem 0;
+          letter-spacing: -0.02em;
+          margin: 1.25em 0 0.5em 0;
           line-height: 1.3;
         }
 
         .note-editor-content .ProseMirror h3 {
+          font-family: var(--font-display);
           font-size: 1.25rem;
           font-weight: 600;
-          margin: 1.25rem 0 0.5rem 0;
+          margin: 1em 0 0.5em 0;
           line-height: 1.4;
         }
 
         .note-editor-content .ProseMirror ul {
           list-style-type: disc;
           padding-left: 1.5rem;
-          margin: 0 0 1rem 0;
+          margin: 0 0 0.75em 0;
         }
 
         .note-editor-content .ProseMirror ol {
           list-style-type: decimal;
           padding-left: 1.5rem;
-          margin: 0 0 1rem 0;
+          margin: 0 0 0.75em 0;
         }
 
         .note-editor-content .ProseMirror li {
@@ -2546,60 +2531,106 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           opacity: 0.6;
         }
 
+        /* Blockquote -- decorative pull-quote */
         .note-editor-content .ProseMirror blockquote {
-          border-left: 4px solid hsl(var(--primary));
-          padding-left: 1rem;
-          margin: 1rem 0;
-          color: hsl(var(--muted-foreground));
-          font-style: italic;
-        }
-
-        .note-editor-content .ProseMirror pre {
+          position: relative;
+          border: none;
+          border-left: none;
+          margin: 1.5em 0;
+          padding: 1.25em 1.5em 1.25em 2.5em;
           background: hsl(var(--muted));
-          border-radius: 0.5rem;
-          padding: 1rem;
-          overflow-x: auto;
-          font-family: ui-monospace, monospace;
-          font-size: 0.875rem;
-          margin: 1rem 0;
+          border-radius: 0.75rem;
+          color: hsl(var(--foreground));
+          font-style: italic;
+          font-size: 1.05em;
+          line-height: 1.7;
         }
 
+        .note-editor-content .ProseMirror blockquote::before {
+          content: '\\201C';
+          position: absolute;
+          top: 0.15em;
+          left: 0.5em;
+          font-family: Georgia, 'Times New Roman', serif;
+          font-size: 3em;
+          line-height: 1;
+          color: hsl(var(--primary));
+          opacity: 0.3;
+        }
+
+        .note-editor-content .ProseMirror blockquote p {
+          margin-bottom: 0.25em;
+        }
+
+        /* Code block -- IDE-style dark theme */
+        .note-editor-content .ProseMirror pre {
+          background: #1e1e2e;
+          border-radius: 0.75rem;
+          padding: 1.25rem 1.5rem;
+          overflow-x: auto;
+          margin: 1.5em 0;
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .note-editor-content .ProseMirror pre code {
+          background: none;
+          padding: 0;
+          border-radius: 0;
+          font-size: 0.875em;
+          font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Menlo', 'Consolas', monospace;
+          color: #cdd6f4;
+          line-height: 1.65;
+          -webkit-font-smoothing: antialiased;
+        }
+
+        /* Inline code */
         .note-editor-content .ProseMirror code {
           background: hsl(var(--muted));
-          padding: 0.125rem 0.375rem;
-          border-radius: 0.25rem;
-          font-family: ui-monospace, monospace;
+          padding: 0.2em 0.4em;
+          border-radius: 0.375rem;
+          font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Menlo', 'Consolas', monospace;
           font-size: 0.875em;
+          color: hsl(var(--primary));
         }
 
         .note-editor-content .ProseMirror a {
           color: hsl(var(--primary));
           text-decoration: underline;
+          text-underline-offset: 3px;
+          text-decoration-thickness: 1px;
           cursor: pointer;
+        }
+
+        .note-editor-content .ProseMirror a:hover {
+          text-decoration-thickness: 2px;
         }
 
         .note-editor-content .ProseMirror img {
           max-width: 100%;
           height: auto;
-          border-radius: 0.5rem;
-          margin: 1rem 0;
+          border-radius: 0.75rem;
+          margin: 1.5em 0;
         }
 
         .note-editor-content .ProseMirror mark {
           background-color: hsl(var(--warning) / 0.3);
-          padding: 0.125rem 0;
+          border-radius: 0.2em;
+          padding: 0.1em 0.15em;
         }
 
         .note-editor-content .ProseMirror hr {
           border: none;
           border-top: 1px solid hsl(var(--border));
-          margin: 2rem 0;
+          margin: 2em 0;
         }
 
         .note-editor-content .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           float: left;
           color: hsl(var(--muted-foreground));
+          opacity: 0.35;
+          font-style: italic;
           pointer-events: none;
           height: 0;
         }

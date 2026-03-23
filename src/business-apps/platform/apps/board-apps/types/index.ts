@@ -43,6 +43,8 @@ export type {
   KanbanViewConfig,
   CalendarViewConfig,
   TimelineViewConfig,
+  DependencyType,
+  DependencyMeta,
   FormViewConfig,
   DashboardViewConfig,
   DashboardWidget,
@@ -61,6 +63,21 @@ export type {
 } from './views'
 
 export type {
+  ConnectorSummary,
+  ConnectorAction,
+  ConnectorInvokePayload,
+  ConnectorField,
+  ConnectorSchemaResult,
+  ConnectorPageResult,
+  ExternalDataSourceConfig,
+  SyncRunStatus,
+  SyncRun,
+  ExternalPreviewRequest,
+  ExternalPreviewResponse,
+  ExternalStartSyncRequest
+} from './externalConnector'
+
+export type {
   AggregationFn,
   TimeBucket,
   MetricDef,
@@ -77,3 +94,5 @@ export type {
   ColumnProfile,
   DataProfile
 } from './analytics'
+
+export type { BoardCollection, CollectionMember, CollectionMemberRole } from './collection'

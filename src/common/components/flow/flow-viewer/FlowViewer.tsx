@@ -1,4 +1,4 @@
-import React, { createContext, useMemo, useEffect, useState, useRef, useContext } from 'react'
+import React, { createContext, useCallback, useMemo, useEffect, useState, useRef, useContext } from 'react'
 import {
   ReactFlow,
   type Node,
@@ -28,8 +28,14 @@ import { DecisionNode } from './nodes/DecisionNode'
 import { ForkNode } from './nodes/ForkNode'
 import { JoinNode } from './nodes/JoinNode'
 import { EndNode } from './nodes/EndNode'
-import { RoutedEdge, FORWARD_MARKER, FORWARD_MARKER_SELECTED } from './edges/RoutedEdge'
-import { BackwardEdge, BACKWARD_MARKER, BACKWARD_MARKER_SELECTED } from './edges/BackwardEdge'
+import {
+  RoutedEdge,
+  FORWARD_MARKER,
+  FORWARD_MARKER_ACTIVE,
+  FORWARD_MARKER_FAILED,
+  FORWARD_MARKER_SELECTED
+} from './edges/RoutedEdge'
+import { BackwardEdge, BACKWARD_MARKER, BACKWARD_MARKER_FAILED, BACKWARD_MARKER_SELECTED } from './edges/BackwardEdge'
 import { computeLayout } from './layout/elkLayout'
 import { getNodeDimensions } from './nodes/nodeDimensions'
 import { resolveFlowCanvasThemeColors, DEFAULT_FLOW_CANVAS_THEME_COLORS } from './utils/themeColors'
@@ -47,6 +53,7 @@ function buildNodeData(
   node: FlowGraphNode,
   isSelected: boolean,
   status: StepStatus | undefined,
+  isOnActivePath: boolean,
   iteration: number | undefined,
   onSelect: () => void
 ): Record<string, unknown> {
@@ -56,6 +63,7 @@ function buildNodeData(
     label: node.label,
     isSelected,
     status,
+    isOnActivePath,
     onSelect
   }
 
@@ -83,7 +91,12 @@ function buildNodeData(
     case 'join':
       return { ...base, joinCondition: meta.joinCondition }
     case 'end':
-      return { ...base, summaryFieldsCount: meta.summaryFieldsCount }
+      return {
+        ...base,
+        title: node.label,
+        description: meta.description,
+        summaryFieldsCount: meta.summaryFieldsCount
+      }
     default:
       return base
   }
@@ -117,7 +130,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   definition,
   themeColors: themeColorsProp,
   fitViewOptions: fitViewOptionsProp,
-  useForwardEdgesOnlyForRanking = false,
+  useForwardEdgesOnlyForRanking = true,
   rightPanel,
   onConnect,
   onNodeClick,
@@ -127,6 +140,9 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   nodesConnectable = false,
   nodesDraggable = false,
   elementsSelectable: elementsSelectableProp,
+  fitViewVerticalAlign = 'top',
+  showMiniMap = true,
+  showControls = true,
   'data-testid': testId = 'flow-viewer'
 }) => {
   const { selectedNodeId, selectedEdgeId, executionState, selectNode, selectEdge, isInteractive } =
@@ -140,10 +156,16 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   const [layoutNodes, setLayoutNodes] = useState<Record<string, { x: number; y: number }>>({})
   const [layoutEdgePoints, setLayoutEdgePoints] = useState<Record<string, Array<{ x: number; y: number }>>>({})
   const [wasInitiallyCentered, setWasInitiallyCentered] = useState(false)
+  const [layoutResultKey, setLayoutResultKey] = useState('')
+  const hasEverLaidOutRef = useRef(false)
+  const panelMeasureRef = useRef<HTMLDivElement | null>(null)
+  const panelShiftAppliedRef = useRef(false)
+  const panelShiftPxRef = useRef(0)
   const nodesInitialized = useNodesInitialized()
-  const { fitView } = useReactFlow()
+  const { fitView, getViewport, setViewport, getNodesBounds } = useReactFlow()
   const { exportPng, isExporting } = useFlowExport()
   const [resolvedThemeColors, setResolvedThemeColors] = useState<FlowCanvasThemeColors | null>(null)
+  const panelVisible = rightPanel != null && panelOpenTransition
 
   const nodeTypes = useMemo(
     () => ({
@@ -173,11 +195,66 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   const fitViewOptions = { ...DEFAULT_FIT_VIEW_OPTIONS, ...fitViewOptionsProp }
   const elementsSelectable = elementsSelectableProp ?? isInteractive
 
+  // Layout is expensive and visually disruptive (we fade the canvas while recomputing).
+  // Only recompute layout when the graph structure changes (ids/types/connections),
+  // not when labels/metadata change (common during typing).
+  const layoutKey = useMemo(() => {
+    const nodes = definition.nodes
+      .map(n => ({ id: n.id, type: n.type }))
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    const edges = definition.edges
+      .map(e => ({ id: e.id, source: e.source, target: e.target, direction: e.direction }))
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    return JSON.stringify({ nodes, edges })
+  }, [definition.nodes, definition.edges])
+
+  const layoutDefinition = useMemo(
+    () => ({
+      nodes: definition.nodes.map(n => ({ id: n.id, type: n.type, label: '' })),
+      edges: definition.edges.map(e => ({ id: e.id, source: e.source, target: e.target, direction: e.direction }))
+    }),
+    [layoutKey]
+  )
+
+  // When a completely different flow is loaded into the same viewer instance,
+  // reset the initial fit/shift behavior so we start in fitView again.
+  const nodeIdsKey = useMemo(() => {
+    const ids = definition.nodes.map(n => n.id).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    return ids.join('|')
+  }, [definition.nodes])
+  const prevNodeIdsRef = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    const current = new Set(definition.nodes.map(n => n.id))
+    const prev = prevNodeIdsRef.current
+    prevNodeIdsRef.current = current
+
+    if (!prev) return
+
+    if (prev.size === 0 && current.size > 0) {
+      setWasInitiallyCentered(false)
+      panelShiftAppliedRef.current = false
+      panelShiftPxRef.current = 0
+      return
+    }
+
+    if (prev.size > 0 && current.size > 0) {
+      let intersection = 0
+      for (const id of current) if (prev.has(id)) intersection += 1
+      const overlapRatio = intersection / Math.max(prev.size, current.size)
+      if (overlapRatio < 0.2) {
+        setWasInitiallyCentered(false)
+        panelShiftAppliedRef.current = false
+        panelShiftPxRef.current = 0
+      }
+    }
+  }, [nodeIdsKey])
+
   // Build ReactFlow nodes (positions from layout state, like FlowStudioCanvas)
   const rfNodes = useMemo<Node[]>(() => {
     return definition.nodes.map((node, index) => {
       const dims = getNodeDimensions(node.type)
       const status = executionState?.nodeStates[node.id]
+      const isOnActivePath = executionState?.pathNodeIds?.includes(node.id) ?? false
       const iteration = executionState?.iterations?.[node.id]
       const isSelected = selectedNodeId === node.id
       const pos = layoutNodes[node.id] ?? { x: 20, y: index * 140 + 40 }
@@ -186,7 +263,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         id: node.id,
         type: node.type,
         position: pos,
-        data: buildNodeData(node, isSelected, status, iteration, () => selectNode(node.id)),
+        data: buildNodeData(node, isSelected, status, isOnActivePath, iteration, () => selectNode(node.id)),
         style: {
           background: 'transparent',
           border: 'none',
@@ -218,36 +295,121 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
       }
       const points = layoutEdgePoints[edge.id]
       const edgeActions = getEdgeActions?.(edge.id) ?? {}
+      const targetStatus = executionState?.nodeStates[edge.target]
+      const sourceStatus = executionState?.nodeStates[edge.source]
+      const isParallelActiveEdge =
+        sourceNode?.type === 'fork' &&
+        edge.direction === 'forward' &&
+        (executionState?.activeNodeId === edge.source ||
+          sourceStatus === 'active' ||
+          (executionState?.pathNodeIds?.includes(edge.source) === true &&
+            executionState?.pathNodeIds?.includes(edge.target) === true))
+      const edgeState =
+        executionState?.pathEdgeIds?.includes(edge.id) ||
+        executionState?.activeNodeId === edge.target ||
+        isParallelActiveEdge
+          ? 'active'
+          : targetStatus === 'failed'
+            ? 'failed'
+            : undefined
       const edgeData = {
         ...base.data,
         ...(points?.length ? { points } : {}),
         isSelected: selectedEdgeId === edge.id,
+        ...(edgeState ? { edgeState } : {}),
         onSelect: () => selectEdge(edge.id),
         ...(edgeActions.onInsert == null ? {} : { onInsert: edgeActions.onInsert }),
         ...(edgeActions.onOpenInsertPanel == null ? {} : { onOpenInsertPanel: edgeActions.onOpenInsertPanel })
       }
       const isSelected = selectedEdgeId === edge.id
       const isBackward = edge.direction === 'backward'
-      const selectedMarker = isBackward ? BACKWARD_MARKER_SELECTED : FORWARD_MARKER_SELECTED
-      const markerEnd = isSelected ? selectedMarker : base.markerEnd
+      const markerEnd = (() => {
+        if (isSelected) {
+          return isBackward ? BACKWARD_MARKER_SELECTED : FORWARD_MARKER_SELECTED
+        }
+        if (edgeState === 'failed') {
+          return isBackward ? BACKWARD_MARKER_FAILED : FORWARD_MARKER_FAILED
+        }
+        if (edgeState === 'active') {
+          return isBackward ? BACKWARD_MARKER_SELECTED : FORWARD_MARKER_ACTIVE
+        }
+        return base.markerEnd
+      })()
       return { ...base, data: edgeData, markerEnd }
     })
-  }, [definition.edges, definition.nodes, layoutEdgePoints, selectedEdgeId, selectEdge, getEdgeActions])
+  }, [definition.edges, definition.nodes, executionState, layoutEdgePoints, selectedEdgeId, selectEdge, getEdgeActions])
 
   const [flowNodes, setNodes, onNodesChange] = useNodesState(rfNodes)
   const [flowEdges, setEdges, onEdgesChange] = useEdgesState(rfEdges)
 
+  const alignViewportAfterFit = useCallback(
+    (viewport: { x: number; y: number; zoom: number }) => {
+      if (fitViewVerticalAlign !== 'top' || flowNodes.length === 0) return viewport
+
+      const bounds = getNodesBounds(flowNodes)
+      const topPaddingPx = 28
+
+      return {
+        ...viewport,
+        y: topPaddingPx - bounds.y * viewport.zoom
+      }
+    },
+    [fitViewVerticalAlign, flowNodes, getNodesBounds]
+  )
+
+  const runFitView = useCallback(
+    async (duration = 300) => {
+      try {
+        await fitView({
+          padding: fitViewOptions.padding,
+          minZoom: fitViewOptions.minZoom,
+          maxZoom: fitViewOptions.maxZoom,
+          duration
+        })
+      } catch {
+        // ignore
+      }
+
+      let nextViewport = getViewport()
+
+      if (panelVisible) {
+        const width = panelMeasureRef.current?.getBoundingClientRect().width ?? 0
+        const shiftPx = width > 0 ? Math.round(width / 2) : 0
+        if (shiftPx > 0) {
+          panelShiftAppliedRef.current = true
+          panelShiftPxRef.current = shiftPx
+          nextViewport = { ...nextViewport, x: nextViewport.x - shiftPx }
+        }
+      }
+
+      nextViewport = alignViewportAfterFit(nextViewport)
+      setViewport(nextViewport)
+    },
+    [
+      fitView,
+      fitViewOptions.padding,
+      fitViewOptions.minZoom,
+      fitViewOptions.maxZoom,
+      getViewport,
+      panelVisible,
+      alignViewportAfterFit,
+      setViewport
+    ]
+  )
+
   // Run ELK layout and store result in state (like FlowStudioCanvas)
   useEffect(() => {
     let cancelled = false
-    setLayoutNodes({})
-    setLayoutEdgePoints({})
-    setLayoutReady(false)
-    setWasInitiallyCentered(false)
+    const isFirstLayout = hasEverLaidOutRef.current === false
+    if (isFirstLayout) {
+      setLayoutNodes({})
+      setLayoutEdgePoints({})
+      setLayoutReady(false)
+    }
 
     const runLayout = async () => {
       try {
-        const result = await computeLayout(definition, {
+        const result = await computeLayout(layoutDefinition as any, {
           useForwardEdgesOnlyForRanking
         })
 
@@ -261,15 +423,19 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         setLayoutNodes(nextNodes)
         setLayoutEdgePoints(nextPoints)
         setLayoutReady(true)
+        setLayoutResultKey(layoutKey)
+        hasEverLaidOutRef.current = true
       } catch (err) {
         console.error('ELK layout failed, using fallback', err)
         const fallback: Record<string, { x: number; y: number }> = {}
-        definition.nodes.forEach((node, i) => {
+        layoutDefinition.nodes.forEach((node: any, i: number) => {
           fallback[node.id] = { x: 20, y: i * 150 + 20 }
         })
         setLayoutNodes(fallback)
         setLayoutEdgePoints({})
         setLayoutReady(true)
+        setLayoutResultKey(layoutKey)
+        hasEverLaidOutRef.current = true
       }
     }
 
@@ -277,22 +443,19 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
     return () => {
       cancelled = true
     }
-  }, [definition, useForwardEdgesOnlyForRanking])
+  }, [layoutKey, useForwardEdgesOnlyForRanking])
 
   // Fit view once when layout is ready and nodes are initialized (orgchart pattern: no defaultViewport, explicit fitView after nodesInitialized)
   useEffect(() => {
-    if (!wasInitiallyCentered && layoutReady && definition.nodes.length > 0 && nodesInitialized) {
+    if (
+      !wasInitiallyCentered &&
+      layoutReady &&
+      layoutResultKey === layoutKey &&
+      definition.nodes.length > 0 &&
+      nodesInitialized
+    ) {
       const timer = setTimeout(async () => {
-        try {
-          await fitView({
-            padding: fitViewOptions.padding,
-            minZoom: fitViewOptions.minZoom,
-            maxZoom: fitViewOptions.maxZoom,
-            duration: 300
-          })
-        } catch {
-          // ignore
-        }
+        await runFitView(300)
         setWasInitiallyCentered(true)
       }, 100)
       return () => clearTimeout(timer)
@@ -300,12 +463,11 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   }, [
     wasInitiallyCentered,
     layoutReady,
+    layoutResultKey,
+    layoutKey,
     definition.nodes.length,
     nodesInitialized,
-    fitView,
-    fitViewOptions.padding,
-    fitViewOptions.minZoom,
-    fitViewOptions.maxZoom
+    runFitView
   ])
 
   // Sync nodes/edges when definition or selection changes (positions come from layout state)
@@ -342,7 +504,44 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
 
   const showRightPanel = hasRightPanelEverRef.current
   const panelContent = rightPanel ?? prevPanelContentRef.current
-  const panelVisible = rightPanel != null && panelOpenTransition
+
+  // When the sidebar opens, shift viewport left so content stays visible.
+  // Restore previous viewport when the sidebar closes.
+  useEffect(() => {
+    const width = panelMeasureRef.current?.getBoundingClientRect().width ?? 0
+
+    if (panelVisible) {
+      // Don't shift during initial load; the initial fitView effect will handle
+      // shifting exactly once after the viewport is computed.
+      if (!wasInitiallyCentered) return
+
+      if (panelShiftAppliedRef.current) return
+      if (width <= 0) return
+
+      panelShiftAppliedRef.current = true
+      const shiftPx = Math.round(width / 2)
+      panelShiftPxRef.current = shiftPx
+
+      const v = getViewport()
+      // Decrease x => move graph left, away from right panel overlay.
+      setViewport({ x: v.x - shiftPx, y: v.y, zoom: v.zoom }, { duration: 250 })
+      return
+    }
+
+    // Panel is not visible: shift back once the close transition finished,
+    // without undoing user panning/zooming while the panel was open.
+    const shiftPx = panelShiftPxRef.current
+    if (!panelShiftAppliedRef.current || shiftPx <= 0) return
+
+    const t = window.setTimeout(() => {
+      const v = getViewport()
+      panelShiftAppliedRef.current = false
+      panelShiftPxRef.current = 0
+      setViewport({ x: v.x + shiftPx, y: v.y, zoom: v.zoom }, { duration: 250 })
+    }, 300)
+
+    return () => window.clearTimeout(t)
+  }, [panelVisible, getViewport, setViewport])
 
   const handlePanelTransitionEnd = () => {
     if (rightPanel == null && prevPanelContentRef.current != null) {
@@ -352,10 +551,13 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:flex-1 gba:relative gba:min-h-0 gba:w-full gba:overflow-hidden" data-testid={testId}>
+    <div
+      className="gba:flex gba:h-full gba:flex-1 gba:relative gba:min-h-0 gba:w-full gba:overflow-hidden"
+      data-testid={testId}
+    >
       <ReactFlow
         data-testid={`${testId}-surface`}
-        style={{ opacity: layoutReady ? 1 : 0, transition: 'opacity 200ms' }}
+        style={{ opacity: layoutReady ? 1 : 0.35, transition: 'opacity 200ms' }}
         nodes={flowNodes}
         edges={flowEdges}
         onNodesChange={onNodesChange}
@@ -380,8 +582,6 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Strict}
-        fitView
-        fitViewOptions={fitViewOptions}
         attributionPosition="bottom-left"
         proOptions={{ hideAttribution: true }}
         nodesDraggable={nodesDraggable}
@@ -413,29 +613,36 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         }
       >
         <Background color={uiColors.border} gap={16} size={1} />
-        <FlowCanvasControls
-          uiColors={uiColors}
-          onExport={exportPng}
-          isExporting={isExporting}
-          data-testid={`${testId}-controls`}
-        />
-        <MiniMap
-          position="bottom-left"
-          nodeStrokeWidth={3}
-          pannable
-          zoomable
-          maskColor={uiColors.mask}
-          style={{
-            marginBottom: '62px',
-            width: 220,
-            height: 150,
-            backgroundColor: uiColors.surface,
-            border: uiColors.border ? `1px solid ${uiColors.border}` : undefined,
-            borderRadius: '8px'
-          }}
-          nodeColor={() => uiColors.minimapNode}
-          nodeStrokeColor={() => uiColors.minimapStroke}
-        />
+        {showControls ? (
+          <FlowCanvasControls
+            uiColors={uiColors}
+            onFitView={() => {
+              void runFitView(300)
+            }}
+            onExport={exportPng}
+            isExporting={isExporting}
+            data-testid={`${testId}-controls`}
+          />
+        ) : null}
+        {showMiniMap ? (
+          <MiniMap
+            position="bottom-left"
+            nodeStrokeWidth={3}
+            pannable
+            zoomable
+            maskColor={uiColors.mask}
+            style={{
+              marginBottom: '62px',
+              width: 220,
+              height: 150,
+              backgroundColor: uiColors.surface,
+              border: uiColors.border ? `1px solid ${uiColors.border}` : undefined,
+              borderRadius: '8px'
+            }}
+            nodeColor={() => uiColors.minimapNode}
+            nodeStrokeColor={() => uiColors.minimapStroke}
+          />
+        ) : null}
         {showRightPanel ? (
           <Panel
             position="top-right"
@@ -446,7 +653,11 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
               if (e.propertyName === 'transform') handlePanelTransitionEnd()
             }}
           >
-            <div key={panelKey} className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:bg-sidebar">
+            <div
+              ref={panelMeasureRef}
+              key={panelKey}
+              className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:bg-sidebar"
+            >
               <RightPanelExitingContext.Provider value={rightPanel == null && showRightPanel}>
                 {panelContent}
               </RightPanelExitingContext.Provider>

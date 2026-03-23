@@ -14,7 +14,6 @@ import { useCompanyValues } from './hooks/useCompanyValues'
 import { useInsertRatingScale } from './hooks/useInsertRatingScale'
 import { useSavePerformanceCycle } from './hooks/useSavePerformanceCycle'
 import { useSaveCompanyValue } from './hooks/useSaveCompanyValue'
-import { useManagerUserId } from './hooks/useManagerUserId'
 import { deleteRatingScale } from './services/ratingScaleApi'
 import type { PerformanceCycle, RatingScale, ValueItemStored } from './types'
 import translations from './_i18n'
@@ -86,12 +85,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     accessToken
   )
 
-  // Fetch manager's userId and current employee's userId for process payload
   const platformContext = getPlatformContext()
-  const { managerUserId } = useManagerUserId({
-    accessToken,
-    managerId: platformContext.managerId
-  })
 
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
@@ -155,6 +149,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         name: values.name,
         startDate: values.startDate,
         endDate: values.endDate,
+        evaluationPeriodStartDate: values.evaluationPeriodStartDate,
+        evaluationPeriodEndDate: values.evaluationPeriodEndDate,
         frequency: values.frequency as PerformanceCycle['frequency'],
         participants: values.participants as PerformanceCycle['participants'],
         stages: (values.stages as EditorStage[]).map(s => ({
@@ -251,6 +247,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     teamIds: string[]
     employeeId?: string
     employeeUserId?: string
+    managerUserId?: string
   }) => {
     if (!startingCycleId) return
 
@@ -282,7 +279,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
             employee: options.employeeId,
             performanceCycle: cycle.id
           },
-          managerUserId: managerUserId || '',
+          managerUserId: options.managerUserId || '',
           employeeUserId: options.employeeUserId || '',
           performanceCycleId: cycle.id
         }

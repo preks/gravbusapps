@@ -11,6 +11,7 @@ process-button-cancel = Anulează
 process-button-previous = Înapoi
 process-button-next = Următor
 process-button-submit = Trimite
+process-error-title = Eroare
 
 
 

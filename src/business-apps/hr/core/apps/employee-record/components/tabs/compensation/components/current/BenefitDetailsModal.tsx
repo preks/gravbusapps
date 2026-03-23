@@ -1,10 +1,21 @@
 'use client'
 
-import React from 'react'
-import { Sheet, SheetContent, Alert, AlertDescription } from '@newwork/nw-design-system'
+import React, { useState, useEffect } from 'react'
+import {
+  Sheet,
+  SheetContent,
+  Alert,
+  AlertDescription,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
-import { getTranslatedBenefitType } from '../../utils/benefitTranslationUtils'
+import { getTranslatedBenefitType, getTranslatedProviderValue } from '../../utils/benefitTranslationUtils'
 import { parseBenefitObjectValue, getCatalogValueDisplay } from '../../utils/benefitDetailsUtils'
 import BenefitHeader from './BenefitHeader'
 import ActiveBenefitContent from './ActiveBenefitContent'
@@ -65,6 +76,21 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
 
   const employeeId = userInfo?.employeeDetails?.employeeId
   const title = getTranslatedBenefitType(benefit, locale)
+
+  // Provider selection for requestable benefits (used when requesting from modal)
+  const [selectedProviderRef, setSelectedProviderRef] = useState<string>(benefit.providerRef ?? '')
+  const providers = benefit.availableProviders ?? []
+  const canRequest = benefit.canRequest && providers.length > 0
+
+  useEffect(() => {
+    if (benefit.providerRef) {
+      setSelectedProviderRef(benefit.providerRef)
+    } else if (providers.length === 1) {
+      setSelectedProviderRef(providers[0].id)
+    } else {
+      setSelectedProviderRef('')
+    }
+  }, [benefit?.catalogId, benefit?.providerRef, providers.length])
 
   // Parse benefit details from catalog objectValue (guard against missing catalogEntry)
   const benefitDetails = parseBenefitObjectValue(benefit.catalogEntry?.objectValue)
@@ -150,10 +176,40 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
               />
             )}
           </div>
+
+          {/* Provider selection when benefit can be requested */}
+          {canRequest && (
+            <div className="gba:space-y-2 gba:pt-4 gba:border-t">
+              <Label className="gba:text-sm gba:font-semibold gba:text-foreground gba:uppercase gba:tracking-wide">
+                {t('benefit-details-available-providers')}
+              </Label>
+              <Select
+                value={selectedProviderRef || undefined}
+                onValueChange={setSelectedProviderRef}
+                data-testid="benefit-details-provider-select"
+              >
+                <SelectTrigger className="gba:w-full">
+                  <SelectValue placeholder={t('benefit-details-choose-provider')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {providers.map(provider => (
+                    <SelectItem
+                      key={provider.id}
+                      value={provider.id}
+                      data-testid={`benefit-details-provider-option-${provider.code}`}
+                    >
+                      {getTranslatedProviderValue(provider, locale)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <BenefitDetailsFooter
           benefit={benefit}
+          selectedProviderRef={canRequest ? selectedProviderRef : undefined}
           t={t}
           accessToken={accessToken}
           employeeId={employeeId}

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { Company, CompanyHierarchyState, OrgchartApiResponse, OrganizationalNode } from '../types'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 // GraphQL query for employees (directors) by IDs - batch query
 const GET_EMPLOYEES_BY_IDS_QUERY = `
@@ -31,21 +31,6 @@ interface EmployeesGraphQLResponse {
   Employee?: EmployeeData[]
 }
 
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
-
-// GraphQL query to get active structure ID
-const GET_ACTIVE_STRUCTURE = (): string => {
-  return `query getActiveStructure {
-    Structure(where: {isActive: {_eq: true}}, limit: 1) {
-      id
-    }
-  }`
-}
-
-interface ActiveStructureResponse {
-  Structure?: Array<{ id: string }>
-}
-
 export const useCompanies = (context: BusinessAppContextProps) => {
   const [hierarchyState, setHierarchyState] = useState<CompanyHierarchyState>({
     rootCompanies: [],
@@ -55,9 +40,9 @@ export const useCompanies = (context: BusinessAppContextProps) => {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const structureId = useRef<string>(context.additionalData?.structureId || '')
+  const structureId = useRef<string>(getCurrentActiveStructureId() ?? '')
 
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(context.accessToken)
   const graphqlClient = useGraphqlClient(context.accessToken)
 
   // Transform orgchart node to Company interface
@@ -216,22 +201,21 @@ export const useCompanies = (context: BusinessAppContextProps) => {
   // Fetch companies from orgchart API
   const fetchCompanies = useCallback(async (): Promise<Company[]> => {
     try {
-      // Fetch active structure ID using GraphQL
-      const structureQuery = GET_ACTIVE_STRUCTURE()
-      const structureResult = await graphqlClient.request<ActiveStructureResponse>(structureQuery)
-
-      if (!structureResult.Structure || structureResult.Structure.length === 0) {
+      const activeId = structureId.current || getCurrentActiveStructureId()
+      if (!activeId) {
         throw new Error('No active structure found')
       }
+      structureId.current = activeId
 
-      structureId.current = structureResult.Structure[0].id
-
-      const response = await restClient.get<OrgchartApiResponse>(`/structures/${structureId.current}`, {
-        params: { nodeType: 'company' },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
+      const response = await orgchartClient.getStructure<OrgchartApiResponse>(
+        structureId.current,
+        { nodeType: 'company' },
+        {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`
+          }
         }
-      })
+      )
 
       // Filter only company nodes
       const companyNodes = response.nodes.filter(node => node.type === 'company')
@@ -242,7 +226,7 @@ export const useCompanies = (context: BusinessAppContextProps) => {
       console.error('Error fetching companies:', error)
       throw new Error('Failed to fetch companies from orgchart API')
     }
-  }, [context.accessToken, restClient, structureId])
+  }, [context.accessToken, orgchartClient, structureId])
 
   // Load initial data
   const loadData = useCallback(async () => {

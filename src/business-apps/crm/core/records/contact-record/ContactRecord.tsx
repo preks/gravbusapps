@@ -19,6 +19,7 @@ import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { APPROVAL_TASK_TYPE_REF } from '@/common/data/customer/constants/customerConstants'
 import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { HomeView } from './views/home-view/HomeView'
@@ -48,7 +49,8 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
   } = useCustomerContact(props.accessToken, contactId)
 
   // AI Summary hook - must be called before any conditional returns
-  const aiSummaryHook = useContactAiSummary(contactId, props.accessToken)
+  // Pass already-fetched contactData to avoid a duplicate GetContactById query
+  const aiSummaryHook = useContactAiSummary(contactId, props.accessToken, contactData)
 
   // Data fetching hooks for sections - using central hooks
   const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)
@@ -300,8 +302,8 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
       contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         contactId,
-        typeRef: 'SalesTaskType:v1:APPROVAL',
-        salesTask: { contact: contactId, type: 'SalesTaskType:v1:APPROVAL' }
+        typeRef: APPROVAL_TASK_TYPE_REF,
+        salesTask: { contact: contactId, type: APPROVAL_TASK_TYPE_REF }
       },
       prefixDataTestId: 'contact-approval'
     }),

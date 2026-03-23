@@ -15,7 +15,11 @@ import translations from '../_i18n'
 
 export interface GeneratePresentationButtonProps {
   /** Callback when slides are generated */
-  onGenerate: (slides: SlideData[], title: string) => void
+  onGenerate: (
+    slides: SlideData[],
+    title: string,
+    matchedTemplate?: { id: string; name: string; themeId?: string }
+  ) => void
   /** Access token for API calls */
   accessToken: string
   /** Whether the button is disabled */
@@ -37,8 +41,8 @@ export const GeneratePresentationButton: React.FC<GeneratePresentationButtonProp
   const [showDialog, setShowDialog] = useState(false)
 
   const handleGenerate = useCallback(
-    (slides: SlideData[], title: string) => {
-      onGenerate(slides, title)
+    (slides: SlideData[], title: string, matchedTemplate?: { id: string; name: string; themeId?: string }) => {
+      onGenerate(slides, title, matchedTemplate)
       toast.success(t('generate-toast-success'), {
         description: t('generate-toast-description', { count: slides.length })
       })

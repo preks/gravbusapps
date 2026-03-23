@@ -65,6 +65,10 @@ export function useCatalogSettings(
   const [search, setSearch] = React.useState('')
 
   const load = React.useCallback(async () => {
+    if (!catalogIdentifier) {
+      setIsLoading(false)
+      return
+    }
     try {
       setIsLoading(true)
       setError(null)

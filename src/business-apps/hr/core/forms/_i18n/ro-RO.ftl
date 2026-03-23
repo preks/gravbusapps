@@ -35,6 +35,7 @@ adjust-salary-duplicate-month-warning = Există deja o ajustare salarială pentr
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Atribuire salariu angajat
+assign-salary-no-employment-region-warning = Trebuie setată o regiune de angajare pentru acest angajat pentru a asigura moneda corectă și conformitatea. Vă rugăm să setați regiunea de angajare în fișa angajatului.
 assign-salary-type = Tip compensație
 assign-salary-type-required = Tipul compensației este obligatoriu. Vă rugăm să selectați un tip de compensație.
 assign-salary-type-yearly-monthly = Salariu lunar
@@ -90,6 +91,7 @@ action-enter-placeholder = Vă rugăm să introduceți
 
 # Form Title
 form-title = Acordă bonus angajat
+grant-bonus-no-employment-region-warning = Trebuie setată o regiune de angajare pentru acest angajat pentru a asigura moneda corectă și conformitatea. Vă rugăm să setați regiunea de angajare în fișa angajatului.
 
 # Form Actions
 action-cancel = Anulează
@@ -305,6 +307,7 @@ working-conditions-unit-year = { $count ->
 
 # Create Request Correction Form
 complete-notification = Cererea este trimisă către manager pentru aprobare
+request-correction-date-absence-error = Această dată este o sărbătoare sau o absență și nu poate fi folosită pentru o cerere de corectare.
 notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
 notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă

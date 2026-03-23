@@ -24,6 +24,9 @@ interface AccountInformationSegmentProps {
   // Business app context for EmployeeSelect
   businessAppContext?: BusinessAppContextProps
 
+  // Account contacts from loaded entity (with nested contact) for display - same pattern as ownerEmployee
+  accountContacts?: any[]
+
   // Owner employee from account data (to display immediately)
   ownerEmployee?: any
   // Entity ID (account ID for edit mode)
@@ -35,7 +38,10 @@ interface AccountInformationSegmentProps {
     contacts: any[]
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
 
   // Custom fields (context-specific, e.g., CRM Sales Campaign)
@@ -54,6 +60,7 @@ interface AccountInformationSegmentProps {
 
 const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   businessAppContext,
+  accountContacts,
   ownerEmployee,
   entityId,
   useContacts,
@@ -90,13 +97,16 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
     })
   }, [useContacts?.contacts])
 
-  // Search function that calls refetch with search variables
+  // Search function — prefers the stateful `search` fn, falls back to `refetch`
   const searchContacts = useCallback(
     (searchTerm: string) => {
-      if (!useContacts?.refetch) return
-      useContacts.refetch({ search: searchTerm.trim(), limit: 20, offset: 0 })
+      if (useContacts?.search) {
+        useContacts.search(searchTerm.trim())
+      } else if (useContacts?.refetch) {
+        useContacts.refetch({ search: searchTerm.trim(), limit: 20, offset: 0 })
+      }
     },
-    [useContacts?.refetch]
+    [useContacts?.search, useContacts?.refetch]
   )
 
   // Helper function to parse picture string
@@ -122,8 +132,11 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   } => {
     const contactId = ac.contactId || ac.contact?.id || ''
 
-    // Use the nested contact data directly from the accountContact query
-    const contact = ac.contact || useContacts?.contacts?.find((c: any) => c.id === contactId)
+    // Use nested contact from loaded entity (accountContacts prop) or from useContacts
+    const contact =
+      ac.contact ||
+      accountContacts?.find((acEntity: any) => (acEntity.contactId || acEntity.contact?.id) === contactId)?.contact ||
+      useContacts?.contacts?.find((c: any) => c.id === contactId)
 
     if (contact) {
       const displayName =
@@ -451,6 +464,8 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
                     contactsLoading={useContacts.loading}
                     contactsError={useContacts.error}
                     searchContacts={searchContacts}
+                    hasMore={useContacts.hasMore}
+                    onLoadMore={useContacts.loadMore}
                     accountContacts={field.value || []}
                     dataTestId="account-information-segment-contacts"
                     error={fieldState.error?.message || null}

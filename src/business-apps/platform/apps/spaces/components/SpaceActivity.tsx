@@ -72,11 +72,11 @@ export const SpaceActivity: React.FC<SpaceActivityProps> = ({
 
       // Use canonical platform paths (navigateTo() maps them for dev)
       const basePathByType: Record<SpaceActivityType['entityType'], string> = {
-        document: '/platform/documents',
-        note: '/platform/notes',
-        spreadsheet: '/platform/spreadsheets',
-        slide: '/platform/slides',
-        space: '/platform/spaces'
+        document: '/platform/every-office/documents',
+        note: '/platform/every-office/notes',
+        spreadsheet: '/platform/every-office/spreadsheets',
+        slide: '/platform/every-office/slides',
+        space: '/platform/every-office/spaces'
       }
 
       const basePath = basePathByType[activity.entityType]
@@ -86,7 +86,7 @@ export const SpaceActivity: React.FC<SpaceActivityProps> = ({
 
       switch (activity.entityType) {
         case 'document':
-          navigateTo(buildPlatformUrl(basePath, { ...(commonParams || {}), documentId: activity.entityId }))
+          navigateTo(buildPlatformUrl(basePath, { ...(commonParams || {}), docId: activity.entityId }))
           return
         case 'note':
           navigateTo(buildPlatformUrl(basePath, { ...(commonParams || {}), noteId: activity.entityId }))

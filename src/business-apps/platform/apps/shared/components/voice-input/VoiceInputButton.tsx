@@ -15,6 +15,8 @@ export interface VoiceInputButtonProps {
   className?: string
   size?: 'sm' | 'default' | 'lg'
   variant?: 'default' | 'prominent'
+  label?: string
+  listeningLabel?: string
   'data-testid'?: string
 }
 
@@ -29,6 +31,8 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
   className,
   size = 'default',
   variant = 'default',
+  label,
+  listeningLabel,
   'data-testid': testId = 'voice-input-button'
 }) => {
   const handleClick = () => {
@@ -56,7 +60,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
             data-testid={testId}
           >
             <MicOff className={iconSize} />
-            {variant === 'prominent' && <span>Voice unavailable</span>}
+            {(label || variant === 'prominent') && <span>{label ?? 'Voice unavailable'}</span>}
           </Button>
         </TooltipTrigger>
         <TooltipContent>
@@ -83,7 +87,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
             data-testid={testId}
           >
             <Mic className={iconSize} />
-            {variant === 'prominent' && <span>Voice Input</span>}
+            {(label || variant === 'prominent') && <span>{label ?? 'Voice Input'}</span>}
             <span className="gba:absolute gba:-top-1 gba:-right-1 gba:w-3 gba:h-3 gba:bg-warning gba:rounded-full gba:border-2 gba:border-background" />
           </Button>
         </TooltipTrigger>
@@ -112,7 +116,9 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
             <PulseRing />
           </div>
           <LiveWaveform volume={volume} />
-          {variant === 'prominent' && <span className="gba:text-sm gba:font-medium">Stop</span>}
+          {(listeningLabel || label || variant === 'prominent') && (
+            <span className="gba:text-sm gba:font-medium">{listeningLabel ?? label ?? 'Stop'}</span>
+          )}
         </div>
       </Button>
     )
@@ -134,7 +140,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
           data-testid={testId}
         >
           <Mic className={iconSize} />
-          {variant === 'prominent' && <span>Voice Input</span>}
+          {(label || variant === 'prominent') && <span>{label ?? 'Voice Input'}</span>}
         </Button>
       </TooltipTrigger>
       <TooltipContent>

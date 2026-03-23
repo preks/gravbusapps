@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card } from '@newwork/nw-design-system'
-import { RiMedalLine } from '@remixicon/react'
+import { MedalIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface EmployeeAbsence {
@@ -128,7 +128,7 @@ export const TopAbsenteesList: React.FC<TopAbsenteesListProps> = ({
             )}
           </div>
         </div>
-        <RiMedalLine className="gba:h-6 gba:w-6 gba:text-muted-foreground gba:ml-2" />
+        <MedalIcon size={24} className="gba:h-6 gba:w-6 gba:text-muted-foreground gba:ml-2" />
       </div>
 
       <div className="gba:flex gba:flex-col gba:gap-2 gba:px-6 gba:pb-6">

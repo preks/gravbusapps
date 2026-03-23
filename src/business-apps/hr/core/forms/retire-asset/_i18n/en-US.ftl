@@ -27,6 +27,8 @@ disposal-reason-placeholder = Write a reason...
 
 # Responsible
 responsible-person = Responsible person
+select-responsible-person = Select person
+select-performed-by = Select person
 
 # Sanitization
 data-sanitization-required = Data sanitization required?

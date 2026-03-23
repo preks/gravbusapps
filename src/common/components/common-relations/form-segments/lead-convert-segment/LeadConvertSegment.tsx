@@ -13,23 +13,22 @@ import {
   Skeleton
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import {
-  AccountSelect,
-  SelectOption as AccountSelectOption
-} from '@/common/components/common-relations/selects/account-select'
-import {
-  ContactSelect,
-  SelectOption as ContactSelectOption
-} from '@/common/components/common-relations/selects/contact-select'
+import { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
+import { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
+import EntitySelect from '@/common/components/common-relations/selects/reference-select/EntitySelect'
 
 interface LeadConvertSegmentProps {
   form: UseFormReturn<any>
   accounts: AccountSelectOption[]
   isLoadingAccounts: boolean
   searchAccounts: (searchTerm: string) => void
+  hasMoreAccounts?: boolean
+  onLoadMoreAccounts?: () => void
   contacts: ContactSelectOption[]
   isLoadingContacts: boolean
   searchContacts: (searchTerm: string) => void
+  hasMoreContacts?: boolean
+  onLoadMoreContacts?: () => void
   loading?: boolean
 }
 
@@ -43,14 +42,41 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
   accounts,
   isLoadingAccounts,
   searchAccounts,
+  hasMoreAccounts,
+  onLoadMoreAccounts,
   contacts,
   isLoadingContacts,
   searchContacts,
+  hasMoreContacts,
+  onLoadMoreContacts,
   loading = false
 }) => {
   // Use useWatch instead of form.watch() to prevent re-render loops
   const accountOption = useWatch({ control: form.control, name: 'accountOption' })
   const contactOption = useWatch({ control: form.control, name: 'contactOption' })
+  const accountEntityOptions = React.useMemo(
+    () =>
+      accounts.map(account => ({
+        id: account.id,
+        name: account.name,
+        type: 'account',
+        subtitle: account.extraInfo?.website || account.extraInfo?.email || account.extraInfo?.phone || undefined,
+        pictureThumbnail: account.pictureThumbnail
+      })),
+    [accounts]
+  )
+  const contactEntityOptions = React.useMemo(
+    () =>
+      contacts.map(contact => ({
+        id: contact.id,
+        name: contact.name,
+        type: 'contact',
+        subtitle:
+          contact.extraInfo?.jobPosition || contact.extraInfo?.department || contact.extraInfo?.email || undefined,
+        pictureThumbnail: contact.pictureThumbnail
+      })),
+    [contacts]
+  )
 
   // Show skeleton while loading
   if (loading) {
@@ -120,29 +146,31 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
                 <FormField
                   control={form.control}
                   name="selectedAccountId"
-                  render={({ field, fieldState }) => (
+                  render={({ field }) => (
                     <FormItem>
-                      <AccountSelect
+                      <EntitySelect
                         value={field.value || null}
-                        onChange={value => {
-                          const accountId = typeof value === 'object' && value !== null ? value.id : value || ''
-                          field.onChange(accountId)
-                          // Also store the account name and ownerEmployeeId for payload
-                          const selectedAccount = accounts.find(acc => acc.id === accountId)
+                        entities={accountEntityOptions}
+                        onValueChange={(accountId: string | null = '') => {
+                          field.onChange(accountId ?? '')
+                          const selectedAccount = accounts.find(acc => acc.id === (accountId ?? ''))
                           if (selectedAccount) {
                             form.setValue('selectedAccountName', selectedAccount.name)
-                            form.setValue(
-                              'selectedAccountOwnerEmployeeId',
-                              selectedAccount.extraInfo?.ownerEmployee?.id || ''
-                            )
                           }
                         }}
-                        dataTestId="account-select"
-                        error={fieldState.error?.message || null}
-                        accounts={accounts}
-                        accountsLoading={isLoadingAccounts}
-                        accountsError={null}
-                        searchAccounts={searchAccounts}
+                        onSearch={searchAccounts}
+                        loading={isLoadingAccounts}
+                        hasMore={hasMoreAccounts}
+                        onLoadMore={onLoadMoreAccounts}
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'common:searchAndSelectAccount',
+                          'Search and select account...'
+                        )}
+                        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                          'common:typeToSearch',
+                          'Type to search...'
+                        )}
+                        data-testid="account-select"
                       />
                       <FormMessage />
                     </FormItem>
@@ -195,25 +223,31 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
                 <FormField
                   control={form.control}
                   name="selectedContactId"
-                  render={({ field, fieldState }) => (
+                  render={({ field }) => (
                     <FormItem>
-                      <ContactSelect
+                      <EntitySelect
                         value={field.value || null}
-                        onChange={value => {
-                          const contactId = typeof value === 'object' && value !== null ? value.id : value || ''
-                          field.onChange(contactId)
-                          // Also store the contact name for display
-                          const selectedContact = contacts.find(cont => cont.id === contactId)
+                        entities={contactEntityOptions}
+                        onValueChange={(contactId: string | null = '') => {
+                          field.onChange(contactId ?? '')
+                          const selectedContact = contacts.find(cont => cont.id === (contactId ?? ''))
                           if (selectedContact) {
                             form.setValue('selectedContactName', selectedContact.name)
                           }
                         }}
-                        dataTestId="contact-select"
-                        error={fieldState.error?.message || null}
-                        contacts={contacts}
-                        contactsLoading={isLoadingContacts}
-                        contactsError={null}
-                        searchContacts={searchContacts}
+                        onSearch={searchContacts}
+                        loading={isLoadingContacts}
+                        hasMore={hasMoreContacts}
+                        onLoadMore={onLoadMoreContacts}
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'common:searchAndSelectContact',
+                          'Search and select contact...'
+                        )}
+                        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                          'common:typeToSearch',
+                          'Type to search...'
+                        )}
+                        data-testid="contact-select"
                       />
                       <FormMessage />
                     </FormItem>

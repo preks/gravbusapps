@@ -1,9 +1,9 @@
 /**
- * ManageBoardSharesDialog - view / update / revoke board shares.
- * Mirrors the document app's ManageSharesDialog pattern.
+ * ManageBoardSharesDialog - unified share management for boards.
+ * Shows inherited collection members and direct shares with full CRUD.
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React from 'react'
 import {
   Dialog,
   DialogContent,
@@ -23,11 +23,10 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { Users, Eye, Pencil, MessageSquare, Trash2, AlertCircle, UserPlus } from 'lucide-react'
-import { toast } from 'sonner'
-import { BoardApiService } from '../services/BoardApiService'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
-import type { BoardPermission, BoardShare } from '../types'
+import type { BoardPermission } from '../types'
+import { useBoardSharesData } from '../hooks/useBoardSharesData'
+import { InheritedMembersSection } from './InheritedMembersSection'
+import { preventDialogCloseOnSelectOutside } from '../utils/preventDialogCloseOnSelectOutside'
 
 export interface ManageBoardSharesDialogProps {
   open: boolean
@@ -35,14 +34,11 @@ export interface ManageBoardSharesDialogProps {
   boardId: string
   boardTitle: string
   accessToken: string
+  collectionId?: string | null
+  collectionName?: string
   onSharesChanged?: () => void
   onAddMoreUsers?: () => void
   'data-testid'?: string
-}
-
-interface ShareWithUserInfo extends BoardShare {
-  userAvatar?: string
-  isLoading?: boolean
 }
 
 const getInitials = (name: string): string =>
@@ -58,7 +54,6 @@ function formatRelativeDate(dateString: string): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
   if (diffDays === 0) {
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
     return diffHours === 0 ? 'Just now' : `${diffHours}h ago`
@@ -74,137 +69,33 @@ export const ManageBoardSharesDialog: React.FC<ManageBoardSharesDialogProps> = (
   boardId,
   boardTitle,
   accessToken,
+  collectionId,
+  collectionName,
   onSharesChanged,
   onAddMoreUsers,
   'data-testid': testId = 'manage-board-shares-dialog'
 }) => {
-  const [shares, setShares] = useState<ShareWithUserInfo[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [updatingShareId, setUpdatingShareId] = useState<string | null>(null)
-  const [removingShareId, setRemovingShareId] = useState<string | null>(null)
-
-  const graphqlClient = useGraphQLClient(accessToken)
-
-  const loadShares = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const rawShares = await BoardApiService.getBoardSharedUsers(boardId)
-
-      const placeholder: ShareWithUserInfo[] = rawShares.map(s => ({
-        ...s,
-        userAvatar: undefined,
-        isLoading: true
-      }))
-      setShares(placeholder)
-
-      const userIds = rawShares.map(s => s.userId)
-      if (userIds.length > 0 && graphqlClient) {
-        const results = await Promise.all(
-          userIds.map(async userId => {
-            try {
-              const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(userId)
-              const result = await graphqlClient.request<{
-                Employee: Array<{
-                  id: string
-                  displayName: string
-                  firstName?: string
-                  lastName?: string
-                  userId: string
-                  pictureThumbnail?: string
-                }>
-              }>(query)
-              const emp = result.Employee?.[0]
-              if (emp) {
-                return {
-                  userId,
-                  displayName: emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
-                  pictureThumbnail: emp.pictureThumbnail
-                }
-              }
-            } catch {
-              // fallback below
-            }
-            return { userId, displayName: undefined, pictureThumbnail: undefined }
-          })
-        )
-
-        const infoMap = new Map(results.map(u => [u.userId, u]))
-        setShares(prev =>
-          prev.map(s => {
-            const info = infoMap.get(s.userId)
-            return {
-              ...s,
-              userName: info?.displayName || `User ${s.userId.slice(0, 8)}...`,
-              userAvatar: info?.pictureThumbnail
-                ? info.pictureThumbnail.startsWith('data:')
-                  ? info.pictureThumbnail
-                  : `data:image/png;base64,${info.pictureThumbnail}`
-                : undefined,
-              isLoading: false
-            }
-          })
-        )
-      }
-    } catch {
-      setError('Failed to load shared users')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [boardId, graphqlClient])
-
-  useEffect(() => {
-    if (open && boardId) loadShares()
-  }, [open, boardId, loadShares])
-
-  const handleUpdatePermission = useCallback(
-    async (shareId: string, newPermission: BoardPermission) => {
-      setUpdatingShareId(shareId)
-      try {
-        const success = await BoardApiService.updateBoardSharePermission(shareId, newPermission)
-        if (success) {
-          setShares(prev => prev.map(s => (s.id === shareId ? { ...s, permission: newPermission } : s)))
-          toast.success('Permission updated')
-          onSharesChanged?.()
-        } else {
-          toast.error('Failed to update permission')
-        }
-      } catch {
-        toast.error('Failed to update permission')
-      } finally {
-        setUpdatingShareId(null)
-      }
-    },
-    [onSharesChanged]
-  )
-
-  const handleRemoveShare = useCallback(
-    async (shareId: string, userName: string) => {
-      if (!confirm(`Remove access for ${userName}?`)) return
-      setRemovingShareId(shareId)
-      try {
-        const success = await BoardApiService.revokeBoardShare(shareId)
-        if (success) {
-          setShares(prev => prev.filter(s => s.id !== shareId))
-          toast.success(`Removed access for ${userName}`)
-          onSharesChanged?.()
-        } else {
-          toast.error('Failed to remove access')
-        }
-      } catch {
-        toast.error('Failed to remove access')
-      } finally {
-        setRemovingShareId(null)
-      }
-    },
-    [onSharesChanged]
-  )
+  const {
+    shares,
+    inheritedMembers,
+    setInheritedMembers,
+    isLoading,
+    error,
+    updatingShareId,
+    removingShareId,
+    overriddenUserIds,
+    handleUpdatePermission,
+    handleRemoveShare
+  } = useBoardSharesData({ open, boardId, accessToken, collectionId, onSharesChanged })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-lg" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg"
+        data-testid={testId}
+        onPointerDownOutside={preventDialogCloseOnSelectOutside}
+        onInteractOutside={preventDialogCloseOnSelectOutside}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Users className="gba:w-5 gba:h-5 gba:text-primary" />
@@ -227,7 +118,7 @@ export const ManageBoardSharesDialog: React.FC<ManageBoardSharesDialogProps> = (
             </div>
           )}
 
-          {!isLoading && !error && shares.length === 0 && (
+          {!isLoading && !error && shares.length === 0 && inheritedMembers.length === 0 && (
             <div className="gba:text-center gba:py-8">
               <Users className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
               <p className="gba:text-muted-foreground gba:mb-4">This board hasn&apos;t been shared with anyone yet.</p>
@@ -240,10 +131,23 @@ export const ManageBoardSharesDialog: React.FC<ManageBoardSharesDialogProps> = (
             </div>
           )}
 
+          {!isLoading && (
+            <InheritedMembersSection
+              members={inheritedMembers}
+              collectionId={collectionId}
+              collectionName={collectionName}
+              overriddenUserIds={overriddenUserIds}
+              onMembersChanged={setInheritedMembers}
+              onSharesChanged={onSharesChanged}
+              data-testid={`${testId}-inherited`}
+            />
+          )}
+
           {!isLoading && shares.length > 0 && (
             <div className="gba:space-y-1">
               <div className="gba:text-sm gba:text-muted-foreground gba:mb-3">
-                {shares.length} {shares.length === 1 ? 'person has' : 'people have'} access
+                {shares.length} direct {shares.length === 1 ? 'share' : 'shares'}
+                {inheritedMembers.length > 0 && ' (overrides space permissions)'}
               </div>
               <div className="gba:border gba:rounded-md gba:divide-y gba:max-h-80 gba:overflow-y-auto">
                 {shares.map(share => (
@@ -267,6 +171,7 @@ export const ManageBoardSharesDialog: React.FC<ManageBoardSharesDialogProps> = (
                       </p>
                     </div>
                     <Select
+                      key={`${share.id}-permission`}
                       value={share.permission}
                       onValueChange={v => handleUpdatePermission(share.id, v as BoardPermission)}
                       disabled={updatingShareId === share.id}
@@ -309,12 +214,14 @@ export const ManageBoardSharesDialog: React.FC<ManageBoardSharesDialogProps> = (
           )}
         </div>
 
-        <DialogFooter className="gba:gap-2">
-          {onAddMoreUsers && shares.length > 0 && (
+        <DialogFooter className="gba:flex gba:justify-between gba:gap-2">
+          {onAddMoreUsers ? (
             <Button variant="outline" onClick={onAddMoreUsers} data-testid={`${testId}-add-more`}>
               <UserPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-              Add more
+              Share with someone
             </Button>
+          ) : (
+            <div />
           )}
           <Button onClick={() => onOpenChange(false)} data-testid={`${testId}-done`}>
             Done

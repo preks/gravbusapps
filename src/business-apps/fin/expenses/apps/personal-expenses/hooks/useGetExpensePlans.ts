@@ -193,8 +193,7 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
           const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
           variables.orderBy = [{ [gqlField]: direction }]
         } else {
-          // Default sorting by creation date descending
-          variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }]
+          variables.orderBy = [{ planDate: 'DESC_NULLS_LAST' }]
         }
 
         const result = await graphqlClient.request<any>(GET_EXPENSE_PLANS_BY_EMPLOYEE, variables)

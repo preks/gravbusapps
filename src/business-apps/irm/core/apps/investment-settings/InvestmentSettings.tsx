@@ -18,6 +18,8 @@ import ActivityDataPage from './pages/activity-data/ActivityDataPage'
 import OpportunityDataPage from './pages/opportunity-data/OpportunityDataPage'
 import AccountDataPage from './pages/account-data/AccountDataPage'
 import InvestmentDataPage from './pages/investment-data/InvestmentDataPage'
+import InvestmentGroupsTypesPage from './pages/investment-groups-types/InvestmentGroupsTypesPage'
+import InvestmentLiquidFundTypesPage from './pages/investment-liquid-fund-types/InvestmentLiquidFundTypesPage'
 import InvestmentSpecificDataPage from './pages/investment-specific-data/InvestmentSpecificDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
@@ -94,15 +96,34 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
 
   const cards = [
     {
-      title: t('crm.investment_data', 'Investment Data'),
-      description: t('crm.investment_data_description', 'Configure investment form and record fields'),
+      title: t('crm.investment_structure', 'Investment Structure'),
+      description: t(
+        'crm.investment_structure_description',
+        'Manage investment groups, types, and field configuration'
+      ),
       icon: DatabaseIcon,
       iconSize: 'md' as const,
       entries: [
         {
-          label: t('crm.investment_configuration', 'Investment Configuration'),
-          onClick: () => handleInlinePageChange({ key: 'investment-data' })
+          label: t('crm.investment_groups_and_types', 'Groups & Types'),
+          onClick: () => handleInlinePageChange({ key: 'investment-groups-types' })
         },
+        {
+          label: t('crm.investment_liquid_fund_types', 'Liquid Fund Types'),
+          onClick: () => handleInlinePageChange({ key: 'investment-liquid-fund-types' })
+        },
+        {
+          label: t('crm.investment_configuration', 'Field Configuration'),
+          onClick: () => handleInlinePageChange({ key: 'investment-data' })
+        }
+      ]
+    },
+    {
+      title: t('crm.investment_reference_data', 'Investment Reference Data'),
+      description: t('crm.investment_reference_data_description', 'Manage investment roles, statuses, and stake types'),
+      icon: TrendUpIcon,
+      iconSize: 'md' as const,
+      entries: [
         {
           label: t('crm.investment_roles', 'Roles'),
           onClick: () => handleInlinePageChange({ key: 'investment-specific-data', tab: 'roles' })
@@ -162,6 +183,10 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         {
           label: t('crm.opportunity_forecasts', 'Forecasts'),
           onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'forecasts' })
+        },
+        {
+          label: t('crm.pipeline_stage_types', 'Stage Types'),
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'stage-types' })
         }
       ]
     },
@@ -223,6 +248,26 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     }
   ]
 
+  if (inlinePage?.key === 'investment-groups-types') {
+    return (
+      <InvestmentGroupsTypesPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentGroupsTypesSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'investment-liquid-fund-types') {
+    return (
+      <InvestmentLiquidFundTypesPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentLiquidFundTypesSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
   if (inlinePage?.key === 'investment-data') {
     return (
       <InvestmentDataPage
@@ -279,7 +324,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
   }
 
   if (inlinePage?.key === 'opportunity-data') {
-    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | undefined
+    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | 'stage-types' | undefined
     return (
       <OpportunityDataPage
         {...context}

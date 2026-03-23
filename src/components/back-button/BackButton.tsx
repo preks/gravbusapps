@@ -2,6 +2,10 @@ import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
+
+const DEFAULT_CLASS_NAME = ''
+const DEFAULT_DATA_TEST_ID = 'back-button'
 
 export interface BackButtonProps {
   /**
@@ -35,8 +39,8 @@ export interface BackButtonProps {
  */
 export const BackButton: React.FC<BackButtonProps> = ({
   customBackText,
-  className = '',
-  dataTestId = 'back-button',
+  className = DEFAULT_CLASS_NAME,
+  dataTestId = DEFAULT_DATA_TEST_ID,
   onBack,
   backUrl
 }) => {
@@ -44,7 +48,18 @@ export const BackButton: React.FC<BackButtonProps> = ({
     if (onBack) {
       onBack()
     } else if (backUrl) {
-      window.location.href = backUrl
+      try {
+        const isSameOrigin =
+          typeof window !== 'undefined' &&
+          (backUrl.startsWith('/') || new URL(backUrl, window.location.origin).origin === window.location.origin)
+        if (isSameOrigin) {
+          navigateTo(backUrl)
+        } else {
+          window.location.href = backUrl
+        }
+      } catch {
+        window.location.href = backUrl
+      }
     } else {
       window.history.back()
     }

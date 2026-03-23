@@ -4,21 +4,46 @@
  * Connects to the document-service backend API for email management.
  */
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { normalizeLabels, normalizeLabelObjects, normalizeAddLabelInputs } from '../utils/labelUtils'
+import {
+  parseEmailAssistantCapabilities,
+  parseEmailAssistantPolicy,
+  parseEmailAssistantResponse
+} from '../utils/emailAssistantParsers'
 import type {
   EmailAccount,
   EmailFolder,
   EmailMessage,
   EmailMessageSummary,
+  EmailLabel,
+  AddLabelInput,
+  EmailLabelSuggestion,
   PaginatedResponse,
   CreateEmailAccountRequest,
   SendEmailRequest,
   ExternalCalendarEvent,
-  ThreadSummaryResult
+  ThreadSummaryResult,
+  EmailAssistantCapabilities,
+  EmailAssistantDraftRequest,
+  EmailAssistantPolicy,
+  EmailAssistantPolicyUpdateRequest,
+  EmailAssistantReplySuggestRequest,
+  EmailAssistantResponse,
+  EmailAssistantRewriteRequest,
+  EmailAssistantTemperatureCheckRequest
 } from '../types'
 
 const API_URL = getDocumentServiceApiUrl()
 
 let currentAccessToken: string | null = null
+
+function normalizeMessageSummary(message: EmailMessageSummary): EmailMessageSummary {
+  return { ...message, labels: normalizeLabelObjects((message as unknown as Record<string, unknown>).labels) }
+}
+
+function normalizeMessage(message: EmailMessage): EmailMessage {
+  return { ...message, labels: normalizeLabelObjects((message as unknown as Record<string, unknown>).labels) }
+}
 
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = currentAccessToken
@@ -36,7 +61,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 
   const text = await response.text()
-  return text ? JSON.parse(text) : null
+  return (text ? JSON.parse(text) : null) as T
 }
 
 export const EmailApiService = {
@@ -90,6 +115,7 @@ export const EmailApiService = {
     folderId?: string
     threadId?: string
     search?: string
+    labels?: string[]
     unreadOnly?: boolean
     starredOnly?: boolean
     hasAttachments?: boolean
@@ -100,17 +126,31 @@ export const EmailApiService = {
   }): Promise<PaginatedResponse<EmailMessageSummary>> {
     const params = new URLSearchParams()
     Object.entries(options).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) params.set(key, String(value))
+      if (value === undefined || value === null) return
+      if (Array.isArray(value)) {
+        value
+          .map(v => String(v).trim())
+          .filter(Boolean)
+          .forEach(v => params.append(key, v))
+        return
+      }
+      params.set(key, String(value))
     })
-    return apiRequest(`/emails/messages?${params.toString()}`)
+    const response = await apiRequest<PaginatedResponse<EmailMessageSummary>>(`/emails/messages?${params.toString()}`)
+    return {
+      ...response,
+      items: response.items.map(normalizeMessageSummary)
+    }
   },
 
   async getMessage(id: string): Promise<EmailMessage> {
-    return apiRequest<EmailMessage>(`/emails/messages/${id}`)
+    const response = await apiRequest<EmailMessage>(`/emails/messages/${id}`)
+    return normalizeMessage(response)
   },
 
   async getThread(threadId: string): Promise<EmailMessage[]> {
-    return apiRequest<EmailMessage[]>(`/emails/threads/${threadId}`)
+    const response = await apiRequest<EmailMessage[]>(`/emails/threads/${threadId}`)
+    return response.map(normalizeMessage)
   },
 
   async summarizeThread(threadId: string): Promise<ThreadSummaryResult> {
@@ -179,6 +219,49 @@ export const EmailApiService = {
     return apiRequest<EmailMessage>(`/emails/messages/${messageId}/shared`)
   },
 
+  async addMessageLabels(messageId: string, labels: AddLabelInput[]): Promise<{ labels: EmailLabel[] }> {
+    const normalized = normalizeAddLabelInputs(labels)
+    if (normalized.length === 0) return { labels: [] }
+
+    const response = await apiRequest<{ labels: unknown[] }>(`/emails/messages/${messageId}/labels/add`, {
+      method: 'PATCH',
+      body: JSON.stringify({ labels: normalized })
+    })
+    return { labels: normalizeLabelObjects(response.labels) }
+  },
+
+  async removeMessageLabels(messageId: string, labels: string[]): Promise<{ labels: EmailLabel[] }> {
+    const normalized = normalizeLabels(labels)
+    if (normalized.length === 0) return { labels: [] }
+
+    const response = await apiRequest<{ labels: unknown[] }>(`/emails/messages/${messageId}/labels/remove`, {
+      method: 'PATCH',
+      body: JSON.stringify({ labels: normalized })
+    })
+    return { labels: normalizeLabelObjects(response.labels) }
+  },
+
+  async searchLabelSuggestions(query: string, limit = 10): Promise<EmailLabelSuggestion[]> {
+    const q = query.trim()
+    if (!q) return []
+    const params = new URLSearchParams({ q, limit: String(limit) })
+    return apiRequest<EmailLabelSuggestion[]>(`/emails/labels/suggestions?${params.toString()}`)
+  },
+
+  async softDeleteLabelByName(name: string): Promise<{ success: boolean }> {
+    const normalized = normalizeLabels([name])
+    if (normalized.length === 0) return { success: true }
+
+    return apiRequest<{ success: boolean }>('/emails/labels/soft-delete', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: normalized[0] })
+    })
+  },
+
+  async softDeleteLabelById(id: string): Promise<{ success: boolean }> {
+    return apiRequest<{ success: boolean }>(`/emails/labels/${id}`, { method: 'DELETE' })
+  },
+
   // ============ Attachments ============
   /**
    * Downloads an attachment and returns a Blob URL for the browser.
@@ -223,6 +306,81 @@ export const EmailApiService = {
   async getCalendarEvents(accountId: string, startDate: string, endDate: string): Promise<ExternalCalendarEvent[]> {
     const params = new URLSearchParams({ startDate, endDate })
     return apiRequest<ExternalCalendarEvent[]>(`/emails/accounts/${accountId}/calendar/events?${params.toString()}`)
+  },
+
+  // ============ Assistant ============
+  async getAssistantCapabilities(options?: { signal?: AbortSignal }): Promise<EmailAssistantCapabilities> {
+    const response = await apiRequest<unknown>('/emails/assistant/capabilities', {
+      signal: options?.signal
+    })
+    return parseEmailAssistantCapabilities(response)
+  },
+
+  async generateAssistantDraft(
+    data: EmailAssistantDraftRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<EmailAssistantResponse> {
+    const response = await apiRequest<unknown>('/emails/assistant/draft', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      signal: options?.signal
+    })
+    return parseEmailAssistantResponse(response)
+  },
+
+  async rewriteAssistantDraft(
+    data: EmailAssistantRewriteRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<EmailAssistantResponse> {
+    const response = await apiRequest<unknown>('/emails/assistant/rewrite', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      signal: options?.signal
+    })
+    return parseEmailAssistantResponse(response)
+  },
+
+  async runAssistantTemperatureCheck(
+    data: EmailAssistantTemperatureCheckRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<EmailAssistantResponse> {
+    const response = await apiRequest<unknown>('/emails/assistant/temperature-check', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      signal: options?.signal
+    })
+    return parseEmailAssistantResponse(response)
+  },
+
+  async suggestAssistantReply(
+    data: EmailAssistantReplySuggestRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<EmailAssistantResponse> {
+    const response = await apiRequest<unknown>('/emails/assistant/reply-suggest', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      signal: options?.signal
+    })
+    return parseEmailAssistantResponse(response)
+  },
+
+  async getAssistantPolicy(options?: { signal?: AbortSignal }): Promise<EmailAssistantPolicy> {
+    const response = await apiRequest<unknown>('/emails/assistant/policy', {
+      signal: options?.signal
+    })
+    return parseEmailAssistantPolicy(response)
+  },
+
+  async updateAssistantPolicy(
+    data: EmailAssistantPolicyUpdateRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<EmailAssistantPolicy> {
+    const response = await apiRequest<unknown>('/emails/assistant/policy', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      signal: options?.signal
+    })
+    return parseEmailAssistantPolicy(response)
   }
 }
 

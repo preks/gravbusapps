@@ -4,24 +4,25 @@
  * Tabs: Screen (default), Data Model, Functions, Task Expert, Flow.
  */
 
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle } from 'lucide-react'
+import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle, Download, AlertTriangle, RefreshCw } from 'lucide-react'
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
-import { BuildPlanTab } from './BuildPlanTab'
-import { DataFlowDiagram } from './DataFlowDiagram'
+import { OverviewTab } from './OverviewTab'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import { AppAboutView } from './AppAboutView'
 import { DataModelPreview } from '@/common/components/ai-builder/data-model-preview/DataModelPreview'
 import { FunctionPreview } from '@/common/components/ai-builder/function-preview/FunctionPreview'
 import { FlowPreview } from '@/common/components/ai-builder/flow-preview/FlowPreview'
 import { AgentPreview } from '@/common/components/ai-builder/agent-preview/AgentPreview'
+import { AgentMeshPreview } from '@/common/components/ai-builder/agent-mesh-preview/AgentMeshPreview'
 import { PreviewTemplate } from '@/common/components/ai-builder/preview-template/PreviewTemplate'
 import { mapDataModelSpec, mapFunctionSpec, mapFlowSpec, mapAgentSpec } from './componentSpecPreviewMappers'
 import type { ComponentSpec, CanvasTab } from '../../types'
+import { getVisibleCanvasTabs } from '../../types'
 import type { AppMetadata, BuildAnalysis, UserSummary } from '../../types/build'
 
 export interface CompleteViewProps {
@@ -31,6 +32,8 @@ export interface CompleteViewProps {
   prompt?: string
   accessToken?: string
   userInfo?: any
+  builtBy?: any
+  builtByLoading?: boolean
   /** Incremented by the chat panel when an AI fix modifies screen code */
   previewRefreshToken?: number
   appMetadata?: AppMetadata
@@ -40,9 +43,85 @@ export interface CompleteViewProps {
   isPublishing?: boolean
   publishSuccess?: boolean
   publishError?: string | null
-  onPublish?: () => void
+  onPublish?: () => void | Promise<void>
+  onSaveVersion?: () => void | Promise<void>
+  isSavingVersion?: boolean
+  onDownloadPackage?: () => void | Promise<void>
+  onImportFolder?: (files: File[], mode: 'update' | 'new') => void | Promise<void>
+  isImportingFolder?: boolean
   onReset?: () => void
   isRestoringSession?: boolean
+  wiringWarnings?: string[]
+  onRetryWiring?: () => void
+}
+
+const WiringWarningBanner: React.FC<{ warnings: string[]; onRetry?: () => void }> = ({ warnings, onRetry }) => {
+  const [dismissed, setDismissed] = useState(false)
+
+  const warningRows = useMemo(() => {
+    const occurrenceByText = new Map<string, number>()
+    return warnings.map(warning => {
+      const n = (occurrenceByText.get(warning) ?? 0) + 1
+      occurrenceByText.set(warning, n)
+      // Stable keys without array index (duplicate lines get distinct occurrence suffix)
+      return { key: `${warning}\u2060${n}`, warning }
+    })
+  }, [warnings])
+
+  useEffect(() => {
+    if (warnings.length > 0) {
+      setDismissed(false)
+    }
+  }, [warnings])
+
+  if (dismissed) return null
+
+  return (
+    <div
+      className="gba:flex gba:items-start gba:gap-3 gba:px-4 gba:py-3 gba:border-b gba:border-yellow-300 gba:bg-yellow-50 dark:gba:bg-yellow-950/30 dark:gba:border-yellow-700"
+      data-testid="wiring-warning-banner"
+    >
+      <AlertTriangle className="gba:w-5 gba:h-5 gba:text-yellow-600 gba:shrink-0 gba:mt-0.5" />
+      <div className="gba:flex-1 gba:min-w-0">
+        <p className="gba:text-sm gba:font-semibold gba:text-yellow-800 dark:gba:text-yellow-200">
+          Some connections did not complete ({warnings.length} wiring step{warnings.length > 1 ? 's' : ''})
+        </p>
+        <ul className="gba:mt-1 gba:space-y-0.5">
+          {warningRows.map(({ key, warning }) => (
+            <li key={key} className="gba:text-xs gba:text-yellow-700 dark:gba:text-yellow-300">
+              &bull; {warning}
+            </li>
+          ))}
+        </ul>
+        <p className="gba:text-xs gba:text-yellow-600 dark:gba:text-yellow-400 gba:mt-1.5">
+          Your screen and data models are working. Some connections (agent tools, flow steps, or entity relationships)
+          may need attention.
+        </p>
+      </div>
+      <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+        {onRetry && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetry}
+            className="gba:gap-1.5 gba:border-yellow-400 gba:text-yellow-800 gba:hover:bg-yellow-100 dark:gba:border-yellow-600 dark:gba:text-yellow-200 dark:gba:hover:bg-yellow-900/40"
+            data-testid="retry-wiring-button"
+          >
+            <RefreshCw className="gba:w-3.5 gba:h-3.5" />
+            Retry Wiring
+          </Button>
+        )}
+        <button
+          onClick={() => setDismissed(true)}
+          className="gba:text-yellow-600 gba:hover:text-yellow-800 dark:gba:text-yellow-400 dark:gba:hover:text-yellow-200"
+          aria-label="Dismiss wiring warnings"
+          data-testid="dismiss-wiring-warnings"
+        >
+          <XCircle className="gba:w-4 gba:h-4" />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function firstScreenWithSession(components: ComponentSpec[]): ComponentSpec | null {
@@ -53,6 +132,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   components,
   accessToken,
   userInfo,
+  builtBy,
+  builtByLoading,
   previewRefreshToken,
   appMetadata,
   analysis,
@@ -63,18 +144,58 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   publishSuccess,
   publishError,
   onPublish,
-  isRestoringSession = false
+  onSaveVersion,
+  isSavingVersion = false,
+  onDownloadPackage,
+  onImportFolder,
+  isImportingFolder = false,
+  isRestoringSession = false,
+  wiringWarnings,
+  onRetryWiring
 }) => {
   const [activeTab, setActiveTab] = useState<CanvasTab>('screen')
+  const [pendingImportMode, setPendingImportMode] = useState<'update' | 'new' | null>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
+  const visibleTabs = useMemo(() => getVisibleCanvasTabs(components), [components])
   const previewComponent = useMemo(() => firstScreenWithSession(components), [components])
+  const dataModelItems = useMemo(
+    () =>
+      components
+        .filter(c => c.type === 'data_model' && (c.status === 'completed' || c.status === 'reused') && c.dataModelSpec)
+        .map(c => ({
+          id: c.id,
+          label: c.dataModelSpec!.name,
+          definition: mapDataModelSpec(c.dataModelSpec!)
+        })),
+    [components]
+  )
+
+  useEffect(() => {
+    const visibleIds = visibleTabs.map(t => t.id)
+    if (visibleIds.length > 0 && !visibleIds.includes(activeTab)) {
+      setActiveTab(visibleTabs[0].id)
+    }
+  }, [visibleTabs, activeTab])
+
+  const openFolderPicker = (mode: 'update' | 'new') => {
+    if (!onImportFolder || isImportingFolder) return
+    setPendingImportMode(mode)
+    folderInputRef.current?.click()
+  }
+
+  const handleFolderSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || [])
+    const mode = pendingImportMode
+    event.target.value = ''
+    setPendingImportMode(null)
+    if (!onImportFolder || !mode || selectedFiles.length === 0) return
+    await onImportFolder(selectedFiles, mode)
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'build-plan':
-        return <BuildPlanTab components={components} userSummary={userSummary} prompt={prompt} />
-
-      case 'data-flow':
-        return <DataFlowDiagram components={components} />
+        return <OverviewTab components={components} userSummary={userSummary} prompt={prompt} />
 
       case 'screen':
         if (previewComponent && accessToken) {
@@ -95,10 +216,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
         )
 
       case 'data-model': {
-        const built = components.filter(
-          c => c.type === 'data_model' && (c.status === 'completed' || c.status === 'reused') && c.dataModelSpec
-        )
-        if (built.length === 0) {
+        if (dataModelItems.length === 0) {
           return (
             <ComponentPlaceholderList
               components={components.filter(c => c.type === 'data_model')}
@@ -107,14 +225,9 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             />
           )
         }
-        const items = built.map(c => ({
-          id: c.id,
-          label: c.dataModelSpec!.name,
-          definition: mapDataModelSpec(c.dataModelSpec!)
-        }))
         return (
           <div className="gba:h-full gba:overflow-y-auto gba:p-4">
-            <DataModelPreview items={items} accessToken={accessToken} />
+            <DataModelPreview items={dataModelItems} accessToken={accessToken} />
           </div>
         )
       }
@@ -208,19 +321,43 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
           )
         }
         return (
-          <div className="gba:h-full gba:min-h-0 gba:flex gba:flex-col">
+          <div className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:overflow-y-auto gba:p-4">
             <PreviewTemplate items={eligible.map(c => ({ id: c.id, label: c.flowSpec?.name ?? c.name }))}>
               {selectedId => {
                 const comp = eligible.find(c => c.id === selectedId) ?? eligible[0]
                 const effectiveId = comp.createdId ?? comp.existingId ?? comp.id
                 if (comp.flowSpec) {
                   const specTemplate = { ...mapFlowSpec(comp.flowSpec), id: effectiveId }
-                  return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} template={specTemplate} />
+                  return (
+                    <FlowPreview
+                      key={comp.id}
+                      accessToken={accessToken ?? ''}
+                      userInfo={userInfo}
+                      template={specTemplate}
+                    />
+                  )
                 }
-                return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} flowId={effectiveId} />
+                return (
+                  <FlowPreview key={comp.id} accessToken={accessToken ?? ''} userInfo={userInfo} flowId={effectiveId} />
+                )
               }}
             </PreviewTemplate>
           </div>
+        )
+      }
+
+      case 'agent-mesh': {
+        const builtAgents = components.filter(
+          c =>
+            c.type === 'agent' && (c.status === 'completed' || c.status === 'reused') && (c.createdId || c.existingId)
+        )
+        const agentIds = builtAgents.map(c => c.createdId ?? c.existingId ?? c.id)
+        return (
+          <AgentMeshPreview
+            accessToken={accessToken ?? ''}
+            agentIds={agentIds}
+            data-testid="complete-view-agent-mesh-preview"
+          />
         )
       }
 
@@ -234,6 +371,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             originalPrompt={prompt}
             createdAt={createdAt}
             userInfo={userInfo}
+            builtBy={builtBy}
+            builtByLoading={builtByLoading}
             accessToken={accessToken}
           />
         )
@@ -252,6 +391,54 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
           <div className="gba:min-w-0 gba:flex-1">
             <p className="gba:font-semibold gba:text-foreground gba:text-base gba:leading-tight">{appMetadata.name}</p>
             <p className="gba:text-sm gba:text-muted-foreground gba:truncate">{appMetadata.description}</p>
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:justify-end">
+            {onDownloadPackage && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onDownloadPackage}
+                disabled={isImportingFolder || isSavingVersion}
+                className="gba:gap-1.5"
+              >
+                <Download className="gba:w-3.5 gba:h-3.5" />
+                Download Project ZIP
+              </Button>
+            )}
+            {onSaveVersion && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onSaveVersion}
+                disabled={isSavingVersion || isImportingFolder}
+                className="gba:gap-1.5"
+              >
+                <Upload className="gba:w-3.5 gba:h-3.5" />
+                {isSavingVersion ? 'Saving Version...' : 'Save Version'}
+              </Button>
+            )}
+            {onImportFolder && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openFolderPicker('update')}
+                  disabled={isImportingFolder}
+                  className="gba:gap-1.5"
+                >
+                  <Upload className="gba:w-3.5 gba:h-3.5" />
+                  {isImportingFolder ? 'Importing Folder...' : 'Import Folder to Current App'}
+                </Button>
+              </>
+            )}
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              onChange={handleFolderSelected}
+              className="gba:hidden"
+              {...({ webkitdirectory: 'true', directory: 'true' } as Record<string, string>)}
+            />
           </div>
           {(() => {
             if (publishSuccess) {
@@ -316,12 +503,16 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
         </div>
       )}
 
+      {wiringWarnings && wiringWarnings.length > 0 && (
+        <WiringWarningBanner warnings={wiringWarnings} onRetry={onRetryWiring} />
+      )}
+
       {/* Tab Header */}
       <div className="gba:bg-background gba:border-b gba:border-border">
-        <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} />
+        <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} tabs={visibleTabs} />
       </div>
 
-      {/* Tab Content — position:relative so DataFlowDiagram can use absolute inset:0 */}
+      {/* Tab Content — position:relative so DataFlowDiagram can use absolute inset:0; no key so content switches without remount flash */}
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-hidden gba:relative">{renderTabContent()}</div>
     </div>
   )

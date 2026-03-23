@@ -1,6 +1,6 @@
 import React from 'react'
 import { Calendar, Building2, Clock } from 'lucide-react'
-import { UserOutlined } from '@ant-design/icons'
+import { UserIcon } from '@phosphor-icons/react'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 
 /**
@@ -100,7 +100,7 @@ export const OpportunityBoardCard: React.FC<OpportunityBoardCardProps> = ({
         <div className="gba:flex gba:justify-between gba:items-center">
           {ownerName && (
             <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
-              <UserOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
+              <UserIcon size={12} style={{ marginRight: '4px' }} />
               {ownerName}
             </div>
           )}

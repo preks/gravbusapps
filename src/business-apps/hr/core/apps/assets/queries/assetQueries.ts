@@ -48,6 +48,37 @@ export const ASSET_FIELDS = `
     id
     name
   }
+  disposalStatus
+  disposalOutcomeRef
+  disposalDate
+  disposalReason
+  responsibleEmployeeId
+  performerEmployeeId
+  requireSanitization
+  sanitizationMethodRef
+  sanitizationExecutionDate
+  disposalOutcome {
+    id
+    code
+    value
+  }
+  sanitizationMethod {
+    id
+    code
+    value
+  }
+  responsibleEmployee {
+    id
+    displayName
+    firstName
+    lastName
+  }
+  performerEmployee {
+    id
+    displayName
+    firstName
+    lastName
+  }
 `
 
 export const EMPLOYEE_ASSET_FIELDS = `
@@ -220,6 +251,15 @@ export const GET_CURRENT_ALLOCATION = `
       }
       limit: 1
     ) {
+      ${EMPLOYEE_ASSET_FIELDS}
+    }
+  }
+`
+
+/** Single allocation by id (e.g. for employee acknowledgment review). */
+export const GET_EMPLOYEE_ASSET_BY_ID = `
+  query GetEmployeeAssetById($id: uuid!) {
+    EmployeeAsset(where: { id: { _eq: $id }, isDeleted: { _eq: false } }, limit: 1) {
       ${EMPLOYEE_ASSET_FIELDS}
     }
   }

@@ -2,13 +2,7 @@ import React from 'react'
 import { Badge, Button } from '@newwork/nw-design-system'
 import { ArrowLeft } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
-
-// Video background - same logic as FlowStudio
-const hostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
-const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 
 export type CreateHeroBadge = {
   label: string
@@ -25,6 +19,7 @@ export interface CreateHeroHeaderProps {
   onBack?: () => void
   actions?: React.ReactNode
   badges?: CreateHeroBadge[]
+  size?: 'default' | 'large'
   className?: string
   'data-testid'?: string
 }
@@ -37,59 +32,49 @@ export const CreateHeroHeader: React.FC<CreateHeroHeaderProps> = ({
   onBack,
   actions,
   badges,
+  size = 'default',
   className,
   'data-testid': testId = 'create-hero-header'
 }) => {
+  const isLarge = size === 'large'
+
   return (
     <div
       className={['gba:relative gba:overflow-hidden gba:shrink-0', className].filter(Boolean).join(' ')}
       data-testid={testId}
     >
-      {useVideo ? (
-        <video
-          src={HERO_VIDEO_SRC}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-          className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-          aria-hidden
-          data-testid={`${testId}-video`}
-        />
-      ) : (
-        <SpaceHeroBackground />
-      )}
+      <PremiumHeroBackground data-testid={`${testId}-background`} />
+      <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
-      {/* Dark overlay for text readability */}
-      {/* eslint-disable newwork-local/no-hardcoded-colors */}
-      <div
-        className="gba:absolute gba:inset-0 gba:pointer-events-none"
-        style={{
-          background: 'linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)'
-        }}
-        aria-hidden
-      />
-      {/* eslint-enable newwork-local/no-hardcoded-colors */}
-
-      <div className="gba:relative gba:px-6 gba:py-5">
+      <div className={`gba:relative gba:px-6 ${isLarge ? 'gba:py-8' : 'gba:py-5'}`}>
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-          <div className="gba:flex gba:items-start gba:gap-3">
-            <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-white/15">
-              <Icon className="gba:h-5 gba:w-5 gba:text-white" />
+          <div className={`gba:flex gba:items-start ${isLarge ? 'gba:gap-4' : 'gba:gap-3'}`}>
+            <div
+              className={`gba:flex gba:items-center gba:justify-center gba:rounded-lg gba:bg-white/15 ${
+                isLarge ? 'gba:w-14 gba:h-14 gba:rounded-xl' : 'gba:w-10 gba:h-10'
+              }`}
+            >
+              <Icon className={isLarge ? 'gba:h-7 gba:w-7 gba:text-white' : 'gba:h-5 gba:w-5 gba:text-white'} />
             </div>
-            <div className="gba:flex gba:flex-col gba:gap-0.5">
+            <div className={`gba:flex gba:flex-col ${isLarge ? 'gba:gap-1' : 'gba:gap-0.5'}`}>
               <span className="gba:text-xs gba:font-medium gba:tracking-[0.3em] gba:text-white/60 gba:uppercase">
                 {appLabel}
               </span>
               <div
-                className="gba:text-xl gba:font-semibold gba:leading-tight gba:text-white"
+                className={
+                  isLarge
+                    ? 'gba:font-funnel-display gba:text-3xl gba:sm:text-4xl gba:font-semibold gba:leading-tight gba:text-white gba:tracking-tight'
+                    : 'gba:text-xl gba:font-semibold gba:leading-tight gba:text-white'
+                }
                 data-testid={`${testId}-title`}
               >
                 {title}
               </div>
               {description ? (
-                <span className="gba:text-sm gba:text-white/80" data-testid={`${testId}-description`}>
+                <span
+                  className={isLarge ? 'gba:text-base gba:text-white/70 gba:mt-1' : 'gba:text-sm gba:text-white/80'}
+                  data-testid={`${testId}-description`}
+                >
                   {description}
                 </span>
               ) : null}

@@ -27,6 +27,8 @@ disposal-reason-placeholder = Grund angeben...
 
 # Responsible
 responsible-person = Verantwortliche Person
+select-responsible-person = Person wählen
+select-performed-by = Person wählen
 
 # Sanitization
 data-sanitization-required = Datensanierung erforderlich?

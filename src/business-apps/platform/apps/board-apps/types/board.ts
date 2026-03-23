@@ -6,7 +6,7 @@
  * (groups, subitems, cross-board relations, row pages, audit events).
  */
 
-import type { EntityDataSource } from '../../spreadsheet-apps/types/entityDataSource'
+import type { EntityDataSource } from '../../../../core/office/apps/spreadsheets/types/entityDataSource'
 import type { BoardColumn } from './columns'
 import type { BoardView, ViewFilterOperator } from './views'
 
@@ -116,6 +116,7 @@ export interface BoardSummary {
   status: BoardStatus
   sheetCount: number
   rowCount: number
+  spaceId?: string
   createdAt: string
   updatedAt: string
   permission?: string

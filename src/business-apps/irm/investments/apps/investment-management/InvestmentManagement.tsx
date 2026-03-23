@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout, Button } from '@newwork/nw-design-system'
-import { TrendDownIcon, CurrencyDollarIcon, ChartBarIcon, SquaresFourIcon } from '@phosphor-icons/react'
+import { TrendDownIcon, CurrencyDollarIcon, ChartBarIcon, GaugeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -10,20 +10,16 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import DashboardView from './views/dashboard-view/DashboardView'
 import { AnalyticsView } from './views/analytics-view'
 import { ReportView } from './views/report-view'
-import { useInvestmentGroups } from './views/investment-view/hooks/useInvestmentGroups'
 
 export type InvestmentManagementProps = BusinessAppContextProps
 
 const moduleColor = MODULE_COLORS.IRM
 
 export const InvestmentManagement: React.FC<InvestmentManagementProps> = context => {
-  // Load investment groups from catalog for dynamic tab validation
-  const investmentGroups = useInvestmentGroups(context)
-
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <SquaresFourIcon />,
+      icon: <GaugeIcon />,
       label: getTranslationFromI18nKeyAndLabel('portfolio', 'Portfolio')
     },
     {
@@ -61,21 +57,8 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
     return viewOptions[0].key
   }
 
-  // Investments subview handling - dynamically validates based on catalog groups
-  const getInitialInvestmentsSubView = (groups: Array<{ tabId: string }> = []) => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const subViewFromUrl = urlParams.get('subView')
-    // Build valid tabs dynamically: 'overview' + all catalog group tab IDs
-    const valid = ['overview', ...(groups || []).map(g => g.tabId)]
-    if (subViewFromUrl && valid.includes(subViewFromUrl)) {
-      return subViewFromUrl
-    }
-    return 'overview'
-  }
-
   const [activeView, setActiveView] = useState<string>(getInitialView())
   const [investmentsSubTab, setInvestmentsSubTab] = useState<string>(() => {
-    // On initial render, just check URL for overview or default to overview
     const urlParams = new URLSearchParams(window.location.search)
     return urlParams.get('subView') || 'overview'
   })
@@ -143,31 +126,20 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
     }
   }, [])
 
-  // Validate and update sub-tab once investment groups are loaded
-  useEffect(() => {
-    if (investmentGroups.length > 0 && activeView === 'investments') {
-      const validatedSubTab = getInitialInvestmentsSubView(investmentGroups)
-      if (validatedSubTab !== investmentsSubTab) {
-        setInvestmentsSubTab(validatedSubTab)
-        updateUrl('investments', validatedSubTab)
-      }
-    }
-  }, [investmentGroups, activeView])
-
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
       const newView = getInitialView()
       setActiveView(newView)
       if (newView === 'investments') {
-        const newInvestmentsSubView = getInitialInvestmentsSubView(investmentGroups)
-        setInvestmentsSubTab(newInvestmentsSubView)
+        const urlParams = new URLSearchParams(globalThis.location.search)
+        setInvestmentsSubTab(urlParams.get('subView') || 'overview')
       }
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [investmentGroups])
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const renderViewContent = () => {
     switch (activeView) {

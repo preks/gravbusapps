@@ -6,6 +6,7 @@
 import { useState, useCallback, useEffect } from 'react'
 
 interface BoardUrlState {
+  collectionId: string | null
   boardId: string | null
   sheetId: string | null
   viewId: string | null
@@ -15,6 +16,7 @@ interface BoardUrlState {
 function readFromUrl(): BoardUrlState {
   const params = new URLSearchParams(globalThis.window?.location?.search || '')
   return {
+    collectionId: params.get('collectionId'),
     boardId: params.get('boardId'),
     sheetId: params.get('sheetId'),
     viewId: params.get('viewId'),
@@ -25,6 +27,10 @@ function readFromUrl(): BoardUrlState {
 function writeToUrl(state: Partial<BoardUrlState & { clearFilters?: boolean }>) {
   const params = new URLSearchParams(globalThis.window?.location?.search || '')
 
+  if (state.collectionId !== undefined) {
+    if (state.collectionId) params.set('collectionId', state.collectionId)
+    else params.delete('collectionId')
+  }
   if (state.boardId !== undefined) {
     if (state.boardId) params.set('boardId', state.boardId)
     else params.delete('boardId')
@@ -54,10 +60,12 @@ function writeToUrl(state: Partial<BoardUrlState & { clearFilters?: boolean }>) 
 }
 
 export interface UseBoardUrlStateReturn {
+  urlCollectionId: string | null
   urlBoardId: string | null
   urlSheetId: string | null
   urlViewId: string | null
   urlPage: number
+  setCollectionId: (id: string | null) => void
   setBoardId: (id: string | null) => void
   setSheetId: (id: string | null) => void
   setViewId: (id: string | null) => void
@@ -67,10 +75,27 @@ export interface UseBoardUrlStateReturn {
 
 export function useBoardUrlState(): UseBoardUrlStateReturn {
   const initial = readFromUrl()
+  const [collectionId, _setCollectionId] = useState<string | null>(initial.collectionId)
   const [boardId, _setBoardId] = useState<string | null>(initial.boardId)
   const [sheetId, _setSheetId] = useState<string | null>(initial.sheetId)
   const [viewId, _setViewId] = useState<string | null>(initial.viewId)
   const [page, _setPage] = useState(initial.page)
+
+  const setCollectionId = useCallback((id: string | null) => {
+    _setCollectionId(id)
+    _setBoardId(null)
+    _setSheetId(null)
+    _setViewId(null)
+    _setPage(1)
+    writeToUrl({
+      collectionId: id,
+      boardId: null,
+      sheetId: null,
+      viewId: null,
+      page: 1,
+      clearFilters: true
+    })
+  }, [])
 
   const setBoardId = useCallback((id: string | null) => {
     _setBoardId(id)
@@ -98,16 +123,25 @@ export function useBoardUrlState(): UseBoardUrlStateReturn {
   }, [])
 
   const clearBoardState = useCallback(() => {
+    _setCollectionId(null)
     _setBoardId(null)
     _setSheetId(null)
     _setViewId(null)
     _setPage(1)
-    writeToUrl({ boardId: null, sheetId: null, viewId: null, page: 1, clearFilters: true })
+    writeToUrl({
+      collectionId: null,
+      boardId: null,
+      sheetId: null,
+      viewId: null,
+      page: 1,
+      clearFilters: true
+    })
   }, [])
 
   useEffect(() => {
     const handlePopState = () => {
       const s = readFromUrl()
+      _setCollectionId(s.collectionId)
       _setBoardId(s.boardId)
       _setSheetId(s.sheetId)
       _setViewId(s.viewId)
@@ -118,10 +152,12 @@ export function useBoardUrlState(): UseBoardUrlStateReturn {
   }, [])
 
   return {
+    urlCollectionId: collectionId,
     urlBoardId: boardId,
     urlSheetId: sheetId,
     urlViewId: viewId,
     urlPage: page,
+    setCollectionId,
     setBoardId,
     setSheetId,
     setViewId,

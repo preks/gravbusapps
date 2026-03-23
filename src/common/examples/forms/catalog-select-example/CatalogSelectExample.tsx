@@ -527,6 +527,7 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
                 <CatalogSelect
                   catalogIdentifier="InvestmentOpportunityPipelineStage:v1"
                   requireSourceForEnable={true}
+                  autoSelectFirst={true}
                   filterField="pipelineType:type"
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}

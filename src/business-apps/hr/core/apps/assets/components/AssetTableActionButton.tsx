@@ -3,7 +3,13 @@ import { AssetStatus } from '../types'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
-type ActionLabelKey = 'actions' | 'update_asset' | 'allocate_asset' | 'retrieve_asset' | 'retire_asset' | 'export_pdf'
+type ActionLabelKey =
+  | 'actions'
+  | 'update_asset'
+  | 'allocate_asset'
+  | 'retrieve_asset'
+  | 'retire_asset'
+  | 'export_certificate'
 
 /** Action dropdown labels by locale (matches assets _i18n FTL). Fallback to en-US. */
 const ACTION_LABELS_BY_LOCALE: Record<string, Record<ActionLabelKey, string>> = {
@@ -13,7 +19,7 @@ const ACTION_LABELS_BY_LOCALE: Record<string, Record<ActionLabelKey, string>> = 
     allocate_asset: 'Allocate Asset',
     retrieve_asset: 'Retrieve Asset',
     retire_asset: 'Retire Asset',
-    export_pdf: 'Export PDF'
+    export_certificate: 'Export certificate'
   },
   'de-DE': {
     actions: 'Aktionen',
@@ -21,7 +27,7 @@ const ACTION_LABELS_BY_LOCALE: Record<string, Record<ActionLabelKey, string>> = 
     allocate_asset: 'Gerät zuweisen',
     retrieve_asset: 'Gerät zurücknehmen',
     retire_asset: 'Gerät außer Betrieb nehmen',
-    export_pdf: 'Als PDF exportieren'
+    export_certificate: 'Zertifikat exportieren'
   },
   'ro-RO': {
     actions: 'Acțiuni',
@@ -29,11 +35,11 @@ const ACTION_LABELS_BY_LOCALE: Record<string, Record<ActionLabelKey, string>> = 
     allocate_asset: 'Alocă activ',
     retrieve_asset: 'Reia activul',
     retire_asset: 'Retrage activul',
-    export_pdf: 'Exportă PDF'
+    export_certificate: 'Exportă certificat'
   }
 }
 
-function getActionLabels(): Record<ActionLabelKey, string> {
+export function getActionLabels(): Record<ActionLabelKey, string> {
   const locale = getCurrentActiveUserLocale()
   return ACTION_LABELS_BY_LOCALE[locale] ?? ACTION_LABELS_BY_LOCALE['en-US']!
 }
@@ -117,11 +123,11 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
       })
     }
 
-    if (onGenerateDocument) {
+    if (isRetired && onGenerateDocument) {
       actions.push({
         category: labels.actions,
         key: 'generate-document',
-        label: labels.export_pdf,
+        label: labels.export_certificate,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onGenerateDocument(assetId)

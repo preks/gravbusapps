@@ -34,10 +34,7 @@ export const useMatrixSaveHandlers = ({
         throw new Error('Access token is missing')
       }
 
-      // Only save cells that are modified/new and have an amount > 0
-      const modifiedCells = editableCells.filter(
-        cell => ((cell.isModified && !cell.isNew) || cell.isNew) && cell.amount > 0 // Only save cells with actual amounts
-      )
+      const modifiedCells = editableCells.filter(cell => (cell.isModified && !cell.isNew) || cell.isNew)
 
       if (modifiedCells.length === 0) {
         toast.success('No changes to save')

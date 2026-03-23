@@ -49,6 +49,19 @@ import ActivitySection from '@/common/components/common-relations/record-section
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
+import {
+  APPROVAL_TASK_TYPE_REF,
+  FILE_CONTEXT,
+  APP_NAME,
+  getFileEntityFromType
+} from '@/common/data/investment/constants/investmentConstants'
+import { getReferenceEntityType } from '@/common/data/investment/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
+import { buildInvestmentActivityPayload } from '@/common/data/investment/types/investmentActivityTypes'
+import { buildInvestmentNotePayload } from '@/common/data/investment/types/investmentNoteTypes'
 import { DocumentView } from './views/document-view'
 import {
   useGetInvestmentActivitiesByOpportunityId,
@@ -94,6 +107,47 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     error,
     refetch
   } = useInvestmentOpportunity(props.accessToken, opportunityId)
+
+  const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      entityId: opportunityId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient, opportunityId]
+  )
+  const activityPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      entityId: opportunityId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [props.userInfo, fileClient, opportunityId]
+  )
+  const notePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: props.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      entityId: opportunityId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false
+    }),
+    [props.userInfo, fileClient, opportunityId]
+  )
 
   const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
 
@@ -184,8 +238,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     await refetch()
   }, [refetch])
 
-  // AI Summary hook for HeaderSection
-  const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
+  // AI Summary hook - pass already-fetched opportunityData to avoid a duplicate GetInvestmentOpportunityById query
+  const aiSummaryHook = useAiSummary(opportunityId, props.accessToken, opportunityData ?? null)
 
   // Build reference URLs for IRM context
   const buildReferenceUrl = (reference: TaskReference): string => {
@@ -321,7 +375,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     loadActivities()
     loadNotes()
     loadTasksAndApprovals()
-    loadDocuments()
     loadRejectionReasons() // Refresh rejection reasons after process completion
   }, [refetchOpportunityData, fetchOpportunityStages, loadRejectionReasons])
 
@@ -376,7 +429,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const approvalActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.investmentTaskCreate],
-      externalContextData: { opportunityId, typeRef: 'InvestmentTaskType:v1:APPROVAL' },
+      externalContextData: {
+        opportunityId,
+        opportunity: opportunityId,
+        typeRef: APPROVAL_TASK_TYPE_REF,
+        investmentTask: { opportunity: opportunityId, type: APPROVAL_TASK_TYPE_REF }
+      },
       prefixDataTestId: 'opportunity-approval'
     }),
     [opportunityId]
@@ -426,11 +484,19 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       externalContextData: {
         opportunityId,
         opportunity: opportunityId,
-        investmentActivity: { opportunity: opportunityId }
+        investmentActivity: { opportunity: opportunityId },
+        ...(props.userInfo?.employeeDetails?.employeeId && {
+          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+        }),
+        ...(props.userInfo?.id && {
+          employeeId: props.userInfo.id,
+          userId: props.userInfo.id,
+          employeeDetails: { userId: props.userInfo.id }
+        })
       },
       prefixDataTestId: 'add-activity'
     }),
-    [opportunityId]
+    [opportunityId, props.userInfo]
   )
 
   // Rejection reasons badge - MUST be defined before headerTitle
@@ -968,7 +1034,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       externalContextData: { opportunityId },
                       prefixDataTestId: 'opportunity-task-entity',
                       emptyStateBehavior: 'enable'
-                    }
+                    },
+                    typeCatalog: TASK_TYPE,
+                    priorityCatalog: TASK_PRIORITY,
+                    buildTaskPayload: buildInvestmentTaskPayload,
+                    defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                    preSubmit: taskPreSubmit
                   }
                 },
                 {
@@ -976,6 +1047,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: TaskSection,
                   props: {
                     ...props,
+                    opportunityId,
                     sectionTitle: 'Approval Tasks',
                     buildReferenceUrl,
                     tasks: approvals,
@@ -986,7 +1058,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                     taskEntityActionProps: {
                       ...approvalEntityActionProps,
                       emptyStateBehavior: 'enable'
-                    }
+                    },
+                    typeCatalog: TASK_TYPE,
+                    priorityCatalog: TASK_PRIORITY,
+                    buildTaskPayload: buildInvestmentTaskPayload,
+                    isApprovalTaskSection: true,
+                    approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+                    defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                    preSubmit: taskPreSubmit
                   }
                 }
               ]}
@@ -1006,6 +1085,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: ActivitySection,
                   props: {
                     ...props,
+                    opportunityId,
                     activities: activities,
                     activitiesLoading: activitiesLoading,
                     activitiesError: activitiesError,
@@ -1018,7 +1098,10 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                     activityEntityActionProps: {
                       ...activityEntityActionProps,
                       emptyStateBehavior: 'enable'
-                    }
+                    },
+                    activityTypeCatalog: ACTIVITY_TYPE,
+                    buildActivityPayload: buildInvestmentActivityPayload,
+                    preSubmit: activityPreSubmit
                   }
                 },
                 {
@@ -1026,6 +1109,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: NoteSection,
                   props: {
                     ...props,
+                    opportunityId,
                     notes: notes,
                     noteActionProps: {
                       ...noteActionProps,
@@ -1034,7 +1118,9 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                     noteEntityActionProps: {
                       ...noteEntityActionProps,
                       emptyStateBehavior: 'enable'
-                    }
+                    },
+                    buildNotePayload: buildInvestmentNotePayload,
+                    preSubmit: notePreSubmit
                   }
                 }
               ]}

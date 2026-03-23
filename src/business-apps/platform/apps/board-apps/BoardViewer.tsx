@@ -8,20 +8,23 @@
  * from its own header without duplicating state.
  */
 
-import React, { useState, useCallback, useEffect, useMemo, useImperativeHandle, forwardRef, useRef } from 'react'
-import { Spinner } from '@newwork/nw-design-system'
+import { useState, useCallback, useEffect, useMemo, useImperativeHandle, forwardRef, useRef } from 'react'
+import { Spinner, toast } from '@newwork/nw-design-system'
 import type { Board, BoardSheet, BoardRow, BoardQuickFilter } from './types'
 import { RowPagePanel } from './components/RowPagePanel'
 import { BoardViewContent } from './components/BoardViewContent'
 import { useBoardRealtime } from './hooks/useBoardRealtime'
+import { useBoardPresence } from './hooks/useBoardPresence'
 import { BoardViewerTabs } from './components/viewer/BoardViewerTabs'
 import { BoardViewerFooter } from './components/viewer/BoardViewerFooter'
 import { BoardViewerOverlays } from './components/viewer/BoardViewerOverlays'
 import { SystemDataSheet } from './components/system-data/SystemDataSheet'
 import { FlowEngineDataSheet } from './components/flow-engine/FlowEngineDataSheet'
+import { ExternalDataSheet } from './components/external-data/ExternalDataSheet'
 import { BoardApiService } from './services/BoardApiService'
 import { useDashboardData } from './hooks/useDashboardData'
 import { usePeopleColumnOptions } from './hooks/usePeopleColumnOptions'
+import type { ServerFilterParams } from './hooks/useTableFilterSort'
 
 function readInitialServerFilters(): { filters?: string; filterConnector?: 'and' | 'or'; sorts?: string } {
   try {
@@ -63,6 +66,7 @@ export interface BoardViewerHandle {
   openSettings: () => void
   openSystemData: () => void
   openFlowData: () => void
+  openExternalData: () => void
   navigateToRow: (sheetId: string, rowId: string, position?: number) => void
 }
 
@@ -101,6 +105,10 @@ export interface BoardViewerProps {
   onCreateRow?: (boardId: string, sheetId: string, data: Record<string, unknown>) => Promise<BoardRow | null>
   onUpdateRow?: (boardId: string, sheetId: string, rowId: string, data: Record<string, unknown>) => Promise<void>
   onDeleteRow?: (boardId: string, sheetId: string, rowId: string) => Promise<boolean>
+  onPatchRowCreated?: (row: BoardRow) => void
+  onPatchRowUpdated?: (row: BoardRow) => void
+  onPatchRowDeleted?: (rowId: string) => void
+  onPatchSheetColumns?: (sheetId: string, columns: unknown[]) => void
   'data-testid'?: string
 }
 
@@ -122,6 +130,10 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     onCreateRow,
     onUpdateRow,
     onDeleteRow,
+    onPatchRowCreated,
+    onPatchRowUpdated,
+    onPatchRowDeleted,
+    onPatchSheetColumns,
     rows,
     rowsLoading,
     rowsTotal,
@@ -167,12 +179,16 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   const canEdit =
     !board.permission || board.permission === 'owner' || board.permission === 'edit' || board.permission === 'admin'
 
+  const [rowOverride, setRowOverride] = useState<BoardRow[] | null>(null)
+  const effectiveRows = rowOverride ?? rows
+
   const [activeRow, setActiveRow] = useState<BoardRow | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isAddViewOpen, setIsAddViewOpen] = useState(false)
   const [isSystemDataOpen, setIsSystemDataOpen] = useState(false)
   const [isFlowEngineDataOpen, setIsFlowEngineDataOpen] = useState(false)
+  const [isExternalDataOpen, setIsExternalDataOpen] = useState(false)
   const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null)
   const tableNextPageRef = useRef(1)
   const kanbanNextPageRef = useRef(1)
@@ -286,7 +302,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   const navigateToRow = useCallback(
     (targetSheetId: string, rowId: string, position?: number) => {
       const effectiveSheetId = targetSheetId || activeSheetId
-      const rowInMemory = rows.some(r => r.id === rowId)
+      const rowInMemory = effectiveRows.some(r => r.id === rowId)
       const isKanban = activeView?.type === 'kanban'
 
       if (!rowInMemory && isKanban) {
@@ -357,6 +373,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
       openSettings: () => setIsSettingsOpen(true),
       openSystemData: () => setIsSystemDataOpen(true),
       openFlowData: () => setIsFlowEngineDataOpen(true),
+      openExternalData: () => setIsExternalDataOpen(true),
       navigateToRow
     }),
     [navigateToRow]
@@ -394,27 +411,76 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     })
   }, [activeSheet, board.id, isKanbanView, onLoadRows, rows.length, rowsTotal])
 
-  const liveEnabled = Boolean((board.settings as any)?.liveUpdatesEnabled)
-  useBoardRealtime({
+  const liveEnabled = (board.settings as any)?.liveUpdatesEnabled !== false
+  const realtimeFullRefetch = useCallback(() => {
+    if (!activeSheet) return
+    const opts = { ...serverFilterRef.current }
+    if (isKanbanView) {
+      kanbanNextPageRef.current = 2
+      void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
+    } else {
+      tableNextPageRef.current = 2
+      void onLoadRows(board.id, activeSheet.id, {
+        page: 1,
+        limit: activeSheet.settings.rowsPerPage || 50,
+        ...opts
+      })
+    }
+  }, [activeSheet, board.id, isKanbanView, onLoadRows])
+
+  const { socket: boardSocket } = useBoardRealtime({
     boardId: board.id,
     accessToken,
     enabled: liveEnabled,
     onEvent: event => {
       if (!activeSheet) return
       if (event.sheetId && event.sheetId !== activeSheet.id) return
-      const opts = { ...serverFilterRef.current }
-      if (isKanbanView) {
-        kanbanNextPageRef.current = 2
-        void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
-      } else {
-        tableNextPageRef.current = 2
-        void onLoadRows(board.id, activeSheet.id, {
-          page: 1,
-          limit: activeSheet.settings.rowsPerPage || 50,
-          ...opts
-        })
+      if (event.actorUserId === userId) return
+
+      switch (event.type) {
+        case 'row.created':
+          if (event.row && onPatchRowCreated) {
+            onPatchRowCreated(event.row as unknown as BoardRow)
+          } else {
+            realtimeFullRefetch()
+          }
+          break
+        case 'row.updated':
+          if (event.row && onPatchRowUpdated) {
+            onPatchRowUpdated(event.row as unknown as BoardRow)
+          } else {
+            realtimeFullRefetch()
+          }
+          break
+        case 'row.deleted':
+          if (event.rowId && onPatchRowDeleted) {
+            onPatchRowDeleted(event.rowId)
+          } else {
+            realtimeFullRefetch()
+          }
+          break
+        case 'row.reordered':
+          realtimeFullRefetch()
+          break
+        case 'sheet.updated':
+          if (event.columns && event.sheetId && onPatchSheetColumns) {
+            onPatchSheetColumns(event.sheetId, event.columns)
+          } else {
+            realtimeFullRefetch()
+          }
+          break
+        default:
+          realtimeFullRefetch()
+          break
       }
     }
+  })
+
+  const { focusedCells, emitCellFocus, emitCellBlur } = useBoardPresence({
+    socket: boardSocket,
+    boardId: board.id,
+    sheetId: activeSheet?.id ?? '',
+    enabled: liveEnabled
   })
 
   const autoSyncDoneRef = useRef(false)
@@ -436,7 +502,23 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             ds.populateTargetCol as string,
             dsLimit
           )
+        } else if (ds.provider === 'functionManager') {
+          await BoardApiService.startExternalSync(board.id, activeSheet.id, {
+            connectorId: ds.connectorId as string,
+            connectorName: ds.connectorName as string,
+            connectionId: ds.connectionId as string | undefined,
+            query: ds.query as Record<string, unknown> | undefined,
+            selectedFields: ds.selectedFields as string[] | undefined,
+            limit: dsLimit,
+            mode: (ds.syncMode as 'replace' | 'append' | 'merge') || 'replace',
+            mergeKey: ds.mergeKey as string | undefined,
+            autoColumns: true,
+            keepConnected: true,
+            refreshMode: ds.refreshMode as string | undefined
+          })
         } else if (ds.provider === 'flowEngine') {
+          const fmRaw = ds.fieldMappings as Array<{ sourceField: string }> | undefined
+          const selFields = fmRaw?.length ? fmRaw.map(m => m.sourceField) : undefined
           await BoardApiService.syncFromFlowEngine(board.id, activeSheet.id, {
             flowEntity: (ds.flowEntity as 'flows' | 'tasks') || 'flows',
             templateIds: ds.templateIds as string[] | undefined,
@@ -449,7 +531,8 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             priority: ds.priority as string | undefined,
             limit: dsLimit,
             mode: 'replace',
-            autoColumns: true
+            autoColumns: true,
+            selectedFields: selFields
           })
         } else {
           await BoardApiService.syncFromGraphQL(board.id, activeSheet.id, {
@@ -476,6 +559,10 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   }, [activeSheet, board.id, isKanbanView, onReloadBoard, onLoadRows])
 
   useEffect(() => {
+    setRowOverride(null)
+  }, [rows])
+
+  useEffect(() => {
     setActiveRow(null)
   }, [activeSheetId])
 
@@ -498,7 +585,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   )
 
   const handleServerFilterChange = useCallback(
-    (params: { filters?: string; filterConnector?: 'and' | 'or'; sorts?: string }) => {
+    (params: ServerFilterParams) => {
       serverFilterRef.current = params
       if (!activeSheet) return
       const rpp = activeSheet.settings.rowsPerPage || 50
@@ -618,7 +705,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                 scrollParent={isKanbanView ? scrollParent : undefined}
                 view={activeView}
                 sheet={enrichedSheet!}
-                rows={rows}
+                rows={effectiveRows}
                 accessToken={accessToken}
                 boardId={board.id}
                 sheetId={activeSheet!.id}
@@ -682,6 +769,15 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                       }
                     : undefined
                 }
+                onReorderColumns={
+                  canEdit && onSheetUpdate
+                    ? reorderedVisible => {
+                        const hidden = activeSheet!.columns.filter(c => !c.isVisible)
+                        const nextColumns = [...reorderedVisible, ...hidden].map((c, i) => ({ ...c, order: i }))
+                        void onSheetUpdate(board.id, activeSheet!.id, { columns: nextColumns } as any)
+                      }
+                    : undefined
+                }
                 onUpdateDashboardWidgets={
                   canEdit && onSheetUpdate && activeView
                     ? widgets => {
@@ -716,7 +812,34 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                 onAddQuickFilter={canEdit ? addQuickFilter : undefined}
                 onRenameQuickFilter={canEdit ? renameQuickFilter : undefined}
                 onDeleteQuickFilter={canEdit ? deleteQuickFilter : undefined}
+                onReorderRow={
+                  canEdit
+                    ? async (rowId, afterRowId, beforeRowId) => {
+                        const current = rowOverride ?? rows
+                        const fromIdx = current.findIndex(r => r.id === rowId)
+                        if (fromIdx === -1) return
+                        const without = current.filter(r => r.id !== rowId)
+                        let insertIdx = 0
+                        if (afterRowId) {
+                          const ai = without.findIndex(r => r.id === afterRowId)
+                          if (ai !== -1) insertIdx = ai + 1
+                        }
+                        const next = [...without]
+                        next.splice(insertIdx, 0, current[fromIdx])
+                        setRowOverride(next)
+                        try {
+                          await BoardApiService.reorderRow(board.id, activeSheet!.id, rowId, afterRowId, beforeRowId)
+                        } catch {
+                          setRowOverride(null)
+                          toast.error('Failed to reorder row')
+                        }
+                      }
+                    : undefined
+                }
                 peopleLookup={peopleLookup}
+                focusedCells={focusedCells}
+                onCellFocus={emitCellFocus}
+                onCellBlur={emitCellBlur}
                 testId={`${testId}-${viewType}`}
               />
 
@@ -726,6 +849,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                   sheetId={activeSheet!.id}
                   row={activeRow}
                   columns={activeSheet!.columns}
+                  accessToken={accessToken}
                   onClose={() => setActiveRow(null)}
                   onPageCreated={handlePageCreated}
                   data-testid={`${testId}-row-page`}
@@ -747,7 +871,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         onNextPage={() => setPage(p => Math.min(totalPages, p + 1))}
         onAddRow={canEdit && onCreateRow ? handleAddRow : undefined}
         hidePagination
-        loadedRows={rows.length}
+        loadedRows={effectiveRows.length}
         testId={testId}
       />
 
@@ -755,7 +879,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         board={board}
         accessToken={accessToken}
         activeSheet={activeSheet || null}
-        rows={rows}
+        rows={effectiveRows}
         page={page}
         onReloadBoard={onReloadBoard}
         onLoadRows={onLoadRows}
@@ -763,6 +887,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         onSheetUpdate={onSheetUpdate}
         onOpenImport={() => setIsSystemDataOpen(true)}
         onOpenFlowImport={() => setIsFlowEngineDataOpen(true)}
+        onOpenExternalImport={() => setIsExternalDataOpen(true)}
         isSearchOpen={isSearchOpen}
         setIsSearchOpen={setIsSearchOpen}
         isSettingsOpen={isSettingsOpen}
@@ -783,7 +908,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
           sheetId={activeSheet.id}
           accessToken={accessToken}
           existingColumns={activeSheet.columns}
-          existingRows={rows}
+          existingRows={effectiveRows}
           onSheetUpdate={
             onSheetUpdate
               ? async (bId, sId, updates) => {
@@ -834,6 +959,36 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             }
           }}
           data-testid={`${testId}-flow-engine-data-sheet`}
+        />
+      )}
+
+      {activeSheet && (
+        <ExternalDataSheet
+          open={isExternalDataOpen}
+          onOpenChange={setIsExternalDataOpen}
+          boardId={board.id}
+          sheetId={activeSheet.id}
+          accessToken={accessToken}
+          onSheetUpdate={
+            onSheetUpdate
+              ? async (bId, sId, updates) => {
+                  await onSheetUpdate(bId, sId, updates as any)
+                }
+              : undefined
+          }
+          onAfterImport={() => {
+            void onReloadBoard?.(board.id)
+            const rpp = activeSheet.settings.rowsPerPage || 50
+            const opts = { ...serverFilterRef.current }
+            if (isKanbanView) {
+              kanbanNextPageRef.current = 2
+              void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
+            } else {
+              tableNextPageRef.current = 2
+              void onLoadRows(board.id, activeSheet.id, { page: 1, limit: rpp, ...opts })
+            }
+          }}
+          data-testid={`${testId}-external-data-sheet`}
         />
       )}
     </div>

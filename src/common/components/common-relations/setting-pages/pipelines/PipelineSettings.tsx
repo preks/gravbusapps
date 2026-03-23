@@ -21,6 +21,7 @@ import { PipelineStagesModal } from './components'
 import PipelineForm from './components/PipelineForm'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { usePipelineUsageCheck } from './hooks/usePipelineUsageCheck'
+import { getPipelineUsageCheckSource } from './utils/catalogConfig'
 
 export interface EnhancedPipeline {
   id: string
@@ -52,6 +53,7 @@ export interface PipelineSettingsProps {
   catalogConfig: {
     pipelineCatalog: string
     stageCatalog: string
+    stageTypeCatalog?: string
     conditionCatalog?: string
     version?: string
   }
@@ -85,7 +87,10 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
 
   const { pipelines, refetch } = usePipelineSettings({ accessToken }, catalogConfig)
   const catalogClient = useCatalogManagerClient(accessToken)
-  const { checkPipelineUsage } = usePipelineUsageCheck(accessToken, 'CRM')
+  const { checkPipelineUsage } = usePipelineUsageCheck(
+    accessToken,
+    getPipelineUsageCheckSource(catalogConfig.pipelineCatalog)
+  )
 
   const handleCreatePipeline = () => {
     setEditingPipeline(null)

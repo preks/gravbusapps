@@ -1,18 +1,20 @@
 /**
- * Insert tab content: Link, Image, Table, Page break.
+ * Insert actions rendered inside the compact toolbar surface.
  */
 
-import React, { useCallback } from 'react'
+import { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { Link, Image, Table, SeparatorHorizontal } from 'lucide-react'
+import { Image, Link, SeparatorHorizontal, Table } from 'lucide-react'
 import translations from '../../_i18n'
 import { ToolbarButton, RibbonGroup } from './editorToolbarShared'
+import { TableToolsMenu } from './TableToolsMenu'
 
 interface InsertTabContentProps {
   editor: Editor
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
+  onOpenInsertTableDialog?: () => void
   onInsertPageBreak?: () => void
   testId?: string
 }
@@ -21,6 +23,7 @@ export function InsertTabContent({
   editor,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
+  onOpenInsertTableDialog,
   onInsertPageBreak,
   testId = 'editor-toolbar'
 }: Readonly<InsertTabContentProps>) {
@@ -51,8 +54,12 @@ export function InsertTabContent({
   }, [editor, t, onOpenInsertImageDialog])
 
   const insertTable = useCallback(() => {
-    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-  }, [editor])
+    if (onOpenInsertTableDialog) {
+      onOpenInsertTableDialog()
+    } else {
+      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+    }
+  }, [editor, onOpenInsertTableDialog])
 
   const insertPageBreak = useCallback(() => {
     editor.chain().focus().setPageBreak().run()
@@ -74,6 +81,7 @@ export function InsertTabContent({
       <ToolbarButton onClick={insertTable} tooltip={t('editor-toolbar-insert-table')}>
         <Table className="gba:h-4 gba:w-4" />
       </ToolbarButton>
+      <TableToolsMenu editor={editor} t={t} testId={testId} />
       <ToolbarButton onClick={insertPageBreak} tooltip={t('editor-toolbar-page-break')}>
         <SeparatorHorizontal className="gba:h-4 gba:w-4" />
       </ToolbarButton>

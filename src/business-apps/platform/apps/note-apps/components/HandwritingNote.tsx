@@ -13,7 +13,7 @@ import {
   DialogTitle,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ArrowLeft, Check, AlertCircle, X, Save, ListTodo, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Check, AlertCircle, X, Save, ListTodo, RefreshCw, PanelLeft } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 import {
@@ -60,6 +60,8 @@ export interface HandwritingNoteProps extends Partial<BusinessAppContextProps> {
   onBack: () => void
   onConvertToText?: (text: string) => Promise<void>
   onCreateTextNote?: (text: string, title: string) => Promise<void>
+  isSidebarCollapsed?: boolean
+  onToggleSidebar?: () => void
   userInfo?: HandwritingNoteUserInfo
   'data-testid'?: string
 }
@@ -80,6 +82,8 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   onBack,
   onConvertToText,
   onCreateTextNote,
+  isSidebarCollapsed,
+  onToggleSidebar,
   accessToken = '',
   userInfo,
   'data-testid': testId = 'handwriting-note'
@@ -535,6 +539,17 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
       {/* Header */}
       <div className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border-b gba:bg-card">
+        {isSidebarCollapsed && onToggleSidebar && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="gba:h-8 gba:w-8"
+            onClick={onToggleSidebar}
+            data-testid={`${testId}-expand-sidebar`}
+          >
+            <PanelLeft className="gba:w-4 gba:h-4" />
+          </Button>
+        )}
         <Button variant="ghost" size="sm" onClick={handleBackClick} data-testid={`${testId}-back`}>
           <ArrowLeft className="gba:w-4 gba:h-4" />
         </Button>

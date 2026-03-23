@@ -23,6 +23,7 @@ import {
   getEmployeeAbsences,
   getEmployeeAbsenceEntitlement,
   getTodayAbsences,
+  latestEntitlementSnapshotForRangeQuery,
   employeeRegionLookupQuery,
   employmentRegionHolidayByDateQuery,
   employmentRegionHolidaysInRangeQuery,
@@ -74,6 +75,126 @@ export interface EmployeeAbsenceEntitlement {
   }
 }
 
+/** Up-to-date balance from EntitlementUsageSnapshotView (GetLatestEntitlementSnapshotForRange). */
+export interface EntitlementSnapshotForBalance {
+  totalEntitlement: number
+  usedApproved: number
+  usedPending: number
+  remaining: number
+  snapshotAt: string
+}
+
+type ResolvedBalanceDetails = {
+  effectiveAvailable: number
+  totalBalance: number
+  approvedBalance: number
+  pendingBalance: number
+}
+
+type RequestedDaysCalculation = {
+  requestedDays: number
+  breakdown: DateRangeBreakdown
+}
+
+const resolveBalanceDetails = (
+  snapshot: EntitlementSnapshotForBalance | null,
+  entitlement: EmployeeAbsenceEntitlement | null
+): ResolvedBalanceDetails | null => {
+  if (snapshot != null) {
+    return {
+      effectiveAvailable: Math.max(0, snapshot.remaining),
+      totalBalance: snapshot.totalEntitlement,
+      approvedBalance: snapshot.usedApproved,
+      pendingBalance: snapshot.usedPending
+    }
+  }
+
+  if (entitlement == null) {
+    return null
+  }
+
+  return {
+    effectiveAvailable: Math.max(0, entitlement.total - entitlement.approved - entitlement.pending),
+    totalBalance: entitlement.total,
+    approvedBalance: entitlement.approved,
+    pendingBalance: entitlement.pending
+  }
+}
+
+const calculateRequestedDaysWithBreakdown = (
+  measurement: string | undefined,
+  newStartDate: Date,
+  newEndDate: Date,
+  holidaysToUse: HolidayEntry[],
+  workingHours: WorkingHours | null
+): RequestedDaysCalculation => {
+  const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidaysToUse, workingHours)
+  if (measurement === 'WorkingDays') {
+    const halfDayDates = extractHalfDayDates(holidaysToUse, newStartDate, newEndDate)
+    return {
+      requestedDays: calculateWorkingDays(newStartDate, newEndDate, {
+        holidays: holidaysToUse,
+        excludeWeekends: true,
+        halfDayDates,
+        workingHours
+      }),
+      breakdown
+    }
+  }
+
+  return {
+    requestedDays: breakdown.effectiveDays - breakdown.holidays.length - breakdown.halfDays.length * 0.5,
+    breakdown
+  }
+}
+
+type BuildBalanceMessageArgs = {
+  roundedRequestedDays: number
+  effectiveAvailable: number
+  measurement: string | undefined
+  holidaysToUse: HolidayEntry[]
+  newStartDate: Date
+  newEndDate: Date
+  requestedDays: number
+  workingHours: WorkingHours | null
+  t: (key: string, values?: Record<string, unknown>) => string
+}
+
+const buildInsufficientBalanceMessage = ({
+  roundedRequestedDays,
+  effectiveAvailable,
+  measurement,
+  holidaysToUse,
+  newStartDate,
+  newEndDate,
+  requestedDays,
+  workingHours,
+  t
+}: BuildBalanceMessageArgs): string => {
+  const insufficientBalanceLabel = t('create-absence-insufficient-balance')
+  const requestedLabel = t('create-absence-requested')
+  const availableLabel = t('create-absence-available')
+  const daysLabel = t('create-absence-days')
+  let message = `${insufficientBalanceLabel}. ${requestedLabel}: ${roundedRequestedDays} ${daysLabel}, ${availableLabel}: ${effectiveAvailable} ${daysLabel}`
+
+  if (measurement !== 'WorkingDays' || holidaysToUse.length === 0) {
+    return message
+  }
+
+  const weekdaysOnly = calculateWorkingDays(newStartDate, newEndDate, {
+    holidays: [],
+    excludeWeekends: true,
+    halfDayDates: new Set(),
+    workingHours
+  })
+  const excludedHolidayDays = Math.round((weekdaysOnly - requestedDays) * 100) / 100
+  if (excludedHolidayDays > 0) {
+    message += `. ${t('create-absence-bank-holidays-not-counted', { count: excludedHolidayDays })}`
+  }
+
+  return message
+}
+
 export interface UseAbsenceValidationProps {
   accessToken: string
   employeeId: string
@@ -123,6 +244,7 @@ export const useAbsenceValidation = ({
   const [isValidating, setIsValidating] = useState(false)
   const [existingAbsences, setExistingAbsences] = useState<EmployeeAbsence[]>([])
   const [absenceEntitlement, setAbsenceEntitlement] = useState<EmployeeAbsenceEntitlement | null>(null)
+  const [entitlementSnapshot, setEntitlementSnapshot] = useState<EntitlementSnapshotForBalance | null>(null)
   const [todayAbsences, setTodayAbsences] = useState<EmployeeAbsence[]>([])
   const [existingSickLeave, setExistingSickLeave] = useState<EmployeeAbsence | null>(null)
   const [employeeRegionRef, setEmployeeRegionRef] = useState<string | null>(null)
@@ -258,34 +380,56 @@ export const useAbsenceValidation = ({
 
     if (!shouldCheckEntitlement) {
       setAbsenceEntitlement(null)
+      setEntitlementSnapshot(null)
       return
     }
 
-    const fetchAbsenceEntitlement = async () => {
+    const fetchEntitlementAndSnapshot = async () => {
       try {
-        const response = await client.request(getEmployeeAbsenceEntitlement, {
-          employeeId,
-          typeRef: selectedType
-        })
-        const entitlements = response?.EmployeeAbsenceEntitlement || []
+        const now = dayjs()
+        const fromStr = now.startOf('year').format('YYYY-MM-DD')
+        const toStr = now.endOf('year').format('YYYY-MM-DD')
 
-        // Find valid entitlement for current period
+        const [entitlementResponse, snapshotResponse] = await Promise.all([
+          client.request(getEmployeeAbsenceEntitlement, {
+            employeeId,
+            typeRef: selectedType
+          }),
+          client.request(latestEntitlementSnapshotForRangeQuery, {
+            employeeId,
+            typeRef: selectedType,
+            from: fromStr,
+            to: toStr
+          })
+        ])
+
+        const entitlements = entitlementResponse?.EmployeeAbsenceEntitlement || []
         const validEntitlement = entitlements.find((entitlement: EmployeeAbsenceEntitlement) => {
-          const now = dayjs()
           const validFrom = dayjs(entitlement.validFrom)
           const validTo = dayjs(entitlement.validTo)
-          const isValid = now.isSameOrAfter(validFrom) && now.isSameOrBefore(validTo)
-
-          return isValid
+          return now.isSameOrAfter(validFrom) && now.isSameOrBefore(validTo)
         })
-
         setAbsenceEntitlement(validEntitlement || null)
+
+        const snapshotRow = snapshotResponse?.EntitlementUsageSnapshotView?.[0]
+        if (snapshotRow) {
+          setEntitlementSnapshot({
+            totalEntitlement: Number(snapshotRow.totalEntitlement) || 0,
+            usedApproved: Number(snapshotRow.usedApproved) || 0,
+            usedPending: Number(snapshotRow.usedPending) || 0,
+            remaining: Number(snapshotRow.remaining) || 0,
+            snapshotAt: snapshotRow.snapshotAt
+          })
+        } else {
+          setEntitlementSnapshot(null)
+        }
       } catch {
         setAbsenceEntitlement(null)
+        setEntitlementSnapshot(null)
       }
     }
 
-    fetchAbsenceEntitlement()
+    fetchEntitlementAndSnapshot()
   }, [accessToken, employeeId, selectedType, client, absenceTypeDetails])
 
   const checkOverlapValidation = useCallback(
@@ -371,7 +515,8 @@ export const useAbsenceValidation = ({
         return { errors, warnings }
       }
 
-      if (!absenceEntitlement) {
+      const balanceDetails = resolveBalanceDetails(entitlementSnapshot, absenceEntitlement)
+      if (balanceDetails == null) {
         warnings.push({
           type: 'balance',
           message: t('create-absence-unable-to-verify-balance'),
@@ -382,64 +527,46 @@ export const useAbsenceValidation = ({
 
       const holidaysToUse = holidaysForRange ?? holidays
       const measurement = absenceTypeDetails?.objectValue?.measurement
-      let requestedDays: number
-
-      if (measurement === 'WorkingDays') {
-        const halfDayDates = extractHalfDayDates(holidaysToUse, newStartDate, newEndDate)
-        requestedDays = calculateWorkingDays(newStartDate, newEndDate, {
-          holidays: holidaysToUse,
-          excludeWeekends: true,
-          halfDayDates,
-          workingHours
-        })
-        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidaysToUse, workingHours)
-        setDateRangeBreakdown(breakdown)
-      } else {
-        requestedDays = dayjs(newEndDate).diff(dayjs(newStartDate), 'day') + 1
-
-        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidaysToUse, workingHours)
-        setDateRangeBreakdown(breakdown)
-      }
+      const { requestedDays, breakdown } = calculateRequestedDaysWithBreakdown(
+        measurement,
+        newStartDate,
+        newEndDate,
+        holidaysToUse,
+        workingHours
+      )
+      setDateRangeBreakdown(breakdown)
 
       const roundedRequestedDays = Math.round(requestedDays * 100) / 100
+      const { effectiveAvailable, totalBalance, approvedBalance, pendingBalance } = balanceDetails
 
-      // Use 'available' from entitlement - this already accounts for pending absences
-      if (roundedRequestedDays > absenceEntitlement.available) {
-        const insufficientBalanceLabel = t('create-absence-insufficient-balance')
-        const requestedLabel = t('create-absence-requested')
-        const availableLabel = t('create-absence-available')
-        const daysLabel = t('create-absence-days')
-        let message = `${insufficientBalanceLabel}. ${requestedLabel}: ${roundedRequestedDays} ${daysLabel}, ${availableLabel}: ${absenceEntitlement.available} ${daysLabel}`
-
-        if (measurement === 'WorkingDays' && holidaysToUse.length > 0) {
-          const weekdaysOnly = calculateWorkingDays(newStartDate, newEndDate, {
-            holidays: [],
-            excludeWeekends: true,
-            halfDayDates: new Set(),
-            workingHours
-          })
-          const excludedHolidayDays = Math.round((weekdaysOnly - requestedDays) * 100) / 100
-          if (excludedHolidayDays > 0) {
-            message += `. ${t('create-absence-bank-holidays-not-counted', { count: excludedHolidayDays })}`
-          }
-        }
-
+      if (roundedRequestedDays > effectiveAvailable) {
+        const message = buildInsufficientBalanceMessage({
+          roundedRequestedDays,
+          effectiveAvailable,
+          measurement,
+          holidaysToUse,
+          newStartDate,
+          newEndDate,
+          requestedDays,
+          workingHours,
+          t
+        })
         errors.push({
           type: 'balance',
           message,
           details: {
             requestedDays: roundedRequestedDays,
-            availableBalance: absenceEntitlement.available,
-            totalBalance: absenceEntitlement.total,
-            approvedBalance: absenceEntitlement.approved,
-            pendingBalance: absenceEntitlement.pending
+            availableBalance: effectiveAvailable,
+            totalBalance,
+            approvedBalance,
+            pendingBalance
           }
         })
       }
 
       return { errors, warnings }
     },
-    [absenceEntitlement, absenceTypeDetails, holidays, workingHours, t]
+    [absenceEntitlement, entitlementSnapshot, absenceTypeDetails, holidays, workingHours, t]
   )
 
   const checkSingleDayBankHoliday = useCallback(
@@ -626,6 +753,7 @@ export const useAbsenceValidation = ({
     generalErrors: validationErrors.filter(error => error.type === 'general'),
     existingAbsences,
     absenceEntitlement,
+    entitlementSnapshot,
     todayAbsences,
     existingSickLeave,
     isSickLeaveType,

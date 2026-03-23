@@ -1,5 +1,6 @@
 # Mesaje de eroare
 
+error-title = Eroare
 error-accessToken = Autentificare necesară. Vă rugăm să vă conectați din nou.
 error-unauthorized = Nu sunteți autorizat să efectuați această acțiune.
 error-forbidden = Acces interzis. Nu aveți permisiunea de a accesa această resursă.

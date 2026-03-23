@@ -123,7 +123,7 @@ PROJECT_ROOT=/Users/denisprekrat/Documents/APPS/NEWWORK Apps/BusinessApps/gravit
 
 ### 1. Start the AI Builder
 
-Navigate to `/apps/platform/ai-builder` in the NEWWORK platform.
+Navigate to `/platform/create/screen-builder` in the NEWWORK platform.
 
 ### 2. Describe Your Screen
 

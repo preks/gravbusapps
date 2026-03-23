@@ -15,19 +15,13 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import {
-  FileImageOutlined,
-  FilePdfOutlined,
-  FileWordOutlined,
-  FileExcelOutlined,
-  FileOutlined
-} from '@ant-design/icons'
+import { ImageIcon, FilePdfIcon, FileDocIcon, FileXlsIcon, FileIcon } from '@phosphor-icons/react'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems'
 import { getExpenseItemStatusDisplay } from '../../../utils'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
 import { Badge } from '@newwork/nw-design-system'
 import type { UploadFile } from 'antd/es/upload/interface'
@@ -292,14 +286,14 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
             // Helper: Render icon by file type
             const renderFileIcon = () => {
               if (fileType.includes('pdf') || ext === 'pdf')
-                return <FilePdfOutlined className="gba:text-red-500" style={{ fontSize: 32 }} />
+                return <FilePdfIcon size={32} className="gba:text-red-500" />
               if (fileType.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext))
-                return <FileImageOutlined className="gba:text-blue-500" style={{ fontSize: 32 }} />
+                return <ImageIcon size={32} className="gba:text-blue-500" />
               if (fileType.includes('word') || ['doc', 'docx'].includes(ext))
-                return <FileWordOutlined className="gba:text-blue-700" style={{ fontSize: 32 }} />
+                return <FileDocIcon size={32} className="gba:text-blue-700" />
               if (fileType.includes('excel') || ['xls', 'xlsx', 'csv'].includes(ext))
-                return <FileExcelOutlined className="gba:text-green-700" style={{ fontSize: 32 }} />
-              return <FileOutlined className="gba:text-gray-500" style={{ fontSize: 32 }} />
+                return <FileXlsIcon size={32} className="gba:text-green-700" />
+              return <FileIcon size={32} className="gba:text-gray-500" />
             }
 
             // Helper: Render preview by file type
@@ -328,7 +322,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
                     }}
                     data-testid={`expense-file-pdf-thumb-${idx}`}
                   >
-                    <FilePdfOutlined className="gba:text-red-500" style={{ fontSize: 48 }} />
+                    <FilePdfIcon size={48} className="gba:text-red-500" />
                   </div>
                 )
               }
@@ -400,7 +394,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
         data-testid="expense-file-empty"
       >
         <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
-          <FileImageOutlined style={{ fontSize: '48px', color: 'border' }} />
+          <ImageIcon size={48} style={{ color: 'border' }} />
           <p className="gba:text-sm gba:text-gray-600">
             {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_receipt_attached', 'No receipt attached')}
           </p>
@@ -505,15 +499,24 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
     <div className="gba:space-y-6">
       {availableActions.length > 0 ? (
         <div className="gba:flex gba:justify-end">
-          <AppActionButton
-            data-testid="expense-item-details-action-button"
-            size="icon"
-            staticFlowData={availableActions}
+          <AppAction
+            variant="table-row"
+            customActions={availableActions}
             prefixDataTestId="expense-item-details-action"
             accessToken={contextProps.accessToken}
-            emptyStateBehavior="disable"
-            deferMainContextRequestsUntilClick={true}
-          />
+            emptyState="disable"
+            lazyLoad
+            data-testid="expense-item-details-action-button"
+          >
+            <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+              />
+            </svg>
+          </AppAction>
         </div>
       ) : null}
 
