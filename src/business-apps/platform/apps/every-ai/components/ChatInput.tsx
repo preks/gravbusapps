@@ -945,7 +945,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             weight="bold"
                           />
                         </div>
-                        <span className="gba:font-medium">{t('chat-menu-clear-chat')}</span>
+                        <span className="gba:font-medium">{t('chat-menu-new-chat')}</span>
                       </button>
                     </div>
                   </PopoverContent>
