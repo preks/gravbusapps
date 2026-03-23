@@ -4,7 +4,9 @@ import type { DocumentLayoutMeasurementRequest, DocumentLayoutPageSnapshot } fro
 import type { DocumentLayoutService } from '../documentLayoutService'
 import {
   mergeDocumentLayoutPagePositionRanges,
+  resolveCurrentPageFromPageBounds,
   resolveMountedPagePositionRanges,
+  resolveSpacerPageBodyBounds,
   resolveSpacerPagePositionRanges,
   shouldScheduleDocumentHydrationRefresh,
   usePaginationLayoutSnapshot
@@ -199,6 +201,52 @@ describe('usePaginationLayoutSnapshot', () => {
       { pageNumber: 7, startPos: 70, endPos: 79 },
       { pageNumber: 8, startPos: 80, endPos: 99 }
     ])
+  })
+
+  it('resolves spacer page body bounds from page-segment metadata', () => {
+    const spacer = document.createElement('div')
+    spacer.className = 'rm-page-spacer'
+    spacer.dataset.rmPageRangeStart = '7'
+    spacer.dataset.rmPageRangeEnd = '8'
+    spacer.dataset.rmPageSegmentHeights = '80,120'
+    spacer.getBoundingClientRect = () =>
+      ({
+        left: 40,
+        right: 160,
+        top: 400,
+        bottom: 600
+      }) as DOMRect
+
+    expect(resolveSpacerPageBodyBounds([spacer])).toEqual([
+      { pageNumber: 7, top: 400, bottom: 480, left: 40, right: 160 },
+      { pageNumber: 8, top: 480, bottom: 600, left: 40, right: 160 }
+    ])
+  })
+
+  it('derives current page from snapshot page bounds without DOM navigation state', () => {
+    const spacer = document.createElement('div')
+    spacer.className = 'rm-page-spacer'
+    spacer.dataset.rmPageRangeStart = '1'
+    spacer.dataset.rmPageRangeEnd = '30'
+    spacer.dataset.rmPageSegmentHeights = Array.from({ length: 30 }, () => '100').join(',')
+    spacer.getBoundingClientRect = () =>
+      ({
+        left: 40,
+        right: 160,
+        top: 0,
+        bottom: 3000
+      }) as DOMRect
+
+    const pageBounds = resolveSpacerPageBodyBounds([spacer])
+    const container = document.createElement('div')
+    container.getBoundingClientRect = () =>
+      ({
+        top: 1400,
+        bottom: 1600
+      }) as DOMRect
+
+    expect(pageBounds).toHaveLength(30)
+    expect(resolveCurrentPageFromPageBounds(container, pageBounds, 1)).toBe(15)
   })
 
   it('merges page position ranges across viewport window refreshes and drops out-of-range pages', () => {

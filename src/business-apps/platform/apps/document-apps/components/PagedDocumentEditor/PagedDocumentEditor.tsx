@@ -607,7 +607,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       uploadContext: imageUploadContext
     })
 
-    // Page count and current page from PaginationPlus DOM.
+    // Layout snapshot drives page count/current page, while header/footer editor state can temporarily override page UI.
     const handlePagesActiveEditorChange = useCallback((state: ActivePagesEditorState) => {
       setPagesEditorState(state)
     }, [])

@@ -110,10 +110,20 @@ function resolvePublishedPageBodyBounds(element: Element | null): PublishedPageB
     return null
   }
 
-  const top = Number(pageElement.dataset.layoutBodyTop ?? '')
-  const bottom = Number(pageElement.dataset.layoutBodyBottom ?? '')
-  const left = Number(pageElement.dataset.layoutBodyLeft ?? '')
-  const right = Number(pageElement.dataset.layoutBodyRight ?? '')
+  const { layoutBodyTop, layoutBodyBottom, layoutBodyLeft, layoutBodyRight } = pageElement.dataset
+  if (
+    layoutBodyTop === undefined ||
+    layoutBodyBottom === undefined ||
+    layoutBodyLeft === undefined ||
+    layoutBodyRight === undefined
+  ) {
+    return null
+  }
+
+  const top = Number(layoutBodyTop)
+  const bottom = Number(layoutBodyBottom)
+  const left = Number(layoutBodyLeft)
+  const right = Number(layoutBodyRight)
   if (![top, bottom, left, right].every(Number.isFinite)) {
     return null
   }
@@ -350,15 +360,14 @@ export function scrollEditorSelectionNodeIntoView(
 ) {
   requestAnimationFrame(() => {
     const runScroll = () => {
-      const target = resolvePositionElement(editor.view, from)
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block })
+      const bounds = resolveSelectionPositionBodyBounds(editor, from)
+      if (bounds && scrollViewportToPageBounds(editor.view, bounds, block)) {
         return true
       }
 
-      const bounds = resolveSelectionPositionBodyBounds(editor, from)
-      if (bounds) {
-        scrollViewportToPageBounds(editor.view, bounds, block)
+      const target = resolvePositionElement(editor.view, from)
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block })
         return true
       }
 

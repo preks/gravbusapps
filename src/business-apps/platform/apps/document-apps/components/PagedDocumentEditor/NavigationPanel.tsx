@@ -30,7 +30,10 @@ import type { DocumentLayoutViewportModel } from './hooks/useDocumentLayoutViewp
 
 export interface NavigationPanelProps {
   readonly editor: Editor | null
-  readonly layoutViewportModel?: Pick<DocumentLayoutViewportModel, 'mountedPageBodyBounds' | 'pagePositionRanges'>
+  readonly layoutViewportModel?: Pick<
+    DocumentLayoutViewportModel,
+    'pageBounds' | 'mountedPageBodyBounds' | 'pagePositionRanges' | 'pageSpans' | 'retainedPageSpans'
+  >
   readonly onClose: () => void
   readonly requestedTab?: NavTab
   readonly 'data-testid'?: string
@@ -127,6 +130,9 @@ export function NavigationPanel({
           view: editor.view,
           commands: editor.commands,
           layoutHints: {
+            pageBounds: layoutViewportModel?.pageBounds ?? layoutViewportModel?.mountedPageBodyBounds ?? [],
+            pageSpans: layoutViewportModel?.pageSpans ?? [],
+            retainedPageSpans: layoutViewportModel?.retainedPageSpans ?? [],
             mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
             pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
           }
@@ -136,7 +142,14 @@ export function NavigationPanel({
         'start'
       )
     },
-    [editor, layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges]
+    [
+      editor,
+      layoutViewportModel?.mountedPageBodyBounds,
+      layoutViewportModel?.pageBounds,
+      layoutViewportModel?.pagePositionRanges,
+      layoutViewportModel?.pageSpans,
+      layoutViewportModel?.retainedPageSpans
+    ]
   )
 
   const handleHeadingClick = useCallback(
@@ -160,6 +173,9 @@ export function NavigationPanel({
           view: editor.view,
           commands: editor.commands,
           layoutHints: {
+            pageBounds: layoutViewportModel?.pageBounds ?? layoutViewportModel?.mountedPageBodyBounds ?? [],
+            pageSpans: layoutViewportModel?.pageSpans ?? [],
+            retainedPageSpans: layoutViewportModel?.retainedPageSpans ?? [],
             mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
             pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
           }
@@ -169,7 +185,15 @@ export function NavigationPanel({
         'center'
       )
     },
-    [editor, layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges, matches]
+    [
+      editor,
+      layoutViewportModel?.mountedPageBodyBounds,
+      layoutViewportModel?.pageBounds,
+      layoutViewportModel?.pagePositionRanges,
+      layoutViewportModel?.pageSpans,
+      layoutViewportModel?.retainedPageSpans,
+      matches
+    ]
   )
 
   const handleFindNext = useCallback(() => {

@@ -441,6 +441,54 @@ describe('commentSidebarNavigation', () => {
     expect(viewport.scrollTop).toBe(260)
   })
 
+  it('prefers snapshot layout hints over direct target scrolling when bounds are available', () => {
+    global.requestAnimationFrame = callback => {
+      callback(0)
+      return 1
+    }
+
+    const viewport = document.createElement('div')
+    viewport.className = 'document-editor-viewport'
+    viewport.scrollTop = 0
+    viewport.getBoundingClientRect = () =>
+      ({
+        top: 100,
+        bottom: 300
+      }) as DOMRect
+
+    const editorRoot = document.createElement('div')
+    viewport.appendChild(editorRoot)
+    const targetNode = document.createElement('span')
+    const scrollIntoView = jest.fn()
+    targetNode.scrollIntoView = scrollIntoView
+
+    scrollEditorSelectionNodeIntoView(
+      {
+        layoutHints: {
+          pageBounds: [{ pageNumber: 6, top: 410, bottom: 510, left: 28, right: 128 }],
+          pageSpans: [{ pageNumber: 6, startPos: 60, endPos: 68, source: 'mounted' }],
+          mountedPageBodyBounds: [{ pageNumber: 6, top: 410, bottom: 510, left: 28, right: 128 }],
+          pagePositionRanges: [{ pageNumber: 6, startPos: 60, endPos: 68 }]
+        },
+        view: {
+          dom: editorRoot,
+          nodeDOM: () => targetNode,
+          domAtPos: () => ({ node: targetNode }),
+          coordsAtPos: () => ({
+            top: 430,
+            bottom: 450
+          })
+        }
+      },
+      60,
+      68,
+      'center'
+    )
+
+    expect(viewport.scrollTop).toBe(260)
+    expect(scrollIntoView).not.toHaveBeenCalled()
+  })
+
   it('requests viewport page focus before hydrating a selection node into view', () => {
     const frameCallbacks: FrameRequestCallback[] = []
     global.requestAnimationFrame = callback => {

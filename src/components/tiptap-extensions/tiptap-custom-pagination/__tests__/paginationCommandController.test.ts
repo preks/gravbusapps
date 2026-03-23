@@ -347,6 +347,40 @@ describe('createPaginationCommandController', () => {
 })
 
 describe('requestViewportPageFocus', () => {
+  it('scrolls using snapshot-published page bounds before reading pagination flow DOM', () => {
+    const viewport = document.createElement('div')
+    const editorDom = document.createElement('div')
+    const page = document.createElement('div')
+    const scrollSpy = jest.fn()
+
+    viewport.className = 'document-editor-viewport'
+    viewport.appendChild(editorDom)
+    page.dataset.rmPageNumber = '6'
+    page.dataset.layoutBodyTop = '420'
+    page.dataset.layoutBodyBottom = '520'
+    page.dataset.layoutBodyLeft = '30'
+    page.dataset.layoutBodyRight = '130'
+    editorDom.appendChild(page)
+
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 0 })
+    jest.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      left: 0,
+      bottom: 300,
+      right: 500,
+      width: 500,
+      height: 200,
+      x: 0,
+      y: 100,
+      toJSON: () => ({})
+    } as DOMRect)
+    viewport.addEventListener('scroll', scrollSpy)
+
+    expect(requestViewportPageFocus(editorDom, 6)).toBe(true)
+    expect(viewport.scrollTop).toBe(270)
+    expect(scrollSpy).toHaveBeenCalledTimes(1)
+  })
+
   it('scrolls to the proportional position of a page inside a spacer range', () => {
     const viewport = document.createElement('div')
     const editorDom = document.createElement('div')
