@@ -249,4 +249,92 @@ describe('usePagedDocumentInteractionDialogs', () => {
     })
     expect(result.current.showInlineCommentPopover).toBe(true)
   })
+
+  it('repositions the inline comment popover when the sparse window changes', () => {
+    const schema = new Schema({
+      nodes: {
+        doc: { content: 'block+' },
+        paragraph: {
+          content: 'text*',
+          group: 'block',
+          toDOM: () => ['p', 0]
+        },
+        text: {
+          group: 'inline'
+        }
+      }
+    })
+    const doc = schema.node('doc', null, [schema.node('paragraph', null, [schema.text('Hello world')])])
+    const pageBody = document.createElement('div')
+    pageBody.className = 'rm-page-body-layer'
+    pageBody.dataset.rmPageNumber = '3'
+    const targetNode = document.createElement('span')
+    pageBody.appendChild(targetNode)
+
+    let selectionTop = 180
+    const editor = {
+      schema,
+      state: {
+        selection: { from: 1, to: 5 },
+        doc
+      },
+      commands: {
+        hydratePageBreakShells: jest.fn(() => true)
+      },
+      view: {
+        dom: pageBody,
+        nodeDOM: jest.fn(() => targetNode),
+        domAtPos: jest.fn(() => ({ node: targetNode })),
+        coordsAtPos: jest.fn(() => ({
+          top: selectionTop,
+          bottom: selectionTop + 20
+        }))
+      }
+    } as unknown as TiptapEditor
+
+    const { result, rerender } = renderHook(
+      props =>
+        usePagedDocumentInteractionDialogs(
+          createHookParams({
+            editor,
+            layoutViewportModel: props.layoutViewportModel
+          })
+        ),
+      {
+        initialProps: {
+          layoutViewportModel: {
+            mountedPageBodyBounds: [],
+            pagePositionRanges: [],
+            windowKey: 'window-1'
+          }
+        }
+      }
+    )
+
+    act(() => {
+      result.current.handleAddInlineComment(undefined, { from: 1, to: 5 })
+    })
+
+    expect(result.current.inlineCommentPosition).toEqual({
+      top: 210,
+      left: 0
+    })
+
+    selectionTop = 260
+
+    act(() => {
+      rerender({
+        layoutViewportModel: {
+          mountedPageBodyBounds: [],
+          pagePositionRanges: [],
+          windowKey: 'window-2'
+        }
+      })
+    })
+
+    expect(result.current.inlineCommentPosition).toEqual({
+      top: 290,
+      left: 0
+    })
+  })
 })

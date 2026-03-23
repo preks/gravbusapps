@@ -331,6 +331,19 @@ function shouldRefreshViewportWindow(
   )
 }
 
+function isPendingViewportRefreshForPage(runtimeState: DocumentLayoutRuntimeState, pageNumber: number): boolean {
+  if (runtimeState.pendingScope !== 'viewport') {
+    return false
+  }
+
+  const pendingRange = runtimeState.pendingRange
+  if (!pendingRange) {
+    return true
+  }
+
+  return pageNumber >= pendingRange.startPage && pageNumber <= pendingRange.endPage
+}
+
 function resolveInvalidationRange(
   reason: DocumentLayoutInvalidationReason,
   pageCount: number,
@@ -500,12 +513,15 @@ export function usePaginationLayoutSnapshot({
         setCurrentPage(nextPage)
 
         const activeRange = navigationStateRef.current.activeRange
-        if (shouldRefreshViewportWindow(activeRange, nextPage, layoutSnapshot.pageCount || 1)) {
+        if (
+          shouldRefreshViewportWindow(activeRange, nextPage, layoutSnapshot.pageCount || 1) &&
+          !isPendingViewportRefreshForPage(runtimeState, nextPage)
+        ) {
           scheduleLayoutSnapshotRefresh('viewport-resize', false, nextPage)
         }
       })
     },
-    [layoutSnapshot.pageCount, resolvedLayoutService, scheduleLayoutSnapshotRefresh]
+    [layoutSnapshot.pageCount, resolvedLayoutService, runtimeState, scheduleLayoutSnapshotRefresh]
   )
 
   useEffect(() => {

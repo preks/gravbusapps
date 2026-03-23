@@ -30,13 +30,15 @@ export type RightSidebar = 'closed' | 'comments' | 'ai'
 export interface UsePagedDocumentInteractionDialogsParams {
   editor: TiptapEditor | null
   activeEditor: TiptapEditor | null
-  layoutViewportModel?: Pick<DocumentLayoutViewportModel, 'mountedPageBodyBounds' | 'pagePositionRanges'>
+  layoutViewportModel?: Pick<DocumentLayoutViewportModel, 'mountedPageBodyBounds' | 'pagePositionRanges' | 'windowKey'>
   documentId?: string
   title: string
   rightSidebar: RightSidebar
   setRightSidebar: Dispatch<SetStateAction<RightSidebar>>
   replaceImagePosRef: MutableRefObject<number | null>
 }
+
+type InlineCommentAnchorMode = 'context-menu' | 'selection' | null
 
 export interface UsePagedDocumentInteractionDialogsResult {
   showInsertImageDialog: boolean
@@ -162,6 +164,7 @@ export function usePagedDocumentInteractionDialogs({
   const [linkDialogInitialValues, setLinkDialogInitialValues] = useState<LinkDialogInitialValues | undefined>()
   const [linkDialogInsertWithNoSelection, setLinkDialogInsertWithNoSelection] = useState(false)
   const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
+  const [inlineCommentAnchorMode, setInlineCommentAnchorMode] = useState<InlineCommentAnchorMode>(null)
   const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
   const [pendingSelection, setPendingSelection] = useState<PendingInlineSelection | null>(null)
   const [showAiInstructionDialog, setShowAiInstructionDialog] = useState(false)
@@ -191,6 +194,14 @@ export function usePagedDocumentInteractionDialogs({
     return createSelectionContext(editor)
   }, [editor])
 
+  const layoutHintState = useMemo(
+    () => ({
+      mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
+      pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
+    }),
+    [layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges]
+  )
+
   useEffect(() => {
     if (!editor || !showAiInstructionDialog) return
 
@@ -206,6 +217,41 @@ export function usePagedDocumentInteractionDialogs({
       editor.off('selectionUpdate', syncSelectionSnapshot)
     }
   }, [editor, getCurrentEditorSelectionContext, showAiInstructionDialog])
+
+  useEffect(() => {
+    if (
+      !editor ||
+      !showInlineCommentPopover ||
+      inlineCommentAnchorMode !== 'selection' ||
+      !pendingSelection ||
+      pendingSelection.from >= pendingSelection.to
+    ) {
+      return
+    }
+
+    requestEditorSelectionAnchorPosition(
+      {
+        view: editor.view,
+        commands: editor.commands,
+        layoutHints: layoutHintState
+      },
+      pendingSelection.from,
+      pendingSelection.to,
+      position => {
+        setInlineCommentPosition({
+          top: position.top + 30,
+          left: position.left
+        })
+      }
+    )
+  }, [
+    editor,
+    inlineCommentAnchorMode,
+    layoutHintState,
+    layoutViewportModel?.windowKey,
+    pendingSelection,
+    showInlineCommentPopover
+  ])
 
   const openLinkDialog = useCallback(() => {
     if (!activeEditor) return
@@ -304,6 +350,7 @@ export function usePagedDocumentInteractionDialogs({
 
       setPendingSelection({ from, to, text: selectedText, html: selectedHtml })
       if (contextMenuPosition?.x != null && contextMenuPosition?.y != null) {
+        setInlineCommentAnchorMode('context-menu')
         setInlineCommentPosition({
           top: contextMenuPosition.y + 8,
           left: contextMenuPosition.x + 8
@@ -312,14 +359,12 @@ export function usePagedDocumentInteractionDialogs({
         return
       }
 
+      setInlineCommentAnchorMode('selection')
       requestEditorSelectionAnchorPosition(
         {
           view: editor.view,
           commands: editor.commands,
-          layoutHints: {
-            mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
-            pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
-          }
+          layoutHints: layoutHintState
         },
         from,
         to,
@@ -332,7 +377,7 @@ export function usePagedDocumentInteractionDialogs({
         }
       )
     },
-    [editor, layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges]
+    [editor, layoutHintState]
   )
 
   const handleAiEditClick = useCallback(() => {
@@ -403,6 +448,7 @@ export function usePagedDocumentInteractionDialogs({
     setAiInstruction('')
     setShowAiInstructionDialog(true)
     setShowInlineCommentPopover(false)
+    setInlineCommentAnchorMode(null)
     setPendingSelection(null)
   }, [pendingSelection])
 

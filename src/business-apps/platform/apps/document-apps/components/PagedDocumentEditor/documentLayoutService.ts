@@ -233,6 +233,13 @@ export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): Docum
     .filter((bounds): bounds is DocumentLayoutPageBodyBounds => bounds !== null)
 }
 
+function resolveSpacerPageSegmentHeights(spacerEl: HTMLElement): number[] {
+  return (spacerEl.dataset.rmPageSegmentHeights ?? '')
+    .split(',')
+    .map(value => Number.parseFloat(value))
+    .filter(height => Number.isFinite(height) && height > 0)
+}
+
 function resolvePageRangeForSpacer(spacerEl: HTMLElement): DocumentLayoutPageRange | null {
   const startPage = Number(spacerEl.dataset.rmPageRangeStart ?? '')
   const endPage = Number(spacerEl.dataset.rmPageRangeEnd ?? '')
@@ -252,6 +259,19 @@ function resolveCurrentPageFromSpacer(spacerEl: HTMLElement, viewportCenterY: nu
   if (spacerRect.height <= 0) return pageRange.startPage
 
   const relativeOffset = Math.min(Math.max(viewportCenterY - spacerRect.top, 0), spacerRect.height - 1)
+  const pageSegmentHeights = resolveSpacerPageSegmentHeights(spacerEl)
+  if (pageSegmentHeights.length === pageCount) {
+    let accumulatedHeight = 0
+    for (let pageIndex = 0; pageIndex < pageSegmentHeights.length; pageIndex += 1) {
+      accumulatedHeight += pageSegmentHeights[pageIndex] ?? 0
+      if (relativeOffset < accumulatedHeight) {
+        return pageRange.startPage + pageIndex
+      }
+    }
+
+    return pageRange.endPage
+  }
+
   const pageIndex = Math.min(pageCount - 1, Math.floor((relativeOffset / spacerRect.height) * pageCount))
   return pageRange.startPage + pageIndex
 }

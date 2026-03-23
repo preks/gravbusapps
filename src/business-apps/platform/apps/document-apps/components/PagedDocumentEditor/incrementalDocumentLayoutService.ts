@@ -28,6 +28,7 @@ interface IncrementalPageRegistryState {
 
 interface SyncedIncrementalRegistryResult {
   changed: boolean
+  invalidationReason: 'viewport-resize' | 'legacy-dom-structure'
   state: IncrementalPageRegistryState
 }
 
@@ -46,6 +47,18 @@ function hasRegistryChanged(
     current.pageBreakEls.some((element, index) => element !== nextPageBreakEls[index]) ||
     current.flowEls.some((element, index) => element !== nextFlowEls[index])
   )
+}
+
+function resolveRegistryInvalidationReason(options: {
+  current: IncrementalPageRegistryState
+  container: HTMLDivElement
+  nextTotalPageCount: number
+}): 'viewport-resize' | 'legacy-dom-structure' {
+  if (options.current.container !== options.container) {
+    return 'legacy-dom-structure'
+  }
+
+  return options.current.totalPageCount === options.nextTotalPageCount ? 'viewport-resize' : 'legacy-dom-structure'
 }
 
 export function createIncrementalDocumentLayoutService(): DocumentLayoutService {
@@ -72,6 +85,11 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
     const nextFlowEls = resolvePaginationFlowElementsFromPaginationRoot(paginationRoot)
     const nextTotalPageCount = resolvePaginationTotalPagesFromPaginationRoot(paginationRoot, nextPageBreakEls)
     const changed = hasRegistryChanged(registry, container, nextPageBreakEls, nextFlowEls, nextTotalPageCount)
+    const invalidationReason = resolveRegistryInvalidationReason({
+      current: registry,
+      container,
+      nextTotalPageCount
+    })
     registry = {
       container,
       version: changed ? registry.version + 1 : registry.version,
@@ -81,6 +99,7 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
     }
     return {
       changed,
+      invalidationReason,
       state: registry
     }
   }
@@ -168,8 +187,9 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
         if (!nextPaginationRoot) return
 
         paginationObserver = new MutationObserver(() => {
-          if (syncRegistry(container).changed) {
-            onInvalidated('legacy-dom-structure')
+          const registryResult = syncRegistry(container)
+          if (registryResult.changed) {
+            onInvalidated(registryResult.invalidationReason)
           }
         })
 
@@ -196,7 +216,7 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
         const registryResult = syncRegistry(container)
         bindPaginationObserver()
         if (registryResult.changed) {
-          onInvalidated('legacy-dom-structure')
+          onInvalidated(registryResult.invalidationReason)
         }
       })
 

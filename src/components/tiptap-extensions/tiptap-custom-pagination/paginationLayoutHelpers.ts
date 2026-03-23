@@ -27,10 +27,20 @@ interface PaginationHeightMeasurementCache {
   footerHeights: Map<number, number>
 }
 
+interface PaginationMeasuredWindowCache {
+  measurementKey: string
+  measured: {
+    headerHeights: Map<number, number>
+    footerHeights: Map<number, number>
+    knownPageCount: number
+  }
+}
+
 type PaginationBodyClickResolution = { action: 'allow' } | { action: 'block' } | { action: 'set'; position: number }
 type SelectionNavigationDirection = 'forward' | 'backward' | null
 
 const paginationHeightMeasurementCache = new WeakMap<HTMLElement, PaginationHeightMeasurementCache>()
+const paginationMeasuredWindowCache = new WeakMap<HTMLElement, PaginationMeasuredWindowCache>()
 const paginationStylePropertyCache = new WeakMap<HTMLElement, Map<string, string>>()
 const documentHasTablesCache = new WeakMap<PMNode, boolean>()
 
@@ -147,30 +157,78 @@ function resolveWindowedMeasurementPageNumbers(editorDom: HTMLElement, pageCount
   return pageNumbers
 }
 
+function createMeasuredWindowKey(
+  storage: PagesStorage,
+  options: PagesOptions,
+  pageCount: number,
+  pageNumbersToMeasure: number[]
+): string {
+  const {
+    width,
+    height,
+    margins: { top, right, bottom, left }
+  } = storage.pageFormat
+
+  return [
+    pageCount,
+    pageNumbersToMeasure.join(','),
+    width,
+    height,
+    top,
+    right,
+    bottom,
+    left,
+    storage.headerTopMargin,
+    storage.footerBottomMargin,
+    options.headerHeight,
+    options.footerHeight,
+    options.pageGap,
+    options.differentFirstPage ? 'first' : 'shared',
+    options.differentOddEven ? 'odd-even' : 'default',
+    storage.activeEditorType ?? 'body'
+  ].join('|')
+}
+
 export function applyMeasuredPageHeightsToView(view: EditorView, storage: PagesStorage, options: PagesOptions) {
   const pageCount = resolveCurrentKnownPageCount(getExistingPageCount(view), storage.pageCount)
   const pageNumbersToMeasure = resolveWindowedMeasurementPageNumbers(view.dom, pageCount)
   const cachedMeasuredHeights = getOrCreatePaginationHeightMeasurementCache(view.dom)
-  const measuredSubset = measureHeaderFooterContentHeights(
-    view.dom,
-    pageCount,
-    storage.pageFormat,
-    storage,
-    pageNumbersToMeasure
-  )
+  const measurementKey = createMeasuredWindowKey(storage, options, pageCount, pageNumbersToMeasure)
+  const cachedWindowMeasurement = paginationMeasuredWindowCache.get(view.dom)
+  const canReuseCachedMeasurement =
+    storage.activeEditorType === null && cachedWindowMeasurement?.measurementKey === measurementKey
 
-  measuredSubset.headerHeights.forEach((height, pageNumber) => {
-    cachedMeasuredHeights.headerHeights.set(pageNumber, height)
-  })
-  measuredSubset.footerHeights.forEach((height, pageNumber) => {
-    cachedMeasuredHeights.footerHeights.set(pageNumber, height)
-  })
+  if (!canReuseCachedMeasurement) {
+    const measuredSubset = measureHeaderFooterContentHeights(
+      view.dom,
+      pageCount,
+      storage.pageFormat,
+      storage,
+      pageNumbersToMeasure
+    )
 
-  const measured = {
-    headerHeights: cachedMeasuredHeights.headerHeights,
-    footerHeights: cachedMeasuredHeights.footerHeights,
-    knownPageCount: pageCount
+    measuredSubset.headerHeights.forEach((height, pageNumber) => {
+      cachedMeasuredHeights.headerHeights.set(pageNumber, height)
+    })
+    measuredSubset.footerHeights.forEach((height, pageNumber) => {
+      cachedMeasuredHeights.footerHeights.set(pageNumber, height)
+    })
   }
+
+  const measured =
+    canReuseCachedMeasurement && cachedWindowMeasurement
+      ? cachedWindowMeasurement.measured
+      : {
+          headerHeights: cachedMeasuredHeights.headerHeights,
+          footerHeights: cachedMeasuredHeights.footerHeights,
+          knownPageCount: pageCount
+        }
+
+  paginationMeasuredWindowCache.set(view.dom, {
+    measurementKey,
+    measured
+  })
+
   let smallestBodyHeight = Number.POSITIVE_INFINITY
 
   pageNumbersToMeasure.forEach(pageNumber => {

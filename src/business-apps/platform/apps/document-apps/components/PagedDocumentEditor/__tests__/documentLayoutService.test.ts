@@ -398,6 +398,31 @@ describe('createIncrementalDocumentLayoutService.observeLayout', () => {
 
     expect(onInvalidated).toHaveBeenCalledWith('legacy-dom-structure')
   })
+
+  it('downgrades mounted-window-only pagination changes to viewport invalidations', () => {
+    const service = createIncrementalDocumentLayoutService()
+    const container = mountPaginationRoot(2)
+    const onInvalidated = jest.fn()
+    const paginationRoot = container.querySelector('[data-rm-pagination]') as HTMLElement
+    paginationRoot.dataset.rmTotalPages = '5'
+
+    service.observeLayout({
+      editor: {
+        view: {
+          dom: container
+        }
+      } as never,
+      container,
+      onInvalidated
+    })
+
+    expect(fakeObservers).toHaveLength(2)
+
+    paginationRoot.replaceChildren(createPage(document, 2), createPage(document, 3))
+    fakeObservers[0]?.callback([], fakeObservers[0] as unknown as MutationObserver)
+
+    expect(onInvalidated).toHaveBeenCalledWith('viewport-resize')
+  })
 })
 
 describe('resolveCurrentPageFromLayoutNavigation', () => {
@@ -448,6 +473,28 @@ describe('resolveCurrentPageFromLayoutNavigation', () => {
         flowEls: [leadingSpacer, mountedPage, trailingSpacer]
       })
     ).toBe(199)
+  })
+
+  it('uses stored spacer segment heights for uneven sparse page ranges', () => {
+    const container = document.createElement('div')
+    const spacer = document.createElement('div')
+
+    spacer.className = 'rm-page-spacer'
+    spacer.dataset.rmPageRangeStart = '10'
+    spacer.dataset.rmPageRangeEnd = '12'
+    spacer.dataset.rmPageSegmentHeights = '40,120,40'
+
+    setRect(container, { top: 0, bottom: 200, left: 0, right: 100, width: 100, height: 200 })
+    setRect(spacer, { top: 0, bottom: 200, left: 0, right: 100, width: 100, height: 200 })
+
+    expect(
+      resolveCurrentPageFromLayoutNavigation(container, {
+        boundaryEls: [],
+        activeRange: null,
+        pageBreakEls: [],
+        flowEls: [spacer]
+      })
+    ).toBe(11)
   })
 
   it('uses binary search over boundary elements for legacy pagination navigation', () => {

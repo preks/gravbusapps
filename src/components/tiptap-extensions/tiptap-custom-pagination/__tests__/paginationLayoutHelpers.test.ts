@@ -365,6 +365,8 @@ describe('applyMeasuredPageHeightsToView', () => {
       baseOptions
     )
 
+    expect(paginationUtils.measureHeaderFooterContentHeights).toHaveBeenCalledTimes(1)
+
     setPropertySpy.mockClear()
 
     applyMeasuredPageHeightsToView(
@@ -375,6 +377,7 @@ describe('applyMeasuredPageHeightsToView', () => {
       baseOptions
     )
 
+    expect(paginationUtils.measureHeaderFooterContentHeights).toHaveBeenCalledTimes(1)
     expect(setPropertySpy).not.toHaveBeenCalled()
   })
 })
