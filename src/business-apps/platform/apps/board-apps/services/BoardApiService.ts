@@ -285,12 +285,14 @@ export const BoardApiService = {
     search?: string
     page?: number
     limit?: number
+    projectId?: string
   }): Promise<BoardSummary[]> {
     const params = new URLSearchParams()
     if (options?.status) params.set('status', options.status)
     if (options?.search) params.set('search', options.search)
     if (options?.page) params.set('page', String(options.page))
     if (options?.limit) params.set('limit', String(options.limit))
+    if (options?.projectId) params.set('projectId', options.projectId)
 
     const qs = params.toString()
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(`/boards${qs ? `?${qs}` : ''}`)
@@ -303,6 +305,7 @@ export const BoardApiService = {
         description: app.description as string | undefined,
         icon: app.icon as string | undefined,
         status: app.status as BoardStatus,
+        settings: (app.settings as Record<string, unknown>) || {},
         sheetCount: sheets.length,
         rowCount: (app.rowCount as number) ?? 0,
         spaceId: app.spaceId as string | undefined,
