@@ -140,53 +140,6 @@ const PAGE_GAP_PX = 24
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
-const AUTOCOMPLETE_PLUGIN_KEY = new PluginKey('documentAutocompleteGhost')
-const CURRENT_SELECTION_PLUGIN_KEY = new PluginKey('documentCurrentSelectionHighlight')
-const AUTOCOMPLETE_DEBOUNCE_MS = 350
-const AUTOCOMPLETE_ROLLOUT_STORAGE_KEY = 'document-autocomplete-rollout'
-const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
-const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
-
-function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean {
-  if (globalThis.window === undefined) return false
-
-  const searchParams = new URLSearchParams(globalThis.window.location.search)
-  const queryValue = searchParams.get(searchParam)
-  if (queryValue !== null) {
-    return ['1', 'true', 'yes', 'on'].includes(queryValue.toLowerCase())
-  }
-
-  try {
-    return isTruthyFlag(globalThis.localStorage.getItem(storageKey))
-  } catch {
-    return false
-  }
-}
-
-function isDocumentPaginationDisabled(): boolean {
-  return readDocumentDebugFlag('disableDocumentPagination', DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY)
-}
-
-function isTruthyFlag(value: string | null | undefined): boolean {
-  if (!value) return false
-  return ['1', 'true', 'on', 'yes'].includes(value.toLowerCase())
-}
-
-function isAutocompleteRolloutEnabled(): boolean {
-  if (globalThis.window !== undefined) {
-    const localOverride = globalThis.localStorage.getItem(AUTOCOMPLETE_ROLLOUT_STORAGE_KEY)
-    if (localOverride !== null) {
-      return isTruthyFlag(localOverride)
-    }
-  }
-
-  // Enabled by default; explicit env flag can disable globally.
-  const envValue = env('NEXT_PUBLIC_DOCUMENT_AUTOCOMPLETE_ENABLED')
-  if (envValue === null || envValue === undefined || envValue === '') {
-    return true
-  }
-  return isTruthyFlag(envValue)
-}
 
 // Collaboration cursor styles
 const CURSOR_STYLES = `
@@ -697,6 +650,12 @@ function getSpaceIdFromWindow(): string | null {
   return new URLSearchParams(globalThis.window.location.search).get('spaceId')
 }
 
+function parseIsoDateMs(value?: string): number {
+  if (!value) return 0
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 function useNavigationPanelState(): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
   const [show, setShow] = useState(() => {
     if (globalThis.window === undefined) return false
@@ -762,15 +721,59 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const titleInputRef = useRef<HTMLInputElement>(null)
     const editorRef = useRef<any>(null) // Store editor instance
-    const [pagesEditorState, setPagesEditorState] = useState<ActivePagesEditorState>({
-      activeEditor: null,
-      activeEditorType: null,
-      activePageNumber: null
-    })
 
     useEffect(() => {
       DocumentApiService.setAccessToken(accessTokenProp || null)
     }, [accessTokenProp])
+
+    useEffect(() => {
+      lastRemoteUpdateMsRef.current = parseIsoDateMs(document?.updatedAt)
+    }, [document?.id, document?.updatedAt])
+
+    useEffect(() => {
+      if (!document?.id) return
+
+      type FlowbotDocumentStreamCompleteDetail = {
+        documentId?: string
+        mode?: 'document' | 'selection'
+        changed?: boolean
+        changeSummary?: string
+      }
+
+      const handleFlowbotDocumentStreamComplete = async (evt: Event) => {
+        const customEvent = evt as CustomEvent<FlowbotDocumentStreamCompleteDetail>
+        const targetDocumentId = customEvent.detail?.documentId
+        if (!targetDocumentId || targetDocumentId !== document.id) return
+
+        try {
+          const latest = await DocumentApiService.getDocument(document.id)
+          if (!latest || !editorRef.current) return
+
+          const nextTitle = latest.title || title
+          setTitle(nextTitle)
+
+          const latestHtml = latest.content || '<p></p>'
+          const currentHtml = editorRef.current.getHTML?.() || ''
+          if (latestHtml && latestHtml !== currentHtml) {
+            isApplyingRemoteContentRef.current = true
+            editorRef.current.commands?.setContent?.(latestHtml, false)
+            queueMicrotask(() => {
+              isApplyingRemoteContentRef.current = false
+            })
+          }
+
+          setLastSaved(new Date())
+          setHasUnsavedChanges(false)
+        } catch (error) {
+          console.error('[PagedDocumentEditor] Failed to refresh document after stream commit:', error)
+        }
+      }
+
+      globalThis.window.addEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
+      return () => {
+        globalThis.window.removeEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
+      }
+    }, [document?.id, title])
 
     const resolvedLayout = resolvePageLayout(layoutFormatting)
     const paginationConfig = getPaginationConfigFromFormatting(layoutFormatting)
@@ -885,6 +888,82 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       console.error('[PagedDocumentEditor] Collaboration error:', error)
     }, [])
 
+    const applyRemoteOperationContent = useCallback(
+      (nextHtml: string, nextTitle?: string) => {
+        const editorInstance = editorRef.current as {
+          getHTML?: () => string
+          commands?: { setContent?: (html: string, emit?: boolean) => void }
+        } | null
+        if (!editorInstance || !nextHtml) return
+
+        const currentHtml = editorInstance.getHTML?.() || ''
+        if (currentHtml === nextHtml) return
+
+        isApplyingRemoteContentRef.current = true
+        editorInstance.commands?.setContent?.(nextHtml, false)
+        queueMicrotask(() => {
+          isApplyingRemoteContentRef.current = false
+        })
+        if (nextTitle) {
+          setTitle(prev => (prev === nextTitle ? prev : nextTitle))
+        }
+        setLastSaved(new Date())
+        setHasUnsavedChanges(false)
+      },
+      [setLastSaved, setHasUnsavedChanges]
+    )
+
+    const onCollaborationOperationReceived = useCallback(
+      (payload: {
+        userId: string
+        userName: string
+        operation: {
+          type: string
+          data?: unknown
+        }
+        version?: number
+        timestamp: number
+      }) => {
+        if (!document?.id) return
+        if (payload?.operation?.type !== 'content_update') return
+
+        const operationData =
+          payload.operation.data && typeof payload.operation.data === 'object'
+            ? (payload.operation.data as Record<string, unknown>)
+            : null
+        const source = typeof operationData?.source === 'string' ? operationData.source : ''
+        if (typeof source === 'string' && !source.startsWith('flowbot_realtime')) {
+          return
+        }
+
+        const nextHtml = typeof operationData?.content === 'string' ? operationData.content : null
+        if (!nextHtml) return
+        const nextTitle = typeof operationData?.title === 'string' ? operationData.title : null
+        const typingAgeMs = Date.now() - lastLocalTypingMsRef.current
+        if (typingAgeMs < DOCUMENT_REMOTE_TYPING_GUARD_MS) {
+          pendingRemoteContentRef.current = nextHtml
+          pendingRemoteTitleRef.current = nextTitle
+          if (pendingRemoteApplyTimeoutRef.current) {
+            clearTimeout(pendingRemoteApplyTimeoutRef.current)
+          }
+          pendingRemoteApplyTimeoutRef.current = setTimeout(() => {
+            pendingRemoteApplyTimeoutRef.current = null
+            const pendingHtml = pendingRemoteContentRef.current
+            const pendingTitle = pendingRemoteTitleRef.current || undefined
+            pendingRemoteContentRef.current = null
+            pendingRemoteTitleRef.current = null
+            if (pendingHtml) {
+              applyRemoteOperationContent(pendingHtml, pendingTitle)
+            }
+          }, DOCUMENT_REMOTE_TYPING_GUARD_MS)
+          return
+        }
+
+        applyRemoteOperationContent(nextHtml, nextTitle || undefined)
+      },
+      [applyRemoteOperationContent, document?.id]
+    )
+
     // Only use the injected access token so editor behavior never depends on browser storage.
     const accessToken = accessTokenProp || ''
 
@@ -900,6 +979,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       entityId,
       enabled: !!document?.id,
       accessToken,
+      onOperationReceived: onCollaborationOperationReceived,
       onError: onErrorCallback
     })
 
@@ -993,6 +1073,68 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setLastSaved,
       setHasUnsavedChanges
     })
+
+    useEffect(() => {
+      if (!ENABLE_DOCUMENT_LIVE_SYNC_POLL_FALLBACK) return
+      if (!document?.id || !isYjsSynced) return
+
+      let cancelled = false
+
+      const pollLatestDocumentState = async () => {
+        try {
+          const latest = await DocumentApiService.getDocument(document.id)
+          if (!latest || cancelled) return
+
+          const latestUpdatedAtMs = parseIsoDateMs(latest.updatedAt)
+          if (latestUpdatedAtMs <= lastRemoteUpdateMsRef.current) return
+          lastRemoteUpdateMsRef.current = latestUpdatedAtMs
+
+          const editorInstance = editorRef.current as {
+            getHTML?: () => string
+            commands?: { setContent?: (html: string, emit?: boolean) => void }
+          } | null
+          if (!editorInstance) return
+
+          const latestHtml = latest.content || '<p></p>'
+          const currentHtml = editorInstance.getHTML?.() || ''
+          if (latestHtml && latestHtml !== currentHtml) {
+            isApplyingRemoteContentRef.current = true
+            editorInstance.commands?.setContent?.(latestHtml, false)
+            queueMicrotask(() => {
+              isApplyingRemoteContentRef.current = false
+            })
+          }
+
+          const nextTitle = latest.title || title
+          setTitle(prev => (prev === nextTitle ? prev : nextTitle))
+          setLastSaved(new Date(latestUpdatedAtMs || Date.now()))
+          setHasUnsavedChanges(false)
+        } catch (error) {
+          if (!cancelled) {
+            console.error('[PagedDocumentEditor] Live sync poll failed:', error)
+          }
+        }
+      }
+
+      void pollLatestDocumentState()
+      const pollInterval = globalThis.window.setInterval(() => {
+        void pollLatestDocumentState()
+      }, DOCUMENT_LIVE_SYNC_POLL_INTERVAL_MS)
+
+      return () => {
+        cancelled = true
+        globalThis.window.clearInterval(pollInterval)
+      }
+    }, [document?.id, isYjsSynced, title])
+
+    useEffect(() => {
+      return () => {
+        if (pendingRemoteApplyTimeoutRef.current) {
+          clearTimeout(pendingRemoteApplyTimeoutRef.current)
+          pendingRemoteApplyTimeoutRef.current = null
+        }
+      }
+    }, [])
 
     // Seed collaborative title once synced (do not overwrite an existing value from the room).
     useEffect(() => {
@@ -1575,6 +1717,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }
         },
         onUpdate: () => {
+          schedulePaginationRebuild()
           if (document?.id) versioning.markAsChanged()
           if (!document?.id) {
             setHasUnsavedChanges(true)
