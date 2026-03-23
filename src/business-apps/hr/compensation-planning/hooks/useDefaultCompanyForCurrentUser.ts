@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type { StructureCompany } from '../../../hooks/useActiveStructureCompanies'
+import type { StructureCompany } from './useActiveStructureCompanies'
 
 const GET_EMPLOYEE_DEFAULT_COMPANY_ID = `
   query GetEmployeeDefaultCompanyId($employeeId: uuid!) {

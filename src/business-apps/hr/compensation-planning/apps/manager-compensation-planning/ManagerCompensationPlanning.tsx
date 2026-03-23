@@ -28,7 +28,7 @@ import { DataFilter, type DataFilterGroup } from '@/components/data-filter/DataF
 
 import { useManagerPlanningStore } from './hooks/useManagerPlanningStore'
 
-import { useDefaultCompanyForCurrentUser } from './hooks/useDefaultCompanyForCurrentUser'
+import { useDefaultCompanyForCurrentUser } from '../../hooks/useDefaultCompanyForCurrentUser'
 
 import { useTeamCompensationData } from './hooks/useTeamCompensationData'
 

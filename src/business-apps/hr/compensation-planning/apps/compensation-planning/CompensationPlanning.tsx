@@ -13,6 +13,7 @@ import { ChartBarIcon, GearIcon, ListChecksIcon, StackIcon } from '@phosphor-ico
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
+import { useDefaultCompanyForCurrentUser } from '../../hooks/useDefaultCompanyForCurrentUser'
 import { useCompensationPlanningStore } from './hooks/useCompensationPlanningStore'
 import { OverviewView } from './components/views/OverviewView'
 import { BudgetSetupView } from './components/views/BudgetSetupView'
@@ -20,7 +21,8 @@ import { SubmissionsView } from './components/views/SubmissionsView'
 import translations from './_i18n'
 
 export const CompensationPlanning: React.FC<BusinessAppContextProps> = context => {
-  const { accessToken } = context
+  const { accessToken, userInfo } = context
+  const employeeId = userInfo?.employeeDetails?.employeeId
   const { t } = useTranslation(translations)
 
   const viewOptions = [
@@ -32,6 +34,15 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
   const { selectedCompanyId, activeTab, selectCompany, setActiveTab } = useCompensationPlanningStore()
   const { companies, loading: companiesLoading } = useActiveStructureCompanies(accessToken)
 
+  useDefaultCompanyForCurrentUser(
+    accessToken,
+    employeeId,
+    companies,
+    companiesLoading,
+    selectedCompanyId,
+    selectCompany
+  )
+
   const renderContent = () => {
     if (companiesLoading) {
       return (
@@ -42,12 +53,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     }
 
     if (!selectedCompanyId) {
-      return (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64 gba:text-muted-foreground gba:gap-2 gba:text-center gba:px-4">
-          <StackIcon size={32} className="gba:opacity-80" />
-          <p className="gba:text-sm gba:max-w-md">{t('empty-select-company-hint')}</p>
-        </div>
-      )
+      return null
     }
 
     switch (activeTab) {
@@ -80,20 +86,32 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
       className="gba:min-h-screen"
     >
       <div className="gba:space-y-6">
-        <div className="gba:flex gba:items-center gba:gap-3">
-          <Select value={selectedCompanyId ?? undefined} onValueChange={val => selectCompany(val || null)}>
-            <SelectTrigger className="gba:w-[300px]" data-testid="compensation-planning-company-select">
-              <SelectValue placeholder={t('select-company-placeholder')} />
-            </SelectTrigger>
-            <SelectContent>
-              {companies.map(company => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!companiesLoading && (
+          <div
+            className="gba:flex gba:w-full gba:flex-row gba:flex-wrap gba:items-center gba:justify-between gba:gap-4"
+            data-testid="compensation-planning-company-toolbar"
+          >
+            <div className="gba:min-w-0 gba:flex-1">
+              {!selectedCompanyId && (
+                <p className="gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
+              )}
+            </div>
+            <div className="gba:shrink-0">
+              <Select value={selectedCompanyId ?? undefined} onValueChange={val => selectCompany(val || null)}>
+                <SelectTrigger className="gba:w-[300px]" data-testid="compensation-planning-company-select">
+                  <SelectValue placeholder={t('select-company-placeholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map(company => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         {renderContent()}
       </div>
