@@ -36,6 +36,7 @@ export interface ManageCollectionMembersDialogProps {
 
 const ROLE_LABELS: Record<CollectionMemberRole, string> = {
   owner: 'Owner',
+  admin: 'Admin',
   editor: 'Editor',
   viewer: 'Viewer'
 }
@@ -112,14 +113,14 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
   }, [open, loadMembers])
 
   const handleRoleChange = useCallback(
-    async (userId: string, role: CollectionMemberRole) => {
-      if (!userId) {
-        toast.error('Cannot update role: missing user id')
+    async (member: CollectionMember, role: CollectionMemberRole) => {
+      if (!member.userId?.trim() && !member.teamId?.trim()) {
+        toast.error('Cannot update role: missing user or team id')
         return
       }
-      const ok = await CollectionApiService.updateMemberRole(collectionId, userId, role)
+      const ok = await CollectionApiService.updateMemberRole(collectionId, member, role)
       if (ok) {
-        setMembers(prev => prev.map(m => (m.userId === userId ? { ...m, role } : m)))
+        setMembers(prev => prev.map(m => (m.id === member.id ? { ...m, role } : m)))
         onMembersChanged?.()
         toast.success('Role updated')
       }
@@ -128,15 +129,15 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
   )
 
   const handleRemove = useCallback(
-    async (userId: string, userName?: string) => {
-      if (!userId) {
-        toast.error('Cannot remove member: missing user id')
+    async (member: CollectionMember, userName?: string) => {
+      if (!member.userId?.trim() && !member.teamId?.trim()) {
+        toast.error('Cannot remove member: missing user or team id')
         return
       }
       if (!confirm(`Remove ${userName || 'this member'} from this space?`)) return
-      const ok = await CollectionApiService.removeMember(collectionId, userId)
+      const ok = await CollectionApiService.removeMember(collectionId, member)
       if (ok) {
-        setMembers(prev => prev.filter(m => m.userId !== userId))
+        setMembers(prev => prev.filter(m => m.id !== member.id))
         onMembersChanged?.()
         toast.success('Member removed')
       }
@@ -205,21 +206,22 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
                       <>
                         <Select
                           value={member.role}
-                          onValueChange={v => handleRoleChange(member.id, v as CollectionMemberRole)}
+                          onValueChange={v => handleRoleChange(member.userId, v as CollectionMemberRole)}
                         >
                           <SelectTrigger className="gba:w-28 gba:h-7 gba:text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="editor">Editor</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
+                            <SelectItem value="admin">{ROLE_LABELS.admin}</SelectItem>
+                            <SelectItem value="editor">{ROLE_LABELS.editor}</SelectItem>
+                            <SelectItem value="viewer">{ROLE_LABELS.viewer}</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button
                           variant="ghost"
                           size="sm"
                           className="gba:h-7 gba:w-7 gba:p-0 gba:text-muted-foreground gba:hover:text-destructive"
-                          onClick={() => handleRemove(member.userId, member.userName)}
+                          onClick={() => handleRemove(member, member.userName)}
                           data-testid={`${testId}-remove-${member.id}`}
                         >
                           <X className="gba:w-3.5 gba:h-3.5" />

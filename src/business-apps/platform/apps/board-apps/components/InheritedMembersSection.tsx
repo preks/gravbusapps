@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { Eye, Pencil, FolderClosed, X } from 'lucide-react'
+import { Eye, Pencil, Shield, FolderClosed, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { CollectionApiService } from '../services/CollectionApiService'
 import type { CollectionMember, CollectionMemberRole } from '../types/collection'
@@ -43,15 +43,15 @@ export const InheritedMembersSection: React.FC<InheritedMembersSectionProps> = (
   'data-testid': testId = 'inherited-members'
 }) => {
   const handleUpdateRole = useCallback(
-    async (userId: string, role: CollectionMemberRole) => {
+    async (member: CollectionMember, role: CollectionMemberRole) => {
       if (!collectionId) return
-      if (!userId) {
-        toast.error('Cannot update role: missing user id')
+      if (!member.userId?.trim() && !member.teamId?.trim()) {
+        toast.error('Cannot update role: missing user or team id')
         return
       }
-      const ok = await CollectionApiService.updateMemberRole(collectionId, userId, role)
+      const ok = await CollectionApiService.updateMemberRole(collectionId, member, role)
       if (ok) {
-        onMembersChanged(members.map(m => (m.userId === userId ? { ...m, role } : m)))
+        onMembersChanged(members.map(m => (m.id === member.id ? { ...m, role } : m)))
         toast.success('Space role updated')
         onSharesChanged?.()
       } else {
@@ -62,10 +62,10 @@ export const InheritedMembersSection: React.FC<InheritedMembersSectionProps> = (
   )
 
   const handleRemove = useCallback(
-    async (userId: string, userName?: string) => {
+    async (member: CollectionMember, userName?: string) => {
       if (!collectionId) return
-      if (!userId) {
-        toast.error('Cannot remove member: missing user id')
+      if (!member.userId?.trim() && !member.teamId?.trim()) {
+        toast.error('Cannot remove member: missing user or team id')
         return
       }
       if (
@@ -74,9 +74,9 @@ export const InheritedMembersSection: React.FC<InheritedMembersSectionProps> = (
         )
       )
         return
-      const ok = await CollectionApiService.removeMember(collectionId, userId)
+      const ok = await CollectionApiService.removeMember(collectionId, member)
       if (ok) {
-        onMembersChanged(members.filter(m => m.userId !== userId))
+        onMembersChanged(members.filter(m => m.id !== member.id))
         toast.success('Member removed from space')
         onSharesChanged?.()
       } else {
@@ -120,14 +120,16 @@ export const InheritedMembersSection: React.FC<InheritedMembersSectionProps> = (
                 </span>
               ) : (
                 <>
-                  <Select
-                    value={member.role}
-                    onValueChange={v => handleUpdateRole(member.id, v as CollectionMemberRole)}
-                  >
+                  <Select value={member.role} onValueChange={v => handleUpdateRole(member, v as CollectionMemberRole)}>
                     <SelectTrigger className="gba:w-28 gba:h-7 gba:text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="admin">
+                        <span className="gba:flex gba:items-center gba:gap-1.5">
+                          <Shield className="gba:w-3 gba:h-3" /> Admin
+                        </span>
+                      </SelectItem>
                       <SelectItem value="editor">
                         <span className="gba:flex gba:items-center gba:gap-1.5">
                           <Pencil className="gba:w-3 gba:h-3" /> Editor
@@ -144,7 +146,7 @@ export const InheritedMembersSection: React.FC<InheritedMembersSectionProps> = (
                     variant="ghost"
                     size="sm"
                     className="gba:h-7 gba:w-7 gba:p-0 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:text-muted-foreground gba:hover:text-destructive"
-                    onClick={() => handleRemove(member.userId, member.userName)}
+                    onClick={() => handleRemove(member, member.userName)}
                     data-testid={`${testId}-remove-${member.id}`}
                   >
                     <X className="gba:w-3.5 gba:h-3.5" />

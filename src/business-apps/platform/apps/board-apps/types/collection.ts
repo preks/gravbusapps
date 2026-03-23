@@ -16,6 +16,8 @@ export interface BoardCollection {
 export interface CollectionMember {
   id: string
   userId: string
+  /** When the API adds members as a team, PATCH/DELETE may need this in the path instead of `userId`. */
+  teamId?: string
   userName?: string
   userAvatar?: string
   role: CollectionMemberRole
@@ -23,4 +25,5 @@ export interface CollectionMember {
   invitedBy?: string
 }
 
-export type CollectionMemberRole = 'owner' | 'editor' | 'viewer'
+/** Aligns with document-service / Spaces roles (`admin` is used by Spaces; omitting it caused blank Selects). */
+export type CollectionMemberRole = 'owner' | 'admin' | 'editor' | 'viewer'
