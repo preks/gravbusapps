@@ -7,7 +7,7 @@ interface ChatSnippetDisplayProps {
   data: ChatReferenceData
 }
 
-const SENDER_LINE_RE = /^\[([^\]]*?)]\s*(.+?):\s*([\s\S]*)$/
+const SENDER_LINE_RE = /^\[([^\]]*)]\s*([^:]+):\s*(.*)$/
 
 interface ParsedMessage {
   sender: string
