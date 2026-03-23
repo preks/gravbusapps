@@ -187,13 +187,13 @@ export const TaskInput: React.FC<TaskInputProps> = ({
             )}
           />
 
-          {/* Priority | Timing | Deadline */}
-          <FormFieldGroup className="gba:w-full">
+          {/* Priority | Timing | Deadline — flex-wrap prevents overlapping on narrow panels */}
+          <FormFieldGroup className="gba:w-full gba:flex-wrap gba:gap-y-2">
             <FormField
               control={form.control}
               name="taskPriorityRef"
               render={({ field }) => (
-                <FormItem className="gba:min-w-0 gba:flex-[0.8]">
+                <FormItem className="gba:min-w-24 gba:flex-1">
                   <FormLabel>{t('tasks-priority')}</FormLabel>
                   <FormControl>
                     <CatalogSelect.Provider accessToken={accessToken}>
@@ -215,7 +215,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
               control={form.control}
               name="taskTiming"
               render={({ field }) => (
-                <FormItem className="gba:min-w-0 gba:flex-[0.8]">
+                <FormItem className="gba:min-w-28 gba:flex-1">
                   <FormLabel>{t('tasks-timingType')}</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
@@ -250,7 +250,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
               control={form.control}
               name="deadline"
               render={({ field }) => (
-                <FormItem className="gba:min-w-0 gba:flex-[1.2]">
+                <FormItem className="gba:min-w-36 gba:flex-1">
                   <FormLabel>{t('tasks-deadline')}</FormLabel>
                   <FormControl>
                     <div className="gba:min-w-0 gba:w-full gba:max-w-full gba:overflow-hidden">
