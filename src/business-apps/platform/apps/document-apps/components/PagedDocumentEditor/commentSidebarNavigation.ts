@@ -37,6 +37,16 @@ type PublishedPageBodyBounds = SelectionAnchorPosition & {
   right: number
 }
 
+type ViewportLayoutSnapshot = {
+  scrollTop: number
+  windowKey: string
+  mountedRangeKey: string
+  runtimeGeneration: string
+  runtimeStatus: string
+}
+
+const LAYOUT_SETTLE_FRAME_LIMIT = 12
+
 function resolveElementPageNumber(element: Element | null): number | null {
   const pageElement = element?.closest(PAGE_NUMBER_SELECTOR)
   const pageNumber = Number(pageElement?.getAttribute('data-rm-page-number') ?? '')
@@ -196,6 +206,66 @@ function resolvePaginationViewport(view: CommentNavigationView): HTMLElement | n
   return viewport instanceof HTMLElement ? viewport : null
 }
 
+function captureViewportLayoutSnapshot(view: CommentNavigationView): ViewportLayoutSnapshot | null {
+  const viewport = resolvePaginationViewport(view)
+  if (!(viewport instanceof HTMLElement)) {
+    return null
+  }
+
+  return {
+    scrollTop: viewport.scrollTop,
+    windowKey: viewport.dataset.layoutWindowKey ?? '',
+    mountedRangeKey: `${viewport.dataset.layoutMountedStart ?? ''}-${viewport.dataset.layoutMountedEnd ?? ''}`,
+    runtimeGeneration: viewport.dataset.layoutRuntimeGeneration ?? '',
+    runtimeStatus: viewport.dataset.layoutRuntimeStatus ?? 'idle'
+  }
+}
+
+function hasViewportLayoutSettledChange(
+  baseline: ViewportLayoutSnapshot | null,
+  nextSnapshot: ViewportLayoutSnapshot
+): boolean {
+  if (!baseline) {
+    return true
+  }
+
+  return (
+    nextSnapshot.scrollTop !== baseline.scrollTop ||
+    nextSnapshot.windowKey !== baseline.windowKey ||
+    nextSnapshot.mountedRangeKey !== baseline.mountedRangeKey ||
+    nextSnapshot.runtimeGeneration !== baseline.runtimeGeneration
+  )
+}
+
+function retryAfterViewportFocusSettles(
+  editor: CommentNavigationEditor,
+  baseline: ViewportLayoutSnapshot | null,
+  onReady: () => void,
+  remainingFrames = LAYOUT_SETTLE_FRAME_LIMIT,
+  hasObservedChange = false
+) {
+  requestAnimationFrame(() => {
+    if (remainingFrames <= 0) {
+      onReady()
+      return
+    }
+
+    const nextSnapshot = captureViewportLayoutSnapshot(editor.view)
+    if (!nextSnapshot) {
+      onReady()
+      return
+    }
+
+    const observedChange = hasObservedChange || hasViewportLayoutSettledChange(baseline, nextSnapshot)
+    if (observedChange && nextSnapshot.runtimeStatus === 'idle') {
+      onReady()
+      return
+    }
+
+    retryAfterViewportFocusSettles(editor, baseline, onReady, remainingFrames - 1, observedChange)
+  })
+}
+
 function scrollViewportToPageBounds(
   view: CommentNavigationView,
   bounds: PublishedPageBodyBounds,
@@ -268,9 +338,10 @@ export function scrollEditorSelectionNodeIntoView(
       return
     }
 
+    const viewportSnapshot = captureViewportLayoutSnapshot(editor.view)
     const didShiftViewport = requestSelectionViewportPageFocus(editor, from, to)
     if (didShiftViewport) {
-      requestAnimationFrame(() => {
+      retryAfterViewportFocusSettles(editor, viewportSnapshot, () => {
         if (runScroll()) {
           return
         }
@@ -359,9 +430,10 @@ export function requestEditorSelectionAnchorPosition(
       return
     }
 
+    const viewportSnapshot = captureViewportLayoutSnapshot(editor.view)
     const didShiftViewport = requestSelectionViewportPageFocus(editor, from, to)
     if (didShiftViewport) {
-      requestAnimationFrame(() => {
+      retryAfterViewportFocusSettles(editor, viewportSnapshot, () => {
         if (runResolve()) {
           return
         }
@@ -398,7 +470,7 @@ export function scrollInlineCommentRangeIntoView(
     const runScroll = () => {
       const view = editor.view
       const domFallback = () => {
-        if (!commentId) return
+        if (!commentId) return false
         const fallbackElement = globalThis.document.querySelector(`[data-comment-id="${commentId}"]`)
         if (!(fallbackElement instanceof HTMLElement)) {
           return false
@@ -457,9 +529,10 @@ export function scrollInlineCommentRangeIntoView(
       return
     }
 
+    const viewportSnapshot = captureViewportLayoutSnapshot(editor.view)
     const didShiftViewport = requestSelectionViewportPageFocus(editor, from, to)
     if (didShiftViewport) {
-      requestAnimationFrame(() => {
+      retryAfterViewportFocusSettles(editor, viewportSnapshot, () => {
         if (runScroll()) {
           return
         }

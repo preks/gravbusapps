@@ -4,14 +4,7 @@ import {
   createHardBreakDecorationElement,
   shouldRebuildHardBreakDecorations
 } from '../paginationHardBreakDecorationController'
-import {
-  AddMarkStep,
-  AttrStep,
-  RemoveMarkStep,
-  RemoveNodeMarkStep,
-  ReplaceAroundStep,
-  ReplaceStep
-} from '@tiptap/pm/transform'
+import { AddMarkStep, AttrStep, ReplaceAroundStep, ReplaceStep } from '@tiptap/pm/transform'
 
 const schema = new Schema({
   nodes: {
@@ -66,7 +59,7 @@ describe('buildHardBreakDecorations', () => {
 })
 
 describe('shouldRebuildHardBreakDecorations', () => {
-  it('returns true when the document changed', () => {
+  it('returns true when the document changed without explicit steps', () => {
     expect(
       shouldRebuildHardBreakDecorations({
         docChanged: true,
@@ -77,18 +70,26 @@ describe('shouldRebuildHardBreakDecorations', () => {
 
   it.each([
     ['replace', Object.create(ReplaceStep.prototype)],
-    ['replace-around', Object.create(ReplaceAroundStep.prototype)],
-    ['add-mark', Object.create(AddMarkStep.prototype)],
-    ['remove-mark', Object.create(RemoveMarkStep.prototype)],
-    ['remove-node-mark', Object.create(RemoveNodeMarkStep.prototype)],
-    ['attr', Object.create(AttrStep.prototype)]
-  ])('returns true for %s steps', (_label, step) => {
+    ['replace-around', Object.create(ReplaceAroundStep.prototype)]
+  ])('returns true for structural %s steps', (_label, step) => {
     expect(
       shouldRebuildHardBreakDecorations({
-        docChanged: false,
+        docChanged: true,
         steps: [step]
       })
     ).toBe(true)
+  })
+
+  it.each([
+    ['add-mark', Object.create(AddMarkStep.prototype)],
+    ['attr', Object.create(AttrStep.prototype)]
+  ])('returns false for non-structural %s steps', (_label, step) => {
+    expect(
+      shouldRebuildHardBreakDecorations({
+        docChanged: true,
+        steps: [step]
+      })
+    ).toBe(false)
   })
 
   it('returns false when no relevant change happened', () => {

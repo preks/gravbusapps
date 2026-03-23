@@ -212,20 +212,27 @@ function resolveMeasuredPagePositionRanges(
   )
 }
 
+function shouldRetainPreviousPagePositionRanges(scope: DocumentLayoutInvalidationScope): boolean {
+  return scope === 'viewport'
+}
+
 export function mergeDocumentLayoutPagePositionRanges(
   previousRanges: DocumentLayoutPagePositionRange[],
   nextRanges: DocumentLayoutPagePositionRange[],
-  pageCount: number
+  pageCount: number,
+  retainPrevious = true
 ): DocumentLayoutPagePositionRange[] {
   const safePageCount = Math.max(1, pageCount)
   const merged = new Map<number, DocumentLayoutPagePositionRange>()
 
-  previousRanges.forEach(range => {
-    if (range.pageNumber < 1 || range.pageNumber > safePageCount) {
-      return
-    }
-    merged.set(range.pageNumber, range)
-  })
+  if (retainPrevious) {
+    previousRanges.forEach(range => {
+      if (range.pageNumber < 1 || range.pageNumber > safePageCount) {
+        return
+      }
+      merged.set(range.pageNumber, range)
+    })
+  }
 
   nextRanges.forEach(range => {
     if (range.pageNumber < 1 || range.pageNumber > safePageCount) {
@@ -438,7 +445,8 @@ export function usePaginationLayoutSnapshot({
           mergeDocumentLayoutPagePositionRanges(
             previous.pagePositionRanges ?? [],
             measuredPagePositionRanges,
-            measurement.layout.pageCount
+            measurement.layout.pageCount,
+            shouldRetainPreviousPagePositionRanges(request.scope)
           ),
           measurement.layout.activeRange,
           measurement.layout.activePages,

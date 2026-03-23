@@ -503,6 +503,88 @@ describe('commentSidebarNavigation', () => {
     expect(hydratePageBreakShells).not.toHaveBeenCalled()
   })
 
+  it('waits for the viewport layout to settle before retrying page-focus recovery', () => {
+    const frameCallbacks: FrameRequestCallback[] = []
+    global.requestAnimationFrame = callback => {
+      frameCallbacks.push(callback)
+      return frameCallbacks.length
+    }
+
+    const viewport = document.createElement('div')
+    viewport.className = 'document-editor-viewport'
+    viewport.dataset.layoutWindowKey = 'window-1'
+    viewport.dataset.layoutMountedStart = '1'
+    viewport.dataset.layoutMountedEnd = '3'
+    viewport.dataset.layoutRuntimeGeneration = '1'
+    viewport.dataset.layoutRuntimeStatus = 'idle'
+
+    const editorRoot = document.createElement('div')
+    viewport.appendChild(editorRoot)
+    const targetNode = document.createElement('span')
+    const scrollIntoView = jest.fn()
+    targetNode.scrollIntoView = scrollIntoView
+
+    let viewportFocused = false
+    const requestViewportPageFocus = jest.fn(() => {
+      viewportFocused = true
+      viewport.scrollTop = 320
+      viewport.dataset.layoutRuntimeStatus = 'scheduled'
+      return true
+    })
+    const hydratePageBreakShells = jest.fn(() => true)
+
+    scrollEditorSelectionNodeIntoView(
+      {
+        commands: {
+          hydratePageBreakShells,
+          requestViewportPageFocus
+        },
+        layoutHints: {
+          pagePositionRanges: [{ pageNumber: 6, startPos: 60, endPos: 68 }],
+          mountedPageBodyBounds: []
+        },
+        view: {
+          dom: editorRoot,
+          nodeDOM: () => (viewportFocused ? targetNode : null),
+          domAtPos: () => {
+            if (!viewportFocused) {
+              throw new Error('not mounted')
+            }
+
+            return { node: targetNode }
+          },
+          coordsAtPos: () => {
+            throw new Error('not mounted')
+          }
+        }
+      },
+      60,
+      68,
+      'center'
+    )
+
+    expect(frameCallbacks).toHaveLength(1)
+    frameCallbacks.shift()?.(0)
+
+    expect(requestViewportPageFocus).toHaveBeenCalledWith(6)
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    expect(hydratePageBreakShells).not.toHaveBeenCalled()
+    expect(frameCallbacks).toHaveLength(1)
+
+    frameCallbacks.shift()?.(16)
+
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    expect(hydratePageBreakShells).not.toHaveBeenCalled()
+    expect(frameCallbacks).toHaveLength(1)
+
+    viewport.dataset.layoutRuntimeStatus = 'idle'
+    viewport.dataset.layoutRuntimeGeneration = '2'
+    frameCallbacks.shift()?.(32)
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
+    expect(hydratePageBreakShells).not.toHaveBeenCalled()
+  })
+
   it('hydrates before resolving a selection anchor position when the target remains unresolved', () => {
     const frameCallbacks: FrameRequestCallback[] = []
     global.requestAnimationFrame = callback => {

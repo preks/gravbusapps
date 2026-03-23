@@ -196,7 +196,7 @@ describe('usePaginationLayoutSnapshot', () => {
     ])
   })
 
-  it('merges page position ranges across window refreshes and drops out-of-range pages', () => {
+  it('merges page position ranges across viewport window refreshes and drops out-of-range pages', () => {
     expect(
       mergeDocumentLayoutPagePositionRanges(
         [
@@ -207,7 +207,8 @@ describe('usePaginationLayoutSnapshot', () => {
           { pageNumber: 2, startPos: 20, endPos: 39 },
           { pageNumber: 4, startPos: 62, endPos: 81 }
         ],
-        4
+        4,
+        true
       )
     ).toEqual([
       { pageNumber: 1, startPos: 1, endPos: 19 },
@@ -215,5 +216,19 @@ describe('usePaginationLayoutSnapshot', () => {
       { pageNumber: 4, startPos: 62, endPos: 81 }
     ])
     expect(mergeDocumentLayoutPagePositionRanges([{ pageNumber: 5, startPos: 80, endPos: 99 }], [], 4)).toEqual([])
+  })
+
+  it('drops previously retained page position ranges after non-viewport invalidations', () => {
+    expect(
+      mergeDocumentLayoutPagePositionRanges(
+        [
+          { pageNumber: 1, startPos: 1, endPos: 19 },
+          { pageNumber: 4, startPos: 60, endPos: 79 }
+        ],
+        [{ pageNumber: 2, startPos: 20, endPos: 39 }],
+        4,
+        false
+      )
+    ).toEqual([{ pageNumber: 2, startPos: 20, endPos: 39 }])
   })
 })

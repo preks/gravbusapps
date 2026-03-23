@@ -287,7 +287,15 @@ export function createPaginationExtensionPlugins(options: {
             }
           }
 
-          return tr.docChanged || tr.getMeta(options.refreshMeta) ? buildPageDecorations() : oldValue
+          if (tr.getMeta(options.refreshMeta)) {
+            return buildPageDecorations()
+          }
+
+          if (tr.docChanged) {
+            return oldValue.map(tr.mapping, tr.doc)
+          }
+
+          return oldValue
         }
       },
       props: {

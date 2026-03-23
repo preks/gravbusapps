@@ -1,13 +1,6 @@
 import type { Node as PMNode } from 'prosemirror-model'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import {
-  AddMarkStep,
-  AttrStep,
-  RemoveMarkStep,
-  RemoveNodeMarkStep,
-  ReplaceAroundStep,
-  ReplaceStep
-} from '@tiptap/pm/transform'
+import { ReplaceAroundStep, ReplaceStep } from '@tiptap/pm/transform'
 
 export function createHardBreakDecorationElement() {
   const element = document.createElement('span')
@@ -32,13 +25,12 @@ export function buildHardBreakDecorations(doc: PMNode): DecorationSet {
 }
 
 export function shouldRebuildHardBreakDecorations(transaction: { docChanged: boolean; steps: readonly unknown[] }) {
+  if (!transaction.docChanged) {
+    return false
+  }
+
   return (
-    transaction.docChanged ||
-    transaction.steps.some(step => step instanceof ReplaceStep) ||
-    transaction.steps.some(step => step instanceof ReplaceAroundStep) ||
-    transaction.steps.some(step => step instanceof AddMarkStep) ||
-    transaction.steps.some(step => step instanceof RemoveMarkStep) ||
-    transaction.steps.some(step => step instanceof RemoveNodeMarkStep) ||
-    transaction.steps.some(step => step instanceof AttrStep)
+    transaction.steps.length === 0 ||
+    transaction.steps.some(step => step instanceof ReplaceStep || step instanceof ReplaceAroundStep)
   )
 }
