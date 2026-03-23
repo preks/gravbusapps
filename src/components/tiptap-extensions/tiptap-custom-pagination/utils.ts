@@ -607,6 +607,32 @@ function getFooterMeasurementSelector(pageNumber: number): string {
   return `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"] .rm-page-region-layout`
 }
 
+function findPageBreakElement(editorDom: HTMLElement, pageNumber: number) {
+  return Array.from(editorDom.querySelectorAll('[data-rm-pagination] > .rm-page-break')).find(pageBreak => {
+    if (!(pageBreak instanceof HTMLElement)) return false
+    const page = pageBreak.querySelector('.page[data-rm-page-number]')
+    return Number(page?.getAttribute('data-rm-page-number')) === pageNumber
+  }) as HTMLElement | undefined
+}
+
+function readPlaceholderMeasurementValue(element: HTMLElement | null, key: string) {
+  const value = Number(element?.dataset[key] ?? '')
+  return Number.isFinite(value) && value >= 0 ? value : 0
+}
+
+function readHeaderPlaceholderHeight(editorDom: HTMLElement, pageNumber: number) {
+  if (pageNumber <= 1) return 0
+  const pageBreak = findPageBreakElement(editorDom, pageNumber - 1)
+  const breaker = pageBreak?.querySelector('.breaker') as HTMLElement | null
+  return readPlaceholderMeasurementValue(breaker, 'rmBreakerNextHeaderHeight')
+}
+
+function readFooterPlaceholderHeight(editorDom: HTMLElement, pageNumber: number) {
+  const pageBreak = findPageBreakElement(editorDom, pageNumber)
+  const breaker = pageBreak?.querySelector('.breaker') as HTMLElement | null
+  return readPlaceholderMeasurementValue(breaker, 'rmBreakerFooterHeight')
+}
+
 function getLastMeasurableChild(root: HTMLElement): HTMLElement | null {
   return root.lastElementChild as HTMLElement | null
 }
@@ -641,19 +667,21 @@ export function measureHeaderFooterContentHeights(
   const footerHeights = new Map<number, number>()
 
   for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+    const headerRegionLayout = editorDom.querySelector(getHeaderMeasurementSelector(pageNumber)) as HTMLElement | null
+    const footerRegionLayout = editorDom.querySelector(getFooterMeasurementSelector(pageNumber)) as HTMLElement | null
     const headerHeight = clampHeaderContentHeight(
       pageFormat,
       storage,
-      readHeaderFooterRegionHeight(
-        editorDom.querySelector(getHeaderMeasurementSelector(pageNumber)) as HTMLElement | null
-      )
+      headerRegionLayout
+        ? readHeaderFooterRegionHeight(headerRegionLayout)
+        : readHeaderPlaceholderHeight(editorDom, pageNumber)
     )
     const footerHeight = clampFooterContentHeight(
       pageFormat,
       storage,
-      readHeaderFooterRegionHeight(
-        editorDom.querySelector(getFooterMeasurementSelector(pageNumber)) as HTMLElement | null
-      )
+      footerRegionLayout
+        ? readHeaderFooterRegionHeight(footerRegionLayout)
+        : readFooterPlaceholderHeight(editorDom, pageNumber)
     )
 
     headerHeights.set(pageNumber, headerHeight)

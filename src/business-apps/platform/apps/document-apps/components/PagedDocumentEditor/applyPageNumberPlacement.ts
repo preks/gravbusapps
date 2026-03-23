@@ -3,6 +3,8 @@ import type { DocumentPagesFormatting, PageNumberAlignment, PageNumberNumeralSty
 import { normalizeStoredPagesFormatting, sanitizeStandalonePageNumberTemplates } from '../../utils/pageLayoutUtils'
 import type { PagesOptionUpdates } from '@/components/tiptap-extensions/tiptap-custom-pagination'
 
+const isDevelopmentEnvironment = process.env.NODE_ENV !== 'production'
+
 type PagesOptionField =
   | 'header'
   | 'footer'
@@ -109,7 +111,7 @@ export function applyPageNumberPlacement(editor: Editor, params: ApplyPageNumber
   }
 
   const ok = cmds.setPagesOptions?.(updates) ?? false
-  if (import.meta.env.DEV) {
+  if (isDevelopmentEnvironment) {
     console.info('[document-pages-debug] applyPageNumberPlacement → setPagesOptions', {
       updates,
       returned: ok
@@ -127,7 +129,7 @@ export function removePageNumberPlacement(editor: Editor): boolean {
   }
 
   const ok = cmds.setPagesOptions?.(updates) ?? false
-  if (import.meta.env.DEV) {
+  if (isDevelopmentEnvironment) {
     console.info('[document-pages-debug] removePageNumberPlacement → setPagesOptions', {
       updates,
       returned: ok

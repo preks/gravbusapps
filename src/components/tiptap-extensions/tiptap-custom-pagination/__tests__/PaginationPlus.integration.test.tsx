@@ -1,24 +1,36 @@
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import {
-  DEFAULT_TABLE_STABILIZATION_ACTIONS_PER_PASS,
   INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
-  MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS,
   createSafePaginationSelection,
   resolveRunawayPageGrowth,
+  resolvePaginationWidgetTotalPages,
+  resolvePaginationBodyClick,
+  resolvePaginationSelectionBodyOverflow
+} from '../PaginationPlus'
+import {
+  DEFAULT_TABLE_STABILIZATION_ACTIONS_PER_PASS,
+  MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS,
+  resolveDeferredRepaginationActionPlan,
+  resolveDeferredRepaginationControllerCycle,
+  resolveDeferredRepaginationExecutionPlan,
+  resolveDeferredRepaginationPreflight,
+  resolveDeferredRepaginationRefreshGate,
   resolveDeferredRepaginationOutcome,
   resolveDeferredTableRefreshResult,
   resolveImmediateTableStabilizationDecision,
-  resolvePaginationWidgetTotalPages,
-  resolveTableStabilizationActionBudget,
-  resolvePaginationBodyClick,
-  resolvePaginationSelectionBodyOverflow,
   resolveTablePaginationHeuristics,
+  resolveTableStabilizationActionBudget,
+  shouldDeferTablePaginationEvaluation,
   shouldDeferUpwardTableRefreshAcceptance,
   shouldRetryDeferredRepaginationStabilization,
-  shouldScheduleDeferredRepaginationOnUpdate,
-  shouldDeferTablePaginationEvaluation
-} from '../PaginationPlus'
+  shouldScheduleDeferredRepaginationOnUpdate
+} from '../paginationStabilizationPolicy'
+import {
+  resolveCurrentKnownPageCount,
+  resolveDeferredRepaginationMeasurementState,
+  resolvePaginationMeasurementState
+} from '../paginationPageCountPolicy'
 
 describe('resolveDeferredRepaginationOutcome', () => {
   it('refreshes first and only prefers a split on the next stable pass after page growth', () => {
@@ -251,6 +263,131 @@ describe('resolveRunawayPageGrowth', () => {
   })
 })
 
+describe('resolveCurrentKnownPageCount', () => {
+  it('never drops below one and prefers the larger of DOM and stored counts', () => {
+    expect(resolveCurrentKnownPageCount(0, 0)).toBe(1)
+    expect(resolveCurrentKnownPageCount(3, 1)).toBe(3)
+    expect(resolveCurrentKnownPageCount(2, 5)).toBe(5)
+  })
+})
+
+describe('resolveDeferredRepaginationMeasurementState', () => {
+  it('normalizes the current count, resolves the measured snapshot, and prepares the next add-pages snapshot', () => {
+    const measured = {
+      headerHeights: new Map([[1, 40]]),
+      footerHeights: new Map([[1, 24]])
+    }
+    const resolveMeasuredSnapshot = jest.fn(() => ({
+      rawMeasuredPageCount: 26,
+      measuredPageCount: 14,
+      pageCountDebugInfo: {
+        reason: 'add-pages',
+        lastPageGap: 120,
+        pageContentHeight: 800
+      } as never,
+      runawayPageGrowthResolution: {
+        effectivePageCount: 14,
+        cappedPageCount: 14,
+        suppressionActive: true,
+        runawayPageGrowthCheck: {
+          shouldStabilize: true,
+          actualGapShrink: 80,
+          expectedGapShrink: 160,
+          gapShrinkRatio: 0.5
+        }
+      }
+    }))
+
+    const result = resolveDeferredRepaginationMeasurementState({
+      view: {} as never,
+      storage: { pageCount: 12 } as never,
+      runtimeOptions: {} as never,
+      previousAddPagesMeasurement: null,
+      cappedPageCount: null,
+      docChangedSinceLastUpdate: false,
+      resetDueToDocChange: false,
+      measureHeights: () => measured,
+      resolveCurrentPageCount: () => 14,
+      resolveMeasuredSnapshot
+    })
+
+    expect(result).toMatchObject({
+      measured,
+      currentPageCount: 14,
+      rawMeasuredPageCount: 26,
+      measuredPageCount: 14,
+      pageCountReason: 'add-pages',
+      lastMeasuredPageGap: 120,
+      nextAddPagesMeasurement: {
+        currentPageCount: 14,
+        measuredPageCount: 26,
+        lastPageGap: 120,
+        pageContentHeight: 800
+      },
+      runawayPageGrowthResolution: {
+        effectivePageCount: 14,
+        cappedPageCount: 14,
+        suppressionActive: true
+      }
+    })
+
+    expect(resolveMeasuredSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        measured,
+        currentPageCount: 14,
+        cappedPageCount: null
+      })
+    )
+  })
+})
+
+describe('resolvePaginationMeasurementState', () => {
+  it('reuses the shared measurement-state pipeline for non-deferred callers', () => {
+    const measured = {
+      headerHeights: new Map([[1, 32]]),
+      footerHeights: new Map([[1, 18]])
+    }
+
+    expect(
+      resolvePaginationMeasurementState({
+        view: {} as never,
+        storage: { pageCount: 4 } as never,
+        runtimeOptions: {} as never,
+        previousAddPagesMeasurement: null,
+        cappedPageCount: null,
+        docChangedSinceLastUpdate: false,
+        resetDueToDocChange: false,
+        measureHeights: () => measured,
+        resolveCurrentPageCount: () => 4,
+        resolveMeasuredSnapshot: () => ({
+          rawMeasuredPageCount: 5,
+          measuredPageCount: 5,
+          pageCountDebugInfo: null,
+          runawayPageGrowthResolution: {
+            effectivePageCount: 5,
+            cappedPageCount: null,
+            suppressionActive: false,
+            runawayPageGrowthCheck: {
+              shouldStabilize: false,
+              actualGapShrink: null,
+              expectedGapShrink: null,
+              gapShrinkRatio: null
+            }
+          }
+        })
+      })
+    ).toMatchObject({
+      measured,
+      currentPageCount: 4,
+      rawMeasuredPageCount: 5,
+      measuredPageCount: 5,
+      pageCountReason: null,
+      lastMeasuredPageGap: null,
+      nextAddPagesMeasurement: null
+    })
+  })
+})
+
 describe('shouldDeferTablePaginationEvaluation', () => {
   it('defers table pagination while page body bands are still incomplete', () => {
     expect(
@@ -303,6 +440,278 @@ describe('shouldRetryDeferredRepaginationStabilization', () => {
   })
 })
 
+describe('resolveDeferredRepaginationPreflight', () => {
+  it('requests a retry while body-band measurement is still incomplete and stabilization budget remains', () => {
+    expect(
+      resolveDeferredRepaginationPreflight({
+        cappedPageCount: null,
+        hasActiveEditor: false,
+        hasTables: true,
+        currentPageCount: 4,
+        bodyBandCount: 2,
+        stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+        tableMeasurementsPending: false
+      })
+    ).toMatchObject({
+      deferTableEvaluation: true,
+      tableMeasurementsPending: false,
+      isBlocked: true,
+      shouldRetry: true,
+      tablePaginationHeuristics: {
+        allowMerge: true,
+        allowSplit: true
+      }
+    })
+  })
+
+  it('blocks without retry once stabilization budget is exhausted but table measurements are still pending', () => {
+    expect(
+      resolveDeferredRepaginationPreflight({
+        cappedPageCount: null,
+        hasActiveEditor: false,
+        hasTables: true,
+        currentPageCount: 4,
+        bodyBandCount: 4,
+        stabilizationAttemptsRemaining: 0,
+        tableMeasurementsPending: true
+      })
+    ).toMatchObject({
+      deferTableEvaluation: false,
+      tableMeasurementsPending: true,
+      isBlocked: true,
+      shouldRetry: false
+    })
+  })
+
+  it('disables split and merge heuristics while a header or footer editor is active', () => {
+    expect(
+      resolveDeferredRepaginationPreflight({
+        cappedPageCount: null,
+        hasActiveEditor: true,
+        hasTables: true,
+        currentPageCount: 4,
+        bodyBandCount: 4,
+        stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+        tableMeasurementsPending: true
+      })
+    ).toMatchObject({
+      deferTableEvaluation: false,
+      tableMeasurementsPending: false,
+      isBlocked: false,
+      shouldRetry: false,
+      tablePaginationHeuristics: {
+        allowMerge: false,
+        allowSplit: false
+      }
+    })
+  })
+})
+
+describe('resolveDeferredRepaginationExecutionPlan', () => {
+  it('returns a retry plan while stabilization should retry', () => {
+    const preflight = resolveDeferredRepaginationPreflight({
+      cappedPageCount: null,
+      hasActiveEditor: false,
+      hasTables: true,
+      currentPageCount: 4,
+      bodyBandCount: 2,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      tableMeasurementsPending: false
+    })
+
+    expect(
+      resolveDeferredRepaginationExecutionPlan({
+        preflight,
+        actionPlan: null,
+        stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+        structuralActionsPerformed: 0
+      })
+    ).toMatchObject({
+      type: 'retry',
+      shouldClearPreviousAddPagesMeasurement: true,
+      shouldDecrementStabilizationAttempts: true,
+      shouldScheduleEvaluation: true,
+      shouldRefreshLayoutBounds: true,
+      debug: {
+        deferTableEvaluation: true,
+        tableMeasurementsPending: false,
+        stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS
+      }
+    })
+  })
+
+  it('returns a neutral proceed plan before any table action plan exists', () => {
+    const preflight = resolveDeferredRepaginationPreflight({
+      cappedPageCount: null,
+      hasActiveEditor: false,
+      hasTables: true,
+      currentPageCount: 4,
+      bodyBandCount: 4,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      tableMeasurementsPending: false
+    })
+
+    expect(
+      resolveDeferredRepaginationExecutionPlan({
+        preflight,
+        actionPlan: null,
+        stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+        structuralActionsPerformed: 0
+      })
+    ).toEqual({
+      type: 'proceed'
+    })
+  })
+
+  it('maps dispatch action plans into dispatch execution plans with continue metadata', () => {
+    const preflight = resolveDeferredRepaginationPreflight({
+      cappedPageCount: null,
+      hasActiveEditor: false,
+      hasTables: true,
+      currentPageCount: 4,
+      bodyBandCount: 4,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      tableMeasurementsPending: false
+    })
+    const actionPlan = resolveDeferredRepaginationActionPlan({
+      result: {
+        type: 'dispatch',
+        dispatchType: 'split',
+        candidateKey: 'split:10:2',
+        progress: 'structural',
+        transaction: {} as never,
+        scheduleEvaluation: true
+      },
+      currentPageCount: 26,
+      measuredPageCount: 26,
+      structuralActionsPerformed: 1
+    })
+
+    expect(
+      resolveDeferredRepaginationExecutionPlan({
+        preflight,
+        actionPlan,
+        stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+        structuralActionsPerformed: 2
+      })
+    ).toMatchObject({
+      type: 'dispatch',
+      shouldClearPreviousAddPagesMeasurement: true,
+      shouldContinueBatch: true,
+      shouldScheduleEvaluation: true,
+      shouldRefreshLayoutBounds: false,
+      outcomeDebug: {
+        dispatchType: 'split',
+        candidateKey: 'split:10:2'
+      },
+      continueDebug: {
+        structuralActionsPerformed: 2,
+        dispatchType: 'split',
+        candidateKey: 'split:10:2'
+      }
+    })
+  })
+})
+
+describe('resolveDeferredRepaginationControllerCycle', () => {
+  it('runs refresh-gate fallback and returns the final request-refresh execution plan', () => {
+    const preflight = resolveDeferredRepaginationPreflight({
+      cappedPageCount: null,
+      hasActiveEditor: false,
+      hasTables: true,
+      currentPageCount: 14,
+      bodyBandCount: 14,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      tableMeasurementsPending: false
+    })
+    const evaluate = jest.fn<TablePaginationControllerResult, [number]>().mockImplementation(measuredPageCount =>
+      measuredPageCount === 14
+        ? {
+            type: 'request-refresh',
+            progress: 'refresh',
+            scheduleEvaluation: true
+          }
+        : {
+            type: 'refresh',
+            pageCount: 26,
+            hasSplitPressure: true,
+            progress: 'refresh',
+            scheduleEvaluation: true
+          }
+    )
+
+    const result = resolveDeferredRepaginationControllerCycle({
+      currentPageCount: 14,
+      measuredPageCount: 26,
+      structuralActionsPerformed: 0,
+      preflight,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      evaluate
+    })
+
+    expect(result).toMatchObject({
+      shouldApplyGrowthSuppression: true,
+      refreshGateDebug: {
+        deferred: true,
+        nextPageCount: 26,
+        hasSplitPressure: true,
+        fallbackOutcome: 'request-refresh'
+      },
+      executionPlan: {
+        type: 'request-refresh',
+        refreshSource: 'table-pagination-request-refresh',
+        shouldScheduleEvaluation: true
+      }
+    })
+
+    expect(evaluate).toHaveBeenCalledTimes(2)
+    expect(evaluate).toHaveBeenNthCalledWith(1, 26)
+    expect(evaluate).toHaveBeenNthCalledWith(2, 14)
+  })
+
+  it('returns a dispatch execution plan directly when no refresh gate is needed', () => {
+    const preflight = resolveDeferredRepaginationPreflight({
+      cappedPageCount: null,
+      hasActiveEditor: false,
+      hasTables: true,
+      currentPageCount: 26,
+      bodyBandCount: 26,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      tableMeasurementsPending: false
+    })
+
+    const result = resolveDeferredRepaginationControllerCycle({
+      currentPageCount: 26,
+      measuredPageCount: 26,
+      structuralActionsPerformed: 1,
+      preflight,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      evaluate: () => ({
+        type: 'dispatch',
+        dispatchType: 'split',
+        candidateKey: 'split:10:2',
+        progress: 'structural',
+        transaction: {} as never,
+        scheduleEvaluation: true
+      })
+    })
+
+    expect(result).toMatchObject({
+      shouldApplyGrowthSuppression: false,
+      refreshGateDebug: null,
+      executionPlan: {
+        type: 'dispatch',
+        shouldContinueBatch: true,
+        shouldScheduleEvaluation: true,
+        outcomeDebug: {
+          dispatchType: 'split',
+          candidateKey: 'split:10:2'
+        }
+      }
+    })
+  })
+})
+
 describe('resolveImmediateTableStabilizationDecision', () => {
   it('continues batching while structural progress stays within the bounded action budget', () => {
     expect(
@@ -350,6 +759,100 @@ describe('resolveImmediateTableStabilizationDecision', () => {
         maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS
       })
     ).toBe('stop')
+  })
+})
+
+describe('resolveDeferredRepaginationActionPlan', () => {
+  it('keeps refresh outcomes as follow-up refresh plans', () => {
+    expect(
+      resolveDeferredRepaginationActionPlan({
+        result: {
+          type: 'refresh',
+          pageCount: 26,
+          hasSplitPressure: true,
+          progress: 'refresh',
+          scheduleEvaluation: true
+        },
+        currentPageCount: 14,
+        measuredPageCount: 26,
+        structuralActionsPerformed: 0
+      })
+    ).toMatchObject({
+      type: 'refresh',
+      shouldScheduleFollowUp: true,
+      result: {
+        pageCount: 26,
+        hasSplitPressure: true
+      }
+    })
+  })
+
+  it('converts structural dispatch outcomes into batch-continue plans when still within budget', () => {
+    expect(
+      resolveDeferredRepaginationActionPlan({
+        result: {
+          type: 'dispatch',
+          dispatchType: 'split',
+          candidateKey: 'split:10:2',
+          progress: 'structural',
+          transaction: {} as never,
+          scheduleEvaluation: true
+        },
+        currentPageCount: 26,
+        measuredPageCount: 26,
+        structuralActionsPerformed: 1
+      })
+    ).toMatchObject({
+      type: 'dispatch',
+      maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS,
+      immediateDecision: 'continue',
+      shouldContinueBatch: true,
+      shouldScheduleFollowUp: true
+    })
+  })
+
+  it('converts structural dispatch outcomes into follow-up scheduling plans once budget is exhausted', () => {
+    expect(
+      resolveDeferredRepaginationActionPlan({
+        result: {
+          type: 'dispatch',
+          dispatchType: 'merge',
+          candidateKey: 'pagination-split-1:10:20',
+          progress: 'structural',
+          transaction: {} as never,
+          scheduleEvaluation: true
+        },
+        currentPageCount: 26,
+        measuredPageCount: 26,
+        structuralActionsPerformed: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS
+      })
+    ).toMatchObject({
+      type: 'dispatch',
+      maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS,
+      immediateDecision: 'schedule',
+      shouldContinueBatch: false,
+      shouldScheduleFollowUp: true
+    })
+  })
+
+  it('preserves terminal none outcomes without follow-up scheduling', () => {
+    expect(
+      resolveDeferredRepaginationActionPlan({
+        result: {
+          type: 'none',
+          progress: 'none',
+          reason: 'no-eligible-candidates'
+        },
+        currentPageCount: 26,
+        measuredPageCount: 26,
+        structuralActionsPerformed: 0
+      })
+    ).toMatchObject({
+      type: 'none',
+      result: {
+        reason: 'no-eligible-candidates'
+      }
+    })
   })
 })
 
@@ -502,6 +1005,77 @@ describe('resolveDeferredTableRefreshResult', () => {
       effectiveMeasuredPageCount: 26,
       result: refreshResult
     })
+  })
+})
+
+describe('resolveDeferredRepaginationRefreshGate', () => {
+  it('evaluates a fallback and applies growth suppression for upward refresh with split pressure', () => {
+    const evaluateFallback = jest.fn(() => ({
+      type: 'request-refresh' as const,
+      progress: 'refresh' as const,
+      scheduleEvaluation: true
+    }))
+
+    expect(
+      resolveDeferredRepaginationRefreshGate({
+        currentPageCount: 14,
+        refreshResult: {
+          type: 'refresh',
+          pageCount: 26,
+          hasSplitPressure: true,
+          progress: 'refresh',
+          scheduleEvaluation: true
+        },
+        evaluateFallback
+      })
+    ).toMatchObject({
+      effectiveMeasuredPageCount: 14,
+      shouldApplyGrowthSuppression: true,
+      result: {
+        type: 'request-refresh',
+        scheduleEvaluation: true
+      },
+      debug: {
+        deferred: true,
+        fallbackOutcome: 'request-refresh',
+        fallbackProgress: 'refresh',
+        fallbackReason: null
+      }
+    })
+
+    expect(evaluateFallback).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips fallback evaluation when upward growth is not under split pressure', () => {
+    const evaluateFallback = jest.fn(() => ({
+      type: 'none' as const,
+      progress: 'none' as const,
+      reason: 'no-eligible-candidates' as const
+    }))
+
+    expect(
+      resolveDeferredRepaginationRefreshGate({
+        currentPageCount: 14,
+        refreshResult: {
+          type: 'refresh',
+          pageCount: 26,
+          hasSplitPressure: false,
+          progress: 'refresh',
+          scheduleEvaluation: true
+        },
+        evaluateFallback
+      })
+    ).toMatchObject({
+      effectiveMeasuredPageCount: 26,
+      shouldApplyGrowthSuppression: false,
+      result: {
+        type: 'refresh',
+        pageCount: 26
+      },
+      debug: null
+    })
+
+    expect(evaluateFallback).not.toHaveBeenCalled()
   })
 })
 

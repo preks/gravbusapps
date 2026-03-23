@@ -72,6 +72,236 @@ function createPageNumberSlotElement(
   return slot
 }
 
+export type PaginationWindowRange = { startPage: number; endPage: number }
+
+export type PageBreakerPlaceholderMetrics = {
+  breakerHeight: number
+  footerHeight: number
+  nextHeaderHeight: number
+}
+
+export type WindowedPaginationRendererState = {
+  activeRange: PaginationWindowRange | null
+  windowKey: string | null
+  placeholderBreakerMetricsByPage: Map<number, PageBreakerPlaceholderMetrics>
+}
+
+function shouldRenderFullPageBreaker(pageNumber: number, activeRange: PaginationWindowRange | null | undefined) {
+  if (!activeRange) return true
+  return pageNumber >= activeRange.startPage - 1 && pageNumber <= activeRange.endPage
+}
+
+export function resolvePaginationWindowRange(editorDom: HTMLElement): PaginationWindowRange | null {
+  const viewport = editorDom.closest('.document-editor-viewport') as HTMLElement | null
+  if (!viewport) return null
+
+  const startPage = Number(viewport.dataset.layoutWindowStart)
+  const endPage = Number(viewport.dataset.layoutWindowEnd)
+  if (!Number.isInteger(startPage) || !Number.isInteger(endPage)) return null
+  if (startPage < 1 || endPage < startPage) return null
+
+  return { startPage, endPage }
+}
+
+export function findPaginationPageBreakElement(editorDom: HTMLElement, pageNumber: number): HTMLElement | null {
+  const pageBreakEls = Array.from(editorDom.querySelectorAll('[data-rm-pagination] > .rm-page-break')).filter(
+    (element): element is HTMLElement => element instanceof HTMLElement
+  )
+
+  return (
+    pageBreakEls.find(candidate => {
+      const page = candidate.querySelector('.page[data-rm-page-number]')
+      return Number(page?.getAttribute('data-rm-page-number')) === pageNumber
+    }) ?? null
+  )
+}
+
+export function resolvePageBreakerPlaceholderMetrics(
+  editorDom: HTMLElement
+): Map<number, PageBreakerPlaceholderMetrics> {
+  const placeholderMetrics = new Map<number, PageBreakerPlaceholderMetrics>()
+  const pageBreakEls = Array.from(editorDom.querySelectorAll('[data-rm-pagination] > .rm-page-break')).filter(
+    (element): element is HTMLElement => element instanceof HTMLElement
+  )
+
+  pageBreakEls.forEach(pageBreakEl => {
+    const page = pageBreakEl.querySelector('.page[data-rm-page-number]')
+    const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
+    const pageNumber = Number(page?.getAttribute('data-rm-page-number'))
+    if (!Number.isInteger(pageNumber) || pageNumber < 1 || !(breaker instanceof HTMLElement)) return
+
+    const dataHeight = Number(breaker.dataset.rmBreakerPlaceholderHeight ?? '')
+    const styleHeight = Number.parseFloat(breaker.style.height || '')
+    const footer = pageBreakEl.querySelector(
+      `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"]`
+    ) as HTMLElement | null
+    const nextHeader = pageBreakEl.querySelector(
+      `[data-rm-editor-type="header"][data-rm-page-number="${pageNumber + 1}"]`
+    ) as HTMLElement | null
+    const breakerHeight =
+      (Number.isFinite(dataHeight) && dataHeight >= 0
+        ? dataHeight
+        : Number.isFinite(styleHeight) && styleHeight >= 0
+          ? styleHeight
+          : breaker.offsetHeight) ?? 0
+    const footerDataHeight = Number(breaker.dataset.rmBreakerFooterHeight ?? '')
+    const nextHeaderDataHeight = Number(breaker.dataset.rmBreakerNextHeaderHeight ?? '')
+    const footerHeight =
+      (Number.isFinite(footerDataHeight) && footerDataHeight >= 0 ? footerDataHeight : (footer?.offsetHeight ?? 0)) ?? 0
+    const nextHeaderHeight =
+      (Number.isFinite(nextHeaderDataHeight) && nextHeaderDataHeight >= 0
+        ? nextHeaderDataHeight
+        : (nextHeader?.offsetHeight ?? 0)) ?? 0
+
+    if (Number.isFinite(breakerHeight) && breakerHeight >= 0) {
+      placeholderMetrics.set(pageNumber, {
+        breakerHeight,
+        footerHeight: Math.max(0, footerHeight),
+        nextHeaderHeight: Math.max(0, nextHeaderHeight)
+      })
+    }
+  })
+
+  return placeholderMetrics
+}
+
+export function resolveWindowedPaginationRendererState(editorDom: HTMLElement): WindowedPaginationRendererState {
+  const viewport = editorDom.closest('.document-editor-viewport') as HTMLElement | null
+  return {
+    activeRange: resolvePaginationWindowRange(editorDom),
+    windowKey: viewport?.dataset.layoutWindowKey ?? null,
+    placeholderBreakerMetricsByPage: resolvePageBreakerPlaceholderMetrics(editorDom)
+  }
+}
+
+function createPlaceholderBreaker(params: { breakerHeight: number; footerHeight: number; nextHeaderHeight: number }) {
+  const { breakerHeight, footerHeight, nextHeaderHeight } = params
+  const breaker = document.createElement('div')
+  breaker.className = 'breaker'
+  breaker.dataset.rmBreakerMode = 'placeholder'
+  breaker.dataset.rmBreakerPlaceholderHeight = String(Math.max(0, breakerHeight))
+  breaker.dataset.rmBreakerFooterHeight = String(Math.max(0, footerHeight))
+  breaker.dataset.rmBreakerNextHeaderHeight = String(Math.max(0, nextHeaderHeight))
+  if (breakerHeight > 0) {
+    breaker.style.height = `${breakerHeight}px`
+  }
+  return breaker
+}
+
+function createFullPageBreaker(params: {
+  pageNumber: number
+  totalPages: number
+  pageFormat: PageFormat
+  options: PagesOptions
+  storage: PagesStorage
+  extensions: Extension[]
+  onOpenEditor?: (
+    type: HeaderFooterEditorType,
+    pageNumber: number,
+    target: HTMLElement,
+    clickPosition?: { clientX: number; clientY: number }
+  ) => void
+}) {
+  const { pageNumber, totalPages, pageFormat, options, storage, extensions, onOpenEditor } = params
+  const breaker = document.createElement('div')
+  breaker.className = 'breaker'
+
+  const footer = createHeaderFooterRegion({
+    type: 'footer',
+    pageNumber,
+    totalPages,
+    pageFormat,
+    options,
+    storage,
+    extensions,
+    onOpenEditor
+  })
+
+  const pageGap = document.createElement('div')
+  pageGap.className = 'rm-page-gap'
+  pageGap.style.height = `${storage.pageGap}px`
+  pageGap.addEventListener('mousedown', event => {
+    event.preventDefault()
+    event.stopPropagation()
+  })
+
+  const nextHeader = createHeaderFooterRegion({
+    type: 'header',
+    pageNumber: pageNumber + 1,
+    totalPages,
+    pageFormat,
+    options,
+    storage,
+    extensions,
+    onOpenEditor
+  })
+
+  breaker.append(footer, pageGap, nextHeader)
+  return breaker
+}
+
+function syncPageNumberSlotLayout(
+  layout: HTMLElement,
+  options: PagesOptions,
+  type: HeaderFooterEditorType,
+  pageNumber: number
+): HTMLElement | null {
+  layout.querySelectorAll('[data-rm-page-number-slot="true"]').forEach(element => {
+    element.remove()
+  })
+
+  const pageNumberSlot = createPageNumberSlotElement(options, type, pageNumber)
+  if (pageNumberSlot) {
+    layout.dataset.rmPageNumberActive = 'true'
+    layout.dataset.rmPageNumberAlign = pageNumberSlot.dataset.rmPageNumberAlign ?? 'center'
+    layout.dataset.rmPageNumberRegion = type
+    layout.dataset.rmPageNumberOdd = pageNumberSlot.dataset.rmPageNumberOdd ?? 'false'
+    layout.append(pageNumberSlot)
+    return pageNumberSlot
+  }
+
+  delete layout.dataset.rmPageNumberActive
+  delete layout.dataset.rmPageNumberAlign
+  delete layout.dataset.rmPageNumberRegion
+  delete layout.dataset.rmPageNumberOdd
+  return null
+}
+
+export function refreshHeaderFooterRegionDisplay(params: {
+  region: HTMLElement
+  type: HeaderFooterEditorType
+  pageNumber: number
+  totalPages: number
+  options: PagesOptions
+  storage: PagesStorage
+  extensions: Extension[]
+}) {
+  const { region, type, pageNumber, totalPages, options, storage, extensions } = params
+  if (region.dataset.rmOverlayActive === 'true') return
+
+  const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
+  const content = region.querySelector(contentSelector) as HTMLElement | null
+  const layout = region.querySelector('.rm-page-region-layout') as HTMLElement | null
+  if (!(content instanceof HTMLElement) || !(layout instanceof HTMLElement)) return
+
+  const uiLabel =
+    type === 'header' ? (options.uiLabels?.headerLabel ?? 'Header') : (options.uiLabels?.footerLabel ?? 'Footer')
+  const displayContent = resolveDisplayContent(
+    storage,
+    options,
+    type,
+    pageNumber,
+    totalPages,
+    getHeaderFooterExtensions(extensions)
+  )
+
+  renderHeaderFooterDisplayContent(content, displayContent.html, uiLabel)
+  const pageNumberSlot = syncPageNumberSlotLayout(layout, options, type, pageNumber)
+  const hasVisibleRegionContent = !isEmptyHeaderFooterHtml(displayContent.html) || pageNumberSlot !== null
+  region.dataset.rmHasVisibleContent = hasVisibleRegionContent ? 'true' : 'false'
+  requestAnimationFrame(() => layoutPageNumberSlots(region))
+}
+
 export function ensurePagesStyles(targetDocument: Document) {
   if (targetDocument.head.querySelector(`[${STYLE_ATTR}]`)) return
 
@@ -654,20 +884,10 @@ export function createHeaderFooterRegion(params: {
   const bodyLayout = document.createElement('div')
   bodyLayout.className = 'rm-page-region-layout'
   bodyLayout.dataset.rmPageNumberLayout = 'true'
-
-  const pageNumberSlot = createPageNumberSlotElement(options, type, pageNumber)
+  bodyLayout.append(content)
+  const pageNumberSlot = syncPageNumberSlotLayout(bodyLayout, options, type, pageNumber)
   const hasVisibleRegionContent = !isEmptyHeaderFooterHtml(displayContent.html) || pageNumberSlot !== null
   region.dataset.rmHasVisibleContent = hasVisibleRegionContent ? 'true' : 'false'
-  if (pageNumberSlot) {
-    bodyLayout.dataset.rmPageNumberActive = 'true'
-    bodyLayout.dataset.rmPageNumberAlign = pageNumberSlot.dataset.rmPageNumberAlign ?? 'center'
-    bodyLayout.dataset.rmPageNumberRegion = type
-    bodyLayout.dataset.rmPageNumberOdd = pageNumberSlot.dataset.rmPageNumberOdd ?? 'false'
-  }
-  bodyLayout.append(content)
-  if (pageNumberSlot) {
-    bodyLayout.append(pageNumberSlot)
-  }
   inner.append(bodyLayout)
   region.appendChild(inner)
   requestAnimationFrame(() => layoutPageNumberSlots(region))
@@ -698,6 +918,8 @@ export function createPageBreakElement(params: {
   options: PagesOptions
   storage: PagesStorage
   extensions: Extension[]
+  activeRange?: PaginationWindowRange | null
+  placeholderBreakerMetrics?: PageBreakerPlaceholderMetrics | null
   onOpenEditor?: (
     type: HeaderFooterEditorType,
     pageNumber: number,
@@ -705,7 +927,17 @@ export function createPageBreakElement(params: {
     clickPosition?: { clientX: number; clientY: number }
   ) => void
 }): HTMLElement {
-  const { pageNumber, totalPages, pageFormat, options, storage, extensions, onOpenEditor } = params
+  const {
+    pageNumber,
+    totalPages,
+    pageFormat,
+    options,
+    storage,
+    extensions,
+    activeRange,
+    placeholderBreakerMetrics,
+    onOpenEditor
+  } = params
 
   const pageContainer = document.createElement('div')
   pageContainer.className = 'rm-page-break'
@@ -738,40 +970,18 @@ export function createPageBreakElement(params: {
   bodyLayer.style.top = `calc(-1 * var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px))`
   page.appendChild(bodyLayer)
 
-  const breaker = document.createElement('div')
-  breaker.className = 'breaker'
-
-  const footer = createHeaderFooterRegion({
-    type: 'footer',
-    pageNumber,
-    totalPages,
-    pageFormat,
-    options,
-    storage,
-    extensions,
-    onOpenEditor
-  })
-
-  const pageGap = document.createElement('div')
-  pageGap.className = 'rm-page-gap'
-  pageGap.style.height = `${storage.pageGap}px`
-  pageGap.addEventListener('mousedown', event => {
-    event.preventDefault()
-    event.stopPropagation()
-  })
-
-  const nextHeader = createHeaderFooterRegion({
-    type: 'header',
-    pageNumber: pageNumber + 1,
-    totalPages,
-    pageFormat,
-    options,
-    storage,
-    extensions,
-    onOpenEditor
-  })
-
-  breaker.append(footer, pageGap, nextHeader)
+  const breaker =
+    !shouldRenderFullPageBreaker(pageNumber, activeRange) && placeholderBreakerMetrics != null
+      ? createPlaceholderBreaker(placeholderBreakerMetrics)
+      : createFullPageBreaker({
+          pageNumber,
+          totalPages,
+          pageFormat,
+          options,
+          storage,
+          extensions,
+          onOpenEditor
+        })
   pageContainer.append(page, breaker)
 
   return pageContainer
@@ -783,6 +993,7 @@ export function createPaginationWrapper(params: {
   options: PagesOptions
   storage: PagesStorage
   extensions: Extension[]
+  rendererState?: Pick<WindowedPaginationRendererState, 'activeRange' | 'placeholderBreakerMetricsByPage'> | null
   onOpenEditor?: (
     type: HeaderFooterEditorType,
     pageNumber: number,
@@ -790,7 +1001,7 @@ export function createPaginationWrapper(params: {
     clickPosition?: { clientX: number; clientY: number }
   ) => void
 }): HTMLElement {
-  const { totalPages, pageFormat, options, storage, extensions, onOpenEditor } = params
+  const { totalPages, pageFormat, options, storage, extensions, rendererState, onOpenEditor } = params
   const wrapper = document.createElement('div')
   wrapper.dataset.rmPagination = 'true'
   wrapper.id = 'pages'
@@ -805,12 +1016,97 @@ export function createPaginationWrapper(params: {
         options,
         storage,
         extensions,
+        activeRange: rendererState?.activeRange ?? null,
+        placeholderBreakerMetrics: rendererState?.placeholderBreakerMetricsByPage.get(pageNumber) ?? null,
         onOpenEditor
       })
     )
   }
 
   return wrapper
+}
+
+export function hydratePageBreakElement(params: {
+  pageContainer: HTMLElement
+  pageNumber: number
+  totalPages: number
+  pageFormat: PageFormat
+  options: PagesOptions
+  storage: PagesStorage
+  extensions: Extension[]
+  rendererState?: Pick<WindowedPaginationRendererState, 'activeRange' | 'windowKey'> | null
+  onOpenEditor?: (
+    type: HeaderFooterEditorType,
+    pageNumber: number,
+    target: HTMLElement,
+    clickPosition?: { clientX: number; clientY: number }
+  ) => void
+}) {
+  const breaker = params.pageContainer.querySelector('.breaker') as HTMLElement | null
+  if (!(breaker instanceof HTMLElement)) return false
+  if (breaker.dataset.rmBreakerMode !== 'placeholder') return false
+
+  const nextBreaker = createFullPageBreaker({
+    pageNumber: params.pageNumber,
+    totalPages: params.totalPages,
+    pageFormat: params.pageFormat,
+    options: params.options,
+    storage: params.storage,
+    extensions: params.extensions,
+    onOpenEditor: params.onOpenEditor
+  })
+
+  breaker.replaceWith(nextBreaker)
+  applyWindowAttributesToPageBreak(
+    params.pageContainer,
+    params.rendererState?.activeRange ?? null,
+    params.rendererState?.windowKey ?? null
+  )
+  return true
+}
+
+export function applyWindowAttributesToPageBreak(
+  pageBreakEl: HTMLElement,
+  activeRange: PaginationWindowRange | null,
+  windowKey: string | null
+) {
+  const resolveWindowPosition = (pageNumber: number) => {
+    if (!activeRange) return 'inside'
+    if (pageNumber < activeRange.startPage) return 'before'
+    if (pageNumber > activeRange.endPage) return 'after'
+    return 'inside'
+  }
+
+  const markerTargets = pageBreakEl.querySelectorAll(
+    '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
+  )
+
+  const page = pageBreakEl.querySelector('.page[data-rm-page-number]')
+  const pageBreakNumber = Number(page?.getAttribute('data-rm-page-number'))
+  if (Number.isInteger(pageBreakNumber) && pageBreakNumber > 0) {
+    const isActive =
+      activeRange === null || (pageBreakNumber >= activeRange.startPage && pageBreakNumber <= activeRange.endPage)
+    pageBreakEl.setAttribute('data-layout-window-active', isActive ? 'true' : 'false')
+    pageBreakEl.setAttribute('data-layout-window-position', resolveWindowPosition(pageBreakNumber))
+    if (windowKey) {
+      pageBreakEl.setAttribute('data-layout-window-key', windowKey)
+    } else {
+      pageBreakEl.removeAttribute('data-layout-window-key')
+    }
+  }
+
+  markerTargets.forEach(target => {
+    const pageNumber = Number(target.getAttribute('data-rm-page-number'))
+    if (!Number.isInteger(pageNumber) || pageNumber < 1) return
+    const isActive = activeRange === null || (pageNumber >= activeRange.startPage && pageNumber <= activeRange.endPage)
+    target.setAttribute('data-layout-window-active', isActive ? 'true' : 'false')
+    target.setAttribute('data-layout-window-position', resolveWindowPosition(pageNumber))
+    if (windowKey) {
+      target.setAttribute('data-layout-window-key', windowKey)
+    } else {
+      target.removeAttribute('data-layout-window-key')
+    }
+  })
 }
 
 export function createFirstPageHeader(params: {

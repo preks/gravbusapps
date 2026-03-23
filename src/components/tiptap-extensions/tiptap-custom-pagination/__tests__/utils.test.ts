@@ -488,6 +488,50 @@ describe('measureHeaderFooterContentHeights', () => {
     expect(measured.footerHeights.get(1)).toBe(24)
   })
 
+  it('falls back to placeholder breaker height hints when off-window regions are not mounted', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const page = document.createElement('div')
+    const breaker = document.createElement('div')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    pageBreak.className = 'rm-page-break'
+    page.className = 'page'
+    page.dataset.rmPageNumber = '1'
+    breaker.className = 'breaker'
+    breaker.dataset.rmBreakerMode = 'placeholder'
+    breaker.dataset.rmBreakerFooterHeight = '18'
+    breaker.dataset.rmBreakerNextHeaderHeight = '27'
+
+    pageBreak.append(page, breaker)
+    paginationRoot.append(pageBreak)
+    editorDom.appendChild(paginationRoot)
+    document.body.appendChild(editorDom)
+
+    const measured = measureHeaderFooterContentHeights(
+      editorDom,
+      2,
+      {
+        width: 800,
+        height: 1000,
+        margins: {
+          top: 96,
+          right: 96,
+          bottom: 96,
+          left: 96
+        }
+      },
+      {
+        headerTopMargin: 48,
+        footerBottomMargin: 48
+      }
+    )
+
+    expect(measured.footerHeights.get(1)).toBe(18)
+    expect(measured.headerHeights.get(2)).toBe(27)
+  })
+
   it('counts a trailing empty paragraph inside an active inline editor', () => {
     const editorDom = document.createElement('div')
     const headerRegion = document.createElement('div')
