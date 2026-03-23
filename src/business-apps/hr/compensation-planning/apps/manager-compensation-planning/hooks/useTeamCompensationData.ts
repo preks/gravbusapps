@@ -1,0 +1,278 @@
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import {
+  GET_COMPENSATION_TEAM_MEMBERS,
+  GET_TEAM_CURRENT_SALARIES,
+  GET_TEAM_SALARY_HISTORY,
+  GET_TEAM_BONUSES,
+  GET_TEAM_BENEFITS
+} from '../../../queries/compensationPlanningQueries'
+import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
+import { computeCompaRatio } from '../../../utils/budgetCalculations'
+
+interface EmployeePositionResult {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  hireDate: string | null
+  companyId: string
+  company: { id: string; name: string } | null
+  organizationalUnitId: string | null
+  organizationalUnit: { id: string; name: string } | null
+  supervisorEmployeeId: string | null
+  jobPosition: {
+    id: string
+    name: string
+    jobLevel: {
+      id: string
+      name: string
+      code: string
+      hierarchyOrder: number | null
+      compensationBand: {
+        id: string
+        name: string
+        payGrade: number | null
+        minSalary: number
+        maxSalary: number
+        currencyRef: string
+        currency: { id: string; code: string; value: string }
+      } | null
+    } | null
+  } | null
+  employee: {
+    id: string
+    code: string
+    displayName: string
+    fullName: string
+    pictureThumbnail: string | null
+    workingCondition: { hireDate: string | null } | null
+    workingHours: Array<{ weeklyHours: number | null; fullTimeEquivalent: number | null }>
+  } | null
+}
+
+interface SalaryResult {
+  id: string
+  employeeId: string
+  annualGrossSalary: number | null
+  monthlyGrossSalary: number | null
+  hourlyGrossSalary: number | null
+  currency: { id: string; code: string; value: string } | null
+  currencyRef: string
+  startDate: string | null
+  endDate: string | null
+}
+
+interface SalaryHistoryResult extends SalaryResult {
+  requestedPercent: number | null
+  requestedAmount: number | null
+  createdAt: string
+}
+
+interface BonusResult {
+  id: string
+  employeeId: string
+  amount: number
+  currency: { id: string; code: string; value: string } | null
+  paymentDate: string | null
+  fiscalYear: number | null
+}
+
+interface BenefitResult {
+  id: string
+  employeeId: string
+  yearlyAmount: number | null
+  monthlyAmount: number | null
+  currency: { id: string; code: string; value: string } | null
+  startDate: string | null
+  endDate: string | null
+  benefitStatus: string | null
+}
+
+interface UseTeamCompensationDataParams {
+  accessToken: string
+  companyId?: string | null
+  orgUnitId?: string | null
+  supervisorEmployeeId?: string | null
+}
+
+export function useTeamCompensationData({
+  accessToken,
+  companyId,
+  orgUnitId,
+  supervisorEmployeeId
+}: UseTeamCompensationDataParams) {
+  const [teamMembers, setTeamMembers] = useState<TeamMemberCompensationData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  const fetchData = useCallback(async () => {
+    if (!accessToken) return
+    if (!companyId && !orgUnitId && !supervisorEmployeeId) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const whereConditions: any[] = []
+      if (companyId) whereConditions.push({ companyId: { _eq: companyId } })
+      if (orgUnitId) whereConditions.push({ organizationalUnitId: { _eq: orgUnitId } })
+      if (supervisorEmployeeId) whereConditions.push({ supervisorEmployeeId: { _eq: supervisorEmployeeId } })
+
+      const where = whereConditions.length === 1 ? whereConditions[0] : { _and: whereConditions }
+
+      const positionsResult = await graphqlClient.request<{
+        EmployeePosition: EmployeePositionResult[]
+      }>(GET_COMPENSATION_TEAM_MEMBERS, { where })
+
+      const positions = positionsResult.EmployeePosition || []
+      if (positions.length === 0) {
+        setTeamMembers([])
+        setLoading(false)
+        return
+      }
+
+      const employeeIds = [...new Set(positions.map(p => p.employeeId))]
+      const today = new Date().toISOString().split('T')[0]
+
+      const [salariesResult, historyResult, bonusesResult, benefitsResult] = await Promise.all([
+        graphqlClient.request<{ EmployeeSalary: SalaryResult[] }>(GET_TEAM_CURRENT_SALARIES, {
+          employeeIds,
+          today
+        }),
+        graphqlClient.request<{ EmployeeSalary: SalaryHistoryResult[] }>(GET_TEAM_SALARY_HISTORY, {
+          employeeIds
+        }),
+        graphqlClient.request<{ EmployeeBonus: BonusResult[] }>(GET_TEAM_BONUSES, { employeeIds }),
+        graphqlClient.request<{ EmployeeBenefit: BenefitResult[] }>(GET_TEAM_BENEFITS, { employeeIds })
+      ])
+
+      const currentSalaryMap = buildCurrentSalaryMap(salariesResult.EmployeeSalary || [], today)
+      const lastRaiseMap = buildLastRaiseMap(historyResult.EmployeeSalary || [])
+      const bonusTotalMap = buildBonusTotalMap(bonusesResult.EmployeeBonus || [])
+      const benefitTotalMap = buildBenefitTotalMap(benefitsResult.EmployeeBenefit || [])
+
+      const members: TeamMemberCompensationData[] = positions.map(pos => {
+        const salary = currentSalaryMap.get(pos.employeeId)
+        const lastRaise = lastRaiseMap.get(pos.employeeId)
+        const band = pos.jobPosition?.jobLevel?.compensationBand ?? null
+        const currencyCode = salary?.currency?.code ?? band?.currency?.value ?? 'EUR'
+
+        const bandData = band ? { minSalary: band.minSalary, maxSalary: band.maxSalary, payGrade: band.payGrade } : null
+        const currentAnnual = salary?.annualGrossSalary ?? null
+
+        return {
+          employeeId: pos.employeeId,
+          employeeCode: pos.employee?.code ?? '',
+          firstName: pos.firstName,
+          lastName: pos.lastName,
+          displayName: pos.employee?.displayName ?? `${pos.firstName} ${pos.lastName}`,
+          pictureThumbnail: pos.employee?.pictureThumbnail ?? undefined,
+          jobPosition: pos.jobPosition?.name ?? null,
+          jobLevel: pos.jobPosition?.jobLevel?.name ?? null,
+          jobFunction: null,
+          orgUnitName: pos.organizationalUnit?.name ?? null,
+          hireDate: pos.employee?.workingCondition?.hireDate ?? pos.hireDate,
+          currentAnnualSalary: currentAnnual,
+          currentMonthlySalary: salary?.monthlyGrossSalary ?? null,
+          currentHourlySalary: salary?.hourlyGrossSalary ?? null,
+          currency: currencyCode,
+          compensationBand: bandData,
+          compaRatio: computeCompaRatio(currentAnnual, bandData),
+          lastRaiseDate: lastRaise?.date ?? null,
+          lastRaiseAmount: lastRaise?.amount ?? null,
+          lastRaisePercent: lastRaise?.percent ?? null,
+          performanceRating: null,
+          performanceRatingNumeric: null,
+          performanceCycleName: null,
+          fte: pos.employee?.workingHours?.[0]?.fullTimeEquivalent ?? null,
+          weeklyHours: pos.employee?.workingHours?.[0]?.weeklyHours ?? null,
+          currentBonusTotal: bonusTotalMap.get(pos.employeeId) ?? null,
+          currentBenefitsTotal: benefitTotalMap.get(pos.employeeId) ?? null
+        }
+      })
+
+      setTeamMembers(members)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load team compensation data'
+      console.error('Error fetching team compensation data:', err)
+      setError(message)
+      setTeamMembers([])
+    } finally {
+      setLoading(false)
+    }
+  }, [accessToken, companyId, orgUnitId, supervisorEmployeeId, graphqlClient])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  return { teamMembers, loading, error, refetch: fetchData }
+}
+
+function buildCurrentSalaryMap(salaries: SalaryResult[], today: string): Map<string, SalaryResult> {
+  const map = new Map<string, SalaryResult>()
+  for (const salary of salaries) {
+    if (map.has(salary.employeeId)) continue
+    const isActive = !salary.endDate || salary.endDate >= today
+    if (isActive) {
+      map.set(salary.employeeId, salary)
+    }
+  }
+  return map
+}
+
+function buildLastRaiseMap(
+  salaries: SalaryHistoryResult[]
+): Map<string, { date: string; amount: number | null; percent: number | null }> {
+  const map = new Map<string, { date: string; amount: number | null; percent: number | null }>()
+  const seen = new Map<string, number>()
+
+  for (const salary of salaries) {
+    const count = seen.get(salary.employeeId) ?? 0
+    seen.set(salary.employeeId, count + 1)
+
+    // The second salary record is the one before the current one (last raise)
+    if (count === 1 && salary.startDate) {
+      map.set(salary.employeeId, {
+        date: salary.startDate,
+        amount: salary.requestedAmount,
+        percent: salary.requestedPercent
+      })
+    }
+  }
+
+  return map
+}
+
+function buildBonusTotalMap(bonuses: BonusResult[]): Map<string, number> {
+  const currentYear = new Date().getFullYear()
+  const map = new Map<string, number>()
+
+  for (const bonus of bonuses) {
+    if (bonus.fiscalYear !== currentYear) continue
+    const current = map.get(bonus.employeeId) ?? 0
+    map.set(bonus.employeeId, current + bonus.amount)
+  }
+
+  return map
+}
+
+function buildBenefitTotalMap(benefits: BenefitResult[]): Map<string, number> {
+  const map = new Map<string, number>()
+  const today = new Date().toISOString().split('T')[0]
+
+  for (const benefit of benefits) {
+    const isActive = benefit.benefitStatus === 'Active' || !benefit.endDate || benefit.endDate >= today
+
+    if (!isActive) continue
+
+    const yearly = benefit.yearlyAmount ?? (benefit.monthlyAmount ? benefit.monthlyAmount * 12 : 0)
+    const current = map.get(benefit.employeeId) ?? 0
+    map.set(benefit.employeeId, current + yearly)
+  }
+
+  return map
+}
