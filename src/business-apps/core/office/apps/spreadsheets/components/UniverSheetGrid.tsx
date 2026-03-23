@@ -676,6 +676,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const snapshotRequestQueuedCountRef = useRef<number>(0)
     const snapshotCheckpointTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const requestSnapshotCheckpointRef = useRef<((force?: boolean) => void) | null>(null)
+    const scheduleSnapshotCheckpointRef = useRef<((delayMs?: number) => void) | null>(null)
     const newRowClientIdByIndexRef = useRef<Map<number, string>>(new Map())
     const activeSelectionRef = useRef<{ row: number; col: number } | null>(null)
     const contextRef = useRef<ReturnType<typeof createUniverConversionContext> | null>(null)
@@ -1265,6 +1266,21 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       return () => clearInterval(id)
     }, [])
 
+    // Background tabs heavily throttle timers; the debounced snapshot checkpoint can be skipped or delayed
+    // long enough that users see "Unsaved" without univer-snapshot traffic. Re-arm when the tab is visible again.
+    useEffect(() => {
+      if (typeof document === 'undefined') return
+      const onVisibilityChange = () => {
+        if (document.visibilityState !== 'visible') return
+        if (readOnlyRef.current) return
+        const schedule = scheduleSnapshotCheckpointRef.current
+        if (!schedule || !hasEditedRef.current) return
+        schedule(0)
+      }
+      document.addEventListener('visibilitychange', onVisibilityChange)
+      return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+    }, [])
+
     // Recreate Univer when sheet/snapshot seed/read-only mode changes so read-only transitions
     // immediately reset interactive state and block local edits visually and behaviorally.
     useEffect(() => {
@@ -1374,6 +1390,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }, delayMs)
       }
       requestSnapshotCheckpointRef.current = requestSnapshotCheckpoint
+      scheduleSnapshotCheckpointRef.current = scheduleSnapshotCheckpoint
       const handleSheetScroll = (scrollLeft: number, scrollTop: number) => {
         sheetScrollRef.current = { scrollLeft, scrollTop }
         refreshCursorRectsRef.current?.()
@@ -1652,6 +1669,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
       const dispose = () => {
         requestSnapshotCheckpointRef.current = null
+        scheduleSnapshotCheckpointRef.current = null
         if (snapshotCheckpointTimerRef.current) {
           clearTimeout(snapshotCheckpointTimerRef.current)
           snapshotCheckpointTimerRef.current = null

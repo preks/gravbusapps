@@ -74,6 +74,26 @@ function boostAlpha(rgba: string, minAlpha = 0.85): string {
   return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${boosted})`
 }
 
+function collectFontFaceRules(): string {
+  const rules: string[] = []
+  try {
+    for (const sheet of Array.from(document.styleSheets)) {
+      try {
+        for (const rule of Array.from(sheet.cssRules)) {
+          if (rule instanceof CSSFontFaceRule) {
+            rules.push(rule.cssText)
+          }
+        }
+      } catch {
+        // cross-origin stylesheet
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return rules.join('\n')
+}
+
 export async function captureDevReportScreenshot(): Promise<{
   screenshot: DevReportScreenshot | null
   error?: string
@@ -81,11 +101,18 @@ export async function captureDevReportScreenshot(): Promise<{
   if (typeof window === 'undefined' || typeof document === 'undefined') return { screenshot: null, error: 'no_dom' }
 
   try {
+    try {
+      await document.fonts.ready
+    } catch {
+      // font API unavailable
+    }
+
     const width = Math.max(1, window.innerWidth || 0)
     const height = Math.max(1, window.innerHeight || 0)
     const videoFrames = captureVideoFrames()
     const posterUrls = getVideoPosterUrls()
     const backdropEls = collectBackdropElements()
+    const fontFaceCss = collectFontFaceRules()
 
     const canvas = await html2canvas(document.body, {
       width,
@@ -111,10 +138,13 @@ export async function captureDevReportScreenshot(): Promise<{
         }
         return false
       },
-      onclone: (clonedDoc: Document) => {
+      onclone: async (clonedDoc: Document) => {
         try {
           const patchCss = clonedDoc.createElement('style')
-          patchCss.textContent = '* { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }'
+          patchCss.textContent = [
+            '* { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }',
+            fontFaceCss
+          ].join('\n')
           clonedDoc.head.appendChild(patchCss)
 
           const allCloned = clonedDoc.querySelectorAll('*')
@@ -156,6 +186,12 @@ export async function captureDevReportScreenshot(): Promise<{
               img.removeAttribute('src')
             }
           })
+
+          try {
+            await clonedDoc.fonts.ready
+          } catch {
+            // font API unavailable on cloned doc
+          }
         } catch {
           // ignore
         }

@@ -120,7 +120,11 @@ export const InheritedMembersSection: React.FC<InheritedMembersSectionProps> = (
                 </span>
               ) : (
                 <>
-                  <Select value={member.role} onValueChange={v => handleUpdateRole(member, v as CollectionMemberRole)}>
+                  <Select
+                    key={`${member.id}-space-role`}
+                    value={member.role}
+                    onValueChange={v => handleUpdateRole(member, v as CollectionMemberRole)}
+                  >
                     <SelectTrigger className="gba:w-28 gba:h-7 gba:text-xs">
                       <SelectValue />
                     </SelectTrigger>

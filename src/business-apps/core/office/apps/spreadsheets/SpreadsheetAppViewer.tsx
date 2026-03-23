@@ -14,6 +14,7 @@ import { columnToFormField } from './types'
 import {
   SpreadsheetApiService,
   SpreadsheetApiRequestError,
+  revalidateSpreadsheetUniverSnapshotAfterIdleTab,
   type SpreadsheetBatchOperation,
   type SpreadsheetBatchOperationResponse
 } from './services/SpreadsheetApiService'
@@ -66,6 +67,18 @@ const debugLog = (...args: unknown[]) => {
   if (isSpreadsheetAppsDebugEnabled()) {
     console.debug('[SpreadsheetAppViewer]', ...args)
   }
+}
+
+/** Monotonic id for `debug:spreadsheet-apps=1` operation-queue traces */
+let spreadsheetOpQueueJobSeq = 0
+
+const debugOpQueue = (
+  phase: 'enqueue' | 'start' | 'done' | 'fail',
+  jobId: number,
+  detail?: Record<string, unknown>
+) => {
+  if (!isSpreadsheetAppsDebugEnabled()) return
+  console.debug('[SpreadsheetAppViewer][op-queue]', phase, { jobId, ...detail })
 }
 
 type ViewerRow = Record<string, unknown>
@@ -290,7 +303,27 @@ const chainOnOperationQueue = (
   queueRef: React.MutableRefObject<Promise<void>>,
   fn: () => Promise<void>
 ): Promise<void> => {
-  const nextRun = queueRef.current.then(fn, fn)
+  const jobId = ++spreadsheetOpQueueJobSeq
+  debugOpQueue('enqueue', jobId)
+
+  const run = async () => {
+    debugOpQueue('start', jobId)
+    const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    try {
+      await fn()
+      const t1 = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      debugOpQueue('done', jobId, { ms: Math.round(t1 - t0) })
+    } catch (error) {
+      const t1 = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      debugOpQueue('fail', jobId, {
+        ms: Math.round(t1 - t0),
+        message: error instanceof Error ? error.message : String(error)
+      })
+      throw error
+    }
+  }
+
+  const nextRun = queueRef.current.then(run, run)
   queueRef.current = nextRun.then(
     () => undefined,
     () => undefined
@@ -755,6 +788,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     refresh: refreshEntityData
   } = useEntityDataSource({ accessToken, userId })
   const entityEnabled = Boolean(activeSheet.entityDataSource?.enabled)
+  const entityEnabledRef = useRef(entityEnabled)
+  entityEnabledRef.current = entityEnabled
 
   useEffect(() => {
     if (!entityEnabled || !activeSheet.entityDataSource) return
@@ -1281,6 +1316,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     blockEditingUntilLockResolved: true
   })
   const canEditWithLock = isEditing && !entityEnabled && fileLock.canEdit
+  const canEditWithLockRef = useRef(canEditWithLock)
+  canEditWithLockRef.current = canEditWithLock
 
   // --- Column handling (includes auto-add for Univer grid) ---
   const handleCellChangeRef = useRef<(rowId: string, columnName: string, value: unknown) => void>(() => {})
@@ -1734,6 +1771,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     versioning.markAsSaved
   ])
 
+  const flushPendingCellChangesRef = useRef(flushPendingCellChanges)
+  flushPendingCellChangesRef.current = flushPendingCellChanges
+
   const schedulePendingCellPersist = useCallback(() => {
     if (pendingCellPersistTimeoutRef.current) {
       clearTimeout(pendingCellPersistTimeoutRef.current)
@@ -1744,9 +1784,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     })
     pendingCellPersistTimeoutRef.current = setTimeout(() => {
       pendingCellPersistTimeoutRef.current = null
-      void chainOnOperationQueue(operationQueueRef, flushPendingCellChanges)
+      void chainOnOperationQueue(operationQueueRef, () => flushPendingCellChangesRef.current())
     }, CELL_PERSIST_DEBOUNCE_MS)
-  }, [flushPendingCellChanges, CELL_PERSIST_DEBOUNCE_MS])
+  }, [CELL_PERSIST_DEBOUNCE_MS])
 
   // Wrapped createCheckpoint that guarantees a complete, consistent checkpoint:
   //   1. Cancels the cell debounce and flushes all pending cell changes through the queue
@@ -1764,7 +1804,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
       let flushFailed = false
       try {
-        await chainOnOperationQueue(operationQueueRef, flushPendingCellChanges)
+        await chainOnOperationQueue(operationQueueRef, () => flushPendingCellChangesRef.current())
       } catch (error) {
         flushFailed = true
         console.warn('[SpreadsheetAppViewer] Checkpoint flush failed; continuing with live snapshot', error)
@@ -1783,7 +1823,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
       return checkpoint
     },
-    [activeSheetId, flushPendingCellChanges, versioning]
+    [activeSheetId, versioning]
   )
 
   const handleCellsChange = useCallback(
@@ -1966,10 +2006,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const processUniverDataChange = useCallback(async () => {
     const newData = latestUniverDataRef.current
-    if (!newData || entityEnabled || !canEditWithLock) return
+    // Refs: debounced work and the op queue often run a stale processUniverDataChange closure
+    // (e.g. lock still false when scheduled, true when run) — reading latest flags avoids stuck "Unsaved".
+    if (!newData || entityEnabledRef.current || !canEditWithLockRef.current) return
 
     const lastProcessed = lastProcessedLengthRef.current
     if (newData.length <= lastProcessed) return
+
+    sheetPersist.markDirty()
+    versioning.markAsChanged()
 
     const prev = localSheetDataRef.current
     const added = newData.slice(lastProcessed)
@@ -2013,8 +2058,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     app.id,
     applyBatchDirect,
     createOperationId,
-    canEditWithLock,
-    entityEnabled,
     isOpsV2Enabled,
     localSheetDataRef,
     onDataChange,
@@ -2025,29 +2068,38 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setLocalSheetData,
     sheetPersist.beginPersist,
     sheetPersist.endPersist,
+    sheetPersist.markDirty,
     sheetPersist.recordError,
     sheetPersist.recordSuccess,
     sheetT,
+    versioning.markAsChanged,
     versioning.markAsSaved
   ])
 
-  const handleUniverDataChange = useCallback(
-    (newData: Record<string, unknown>[]) => {
-      latestUniverDataRef.current = newData
-      if (newData.length > lastProcessedLengthRef.current) {
-        sheetPersist.markDirty()
-        versioning.markAsChanged()
-      }
-      if (univerDataChangeTimeoutRef.current) {
-        clearTimeout(univerDataChangeTimeoutRef.current)
-      }
-      univerDataChangeTimeoutRef.current = setTimeout(() => {
-        univerDataChangeTimeoutRef.current = null
-        void chainOnOperationQueue(operationQueueRef, processUniverDataChange)
-      }, UNIVER_DATA_CHANGE_DEBOUNCE_MS)
-    },
-    [processUniverDataChange, sheetPersist.markDirty, versioning.markAsChanged]
-  )
+  const processUniverDataChangeRef = useRef(processUniverDataChange)
+  processUniverDataChangeRef.current = processUniverDataChange
+
+  const handleUniverDataChange = useCallback((newData: Record<string, unknown>[]) => {
+    latestUniverDataRef.current = newData
+    if (univerDataChangeTimeoutRef.current) {
+      clearTimeout(univerDataChangeTimeoutRef.current)
+    }
+    univerDataChangeTimeoutRef.current = setTimeout(() => {
+      univerDataChangeTimeoutRef.current = null
+      void chainOnOperationQueue(operationQueueRef, () => processUniverDataChangeRef.current())
+    }, UNIVER_DATA_CHANGE_DEBOUNCE_MS)
+  }, [])
+
+  const prevCanEditWithLockRef = useRef<boolean | null>(null)
+  useEffect(() => {
+    const prev = prevCanEditWithLockRef.current
+    prevCanEditWithLockRef.current = canEditWithLock
+    if (entityEnabled) return
+    if (prev === null) return
+    if (prev || !canEditWithLock) return
+    // Lock check / socket just caught up after backgrounding the tab — drain row creates that were skipped.
+    void chainOnOperationQueue(operationQueueRef, () => processUniverDataChangeRef.current())
+  }, [canEditWithLock, entityEnabled])
 
   const flushPendingPersistenceNow = useCallback(() => {
     if (entityEnabled) return
@@ -2066,32 +2118,57 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
 
     const run = async () => {
-      await processUniverDataChange()
-      await flushPendingCellChanges()
+      await processUniverDataChangeRef.current()
+      await flushPendingCellChangesRef.current()
       const enqueue = enqueueSnapshotCheckpointRef.current
+      // MUST NOT await enqueue() here: enqueueUniverSnapshotCheckpoint chains onto operationQueueRef.
+      // While `run` is executing as the current queue job, queueRef.current already points to the tail
+      // that resolves only after `run` completes — awaiting enqueue() waits for snapshot to run after
+      // that tail, causing a permanent deadlock (tab switch / visibility flush freezes saves + checkpoints).
       if (enqueue) {
-        await enqueue()
+        debugLog('op-queue: post-flush snapshot scheduled (non-blocking; avoids deadlock with visibility flush)')
+        void enqueue().catch(err => {
+          console.error('[SpreadsheetAppViewer] Post-flush snapshot checkpoint failed:', err)
+        })
       }
     }
 
     void chainOnOperationQueue(operationQueueRef, run).catch(() => undefined)
-  }, [entityEnabled, flushPendingCellChanges, processUniverDataChange])
+  }, [entityEnabled])
 
   useEffect(() => {
     if (typeof globalThis === 'undefined' || typeof document === 'undefined') return
+
+    let resumeFlushTimeout: ReturnType<typeof setTimeout> | null = null
 
     const handlePageHide = () => {
       flushPendingPersistenceNow()
     }
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
+        if (resumeFlushTimeout) {
+          clearTimeout(resumeFlushTimeout)
+          resumeFlushTimeout = null
+        }
         flushPendingPersistenceNow()
+        return
+      }
+      if (document.visibilityState === 'visible') {
+        // A prior 404/501 caches "no univer-snapshot API" and skips snapshot HTTP until reload — looks like missing network calls.
+        revalidateSpreadsheetUniverSnapshotAfterIdleTab()
+        // Brief defer so tab-focus and persistence flush do not race the same tick.
+        if (resumeFlushTimeout) clearTimeout(resumeFlushTimeout)
+        resumeFlushTimeout = setTimeout(() => {
+          resumeFlushTimeout = null
+          flushPendingPersistenceNow()
+        }, 300)
       }
     }
 
     globalThis.addEventListener('pagehide', handlePageHide)
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
+      if (resumeFlushTimeout) clearTimeout(resumeFlushTimeout)
       globalThis.removeEventListener('pagehide', handlePageHide)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
