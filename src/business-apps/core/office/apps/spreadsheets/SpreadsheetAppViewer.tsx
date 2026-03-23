@@ -2156,7 +2156,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (document.visibilityState === 'visible') {
         // A prior 404/501 caches "no univer-snapshot API" and skips snapshot HTTP until reload — looks like missing network calls.
         revalidateSpreadsheetUniverSnapshotAfterIdleTab()
-        // Defer so Keycloak / host can refresh JWT first after a long idle tab (see useBusinessAuth).
+        // Brief defer so tab-focus and persistence flush do not race the same tick.
         if (resumeFlushTimeout) clearTimeout(resumeFlushTimeout)
         resumeFlushTimeout = setTimeout(() => {
           resumeFlushTimeout = null

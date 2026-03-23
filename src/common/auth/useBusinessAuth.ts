@@ -162,40 +162,6 @@ export function useBusinessAuth(): UseBusinessAuthResult {
     }
   }, [keycloakConfig, isMsOAuthCallback])
 
-  // After long backgrounding, timers for onTokenExpired can be delayed; API calls then use an expired JWT
-  // (e.g. spreadsheet cell flush) until something refreshes the session. Proactively refresh when the tab is visible again.
-  useEffect(() => {
-    if (typeof document === 'undefined' || isMsOAuthCallback || !initialized || !kcInstance) return
-
-    const minValiditySeconds = 60
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState !== 'visible') return
-      void kcInstance
-        .updateToken(minValiditySeconds)
-        .then((refreshed: boolean) => {
-          if (!refreshed) return
-          const token = kcInstance.token ?? undefined
-          const parsed = kcInstance.tokenParsed as KeycloakTokenParsed | undefined
-          setAccessToken(token)
-          setTokenParsed(parsed)
-          try {
-            window.dispatchEvent(
-              new CustomEvent('com.newwork.token.shouldRefreshAuthorizationHeader', { detail: true })
-            )
-          } catch {
-            // ignore
-          }
-        })
-        .catch(() => {
-          // Offline or refresh token expired; callers will surface auth errors.
-        })
-    }
-
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
-  }, [initialized, kcInstance, isMsOAuthCallback])
-
   const login = useCallback(async () => {
     if (!kcInstance) return
     if (typeof window !== 'undefined') {
