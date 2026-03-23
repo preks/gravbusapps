@@ -1,4 +1,8 @@
-import type { DocumentLayoutPageBodyBounds, DocumentLayoutPagePositionRange } from '../../../types'
+import type {
+  DocumentLayoutPageBodyBounds,
+  DocumentLayoutPagePositionRange,
+  DocumentLayoutPageSpan
+} from '../../../types'
 
 const PAGE_NUMBER_SELECTOR = [
   '.page[data-rm-page-number]',
@@ -22,7 +26,10 @@ type CommentNavigationEditor = {
     requestViewportPageFocus?: (pageNumber: number) => boolean
   }
   layoutHints?: {
-    mountedPageBodyBounds: DocumentLayoutPageBodyBounds[]
+    pageBounds?: DocumentLayoutPageBodyBounds[]
+    pageSpans?: DocumentLayoutPageSpan[]
+    retainedPageSpans?: DocumentLayoutPageSpan[]
+    mountedPageBodyBounds?: DocumentLayoutPageBodyBounds[]
     pagePositionRanges?: DocumentLayoutPagePositionRange[]
   }
 }
@@ -46,6 +53,26 @@ type ViewportLayoutSnapshot = {
 }
 
 const LAYOUT_SETTLE_FRAME_LIMIT = 12
+
+function resolveLayoutHintPageBoundsList(
+  layoutHints: CommentNavigationEditor['layoutHints']
+): DocumentLayoutPageBodyBounds[] {
+  return layoutHints?.pageBounds ?? layoutHints?.mountedPageBodyBounds ?? []
+}
+
+function resolveLayoutHintPageSpans(
+  layoutHints: CommentNavigationEditor['layoutHints']
+): Array<Pick<DocumentLayoutPageSpan, 'pageNumber' | 'startPos' | 'endPos'>> {
+  if (layoutHints?.pageSpans && layoutHints.pageSpans.length > 0) {
+    return layoutHints.pageSpans
+  }
+
+  if (layoutHints?.retainedPageSpans && layoutHints.retainedPageSpans.length > 0) {
+    return layoutHints.retainedPageSpans
+  }
+
+  return layoutHints?.pagePositionRanges ?? []
+}
 
 function resolveElementPageNumber(element: Element | null): number | null {
   const pageElement = element?.closest(PAGE_NUMBER_SELECTOR)
@@ -106,8 +133,9 @@ function resolveLayoutHintPageBounds(
 ): DocumentLayoutPageBodyBounds | null {
   const midpoint = (top + bottom) / 2
   return (
-    layoutHints?.mountedPageBodyBounds.find(candidate => midpoint >= candidate.top && midpoint <= candidate.bottom) ??
-    null
+    resolveLayoutHintPageBoundsList(layoutHints).find(
+      candidate => midpoint >= candidate.top && midpoint <= candidate.bottom
+    ) ?? null
   )
 }
 
@@ -121,7 +149,7 @@ function toPublishedPageBodyBounds(bounds: DocumentLayoutPageBodyBounds): Publis
 }
 
 function resolvePageNumberFromPositionRanges(
-  pagePositionRanges: DocumentLayoutPagePositionRange[] | undefined,
+  pagePositionRanges: Array<Pick<DocumentLayoutPageSpan, 'pageNumber' | 'startPos' | 'endPos'>> | undefined,
   pos: number
 ): number | null {
   if (!Number.isInteger(pos) || pos < 0) {
@@ -140,12 +168,15 @@ function resolvePageBoundsByNumber(
     return null
   }
 
-  const bounds = layoutHints?.mountedPageBodyBounds.find(candidate => candidate.pageNumber === pageNumber)
+  const bounds = resolveLayoutHintPageBoundsList(layoutHints).find(candidate => candidate.pageNumber === pageNumber)
   return bounds ? toPublishedPageBodyBounds(bounds) : null
 }
 
 function resolvePageNumberFromLayoutHints(editor: CommentNavigationEditor, pos: number): number | null {
-  const positionRangePageNumber = resolvePageNumberFromPositionRanges(editor.layoutHints?.pagePositionRanges, pos)
+  const positionRangePageNumber = resolvePageNumberFromPositionRanges(
+    resolveLayoutHintPageSpans(editor.layoutHints),
+    pos
+  )
   if (positionRangePageNumber !== null) {
     return positionRangePageNumber
   }
@@ -162,7 +193,7 @@ function resolveSelectionPositionBodyBounds(
   editor: CommentNavigationEditor,
   pos: number
 ): PublishedPageBodyBounds | null {
-  const hintedPageNumber = resolvePageNumberFromPositionRanges(editor.layoutHints?.pagePositionRanges, pos)
+  const hintedPageNumber = resolvePageNumberFromPositionRanges(resolveLayoutHintPageSpans(editor.layoutHints), pos)
   const hintedPageBounds = resolvePageBoundsByNumber(editor.layoutHints, hintedPageNumber)
   if (hintedPageBounds) {
     return hintedPageBounds

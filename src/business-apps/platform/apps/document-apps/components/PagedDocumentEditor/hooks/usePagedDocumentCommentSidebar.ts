@@ -16,7 +16,10 @@ type InlineCommentMeta = {
 export interface UsePagedDocumentCommentSidebarParams {
   editor: TiptapEditor | null
   activeEditor: TiptapEditor | null
-  layoutViewportModel?: Pick<DocumentLayoutViewportModel, 'mountedPageBodyBounds' | 'pagePositionRanges' | 'windowKey'>
+  layoutViewportModel?: Pick<
+    DocumentLayoutViewportModel,
+    'pageBounds' | 'mountedPageBodyBounds' | 'pagePositionRanges' | 'pageSpans' | 'retainedPageSpans' | 'windowKey'
+  >
   comments: UseCommentsReturn
   currentUserId?: string | null
   currentUserName?: string | null
@@ -324,6 +327,9 @@ export function usePagedDocumentCommentSidebar({
               view: editor.view,
               commands: editor.commands,
               layoutHints: {
+                pageBounds: layoutViewportModel?.pageBounds ?? layoutViewportModel?.mountedPageBodyBounds ?? [],
+                pageSpans: layoutViewportModel?.pageSpans ?? [],
+                retainedPageSpans: layoutViewportModel?.retainedPageSpans ?? [],
                 mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
                 pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
               }
@@ -335,7 +341,15 @@ export function usePagedDocumentCommentSidebar({
         50
       )
     },
-    [comments.comments, editor, layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges]
+    [
+      comments.comments,
+      editor,
+      layoutViewportModel?.mountedPageBodyBounds,
+      layoutViewportModel?.pageBounds,
+      layoutViewportModel?.pagePositionRanges,
+      layoutViewportModel?.pageSpans,
+      layoutViewportModel?.retainedPageSpans
+    ]
   )
 
   useEffect(() => {

@@ -39,6 +39,11 @@ function createLayoutServiceStub(pageCount = 30) {
         left: 10,
         right: 110
       })),
+      pageChromeMetrics: pages.map(page => ({
+        pageNumber: page.pageNumber,
+        headerHeight: 40,
+        footerHeight: 40
+      })),
       activeRange: request.pageRange,
       activePages: request.pageRange ? pages.slice(request.pageRange.startPage - 1, request.pageRange.endPage) : pages
     },

@@ -1,13 +1,18 @@
 import { useMemo } from 'react'
 import type {
+  DocumentLayoutAnchorCollection,
   DocumentLayoutPageBodyBounds,
+  DocumentLayoutPageChromeMetrics,
   DocumentLayoutPagePositionRange,
   DocumentLayoutPageRange,
+  DocumentLayoutPageSpan,
   DocumentLayoutSnapshot,
-  DocumentLayoutSource
+  DocumentLayoutSource,
+  DocumentLayoutTableFragmentSnapshot
 } from '../../../types'
 
 export interface DocumentLayoutViewportModel {
+  documentVersion: number
   source: DocumentLayoutSource
   totalPages: number
   activeRange: DocumentLayoutPageRange
@@ -16,10 +21,16 @@ export interface DocumentLayoutViewportModel {
   mountedRange: DocumentLayoutPageRange | null
   mountedPageNumbers: number[]
   mountedPageCount: number
+  pageBounds: DocumentLayoutPageBodyBounds[]
   mountedPageBodyBounds: DocumentLayoutPageBodyBounds[]
   activePageBodyBounds: DocumentLayoutPageBodyBounds[]
+  pageSpans: DocumentLayoutPageSpan[]
+  retainedPageSpans: DocumentLayoutPageSpan[]
   pagePositionRanges?: DocumentLayoutPagePositionRange[]
   activePagePositionRanges?: DocumentLayoutPagePositionRange[]
+  pageChromeMetrics: DocumentLayoutPageChromeMetrics[]
+  anchors: DocumentLayoutAnchorCollection
+  tableFragments: DocumentLayoutTableFragmentSnapshot[]
   hasSparseFlow: boolean
   isWindowed: boolean
   containsCurrentPage: boolean
@@ -46,14 +57,20 @@ export function useDocumentLayoutViewportModel(
     const mountedRange = layoutSnapshot.mountedRange
     const mountedPageNumbers = layoutSnapshot.pages.filter(page => page.isMounted).map(page => page.pageNumber)
     const mountedPageCount = mountedPageNumbers.length
+    const pageBounds = layoutSnapshot.pageBounds
     const mountedPageBodyBounds = layoutSnapshot.mountedPageBodyBounds
     const activePageBodyBounds = mountedPageBodyBounds.filter(
       bounds => bounds.pageNumber >= activeRange.startPage && bounds.pageNumber <= activeRange.endPage
     )
+    const pageSpans = layoutSnapshot.pageSpans
+    const retainedPageSpans = layoutSnapshot.retainedPageSpans
     const pagePositionRanges = layoutSnapshot.pagePositionRanges ?? []
     const activePagePositionRanges = pagePositionRanges.filter(
       range => range.pageNumber >= activeRange.startPage && range.pageNumber <= activeRange.endPage
     )
+    const pageChromeMetrics = layoutSnapshot.pageChromeMetrics
+    const anchors = layoutSnapshot.anchors
+    const tableFragments = layoutSnapshot.tableFragments
     const hasSparseFlow = layoutSnapshot.flow.some(flowEntry => !flowEntry.isMounted)
     const isWindowed = activeRange.startPage > 1 || activeRange.endPage < totalPages
     const containsCurrentPage = currentPage >= activeRange.startPage && currentPage <= activeRange.endPage
@@ -61,6 +78,7 @@ export function useDocumentLayoutViewportModel(
     const flowModeLabel = hasSparseFlow ? 'sparse' : 'full'
 
     return {
+      documentVersion: layoutSnapshot.documentVersion,
       source: layoutSnapshot.source,
       totalPages,
       activeRange,
@@ -69,10 +87,16 @@ export function useDocumentLayoutViewportModel(
       mountedRange,
       mountedPageNumbers,
       mountedPageCount,
+      pageBounds,
       mountedPageBodyBounds,
       activePageBodyBounds,
+      pageSpans,
+      retainedPageSpans,
       pagePositionRanges,
       activePagePositionRanges,
+      pageChromeMetrics,
+      anchors,
+      tableFragments,
       hasSparseFlow,
       isWindowed,
       containsCurrentPage,
@@ -84,11 +108,18 @@ export function useDocumentLayoutViewportModel(
     layoutSnapshot.activePages,
     layoutSnapshot.flow,
     layoutSnapshot.activeRange,
+    layoutSnapshot.anchors,
+    layoutSnapshot.documentVersion,
     layoutSnapshot.mountedRange,
     layoutSnapshot.mountedPageBodyBounds,
+    layoutSnapshot.pageBounds,
+    layoutSnapshot.pageChromeMetrics,
     layoutSnapshot.pagePositionRanges,
+    layoutSnapshot.pageSpans,
     layoutSnapshot.pageCount,
     layoutSnapshot.pages,
-    layoutSnapshot.source
+    layoutSnapshot.retainedPageSpans,
+    layoutSnapshot.source,
+    layoutSnapshot.tableFragments
   ])
 }

@@ -31,7 +31,10 @@ export type RightSidebar = 'closed' | 'comments' | 'ai'
 export interface UsePagedDocumentInteractionDialogsParams {
   editor: TiptapEditor | null
   activeEditor: TiptapEditor | null
-  layoutViewportModel?: Pick<DocumentLayoutViewportModel, 'mountedPageBodyBounds' | 'pagePositionRanges' | 'windowKey'>
+  layoutViewportModel?: Pick<
+    DocumentLayoutViewportModel,
+    'pageBounds' | 'mountedPageBodyBounds' | 'pagePositionRanges' | 'pageSpans' | 'retainedPageSpans' | 'windowKey'
+  >
   documentId?: string
   title: string
   rightSidebar: RightSidebar
@@ -260,10 +263,19 @@ export function usePagedDocumentInteractionDialogs({
 
   const layoutHintState = useMemo(
     () => ({
+      pageBounds: layoutViewportModel?.pageBounds ?? layoutViewportModel?.mountedPageBodyBounds ?? [],
+      pageSpans: layoutViewportModel?.pageSpans ?? [],
+      retainedPageSpans: layoutViewportModel?.retainedPageSpans ?? [],
       mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
       pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
     }),
-    [layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges]
+    [
+      layoutViewportModel?.mountedPageBodyBounds,
+      layoutViewportModel?.pageBounds,
+      layoutViewportModel?.pagePositionRanges,
+      layoutViewportModel?.pageSpans,
+      layoutViewportModel?.retainedPageSpans
+    ]
   )
 
   useEffect(() => {

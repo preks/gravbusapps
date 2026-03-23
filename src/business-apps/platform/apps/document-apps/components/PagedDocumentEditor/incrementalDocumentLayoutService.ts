@@ -7,6 +7,7 @@ import type {
 } from './documentLayoutService'
 import {
   buildLayoutMeasurement,
+  resolveFirstPageHeaderElement,
   resolveActivePages,
   resolveActiveRange,
   resolveCurrentPageFromLayoutNavigation,
@@ -106,9 +107,15 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
 
   const rebuildMeasurement = (
     registryState: IncrementalPageRegistryState,
+    container: HTMLDivElement,
     request: Parameters<DocumentLayoutService['measureLayout']>[1]
   ) => {
-    const measurement = buildLayoutMeasurement(registryState.pageBreakEls, registryState.flowEls, request)
+    const measurement = buildLayoutMeasurement(
+      registryState.pageBreakEls,
+      registryState.flowEls,
+      request,
+      resolveFirstPageHeaderElement(container)
+    )
     measurement.layout.activeRange = measurement.navigationState.activeRange
     measurement.layout.activePages = resolveActivePages(
       measurement.layout.pages,
@@ -152,6 +159,7 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
           layout: {
             ...cachedMeasurement.layout,
             mountedPageBodyBounds,
+            pageChromeMetrics: cachedMeasurement.layout.pageChromeMetrics,
             activeRange,
             activePages
           },
@@ -162,7 +170,7 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
         }
       }
 
-      return rebuildMeasurement(registryState, request)
+      return rebuildMeasurement(registryState, container, request)
     },
     resolveCurrentPage(container, navigationState) {
       return resolveCurrentPageFromLayoutNavigation(container, navigationState)

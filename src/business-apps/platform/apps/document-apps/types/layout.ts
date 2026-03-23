@@ -14,6 +14,7 @@ export type DocumentLayoutInvalidationReason =
   | 'document-hydration'
   | 'layout-inputs-changed'
   | 'viewport-resize'
+  | 'editor-transaction'
   | 'legacy-dom-structure'
   | 'layout-service-changed'
 
@@ -38,6 +39,58 @@ export interface DocumentLayoutPagePositionRange {
   endPos: number
 }
 
+export interface DocumentLayoutPageSpan extends DocumentLayoutPagePositionRange {
+  source: 'mounted' | 'spacer' | 'retained'
+}
+
+export interface DocumentLayoutPageChromeMetrics {
+  pageNumber: number
+  headerHeight: number
+  footerHeight: number
+}
+
+export interface DocumentLayoutAnchorRect {
+  top: number
+  bottom: number
+  left: number
+  right: number
+}
+
+export type DocumentLayoutAnchorKind = 'comment' | 'image' | 'link' | 'table'
+
+export interface DocumentLayoutAnchorSnapshot {
+  id: string
+  kind: DocumentLayoutAnchorKind
+  from: number
+  to: number
+  pageNumber: number | null
+  pageRange: DocumentLayoutPageRange | null
+  rect: DocumentLayoutAnchorRect | null
+  metadata: Record<string, boolean | number | string | null>
+}
+
+export interface DocumentLayoutAnchorCollection {
+  comments: DocumentLayoutAnchorSnapshot[]
+  images: DocumentLayoutAnchorSnapshot[]
+  links: DocumentLayoutAnchorSnapshot[]
+  tables: DocumentLayoutAnchorSnapshot[]
+}
+
+export interface DocumentLayoutTableFragmentSnapshot {
+  id: string
+  tablePos: number
+  from: number
+  to: number
+  pageNumbers: number[]
+  pageRange: DocumentLayoutPageRange | null
+  rowCount: number
+  paginationChainKey: string
+  paginationChainId: string | null
+  paginationSplitId: string | null
+  fragmentIndex: number
+  fragmentCount: number
+}
+
 export interface DocumentLayoutPageRange {
   startPage: number
   endPage: number
@@ -58,14 +111,21 @@ export interface DocumentLayoutMeasurementRequest {
 }
 
 export interface DocumentLayoutSnapshot {
+  documentVersion: number
   layoutVersion: number
   source: DocumentLayoutSource
   pageCount: number
   pages: DocumentLayoutPageSnapshot[]
   flow: DocumentLayoutFlowSnapshot[]
   mountedRange: DocumentLayoutPageRange | null
+  pageBounds: DocumentLayoutPageBodyBounds[]
   mountedPageBodyBounds: DocumentLayoutPageBodyBounds[]
+  pageSpans: DocumentLayoutPageSpan[]
+  retainedPageSpans: DocumentLayoutPageSpan[]
   pagePositionRanges?: DocumentLayoutPagePositionRange[]
+  pageChromeMetrics: DocumentLayoutPageChromeMetrics[]
+  anchors: DocumentLayoutAnchorCollection
+  tableFragments: DocumentLayoutTableFragmentSnapshot[]
   activeRange: DocumentLayoutPageRange | null
   activePages: DocumentLayoutPageSnapshot[]
 }

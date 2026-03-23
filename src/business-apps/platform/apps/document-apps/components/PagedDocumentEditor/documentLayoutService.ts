@@ -1,6 +1,7 @@
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import type {
   DocumentLayoutPageBodyBounds,
+  DocumentLayoutPageChromeMetrics,
   DocumentLayoutInvalidationReason,
   DocumentLayoutFlowSnapshot,
   DocumentLayoutMeasurementRequest,
@@ -22,6 +23,7 @@ export interface DocumentLayoutMeasurement {
   flow: DocumentLayoutFlowSnapshot[]
   mountedRange: DocumentLayoutPageRange | null
   mountedPageBodyBounds: DocumentLayoutPageBodyBounds[]
+  pageChromeMetrics: DocumentLayoutPageChromeMetrics[]
   activePages: DocumentLayoutPageSnapshot[]
   activeRange: DocumentLayoutPageRange | null
 }
@@ -233,6 +235,60 @@ export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): Docum
     .filter((bounds): bounds is DocumentLayoutPageBodyBounds => bounds !== null)
 }
 
+function readRegionHeight(region: Element | null): number {
+  if (!(region instanceof HTMLElement)) {
+    return 0
+  }
+
+  return Math.max(region.offsetHeight, region.getBoundingClientRect().height, 0)
+}
+
+export function resolveMountedPageChromeMetrics(
+  pageBreakEls: HTMLElement[],
+  firstPageHeader: HTMLElement | null = null
+): DocumentLayoutPageChromeMetrics[] {
+  const metricsByPageNumber = new Map<number, DocumentLayoutPageChromeMetrics>()
+
+  const assignMetrics = (pageNumber: number, updates: Partial<DocumentLayoutPageChromeMetrics>) => {
+    const current = metricsByPageNumber.get(pageNumber) ?? {
+      pageNumber,
+      headerHeight: 0,
+      footerHeight: 0
+    }
+    metricsByPageNumber.set(pageNumber, {
+      ...current,
+      ...updates
+    })
+  }
+
+  pageBreakEls.forEach(pageBreakEl => {
+    const pageNumber = resolvePageNumberForPageBreak(pageBreakEl)
+    if (pageNumber === null) {
+      return
+    }
+
+    const headerRegion = pageBreakEl.querySelector(
+      `.rm-page-header-region[data-rm-page-number="${pageNumber}"]`
+    ) as HTMLElement | null
+    const footerRegion = pageBreakEl.querySelector(
+      `.rm-page-footer-region[data-rm-page-number="${pageNumber}"]`
+    ) as HTMLElement | null
+
+    assignMetrics(pageNumber, {
+      headerHeight: readRegionHeight(headerRegion),
+      footerHeight: readRegionHeight(footerRegion)
+    })
+  })
+
+  if (firstPageHeader instanceof HTMLElement) {
+    assignMetrics(1, {
+      headerHeight: Math.max(readRegionHeight(firstPageHeader), metricsByPageNumber.get(1)?.headerHeight ?? 0)
+    })
+  }
+
+  return Array.from(metricsByPageNumber.values()).sort((left, right) => left.pageNumber - right.pageNumber)
+}
+
 function resolveSpacerPageSegmentHeights(spacerEl: HTMLElement): number[] {
   return (spacerEl.dataset.rmPageSegmentHeights ?? '')
     .split(',')
@@ -387,7 +443,8 @@ function createFlowIndexedPageList(
 export function buildLayoutMeasurement(
   pageBreakEls: HTMLElement[],
   flowEls: HTMLElement[],
-  request: DocumentLayoutMeasurementRequest
+  request: DocumentLayoutMeasurementRequest,
+  firstPageHeader: HTMLElement | null = null
 ): {
   layout: DocumentLayoutMeasurement
   navigationState: DocumentLayoutNavigationState
@@ -407,6 +464,7 @@ export function buildLayoutMeasurement(
         : Math.max(1, pageBreakEls.length)
   const indexedLayout = createFlowIndexedPageList(pageCount, flowEls)
   const mountedPageBodyBounds = resolveMountedPageBodyBounds(pageBreakEls)
+  const pageChromeMetrics = resolveMountedPageChromeMetrics(pageBreakEls, firstPageHeader)
 
   return {
     layout: {
@@ -415,6 +473,7 @@ export function buildLayoutMeasurement(
       flow: indexedLayout.flow,
       mountedRange: indexedLayout.mountedRange,
       mountedPageBodyBounds,
+      pageChromeMetrics,
       activePages: [],
       activeRange: null
     },
@@ -441,7 +500,8 @@ function measureLegacyDomPagination(
   return buildLayoutMeasurement(
     resolvePageBreakElementsFromPaginationRoot(paginationRoot),
     resolvePaginationFlowElementsFromPaginationRoot(paginationRoot),
-    request
+    request,
+    resolveFirstPageHeaderElement(container)
   )
 }
 
@@ -552,6 +612,7 @@ export function createLegacyDomPaginationLayoutService(): DocumentLayoutService 
           layout: {
             ...cachedMeasurement.layout,
             mountedPageBodyBounds,
+            pageChromeMetrics: cachedMeasurement.layout.pageChromeMetrics,
             activeRange,
             activePages
           },

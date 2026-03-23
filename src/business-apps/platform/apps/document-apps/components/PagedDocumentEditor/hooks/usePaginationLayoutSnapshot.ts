@@ -15,6 +15,14 @@ import type {
 import { type DocumentLayoutNavigationState, type DocumentLayoutService } from '../documentLayoutService'
 import { createIncrementalDocumentLayoutService } from '../incrementalDocumentLayoutService'
 import { createDocumentLayoutScheduler } from '../documentLayoutScheduler'
+import {
+  collectDocumentLayoutAnchors,
+  collectDocumentLayoutTableFragments,
+  createEmptyDocumentLayoutSnapshot,
+  mergeMeasuredDocumentLayoutPageSpans,
+  mergeRetainedDocumentLayoutPageSpans,
+  resolveNextDocumentLayoutVersion
+} from '../documentLayoutSnapshotHelpers'
 
 export interface UsePaginationLayoutSnapshotProps {
   editor: TiptapEditor | null
@@ -199,19 +207,6 @@ export function resolveSpacerPagePositionRanges(
     .sort((left, right) => left.pageNumber - right.pageNumber)
 }
 
-function resolveMeasuredPagePositionRanges(
-  editor: TiptapEditor | null,
-  mountedPageBodyBounds: DocumentLayoutPageBodyBounds[],
-  flowEls: HTMLElement[],
-  pageCount: number
-): DocumentLayoutPagePositionRange[] {
-  return mergeDocumentLayoutPagePositionRanges(
-    resolveSpacerPagePositionRanges(editor, flowEls),
-    resolveMountedPagePositionRanges(editor, mountedPageBodyBounds),
-    pageCount
-  )
-}
-
 function shouldRetainPreviousPagePositionRanges(scope: DocumentLayoutInvalidationScope): boolean {
   return scope === 'viewport'
 }
@@ -245,26 +240,40 @@ export function mergeDocumentLayoutPagePositionRanges(
 }
 
 function createLayoutSnapshot(
+  documentVersion: number,
   layoutVersion: number,
   pageCount: number,
   pages: DocumentLayoutPageSnapshot[],
   flow: DocumentLayoutFlowSnapshot[],
   mountedRange: DocumentLayoutPageRange | null,
+  pageBounds: DocumentLayoutSnapshot['pageBounds'],
   mountedPageBodyBounds: DocumentLayoutSnapshot['mountedPageBodyBounds'],
+  pageSpans: DocumentLayoutSnapshot['pageSpans'],
+  retainedPageSpans: DocumentLayoutSnapshot['retainedPageSpans'],
   pagePositionRanges: DocumentLayoutPagePositionRange[],
+  pageChromeMetrics: DocumentLayoutSnapshot['pageChromeMetrics'],
+  anchors: DocumentLayoutSnapshot['anchors'],
+  tableFragments: DocumentLayoutSnapshot['tableFragments'],
   activeRange: DocumentLayoutPageRange | null,
   activePages: DocumentLayoutPageSnapshot[],
   source: DocumentLayoutSnapshot['source']
 ): DocumentLayoutSnapshot {
   return {
+    documentVersion,
     layoutVersion,
     source,
     pageCount,
     pages,
     flow,
     mountedRange,
+    pageBounds,
     mountedPageBodyBounds,
+    pageSpans,
+    retainedPageSpans,
     pagePositionRanges,
+    pageChromeMetrics,
+    anchors,
+    tableFragments,
     activeRange,
     activePages
   }
@@ -274,6 +283,7 @@ function resolveInvalidationScope(reason: DocumentLayoutInvalidationReason): Doc
   switch (reason) {
     case 'viewport-resize':
       return 'viewport'
+    case 'editor-transaction':
     case 'legacy-dom-structure':
       return 'structure'
     case 'layout-inputs-changed':
@@ -344,6 +354,25 @@ function isPendingViewportRefreshForPage(runtimeState: DocumentLayoutRuntimeStat
   return pageNumber >= pendingRange.startPage && pageNumber <= pendingRange.endPage
 }
 
+function resolveCurrentPageFromPageBounds(
+  container: HTMLDivElement,
+  pageBounds: DocumentLayoutPageBodyBounds[],
+  fallbackPage: number
+): number {
+  if (pageBounds.length === 0) {
+    return fallbackPage
+  }
+
+  const containerRect = container.getBoundingClientRect()
+  const viewportCenterY = containerRect.top + containerRect.height / 2
+  const matchingBounds =
+    pageBounds.find(bounds => viewportCenterY >= bounds.top && viewportCenterY <= bounds.bottom) ??
+    pageBounds.find(bounds => viewportCenterY < bounds.top) ??
+    pageBounds[pageBounds.length - 1]
+
+  return matchingBounds?.pageNumber ?? fallbackPage
+}
+
 function resolveInvalidationRange(
   reason: DocumentLayoutInvalidationReason,
   pageCount: number,
@@ -358,6 +387,7 @@ function resolveInvalidationRange(
     case 'layout-inputs-changed':
     case 'initial-load':
     case 'document-hydration':
+    case 'editor-transaction':
     case 'layout-service-changed':
       return resolvePreferredActiveRange(safePageCount, safeCurrentPage)
     case 'legacy-dom-structure':
@@ -395,18 +425,7 @@ export function usePaginationLayoutSnapshot({
   const scrollThrottleRef = useRef<number | null>(null)
 
   const [layoutSnapshot, setLayoutSnapshot] = useState<DocumentLayoutSnapshot>(() =>
-    createLayoutSnapshot(
-      0,
-      1,
-      [{ pageNumber: 1, flowIndex: null, mountedIndex: null, isMounted: false }],
-      [],
-      null,
-      [],
-      [],
-      null,
-      [{ pageNumber: 1, flowIndex: null, mountedIndex: null, isMounted: false }],
-      resolvedLayoutService.source
-    )
+    createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source)
   )
   const [runtimeState, setRuntimeState] = useState<DocumentLayoutRuntimeState>({
     source: resolvedLayoutService.source,
@@ -431,6 +450,7 @@ export function usePaginationLayoutSnapshot({
   const [currentPage, setCurrentPage] = useState(1)
   const hasInitializedLayoutRef = useRef(false)
   const previousLayoutInputsKeyRef = useRef<string | undefined>(layoutInputsKey)
+  const lastMeasuredDocRef = useRef<object | null>(null)
 
   const rebuildLayoutSnapshot = useCallback(
     (request: DocumentLayoutMeasurementRequest) => {
@@ -440,35 +460,78 @@ export function usePaginationLayoutSnapshot({
       const measurement = resolvedLayoutService.measureLayout(container, request)
       navigationStateRef.current = measurement.navigationState
       setLayoutNavigationState(measurement.navigationState)
-      const measuredPagePositionRanges = resolveMeasuredPagePositionRanges(
+      const mountedPagePositionRanges = resolveMountedPagePositionRanges(
         editor,
-        measurement.layout.mountedPageBodyBounds,
-        measurement.navigationState.flowEls,
-        measurement.layout.pageCount
+        measurement.layout.mountedPageBodyBounds
       )
+      const spacerPagePositionRanges = resolveSpacerPagePositionRanges(editor, measurement.navigationState.flowEls)
+      const measuredPageSpans = mergeMeasuredDocumentLayoutPageSpans({
+        mountedRanges: mountedPagePositionRanges,
+        spacerRanges: spacerPagePositionRanges,
+        pageCount: measurement.layout.pageCount
+      })
 
-      setLayoutSnapshot(previous =>
-        createLayoutSnapshot(
+      let nextSnapshot = createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source)
+
+      setLayoutSnapshot(previous => {
+        const nextRetainedPageSpans = mergeRetainedDocumentLayoutPageSpans(
+          previous.retainedPageSpans,
+          measuredPageSpans,
+          measurement.layout.pageCount,
+          shouldRetainPreviousPagePositionRanges(request.scope)
+        )
+        const nextPagePositionRanges = nextRetainedPageSpans.map(({ pageNumber, startPos, endPos }) => ({
+          pageNumber,
+          startPos,
+          endPos
+        }))
+        const currentDoc = editor?.state.doc ?? null
+        const docChanged = currentDoc !== lastMeasuredDocRef.current
+        lastMeasuredDocRef.current = currentDoc as object | null
+        const nextDocumentVersion = resolveNextDocumentLayoutVersion({
+          previousSnapshot: previous,
+          scope: request.scope,
+          docChanged
+        })
+        const anchors =
+          request.scope === 'viewport'
+            ? previous.anchors
+            : collectDocumentLayoutAnchors(editor, measuredPageSpans, measurement.layout.mountedPageBodyBounds)
+        const tableFragments =
+          request.scope === 'viewport'
+            ? previous.tableFragments
+            : collectDocumentLayoutTableFragments(editor, measuredPageSpans)
+
+        nextSnapshot = createLayoutSnapshot(
+          nextDocumentVersion,
           request.generation,
           measurement.layout.pageCount,
           measurement.layout.pages,
           measurement.layout.flow,
           measurement.layout.mountedRange,
           measurement.layout.mountedPageBodyBounds,
-          mergeDocumentLayoutPagePositionRanges(
-            previous.pagePositionRanges ?? [],
-            measuredPagePositionRanges,
-            measurement.layout.pageCount,
-            shouldRetainPreviousPagePositionRanges(request.scope)
-          ),
+          measurement.layout.mountedPageBodyBounds,
+          measuredPageSpans,
+          nextRetainedPageSpans,
+          nextPagePositionRanges,
+          measurement.layout.pageChromeMetrics,
+          anchors,
+          tableFragments,
           measurement.layout.activeRange,
           measurement.layout.activePages,
           resolvedLayoutService.source
         )
+
+        return nextSnapshot
+      })
+
+      const fallbackCurrentPage = Math.min(
+        Math.max(1, resolvedLayoutService.resolveCurrentPage(container, measurement.navigationState)),
+        measurement.layout.pageCount
       )
       setCurrentPage(
         Math.min(
-          Math.max(1, resolvedLayoutService.resolveCurrentPage(container, measurement.navigationState)),
+          Math.max(1, resolveCurrentPageFromPageBounds(container, nextSnapshot.pageBounds, fallbackCurrentPage)),
           measurement.layout.pageCount
         )
       )
@@ -505,8 +568,12 @@ export function usePaginationLayoutSnapshot({
 
       scrollThrottleRef.current = requestAnimationFrame(() => {
         scrollThrottleRef.current = null
-        const nextPage = Math.min(
+        const fallbackCurrentPage = Math.min(
           Math.max(1, resolvedLayoutService.resolveCurrentPage(container, navigationStateRef.current)),
+          layoutSnapshot.pageCount || 1
+        )
+        const nextPage = Math.min(
+          Math.max(1, resolveCurrentPageFromPageBounds(container, layoutSnapshot.pageBounds, fallbackCurrentPage)),
           layoutSnapshot.pageCount || 1
         )
 
@@ -526,20 +593,7 @@ export function usePaginationLayoutSnapshot({
 
   useEffect(() => {
     navigationStateRef.current = { boundaryEls: [], activeRange: null, pageBreakEls: [], flowEls: [] }
-    setLayoutSnapshot(
-      createLayoutSnapshot(
-        0,
-        1,
-        [{ pageNumber: 1, flowIndex: null, mountedIndex: null, isMounted: false }],
-        [],
-        null,
-        [],
-        [],
-        null,
-        [{ pageNumber: 1, flowIndex: null, mountedIndex: null, isMounted: false }],
-        resolvedLayoutService.source
-      )
-    )
+    setLayoutSnapshot(createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source))
     setLayoutNavigationState({ boundaryEls: [], activeRange: null, pageBreakEls: [], flowEls: [] })
     setRuntimeState(layoutScheduler.getState())
     setCurrentPage(1)
@@ -566,6 +620,25 @@ export function usePaginationLayoutSnapshot({
     previousLayoutInputsKeyRef.current = layoutInputsKey
     scheduleLayoutSnapshotRefresh('layout-inputs-changed', true)
   }, [layoutInputsKey, scheduleLayoutSnapshotRefresh])
+
+  useEffect(() => {
+    if (!editor || typeof editor.on !== 'function' || typeof editor.off !== 'function') {
+      return
+    }
+
+    const handleTransaction = ({ transaction }: { transaction: { docChanged?: boolean } }) => {
+      if (!transaction.docChanged || !hasInitializedLayoutRef.current) {
+        return
+      }
+
+      scheduleLayoutSnapshotRefresh('editor-transaction', true)
+    }
+
+    editor.on('transaction', handleTransaction as never)
+    return () => {
+      editor.off('transaction', handleTransaction as never)
+    }
+  }, [editor, scheduleLayoutSnapshotRefresh])
 
   useEffect(() => {
     const container = editorContainerRef.current

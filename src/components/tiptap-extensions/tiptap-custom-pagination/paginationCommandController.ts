@@ -66,6 +66,29 @@ function resolvePaginationViewport(editorDom: HTMLElement): HTMLElement | null {
   return viewport instanceof HTMLElement ? viewport : null
 }
 
+function resolveSnapshotPageBounds(editorDom: HTMLElement, pageNumber: number) {
+  const selector = `[data-rm-page-number="${pageNumber}"][data-layout-body-top][data-layout-body-bottom]`
+  const target = editorDom.querySelector(selector)
+  if (!(target instanceof HTMLElement)) {
+    return null
+  }
+
+  const top = Number(target.dataset.layoutBodyTop ?? '')
+  const bottom = Number(target.dataset.layoutBodyBottom ?? '')
+  const left = Number(target.dataset.layoutBodyLeft ?? '')
+  const right = Number(target.dataset.layoutBodyRight ?? '')
+  if (![top, bottom, left, right].every(Number.isFinite)) {
+    return null
+  }
+
+  return {
+    top,
+    bottom,
+    left,
+    right
+  }
+}
+
 function resolveFlowElementPageRange(flowEl: HTMLElement): PaginationViewportPageRange | null {
   if (flowEl.classList.contains('rm-page-break')) {
     const pageNumber = Number(flowEl.dataset.rmPageNumber ?? '')
@@ -119,6 +142,16 @@ function resolveFlowElementForPage(editorDom: HTMLElement, pageNumber: number): 
 
 export function requestViewportPageFocus(editorDom: HTMLElement, pageNumber: number): boolean {
   const viewport = resolvePaginationViewport(editorDom)
+  const snapshotPageBounds = resolveSnapshotPageBounds(editorDom, pageNumber)
+  if (viewport instanceof HTMLElement && snapshotPageBounds) {
+    const viewportRect = viewport.getBoundingClientRect()
+    const pageCenter = (snapshotPageBounds.top + snapshotPageBounds.bottom) / 2
+    const viewportCenter = (viewportRect.top + viewportRect.bottom) / 2
+    viewport.scrollTop = Math.max(0, viewport.scrollTop + pageCenter - viewportCenter)
+    viewport.dispatchEvent(new Event('scroll', { bubbles: true }))
+    return true
+  }
+
   const flowEl = resolveFlowElementForPage(editorDom, pageNumber)
   if (!(viewport instanceof HTMLElement) || !(flowEl instanceof HTMLElement)) {
     return false
