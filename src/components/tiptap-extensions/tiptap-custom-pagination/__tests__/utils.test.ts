@@ -1,8 +1,11 @@
 import {
   calculatePageCount,
   getDocumentContentBottom,
+  getExistingPageCount,
+  getPageBodyMeasurementBands,
   PAGE_COUNT_ADD_HYSTERESIS_PX,
   PAGE_COUNT_REMOVE_HYSTERESIS_PX,
+  resolveMountedPaginationPageNumbers,
   getSelectionBottom,
   measureHeaderFooterContentHeights,
   resolvePageCountFromLastPageGap
@@ -71,6 +74,378 @@ describe('resolvePageCountFromLastPageGap', () => {
       resultPageCount: 1,
       lowerBound: -(1000 - PAGE_COUNT_REMOVE_HYSTERESIS_PX)
     })
+  })
+})
+
+describe('getExistingPageCount', () => {
+  it('uses pagination metadata when the full document shell range is mounted', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const spacer = document.createElement('div')
+    const view = { dom: editorDom } as never
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmTotalPages = '500'
+    paginationRoot.dataset.rmMountedStartPage = '1'
+    paginationRoot.dataset.rmMountedEndPage = '500'
+    pageBreak.className = 'rm-page-break'
+    spacer.className = 'rm-page-spacer'
+    paginationRoot.append(pageBreak, spacer)
+    editorDom.appendChild(paginationRoot)
+
+    expect(getExistingPageCount(view)).toBe(500)
+  })
+
+  it('uses the chrome-wrapped pagination root without a broad lookup', () => {
+    const editorDom = document.createElement('div')
+    const paginationChrome = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const view = { dom: editorDom } as never
+    const querySelectorSpy = jest.spyOn(editorDom, 'querySelector')
+
+    paginationChrome.dataset.rmPaginationChrome = 'true'
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmTotalPages = '2'
+    paginationRoot.dataset.rmMountedStartPage = '1'
+    paginationRoot.dataset.rmMountedEndPage = '2'
+    pageBreak.className = 'rm-page-break'
+    paginationRoot.appendChild(pageBreak)
+    paginationChrome.appendChild(paginationRoot)
+    editorDom.appendChild(paginationChrome)
+
+    expect(getExistingPageCount(view)).toBe(2)
+    expect(querySelectorSpy).not.toHaveBeenCalledWith('[data-rm-pagination]')
+  })
+
+  it('counts only mounted page shells even when sparse pagination stores total page metadata', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPageBreak = document.createElement('div')
+    const secondPageBreak = document.createElement('div')
+    const spacer = document.createElement('div')
+    const view = { dom: editorDom } as never
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmTotalPages = '500'
+    paginationRoot.dataset.rmMountedStartPage = '197'
+    paginationRoot.dataset.rmMountedEndPage = '203'
+    firstPageBreak.className = 'rm-page-break'
+    secondPageBreak.className = 'rm-page-break'
+    spacer.className = 'rm-page-spacer'
+    paginationRoot.append(firstPageBreak, secondPageBreak, spacer)
+    editorDom.appendChild(paginationRoot)
+
+    expect(getExistingPageCount(view)).toBe(2)
+  })
+})
+
+describe('resolveMountedPaginationPageNumbers', () => {
+  it('uses mounted range metadata from the pagination root when available', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPageHeader = document.createElement('div')
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmTotalPages = '8'
+    paginationRoot.dataset.rmMountedStartPage = '3'
+    paginationRoot.dataset.rmMountedEndPage = '5'
+    firstPageHeader.className = 'rm-first-page-header'
+    firstPageHeader.dataset.rmPageNumber = '1'
+    firstPageHeader.dataset.rmEditorType = 'header'
+
+    editorDom.append(paginationRoot, firstPageHeader)
+
+    expect(resolveMountedPaginationPageNumbers(editorDom)).toEqual([1, 3, 4, 5, 6])
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith(
+      '[data-rm-pagination] > .rm-page-break .page[data-rm-page-number]'
+    )
+  })
+
+  it('uses chrome-wrapped pagination and first-page header without broad lookups', () => {
+    const editorDom = document.createElement('div')
+    const paginationChrome = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPageHeader = document.createElement('div')
+    const querySelectorSpy = jest.spyOn(editorDom, 'querySelector')
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    paginationChrome.dataset.rmPaginationChrome = 'true'
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmTotalPages = '8'
+    paginationRoot.dataset.rmMountedStartPage = '3'
+    paginationRoot.dataset.rmMountedEndPage = '5'
+    firstPageHeader.className = 'rm-first-page-header'
+    firstPageHeader.dataset.rmPageNumber = '1'
+    firstPageHeader.dataset.rmEditorType = 'header'
+
+    paginationChrome.append(paginationRoot, firstPageHeader)
+    editorDom.appendChild(paginationChrome)
+
+    expect(resolveMountedPaginationPageNumbers(editorDom)).toEqual([1, 3, 4, 5, 6])
+    expect(querySelectorSpy).not.toHaveBeenCalledWith('[data-rm-pagination]')
+    expect(querySelectorSpy).not.toHaveBeenCalledWith('.rm-first-page-header[data-rm-page-number]')
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith(
+      '[data-rm-pagination] > .rm-page-break .page[data-rm-page-number]'
+    )
+  })
+
+  it('prefers viewport mounted-range metadata when pagination root metadata lags', () => {
+    const viewport = document.createElement('div')
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPageHeader = document.createElement('div')
+
+    viewport.className = 'document-editor-viewport'
+    viewport.dataset.layoutMountedStart = '3'
+    viewport.dataset.layoutMountedEnd = '5'
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmTotalPages = '8'
+    paginationRoot.dataset.rmMountedStartPage = '3'
+    paginationRoot.dataset.rmMountedEndPage = '3'
+    firstPageHeader.className = 'rm-first-page-header'
+    firstPageHeader.dataset.rmPageNumber = '1'
+    firstPageHeader.dataset.rmEditorType = 'header'
+
+    viewport.appendChild(editorDom)
+    editorDom.append(paginationRoot, firstPageHeader)
+
+    expect(resolveMountedPaginationPageNumbers(editorDom)).toEqual([1, 3, 4, 5, 6])
+  })
+
+  it('falls back to mounted page-break DOM scanning when range metadata is missing', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPageBreak = document.createElement('div')
+    const secondPageBreak = document.createElement('div')
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+    const firstPageBreakQuerySelectorSpy = jest.spyOn(firstPageBreak, 'querySelector')
+    const secondPageBreakQuerySelectorSpy = jest.spyOn(secondPageBreak, 'querySelector')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    firstPageBreak.className = 'rm-page-break'
+    firstPageBreak.dataset.rmPageNumber = '2'
+    secondPageBreak.className = 'rm-page-break'
+    secondPageBreak.dataset.rmPageNumber = '3'
+    paginationRoot.append(firstPageBreak, secondPageBreak)
+    editorDom.appendChild(paginationRoot)
+
+    expect(resolveMountedPaginationPageNumbers(editorDom)).toEqual([2, 3, 4])
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith(
+      '[data-rm-pagination] > .rm-page-break .page[data-rm-page-number]'
+    )
+    expect(firstPageBreakQuerySelectorSpy).not.toHaveBeenCalledWith('.page[data-rm-page-number]')
+    expect(secondPageBreakQuerySelectorSpy).not.toHaveBeenCalledWith('.page[data-rm-page-number]')
+  })
+})
+
+describe('getPageBodyMeasurementBands', () => {
+  function setRect(element: HTMLElement, rect: { top: number; bottom: number; left?: number; right?: number }) {
+    Object.defineProperty(element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: rect.left ?? 0,
+        y: rect.top,
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left ?? 0,
+        right: rect.right ?? 100,
+        width: (rect.right ?? 100) - (rect.left ?? 0),
+        height: rect.bottom - rect.top,
+        toJSON: () => ''
+      })
+    })
+  }
+
+  it('collects and sorts visible body measurement bands by page number', () => {
+    const editorDom = document.createElement('div')
+    const pageTwo = document.createElement('div')
+    const pageOne = document.createElement('div')
+    const invalid = document.createElement('div')
+
+    pageTwo.className = 'rm-page-body-layer'
+    pageTwo.dataset.rmPageNumber = '2'
+    pageOne.className = 'rm-page-body-layer'
+    pageOne.dataset.rmPageNumber = '1'
+    invalid.className = 'rm-page-body-layer'
+    invalid.dataset.rmPageNumber = '0'
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 25 })
+    setRect(editorDom, { top: 10, bottom: 500 })
+    setRect(pageTwo, { top: 210, bottom: 340 })
+    setRect(pageOne, { top: 40, bottom: 180 })
+    setRect(invalid, { top: 0, bottom: 0 })
+
+    editorDom.append(pageTwo, pageOne, invalid)
+
+    expect(getPageBodyMeasurementBands(editorDom)).toEqual([
+      {
+        pageNumber: 1,
+        top: 55,
+        bottom: 195
+      },
+      {
+        pageNumber: 2,
+        top: 225,
+        bottom: 355
+      }
+    ])
+  })
+
+  it('uses ordered page-break children when collecting body measurement bands', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmTotalPages = '2'
+    paginationRoot.dataset.rmMountedStartPage = '1'
+    paginationRoot.dataset.rmMountedEndPage = '2'
+
+    for (let pageNumber = 1; pageNumber <= 2; pageNumber += 1) {
+      const pageBreak = document.createElement('div')
+      const page = document.createElement('div')
+      const bodyLayer = document.createElement('div')
+
+      pageBreak.className = 'rm-page-break'
+      page.className = 'page'
+      page.dataset.rmPageNumber = String(pageNumber)
+      bodyLayer.className = 'rm-page-body-layer'
+      bodyLayer.dataset.rmPageNumber = String(pageNumber)
+
+      page.appendChild(bodyLayer)
+      pageBreak.appendChild(page)
+      paginationRoot.appendChild(pageBreak)
+    }
+
+    const firstBodyLayer = paginationRoot.children[0]?.querySelector('.rm-page-body-layer') as HTMLElement
+    const secondBodyLayer = paginationRoot.children[1]?.querySelector('.rm-page-body-layer') as HTMLElement
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 25 })
+    setRect(editorDom, { top: 10, bottom: 500 })
+    setRect(firstBodyLayer, { top: 40, bottom: 180 })
+    setRect(secondBodyLayer, { top: 210, bottom: 340 })
+
+    editorDom.appendChild(paginationRoot)
+
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    expect(getPageBodyMeasurementBands(editorDom)).toEqual([
+      {
+        pageNumber: 1,
+        top: 55,
+        bottom: 195
+      },
+      {
+        pageNumber: 2,
+        top: 225,
+        bottom: 355
+      }
+    ])
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('.rm-page-body-layer[data-rm-page-number]')
+  })
+
+  it('uses viewport mounted-range metadata when ordered body shells are still catching up', () => {
+    const viewport = document.createElement('div')
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+
+    viewport.className = 'document-editor-viewport'
+    viewport.dataset.layoutMountedStart = '2'
+    viewport.dataset.layoutMountedEnd = '3'
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmMountedStartPage = '2'
+    paginationRoot.dataset.rmMountedEndPage = '4'
+
+    for (let pageNumber = 2; pageNumber <= 3; pageNumber += 1) {
+      const pageBreak = document.createElement('div')
+      const page = document.createElement('div')
+      const bodyLayer = document.createElement('div')
+
+      pageBreak.className = 'rm-page-break'
+      page.className = 'page'
+      page.dataset.rmPageNumber = String(pageNumber)
+      bodyLayer.className = 'rm-page-body-layer'
+      bodyLayer.dataset.rmPageNumber = String(pageNumber)
+
+      page.appendChild(bodyLayer)
+      pageBreak.appendChild(page)
+      paginationRoot.appendChild(pageBreak)
+    }
+
+    const firstBodyLayer = paginationRoot.children[0]?.querySelector('.rm-page-body-layer') as HTMLElement
+    const secondBodyLayer = paginationRoot.children[1]?.querySelector('.rm-page-body-layer') as HTMLElement
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 25 })
+    setRect(editorDom, { top: 10, bottom: 500 })
+    setRect(firstBodyLayer, { top: 40, bottom: 180 })
+    setRect(secondBodyLayer, { top: 210, bottom: 340 })
+
+    viewport.appendChild(editorDom)
+    editorDom.appendChild(paginationRoot)
+
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    expect(getPageBodyMeasurementBands(editorDom)).toEqual([
+      {
+        pageNumber: 2,
+        top: 55,
+        bottom: 195
+      },
+      {
+        pageNumber: 3,
+        top: 225,
+        bottom: 355
+      }
+    ])
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('.rm-page-body-layer[data-rm-page-number]')
+  })
+
+  it('uses page-break children for body measurement bands without range metadata', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+
+    paginationRoot.dataset.rmPagination = 'true'
+
+    for (let pageNumber = 1; pageNumber <= 2; pageNumber += 1) {
+      const pageBreak = document.createElement('div')
+      const bodyLayer = document.createElement('div')
+
+      pageBreak.className = 'rm-page-break'
+      pageBreak.dataset.rmPageNumber = String(pageNumber)
+      bodyLayer.className = 'rm-page-body-layer'
+      bodyLayer.dataset.rmPageNumber = String(pageNumber)
+
+      pageBreak.appendChild(bodyLayer)
+      paginationRoot.appendChild(pageBreak)
+    }
+
+    const firstBodyLayer = paginationRoot.children[0]?.querySelector('.rm-page-body-layer') as HTMLElement
+    const secondBodyLayer = paginationRoot.children[1]?.querySelector('.rm-page-body-layer') as HTMLElement
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 25 })
+    setRect(editorDom, { top: 10, bottom: 500 })
+    setRect(firstBodyLayer, { top: 40, bottom: 180 })
+    setRect(secondBodyLayer, { top: 210, bottom: 340 })
+
+    editorDom.appendChild(paginationRoot)
+
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    expect(getPageBodyMeasurementBands(editorDom)).toEqual([
+      {
+        pageNumber: 1,
+        top: 55,
+        bottom: 195
+      },
+      {
+        pageNumber: 2,
+        top: 225,
+        bottom: 355
+      }
+    ])
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('.rm-page-body-layer[data-rm-page-number]')
   })
 })
 
@@ -335,6 +710,169 @@ describe('calculatePageCount', () => {
     ).toBe(3)
   })
 
+  it('skips selection-bottom probing when content bottom is already known for a caret selection', () => {
+    const editorDom = document.createElement('div')
+    const firstParagraph = document.createElement('p')
+    const secondParagraph = document.createElement('p')
+    const firstTextNode = document.createTextNode('first')
+    const secondTextNode = document.createTextNode('second')
+
+    firstParagraph.appendChild(firstTextNode)
+    secondParagraph.appendChild(secondTextNode)
+    editorDom.append(firstParagraph, secondParagraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 260 })
+    setRect(firstParagraph, { top: 10, bottom: 40 })
+    setRect(secondParagraph, { top: 180, bottom: 220 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(firstParagraph, 'offsetHeight', { configurable: true, value: 30 })
+    Object.defineProperty(firstParagraph, 'clientHeight', { configurable: true, value: 30 })
+    Object.defineProperty(firstParagraph, 'scrollHeight', { configurable: true, value: 30 })
+    Object.defineProperty(secondParagraph, 'offsetHeight', { configurable: true, value: 40 })
+    Object.defineProperty(secondParagraph, 'clientHeight', { configurable: true, value: 40 })
+    Object.defineProperty(secondParagraph, 'scrollHeight', { configurable: true, value: 40 })
+
+    const coordsAtPos = jest.fn((position: number) =>
+      position >= 9
+        ? {
+            top: 184,
+            bottom: 208,
+            left: 12,
+            right: 12
+          }
+        : {
+            top: 12,
+            bottom: 24,
+            left: 12,
+            right: 12
+          }
+    )
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          content: {
+            size: 10
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos,
+      domAtPos: (position: number) => ({
+        node: position >= 9 ? secondTextNode : firstTextNode,
+        offset: 0
+      })
+    } as never
+
+    expect(
+      calculatePageCount(
+        view,
+        {
+          width: 100,
+          height: 100,
+          margins: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0
+          }
+        },
+        0
+      )
+    ).toBe(3)
+
+    expect(coordsAtPos).not.toHaveBeenCalledWith(1)
+  })
+
+  it('skips document-tail probing when the last content element already provides the bottom', () => {
+    const editorDom = document.createElement('div')
+    const firstParagraph = document.createElement('p')
+    const secondParagraph = document.createElement('p')
+    const firstTextNode = document.createTextNode('first')
+    const secondTextNode = document.createTextNode('second')
+
+    firstParagraph.appendChild(firstTextNode)
+    secondParagraph.appendChild(secondTextNode)
+    editorDom.append(firstParagraph, secondParagraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 260 })
+    setRect(firstParagraph, { top: 10, bottom: 40 })
+    setRect(secondParagraph, { top: 180, bottom: 220 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(firstParagraph, 'offsetHeight', { configurable: true, value: 30 })
+    Object.defineProperty(firstParagraph, 'clientHeight', { configurable: true, value: 30 })
+    Object.defineProperty(firstParagraph, 'scrollHeight', { configurable: true, value: 30 })
+    Object.defineProperty(secondParagraph, 'offsetHeight', { configurable: true, value: 40 })
+    Object.defineProperty(secondParagraph, 'clientHeight', { configurable: true, value: 40 })
+    Object.defineProperty(secondParagraph, 'scrollHeight', { configurable: true, value: 40 })
+
+    const coordsAtPos = jest.fn((position: number) =>
+      position >= 9
+        ? {
+            top: 184,
+            bottom: 208,
+            left: 12,
+            right: 12
+          }
+        : {
+            top: 12,
+            bottom: 24,
+            left: 12,
+            right: 12
+          }
+    )
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          content: {
+            size: 10
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos,
+      domAtPos: (position: number) => ({
+        node: position >= 9 ? secondTextNode : firstTextNode,
+        offset: 0
+      })
+    } as never
+
+    expect(
+      calculatePageCount(
+        view,
+        {
+          width: 100,
+          height: 100,
+          margins: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0
+          }
+        },
+        0
+      )
+    ).toBe(3)
+
+    expect(coordsAtPos).not.toHaveBeenCalledWith(10)
+    expect(coordsAtPos).not.toHaveBeenCalledWith(9)
+  })
+
   it('measures overflow against the last page body instead of the last breaker', () => {
     const editorDom = document.createElement('div')
     const paginationElement = document.createElement('div')
@@ -408,6 +946,86 @@ describe('calculatePageCount', () => {
         0
       )
     ).toBe(1)
+  })
+
+  it('reads the pagination root only once during page-count calculation', () => {
+    const editorDom = document.createElement('div')
+    const paginationElement = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const breaker = document.createElement('div')
+    const paragraph = document.createElement('p')
+    const textNode = document.createTextNode('body')
+
+    paginationElement.dataset.rmPagination = 'true'
+    pageBreak.className = 'rm-page-break'
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    breaker.className = 'breaker'
+    paragraph.appendChild(textNode)
+    pageBreak.append(bodyLayer, breaker)
+    paginationElement.appendChild(pageBreak)
+    editorDom.append(paginationElement, paragraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 260 })
+    setRect(bodyLayer, { top: 0, bottom: 100 })
+    setRect(breaker, { top: 10, bottom: 20 })
+    setRect(paragraph, { top: 60, bottom: 100 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(paragraph, 'offsetHeight', { configurable: true, value: 40 })
+    Object.defineProperty(paragraph, 'clientHeight', { configurable: true, value: 40 })
+    Object.defineProperty(paragraph, 'scrollHeight', { configurable: true, value: 40 })
+
+    const querySelectorSpy = jest.spyOn(editorDom, 'querySelector')
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          firstChild: { type: { name: 'paragraph' }, childCount: 1, textContent: 'body' },
+          content: {
+            size: 8
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos: () => ({
+        top: 64,
+        bottom: 76,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: textNode,
+        offset: 0
+      })
+    } as never
+
+    expect(
+      calculatePageCount(
+        view,
+        {
+          width: 100,
+          height: 120,
+          margins: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0
+          }
+        },
+        0
+      )
+    ).toBe(1)
+
+    expect(querySelectorSpy.mock.calls.filter(([selector]) => selector === '[data-rm-pagination]')).toHaveLength(0)
+    expect(querySelectorSpy).not.toHaveBeenCalledWith('.rm-page-body-layer[data-rm-page-number="1"]')
   })
 })
 
@@ -530,6 +1148,401 @@ describe('measureHeaderFooterContentHeights', () => {
 
     expect(measured.footerHeights.get(1)).toBe(18)
     expect(measured.headerHeights.get(2)).toBe(27)
+  })
+
+  it('indexes visible region layouts once when measuring many pages', () => {
+    const editorDom = document.createElement('div')
+
+    for (let pageNumber = 1; pageNumber <= 5; pageNumber += 1) {
+      const headerRegion = document.createElement('div')
+      const footerRegion = document.createElement('div')
+      const headerShell = document.createElement('div')
+      const footerShell = document.createElement('div')
+      const headerLayout = document.createElement('div')
+      const footerLayout = document.createElement('div')
+
+      headerRegion.dataset.rmEditorType = 'header'
+      headerRegion.dataset.rmPageNumber = String(pageNumber)
+      footerRegion.dataset.rmEditorType = 'footer'
+      footerRegion.dataset.rmPageNumber = String(pageNumber)
+      headerShell.className = 'rm-page-header'
+      footerShell.className = 'rm-page-footer'
+      headerLayout.className = 'rm-page-region-layout'
+      footerLayout.className = 'rm-page-region-layout'
+
+      setMeasuredHeight(headerLayout, 10 + pageNumber)
+      setMeasuredHeight(footerLayout, 20 + pageNumber)
+
+      headerShell.appendChild(headerLayout)
+      footerShell.appendChild(footerLayout)
+      headerRegion.appendChild(headerShell)
+      footerRegion.appendChild(footerShell)
+      editorDom.append(headerRegion, footerRegion)
+    }
+
+    const querySelectorSpy = jest.spyOn(editorDom, 'querySelector')
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    const measured = measureHeaderFooterContentHeights(
+      editorDom,
+      5,
+      {
+        width: 800,
+        height: 1000,
+        margins: {
+          top: 96,
+          right: 96,
+          bottom: 96,
+          left: 96
+        }
+      },
+      {
+        headerTopMargin: 48,
+        footerBottomMargin: 48
+      },
+      [1, 2, 3, 4, 5]
+    )
+
+    expect(querySelectorSpy).not.toHaveBeenCalled()
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('[data-rm-editor-type="header"][data-rm-page-number]')
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('[data-rm-editor-type="footer"][data-rm-page-number]')
+    expect(measured.headerHeights.get(5)).toBe(15)
+    expect(measured.footerHeights.get(5)).toBe(25)
+  })
+
+  it('uses page-break chrome when indexing visible region layouts', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPageHeader = document.createElement('div')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmTotalPages = '2'
+    paginationRoot.dataset.rmMountedStartPage = '1'
+    paginationRoot.dataset.rmMountedEndPage = '2'
+    firstPageHeader.className = 'rm-first-page-header'
+    firstPageHeader.dataset.rmPageNumber = '1'
+    firstPageHeader.dataset.rmEditorType = 'header'
+
+    const firstPageHeaderShell = document.createElement('div')
+    const firstPageHeaderLayout = document.createElement('div')
+    firstPageHeaderShell.className = 'rm-page-header'
+    firstPageHeaderLayout.className = 'rm-page-region-layout'
+    setMeasuredHeight(firstPageHeaderLayout, 11)
+    firstPageHeaderShell.appendChild(firstPageHeaderLayout)
+    firstPageHeader.appendChild(firstPageHeaderShell)
+
+    for (let pageNumber = 1; pageNumber <= 2; pageNumber += 1) {
+      const pageBreak = document.createElement('div')
+      const breaker = document.createElement('div')
+      const footerRegion = document.createElement('div')
+      const footerShell = document.createElement('div')
+      const footerLayout = document.createElement('div')
+      const nextHeaderRegion = document.createElement('div')
+      const nextHeaderShell = document.createElement('div')
+      const nextHeaderLayout = document.createElement('div')
+
+      pageBreak.className = 'rm-page-break'
+      pageBreak.dataset.rmPageNumber = String(pageNumber)
+      breaker.className = 'breaker'
+      footerRegion.className = 'rm-page-footer-region'
+      footerRegion.dataset.rmPageNumber = String(pageNumber)
+      footerRegion.dataset.rmEditorType = 'footer'
+      footerShell.className = 'rm-page-footer'
+      footerLayout.className = 'rm-page-region-layout'
+      nextHeaderRegion.className = 'rm-page-header-region'
+      nextHeaderRegion.dataset.rmPageNumber = String(pageNumber + 1)
+      nextHeaderRegion.dataset.rmEditorType = 'header'
+      nextHeaderShell.className = 'rm-page-header'
+      nextHeaderLayout.className = 'rm-page-region-layout'
+
+      setMeasuredHeight(footerLayout, 20 + pageNumber)
+      setMeasuredHeight(nextHeaderLayout, 30 + pageNumber)
+
+      footerShell.appendChild(footerLayout)
+      footerRegion.appendChild(footerShell)
+      nextHeaderShell.appendChild(nextHeaderLayout)
+      nextHeaderRegion.appendChild(nextHeaderShell)
+      breaker.append(footerRegion, nextHeaderRegion)
+      pageBreak.appendChild(breaker)
+      paginationRoot.appendChild(pageBreak)
+    }
+
+    editorDom.append(firstPageHeader, paginationRoot)
+
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    const measured = measureHeaderFooterContentHeights(
+      editorDom,
+      2,
+      {
+        width: 800,
+        height: 1000,
+        margins: {
+          top: 96,
+          right: 96,
+          bottom: 96,
+          left: 96
+        }
+      },
+      {
+        headerTopMargin: 48,
+        footerBottomMargin: 48
+      },
+      [1, 2]
+    )
+
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('[data-rm-editor-type="header"][data-rm-page-number]')
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('[data-rm-editor-type="footer"][data-rm-page-number]')
+    expect(measured.headerHeights.get(1)).toBe(11)
+    expect(measured.headerHeights.get(2)).toBe(31)
+    expect(measured.footerHeights.get(2)).toBe(22)
+  })
+
+  it('uses page-break chrome for small visible region lookups', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPageHeader = document.createElement('div')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    firstPageHeader.className = 'rm-first-page-header'
+    firstPageHeader.dataset.rmPageNumber = '1'
+    firstPageHeader.dataset.rmEditorType = 'header'
+
+    const firstPageHeaderShell = document.createElement('div')
+    const firstPageHeaderLayout = document.createElement('div')
+    firstPageHeaderShell.className = 'rm-page-header'
+    firstPageHeaderLayout.className = 'rm-page-region-layout'
+    setMeasuredHeight(firstPageHeaderLayout, 11)
+    firstPageHeaderShell.appendChild(firstPageHeaderLayout)
+    firstPageHeader.appendChild(firstPageHeaderShell)
+
+    for (let pageNumber = 1; pageNumber <= 2; pageNumber += 1) {
+      const pageBreak = document.createElement('div')
+      const breaker = document.createElement('div')
+      const footerRegion = document.createElement('div')
+      const footerShell = document.createElement('div')
+      const footerLayout = document.createElement('div')
+      const nextHeaderRegion = document.createElement('div')
+      const nextHeaderShell = document.createElement('div')
+      const nextHeaderLayout = document.createElement('div')
+
+      pageBreak.className = 'rm-page-break'
+      pageBreak.dataset.rmPageNumber = String(pageNumber)
+      breaker.className = 'breaker'
+      footerRegion.className = 'rm-page-footer-region'
+      footerRegion.dataset.rmPageNumber = String(pageNumber)
+      footerRegion.dataset.rmEditorType = 'footer'
+      footerShell.className = 'rm-page-footer'
+      footerLayout.className = 'rm-page-region-layout'
+      nextHeaderRegion.className = 'rm-page-header-region'
+      nextHeaderRegion.dataset.rmPageNumber = String(pageNumber + 1)
+      nextHeaderRegion.dataset.rmEditorType = 'header'
+      nextHeaderShell.className = 'rm-page-header'
+      nextHeaderLayout.className = 'rm-page-region-layout'
+
+      setMeasuredHeight(footerLayout, 20 + pageNumber)
+      setMeasuredHeight(nextHeaderLayout, 30 + pageNumber)
+
+      footerShell.appendChild(footerLayout)
+      footerRegion.appendChild(footerShell)
+      nextHeaderShell.appendChild(nextHeaderLayout)
+      nextHeaderRegion.appendChild(nextHeaderShell)
+      breaker.append(footerRegion, nextHeaderRegion)
+      pageBreak.appendChild(breaker)
+      paginationRoot.appendChild(pageBreak)
+    }
+
+    editorDom.append(firstPageHeader, paginationRoot)
+
+    const querySelectorSpy = jest.spyOn(editorDom, 'querySelector')
+
+    const measured = measureHeaderFooterContentHeights(
+      editorDom,
+      2,
+      {
+        width: 800,
+        height: 1000,
+        margins: {
+          top: 96,
+          right: 96,
+          bottom: 96,
+          left: 96
+        }
+      },
+      {
+        headerTopMargin: 48,
+        footerBottomMargin: 48
+      },
+      [1, 2]
+    )
+
+    expect(querySelectorSpy).not.toHaveBeenCalledWith(
+      '[data-rm-editor-type="header"][data-rm-page-number="1"] .rm-page-region-layout'
+    )
+    expect(querySelectorSpy).not.toHaveBeenCalledWith(
+      '[data-rm-editor-type="footer"][data-rm-page-number="2"] .rm-page-region-layout'
+    )
+    expect(measured.headerHeights.get(1)).toBe(11)
+    expect(measured.headerHeights.get(2)).toBe(31)
+    expect(measured.footerHeights.get(2)).toBe(22)
+  })
+
+  it('indexes placeholder page breaks once when measuring many off-window pages', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmTotalPages = '6'
+    paginationRoot.dataset.rmMountedStartPage = '1'
+    paginationRoot.dataset.rmMountedEndPage = '5'
+
+    for (let pageNumber = 1; pageNumber <= 6; pageNumber += 1) {
+      const pageBreak = document.createElement('div')
+      const page = document.createElement('div')
+      const breaker = document.createElement('div')
+
+      pageBreak.className = 'rm-page-break'
+      page.className = 'page'
+      page.dataset.rmPageNumber = String(pageNumber)
+      breaker.className = 'breaker'
+      breaker.dataset.rmBreakerFooterHeight = String(10 + pageNumber)
+      breaker.dataset.rmBreakerNextHeaderHeight = String(20 + pageNumber)
+
+      pageBreak.append(page, breaker)
+      paginationRoot.appendChild(pageBreak)
+    }
+
+    editorDom.appendChild(paginationRoot)
+
+    const querySelectorSpy = jest.spyOn(editorDom, 'querySelector')
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    const measured = measureHeaderFooterContentHeights(
+      editorDom,
+      6,
+      {
+        width: 800,
+        height: 1000,
+        margins: {
+          top: 96,
+          right: 96,
+          bottom: 96,
+          left: 96
+        }
+      },
+      {
+        headerTopMargin: 48,
+        footerBottomMargin: 48
+      },
+      [1, 2, 3, 4, 5, 6]
+    )
+
+    expect(querySelectorSpy).not.toHaveBeenCalledWith('[data-rm-pagination]')
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('[data-rm-pagination] > .rm-page-break')
+    expect(measured.footerHeights.get(5)).toBe(15)
+    expect(measured.headerHeights.get(6)).toBe(25)
+  })
+
+  it('uses mounted-range child offsets for small placeholder page lookups', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmMountedStartPage = '2'
+    paginationRoot.dataset.rmMountedEndPage = '4'
+
+    for (let pageNumber = 2; pageNumber <= 4; pageNumber += 1) {
+      const pageBreak = document.createElement('div')
+      const page = document.createElement('div')
+      const breaker = document.createElement('div')
+
+      pageBreak.className = 'rm-page-break'
+      page.className = 'page'
+      page.dataset.rmPageNumber = String(pageNumber)
+      breaker.className = 'breaker'
+      breaker.dataset.rmBreakerFooterHeight = String(10 + pageNumber)
+      breaker.dataset.rmBreakerNextHeaderHeight = String(20 + pageNumber)
+
+      pageBreak.append(page, breaker)
+      paginationRoot.appendChild(pageBreak)
+    }
+
+    editorDom.appendChild(paginationRoot)
+
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    const measured = measureHeaderFooterContentHeights(
+      editorDom,
+      4,
+      {
+        width: 800,
+        height: 1000,
+        margins: {
+          top: 96,
+          right: 96,
+          bottom: 96,
+          left: 96
+        }
+      },
+      {
+        headerTopMargin: 48,
+        footerBottomMargin: 48
+      },
+      [3, 4]
+    )
+
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('[data-rm-pagination] > .rm-page-break')
+    expect(measured.headerHeights.get(3)).toBe(22)
+    expect(measured.footerHeights.get(4)).toBe(14)
+  })
+
+  it('uses pagination children for small placeholder lookups without range metadata', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+
+    paginationRoot.dataset.rmPagination = 'true'
+
+    for (let pageNumber = 2; pageNumber <= 4; pageNumber += 1) {
+      const pageBreak = document.createElement('div')
+      const breaker = document.createElement('div')
+
+      pageBreak.className = 'rm-page-break'
+      pageBreak.dataset.rmPageNumber = String(pageNumber)
+      breaker.className = 'breaker'
+      breaker.dataset.rmBreakerFooterHeight = String(10 + pageNumber)
+      breaker.dataset.rmBreakerNextHeaderHeight = String(20 + pageNumber)
+
+      pageBreak.appendChild(breaker)
+      paginationRoot.appendChild(pageBreak)
+    }
+
+    editorDom.appendChild(paginationRoot)
+
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    const measured = measureHeaderFooterContentHeights(
+      editorDom,
+      4,
+      {
+        width: 800,
+        height: 1000,
+        margins: {
+          top: 96,
+          right: 96,
+          bottom: 96,
+          left: 96
+        }
+      },
+      {
+        headerTopMargin: 48,
+        footerBottomMargin: 48
+      },
+      [3, 4]
+    )
+
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('[data-rm-pagination] > .rm-page-break')
+    expect(measured.headerHeights.get(3)).toBe(22)
+    expect(measured.footerHeights.get(4)).toBe(14)
   })
 
   it('counts a trailing empty paragraph inside an active inline editor', () => {

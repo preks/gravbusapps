@@ -25,9 +25,12 @@ import {
   replaceAllRanges,
   type HeadingItem
 } from '../../utils/navigationPanelUtils'
+import { scrollEditorSelectionNodeIntoView } from './commentSidebarNavigation'
+import type { DocumentLayoutViewportModel } from './hooks/useDocumentLayoutViewportModel'
 
 export interface NavigationPanelProps {
   readonly editor: Editor | null
+  readonly layoutViewportModel?: Pick<DocumentLayoutViewportModel, 'mountedPageBodyBounds' | 'pagePositionRanges'>
   readonly onClose: () => void
   readonly requestedTab?: NavTab
   readonly 'data-testid'?: string
@@ -64,6 +67,7 @@ function SnippetWithHighlight({
 
 export function NavigationPanel({
   editor,
+  layoutViewportModel,
   onClose,
   requestedTab = 'headings',
   'data-testid': testId = 'navigation-panel'
@@ -118,16 +122,21 @@ export function NavigationPanel({
       if (!editor) return
       editor.commands.focus()
       editor.commands.setTextSelection(pos)
-      try {
-        const view = editor.view
-        const dom = view.domAtPos(pos)
-        const node = dom.node instanceof Element ? dom.node : dom.node.parentElement
-        node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      } catch {
-        // View may not be mounted yet; selection was still set.
-      }
+      scrollEditorSelectionNodeIntoView(
+        {
+          view: editor.view,
+          commands: editor.commands,
+          layoutHints: {
+            mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
+            pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
+          }
+        },
+        pos,
+        pos,
+        'start'
+      )
     },
-    [editor]
+    [editor, layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges]
   )
 
   const handleHeadingClick = useCallback(
@@ -146,16 +155,21 @@ export function NavigationPanel({
       if (!editor) return
       editor.commands.focus()
       editor.commands.setTextSelection({ from, to })
-      try {
-        const view = editor.view
-        const dom = view.domAtPos(from)
-        const node = dom.node instanceof Element ? dom.node : dom.node.parentElement
-        node?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      } catch {
-        // View may not be mounted yet; selection was still set.
-      }
+      scrollEditorSelectionNodeIntoView(
+        {
+          view: editor.view,
+          commands: editor.commands,
+          layoutHints: {
+            mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
+            pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
+          }
+        },
+        from,
+        to,
+        'center'
+      )
     },
-    [editor, matches]
+    [editor, layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges, matches]
   )
 
   const handleFindNext = useCallback(() => {

@@ -1,6 +1,10 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
 import type { DocumentLayoutPageRange } from '../../../types'
-import type { DocumentLayoutNavigationState } from '../documentLayoutService'
+import {
+  resolveFirstPageHeaderElement,
+  resolvePageBreakElements,
+  type DocumentLayoutNavigationState
+} from '../documentLayoutService'
 import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
 
 interface UseApplyDocumentLayoutViewportMarkersParams {
@@ -36,6 +40,10 @@ function resolvePageNumberForElement(element: Element): number | null {
   return null
 }
 
+function resolveMountedPageBodyBounds(pageNumber: number, viewportModel: DocumentLayoutViewportModel) {
+  return viewportModel.mountedPageBodyBounds.find(bounds => bounds.pageNumber === pageNumber) ?? null
+}
+
 function createMarkerTargetList(pageBreakEl: HTMLElement): HTMLElement[] {
   const targets = new Set<HTMLElement>()
   targets.add(pageBreakEl)
@@ -50,6 +58,19 @@ function createMarkerTargetList(pageBreakEl: HTMLElement): HTMLElement[] {
   })
 
   return Array.from(targets)
+}
+
+function resolvePageBreakMarkerStructureKey(pageBreakEls: HTMLElement[]) {
+  return pageBreakEls
+    .map(pageBreakEl => {
+      const pageNumber = resolvePageNumberForElement(pageBreakEl) ?? 0
+      const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
+      const markerRegionCount = pageBreakEl.querySelectorAll(
+        '.rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
+      ).length
+      return `${pageNumber}:${breaker?.dataset.rmBreakerMode ?? 'full'}:${markerRegionCount}`
+    })
+    .join('|')
 }
 
 export function collectViewportMarkerTargets(
@@ -100,11 +121,24 @@ export function applyViewportMarkerAttributes(
 ) {
   const isActive = viewportModel.activePageNumbers.includes(pageNumber)
   const position = resolveWindowPosition(pageNumber, viewportModel.activeRange)
+  const bodyBounds = resolveMountedPageBodyBounds(pageNumber, viewportModel)
 
   targets.forEach(target => {
     target.setAttribute('data-layout-window-active', isActive ? 'true' : 'false')
     target.setAttribute('data-layout-window-position', position)
     target.setAttribute('data-layout-window-key', viewportModel.windowKey)
+    if (bodyBounds) {
+      target.setAttribute('data-layout-body-top', String(bodyBounds.top))
+      target.setAttribute('data-layout-body-bottom', String(bodyBounds.bottom))
+      target.setAttribute('data-layout-body-left', String(bodyBounds.left))
+      target.setAttribute('data-layout-body-right', String(bodyBounds.right))
+      return
+    }
+
+    target.removeAttribute('data-layout-body-top')
+    target.removeAttribute('data-layout-body-bottom')
+    target.removeAttribute('data-layout-body-left')
+    target.removeAttribute('data-layout-body-right')
   })
 }
 
@@ -116,6 +150,8 @@ export function useApplyDocumentLayoutViewportMarkers({
   const rafRef = useRef<number | null>(null)
   const markerTargetsRef = useRef<Map<number, HTMLElement[]>>(new Map())
   const indexedPageBreakElsRef = useRef<HTMLElement[] | null>(null)
+  const indexedPageBreakStructureKeyRef = useRef<string>('')
+  const indexedFirstPageHeaderRef = useRef<HTMLElement | null>(null)
   const previousActiveRangeRef = useRef<DocumentLayoutPageRange | null>(null)
   const previousWindowKeyRef = useRef<string | null>(null)
 
@@ -132,22 +168,26 @@ export function useApplyDocumentLayoutViewportMarkers({
       const pageBreakEls =
         layoutNavigationState.pageBreakEls.length > 0
           ? layoutNavigationState.pageBreakEls
-          : Array.from(container.querySelectorAll('.rm-page-break')).filter(
-              (element): element is HTMLElement => element instanceof HTMLElement
-            )
+          : resolvePageBreakElements(container)
       const pageBreakElsChanged = indexedPageBreakElsRef.current !== pageBreakEls
+      const pageBreakStructureKey = resolvePageBreakMarkerStructureKey(pageBreakEls)
+      const pageBreakStructureChanged = indexedPageBreakStructureKeyRef.current !== pageBreakStructureKey
+      const firstPageHeader = resolveFirstPageHeaderElement(container)
+      const markerTargetsChanged =
+        pageBreakElsChanged || pageBreakStructureChanged || indexedFirstPageHeaderRef.current !== firstPageHeader
 
-      if (pageBreakElsChanged) {
-        const firstPageHeader = container.querySelector('.rm-first-page-header[data-rm-page-number="1"]')
+      if (markerTargetsChanged) {
         markerTargetsRef.current = collectViewportMarkerTargets(
           pageBreakEls,
           firstPageHeader instanceof HTMLElement ? firstPageHeader : null
         )
         indexedPageBreakElsRef.current = pageBreakEls
+        indexedPageBreakStructureKeyRef.current = pageBreakStructureKey
+        indexedFirstPageHeaderRef.current = firstPageHeader instanceof HTMLElement ? firstPageHeader : null
       }
 
       const shouldRefreshAllPages =
-        pageBreakElsChanged ||
+        markerTargetsChanged ||
         previousActiveRangeRef.current === null ||
         previousWindowKeyRef.current !== viewportModel.windowKey
       const refreshRange = shouldRefreshAllPages
@@ -185,7 +225,11 @@ export function useApplyDocumentLayoutViewportMarkers({
     editorContainerRef,
     layoutNavigationState.pageBreakEls,
     viewportModel.activePageNumbers,
+    viewportModel.mountedPageBodyBounds,
     viewportModel.activeRange,
+    viewportModel.hasSparseFlow,
+    viewportModel.isWindowed,
+    viewportModel.mountedRange,
     viewportModel.windowKey
   ])
 }

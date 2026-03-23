@@ -1,7 +1,11 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
 import { layoutPageNumberSlots } from '@/components/tiptap-extensions/tiptap-custom-pagination/pageNumberSlotLayout'
 import type { DocumentLayoutPageRange } from '../../../types'
-import type { DocumentLayoutNavigationState } from '../documentLayoutService'
+import {
+  resolveFirstPageHeaderElement,
+  resolvePageBreakElements,
+  type DocumentLayoutNavigationState
+} from '../documentLayoutService'
 import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
 import { resolveViewportMarkerRefreshRange } from './useApplyDocumentLayoutViewportMarkers'
 
@@ -56,6 +60,21 @@ export function collectPageChromeRegions(
   }
 
   return pageChromeRegions
+}
+
+function resolvePageBreakChromeStructureKey(pageBreakEls: HTMLElement[]) {
+  return pageBreakEls
+    .map(pageBreakEl => {
+      const pageNumber = Number(
+        pageBreakEl.querySelector('.page[data-rm-page-number]')?.getAttribute('data-rm-page-number') ?? ''
+      )
+      const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
+      const regionCount = pageBreakEl.querySelectorAll(
+        '.rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
+      ).length
+      return `${Number.isInteger(pageNumber) ? pageNumber : 0}:${breaker?.dataset.rmBreakerMode ?? 'full'}:${regionCount}`
+    })
+    .join('|')
 }
 
 export function parkChromeRegion(region: HTMLElement, parkedRegions: WeakMap<HTMLElement, ParkedChromeState>) {
@@ -116,6 +135,10 @@ export function restoreChromeRegion(region: HTMLElement, parkedRegions: WeakMap<
   requestAnimationFrame(() => layoutPageNumberSlots(region))
 }
 
+function shouldVirtualizeWindowedChrome(pageBreakEls: HTMLElement[], totalPages: number) {
+  return pageBreakEls.length < Math.max(1, totalPages)
+}
+
 function resolvePagesToRefresh(
   previousActiveRange: DocumentLayoutPageRange | null,
   nextActiveRange: DocumentLayoutPageRange,
@@ -149,7 +172,10 @@ export function useApplyDocumentLayoutWindowedChrome({
   const rafRef = useRef<number | null>(null)
   const pageChromeRegionsRef = useRef<Map<number, HTMLElement[]>>(new Map())
   const indexedPageBreakElsRef = useRef<HTMLElement[] | null>(null)
+  const indexedPageBreakStructureKeyRef = useRef<string>('')
+  const indexedFirstPageHeaderRef = useRef<HTMLElement | null>(null)
   const parkedRegionsRef = useRef<WeakMap<HTMLElement, ParkedChromeState>>(new WeakMap())
+  const hasParkedRegionsRef = useRef(false)
   const previousActiveRangeRef = useRef<DocumentLayoutPageRange | null>(null)
   const previousWindowKeyRef = useRef<string | null>(null)
 
@@ -167,22 +193,42 @@ export function useApplyDocumentLayoutWindowedChrome({
       const pageBreakEls =
         layoutNavigationState.pageBreakEls.length > 0
           ? layoutNavigationState.pageBreakEls
-          : Array.from(container.querySelectorAll('.rm-page-break')).filter(
-              (element): element is HTMLElement => element instanceof HTMLElement
-            )
+          : resolvePageBreakElements(container)
       const pageBreakElsChanged = indexedPageBreakElsRef.current !== pageBreakEls
+      const pageBreakStructureKey = resolvePageBreakChromeStructureKey(pageBreakEls)
+      const pageBreakStructureChanged = indexedPageBreakStructureKeyRef.current !== pageBreakStructureKey
+      const firstPageHeader = resolveFirstPageHeaderElement(container)
+      const pageChromeRegionsChanged =
+        pageBreakElsChanged || pageBreakStructureChanged || indexedFirstPageHeaderRef.current !== firstPageHeader
 
-      if (pageBreakElsChanged) {
-        const firstPageHeader = container.querySelector('.rm-first-page-header[data-rm-page-number="1"]')
+      if (pageChromeRegionsChanged) {
         pageChromeRegionsRef.current = collectPageChromeRegions(
           pageBreakEls,
           firstPageHeader instanceof HTMLElement ? firstPageHeader : null
         )
         indexedPageBreakElsRef.current = pageBreakEls
+        indexedPageBreakStructureKeyRef.current = pageBreakStructureKey
+        indexedFirstPageHeaderRef.current = firstPageHeader instanceof HTMLElement ? firstPageHeader : null
+      }
+
+      const shouldVirtualizeChrome =
+        viewportModel.isWindowed &&
+        (viewportModel.hasSparseFlow || shouldVirtualizeWindowedChrome(pageBreakEls, viewportModel.totalPages))
+
+      if (!shouldVirtualizeChrome) {
+        if (hasParkedRegionsRef.current) {
+          pageChromeRegionsRef.current.forEach(regions => {
+            regions.forEach(region => restoreChromeRegion(region, parkedRegionsRef.current))
+          })
+          hasParkedRegionsRef.current = false
+        }
+        previousActiveRangeRef.current = viewportModel.activeRange
+        previousWindowKeyRef.current = viewportModel.windowKey
+        return
       }
 
       const refreshAll =
-        pageBreakElsChanged ||
+        pageChromeRegionsChanged ||
         previousActiveRangeRef.current === null ||
         previousWindowKeyRef.current !== viewportModel.windowKey
       const pageNumbersToRefresh = resolvePagesToRefresh(
@@ -192,6 +238,7 @@ export function useApplyDocumentLayoutWindowedChrome({
         pageChromeRegionsRef.current
       )
       const activePages = new Set(viewportModel.activePageNumbers)
+      let parkedAnyRegions = false
 
       pageNumbersToRefresh.forEach(pageNumber => {
         const regions = pageChromeRegionsRef.current.get(pageNumber)
@@ -202,9 +249,14 @@ export function useApplyDocumentLayoutWindowedChrome({
             restoreChromeRegion(region, parkedRegionsRef.current)
           } else {
             parkChromeRegion(region, parkedRegionsRef.current)
+            parkedAnyRegions = true
           }
         })
       })
+
+      if (parkedAnyRegions) {
+        hasParkedRegionsRef.current = true
+      }
 
       previousActiveRangeRef.current = viewportModel.activeRange
       previousWindowKeyRef.current = viewportModel.windowKey
@@ -221,6 +273,10 @@ export function useApplyDocumentLayoutWindowedChrome({
     layoutNavigationState.pageBreakEls,
     viewportModel.activePageNumbers,
     viewportModel.activeRange,
+    viewportModel.hasSparseFlow,
+    viewportModel.isWindowed,
+    viewportModel.mountedRange,
+    viewportModel.totalPages,
     viewportModel.windowKey
   ])
 }

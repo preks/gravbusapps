@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
+import { Schema } from '@tiptap/pm/model'
 import {
   resolveLinkDialogRequest,
   usePagedDocumentInteractionDialogs
@@ -61,6 +62,19 @@ describe('resolveLinkDialogRequest', () => {
 })
 
 describe('usePagedDocumentInteractionDialogs', () => {
+  const originalRequestAnimationFrame = global.requestAnimationFrame
+
+  beforeEach(() => {
+    global.requestAnimationFrame = callback => {
+      callback(0)
+      return 1
+    }
+  })
+
+  afterEach(() => {
+    global.requestAnimationFrame = originalRequestAnimationFrame
+  })
+
   it('opens the link dialog with selected text when inserting a new link', () => {
     const activeEditor = {
       state: {
@@ -167,5 +181,72 @@ describe('usePagedDocumentInteractionDialogs', () => {
     expect(result.current.aiSelectionSnapshotHtml).toBe('<p>Hello</p>')
     expect(result.current.showInlineCommentPopover).toBe(false)
     expect(result.current.pendingSelection).toBeNull()
+  })
+
+  it('positions the inline comment popover without hydrating when the selection is already measurable', () => {
+    const schema = new Schema({
+      nodes: {
+        doc: { content: 'block+' },
+        paragraph: {
+          content: 'text*',
+          group: 'block',
+          toDOM: () => ['p', 0]
+        },
+        text: {
+          group: 'inline'
+        }
+      }
+    })
+    const doc = schema.node('doc', null, [schema.node('paragraph', null, [schema.text('Hello world')])])
+    const pageBody = document.createElement('div')
+    pageBody.className = 'rm-page-body-layer'
+    pageBody.dataset.rmPageNumber = '3'
+    const targetNode = document.createElement('span')
+    pageBody.appendChild(targetNode)
+
+    const editor = {
+      schema,
+      state: {
+        selection: { from: 1, to: 5 },
+        doc
+      },
+      commands: {
+        hydratePageBreakShells: jest.fn(() => true)
+      },
+      view: {
+        dom: pageBody,
+        nodeDOM: jest.fn(() => targetNode),
+        domAtPos: jest.fn(() => ({ node: targetNode })),
+        coordsAtPos: jest.fn(() => ({
+          top: 180,
+          bottom: 200
+        }))
+      }
+    } as unknown as TiptapEditor
+
+    const { result } = renderHook(() =>
+      usePagedDocumentInteractionDialogs(
+        createHookParams({
+          editor
+        })
+      )
+    )
+
+    act(() => {
+      result.current.handleAddInlineComment(undefined, { from: 1, to: 5 })
+    })
+
+    expect(editor.commands.hydratePageBreakShells).not.toHaveBeenCalled()
+    expect(result.current.pendingSelection).toEqual({
+      from: 1,
+      to: 5,
+      text: 'Hell',
+      html: 'Hell'
+    })
+    expect(result.current.inlineCommentPosition).toEqual({
+      top: 210,
+      left: 0
+    })
+    expect(result.current.showInlineCommentPopover).toBe(true)
   })
 })

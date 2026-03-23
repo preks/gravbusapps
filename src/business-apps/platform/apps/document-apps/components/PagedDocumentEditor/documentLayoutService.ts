@@ -1,6 +1,8 @@
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import type {
+  DocumentLayoutPageBodyBounds,
   DocumentLayoutInvalidationReason,
+  DocumentLayoutFlowSnapshot,
   DocumentLayoutMeasurementRequest,
   DocumentLayoutPageRange,
   DocumentLayoutPageSnapshot,
@@ -11,11 +13,15 @@ export interface DocumentLayoutNavigationState {
   boundaryEls: HTMLElement[]
   activeRange: DocumentLayoutPageRange | null
   pageBreakEls: HTMLElement[]
+  flowEls: HTMLElement[]
 }
 
 export interface DocumentLayoutMeasurement {
   pageCount: number
   pages: DocumentLayoutPageSnapshot[]
+  flow: DocumentLayoutFlowSnapshot[]
+  mountedRange: DocumentLayoutPageRange | null
+  mountedPageBodyBounds: DocumentLayoutPageBodyBounds[]
   activePages: DocumentLayoutPageSnapshot[]
   activeRange: DocumentLayoutPageRange | null
 }
@@ -39,9 +45,29 @@ export interface DocumentLayoutService {
   observeLayout: (params: ObserveDocumentLayoutParams) => () => void
 }
 
+export function resolveObservableLayoutRoot(
+  editor: TiptapEditor | null,
+  container: HTMLDivElement
+): HTMLElement | null {
+  try {
+    const editorDom = editor?.view?.dom
+    if (editorDom instanceof HTMLElement) {
+      return editorDom
+    }
+  } catch {
+    // Tiptap can expose the editor instance before view.dom is mounted.
+  }
+
+  const fallbackRoot = container.querySelector('.ProseMirror')
+  return fallbackRoot instanceof HTMLElement ? fallbackRoot : null
+}
+
 export function createLinearPageList(pageCount: number): DocumentLayoutPageSnapshot[] {
   return Array.from({ length: pageCount }, (_, index) => ({
-    pageNumber: index + 1
+    pageNumber: index + 1,
+    flowIndex: null,
+    mountedIndex: null,
+    isMounted: false
   }))
 }
 
@@ -56,7 +82,7 @@ export function resolveActiveRange(
   pageCount: number,
   request: DocumentLayoutMeasurementRequest
 ): DocumentLayoutPageRange {
-  if (request.scope !== 'viewport' || !request.pageRange) {
+  if (!request.pageRange) {
     return createPageRange(1, pageCount)
   }
 
@@ -73,31 +99,309 @@ export function resolveActivePages(
   return pages.filter(page => page.pageNumber >= activeRange.startPage && page.pageNumber <= activeRange.endPage)
 }
 
-export function resolvePageBreakElements(container: HTMLDivElement): HTMLElement[] {
-  const paginationRoot = container.querySelector('[data-rm-pagination]')
+export function resolvePaginationRootElement(container: HTMLDivElement): HTMLElement | null {
+  const directChildPagination = Array.from(container.children).find(
+    (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPagination === ''
+  )
+  if (directChildPagination) {
+    return directChildPagination
+  }
+
+  const paginationChrome = Array.from(container.children).find(
+    (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPaginationChrome === 'true'
+  )
+  if (!paginationChrome) {
+    return null
+  }
+
+  return (
+    Array.from(paginationChrome.children).find(
+      (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPagination === ''
+    ) ?? null
+  )
+}
+
+export function resolveFirstPageHeaderElement(container: HTMLDivElement): HTMLElement | null {
+  const directChildFirstPageHeader = Array.from(container.children).find(
+    (child): child is HTMLElement =>
+      child instanceof HTMLElement &&
+      child.classList.contains('rm-first-page-header') &&
+      child.dataset.rmPageNumber === '1'
+  )
+  if (directChildFirstPageHeader) {
+    return directChildFirstPageHeader
+  }
+
+  const paginationChrome = Array.from(container.children).find(
+    (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPaginationChrome === 'true'
+  )
+  if (!paginationChrome) {
+    return null
+  }
+
+  return (
+    Array.from(paginationChrome.children).find(
+      (child): child is HTMLElement =>
+        child instanceof HTMLElement &&
+        child.classList.contains('rm-first-page-header') &&
+        child.dataset.rmPageNumber === '1'
+    ) ?? null
+  )
+}
+
+export function resolvePageBreakElementsFromPaginationRoot(paginationRoot: HTMLElement | null): HTMLElement[] {
   const pageEls = paginationRoot ? Array.from(paginationRoot.children) : []
-  return pageEls.filter((el): el is HTMLElement => el instanceof HTMLElement)
+  return pageEls
+    .filter((el): el is HTMLElement => el instanceof HTMLElement)
+    .filter(element => element.classList.contains('rm-page-break'))
+}
+
+export function resolvePaginationFlowElementsFromPaginationRoot(paginationRoot: HTMLElement | null): HTMLElement[] {
+  const flowEls = paginationRoot ? Array.from(paginationRoot.children) : []
+  return flowEls.filter((el): el is HTMLElement => el instanceof HTMLElement)
+}
+
+export function resolvePageBreakElements(container: HTMLDivElement): HTMLElement[] {
+  return resolvePageBreakElementsFromPaginationRoot(resolvePaginationRootElement(container))
+}
+
+export function resolvePaginationFlowElements(container: HTMLDivElement): HTMLElement[] {
+  return resolvePaginationFlowElementsFromPaginationRoot(resolvePaginationRootElement(container))
+}
+
+export function resolvePaginationTotalPages(container: HTMLDivElement): number {
+  const paginationRoot = resolvePaginationRootElement(container)
+  const pageBreakEls = resolvePageBreakElementsFromPaginationRoot(paginationRoot)
+  return resolvePaginationTotalPagesFromPaginationRoot(paginationRoot, pageBreakEls)
+}
+
+export function resolvePaginationTotalPagesFromPaginationRoot(
+  paginationRoot: HTMLElement | null,
+  pageBreakEls = resolvePageBreakElementsFromPaginationRoot(paginationRoot)
+): number {
+  const explicitTotalPages = Number((paginationRoot as HTMLElement | null)?.dataset.rmTotalPages ?? '')
+  if (Number.isInteger(explicitTotalPages) && explicitTotalPages > 0) {
+    return explicitTotalPages
+  }
+
+  return Math.max(1, pageBreakEls.length)
+}
+
+function resolvePageNumberForPageBreak(pageBreakEl: HTMLElement): number | null {
+  const explicitPageNumber = Number(pageBreakEl.dataset.rmPageNumber ?? '')
+  if (Number.isInteger(explicitPageNumber) && explicitPageNumber > 0) {
+    return explicitPageNumber
+  }
+
+  const pageEl = pageBreakEl.querySelector('.page[data-rm-page-number]')
+  const pageNumber = Number(pageEl?.getAttribute('data-rm-page-number'))
+  return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
+}
+
+function resolvePageBodyElementForPageBreak(pageBreakEl: HTMLElement): HTMLElement | null {
+  const bodyLayer = pageBreakEl.querySelector('.rm-page-body-layer[data-rm-page-number]')
+  if (bodyLayer instanceof HTMLElement) {
+    return bodyLayer
+  }
+
+  const pageElement = pageBreakEl.querySelector('.page[data-rm-page-number]')
+  return pageElement instanceof HTMLElement ? pageElement : null
+}
+
+export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
+  return pageBreakEls
+    .map(pageBreakEl => {
+      const pageNumber = resolvePageNumberForPageBreak(pageBreakEl)
+      const bodyElement = resolvePageBodyElementForPageBreak(pageBreakEl)
+      if (pageNumber === null || !(bodyElement instanceof HTMLElement)) {
+        return null
+      }
+
+      const rect = bodyElement.getBoundingClientRect()
+      if (![rect.left, rect.right, rect.top, rect.bottom].every(Number.isFinite)) {
+        return null
+      }
+
+      return {
+        pageNumber,
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom
+      }
+    })
+    .filter((bounds): bounds is DocumentLayoutPageBodyBounds => bounds !== null)
+}
+
+function resolvePageRangeForSpacer(spacerEl: HTMLElement): DocumentLayoutPageRange | null {
+  const startPage = Number(spacerEl.dataset.rmPageRangeStart ?? '')
+  const endPage = Number(spacerEl.dataset.rmPageRangeEnd ?? '')
+  if (!Number.isInteger(startPage) || !Number.isInteger(endPage)) return null
+  if (startPage < 1 || endPage < startPage) return null
+  return { startPage, endPage }
+}
+
+function resolveCurrentPageFromSpacer(spacerEl: HTMLElement, viewportCenterY: number, fallbackPage: number): number {
+  const pageRange = resolvePageRangeForSpacer(spacerEl)
+  if (!pageRange) return fallbackPage
+
+  const pageCount = pageRange.endPage - pageRange.startPage + 1
+  if (pageCount <= 1) return pageRange.startPage
+
+  const spacerRect = spacerEl.getBoundingClientRect()
+  if (spacerRect.height <= 0) return pageRange.startPage
+
+  const relativeOffset = Math.min(Math.max(viewportCenterY - spacerRect.top, 0), spacerRect.height - 1)
+  const pageIndex = Math.min(pageCount - 1, Math.floor((relativeOffset / spacerRect.height) * pageCount))
+  return pageRange.startPage + pageIndex
+}
+
+function resolveLeadingPageForFlowElement(flowEl: HTMLElement, fallbackPage = 1): number {
+  if (flowEl.classList.contains('rm-page-break')) {
+    return resolvePageNumberForPageBreak(flowEl) ?? fallbackPage
+  }
+
+  const pageRange = resolvePageRangeForSpacer(flowEl)
+  if (pageRange) {
+    return pageRange.startPage
+  }
+
+  return fallbackPage
+}
+
+function resolveTrailingPageForFlowElement(flowEl: HTMLElement, fallbackPage = 1): number {
+  if (flowEl.classList.contains('rm-page-break')) {
+    return resolvePageNumberForPageBreak(flowEl) ?? fallbackPage
+  }
+
+  const pageRange = resolvePageRangeForSpacer(flowEl)
+  if (pageRange) {
+    return pageRange.endPage
+  }
+
+  return fallbackPage
+}
+
+function createFlowIndexedPageList(
+  pageCount: number,
+  flowEls: HTMLElement[]
+): {
+  pages: DocumentLayoutPageSnapshot[]
+  flow: DocumentLayoutFlowSnapshot[]
+  mountedRange: DocumentLayoutPageRange | null
+} {
+  const pages = createLinearPageList(pageCount)
+  const flow: DocumentLayoutFlowSnapshot[] = []
+  let mountedIndex = 0
+  let mountedStartPage: number | null = null
+  let mountedEndPage: number | null = null
+
+  const updateMountedRange = (pageNumber: number) => {
+    mountedStartPage = mountedStartPage === null ? pageNumber : Math.min(mountedStartPage, pageNumber)
+    mountedEndPage = mountedEndPage === null ? pageNumber : Math.max(mountedEndPage, pageNumber)
+  }
+
+  const assignSpacerPages = (startPage: number, endPage: number, flowIndex: number) => {
+    for (let pageNumber = startPage; pageNumber <= endPage; pageNumber += 1) {
+      const pageIndex = pageNumber - 1
+      const existingPage = pages[pageIndex]
+      if (!existingPage || existingPage.isMounted || existingPage.flowIndex !== null) {
+        continue
+      }
+
+      pages[pageIndex] = {
+        ...existingPage,
+        flowIndex
+      }
+    }
+  }
+
+  flowEls.forEach((flowEl, flowIndex) => {
+    if (flowEl.classList.contains('rm-page-break')) {
+      const pageNumber = resolvePageNumberForPageBreak(flowEl)
+      if (pageNumber === null || pageNumber < 1 || pageNumber > pageCount) {
+        return
+      }
+
+      flow.push({
+        flowIndex,
+        pageRange: createPageRange(pageNumber, pageNumber),
+        kind: 'page-break',
+        isMounted: true
+      })
+      pages[pageNumber - 1] = {
+        pageNumber,
+        flowIndex,
+        mountedIndex,
+        isMounted: true
+      }
+      mountedIndex += 1
+      updateMountedRange(pageNumber)
+      return
+    }
+
+    const pageRange = resolvePageRangeForSpacer(flowEl)
+    if (!pageRange) {
+      return
+    }
+
+    const clampedStartPage = Math.max(1, Math.min(pageRange.startPage, pageCount))
+    const clampedEndPage = Math.max(clampedStartPage, Math.min(pageRange.endPage, pageCount))
+    flow.push({
+      flowIndex,
+      pageRange: createPageRange(clampedStartPage, clampedEndPage),
+      kind: 'spacer',
+      isMounted: false
+    })
+    assignSpacerPages(clampedStartPage, clampedEndPage, flowIndex)
+  })
+
+  return {
+    pages,
+    flow,
+    mountedRange:
+      mountedStartPage === null || mountedEndPage === null ? null : createPageRange(mountedStartPage, mountedEndPage)
+  }
 }
 
 export function buildLayoutMeasurement(
   pageBreakEls: HTMLElement[],
+  flowEls: HTMLElement[],
   request: DocumentLayoutMeasurementRequest
 ): {
   layout: DocumentLayoutMeasurement
   navigationState: DocumentLayoutNavigationState
 } {
-  const pageCount = pageBreakEls.length > 0 ? pageBreakEls.length : 1
+  const paginationRoot = pageBreakEls[0]?.parentElement
+  const resolvedPaginationRoot =
+    paginationRoot instanceof HTMLDivElement && paginationRoot.dataset.rmPagination === '' ? paginationRoot : null
+  const explicitTotalPages = Number(resolvedPaginationRoot?.dataset.rmTotalPages ?? '')
+  const indexedPageNumbers = pageBreakEls
+    .map(resolvePageNumberForPageBreak)
+    .filter((pageNumber): pageNumber is number => pageNumber !== null)
+  const pageCount =
+    Number.isInteger(explicitTotalPages) && explicitTotalPages > 0
+      ? explicitTotalPages
+      : indexedPageNumbers.length > 0
+        ? Math.max(...indexedPageNumbers)
+        : Math.max(1, pageBreakEls.length)
+  const indexedLayout = createFlowIndexedPageList(pageCount, flowEls)
+  const mountedPageBodyBounds = resolveMountedPageBodyBounds(pageBreakEls)
 
   return {
     layout: {
       pageCount,
-      pages: createLinearPageList(pageCount),
+      pages: indexedLayout.pages,
+      flow: indexedLayout.flow,
+      mountedRange: indexedLayout.mountedRange,
+      mountedPageBodyBounds,
       activePages: [],
       activeRange: null
     },
     navigationState: {
       activeRange: resolveActiveRange(pageCount, request),
       pageBreakEls,
+      flowEls,
       boundaryEls: pageBreakEls
         .slice(0, -1)
         .map(el => el.querySelector('.breaker'))
@@ -113,29 +417,87 @@ function measureLegacyDomPagination(
   layout: DocumentLayoutMeasurement
   navigationState: DocumentLayoutNavigationState
 } {
-  return buildLayoutMeasurement(resolvePageBreakElements(container), request)
+  const paginationRoot = resolvePaginationRootElement(container)
+  return buildLayoutMeasurement(
+    resolvePageBreakElementsFromPaginationRoot(paginationRoot),
+    resolvePaginationFlowElementsFromPaginationRoot(paginationRoot),
+    request
+  )
 }
 
 export function resolveCurrentPageFromLayoutNavigation(
   container: HTMLDivElement,
   navigationState: DocumentLayoutNavigationState
 ): number {
-  if (navigationState.boundaryEls.length === 0) return 1
-
   const containerRect = container.getBoundingClientRect()
   const viewportCenterY = containerRect.top + containerRect.height / 2
 
-  let passedBoundaries = 0
-  for (const boundaryEl of navigationState.boundaryEls) {
-    const boundaryTop = boundaryEl.getBoundingClientRect().top
+  if (navigationState.flowEls.length > 0) {
+    const firstFlowEl = navigationState.flowEls[0]
+    if (firstFlowEl && viewportCenterY < firstFlowEl.getBoundingClientRect().top) {
+      return resolveLeadingPageForFlowElement(firstFlowEl)
+    }
+
+    const lastFlowEl = navigationState.flowEls.at(-1)
+    if (lastFlowEl) {
+      const lastFlowRect = lastFlowEl.getBoundingClientRect()
+      if (viewportCenterY > lastFlowRect.bottom) {
+        return resolveTrailingPageForFlowElement(lastFlowEl)
+      }
+    }
+
+    let low = 0
+    let high = navigationState.flowEls.length - 1
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2)
+      const flowEl = navigationState.flowEls[mid]
+      const flowRect = flowEl.getBoundingClientRect()
+
+      if (viewportCenterY < flowRect.top) {
+        high = mid - 1
+        continue
+      }
+
+      if (viewportCenterY > flowRect.bottom) {
+        low = mid + 1
+        continue
+      }
+
+      if (flowEl.classList.contains('rm-page-break')) {
+        return resolveLeadingPageForFlowElement(flowEl)
+      }
+
+      return resolveCurrentPageFromSpacer(flowEl, viewportCenterY, resolveLeadingPageForFlowElement(flowEl))
+    }
+
+    if (low >= 0 && low < navigationState.flowEls.length) {
+      return resolveLeadingPageForFlowElement(navigationState.flowEls[low])
+    }
+
+    if (high >= 0 && high < navigationState.flowEls.length) {
+      return resolveTrailingPageForFlowElement(navigationState.flowEls[high])
+    }
+
+    return 1
+  }
+
+  if (navigationState.boundaryEls.length === 0) return 1
+
+  let low = 0
+  let high = navigationState.boundaryEls.length
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2)
+    const boundaryTop = navigationState.boundaryEls[mid].getBoundingClientRect().top
     if (viewportCenterY >= boundaryTop) {
-      passedBoundaries += 1
+      low = mid + 1
     } else {
-      break
+      high = mid
     }
   }
 
-  return Math.max(1, 1 + passedBoundaries)
+  return Math.max(1, 1 + low)
 }
 
 export function createLegacyDomPaginationLayoutService(): DocumentLayoutService {
@@ -164,10 +526,12 @@ export function createLegacyDomPaginationLayoutService(): DocumentLayoutService 
           activeRange,
           activePages
         }
+        const mountedPageBodyBounds = resolveMountedPageBodyBounds(cachedMeasurement.navigationState.pageBreakEls)
 
         return {
           layout: {
             ...cachedMeasurement.layout,
+            mountedPageBodyBounds,
             activeRange,
             activePages
           },
@@ -184,6 +548,9 @@ export function createLegacyDomPaginationLayoutService(): DocumentLayoutService 
         cachedMeasurement.layout.pages,
         cachedMeasurement.navigationState.activeRange
       )
+      cachedMeasurement.layout.mountedPageBodyBounds = resolveMountedPageBodyBounds(
+        cachedMeasurement.navigationState.pageBreakEls
+      )
       cachedViewportWindow = {
         activeRange: cachedMeasurement.navigationState.activeRange,
         activePages: cachedMeasurement.layout.activePages
@@ -194,14 +561,13 @@ export function createLegacyDomPaginationLayoutService(): DocumentLayoutService 
       return resolveCurrentPageFromLayoutNavigation(container, navigationState)
     },
     observeLayout({ editor, container, onInvalidated }) {
-      const root: HTMLElement | null = (editor?.view?.dom ??
-        container.querySelector('.ProseMirror')) as HTMLElement | null
-
       const onResize = () => {
         onInvalidated('viewport-resize')
       }
 
       globalThis.window.addEventListener('resize', onResize)
+
+      const root = resolveObservableLayoutRoot(editor, container)
 
       if (!root) {
         return () => {

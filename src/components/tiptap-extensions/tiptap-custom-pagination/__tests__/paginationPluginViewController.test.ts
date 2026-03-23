@@ -270,4 +270,94 @@ describe('runPaginationPluginViewUpdate', () => {
     expect(harness.callbacks.onScheduleDeferredRepagination).toHaveBeenCalledWith(5)
     expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
   })
+
+  it('does not schedule deferred repagination on external doc changes when there are no tables', () => {
+    const previousDoc = createDoc('prev')
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: previousDoc,
+        lastKnownSelectionHead: 3
+      },
+      currentDoc: createDoc('next'),
+      hasTables: false
+    })
+
+    runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 6,
+      shouldScheduleDeferredRepaginationOnUpdate: ({ hasTables, externalDocChange }) => hasTables && externalDocChange,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onScheduleDeferredRepagination).not.toHaveBeenCalled()
+  })
+
+  it('skips layout bound refresh on no-op updates', () => {
+    const sameDoc = createDoc('same')
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: sameDoc,
+        lastKnownSelectionHead: 10
+      },
+      currentDoc: sameDoc,
+      currentSelectionHead: 10
+    })
+
+    runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 5,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(harness.callbacks.onScheduleDeferredRepagination).not.toHaveBeenCalled()
+  })
+
+  it('does not inspect tables on no-op updates', () => {
+    const sameDoc = createDoc('same')
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: sameDoc,
+        lastKnownSelectionHead: 10
+      },
+      currentDoc: sameDoc,
+      currentSelectionHead: 10,
+      hasTables: true
+    })
+    const documentHasTables = jest.fn(() => true)
+
+    runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 5,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(documentHasTables).not.toHaveBeenCalled()
+  })
 })

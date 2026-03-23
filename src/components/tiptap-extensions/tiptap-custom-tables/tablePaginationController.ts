@@ -375,9 +375,7 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
 
       if (outcome.type === 'split') {
         const liveCandidate =
-          findOverflowingTableSplitCandidates(view, bodyBands).find(candidate =>
-            matchesSplitCandidateKey(candidate, outcome.candidateKey)
-          ) ?? null
+          splitCandidates.find(candidate => matchesSplitCandidateKey(candidate, outcome.candidateKey)) ?? null
         const chainState = getChainState(chainStateByKey, outcome.candidate.paginationChainKey)
 
         if (!liveCandidate) {
@@ -484,7 +482,7 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
       if (outcome.type === 'merge') {
         preferredSplitChainKey = null
 
-        if (findOverflowingTableSplitCandidates(view, bodyBands).length > 0) {
+        if (splitCandidates.length > 0) {
           logPaginationDebug('table-controller-outcome', {
             type: 'none',
             reason: 'merge-blocked-by-split-candidates',
@@ -499,9 +497,7 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
         }
 
         const liveCandidate =
-          findMergeableTableFragmentCandidates(view, bodyBands).find(candidate =>
-            matchesMergeCandidateKey(candidate, outcome.candidateKey)
-          ) ?? null
+          mergeCandidates.find(candidate => matchesMergeCandidateKey(candidate, outcome.candidateKey)) ?? null
         const chainState = getChainState(chainStateByKey, outcome.candidate.paginationChainKey)
 
         if (!liveCandidate) {

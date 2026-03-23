@@ -42,6 +42,54 @@ describe('findPaginationOverlayTarget', () => {
     expect(findPaginationOverlayTarget(editorDom, activeEditor)).toBe(editorDom.firstElementChild)
   })
 
+  it('resolves a later-page header from the previous mounted page shell', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const breaker = document.createElement('div')
+    const headerTarget = document.createElement('div')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmMountedStartPage = '2'
+    paginationRoot.dataset.rmMountedEndPage = '2'
+    pageBreak.className = 'rm-page-break'
+    pageBreak.dataset.rmPageNumber = '2'
+    breaker.className = 'breaker'
+    headerTarget.className = 'rm-page-header-region'
+    headerTarget.dataset.rmEditorType = 'header'
+    headerTarget.dataset.rmPageNumber = '3'
+    breaker.appendChild(headerTarget)
+    pageBreak.appendChild(breaker)
+    paginationRoot.appendChild(pageBreak)
+    editorDom.appendChild(paginationRoot)
+
+    expect(findPaginationOverlayTarget(editorDom, { type: 'header', pageNumber: 3 })).toBe(headerTarget)
+  })
+
+  it('resolves a footer from the current mounted page shell', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const breaker = document.createElement('div')
+    const footerTarget = document.createElement('div')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmMountedStartPage = '3'
+    paginationRoot.dataset.rmMountedEndPage = '3'
+    pageBreak.className = 'rm-page-break'
+    pageBreak.dataset.rmPageNumber = '3'
+    breaker.className = 'breaker'
+    footerTarget.className = 'rm-page-footer-region'
+    footerTarget.dataset.rmEditorType = 'footer'
+    footerTarget.dataset.rmPageNumber = '3'
+    breaker.appendChild(footerTarget)
+    pageBreak.appendChild(breaker)
+    paginationRoot.appendChild(pageBreak)
+    editorDom.appendChild(paginationRoot)
+
+    expect(findPaginationOverlayTarget(editorDom, { type: 'footer', pageNumber: 3 })).toBe(footerTarget)
+  })
+
   it('returns null when the target is missing', () => {
     const editorDom = document.createElement('div')
 

@@ -1,3 +1,5 @@
+import { findPaginationPageBreakElement } from './dom'
+
 export interface ActivePaginationOverlayEditor {
   type: 'header' | 'footer'
   pageNumber: number
@@ -5,10 +7,43 @@ export interface ActivePaginationOverlayEditor {
 
 type FrameScheduler = (callback: FrameRequestCallback) => number
 
+function resolveOverlayTargetWithinMountedShell(
+  editorDom: HTMLElement,
+  activeEditor: ActivePaginationOverlayEditor
+): HTMLElement | null {
+  if (activeEditor.type === 'header') {
+    if (activeEditor.pageNumber === 1) {
+      const firstPageHeader = editorDom.querySelector(
+        '.rm-first-page-header[data-rm-page-number="1"][data-rm-editor-type="header"]'
+      )
+      return firstPageHeader instanceof HTMLElement ? firstPageHeader : null
+    }
+
+    const previousPageBreak = findPaginationPageBreakElement(editorDom, activeEditor.pageNumber - 1)
+    const headerTarget = previousPageBreak?.querySelector(
+      `.rm-page-header-region[data-rm-page-number="${activeEditor.pageNumber}"][data-rm-editor-type="header"]`
+    )
+    return headerTarget instanceof HTMLElement ? headerTarget : null
+  }
+
+  const currentPageBreak = findPaginationPageBreakElement(editorDom, activeEditor.pageNumber)
+  const footerTarget = currentPageBreak?.querySelector(
+    `.rm-page-footer-region[data-rm-page-number="${activeEditor.pageNumber}"][data-rm-editor-type="footer"]`
+  )
+  return footerTarget instanceof HTMLElement ? footerTarget : null
+}
+
 export function findPaginationOverlayTarget(
   editorDom: ParentNode,
   activeEditor: ActivePaginationOverlayEditor
 ): HTMLElement | null {
+  if (editorDom instanceof HTMLElement) {
+    const mountedShellTarget = resolveOverlayTargetWithinMountedShell(editorDom, activeEditor)
+    if (mountedShellTarget) {
+      return mountedShellTarget
+    }
+  }
+
   const selector = `[data-rm-editor-type="${activeEditor.type}"][data-rm-page-number="${activeEditor.pageNumber}"]`
   const target = editorDom.querySelector(selector)
   return target instanceof HTMLElement ? target : null

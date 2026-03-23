@@ -5,7 +5,11 @@ import {
   type AddPagesMeasurementSnapshot,
   type PaginationMeasuredHeights
 } from './paginationPageCountPolicy'
-import { resolveDeferredRepaginationPreflight } from './paginationStabilizationPolicy'
+import {
+  resolveDeferredRepaginationPreflight,
+  resolveTablePaginationHeuristics,
+  shouldDeferTablePaginationEvaluation
+} from './paginationStabilizationPolicy'
 import type { PagesOptions, PagesStorage } from './types'
 import type { PageBodyMeasurementBand } from './utils'
 import type { TablePaginationControllerResult } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
@@ -108,17 +112,35 @@ export function runDeferredRepaginationEvaluationLoop(options: {
     options.setRunawayGrowthCapPageCount(runawayPageGrowthResolution.cappedPageCount)
     options.storage.pageCount = currentPageCount
 
+    const hasActiveEditor = options.storage.activeEditorType !== null
     const hasTables = options.documentHasTables(options.view)
-    const tableBodyBands = options.getBodyMeasurementBands(options.view.dom)
+    const shouldInspectTableLayout = hasTables && !hasActiveEditor
+    const tableBodyBands = shouldInspectTableLayout ? options.getBodyMeasurementBands(options.view.dom) : []
+    const tablePaginationHeuristics = resolveTablePaginationHeuristics(
+      runawayPageGrowthResolution.cappedPageCount,
+      hasActiveEditor
+    )
+    const deferTableEvaluation =
+      tablePaginationHeuristics.allowSplit &&
+      shouldDeferTablePaginationEvaluation({
+        hasTables,
+        currentPageCount,
+        bodyBandCount: tableBodyBands.length
+      })
+    const tableMeasurementsPending =
+      hasTables &&
+      (tablePaginationHeuristics.allowSplit || tablePaginationHeuristics.allowMerge) &&
+      !deferTableEvaluation &&
+      options.hasPendingTableMeasurements(options.view)
     const stabilizationAttemptsRemaining = options.getStabilizationAttemptsRemaining()
     const deferredRepaginationPreflight = (options.resolvePreflight ?? resolveDeferredRepaginationPreflight)({
       cappedPageCount: runawayPageGrowthResolution.cappedPageCount,
-      hasActiveEditor: options.storage.activeEditorType !== null,
+      hasActiveEditor,
       hasTables,
       currentPageCount,
       bodyBandCount: tableBodyBands.length,
       stabilizationAttemptsRemaining,
-      tableMeasurementsPending: options.hasPendingTableMeasurements(options.view)
+      tableMeasurementsPending
     })
 
     options.onLogDebug('deferred-repagination-evaluation', {

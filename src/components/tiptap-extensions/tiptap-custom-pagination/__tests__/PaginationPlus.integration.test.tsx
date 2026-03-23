@@ -31,6 +31,7 @@ import {
   resolveDeferredRepaginationMeasurementState,
   resolvePaginationMeasurementState
 } from '../paginationPageCountPolicy'
+import * as paginationUtils from '../utils'
 
 describe('resolveDeferredRepaginationOutcome', () => {
   it('refreshes first and only prefers a split on the next stable pass after page growth', () => {
@@ -385,6 +386,51 @@ describe('resolvePaginationMeasurementState', () => {
       lastMeasuredPageGap: null,
       nextAddPagesMeasurement: null
     })
+  })
+
+  it('reuses known page count from measured heights before consulting the DOM', () => {
+    const measured = {
+      headerHeights: new Map([[1, 32]]),
+      footerHeights: new Map([[1, 18]]),
+      knownPageCount: 7
+    }
+    const getExistingPageCountSpy = jest.spyOn(paginationUtils, 'getExistingPageCount')
+
+    expect(
+      resolvePaginationMeasurementState({
+        view: {} as never,
+        storage: { pageCount: 4 } as never,
+        runtimeOptions: {} as never,
+        previousAddPagesMeasurement: null,
+        cappedPageCount: null,
+        docChangedSinceLastUpdate: false,
+        resetDueToDocChange: false,
+        measureHeights: () => measured,
+        resolveMeasuredSnapshot: options => ({
+          rawMeasuredPageCount: options.currentPageCount,
+          measuredPageCount: options.currentPageCount,
+          pageCountDebugInfo: null,
+          runawayPageGrowthResolution: {
+            effectivePageCount: options.currentPageCount,
+            cappedPageCount: null,
+            suppressionActive: false,
+            runawayPageGrowthCheck: {
+              shouldStabilize: false,
+              actualGapShrink: null,
+              expectedGapShrink: null,
+              gapShrinkRatio: null
+            }
+          }
+        })
+      })
+    ).toMatchObject({
+      measured,
+      currentPageCount: 7,
+      rawMeasuredPageCount: 7,
+      measuredPageCount: 7
+    })
+
+    expect(getExistingPageCountSpy).not.toHaveBeenCalled()
   })
 })
 
@@ -1126,6 +1172,7 @@ describe('shouldScheduleDeferredRepaginationOnUpdate', () => {
     expect(
       shouldScheduleDeferredRepaginationOnUpdate({
         activeEditorType: null,
+        hasTables: true,
         externalDocChange: false,
         paginationOwnedDocChange: false,
         hydrationOwnedDocChange: true
@@ -1133,10 +1180,23 @@ describe('shouldScheduleDeferredRepaginationOnUpdate', () => {
     ).toBe(true)
   })
 
+  it('does not schedule deferred repagination for non-table documents', () => {
+    expect(
+      shouldScheduleDeferredRepaginationOnUpdate({
+        activeEditorType: null,
+        hasTables: false,
+        externalDocChange: true,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: false
+      })
+    ).toBe(false)
+  })
+
   it('does not schedule while a header or footer editor is active', () => {
     expect(
       shouldScheduleDeferredRepaginationOnUpdate({
         activeEditorType: 'header',
+        hasTables: true,
         externalDocChange: true,
         paginationOwnedDocChange: false,
         hydrationOwnedDocChange: true

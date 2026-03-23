@@ -5,6 +5,7 @@ import { calculatePageCount, getExistingPageCount, type PageCountDebugInfo } fro
 export interface PaginationMeasuredHeights {
   headerHeights: Map<number, number>
   footerHeights: Map<number, number>
+  knownPageCount?: number
 }
 
 export interface AddPagesMeasurementSnapshot {
@@ -272,6 +273,7 @@ export function resolvePaginationMeasurementState(options: {
   const measured = measureHeights()
   const currentPageCount =
     resolveCurrentPageCountOverride?.(view, storage) ??
+    measured.knownPageCount ??
     resolveCurrentKnownPageCount(getExistingPageCount(view), storage.pageCount)
   const measuredSnapshot = (resolveMeasuredSnapshotOverride ?? resolveMeasuredPageCountSnapshot)({
     view,

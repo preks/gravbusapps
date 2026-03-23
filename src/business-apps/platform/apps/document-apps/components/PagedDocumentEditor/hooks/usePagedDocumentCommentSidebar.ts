@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } fr
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import type { UseCommentsReturn } from '../../../shared/hooks/useComments'
 import { computePanelCommentAnchor, type PanelCommentAnchor } from '../../../utils/commentPanelAnchor'
+import { scrollInlineCommentRangeIntoView } from '../commentSidebarNavigation'
 import type { RightSidebar } from './usePagedDocumentInteractionDialogs'
+import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
 
 type InlineCommentMeta = {
   selectionStart?: number
@@ -13,6 +15,7 @@ type InlineCommentMeta = {
 export interface UsePagedDocumentCommentSidebarParams {
   editor: TiptapEditor | null
   activeEditor: TiptapEditor | null
+  layoutViewportModel?: Pick<DocumentLayoutViewportModel, 'mountedPageBodyBounds' | 'pagePositionRanges'>
   comments: UseCommentsReturn
   currentUserId?: string | null
   currentUserName?: string | null
@@ -105,46 +108,6 @@ export function findInlineCommentSelection(
   return single
 }
 
-export function scrollInlineCommentRangeIntoView(editor: { view: any }, from: number, to: number, commentId?: string) {
-  requestAnimationFrame(() => {
-    const view = editor.view
-    const domFallback = () => {
-      if (!commentId) return
-      globalThis.document
-        .querySelector(`[data-comment-id="${commentId}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-
-    let startCoords: { top: number; bottom: number }
-    let endCoords: { top: number; bottom: number }
-
-    try {
-      startCoords = view.coordsAtPos(from)
-      endCoords = view.coordsAtPos(to > from ? to - 1 : from)
-    } catch {
-      domFallback()
-      return
-    }
-
-    const viewport = view.dom.closest('.document-editor-viewport') as HTMLElement | null
-    if (!viewport) {
-      domFallback()
-      return
-    }
-
-    const top = Math.min(startCoords.top, endCoords.top)
-    const bottom = Math.max(startCoords.bottom, endCoords.bottom)
-    const viewportRect = viewport.getBoundingClientRect()
-    const padding = 24
-
-    if (top < viewportRect.top + padding) {
-      viewport.scrollTop -= viewportRect.top + padding - top
-    } else if (bottom > viewportRect.bottom - padding) {
-      viewport.scrollTop += bottom - (viewportRect.bottom - padding)
-    }
-  })
-}
-
 function isValidPanelCommentAnchor(anchor: PanelCommentAnchor | null): anchor is PanelCommentAnchor {
   const editor = anchor?.editor
   if (!anchor || !editor || editor.isDestroyed) return false
@@ -155,6 +118,7 @@ function isValidPanelCommentAnchor(anchor: PanelCommentAnchor | null): anchor is
 export function usePagedDocumentCommentSidebar({
   editor,
   activeEditor,
+  layoutViewportModel,
   comments,
   currentUserId,
   currentUserName,
@@ -307,9 +271,25 @@ export function usePagedDocumentCommentSidebar({
       const selection = findInlineCommentSelection(editor, commentId, comment)
       if (!selection) return
       editor.chain().setTextSelection(selection).focus().run()
-      setTimeout(() => scrollInlineCommentRangeIntoView(editor, selection.from, selection.to, commentId), 50)
+      setTimeout(
+        () =>
+          scrollInlineCommentRangeIntoView(
+            {
+              view: editor.view,
+              commands: editor.commands,
+              layoutHints: {
+                mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
+                pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
+              }
+            },
+            selection.from,
+            selection.to,
+            commentId
+          ),
+        50
+      )
     },
-    [comments.comments, editor]
+    [comments.comments, editor, layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges]
   )
 
   return {

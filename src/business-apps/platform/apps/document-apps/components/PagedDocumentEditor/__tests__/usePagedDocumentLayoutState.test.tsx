@@ -60,14 +60,36 @@ describe('usePagedDocumentLayoutState', () => {
       layoutVersion: 2,
       source: 'incremental-layout-engine',
       pageCount: 4,
-      pages: [{ pageNumber: 1 }, { pageNumber: 2 }, { pageNumber: 3 }, { pageNumber: 4 }],
+      pages: [
+        { pageNumber: 1, flowIndex: 0, mountedIndex: 0, isMounted: true },
+        { pageNumber: 2, flowIndex: 1, mountedIndex: 1, isMounted: true },
+        { pageNumber: 3, flowIndex: 2, mountedIndex: 2, isMounted: true },
+        { pageNumber: 4, flowIndex: 3, mountedIndex: 3, isMounted: true }
+      ],
+      flow: [
+        { flowIndex: 0, pageRange: { startPage: 1, endPage: 1 }, kind: 'page-break', isMounted: true },
+        { flowIndex: 1, pageRange: { startPage: 2, endPage: 2 }, kind: 'page-break', isMounted: true },
+        { flowIndex: 2, pageRange: { startPage: 3, endPage: 3 }, kind: 'page-break', isMounted: true },
+        { flowIndex: 3, pageRange: { startPage: 4, endPage: 4 }, kind: 'page-break', isMounted: true }
+      ],
+      mountedRange: { startPage: 1, endPage: 4 },
+      mountedPageBodyBounds: [
+        { pageNumber: 1, top: 0, bottom: 90, left: 10, right: 110 },
+        { pageNumber: 2, top: 100, bottom: 190, left: 10, right: 110 },
+        { pageNumber: 3, top: 200, bottom: 290, left: 10, right: 110 },
+        { pageNumber: 4, top: 300, bottom: 390, left: 10, right: 110 }
+      ],
       activeRange: { startPage: 2, endPage: 3 },
-      activePages: [{ pageNumber: 2 }, { pageNumber: 3 }]
+      activePages: [
+        { pageNumber: 2, flowIndex: 1, mountedIndex: 1, isMounted: true },
+        { pageNumber: 3, flowIndex: 2, mountedIndex: 2, isMounted: true }
+      ]
     }
     const layoutNavigationState: DocumentLayoutNavigationState = {
       boundaryEls: [],
       activeRange: { startPage: 2, endPage: 3 },
-      pageBreakEls: [document.createElement('div')]
+      pageBreakEls: [document.createElement('div')],
+      flowEls: []
     }
     const runtimeState: DocumentLayoutRuntimeState = {
       source: 'incremental-layout-engine',
@@ -89,6 +111,20 @@ describe('usePagedDocumentLayoutState', () => {
       activeRange: { startPage: 2, endPage: 3 },
       activePageNumbers: [2, 3],
       activePageCount: 2,
+      mountedRange: { startPage: 1, endPage: 4 },
+      mountedPageNumbers: [1, 2, 3, 4],
+      mountedPageCount: 4,
+      mountedPageBodyBounds: [
+        { pageNumber: 1, top: 0, bottom: 90, left: 10, right: 110 },
+        { pageNumber: 2, top: 100, bottom: 190, left: 10, right: 110 },
+        { pageNumber: 3, top: 200, bottom: 290, left: 10, right: 110 },
+        { pageNumber: 4, top: 300, bottom: 390, left: 10, right: 110 }
+      ],
+      activePageBodyBounds: [
+        { pageNumber: 2, top: 100, bottom: 190, left: 10, right: 110 },
+        { pageNumber: 3, top: 200, bottom: 290, left: 10, right: 110 }
+      ],
+      hasSparseFlow: false,
       isWindowed: true,
       containsCurrentPage: true,
       rangeLabel: '2-3',

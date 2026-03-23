@@ -12,7 +12,7 @@ import {
   resolvePaginationWindowRange,
   resolveWindowedPaginationRendererState
 } from './dom'
-import { getHeaderFooterExtensions } from './utils'
+import { getHeaderFooterExtensions, resolveViewportMountedPaginationRange } from './utils'
 
 type FrameScheduler = (callback: FrameRequestCallback) => number
 type FrameCanceler = (handle: number) => void
@@ -49,6 +49,131 @@ function resolveTotalPages(storage: PagesStorage) {
   return Math.max(1, storage.pageCount, storage.getPageCount())
 }
 
+function resolveDirectChildPaginationElement(editorDom: HTMLElement) {
+  for (let index = 0; index < editorDom.children.length; index += 1) {
+    const child = editorDom.children.item(index)
+    if (child instanceof HTMLElement && child.hasAttribute('data-rm-pagination')) {
+      return child
+    }
+  }
+
+  for (let index = 0; index < editorDom.children.length; index += 1) {
+    const child = editorDom.children.item(index)
+    if (!(child instanceof HTMLElement) || child.dataset.rmPaginationChrome !== 'true') {
+      continue
+    }
+
+    for (let childIndex = 0; childIndex < child.children.length; childIndex += 1) {
+      const nestedChild = child.children.item(childIndex)
+      if (nestedChild instanceof HTMLElement && nestedChild.hasAttribute('data-rm-pagination')) {
+        return nestedChild
+      }
+    }
+  }
+
+  return null
+}
+
+function resolveDirectChildFirstPageHeader(editorDom: HTMLElement) {
+  for (let index = 0; index < editorDom.children.length; index += 1) {
+    const child = editorDom.children.item(index)
+    if (
+      child instanceof HTMLElement &&
+      child.classList.contains('rm-first-page-header') &&
+      child.dataset.rmEditorType === 'header' &&
+      child.dataset.rmPageNumber === '1'
+    ) {
+      return child
+    }
+  }
+
+  for (let index = 0; index < editorDom.children.length; index += 1) {
+    const child = editorDom.children.item(index)
+    if (!(child instanceof HTMLElement) || child.dataset.rmPaginationChrome !== 'true') {
+      continue
+    }
+
+    for (let childIndex = 0; childIndex < child.children.length; childIndex += 1) {
+      const nestedChild = child.children.item(childIndex)
+      if (
+        nestedChild instanceof HTMLElement &&
+        nestedChild.classList.contains('rm-first-page-header') &&
+        nestedChild.dataset.rmEditorType === 'header' &&
+        nestedChild.dataset.rmPageNumber === '1'
+      ) {
+        return nestedChild
+      }
+    }
+  }
+
+  return null
+}
+
+function resolveSparseMountedRefreshPageNumbers(editorDom: HTMLElement, totalPages: number): number[] | null {
+  const paginationElement = resolveDirectChildPaginationElement(editorDom)
+  if (!(paginationElement instanceof HTMLElement)) {
+    return null
+  }
+
+  const mountedPageBreakCount = Array.from(paginationElement.children).filter(
+    child => child instanceof HTMLElement && child.classList.contains('rm-page-break')
+  ).length
+  const viewportMountedRange = resolveViewportMountedPaginationRange(editorDom)
+  const mountedStartPage = viewportMountedRange?.startPage ?? Number(paginationElement.dataset.rmMountedStartPage ?? '')
+  const mountedEndPage = viewportMountedRange?.endPage ?? Number(paginationElement.dataset.rmMountedEndPage ?? '')
+  const mountedRangeLength =
+    Number.isInteger(mountedStartPage) &&
+    Number.isInteger(mountedEndPage) &&
+    mountedStartPage > 0 &&
+    mountedEndPage >= mountedStartPage
+      ? mountedEndPage - mountedStartPage + 1
+      : null
+
+  if (
+    mountedRangeLength === null ||
+    (viewportMountedRange === null && mountedPageBreakCount !== mountedRangeLength) ||
+    (mountedStartPage === 1 && mountedEndPage >= totalPages)
+  ) {
+    return null
+  }
+
+  const pageNumbers = mountedStartPage > 1 ? [1] : []
+  const maxPageNumber = Math.min(totalPages, mountedEndPage + 1)
+  for (let pageNumber = mountedStartPage; pageNumber <= maxPageNumber; pageNumber += 1) {
+    pageNumbers.push(pageNumber)
+  }
+
+  return pageNumbers
+}
+
+function resolvePageBreakChromeRegions(pageBreak: HTMLElement) {
+  const breaker =
+    Array.from(pageBreak.children).find(
+      (child): child is HTMLElement => child instanceof HTMLElement && child.classList.contains('breaker')
+    ) ??
+    (pageBreak.querySelector('.breaker') as HTMLElement | null) ??
+    null
+  if (!breaker) {
+    return []
+  }
+
+  const regions: HTMLElement[] = []
+  for (let index = 0; index < breaker.children.length; index += 1) {
+    const child = breaker.children.item(index)
+    if (!(child instanceof HTMLElement)) {
+      continue
+    }
+
+    const type = child.dataset.rmEditorType
+    const pageNumber = Number(child.dataset.rmPageNumber ?? '')
+    if ((type === 'header' || type === 'footer') && Number.isInteger(pageNumber) && pageNumber > 0) {
+      regions.push(child)
+    }
+  }
+
+  return regions
+}
+
 export function createWindowedHeaderFooterChromeController(params?: {
   scheduleFrame?: FrameScheduler
   cancelScheduledFrame?: FrameCanceler
@@ -75,9 +200,7 @@ export function createWindowedHeaderFooterChromeController(params?: {
     const totalPages = resolveTotalPages(storage)
     const extensions = resolvePresentationExtensions(options)
     const activeRange = resolvePaginationWindowRange(editorDom)
-    const headerFooterRegions = Array.from(
-      editorDom.querySelectorAll('[data-rm-editor-type][data-rm-page-number]')
-    ).filter((element): element is HTMLElement => element instanceof HTMLElement)
+    const sparseMountedPageNumbers = resolveSparseMountedRefreshPageNumbers(editorDom, totalPages)
 
     const refreshRegion = (region: HTMLElement) => {
       const pageNumber = Number(region.dataset.rmPageNumber)
@@ -95,33 +218,103 @@ export function createWindowedHeaderFooterChromeController(params?: {
       })
     }
 
+    const getAllHeaderFooterRegions = () => {
+      const regions: HTMLElement[] = []
+      const firstPageHeader = resolveDirectChildFirstPageHeader(editorDom)
+      if (firstPageHeader) {
+        regions.push(firstPageHeader)
+      }
+
+      const paginationElement = resolveDirectChildPaginationElement(editorDom)
+      if (paginationElement) {
+        for (let index = 0; index < paginationElement.children.length; index += 1) {
+          const child = paginationElement.children.item(index)
+          if (!(child instanceof HTMLElement) || !child.classList.contains('rm-page-break')) {
+            continue
+          }
+
+          regions.push(...resolvePageBreakChromeRegions(child))
+        }
+      }
+
+      if (regions.length > 0) {
+        return regions
+      }
+
+      return Array.from(editorDom.querySelectorAll('[data-rm-editor-type][data-rm-page-number]')).filter(
+        (element): element is HTMLElement => element instanceof HTMLElement
+      )
+    }
+
+    const getHeaderFooterRegionsForPage = (pageNumber: number) => {
+      const regions: HTMLElement[] = []
+
+      if (pageNumber === 1) {
+        const firstPageHeader = editorDom.querySelector(
+          '.rm-first-page-header[data-rm-page-number="1"][data-rm-editor-type="header"]'
+        ) as HTMLElement | null
+        if (firstPageHeader) {
+          regions.push(firstPageHeader)
+        }
+      } else {
+        const previousPageBreak = findPaginationPageBreakElement(editorDom, pageNumber - 1)
+        const headerRegion = previousPageBreak?.querySelector(
+          `.rm-page-header-region[data-rm-page-number="${pageNumber}"][data-rm-editor-type="header"]`
+        ) as HTMLElement | null
+        if (headerRegion) {
+          regions.push(headerRegion)
+        }
+      }
+
+      const currentPageBreak = findPaginationPageBreakElement(editorDom, pageNumber)
+      const footerRegion = currentPageBreak?.querySelector(
+        `.rm-page-footer-region[data-rm-page-number="${pageNumber}"][data-rm-editor-type="footer"]`
+      ) as HTMLElement | null
+      if (footerRegion) {
+        regions.push(footerRegion)
+      }
+
+      if (regions.length > 0) {
+        return regions
+      }
+
+      return Array.from(
+        editorDom.querySelectorAll(`[data-rm-editor-type][data-rm-page-number="${pageNumber}"]`)
+      ).filter((element): element is HTMLElement => element instanceof HTMLElement)
+    }
+
     if (!activeRange) {
       clearDeferredRefresh()
-      headerFooterRegions.forEach(refreshRegion)
+      getAllHeaderFooterRegions().forEach(refreshRegion)
       return
     }
 
-    const activeRegions: HTMLElement[] = []
-    const deferredRegions: HTMLElement[] = []
+    clearDeferredRefresh()
+    const pageNumbersToRefreshImmediately =
+      sparseMountedPageNumbers ??
+      Array.from(
+        { length: activeRange.endPage - activeRange.startPage + 1 },
+        (_, index) => activeRange.startPage + index
+      )
+    const refreshedPageNumbers = new Set(pageNumbersToRefreshImmediately)
 
-    headerFooterRegions.forEach(region => {
-      const pageNumber = Number(region.dataset.rmPageNumber)
-      if (Number.isInteger(pageNumber) && pageNumber >= activeRange.startPage && pageNumber <= activeRange.endPage) {
-        activeRegions.push(region)
-        return
-      }
-
-      deferredRegions.push(region)
+    pageNumbersToRefreshImmediately.forEach(pageNumber => {
+      getHeaderFooterRegionsForPage(pageNumber).forEach(refreshRegion)
     })
 
-    activeRegions.forEach(refreshRegion)
-    clearDeferredRefresh()
-    if (deferredRegions.length === 0) return
+    if (activeRange.startPage <= 1 && activeRange.endPage >= totalPages) return
 
     deferredRefreshFrame = scheduleFrame(() => {
       deferredRefreshFrame = null
       if (shouldRunDeferredRefresh && !shouldRunDeferredRefresh()) return
-      deferredRegions.forEach(refreshRegion)
+      getAllHeaderFooterRegions().forEach(region => {
+        const pageNumber = Number(region.dataset.rmPageNumber)
+        if (Number.isInteger(pageNumber) && refreshedPageNumbers.has(pageNumber)) {
+          return
+        }
+
+        refreshRegion(region)
+      })
     })
   }
 
@@ -132,13 +325,21 @@ export function createWindowedHeaderFooterChromeController(params?: {
 }
 
 export function renderWindowedPaginationWrapper(params: WindowedRenderWrapperParams) {
+  const rendererState = resolveWindowedPaginationRendererState(params.editorDom)
+
   return createPaginationWrapper({
     totalPages: resolveTotalPages(params.storage),
     pageFormat: params.storage.pageFormat,
     options: params.options,
     storage: params.storage,
     extensions: resolvePresentationExtensions(params.options),
-    rendererState: resolveWindowedPaginationRendererState(params.editorDom),
+    rendererState: {
+      activeRange: rendererState.activeRange,
+      mountedRange: rendererState.mountedRange,
+      windowKey: rendererState.windowKey,
+      placeholderBreakerMetricsByPage: rendererState.placeholderBreakerMetricsByPage,
+      spacerHeightsByRange: rendererState.spacerHeightsByRange
+    },
     onOpenEditor: params.onOpenEditor
   })
 }

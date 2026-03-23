@@ -451,6 +451,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     })
 
     const activeEditor = (pagesEditorState.activeEditor as typeof editor | null) ?? editor
+    const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel, runtimeState } =
+      usePagedDocumentLayoutState({
+        editor,
+        editorContainerRef,
+        documentId: document?.id,
+        isYjsSynced,
+        layoutInputsKey
+      })
     const {
       replaceImagePosRef,
       selectedImageSidebar,
@@ -508,6 +516,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     } = usePagedDocumentInteractionDialogs({
       editor,
       activeEditor,
+      layoutViewportModel,
       documentId: document?.id,
       title,
       rightSidebar,
@@ -527,6 +536,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     } = usePagedDocumentCommentSidebar({
       editor,
       activeEditor,
+      layoutViewportModel,
       comments,
       currentUserId,
       currentUserName,
@@ -538,13 +548,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     useEffect(() => {
       setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
     }, [document?.id, setSelectedTableSidebarState])
-    const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel } = usePagedDocumentLayoutState({
-      editor,
-      editorContainerRef,
-      documentId: document?.id,
-      isYjsSynced,
-      layoutInputsKey
-    })
 
     usePagedDocumentEditorRuntimeEffects({
       editor,
@@ -776,6 +779,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
               <NavigationPanel
                 editor={editor}
+                layoutViewportModel={layoutViewportModel}
                 requestedTab={navigationPanelTab}
                 onClose={() => {
                   setShowNavigationPanel(false)
@@ -821,8 +825,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             data-layout-window-start={layoutViewportModel.activeRange.startPage}
             data-layout-window-end={layoutViewportModel.activeRange.endPage}
             data-layout-window-size={layoutViewportModel.activePageCount}
+            data-layout-mounted-start={layoutViewportModel.mountedRange?.startPage}
+            data-layout-mounted-end={layoutViewportModel.mountedRange?.endPage}
+            data-layout-mounted-size={layoutViewportModel.mountedPageCount}
             data-layout-window-key={layoutViewportModel.windowKey}
             data-layout-current-page-in-window={layoutViewportModel.containsCurrentPage ? 'true' : 'false'}
+            data-layout-runtime-status={runtimeState.status}
+            data-layout-runtime-generation={runtimeState.resolvedGeneration}
+            data-layout-runtime-reason={runtimeState.lastResolvedReason ?? ''}
           >
             <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
               <div

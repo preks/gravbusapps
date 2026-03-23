@@ -287,6 +287,41 @@ describe('tablePaginationController', () => {
     expect(mockedSplitTableAtRow).toHaveBeenCalledTimes(1)
   })
 
+  it('reuses the initial split candidate scan within a single evaluation', () => {
+    const controller = createTablePaginationController('owned')
+    const view = createView()
+    const splitCandidate = {
+      mode: 'split' as const,
+      tablePos: 22,
+      splitRowIndex: 4,
+      paginationChainKey: 'chain-single-scan-split',
+      paginationSplitId: null
+    }
+
+    mockedFindSplitCandidates.mockImplementation(() => [splitCandidate])
+    mockedFindMergeCandidates.mockReturnValue([])
+    mockedSplitTableAtRow.mockReturnValue(true)
+
+    expect(
+      controller.evaluate({
+        view,
+        currentPageCount: 2,
+        measuredPageCount: 2,
+        heuristics: { allowMerge: true, allowSplit: true },
+        bodyBands: []
+      })
+    ).toMatchObject({
+      type: 'dispatch',
+      progress: 'structural',
+      dispatchType: 'split',
+      candidateKey: 'chain-single-scan-split:split:22:4',
+      scheduleEvaluation: true
+    })
+
+    expect(mockedFindSplitCandidates).toHaveBeenCalledTimes(1)
+    expect(mockedFindMergeCandidates).not.toHaveBeenCalled()
+  })
+
   it('stops dispatching the same merge candidate again on the same stable page count', () => {
     const controller = createTablePaginationController('owned')
     const view = createView()
@@ -332,5 +367,39 @@ describe('tablePaginationController', () => {
     })
 
     expect(mockedMergeAdjacentPaginationTables).toHaveBeenCalledTimes(1)
+  })
+
+  it('reuses the initial merge candidate scan within a single evaluation', () => {
+    const controller = createTablePaginationController('owned')
+    const view = createView()
+    const mergeCandidate = {
+      paginationChainKey: 'chain-single-scan-merge',
+      paginationSplitId: 'pagination-split-single-scan',
+      firstTablePos: 20,
+      secondTablePos: 56
+    }
+
+    mockedFindSplitCandidates.mockReturnValue([])
+    mockedFindMergeCandidates.mockImplementation(() => [mergeCandidate])
+    mockedMergeAdjacentPaginationTables.mockReturnValue(true)
+
+    expect(
+      controller.evaluate({
+        view,
+        currentPageCount: 2,
+        measuredPageCount: 2,
+        heuristics: { allowMerge: true, allowSplit: true },
+        bodyBands: []
+      })
+    ).toMatchObject({
+      type: 'dispatch',
+      progress: 'structural',
+      dispatchType: 'merge',
+      candidateKey: 'chain-single-scan-merge:20:56',
+      scheduleEvaluation: true
+    })
+
+    expect(mockedFindSplitCandidates).toHaveBeenCalledTimes(1)
+    expect(mockedFindMergeCandidates).toHaveBeenCalledTimes(1)
   })
 })

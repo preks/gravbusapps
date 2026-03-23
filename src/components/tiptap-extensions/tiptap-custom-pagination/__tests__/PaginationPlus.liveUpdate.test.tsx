@@ -37,33 +37,23 @@ function appendBodyBand(root: HTMLElement, pageNumber: number, rect: Rect) {
 }
 
 function mockPaginationDom(root: HTMLElement, bodyBands: HTMLElement[], pageCount = bodyBands.length) {
-  const originalQuerySelectorAll = root.querySelectorAll.bind(root)
-  const originalQuerySelector = root.querySelector.bind(root)
   const paginationRoot = document.createElement('div')
+  paginationRoot.dataset.rmPagination = 'true'
+  paginationRoot.dataset.rmTotalPages = String(pageCount)
+  paginationRoot.dataset.rmMountedStartPage = '1'
+  paginationRoot.dataset.rmMountedEndPage = String(pageCount)
 
   for (let index = 0; index < pageCount; index += 1) {
-    paginationRoot.appendChild(document.createElement('div'))
+    const pageBreak = document.createElement('div')
+    pageBreak.className = 'rm-page-break'
+    pageBreak.dataset.rmPageNumber = String(index + 1)
+    paginationRoot.appendChild(pageBreak)
   }
 
-  Object.defineProperty(root, 'querySelectorAll', {
-    configurable: true,
-    value: (selector: string) => {
-      if (selector === '.rm-page-body-layer[data-rm-page-number]') {
-        return bodyBands as unknown as NodeListOf<Element>
-      }
-      return originalQuerySelectorAll(selector)
-    }
+  root.querySelectorAll('[data-rm-pagination], [data-rm-pagination-chrome], .rm-first-page-header').forEach(element => {
+    element.remove()
   })
-
-  Object.defineProperty(root, 'querySelector', {
-    configurable: true,
-    value: (selector: string) => {
-      if (selector === '[data-rm-pagination]') {
-        return paginationRoot
-      }
-      return originalQuerySelector(selector)
-    }
-  })
+  root.appendChild(paginationRoot)
 }
 
 function createEditor() {

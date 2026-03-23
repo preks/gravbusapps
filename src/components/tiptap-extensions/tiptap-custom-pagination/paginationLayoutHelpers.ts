@@ -7,7 +7,11 @@ import {
   getExistingPageCount,
   getPageLayoutHeights,
   getPageSpacerHeight,
-  measureHeaderFooterContentHeights
+  measureHeaderFooterContentHeights,
+  resolveDirectChildPaginationElement,
+  resolvePageBodyLayers,
+  resolveMountedPaginationPageNumbers,
+  resolveViewportMountedPaginationRange
 } from './utils'
 
 export interface PageBodyBand {
@@ -18,26 +22,170 @@ export interface PageBodyBand {
   bottom: number
 }
 
+interface PaginationHeightMeasurementCache {
+  headerHeights: Map<number, number>
+  footerHeights: Map<number, number>
+}
+
 type PaginationBodyClickResolution = { action: 'allow' } | { action: 'block' } | { action: 'set'; position: number }
 type SelectionNavigationDirection = 'forward' | 'backward' | null
 
+const paginationHeightMeasurementCache = new WeakMap<HTMLElement, PaginationHeightMeasurementCache>()
+const paginationStylePropertyCache = new WeakMap<HTMLElement, Map<string, string>>()
+const documentHasTablesCache = new WeakMap<PMNode, boolean>()
+
+function sortPageBodyBandsIfNeeded<T extends { pageNumber: number }>(bands: T[]): T[] {
+  for (let index = 1; index < bands.length; index += 1) {
+    if (bands[index - 1].pageNumber > bands[index].pageNumber) {
+      return [...bands].sort((left, right) => left.pageNumber - right.pageNumber)
+    }
+  }
+
+  return bands
+}
+
+function getOrCreatePaginationHeightMeasurementCache(editorDom: HTMLElement): PaginationHeightMeasurementCache {
+  const existing = paginationHeightMeasurementCache.get(editorDom)
+  if (existing) {
+    return existing
+  }
+
+  const created: PaginationHeightMeasurementCache = {
+    headerHeights: new Map(),
+    footerHeights: new Map()
+  }
+  paginationHeightMeasurementCache.set(editorDom, created)
+  return created
+}
+
+function getOrCreatePaginationStylePropertyCache(editorDom: HTMLElement): Map<string, string> {
+  const existing = paginationStylePropertyCache.get(editorDom)
+  if (existing) {
+    return existing
+  }
+
+  const created = new Map<string, string>()
+  paginationStylePropertyCache.set(editorDom, created)
+  return created
+}
+
+function setCachedStyleProperty(editorDom: HTMLElement, name: string, value: string) {
+  const stylePropertyCache = getOrCreatePaginationStylePropertyCache(editorDom)
+  if (stylePropertyCache.get(name) === value) {
+    return
+  }
+
+  editorDom.style.setProperty(name, value)
+  stylePropertyCache.set(name, value)
+}
+
+function resolveSparseMountedMeasurementPageNumbers(editorDom: HTMLElement, pageCount: number): number[] | null {
+  const paginationRoot = resolveDirectChildPaginationElement(editorDom)
+  if (!(paginationRoot instanceof HTMLElement)) {
+    return null
+  }
+
+  const mountedPageBreakCount = Array.from(paginationRoot.children).filter(
+    child => child instanceof HTMLElement && child.classList.contains('rm-page-break')
+  ).length
+  const totalPages = Number(paginationRoot.dataset.rmTotalPages ?? '')
+  const viewportMountedRange = resolveViewportMountedPaginationRange(editorDom)
+  const mountedStartPage = viewportMountedRange?.startPage ?? Number(paginationRoot.dataset.rmMountedStartPage ?? '')
+  const mountedEndPage = viewportMountedRange?.endPage ?? Number(paginationRoot.dataset.rmMountedEndPage ?? '')
+  const mountedRangeLength =
+    Number.isInteger(mountedStartPage) &&
+    Number.isInteger(mountedEndPage) &&
+    mountedStartPage > 0 &&
+    mountedEndPage >= mountedStartPage
+      ? mountedEndPage - mountedStartPage + 1
+      : null
+
+  const hasSparseMountedRange =
+    mountedRangeLength !== null &&
+    (viewportMountedRange !== null || mountedPageBreakCount === mountedRangeLength) &&
+    (mountedStartPage > 1 || (Number.isInteger(totalPages) && totalPages > 0 && mountedEndPage < totalPages))
+
+  if (!hasSparseMountedRange) {
+    return null
+  }
+
+  const maxPageNumber =
+    Number.isInteger(totalPages) && totalPages > 0
+      ? Math.min(pageCount, totalPages, mountedEndPage + 1)
+      : Math.min(pageCount, mountedEndPage + 1)
+  const pageNumbers = mountedStartPage > 1 ? [1] : []
+  for (let pageNumber = mountedStartPage; pageNumber <= maxPageNumber; pageNumber += 1) {
+    pageNumbers.push(pageNumber)
+  }
+
+  return pageNumbers
+}
+
+function resolveWindowedMeasurementPageNumbers(editorDom: HTMLElement, pageCount: number): number[] {
+  const viewport = editorDom.closest('.document-editor-viewport') as HTMLElement | null
+  if (!viewport || viewport.dataset.layoutWindowMode !== 'windowed') {
+    return resolveMountedPaginationPageNumbers(editorDom).filter(pageNumber => pageNumber <= pageCount)
+  }
+
+  const sparseMountedPageNumbers = resolveSparseMountedMeasurementPageNumbers(editorDom, pageCount)
+  if (sparseMountedPageNumbers) {
+    return sparseMountedPageNumbers
+  }
+
+  const startPage = Number(viewport.dataset.layoutWindowStart ?? '')
+  const endPage = Number(viewport.dataset.layoutWindowEnd ?? '')
+  if (!Number.isInteger(startPage) || !Number.isInteger(endPage) || startPage < 1 || endPage < startPage) {
+    return resolveMountedPaginationPageNumbers(editorDom).filter(pageNumber => pageNumber <= pageCount)
+  }
+
+  const maxPageNumber = Math.min(endPage, pageCount)
+  const pageNumbers = startPage > 1 ? [1] : []
+  for (let pageNumber = startPage; pageNumber <= maxPageNumber; pageNumber += 1) {
+    pageNumbers.push(pageNumber)
+  }
+
+  return pageNumbers
+}
+
 export function applyMeasuredPageHeightsToView(view: EditorView, storage: PagesStorage, options: PagesOptions) {
   const pageCount = resolveCurrentKnownPageCount(getExistingPageCount(view), storage.pageCount)
-  const measured = measureHeaderFooterContentHeights(view.dom, pageCount, storage.pageFormat, storage)
+  const pageNumbersToMeasure = resolveWindowedMeasurementPageNumbers(view.dom, pageCount)
+  const cachedMeasuredHeights = getOrCreatePaginationHeightMeasurementCache(view.dom)
+  const measuredSubset = measureHeaderFooterContentHeights(
+    view.dom,
+    pageCount,
+    storage.pageFormat,
+    storage,
+    pageNumbersToMeasure
+  )
+
+  measuredSubset.headerHeights.forEach((height, pageNumber) => {
+    cachedMeasuredHeights.headerHeights.set(pageNumber, height)
+  })
+  measuredSubset.footerHeights.forEach((height, pageNumber) => {
+    cachedMeasuredHeights.footerHeights.set(pageNumber, height)
+  })
+
+  const measured = {
+    headerHeights: cachedMeasuredHeights.headerHeights,
+    footerHeights: cachedMeasuredHeights.footerHeights,
+    knownPageCount: pageCount
+  }
   let smallestBodyHeight = Number.POSITIVE_INFINITY
 
-  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+  pageNumbersToMeasure.forEach(pageNumber => {
     const headerHeight = measured.headerHeights.get(pageNumber) ?? options.headerHeight
     const footerHeight = measured.footerHeights.get(pageNumber) ?? options.footerHeight
     const layout = getPageLayoutHeights(storage.pageFormat, storage, headerHeight, footerHeight)
 
     smallestBodyHeight = Math.min(smallestBodyHeight, layout.bodyHeight)
-    view.dom.style.setProperty(`--rm-page-body-${pageNumber}`, `${layout.bodyHeight}px`)
-    view.dom.style.setProperty(
+    setCachedStyleProperty(view.dom, `--rm-page-body-${pageNumber}`, `${layout.bodyHeight}px`)
+    setCachedStyleProperty(
+      view.dom,
       `--rm-page-content-${pageNumber}`,
       `${getPageSpacerHeight(storage.pageFormat, storage, pageNumber, headerHeight, footerHeight)}px`
     )
-  }
+  })
 
   const firstPageHeaderHeight = measured.headerHeights.get(1) ?? options.headerHeight
   const firstPageFooterHeight = measured.footerHeights.get(1) ?? options.footerHeight
@@ -45,25 +193,26 @@ export function applyMeasuredPageHeightsToView(view: EditorView, storage: PagesS
   const generalHeaderHeight = measured.headerHeights.get(generalPageNumber) ?? options.headerHeight
   const generalFooterHeight = measured.footerHeights.get(generalPageNumber) ?? options.footerHeight
 
-  view.dom.style.setProperty(
+  setCachedStyleProperty(
+    view.dom,
     '--rm-page-content-first',
     `${getPageSpacerHeight(storage.pageFormat, storage, 1, firstPageHeaderHeight, firstPageFooterHeight)}px`
   )
-  view.dom.style.setProperty(
+  setCachedStyleProperty(
+    view.dom,
     '--rm-page-content-general',
     `${getPageSpacerHeight(storage.pageFormat, storage, generalPageNumber, generalHeaderHeight, generalFooterHeight)}px`
   )
 
   if (Number.isFinite(smallestBodyHeight)) {
-    view.dom.style.setProperty('--rm-max-content-child-height', `${Math.max(1, smallestBodyHeight - 10)}px`)
+    setCachedStyleProperty(view.dom, '--rm-max-content-child-height', `${Math.max(1, smallestBodyHeight - 10)}px`)
   }
 
   return measured
 }
 
 export function getPageBodyBands(editorDom: HTMLElement): PageBodyBand[] {
-  return Array.from(editorDom.querySelectorAll('.rm-page-body-layer[data-rm-page-number]'))
-    .filter((element): element is HTMLElement => element instanceof HTMLElement)
+  const bodyBands = resolvePageBodyLayers(editorDom)
     .map(element => {
       const rect = element.getBoundingClientRect()
       return {
@@ -75,10 +224,16 @@ export function getPageBodyBands(editorDom: HTMLElement): PageBodyBand[] {
       }
     })
     .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
-    .sort((left, right) => left.pageNumber - right.pageNumber)
+
+  return sortPageBodyBandsIfNeeded(bodyBands)
 }
 
 export function documentHasTables(doc: PMNode) {
+  const cached = documentHasTablesCache.get(doc)
+  if (cached !== undefined) {
+    return cached
+  }
+
   let hasTables = false
 
   doc.descendants(node => {
@@ -90,6 +245,7 @@ export function documentHasTables(doc: PMNode) {
     return true
   })
 
+  documentHasTablesCache.set(doc, hasTables)
   return hasTables
 }
 
@@ -125,6 +281,61 @@ function getCaretRectAtPosition(view: EditorView, position: number) {
   } catch {
     return null
   }
+}
+
+function resolveBodyBandSearch(bodyBands: PageBodyBand[], offsetY: number) {
+  let low = 0
+  let high = bodyBands.length - 1
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2)
+    const bodyBand = bodyBands[mid]
+    if (offsetY < bodyBand.top) {
+      high = mid - 1
+      continue
+    }
+
+    if (offsetY > bodyBand.bottom) {
+      low = mid + 1
+      continue
+    }
+
+    return {
+      containingIndex: mid,
+      insertionIndex: mid
+    }
+  }
+
+  return {
+    containingIndex: null,
+    insertionIndex: low
+  }
+}
+
+function resolveBodyBandAtOffset(bodyBands: PageBodyBand[], offsetY: number): PageBodyBand | null {
+  const { containingIndex } = resolveBodyBandSearch(bodyBands, offsetY)
+  return containingIndex === null ? null : (bodyBands[containingIndex] ?? null)
+}
+
+function resolveCaretContainingBodyBand(
+  bodyBands: PageBodyBand[],
+  caretRect: ReturnType<EditorView['coordsAtPos']>
+): PageBodyBand | null {
+  const caretCenterY = (caretRect.top + caretRect.bottom) / 2
+  const { containingIndex, insertionIndex } = resolveBodyBandSearch(bodyBands, caretCenterY)
+  const candidateIndexes =
+    containingIndex === null
+      ? [insertionIndex - 1, insertionIndex]
+      : [containingIndex, containingIndex - 1, containingIndex + 1]
+
+  for (const index of candidateIndexes) {
+    const bodyBand = bodyBands[index]
+    if (bodyBand && isCaretRectWithinBand(caretRect, bodyBand)) {
+      return bodyBand
+    }
+  }
+
+  return null
 }
 
 function resolveDocumentPosition(view: EditorView, position: number) {
@@ -275,13 +486,13 @@ export function resolvePaginationBodyClick(
   const bodyBands = getPageBodyBands(view.dom)
   if (!bodyBands.length) return { action: 'allow' }
 
-  const firstPageBodyBand = bodyBands.find(band => band.pageNumber === 1) ?? bodyBands[0] ?? null
+  const firstPageBodyBand = bodyBands[0] ?? null
   const emptyFirstParagraphPosition = resolveEmptyFirstParagraphClick(view, firstPageBodyBand, clientX, clientY)
   if (emptyFirstParagraphPosition != null) {
     return { action: 'set', position: emptyFirstParagraphPosition }
   }
 
-  const bodyBand = bodyBands.find(band => clientY >= band.top && clientY <= band.bottom)
+  const bodyBand = resolveBodyBandAtOffset(bodyBands, clientY)
   if (!bodyBand) return { action: 'block' }
 
   const initialPosition = getPositionAtCoords(view, clientX, clientY)
@@ -369,27 +580,25 @@ function resolveOverflowTargetBodyBand(
   direction: SelectionNavigationDirection
 ): PageBodyBand | null {
   const caretCenterY = (caretRect.top + caretRect.bottom) / 2
-  let previousBodyBand: PageBodyBand | null = null
+  const { containingIndex, insertionIndex } = resolveBodyBandSearch(bodyBands, caretCenterY)
 
-  for (const bodyBand of bodyBands) {
-    if (caretCenterY < bodyBand.top) {
-      return direction === 'backward' && previousBodyBand ? previousBodyBand : bodyBand
+  if (containingIndex !== null) {
+    if (containingIndex >= bodyBands.length - 1) {
+      return bodyBands[bodyBands.length - 1] ?? null
     }
 
-    previousBodyBand = bodyBand
+    return direction === 'backward' ? (bodyBands[containingIndex] ?? null) : (bodyBands[containingIndex + 1] ?? null)
   }
 
-  for (let index = 0; index < bodyBands.length - 1; index += 1) {
-    if (caretCenterY <= bodyBands[index].bottom) {
-      return direction === 'backward' ? bodyBands[index] : bodyBands[index + 1]
-    }
+  if (insertionIndex <= 0) {
+    return bodyBands[0] ?? null
   }
 
-  if (direction === 'forward' && previousBodyBand && caretCenterY > previousBodyBand.bottom) {
-    return null
+  if (insertionIndex >= bodyBands.length) {
+    return direction === 'forward' ? null : (bodyBands[bodyBands.length - 1] ?? null)
   }
 
-  return bodyBands[bodyBands.length - 1]
+  return direction === 'backward' ? (bodyBands[insertionIndex - 1] ?? null) : (bodyBands[insertionIndex] ?? null)
 }
 
 export function resolvePaginationSelectionBodyOverflow(
@@ -404,7 +613,7 @@ export function resolvePaginationSelectionBodyOverflow(
   const caretRect = getCaretRectAtPosition(view, view.state.selection.head)
   if (!caretRect) return null
 
-  if (bodyBands.some(bodyBand => isCaretRectWithinBand(caretRect, bodyBand))) {
+  if (resolveCaretContainingBodyBand(bodyBands, caretRect)) {
     return null
   }
 

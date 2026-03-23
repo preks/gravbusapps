@@ -1,5 +1,6 @@
 import {
   applyWindowAttributesToPageBreak,
+  createPageBreakElement,
   createHeaderFooterRegion,
   createPaginationWrapper,
   ensurePagesStyles,
@@ -132,7 +133,7 @@ describe('refreshHeaderFooterRegionDisplay', () => {
 })
 
 describe('createPaginationWrapper', () => {
-  it('creates lightweight placeholder breakers for off-window pages when height hints exist', () => {
+  it('collapses off-window page runs into spacers around the mounted shell range', () => {
     const options = createTestOptions()
     const storage = createStorageFromOptions(options)
     const wrapper = createPaginationWrapper({
@@ -153,49 +154,49 @@ describe('createPaginationWrapper', () => {
               nextHeaderHeight: 24
             }
           ]
-        ])
+        ]),
+        spacerHeightsByRange: new Map()
       }
     })
 
     const firstBreaker = wrapper.children[0]?.querySelector('.breaker') as HTMLElement
-    const secondBreaker = wrapper.children[1]?.querySelector('.breaker') as HTMLElement
+    const trailingSpacer = wrapper.children[1] as HTMLElement
 
+    expect(wrapper.dataset.rmTotalPages).toBe('3')
+    expect(wrapper.dataset.rmMountedStartPage).toBe('1')
+    expect(wrapper.dataset.rmMountedEndPage).toBe('1')
+    expect(wrapper.querySelectorAll('.rm-page-break')).toHaveLength(1)
+    expect(wrapper.querySelectorAll('.rm-page-spacer')).toHaveLength(1)
     expect(firstBreaker.childNodes.length).toBeGreaterThan(0)
-    expect(secondBreaker.dataset.rmBreakerMode).toBe('placeholder')
-    expect(secondBreaker.childNodes).toHaveLength(0)
-    expect(secondBreaker.style.height).toBe('144px')
-    expect(secondBreaker.dataset.rmBreakerFooterHeight).toBe('18')
-    expect(secondBreaker.dataset.rmBreakerNextHeaderHeight).toBe('24')
+    expect(trailingSpacer.className).toBe('rm-page-spacer')
+    expect(trailingSpacer.dataset.rmPageRangeStart).toBe('2')
+    expect(trailingSpacer.dataset.rmPageRangeEnd).toBe('3')
+    expect(trailingSpacer.dataset.rmPageSegmentHeights).toBeTruthy()
+    expect(Number.parseFloat(trailingSpacer.style.height)).toBeGreaterThan(144)
   })
 
   it('hydrates a placeholder breaker into full chrome in place', () => {
     const options = createTestOptions()
     const storage = createStorageFromOptions(options)
-    const wrapper = createPaginationWrapper({
+    const pageBreak = createPageBreakElement({
+      pageNumber: 2,
       totalPages: 3,
       pageFormat: resolvePageFormat(options.pageFormat),
       options,
       storage,
       extensions: [],
-      rendererState: {
-        activeRange: { startPage: 1, endPage: 1 },
-        windowKey: 'window-1',
-        placeholderBreakerMetricsByPage: new Map([
-          [
-            2,
-            {
-              breakerHeight: 144,
-              footerHeight: 18,
-              nextHeaderHeight: 24
-            }
-          ]
-        ])
+      activeRange: { startPage: 1, endPage: 1 },
+      placeholderBreakerMetrics: {
+        breakerHeight: 144,
+        footerHeight: 18,
+        nextHeaderHeight: 24
       }
     })
 
-    const secondPageBreak = wrapper.children[1] as HTMLElement
+    expect(pageBreak.dataset.rmPageNumber).toBe('2')
+
     const didHydrate = hydratePageBreakElement({
-      pageContainer: secondPageBreak,
+      pageContainer: pageBreak,
       pageNumber: 2,
       totalPages: 3,
       pageFormat: resolvePageFormat(options.pageFormat),
@@ -204,12 +205,74 @@ describe('createPaginationWrapper', () => {
       extensions: []
     })
 
-    const secondBreaker = secondPageBreak.querySelector('.breaker') as HTMLElement
+    const secondBreaker = pageBreak.querySelector('.breaker') as HTMLElement
 
     expect(didHydrate).toBe(true)
     expect(secondBreaker.dataset.rmBreakerMode).toBeUndefined()
     expect(secondBreaker.querySelector('.rm-page-footer-region[data-rm-page-number="2"]')).not.toBeNull()
     expect(secondBreaker.querySelector('.rm-page-header-region[data-rm-page-number="3"]')).not.toBeNull()
+  })
+
+  it('renders leading and trailing spacers when the mounted window sits in the middle', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    const wrapper = createPaginationWrapper({
+      totalPages: 5,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: [],
+      rendererState: {
+        activeRange: { startPage: 3, endPage: 3 },
+        windowKey: 'window-3',
+        placeholderBreakerMetricsByPage: new Map(),
+        spacerHeightsByRange: new Map()
+      }
+    })
+
+    const pageBreaks = wrapper.querySelectorAll('.rm-page-break')
+    const spacers = wrapper.querySelectorAll('.rm-page-spacer')
+
+    expect(wrapper.dataset.rmMountedStartPage).toBe('2')
+    expect(wrapper.dataset.rmMountedEndPage).toBe('3')
+    expect(pageBreaks).toHaveLength(2)
+    expect(spacers).toHaveLength(2)
+    expect((spacers[0] as HTMLElement).dataset.rmPageRangeStart).toBe('1')
+    expect((spacers[0] as HTMLElement).dataset.rmPageRangeEnd).toBe('1')
+    expect((spacers[1] as HTMLElement).dataset.rmPageRangeStart).toBe('4')
+    expect((spacers[1] as HTMLElement).dataset.rmPageRangeEnd).toBe('5')
+  })
+
+  it('prefers explicit mounted-range metadata over the active-range fallback', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    const wrapper = createPaginationWrapper({
+      totalPages: 5,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: [],
+      rendererState: {
+        activeRange: { startPage: 3, endPage: 3 },
+        mountedRange: { startPage: 2, endPage: 4 },
+        windowKey: 'window-3',
+        placeholderBreakerMetricsByPage: new Map(),
+        spacerHeightsByRange: new Map()
+      }
+    })
+
+    const pageBreaks = wrapper.querySelectorAll('.rm-page-break')
+    const spacers = wrapper.querySelectorAll('.rm-page-spacer')
+
+    expect(wrapper.dataset.rmMountedStartPage).toBe('2')
+    expect(wrapper.dataset.rmMountedEndPage).toBe('4')
+    expect(pageBreaks).toHaveLength(3)
+    expect(spacers).toHaveLength(2)
+    expect((pageBreaks[2]?.querySelector('.breaker') as HTMLElement | null)?.dataset.rmBreakerMode).toBeUndefined()
+    expect((spacers[0] as HTMLElement).dataset.rmPageRangeStart).toBe('1')
+    expect((spacers[0] as HTMLElement).dataset.rmPageRangeEnd).toBe('1')
+    expect((spacers[1] as HTMLElement).dataset.rmPageRangeStart).toBe('5')
+    expect((spacers[1] as HTMLElement).dataset.rmPageRangeEnd).toBe('5')
   })
 })
 
@@ -217,16 +280,26 @@ describe('windowed pagination renderer state', () => {
   it('resolves window range and placeholder metrics from the existing pagination DOM', () => {
     const viewport = document.createElement('div')
     const editorDom = document.createElement('div')
+    const paginationChrome = document.createElement('div')
     const paginationRoot = document.createElement('div')
     const pageBreak = document.createElement('div')
     const page = document.createElement('div')
     const breaker = document.createElement('div')
+    const querySelectorSpy = jest.spyOn(editorDom, 'querySelector')
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+    const pageBreakQuerySelectorSpy = jest.spyOn(pageBreak, 'querySelector')
 
     viewport.className = 'document-editor-viewport'
+    viewport.dataset.layoutWindowMode = 'windowed'
     viewport.dataset.layoutWindowStart = '2'
     viewport.dataset.layoutWindowEnd = '4'
+    viewport.dataset.layoutMountedStart = '2'
+    viewport.dataset.layoutMountedEnd = '2'
     viewport.dataset.layoutWindowKey = 'window-42'
+    paginationChrome.dataset.rmPaginationChrome = 'true'
     paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmMountedStartPage = '2'
+    paginationRoot.dataset.rmMountedEndPage = '2'
     pageBreak.className = 'rm-page-break'
     page.className = 'page'
     page.dataset.rmPageNumber = '2'
@@ -238,12 +311,15 @@ describe('windowed pagination renderer state', () => {
 
     pageBreak.append(page, breaker)
     paginationRoot.appendChild(pageBreak)
-    editorDom.appendChild(paginationRoot)
+    paginationChrome.appendChild(paginationRoot)
+    editorDom.appendChild(paginationChrome)
     viewport.appendChild(editorDom)
     document.body.appendChild(viewport)
 
     expect(resolvePaginationWindowRange(editorDom)).toEqual({ startPage: 2, endPage: 4 })
     expect(findPaginationPageBreakElement(editorDom, 2)).toBe(pageBreak)
+    querySelectorAllSpy.mockClear()
+    pageBreakQuerySelectorSpy.mockClear()
     expect(resolvePageBreakerPlaceholderMetrics(editorDom).get(2)).toEqual({
       breakerHeight: 144,
       footerHeight: 18,
@@ -251,6 +327,7 @@ describe('windowed pagination renderer state', () => {
     })
     expect(resolveWindowedPaginationRendererState(editorDom)).toEqual({
       activeRange: { startPage: 2, endPage: 4 },
+      mountedRange: { startPage: 2, endPage: 2 },
       windowKey: 'window-42',
       placeholderBreakerMetricsByPage: new Map([
         [
@@ -261,8 +338,122 @@ describe('windowed pagination renderer state', () => {
             nextHeaderHeight: 24
           }
         ]
-      ])
+      ]),
+      spacerHeightsByRange: new Map()
     })
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('[data-rm-pagination] > .rm-page-break')
+    expect(querySelectorSpy).not.toHaveBeenCalledWith('[data-rm-pagination]')
+    expect(pageBreakQuerySelectorSpy).not.toHaveBeenCalledWith(
+      '[data-rm-editor-type="footer"][data-rm-page-number="2"]'
+    )
+    expect(pageBreakQuerySelectorSpy).not.toHaveBeenCalledWith(
+      '[data-rm-editor-type="header"][data-rm-page-number="3"]'
+    )
+  })
+
+  it('ignores viewport window bounds when the viewport is in full mode', () => {
+    const viewport = document.createElement('div')
+    const editorDom = document.createElement('div')
+
+    viewport.className = 'document-editor-viewport'
+    viewport.dataset.layoutWindowMode = 'full'
+    viewport.dataset.layoutWindowStart = '2'
+    viewport.dataset.layoutWindowEnd = '4'
+    viewport.appendChild(editorDom)
+    document.body.appendChild(viewport)
+
+    expect(resolvePaginationWindowRange(editorDom)).toBeNull()
+  })
+
+  it('reads existing spacer heights into the renderer state', () => {
+    const viewport = document.createElement('div')
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const spacer = document.createElement('div')
+
+    viewport.className = 'document-editor-viewport'
+    viewport.dataset.layoutWindowMode = 'windowed'
+    viewport.dataset.layoutWindowStart = '1'
+    viewport.dataset.layoutWindowEnd = '1'
+    viewport.dataset.layoutMountedStart = '1'
+    viewport.dataset.layoutMountedEnd = '1'
+    viewport.appendChild(editorDom)
+    document.body.appendChild(viewport)
+
+    paginationRoot.dataset.rmPagination = 'true'
+    spacer.className = 'rm-page-spacer'
+    spacer.dataset.rmPageRangeStart = '2'
+    spacer.dataset.rmPageRangeEnd = '4'
+    spacer.dataset.rmPageRangeHeight = '1234'
+    spacer.style.height = '1234px'
+    paginationRoot.appendChild(spacer)
+    editorDom.appendChild(paginationRoot)
+
+    expect(resolveWindowedPaginationRendererState(editorDom).spacerHeightsByRange).toEqual(new Map([['2-4', 1234]]))
+  })
+
+  it('uses ordered pagination children when resolving a page break', () => {
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPageBreak = document.createElement('div')
+    const firstPage = document.createElement('div')
+    const secondPageBreak = document.createElement('div')
+    const secondPage = document.createElement('div')
+    const querySelectorAllSpy = jest.spyOn(editorDom, 'querySelectorAll')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmTotalPages = '2'
+    paginationRoot.dataset.rmMountedStartPage = '1'
+    paginationRoot.dataset.rmMountedEndPage = '2'
+    firstPageBreak.className = 'rm-page-break'
+    firstPage.className = 'page'
+    firstPage.dataset.rmPageNumber = '1'
+    secondPageBreak.className = 'rm-page-break'
+    secondPage.className = 'page'
+    secondPage.dataset.rmPageNumber = '2'
+
+    firstPageBreak.appendChild(firstPage)
+    secondPageBreak.appendChild(secondPage)
+    paginationRoot.append(firstPageBreak, secondPageBreak)
+    editorDom.appendChild(paginationRoot)
+
+    expect(findPaginationPageBreakElement(editorDom, 2)).toBe(secondPageBreak)
+    expect(querySelectorAllSpy).not.toHaveBeenCalledWith('[data-rm-pagination] > .rm-page-break')
+  })
+
+  it('uses viewport mounted-range metadata when direct shell DOM is still catching up', () => {
+    const viewport = document.createElement('div')
+    const editorDom = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPageBreak = document.createElement('div')
+    const firstPage = document.createElement('div')
+    const secondPageBreak = document.createElement('div')
+    const secondPage = document.createElement('div')
+    const firstPageBreakQuerySelectorSpy = jest.spyOn(firstPageBreak, 'querySelector')
+    const secondPageBreakQuerySelectorSpy = jest.spyOn(secondPageBreak, 'querySelector')
+
+    viewport.className = 'document-editor-viewport'
+    viewport.dataset.layoutMountedStart = '2'
+    viewport.dataset.layoutMountedEnd = '4'
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmMountedStartPage = '2'
+    paginationRoot.dataset.rmMountedEndPage = '4'
+    firstPageBreak.className = 'rm-page-break'
+    firstPage.className = 'page'
+    firstPage.dataset.rmPageNumber = '2'
+    secondPageBreak.className = 'rm-page-break'
+    secondPage.className = 'page'
+    secondPage.dataset.rmPageNumber = '3'
+
+    firstPageBreak.appendChild(firstPage)
+    secondPageBreak.appendChild(secondPage)
+    paginationRoot.append(firstPageBreak, secondPageBreak)
+    editorDom.appendChild(paginationRoot)
+    viewport.appendChild(editorDom)
+
+    expect(findPaginationPageBreakElement(editorDom, 3)).toBe(secondPageBreak)
+    expect(firstPageBreakQuerySelectorSpy).not.toHaveBeenCalledWith('.page[data-rm-page-number]')
+    expect(secondPageBreakQuerySelectorSpy).toHaveBeenCalledWith('.page[data-rm-page-number]')
   })
 
   it('applies window attributes to the page shell and hydrated regions', () => {

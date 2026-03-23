@@ -61,6 +61,16 @@ export interface PageBodyMeasurementBand {
   bottom: number
 }
 
+function sortPageBodyMeasurementBandsIfNeeded<T extends { pageNumber: number }>(bands: T[]): T[] {
+  for (let index = 1; index < bands.length; index += 1) {
+    if (bands[index - 1].pageNumber > bands[index].pageNumber) {
+      return [...bands].sort((left, right) => left.pageNumber - right.pageNumber)
+    }
+  }
+
+  return bands
+}
+
 export const PAGE_COUNT_ADD_HYSTERESIS_PX = 1
 export const PAGE_COUNT_REMOVE_HYSTERESIS_PX = 24
 export const TABLE_SPLIT_OVERFLOW_HYSTERESIS_PX = 2
@@ -599,6 +609,9 @@ export function getPageContentHeight(pageFormat: PageFormat): number {
   return Math.max(1, pageFormat.height - pageFormat.margins.top - pageFormat.margins.bottom)
 }
 
+const REGION_LAYOUT_INDEX_THRESHOLD = 4
+const PAGE_BREAK_INDEX_THRESHOLD = 4
+
 function getHeaderMeasurementSelector(pageNumber: number): string {
   return `[data-rm-editor-type="header"][data-rm-page-number="${pageNumber}"] .rm-page-region-layout`
 }
@@ -607,12 +620,392 @@ function getFooterMeasurementSelector(pageNumber: number): string {
   return `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"] .rm-page-region-layout`
 }
 
-function findPageBreakElement(editorDom: HTMLElement, pageNumber: number) {
-  return Array.from(editorDom.querySelectorAll('[data-rm-pagination] > .rm-page-break')).find(pageBreak => {
+export function resolveViewportMountedPaginationRange(
+  editorDom: HTMLElement
+): { startPage: number; endPage: number } | null {
+  const viewport = editorDom.closest('.document-editor-viewport') as HTMLElement | null
+  if (!viewport) {
+    return null
+  }
+
+  const startPage = Number(viewport.dataset.layoutMountedStart ?? '')
+  const endPage = Number(viewport.dataset.layoutMountedEnd ?? '')
+  if (!Number.isInteger(startPage) || !Number.isInteger(endPage) || startPage < 1 || endPage < startPage) {
+    return null
+  }
+
+  return { startPage, endPage }
+}
+
+export function resolveMountedPaginationPageNumbers(editorDom: HTMLElement): number[] {
+  const paginationRoot = resolvePaginationElement(editorDom)
+  const totalPages = Number(paginationRoot?.dataset.rmTotalPages ?? '')
+  const viewportMountedRange = resolveViewportMountedPaginationRange(editorDom)
+  const mountedStartPage = Number(paginationRoot?.dataset.rmMountedStartPage ?? '')
+  const mountedEndPage = Number(paginationRoot?.dataset.rmMountedEndPage ?? '')
+
+  if (viewportMountedRange) {
+    const maxPageNumber =
+      Number.isInteger(totalPages) && totalPages > 0
+        ? Math.min(totalPages, viewportMountedRange.endPage + 1)
+        : viewportMountedRange.endPage + 1
+    const pageNumbers: number[] = []
+    const shouldInspectFirstPageHeader = viewportMountedRange.startPage > 1
+
+    if (shouldInspectFirstPageHeader) {
+      const firstPageHeader = resolveFirstPageHeader(editorDom)
+      const firstPageHeaderNumber = Number(firstPageHeader?.dataset.rmPageNumber ?? '')
+      if (
+        Number.isInteger(firstPageHeaderNumber) &&
+        firstPageHeaderNumber > 0 &&
+        firstPageHeaderNumber < viewportMountedRange.startPage
+      ) {
+        pageNumbers.push(firstPageHeaderNumber)
+      }
+    }
+
+    for (let pageNumber = viewportMountedRange.startPage; pageNumber <= maxPageNumber; pageNumber += 1) {
+      pageNumbers.push(pageNumber)
+    }
+
+    return pageNumbers
+  }
+
+  const hasMountedRangeMetadata =
+    Number.isInteger(mountedStartPage) &&
+    Number.isInteger(mountedEndPage) &&
+    mountedStartPage > 0 &&
+    mountedEndPage >= mountedStartPage
+
+  if (hasMountedRangeMetadata) {
+    const maxPageNumber =
+      Number.isInteger(totalPages) && totalPages > 0 ? Math.min(totalPages, mountedEndPage + 1) : mountedEndPage + 1
+    const pageNumbers: number[] = []
+    const shouldInspectFirstPageHeader = mountedStartPage > 1
+
+    if (shouldInspectFirstPageHeader) {
+      const firstPageHeader = resolveFirstPageHeader(editorDom)
+      const firstPageHeaderNumber = Number(firstPageHeader?.dataset.rmPageNumber ?? '')
+      if (
+        Number.isInteger(firstPageHeaderNumber) &&
+        firstPageHeaderNumber > 0 &&
+        firstPageHeaderNumber < mountedStartPage
+      ) {
+        pageNumbers.push(firstPageHeaderNumber)
+      }
+    }
+
+    for (let pageNumber = mountedStartPage; pageNumber <= maxPageNumber; pageNumber += 1) {
+      pageNumbers.push(pageNumber)
+    }
+
+    return pageNumbers
+  }
+
+  const pageNumbers = new Set<number>()
+
+  Array.from(paginationRoot?.children ?? []).forEach(pageBreak => {
+    if (!(pageBreak instanceof HTMLElement) || !pageBreak.classList.contains('rm-page-break')) return
+    const pageNumber = resolvePageBreakNumber(pageBreak)
+    if (pageNumber === null || pageNumber <= 0) return
+    pageNumbers.add(pageNumber)
+    pageNumbers.add(pageNumber + 1)
+  })
+
+  if (pageNumbers.size === 0) {
+    editorDom.querySelectorAll('[data-rm-pagination] > .rm-page-break .page[data-rm-page-number]').forEach(element => {
+      if (!(element instanceof HTMLElement)) return
+      const pageNumber = Number(element.dataset.rmPageNumber ?? '')
+      if (!Number.isInteger(pageNumber) || pageNumber <= 0) return
+      pageNumbers.add(pageNumber)
+      pageNumbers.add(pageNumber + 1)
+    })
+  }
+
+  const firstPageHeader = resolveFirstPageHeader(editorDom)
+  const firstPageHeaderNumber = Number(firstPageHeader?.dataset.rmPageNumber ?? '')
+  if (Number.isInteger(firstPageHeaderNumber) && firstPageHeaderNumber > 0) {
+    pageNumbers.add(firstPageHeaderNumber)
+  }
+
+  if (pageNumbers.size === 0) {
+    pageNumbers.add(1)
+  }
+
+  return Array.from(pageNumbers).sort((left, right) => left - right)
+}
+
+function findPageBreakElement(
+  editorDom: HTMLElement,
+  pageNumber: number,
+  pageBreaksByPage?: ReadonlyMap<number, HTMLElement> | null,
+  paginationElement?: HTMLElement | null
+) {
+  if (pageBreaksByPage) {
+    return pageBreaksByPage.get(pageNumber)
+  }
+
+  const mountedPaginationElement = paginationElement ?? resolvePaginationElement(editorDom)
+  const directlyIndexedPageBreak = resolveDirectIndexedPageBreak(mountedPaginationElement, pageNumber, editorDom)
+  if (directlyIndexedPageBreak) {
+    return directlyIndexedPageBreak
+  }
+
+  return resolvePaginationPageBreakChildren(mountedPaginationElement).find(pageBreak => {
     if (!(pageBreak instanceof HTMLElement)) return false
-    const page = pageBreak.querySelector('.page[data-rm-page-number]')
-    return Number(page?.getAttribute('data-rm-page-number')) === pageNumber
+    return resolvePageBreakNumber(pageBreak) === pageNumber
   }) as HTMLElement | undefined
+}
+
+function resolvePaginationPageBreakChildren(paginationElement: HTMLElement | null) {
+  return Array.from(paginationElement?.children ?? []).filter(
+    (element): element is HTMLElement => element instanceof HTMLElement && element.classList.contains('rm-page-break')
+  )
+}
+
+function resolveDirectChildPaginationChrome(editorDom: HTMLElement) {
+  return (
+    Array.from(editorDom.children).find(
+      (element): element is HTMLElement =>
+        element instanceof HTMLElement && element.dataset.rmPaginationChrome === 'true'
+    ) ?? null
+  )
+}
+
+export function resolveDirectChildPaginationElement(editorDom: HTMLElement) {
+  const directChildPaginationElement =
+    Array.from(editorDom.children).find(
+      (element): element is HTMLElement => element instanceof HTMLElement && element.hasAttribute('data-rm-pagination')
+    ) ?? null
+  if (directChildPaginationElement) {
+    return directChildPaginationElement
+  }
+
+  const paginationChrome = resolveDirectChildPaginationChrome(editorDom)
+  if (!paginationChrome) {
+    return null
+  }
+
+  return (
+    Array.from(paginationChrome.children).find(
+      (element): element is HTMLElement => element instanceof HTMLElement && element.hasAttribute('data-rm-pagination')
+    ) ?? null
+  )
+}
+
+function resolveDirectChildFirstPageHeader(editorDom: HTMLElement) {
+  const directChildFirstPageHeader =
+    Array.from(editorDom.children).find(
+      (element): element is HTMLElement =>
+        element instanceof HTMLElement &&
+        element.classList.contains('rm-first-page-header') &&
+        element.dataset.rmEditorType === 'header' &&
+        element.dataset.rmPageNumber === '1'
+    ) ?? null
+  if (directChildFirstPageHeader) {
+    return directChildFirstPageHeader
+  }
+
+  const paginationChrome = resolveDirectChildPaginationChrome(editorDom)
+  if (!paginationChrome) {
+    return null
+  }
+
+  return (
+    Array.from(paginationChrome.children).find(
+      (element): element is HTMLElement =>
+        element instanceof HTMLElement &&
+        element.classList.contains('rm-first-page-header') &&
+        element.dataset.rmEditorType === 'header' &&
+        element.dataset.rmPageNumber === '1'
+    ) ?? null
+  )
+}
+
+function resolvePaginationElement(editorDom: HTMLElement): HTMLElement | null {
+  return resolveDirectChildPaginationElement(editorDom)
+}
+
+function resolveFirstPageHeader(editorDom: HTMLElement): HTMLElement | null {
+  return resolveDirectChildFirstPageHeader(editorDom)
+}
+
+function resolveDirectChildRegionLayoutsByPage(
+  editorDom: HTMLElement,
+  editorType: 'header' | 'footer',
+  pageNumbersToMeasure: ReadonlySet<number>,
+  regionLayouts: Map<number, HTMLElement>
+) {
+  const collectFromContainer = (container: HTMLElement) => {
+    Array.from(container.children).forEach(child => {
+      if (!(child instanceof HTMLElement)) return
+
+      const pageNumber = Number(child.dataset.rmPageNumber ?? '')
+      if (
+        child.dataset.rmEditorType !== editorType ||
+        !Number.isInteger(pageNumber) ||
+        pageNumber <= 0 ||
+        !pageNumbersToMeasure.has(pageNumber) ||
+        regionLayouts.has(pageNumber)
+      ) {
+        return
+      }
+
+      const regionLayout = child.querySelector('.rm-page-region-layout') as HTMLElement | null
+      if (regionLayout) {
+        regionLayouts.set(pageNumber, regionLayout)
+      }
+    })
+  }
+
+  collectFromContainer(editorDom)
+
+  if (regionLayouts.size === pageNumbersToMeasure.size) {
+    return
+  }
+
+  const paginationChrome = resolveDirectChildPaginationChrome(editorDom)
+  if (paginationChrome) {
+    collectFromContainer(paginationChrome)
+  }
+}
+
+function resolveDirectIndexedPaginationRange(
+  paginationElement: HTMLElement | null,
+  editorDom: HTMLElement | null = null
+) {
+  if (!(paginationElement instanceof HTMLElement)) {
+    return null
+  }
+
+  const pageBreakEls = resolvePaginationPageBreakChildren(paginationElement)
+  const pageBreakCount = pageBreakEls.length
+  const totalPages = Number(paginationElement.dataset.rmTotalPages ?? '')
+  if (Number.isInteger(totalPages) && totalPages > 0 && pageBreakCount === totalPages) {
+    return {
+      startPage: 1,
+      endPage: totalPages
+    }
+  }
+
+  const viewportMountedRange = editorDom ? resolveViewportMountedPaginationRange(editorDom) : null
+  if (viewportMountedRange && pageBreakCount > 0) {
+    return {
+      startPage: viewportMountedRange.startPage,
+      endPage: Math.min(viewportMountedRange.endPage, viewportMountedRange.startPage + pageBreakCount - 1)
+    }
+  }
+
+  const mountedStartPage = Number(paginationElement.dataset.rmMountedStartPage ?? '')
+  const mountedEndPage = Number(paginationElement.dataset.rmMountedEndPage ?? '')
+  const mountedRangeLength =
+    Number.isInteger(mountedStartPage) &&
+    Number.isInteger(mountedEndPage) &&
+    mountedStartPage > 0 &&
+    mountedEndPage >= mountedStartPage
+      ? mountedEndPage - mountedStartPage + 1
+      : null
+
+  if (mountedRangeLength !== null && pageBreakCount === mountedRangeLength) {
+    return {
+      startPage: mountedStartPage,
+      endPage: mountedEndPage
+    }
+  }
+
+  return null
+}
+
+function resolveDirectIndexedPageBreak(
+  paginationElement: HTMLElement | null,
+  pageNumber: number,
+  editorDom: HTMLElement | null = null
+) {
+  if (!(paginationElement instanceof HTMLElement) || pageNumber < 1) {
+    return null
+  }
+
+  const directIndexedRange = resolveDirectIndexedPaginationRange(paginationElement, editorDom)
+  if (!directIndexedRange || pageNumber < directIndexedRange.startPage || pageNumber > directIndexedRange.endPage) {
+    return null
+  }
+
+  const pageBreak =
+    resolvePaginationPageBreakChildren(paginationElement)[pageNumber - directIndexedRange.startPage] ?? null
+  if (!(pageBreak instanceof HTMLElement)) {
+    return null
+  }
+
+  return resolvePageBreakNumber(pageBreak) === pageNumber ? pageBreak : null
+}
+
+function resolvePageBreakBodyLayer(pageBreak: HTMLElement) {
+  const bodyLayer = pageBreak.querySelector('.rm-page-body-layer') as HTMLElement | null
+  const bodyLayerPageNumber = Number(bodyLayer?.dataset.rmPageNumber ?? '')
+  return Number.isInteger(bodyLayerPageNumber) && bodyLayerPageNumber > 0 ? bodyLayer : null
+}
+
+function resolveDirectIndexedPageBodyLayer(
+  paginationElement: HTMLElement | null,
+  pageNumber: number,
+  editorDom: HTMLElement | null = null
+) {
+  const pageBreak = resolveDirectIndexedPageBreak(paginationElement, pageNumber, editorDom)
+  if (!(pageBreak instanceof HTMLElement)) {
+    return null
+  }
+
+  const bodyLayer = resolvePageBreakBodyLayer(pageBreak)
+  return Number(bodyLayer?.dataset.rmPageNumber ?? '') === pageNumber ? bodyLayer : null
+}
+
+function resolveFallbackPageBreakBodyLayer(paginationElement: HTMLElement | null, pageNumber: number) {
+  for (const pageBreak of resolvePaginationPageBreakChildren(paginationElement)) {
+    const bodyLayer = resolvePageBreakBodyLayer(pageBreak)
+    if (Number(bodyLayer?.dataset.rmPageNumber ?? '') === pageNumber) {
+      return bodyLayer
+    }
+  }
+
+  return null
+}
+
+export function resolvePageBodyLayers(editorDom: HTMLElement): HTMLElement[] {
+  const paginationElement = resolvePaginationElement(editorDom)
+  const directIndexedRange = resolveDirectIndexedPaginationRange(paginationElement, editorDom)
+
+  if (directIndexedRange) {
+    const bodyLayers: HTMLElement[] = []
+
+    for (let pageNumber = directIndexedRange.startPage; pageNumber <= directIndexedRange.endPage; pageNumber += 1) {
+      const bodyLayer = resolveDirectIndexedPageBodyLayer(paginationElement, pageNumber, editorDom)
+      if (!(bodyLayer instanceof HTMLElement)) {
+        bodyLayers.length = 0
+        break
+      }
+
+      bodyLayers.push(bodyLayer)
+    }
+
+    if (bodyLayers.length > 0) {
+      return bodyLayers
+    }
+  }
+
+  const pageBreakEls = resolvePaginationPageBreakChildren(paginationElement)
+  if (pageBreakEls.length > 0) {
+    const bodyLayers = pageBreakEls
+      .map(pageBreak => resolvePageBreakBodyLayer(pageBreak))
+      .filter((bodyLayer): bodyLayer is HTMLElement => bodyLayer instanceof HTMLElement)
+
+    if (bodyLayers.length > 0) {
+      return bodyLayers
+    }
+  }
+
+  return Array.from(editorDom.querySelectorAll('.rm-page-body-layer[data-rm-page-number]')).filter(
+    (element): element is HTMLElement => element instanceof HTMLElement
+  )
 }
 
 function readPlaceholderMeasurementValue(element: HTMLElement | null, key: string) {
@@ -620,15 +1013,25 @@ function readPlaceholderMeasurementValue(element: HTMLElement | null, key: strin
   return Number.isFinite(value) && value >= 0 ? value : 0
 }
 
-function readHeaderPlaceholderHeight(editorDom: HTMLElement, pageNumber: number) {
+function readHeaderPlaceholderHeight(
+  editorDom: HTMLElement,
+  pageNumber: number,
+  pageBreaksByPage?: ReadonlyMap<number, HTMLElement> | null,
+  paginationElement?: HTMLElement | null
+) {
   if (pageNumber <= 1) return 0
-  const pageBreak = findPageBreakElement(editorDom, pageNumber - 1)
+  const pageBreak = findPageBreakElement(editorDom, pageNumber - 1, pageBreaksByPage, paginationElement)
   const breaker = pageBreak?.querySelector('.breaker') as HTMLElement | null
   return readPlaceholderMeasurementValue(breaker, 'rmBreakerNextHeaderHeight')
 }
 
-function readFooterPlaceholderHeight(editorDom: HTMLElement, pageNumber: number) {
-  const pageBreak = findPageBreakElement(editorDom, pageNumber)
+function readFooterPlaceholderHeight(
+  editorDom: HTMLElement,
+  pageNumber: number,
+  pageBreaksByPage?: ReadonlyMap<number, HTMLElement> | null,
+  paginationElement?: HTMLElement | null
+) {
+  const pageBreak = findPageBreakElement(editorDom, pageNumber, pageBreaksByPage, paginationElement)
   const breaker = pageBreak?.querySelector('.breaker') as HTMLElement | null
   return readPlaceholderMeasurementValue(breaker, 'rmBreakerFooterHeight')
 }
@@ -657,43 +1060,279 @@ function readHeaderFooterRegionHeight(regionLayout: HTMLElement | null) {
   return measuredHeight
 }
 
+function resolveRegionLayoutsByPage(
+  editorDom: HTMLElement,
+  editorType: 'header' | 'footer',
+  pageNumbers: readonly number[]
+) {
+  const pageNumbersToMeasure = new Set(pageNumbers)
+  const regionLayouts = new Map<number, HTMLElement>()
+  const paginationElement = resolveDirectChildPaginationElement(editorDom)
+
+  if (editorType === 'header' && pageNumbersToMeasure.has(1)) {
+    const firstPageHeader = resolveDirectChildFirstPageHeader(editorDom)
+    const firstPageHeaderLayout = firstPageHeader?.querySelector('.rm-page-region-layout') as HTMLElement | null
+    if (firstPageHeaderLayout) {
+      regionLayouts.set(1, firstPageHeaderLayout)
+    }
+  }
+
+  resolvePaginationPageBreakChildren(paginationElement).forEach(pageBreak => {
+    const pageBreakNumber = resolvePageBreakNumber(pageBreak)
+    if (pageBreakNumber === null) return
+
+    const targetPageNumber = editorType === 'footer' ? pageBreakNumber : pageBreakNumber + 1
+    if (!pageNumbersToMeasure.has(targetPageNumber) || regionLayouts.has(targetPageNumber)) {
+      return
+    }
+
+    const selector =
+      editorType === 'footer'
+        ? `.rm-page-footer-region[data-rm-page-number="${targetPageNumber}"][data-rm-editor-type="footer"]`
+        : `.rm-page-header-region[data-rm-page-number="${targetPageNumber}"][data-rm-editor-type="header"]`
+    const region = pageBreak.querySelector(selector) as HTMLElement | null
+    const regionLayout = region?.querySelector('.rm-page-region-layout') as HTMLElement | null
+    if (regionLayout) {
+      regionLayouts.set(targetPageNumber, regionLayout)
+    }
+  })
+
+  if (regionLayouts.size === pageNumbersToMeasure.size) {
+    return regionLayouts
+  }
+
+  resolveDirectChildRegionLayoutsByPage(editorDom, editorType, pageNumbersToMeasure, regionLayouts)
+  if (regionLayouts.size === pageNumbersToMeasure.size) {
+    return regionLayouts
+  }
+
+  editorDom.querySelectorAll(`[data-rm-editor-type="${editorType}"][data-rm-page-number]`).forEach(region => {
+    if (!(region instanceof HTMLElement)) return
+
+    const pageNumber = Number(region.dataset.rmPageNumber ?? '')
+    if (!Number.isInteger(pageNumber) || pageNumber <= 0 || !pageNumbersToMeasure.has(pageNumber)) {
+      return
+    }
+
+    const regionLayout = region.querySelector('.rm-page-region-layout') as HTMLElement | null
+    if (regionLayout) {
+      regionLayouts.set(pageNumber, regionLayout)
+    }
+  })
+
+  return regionLayouts
+}
+
+function resolveRegionLayoutForPage(
+  editorDom: HTMLElement,
+  editorType: 'header' | 'footer',
+  pageNumber: number,
+  paginationElement: HTMLElement | null,
+  firstPageHeader: HTMLElement | null
+) {
+  if (editorType === 'header' && pageNumber === 1) {
+    const regionLayout = firstPageHeader?.querySelector('.rm-page-region-layout') as HTMLElement | null
+    if (regionLayout) {
+      return regionLayout
+    }
+  } else {
+    const pageBreak = findPageBreakElement(
+      editorDom,
+      editorType === 'footer' ? pageNumber : pageNumber - 1,
+      null,
+      paginationElement
+    )
+    const selector =
+      editorType === 'footer'
+        ? `.rm-page-footer-region[data-rm-page-number="${pageNumber}"][data-rm-editor-type="footer"]`
+        : `.rm-page-header-region[data-rm-page-number="${pageNumber}"][data-rm-editor-type="header"]`
+    const region = pageBreak?.querySelector(selector) as HTMLElement | null
+    const regionLayout = region?.querySelector('.rm-page-region-layout') as HTMLElement | null
+    if (regionLayout) {
+      return regionLayout
+    }
+  }
+
+  const selector =
+    editorType === 'header' ? getHeaderMeasurementSelector(pageNumber) : getFooterMeasurementSelector(pageNumber)
+  return (editorDom.querySelector(selector) as HTMLElement | null) ?? null
+}
+
+function resolvePageBreaksByPage(editorDom: HTMLElement, pageNumbers: readonly number[]) {
+  const pageNumbersToMeasure = new Set(pageNumbers)
+  const pageBreaks = new Map<number, HTMLElement>()
+  const paginationElement = resolvePaginationElement(editorDom)
+  Array.from(pageNumbersToMeasure)
+    .sort((left, right) => left - right)
+    .forEach(pageNumber => {
+      const directlyIndexedPageBreak = resolveDirectIndexedPageBreak(paginationElement, pageNumber, editorDom)
+      if (!directlyIndexedPageBreak) {
+        return
+      }
+
+      pageBreaks.set(pageNumber, directlyIndexedPageBreak)
+      pageNumbersToMeasure.delete(pageNumber)
+    })
+
+  if (pageNumbersToMeasure.size === 0) {
+    return pageBreaks
+  }
+
+  resolvePaginationPageBreakChildren(paginationElement).forEach(pageBreak => {
+    if (!(pageBreak instanceof HTMLElement)) return
+
+    const pageNumber = resolvePageBreakNumber(pageBreak)
+    if (pageNumber === null || pageNumber <= 0 || !pageNumbersToMeasure.has(pageNumber)) {
+      return
+    }
+
+    pageBreaks.set(pageNumber, pageBreak)
+  })
+
+  return pageBreaks
+}
+
+function resolvePageBreakNumber(pageBreak: HTMLElement) {
+  const pageBreakNumber = Number(pageBreak.dataset.rmPageNumber ?? '')
+  if (Number.isInteger(pageBreakNumber) && pageBreakNumber > 0) {
+    return pageBreakNumber
+  }
+
+  const page = pageBreak.querySelector('.page[data-rm-page-number]') as HTMLElement | null
+  const pageNumber = Number(page?.dataset.rmPageNumber ?? '')
+  return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
+}
+
 export function measureHeaderFooterContentHeights(
   editorDom: HTMLElement,
   totalPages: number,
   pageFormat: PageFormat,
-  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>
+  storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>,
+  pageNumbers?: Iterable<number>
 ): MeasuredHeaderFooterHeights {
   const headerHeights = new Map<number, number>()
   const footerHeights = new Map<number, number>()
+  const resolvedPageNumbers = (
+    pageNumbers ? Array.from(new Set(pageNumbers)) : resolveMountedPaginationPageNumbers(editorDom)
+  ).filter(pageNumber => Number.isInteger(pageNumber) && pageNumber > 0 && pageNumber <= totalPages)
+  const shouldIndexRegionLayouts = resolvedPageNumbers.length > REGION_LAYOUT_INDEX_THRESHOLD
+  const shouldIndexPageBreaks = resolvedPageNumbers.length > PAGE_BREAK_INDEX_THRESHOLD
+  const headerRegionLayouts = shouldIndexRegionLayouts
+    ? resolveRegionLayoutsByPage(editorDom, 'header', resolvedPageNumbers)
+    : null
+  const footerRegionLayouts = shouldIndexRegionLayouts
+    ? resolveRegionLayoutsByPage(editorDom, 'footer', resolvedPageNumbers)
+    : null
+  let pageBreaksByPage: Map<number, HTMLElement> | null | undefined
+  let paginationElement: HTMLElement | null | undefined
+  let firstPageHeader: HTMLElement | null | undefined
 
-  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
-    const headerRegionLayout = editorDom.querySelector(getHeaderMeasurementSelector(pageNumber)) as HTMLElement | null
-    const footerRegionLayout = editorDom.querySelector(getFooterMeasurementSelector(pageNumber)) as HTMLElement | null
+  const resolveIndexedPageBreaks = () => {
+    if (pageBreaksByPage !== undefined) {
+      return pageBreaksByPage
+    }
+
+    pageBreaksByPage = shouldIndexPageBreaks ? resolvePageBreaksByPage(editorDom, resolvedPageNumbers) : null
+    return pageBreaksByPage
+  }
+
+  const getResolvedPaginationElement = () => {
+    if (paginationElement !== undefined) {
+      return paginationElement
+    }
+
+    paginationElement = resolvePaginationElement(editorDom)
+    return paginationElement
+  }
+
+  const getResolvedFirstPageHeader = () => {
+    if (firstPageHeader !== undefined) {
+      return firstPageHeader
+    }
+
+    firstPageHeader =
+      resolveDirectChildFirstPageHeader(editorDom) ??
+      (editorDom.querySelector(
+        '.rm-first-page-header[data-rm-page-number="1"][data-rm-editor-type="header"]'
+      ) as HTMLElement | null) ??
+      null
+    return firstPageHeader
+  }
+
+  resolvedPageNumbers.forEach(pageNumber => {
+    const headerRegionLayout =
+      headerRegionLayouts !== null
+        ? (headerRegionLayouts.get(pageNumber) ?? null)
+        : resolveRegionLayoutForPage(
+            editorDom,
+            'header',
+            pageNumber,
+            getResolvedPaginationElement(),
+            getResolvedFirstPageHeader()
+          )
+    const footerRegionLayout =
+      footerRegionLayouts !== null
+        ? (footerRegionLayouts.get(pageNumber) ?? null)
+        : resolveRegionLayoutForPage(
+            editorDom,
+            'footer',
+            pageNumber,
+            getResolvedPaginationElement(),
+            getResolvedFirstPageHeader()
+          )
     const headerHeight = clampHeaderContentHeight(
       pageFormat,
       storage,
       headerRegionLayout
         ? readHeaderFooterRegionHeight(headerRegionLayout)
-        : readHeaderPlaceholderHeight(editorDom, pageNumber)
+        : readHeaderPlaceholderHeight(
+            editorDom,
+            pageNumber,
+            resolveIndexedPageBreaks(),
+            shouldIndexPageBreaks ? null : getResolvedPaginationElement()
+          )
     )
     const footerHeight = clampFooterContentHeight(
       pageFormat,
       storage,
       footerRegionLayout
         ? readHeaderFooterRegionHeight(footerRegionLayout)
-        : readFooterPlaceholderHeight(editorDom, pageNumber)
+        : readFooterPlaceholderHeight(
+            editorDom,
+            pageNumber,
+            resolveIndexedPageBreaks(),
+            shouldIndexPageBreaks ? null : getResolvedPaginationElement()
+          )
     )
 
     headerHeights.set(pageNumber, headerHeight)
     footerHeights.set(pageNumber, footerHeight)
-  }
+  })
 
   return { headerHeights, footerHeights }
 }
 
+function getExistingPageCountFromPaginationElement(paginationElement: HTMLElement | null): number {
+  if (!paginationElement) return 0
+
+  const totalPages = Number(paginationElement.dataset.rmTotalPages ?? '')
+  const mountedStartPage = Number(paginationElement.dataset.rmMountedStartPage ?? '')
+  const mountedEndPage = Number(paginationElement.dataset.rmMountedEndPage ?? '')
+  const mountsFullDocument =
+    Number.isInteger(totalPages) && totalPages > 0 && mountedStartPage === 1 && mountedEndPage === totalPages
+
+  if (mountsFullDocument) {
+    return totalPages
+  }
+
+  return Array.from(paginationElement.children).filter(
+    element => element instanceof HTMLElement && element.classList.contains('rm-page-break')
+  ).length
+}
+
 export function getExistingPageCount(view: EditorView): number {
-  const paginationElement = view.dom.querySelector('[data-rm-pagination]')
-  return paginationElement ? paginationElement.children.length : 0
+  const paginationElement = resolvePaginationElement(view.dom)
+  return getExistingPageCountFromPaginationElement(paginationElement)
 }
 
 function isEffectivelyEmptyDocument(doc: ProseMirrorNode | undefined): boolean {
@@ -785,8 +1424,7 @@ function getMeasuredElementBottomInEditor(editorDom: HTMLElement, element: HTMLE
 export function getPageBodyMeasurementBands(editorDom: HTMLElement): PageBodyMeasurementBand[] {
   const editorRect = editorDom.getBoundingClientRect()
 
-  return Array.from(editorDom.querySelectorAll('.rm-page-body-layer[data-rm-page-number]'))
-    .filter((element): element is HTMLElement => element instanceof HTMLElement)
+  const bodyBands = resolvePageBodyLayers(editorDom)
     .map(element => {
       const rect = element.getBoundingClientRect()
       return {
@@ -796,7 +1434,39 @@ export function getPageBodyMeasurementBands(editorDom: HTMLElement): PageBodyMea
       }
     })
     .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
-    .sort((left, right) => left.pageNumber - right.pageNumber)
+
+  return sortPageBodyMeasurementBandsIfNeeded(bodyBands)
+}
+
+function resolvePageBodyMeasurementBand(
+  editorDom: HTMLElement,
+  pageNumber: number,
+  paginationElement?: HTMLElement | null
+): PageBodyMeasurementBand | null {
+  if (!Number.isInteger(pageNumber) || pageNumber < 1) return null
+
+  const resolvedPaginationElement = paginationElement ?? resolveDirectChildPaginationElement(editorDom) ?? null
+  const bodyLayer =
+    resolveDirectIndexedPageBodyLayer(resolvedPaginationElement, pageNumber, editorDom) ??
+    resolveFallbackPageBreakBodyLayer(resolvedPaginationElement, pageNumber) ??
+    (editorDom.querySelector(`.rm-page-body-layer[data-rm-page-number="${pageNumber}"]`) as HTMLElement | null) ??
+    null
+  if (!(bodyLayer instanceof HTMLElement)) return null
+
+  const editorRect = editorDom.getBoundingClientRect()
+  const rect = bodyLayer.getBoundingClientRect()
+  const top = rect.top - editorRect.top + editorDom.scrollTop
+  const bottom = rect.bottom - editorRect.top + editorDom.scrollTop
+
+  if (!(bottom > top)) {
+    return null
+  }
+
+  return {
+    pageNumber,
+    top,
+    bottom
+  }
 }
 
 function getBlockMeasurementElementAtPosition(view: EditorView, position: number): HTMLElement | null {
@@ -924,27 +1594,33 @@ export function calculatePageCount(
   }
 
   const editorDom = view.dom
-  const paginationElement = editorDom.querySelector('[data-rm-pagination]')
-  const currentPageCount = getExistingPageCount(view)
+  const paginationElement = resolvePaginationElement(editorDom)
+  const currentPageCount = getExistingPageCountFromPaginationElement(paginationElement)
   const lastContentElement = getLastContentElement(editorDom)
-  const documentBottom = (() => {
-    const measuredDocumentBottom = getDocumentContentBottom(view)
-    return measuredDocumentBottom > 0 ? measuredDocumentBottom : null
-  })()
-  const selectionBottom = getSelectionBottom(view)
   const lastContentBottom = lastContentElement ? getMeasuredElementBottomInEditor(editorDom, lastContentElement) : null
+  const documentBottom =
+    lastContentBottom === null
+      ? (() => {
+          const measuredDocumentBottom = getDocumentContentBottom(view)
+          return measuredDocumentBottom > 0 ? measuredDocumentBottom : null
+        })()
+      : null
   const contentBottomCandidates = [lastContentBottom, documentBottom].filter((value): value is number => value !== null)
   const contentBottom = contentBottomCandidates.length > 0 ? Math.max(...contentBottomCandidates) : null
   const selectionIsRange = view.state.selection.from !== view.state.selection.to
+  const selectionBottom = selectionIsRange || contentBottom === null ? getSelectionBottom(view) : 0
   const measuredBottom =
     contentBottom === null
       ? selectionBottom
       : selectionIsRange
         ? Math.max(contentBottom, selectionBottom)
         : contentBottom
-  const pageBodyBands = getPageBodyMeasurementBands(editorDom)
   const lastPageBodyBand =
-    pageBodyBands.find(band => band.pageNumber === currentPageCount) ?? pageBodyBands[pageBodyBands.length - 1] ?? null
+    resolvePageBodyMeasurementBand(editorDom, currentPageCount, paginationElement) ??
+    (() => {
+      const pageBodyBands = getPageBodyMeasurementBands(editorDom)
+      return pageBodyBands[pageBodyBands.length - 1] ?? null
+    })()
   const pageContentHeight =
     lastPageBodyBand !== null
       ? Math.max(1, lastPageBodyBand.bottom - lastPageBodyBand.top)

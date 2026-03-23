@@ -1,8 +1,11 @@
 import {
   collectPageChromeRegions,
   parkChromeRegion,
-  restoreChromeRegion
+  restoreChromeRegion,
+  useApplyDocumentLayoutWindowedChrome
 } from '../hooks/useApplyDocumentLayoutWindowedChrome'
+import { renderHook } from '@testing-library/react'
+import type { MutableRefObject } from 'react'
 
 function createChromeRegion(className: string, pageNumber: number, contentHtml: string) {
   const region = document.createElement('div')
@@ -95,5 +98,303 @@ describe('parkChromeRegion and restoreChromeRegion', () => {
 
     expect(region.dataset.layoutChromeMounted).toBeUndefined()
     expect(content.innerHTML).toContain('Footer 2')
+  })
+})
+
+describe('useApplyDocumentLayoutWindowedChrome', () => {
+  const originalRequestAnimationFrame = global.requestAnimationFrame
+  const originalCancelAnimationFrame = global.cancelAnimationFrame
+
+  beforeEach(() => {
+    global.requestAnimationFrame = callback => {
+      callback(0)
+      return 1
+    }
+    global.cancelAnimationFrame = () => undefined
+  })
+
+  afterEach(() => {
+    global.requestAnimationFrame = originalRequestAnimationFrame
+    global.cancelAnimationFrame = originalCancelAnimationFrame
+  })
+
+  it('keeps chrome content mounted when full page shells are still present', () => {
+    const container = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const first = createPageBreak(1)
+    const second = createPageBreak(2)
+    const third = createPageBreak(3)
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.append(first.pageBreak, second.pageBreak, third.pageBreak)
+    container.appendChild(paginationRoot)
+    document.body.appendChild(container)
+
+    renderHook(() =>
+      useApplyDocumentLayoutWindowedChrome({
+        editorContainerRef: { current: container } as MutableRefObject<HTMLDivElement | null>,
+        layoutNavigationState: {
+          boundaryEls: [],
+          activeRange: { startPage: 1, endPage: 1 },
+          pageBreakEls: [first.pageBreak, second.pageBreak, third.pageBreak],
+          flowEls: [first.pageBreak, second.pageBreak, third.pageBreak]
+        },
+        viewportModel: {
+          source: 'incremental-layout-engine',
+          totalPages: 3,
+          activeRange: { startPage: 1, endPage: 1 },
+          activePageNumbers: [1],
+          activePageCount: 1,
+          mountedRange: { startPage: 1, endPage: 3 },
+          mountedPageNumbers: [1, 2, 3],
+          mountedPageCount: 3,
+          mountedPageBodyBounds: [],
+          activePageBodyBounds: [],
+          hasSparseFlow: false,
+          isWindowed: true,
+          containsCurrentPage: true,
+          rangeLabel: '1-1',
+          windowKey: 'incremental-layout-engine:1-1:1'
+        }
+      })
+    )
+
+    expect(first.footer.region.dataset.layoutChromeMounted).toBeUndefined()
+    expect(second.footer.content.innerHTML).toContain('Footer 2')
+    expect(second.nextHeader.region.dataset.layoutChromeMounted).toBeUndefined()
+    expect(third.footer.content.innerHTML).toContain('Footer 3')
+  })
+
+  it('restores parked chrome when total page count catches up with full page shells', () => {
+    const container = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const first = createPageBreak(1)
+    const second = createPageBreak(2)
+    const third = createPageBreak(3)
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.append(first.pageBreak, second.pageBreak, third.pageBreak)
+    container.appendChild(paginationRoot)
+    document.body.appendChild(container)
+
+    const props = {
+      editorContainerRef: { current: container } as MutableRefObject<HTMLDivElement | null>,
+      layoutNavigationState: {
+        boundaryEls: [],
+        activeRange: { startPage: 1, endPage: 1 },
+        pageBreakEls: [first.pageBreak, second.pageBreak, third.pageBreak],
+        flowEls: [first.pageBreak, second.pageBreak, third.pageBreak]
+      },
+      viewportModel: {
+        source: 'incremental-layout-engine' as const,
+        totalPages: 4,
+        activeRange: { startPage: 1, endPage: 1 },
+        activePageNumbers: [1],
+        activePageCount: 1,
+        mountedRange: { startPage: 1, endPage: 3 },
+        mountedPageNumbers: [1, 2, 3],
+        mountedPageCount: 3,
+        mountedPageBodyBounds: [],
+        activePageBodyBounds: [],
+        hasSparseFlow: true,
+        isWindowed: true,
+        containsCurrentPage: true,
+        rangeLabel: '1-1',
+        windowKey: 'incremental-layout-engine:1-1:1'
+      }
+    }
+
+    const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedChrome(currentProps), {
+      initialProps: props
+    })
+
+    expect(second.footer.region.dataset.layoutChromeMounted).toBe('false')
+
+    rerender({
+      ...props,
+      viewportModel: {
+        ...props.viewportModel,
+        totalPages: 3,
+        hasSparseFlow: false
+      }
+    })
+
+    expect(second.footer.region.dataset.layoutChromeMounted).toBeUndefined()
+    expect(second.footer.content.innerHTML).toContain('Footer 2')
+  })
+
+  it('restores parked chrome when sparse flow clears under the same window key', () => {
+    const container = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const first = createPageBreak(1)
+    const second = createPageBreak(2)
+    const third = createPageBreak(3)
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.append(first.pageBreak, second.pageBreak, third.pageBreak)
+    container.appendChild(paginationRoot)
+    document.body.appendChild(container)
+
+    const props = {
+      editorContainerRef: { current: container } as MutableRefObject<HTMLDivElement | null>,
+      layoutNavigationState: {
+        boundaryEls: [],
+        activeRange: { startPage: 1, endPage: 1 },
+        pageBreakEls: [first.pageBreak, second.pageBreak, third.pageBreak],
+        flowEls: [first.pageBreak, second.pageBreak, third.pageBreak]
+      },
+      viewportModel: {
+        source: 'incremental-layout-engine' as const,
+        totalPages: 3,
+        activeRange: { startPage: 1, endPage: 1 },
+        activePageNumbers: [1],
+        activePageCount: 1,
+        mountedRange: { startPage: 1, endPage: 1 },
+        mountedPageNumbers: [1],
+        mountedPageCount: 1,
+        mountedPageBodyBounds: [],
+        activePageBodyBounds: [],
+        hasSparseFlow: true,
+        isWindowed: true,
+        containsCurrentPage: true,
+        rangeLabel: '1-1',
+        windowKey: 'incremental-layout-engine:1-1:1'
+      }
+    }
+
+    const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedChrome(currentProps), {
+      initialProps: props
+    })
+
+    expect(second.footer.region.dataset.layoutChromeMounted).toBe('false')
+
+    rerender({
+      ...props,
+      viewportModel: {
+        ...props.viewportModel,
+        mountedRange: { startPage: 1, endPage: 3 },
+        mountedPageNumbers: [1, 2, 3],
+        mountedPageCount: 3,
+        hasSparseFlow: false
+      }
+    })
+
+    expect(second.footer.region.dataset.layoutChromeMounted).toBeUndefined()
+    expect(second.footer.content.innerHTML).toContain('Footer 2')
+  })
+
+  it('parks a remounted first-page header when it is outside the active window', () => {
+    const container = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const first = createPageBreak(1)
+    const second = createPageBreak(2)
+    const firstPageHeader = createChromeRegion('rm-first-page-header', 1, '<p>First page header</p>')
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.append(first.pageBreak, second.pageBreak)
+    container.appendChild(paginationRoot)
+    document.body.appendChild(container)
+
+    const props = {
+      editorContainerRef: { current: container } as MutableRefObject<HTMLDivElement | null>,
+      layoutNavigationState: {
+        boundaryEls: [],
+        activeRange: { startPage: 2, endPage: 2 },
+        pageBreakEls: [first.pageBreak, second.pageBreak],
+        flowEls: [first.pageBreak, second.pageBreak]
+      },
+      viewportModel: {
+        source: 'incremental-layout-engine' as const,
+        totalPages: 2,
+        activeRange: { startPage: 2, endPage: 2 },
+        activePageNumbers: [2],
+        activePageCount: 1,
+        mountedRange: { startPage: 1, endPage: 2 },
+        mountedPageNumbers: [1, 2],
+        mountedPageCount: 2,
+        mountedPageBodyBounds: [],
+        activePageBodyBounds: [],
+        hasSparseFlow: true,
+        isWindowed: true,
+        containsCurrentPage: true,
+        rangeLabel: '2-2',
+        windowKey: 'incremental-layout-engine:2-2:1'
+      }
+    }
+
+    const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedChrome(currentProps), {
+      initialProps: props
+    })
+
+    container.appendChild(firstPageHeader.region)
+
+    rerender({
+      ...props,
+      viewportModel: {
+        ...props.viewportModel,
+        mountedRange: { startPage: 1, endPage: 2 }
+      }
+    })
+
+    expect(firstPageHeader.region.dataset.layoutChromeMounted).toBe('false')
+    expect(firstPageHeader.content.childNodes).toHaveLength(0)
+  })
+
+  it('rebuilds chrome regions when placeholder page-break chrome hydrates in place', () => {
+    const container = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const first = createPageBreak(1)
+    const second = createPageBreak(2)
+
+    paginationRoot.dataset.rmPagination = 'true'
+    first.pageBreak.querySelector('.breaker')?.replaceChildren()
+    paginationRoot.append(first.pageBreak, second.pageBreak)
+    container.appendChild(paginationRoot)
+    document.body.appendChild(container)
+
+    const props = {
+      editorContainerRef: { current: container } as MutableRefObject<HTMLDivElement | null>,
+      layoutNavigationState: {
+        boundaryEls: [],
+        activeRange: { startPage: 2, endPage: 2 },
+        pageBreakEls: [first.pageBreak, second.pageBreak],
+        flowEls: [first.pageBreak, second.pageBreak]
+      },
+      viewportModel: {
+        source: 'incremental-layout-engine' as const,
+        totalPages: 2,
+        activeRange: { startPage: 2, endPage: 2 },
+        activePageNumbers: [2],
+        activePageCount: 1,
+        mountedRange: { startPage: 1, endPage: 2 },
+        mountedPageNumbers: [1, 2],
+        mountedPageCount: 2,
+        mountedPageBodyBounds: [],
+        activePageBodyBounds: [],
+        hasSparseFlow: true,
+        isWindowed: true,
+        containsCurrentPage: true,
+        rangeLabel: '2-2',
+        windowKey: 'incremental-layout-engine:2-2:1'
+      }
+    }
+
+    const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedChrome(currentProps), {
+      initialProps: props
+    })
+
+    const breaker = first.pageBreak.querySelector('.breaker')
+    breaker?.append(first.footer.region, first.nextHeader.region)
+
+    rerender({
+      ...props,
+      viewportModel: {
+        ...props.viewportModel,
+        mountedRange: { startPage: 1, endPage: 2 }
+      }
+    })
+
+    expect(first.footer.region.dataset.layoutChromeMounted).toBe('false')
+    expect(first.nextHeader.region.dataset.layoutChromeMounted).toBeUndefined()
   })
 })

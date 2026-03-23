@@ -81,6 +81,16 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
     options.state.lastKnownSelectionHead,
     currentSelectionHead
   )
+  let hasTablesCache: boolean | null = null
+  const resolveHasTables = () => {
+    if (hasTablesCache !== null) {
+      return hasTablesCache
+    }
+
+    hasTablesCache = options.documentHasTables(currentDoc)
+    return hasTablesCache
+  }
+  let shouldRefreshLayoutBounds = isInitialViewUpdate || docChangedSinceLastUpdate || selectionDirection !== null
 
   if (docChangedSinceLastUpdate && !paginationOwnedDocChange) {
     options.onResetTableController()
@@ -127,24 +137,31 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   if (nextState.pendingRefreshDrivenStabilization && storage.activeEditorType === null) {
     nextState.pendingRefreshDrivenStabilization = false
     options.onScheduleDeferredRepagination(options.getDeferredStabilizationAttemptCount(view))
+    shouldRefreshLayoutBounds = true
   }
 
-  if (isInitialViewUpdate && storage.activeEditorType === null && options.documentHasTables(currentDoc)) {
+  if (isInitialViewUpdate && storage.activeEditorType === null && resolveHasTables()) {
     options.onScheduleDeferredRepagination(options.getDeferredStabilizationAttemptCount(view))
+    shouldRefreshLayoutBounds = true
   }
 
   if (
+    docChangedSinceLastUpdate &&
     options.shouldScheduleDeferredRepaginationOnUpdate({
       activeEditorType: storage.activeEditorType,
+      hasTables: resolveHasTables(),
       externalDocChange,
       paginationOwnedDocChange: paginationOwnedDocChange && !options.state.suppressPaginationOwnedDeferredScheduling,
       hydrationOwnedDocChange
     })
   ) {
     options.onScheduleDeferredRepagination()
+    shouldRefreshLayoutBounds = true
   }
 
   nextState.lastKnownSelectionHead = currentSelectionHead
-  options.onRefreshLayoutBounds()
+  if (shouldRefreshLayoutBounds) {
+    options.onRefreshLayoutBounds()
+  }
   return nextState
 }

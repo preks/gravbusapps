@@ -13,7 +13,7 @@ import {
   type PaginationMeasuredHeights
 } from './paginationPageCountPolicy'
 import type { HeaderFooterEditorType, PagesOptions, PagesStorage } from './types'
-import { getExistingPageCount } from './utils'
+import { getExistingPageCount, resolveDirectChildPaginationElement } from './utils'
 
 type FrameScheduler = (callback: FrameRequestCallback) => number
 
@@ -32,6 +32,112 @@ interface WindowedRendererBridge {
       clickPosition?: { clientX: number; clientY: number }
     ) => void
   }): boolean
+}
+
+interface PaginationViewportPageRange {
+  startPage: number
+  endPage: number
+}
+
+function resolveViewportFocusPageNumber(activeEditor: ActivePaginationOverlayEditor): number {
+  if (activeEditor.type === 'header' && activeEditor.pageNumber > 1) {
+    return activeEditor.pageNumber - 1
+  }
+
+  return activeEditor.pageNumber
+}
+
+function normalizeHydrationPageNumbers(pageNumbers: number[]): number[] {
+  return Array.from(
+    new Set(
+      pageNumbers.flatMap(pageNumber => {
+        if (!Number.isInteger(pageNumber) || pageNumber < 1) {
+          return []
+        }
+
+        return pageNumber > 1 ? [pageNumber - 1, pageNumber] : [pageNumber]
+      })
+    )
+  ).sort((left, right) => left - right)
+}
+
+function resolvePaginationViewport(editorDom: HTMLElement): HTMLElement | null {
+  const viewport = editorDom.closest('.document-editor-viewport')
+  return viewport instanceof HTMLElement ? viewport : null
+}
+
+function resolveFlowElementPageRange(flowEl: HTMLElement): PaginationViewportPageRange | null {
+  if (flowEl.classList.contains('rm-page-break')) {
+    const pageNumber = Number(flowEl.dataset.rmPageNumber ?? '')
+    if (!Number.isInteger(pageNumber) || pageNumber < 1) {
+      return null
+    }
+
+    return {
+      startPage: pageNumber,
+      endPage: pageNumber
+    }
+  }
+
+  if (!flowEl.classList.contains('rm-page-spacer')) {
+    return null
+  }
+
+  const startPage = Number(flowEl.dataset.rmPageRangeStart ?? '')
+  const endPage = Number(flowEl.dataset.rmPageRangeEnd ?? '')
+  if (!Number.isInteger(startPage) || !Number.isInteger(endPage) || startPage < 1 || endPage < startPage) {
+    return null
+  }
+
+  return { startPage, endPage }
+}
+
+function resolveFlowElementForPage(editorDom: HTMLElement, pageNumber: number): HTMLElement | null {
+  const paginationRoot = resolveDirectChildPaginationElement(editorDom)
+  if (!(paginationRoot instanceof HTMLElement)) {
+    return null
+  }
+
+  for (let index = 0; index < paginationRoot.children.length; index += 1) {
+    const child = paginationRoot.children.item(index)
+    if (!(child instanceof HTMLElement)) {
+      continue
+    }
+
+    const pageRange = resolveFlowElementPageRange(child)
+    if (!pageRange) {
+      continue
+    }
+
+    if (pageNumber >= pageRange.startPage && pageNumber <= pageRange.endPage) {
+      return child
+    }
+  }
+
+  return null
+}
+
+export function requestViewportPageFocus(editorDom: HTMLElement, pageNumber: number): boolean {
+  const viewport = resolvePaginationViewport(editorDom)
+  const flowEl = resolveFlowElementForPage(editorDom, pageNumber)
+  if (!(viewport instanceof HTMLElement) || !(flowEl instanceof HTMLElement)) {
+    return false
+  }
+
+  const viewportRect = viewport.getBoundingClientRect()
+  const flowRect = flowEl.getBoundingClientRect()
+  const pageRange = resolveFlowElementPageRange(flowEl)
+  const pageCount = pageRange ? pageRange.endPage - pageRange.startPage + 1 : 1
+  const pageOffsetRatio = pageRange && pageCount > 1 ? (pageNumber - pageRange.startPage + 0.5) / pageCount : 0.5
+  const targetScrollTop =
+    viewport.scrollTop +
+    (flowRect.top - viewportRect.top) +
+    flowRect.height * pageOffsetRatio -
+    viewport.clientHeight / 2
+
+  viewport.scrollTop = Math.max(0, targetScrollTop)
+  viewport.dispatchEvent(new Event('scroll', { bubbles: true }))
+  return true
 }
 
 export function createPaginationCommandController(options: {
@@ -84,11 +190,56 @@ export function createPaginationCommandController(options: {
     options.getOverlayManager(editor).close()
   }
 
+  const retryOpenEditorAfterRefresh = (
+    editor: Editor,
+    activeEditor: ActivePaginationOverlayEditor,
+    clickPosition?: { clientX: number; clientY: number }
+  ) => {
+    refresh(editor)
+    retryPaginationOverlayOpen({
+      attemptsLeft: 1,
+      scheduleFrame,
+      attemptOpen: () => openEditorByType(editor, activeEditor.type, activeEditor.pageNumber, clickPosition, false)
+    })
+  }
+
+  const retryOpenEditorAfterViewportShift = (
+    editor: Editor,
+    activeEditor: ActivePaginationOverlayEditor,
+    clickPosition?: { clientX: number; clientY: number }
+  ) => {
+    const view = options.getMountedEditorView(editor)
+    if (!view || !requestViewportPageFocus(view.dom, resolveViewportFocusPageNumber(activeEditor))) {
+      return false
+    }
+
+    retryPaginationOverlayOpen({
+      attemptsLeft: 1,
+      scheduleFrame,
+      attemptOpen: () => openEditorByType(editor, activeEditor.type, activeEditor.pageNumber, clickPosition, false)
+    })
+
+    scheduleFrame(() => {
+      const mountedView = options.getMountedEditorView(editor)
+      const target = mountedView
+        ? findPaginationOverlayTarget(mountedView.dom, { type: activeEditor.type, pageNumber: activeEditor.pageNumber })
+        : null
+      if (target) {
+        return
+      }
+
+      retryOpenEditorAfterRefresh(editor, activeEditor, clickPosition)
+    })
+
+    return true
+  }
+
   const openEditorByType = (
     editor: Editor,
     type: HeaderFooterEditorType,
     pageNumber: number,
-    clickPosition?: { clientX: number; clientY: number }
+    clickPosition?: { clientX: number; clientY: number },
+    allowRefreshRecovery = true
   ) => {
     const storage = editor.storage.pages as PagesStorage
     const runtimeOptions = options.getRuntimeOptions(editor)
@@ -98,7 +249,18 @@ export function createPaginationCommandController(options: {
     if (!view) return false
 
     const target = findPaginationOverlayTarget(view.dom, { type, pageNumber })
-    if (!(target instanceof HTMLElement)) return false
+    if (!(target instanceof HTMLElement)) {
+      if (!allowRefreshRecovery) {
+        return false
+      }
+
+      if (retryOpenEditorAfterViewportShift(editor, { type, pageNumber }, clickPosition)) {
+        return true
+      }
+
+      retryOpenEditorAfterRefresh(editor, { type, pageNumber }, clickPosition)
+      return true
+    }
 
     const overlayManager = options.getOverlayManager(editor)
     const activeEditor = { type, pageNumber } as const
@@ -169,10 +331,31 @@ export function createPaginationCommandController(options: {
     const storage = editor.storage.pages as PagesStorage
     const runtimeOptions = options.getRuntimeOptions(editor)
     options.syncStorageFromOptions(storage, runtimeOptions)
+    const normalizedPageNumbers = normalizeHydrationPageNumbers(pageNumbers)
+
+    const didHydrate = options.windowedRenderer.hydratePageBreakShells({
+      editorDom: view.dom,
+      pageNumbers: normalizedPageNumbers,
+      options: runtimeOptions,
+      storage,
+      onOpenEditor: (type, nextPageNumber, _target, clickPosition) => {
+        openEditorByType(editor, type, nextPageNumber, clickPosition)
+      }
+    })
+
+    if (didHydrate) {
+      return true
+    }
+
+    refresh(editor)
+    const refreshedView = options.getMountedEditorView(editor)
+    if (!refreshedView) {
+      return false
+    }
 
     return options.windowedRenderer.hydratePageBreakShells({
-      editorDom: view.dom,
-      pageNumbers,
+      editorDom: refreshedView.dom,
+      pageNumbers: normalizedPageNumbers,
       options: runtimeOptions,
       storage,
       onOpenEditor: (type, nextPageNumber, _target, clickPosition) => {

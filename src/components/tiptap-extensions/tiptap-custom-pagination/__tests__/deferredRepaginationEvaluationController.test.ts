@@ -116,6 +116,165 @@ describe('runDeferredRepaginationEvaluationLoop', () => {
     })
   })
 
+  it('avoids body-band scans when the document has no tables', () => {
+    const base = createBaseOptions()
+    const getBodyMeasurementBands = jest.fn(() => [{ pageNumber: 1, top: 0, bottom: 800 }])
+
+    const result = runDeferredRepaginationEvaluationLoop({
+      view: base.view,
+      evaluationId: 11,
+      storage: base.storage,
+      getRuntimeOptions: () => ({}) as never,
+      syncStorageFromOptions: jest.fn(),
+      syncRootPresentation: jest.fn(),
+      resolveMeasurementState: jest.fn(() =>
+        createMeasurementState({
+          measured: createMeasuredHeights(12),
+          currentPageCount: 2,
+          rawMeasuredPageCount: 2,
+          measuredPageCount: 2,
+          cappedPageCount: null
+        })
+      ),
+      getPreviousAddPagesMeasurement: base.getPreviousAddPagesMeasurement,
+      getRunawayGrowthCapPageCount: base.getRunawayGrowthCapPageCount,
+      setRunawayGrowthCapPageCount: base.setRunawayGrowthCapPageCount,
+      setMeasuredHeights: jest.fn(),
+      measureHeights: jest.fn(() => createMeasuredHeights(12)),
+      documentHasTables: jest.fn(() => false),
+      getBodyMeasurementBands,
+      hasPendingTableMeasurements: jest.fn(() => false),
+      getStabilizationAttemptsRemaining: jest.fn(() => 1),
+      runPass: jest.fn(() => ({
+        handled: true,
+        shouldContinueLoop: false,
+        structuralActionsDelta: 0
+      })),
+      evaluateTablePagination: jest.fn(() => ({ type: 'none' as const })),
+      onLogDebug: jest.fn(),
+      onSetPreviousAddPagesMeasurement: base.onSetPreviousAddPagesMeasurement,
+      onClearPreviousAddPagesMeasurement: jest.fn(),
+      onSetGrowthSuppression: jest.fn(),
+      onClearGrowthSuppression: jest.fn(),
+      onDecrementStabilizationAttempts: jest.fn(),
+      onScheduleEvaluation: jest.fn(),
+      onRefreshLayoutBounds: jest.fn(),
+      onResetStabilizationAttempts: jest.fn(),
+      onRequestRefresh: jest.fn(),
+      onDispatch: jest.fn()
+    })
+
+    expect(result.handled).toBe(true)
+    expect(getBodyMeasurementBands).not.toHaveBeenCalled()
+  })
+
+  it('avoids pending table measurement scans while table evaluation is already deferred', () => {
+    const base = createBaseOptions()
+    const hasPendingTableMeasurements = jest.fn(() => true)
+
+    const result = runDeferredRepaginationEvaluationLoop({
+      view: base.view,
+      evaluationId: 12,
+      storage: base.storage,
+      getRuntimeOptions: () => ({}) as never,
+      syncStorageFromOptions: jest.fn(),
+      syncRootPresentation: jest.fn(),
+      resolveMeasurementState: jest.fn(() =>
+        createMeasurementState({
+          measured: createMeasuredHeights(14),
+          currentPageCount: 3,
+          rawMeasuredPageCount: 3,
+          measuredPageCount: 3,
+          cappedPageCount: null
+        })
+      ),
+      getPreviousAddPagesMeasurement: base.getPreviousAddPagesMeasurement,
+      getRunawayGrowthCapPageCount: base.getRunawayGrowthCapPageCount,
+      setRunawayGrowthCapPageCount: base.setRunawayGrowthCapPageCount,
+      setMeasuredHeights: jest.fn(),
+      measureHeights: jest.fn(() => createMeasuredHeights(14)),
+      documentHasTables: jest.fn(() => true),
+      getBodyMeasurementBands: jest.fn(() => [{ pageNumber: 1, top: 0, bottom: 800 }]),
+      hasPendingTableMeasurements,
+      getStabilizationAttemptsRemaining: jest.fn(() => 1),
+      runPass: jest.fn(() => ({
+        handled: true,
+        shouldContinueLoop: false,
+        structuralActionsDelta: 0
+      })),
+      evaluateTablePagination: jest.fn(() => ({ type: 'none' as const })),
+      onLogDebug: jest.fn(),
+      onSetPreviousAddPagesMeasurement: base.onSetPreviousAddPagesMeasurement,
+      onClearPreviousAddPagesMeasurement: jest.fn(),
+      onSetGrowthSuppression: jest.fn(),
+      onClearGrowthSuppression: jest.fn(),
+      onDecrementStabilizationAttempts: jest.fn(),
+      onScheduleEvaluation: jest.fn(),
+      onRefreshLayoutBounds: jest.fn(),
+      onResetStabilizationAttempts: jest.fn(),
+      onRequestRefresh: jest.fn(),
+      onDispatch: jest.fn()
+    })
+
+    expect(result.handled).toBe(true)
+    expect(hasPendingTableMeasurements).not.toHaveBeenCalled()
+  })
+
+  it('avoids table layout scans while a header or footer editor is active', () => {
+    const base = createBaseOptions()
+    base.storage.activeEditorType = 'header'
+    const getBodyMeasurementBands = jest.fn(() => [{ pageNumber: 1, top: 0, bottom: 800 }])
+    const hasPendingTableMeasurements = jest.fn(() => true)
+
+    const result = runDeferredRepaginationEvaluationLoop({
+      view: base.view,
+      evaluationId: 13,
+      storage: base.storage,
+      getRuntimeOptions: () => ({}) as never,
+      syncStorageFromOptions: jest.fn(),
+      syncRootPresentation: jest.fn(),
+      resolveMeasurementState: jest.fn(() =>
+        createMeasurementState({
+          measured: createMeasuredHeights(16),
+          currentPageCount: 3,
+          rawMeasuredPageCount: 3,
+          measuredPageCount: 3,
+          cappedPageCount: null
+        })
+      ),
+      getPreviousAddPagesMeasurement: base.getPreviousAddPagesMeasurement,
+      getRunawayGrowthCapPageCount: base.getRunawayGrowthCapPageCount,
+      setRunawayGrowthCapPageCount: base.setRunawayGrowthCapPageCount,
+      setMeasuredHeights: jest.fn(),
+      measureHeights: jest.fn(() => createMeasuredHeights(16)),
+      documentHasTables: jest.fn(() => true),
+      getBodyMeasurementBands,
+      hasPendingTableMeasurements,
+      getStabilizationAttemptsRemaining: jest.fn(() => 1),
+      runPass: jest.fn(() => ({
+        handled: true,
+        shouldContinueLoop: false,
+        structuralActionsDelta: 0
+      })),
+      evaluateTablePagination: jest.fn(() => ({ type: 'none' as const })),
+      onLogDebug: jest.fn(),
+      onSetPreviousAddPagesMeasurement: base.onSetPreviousAddPagesMeasurement,
+      onClearPreviousAddPagesMeasurement: jest.fn(),
+      onSetGrowthSuppression: jest.fn(),
+      onClearGrowthSuppression: jest.fn(),
+      onDecrementStabilizationAttempts: jest.fn(),
+      onScheduleEvaluation: jest.fn(),
+      onRefreshLayoutBounds: jest.fn(),
+      onResetStabilizationAttempts: jest.fn(),
+      onRequestRefresh: jest.fn(),
+      onDispatch: jest.fn()
+    })
+
+    expect(result.handled).toBe(true)
+    expect(getBodyMeasurementBands).not.toHaveBeenCalled()
+    expect(hasPendingTableMeasurements).not.toHaveBeenCalled()
+  })
+
   it('loops across structural passes and keeps controller state in sync', () => {
     const base = createBaseOptions()
     const measuredHeights: PaginationMeasuredHeights[] = []

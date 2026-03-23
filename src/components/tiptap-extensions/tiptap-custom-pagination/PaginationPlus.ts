@@ -55,6 +55,7 @@ declare module '@tiptap/core' {
       refreshPages: () => ReturnType
       refreshPagesAndStabilize: () => ReturnType
       hydratePageBreakShells: (pageNumbers: number[]) => ReturnType
+      requestViewportPageFocus: (pageNumber: number) => ReturnType
       setPageFormat: (pageFormat: PageFormatInput) => ReturnType
       setHeader: (header: PagesHeaderFooter) => ReturnType
       setFooter: (footer: PagesHeaderFooter) => ReturnType

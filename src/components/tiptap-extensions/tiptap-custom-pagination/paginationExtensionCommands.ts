@@ -7,7 +7,10 @@ import {
   getWindowedRenderer,
   syncEditorStorage
 } from './paginationRuntimeRegistry'
-import { createPaginationCommandController } from './paginationCommandController'
+import {
+  createPaginationCommandController,
+  requestViewportPageFocus as focusPaginationViewportPage
+} from './paginationCommandController'
 import {
   applyPaginationOptionRefresh,
   closePaginationOverlayAndRefresh,
@@ -104,6 +107,13 @@ export function createPaginationExtensionCommands(options: {
       (pageNumbers: number[]) =>
       ({ editor }: { editor: Editor }) =>
         hydratePageBreakShells(editor, pageNumbers),
+    requestViewportPageFocus:
+      (pageNumber: number) =>
+      ({ editor }: { editor: Editor }) => {
+        const view = getMountedEditorView(editor)
+        if (!view) return false
+        return focusPaginationViewportPage(view.dom, pageNumber)
+      },
     setPagesOptions:
       (updates: PagesOptionUpdates) =>
       ({ editor }: { editor: Editor }) => {

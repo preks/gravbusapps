@@ -3,8 +3,11 @@ import {
   isPlaceholderPageBreaker,
   parkPageBreaker,
   restorePageBreaker,
-  shouldMountPageBreaker
+  shouldMountPageBreaker,
+  useApplyDocumentLayoutWindowedBreakers
 } from '../hooks/useApplyDocumentLayoutWindowedBreakers'
+import { renderHook } from '@testing-library/react'
+import type { MutableRefObject } from 'react'
 
 function createPageBreak(pageNumber: number) {
   const pageBreak = document.createElement('div')
@@ -99,5 +102,331 @@ describe('isPlaceholderPageBreaker', () => {
     breaker.dataset.rmBreakerMode = 'placeholder'
 
     expect(isPlaceholderPageBreaker(pageBreak)).toBe(true)
+  })
+})
+
+describe('useApplyDocumentLayoutWindowedBreakers', () => {
+  const originalRequestAnimationFrame = global.requestAnimationFrame
+  const originalCancelAnimationFrame = global.cancelAnimationFrame
+
+  beforeEach(() => {
+    global.requestAnimationFrame = callback => {
+      callback(0)
+      return 1
+    }
+    global.cancelAnimationFrame = () => undefined
+  })
+
+  afterEach(() => {
+    global.requestAnimationFrame = originalRequestAnimationFrame
+    global.cancelAnimationFrame = originalCancelAnimationFrame
+  })
+
+  it('requests a pagination refresh when the mounted sparse shell range is stale', () => {
+    const container = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPage = createPageBreak(1)
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.appendChild(firstPage.pageBreak)
+    container.appendChild(paginationRoot)
+    document.body.appendChild(container)
+
+    const refreshPages = jest.fn(() => true)
+    const editor = {
+      commands: {
+        refreshPages
+      }
+    } as never
+
+    renderHook(() =>
+      useApplyDocumentLayoutWindowedBreakers({
+        editor,
+        editorContainerRef: { current: container } as MutableRefObject<HTMLDivElement | null>,
+        layoutNavigationState: {
+          boundaryEls: [],
+          activeRange: { startPage: 3, endPage: 5 },
+          pageBreakEls: [firstPage.pageBreak],
+          flowEls: [firstPage.pageBreak]
+        },
+        viewportModel: {
+          source: 'incremental-layout-engine',
+          totalPages: 10,
+          activeRange: { startPage: 3, endPage: 5 },
+          activePageNumbers: [3, 4, 5],
+          activePageCount: 3,
+          mountedRange: { startPage: 1, endPage: 1 },
+          mountedPageNumbers: [1],
+          mountedPageCount: 1,
+          mountedPageBodyBounds: [],
+          activePageBodyBounds: [],
+          hasSparseFlow: true,
+          isWindowed: true,
+          containsCurrentPage: true,
+          rangeLabel: '3-5',
+          windowKey: 'incremental-layout-engine:3-5:3'
+        }
+      })
+    )
+
+    expect(refreshPages).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-requests a stale mounted range even when the window key stays the same', () => {
+    const container = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPage = createPageBreak(2)
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.appendChild(firstPage.pageBreak)
+    container.appendChild(paginationRoot)
+    document.body.appendChild(container)
+
+    const refreshPages = jest.fn(() => true)
+    const editor = {
+      commands: {
+        refreshPages
+      }
+    } as never
+
+    const props = {
+      editor,
+      editorContainerRef: { current: container } as MutableRefObject<HTMLDivElement | null>,
+      layoutNavigationState: {
+        boundaryEls: [],
+        activeRange: { startPage: 3, endPage: 5 },
+        pageBreakEls: [firstPage.pageBreak],
+        flowEls: [firstPage.pageBreak]
+      },
+      viewportModel: {
+        source: 'incremental-layout-engine' as const,
+        totalPages: 10,
+        activeRange: { startPage: 3, endPage: 5 },
+        activePageNumbers: [3, 4, 5],
+        activePageCount: 3,
+        mountedRange: { startPage: 2, endPage: 5 },
+        mountedPageNumbers: [2, 3, 4, 5],
+        mountedPageCount: 4,
+        mountedPageBodyBounds: [],
+        activePageBodyBounds: [],
+        hasSparseFlow: true,
+        isWindowed: true,
+        containsCurrentPage: true,
+        rangeLabel: '3-5',
+        windowKey: 'incremental-layout-engine:3-5:3'
+      }
+    }
+
+    const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedBreakers(currentProps), {
+      initialProps: props
+    })
+
+    expect(refreshPages).toHaveBeenCalledTimes(0)
+
+    rerender({
+      ...props,
+      viewportModel: {
+        ...props.viewportModel,
+        mountedRange: { startPage: 1, endPage: 1 },
+        mountedPageNumbers: [1],
+        mountedPageCount: 1
+      }
+    })
+
+    expect(refreshPages).toHaveBeenCalledTimes(1)
+
+    rerender({
+      ...props,
+      viewportModel: {
+        ...props.viewportModel,
+        mountedRange: { startPage: 1, endPage: 1 },
+        mountedPageNumbers: [1],
+        mountedPageCount: 1
+      }
+    })
+
+    expect(refreshPages).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps all breaker content mounted when the renderer already has full page shells', () => {
+    const container = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPage = createPageBreak(1)
+    const secondPage = createPageBreak(2)
+    const thirdPage = createPageBreak(3)
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmMountedStartPage = '1'
+    paginationRoot.dataset.rmMountedEndPage = '1'
+    paginationRoot.append(firstPage.pageBreak, secondPage.pageBreak, thirdPage.pageBreak)
+    container.appendChild(paginationRoot)
+    document.body.appendChild(container)
+
+    renderHook(() =>
+      useApplyDocumentLayoutWindowedBreakers({
+        editor: null,
+        editorContainerRef: { current: container } as MutableRefObject<HTMLDivElement | null>,
+        layoutNavigationState: {
+          boundaryEls: [],
+          activeRange: { startPage: 1, endPage: 1 },
+          pageBreakEls: [firstPage.pageBreak, secondPage.pageBreak, thirdPage.pageBreak],
+          flowEls: [firstPage.pageBreak, secondPage.pageBreak, thirdPage.pageBreak]
+        },
+        viewportModel: {
+          source: 'incremental-layout-engine',
+          totalPages: 3,
+          activeRange: { startPage: 1, endPage: 1 },
+          activePageNumbers: [1],
+          activePageCount: 1,
+          mountedRange: { startPage: 1, endPage: 3 },
+          mountedPageNumbers: [1, 2, 3],
+          mountedPageCount: 3,
+          mountedPageBodyBounds: [],
+          activePageBodyBounds: [],
+          hasSparseFlow: false,
+          isWindowed: true,
+          containsCurrentPage: true,
+          rangeLabel: '1-1',
+          windowKey: 'incremental-layout-engine:1-1:1'
+        }
+      })
+    )
+
+    expect(secondPage.breaker.dataset.layoutBreakerMounted).toBeUndefined()
+    expect(secondPage.breaker.childNodes).toHaveLength(3)
+    expect(secondPage.gap.isConnected).toBe(true)
+    expect(thirdPage.breaker.dataset.layoutBreakerMounted).toBeUndefined()
+  })
+
+  it('restores parked breakers when total page count catches up with full page shells', () => {
+    const container = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPage = createPageBreak(1)
+    const secondPage = createPageBreak(2)
+    const thirdPage = createPageBreak(3)
+
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.dataset.rmMountedStartPage = '1'
+    paginationRoot.dataset.rmMountedEndPage = '1'
+    paginationRoot.append(firstPage.pageBreak, secondPage.pageBreak, thirdPage.pageBreak)
+    container.appendChild(paginationRoot)
+    document.body.appendChild(container)
+
+    const props = {
+      editor: null as never,
+      editorContainerRef: { current: container } as MutableRefObject<HTMLDivElement | null>,
+      layoutNavigationState: {
+        boundaryEls: [],
+        activeRange: { startPage: 1, endPage: 1 },
+        pageBreakEls: [firstPage.pageBreak, secondPage.pageBreak, thirdPage.pageBreak],
+        flowEls: [firstPage.pageBreak, secondPage.pageBreak, thirdPage.pageBreak]
+      },
+      viewportModel: {
+        source: 'incremental-layout-engine' as const,
+        totalPages: 4,
+        activeRange: { startPage: 1, endPage: 1 },
+        activePageNumbers: [1],
+        activePageCount: 1,
+        mountedRange: { startPage: 1, endPage: 1 },
+        mountedPageNumbers: [1, 2, 3],
+        mountedPageCount: 3,
+        mountedPageBodyBounds: [],
+        activePageBodyBounds: [],
+        hasSparseFlow: true,
+        isWindowed: true,
+        containsCurrentPage: true,
+        rangeLabel: '1-1',
+        windowKey: 'incremental-layout-engine:1-1:1'
+      }
+    }
+
+    const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedBreakers(currentProps), {
+      initialProps: props
+    })
+
+    expect(secondPage.breaker.dataset.layoutBreakerMounted).toBe('false')
+
+    rerender({
+      ...props,
+      viewportModel: {
+        ...props.viewportModel,
+        totalPages: 3,
+        hasSparseFlow: false
+      }
+    })
+
+    expect(secondPage.breaker.dataset.layoutBreakerMounted).toBeUndefined()
+    expect(secondPage.breaker.childNodes).toHaveLength(3)
+  })
+
+  it('retries placeholder hydration after a stale mounted-range refresh under the same window key', () => {
+    const container = document.createElement('div')
+    const paginationRoot = document.createElement('div')
+    const firstPage = createPageBreak(1)
+
+    firstPage.breaker.dataset.rmBreakerMode = 'placeholder'
+    paginationRoot.dataset.rmPagination = 'true'
+    paginationRoot.appendChild(firstPage.pageBreak)
+    container.appendChild(paginationRoot)
+    document.body.appendChild(container)
+
+    const refreshPages = jest.fn(() => true)
+    const hydratePageBreakShells = jest.fn(() => true)
+    const editor = {
+      commands: {
+        refreshPages,
+        hydratePageBreakShells
+      }
+    } as never
+
+    const props = {
+      editor,
+      editorContainerRef: { current: container } as MutableRefObject<HTMLDivElement | null>,
+      layoutNavigationState: {
+        boundaryEls: [],
+        activeRange: { startPage: 1, endPage: 1 },
+        pageBreakEls: [firstPage.pageBreak],
+        flowEls: [firstPage.pageBreak]
+      },
+      viewportModel: {
+        source: 'incremental-layout-engine' as const,
+        totalPages: 4,
+        activeRange: { startPage: 1, endPage: 1 },
+        activePageNumbers: [1],
+        activePageCount: 1,
+        mountedRange: { startPage: 1, endPage: 1 },
+        mountedPageNumbers: [1],
+        mountedPageCount: 1,
+        mountedPageBodyBounds: [],
+        activePageBodyBounds: [],
+        hasSparseFlow: true,
+        isWindowed: true,
+        containsCurrentPage: true,
+        rangeLabel: '1-1',
+        windowKey: 'incremental-layout-engine:1-1:1'
+      }
+    }
+
+    const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedBreakers(currentProps), {
+      initialProps: props
+    })
+
+    expect(hydratePageBreakShells).toHaveBeenCalledTimes(1)
+
+    rerender({
+      ...props,
+      viewportModel: {
+        ...props.viewportModel,
+        mountedRange: { startPage: 1, endPage: 2 },
+        mountedPageNumbers: [1, 2],
+        mountedPageCount: 2
+      }
+    })
+
+    expect(refreshPages).toHaveBeenCalledTimes(1)
+
+    rerender(props)
+
+    expect(hydratePageBreakShells).toHaveBeenCalledTimes(2)
   })
 })

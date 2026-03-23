@@ -14,6 +14,8 @@ import { openEveryAI } from '@/common/utils/openEveryAI'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { isAllowedHref, escapeHtmlAttr, escapeHtmlText } from '../../../utils/linkUtils'
 import type { LinkDialogInitialValues, LinkDialogMode } from '../LinkDialog'
+import { requestEditorSelectionAnchorPosition } from '../commentSidebarNavigation'
+import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
 
 export interface PendingInlineSelection {
   from: number
@@ -28,6 +30,7 @@ export type RightSidebar = 'closed' | 'comments' | 'ai'
 export interface UsePagedDocumentInteractionDialogsParams {
   editor: TiptapEditor | null
   activeEditor: TiptapEditor | null
+  layoutViewportModel?: Pick<DocumentLayoutViewportModel, 'mountedPageBodyBounds' | 'pagePositionRanges'>
   documentId?: string
   title: string
   rightSidebar: RightSidebar
@@ -146,6 +149,7 @@ function createSelectionContext(editor: TiptapEditor): { text: string; html: str
 export function usePagedDocumentInteractionDialogs({
   editor,
   activeEditor,
+  layoutViewportModel,
   documentId,
   title,
   setRightSidebar,
@@ -297,17 +301,38 @@ export function usePagedDocumentInteractionDialogs({
       const selectedContainer = globalThis.document.createElement('div')
       selectedContainer.appendChild(domFragment)
       const selectedHtml = selectedContainer.innerHTML.trim()
-      const { view } = editor
-      const coords = view.coordsAtPos(from)
 
       setPendingSelection({ from, to, text: selectedText, html: selectedHtml })
-      setInlineCommentPosition({
-        top: contextMenuPosition?.y ? contextMenuPosition.y + 8 : coords.top + 30,
-        left: contextMenuPosition?.x ? contextMenuPosition.x + 8 : coords.left
-      })
-      setShowInlineCommentPopover(true)
+      if (contextMenuPosition?.x != null && contextMenuPosition?.y != null) {
+        setInlineCommentPosition({
+          top: contextMenuPosition.y + 8,
+          left: contextMenuPosition.x + 8
+        })
+        setShowInlineCommentPopover(true)
+        return
+      }
+
+      requestEditorSelectionAnchorPosition(
+        {
+          view: editor.view,
+          commands: editor.commands,
+          layoutHints: {
+            mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
+            pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
+          }
+        },
+        from,
+        to,
+        position => {
+          setInlineCommentPosition({
+            top: position.top + 30,
+            left: position.left
+          })
+          setShowInlineCommentPopover(true)
+        }
+      )
     },
-    [editor]
+    [editor, layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges]
   )
 
   const handleAiEditClick = useCallback(() => {

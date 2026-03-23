@@ -32,6 +32,17 @@ export interface MergeableTableFragmentsCandidate {
   paginationSplitId: string
 }
 
+type TableRowEntry = {
+  rowPos: number
+  rowIndex: number
+}
+
+type EditorMeasurementResolver = {
+  getElementTopInEditor: (element: HTMLElement) => number
+  getElementBottomInEditor: (element: HTMLElement) => number
+  getMeasuredElementBottomInEditor: (element: HTMLElement) => number
+}
+
 function summarizeSplitCandidate(candidate: TableOverflowSplitCandidate) {
   return {
     key: `${candidate.paginationChainKey}:${candidate.mode}:${candidate.tablePos}:${candidate.splitRowIndex}`,
@@ -130,6 +141,27 @@ function getMeasuredElementBottomInEditor(editorDom: HTMLElement, element: HTMLE
   )
 }
 
+function createEditorMeasurementResolver(editorDom: HTMLElement): EditorMeasurementResolver {
+  const editorRectTop = editorDom.getBoundingClientRect().top
+  const editorScrollTop = editorDom.scrollTop
+
+  const getTopInEditor = (element: HTMLElement) => {
+    const elementRect = element.getBoundingClientRect()
+    return elementRect.top - editorRectTop + editorScrollTop
+  }
+
+  const getBottomInEditor = (element: HTMLElement) => {
+    const elementRect = element.getBoundingClientRect()
+    return elementRect.bottom - editorRectTop + editorScrollTop
+  }
+
+  return {
+    getElementTopInEditor: getTopInEditor,
+    getElementBottomInEditor: getBottomInEditor,
+    getMeasuredElementBottomInEditor: (element: HTMLElement) => getMeasuredElementBottomInEditor(editorDom, element)
+  }
+}
+
 function isPaginationMeasurementHelper(element: Element): boolean {
   if (element.hasAttribute('data-rm-pagination')) return true
   if (!(element instanceof HTMLElement)) return false
@@ -162,7 +194,20 @@ function getTableMeasurementElement(element: HTMLElement): HTMLElement {
     return element
   }
 
-  const tableElement = Array.from(element.children).find(child => child instanceof HTMLTableElement)
+  const firstChild = element.firstElementChild
+  if (firstChild instanceof HTMLTableElement) {
+    return firstChild
+  }
+
+  let tableElement: HTMLTableElement | null = null
+  for (let index = 0; index < element.children.length; index += 1) {
+    const child = element.children.item(index)
+    if (child instanceof HTMLTableElement) {
+      tableElement = child
+      break
+    }
+  }
+
   return tableElement instanceof HTMLElement ? tableElement : element
 }
 
@@ -171,25 +216,30 @@ function getMeasuredTableRows(tableMeasurementElement: HTMLElement): HTMLTableRo
     return Array.from(tableMeasurementElement.rows)
   }
 
-  return Array.from(tableMeasurementElement.querySelectorAll('tr'))
+  return Array.from(tableMeasurementElement.getElementsByTagName('tr'))
 }
 
-function resolveTableRowElement(
-  view: EditorView,
-  tablePos: number,
-  rowEntry: { rowPos: number; rowIndex: number }
-): HTMLTableRowElement | null {
-  const directRowDom = view.nodeDOM(rowEntry.rowPos)
-  if (directRowDom instanceof HTMLTableRowElement) {
-    return directRowDom
-  }
+function createTableRowElementResolver(view: EditorView, tableMeasurementElement: HTMLElement | null) {
+  let didResolveMeasuredRows = false
+  let measuredRows: HTMLTableRowElement[] | null = null
 
-  const tableDom = view.nodeDOM(tablePos)
-  if (!(tableDom instanceof HTMLElement)) {
-    return null
-  }
+  return (rowEntry: TableRowEntry): HTMLTableRowElement | null => {
+    const directRowDom = view.nodeDOM(rowEntry.rowPos)
+    if (directRowDom instanceof HTMLTableRowElement) {
+      return directRowDom
+    }
 
-  return getMeasuredTableRows(getTableMeasurementElement(tableDom))[rowEntry.rowIndex] ?? null
+    if (!tableMeasurementElement) {
+      return null
+    }
+
+    if (!didResolveMeasuredRows) {
+      measuredRows = getMeasuredTableRows(tableMeasurementElement)
+      didResolveMeasuredRows = true
+    }
+
+    return measuredRows?.[rowEntry.rowIndex] ?? null
+  }
 }
 
 export function hasPendingTableMeasurements(view: EditorView): boolean {
@@ -216,8 +266,9 @@ export function hasPendingTableMeasurements(view: EditorView): boolean {
       return false
     }
 
+    const resolveRowElement = createTableRowElementResolver(view, tableMeasurementElement)
     for (const rowEntry of rowEntries) {
-      if (!(resolveTableRowElement(view, pos, rowEntry) instanceof HTMLTableRowElement)) {
+      if (!(resolveRowElement(rowEntry) instanceof HTMLTableRowElement)) {
         pending = true
         return false
       }
@@ -240,12 +291,12 @@ function getRepeatedHeaderHeight(
     return 0
   }
 
-  const secondHeaderRow = secondTableEl.querySelector('tr')
+  const secondHeaderRow = getMeasuredTableRows(secondTableEl)[0]
   return secondHeaderRow instanceof HTMLElement ? getElementLayoutHeight(secondHeaderRow) : 0
 }
 
 function getProjectedMergedTableBottom(
-  view: EditorView,
+  measurementResolver: EditorMeasurementResolver,
   firstTableNode: ProseMirrorNode,
   firstTableEl: HTMLElement,
   secondTableNode: ProseMirrorNode,
@@ -253,9 +304,9 @@ function getProjectedMergedTableBottom(
 ) {
   const firstMeasurementElement = getTableMeasurementElement(firstTableEl)
   const secondMeasurementElement = getTableMeasurementElement(secondTableEl)
-  const firstBottom = getMeasuredElementBottomInEditor(view.dom, firstMeasurementElement)
-  const secondTop = getElementTopInEditor(view.dom, secondMeasurementElement)
-  const secondBottom = getMeasuredElementBottomInEditor(view.dom, secondMeasurementElement)
+  const firstBottom = measurementResolver.getMeasuredElementBottomInEditor(firstMeasurementElement)
+  const secondTop = measurementResolver.getElementTopInEditor(secondMeasurementElement)
+  const secondBottom = measurementResolver.getMeasuredElementBottomInEditor(secondMeasurementElement)
   const gapBetweenTables = Math.max(0, secondTop - firstBottom)
   const repeatedHeaderHeight = getRepeatedHeaderHeight(firstTableNode, secondTableNode, secondMeasurementElement)
 
@@ -263,13 +314,22 @@ function getProjectedMergedTableBottom(
 }
 
 function getBandIndexForOffset(bodyBands: TablePaginationBodyBand[], offset: number, tolerance: number) {
-  let bandIndex = 0
+  let low = 0
+  let high = bodyBands.length - 1
+  let resolvedIndex = high
 
-  while (bandIndex < bodyBands.length - 1 && offset >= bodyBands[bandIndex].bottom - tolerance) {
-    bandIndex += 1
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2)
+    if (offset >= bodyBands[mid].bottom - tolerance) {
+      low = mid + 1
+      continue
+    }
+
+    resolvedIndex = mid
+    high = mid - 1
   }
 
-  return bandIndex
+  return resolvedIndex
 }
 
 function isOffsetWithinBand(band: Pick<TablePaginationBodyBand, 'top' | 'bottom'>, offset: number, tolerance: number) {
@@ -322,17 +382,18 @@ function getTableColumnCount(tableNode: ProseMirrorNode) {
 
 function getSplitIndexForPushedTable(
   view: EditorView,
+  measurementResolver: EditorMeasurementResolver,
   tableNode: ProseMirrorNode,
   tablePos: number,
+  tableMeasurementElement: HTMLElement | null,
   bodyBands: TablePaginationBodyBand[],
   tolerance: number,
   currentSplitRowCount: number | null
 ) {
   const tableDom = view.nodeDOM(tablePos)
-  if (!(tableDom instanceof HTMLElement)) return null
+  if (!(tableDom instanceof HTMLElement) || !(tableMeasurementElement instanceof HTMLElement)) return null
 
-  const tableMeasurementElement = getTableMeasurementElement(tableDom)
-  const tableTop = getElementTopInEditor(view.dom, tableMeasurementElement)
+  const tableTop = measurementResolver.getElementTopInEditor(tableMeasurementElement)
   const tableBandIndex = getBandIndexForOffset(bodyBands, tableTop, tolerance)
   if (tableBandIndex <= 0 || tableBandIndex >= bodyBands.length) return null
 
@@ -340,7 +401,7 @@ function getSplitIndexForPushedTable(
   const previousContentElement = getPreviousContentElement(tableDom)
   if (!previousBand || !(previousContentElement instanceof HTMLElement)) return null
 
-  const previousContentBottom = getMeasuredElementBottomInEditor(view.dom, previousContentElement)
+  const previousContentBottom = measurementResolver.getMeasuredElementBottomInEditor(previousContentElement)
   if (!isOffsetWithinBand(previousBand, previousContentBottom, tolerance)) return null
 
   const availableTop = previousContentBottom + getCollapsedBlockGap(previousContentElement, tableMeasurementElement)
@@ -350,12 +411,13 @@ function getSplitIndexForPushedTable(
   const rowEntries = getTableRowEntries(tableNode, tablePos)
   if (rowEntries.length < 2) return null
 
+  const resolveRowElement = createTableRowElementResolver(view, tableMeasurementElement)
   for (const rowEntry of rowEntries) {
-    const rowDom = resolveTableRowElement(view, tablePos, rowEntry)
+    const rowDom = resolveRowElement(rowEntry)
     if (!(rowDom instanceof HTMLTableRowElement)) continue
 
-    const rowBottom = getElementBottomInEditor(view.dom, rowDom)
-    const rowHeight = Math.max(0, rowBottom - getElementTopInEditor(view.dom, rowDom))
+    const rowBottom = measurementResolver.getElementBottomInEditor(rowDom)
+    const rowHeight = Math.max(0, rowBottom - measurementResolver.getElementTopInEditor(rowDom))
     const consumedHeight = Math.max(0, rowBottom - tableTop)
     const spareSpace = availableHeight - consumedHeight
 
@@ -404,6 +466,7 @@ export function findOverflowingTableSplitCandidates(
   const tolerance = 1
   const overflowThreshold = tolerance + TABLE_SPLIT_OVERFLOW_HYSTERESIS_PX
   const candidates: TableOverflowSplitCandidate[] = []
+  const measurementResolver = createEditorMeasurementResolver(view.dom)
 
   view.state.doc.descendants((node, pos) => {
     if (node.type.name !== 'table') return true
@@ -423,12 +486,17 @@ export function findOverflowingTableSplitCandidates(
 
     if (rowEntries.length < 2 || columnCount < 1) return true
 
+    const tableDom = view.nodeDOM(pos)
+    const tableMeasurementElement = tableDom instanceof HTMLElement ? getTableMeasurementElement(tableDom) : null
+
     let tableCandidate: TableOverflowSplitCandidate | null = null
 
     const pushedSplitIndex = getSplitIndexForPushedTable(
       view,
+      measurementResolver,
       node,
       pos,
+      tableMeasurementElement,
       bodyBands,
       tolerance,
       previousFragment?.rowCount ?? null
@@ -454,12 +522,13 @@ export function findOverflowingTableSplitCandidates(
       }
     }
 
+    const resolveRowElement = createTableRowElementResolver(view, tableMeasurementElement)
     for (const rowEntry of rowEntries) {
-      const rowDom = resolveTableRowElement(view, pos, rowEntry)
+      const rowDom = resolveRowElement(rowEntry)
       if (!(rowDom instanceof HTMLTableRowElement)) continue
 
-      const rowTop = getElementTopInEditor(view.dom, rowDom)
-      const rowBottom = getElementBottomInEditor(view.dom, rowDom)
+      const rowTop = measurementResolver.getElementTopInEditor(rowDom)
+      const rowBottom = measurementResolver.getElementBottomInEditor(rowDom)
       const currentBand = bodyBands[getBandIndexForOffset(bodyBands, rowTop, tolerance)]
       if (!currentBand) continue
 
@@ -514,6 +583,7 @@ export function findMergeableTableFragmentCandidates(
   }
 
   const tolerance = 1
+  const measurementResolver = createEditorMeasurementResolver(view.dom)
   let previousTable: {
     node: ProseMirrorNode
     pos: number
@@ -543,11 +613,11 @@ export function findMergeableTableFragmentCandidates(
     const tableMeasurementElement = getTableMeasurementElement(tableDom)
     const bandIndex = getBandIndexForOffset(
       bodyBands,
-      getElementTopInEditor(view.dom, tableMeasurementElement),
+      measurementResolver.getElementTopInEditor(tableMeasurementElement),
       tolerance
     )
     const currentBand = bodyBands[bandIndex]
-    const tableBottom = getMeasuredElementBottomInEditor(view.dom, tableMeasurementElement)
+    const tableBottom = measurementResolver.getMeasuredElementBottomInEditor(tableMeasurementElement)
 
     if (!currentBand || tableBottom > currentBand.bottom - TABLE_MERGE_SAFETY_MARGIN_PX) {
       previousTable = { node, pos, paginationChainKey, paginationSplitId, bandIndex, tableDom }
@@ -563,7 +633,7 @@ export function findMergeableTableFragmentCandidates(
       bandIndex === prevTable.bandIndex
     ) {
       const projectedMergedBottom = getProjectedMergedTableBottom(
-        view,
+        measurementResolver,
         prevTable.node,
         prevTable.tableDom,
         node,

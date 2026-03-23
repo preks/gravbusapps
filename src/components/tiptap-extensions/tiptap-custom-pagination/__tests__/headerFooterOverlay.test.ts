@@ -162,4 +162,87 @@ describe('HeaderFooterOverlayManager', () => {
     expect(shell.getAttribute('contenteditable')).toBe('false')
     expect(contentHost.getAttribute('contenteditable')).toBe('false')
   })
+
+  it('switches to another region via host editor commands on double click', () => {
+    const storage = createStorage()
+    storage.pageCount = 3
+    storage.getPageCount = () => 3
+    const openFooterEditor = jest.fn()
+    const closeHeaderFooterEditors = jest.fn(() => true)
+    const hostEditor = {
+      isEditable: true,
+      setEditable: jest.fn(),
+      commands: {
+        closeHeaderFooterEditors,
+        openFooterEditor
+      }
+    } as unknown as Editor
+
+    const currentRegion = document.createElement('div')
+    currentRegion.className = 'rm-page-header-region'
+    currentRegion.dataset.rmEditorType = 'header'
+    currentRegion.dataset.rmPageNumber = '1'
+    const currentContentHost = document.createElement('div')
+    currentContentHost.className = 'rm-page-header-content'
+    renderHeaderFooterDisplayContent(currentContentHost, '<p>Header text</p>', 'Header')
+    currentRegion.appendChild(currentContentHost)
+
+    const nextRegion = document.createElement('div')
+    nextRegion.className = 'rm-page-footer-region'
+    nextRegion.dataset.rmEditorType = 'footer'
+    nextRegion.dataset.rmPageNumber = '2'
+    const nextContentHost = document.createElement('div')
+    nextContentHost.className = 'rm-page-footer-content'
+    renderHeaderFooterDisplayContent(nextContentHost, '<p>Footer text</p>', 'Footer')
+    nextRegion.appendChild(nextContentHost)
+
+    document.body.append(currentRegion, nextRegion)
+
+    const manager = new HeaderFooterOverlayManager(
+      hostEditor,
+      () => createOptions(),
+      () => storage
+    )
+
+    const animationFrames: FrameRequestCallback[] = []
+    const requestAnimationFrameSpy = jest.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(callback => {
+      animationFrames.push(callback)
+      return animationFrames.length
+    })
+
+    manager.open({
+      type: 'header',
+      pageNumber: 1,
+      target: currentRegion,
+      initialContent: '<p>Header text</p>',
+      storage,
+      options: createOptions(),
+      extensions: [],
+      onClose: jest.fn()
+    })
+
+    nextRegion.dispatchEvent(
+      new MouseEvent('dblclick', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 120,
+        clientY: 240
+      })
+    )
+
+    expect(closeHeaderFooterEditors).toHaveBeenCalledTimes(1)
+    expect(openFooterEditor).not.toHaveBeenCalled()
+
+    const switchFrame = animationFrames.at(-1)
+    expect(switchFrame).toBeDefined()
+    switchFrame?.(0)
+
+    expect(openFooterEditor).toHaveBeenCalledWith({
+      pageNumber: 2,
+      clickPosition: { clientX: 120, clientY: 240 }
+    })
+
+    requestAnimationFrameSpy.mockRestore()
+    manager.close()
+  })
 })

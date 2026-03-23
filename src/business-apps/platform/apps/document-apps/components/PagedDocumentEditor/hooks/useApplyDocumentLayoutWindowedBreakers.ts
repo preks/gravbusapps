@@ -1,7 +1,7 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import type { DocumentLayoutPageRange } from '../../../types'
-import type { DocumentLayoutNavigationState } from '../documentLayoutService'
+import { resolvePageBreakElements, type DocumentLayoutNavigationState } from '../documentLayoutService'
 import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
 import { resolveViewportMarkerRefreshRange } from './useApplyDocumentLayoutViewportMarkers'
 
@@ -42,6 +42,17 @@ export function shouldMountPageBreaker(pageNumber: number, activePages: Set<numb
 export function isPlaceholderPageBreaker(pageBreakEl: HTMLElement) {
   const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
   return breaker?.dataset.rmBreakerMode === 'placeholder'
+}
+
+function shouldVirtualizeWindowedBreakers(pageBreakEls: HTMLElement[], totalPages: number) {
+  return pageBreakEls.length < Math.max(1, totalPages)
+}
+
+function resolveMountedRange(activeRange: DocumentLayoutPageRange) {
+  return {
+    startPage: Math.max(1, activeRange.startPage - 1),
+    endPage: activeRange.endPage
+  }
 }
 
 export function parkPageBreaker(pageBreakEl: HTMLElement, parkedBreakers: WeakMap<HTMLElement, ParkedBreakerState>) {
@@ -144,9 +155,12 @@ export function useApplyDocumentLayoutWindowedBreakers({
   const pageBreakersRef = useRef<Map<number, HTMLElement>>(new Map())
   const indexedPageBreakElsRef = useRef<HTMLElement[] | null>(null)
   const parkedBreakersRef = useRef<WeakMap<HTMLElement, ParkedBreakerState>>(new WeakMap())
+  const hasParkedBreakersRef = useRef(false)
   const previousActiveRangeRef = useRef<DocumentLayoutPageRange | null>(null)
+  const previousMountedRangeRef = useRef<DocumentLayoutPageRange | null>(null)
   const previousWindowKeyRef = useRef<string | null>(null)
   const hydrationRequestWindowKeyRef = useRef<string | null>(null)
+  const mountedRangeRequestKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     const container = editorContainerRef.current
@@ -162,18 +176,60 @@ export function useApplyDocumentLayoutWindowedBreakers({
       const pageBreakEls =
         layoutNavigationState.pageBreakEls.length > 0
           ? layoutNavigationState.pageBreakEls
-          : Array.from(container.querySelectorAll('.rm-page-break')).filter(
-              (element): element is HTMLElement => element instanceof HTMLElement
-            )
+          : resolvePageBreakElements(container)
       const pageBreakElsChanged = indexedPageBreakElsRef.current !== pageBreakEls
 
       if (pageBreakElsChanged) {
         pageBreakersRef.current = collectPageBreakers(pageBreakEls)
         indexedPageBreakElsRef.current = pageBreakEls
+        hydrationRequestWindowKeyRef.current = null
       }
 
+      const shouldVirtualizeBreakers =
+        viewportModel.isWindowed &&
+        (viewportModel.hasSparseFlow || shouldVirtualizeWindowedBreakers(pageBreakEls, viewportModel.totalPages))
+
+      if (!shouldVirtualizeBreakers) {
+        if (hasParkedBreakersRef.current) {
+          pageBreakersRef.current.forEach(pageBreakEl => {
+            restorePageBreaker(pageBreakEl, parkedBreakersRef.current)
+          })
+          hasParkedBreakersRef.current = false
+        }
+        hydrationRequestWindowKeyRef.current = null
+        mountedRangeRequestKeyRef.current = null
+        previousActiveRangeRef.current = viewportModel.activeRange
+        previousMountedRangeRef.current = viewportModel.mountedRange
+        previousWindowKeyRef.current = viewportModel.windowKey
+        return
+      }
+
+      const desiredMountedRange = resolveMountedRange(viewportModel.activeRange)
+      const desiredMountedRangeKey = `${desiredMountedRange.startPage}-${desiredMountedRange.endPage}`
+      const mountedRangeChanged =
+        viewportModel.mountedRange?.startPage !== desiredMountedRange.startPage ||
+        viewportModel.mountedRange?.endPage !== desiredMountedRange.endPage
+      if (mountedRangeChanged) {
+        hydrationRequestWindowKeyRef.current = null
+        if (mountedRangeRequestKeyRef.current !== desiredMountedRangeKey) {
+          mountedRangeRequestKeyRef.current = desiredMountedRangeKey
+          ;(editor?.commands as { refreshPages?: () => boolean } | undefined)?.refreshPages?.()
+        }
+        previousMountedRangeRef.current = viewportModel.mountedRange
+        previousWindowKeyRef.current = viewportModel.windowKey
+        return
+      }
+
+      if (mountedRangeRequestKeyRef.current === desiredMountedRangeKey) {
+        mountedRangeRequestKeyRef.current = null
+      }
+
+      const mountedRangeStateChanged =
+        previousMountedRangeRef.current?.startPage !== viewportModel.mountedRange?.startPage ||
+        previousMountedRangeRef.current?.endPage !== viewportModel.mountedRange?.endPage
       const refreshAll =
         pageBreakElsChanged ||
+        mountedRangeStateChanged ||
         previousActiveRangeRef.current === null ||
         previousWindowKeyRef.current !== viewportModel.windowKey
       const pageNumbersToRefresh = resolvePagesToRefresh(
@@ -184,6 +240,7 @@ export function useApplyDocumentLayoutWindowedBreakers({
       )
       const activePages = new Set(viewportModel.activePageNumbers)
       let needsHydrationRefresh = false
+      let parkedAnyBreakers = false
 
       pageNumbersToRefresh.forEach(pageNumber => {
         const pageBreakEl = pageBreakersRef.current.get(pageNumber)
@@ -196,8 +253,13 @@ export function useApplyDocumentLayoutWindowedBreakers({
           restorePageBreaker(pageBreakEl, parkedBreakersRef.current)
         } else {
           parkPageBreaker(pageBreakEl, parkedBreakersRef.current)
+          parkedAnyBreakers = true
         }
       })
+
+      if (parkedAnyBreakers) {
+        hasParkedBreakersRef.current = true
+      }
 
       if (needsHydrationRefresh) {
         if (hydrationRequestWindowKeyRef.current !== viewportModel.windowKey) {
@@ -211,6 +273,7 @@ export function useApplyDocumentLayoutWindowedBreakers({
       }
 
       previousActiveRangeRef.current = viewportModel.activeRange
+      previousMountedRangeRef.current = viewportModel.mountedRange
       previousWindowKeyRef.current = viewportModel.windowKey
     })
 
@@ -226,6 +289,10 @@ export function useApplyDocumentLayoutWindowedBreakers({
     layoutNavigationState.pageBreakEls,
     viewportModel.activePageNumbers,
     viewportModel.activeRange,
+    viewportModel.hasSparseFlow,
+    viewportModel.isWindowed,
+    viewportModel.mountedRange,
+    viewportModel.totalPages,
     viewportModel.windowKey
   ])
 }

@@ -10,30 +10,51 @@ import {
   resolveActivePages,
   resolveActiveRange,
   resolveCurrentPageFromLayoutNavigation,
-  resolvePageBreakElements
+  resolveMountedPageBodyBounds,
+  resolveObservableLayoutRoot,
+  resolvePageBreakElementsFromPaginationRoot,
+  resolvePaginationFlowElementsFromPaginationRoot,
+  resolvePaginationRootElement,
+  resolvePaginationTotalPagesFromPaginationRoot
 } from './documentLayoutService'
 
 interface IncrementalPageRegistryState {
   container: HTMLDivElement | null
   version: number
   pageBreakEls: HTMLElement[]
+  flowEls: HTMLElement[]
+  totalPageCount: number
+}
+
+interface SyncedIncrementalRegistryResult {
+  changed: boolean
+  state: IncrementalPageRegistryState
 }
 
 function hasRegistryChanged(
   current: IncrementalPageRegistryState,
   container: HTMLDivElement,
-  nextPageBreakEls: HTMLElement[]
+  nextPageBreakEls: HTMLElement[],
+  nextFlowEls: HTMLElement[],
+  nextTotalPageCount: number
 ) {
   if (current.container !== container) return true
+  if (current.totalPageCount !== nextTotalPageCount) return true
   if (current.pageBreakEls.length !== nextPageBreakEls.length) return true
-  return current.pageBreakEls.some((element, index) => element !== nextPageBreakEls[index])
+  if (current.flowEls.length !== nextFlowEls.length) return true
+  return (
+    current.pageBreakEls.some((element, index) => element !== nextPageBreakEls[index]) ||
+    current.flowEls.some((element, index) => element !== nextFlowEls[index])
+  )
 }
 
 export function createIncrementalDocumentLayoutService(): DocumentLayoutService {
   let registry: IncrementalPageRegistryState = {
     container: null,
     version: 0,
-    pageBreakEls: []
+    pageBreakEls: [],
+    flowEls: [],
+    totalPageCount: 1
   }
   let cachedMeasurement: {
     version: number
@@ -45,22 +66,30 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
     activePages: DocumentLayoutPageSnapshot[]
   } | null = null
 
-  const syncRegistry = (container: HTMLDivElement): IncrementalPageRegistryState => {
-    const nextPageBreakEls = resolvePageBreakElements(container)
-    const changed = hasRegistryChanged(registry, container, nextPageBreakEls)
+  const syncRegistry = (container: HTMLDivElement): SyncedIncrementalRegistryResult => {
+    const paginationRoot = resolvePaginationRootElement(container)
+    const nextPageBreakEls = resolvePageBreakElementsFromPaginationRoot(paginationRoot)
+    const nextFlowEls = resolvePaginationFlowElementsFromPaginationRoot(paginationRoot)
+    const nextTotalPageCount = resolvePaginationTotalPagesFromPaginationRoot(paginationRoot, nextPageBreakEls)
+    const changed = hasRegistryChanged(registry, container, nextPageBreakEls, nextFlowEls, nextTotalPageCount)
     registry = {
       container,
       version: changed ? registry.version + 1 : registry.version,
-      pageBreakEls: nextPageBreakEls
+      pageBreakEls: nextPageBreakEls,
+      flowEls: nextFlowEls,
+      totalPageCount: nextTotalPageCount
     }
-    return registry
+    return {
+      changed,
+      state: registry
+    }
   }
 
   const rebuildMeasurement = (
     registryState: IncrementalPageRegistryState,
     request: Parameters<DocumentLayoutService['measureLayout']>[1]
   ) => {
-    const measurement = buildLayoutMeasurement(registryState.pageBreakEls, request)
+    const measurement = buildLayoutMeasurement(registryState.pageBreakEls, registryState.flowEls, request)
     measurement.layout.activeRange = measurement.navigationState.activeRange
     measurement.layout.activePages = resolveActivePages(
       measurement.layout.pages,
@@ -83,7 +112,7 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       const registryState =
         request.scope === 'viewport' && registry.container === container && registry.version > 0
           ? registry
-          : syncRegistry(container)
+          : syncRegistry(container).state
 
       if (request.scope === 'viewport' && cachedMeasurement && cachedMeasurement.version === registryState.version) {
         const activeRange = resolveActiveRange(cachedMeasurement.layout.pageCount, request)
@@ -98,10 +127,12 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
           activeRange,
           activePages
         }
+        const mountedPageBodyBounds = resolveMountedPageBodyBounds(cachedMeasurement.navigationState.pageBreakEls)
 
         return {
           layout: {
             ...cachedMeasurement.layout,
+            mountedPageBodyBounds,
             activeRange,
             activePages
           },
@@ -118,8 +149,7 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       return resolveCurrentPageFromLayoutNavigation(container, navigationState)
     },
     observeLayout({ editor, container, onInvalidated }: ObserveDocumentLayoutParams) {
-      const root: HTMLElement | null = (editor?.view?.dom ??
-        container.querySelector('.ProseMirror')) as HTMLElement | null
+      const root = resolveObservableLayoutRoot(editor, container)
       let observedPaginationRoot: HTMLElement | null = null
       let paginationObserver: MutationObserver | null = null
 
@@ -128,7 +158,7 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       }
 
       const bindPaginationObserver = () => {
-        const nextPaginationRoot = container.querySelector('[data-rm-pagination]') as HTMLElement | null
+        const nextPaginationRoot = resolvePaginationRootElement(container)
         if (observedPaginationRoot === nextPaginationRoot) return
 
         paginationObserver?.disconnect()
@@ -138,8 +168,9 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
         if (!nextPaginationRoot) return
 
         paginationObserver = new MutationObserver(() => {
-          syncRegistry(container)
-          onInvalidated('legacy-dom-structure')
+          if (syncRegistry(container).changed) {
+            onInvalidated('legacy-dom-structure')
+          }
         })
 
         paginationObserver.observe(nextPaginationRoot, {
@@ -162,9 +193,11 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       }
 
       const rootObserver = new MutationObserver(() => {
-        syncRegistry(container)
+        const registryResult = syncRegistry(container)
         bindPaginationObserver()
-        onInvalidated('legacy-dom-structure')
+        if (registryResult.changed) {
+          onInvalidated('legacy-dom-structure')
+        }
       })
 
       rootObserver.observe(root, {

@@ -82,8 +82,44 @@ export type PageBreakerPlaceholderMetrics = {
 
 export type WindowedPaginationRendererState = {
   activeRange: PaginationWindowRange | null
+  mountedRange: PaginationWindowRange | null
   windowKey: string | null
   placeholderBreakerMetricsByPage: Map<number, PageBreakerPlaceholderMetrics>
+  spacerHeightsByRange: Map<string, number>
+}
+
+function createPageRangeKey(startPage: number, endPage: number) {
+  return `${startPage}-${endPage}`
+}
+
+function resolveMountedPageRange(
+  totalPages: number,
+  mountedRange: PaginationWindowRange | null | undefined,
+  activeRange: PaginationWindowRange | null | undefined
+): PaginationWindowRange {
+  if (
+    mountedRange &&
+    mountedRange.startPage >= 1 &&
+    mountedRange.endPage >= mountedRange.startPage &&
+    mountedRange.startPage <= totalPages
+  ) {
+    return {
+      startPage: mountedRange.startPage,
+      endPage: Math.min(totalPages, mountedRange.endPage)
+    }
+  }
+
+  if (!activeRange) {
+    return {
+      startPage: 1,
+      endPage: totalPages
+    }
+  }
+
+  return {
+    startPage: Math.max(1, activeRange.startPage - 1),
+    endPage: Math.min(totalPages, activeRange.endPage)
+  }
 }
 
 function shouldRenderFullPageBreaker(pageNumber: number, activeRange: PaginationWindowRange | null | undefined) {
@@ -94,6 +130,7 @@ function shouldRenderFullPageBreaker(pageNumber: number, activeRange: Pagination
 export function resolvePaginationWindowRange(editorDom: HTMLElement): PaginationWindowRange | null {
   const viewport = editorDom.closest('.document-editor-viewport') as HTMLElement | null
   if (!viewport) return null
+  if (viewport.dataset.layoutWindowMode !== 'windowed') return null
 
   const startPage = Number(viewport.dataset.layoutWindowStart)
   const endPage = Number(viewport.dataset.layoutWindowEnd)
@@ -103,41 +140,172 @@ export function resolvePaginationWindowRange(editorDom: HTMLElement): Pagination
   return { startPage, endPage }
 }
 
-export function findPaginationPageBreakElement(editorDom: HTMLElement, pageNumber: number): HTMLElement | null {
-  const pageBreakEls = Array.from(editorDom.querySelectorAll('[data-rm-pagination] > .rm-page-break')).filter(
-    (element): element is HTMLElement => element instanceof HTMLElement
-  )
+export function resolvePaginationMountedRange(editorDom: HTMLElement): PaginationWindowRange | null {
+  const viewport = editorDom.closest('.document-editor-viewport') as HTMLElement | null
+  if (!viewport) return null
 
+  const startPage = Number(viewport.dataset.layoutMountedStart)
+  const endPage = Number(viewport.dataset.layoutMountedEnd)
+  if (!Number.isInteger(startPage) || !Number.isInteger(endPage)) return null
+  if (startPage < 1 || endPage < startPage) return null
+
+  return { startPage, endPage }
+}
+
+function resolveDirectChildPaginationChrome(editorDom: HTMLElement): HTMLElement | null {
   return (
-    pageBreakEls.find(candidate => {
-      const page = candidate.querySelector('.page[data-rm-page-number]')
-      return Number(page?.getAttribute('data-rm-page-number')) === pageNumber
-    }) ?? null
+    Array.from(editorDom.children).find(
+      (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPaginationChrome === 'true'
+    ) ?? null
   )
+}
+
+function resolvePaginationRootElement(editorDom: HTMLElement): HTMLElement | null {
+  const directChildPagination = Array.from(editorDom.children).find(
+    (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPagination === 'true'
+  )
+  if (directChildPagination) {
+    return directChildPagination
+  }
+
+  const paginationChrome = resolveDirectChildPaginationChrome(editorDom)
+  if (paginationChrome) {
+    const nestedPagination = Array.from(paginationChrome.children).find(
+      (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPagination === 'true'
+    )
+    if (nestedPagination) {
+      return nestedPagination
+    }
+  }
+
+  return null
+}
+
+function resolvePageRangeSpacerHeights(editorDom: HTMLElement): Map<string, number> {
+  const spacerHeights = new Map<string, number>()
+  const paginationRoot = resolvePaginationRootElement(editorDom)
+  if (!(paginationRoot instanceof HTMLElement)) {
+    return spacerHeights
+  }
+
+  Array.from(paginationRoot.children).forEach(child => {
+    if (!(child instanceof HTMLElement) || !child.classList.contains('rm-page-spacer')) {
+      return
+    }
+
+    const startPage = Number(child.dataset.rmPageRangeStart ?? '')
+    const endPage = Number(child.dataset.rmPageRangeEnd ?? '')
+    if (!Number.isInteger(startPage) || !Number.isInteger(endPage) || startPage < 1 || endPage < startPage) {
+      return
+    }
+
+    const dataHeight = Number.parseFloat(child.dataset.rmPageRangeHeight ?? '')
+    const styleHeight = Number.parseFloat(child.style.height || '')
+    const resolvedHeight =
+      Number.isFinite(dataHeight) && dataHeight >= 0
+        ? dataHeight
+        : Number.isFinite(styleHeight) && styleHeight >= 0
+          ? styleHeight
+          : child.offsetHeight
+    if (!Number.isFinite(resolvedHeight) || resolvedHeight < 0) {
+      return
+    }
+
+    spacerHeights.set(createPageRangeKey(startPage, endPage), resolvedHeight)
+  })
+
+  return spacerHeights
+}
+
+export function findPaginationPageBreakElement(editorDom: HTMLElement, pageNumber: number): HTMLElement | null {
+  const paginationRoot = resolvePaginationRootElement(editorDom)
+  const pageBreakEls = resolvePaginationPageBreakChildren(paginationRoot)
+  const directIndexedRange = resolveDirectIndexedPaginationRange(paginationRoot, pageBreakEls, editorDom)
+
+  if (directIndexedRange && pageNumber >= directIndexedRange.startPage && pageNumber <= directIndexedRange.endPage) {
+    const pageBreak = pageBreakEls[pageNumber - directIndexedRange.startPage] ?? null
+    if (pageBreak instanceof HTMLElement) {
+      if (resolvePageBreakNumber(pageBreak) === pageNumber) {
+        return pageBreak
+      }
+    }
+  }
+
+  return pageBreakEls.find(candidate => resolvePageBreakNumber(candidate) === pageNumber) ?? null
+}
+
+function resolvePaginationPageBreakChildren(paginationRoot: HTMLElement | null): HTMLElement[] {
+  return Array.from(paginationRoot?.children ?? []).filter(
+    (element): element is HTMLElement => element instanceof HTMLElement && element.classList.contains('rm-page-break')
+  )
+}
+
+function resolveDirectIndexedPaginationRange(
+  paginationRoot: HTMLElement | null,
+  pageBreakEls: readonly HTMLElement[],
+  editorDom: HTMLElement | null = null
+): { startPage: number; endPage: number } | null {
+  const totalPages = Number(paginationRoot?.dataset.rmTotalPages ?? '')
+  if (Number.isInteger(totalPages) && totalPages > 0 && pageBreakEls.length === totalPages) {
+    return {
+      startPage: 1,
+      endPage: totalPages
+    }
+  }
+
+  const viewportMountedRange = editorDom ? resolvePaginationMountedRange(editorDom) : null
+  if (viewportMountedRange && pageBreakEls.length > 0) {
+    return {
+      startPage: viewportMountedRange.startPage,
+      endPage: Math.min(viewportMountedRange.endPage, viewportMountedRange.startPage + pageBreakEls.length - 1)
+    }
+  }
+
+  const mountedStartPage = Number(paginationRoot?.dataset.rmMountedStartPage ?? '')
+  const mountedEndPage = Number(paginationRoot?.dataset.rmMountedEndPage ?? '')
+  if (
+    Number.isInteger(mountedStartPage) &&
+    Number.isInteger(mountedEndPage) &&
+    mountedStartPage > 0 &&
+    mountedEndPage >= mountedStartPage &&
+    pageBreakEls.length === mountedEndPage - mountedStartPage + 1
+  ) {
+    return {
+      startPage: mountedStartPage,
+      endPage: mountedEndPage
+    }
+  }
+
+  return null
+}
+
+function resolvePageBreakNumber(pageBreakEl: HTMLElement) {
+  const pageBreakNumber = Number(pageBreakEl.dataset.rmPageNumber ?? '')
+  if (Number.isInteger(pageBreakNumber) && pageBreakNumber > 0) {
+    return pageBreakNumber
+  }
+
+  const page = pageBreakEl.querySelector('.page[data-rm-page-number]') as HTMLElement | null
+  const pageNumber = Number(page?.dataset.rmPageNumber ?? '')
+  return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
 }
 
 export function resolvePageBreakerPlaceholderMetrics(
   editorDom: HTMLElement
 ): Map<number, PageBreakerPlaceholderMetrics> {
   const placeholderMetrics = new Map<number, PageBreakerPlaceholderMetrics>()
-  const pageBreakEls = Array.from(editorDom.querySelectorAll('[data-rm-pagination] > .rm-page-break')).filter(
-    (element): element is HTMLElement => element instanceof HTMLElement
-  )
+  const paginationRoot = resolvePaginationRootElement(editorDom)
+  const pageBreakEls = resolvePaginationPageBreakChildren(paginationRoot)
+  const directIndexedRange = resolveDirectIndexedPaginationRange(paginationRoot, pageBreakEls, editorDom)
 
-  pageBreakEls.forEach(pageBreakEl => {
-    const page = pageBreakEl.querySelector('.page[data-rm-page-number]')
+  pageBreakEls.forEach((pageBreakEl, index) => {
     const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
-    const pageNumber = Number(page?.getAttribute('data-rm-page-number'))
-    if (!Number.isInteger(pageNumber) || pageNumber < 1 || !(breaker instanceof HTMLElement)) return
+    const pageNumber =
+      directIndexedRange !== null ? directIndexedRange.startPage + index : resolvePageBreakNumber(pageBreakEl)
+    if (pageNumber === null || pageNumber < 1 || !(breaker instanceof HTMLElement)) return
 
     const dataHeight = Number(breaker.dataset.rmBreakerPlaceholderHeight ?? '')
     const styleHeight = Number.parseFloat(breaker.style.height || '')
-    const footer = pageBreakEl.querySelector(
-      `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"]`
-    ) as HTMLElement | null
-    const nextHeader = pageBreakEl.querySelector(
-      `[data-rm-editor-type="header"][data-rm-page-number="${pageNumber + 1}"]`
-    ) as HTMLElement | null
     const breakerHeight =
       (Number.isFinite(dataHeight) && dataHeight >= 0
         ? dataHeight
@@ -146,6 +314,18 @@ export function resolvePageBreakerPlaceholderMetrics(
           : breaker.offsetHeight) ?? 0
     const footerDataHeight = Number(breaker.dataset.rmBreakerFooterHeight ?? '')
     const nextHeaderDataHeight = Number(breaker.dataset.rmBreakerNextHeaderHeight ?? '')
+    const footer =
+      Number.isFinite(footerDataHeight) && footerDataHeight >= 0
+        ? null
+        : ((pageBreakEl.querySelector(
+            `[data-rm-editor-type="footer"][data-rm-page-number="${pageNumber}"]`
+          ) as HTMLElement | null) ?? null)
+    const nextHeader =
+      Number.isFinite(nextHeaderDataHeight) && nextHeaderDataHeight >= 0
+        ? null
+        : ((pageBreakEl.querySelector(
+            `[data-rm-editor-type="header"][data-rm-page-number="${pageNumber + 1}"]`
+          ) as HTMLElement | null) ?? null)
     const footerHeight =
       (Number.isFinite(footerDataHeight) && footerDataHeight >= 0 ? footerDataHeight : (footer?.offsetHeight ?? 0)) ?? 0
     const nextHeaderHeight =
@@ -169,8 +349,10 @@ export function resolveWindowedPaginationRendererState(editorDom: HTMLElement): 
   const viewport = editorDom.closest('.document-editor-viewport') as HTMLElement | null
   return {
     activeRange: resolvePaginationWindowRange(editorDom),
+    mountedRange: resolvePaginationMountedRange(editorDom),
     windowKey: viewport?.dataset.layoutWindowKey ?? null,
-    placeholderBreakerMetricsByPage: resolvePageBreakerPlaceholderMetrics(editorDom)
+    placeholderBreakerMetricsByPage: resolvePageBreakerPlaceholderMetrics(editorDom),
+    spacerHeightsByRange: resolvePageRangeSpacerHeights(editorDom)
   }
 }
 
@@ -186,6 +368,85 @@ function createPlaceholderBreaker(params: { breakerHeight: number; footerHeight:
     breaker.style.height = `${breakerHeight}px`
   }
   return breaker
+}
+
+function resolveDefaultBreakerHeight(params: {
+  pageNumber: number
+  totalPages: number
+  pageFormat: PageFormat
+  options: PagesOptions
+  storage: PagesStorage
+}) {
+  const { pageNumber, totalPages, pageFormat, options, storage } = params
+  const currentLayout = getPageLayoutHeights(pageFormat, storage, options.headerHeight, options.footerHeight)
+  if (pageNumber >= totalPages) {
+    return currentLayout.footerReserved
+  }
+
+  const nextLayout = getPageLayoutHeights(pageFormat, storage, options.headerHeight, options.footerHeight)
+  return currentLayout.footerReserved + storage.pageGap + nextLayout.headerReserved
+}
+
+function createPageRangeSpacer(params: {
+  startPage: number
+  endPage: number
+  totalPages: number
+  pageFormat: PageFormat
+  options: PagesOptions
+  storage: PagesStorage
+  placeholderBreakerMetricsByPage: Map<number, PageBreakerPlaceholderMetrics>
+  spacerHeightsByRange: Map<string, number>
+}) {
+  const {
+    startPage,
+    endPage,
+    totalPages,
+    pageFormat,
+    options,
+    storage,
+    placeholderBreakerMetricsByPage,
+    spacerHeightsByRange
+  } = params
+  const spacer = document.createElement('div')
+  spacer.className = 'rm-page-spacer'
+  spacer.dataset.rmPageRangeStart = String(startPage)
+  spacer.dataset.rmPageRangeEnd = String(endPage)
+  const pageSegmentHeights: number[] = []
+
+  const preservedHeight = spacerHeightsByRange.get(createPageRangeKey(startPage, endPage))
+  let totalHeight = Number.isFinite(preservedHeight) ? (preservedHeight ?? 0) : 0
+  if (!Number.isFinite(totalHeight) || totalHeight <= 0) {
+    totalHeight = 0
+  }
+
+  for (let pageNumber = startPage; pageNumber <= endPage; pageNumber += 1) {
+    const pageHeight =
+      getPageSpacerHeight(pageFormat, storage, pageNumber, options.headerHeight, options.footerHeight) +
+      Math.max(
+        0,
+        placeholderBreakerMetricsByPage.get(pageNumber)?.breakerHeight ??
+          resolveDefaultBreakerHeight({
+            pageNumber,
+            totalPages,
+            pageFormat,
+            options,
+            storage
+          })
+      )
+    pageSegmentHeights.push(pageHeight)
+
+    if (!Number.isFinite(preservedHeight) || preservedHeight <= 0) {
+      totalHeight += pageHeight
+    }
+  }
+
+  if (totalHeight > 0) {
+    spacer.style.height = `${totalHeight}px`
+  }
+  spacer.dataset.rmPageRangeHeight = String(Math.max(0, totalHeight))
+  spacer.dataset.rmPageSegmentHeights = pageSegmentHeights.join(',')
+
+  return spacer
 }
 
 function createFullPageBreaker(params: {
@@ -321,7 +582,7 @@ export function ensurePagesStyles(targetDocument: Document) {
       position: relative;
       float: left;
       clear: both;
-      width: 0;
+      width: 100%;
       height: 0;
     }
     .rm-pages-root .page {
@@ -806,11 +1067,14 @@ export function applyRootStyles(targetNode: HTMLElement, pageFormat: PageFormat,
 }
 
 export function refreshPageMinHeight(targetNode: HTMLElement) {
-  const paginationElement = targetNode.querySelector('[data-rm-pagination]')
-  const lastPageBreak = paginationElement?.lastElementChild?.querySelector('.breaker') as HTMLElement | null
-  if (!lastPageBreak) return
+  const paginationElement = resolvePaginationRootElement(targetNode)
+  const lastPaginationChild = paginationElement?.lastElementChild as HTMLElement | null
+  if (!lastPaginationChild) return
 
-  const minHeight = lastPageBreak.offsetTop + lastPageBreak.offsetHeight
+  const measuredTarget = lastPaginationChild.classList.contains('rm-page-break')
+    ? ((lastPaginationChild.querySelector('.breaker') as HTMLElement | null) ?? lastPaginationChild)
+    : lastPaginationChild
+  const minHeight = measuredTarget.offsetTop + measuredTarget.offsetHeight
   targetNode.style.minHeight = `${minHeight + 2}px`
 }
 
@@ -941,6 +1205,7 @@ export function createPageBreakElement(params: {
 
   const pageContainer = document.createElement('div')
   pageContainer.className = 'rm-page-break'
+  pageContainer.dataset.rmPageNumber = String(pageNumber)
 
   const page = document.createElement('div')
   page.className = 'page'
@@ -993,7 +1258,10 @@ export function createPaginationWrapper(params: {
   options: PagesOptions
   storage: PagesStorage
   extensions: Extension[]
-  rendererState?: Pick<WindowedPaginationRendererState, 'activeRange' | 'placeholderBreakerMetricsByPage'> | null
+  rendererState?: Pick<
+    WindowedPaginationRendererState,
+    'activeRange' | 'mountedRange' | 'windowKey' | 'placeholderBreakerMetricsByPage' | 'spacerHeightsByRange'
+  > | null
   onOpenEditor?: (
     type: HeaderFooterEditorType,
     pageNumber: number,
@@ -1004,21 +1272,65 @@ export function createPaginationWrapper(params: {
   const { totalPages, pageFormat, options, storage, extensions, rendererState, onOpenEditor } = params
   const wrapper = document.createElement('div')
   wrapper.dataset.rmPagination = 'true'
+  wrapper.dataset.rmTotalPages = String(Math.max(1, totalPages))
   wrapper.id = 'pages'
   wrapper.className = 'rm-pages-wrapper'
 
-  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+  const mountedRange = resolveMountedPageRange(totalPages, rendererState?.mountedRange, rendererState?.activeRange)
+  wrapper.dataset.rmMountedStartPage = String(mountedRange.startPage)
+  wrapper.dataset.rmMountedEndPage = String(mountedRange.endPage)
+  const shouldRenderSparseShells = mountedRange.startPage > 1 || mountedRange.endPage < totalPages
+
+  if (shouldRenderSparseShells && mountedRange.startPage > 1) {
     wrapper.appendChild(
-      createPageBreakElement({
-        pageNumber,
+      createPageRangeSpacer({
+        startPage: 1,
+        endPage: mountedRange.startPage - 1,
         totalPages,
         pageFormat,
         options,
         storage,
-        extensions,
-        activeRange: rendererState?.activeRange ?? null,
-        placeholderBreakerMetrics: rendererState?.placeholderBreakerMetricsByPage.get(pageNumber) ?? null,
-        onOpenEditor
+        placeholderBreakerMetricsByPage: rendererState?.placeholderBreakerMetricsByPage ?? new Map(),
+        spacerHeightsByRange: rendererState?.spacerHeightsByRange ?? new Map()
+      })
+    )
+  }
+
+  for (
+    let pageNumber = shouldRenderSparseShells ? mountedRange.startPage : 1;
+    pageNumber <= (shouldRenderSparseShells ? mountedRange.endPage : totalPages);
+    pageNumber += 1
+  ) {
+    const pageBreakElement = createPageBreakElement({
+      pageNumber,
+      totalPages,
+      pageFormat,
+      options,
+      storage,
+      extensions,
+      activeRange: mountedRange,
+      placeholderBreakerMetrics: rendererState?.placeholderBreakerMetricsByPage.get(pageNumber) ?? null,
+      onOpenEditor
+    })
+    applyWindowAttributesToPageBreak(
+      pageBreakElement,
+      rendererState?.activeRange ?? null,
+      rendererState?.windowKey ?? null
+    )
+    wrapper.appendChild(pageBreakElement)
+  }
+
+  if (shouldRenderSparseShells && mountedRange.endPage < totalPages) {
+    wrapper.appendChild(
+      createPageRangeSpacer({
+        startPage: mountedRange.endPage + 1,
+        endPage: totalPages,
+        totalPages,
+        pageFormat,
+        options,
+        storage,
+        placeholderBreakerMetricsByPage: rendererState?.placeholderBreakerMetricsByPage ?? new Map(),
+        spacerHeightsByRange: rendererState?.spacerHeightsByRange ?? new Map()
       })
     )
   }
@@ -1081,9 +1393,8 @@ export function applyWindowAttributesToPageBreak(
     '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
   )
 
-  const page = pageBreakEl.querySelector('.page[data-rm-page-number]')
-  const pageBreakNumber = Number(page?.getAttribute('data-rm-page-number'))
-  if (Number.isInteger(pageBreakNumber) && pageBreakNumber > 0) {
+  const pageBreakNumber = resolvePageBreakNumber(pageBreakEl)
+  if (pageBreakNumber !== null && pageBreakNumber > 0) {
     const isActive =
       activeRange === null || (pageBreakNumber >= activeRange.startPage && pageBreakNumber <= activeRange.endPage)
     pageBreakEl.setAttribute('data-layout-window-active', isActive ? 'true' : 'false')

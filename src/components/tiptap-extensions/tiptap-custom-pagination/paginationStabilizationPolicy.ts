@@ -623,13 +623,18 @@ export function resolveDeferredTableRefreshResult(options: {
 
 export function shouldScheduleDeferredRepaginationOnUpdate(options: {
   activeEditorType: PagesStorage['activeEditorType']
+  hasTables: boolean
   externalDocChange: boolean
   paginationOwnedDocChange: boolean
   hydrationOwnedDocChange: boolean
 }) {
-  const { activeEditorType, externalDocChange, paginationOwnedDocChange, hydrationOwnedDocChange } = options
+  const { activeEditorType, hasTables, externalDocChange, paginationOwnedDocChange, hydrationOwnedDocChange } = options
 
   if (activeEditorType !== null) {
+    return false
+  }
+
+  if (!hasTables) {
     return false
   }
 

@@ -165,6 +165,87 @@ describe('tablePaginationDetection', () => {
     }
   })
 
+  it('reads the editor frame once during fallback split detection', () => {
+    const firstRow = createRow([createCell('tableCell'), createCell('tableCell')])
+    const secondRow = createRow([createCell('tableCell'), createCell('tableCell')])
+    const table = createMockNode('table', [firstRow, secondRow], {
+      paginationChainId: 'pagination-chain-editor-frame'
+    })
+    const doc = createMockNode('doc', [table])
+
+    const editorDom = document.createElement('div')
+    const tableDom = document.createElement('table')
+    const tbody = document.createElement('tbody')
+    const firstRowDom = document.createElement('tr')
+    const secondRowDom = document.createElement('tr')
+
+    tableDom.appendChild(tbody)
+    tbody.append(firstRowDom, secondRowDom)
+    editorDom.appendChild(tableDom)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 400 })
+    setRect(tableDom, { top: 10, bottom: 130 })
+    setRect(firstRowDom, { top: 10, bottom: 40 })
+    setRect(secondRowDom, { top: 60, bottom: 130 })
+
+    let editorRectReadCount = 0
+    Object.defineProperty(editorDom, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => {
+        editorRectReadCount += 1
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          bottom: 400,
+          left: 0,
+          right: 100,
+          width: 100,
+          height: 400,
+          toJSON: () => ''
+        }
+      }
+    })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc
+      },
+      nodeDOM: (pos: number) => {
+        if (pos === 0) {
+          return tableDom
+        }
+
+        return null
+      }
+    } as never
+
+    try {
+      expect(
+        findOverflowingTableSplitCandidates(view, [
+          {
+            pageNumber: 1,
+            top: 0,
+            bottom: 100
+          }
+        ])
+      ).toEqual([
+        {
+          mode: 'split',
+          tablePos: 0,
+          splitRowIndex: 1,
+          paginationChainKey: 'pagination-chain-editor-frame',
+          paginationSplitId: null
+        }
+      ])
+      expect(editorRectReadCount).toBe(1)
+    } finally {
+      editorDom.remove()
+    }
+  })
+
   it('continues scanning for the first valid safe split after an unsafe overflowing rowspan group', () => {
     const firstRow = createRow([createCell('tableCell', { rowspan: 2 }), createCell('tableCell')])
     const secondRow = createRow([createCell('tableCell'), createCell('tableCell')])
@@ -392,6 +473,62 @@ describe('tablePaginationDetection', () => {
           }
         } as never)
       ).toBe(false)
+    } finally {
+      editorDom.remove()
+    }
+  })
+
+  it('indexes fallback table rows once when checking pending measurements', () => {
+    const firstRow = createRow([createCell('tableCell'), createCell('tableCell')])
+    const secondRow = createRow([createCell('tableCell'), createCell('tableCell')])
+    const table = createMockNode('table', [firstRow, secondRow], {
+      paginationChainId: 'pagination-chain-cached-rows'
+    })
+    const doc = createMockNode('doc', [table])
+
+    const editorDom = document.createElement('div')
+    const tableDom = document.createElement('table')
+    const tbody = document.createElement('tbody')
+    const firstRowDom = document.createElement('tr')
+    const secondRowDom = document.createElement('tr')
+
+    tableDom.appendChild(tbody)
+    tbody.append(firstRowDom, secondRowDom)
+    editorDom.appendChild(tableDom)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 400 })
+    setRect(tableDom, { top: 10, bottom: 130 })
+    setRect(firstRowDom, { top: 10, bottom: 40 })
+    setRect(secondRowDom, { top: 60, bottom: 120 })
+
+    Object.defineProperty(tableDom, 'offsetHeight', { configurable: true, value: 120 })
+    Object.defineProperty(tableDom, 'clientHeight', { configurable: true, value: 120 })
+    Object.defineProperty(tableDom, 'scrollHeight', { configurable: true, value: 120 })
+
+    let rowsAccessCount = 0
+    Object.defineProperty(tableDom, 'rows', {
+      configurable: true,
+      get: () => {
+        rowsAccessCount += 1
+        return [firstRowDom, secondRowDom]
+      }
+    })
+
+    try {
+      expect(
+        hasPendingTableMeasurements({
+          dom: editorDom,
+          state: {
+            doc
+          },
+          nodeDOM: (pos: number) => {
+            if (pos === 0) return tableDom
+            return null
+          }
+        } as never)
+      ).toBe(false)
+      expect(rowsAccessCount).toBe(1)
     } finally {
       editorDom.remove()
     }
