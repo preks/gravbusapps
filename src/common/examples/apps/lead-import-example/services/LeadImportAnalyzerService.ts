@@ -1,4 +1,4 @@
-import { promptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
 export interface FieldMapping {
   sourceField: string
@@ -15,10 +15,11 @@ export interface LeadImportAnalyzerResponse {
 
 export class LeadImportAnalyzerService {
   private readonly AGENT_NAME = 'LeadImportAnalyzer'
+  private readonly promptManagerClient: PromptManagerClient
   private agentIdCache: string | null = null
 
-  constructor(accessToken: string) {
-    promptManagerClient.setAccessToken(accessToken)
+  constructor(promptManagerClient: PromptManagerClient) {
+    this.promptManagerClient = promptManagerClient
   }
 
   private async getAgentId(): Promise<string> {
@@ -26,7 +27,7 @@ export class LeadImportAnalyzerService {
       return this.agentIdCache
     }
 
-    const response = await promptManagerClient.getPrompts({
+    const response = await this.promptManagerClient.getPrompts({
       promptName: this.AGENT_NAME,
       limit: 1,
       returnTotalRecords: false
@@ -67,7 +68,7 @@ export class LeadImportAnalyzerService {
     formData.append('files', file)
 
     const agentId = await this.getAgentId()
-    const response = await promptManagerClient.executePromptById(agentId, formData)
+    const response = await this.promptManagerClient.executePromptById(agentId, formData)
 
     const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
     const result: LeadImportAnalyzerResponse = JSON.parse(content)
