@@ -19,15 +19,15 @@ import { BudgetSetupView } from './components/views/BudgetSetupView'
 import { SubmissionsView } from './components/views/SubmissionsView'
 import translations from './_i18n'
 
-const VIEW_OPTIONS = [
-  { value: 'overview', label: 'Overview', icon: <ChartBarIcon /> },
-  { value: 'budget', label: 'Budget Setup', icon: <GearIcon /> },
-  { value: 'submissions', label: 'Submissions', icon: <ListChecksIcon /> }
-]
-
 export const CompensationPlanning: React.FC<BusinessAppContextProps> = context => {
   const { accessToken } = context
   const { t } = useTranslation(translations)
+
+  const viewOptions = [
+    { value: 'overview', label: t('tab-overview'), icon: <ChartBarIcon /> },
+    { value: 'budget', label: t('tab-budget-setup'), icon: <GearIcon /> },
+    { value: 'submissions', label: t('tab-submissions'), icon: <ListChecksIcon /> }
+  ]
 
   const { selectedCompanyId, activeTab, selectCompany, setActiveTab } = useCompensationPlanningStore()
   const { companies, loading: companiesLoading } = useActiveStructureCompanies(accessToken)
@@ -43,9 +43,9 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
 
     if (!selectedCompanyId) {
       return (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64 gba:text-muted-foreground gba:gap-2">
-          <StackIcon size={32} />
-          <p>Select a company to view compensation planning data.</p>
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64 gba:text-muted-foreground gba:gap-2 gba:text-center gba:px-4">
+          <StackIcon size={32} className="gba:opacity-80" />
+          <p className="gba:text-sm gba:max-w-md">{t('empty-select-company-hint')}</p>
         </div>
       )
     }
@@ -70,7 +70,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
       headerSubViews={{
         value: activeTab,
         onValueChange: setActiveTab,
-        items: VIEW_OPTIONS.map(opt => ({
+        items: viewOptions.map(opt => ({
           value: opt.value,
           label: opt.label,
           icon: opt.icon
@@ -79,11 +79,11 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
       variant={MODULE_COLORS.HR}
       className="gba:min-h-screen"
     >
-      <div className="gba:space-y-4">
+      <div className="gba:space-y-6">
         <div className="gba:flex gba:items-center gba:gap-3">
           <Select value={selectedCompanyId ?? undefined} onValueChange={val => selectCompany(val || null)}>
-            <SelectTrigger className="gba:w-[300px]">
-              <SelectValue placeholder="Select company..." />
+            <SelectTrigger className="gba:w-[300px]" data-testid="compensation-planning-company-select">
+              <SelectValue placeholder={t('select-company-placeholder')} />
             </SelectTrigger>
             <SelectContent>
               {companies.map(company => (

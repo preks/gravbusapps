@@ -116,7 +116,7 @@ export function useTeamCompensationData({
     setError(null)
 
     try {
-      const whereConditions: any[] = []
+      const whereConditions: any[] = [{ employee: { isDeleted: { _eq: false } } }]
       if (companyId) whereConditions.push({ companyId: { _eq: companyId } })
       if (orgUnitId) whereConditions.push({ organizationalUnitId: { _eq: orgUnitId } })
       if (supervisorEmployeeId) whereConditions.push({ supervisorEmployeeId: { _eq: supervisorEmployeeId } })
@@ -135,7 +135,12 @@ export function useTeamCompensationData({
       }
 
       const employeeIds = [...new Set(positions.map(p => p.employeeId))]
-      const today = new Date().toISOString().split('T')[0]
+      const now = new Date()
+      const y = now.getFullYear()
+      const pad = (n: number) => String(n).padStart(2, '0')
+      const todayLocal = `${y}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+      const yearStart = `${y}-01-01`
+      const today = todayLocal
 
       const [salariesResult, historyResult, bonusesResult, benefitsResult] = await Promise.all([
         graphqlClient.request<{ EmployeeSalary: SalaryResult[] }>(GET_TEAM_CURRENT_SALARIES, {
@@ -145,7 +150,11 @@ export function useTeamCompensationData({
         graphqlClient.request<{ EmployeeSalary: SalaryHistoryResult[] }>(GET_TEAM_SALARY_HISTORY, {
           employeeIds
         }),
-        graphqlClient.request<{ EmployeeBonus: BonusResult[] }>(GET_TEAM_BONUSES, { employeeIds }),
+        graphqlClient.request<{ EmployeeBonus: BonusResult[] }>(GET_TEAM_BONUSES, {
+          employeeIds,
+          yearStart,
+          today: todayLocal
+        }),
         graphqlClient.request<{ EmployeeBenefit: BenefitResult[] }>(GET_TEAM_BENEFITS, { employeeIds })
       ])
 
@@ -247,16 +256,13 @@ function buildLastRaiseMap(
   return map
 }
 
+/** Sums bonus amounts per employee (query already scopes to calendar YTD by paymentDate). */
 function buildBonusTotalMap(bonuses: BonusResult[]): Map<string, number> {
-  const currentYear = new Date().getFullYear()
   const map = new Map<string, number>()
-
   for (const bonus of bonuses) {
-    if (bonus.fiscalYear !== currentYear) continue
     const current = map.get(bonus.employeeId) ?? 0
     map.set(bonus.employeeId, current + bonus.amount)
   }
-
   return map
 }
 

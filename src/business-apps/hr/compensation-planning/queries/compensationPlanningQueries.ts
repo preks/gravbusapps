@@ -115,10 +115,12 @@ export const GET_TEAM_SALARY_HISTORY = `
 `
 
 export const GET_TEAM_BONUSES = `
-  query GetTeamBonuses($employeeIds: [uuid!]!) {
+  query GetTeamBonuses($employeeIds: [uuid!]!, $yearStart: date!, $today: date!) {
     EmployeeBonus(
       where: {
         employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        paymentDate: { _gte: $yearStart, _lte: $today }
       }
       orderBy: { paymentDate: DESC }
     ) {
@@ -144,6 +146,7 @@ export const GET_TEAM_BENEFITS = `
     EmployeeBenefit(
       where: {
         employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
       }
       orderBy: { startDate: DESC }
     ) {
