@@ -20,6 +20,7 @@ import { Users, X, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CollectionMember, CollectionMemberRole } from '../../types/collection'
 import { CollectionApiService } from '../../services/CollectionApiService'
+import { preventDialogCloseOnSelectOutside } from '../../utils/preventDialogCloseOnSelectOutside'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEES_LIGHT_BY_USER_IDS } from '@/common/data/employee/queries/employeeQueries'
 
@@ -123,6 +124,8 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
         setMembers(prev => prev.map(m => (m.id === member.id ? { ...m, role } : m)))
         onMembersChanged?.()
         toast.success('Role updated')
+      } else {
+        toast.error('Failed to update role')
       }
     },
     [collectionId, onMembersChanged]
@@ -140,6 +143,8 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
         setMembers(prev => prev.filter(m => m.id !== member.id))
         onMembersChanged?.()
         toast.success('Member removed')
+      } else {
+        toast.error('Failed to remove member')
       }
     },
     [collectionId, onMembersChanged]
@@ -155,7 +160,12 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-lg" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg"
+        data-testid={testId}
+        onPointerDownOutside={preventDialogCloseOnSelectOutside}
+        onInteractOutside={preventDialogCloseOnSelectOutside}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Users className="gba:w-5 gba:h-5 gba:text-primary" />
@@ -205,8 +215,9 @@ export const ManageCollectionMembersDialog: React.FC<ManageCollectionMembersDial
                     ) : (
                       <>
                         <Select
+                          key={`${member.id}-role`}
                           value={member.role}
-                          onValueChange={v => handleRoleChange(member.userId, v as CollectionMemberRole)}
+                          onValueChange={v => handleRoleChange(member, v as CollectionMemberRole)}
                         >
                           <SelectTrigger className="gba:w-28 gba:h-7 gba:text-xs">
                             <SelectValue />
