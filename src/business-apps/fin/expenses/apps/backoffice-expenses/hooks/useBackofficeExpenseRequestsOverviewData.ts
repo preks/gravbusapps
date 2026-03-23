@@ -129,9 +129,20 @@ function buildWhereConditions(
   ]
 
   if (departmentFilter) {
-    conditions.push({
-      employee: { employeePosition: { organizationalUnitId: { _eq: departmentFilter } } }
-    })
+    const departmentIds = departmentFilter
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+    if (departmentIds.length === 1) {
+      conditions.push({
+        employee: { employeePosition: { organizationalUnitId: { _eq: departmentIds[0] } } }
+      })
+    }
+    if (departmentIds.length > 1) {
+      conditions.push({
+        employee: { employeePosition: { organizationalUnitId: { _in: departmentIds } } }
+      })
+    }
   }
 
   if (currencyRefFilter) {

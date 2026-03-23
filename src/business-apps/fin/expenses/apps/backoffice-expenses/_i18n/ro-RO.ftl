@@ -45,7 +45,7 @@ filter-advance = Avans
 filter-request-type = Tip Decont
 filter-request-type-expense = Cheltuială
 filter-request-type-trip = Călătorie
-filter-search-employee = Caută angajat...
+filter-search-employee = Caută angajați...
 filter-effective-date-info = Pentru tipul CĂLĂTORIE, se folosește data de început. Pentru tipul CHELTUIALĂ, se folosește data elementului de cheltuială.
 filter-report-filters = Filtre Raport
 

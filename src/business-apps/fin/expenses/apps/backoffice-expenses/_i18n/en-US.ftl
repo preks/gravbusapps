@@ -45,7 +45,7 @@ filter-advance = Advance
 filter-request-type = Request Type
 filter-request-type-expense = Expense
 filter-request-type-trip = Trip
-filter-search-employee = Search employee...
+filter-search-employee = Search employees...
 filter-effective-date-info = For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.
 filter-report-filters = Report Filters
 

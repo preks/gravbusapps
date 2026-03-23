@@ -1,5 +1,6 @@
 export { default as ExpenseRequestPdfModal } from './ExpenseRequestPdfModal'
 export { default as EmployeeSearchFilter } from './EmployeeSearchFilter'
+export { ExpenseRequestsDataDisplay } from './ExpenseRequestsDataDisplay'
 export { default as AmountFilter } from './AmountFilter'
 export { default as ExpenseRequestTableActions } from './ExpenseRequestTableActions'
 export { default as ExpenseRequestTableRow } from './ExpenseRequestTableRow'

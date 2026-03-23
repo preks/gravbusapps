@@ -34,17 +34,7 @@ function ExpenseRequestsTableExportOverlay(props: Readonly<ExpenseRequestsTableE
   }
 
   return (
-    <div
-      className="gba:absolute gba:top-[16px] gba:right-[16px] gba:z-[10] gba:flex gba:gap-2"
-      style={{
-        position: 'absolute',
-        top: '16px',
-        right: '16px',
-        zIndex: 10,
-        pointerEvents: 'auto'
-      }}
-      data-testid="export-buttons-overlay"
-    >
+    <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2" data-testid="export-buttons-overlay">
       <Button
         onClick={onExportCsv}
         variant="outline"
