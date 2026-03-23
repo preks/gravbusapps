@@ -22,6 +22,7 @@ import {
 } from '../services/ContentArticleAnalyzerService'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useContentDescendants } from '../hooks/useContentDescendants'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 
 interface ContentArticleAnalyzerProps {
   contentEntry: ContentEntry
@@ -39,6 +40,7 @@ export const ContentArticleAnalyzer: React.FC<ContentArticleAnalyzerProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<ContentArticleAnalyzerOutput | null>(null)
   const serviceRef = useRef<ContentArticleAnalyzerService | null>(null)
+  const promptManagerClient = usePromptManagerClient(accessToken)
 
   // Fetch all descendants (comments and replies) - only when popover is open
   const { descendants, isLoading: isLoadingDescendants } = useContentDescendants(
@@ -49,9 +51,9 @@ export const ContentArticleAnalyzer: React.FC<ContentArticleAnalyzerProps> = ({
   // Initialize service
   useEffect(() => {
     if (accessToken) {
-      serviceRef.current = new ContentArticleAnalyzerService(accessToken)
+      serviceRef.current = new ContentArticleAnalyzerService(promptManagerClient)
     }
-  }, [accessToken])
+  }, [accessToken, promptManagerClient])
 
   const handleAnalyze = useCallback(async () => {
     if (!serviceRef.current || !userId || !contentEntry.id) {
