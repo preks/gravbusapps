@@ -28,6 +28,7 @@ export interface FlowDetailData {
   flowId: string
   flowName: string
   templateId: string
+  templateVersion?: number | null
   status: string
   startTime: string
   updateTime: string

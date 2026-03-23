@@ -6,9 +6,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentKPICards } from '@/common/components/investment-kpi-cards'
 import { OVERVIEW_KPI_CONFIG } from '@/common/data/investment/kpis'
 import { useInvestmentPortfolioIntegration } from '../analytics-view/overview/hooks/useInvestmentPortfolioIntegration'
-import InvestmentBreakdownCard, { type InvestmentGroup, type TrendData } from './components/InvestmentBreakdownCard'
-import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
-import { Investment } from '@/common/data/investment/types/investmentTypes'
+import InvestmentBreakdownCard, { type InvestmentGroup } from './components/InvestmentBreakdownCard'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useInvestmentGroupsAndTypes } from './hooks/useInvestmentGroupsAndTypes'
 import { CurrencyFilter } from '../analytics-view/shared/components'
@@ -18,79 +16,19 @@ interface DashboardViewProps extends BusinessAppContextProps {
   onNavigateToInvestments?: (subTab?: string) => void
 }
 
-// Helper function to get icon for the 4 main groups, fallback to generic for others
 const getGroupIcon = (groupName: string) => {
   const groupLower = groupName.toLowerCase()
-
-  // Check for the 4 specific groups with dedicated icons
-  if (groupLower.includes('private') && groupLower.includes('equity')) {
-    return TrendUpIcon // Private Equity
-  }
-  if (groupLower.includes('equity')) {
-    return ChartBarIcon // Regular Equity
-  }
-  if (groupLower.includes('real') || groupLower.includes('estate')) {
-    return HouseIcon // Real Estate
-  }
-  if (groupLower.includes('liquid') || groupLower.includes('fund')) {
-    return CurrencyDollarIcon // Liquid Funds
-  }
-
-  // Generic fallback for all other groups (TEST, etc.)
+  if (groupLower.includes('private') && groupLower.includes('equity')) return TrendUpIcon
+  if (groupLower.includes('equity')) return ChartBarIcon
+  if (groupLower.includes('real') || groupLower.includes('estate')) return HouseIcon
+  if (groupLower.includes('liquid') || groupLower.includes('fund')) return CurrencyDollarIcon
   return ChartBarIcon
 }
 
-// Helper function to calculate trend data
-// Compares current total investment vs total investment 91 days ago (based on createdAt)
-const calculateTrendData = (investments: Investment[]): TrendData => {
-  const now = new Date()
-  const quarterAgo = new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000)
-
-  // Current total: all investments
-  const currentTotal = investments.reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
-
-  // Previous total: investments that existed 91 days ago (created before 91 days ago)
-  const previousTotal = investments
-    .filter(inv => {
-      if (!inv.createdAt) return true // Include if no createdAt (assume old)
-      const createdDate = new Date(inv.createdAt)
-      return createdDate < quarterAgo
-    })
-    .reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
-
-  // If no previous data, check if we have current data
-  if (previousTotal === 0) {
-    return {
-      percentage: currentTotal > 0 ? 100 : 0,
-      trend: currentTotal > 0 ? 'up' : 'neutral'
-    }
-  }
-
-  // Calculate percentage change
-  const percentageChange = ((currentTotal - previousTotal) / previousTotal) * 100
-
-  // If change is negligible, show as neutral
-  if (Math.abs(percentageChange) < 0.1) {
-    return { percentage: 0, trend: 'neutral' }
-  }
-
-  // Cap extreme percentages
-  if (Math.abs(percentageChange) >= 1000) {
-    return {
-      percentage: 1000,
-      trend: percentageChange > 0 ? 'up' : 'down'
-    }
-  }
-
-  return {
-    percentage: Math.abs(percentageChange),
-    trend: percentageChange > 0 ? 'up' : 'down'
-  }
-}
-
 /**
- * Main dashboard component for IRM Investments management
- * Provides overview of all investments with filtering, sorting, and metrics
+ * Main dashboard component for IRM Investments management.
+ * Investment group cards fetch their own server-side aggregates —
+ * no individual investment records are fetched at this level.
  */
 const DashboardView: React.FC<DashboardViewProps> = ({
   accessToken,
@@ -98,158 +36,37 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   moduleColor,
   onNavigateToInvestments
 }) => {
-  const handleNavigateToInvestmentType = (investmentType: string) => {
-    if (onNavigateToInvestments) {
-      onNavigateToInvestments(investmentType)
-    }
-  }
-
-  // Use centralized investment data
-  const { fetchInvestments } = useGetInvestments({ accessToken, userInfo })
-  const [investments, setInvestments] = React.useState<Investment[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
   const [masterCurrency, setMasterCurrency] = React.useState<string>('EUR')
 
-  // Fetch available currencies efficiently using distinctOn (code-only format)
-  const { currencies: availableCurrencies } = useAvailableCurrencies(
+  const { currencies: availableCurrenciesRaw } = useAvailableCurrencies(
     { accessToken, userInfo },
-    {
-      filters: { entity: 'Investment' },
-      returnFormat: 'codes'
-    }
+    { filters: { entity: 'Investment' }, returnFormat: 'codes' }
   )
+  const availableCurrencies = availableCurrenciesRaw as string[]
 
-  // Use centralized groups and types data
   const { data: groupsData, error: groupsError, isLoading: groupsLoading } = useInvestmentGroupsAndTypes(accessToken)
 
-  // Use centralized Overview KPIs from Analytics View
   const overviewKPIs = useInvestmentPortfolioIntegration({ accessToken, userInfo }, masterCurrency)
 
-  // Fetch ALL investments once (cards can filter by their individual currency)
-  React.useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        setIsLoading(true)
-        // Fetch ALL investments - cards will do their own currency filtering
-        const result = await fetchInvestments({
-          limit: 1000
-        })
-        if (!mounted) return
-
-        setInvestments(result?.Investment || [])
-        setError(null)
-      } catch (err) {
-        if (!mounted) return
-        console.error('Error fetching investments:', err)
-        setError(err instanceof Error ? err.message : 'Unknown error occurred')
-      } finally {
-        if (mounted) {
-          setIsLoading(false)
-        }
-      }
-    })()
-    return () => {
-      mounted = false
-    }
-  }, [fetchInvestments])
-
-  // Map investment types to their parent groups
-  const typeToGroupMap = React.useMemo(() => {
-    const map = new Map<string, string>()
-
-    if (groupsData?.groups?.length) {
-      groupsData.groups.forEach((group: any) => {
-        group.types?.forEach((type: any) => {
-          map.set(type.value, group.value)
-        })
-      })
-    }
-
-    return map
+  // Build the group list from catalog — no investments needed here
+  const investmentGroups: InvestmentGroup[] = React.useMemo(() => {
+    if (!groupsData?.groups?.length) return []
+    const sortedGroups = [...groupsData.groups].sort((a: any, b: any) => {
+      if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder
+      return a.value.localeCompare(b.value)
+    })
+    return sortedGroups.map((group: any) => ({
+      name: group.value,
+      icon: getGroupIcon(group.value),
+      types: (group.types || []).map((t: any) => ({ id: t.id, value: t.value }))
+    }))
   }, [groupsData])
 
-  // Process investments by groups - use catalog displayOrder for sorting
-  const processedInvestmentGroups = React.useMemo(() => {
-    if (!investments?.length || !groupsData?.groups?.length) {
-      return []
-    }
+  const handleNavigateToInvestmentType = (investmentType: string) => {
+    onNavigateToInvestments?.(investmentType)
+  }
 
-    // Group investments by their group value
-    const groupGroups = investments.reduce(
-      (groups, inv) => {
-        const investmentTypeValue = inv.investmentType?.value
-        const actualGroupValue = inv.investmentGroup?.value
-
-        const correctGroupValue = investmentTypeValue ? typeToGroupMap.get(investmentTypeValue) : null
-        const finalGroupValue = correctGroupValue || actualGroupValue
-
-        if (!finalGroupValue) {
-          console.warn('Investment without proper type or group found:', {
-            id: inv.id,
-            name: inv.name,
-            investmentType: investmentTypeValue,
-            investmentGroup: actualGroupValue
-          })
-          return groups
-        }
-
-        if (actualGroupValue && correctGroupValue && actualGroupValue !== correctGroupValue) {
-          console.warn(
-            `Investment data mismatch: "${inv.name}" assigned to "${actualGroupValue}" but type "${investmentTypeValue}" belongs to "${correctGroupValue}" per catalog. Using catalog group.`
-          )
-        } else if (!investmentTypeValue && actualGroupValue) {
-          console.info(`Investment "${inv.name}" has no type, using assigned group "${actualGroupValue}"`)
-        }
-
-        if (!groups[finalGroupValue]) groups[finalGroupValue] = []
-        groups[finalGroupValue].push(inv)
-        return groups
-      },
-      {} as Record<string, Investment[]>
-    )
-
-    // Ensure all catalog groups are present (even with 0 investments)
-    groupsData.groups.forEach((catalogGroup: any) => {
-      if (!groupGroups[catalogGroup.value]) {
-        groupGroups[catalogGroup.value] = []
-      }
-    })
-
-    // Sort groups by displayOrder from catalog, then alphabetically
-    return groupsData.groups
-      .sort((a: any, b: any) => {
-        // Primary sort: by displayOrder
-        if (a.displayOrder !== b.displayOrder) {
-          return a.displayOrder - b.displayOrder
-        }
-        // Secondary sort: alphabetically by value
-        return a.value.localeCompare(b.value)
-      })
-      .map((catalogGroup: any) => ({
-        group: catalogGroup.value,
-        investments: groupGroups[catalogGroup.value] || []
-      }))
-  }, [investments, groupsData, typeToGroupMap])
-
-  // Transform investments into grouped metrics - use specific icons for main 4 groups
-  const investmentGroupMetrics = React.useMemo(() => {
-    if (!groupsData?.groups?.length) {
-      return []
-    }
-
-    return processedInvestmentGroups.map(({ group, investments: groupInvestments }) => {
-      return {
-        name: group,
-        icon: getGroupIcon(group), // Specific icons for Equity, Private Equity, Real Estate, Liquid Funds; generic for others
-        investments: groupInvestments.length,
-        groupInvestments // Include actual investments for currency filtering and trend calculation
-      }
-    })
-  }, [processedInvestmentGroups, groupsData])
-
-  if (isLoading) {
+  if (groupsLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="dashboard-loading">
         <Spinner size="lg" />
@@ -257,17 +74,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     )
   }
 
-  if (error || groupsError) {
+  if (groupsError) {
     return (
       <Alert variant="destructive" data-testid="dashboard-error">
         <AlertTitle>Error Loading Investment Data</AlertTitle>
-        <AlertDescription>{error || groupsError}</AlertDescription>
-        <button
-          className="gba:px-4 gba:py-2 gba:bg-red-500 gba:text-white gba:rounded"
-          onClick={() => window.location.reload()}
-        >
+        <AlertDescription>{groupsError}</AlertDescription>
+        <Button size="sm" onClick={() => globalThis.location.reload()}>
           Retry
-        </button>
+        </Button>
       </Alert>
     )
   }
@@ -306,50 +120,31 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="gba:flex gba:justify-between gba:items-center">
           <div>
             <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Groups</h2>
-            <p className="gba:text-sm gba:text-gray-500 gba:mt-1">
-              {investments.length} total investments across {groupsData?.groups?.length ?? 0} groups
-            </p>
+            <p className="gba:text-sm gba:text-gray-500 gba:mt-1">{investmentGroups.length} groups</p>
           </div>
         </div>
 
-        <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-4">
-          {groupsLoading ? (
-            <div className="gba:col-span-full gba:flex gba:justify-center gba:items-center gba:py-8">
-              <Spinner size="lg" />
-            </div>
-          ) : groupsError ? (
-            <div className="gba:col-span-full">
-              <Alert variant="destructive">
-                <AlertTitle>Error Loading Investment Groups</AlertTitle>
-                <AlertDescription>{groupsError}</AlertDescription>
-                <Button size="sm" onClick={() => window.location.reload()}>
-                  Retry
-                </Button>
-              </Alert>
-            </div>
-          ) : investmentGroupMetrics.length === 0 ? (
-            <div className="gba:col-span-full gba:text-center gba:py-8">
-              <p className="gba:text-gray-500">No investment groups found</p>
-              <p className="gba:text-sm gba:text-gray-400 gba:mt-2">
-                {investments.length} investments available, {groupsData?.groups?.length ?? 0} groups in catalog
-              </p>
-            </div>
-          ) : (
-            investmentGroupMetrics.map((group: InvestmentGroup) => (
+        {investmentGroups.length === 0 ? (
+          <div className="gba:col-span-full gba:text-center gba:py-8">
+            <p className="gba:text-gray-500">No investment groups found</p>
+          </div>
+        ) : (
+          <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-4">
+            {investmentGroups.map(group => (
               <InvestmentBreakdownCard
                 key={group.name}
                 group={group}
+                accessToken={accessToken}
                 moduleColor={
                   moduleColor as 'ext1' | 'ext2' | 'ext3' | 'ext4' | 'ext5' | 'ext6' | 'ext7' | 'ext8' | undefined
                 }
                 onNavigateToInvestmentType={handleNavigateToInvestmentType}
-                calculateTrendData={calculateTrendData}
                 masterCurrency={masterCurrency}
                 availableCurrencies={availableCurrencies}
               />
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 // Investment Contact hooks - CRM contact entity operations
-import { useCallback, useState, useEffect, useMemo } from 'react'
+import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { InvestmentContact } from '../types/investmentContactTypes'
@@ -560,7 +560,10 @@ export interface UseInvestmentContactsListResult {
   total: number
   loading: boolean
   error: string | null
+  hasMore: boolean
   refetch: (variables?: InvestmentContactQueryVariables) => Promise<void>
+  search: (searchTerm: string) => void
+  loadMore: () => void
 }
 
 export function useInvestmentContactsList(
@@ -568,6 +571,7 @@ export function useInvestmentContactsList(
   variables?: InvestmentContactQueryVariables
 ): UseInvestmentContactsListResult {
   const graphqlClient = useGraphQLClient(context.accessToken)
+  const pageSize = variables?.limit || 20
 
   // Memoize variables to prevent infinite loops when object is recreated on each render
   const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
@@ -576,20 +580,35 @@ export function useInvestmentContactsList(
     contacts: [] as InvestmentContact[],
     total: 0,
     loading: true,
-    error: null as string | null
+    error: null as string | null,
+    hasMore: false
   })
 
-  const fetchContacts = useCallback(
-    async (queryVariables?: InvestmentContactQueryVariables) => {
+  const currentSearchRef = useRef('')
+  const currentOffsetRef = useRef(0)
+
+  const fetchPage = useCallback(
+    async (searchTerm: string, offset: number, append: boolean) => {
       if (!context.accessToken) {
         setState(prev => ({ ...prev, loading: false }))
         return
       }
 
-      setState(prev => ({ ...prev, loading: true, error: null }))
+      setState(prev => ({
+        ...prev,
+        loading: true,
+        error: null,
+        ...(append ? {} : { contacts: [] })
+      }))
 
       try {
-        const vars = { ...stableVariables, ...queryVariables }
+        const vars: InvestmentContactQueryVariables = {
+          ...stableVariables,
+          limit: pageSize,
+          offset,
+          ...(searchTerm.trim() ? { search: searchTerm.trim() } : {})
+        }
+
         const query = buildInvestmentContactQuery()
 
         const customConditions: Record<string, any>[] = []
@@ -602,38 +621,76 @@ export function useInvestmentContactsList(
         const orderBy = buildInvestmentContactOrderBy(vars.orderBy || [])
 
         const graphQLVariables: Record<string, any> = {
-          limit: Math.min(vars.limit || 50, 100),
-          offset: vars.offset || 0,
+          limit: pageSize,
+          offset,
           where: whereCondition,
-          orderBy: orderBy
+          orderBy
         }
 
         const result = await graphqlClient.request<InvestmentContactQueryResponse>(query, graphQLVariables)
-        const contacts = result.InvestmentContact.map(toInvestmentContact)
+        const fetched = result.InvestmentContact.map(toInvestmentContact)
         const total = result.InvestmentContactAggregate?.aggregate?.count || 0
+        const hasMore = fetched.length === pageSize
 
-        setState({ contacts, total, loading: false, error: null })
+        currentOffsetRef.current = (append ? currentOffsetRef.current : 0) + fetched.length
+
+        setState(prev => ({
+          contacts: append ? [...prev.contacts, ...fetched] : fetched,
+          total,
+          loading: false,
+          error: null,
+          hasMore
+        }))
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment contacts'
 
         setState(prev => ({
           ...prev,
-          contacts: [],
-          total: 0,
+          ...(append ? {} : { contacts: [], total: 0 }),
           loading: false,
-          error: errorMessage
+          error: errorMessage,
+          hasMore: false
         }))
       }
     },
-    [context.accessToken, graphqlClient, stableVariables]
+    [context.accessToken, graphqlClient, stableVariables, pageSize]
   )
 
   useEffect(() => {
-    fetchContacts()
-  }, [fetchContacts])
+    currentSearchRef.current = ''
+    currentOffsetRef.current = 0
+    fetchPage('', 0, false)
+  }, [fetchPage])
+
+  const refetch = useCallback(
+    async (queryVariables?: InvestmentContactQueryVariables) => {
+      const searchTerm = (queryVariables?.search as string) || ''
+      currentSearchRef.current = searchTerm
+      currentOffsetRef.current = 0
+      await fetchPage(searchTerm, 0, false)
+    },
+    [fetchPage]
+  )
+
+  const search = useCallback(
+    (searchTerm: string) => {
+      currentSearchRef.current = searchTerm
+      currentOffsetRef.current = 0
+      fetchPage(searchTerm, 0, false)
+    },
+    [fetchPage]
+  )
+
+  const loadMore = useCallback(() => {
+    if (state.hasMore && !state.loading) {
+      fetchPage(currentSearchRef.current, currentOffsetRef.current, true)
+    }
+  }, [fetchPage, state.hasMore, state.loading])
 
   return {
     ...state,
-    refetch: fetchContacts
+    refetch,
+    search,
+    loadMore
   }
 }

@@ -1,4 +1,5 @@
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { createSafeObjectUrl, sanitizeDownloadFilename } from '@/common/utils/safeUrlUtils'
 import type {
   DriveFolder,
   DriveItem,
@@ -172,18 +173,17 @@ export class DriveApiService {
     const blob = await response.blob()
     const disposition = response.headers.get('Content-Disposition') ?? ''
     const nameMatch = disposition.match(/filename="(.+)"/)
-    const fileName = nameMatch ? decodeURIComponent(nameMatch[1]) : 'download'
-    const url = URL.createObjectURL(blob)
+    const fileName = sanitizeDownloadFilename(nameMatch ? decodeURIComponent(nameMatch[1]) : 'download')
+    const url = createSafeObjectUrl(new Blob([blob], { type: blob.type || 'application/octet-stream' }), () => true)
+    if (!url) throw new Error('Download failed: unsupported file type')
     const a = document.createElement('a')
     a.href = url
     a.download = fileName
-    document.body.appendChild(a)
     a.click()
-    document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
 
-  static async getFilePreviewBlob(fileId: string): Promise<{ url: string; mimeType: string }> {
+  static async getFilePreviewBlob(fileId: string): Promise<{ blob: Blob; mimeType: string }> {
     const token = currentAccessToken
     const response = await fetch(`${API_URL}/drive/files/${fileId}/download`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
@@ -191,7 +191,7 @@ export class DriveApiService {
     if (!response.ok) throw new Error(`Preview fetch failed: ${response.status}`)
     const blob = await response.blob()
     const mimeType = blob.type || response.headers.get('Content-Type') || 'application/octet-stream'
-    return { url: URL.createObjectURL(blob), mimeType }
+    return { blob, mimeType }
   }
 
   static async fetchDocument(id: string): Promise<{ id: string; title: string; content: string; plainText?: string }> {

@@ -178,16 +178,15 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({
   }
 
   const getDecisionPathLabel = (entry: DecisionLogEntry) => {
-    if (entry.decisionMode === 'AI' && entry.escalated) return t('decisions-ai-escalated-to-user')
-    if (entry.decisionMode === 'AI') return t('decisions-ai-direct')
+    if (entry.decisionMode === 'AI' && entry.escalated) return t('decisions-escalated-short')
+    if (entry.decisionMode === 'AI') return t('decisions-direct')
     if (entry.decisionMode === 'USER') return t('decisions-user-direct')
     if (entry.decisionMode === 'LOGIC') return t('decisions-logic-direct')
     return formatStatusLabel(entry.decisionMode)
   }
 
   const getEscalationLabel = (entry: DecisionLogEntry) => {
-    if (!entry.escalated) return '-'
-    return t('decisions-ai-escalated-to-user')
+    return entry.escalated ? t('decisions-escalation-yes') : t('decisions-escalation-no')
   }
 
   const getDecisionTableLabel = (entry: DecisionLogEntry) => {
@@ -203,12 +202,7 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({
       return getDecisionPathLabel(entry)
     }
 
-    return (
-      entry.decisionInstructions ||
-      entry.humanReviewInstructions ||
-      entry.decisionReasoning ||
-      getDecisionPathLabel(entry)
-    )
+    return entry.decisionReasoning || entry.humanReviewInstructions || getDecisionPathLabel(entry)
   }
 
   return (
@@ -326,24 +320,14 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({
                           <span className="gba:font-medium">
                             {entry.selectedBranchLabel || entry.selectedBranch || t('value-not-available')}
                           </span>
-                          {entry.selectedBranch &&
-                          entry.selectedBranchLabel &&
-                          entry.selectedBranch !== entry.selectedBranchLabel ? (
-                            <span className="gba:text-xs gba:text-muted-foreground">{entry.selectedBranch}</span>
-                          ) : null}
                         </div>
                       </td>
                       <td className="gba:p-3 gba:text-sm">
-                        <div className="gba:flex gba:flex-col gba:gap-1">
-                          <span
-                            className={`gba:text-sm gba:font-medium ${entry.escalated ? 'gba:text-destructive' : 'gba:text-foreground'}`}
-                          >
-                            {getEscalationLabel(entry)}
-                          </span>
-                          {entry.escalationReason ? (
-                            <span className="gba:text-xs gba:text-muted-foreground">{entry.escalationReason}</span>
-                          ) : null}
-                        </div>
+                        <span
+                          className={`gba:text-sm gba:font-medium ${entry.escalated ? 'gba:text-warning' : 'gba:text-foreground'}`}
+                        >
+                          {getEscalationLabel(entry)}
+                        </span>
                       </td>
                     </tr>
                   ))}

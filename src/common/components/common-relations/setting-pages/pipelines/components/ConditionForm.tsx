@@ -209,8 +209,8 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="gba:flex gba:flex-col gba:max-h-[85vh] gba:overflow-hidden">
+        <DialogHeader className="gba:flex-shrink-0">
           <DialogTitle>{editingCondition ? 'Edit Condition' : 'Create New Condition'}</DialogTitle>
           <DialogDescription>
             {editingCondition
@@ -219,142 +219,149 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-6">
-            {/* Basic Information Section */}
-            <div className="gba:space-y-4">
-              <h4 className="gba:font-medium gba:text-foreground gba:text-sm gba:border-b gba:border-border gba:pb-2">
-                Basic Information
-              </h4>
+        <div className="gba:flex gba:min-h-0 gba:flex-1 gba:flex-col gba:overflow-hidden">
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(handleSubmit)}
+              className="gba:flex gba:h-full gba:min-h-0 gba:flex-1 gba:flex-col gba:overflow-hidden"
+            >
+              <div className="gba:min-h-0 gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:pr-1">
+                {/* Basic Information Section */}
+                <div className="gba:space-y-4">
+                  <h4 className="gba:font-medium gba:text-foreground gba:text-sm gba:border-b gba:border-border gba:pb-2">
+                    Basic Information
+                  </h4>
 
-              <FormField
-                control={form.control}
-                name="name"
-                rules={{ required: 'Please enter a condition name' }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Condition Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Please Enter..." />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    rules={{ required: 'Please enter a condition name' }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Condition Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Please Enter..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Please Enter..." />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Please Enter..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-            {/* Configuration Section */}
-            <div className="gba:space-y-4">
-              <h4 className="gba:font-medium gba:text-foreground gba:text-sm gba:border-b gba:border-border gba:pb-2">
-                Configuration
-              </h4>
+                {/* Configuration Section */}
+                <div className="gba:space-y-4">
+                  <h4 className="gba:font-medium gba:text-foreground gba:text-sm gba:border-b gba:border-border gba:pb-2">
+                    Configuration
+                  </h4>
 
-              <FormField
-                control={form.control}
-                name="checked_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Checked By</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select who checks this condition" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {CHECKED_TYPE_OPTIONS.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="checked_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Checked By</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select who checks this condition" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {CHECKED_TYPE_OPTIONS.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="generate_task"
-                render={({ field }) => (
-                  <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0">
-                    <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                    <div className="gba:space-y-1 gba:leading-none">
-                      <FormLabel>Generate Task</FormLabel>
-                      <p className="gba:text-sm gba:text-muted-foreground">
-                        Automatically create a task when this condition is met
-                      </p>
-                    </div>
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="generate_task"
+                    render={({ field }) => (
+                      <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0">
+                        <FormControl>
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                        <div className="gba:space-y-1 gba:leading-none">
+                          <FormLabel>Generate Task</FormLabel>
+                          <p className="gba:text-sm gba:text-muted-foreground">
+                            Automatically create a task when this condition is met
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="deadline_enabled"
-                render={({ field }) => (
-                  <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0">
-                    <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                    <div className="gba:space-y-1 gba:leading-none">
-                      <FormLabel>Enable Deadline</FormLabel>
-                      <p className="gba:text-sm gba:text-muted-foreground">Set a deadline for this condition</p>
-                    </div>
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="deadline_enabled"
+                    render={({ field }) => (
+                      <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0">
+                        <FormControl>
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                        <div className="gba:space-y-1 gba:leading-none">
+                          <FormLabel>Enable Deadline</FormLabel>
+                          <p className="gba:text-sm gba:text-muted-foreground">Set a deadline for this condition</p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
 
-              {form.watch('deadline_enabled') && (
-                <FormField
-                  control={form.control}
-                  name="deadline_duration"
-                  rules={{ min: 1 }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Deadline Duration (Days)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          min="1"
-                          onChange={e => field.onChange(Number.parseInt(e.target.value) || 1)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                  {form.watch('deadline_enabled') && (
+                    <FormField
+                      control={form.control}
+                      name="deadline_duration"
+                      rules={{ min: 1 }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Deadline Duration (Days)</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              min="1"
+                              onChange={e => field.onChange(Number.parseInt(e.target.value) || 1)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   )}
-                />
-              )}
-            </div>
+                </div>
+              </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={operationLoading}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={operationLoading}>
-                {getSubmitButtonText()}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+              <DialogFooter className="gba:flex-shrink-0 gba:pt-4">
+                <Button type="button" variant="outline" onClick={onClose} disabled={operationLoading}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={operationLoading}>
+                  {getSubmitButtonText()}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </div>
       </DialogContent>
     </Dialog>
   )

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { Microphone, Lightning, ChartLineUp } from '@phosphor-icons/react'
 import { Brain } from 'lucide-react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 
 interface HeroSectionProps {
   'data-testid'?: string
@@ -290,6 +292,8 @@ export const DeepBlueNeuralBackground: React.FC = () => {
  * Features deep blue gradient background with animated neural network (matches EveryOne style)
  */
 export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'every-ai-hero' }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <>
       <style>{keyframesStyles}</style>
@@ -343,15 +347,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
           >
             <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-white/10 gba:text-white/90 gba:border gba:border-white/20">
               <Microphone className="gba:w-3 gba:h-3" weight="fill" />
-              Voice
+              {t('hero-badge-voice')}
             </span>
             <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-white/10 gba:text-white/90 gba:border gba:border-white/20">
               <Lightning className="gba:w-3 gba:h-3" weight="fill" />
-              Workflows
+              {t('hero-badge-workflows')}
             </span>
             <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-white/10 gba:text-white/90 gba:border gba:border-white/20">
               <ChartLineUp className="gba:w-3 gba:h-3" weight="fill" />
-              Insights
+              {t('hero-badge-insights')}
             </span>
           </div>
 
@@ -361,8 +365,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             style={{ animation: 'fadeInUp 0.6s ease-out 0.15s both' }}
             data-testid={`${testId}-headline`}
           >
-            Your intelligent assistant.
-            <span className="gba:text-white/70"> Voice-enabled.</span>
+            {t('hero-headline')}
+            <span className="gba:text-white/70"> {t('hero-headline-accent')}</span>
           </h2>
 
           {/* Subtitle */}
@@ -371,7 +375,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             style={{ animation: 'fadeInUp 0.6s ease-out 0.2s both' }}
             data-testid={`${testId}-subtitle`}
           >
-            Ask questions, automate workflows, analyze data, and get intelligent insights — all by voice or text.
+            {t('hero-subtitle')}
           </p>
         </div>
       </section>

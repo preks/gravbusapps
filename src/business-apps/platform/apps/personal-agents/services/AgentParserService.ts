@@ -5,7 +5,7 @@
  * agent requests into structured configurations.
  */
 
-import { promptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { AgentParseResult, CreateAgentRequest, PersonalAgent } from '../types'
 import { AGENT_PARSER_USER_PROMPT } from '../prompts/agent-parser-prompt'
 
@@ -13,12 +13,7 @@ import { AGENT_PARSER_USER_PROMPT } from '../prompts/agent-parser-prompt'
 const AGENT_PARSER_PROMPT_ID = 'agent_parser_v1'
 
 export class AgentParserService {
-  private accessToken: string
-
-  constructor(accessToken: string) {
-    this.accessToken = accessToken
-    promptManagerClient.setAccessToken(accessToken)
-  }
+  constructor(private readonly promptManagerClient: PromptManagerClient) {}
 
   /**
    * Parse natural language agent request using AI
@@ -46,7 +41,7 @@ export class AgentParserService {
         formData.append('user_params', JSON.stringify({ prompt: userPrompt }))
 
         // Execute the AI Task Expert prompt
-        const response = await promptManagerClient.executePromptById(AGENT_PARSER_PROMPT_ID, formData)
+        const response = await this.promptManagerClient.executePromptById(AGENT_PARSER_PROMPT_ID, formData)
 
         // Parse AI response
         const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
@@ -174,7 +169,7 @@ export class AgentParserService {
   /**
    * Validate parsed agent configuration
    */
-  validateAgentConfig(agent: Partial<PersonalAgent>): { valid: boolean; errors: string[] } {
+  static validateAgentConfig(agent: Partial<PersonalAgent>): { valid: boolean; errors: string[] } {
     const errors: string[] = []
 
     if (!agent.name) errors.push('Agent name is required')
@@ -202,7 +197,7 @@ export class AgentParserService {
   /**
    * Generate human-readable summary of agent configuration
    */
-  generateAgentSummary(agent: Partial<PersonalAgent>): string {
+  static generateAgentSummary(agent: Partial<PersonalAgent>): string {
     const parts: string[] = []
 
     // Trigger description

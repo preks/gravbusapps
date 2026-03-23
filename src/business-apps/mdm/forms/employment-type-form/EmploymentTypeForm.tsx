@@ -1,7 +1,15 @@
 import React, { useMemo } from 'react'
+import {
+  Input,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
-import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import {
@@ -11,34 +19,45 @@ import {
 import { useCodeError } from '@/business-apps/mdm/hooks/useCodeError'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+import translations from './_i18n'
 
-// Helper to validate no leading whitespace (trailing will be trimmed on submit)
 const noLeadingWhitespace = (value: string) => value === value.trimStart()
-const noLeadingWhitespaceMessage = 'Cannot start with whitespace'
 
-// Zod validation schema (for editing - code is optional)
-const employmentTypeFormSchema = z.object({
-  value: z
-    .string({ message: 'Please enter employment type name' })
-    .min(1, 'Please enter employment type name')
-    .max(64, 'Employment type name must be less than 64 characters')
-    .refine(noLeadingWhitespace, noLeadingWhitespaceMessage),
-  code: z.string().optional(),
-  description: z
-    .string()
-    .max(100, 'Description must be less than 100 characters')
-    .refine(val => !val || noLeadingWhitespace(val), noLeadingWhitespaceMessage)
-    .optional()
-})
+const buildEmploymentTypeFormSchema = (msgs: {
+  nameRequired: string
+  nameTooLong: string
+  descriptionTooLong: string
+  noLeadingWhitespace: string
+}) =>
+  z.object({
+    value: z
+      .string({ message: msgs.nameRequired })
+      .min(1, msgs.nameRequired)
+      .max(64, msgs.nameTooLong)
+      .refine(noLeadingWhitespace, msgs.noLeadingWhitespace),
+    code: z.string().optional(),
+    description: z
+      .string()
+      .max(100, msgs.descriptionTooLong)
+      .refine(val => !val || noLeadingWhitespace(val), msgs.noLeadingWhitespace)
+      .optional()
+  })
 
-// Schema for creating new employment type (code is required)
-const createEmploymentTypeFormSchema = employmentTypeFormSchema.extend({
-  code: z
-    .string({ message: 'Please enter employment type code' })
-    .min(1, 'Please enter employment type code')
-    .max(10, 'Employment type code must be less than 10 characters')
-    .refine(noLeadingWhitespace, noLeadingWhitespaceMessage)
-})
+const buildCreateEmploymentTypeFormSchema = (msgs: {
+  nameRequired: string
+  nameTooLong: string
+  codeRequired: string
+  codeTooLong: string
+  descriptionTooLong: string
+  noLeadingWhitespace: string
+}) =>
+  buildEmploymentTypeFormSchema(msgs).extend({
+    code: z
+      .string({ message: msgs.codeRequired })
+      .min(1, msgs.codeRequired)
+      .max(10, msgs.codeTooLong)
+      .refine(noLeadingWhitespace, msgs.noLeadingWhitespace)
+  })
 
 export interface EmploymentTypeFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -66,12 +85,33 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
   usedCodes = [],
   isDrawerActive
 }) => {
+  const { t } = useTranslation(translations)
   const dataTestId = formatDataTestId(prefixDataTestId, 'EmploymentTypeForm')
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
   const catalogClient = useCatalogManagerClient(accessToken)
 
+  const validationMsgs = useMemo(
+    () => ({
+      nameRequired: t('validation-name-required'),
+      nameTooLong: t('validation-name-too-long'),
+      codeRequired: t('validation-code-required'),
+      codeTooLong: t('validation-code-too-long'),
+      descriptionTooLong: t('validation-description-too-long'),
+      noLeadingWhitespace: t('validation-no-leading-whitespace')
+    }),
+    [t]
+  )
+
+  const employmentTypeFormSchema = useMemo(() => buildEmploymentTypeFormSchema(validationMsgs), [validationMsgs])
+
+  const createEmploymentTypeFormSchema = useMemo(
+    () => buildCreateEmploymentTypeFormSchema(validationMsgs),
+    [validationMsgs]
+  )
+
+  const activeSchema = employmentType ? employmentTypeFormSchema : createEmploymentTypeFormSchema
+
   const handleSubmit = async (data: any) => {
-    // Trim all string values before processing
     const trimmedData = {
       ...data,
       value: data.value?.trim() || '',
@@ -114,17 +154,13 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
     [employmentType]
   )
 
-  // Use different schema for create vs edit (code required only on create)
-  const resolver = useMemo(
-    () => zodResolver(employmentType ? employmentTypeFormSchema : createEmploymentTypeFormSchema) as any,
-    [employmentType]
-  )
+  const resolver = useMemo(() => zodResolver(activeSchema) as any, [activeSchema])
 
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={employmentType ? 'Edit Employment Type' : 'Create Employment Type'}
-      description="Configure employment type details and additional information"
+      title={employmentType ? t('form-title-edit') : t('form-title-create')}
+      description={t('form-description')}
       onSubmit={handleSubmit}
       onCancel={onCancel}
       defaultValues={defaultValues}
@@ -134,15 +170,15 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
       isValid={!codeError}
       setCodeError={setCodeError}
       resolver={resolver}
-      schema={employmentType ? employmentTypeFormSchema : createEmploymentTypeFormSchema}
+      schema={activeSchema}
     >
       <FormField
         name="value"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Name</FormLabel>
+            <FormLabel>{t('field-name-label')}</FormLabel>
             <FormControl>
-              <Input placeholder="Enter name" {...field} data-testid={`${dataTestId}-name-input`} />
+              <Input placeholder={t('field-name-placeholder')} {...field} data-testid={`${dataTestId}-name-input`} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -153,10 +189,10 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
         <FormField
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Code</FormLabel>
+              <FormLabel>{t('field-code-label')}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Enter code"
+                  placeholder={t('field-code-placeholder')}
                   {...field}
                   data-testid={`${dataTestId}-code-input`}
                   onChange={e => {
@@ -175,11 +211,11 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
       <FormField
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Description</FormLabel>
+            <FormLabel>{t('field-description-label')}</FormLabel>
             <FormControl>
               <Input
                 data-testid={`${dataTestId}-description-input`}
-                placeholder="Enter description (optional)"
+                placeholder={t('field-description-placeholder')}
                 {...field}
               />
             </FormControl>

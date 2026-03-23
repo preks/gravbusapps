@@ -29,10 +29,10 @@ const MODE_LABELS: Record<DecisionMode, string> = {
 }
 
 function getStatusBorder(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
-  if (isSelected) return 'gba:border-primary gba:shadow-md'
+  if (isSelected) return 'gba:border-primary'
   if (isOnActivePath) return 'gba:border-info'
   if (status === 'completed') return 'gba:border-success'
-  if (status === 'active') return 'gba:border-info gba:shadow-md'
+  if (status === 'active') return 'gba:border-info'
   if (status === 'failed') return 'gba:border-destructive'
   return 'gba:border-border'
 }

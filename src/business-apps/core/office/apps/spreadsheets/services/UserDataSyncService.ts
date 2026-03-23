@@ -9,7 +9,8 @@
  * - sharedApps: Apps shared with this user by others
  */
 
-const PROMPT_MANAGER_ENDPOINT = '/prompt-manager/api/v1/user-data'
+import { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+
 const SPREADSHEET_INDEX_KEY = 'spreadsheet-apps-index'
 
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
@@ -30,13 +31,6 @@ const debugLog = (...args: unknown[]) => {
   }
 }
 
-interface UserDataResponse {
-  user_id: string
-  key: string
-  data: SpreadsheetSyncData
-  updated_at: string
-}
-
 export interface SharedAppEntry {
   appId: string
   appName: string
@@ -54,12 +48,22 @@ export interface SpreadsheetSyncData {
   updatedAt: string
 }
 
-export class UserDataSyncService {
-  private accessToken: string
-  private userId: string
+function createAuthorizedPromptManagerClient(accessToken: string) {
+  const promptManagerClient = new PromptManagerClient()
+  promptManagerClient.setAccessToken(accessToken)
+  return promptManagerClient
+}
 
-  constructor(accessToken: string, userId: string) {
-    this.accessToken = accessToken
+export class UserDataSyncService {
+  private readonly promptManagerClient: PromptManagerClient
+  private readonly userId: string
+
+  constructor(
+    accessToken: string,
+    userId: string,
+    promptManagerClient = createAuthorizedPromptManagerClient(accessToken)
+  ) {
+    this.promptManagerClient = promptManagerClient
     this.userId = userId
   }
 
@@ -67,41 +71,20 @@ export class UserDataSyncService {
    * Get the full sync data from the backend
    */
   async getSyncData(): Promise<SpreadsheetSyncData | null> {
-    const url = `${PROMPT_MANAGER_ENDPOINT}/${SPREADSHEET_INDEX_KEY}?user_id=${encodeURIComponent(this.userId)}`
-    debugLog('[TRACE] UserDataSync GET:', url)
+    debugLog('[TRACE] UserDataSync GET:', this.userId, SPREADSHEET_INDEX_KEY)
 
     try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      debugLog('[TRACE] UserDataSync GET response status:', response.status)
-
-      if (response.status === 404 || response.status === 204) {
+      const response = await this.promptManagerClient.getUserData<SpreadsheetSyncData>(
+        SPREADSHEET_INDEX_KEY,
+        this.userId
+      )
+      debugLog('[TRACE] UserDataSync GET response:', response)
+      if (!response?.data) {
         debugLog('[UserDataSync] No sync data found in backend (404/204)')
         return null
       }
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.warn('[UserDataSync] Failed to get sync data:', response.status, errorText)
-        return null
-      }
-
-      const data: UserDataResponse | null = await response.json()
-      debugLog('[TRACE] UserDataSync GET data:', data)
-
-      if (!data || !data.data) {
-        debugLog('[UserDataSync] Response had no data field')
-        return null
-      }
-
-      debugLog('[UserDataSync] Sync data loaded from backend:', data.updated_at)
-      return data.data
+      debugLog('[UserDataSync] Sync data loaded from backend:', response.updated_at)
+      return response.data
     } catch (error) {
       console.warn('[UserDataSync] Error getting sync data:', error)
       return null
@@ -129,28 +112,12 @@ export class UserDataSyncService {
    * Save the full sync data
    */
   async saveSyncData(data: SpreadsheetSyncData): Promise<boolean> {
-    const url = `${PROMPT_MANAGER_ENDPOINT}/${SPREADSHEET_INDEX_KEY}?user_id=${encodeURIComponent(this.userId)}`
-    debugLog('[TRACE] UserDataSync PUT:', url)
+    debugLog('[TRACE] UserDataSync PUT:', this.userId, SPREADSHEET_INDEX_KEY)
     debugLog('[TRACE] UserDataSync PUT body:', { data })
 
     try {
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ data })
-      })
-
-      debugLog('[TRACE] UserDataSync PUT response status:', response.status)
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.warn('[UserDataSync] Failed to save sync data:', response.status, errorText)
-        return false
-      }
-
+      const response = await this.promptManagerClient.putUserData(SPREADSHEET_INDEX_KEY, this.userId, data)
+      debugLog('[TRACE] UserDataSync PUT response:', response)
       debugLog('[UserDataSync] Sync data saved to backend successfully')
       return true
     } catch (error) {
@@ -185,28 +152,18 @@ export class UserDataSyncService {
   ): Promise<boolean> {
     try {
       // Get recipient's current sync data
-      const response = await fetch(
-        `${PROMPT_MANAGER_ENDPOINT}/${SPREADSHEET_INDEX_KEY}?user_id=${encodeURIComponent(recipientUserId)}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
-
       let recipientData: SpreadsheetSyncData = {
         indexFilePath: '',
         sharedApps: [],
         updatedAt: new Date().toISOString()
       }
 
-      if (response.ok) {
-        const data: UserDataResponse | null = await response.json()
-        if (data?.data) {
-          recipientData = data.data
-        }
+      const existingRecipientData = await this.promptManagerClient.getUserData<SpreadsheetSyncData>(
+        SPREADSHEET_INDEX_KEY,
+        recipientUserId
+      )
+      if (existingRecipientData?.data) {
+        recipientData = existingRecipientData.data
       }
 
       // Check if app is already shared
@@ -233,23 +190,7 @@ export class UserDataSyncService {
       recipientData.updatedAt = new Date().toISOString()
 
       // Save recipient's updated sync data
-      const saveResponse = await fetch(
-        `${PROMPT_MANAGER_ENDPOINT}/${SPREADSHEET_INDEX_KEY}?user_id=${encodeURIComponent(recipientUserId)}`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ data: recipientData })
-        }
-      )
-
-      if (!saveResponse.ok) {
-        console.warn('[UserDataSync] Failed to share with user:', saveResponse.status)
-        return false
-      }
-
+      await this.promptManagerClient.putUserData(SPREADSHEET_INDEX_KEY, recipientUserId, recipientData)
       debugLog('[UserDataSync] App shared with user:', recipientUserId)
       return true
     } catch (error) {
@@ -284,44 +225,21 @@ export class UserDataSyncService {
   async revokeAppAccess(recipientUserId: string, appId: string): Promise<boolean> {
     try {
       // Get recipient's current sync data
-      const response = await fetch(
-        `${PROMPT_MANAGER_ENDPOINT}/${SPREADSHEET_INDEX_KEY}?user_id=${encodeURIComponent(recipientUserId)}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
+      const existingRecipientData = await this.promptManagerClient.getUserData<SpreadsheetSyncData>(
+        SPREADSHEET_INDEX_KEY,
+        recipientUserId
       )
-
-      if (!response.ok) {
+      if (!existingRecipientData?.data) {
         return false
       }
 
-      const data: UserDataResponse | null = await response.json()
-      if (!data?.data) {
-        return false
-      }
-
-      const recipientData = data.data
+      const recipientData = existingRecipientData.data
       recipientData.sharedApps = recipientData.sharedApps.filter(a => a.appId !== appId)
       recipientData.updatedAt = new Date().toISOString()
 
       // Save updated sync data
-      const saveResponse = await fetch(
-        `${PROMPT_MANAGER_ENDPOINT}/${SPREADSHEET_INDEX_KEY}?user_id=${encodeURIComponent(recipientUserId)}`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ data: recipientData })
-        }
-      )
-
-      return saveResponse.ok
+      await this.promptManagerClient.putUserData(SPREADSHEET_INDEX_KEY, recipientUserId, recipientData)
+      return true
     } catch (error) {
       console.warn('[UserDataSync] Error revoking access:', error)
       return false

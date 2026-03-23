@@ -166,11 +166,15 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
   const dataKey = 'value'
   const nameKey = 'stage'
 
+  // Chart: only stages with value or count > 0 (legend below still shows all stages)
   const chartData = useMemo(() => {
     if (aggregatedFunnel.length === 0) return []
 
+    const stagesWithData = aggregatedFunnel.filter(stage => stage.value > 0 || stage.count > 0)
+    if (stagesWithData.length === 0) return []
+
     // Calculate better proportional sizing for funnel visibility
-    const values = aggregatedFunnel.map(stage => stage.value).filter(v => v > 0)
+    const values = stagesWithData.map(stage => stage.value).filter(v => v > 0)
     if (values.length === 0) return []
 
     const maxValue = Math.max(...values)
@@ -179,15 +183,12 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
     // If the ratio is too extreme (>100:1), apply logarithmic scaling
     const shouldNormalize = maxValue > 0 && minValue > 0 && maxValue / minValue > 100
 
-    // Preserve the original order from aggregatedFunnel (which is ordered by pipeline progression)
-    return aggregatedFunnel.map((stage, index) => {
+    return stagesWithData.map((stage, index) => {
       const key = toKey(stage.stage)
 
       let visualValue = stage.value
       if (shouldNormalize && stage.value > 0) {
-        // Use square root scaling to compress extreme ratios while maintaining order
         const normalizedRatio = Math.sqrt(stage.value / maxValue)
-        // Ensure minimum 20% and maximum 100% relative size
         visualValue = Math.max(maxValue * 0.2, maxValue * normalizedRatio)
       }
 
@@ -195,10 +196,9 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
         [nameKey]: key,
         [dataKey]: visualValue,
         count: stage.count,
-        originalValue: stage.value, // Keep original for labels
-        originalIndex: index, // Preserve original order
+        originalValue: stage.value,
+        originalIndex: index,
         fill: CHART_COLORS[index % CHART_COLORS.length],
-        // Add payload data for the label renderer
         payload: {
           originalValue: stage.value,
           count: stage.count,
@@ -212,7 +212,9 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
     const config: Record<string, { label?: string; color?: string }> = {
       [dataKey]: {}
     }
-    aggregatedFunnel.forEach((stage, index) => {
+    // Config keys must match chartData (only stages with data)
+    const stagesWithData = aggregatedFunnel.filter(stage => stage.value > 0 || stage.count > 0)
+    stagesWithData.forEach((stage, index) => {
       const key = toKey(stage.stage)
       config[key] = { label: stage.stage, color: CHART_COLORS[index % CHART_COLORS.length] }
     })

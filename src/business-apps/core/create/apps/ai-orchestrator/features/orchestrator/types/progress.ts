@@ -45,6 +45,9 @@ export interface BuildProgressEvent {
   // Additional metadata (e.g., generated code, partial results)
   metadata?: Record<string, unknown>
 
+  // Non-fatal wiring step failures (populated on wiring_completed and build_complete)
+  wiringWarnings?: string[]
+
   // Summary for build_complete event
   totalComponents?: number
   completedComponents?: number

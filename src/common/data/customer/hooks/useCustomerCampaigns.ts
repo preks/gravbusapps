@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 /**
@@ -132,6 +132,10 @@ export const useCustomerCampaigns = (accessToken: string, pageSize: number = 20,
 
   const graphqlClient = useGraphQLClient(accessToken)
 
+  const isFetchingRef = useRef(false)
+  const currentSearchRef = useRef('')
+  const currentOffsetRef = useRef(0)
+
   // Transform campaigns to options format (backward compatibility)
   const options: SalesCampaignOption[] = useMemo(
     () =>
@@ -152,23 +156,20 @@ export const useCustomerCampaigns = (accessToken: string, pageSize: number = 20,
   )
 
   const fetchSalesCampaigns = useCallback(
-    async (search: string = '', offset: number = 0, append: boolean = false) => {
+    async (searchTerm: string = '', offset: number = 0, append: boolean = false) => {
+      // Synchronous guard — prevents the Combobox intersection observer from triggering
+      // concurrent fetches with the same offset before React state updates propagate.
+      if (isFetchingRef.current) return
       if (!accessToken) {
-        setState(prev => ({
-          ...prev,
-          error: 'No access token provided'
-        }))
+        setState(prev => ({ ...prev, error: 'No access token provided' }))
         return
       }
 
-      setState(prev => ({
-        ...prev,
-        loading: true,
-        error: null
-      }))
+      isFetchingRef.current = true
+      setState(prev => ({ ...prev, loading: true, error: null }))
 
       try {
-        const hasSearch = search.trim().length > 0
+        const hasSearch = searchTerm.trim().length > 0
         const query = buildSalesCampaignsQuery(hasSearch)
 
         const variables: any = {
@@ -178,7 +179,7 @@ export const useCustomerCampaigns = (accessToken: string, pageSize: number = 20,
         }
 
         if (hasSearch) {
-          variables.searchTerm = `%${search.trim()}%`
+          variables.searchTerm = `%${searchTerm.trim()}%`
         }
 
         const result = await graphqlClient.request<SalesCampaignResponse>(query, variables)
@@ -186,25 +187,31 @@ export const useCustomerCampaigns = (accessToken: string, pageSize: number = 20,
         if (result?.SalesCampaign) {
           const newCampaigns = result.SalesCampaign || []
           const totalCount = result.SalesCampaignAggregate?.aggregate?.count || 0
+          const newOffset = offset + newCampaigns.length
+
+          const hasMore = newCampaigns.length === pageSize
+
+          currentOffsetRef.current = newOffset
 
           setState(prev => ({
             campaigns: append ? [...prev.campaigns, ...newCampaigns] : newCampaigns,
             loading: false,
             error: null,
-            hasMore: (append ? prev.campaigns.length : 0) + newCampaigns.length < totalCount,
+            hasMore,
             totalCount,
-            currentSearch: search,
-            offset: append ? prev.offset + newCampaigns.length : newCampaigns.length
+            currentSearch: searchTerm,
+            offset: newOffset
           }))
         } else {
           console.warn('No sales campaigns data in response:', result)
+          currentOffsetRef.current = append ? currentOffsetRef.current : 0
           setState(prev => ({
             ...prev,
             campaigns: append ? prev.campaigns : [],
             loading: false,
             hasMore: false,
             totalCount: 0,
-            currentSearch: search,
+            currentSearch: searchTerm,
             offset: append ? prev.offset : 0
           }))
         }
@@ -215,6 +222,8 @@ export const useCustomerCampaigns = (accessToken: string, pageSize: number = 20,
           loading: false,
           error: error instanceof Error ? error.message : 'Failed to fetch sales campaigns'
         }))
+      } finally {
+        isFetchingRef.current = false
       }
     },
     [accessToken, graphqlClient, pageSize]
@@ -222,24 +231,29 @@ export const useCustomerCampaigns = (accessToken: string, pageSize: number = 20,
 
   const search = useCallback(
     (searchTerm: string = '') => {
+      currentSearchRef.current = searchTerm
+      currentOffsetRef.current = 0
       fetchSalesCampaigns(searchTerm, 0, false)
     },
     [fetchSalesCampaigns]
   )
 
   const loadMore = useCallback(() => {
-    if (state.hasMore && !state.loading) {
-      fetchSalesCampaigns(state.currentSearch, state.offset, true)
+    if (state.hasMore && !isFetchingRef.current) {
+      fetchSalesCampaigns(currentSearchRef.current, currentOffsetRef.current, true)
     }
-  }, [fetchSalesCampaigns, state.hasMore, state.loading, state.currentSearch, state.offset])
+  }, [fetchSalesCampaigns, state.hasMore])
 
   const initialize = useCallback(() => {
+    currentSearchRef.current = ''
+    currentOffsetRef.current = 0
     fetchSalesCampaigns('', 0, false)
   }, [fetchSalesCampaigns])
 
   const refetch = useCallback(() => {
-    fetchSalesCampaigns(state.currentSearch, 0, false)
-  }, [fetchSalesCampaigns, state.currentSearch])
+    currentOffsetRef.current = 0
+    fetchSalesCampaigns(currentSearchRef.current, 0, false)
+  }, [fetchSalesCampaigns])
 
   // Auto-initialize on mount (only if autoFetch is true)
   useEffect(() => {

@@ -7,6 +7,21 @@ import { SuccessSectionCardHeader } from './SuccessSectionCardHeader'
 import { SuccessEmptyState } from './SuccessStates'
 import { formatMillisecondsDuration, formatPercent } from '../../utils/formatters'
 
+const AI_TASK_TYPES = new Set(['AGENT', 'AI_AGENT', 'TASK_EXPERT', 'AI_TASK_EXPERT'])
+const DISPLAYED_TASK_TYPES = new Set([
+  'AGENT',
+  'AI_AGENT',
+  'TASK_EXPERT',
+  'AI_TASK_EXPERT',
+  'FUNCTION',
+  'CUSTOM_DATA_MUTATION'
+])
+
+const normalizeTaskType = (taskType?: string | null): string =>
+  String(taskType || '')
+    .trim()
+    .toUpperCase()
+
 interface SystemTaskReliabilityPanelProps {
   title: string
   description: string
@@ -25,8 +40,14 @@ export const SystemTaskReliabilityPanel: React.FC<SystemTaskReliabilityPanelProp
   'data-testid': testId = 'system-task-reliability'
 }) => {
   const { t } = useTranslation(translations)
-  const hotspots = data?.hotspots.slice(0, maxRows) || []
-  const byTaskType = data?.byTaskType || []
+  const hotspots =
+    data?.hotspots
+      .filter(item => {
+        const normalizedType = normalizeTaskType(item.taskType)
+        return DISPLAYED_TASK_TYPES.has(normalizedType) && item.failedTasks + item.timedOutTasks > 0
+      })
+      .slice(0, maxRows) || []
+  const byTaskType = data?.byTaskType.filter(item => DISPLAYED_TASK_TYPES.has(normalizeTaskType(item.taskType))) || []
   const automationInsights = data?.automationInsights
 
   if (isLoading && !data) {
@@ -162,7 +183,7 @@ export const SystemTaskReliabilityPanel: React.FC<SystemTaskReliabilityPanelProp
                     className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:p-4"
                   >
                     <div className="gba:flex gba:items-start gba:gap-3">
-                      {item.taskType === 'AGENT' || item.taskType === 'AI_AGENT' ? (
+                      {AI_TASK_TYPES.has(normalizeTaskType(item.taskType)) ? (
                         <Bot className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
                       ) : (
                         <FunctionSquare className="gba:h-4 gba:w-4 gba:text-muted-foreground" />

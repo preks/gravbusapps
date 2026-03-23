@@ -68,7 +68,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
-  // Fetch space data
+  // Fetch space data (keep hook result for deleteSpace so the callback always closes over the real API)
+  const spaceData = useSpace(spaceId, accessToken, true)
   const {
     space,
     isLoading: spaceLoading,
@@ -77,7 +78,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     addMember,
     updateMember,
     removeMember
-  } = useSpace(spaceId, accessToken, true)
+  } = spaceData
   const {
     documents,
     notes,
@@ -247,7 +248,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   )
 
   const handleDeleteSpace = useCallback(async (): Promise<boolean> => {
-    const ok = await deleteSpace()
+    const ok = await spaceData.deleteSpace()
     if (ok) {
       toast.success('Space deleted')
       handleBack()
@@ -255,7 +256,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       toast.error('Could not delete space. Only the owner can delete a space.')
     }
     return ok
-  }, [deleteSpace, handleBack])
+  }, [spaceData.deleteSpace, handleBack])
 
   const handleShare = useCallback(() => {
     setInviteDialogOpen(true)
@@ -417,7 +418,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         space={space}
         members={enrichedMembers}
         ownerInfo={ownerInfo}
-        isOwner={isOwner}
+        canOpenSpaceSettings={canManageMembers}
         canEdit={canEdit}
         onBack={handleBack}
         onSettings={handleSettings}

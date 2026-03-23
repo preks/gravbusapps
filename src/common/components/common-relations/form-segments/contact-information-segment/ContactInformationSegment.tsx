@@ -32,7 +32,10 @@ interface ContactInformationSegmentProps {
     accounts: any[]
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
 
   // Custom fields (context-specific, e.g., CRM Sales Campaign)
@@ -73,13 +76,16 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
     })
   }, [useAccounts?.accounts])
 
-  // Search function that calls refetch with search variables
+  // Search function — prefers the stateful `search` fn, falls back to `refetch`
   const searchAccounts = useCallback(
     (searchTerm: string) => {
-      if (!useAccounts?.refetch) return
-      useAccounts.refetch({ search: searchTerm.trim(), limit: 20, offset: 0 })
+      if (useAccounts?.search) {
+        useAccounts.search(searchTerm.trim())
+      } else if (useAccounts?.refetch) {
+        useAccounts.refetch({ search: searchTerm.trim(), limit: 20, offset: 0 })
+      }
     },
-    [useAccounts?.refetch]
+    [useAccounts?.search, useAccounts?.refetch]
   )
 
   // Helper function to parse picture string
@@ -264,6 +270,8 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
               accountsLoading={useAccounts.loading}
               accountsError={useAccounts.error}
               searchAccounts={searchAccounts}
+              hasMore={useAccounts.hasMore}
+              onLoadMore={useAccounts.loadMore}
               dataTestId="contact-information-segment-accounts"
             />
           </FormControl>

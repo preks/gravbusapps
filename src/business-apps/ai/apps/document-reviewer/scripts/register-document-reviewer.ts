@@ -13,7 +13,7 @@
  * import { registerDocumentReviewer } from '@/business-apps/ai/apps/document-reviewer/scripts/register-document-reviewer'
  */
 
-import { promptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { DOCUMENT_OBSERVER_FUNCTION_CODE } from '../definitions/document-observer-tool'
 import { createDocumentReviewerAgent, DOCUMENT_REVIEWER_AGENT_ID } from '../definitions/document-reviewer-agent'
 
@@ -22,6 +22,12 @@ export interface RegisterDocumentReviewerResult {
   toolCode?: string
   agentId?: string
   error?: string
+}
+
+function createAuthorizedPromptManagerClient(accessToken: string) {
+  const promptManagerClient = new PromptManagerClient()
+  promptManagerClient.setAccessToken(accessToken)
+  return promptManagerClient
 }
 
 /**
@@ -37,7 +43,7 @@ export async function registerDocumentReviewer(
   modelId: string
 ): Promise<RegisterDocumentReviewerResult> {
   try {
-    promptManagerClient.setAccessToken(accessToken)
+    const promptManagerClient = createAuthorizedPromptManagerClient(accessToken)
 
     console.log('🔧 [DocumentReviewer] Starting registration...')
     console.log(
@@ -110,7 +116,7 @@ export async function unregisterDocumentReviewer(
   workspaceId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    promptManagerClient.setAccessToken(accessToken)
+    const promptManagerClient = createAuthorizedPromptManagerClient(accessToken)
 
     console.log('🗑️ [DocumentReviewer] Starting cleanup...')
 
@@ -145,7 +151,7 @@ export async function getDocumentReviewerStatus(
   accessToken: string,
   workspaceId: string
 ): Promise<{ toolConfigured: boolean; agentExists: boolean; toolCode?: string; agentId?: string }> {
-  promptManagerClient.setAccessToken(accessToken)
+  const promptManagerClient = createAuthorizedPromptManagerClient(accessToken)
 
   const agents = await promptManagerClient.getPrompts({ promptName: DOCUMENT_REVIEWER_AGENT_ID, workspaceId, limit: 1 })
 
