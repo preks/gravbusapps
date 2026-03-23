@@ -1,3 +1,4 @@
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import type {
   CompensationCycleCompany,
   CompensationEmployeeProposal,
@@ -134,19 +135,68 @@ export function computeCompaRatio(
   return Math.round((currentSalary / midpoint) * 100) / 100
 }
 
-export function formatCurrency(amount: number | null, currency = 'EUR'): string {
-  if (amount == null) return '-'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
+function resolveLocale(): string {
+  try {
+    return getCurrentActiveUserLocale() || 'en-US'
+  } catch {
+    return 'en-US'
+  }
 }
 
+/** Locale-aware integers (pagination, counts, tenure years/months). */
+export function formatLocaleInteger(value: number): string {
+  return new Intl.NumberFormat(resolveLocale(), {
+    maximumFractionDigits: 0
+  }).format(value)
+}
+
+/** Locale-aware decimals (e.g. compa ratio). */
+export function formatLocaleDecimal(value: number, minFractionDigits = 2, maxFractionDigits = 2): string {
+  return new Intl.NumberFormat(resolveLocale(), {
+    minimumFractionDigits: minFractionDigits,
+    maximumFractionDigits: maxFractionDigits
+  }).format(value)
+}
+
+export function formatCurrency(amount: number | null, currency = 'EUR'): string {
+  if (amount == null) return '-'
+  const locale = resolveLocale()
+  const code = typeof currency === 'string' && currency.length === 3 ? currency : 'EUR'
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount)
+  } catch {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount)
+  }
+}
+
+/**
+ * `value` is a percentage points number (e.g. 5.5 for 5.5%), not 0–1.
+ * Uses locale for number shape, sign, and percent sign placement.
+ */
 export function formatPercent(value: number | null): string {
-  if (value == null) return '-'
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
+  if (value == null || Number.isNaN(value)) return '-'
+  const locale = resolveLocale()
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'percent',
+      signDisplay: 'exceptZero',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    }).format(value / 100)
+  } catch {
+    const sign = value >= 0 ? '+' : ''
+    return `${sign}${Math.abs(value).toFixed(1)}%`
+  }
 }
 
 export function computeNewSalaryFromIncrease(

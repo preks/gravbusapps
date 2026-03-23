@@ -8,6 +8,8 @@ interface AssetTablePaginationProps {
   totalCount: number
   onPageChange?: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
+  /** Suffix after total count (default: localized “assets”) */
+  itemLabel?: string
 }
 
 export const AssetTablePagination: React.FC<AssetTablePaginationProps> = ({
@@ -15,7 +17,8 @@ export const AssetTablePagination: React.FC<AssetTablePaginationProps> = ({
   pageSize,
   totalCount,
   onPageChange,
-  onPageSizeChange
+  onPageSizeChange,
+  itemLabel
 }) => {
   const totalPages = Math.ceil(totalCount / pageSize)
 
@@ -23,13 +26,15 @@ export const AssetTablePagination: React.FC<AssetTablePaginationProps> = ({
     return null
   }
 
+  const itemSuffix = itemLabel ?? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'assets')
+
   return (
     <div
       className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
       data-testid="asset-table-pagination"
     >
       <div className="gba:text-sm gba:text-muted-foreground" data-testid="asset-table-pagination-info">
-        {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'assets')}`}
+        {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${itemSuffix}`}
       </div>
       <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
         <div className="gba:flex gba:items-center gba:space-x-2">

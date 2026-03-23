@@ -221,36 +221,79 @@ export function useTeamCompensationData({
   return { teamMembers, loading, error, refetch: fetchData }
 }
 
+function startDateDesc(a: string | null | undefined, b: string | null | undefined): number {
+  const ta = a ? new Date(a).getTime() : 0
+  const tb = b ? new Date(b).getTime() : 0
+  const na = Number.isNaN(ta) ? 0 : ta
+  const nb = Number.isNaN(tb) ? 0 : tb
+  return nb - na
+}
+
+function groupSalariesByEmployee<T extends { employeeId: string }>(rows: T[]): Map<string, T[]> {
+  const by = new Map<string, T[]>()
+  for (const row of rows) {
+    const list = by.get(row.employeeId) ?? []
+    list.push(row)
+    by.set(row.employeeId, list)
+  }
+  return by
+}
+
+/** Picks the active salary with the latest effective `startDate` per employee (matches Compensation History “current” row). */
 function buildCurrentSalaryMap(salaries: SalaryResult[], today: string): Map<string, SalaryResult> {
   const map = new Map<string, SalaryResult>()
-  for (const salary of salaries) {
-    if (map.has(salary.employeeId)) continue
-    const isActive = !salary.endDate || salary.endDate >= today
-    if (isActive) {
-      map.set(salary.employeeId, salary)
+  const byEmployee = groupSalariesByEmployee(salaries)
+
+  for (const [employeeId, rows] of byEmployee) {
+    const sorted = [...rows].sort((a, b) => startDateDesc(a.startDate, b.startDate))
+    for (const salary of sorted) {
+      const isActive = !salary.endDate || salary.endDate >= today
+      if (isActive) {
+        map.set(employeeId, salary)
+        break
+      }
     }
   }
   return map
 }
 
+/**
+ * Last raise column: effective date of the latest approved salary (`startDate` of the most recent history row),
+ * with amount/percent vs the previous period when two or more rows exist (otherwise API request fields).
+ */
 function buildLastRaiseMap(
   salaries: SalaryHistoryResult[]
 ): Map<string, { date: string; amount: number | null; percent: number | null }> {
   const map = new Map<string, { date: string; amount: number | null; percent: number | null }>()
-  const seen = new Map<string, number>()
+  const byEmployee = groupSalariesByEmployee(salaries)
 
-  for (const salary of salaries) {
-    const count = seen.get(salary.employeeId) ?? 0
-    seen.set(salary.employeeId, count + 1)
+  for (const [employeeId, rows] of byEmployee) {
+    const sorted = [...rows].sort((a, b) => startDateDesc(a.startDate, b.startDate))
+    const latest = sorted[0]
+    if (!latest?.startDate) continue
 
-    // The second salary record is the one before the current one (last raise)
-    if (count === 1 && salary.startDate) {
-      map.set(salary.employeeId, {
-        date: salary.startDate,
-        amount: salary.requestedAmount,
-        percent: salary.requestedPercent
-      })
+    const previous = sorted[1]
+    const latestAnnual = latest.annualGrossSalary
+    const prevAnnual = previous?.annualGrossSalary ?? null
+
+    let amount: number | null = null
+    let percent: number | null = null
+
+    if (previous && latestAnnual != null && prevAnnual != null) {
+      amount = latestAnnual - prevAnnual
+      if (prevAnnual !== 0) {
+        percent = (amount / prevAnnual) * 100
+      }
+    } else {
+      amount = latest.requestedAmount ?? null
+      percent = latest.requestedPercent ?? null
     }
+
+    map.set(employeeId, {
+      date: latest.startDate,
+      amount,
+      percent
+    })
   }
 
   return map

@@ -71,7 +71,7 @@ export const GET_TEAM_CURRENT_SALARIES = `
         startDate: { _lte: $today }
       }
       orderBy: [{ startDate: DESC }, { createdAt: DESC }]
-      limit: 500
+      limit: 2000
     ) {
       id
       employeeId
@@ -99,7 +99,7 @@ export const GET_TEAM_SALARY_HISTORY = `
         requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
       }
       orderBy: [{ startDate: DESC_NULLS_LAST }, { createdAt: DESC }]
-      limit: 500
+      limit: 2000
     ) {
       id
       employeeId

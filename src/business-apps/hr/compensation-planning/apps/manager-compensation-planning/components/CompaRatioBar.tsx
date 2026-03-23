@@ -1,4 +1,7 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import { formatLocaleDecimal } from '../../../utils/budgetCalculations'
+import translations from '../_i18n'
 
 interface CompaRatioBarProps {
   compaRatio: number | null
@@ -12,8 +15,10 @@ interface CompaRatioBarProps {
 }
 
 export const CompaRatioBar: React.FC<CompaRatioBarProps> = ({ compaRatio, band, currentSalary, proposedSalary }) => {
+  const { t } = useTranslation(translations)
+
   if (!band || currentSalary == null) {
-    return <span className="gba:text-xs gba:text-gray-400">No band data</span>
+    return <span className="gba:text-xs gba:text-muted-foreground">{t('compa-no-band')}</span>
   }
 
   const range = band.maxSalary - band.minSalary
@@ -23,35 +28,26 @@ export const CompaRatioBar: React.FC<CompaRatioBarProps> = ({ compaRatio, band, 
   const proposedPosition =
     proposedSalary != null ? Math.max(0, Math.min(100, ((proposedSalary - band.minSalary) / range) * 100)) : null
 
-  const midpoint = 50
-
   return (
-    <div className="gba:w-full gba:min-w-[120px]">
-      <div className="gba:relative gba:h-3 gba:bg-gray-100 gba:rounded-full gba:overflow-visible">
+    <div className="gba:w-full gba:min-w-32">
+      <div className="gba:relative gba:h-3 gba:bg-muted gba:rounded-full gba:overflow-visible">
+        <div className="gba:absolute gba:top-0 gba:h-full gba:w-full gba:bg-primary/10 gba:rounded-full gba:left-0" />
+        <div className="gba:absolute gba:top-0 gba:h-full gba:w-px gba:bg-border gba:left-1/2" />
         <div
-          className="gba:absolute gba:top-0 gba:h-full gba:bg-blue-100 gba:rounded-full"
-          style={{ left: '0%', width: '100%' }}
-        />
-        <div
-          className="gba:absolute gba:top-0 gba:h-full gba:w-px gba:bg-gray-400"
-          style={{ left: `${midpoint}%` }}
-          title="Band midpoint"
-        />
-        <div
-          className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:w-3 gba:h-3 gba:rounded-full gba:bg-blue-600 gba:border-2 gba:border-white gba:shadow-sm gba:z-10"
+          className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:w-3 gba:h-3 gba:rounded-full gba:bg-primary gba:border-2 gba:border-background gba:shadow-sm gba:z-10"
           style={{ left: `${currentPosition}%`, marginLeft: '-6px' }}
-          title={`Current: ${currentSalary?.toLocaleString()}`}
         />
         {proposedPosition != null && proposedPosition !== currentPosition && (
           <div
-            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:w-3 gba:h-3 gba:rounded-full gba:bg-emerald-500 gba:border-2 gba:border-white gba:shadow-sm gba:z-20"
+            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:w-3 gba:h-3 gba:rounded-full gba:bg-success gba:border-2 gba:border-background gba:shadow-sm gba:z-20"
             style={{ left: `${proposedPosition}%`, marginLeft: '-6px' }}
-            title={`Proposed: ${proposedSalary?.toLocaleString()}`}
           />
         )}
       </div>
       {compaRatio != null && (
-        <div className="gba:text-xs gba:text-gray-500 gba:mt-0.5 gba:text-center">CR: {compaRatio.toFixed(2)}</div>
+        <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:text-center">
+          {t('compa-ratio-label', { ratio: formatLocaleDecimal(compaRatio, 2, 2) })}
+        </div>
       )}
     </div>
   )

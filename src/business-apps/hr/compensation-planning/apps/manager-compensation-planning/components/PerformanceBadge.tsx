@@ -1,5 +1,7 @@
 import React from 'react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
+import { formatLocaleDecimal, formatLocaleInteger } from '../../../utils/budgetCalculations'
+import translations from '../_i18n'
 
 interface PerformanceBadgeProps {
   rating: string | null
@@ -15,13 +17,22 @@ function getBadgeVariant(numeric: number | null): 'success' | 'destructive' | 'w
 }
 
 export const PerformanceBadge: React.FC<PerformanceBadgeProps> = ({ rating, numericRating }) => {
+  const { t } = useTranslation(translations)
+
   if (!rating) {
-    return <span className="gba:text-xs gba:text-muted-foreground">No evaluation</span>
+    return <span className="gba:text-xs gba:text-muted-foreground">{t('performance-no-evaluation')}</span>
   }
+
+  const ratingNumLabel =
+    numericRating != null
+      ? Number.isInteger(numericRating)
+        ? formatLocaleInteger(numericRating)
+        : formatLocaleDecimal(numericRating, 0, 2)
+      : ''
 
   return (
     <Badge variant={getBadgeVariant(numericRating)}>
-      {numericRating != null && `${numericRating} · `}
+      {numericRating != null && `${ratingNumLabel} · `}
       {rating}
     </Badge>
   )
