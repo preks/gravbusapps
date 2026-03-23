@@ -1,7 +1,15 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button, Textarea, Popover, PopoverContent, PopoverTrigger, useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
-import { Plus, Paperclip, Globe, PaperPlaneTilt, Camera, At, UserCircle } from '@phosphor-icons/react'
+import {
+  PlusIcon,
+  PaperclipIcon,
+  GlobeIcon,
+  PaperPlaneTiltIcon,
+  CameraIcon,
+  AtIcon,
+  UserCircleIcon
+} from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 import { VoiceModeButton } from './voice/VoiceModeButton'
 import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
@@ -262,7 +270,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const getContentEditableCaretPosition = useCallback((): number => {
     if (!contentEditableRef.current) return value.length
-    const selection = window.getSelection()
+    const selection = globalThis.getSelection()
     if (!selection?.rangeCount) return value.length
 
     const range = selection.getRangeAt(0)
@@ -336,7 +344,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setTimeout(() => {
         if (contentEditableRef.current) {
           contentEditableRef.current.focus()
-          const selection = window.getSelection()
+          const selection = globalThis.getSelection()
           if (selection) {
             const range = document.createRange()
             range.selectNodeContents(contentEditableRef.current)
@@ -393,7 +401,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLDivElement>) => {
       if (e.key === 'Backspace' && selectedEntities.length > 0 && contentEditableRef.current) {
-        const selection = window.getSelection()
+        const selection = globalThis.getSelection()
         const range = selection?.rangeCount ? selection.getRangeAt(0) : null
         if (range) {
           const container = range.startContainer
@@ -695,7 +703,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       title="More options"
                       disabled={disabled}
                     >
-                      <Plus className="gba:h-5 gba:w-5" weight="bold" />
+                      <PlusIcon className="gba:h-5 gba:w-5" weight="bold" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
@@ -729,7 +737,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
                           style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
                         >
-                          <Paperclip
+                          <PaperclipIcon
                             className="gba:h-4 gba:w-4"
                             style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                             weight="bold"
@@ -769,7 +777,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
                             style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
                           >
-                            <Camera
+                            <CameraIcon
                               className="gba:h-4 gba:w-4"
                               style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                               weight="bold"
@@ -810,7 +818,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
                           style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
                         >
-                          <At
+                          <AtIcon
                             className="gba:h-4 gba:w-4"
                             style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                             weight="bold"
@@ -852,7 +860,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                                 : `rgba(${goldRgb}, 0.12)`
                           }}
                         >
-                          <Globe
+                          <GlobeIcon
                             className="gba:h-4 gba:w-4"
                             style={{
                               color: isSearching
@@ -894,7 +902,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
                           style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
                         >
-                          <UserCircle
+                          <UserCircleIcon
                             className="gba:h-4 gba:w-4"
                             style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                             weight="bold"
@@ -939,7 +947,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
                           style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
                         >
-                          <Plus
+                          <PlusIcon
                             className="gba:h-4 gba:w-4"
                             style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
                             weight="bold"
@@ -1039,7 +1047,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       transform: !disabled && (value.trim() || files.length > 0) ? 'scale(1)' : 'scale(0.95)'
                     }}
                   >
-                    <PaperPlaneTilt className="gba:h-5 gba:w-5" weight="fill" />
+                    <PaperPlaneTiltIcon className="gba:h-5 gba:w-5" weight="fill" />
                   </Button>
                 </div>
               </div>

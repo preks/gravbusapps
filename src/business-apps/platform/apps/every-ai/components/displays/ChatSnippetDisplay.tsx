@@ -7,12 +7,28 @@ interface ChatSnippetDisplayProps {
   data: ChatReferenceData
 }
 
-const SENDER_LINE_RE = /^\[([^\]]*)]\s*([^:]+):\s*(.*)$/
-
 interface ParsedMessage {
   sender: string
   text: string
   timestamp: string
+}
+
+function parseSenderLine(line: string): ParsedMessage | null {
+  if (!line.startsWith('[')) return null
+
+  const closeBracketIndex = line.indexOf(']')
+  if (closeBracketIndex < 0) return null
+
+  const timestamp = line.slice(1, closeBracketIndex).trim()
+  const rest = line.slice(closeBracketIndex + 1).trimStart()
+  const colonIndex = rest.indexOf(':')
+  if (colonIndex < 0) return null
+
+  const sender = rest.slice(0, colonIndex).trim()
+  if (!sender) return null
+
+  const text = rest.slice(colonIndex + 1).trim()
+  return { timestamp, sender, text }
 }
 
 function parseSnippetMessages(snippet: string): ParsedMessage[] {
@@ -21,14 +37,8 @@ function parseSnippetMessages(snippet: string): ParsedMessage[] {
 
   for (const line of lines) {
     if (line.startsWith('---') || line.startsWith('Conversation:')) continue
-    const m = SENDER_LINE_RE.exec(line)
-    if (m) {
-      messages.push({
-        timestamp: m[1].trim(),
-        sender: m[2].trim(),
-        text: m[3].trim()
-      })
-    }
+    const parsed = parseSenderLine(line)
+    if (parsed) messages.push(parsed)
   }
 
   return messages.slice(0, 4)
