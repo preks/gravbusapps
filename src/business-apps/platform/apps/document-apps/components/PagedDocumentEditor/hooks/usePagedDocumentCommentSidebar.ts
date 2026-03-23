@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
+import type { Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import type { UseCommentsReturn } from '../../../shared/hooks/useComments'
 import { computePanelCommentAnchor, type PanelCommentAnchor } from '../../../utils/commentPanelAnchor'
 import { scrollInlineCommentRangeIntoView } from '../commentSidebarNavigation'
@@ -15,7 +16,7 @@ type InlineCommentMeta = {
 export interface UsePagedDocumentCommentSidebarParams {
   editor: TiptapEditor | null
   activeEditor: TiptapEditor | null
-  layoutViewportModel?: Pick<DocumentLayoutViewportModel, 'mountedPageBodyBounds' | 'pagePositionRanges'>
+  layoutViewportModel?: Pick<DocumentLayoutViewportModel, 'mountedPageBodyBounds' | 'pagePositionRanges' | 'windowKey'>
   comments: UseCommentsReturn
   currentUserId?: string | null
   currentUserName?: string | null
@@ -127,6 +128,8 @@ export function usePagedDocumentCommentSidebar({
   setRightSidebar
 }: UsePagedDocumentCommentSidebarParams): UsePagedDocumentCommentSidebarResult {
   const panelCommentAnchorRef = useRef<PanelCommentAnchor | null>(null)
+  const lastHighlightedCommentIdRef = useRef<string | null>(null)
+  const lastHighlightedWindowKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!editor) return
@@ -139,13 +142,56 @@ export function usePagedDocumentCommentSidebar({
       const syncAnchor = () => {
         panelCommentAnchorRef.current = computePanelCommentAnchor(active)
       }
+      const refreshAnchor = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+        const current = panelCommentAnchorRef.current
+        if (!current) {
+          return
+        }
+
+        const targetEditor = active === current.editor ? active : current.editor
+        if (!targetEditor || targetEditor.isDestroyed) {
+          panelCommentAnchorRef.current = null
+          return
+        }
+
+        if (active !== current.editor) {
+          return
+        }
+
+        if (transaction.selectionSet) {
+          syncAnchor()
+          return
+        }
+
+        const mappedFrom = transaction.mapping.mapResult(current.from)
+        const mappedTo = transaction.mapping.mapResult(current.to)
+        if (mappedFrom.deleted && mappedTo.deleted) {
+          panelCommentAnchorRef.current = null
+          return
+        }
+
+        const docSize = targetEditor.state.doc.content.size
+        const from = Math.max(0, Math.min(mappedFrom.pos, docSize))
+        const to = Math.max(from, Math.min(mappedTo.pos, docSize))
+        const selectedText = targetEditor.state.doc.textBetween(from, to, '\n', ' ')
+        panelCommentAnchorRef.current = selectedText.trim()
+          ? {
+              editor: targetEditor,
+              from,
+              to,
+              selectedText
+            }
+          : null
+      }
       active.on('selectionUpdate', syncAnchor)
-      return { active, syncAnchor }
+      active.on('transaction', refreshAnchor)
+      return { active, syncAnchor, refreshAnchor }
     })
 
     return () => {
-      subscriptions.forEach(({ active, syncAnchor }) => {
+      subscriptions.forEach(({ active, syncAnchor, refreshAnchor }) => {
         active.off('selectionUpdate', syncAnchor)
+        active.off('transaction', refreshAnchor)
       })
     }
   }, [activeEditor, editor])
@@ -264,7 +310,7 @@ export function usePagedDocumentCommentSidebar({
     [comments.comments, editor]
   )
 
-  const handleScrollToHighlight = useCallback(
+  const scrollHighlightedCommentIntoView = useCallback(
     (commentId: string) => {
       if (!editor) return
       const comment = comments.comments.find(entry => entry.id === commentId)
@@ -290,6 +336,30 @@ export function usePagedDocumentCommentSidebar({
       )
     },
     [comments.comments, editor, layoutViewportModel?.mountedPageBodyBounds, layoutViewportModel?.pagePositionRanges]
+  )
+
+  useEffect(() => {
+    const currentWindowKey = layoutViewportModel?.windowKey ?? null
+    const highlightedCommentId = lastHighlightedCommentIdRef.current
+    if (!editor || rightSidebar !== 'comments' || !highlightedCommentId || !currentWindowKey) {
+      return
+    }
+
+    if (lastHighlightedWindowKeyRef.current === currentWindowKey) {
+      return
+    }
+
+    lastHighlightedWindowKeyRef.current = currentWindowKey
+    scrollHighlightedCommentIntoView(highlightedCommentId)
+  }, [editor, layoutViewportModel?.windowKey, rightSidebar, scrollHighlightedCommentIntoView])
+
+  const handleScrollToHighlight = useCallback(
+    (commentId: string) => {
+      lastHighlightedCommentIdRef.current = commentId
+      lastHighlightedWindowKeyRef.current = layoutViewportModel?.windowKey ?? null
+      scrollHighlightedCommentIntoView(commentId)
+    },
+    [layoutViewportModel?.windowKey, scrollHighlightedCommentIntoView]
   )
 
   return {

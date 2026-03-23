@@ -1,6 +1,6 @@
 import { useEffect, useState, type MutableRefObject } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Plugin, PluginKey, type Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Awareness } from 'y-protocols/awareness'
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../../../../spaces/hooks/useSpaceDocumentActivity'
@@ -12,6 +12,26 @@ const CURRENT_SELECTION_PLUGIN_KEY = new PluginKey('documentCurrentSelectionHigh
 function getSpaceIdFromWindow(): string | null {
   if (globalThis.window === undefined) return null
   return new URLSearchParams(globalThis.window.location.search).get('spaceId')
+}
+
+export function mapSelectionRangeThroughTransaction(
+  selectionRange: { from: number; to: number } | null,
+  transaction: Pick<ProseMirrorTransaction, 'mapping'>,
+  docSize: number
+): { from: number; to: number } | null {
+  if (!selectionRange) {
+    return null
+  }
+
+  const mappedFrom = transaction.mapping.mapResult(selectionRange.from)
+  const mappedTo = transaction.mapping.mapResult(selectionRange.to)
+  if (mappedFrom.deleted && mappedTo.deleted) {
+    return null
+  }
+
+  const from = Math.max(0, Math.min(mappedFrom.pos, docSize))
+  const to = Math.max(from, Math.min(mappedTo.pos, docSize))
+  return to > from ? { from, to } : null
 }
 
 function useCollaborationCursorStyles(): void {
@@ -244,12 +264,28 @@ export function usePagedDocumentEditorRuntimeEffects({
       const { from, to, empty } = editor.state.selection
       setCurrentSelectionRange(empty ? null : { from, to })
     }
+    const handleTransaction = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+      if (transaction.selectionSet) {
+        handleSelectionUpdate()
+        return
+      }
+
+      if (!transaction.docChanged) {
+        return
+      }
+
+      setCurrentSelectionRange(previous =>
+        mapSelectionRangeThroughTransaction(previous, transaction, editor.state.doc.content.size)
+      )
+    }
 
     const { from, to, empty } = editor.state.selection
     setCurrentSelectionRange(empty ? null : { from, to })
     editor.on('selectionUpdate', handleSelectionUpdate)
+    editor.on('transaction', handleTransaction)
     return () => {
       editor.off('selectionUpdate', handleSelectionUpdate)
+      editor.off('transaction', handleTransaction)
     }
   }, [editor, autocomplete])
 

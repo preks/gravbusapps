@@ -1,4 +1,5 @@
 import { DOMSerializer } from '@tiptap/pm/model'
+import type { Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import {
   useCallback,
   useEffect,
@@ -137,15 +138,78 @@ function collapseWhitespaceLinear(value: string): string {
 
 function createSelectionContext(editor: TiptapEditor): { text: string; html: string } {
   const { from, to } = editor.state.selection
-  if (from === to) return { text: '', html: '' }
-  const text = editor.state.doc.textBetween(from, to, '\n\n', '\n').trim()
-  const slice = editor.state.doc.slice(from, to)
+  const pendingSelection = createPendingInlineSelection(editor, from, to)
+  if (!pendingSelection) {
+    return { text: '', html: '' }
+  }
+
+  return {
+    text: pendingSelection.text,
+    html: pendingSelection.html
+  }
+}
+
+export function createPendingInlineSelection(
+  editor: TiptapEditor,
+  from: number,
+  to: number
+): PendingInlineSelection | null {
+  const docSize = editor.state.doc.content.size
+  const normalizedFrom = Math.max(0, Math.min(from, docSize))
+  const normalizedTo = Math.max(normalizedFrom, Math.min(to, docSize))
+  if (normalizedFrom === normalizedTo) {
+    return null
+  }
+
+  const text = editor.state.doc.textBetween(normalizedFrom, normalizedTo, '\n\n', '\n').trim()
+  const slice = editor.state.doc.slice(normalizedFrom, normalizedTo)
   const div = globalThis.document.createElement('div')
   const serializer = DOMSerializer.fromSchema(editor.schema)
   const domFragment = serializer.serializeFragment(slice.content)
   div.appendChild(domFragment)
   const selectedHtml = div.innerHTML.trim()
-  return { text, html: selectedHtml }
+  return {
+    from: normalizedFrom,
+    to: normalizedTo,
+    text,
+    html: selectedHtml
+  }
+}
+
+export function mapPendingInlineSelectionThroughTransaction(
+  selection: PendingInlineSelection | null,
+  editor: TiptapEditor,
+  transaction: Pick<ProseMirrorTransaction, 'mapping'>
+): PendingInlineSelection | null {
+  if (!selection) {
+    return null
+  }
+
+  const mappedFrom = transaction.mapping.mapResult(selection.from)
+  const mappedTo = transaction.mapping.mapResult(selection.to)
+  if (mappedFrom.deleted && mappedTo.deleted) {
+    return null
+  }
+
+  return createPendingInlineSelection(editor, mappedFrom.pos, mappedTo.pos)
+}
+
+export function mapImageReplacementPosThroughTransaction(
+  imagePos: number | null,
+  editor: TiptapEditor,
+  transaction: Pick<ProseMirrorTransaction, 'mapping'>
+): number | null {
+  if (imagePos == null) {
+    return null
+  }
+
+  const mappedPos = transaction.mapping.mapResult(imagePos)
+  if (mappedPos.deleted) {
+    return null
+  }
+
+  const node = editor.state.doc.nodeAt(mappedPos.pos)
+  return node?.type.name === 'image' ? mappedPos.pos : null
 }
 
 export function usePagedDocumentInteractionDialogs({
@@ -204,19 +268,80 @@ export function usePagedDocumentInteractionDialogs({
 
   useEffect(() => {
     if (!editor || !showAiInstructionDialog) return
+    if (typeof editor.on !== 'function' || typeof editor.off !== 'function') {
+      return
+    }
 
     const syncSelectionSnapshot = () => {
       const selectionContext = getCurrentEditorSelectionContext()
       setAiSelectionSnapshot(selectionContext.text)
       setAiSelectionSnapshotHtml(selectionContext.html)
     }
+    const handleTransaction = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+      if (!transaction.docChanged && !transaction.selectionSet) {
+        return
+      }
+
+      syncSelectionSnapshot()
+    }
 
     syncSelectionSnapshot()
     editor.on('selectionUpdate', syncSelectionSnapshot)
+    editor.on('transaction', handleTransaction)
     return () => {
       editor.off('selectionUpdate', syncSelectionSnapshot)
+      editor.off('transaction', handleTransaction)
     }
   }, [editor, getCurrentEditorSelectionContext, showAiInstructionDialog])
+
+  useEffect(() => {
+    if (!editor || !pendingSelection) return
+    if (typeof editor.on !== 'function' || typeof editor.off !== 'function') {
+      return
+    }
+
+    const handleTransaction = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+      if (!transaction.docChanged) {
+        return
+      }
+
+      setPendingSelection(previous => mapPendingInlineSelectionThroughTransaction(previous, editor, transaction))
+    }
+
+    editor.on('transaction', handleTransaction)
+    return () => {
+      editor.off('transaction', handleTransaction)
+    }
+  }, [editor, pendingSelection])
+
+  useEffect(() => {
+    if (!activeEditor || !showInsertImageDialog || imageDialogMode !== 'replace') return
+    if (typeof activeEditor.on !== 'function' || typeof activeEditor.off !== 'function') {
+      return
+    }
+
+    const handleTransaction = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+      if (!transaction.docChanged) {
+        return
+      }
+
+      const nextImagePos = mapImageReplacementPosThroughTransaction(
+        replaceImagePosRef.current,
+        activeEditor,
+        transaction
+      )
+      replaceImagePosRef.current = nextImagePos
+
+      if (nextImagePos === null) {
+        setShowInsertImageDialog(false)
+      }
+    }
+
+    activeEditor.on('transaction', handleTransaction)
+    return () => {
+      activeEditor.off('transaction', handleTransaction)
+    }
+  }, [activeEditor, imageDialogMode, replaceImagePosRef, showInsertImageDialog])
 
   useEffect(() => {
     if (
@@ -340,15 +465,10 @@ export function usePagedDocumentInteractionDialogs({
       const to = selectionRange?.to ?? editor.state.selection.to
       if (from === to) return
 
-      const selectedText = editor.state.doc.textBetween(from, to, '\n\n', '\n').trim()
-      const slice = editor.state.doc.slice(from, to)
-      const serializer = DOMSerializer.fromSchema(editor.schema)
-      const domFragment = serializer.serializeFragment(slice.content)
-      const selectedContainer = globalThis.document.createElement('div')
-      selectedContainer.appendChild(domFragment)
-      const selectedHtml = selectedContainer.innerHTML.trim()
+      const nextPendingSelection = createPendingInlineSelection(editor, from, to)
+      if (!nextPendingSelection) return
 
-      setPendingSelection({ from, to, text: selectedText, html: selectedHtml })
+      setPendingSelection(nextPendingSelection)
       if (contextMenuPosition?.x != null && contextMenuPosition?.y != null) {
         setInlineCommentAnchorMode('context-menu')
         setInlineCommentPosition({
