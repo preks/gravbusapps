@@ -35,6 +35,12 @@ import {
   CONTRACT_TYPE_VERSION
 } from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
+import {
+  formatProbationFromJson,
+  mergeCatalogEntryForPut,
+  parseContractTypeJson,
+  serializeContractTypeAdditionalJson
+} from '../../utils/catalogEntryMetadata'
 
 export interface ContractType {
   id: string
@@ -55,7 +61,9 @@ export interface ContractTypeTable {
   code: string
   value: string
   description: string | undefined
-  probationPeriod?: string // JSON string: {value: number, unit: string}
+  /** Raw `additionalValue2`: JSON with probation, payroll_relevant, is_deleted */
+  probationPeriod?: string
+  payrollRelevant?: boolean
 }
 
 export interface ContractTypesTabProps extends BusinessAppContextProps {
@@ -117,10 +125,21 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
     )
   }, [contractTypes, searchTerm])
 
-  const handleDelete = async (record: ContractTypeTable) => {
-    await catalogClient.deleteCatalogEntry(CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION, record.id)
-
-    setContractTypes(prev => prev.filter(contractType => contractType.id !== record.id))
+  const handleSoftDelete = async (record: ContractTypeTable) => {
+    const fresh = await catalogClient.getCatalogEntryById(record.id)
+    const parsed = parseContractTypeJson(fresh.additionalValue2)
+    const additionalValue2 = serializeContractTypeAdditionalJson({
+      ...parsed,
+      is_deleted: true
+    })
+    const payload = mergeCatalogEntryForPut(fresh, { additionalValue2 })
+    await catalogClient.updateCatalogEntry(
+      CONTRACT_TYPE_CATALOG,
+      CONTRACT_TYPE_VERSION,
+      record.id,
+      payload as Parameters<typeof catalogClient.updateCatalogEntry>[3]
+    )
+    await loadContractTypes()
   }
 
   const handleViewDetails = (record: ContractTypeTable) => {
@@ -129,23 +148,6 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
 
     setSelectedType(contractType)
     setIsDrawerVisible(true)
-  }
-
-  const formatProbationPeriod = (additionalValue2?: string): string => {
-    if (!additionalValue2) return '-'
-    try {
-      const parsed = JSON.parse(additionalValue2)
-      if (!parsed.value || !parsed.unit) return '-'
-      const unitLabel =
-        parsed.unit === 'day'
-          ? t('ct-probation-unit-day')
-          : parsed.unit === 'week'
-            ? t('ct-probation-unit-week')
-            : t('ct-probation-unit-month')
-      return `${parsed.value} ${unitLabel}`
-    } catch {
-      return '-'
-    }
   }
 
   const drawerItems = useMemo(() => {
@@ -169,7 +171,11 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           },
           {
             label: t('ct-drawer-label-probation-period'),
-            value: formatProbationPeriod(selectedType.additionalValue2)
+            value: formatProbationFromJson(selectedType.additionalValue2)
+          },
+          {
+            label: 'Payroll relevant',
+            value: parseContractTypeJson(selectedType.additionalValue2).payroll_relevant ? 'Yes' : 'No'
           }
         ],
         verticalTable: true
@@ -177,7 +183,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
     ]
 
     return items
-  }, [selectedType])
+  }, [selectedType, t])
 
   const renderContractTypesTable = () => {
     const columns: ColumnDef<ContractTypeTable>[] = [
@@ -199,10 +205,12 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         header: t('ct-table-header-name'),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const name = getValue()
+          const name = getValue() as string
           return (
-            <div className="gba:flex gba:items-center gba:w-[150px] gba:md:w-[250px] gba:lg:w-[370px] gba:xl:w-[420px] gba:2xl:w-[420px]">
-              <div className="gba:w-full gba:truncate gba:font-semibold">{name as string}</div>
+            <div className="gba:min-w-0 gba:max-w-full gba:overflow-hidden">
+              <div className="gba:whitespace-normal gba:break-all gba:font-semibold" title={name}>
+                {name}
+              </div>
             </div>
           )
         }
@@ -212,16 +220,11 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         header: t('ct-table-header-description'),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const description = getValue()
+          const description = (getValue() as string | undefined) ?? '-'
           return (
-            <div
-              className="gba:flex gba:items-center gba:w-[100px] gba:md:w-[150px] gba:lg:w-[200px] gba:xl:w-[310px]"
-              style={{
-                width: 'clamp(310px, 35vw, 700px)'
-              }}
-            >
-              <div className="gba:w-full gba:truncate" title={description as string}>
-                {(description as string) ?? '-'}
+            <div className="gba:min-w-0 gba:max-w-full gba:overflow-hidden">
+              <div className="gba:whitespace-normal gba:break-all" title={description}>
+                {description}
               </div>
             </div>
           )
@@ -235,10 +238,18 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           const probationPeriod = getValue() as string | undefined
           return (
             <div className="gba:flex gba:items-center">
-              <span>{formatProbationPeriod(probationPeriod)}</span>
+              <span>{formatProbationFromJson(probationPeriod)}</span>
             </div>
           )
         }
+      },
+      {
+        accessorKey: 'payrollRelevant',
+        header: 'Payroll relevant',
+        enableSorting: true,
+        cell: ({ getValue }) => (
+          <Badge variant={getValue() ? 'default' : 'secondary'}>{getValue() ? 'Yes' : 'No'}</Badge>
+        )
       },
       {
         id: 'actions',
@@ -270,13 +281,10 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
               refetch={loadContractTypes}
               accessToken={accessToken}
               prefixDataTestId={prefixDataTestId}
-              contractType={{
-                ...row.original,
-                probationPeriod: row.original.probationPeriod
-              }}
+              contractType={row.original}
             />
             <DeleteButton
-              onDelete={() => handleDelete(row.original)}
+              onDelete={() => handleSoftDelete(row.original)}
               itemName={row.original.value}
               itemTitle={t('ct-delete-item-title')}
             />
@@ -285,23 +293,31 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       }
     ]
 
-    const dataTable: ContractTypeTable[] = filteredContractTypes.map(contractType => ({
-      id: contractType.id,
-      code: contractType.code,
-      value: contractType.value,
-      description: contractType.additionalValue1,
-      probationPeriod: contractType.additionalValue2
-    }))
+    const dataTable: ContractTypeTable[] = filteredContractTypes.map(contractType => {
+      const parsed = parseContractTypeJson(contractType.additionalValue2)
+      return {
+        id: contractType.id,
+        code: contractType.code,
+        value: contractType.value,
+        description: contractType.additionalValue1,
+        probationPeriod: contractType.additionalValue2,
+        payrollRelevant: parsed.payroll_relevant === true
+      }
+    })
 
     return (
-      <DataTable
-        data={dataTable}
-        columns={columns as ColumnDef<ContractTypeTable>[]}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        enableSorting
-        enablePagination
-      />
+      <div className="gba:min-w-0 gba:w-full gba:[&_td]:overflow-hidden gba:[&_td]:align-top">
+        <DataTable
+          data={dataTable}
+          columns={columns as ColumnDef<ContractTypeTable>[]}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          enableSorting
+          enablePagination
+          enableResizing={false}
+          tableLayout="fixed"
+        />
+      </div>
     )
   }
 

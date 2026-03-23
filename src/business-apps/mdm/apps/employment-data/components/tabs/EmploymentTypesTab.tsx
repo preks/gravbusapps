@@ -35,6 +35,7 @@ import {
   EMPLOYMENT_TYPE_VERSION
 } from '@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
+import { mergeCatalogEntryForPut, parseEmploymentMetadata } from '../../utils/catalogEntryMetadata'
 
 export interface EmploymentType {
   id: string
@@ -138,9 +139,25 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
     return items
   }, [selectedType])
 
-  const handleDelete = async (record: EmploymentType) => {
-    await catalogClient.deleteCatalogEntry(EMPLOYMENT_TYPE_CATALOG, EMPLOYMENT_TYPE_VERSION, record.id)
-    setEmploymentTypes(prev => prev.filter(employmentType => employmentType.id !== record.id))
+  const handleSoftDelete = async (record: {
+    id: string
+    code: string
+    value: string
+    description?: string
+    additionalValue2?: string
+  }) => {
+    const fresh = await catalogClient.getCatalogEntryById(record.id)
+    const meta = parseEmploymentMetadata(fresh.additionalValue2)
+    const payload = mergeCatalogEntryForPut(fresh, {
+      additionalValue2: JSON.stringify({ ...meta, is_deleted: true })
+    })
+    await catalogClient.updateCatalogEntry(
+      EMPLOYMENT_TYPE_CATALOG,
+      EMPLOYMENT_TYPE_VERSION,
+      record.id,
+      payload as Parameters<typeof catalogClient.updateCatalogEntry>[3]
+    )
+    await loadEmploymentTypes()
   }
 
   const handleViewDetails = (record: EmploymentType) => {
@@ -157,7 +174,8 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
         id: employmentType.id,
         code: employmentType.code,
         value: employmentType.value,
-        description: employmentType.additionalValue1
+        description: employmentType.additionalValue1,
+        additionalValue2: employmentType.additionalValue2
       })),
     [filteredEmploymentTypes]
   )
@@ -182,11 +200,11 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
         header: t('table-header-name'),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const name = getValue()
+          const name = getValue() as string
           return (
-            <div className="gba:flex gba:items-center gba:w-[150px] gba:md:w-[250px] gba:lg:w-[350px] gba:xl:w-[420px] gba:2xl:w-[420px]">
-              <div className="gba:w-full gba:truncate gba:font-semibold" title={name as string}>
-                {name as string}
+            <div className="gba:min-w-0 gba:max-w-full gba:overflow-hidden">
+              <div className="gba:whitespace-normal gba:break-all gba:font-semibold" title={name}>
+                {name}
               </div>
             </div>
           )
@@ -199,12 +217,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
         cell: ({ getValue }) => {
           const description = getValue()
           return (
-            <div
-              className="gba:flex gba:items-center gba:w-[100px] gba:md:w-[150px] gba:lg:w-[200px] gba:xl:w-[310px]"
-              style={{
-                width: 'clamp(310px, 45vw, 900px)'
-              }}
-            >
+            <div className="gba:flex gba:min-w-0 gba:max-w-xl gba:items-center">
               <div className="gba:w-full gba:truncate" title={description as string}>
                 {(description as string) ?? '-'}
               </div>
@@ -223,7 +236,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
               variant="ghost"
               size="sm"
               onClick={() => handleViewDetails(row.original)}
-              data-testid={`${dataTestId}-view-contract-type-${row.original.id}`}
+              data-testid={`${dataTestId}-view-employment-type-${row.original.id}`}
             >
               <EyeIcon className="gba:h-4 gba:w-4" />
             </Button>
@@ -243,11 +256,17 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
               refetch={loadEmploymentTypes}
               accessToken={accessToken}
               prefixDataTestId={prefixDataTestId}
-              employmentType={row.original}
+              employmentType={{
+                id: row.original.id,
+                code: row.original.code,
+                value: row.original.value,
+                description: row.original.description ?? '',
+                additionalValue2: row.original.additionalValue2
+              }}
               usedCodes={usedCodes}
             />
             <DeleteButton
-              onDelete={() => handleDelete(row.original)}
+              onDelete={() => handleSoftDelete(row.original)}
               itemName={row.original.value}
               itemTitle={t('delete-item-title')}
             />
@@ -257,19 +276,23 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
     ]
 
     return (
-      <DataTable
-        data={dataTable}
-        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        enableSorting
-        enablePagination
-      />
+      <div className="gba:min-w-0 gba:w-full gba:[&_td]:overflow-hidden gba:[&_td]:align-top">
+        <DataTable
+          data={dataTable}
+          columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          enableSorting
+          enablePagination
+          enableResizing={false}
+          tableLayout="fixed"
+        />
+      </div>
     )
   }
 
   return (
-    <Card>
+    <Card className="gba:overflow-hidden">
       {!loading && (
         <CardTabHeaderComponent
           addButton={
@@ -357,7 +380,13 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
                 refetch={loadEmploymentTypes}
                 accessToken={accessToken}
                 prefixDataTestId={prefixDataTestId}
-                employmentType={selectedType as EmploymentType & { description: string }}
+                employmentType={{
+                  id: selectedType.id,
+                  code: selectedType.code,
+                  value: selectedType.value,
+                  description: selectedType.additionalValue1 ?? '',
+                  additionalValue2: selectedType.additionalValue2
+                }}
                 isDrawerActive={true}
                 usedCodes={usedCodes}
                 key={selectedType?.id}

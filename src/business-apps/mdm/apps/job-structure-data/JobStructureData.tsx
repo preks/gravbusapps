@@ -63,11 +63,11 @@ const JobStructureData: React.FC<JobStructureDataProps> = ({ className, prefixDa
 
   return (
     <PageLayout
-      headerIcon={<TreeStructureIcon />}
+      headerIcon={<TreeStructureIcon weight="duotone" color="var(--nw-decorative)" />}
       headerLabel={t('hr.job_structure_data', 'Job Structure Data')}
       className={`${className ? className : ''} gba:!overflow-y-visible`}
       contentContainer={
-        <div className="gba:w-full gba:h-full gba:!overflow-y-auto" style={{ padding: '24px' }}>
+        <div className="no-scrollbar gba:w-full gba:h-full gba:overflow-y-auto gba:pb-8" style={{ padding: '24px' }}>
           <div data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}>
             <Tabs value={selectedTab} onValueChange={onChangeTab} className="gba:w-full">
               <TabsList className="gba:w-full">

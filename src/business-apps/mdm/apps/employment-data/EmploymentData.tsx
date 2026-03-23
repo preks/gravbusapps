@@ -64,11 +64,14 @@ const EmploymentData: React.FC<EmploymentDataProps> = ({ className, prefixDataTe
 
   return (
     <PageLayout
-      headerIcon={<BriefcaseIcon />}
+      headerIcon={<BriefcaseIcon weight="duotone" color="var(--nw-decorative)" />}
       headerLabel={t('page-title')}
-      className={`${className ? className : ''} gba:overflow-y-visible!`}
+      className={className ?? ''}
       contentContainer={
-        <div className="gba:w-full gba:h-full gba:overflow-y-auto!" style={{ padding: '24px' }}>
+        <div
+          className="gba:box-border gba:h-full gba:min-h-0 gba:w-full gba:overflow-x-hidden gba:overflow-y-auto"
+          style={{ padding: '24px' }}
+        >
           <div data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}>
             <Tabs value={selectedTab} onValueChange={onChangeTab} className="gba:w-full">
               <TabsList className="gba:w-full">

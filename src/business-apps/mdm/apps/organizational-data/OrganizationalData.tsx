@@ -105,11 +105,11 @@ const OrganizationalData: React.FC<OrganizationalDataProps> = ({ className, pref
 
   return (
     <PageLayout
-      headerIcon={<BuildingsIcon />}
+      headerIcon={<BuildingsIcon weight="duotone" color="var(--nw-decorative)" />}
       headerLabel={t('hr.organizational_data', 'Organizational Data')}
-      className={className}
+      className={`${className ?? ''} gba:!overflow-y-visible`.trim()}
       contentContainer={
-        <div className="gba:w-full gba:h-full gba:!overflow-y-auto" style={{ padding: '24px' }}>
+        <div className="no-scrollbar gba:w-full gba:h-full gba:overflow-y-auto gba:pb-8" style={{ padding: '24px' }}>
           <div data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}>
             <Tabs value={selectedTab} onValueChange={onChangeTab} className="gba:w-full">
               <TabsList className="gba:w-full">
