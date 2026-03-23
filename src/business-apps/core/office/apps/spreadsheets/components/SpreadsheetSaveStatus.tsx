@@ -60,7 +60,9 @@ export const SpreadsheetSaveStatus: React.FC<SpreadsheetSaveStatusProps> = ({
   const spanClass =
     stateKey === 'error'
       ? 'gba:text-xs gba:text-destructive gba:flex gba:items-center gba:gap-1 gba:min-w-0'
-      : 'gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:min-w-0'
+      : stateKey === 'unsaved'
+        ? 'gba:text-xs gba:text-warning gba:font-medium gba:flex gba:items-center gba:gap-1 gba:min-w-0'
+        : 'gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:min-w-0'
 
   const icon =
     stateKey === 'saving' ? (
@@ -68,7 +70,7 @@ export const SpreadsheetSaveStatus: React.FC<SpreadsheetSaveStatusProps> = ({
     ) : stateKey === 'error' ? (
       <AlertCircle className="gba:h-3 gba:w-3 gba:flex-shrink-0" aria-hidden />
     ) : stateKey === 'unsaved' ? (
-      <Clock className="gba:h-3 gba:w-3 gba:flex-shrink-0" aria-hidden />
+      <Clock className="gba:h-3 gba:w-3 gba:flex-shrink-0 gba:text-warning" aria-hidden />
     ) : stateKey === 'saved' ? (
       <CheckCircle className="gba:h-3 gba:w-3 gba:flex-shrink-0 gba:text-success" aria-hidden />
     ) : (
