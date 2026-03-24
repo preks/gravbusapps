@@ -18,6 +18,9 @@ studio-save-name-placeholder = z. B. Mitarbeiter-Onboarding
 studio-save-name-validation = Bitte geben Sie vor dem Speichern einen Flow-Namen ein.
 studio-save-name-cancel = Abbrechen
 studio-save-name-confirm = Flow speichern
+studio-unsaved-changes = Ungespeicherte Änderungen
+studio-saved = Gespeichert
+studio-loading = Lädt...
 
 # Labels / Tags
 labels-title = Labels
@@ -43,8 +46,11 @@ labels-save = Speichern
 labels-error-duplicate = Doppelter Schlüssel: {$key}
 
 # List
-list-title = Flows
+list-title = FLOWs
 list-subtitle = Vorhandene Flow-Templates durchsuchen und öffnen
+list-tab-create = Erstellen
+list-tab-flows = FLOWs
+list-subtitle-create = Neue Flows entwerfen und anlegen
 list-search = Suche
 list-search-placeholder = Flows durchsuchen...
 list-sort = Sortierung

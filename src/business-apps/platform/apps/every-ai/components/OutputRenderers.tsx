@@ -15,7 +15,11 @@ import type {
   CalendarViewData,
   EntityData,
   FlowProposalOutput,
-  ConversationTurn
+  ConversationTurn,
+  DocumentStreamChunkOutput,
+  DocumentStreamCompleteOutput,
+  DocumentStreamErrorOutput,
+  DocumentStreamStartOutput
 } from '../types/models'
 import DynamicFormDisplay from './DynamicFormDisplay'
 // Standardized entity card
@@ -235,6 +239,26 @@ export const ToolOutput: React.FC<{ name: string; reason?: string }> = ({ name, 
     <div className="gba:text-xs gba:text-muted-foreground gba:font-medium gba:italic" data-testid="tool-output">
       {displayText}
     </div>
+  )
+}
+
+export const DocumentStreamStartDisplay: React.FC<{ data: DocumentStreamStartOutput }> = () => null
+
+export const DocumentStreamChunkDisplay: React.FC<{ data: DocumentStreamChunkOutput; accessToken: string }> = () => null
+
+export const DocumentStreamCompleteDisplay: React.FC<{ data: DocumentStreamCompleteOutput }> = () => null
+
+export const DocumentStreamErrorDisplay: React.FC<{ data: DocumentStreamErrorOutput }> = ({ data }) => {
+  return (
+    <Card
+      className="gba:border gba:border-destructive/40 gba:bg-destructive-secondary/20"
+      data-testid="document-stream-error"
+    >
+      <CardContent className="gba:p-4">
+        <div className="gba:text-sm gba:font-semibold gba:text-destructive gba:mb-1">Document stream failed</div>
+        <div className="gba:text-sm gba:text-foreground">{data.message}</div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -1011,6 +1035,14 @@ export const OutputItemRenderer: React.FC<{
       return <AnswerOutputRenderer data={item} accessToken={accessToken} sessionId={sessionId} />
     case 'tool':
       return <ToolOutput name={item.name} reason={item.reason} />
+    case 'document_stream_start':
+      return <DocumentStreamStartDisplay data={item} />
+    case 'document_stream_chunk':
+      return <DocumentStreamChunkDisplay data={item} accessToken={accessToken} />
+    case 'document_stream_complete':
+      return <DocumentStreamCompleteDisplay data={item} />
+    case 'document_stream_error':
+      return <DocumentStreamErrorDisplay data={item} />
     case 'loading':
       return <LoadingDisplay onCancel={onCancelGeneration} />
     case 'error':

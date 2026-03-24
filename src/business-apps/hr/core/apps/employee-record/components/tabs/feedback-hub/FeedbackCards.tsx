@@ -46,7 +46,7 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({
                     <AvatarFallback>{`${feedback.firstName?.[0] ?? ''}${feedback.lastName?.[0] ?? ''}`}</AvatarFallback>
                   </Avatar>
                 </div>
-                <div className="gba:flex-grow">
+                <div className="gba:flex-grow gba:min-w-0">
                   <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
                     {feedback.senderId && (!unknownSenderLabel || feedback.sender !== unknownSenderLabel) ? (
                       <button
@@ -113,7 +113,7 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({
                     </div>
                   )}
                   <div
-                    className={`gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3 ${
+                    className={`gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3 gba:whitespace-pre-wrap gba:break-words ${
                       expandedByKey[feedbackKey] ? '' : 'gba:line-clamp-4'
                     }`}
                     data-testid={`feedback-content-${index}`}

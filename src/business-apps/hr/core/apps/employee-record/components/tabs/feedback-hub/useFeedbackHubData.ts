@@ -250,7 +250,12 @@ export const useFeedbackHubData = ({
       const requesterUserIds = Array.from(
         new Set(
           tasks
-            .map((task: any) => task?.creatorUserId || task?.inputs?.creatorUserId)
+            .map((task: any) => {
+              const subjectUserId = task?.subjectUserId || task?.inputs?.subjectUserId
+              const legacyReceiverUserId = task?.receiverId || task?.inputs?.receiverId
+              const legacyCreatorUserId = task?.creatorUserId || task?.inputs?.creatorUserId
+              return subjectUserId || legacyReceiverUserId || legacyCreatorUserId
+            })
             .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
         )
       )
@@ -275,7 +280,14 @@ export const useFeedbackHubData = ({
       }
 
       const mappedRows: PendingRequestRow[] = tasks.map((task: any) => {
-        const requesterUserId = task?.creatorUserId || task?.inputs?.creatorUserId || null
+        const requesterUserId =
+          task?.subjectUserId ||
+          task?.inputs?.subjectUserId ||
+          task?.receiverId ||
+          task?.inputs?.receiverId ||
+          task?.creatorUserId ||
+          task?.inputs?.creatorUserId ||
+          null
         const resolvedEmployee = requesterUserId ? employeeByUserId.get(requesterUserId) : null
 
         const fallbackName = task?.creatorName || ''

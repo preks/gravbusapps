@@ -169,9 +169,96 @@ describe('templateConverter', () => {
     expect(Array.isArray(fork.parallelBranches)).toBe(true)
     expect(fork.parallelBranches).toHaveLength(2)
     expect(fork.parallelBranches.map((b: any) => b.id).sort()).toEqual(['fb1', 'fb2'])
+    expect(fork.nextStep).toBe(template.steps.findIndex((s: any) => s.type === 'JOIN'))
 
     const join = template.steps.find((s: any) => s.type === 'JOIN')
     expect(join.forkReference).toBe(forkId)
+  })
+
+  it('maps GATEWAY steps to logic decisions with conditions preserved across import and save', () => {
+    const gatewayTemplate = {
+      type: 'TEMPLATE',
+      name: 'Gateway Flow',
+      version: 1,
+      steps: [
+        {
+          reference: 'gateway-1',
+          type: 'GATEWAY',
+          title: 'Gateway',
+          defaultBranch: 'reject-branch',
+          branches: [
+            {
+              id: 'approve-branch',
+              label: 'Approve',
+              condition: "$steps.self.resultData.decisionResult == 'approve'",
+              nextStep: 1
+            },
+            {
+              id: 'reject-branch',
+              label: 'Reject',
+              condition: "$steps.self.resultData.decisionResult == 'reject'",
+              nextStep: 2
+            }
+          ]
+        },
+        {
+          reference: 'approve-task',
+          type: 'TASK',
+          title: 'Approve task',
+          nextStep: null
+        },
+        {
+          reference: 'reject-task',
+          type: 'TASK',
+          title: 'Reject task',
+          nextStep: null
+        }
+      ]
+    } as any
+
+    const rebuilt = templateToStudioGraph(gatewayTemplate)
+    const rebuiltDecisionNode = rebuilt.nodes.find(node => node.id === 'gateway-1') as any
+
+    expect(rebuiltDecisionNode.config.decisionMode).toBe('LOGIC')
+    expect(rebuiltDecisionNode.config.defaultBranch).toBe('reject-branch')
+    expect(rebuiltDecisionNode.config.logicConfig.conditions).toEqual([
+      {
+        expression: "$steps.self.resultData.decisionResult == 'approve'",
+        branchId: 'approve-branch'
+      },
+      {
+        expression: "$steps.self.resultData.decisionResult == 'reject'",
+        branchId: 'reject-branch'
+      }
+    ])
+
+    const roundTrippedTemplate = studioGraphToTemplate(rebuilt.nodes, rebuilt.edges, 'Gateway Flow') as any
+    const roundTrippedDecisionStep = roundTrippedTemplate.steps.find((step: any) => step.reference === 'gateway-1')
+
+    expect(roundTrippedDecisionStep.type).toBe('DECISION')
+    expect(roundTrippedDecisionStep.decisionMode).toBe('LOGIC')
+    expect(roundTrippedDecisionStep.logicConfig.conditions).toEqual([
+      {
+        expression: "$steps.self.resultData.decisionResult == 'approve'",
+        branchId: 'approve-branch'
+      },
+      {
+        expression: "$steps.self.resultData.decisionResult == 'reject'",
+        branchId: 'reject-branch'
+      }
+    ])
+    expect(roundTrippedDecisionStep.branches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'approve-branch',
+          condition: "$steps.self.resultData.decisionResult == 'approve'"
+        }),
+        expect.objectContaining({
+          id: 'reject-branch',
+          condition: "$steps.self.resultData.decisionResult == 'reject'"
+        })
+      ])
+    )
   })
 
   it('round-trips control-flow steps without dropping node types', () => {

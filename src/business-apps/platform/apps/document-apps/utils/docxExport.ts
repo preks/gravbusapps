@@ -3,7 +3,13 @@
  * Produces a real ZIP-based .docx that Word, LibreOffice, and mammoth can parse.
  */
 
+import DOMPurify from 'dompurify'
 import JSZip from 'jszip'
+import {
+  CUSTOM_IMAGE_TAG,
+  getImageFigureAttributesFromElement
+} from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
+import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
 
 function escapeXml(text: string): string {
@@ -32,6 +38,13 @@ function newContext(): DocxBuildContext {
 const PX_TO_EMU = 9525
 const DEFAULT_IMG_WIDTH = 400
 const DEFAULT_IMG_HEIGHT = 300
+const DOCX_IMAGE_DEFAULTS = {
+  align: 'left' as const,
+  wrapMode: 'inline' as const,
+  anchorMode: 'inline' as const,
+  display: 'inline' as const,
+  distance: 0
+}
 
 function extractDataUrlParts(dataUrl: string): { mime: string; base64: string; ext: string } | null {
   const m = dataUrl.match(/^data:(image\/(\w+));base64,(.+)$/i)
@@ -68,7 +81,58 @@ function registerHyperlink(ctx: DocxBuildContext, url: string): string {
   return rId
 }
 
-function imageDrawingXml(img: EmbeddedImage, docPrId: number): string {
+function pxToEmu(px: number): number {
+  return Math.round(px * PX_TO_EMU)
+}
+
+function getWordRotationValue(rotation: number): string {
+  return String(Math.round(rotation * 60000))
+}
+
+function getWrapSquareText(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
+  if (layout.wrapMode === 'square-right') {
+    return 'left'
+  }
+
+  if (layout.wrapMode === 'square-left') {
+    return 'right'
+  }
+
+  return 'bothSides'
+}
+
+function getWrapXml(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
+  if (layout.wrapMode === 'top-bottom') {
+    return '<wp:wrapTopAndBottom/>'
+  }
+
+  if (layout.wrapMode === 'behind' || layout.wrapMode === 'front') {
+    return '<wp:wrapNone/>'
+  }
+
+  return `<wp:wrapSquare wrapText="${getWrapSquareText(layout)}"/>`
+}
+
+function getHorizontalAlignmentXml(
+  layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  horizontalRef: string,
+  offsetX: number
+): string {
+  if (offsetX !== 0) {
+    return `<wp:positionH relativeFrom="${horizontalRef}"><wp:posOffset>${offsetX}</wp:posOffset></wp:positionH>`
+  }
+
+  let align = 'left'
+  if (layout.align === 'center') {
+    align = 'center'
+  } else if (layout.align === 'right') {
+    align = 'right'
+  }
+
+  return `<wp:positionH relativeFrom="${horizontalRef}"><wp:align>${align}</wp:align></wp:positionH>`
+}
+
+function imageInlineDrawingXml(img: EmbeddedImage, docPrId: number, rotation: number): string {
   return (
     `<w:drawing>` +
     `<wp:inline distT="0" distB="0" distL="0" distR="0">` +
@@ -79,10 +143,95 @@ function imageDrawingXml(img: EmbeddedImage, docPrId: number): string {
     `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
     `<pic:nvPicPr><pic:cNvPr id="0" name="${escapeXml(img.fileName)}"/><pic:cNvPicPr/></pic:nvPicPr>` +
     `<pic:blipFill><a:blip r:embed="${img.rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
-    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${img.widthEmu}" cy="${img.heightEmu}"/></a:xfrm>` +
+    `<pic:spPr><a:xfrm rot="${getWordRotationValue(rotation)}"><a:off x="0" y="0"/><a:ext cx="${img.widthEmu}" cy="${img.heightEmu}"/></a:xfrm>` +
     `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
     `</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`
   )
+}
+
+function imageAnchorDrawingXml(
+  img: EmbeddedImage,
+  docPrId: number,
+  layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  rotation: number
+): string {
+  const distT = pxToEmu(layout.distanceTop ?? DOCX_IMAGE_DEFAULTS.distance)
+  const distR = pxToEmu(layout.distanceRight ?? DOCX_IMAGE_DEFAULTS.distance)
+  const distB = pxToEmu(layout.distanceBottom ?? DOCX_IMAGE_DEFAULTS.distance)
+  const distL = pxToEmu(layout.distanceLeft ?? DOCX_IMAGE_DEFAULTS.distance)
+  const offsetX = pxToEmu(layout.offsetX ?? 0)
+  const offsetY = pxToEmu(layout.offsetY ?? 0)
+  const relativeHeight = Math.max(0, Math.round((layout.zIndex ?? 1) * 1000))
+  const allowOverlap = layout.allowOverlap ?? (layout.wrapMode === 'behind' || layout.wrapMode === 'front')
+  const behindDoc = layout.wrapMode === 'behind'
+  const horizontalRef = layout.anchorMode === 'fixed' ? 'page' : 'margin'
+  const verticalRef = layout.anchorMode === 'fixed' ? 'page' : 'paragraph'
+  const wrapXml = getWrapXml(layout)
+  const positionH = getHorizontalAlignmentXml(layout, horizontalRef, offsetX)
+  const positionV = `<wp:positionV relativeFrom="${verticalRef}"><wp:posOffset>${offsetY}</wp:posOffset></wp:positionV>`
+
+  return (
+    `<w:drawing>` +
+    `<wp:anchor distT="${distT}" distB="${distB}" distL="${distL}" distR="${distR}" simplePos="0" relativeHeight="${relativeHeight}" behindDoc="${
+      behindDoc ? 1 : 0
+    }" locked="0" layoutInCell="1" allowOverlap="${allowOverlap ? 1 : 0}">` +
+    `<wp:simplePos x="0" y="0"/>` +
+    positionH +
+    positionV +
+    `<wp:extent cx="${img.widthEmu}" cy="${img.heightEmu}"/>` +
+    `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
+    wrapXml +
+    `<wp:docPr id="${docPrId}" name="${escapeXml(img.fileName)}"/>` +
+    `<wp:cNvGraphicFramePr/>` +
+    `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
+    `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:nvPicPr><pic:cNvPr id="0" name="${escapeXml(img.fileName)}"/><pic:cNvPicPr/></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip r:embed="${img.rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm rot="${getWordRotationValue(rotation)}"><a:off x="0" y="0"/><a:ext cx="${img.widthEmu}" cy="${img.heightEmu}"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
+    `</pic:pic></a:graphicData></a:graphic>` +
+    `</wp:anchor></w:drawing>`
+  )
+}
+
+function imageDrawingXml(
+  img: EmbeddedImage,
+  docPrId: number,
+  layout?: ReturnType<typeof getImageFigureAttributesFromElement>,
+  rotation = 0
+): string {
+  return layout && layout.wrapMode !== 'inline'
+    ? imageAnchorDrawingXml(img, docPrId, layout, rotation)
+    : imageInlineDrawingXml(img, docPrId, rotation)
+}
+
+function getWordAlignmentValue(align: string | null | undefined): 'left' | 'center' | 'right' {
+  if (align === 'center') return 'center'
+  if (align === 'right') return 'right'
+  return 'left'
+}
+
+function convertFigure(el: HTMLElement, parts: string[], ctx: DocxBuildContext): void {
+  const imgEl = el.querySelector('img[src]')
+  if (!imgEl) return
+
+  const layout = getImageFigureAttributesFromElement(el, DOCX_IMAGE_DEFAULTS)
+  const src = imgEl.getAttribute('src') || ''
+  const resolvedDimensions = resolveImageDimensions(layout)
+  const width = resolvedDimensions.width ?? DEFAULT_IMG_WIDTH
+  const height = resolvedDimensions.height ?? DEFAULT_IMG_HEIGHT
+  const img = registerImage(ctx, src, width, height)
+  if (!img) return
+
+  parts.push(`<w:p>${imageDrawingXml(img, ctx.images.length, layout, resolvedDimensions.rotation)}</w:p>`)
+
+  if (layout.caption?.trim()) {
+    const jc = getWordAlignmentValue(layout.align)
+    parts.push(
+      `<w:p><w:pPr><w:jc w:val="${jc}"/><w:spacing w:before="0" w:after="120"/></w:pPr>${wrapRun(layout.caption.trim(), '<w:i/><w:color w:val="666666"/><w:sz w:val="18"/>')}</w:p>`
+    )
+  }
 }
 
 function wrapRun(text: string, props?: string): string {
@@ -158,8 +307,7 @@ function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: st
 }
 
 function convertBlock(parent: Node, parts: string[], ctx: DocxBuildContext): void {
-  for (let i = 0; i < parent.childNodes.length; i++) {
-    const node = parent.childNodes[i]
+  for (const node of Array.from(parent.childNodes)) {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent?.trim()
       if (text) parts.push(`<w:p>${wrapRun(text)}</w:p>`)
@@ -225,6 +373,13 @@ function convertBlock(parent: Node, parts: string[], ctx: DocxBuildContext): voi
         case 'div':
           if (el.hasAttribute('data-page-break')) {
             parts.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
+          } else {
+            convertBlock(el, parts, ctx)
+          }
+          break
+        case 'figure':
+          if (el.getAttribute('data-node-type') === CUSTOM_IMAGE_TAG) {
+            convertFigure(el, parts, ctx)
           } else {
             convertBlock(el, parts, ctx)
           }
@@ -391,7 +546,13 @@ export async function buildDocxBlob(title: string, htmlContent: string): Promise
   const ctx = newContext()
 
   const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = safeHtml
+  // CWE-79: use a recognized sanitizer directly at the sink for SAST tools.
+  tempDiv.innerHTML =
+    DOMPurify.sanitize(safeHtml, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+      ALLOW_DATA_ATTR: true
+    }) || ''
   const bodyParts: string[] = []
   convertBlock(tempDiv, bodyParts, ctx)
   if (bodyParts.length === 0) bodyParts.push('<w:p/>')

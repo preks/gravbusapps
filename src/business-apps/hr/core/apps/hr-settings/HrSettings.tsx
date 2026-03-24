@@ -57,12 +57,8 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
       contentContainer={
         <div
           data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-          style={{
-            background: 'var(--gradient-decorative-1)',
-            minHeight: '100%',
-            padding: '32px'
-          }}
-          className="gba:w-full gba:h-full gba:!overflow-y-auto"
+          className="no-scrollbar gba:w-full gba:h-full gba:overflow-y-auto gba:bg-muted/30 gba:pb-8"
+          style={{ padding: '24px' }}
         >
           {filteredCards.length === 0 ? (
             <div

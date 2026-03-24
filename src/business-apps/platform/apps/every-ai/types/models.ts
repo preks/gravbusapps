@@ -220,7 +220,54 @@ export type FlowProposalOutput = {
   }
 }
 
-export type OutputItem = AnswerOutput | ToolOutput | LoadingOutput | ErrorOutput | FlowProposalOutput
+export type DocumentStreamStartOutput = {
+  type: 'document_stream_start'
+  edit_run_id: string
+  document_id?: string | null
+  mode: 'document' | 'selection'
+  sequence: number
+}
+
+export type DocumentStreamChunkOutput = {
+  type: 'document_stream_chunk'
+  edit_run_id: string
+  document_id?: string | null
+  mode: 'document' | 'selection'
+  sequence: number
+  chunk: string
+  is_final: boolean
+}
+
+export type DocumentStreamCompleteOutput = {
+  type: 'document_stream_complete'
+  edit_run_id: string
+  document_id: string
+  mode: 'document' | 'selection'
+  sequence: number
+  changed: boolean
+  change_summary: string
+}
+
+export type DocumentStreamErrorOutput = {
+  type: 'document_stream_error'
+  edit_run_id: string
+  document_id?: string | null
+  mode?: 'document' | 'selection' | null
+  sequence: number
+  error_code: string
+  message: string
+}
+
+export type OutputItem =
+  | AnswerOutput
+  | ToolOutput
+  | LoadingOutput
+  | ErrorOutput
+  | FlowProposalOutput
+  | DocumentStreamStartOutput
+  | DocumentStreamChunkOutput
+  | DocumentStreamCompleteOutput
+  | DocumentStreamErrorOutput
 
 export type ChatOutput = {
   items: OutputItem[]

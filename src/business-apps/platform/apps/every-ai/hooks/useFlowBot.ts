@@ -13,6 +13,9 @@ const PRECHAT_CACHE_PREFIX = 'everyai_prechat_cache'
 const PRECHAT_CACHE_TTL_MS = 10 * 60 * 1000
 const PRECHAT_MIN_REFETCH_MS = 3000
 const PRECHAT_LLM_MODEL = LLM_MODEL
+const DOCUMENT_REALTIME_EDIT_INTENT_PATTERN =
+  /\b(edit|rewrite|revise|improve|fix|update|rephrase|shorten|expand|draft|polish|refine)\b/i
+const DOCUMENT_UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i
 
 type PrechatCacheEntry = {
   suggestions: string[]
@@ -82,6 +85,94 @@ type UseFlowBotOptions = {
   isActive?: boolean
 }
 
+type RealtimeDocumentContext = {
+  type?: string
+  entity_name?: string
+  id?: string
+}
+
+type DocumentStreamCompleteOutputItem = Extract<OutputItem, { type: 'document_stream_complete' }>
+
+const HIDDEN_DOCUMENT_STREAM_OUTPUT_TYPES = new Set<OutputItem['type']>([
+  'document_stream_start',
+  'document_stream_chunk',
+  'document_stream_complete'
+])
+
+function shouldHideDocumentStreamOutput(output: OutputItem): boolean {
+  return HIDDEN_DOCUMENT_STREAM_OUTPUT_TYPES.has(output.type)
+}
+
+function buildRealtimeDocumentProgressOutput(documentId: string): OutputItem {
+  return {
+    type: 'answer',
+    displayData: [
+      {
+        type: 'textBlock',
+        text: `I started updating document ${documentId} in real time. Keep the document tab open to see live changes.`
+      }
+    ],
+    nextStepProposals: []
+  }
+}
+
+function buildRealtimeDocumentCompleteOutput(output: DocumentStreamCompleteOutputItem): OutputItem {
+  const summary = output.change_summary?.trim()
+  const baseMessage = output.changed
+    ? 'Document update is complete and applied successfully.'
+    : 'Document update finished. No content changes were required.'
+
+  return {
+    type: 'answer',
+    displayData: [
+      {
+        type: 'textBlock',
+        text: summary ? `${baseMessage}\n\n${summary}` : baseMessage
+      }
+    ],
+    nextStepProposals: []
+  }
+}
+
+function extractDocumentIdFromText(userInputText: string): string | null {
+  if (!userInputText) return null
+
+  const uriMatch = /document:\/\/([0-9a-f-]{36})/i.exec(userInputText)
+  if (uriMatch?.[1] && DOCUMENT_UUID_PATTERN.test(uriMatch[1])) {
+    return uriMatch[1]
+  }
+
+  const docPrefixMatch = /\bdoc(?:ument)?\s+([0-9a-f-]{36})/i.exec(userInputText)
+  if (docPrefixMatch?.[1] && DOCUMENT_UUID_PATTERN.test(docPrefixMatch[1])) {
+    return docPrefixMatch[1]
+  }
+
+  const genericMatch = DOCUMENT_UUID_PATTERN.exec(userInputText)
+  return genericMatch?.[0] || null
+}
+
+function resolveRealtimeDocumentId(params: {
+  userInputText: string
+  currentPagePayload: RealtimeDocumentContext
+  hasFiles: boolean
+  isThinking: boolean
+  isSearching: boolean
+}): string | null {
+  const { userInputText, currentPagePayload, hasFiles, isThinking, isSearching } = params
+  if (hasFiles || isThinking || isSearching) return null
+  if (!DOCUMENT_REALTIME_EDIT_INTENT_PATTERN.test(userInputText || '')) return null
+  if (
+    currentPagePayload?.type === 'entity' &&
+    currentPagePayload?.entity_name === 'document' &&
+    typeof currentPagePayload?.id === 'string' &&
+    currentPagePayload.id.trim().length > 0
+  ) {
+    return currentPagePayload.id
+  }
+
+  return extractDocumentIdFromText(userInputText)
+}
+
 function appendOutputToConversation(conversation: ConversationTurn[], output: OutputItem) {
   const lastTurn = conversation[conversation.length - 1]
   if (lastTurn && lastTurn.side === 'agent') {
@@ -108,6 +199,7 @@ function processSSEFrame(
   if (event === 'output-item') {
     try {
       const newOutput = JSON.parse(data) as OutputItem
+      if (shouldHideDocumentStreamOutput(newOutput)) return
       appendOutputItemToLastAgentTurn(newOutput)
       setState(prevState => ({ ...prevState }))
     } catch (err) {
@@ -968,7 +1060,22 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         files.forEach(file => form.append('files', file))
 
         const baseUrl = resolveFlowbotBaseUrl()
-        const url = `${baseUrl}/flowbot/api/agent/v2/chat`
+        const realtimeDocumentId = resolveRealtimeDocumentId({
+          userInputText,
+          currentPagePayload,
+          hasFiles: files.length > 0,
+          isThinking,
+          isSearching
+        })
+        const useRealtimeDocumentEdit = typeof realtimeDocumentId === 'string' && realtimeDocumentId.length > 0
+        if (useRealtimeDocumentEdit) {
+          form.append('document_id', realtimeDocumentId)
+          form.append('mode', 'document')
+          appendOutputItemToLastAgentTurn(buildRealtimeDocumentProgressOutput(realtimeDocumentId))
+        }
+        const url = useRealtimeDocumentEdit
+          ? `${baseUrl}/flowbot/api/agent/v2/document/live-edit`
+          : `${baseUrl}/flowbot/api/agent/v2/chat`
 
         // Create abort controller for this request
         abortControllerRef.current = new AbortController()
@@ -1011,9 +1118,31 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           if (event === 'output-item') {
             try {
               const newOutput = JSON.parse(data) as OutputItem
-              appendOutputItemToLastAgentTurn(newOutput)
-              if (newOutput.type !== 'tool') {
+              const isHiddenDocumentStreamOutput = shouldHideDocumentStreamOutput(newOutput)
+              if (
+                newOutput.type === 'document_stream_complete' &&
+                typeof window !== 'undefined' &&
+                typeof newOutput.document_id === 'string' &&
+                newOutput.document_id
+              ) {
+                window.dispatchEvent(
+                  new CustomEvent('flowbot:document-stream-complete', {
+                    detail: {
+                      documentId: newOutput.document_id,
+                      mode: newOutput.mode,
+                      changed: newOutput.changed,
+                      changeSummary: newOutput.change_summary
+                    }
+                  })
+                )
+                appendOutputItemToLastAgentTurn(buildRealtimeDocumentCompleteOutput(newOutput))
                 pruneEphemeralOutputsFromLastAgentTurn()
+              }
+              if (!isHiddenDocumentStreamOutput) {
+                appendOutputItemToLastAgentTurn(newOutput)
+                if (newOutput.type !== 'tool') {
+                  pruneEphemeralOutputsFromLastAgentTurn()
+                }
               }
             } catch (err) {
               console.error('Failed to parse output item:', err)

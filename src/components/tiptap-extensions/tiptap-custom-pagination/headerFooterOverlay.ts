@@ -1,7 +1,14 @@
 import { Editor, type Extension } from '@tiptap/core'
+import { handleTiptapTabKey } from '../tiptapTabKeyHandler'
 import type { HeaderFooterEditorType, PagesHeaderFooter, PagesOptions, PagesStorage, PageVariantKey } from './types'
-import { renderHeaderFooterDisplayContent } from './dom'
-import { getHeaderFooterExtensions, resolveVariantForPage, setStoredVariantContent } from './utils'
+import { isEmptyHeaderFooterHtml, renderHeaderFooterDisplayContent } from './dom'
+import { layoutPageNumberSlots } from './pageNumberSlotLayout'
+import {
+  getHeaderFooterExtensions,
+  replaceTemplateTokens,
+  resolveVariantForPage,
+  setStoredVariantContent
+} from './utils'
 
 interface OpenOverlayParams {
   type: HeaderFooterEditorType
@@ -17,17 +24,20 @@ interface OpenOverlayParams {
 }
 
 interface ActiveOverlay {
-  overlay: HTMLElement
   editor: Editor
   pageNumber: number
   type: HeaderFooterEditorType
   variant: PageVariantKey
-  cleanup: () => void
+  cleanup: (runOnClose?: boolean) => void
   previousEditable: boolean
+  target: HTMLElement
+  contentHost: HTMLElement
+  shellEditableSnapshot: Array<{ element: HTMLElement; contentEditable: string | null }>
 }
 
 export class HeaderFooterOverlayManager {
   private activeOverlay: ActiveOverlay | null = null
+  private suppressNextCloseNotification = false
 
   constructor(
     private readonly hostEditor: Editor,
@@ -38,12 +48,13 @@ export class HeaderFooterOverlayManager {
   open(params: OpenOverlayParams) {
     this.close()
 
-    const { target, type, pageNumber, initialContent, storage, options, clickPosition } = params
-    const overlay = document.createElement('div')
-    const editorHost = document.createElement('div')
+    const { target, type, pageNumber, clickPosition, initialContent, storage, options } = params
     const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
-    const visibleContent = target.querySelector(contentSelector) as HTMLElement | null
+    const shellSelector = type === 'header' ? '.rm-page-header' : '.rm-page-footer'
+    const contentHost = target.querySelector(contentSelector) as HTMLElement | null
+    const shellHost = target.querySelector(shellSelector) as HTMLElement | null
     const hint = target.querySelector('.rm-page-region-hint') as HTMLElement | null
+    const pageNumberSlot = target.querySelector('[data-rm-page-number-slot="true"]') as HTMLElement | null
     const variant = resolveVariantForPage(pageNumber, options)
     const accentColor =
       type === 'header'
@@ -54,62 +65,70 @@ export class HeaderFooterOverlayManager {
     const placeholderLabel =
       type === 'header' ? (options.uiLabels?.headerLabel ?? 'Header') : (options.uiLabels?.footerLabel ?? 'Footer')
 
-    overlay.className = 'rm-page-overlay'
-    overlay.dataset.rmOverlayType = type
-    overlay.style.setProperty('--rm-overlay-accent', accentColor)
-    editorHost.className = 'rm-page-overlay-editor'
-
-    if (visibleContent) {
-      const targetRect = target.getBoundingClientRect()
-      const contentRect = visibleContent.getBoundingClientRect()
-      const topInset = Math.max(0, contentRect.top - targetRect.top)
-      const leftInset = Math.max(0, contentRect.left - targetRect.left)
-      const rightInset = Math.max(0, targetRect.right - contentRect.right)
-      const bottomInset = Math.max(0, targetRect.bottom - contentRect.bottom)
-
-      overlay.style.top = `${topInset}px`
-      overlay.style.left = `${leftInset}px`
-      overlay.style.right = `${rightInset}px`
-      overlay.style.bottom = `${bottomInset}px`
-    }
-
-    const stopPointerPropagation = (event: MouseEvent) => {
-      event.stopPropagation()
-    }
-    overlay.addEventListener('mousedown', stopPointerPropagation, true)
-    overlay.addEventListener('mouseup', stopPointerPropagation, true)
-    overlay.addEventListener('click', stopPointerPropagation, true)
-
-    target.dataset.rmOverlayActive = 'true'
-    overlay.append(editorHost)
-    target.appendChild(overlay)
-    if (hint) {
-      hint.textContent = activeHint
+    if (!(contentHost instanceof HTMLElement)) {
+      return
     }
 
     const previousEditable = this.hostEditor.isEditable
     this.hostEditor.setEditable(false, false)
+    const shellEditableElements = [target, shellHost].filter(
+      (element): element is HTMLElement => element instanceof HTMLElement
+    )
+    const shellEditableSnapshot = shellEditableElements.map(element => ({
+      element,
+      contentEditable: element.getAttribute('contenteditable')
+    }))
 
-    const overlayEditor = new Editor({
-      element: editorHost,
+    target.dataset.rmOverlayActive = 'true'
+    target.dataset.rmHasVisibleContent = 'true'
+    shellEditableElements.forEach(element => {
+      element.setAttribute('contenteditable', 'true')
+    })
+    contentHost.classList.add('rm-page-inline-editor')
+    contentHost.style.setProperty('--rm-overlay-accent', accentColor)
+    contentHost.setAttribute('contenteditable', 'true')
+    contentHost.replaceChildren()
+    if (hint) {
+      hint.textContent = activeHint
+    }
+
+    const overlayEditorRef: { current: Editor | null } = { current: null }
+    const inlineEditor = new Editor({
+      element: contentHost,
       extensions: getHeaderFooterExtensions(params.extensions),
       content: initialContent,
-      editable: true
+      editable: true,
+      parseOptions: {
+        preserveWhitespace: 'full'
+      },
+      editorProps: {
+        handleKeyDown(_view, event) {
+          return handleTiptapTabKey(event, overlayEditorRef.current)
+        }
+      }
     })
+    overlayEditorRef.current = inlineEditor
 
-    const syncOverlayContentToStorage = () => {
-      const html = overlayEditor.getHTML()
-      const json = overlayEditor.getJSON()
+    const htmlForVisibleRegion = (rawHtml: string) => {
+      const total = Math.max(1, storage.pageCount)
+      const documentTitle = this.getOptions().documentTitle ?? ''
+      return replaceTemplateTokens(rawHtml, pageNumber, total, documentTitle, {
+        style: this.getOptions().pageNumberNumeralStyle ?? 'decimal',
+        startAt: this.getOptions().pageNumberStartAt ?? 1
+      })
+    }
+
+    const syncStoredContent = () => {
+      const html = inlineEditor.getHTML()
+      const json = inlineEditor.getJSON()
 
       setStoredVariantContent(storage, type, variant, {
         html,
         json
       })
 
-      if (visibleContent) {
-        renderHeaderFooterDisplayContent(visibleContent, html, placeholderLabel)
-      }
-
+      target.dataset.rmHasVisibleContent = 'true'
+      layoutPageNumberSlots(target)
       params.onUpdate?.()
     }
 
@@ -121,10 +140,65 @@ export class HeaderFooterOverlayManager {
       })
     }
 
-    overlayEditor.on('update', syncOverlayContentToStorage)
+    const switchToRegion = (
+      nextRegion: { element: HTMLElement; type: HeaderFooterEditorType; pageNumber: number },
+      nextClickPosition?: { clientX: number; clientY: number }
+    ) => {
+      const commands = this.hostEditor.commands as {
+        closeHeaderFooterEditors?: () => boolean
+        openHeaderEditor?: (params: {
+          pageNumber: number
+          clickPosition?: { clientX: number; clientY: number }
+        }) => boolean
+        openFooterEditor?: (params: {
+          pageNumber: number
+          clickPosition?: { clientX: number; clientY: number }
+        }) => boolean
+      }
+
+      this.suppressNextCloseNotification = true
+      const closed = commands.closeHeaderFooterEditors?.() ?? false
+      if (!closed) {
+        this.suppressNextCloseNotification = false
+      }
+
+      requestAnimationFrame(() => {
+        if (nextRegion.type === 'header') {
+          commands.openHeaderEditor?.({ pageNumber: nextRegion.pageNumber, clickPosition: nextClickPosition })
+        } else {
+          commands.openFooterEditor?.({ pageNumber: nextRegion.pageNumber, clickPosition: nextClickPosition })
+        }
+      })
+    }
+
+    inlineEditor.on('update', syncStoredContent)
+
+    const handleDocumentMouseDown = (event: MouseEvent) => {
+      const targetNode = event.target as Node | null
+      if (targetNode && target.contains(targetNode)) return
+
+      const targetElement = event.target instanceof Element ? event.target : null
+      if (targetElement?.closest('[data-testid^="document-header-footer-settings-sidebar"]')) return
+      if (targetElement?.closest('[data-testid^="document-page-numbers-dialog"]')) return
+      if (resolveHeaderFooterRegionTarget(event.target)) return
+
+      event.preventDefault()
+      event.stopPropagation()
+    }
 
     const handleDocumentDoubleClick = (event: MouseEvent) => {
-      if (overlay.contains(event.target as Node)) return
+      if (target.contains(event.target as Node)) return
+
+      const nextRegion = resolveHeaderFooterRegionTarget(event.target)
+      if (nextRegion && nextRegion.element !== target) {
+        event.preventDefault()
+        event.stopPropagation()
+        switchToRegion(nextRegion, {
+          clientX: event.clientX,
+          clientY: event.clientY
+        })
+        return
+      }
 
       const shouldPreventClose =
         (type === 'header' ? options.onDblClickHeaderPreventClose : options.onDblClickFooterPreventClose)?.(event) ??
@@ -132,13 +206,9 @@ export class HeaderFooterOverlayManager {
         false
 
       if (!shouldPreventClose) {
-        const targetNode = event.target as Node | null
-        this.close()
-        if (targetNode && this.hostEditor.view.dom.contains(targetNode)) {
-          requestAnimationFrame(() => {
-            this.hostEditor.commands.focus()
-          })
-        }
+        event.preventDefault()
+        event.stopPropagation()
+        ;(this.hostEditor.commands as { closeHeaderFooterEditors?: () => boolean }).closeHeaderFooterEditors?.()
       }
     }
 
@@ -149,45 +219,68 @@ export class HeaderFooterOverlayManager {
       }
     }
 
+    document.addEventListener('mousedown', handleDocumentMouseDown, true)
     document.addEventListener('dblclick', handleDocumentDoubleClick, true)
     document.addEventListener('keydown', handleEscape, true)
 
-    const cleanup = () => {
+    const cleanup = (runOnClose = true) => {
+      document.removeEventListener('mousedown', handleDocumentMouseDown, true)
       document.removeEventListener('dblclick', handleDocumentDoubleClick, true)
       document.removeEventListener('keydown', handleEscape, true)
-      overlay.removeEventListener('mousedown', stopPointerPropagation, true)
-      overlay.removeEventListener('mouseup', stopPointerPropagation, true)
-      overlay.removeEventListener('click', stopPointerPropagation, true)
-      overlayEditor.off('update', syncOverlayContentToStorage)
-      const finalHtml = overlayEditor.getHTML()
-      overlayEditor.destroy()
-      if (visibleContent) {
-        renderHeaderFooterDisplayContent(visibleContent, finalHtml, placeholderLabel)
-      }
-      overlay.remove()
+      inlineEditor.off('update', syncStoredContent)
+
+      const finalHtml = inlineEditor.getHTML()
+      inlineEditor.destroy()
+
+      contentHost.classList.remove('rm-page-inline-editor')
+      contentHost.style.removeProperty('--rm-overlay-accent')
+      contentHost.setAttribute('contenteditable', 'false')
+      shellEditableSnapshot.forEach(({ element, contentEditable }) => {
+        if (contentEditable === null) {
+          element.removeAttribute('contenteditable')
+        } else {
+          element.setAttribute('contenteditable', contentEditable)
+        }
+      })
+      renderHeaderFooterDisplayContent(contentHost, htmlForVisibleRegion(finalHtml), placeholderLabel)
+
+      const hasVisibleRegionContent =
+        !isEmptyHeaderFooterHtml(htmlForVisibleRegion(finalHtml)) || pageNumberSlot !== null
+      target.dataset.rmHasVisibleContent = hasVisibleRegionContent ? 'true' : 'false'
       delete target.dataset.rmOverlayActive
+
       if (hint) {
         hint.textContent = inactiveHint
       }
+
+      requestAnimationFrame(() => layoutPageNumberSlots(target))
       this.hostEditor.setEditable(previousEditable, false)
-      params.onClose()
+      if (runOnClose) {
+        params.onClose()
+      }
     }
 
     this.activeOverlay = {
-      overlay,
-      editor: overlayEditor,
+      editor: inlineEditor,
       pageNumber,
       type,
       variant,
       cleanup,
-      previousEditable
+      previousEditable,
+      target,
+      contentHost,
+      shellEditableSnapshot
     }
 
-    storage.activeEditor = overlayEditor
+    storage.activeEditor = inlineEditor
     storage.activeEditorType = type
     storage.activePageNumber = pageNumber
     notifyActiveEditorChange()
-    focusOverlayEditor(overlayEditor, clickPosition)
+    requestAnimationFrame(() => {
+      if (this.activeOverlay?.editor !== inlineEditor) return
+      layoutPageNumberSlots(target)
+      focusEditor(inlineEditor, clickPosition)
+    })
   }
 
   close() {
@@ -195,6 +288,8 @@ export class HeaderFooterOverlayManager {
 
     const activeOverlay = this.activeOverlay
     const storage = this.getStorage()
+    const suppressNotification = this.suppressNextCloseNotification
+    this.suppressNextCloseNotification = false
     setStoredVariantContent(storage, activeOverlay.type, activeOverlay.variant, {
       html: activeOverlay.editor.getHTML(),
       json: activeOverlay.editor.getJSON()
@@ -202,14 +297,66 @@ export class HeaderFooterOverlayManager {
     storage.activeEditor = null
     storage.activeEditorType = null
     storage.activePageNumber = null
+    if (!suppressNotification) {
+      this.getOptions().onActiveEditorChange?.({
+        activeEditor: null,
+        activeEditorType: null,
+        activePageNumber: null
+      })
+    }
+
+    this.activeOverlay = null
+    activeOverlay.cleanup()
+  }
+
+  recoverStaleOverlayState(editorDom: HTMLElement) {
+    const storage = this.getStorage()
+    const hasStoredActiveEditor =
+      (storage.activeEditorType === 'header' || storage.activeEditorType === 'footer') &&
+      storage.activePageNumber != null
+
+    if (!this.activeOverlay) {
+      if (!hasStoredActiveEditor) {
+        return false
+      }
+
+      storage.activeEditor = null
+      storage.activeEditorType = null
+      storage.activePageNumber = null
+      this.suppressNextCloseNotification = false
+      this.getOptions().onActiveEditorChange?.({
+        activeEditor: null,
+        activeEditorType: null,
+        activePageNumber: null
+      })
+      return true
+    }
+
+    const { target, contentHost } = this.activeOverlay
+    const isOverlayStillMounted =
+      target.isConnected &&
+      contentHost.isConnected &&
+      editorDom.contains(target) &&
+      target.dataset.rmOverlayActive === 'true' &&
+      contentHost.classList.contains('rm-page-inline-editor')
+
+    if (isOverlayStillMounted) {
+      return false
+    }
+
+    const activeOverlay = this.activeOverlay
+    storage.activeEditor = null
+    storage.activeEditorType = null
+    storage.activePageNumber = null
+    this.suppressNextCloseNotification = false
+    this.activeOverlay = null
+    activeOverlay.cleanup(false)
     this.getOptions().onActiveEditorChange?.({
       activeEditor: null,
       activeEditorType: null,
       activePageNumber: null
     })
-
-    this.activeOverlay = null
-    activeOverlay.cleanup()
+    return true
   }
 
   updateAccentColor() {
@@ -221,11 +368,16 @@ export class HeaderFooterOverlayManager {
         ? (options.headerAccentColor ?? options.accentColor ?? '#6366f1')
         : (options.footerAccentColor ?? options.accentColor ?? '#6366f1')
 
-    this.activeOverlay.overlay.style.setProperty('--rm-overlay-accent', color)
+    this.activeOverlay.contentHost.style.setProperty('--rm-overlay-accent', color)
+  }
+
+  suppressNextCloseNotificationOnce() {
+    if (!this.activeOverlay) return
+    this.suppressNextCloseNotification = true
   }
 }
 
-function focusOverlayEditor(editor: Editor, clickPosition?: { clientX: number; clientY: number }) {
+function focusEditor(editor: Editor, clickPosition?: { clientX: number; clientY: number }) {
   const position = resolveEditorPositionFromClick(editor, clickPosition)
   editor.commands.focus(position ?? 'end')
 }
@@ -233,10 +385,25 @@ function focusOverlayEditor(editor: Editor, clickPosition?: { clientX: number; c
 function resolveEditorPositionFromClick(editor: Editor, clickPosition?: { clientX: number; clientY: number }) {
   if (!clickPosition) return null
 
+  let resolvedLeft = clickPosition.clientX
+  let resolvedTop = clickPosition.clientY
+  const editorRect = editor.view.dom.getBoundingClientRect()
+
+  if (editorRect.width > 0 && editorRect.height > 0) {
+    resolvedLeft = Math.min(
+      Math.max(resolvedLeft, editorRect.left + 1),
+      Math.max(editorRect.left + 1, editorRect.right - 1)
+    )
+    resolvedTop = Math.min(
+      Math.max(resolvedTop, editorRect.top + 1),
+      Math.max(editorRect.top + 1, editorRect.bottom - 1)
+    )
+  }
+
   try {
     const positionAtCoords = editor.view.posAtCoords({
-      left: clickPosition.clientX,
-      top: clickPosition.clientY
+      left: resolvedLeft,
+      top: resolvedTop
     })
     if (positionAtCoords?.pos != null) {
       return positionAtCoords.pos
@@ -250,7 +417,7 @@ function resolveEditorPositionFromClick(editor: Editor, clickPosition?: { client
   }
 
   try {
-    const caretPosition = ownerDocument.caretPositionFromPoint?.(clickPosition.clientX, clickPosition.clientY)
+    const caretPosition = ownerDocument.caretPositionFromPoint?.(resolvedLeft, resolvedTop)
     if (caretPosition?.offsetNode) {
       return editor.view.posAtDOM(caretPosition.offsetNode, caretPosition.offset)
     }
@@ -259,4 +426,27 @@ function resolveEditorPositionFromClick(editor: Editor, clickPosition?: { client
   }
 
   return null
+}
+
+function resolveHeaderFooterRegionTarget(target: EventTarget | null): {
+  element: HTMLElement
+  type: HeaderFooterEditorType
+  pageNumber: number
+} | null {
+  if (!(target instanceof Element)) return null
+
+  const region = target.closest('[data-rm-editor-type][data-rm-page-number]') as HTMLElement | null
+  if (!(region instanceof HTMLElement)) return null
+
+  const type = region.dataset.rmEditorType
+  const pageNumber = Number.parseInt(region.dataset.rmPageNumber ?? '', 10)
+  if ((type !== 'header' && type !== 'footer') || !Number.isFinite(pageNumber) || pageNumber < 1) {
+    return null
+  }
+
+  return {
+    element: region,
+    type,
+    pageNumber
+  }
 }

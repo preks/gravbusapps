@@ -5,15 +5,15 @@
 
 import { useCallback, type RefObject } from 'react'
 import type { Editor } from '@tiptap/react'
-import { uploadDocumentImage } from '../../../services/DocumentImageUploadService'
+import type { CustomImageUploadHandler, ImageUploadContext } from '@/components/tiptap-extensions/tiptap-custom-image'
 
 export interface UseEditorImageHandlersProps {
   editorRef: RefObject<Editor | null>
-  documentId: string | null
-  accessToken: string
+  uploadImage: CustomImageUploadHandler
+  uploadContext?: ImageUploadContext
 }
 
-export function useEditorImageHandlers({ editorRef, documentId, accessToken }: UseEditorImageHandlersProps): {
+export function useEditorImageHandlers({ editorRef, uploadImage, uploadContext }: UseEditorImageHandlersProps): {
   handlePaste: (view: unknown, event: ClipboardEvent) => boolean
   handleDrop: (view: unknown, event: DragEvent, slice: unknown, moved: boolean) => boolean
 } {
@@ -26,7 +26,7 @@ export function useEditorImageHandlers({ editorRef, documentId, accessToken }: U
           const file = item.getAsFile()
           if (file) {
             event.preventDefault()
-            uploadDocumentImage(file, documentId, accessToken)
+            uploadImage(file, uploadContext)
               .then(({ url }) => {
                 editorRef.current?.chain().focus().setImage({ src: url }).run()
               })
@@ -48,7 +48,7 @@ export function useEditorImageHandlers({ editorRef, documentId, accessToken }: U
       }
       return false
     },
-    [documentId, accessToken, editorRef]
+    [editorRef, uploadContext, uploadImage]
   )
 
   const handleDrop = useCallback(
@@ -66,7 +66,7 @@ export function useEditorImageHandlers({ editorRef, documentId, accessToken }: U
       const coords = view.posAtCoords?.({ left: event.clientX, top: event.clientY })
       const dropPos = coords?.pos
 
-      Promise.all(imageFiles.map(file => uploadDocumentImage(file, documentId, accessToken)))
+      Promise.all(imageFiles.map(file => uploadImage(file, uploadContext)))
         .then(results => {
           const urls = results.map(r => r.url)
           const ed = editorRef.current
@@ -98,7 +98,7 @@ export function useEditorImageHandlers({ editorRef, documentId, accessToken }: U
         })
       return true
     },
-    [documentId, accessToken, editorRef]
+    [editorRef, uploadContext, uploadImage]
   )
 
   return { handlePaste, handleDrop }
