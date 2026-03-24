@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
@@ -44,14 +43,6 @@ const defaultValues: TaxInfoFormValues = {
   uploadNewHealthInsuranceDocument: false
 }
 
-/** Validation messages: lowcoder keys from validationScope → local i18n FTL keys. */
-const LOCAL_I18N_KEY_MAP: Record<string, string> = {
-  'lowcoder:change_tax_information.invalid_tax_number_text': 'invalid-tax-number-text',
-  'lowcoder:change_tax_information.invalid_tax_identification_number_text': 'invalid-tax-identification-number-text',
-  'lowcoder:change_tax_information.invalid_social_security_number_text': 'invalid-social-security-number-text',
-  'lowcoder:change_tax_information.invalid_cnp_text': 'invalid-cnp-text'
-}
-
 export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData, userInfo }) => {
   const form = useForm<TaxInfoFormValues>({ defaultValues, mode: 'onChange' })
   const initialRef = useRef<TaxInfoFormValues>(form.getValues())
@@ -59,27 +50,29 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   const fileClient = useFileClient({ accessToken: accessToken ?? '' })
 
   const { t } = useTranslation(translations)
-  const { data, catalogs, isReady, isEmployeeInGermany, isEmployeeInRomania, employeeGender } = useChangeTaxDetailsData(
-    accessToken,
-    additionalData,
-    userInfo,
-    form,
-    initialRef
-  )
+  const {
+    data,
+    catalogs,
+    isReady,
+    isEmployeeInGermany,
+    isEmployeeInRomania,
+    employeeGender,
+    employeeBirthDate,
+    employeeBirthName,
+    employeeLastName
+  } = useChangeTaxDetailsData(accessToken, additionalData, userInfo, form, initialRef)
 
   const getMessage = useCallback(
     (key: string, fallback: string) => {
-      if (!key.startsWith('lowcoder:')) return t(key)
-      const localKey = LOCAL_I18N_KEY_MAP[key]
-      if (localKey) return t(localKey)
-      return getTranslationFromI18nKeyAndLabel(key, fallback) || fallback
+      void fallback
+      return t(key)
     },
     [t]
   )
 
   const title = useMemo(() => t('change-tax-details-title'), [t])
 
-  const labels = useMemo(() => getChangeTaxDetailsLabels(getMessage, t), [getMessage, t])
+  const labels = useMemo(() => getChangeTaxDetailsLabels(t), [t])
 
   const handleHealthInsuranceFilesChange = useCallback(
     (files: Array<{ file: File | { name: string }; id: string }>) => {
@@ -190,11 +183,8 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
           isSubmitDisabled={isSubmitDisabledFinal}
           submitButtonTestId="flw_changeTaxDetails_submitButton"
           cancelButtonTestId="flw_changeTaxDetails_cancelButton"
-          submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
-          cancelButtonText={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.initiate_cancel_button',
-            'Cancel'
-          )}
+          submitButtonText={t('submit')}
+          cancelButtonText={t('cancel')}
           handlePreSubmit={handlePreSubmit}
           onSubmit={onSubmit}
           data-testid="change-tax-details"
@@ -208,6 +198,9 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
             isEmployeeInGermany={isEmployeeInGermany}
             isEmployeeInRomania={isEmployeeInRomania}
             employeeGender={employeeGender}
+            employeeBirthDate={employeeBirthDate}
+            employeeBirthName={employeeBirthName}
+            employeeLastName={employeeLastName}
             healthInsuranceFileList={healthInsuranceFileList}
             onHealthInsuranceFilesChange={handleHealthInsuranceFilesChange}
           />

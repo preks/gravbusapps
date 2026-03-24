@@ -33,6 +33,9 @@ export interface ChangeTaxDetailsFormFieldsProps {
   isEmployeeInGermany: boolean
   isEmployeeInRomania?: boolean
   employeeGender: string | null
+  employeeBirthDate?: string | null
+  employeeBirthName?: string | null
+  employeeLastName?: string | null
   healthInsuranceFileList: any[]
   onHealthInsuranceFilesChange: (files: Array<{ file: File | { name: string }; id: string }>) => void
 }
@@ -72,6 +75,9 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
   isEmployeeInGermany,
   isEmployeeInRomania = false,
   employeeGender,
+  employeeBirthDate,
+  employeeBirthName,
+  employeeLastName,
   healthInsuranceFileList,
   onHealthInsuranceFilesChange
 }) => {
@@ -350,7 +356,14 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
         rules={{
           required: L.requiredSSN,
           validate: (v: string) =>
-            validateSocialSecurityNumber(v, isEmployeeInGermany, employeeGender, getMessage, isEmployeeInRomania)
+            validateSocialSecurityNumber(v, getMessage, {
+              isGermany: isEmployeeInGermany,
+              isRomania: isEmployeeInRomania,
+              employeeGender,
+              employeeBirthDate,
+              employeeBirthName,
+              employeeLastName
+            })
         }}
         render={({ field }) => (
           <FormItem>

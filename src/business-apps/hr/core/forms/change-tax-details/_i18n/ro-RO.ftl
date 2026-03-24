@@ -1,6 +1,18 @@
 # Change Tax Details - Etichete și mesaje de validare
 
 change-tax-details-title = Modifică detaliile fiscale
+submit = Trimite
+cancel = Anulează
+placeholder-enter = Vă rugăm introduceți
+placeholder-select = Vă rugăm selectați
+tax-number = Număr fiscal
+tax-bracket = Clasă de impozitare
+health-insurance = Asigurare de sănătate
+health-insurance-type = Tipul asigurării de sănătate
+tax-identification-number = Număr de identificare fiscală
+church-affiliation = Apartenență religioasă
+social-security-number = Număr de asigurare socială
+child-tax-allowance = Alocație fiscală pentru copil
 request-at-tax-office = Solicitare la oficiul fiscal
 employee-tax-office = Oficiul fiscal al angajatului
 individual-free-amount = Sumă neimpozabilă individuală
@@ -11,9 +23,17 @@ document-valid-to = Valid până la
 upload-new-health-insurance-document = Încarcă document nou de asigurare de sănătate
 religion = Religie
 
+required-health-insurance-text = Câmpul Asigurare de sănătate este obligatoriu.
+required-tax-identification-number-text = Câmpul Număr de identificare fiscală este obligatoriu.
+required-social-security-number-text = Câmpul Număr de asigurare socială este obligatoriu.
 invalid-tax-number-text = Introduceți un număr de taxă german valid (10, 11 sau 13 cifre, ex. 313/876/56432) sau lăsați gol.
 invalid-tax-identification-number-text = Introduceți un număr de identificare fiscală german valid de 11 cifre.
 invalid-social-security-number-text = Introduceți un număr valid de asigurare de pensie german (ex.: 89 010299 B 123).
+ssn-birth-date-missing-text = Nu se poate valida numărul de asigurare socială: pentru acest angajat nu există data nașterii înregistrată.
+ssn-birth-date-mismatch-text = Data nașterii din numărul de asigurare socială nu corespunde cu data nașterii stocată pentru angajat.
+ssn-birth-name-missing-text = Nu se poate valida numărul de asigurare socială: pentru acest angajat nu există nici nume la naștere, nici nume de familie înregistrat.
+ssn-birth-name-mismatch-text = Litera numelui la naștere din numărul de asigurare socială nu corespunde cu numele la naștere (sau cu numele de familie folosit ca fallback).
+ssn-check-digit-invalid-text = Cifra de control a numărului de asigurare socială este invalidă.
 invalid-cnp-text = Introduceți un CNP (Cod Numeric Personal) românesc valid de 13 cifre.
 invalid-localized-number-text = Introduceți un număr valid folosind formatul local (ex.: 1.234,56 sau 1,234.56).
 required-health-insurance-type-text = Câmpul Tipul asigurării de sănătate este obligatoriu.

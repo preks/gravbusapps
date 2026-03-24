@@ -19,6 +19,9 @@ export const GET_TAX_DETAILS_EMPLOYEE = `query fetchEmployeeData($idEmployee: uu
   }
   EmployeeByPk(id: $idEmployee){
     id
+    birthDate
+    birthName
+    lastName
     gender{
       id
       value

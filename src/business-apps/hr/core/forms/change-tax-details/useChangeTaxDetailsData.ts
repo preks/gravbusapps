@@ -39,6 +39,9 @@ export function useChangeTaxDetailsData(
   const [isReady, setIsReady] = useState(false)
   const [employeeCountryCode, setEmployeeCountryCode] = useState<string | null>(null)
   const [employeeGender, setEmployeeGender] = useState<string | null>(null)
+  const [employeeBirthDate, setEmployeeBirthDate] = useState<string | null>(null)
+  const [employeeBirthName, setEmployeeBirthName] = useState<string | null>(null)
+  const [employeeLastName, setEmployeeLastName] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,12 +66,19 @@ export function useChangeTaxDetailsData(
           })
           employeeDetails = employeeRes?.EmployeeTaxDetail?.[0] ?? null
           setData(employeeDetails)
+          setEmployeeBirthDate(employeeRes?.EmployeeByPk?.birthDate ?? null)
+          setEmployeeBirthName(employeeRes?.EmployeeByPk?.birthName ?? null)
+          setEmployeeLastName(employeeRes?.EmployeeByPk?.lastName ?? null)
           const g = employeeRes?.EmployeeByPk?.gender?.value
           setEmployeeGender(typeof g === 'string' ? g.toLowerCase() : null)
           const entry = employeeRes?.EmployeeWorkingCondition?.[0]?.region?.parentEntry
           setEmployeeCountryCode(entry?.code ?? null)
         } else {
           setEmployeeCountryCode(null)
+          setEmployeeGender(null)
+          setEmployeeBirthDate(null)
+          setEmployeeBirthName(null)
+          setEmployeeLastName(null)
         }
 
         const emp = employeeDetails as any
@@ -110,6 +120,9 @@ export function useChangeTaxDetailsData(
     employeeCountryCode,
     isEmployeeInGermany: isEmployeeInGermanyFlag,
     isEmployeeInRomania: isEmployeeInRomaniaFlag,
-    employeeGender
+    employeeGender,
+    employeeBirthDate,
+    employeeBirthName,
+    employeeLastName
   }
 }
