@@ -42,6 +42,9 @@ export const Navigation = {
 
   // HR
   HR_EMPLOYEE_RECORD: `${NAVIGATION_BASE_PATH}/employee-record`,
+  /** Self-service: same HR Development content as My Profile, dedicated route */
+  /** Same URL shape as other Self-Service HR apps (e.g. My Time in hub: `/platform/hr/core/apps/my-time`). */
+  HR_MY_DEVELOPMENT: `${NAVIGATION_BASE_PATH}/hr/core/apps/my-development`,
   HR_ABSENCES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/absences/manager-absences`,
   HR_RECRUITING_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-manager`,
   HR_RECRUITING_PORTAL: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-portal`,
@@ -145,6 +148,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // HR
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
+  [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
   [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
   [Navigation.HR_RECRUITING_MANAGER_ROLE]: 'hr/recruiting/apps/recruiting-manager',
   [Navigation.HR_RECRUITING_PORTAL]: 'hr/recruiting/apps/recruiting-portal',

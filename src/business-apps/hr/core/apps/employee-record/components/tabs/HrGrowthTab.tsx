@@ -14,6 +14,8 @@ import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import translations from '../../_i18n'
 import SkillsTabOld from './SkillsTabOld'
 
+export type HrGrowthUrlMode = 'employeeRecord' | 'standalone'
+
 interface HrGrowthTabProps extends BusinessAppContextProps {
   employee: Employee
   employeeId: string
@@ -21,6 +23,8 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   devFeatureFlag: boolean
   employeePerformanceGoals?: EmployeePerformanceGoal[]
   feedback?: EmployeeFeedback[]
+  /** `standalone`: My Development page — URL uses only `subView`, no `tab=hrGrowth`. */
+  urlMode?: HrGrowthUrlMode
 }
 
 const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance', 'performanceEvaluation'] as const
@@ -46,7 +50,8 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   isSelfView,
   devFeatureFlag,
   employeePerformanceGoals,
-  feedback
+  feedback,
+  urlMode = 'employeeRecord'
 }) => {
   const { t } = useTranslation(translations)
   const [activeSubView, setActiveSubView] = useState<HrGrowthSubView>(getInitialHrGrowthSubView())
@@ -79,25 +84,38 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
       if (typeof window === 'undefined') return
 
       const searchParams = new URLSearchParams(window.location.search)
-      searchParams.set('tab', 'hrGrowth')
-      if (subView !== 'skills') {
-        searchParams.set('subView', subView)
-      } else {
-        searchParams.delete('subView')
-      }
 
-      const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
-      if (employeeId && employeeId !== currentUserEmployeeId) {
-        searchParams.set('employeeId', employeeId)
+      if (urlMode === 'employeeRecord') {
+        searchParams.set('tab', 'hrGrowth')
+        if (subView !== 'skills') {
+          searchParams.set('subView', subView)
+        } else {
+          searchParams.delete('subView')
+        }
+
+        const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
+        if (employeeId && employeeId !== currentUserEmployeeId) {
+          searchParams.set('employeeId', employeeId)
+        } else {
+          searchParams.delete('employeeId')
+          searchParams.delete('id')
+        }
       } else {
+        if (subView !== 'skills') {
+          searchParams.set('subView', subView)
+        } else {
+          searchParams.delete('subView')
+        }
+        searchParams.delete('tab')
         searchParams.delete('employeeId')
         searchParams.delete('id')
       }
 
-      const newUrl = `${window.location.pathname}?${searchParams.toString()}`
+      const query = searchParams.toString()
+      const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname
       window.history.replaceState({}, '', newUrl)
     },
-    [employeeId, userInfo?.employeeDetails?.employeeId]
+    [employeeId, userInfo?.employeeDetails?.employeeId, urlMode]
   )
 
   useEffect(() => {
@@ -130,9 +148,10 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
     updateUrl
   ])
 
-  // Ensure URL is properly set on initial load
+  // Ensure URL is properly set on initial load (employee profile deep links)
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (urlMode === 'standalone') return
     const urlParams = new URLSearchParams(window.location.search)
     if (!urlParams.has('tab') || urlParams.get('tab') !== 'hrGrowth') {
       updateUrl(activeSubView)
