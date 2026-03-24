@@ -312,6 +312,7 @@ notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbe
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
 notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet
 notification-feedback-request-sent-success-on-behalf = Die Feedbackanfrage wurde gesendet
+feedback-request-missing-user-id = Einige ausgewaehlte Mitarbeiter haben keine User-ID. Bitte waehlen Sie sie erneut aus und versuchen Sie es erneut.
 
 # ============================================
 # Create Employee Form

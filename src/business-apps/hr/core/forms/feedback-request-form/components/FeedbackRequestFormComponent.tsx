@@ -44,12 +44,18 @@ const FeedbackRequestFormComponent: React.FC = () => {
   const [isMultiModalOpen, setIsMultiModalOpen] = useState(false)
   const openMultiModal = () => setIsMultiModalOpen(true)
   const closeMultiModal = () => setIsMultiModalOpen(false)
-  const confirmMultiSelect = (ids: string[], selectedEmployees: { id: string; name: string }[]) => {
+  const confirmMultiSelect = (ids: string[], selectedEmployees: { id: string; name: string; userId?: string }[]) => {
     // Prefer the provided selectedEmployees list (accumulated over searches). Fallback to current employees list.
     const selected =
       selectedEmployees && selectedEmployees.length > 0 ? selectedEmployees : employees.filter(e => ids.includes(e.id))
     setFormValues({
       employeeIds: selected.map(s => s.id),
+      employeeIdUserIdMap: selected.reduce<Record<string, string>>((acc, employee) => {
+        if (employee.userId) {
+          acc[employee.id] = employee.userId
+        }
+        return acc
+      }, {}),
       employeeNames: selected.map(s => s.name),
       // keep single-select fields for submit button enablement and preview
       employeeId: selected[0]?.id,
@@ -104,15 +110,26 @@ const FeedbackRequestFormComponent: React.FC = () => {
       ? 'notification-feedback-request-sent-success-on-behalf'
       : 'notification-feedback-request-sent-success'
 
-    // Resolve employees to get userIds where available
-    const resolvedEmployees = selectedIds
+    // Resolve per selected employee id to userId (map first, then live lookup).
+    const idUserIdMap = formValues.employeeIdUserIdMap || {}
+    const unresolvedSelectedIds: string[] = []
+    const requestedFromList = selectedIds
       .map(id => {
-        if (preSelectedEmployee?.id === id) return preSelectedEmployee
-        return getEmployeeById(id)
+        const mappedUserId = idUserIdMap[id]
+        if (mappedUserId) return mappedUserId
+        const resolved =
+          preSelectedEmployee?.id === id
+            ? preSelectedEmployee
+            : (getEmployeeById(id) as { id: string; userId?: string } | undefined)
+        if (resolved?.userId) return resolved.userId
+        unresolvedSelectedIds.push(id)
+        return null
       })
-      .filter(Boolean) as Array<{ id: string; userId?: string }>
+      .filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index)
 
-    const requestedFromList = resolvedEmployees.map(emp => emp.userId || emp.id)
+    if (unresolvedSelectedIds.length > 0) {
+      throw new Error(t('feedback-request-missing-user-id'))
+    }
 
     if (requestedFromList.length > 1) {
       const client = new FeedbackRequestClient()
@@ -150,6 +167,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
     return payload
   }, [
     formValues.employeeIds,
+    formValues.employeeIdUserIdMap,
     formValues.employeeId,
     formValues.requestMessage,
     businessAppContext.accessToken,

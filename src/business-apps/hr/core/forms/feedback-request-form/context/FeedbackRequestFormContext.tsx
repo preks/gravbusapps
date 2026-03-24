@@ -54,6 +54,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
     employeeId: undefined,
     employeeName: undefined,
     employeeIds: [],
+    employeeIdUserIdMap: {},
     employeeNames: [],
     requestMessage: '',
     ...initialValues
@@ -121,6 +122,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
         employeeId: preSelectedEmployee.id,
         employeeName: preSelectedEmployee.name,
         employeeIds: [preSelectedEmployee.id],
+        employeeIdUserIdMap: preSelectedEmployee.userId ? { [preSelectedEmployee.id]: preSelectedEmployee.userId } : {},
         employeeNames: [preSelectedEmployee.name]
       })
     }
@@ -189,23 +191,23 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
     setError(null)
 
     try {
-      // Resolve employees and collect userIds (fallback to employeeId)
-      const resolvedEmployees = selectedIds
+      const idUserIdMap = formValues.employeeIdUserIdMap || {}
+      const unresolvedSelectedIds: string[] = []
+      const requestedFromList = selectedIds
         .map(id => {
-          if (preSelectedEmployee?.id === id) return preSelectedEmployee
-          return knownEmployees.get(id) || getEmployeeById(id)
+          const mappedUserId = idUserIdMap[id]
+          if (mappedUserId) return mappedUserId
+          const resolved =
+            preSelectedEmployee?.id === id ? preSelectedEmployee : knownEmployees.get(id) || getEmployeeById(id)
+          if (resolved?.userId) return resolved.userId
+          unresolvedSelectedIds.push(id)
+          return null
         })
-        .filter(Boolean) as EmployeeOption[]
+        .filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index)
 
-      if (resolvedEmployees.length === 0) {
-        throw new Error(
-          getTranslationFromI18nKeyAndLabel('feedback.request.employeeNotFound', 'Selected employee not found')
-        )
+      if (requestedFromList.length === 0 || unresolvedSelectedIds.length > 0) {
+        throw new Error(t('feedback-request-missing-user-id'))
       }
-
-      console.log(resolvedEmployees, 'resolvedEmployees')
-
-      const requestedFromList = resolvedEmployees.map(emp => emp.userId || emp.id)
 
       console.log(requestedFromList, 'requestedFromList')
 

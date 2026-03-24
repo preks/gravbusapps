@@ -315,6 +315,7 @@ notification-working-conditions-updated-success = Working conditions updates are
 notification-working-hours-updated-success = Working hours updates are sent for HR approval
 notification-feedback-request-sent-success = Your feedback request has been sent
 notification-feedback-request-sent-success-on-behalf = The feedback request has been sent
+feedback-request-missing-user-id = Some selected employees are missing user IDs. Please reselect and try again.
 
 # ============================================
 # Create Employee Form

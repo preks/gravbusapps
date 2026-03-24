@@ -312,6 +312,7 @@ notification-working-conditions-updated-success = Actualizările condițiilor de
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
 notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă
 notification-feedback-request-sent-success-on-behalf = Cererea de feedback a fost trimisă
+feedback-request-missing-user-id = Unii angajati selectati nu au user ID. Selectati-i din nou si incercati din nou.
 
 # ============================================
 # Create Employee Form
