@@ -18,7 +18,7 @@ export const CompaRatioBar: React.FC<CompaRatioBarProps> = ({ compaRatio, band, 
   const { t } = useTranslation(translations)
 
   if (!band || currentSalary == null) {
-    return <span className="gba:text-xs gba:text-muted-foreground">{t('compa-no-band')}</span>
+    return <span className="gba:text-sm gba:text-muted-foreground">{t('compa-no-band')}</span>
   }
 
   const range = band.maxSalary - band.minSalary
@@ -29,7 +29,7 @@ export const CompaRatioBar: React.FC<CompaRatioBarProps> = ({ compaRatio, band, 
     proposedSalary != null ? Math.max(0, Math.min(100, ((proposedSalary - band.minSalary) / range) * 100)) : null
 
   return (
-    <div className="gba:w-full gba:min-w-32">
+    <div className="gba:w-full gba:min-w-32 gba:max-w-48">
       <div className="gba:relative gba:h-3 gba:bg-muted gba:rounded-full gba:overflow-visible">
         <div className="gba:absolute gba:top-0 gba:h-full gba:w-full gba:bg-primary/10 gba:rounded-full gba:left-0" />
         <div className="gba:absolute gba:top-0 gba:h-full gba:w-px gba:bg-border gba:left-1/2" />
@@ -45,7 +45,7 @@ export const CompaRatioBar: React.FC<CompaRatioBarProps> = ({ compaRatio, band, 
         )}
       </div>
       {compaRatio != null && (
-        <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:text-center">
+        <div className="gba:text-sm gba:text-muted-foreground gba:mt-0.5 gba:text-center">
           {t('compa-ratio-label', { ratio: formatLocaleDecimal(compaRatio, 2, 2) })}
         </div>
       )}

@@ -85,7 +85,19 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     resetTableUi
   } = useManagerPlanningStore()
 
-  const { companies, loading: companiesLoading } = useActiveStructureCompanies(accessToken)
+  const { companies, loading: companiesLoading, error: companiesLoadError } = useActiveStructureCompanies(accessToken)
+
+  useEffect(() => {
+    if (companiesLoading) return
+    if (selectedCompanyId == null) return
+    if (companies.length === 0) {
+      setSelectedCompanyId(null)
+      return
+    }
+    if (!companies.some(c => c.id === selectedCompanyId)) {
+      setSelectedCompanyId(null)
+    }
+  }, [companiesLoading, companies, selectedCompanyId, setSelectedCompanyId])
 
   useDefaultCompanyForCurrentUser(
     accessToken,
@@ -244,8 +256,15 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     [toggleSidebarFilter]
   )
 
+  const companySelectValue =
+    selectedCompanyId != null && companies.some(c => c.id === selectedCompanyId) ? selectedCompanyId : undefined
+
   const companySelect = (
-    <Select value={selectedCompanyId ?? undefined} onValueChange={val => setSelectedCompanyId(val || null)}>
+    <Select
+      value={companySelectValue}
+      onValueChange={val => setSelectedCompanyId(val || null)}
+      disabled={!companiesLoading && companies.length === 0}
+    >
       <SelectTrigger className="gba:w-[300px]" data-testid="manager-compensation-company-select">
         <SelectValue placeholder={t('select-company-placeholder')} />
       </SelectTrigger>
@@ -294,7 +313,17 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
         )}
       </div>
 
-      <div className="gba:shrink-0">{companySelect}</div>
+      <div className="gba:flex gba:flex-col gba:items-end gba:gap-2 gba:shrink-0">
+        {companySelect}
+        {!companiesLoading && companies.length === 0 && companiesLoadError ? (
+          <p
+            className="gba:max-w-sm gba:text-right gba:text-sm gba:text-destructive"
+            data-testid="manager-compensation-companies-error"
+          >
+            {t('error-companies-load', { message: companiesLoadError })}
+          </p>
+        ) : null}
+      </div>
     </div>
   )
 

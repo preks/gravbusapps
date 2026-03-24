@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 export interface StructureCompany {
   id: string
@@ -28,8 +27,6 @@ interface OrgchartStructureResponse {
   edges: Array<{ id: string; source: string; target: string }>
 }
 
-const ORGCHART_BASE_URL = env('NEXT_PUBLIC_ORGCHART_API_URL') ?? ''
-
 const GET_ACTIVE_STRUCTURE = `
   query GetActiveStructure {
     Structure(where: { isActive: { _eq: true } }, limit: 1) {
@@ -40,12 +37,13 @@ const GET_ACTIVE_STRUCTURE = `
 `
 
 /**
- * Fetches legal entities from the active organizational structure,
- * following the same pattern as payroll's useCompanyList.
+ * Fetches legal entities from the active organizational structure.
+ * Uses {@link OrgchartClient} / ORGCHART_API_URL so paths match the org-chart service
+ * (`…/orgchart/api/v1/structures/...`), not the app root (which would 404).
  */
 export function useActiveStructureCompanies(accessToken: string) {
   const graphqlClient = useGraphqlClient(accessToken)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const [companies, setCompanies] = useState<StructureCompany[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -65,9 +63,8 @@ export function useActiveStructureCompanies(accessToken: string) {
         const structureId = structureResult.Structure?.[0]?.id
         if (!structureId) throw new Error('No active structure found')
 
-        const response = await restClient.get<OrgchartStructureResponse>(`/structures/${structureId}`, {
-          params: { nodeType: 'company' },
-          headers: { Authorization: `Bearer ${accessToken}` }
+        const response = await orgchartClient.getStructure<OrgchartStructureResponse>(structureId, {
+          nodeType: 'company'
         })
 
         const companyNodes = response.nodes.filter(n => n.type === 'company')
@@ -98,7 +95,7 @@ export function useActiveStructureCompanies(accessToken: string) {
     return () => {
       cancelled = true
     }
-  }, [accessToken, graphqlClient, restClient])
+  }, [accessToken, graphqlClient, orgchartClient])
 
   return { companies, loading, error }
 }

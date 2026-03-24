@@ -14,12 +14,11 @@ import {
   TooltipProvider,
   useTranslation
 } from '@newwork/nw-design-system'
-import { CalendarIcon, TrendUpIcon, ClockIcon } from '@phosphor-icons/react'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
-import { formatCurrency, formatLocaleInteger, formatPercent } from '../../../utils/budgetCalculations'
+import { formatCurrency, formatPercent } from '../../../utils/budgetCalculations'
+import { formatTenureSinceHireDate } from '@/business-apps/hr/core/utils/formatTenureSinceHireDate'
 import { formatDate } from '@/common/utils/windowUtils'
 import { CompaRatioBar } from './CompaRatioBar'
-import { PerformanceBadge } from './PerformanceBadge'
 import { SortableTableHead } from '@/business-apps/hr/core/apps/assets/components/SortableTableHead'
 import type { ManagerTeamSortField } from '../hooks/useManagerPlanningStore'
 import translations from '../_i18n'
@@ -31,8 +30,8 @@ interface TeamAllocationGridProps {
   onSort: (field: string, order: 'ASC' | 'DESC' | '') => void
 }
 
-/** Match Assets table header density (AssetTable column widths + nowrap). */
-const head = (extra = '') => `gba:whitespace-nowrap gba:text-xs gba:font-medium gba:text-muted-foreground ${extra}`
+/** Match Assets table: header widths + nowrap; typography from TableHead defaults. */
+const head = (extra = '') => `gba:whitespace-nowrap ${extra}`
 
 export const TeamAllocationGrid: React.FC<TeamAllocationGridProps> = ({
   members,
@@ -43,17 +42,13 @@ export const TeamAllocationGrid: React.FC<TeamAllocationGridProps> = ({
   const { t } = useTranslation(translations)
 
   const tenure = useCallback(
-    (hireDate: string | null): string => {
-      if (!hireDate) return '—'
-      const diff = Date.now() - new Date(hireDate).getTime()
-      const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25))
-      const months = Math.floor((diff % (1000 * 60 * 60 * 24 * 365.25)) / (1000 * 60 * 60 * 24 * 30))
-      const y = formatLocaleInteger(years)
-      const m = formatLocaleInteger(months)
-      if (years === 0) return t('tenure-m', { months: m })
-      if (months === 0) return t('tenure-y', { years: y })
-      return t('tenure-ym', { years: y, months: m })
-    },
+    (hireDate: string | null): string =>
+      formatTenureSinceHireDate(hireDate, {
+        year: t('profile-header-year'),
+        years: t('profile-header-years'),
+        month: t('profile-header-month'),
+        months: t('profile-header-months')
+      }) ?? '-',
     [t]
   )
 
@@ -62,7 +57,7 @@ export const TeamAllocationGrid: React.FC<TeamAllocationGridProps> = ({
       <div className="gba:border gba:rounded-lg" data-testid="manager-team-table-container">
         <div className="gba:overflow-x-auto">
           <h2 className="gba:sr-only">{t('table-section-title')}</h2>
-          <Table className="gba:text-sm" data-testid="manager-team-table">
+          <Table data-testid="manager-team-table">
             <TableHeader>
               <TableRow>
                 <SortableTableHead
@@ -70,7 +65,7 @@ export const TeamAllocationGrid: React.FC<TeamAllocationGridProps> = ({
                   currentSortField={sortField}
                   currentSortOrder={currentSortOrder}
                   onSort={onSort}
-                  className={head('gba:min-w-[220px] gba:pl-4')}
+                  className={head('gba:min-w-[220px] gba:pl-6')}
                 >
                   {t('col-employee')}
                 </SortableTableHead>
@@ -110,13 +105,7 @@ export const TeamAllocationGrid: React.FC<TeamAllocationGridProps> = ({
                 >
                   {t('col-band-position')}
                 </SortableTableHead>
-                <SortableTableHead
-                  field="performanceRatingNumeric"
-                  currentSortField={sortField}
-                  currentSortOrder={currentSortOrder}
-                  onSort={onSort}
-                  className={head('gba:min-w-[120px]')}
-                >
+                <SortableTableHead field="performance" className={head('gba:min-w-[120px]')}>
                   {t('col-performance')}
                 </SortableTableHead>
                 <SortableTableHead
@@ -133,36 +122,27 @@ export const TeamAllocationGrid: React.FC<TeamAllocationGridProps> = ({
                   currentSortField={sortField}
                   currentSortOrder={currentSortOrder}
                   onSort={onSort}
-                  className={head('gba:min-w-[100px] gba:text-right')}
+                  className={head('gba:min-w-[100px] gba:text-right gba:pr-6')}
                 >
                   {t('col-bonuses-ytd')}
-                </SortableTableHead>
-                <SortableTableHead
-                  field="currentBenefitsTotal"
-                  currentSortField={sortField}
-                  currentSortOrder={currentSortOrder}
-                  onSort={onSort}
-                  className={head('gba:min-w-[100px] gba:text-right gba:pr-4')}
-                >
-                  {t('col-benefits')}
                 </SortableTableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {members.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="gba:text-center gba:py-14 gba:text-sm gba:text-muted-foreground">
+                  <TableCell colSpan={8} className="gba:text-center gba:py-8 gba:text-muted-foreground">
                     {t('table-empty')}
                   </TableCell>
                 </TableRow>
               ) : (
                 members.map(member => (
                   <TableRow key={member.employeeId} className="gba:border-b gba:border-border gba:hover:bg-muted/40">
-                    <TableCell className="gba:align-top gba:py-3 gba:pl-4">
+                    <TableCell className="gba:align-top gba:py-4 gba:pl-6">
                       <div className="gba:flex gba:items-center gba:gap-3">
                         <Avatar className="gba:h-9 gba:w-9 gba:flex-shrink-0">
                           {member.pictureThumbnail ? <AvatarImage src={member.pictureThumbnail} alt="" /> : null}
-                          <AvatarFallback className="gba:text-xs gba:font-medium">
+                          <AvatarFallback className="gba:text-sm gba:font-medium">
                             {(member.firstName?.[0] ?? '') + (member.lastName?.[0] ?? '')}
                           </AvatarFallback>
                         </Avatar>
@@ -170,69 +150,76 @@ export const TeamAllocationGrid: React.FC<TeamAllocationGridProps> = ({
                           <div className="gba:font-medium gba:text-foreground gba:leading-tight gba:truncate">
                             {member.displayName}
                           </div>
-                          <div className="gba:text-xs gba:text-muted-foreground gba:truncate gba:mt-0.5">
+                          <div className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mt-0.5">
                             {member.jobPosition ?? '—'}
                           </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="gba:align-top gba:py-3 gba:text-muted-foreground">
-                      <span className="gba:text-xs gba:font-mono">{member.jobLevel ?? '—'}</span>
+                    <TableCell className="gba:align-top gba:py-4 gba:text-muted-foreground">
+                      <span className="gba:font-mono gba:text-sm">
+                        {member.jobLevel?.trim() ? member.jobLevel : t('table-cell-empty')}
+                      </span>
                     </TableCell>
-                    <TableCell className="gba:align-top gba:py-3">
+                    <TableCell className="gba:align-top gba:py-4">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="gba:text-xs gba:text-muted-foreground gba:inline-flex gba:items-center gba:gap-1">
-                            <ClockIcon size={12} className="gba:flex-shrink-0" aria-hidden />
+                          <span className="gba:text-muted-foreground gba:cursor-default gba:inline-block">
                             {tenure(member.hireDate)}
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          {member.hireDate ? t('hire-tooltip', { date: member.hireDate }) : t('hire-unknown')}
+                          {member.hireDate
+                            ? t('hire-tooltip', {
+                                date: formatDate(member.hireDate, 'date.short') ?? member.hireDate
+                              })
+                            : t('hire-unknown')}
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>
-                    <TableCell className="gba:align-top gba:py-3">
-                      <div className="gba:space-y-0.5">
-                        <div className="gba:font-medium gba:text-foreground gba:tabular-nums">
-                          {formatCurrency(member.currentAnnualSalary, member.currency)}
+                    <TableCell className="gba:align-top gba:py-4">
+                      {member.currentAnnualSalary == null && member.currentMonthlySalary == null ? (
+                        <span className="gba:text-muted-foreground gba:tabular-nums">
+                          {formatCurrency(null, member.currency)}
+                        </span>
+                      ) : (
+                        <div className="gba:space-y-0.5">
+                          <div className="gba:font-medium gba:text-foreground gba:tabular-nums">
+                            {formatCurrency(member.currentAnnualSalary, member.currency)}
+                          </div>
+                          {(member.currentMonthlySalary != null || member.currentAnnualSalary == null) && (
+                            <div className="gba:text-sm gba:text-muted-foreground gba:tabular-nums">
+                              {formatCurrency(member.currentMonthlySalary, member.currency)}
+                              {member.currentMonthlySalary != null ? t('salary-monthly-suffix') : null}
+                            </div>
+                          )}
                         </div>
-                        <div className="gba:text-xs gba:text-muted-foreground gba:tabular-nums">
-                          {formatCurrency(member.currentMonthlySalary, member.currency)}
-                          {t('salary-monthly-suffix')}
-                        </div>
-                      </div>
+                      )}
                     </TableCell>
-                    <TableCell className="gba:align-top gba:py-3 gba:min-w-40">
+                    <TableCell className="gba:align-top gba:py-4 gba:min-w-40">
                       <CompaRatioBar
                         compaRatio={member.compaRatio}
                         band={member.compensationBand}
                         currentSalary={member.currentAnnualSalary}
                       />
                     </TableCell>
-                    <TableCell className="gba:align-top gba:py-3">
-                      <PerformanceBadge
-                        rating={member.performanceRating}
-                        numericRating={member.performanceRatingNumeric}
-                      />
+                    <TableCell
+                      className="gba:align-top gba:py-4 gba:text-muted-foreground"
+                      data-testid="team-compensation-performance-placeholder"
+                    >
+                      {t('table-cell-empty')}
                     </TableCell>
-                    <TableCell className="gba:align-top gba:py-3">
+                    <TableCell className="gba:align-top gba:py-4">
                       <div className="gba:space-y-1">
                         {member.lastRaiseDate ? (
                           <>
-                            <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:font-medium gba:text-foreground">
-                              <CalendarIcon
-                                size={12}
-                                className="gba:flex-shrink-0 gba:text-muted-foreground"
-                                aria-hidden
-                              />
+                            <div className="gba:font-medium gba:text-foreground">
                               <span className="gba:tabular-nums">
-                                {formatDate(member.lastRaiseDate, 'date.medium') ?? member.lastRaiseDate}
+                                {formatDate(member.lastRaiseDate, 'date.short') ?? member.lastRaiseDate}
                               </span>
                             </div>
                             {member.lastRaiseAmount != null && (
-                              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-                                <TrendUpIcon size={12} className="gba:flex-shrink-0" aria-hidden />
+                              <div className="gba:text-sm gba:text-muted-foreground">
                                 <span className="gba:tabular-nums">
                                   {formatCurrency(member.lastRaiseAmount, member.currency)}
                                   {member.lastRaisePercent != null
@@ -243,18 +230,12 @@ export const TeamAllocationGrid: React.FC<TeamAllocationGridProps> = ({
                             )}
                           </>
                         ) : (
-                          <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-                            <CalendarIcon size={12} className="gba:flex-shrink-0" aria-hidden />
-                            {t('tenure-never-raise')}
-                          </div>
+                          <span className="gba:text-muted-foreground">{t('tenure-never-raise')}</span>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="gba:align-top gba:py-3 gba:text-right gba:tabular-nums">
+                    <TableCell className="gba:align-top gba:py-4 gba:text-right gba:pr-6 gba:tabular-nums">
                       {formatCurrency(member.currentBonusTotal, member.currency)}
-                    </TableCell>
-                    <TableCell className="gba:align-top gba:py-3 gba:text-right gba:pr-4 gba:tabular-nums">
-                      {formatCurrency(member.currentBenefitsTotal, member.currency)}
                     </TableCell>
                   </TableRow>
                 ))

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import {
   PageLayout,
   Select,
@@ -9,7 +9,7 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ChartBarIcon, GearIcon, ListChecksIcon, StackIcon } from '@phosphor-icons/react'
+import { ChartBarIcon, GearIcon, ListChecksIcon, StackIcon, TreeStructureIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
@@ -18,6 +18,7 @@ import { useCompensationPlanningStore } from './hooks/useCompensationPlanningSto
 import { OverviewView } from './components/views/OverviewView'
 import { BudgetSetupView } from './components/views/BudgetSetupView'
 import { SubmissionsView } from './components/views/SubmissionsView'
+import { BudgetDistributionView } from './components/views/BudgetDistributionView'
 import translations from './_i18n'
 
 export const CompensationPlanning: React.FC<BusinessAppContextProps> = context => {
@@ -28,11 +29,24 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
   const viewOptions = [
     { value: 'overview', label: t('tab-overview'), icon: <ChartBarIcon /> },
     { value: 'budget', label: t('tab-budget-setup'), icon: <GearIcon /> },
-    { value: 'submissions', label: t('tab-submissions'), icon: <ListChecksIcon /> }
+    { value: 'submissions', label: t('tab-submissions'), icon: <ListChecksIcon /> },
+    { value: 'budget-distribution', label: t('tab-budget-distribution'), icon: <TreeStructureIcon /> }
   ]
 
   const { selectedCompanyId, activeTab, selectCompany, setActiveTab } = useCompensationPlanningStore()
-  const { companies, loading: companiesLoading } = useActiveStructureCompanies(accessToken)
+  const { companies, loading: companiesLoading, error: companiesLoadError } = useActiveStructureCompanies(accessToken)
+
+  useEffect(() => {
+    if (companiesLoading) return
+    if (selectedCompanyId == null) return
+    if (companies.length === 0) {
+      selectCompany(null)
+      return
+    }
+    if (!companies.some(c => c.id === selectedCompanyId)) {
+      selectCompany(null)
+    }
+  }, [companiesLoading, companies, selectedCompanyId, selectCompany])
 
   useDefaultCompanyForCurrentUser(
     accessToken,
@@ -43,7 +57,69 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     selectCompany
   )
 
-  const renderContent = () => {
+  const companySelectValue =
+    selectedCompanyId != null && companies.some(c => c.id === selectedCompanyId) ? selectedCompanyId : undefined
+
+  const companySelect = (
+    <Select
+      value={companySelectValue}
+      onValueChange={val => selectCompany(val || null)}
+      disabled={!companiesLoading && companies.length === 0}
+    >
+      <SelectTrigger className="gba:w-[300px]" data-testid="compensation-planning-company-select">
+        <SelectValue placeholder={t('select-company-placeholder')} />
+      </SelectTrigger>
+      <SelectContent>
+        {companies.map(company => (
+          <SelectItem key={company.id} value={company.id}>
+            {company.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+
+  const toolbarRow = (
+    <div
+      className="gba:flex gba:w-full gba:flex-row gba:flex-wrap gba:items-start gba:justify-between gba:gap-4"
+      data-testid="compensation-planning-toolbar"
+    >
+      <div className="gba:min-w-0 gba:flex-1">
+        {selectedCompanyId ? null : (
+          <p className="gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
+        )}
+      </div>
+      <div className="gba:flex gba:flex-col gba:items-end gba:gap-2 gba:shrink-0">
+        {companySelect}
+        {!companiesLoading && companies.length === 0 && companiesLoadError ? (
+          <p
+            className="gba:max-w-sm gba:text-right gba:text-sm gba:text-destructive"
+            data-testid="compensation-planning-companies-error"
+          >
+            {t('error-companies-load', { message: companiesLoadError })}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  )
+
+  const renderTabContent = () => {
+    if (!selectedCompanyId) return null
+    switch (activeTab) {
+      case 'overview':
+        return <OverviewView accessToken={accessToken} companyId={selectedCompanyId} />
+      case 'budget':
+        return <BudgetSetupView accessToken={accessToken} companyId={selectedCompanyId} />
+      case 'budget-distribution':
+        return <BudgetDistributionView accessToken={accessToken} companyId={selectedCompanyId} />
+      case 'submissions':
+        return <SubmissionsView accessToken={accessToken} companyId={selectedCompanyId} />
+      default:
+        return <OverviewView accessToken={accessToken} companyId={selectedCompanyId} />
+    }
+  }
+
+  const renderBody = () => {
     if (companiesLoading) {
       return (
         <div className="gba:flex gba:justify-center gba:py-12">
@@ -52,20 +128,17 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
       )
     }
 
-    if (!selectedCompanyId) {
-      return null
-    }
-
-    switch (activeTab) {
-      case 'overview':
-        return <OverviewView accessToken={accessToken} companyId={selectedCompanyId} />
-      case 'budget':
-        return <BudgetSetupView accessToken={accessToken} companyId={selectedCompanyId} />
-      case 'submissions':
-        return <SubmissionsView accessToken={accessToken} companyId={selectedCompanyId} />
-      default:
-        return <OverviewView accessToken={accessToken} companyId={selectedCompanyId} />
-    }
+    return (
+      <div
+        className="gba:min-h-[400px] gba:overflow-auto gba:bg-background"
+        data-testid="compensation-planning-data-body"
+      >
+        <div className="gba:space-y-4 gba:p-4">
+          {toolbarRow}
+          {selectedCompanyId ? <div className="gba:space-y-4">{renderTabContent()}</div> : null}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -85,36 +158,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
       variant={MODULE_COLORS.HR}
       className="gba:min-h-screen"
     >
-      <div className="gba:space-y-6">
-        {!companiesLoading && (
-          <div
-            className="gba:flex gba:w-full gba:flex-row gba:flex-wrap gba:items-center gba:justify-between gba:gap-4"
-            data-testid="compensation-planning-company-toolbar"
-          >
-            <div className="gba:min-w-0 gba:flex-1">
-              {!selectedCompanyId && (
-                <p className="gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
-              )}
-            </div>
-            <div className="gba:shrink-0">
-              <Select value={selectedCompanyId ?? undefined} onValueChange={val => selectCompany(val || null)}>
-                <SelectTrigger className="gba:w-[300px]" data-testid="compensation-planning-company-select">
-                  <SelectValue placeholder={t('select-company-placeholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map(company => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
-
-        {renderContent()}
-      </div>
+      <div className="gba:space-y-6">{renderBody()}</div>
     </PageLayout>
   )
 }

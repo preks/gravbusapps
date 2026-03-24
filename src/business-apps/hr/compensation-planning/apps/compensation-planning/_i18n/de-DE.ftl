@@ -13,10 +13,23 @@ col-companies = Unternehmen
 
 tab-overview = Übersicht
 tab-budget-setup = Budgeteinrichtung
+tab-budget-distribution = Budgetverteilung
 tab-submissions = Manager-Einreichungen
 
 select-company-placeholder = Unternehmen wählen…
 empty-select-company-hint = Wählen Sie ein Unternehmen, um die Vergütungsplanung anzuzeigen.
+error-companies-load = Die Unternehmensliste konnte nicht geladen werden. {$message}
+
+budget-distribution-read-only-title = Nur-Lese-Modus
+budget-distribution-read-only-description = Die Budgetverteilung erfordert Backend-Tabellen, die noch nicht konfiguriert sind. Sie können Organisationseinheiten einsehen, aber noch keine Budgets zuweisen.
+budget-distribution-method-section-title = Verteilungsmethode
+budget-distribution-apply = Verteilung anwenden
+budget-distribution-col-org-unit = Organisationseinheit
+budget-distribution-col-code = Code
+budget-distribution-col-type = Typ
+budget-distribution-col-salary-budget = Gehaltsbudget
+budget-distribution-col-bonus-budget = Bonusbudget
+budget-distribution-empty-org-units = Keine Organisationseinheiten für dieses Unternehmen gefunden.
 
 overview-kpi-employees-title = Mitarbeitende
 overview-kpi-employees-desc = Aktive Positionen in diesem Unternehmen
@@ -35,7 +48,6 @@ overview-kpi-empty = Keine Überblicksdaten für diese Auswahl.
 overview-section-breakdown-title = Vergütungsmix
 overview-row-total-salary = Gesamte Gehaltskosten
 overview-row-bonuses-ytd = Ausgezahlte Boni (laufendes Jahr)
-overview-row-benefits = Leistungen (jährlich)
 overview-row-total-comp = Gesamtvergütung
 
 overview-section-workforce-title = Belegschaft

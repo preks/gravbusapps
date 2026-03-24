@@ -140,15 +140,10 @@ export interface TeamMemberCompensationData {
   lastRaiseAmount: number | null
   lastRaisePercent: number | null
 
-  performanceRating: string | null
-  performanceRatingNumeric: number | null
-  performanceCycleName: string | null
-
   fte: number | null
   weeklyHours: number | null
 
   currentBonusTotal: number | null
-  currentBenefitsTotal: number | null
 
   proposal?: CompensationEmployeeProposal
 }

@@ -26,6 +26,13 @@ export function useDefaultCompanyForCurrentUser(
   const graphqlClient = useGraphQLClient(accessToken ?? '')
   const hasAttemptedDefaultRef = useRef(false)
 
+  // Allow default selection to run again after a failed/empty company list recovers (e.g. org chart load error).
+  useEffect(() => {
+    if (companies.length === 0) {
+      hasAttemptedDefaultRef.current = false
+    }
+  }, [companies.length])
+
   useEffect(() => {
     if (!accessToken || !employeeId || companiesLoading || companies.length === 0) return
     if (selectedCompanyId != null) return

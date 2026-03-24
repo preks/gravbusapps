@@ -4,6 +4,7 @@ loading = Loading team data...
 
 select-company-placeholder = Select company…
 empty-select-company-hint = Select a company to load your team’s compensation data.
+error-companies-load = Could not load the company list. {$message}
 error-title = Something went wrong
 table-section-title = Team members
 table-empty = No team members match the current filters.
@@ -32,23 +33,23 @@ col-tenure = Tenure
 col-current-salary = Current Salary
 col-band-position = Band Position
 col-performance = Performance
+table-cell-empty = {" - "}
 col-last-raise = Last Raise
 col-proposed-increase = Proposed Increase
 col-proposed-bonus = Proposed Bonus
 col-justification = Justification
 col-bonuses-ytd = Bonuses YTD
-col-benefits = Benefits
 
 tenure-never-raise = Never
 tenure-this-month = This month
-tenure-y = {$years}y
-tenure-m = {$months}mo
-tenure-ym = {$years}y {$months}mo
+profile-header-year = year
+profile-header-years = years
+profile-header-month = month
+profile-header-months = months
 salary-monthly-suffix = /mo
 hire-unknown = Unknown
 hire-tooltip = Hired: {$date}
 
-performance-no-evaluation = No evaluation
 compa-no-band = No pay band data
 compa-ratio-label = CR: {$ratio}
 

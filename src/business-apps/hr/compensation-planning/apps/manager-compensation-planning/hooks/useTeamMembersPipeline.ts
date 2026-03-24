@@ -47,8 +47,6 @@ function compare(
       return cmpNumNullsLast(a.currentAnnualSalary, b.currentAnnualSalary)
     case 'compaRatio':
       return cmpNumNullsLast(a.compaRatio, b.compaRatio)
-    case 'performanceRatingNumeric':
-      return cmpNumNullsLast(a.performanceRatingNumeric, b.performanceRatingNumeric)
     case 'lastRaiseDate': {
       const la = a.lastRaiseDate ? new Date(a.lastRaiseDate).getTime() : NaN
       const lb = b.lastRaiseDate ? new Date(b.lastRaiseDate).getTime() : NaN
@@ -56,8 +54,6 @@ function compare(
     }
     case 'currentBonusTotal':
       return cmpNumNullsLast(a.currentBonusTotal, b.currentBonusTotal)
-    case 'currentBenefitsTotal':
-      return cmpNumNullsLast(a.currentBenefitsTotal, b.currentBenefitsTotal)
     default:
       return 0
   }

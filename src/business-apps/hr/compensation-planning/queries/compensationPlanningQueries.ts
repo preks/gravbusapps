@@ -140,28 +140,3 @@ export const GET_TEAM_BONUSES = `
     }
   }
 `
-
-export const GET_TEAM_BENEFITS = `
-  query GetTeamBenefits($employeeIds: [uuid!]!) {
-    EmployeeBenefit(
-      where: {
-        employeeId: { _in: $employeeIds }
-        isDeleted: { _eq: false }
-      }
-      orderBy: { startDate: DESC }
-    ) {
-      id
-      employeeId
-      yearlyAmount
-      monthlyAmount
-      currency {
-        id
-        code
-        value
-      }
-      startDate
-      endDate
-      benefitStatus
-    }
-  }
-`

@@ -13,10 +13,23 @@ col-companies = Companies
 
 tab-overview = Overview
 tab-budget-setup = Budget Setup
+tab-budget-distribution = Budget Distribution
 tab-submissions = Manager Submissions
 
 select-company-placeholder = Select company…
 empty-select-company-hint = Select a company to view compensation planning.
+error-companies-load = Could not load the company list. {$message}
+
+budget-distribution-read-only-title = Read-only mode
+budget-distribution-read-only-description = Budget distribution requires backend tables that are not yet configured. You can view organizational units but cannot assign budgets at this time.
+budget-distribution-method-section-title = Distribution method
+budget-distribution-apply = Apply distribution
+budget-distribution-col-org-unit = Org unit
+budget-distribution-col-code = Code
+budget-distribution-col-type = Type
+budget-distribution-col-salary-budget = Salary budget
+budget-distribution-col-bonus-budget = Bonus budget
+budget-distribution-empty-org-units = No organizational units found for this company.
 
 overview-kpi-employees-title = Employees
 overview-kpi-employees-desc = Active positions in this company
@@ -35,7 +48,6 @@ overview-kpi-empty = No compensation overview data for this selection.
 overview-section-breakdown-title = Compensation mix
 overview-row-total-salary = Total salary cost
 overview-row-bonuses-ytd = Bonuses paid (year to date)
-overview-row-benefits = Benefits (annual)
 overview-row-total-comp = Total compensation
 
 overview-section-workforce-title = Workforce snapshot

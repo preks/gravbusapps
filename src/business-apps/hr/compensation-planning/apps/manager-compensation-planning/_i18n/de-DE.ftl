@@ -4,6 +4,7 @@ loading = Teamdaten werden geladen...
 
 select-company-placeholder = Unternehmen wählen…
 empty-select-company-hint = Wählen Sie ein Unternehmen, um die Teamvergütung zu laden.
+error-companies-load = Die Unternehmensliste konnte nicht geladen werden. {$message}
 error-title = Etwas ist schiefgelaufen
 table-section-title = Teammitglieder
 table-empty = Keine Teammitglieder entsprechen den aktuellen Filtern.
@@ -32,23 +33,23 @@ col-tenure = Betriebszugehörigkeit
 col-current-salary = Aktuelles Gehalt
 col-band-position = Bandposition
 col-performance = Leistung
+table-cell-empty = {" - "}
 col-last-raise = Letzte Erhöhung
 col-proposed-increase = Vorgeschlagene Erhöhung
 col-proposed-bonus = Vorgeschlagener Bonus
 col-justification = Begründung
 col-bonuses-ytd = Boni YTD
-col-benefits = Leistungen
 
 tenure-never-raise = Nie
 tenure-this-month = Diesen Monat
-tenure-y = {$years} J.
-tenure-m = {$months} Mon.
-tenure-ym = {$years} J. {$months} Mon.
+profile-header-year = Jahr
+profile-header-years = Jahre
+profile-header-month = Monat
+profile-header-months = Monate
 salary-monthly-suffix = /Mon.
 hire-unknown = Unbekannt
 hire-tooltip = Eingestellt: {$date}
 
-performance-no-evaluation = Keine Bewertung
 compa-no-band = Keine Gehaltsbanddaten
 compa-ratio-label = CR: {$ratio}
 

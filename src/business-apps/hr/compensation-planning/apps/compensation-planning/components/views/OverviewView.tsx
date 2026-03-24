@@ -20,7 +20,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken, company
   const totalHeadcount = teamMembers.length
   const totalSalaryCost = teamMembers.reduce((sum, m) => sum + (m.currentAnnualSalary ?? 0), 0)
   const totalBonuses = teamMembers.reduce((sum, m) => sum + (m.currentBonusTotal ?? 0), 0)
-  const totalBenefits = teamMembers.reduce((sum, m) => sum + (m.currentBenefitsTotal ?? 0), 0)
   const currency = teamMembers[0]?.currency ?? 'EUR'
   const avgSalary = totalHeadcount > 0 ? totalSalaryCost / totalHeadcount : 0
 
@@ -57,18 +56,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken, company
                     {formatCurrency(totalBonuses, currency)}
                   </span>
                 </div>
-                <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
-                  <span className="gba:text-sm gba:text-muted-foreground">{t('overview-row-benefits')}</span>
-                  <span className="gba:text-sm gba:font-medium gba:tabular-nums">
-                    {formatCurrency(totalBenefits, currency)}
-                  </span>
-                </div>
               </div>
               <Separator />
               <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
                 <span className="gba:text-sm gba:font-semibold">{t('overview-row-total-comp')}</span>
                 <span className="gba:text-sm gba:font-semibold gba:tabular-nums">
-                  {formatCurrency(totalSalaryCost + totalBonuses + totalBenefits, currency)}
+                  {formatCurrency(totalSalaryCost + totalBonuses, currency)}
                 </span>
               </div>
             </CardContent>

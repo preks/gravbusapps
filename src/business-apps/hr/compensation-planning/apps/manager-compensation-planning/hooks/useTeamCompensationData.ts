@@ -4,8 +4,7 @@ import {
   GET_COMPENSATION_TEAM_MEMBERS,
   GET_TEAM_CURRENT_SALARIES,
   GET_TEAM_SALARY_HISTORY,
-  GET_TEAM_BONUSES,
-  GET_TEAM_BENEFITS
+  GET_TEAM_BONUSES
 } from '../../../queries/compensationPlanningQueries'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { computeCompaRatio } from '../../../utils/budgetCalculations'
@@ -78,17 +77,6 @@ interface BonusResult {
   fiscalYear: number | null
 }
 
-interface BenefitResult {
-  id: string
-  employeeId: string
-  yearlyAmount: number | null
-  monthlyAmount: number | null
-  currency: { id: string; code: string; value: string } | null
-  startDate: string | null
-  endDate: string | null
-  benefitStatus: string | null
-}
-
 interface UseTeamCompensationDataParams {
   accessToken: string
   companyId?: string | null
@@ -142,7 +130,7 @@ export function useTeamCompensationData({
       const yearStart = `${y}-01-01`
       const today = todayLocal
 
-      const [salariesResult, historyResult, bonusesResult, benefitsResult] = await Promise.all([
+      const [salariesResult, historyResult, bonusesResult] = await Promise.all([
         graphqlClient.request<{ EmployeeSalary: SalaryResult[] }>(GET_TEAM_CURRENT_SALARIES, {
           employeeIds,
           today
@@ -154,14 +142,12 @@ export function useTeamCompensationData({
           employeeIds,
           yearStart,
           today: todayLocal
-        }),
-        graphqlClient.request<{ EmployeeBenefit: BenefitResult[] }>(GET_TEAM_BENEFITS, { employeeIds })
+        })
       ])
 
       const currentSalaryMap = buildCurrentSalaryMap(salariesResult.EmployeeSalary || [], today)
       const lastRaiseMap = buildLastRaiseMap(historyResult.EmployeeSalary || [])
       const bonusTotalMap = buildBonusTotalMap(bonusesResult.EmployeeBonus || [])
-      const benefitTotalMap = buildBenefitTotalMap(benefitsResult.EmployeeBenefit || [])
 
       const members: TeamMemberCompensationData[] = positions.map(pos => {
         const salary = currentSalaryMap.get(pos.employeeId)
@@ -193,13 +179,9 @@ export function useTeamCompensationData({
           lastRaiseDate: lastRaise?.date ?? null,
           lastRaiseAmount: lastRaise?.amount ?? null,
           lastRaisePercent: lastRaise?.percent ?? null,
-          performanceRating: null,
-          performanceRatingNumeric: null,
-          performanceCycleName: null,
           fte: pos.employee?.workingHours?.[0]?.fullTimeEquivalent ?? null,
           weeklyHours: pos.employee?.workingHours?.[0]?.weeklyHours ?? null,
-          currentBonusTotal: bonusTotalMap.get(pos.employeeId) ?? null,
-          currentBenefitsTotal: benefitTotalMap.get(pos.employeeId) ?? null
+          currentBonusTotal: bonusTotalMap.get(pos.employeeId) ?? null
         }
       })
 
@@ -306,22 +288,5 @@ function buildBonusTotalMap(bonuses: BonusResult[]): Map<string, number> {
     const current = map.get(bonus.employeeId) ?? 0
     map.set(bonus.employeeId, current + bonus.amount)
   }
-  return map
-}
-
-function buildBenefitTotalMap(benefits: BenefitResult[]): Map<string, number> {
-  const map = new Map<string, number>()
-  const today = new Date().toISOString().split('T')[0]
-
-  for (const benefit of benefits) {
-    const isActive = benefit.benefitStatus === 'Active' || !benefit.endDate || benefit.endDate >= today
-
-    if (!isActive) continue
-
-    const yearly = benefit.yearlyAmount ?? (benefit.monthlyAmount ? benefit.monthlyAmount * 12 : 0)
-    const current = map.get(benefit.employeeId) ?? 0
-    map.set(benefit.employeeId, current + yearly)
-  }
-
   return map
 }

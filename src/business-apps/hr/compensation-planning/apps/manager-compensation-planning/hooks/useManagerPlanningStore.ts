@@ -7,10 +7,8 @@ export type ManagerTeamSortField =
   | 'hireDate'
   | 'currentAnnualSalary'
   | 'compaRatio'
-  | 'performanceRatingNumeric'
   | 'lastRaiseDate'
   | 'currentBonusTotal'
-  | 'currentBenefitsTotal'
 
 type SortDirection = 'asc' | 'desc'
 
@@ -59,10 +57,8 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
       'hireDate',
       'currentAnnualSalary',
       'compaRatio',
-      'performanceRatingNumeric',
       'lastRaiseDate',
-      'currentBonusTotal',
-      'currentBenefitsTotal'
+      'currentBonusTotal'
     ]
     const nextField = (
       validFields.includes(field as ManagerTeamSortField) ? field : DEFAULT_SORT_FIELD

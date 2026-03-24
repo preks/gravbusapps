@@ -13,10 +13,23 @@ col-companies = Companii
 
 tab-overview = Prezentare generală
 tab-budget-setup = Configurare buget
+tab-budget-distribution = Distribuire buget
 tab-submissions = Trimiteri manageri
 
 select-company-placeholder = Selectați compania…
 empty-select-company-hint = Selectați o companie pentru a vedea planificarea compensațiilor.
+error-companies-load = Nu s-a putut încărca lista de companii. {$message}
+
+budget-distribution-read-only-title = Mod numai citire
+budget-distribution-read-only-description = Distribuirea bugetului necesită tabele de backend care nu sunt încă configurate. Puteți vizualiza unitățile organizaționale, dar nu puteți atribui bugete momentan.
+budget-distribution-method-section-title = Metodă de distribuire
+budget-distribution-apply = Aplică distribuirea
+budget-distribution-col-org-unit = Unitate organizațională
+budget-distribution-col-code = Cod
+budget-distribution-col-type = Tip
+budget-distribution-col-salary-budget = Buget salarii
+budget-distribution-col-bonus-budget = Buget bonusuri
+budget-distribution-empty-org-units = Nu există unități organizaționale pentru această companie.
 
 overview-kpi-employees-title = Angajați
 overview-kpi-employees-desc = Poziții active în această companie
@@ -35,7 +48,6 @@ overview-kpi-empty = Nu există date de prezentare generală pentru această sel
 overview-section-breakdown-title = Mix compensare
 overview-row-total-salary = Cost total salarii
 overview-row-bonuses-ytd = Bonusuri plătite (an în curs)
-overview-row-benefits = Beneficii (anual)
 overview-row-total-comp = Compensare totală
 
 overview-section-workforce-title = Forță de muncă
