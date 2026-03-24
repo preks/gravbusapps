@@ -366,6 +366,7 @@ editor-dictate-label = Dictate
 editor-dictate-listening = Listening…
 editor-dictate-unavailable = Voice input unavailable
 editor-dictate-hint = Click to start voice input
+editor-dictate-tooltip-secondary = Speak clearly into your microphone
 editor-toolbar-line-paragraph-spacing = Line and paragraph spacing
 editor-line-spacing-single = Single
 editor-line-spacing-1-15 = 1.15
