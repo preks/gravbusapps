@@ -61,6 +61,10 @@ function createStorage(): PagesStorage {
 }
 
 describe('HeaderFooterOverlayManager', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
   it('replaces passive header markup when opening inline edit mode', () => {
     const storage = createStorage()
     const options = createOptions()
@@ -244,5 +248,91 @@ describe('HeaderFooterOverlayManager', () => {
 
     requestAnimationFrameSpy.mockRestore()
     manager.close()
+  })
+
+  it('clears stale stored active editor state when no overlay is mounted', () => {
+    const onActiveEditorChange = jest.fn()
+    const storage = createStorage()
+    storage.activeEditorType = 'header'
+    storage.activePageNumber = 1
+    const manager = new HeaderFooterOverlayManager(
+      {
+        isEditable: true,
+        setEditable: jest.fn(),
+        commands: {}
+      } as unknown as Editor,
+      () => ({
+        ...createOptions(),
+        onActiveEditorChange
+      }),
+      () => storage
+    )
+    const editorDom = document.createElement('div')
+    document.body.appendChild(editorDom)
+
+    expect(manager.recoverStaleOverlayState(editorDom)).toBe(true)
+    expect(storage.activeEditor).toBeNull()
+    expect(storage.activeEditorType).toBeNull()
+    expect(storage.activePageNumber).toBeNull()
+    expect(onActiveEditorChange).toHaveBeenCalledWith({
+      activeEditor: null,
+      activeEditorType: null,
+      activePageNumber: null
+    })
+  })
+
+  it('force-closes a detached overlay without triggering close refresh callbacks', () => {
+    const storage = createStorage()
+    const onActiveEditorChange = jest.fn()
+    const onClose = jest.fn()
+    const hostEditor = {
+      isEditable: true,
+      setEditable: jest.fn(),
+      commands: {}
+    } as unknown as Editor
+    const root = document.createElement('div')
+    const region = document.createElement('div')
+    region.className = 'rm-page-header-region'
+    region.dataset.rmEditorType = 'header'
+    region.dataset.rmPageNumber = '1'
+    const contentHost = document.createElement('div')
+    contentHost.className = 'rm-page-header-content'
+    renderHeaderFooterDisplayContent(contentHost, '<p>Header text</p>', 'Header')
+    region.appendChild(contentHost)
+    root.appendChild(region)
+    document.body.appendChild(root)
+
+    const manager = new HeaderFooterOverlayManager(
+      hostEditor,
+      () => ({
+        ...createOptions(),
+        onActiveEditorChange
+      }),
+      () => storage
+    )
+
+    manager.open({
+      type: 'header',
+      pageNumber: 1,
+      target: region,
+      initialContent: '<p>Header text</p>',
+      storage,
+      options: createOptions(),
+      extensions: [],
+      onClose
+    })
+
+    root.removeChild(region)
+
+    expect(manager.recoverStaleOverlayState(root)).toBe(true)
+    expect(storage.activeEditor).toBeNull()
+    expect(storage.activeEditorType).toBeNull()
+    expect(storage.activePageNumber).toBeNull()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(onActiveEditorChange).toHaveBeenLastCalledWith({
+      activeEditor: null,
+      activeEditorType: null,
+      activePageNumber: null
+    })
   })
 })

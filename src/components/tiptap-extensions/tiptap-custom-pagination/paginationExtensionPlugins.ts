@@ -331,6 +331,11 @@ export function createPaginationExtensionPlugins(options: {
         update: updatedView => {
           const runtimeOptions = getEditorRuntimeOptions(editor)
           syncStorageFromOptions(storage, runtimeOptions)
+          getPaginationOverlayManager({
+            editor,
+            getRuntimeOptions: () => getEditorRuntimeOptions(editor),
+            getStorage: () => storage
+          }).recoverStaleOverlayState(updatedView.dom)
           windowedRenderer.syncRootPresentation({
             editorDom: updatedView.dom,
             options: runtimeOptions,

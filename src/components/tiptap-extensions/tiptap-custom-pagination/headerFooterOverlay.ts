@@ -28,7 +28,7 @@ interface ActiveOverlay {
   pageNumber: number
   type: HeaderFooterEditorType
   variant: PageVariantKey
-  cleanup: () => void
+  cleanup: (runOnClose?: boolean) => void
   previousEditable: boolean
   target: HTMLElement
   contentHost: HTMLElement
@@ -223,7 +223,7 @@ export class HeaderFooterOverlayManager {
     document.addEventListener('dblclick', handleDocumentDoubleClick, true)
     document.addEventListener('keydown', handleEscape, true)
 
-    const cleanup = () => {
+    const cleanup = (runOnClose = true) => {
       document.removeEventListener('mousedown', handleDocumentMouseDown, true)
       document.removeEventListener('dblclick', handleDocumentDoubleClick, true)
       document.removeEventListener('keydown', handleEscape, true)
@@ -255,7 +255,9 @@ export class HeaderFooterOverlayManager {
 
       requestAnimationFrame(() => layoutPageNumberSlots(target))
       this.hostEditor.setEditable(previousEditable, false)
-      params.onClose()
+      if (runOnClose) {
+        params.onClose()
+      }
     }
 
     this.activeOverlay = {
@@ -305,6 +307,56 @@ export class HeaderFooterOverlayManager {
 
     this.activeOverlay = null
     activeOverlay.cleanup()
+  }
+
+  recoverStaleOverlayState(editorDom: HTMLElement) {
+    const storage = this.getStorage()
+    const hasStoredActiveEditor =
+      (storage.activeEditorType === 'header' || storage.activeEditorType === 'footer') &&
+      storage.activePageNumber != null
+
+    if (!this.activeOverlay) {
+      if (!hasStoredActiveEditor) {
+        return false
+      }
+
+      storage.activeEditor = null
+      storage.activeEditorType = null
+      storage.activePageNumber = null
+      this.suppressNextCloseNotification = false
+      this.getOptions().onActiveEditorChange?.({
+        activeEditor: null,
+        activeEditorType: null,
+        activePageNumber: null
+      })
+      return true
+    }
+
+    const { target, contentHost } = this.activeOverlay
+    const isOverlayStillMounted =
+      target.isConnected &&
+      contentHost.isConnected &&
+      editorDom.contains(target) &&
+      target.dataset.rmOverlayActive === 'true' &&
+      contentHost.classList.contains('rm-page-inline-editor')
+
+    if (isOverlayStillMounted) {
+      return false
+    }
+
+    const activeOverlay = this.activeOverlay
+    storage.activeEditor = null
+    storage.activeEditorType = null
+    storage.activePageNumber = null
+    this.suppressNextCloseNotification = false
+    this.activeOverlay = null
+    activeOverlay.cleanup(false)
+    this.getOptions().onActiveEditorChange?.({
+      activeEditor: null,
+      activeEditorType: null,
+      activePageNumber: null
+    })
+    return true
   }
 
   updateAccentColor() {

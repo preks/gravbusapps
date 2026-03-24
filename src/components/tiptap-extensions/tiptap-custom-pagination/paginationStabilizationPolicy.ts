@@ -280,7 +280,7 @@ export function resolveImmediateTableStabilizationDecision(options: {
   actionsPerformed: number
   maxActionsPerPass: number
 }) {
-  const { result, actionsPerformed, maxActionsPerPass } = options
+  const { result } = options
 
   if (result.type !== 'dispatch' || result.progress !== 'structural') {
     return 'stop' as const
@@ -290,7 +290,7 @@ export function resolveImmediateTableStabilizationDecision(options: {
     return 'stop' as const
   }
 
-  return actionsPerformed < maxActionsPerPass ? ('continue' as const) : ('schedule' as const)
+  return 'schedule' as const
 }
 
 export function resolveDeferredRepaginationActionPlan(options: {
@@ -334,7 +334,7 @@ export function resolveDeferredRepaginationActionPlan(options: {
       result,
       maxActionsPerPass,
       immediateDecision,
-      shouldContinueBatch: immediateDecision === 'continue',
+      shouldContinueBatch: false,
       shouldScheduleFollowUp: immediateDecision === 'schedule' || result.scheduleEvaluation
     }
   }
@@ -352,6 +352,7 @@ export function resolveDeferredRepaginationExecutionPlan(options: {
   structuralActionsPerformed: number
 }): DeferredRepaginationExecutionPlan {
   const { preflight, actionPlan, stabilizationAttemptsRemaining, structuralActionsPerformed } = options
+  const canScheduleFollowUp = stabilizationAttemptsRemaining > 0
 
   if (preflight.shouldRetry) {
     return {
@@ -394,13 +395,13 @@ export function resolveDeferredRepaginationExecutionPlan(options: {
       nextStoredPageCount: actionPlan.result.pageCount,
       refreshSource: 'table-pagination-refresh',
       shouldClearGrowthSuppression: true,
-      shouldScheduleEvaluation: actionPlan.shouldScheduleFollowUp,
+      shouldScheduleEvaluation: actionPlan.shouldScheduleFollowUp && canScheduleFollowUp,
       debug: {
         outcome: 'refresh',
         progress: actionPlan.result.progress,
         nextPageCount: actionPlan.result.pageCount,
         hasSplitPressure: actionPlan.result.hasSplitPressure,
-        scheduleEvaluation: actionPlan.result.scheduleEvaluation
+        scheduleEvaluation: actionPlan.result.scheduleEvaluation && canScheduleFollowUp
       }
     }
   }
@@ -410,11 +411,11 @@ export function resolveDeferredRepaginationExecutionPlan(options: {
       type: 'request-refresh',
       result: actionPlan.result,
       refreshSource: 'table-pagination-request-refresh',
-      shouldScheduleEvaluation: actionPlan.shouldScheduleFollowUp,
+      shouldScheduleEvaluation: actionPlan.shouldScheduleFollowUp && canScheduleFollowUp,
       debug: {
         outcome: 'request-refresh',
         progress: actionPlan.result.progress,
-        scheduleEvaluation: actionPlan.result.scheduleEvaluation
+        scheduleEvaluation: actionPlan.result.scheduleEvaluation && canScheduleFollowUp
       }
     }
   }
@@ -425,7 +426,7 @@ export function resolveDeferredRepaginationExecutionPlan(options: {
       result: actionPlan.result,
       shouldClearPreviousAddPagesMeasurement: true,
       shouldContinueBatch: actionPlan.shouldContinueBatch,
-      shouldScheduleEvaluation: actionPlan.shouldScheduleFollowUp,
+      shouldScheduleEvaluation: actionPlan.shouldScheduleFollowUp && canScheduleFollowUp,
       shouldRefreshLayoutBounds: !actionPlan.shouldContinueBatch,
       outcomeDebug: {
         outcome: 'dispatch',
@@ -433,7 +434,7 @@ export function resolveDeferredRepaginationExecutionPlan(options: {
         dispatchType: actionPlan.result.dispatchType,
         candidateKey: actionPlan.result.candidateKey,
         maxActionsPerPass: actionPlan.maxActionsPerPass,
-        scheduleEvaluation: actionPlan.result.scheduleEvaluation
+        scheduleEvaluation: actionPlan.result.scheduleEvaluation && canScheduleFollowUp
       },
       continueDebug: actionPlan.shouldContinueBatch
         ? {
@@ -443,14 +444,15 @@ export function resolveDeferredRepaginationExecutionPlan(options: {
             candidateKey: actionPlan.result.candidateKey
           }
         : null,
-      scheduleDebug: actionPlan.shouldScheduleFollowUp
-        ? {
-            structuralActionsPerformed,
-            maxActionsPerPass: actionPlan.maxActionsPerPass,
-            dispatchType: actionPlan.result.dispatchType,
-            candidateKey: actionPlan.result.candidateKey
-          }
-        : null
+      scheduleDebug:
+        actionPlan.shouldScheduleFollowUp && canScheduleFollowUp
+          ? {
+              structuralActionsPerformed,
+              maxActionsPerPass: actionPlan.maxActionsPerPass,
+              dispatchType: actionPlan.result.dispatchType,
+              candidateKey: actionPlan.result.candidateKey
+            }
+          : null
     }
   }
 

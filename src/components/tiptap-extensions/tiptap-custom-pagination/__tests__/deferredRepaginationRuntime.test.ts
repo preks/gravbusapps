@@ -60,7 +60,7 @@ describe('runDeferredRepaginationPass', () => {
     expect(callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
   })
 
-  it('persists the next add-pages snapshot and continues batching for dispatch plans', () => {
+  it('persists the next add-pages snapshot and schedules follow-up evaluation for dispatch plans', () => {
     const callbacks = createCallbacks()
     const preflight = resolveDeferredRepaginationPreflight({
       cappedPageCount: null,
@@ -102,14 +102,15 @@ describe('runDeferredRepaginationPass', () => {
       })
     ).toEqual({
       handled: true,
-      shouldContinueLoop: true,
+      shouldContinueLoop: false,
       structuralActionsDelta: 1
     })
 
     expect(callbacks.onSetPreviousAddPagesMeasurement).toHaveBeenCalledWith(nextAddPagesMeasurement)
     expect(callbacks.onDispatch).toHaveBeenCalledTimes(1)
-    expect(callbacks.onScheduleEvaluation).not.toHaveBeenCalled()
-    expect(callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(callbacks.onDecrementStabilizationAttempts).toHaveBeenCalledTimes(1)
+    expect(callbacks.onScheduleEvaluation).toHaveBeenCalledTimes(1)
+    expect(callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
   })
 
   it('applies growth suppression and logs refresh-gate fallback decisions', () => {
@@ -162,6 +163,7 @@ describe('runDeferredRepaginationPass', () => {
 
     expect(callbacks.onSetGrowthSuppression).toHaveBeenCalledTimes(1)
     expect(callbacks.onRequestRefresh).toHaveBeenCalledWith('table-pagination-request-refresh')
+    expect(callbacks.onDecrementStabilizationAttempts).toHaveBeenCalledTimes(1)
     expect(callbacks.onLogDebug).toHaveBeenCalledWith(
       'deferred-repagination-refresh-gate',
       expect.objectContaining({

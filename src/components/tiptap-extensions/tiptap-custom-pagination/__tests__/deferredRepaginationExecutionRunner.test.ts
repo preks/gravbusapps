@@ -141,6 +141,85 @@ describe('applyDeferredRepaginationExecutionPlan', () => {
     )
   })
 
+  it('decrements stabilization attempts before scheduling a follow-up refresh pass', () => {
+    const callbacks = createCallbacks()
+    const plan: DeferredRepaginationExecutionPlan = {
+      type: 'refresh',
+      result: {
+        type: 'refresh',
+        pageCount: 9,
+        hasSplitPressure: true,
+        progress: 'refresh',
+        scheduleEvaluation: true
+      },
+      nextStoredPageCount: 9,
+      refreshSource: 'table-pagination-refresh',
+      shouldClearGrowthSuppression: true,
+      shouldScheduleEvaluation: true,
+      debug: {
+        outcome: 'refresh',
+        progress: 'refresh',
+        nextPageCount: 9,
+        hasSplitPressure: true,
+        scheduleEvaluation: true
+      }
+    }
+
+    applyDeferredRepaginationExecutionPlan({
+      plan,
+      evaluationId: 8,
+      loopIteration: 3,
+      ...callbacks
+    })
+
+    expect(callbacks.onDecrementStabilizationAttempts).toHaveBeenCalledTimes(1)
+    expect(callbacks.onScheduleEvaluation).toHaveBeenCalledTimes(1)
+  })
+
+  it('decrements stabilization attempts before scheduling a follow-up structural pass', () => {
+    const callbacks = createCallbacks()
+    const plan: DeferredRepaginationExecutionPlan = {
+      type: 'dispatch',
+      result: {
+        type: 'dispatch',
+        dispatchType: 'split',
+        candidateKey: 'split:10:2',
+        progress: 'structural',
+        transaction: {} as never,
+        scheduleEvaluation: true
+      },
+      shouldClearPreviousAddPagesMeasurement: true,
+      shouldContinueBatch: false,
+      shouldScheduleEvaluation: true,
+      shouldRefreshLayoutBounds: true,
+      outcomeDebug: {
+        outcome: 'dispatch',
+        progress: 'structural',
+        dispatchType: 'split',
+        candidateKey: 'split:10:2',
+        maxActionsPerPass: 6,
+        scheduleEvaluation: true
+      },
+      continueDebug: null,
+      scheduleDebug: {
+        structuralActionsPerformed: 1,
+        maxActionsPerPass: 6,
+        dispatchType: 'split',
+        candidateKey: 'split:10:2'
+      }
+    }
+
+    applyDeferredRepaginationExecutionPlan({
+      plan,
+      evaluationId: 9,
+      loopIteration: 1,
+      ...callbacks
+    })
+
+    expect(callbacks.onDecrementStabilizationAttempts).toHaveBeenCalledTimes(1)
+    expect(callbacks.onScheduleEvaluation).toHaveBeenCalledTimes(1)
+  })
+
   it('applies terminal none plans with cleanup side effects', () => {
     const callbacks = createCallbacks()
     const plan: DeferredRepaginationExecutionPlan = {

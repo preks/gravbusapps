@@ -111,6 +111,7 @@ export function applyDeferredRepaginationExecutionPlan(options: {
     onRequestRefresh(plan.refreshSource)
 
     if (plan.shouldScheduleEvaluation) {
+      onDecrementStabilizationAttempts()
       onScheduleEvaluation()
     }
 
@@ -154,6 +155,7 @@ export function applyDeferredRepaginationExecutionPlan(options: {
         loopIteration,
         ...plan.scheduleDebug
       })
+      onDecrementStabilizationAttempts()
       onScheduleEvaluation()
     }
 

@@ -643,18 +643,57 @@ describe('resolveDeferredRepaginationExecutionPlan', () => {
     ).toMatchObject({
       type: 'dispatch',
       shouldClearPreviousAddPagesMeasurement: true,
-      shouldContinueBatch: true,
+      shouldContinueBatch: false,
       shouldScheduleEvaluation: true,
-      shouldRefreshLayoutBounds: false,
+      shouldRefreshLayoutBounds: true,
       outcomeDebug: {
         dispatchType: 'split',
         candidateKey: 'split:10:2'
       },
-      continueDebug: {
-        structuralActionsPerformed: 2,
+      continueDebug: null
+    })
+  })
+
+  it('stops scheduling follow-up dispatch passes once stabilization attempts are exhausted', () => {
+    const preflight = resolveDeferredRepaginationPreflight({
+      cappedPageCount: null,
+      hasActiveEditor: false,
+      hasTables: true,
+      currentPageCount: 4,
+      bodyBandCount: 4,
+      stabilizationAttemptsRemaining: 0,
+      tableMeasurementsPending: false
+    })
+    const actionPlan = resolveDeferredRepaginationActionPlan({
+      result: {
+        type: 'dispatch',
         dispatchType: 'split',
-        candidateKey: 'split:10:2'
-      }
+        candidateKey: 'split:10:2',
+        progress: 'structural',
+        transaction: {} as never,
+        scheduleEvaluation: true
+      },
+      currentPageCount: 26,
+      measuredPageCount: 26,
+      structuralActionsPerformed: 1
+    })
+
+    expect(
+      resolveDeferredRepaginationExecutionPlan({
+        preflight,
+        actionPlan,
+        stabilizationAttemptsRemaining: 0,
+        structuralActionsPerformed: 2
+      })
+    ).toMatchObject({
+      type: 'dispatch',
+      shouldScheduleEvaluation: false,
+      outcomeDebug: {
+        dispatchType: 'split',
+        candidateKey: 'split:10:2',
+        scheduleEvaluation: false
+      },
+      scheduleDebug: null
     })
   })
 })
@@ -747,7 +786,7 @@ describe('resolveDeferredRepaginationControllerCycle', () => {
       refreshGateDebug: null,
       executionPlan: {
         type: 'dispatch',
-        shouldContinueBatch: true,
+        shouldContinueBatch: false,
         shouldScheduleEvaluation: true,
         outcomeDebug: {
           dispatchType: 'split',
@@ -759,7 +798,7 @@ describe('resolveDeferredRepaginationControllerCycle', () => {
 })
 
 describe('resolveImmediateTableStabilizationDecision', () => {
-  it('continues batching while structural progress stays within the bounded action budget', () => {
+  it('schedules a follow-up pass after structural progress so the browser can yield', () => {
     expect(
       resolveImmediateTableStabilizationDecision({
         result: {
@@ -773,7 +812,7 @@ describe('resolveImmediateTableStabilizationDecision', () => {
         actionsPerformed: 1,
         maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS
       })
-    ).toBe('continue')
+    ).toBe('schedule')
   })
 
   it('schedules a follow-up pass once the bounded action budget is exhausted', () => {
@@ -833,7 +872,7 @@ describe('resolveDeferredRepaginationActionPlan', () => {
     })
   })
 
-  it('converts structural dispatch outcomes into batch-continue plans when still within budget', () => {
+  it('converts structural dispatch outcomes into scheduled follow-up plans', () => {
     expect(
       resolveDeferredRepaginationActionPlan({
         result: {
@@ -851,8 +890,8 @@ describe('resolveDeferredRepaginationActionPlan', () => {
     ).toMatchObject({
       type: 'dispatch',
       maxActionsPerPass: MAX_TABLE_STABILIZATION_ACTIONS_PER_PASS,
-      immediateDecision: 'continue',
-      shouldContinueBatch: true,
+      immediateDecision: 'schedule',
+      shouldContinueBatch: false,
       shouldScheduleFollowUp: true
     })
   })
