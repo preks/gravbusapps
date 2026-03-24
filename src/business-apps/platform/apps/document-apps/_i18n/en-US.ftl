@@ -567,7 +567,12 @@ image-context-delete = Delete
 image-context-replace = Change picture
 image-context-alt-text = Alt text
 image-context-align = Align
+image-context-anchor = Anchor
 image-context-caption = Caption
+image-context-crop = Crop
+image-context-finish-crop = Finish crop
+image-context-reset-crop = Reset crop
+image-context-crop-active = Crop active
 image-context-spacing = Distance from text
 
 # Wrap text (Word-style)
@@ -580,6 +585,9 @@ image-wrap-through = Through
 image-wrap-center = Top and bottom
 image-wrap-behind = Behind text
 image-wrap-in-front = In front of text
+image-anchor-inline = Inline
+image-anchor-move-with-text = Move with text
+image-anchor-fixed = Fix position on page
 
 image-alt-text-dialog-title = Alt text
 image-alt-text-label = Description (for accessibility)
@@ -593,6 +601,7 @@ image-position-move-up = Move up
 image-position-move-down = Move down
 image-position-bring-forward = Bring forward
 image-position-send-backward = Send backward
+image-position-z-index = Layer order
 image-sidebar-title = Picture
 table-sidebar-in-header-context = Table in header
 table-sidebar-in-footer-context = Table in footer
@@ -612,6 +621,10 @@ image-sidebar-reset-size = Reset original size
 image-sidebar-scale-width = Scale width (%)
 image-sidebar-scale-height = Scale height (%)
 image-sidebar-rotation = Rotation (deg)
+image-crop-top = Crop top
+image-crop-right = Crop right
+image-crop-bottom = Crop bottom
+image-crop-left = Crop left
 
 # Paged document editor
 editor-back-title = Back to documents

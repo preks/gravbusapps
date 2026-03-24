@@ -10,6 +10,7 @@ import {
   measureHeaderFooterContentHeights,
   resolvePageCountFromLastPageGap
 } from '../utils'
+import { NodeSelection } from '@tiptap/pm/state'
 
 describe('resolvePageCountFromLastPageGap', () => {
   it('keeps the existing page count within the add-page hysteresis band', () => {
@@ -789,6 +790,71 @@ describe('calculatePageCount', () => {
     ).toBe(3)
 
     expect(coordsAtPos).not.toHaveBeenCalledWith(1)
+  })
+
+  it('measures the image figure bottom for an image node selection', () => {
+    const editorDom = document.createElement('div')
+    const figure = document.createElement('figure')
+    const image = document.createElement('img')
+    const paragraph = document.createElement('p')
+    const textNode = document.createTextNode('tail')
+
+    figure.appendChild(image)
+    paragraph.appendChild(textNode)
+    editorDom.append(figure, paragraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 260 })
+    setRect(figure, { top: 120, bottom: 190 })
+    setRect(paragraph, { top: 40, bottom: 60 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(figure, 'offsetHeight', { configurable: true, value: 70 })
+    Object.defineProperty(figure, 'clientHeight', { configurable: true, value: 70 })
+    Object.defineProperty(figure, 'scrollHeight', { configurable: true, value: 70 })
+    Object.defineProperty(paragraph, 'offsetHeight', { configurable: true, value: 20 })
+    Object.defineProperty(paragraph, 'clientHeight', { configurable: true, value: 20 })
+    Object.defineProperty(paragraph, 'scrollHeight', { configurable: true, value: 20 })
+
+    const selection = Object.create(NodeSelection.prototype)
+    Object.defineProperties(selection, {
+      from: { configurable: true, value: 1 },
+      to: { configurable: true, value: 1 },
+      node: {
+        configurable: true,
+        value: {
+          type: {
+            name: 'image'
+          }
+        }
+      }
+    })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          firstChild: { type: { name: 'paragraph' }, childCount: 1, textContent: 'tail' },
+          content: {
+            size: 4
+          }
+        },
+        selection
+      },
+      coordsAtPos: () => ({
+        top: 128,
+        bottom: 176,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: image,
+        offset: 0
+      })
+    } as never
+
+    expect(getSelectionBottom(view)).toBe(190)
   })
 
   it('skips document-tail probing when the last content element already provides the bottom', () => {

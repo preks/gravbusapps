@@ -9,7 +9,13 @@ import {
   CUSTOM_IMAGE_TAG,
   getImageFigureAttributesFromElement
 } from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
+import {
+  convertCropRatioToWordValue,
+  hasImageCrop,
+  normalizeImageCrop
+} from '@/components/tiptap-extensions/tiptap-custom-image/cropUtils'
 import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
+import { resolveWordWrapTextSide } from '@/components/tiptap-extensions/tiptap-custom-image/wrapUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
 
 function escapeXml(text: string): string {
@@ -38,6 +44,7 @@ function newContext(): DocxBuildContext {
 const PX_TO_EMU = 9525
 const DEFAULT_IMG_WIDTH = 400
 const DEFAULT_IMG_HEIGHT = 300
+const WRAP_POLYGON_COORDINATE_SPACE = 21600
 const DOCX_IMAGE_DEFAULTS = {
   align: 'left' as const,
   wrapMode: 'inline' as const,
@@ -89,16 +96,22 @@ function getWordRotationValue(rotation: number): string {
   return String(Math.round(rotation * 60000))
 }
 
-function getWrapSquareText(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
-  if (layout.wrapMode === 'square-right') {
-    return 'left'
-  }
+function getWrapText(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
+  return resolveWordWrapTextSide(layout)
+}
 
-  if (layout.wrapMode === 'square-left') {
-    return 'right'
-  }
-
-  return 'bothSides'
+function getWrapPolygonXml(): string {
+  return [
+    '<wp:wrapPolygon edited="0">',
+    '<wp:start x="0" y="0"/>',
+    '<wp:lineTo x="0" y="21600"/>',
+    '<wp:lineTo x="21600" y="21600"/>',
+    '<wp:lineTo x="21600" y="0"/>',
+    '<wp:lineTo x="0" y="0"/>',
+    '</wp:wrapPolygon>'
+  ]
+    .join('')
+    .replaceAll('21600', String(WRAP_POLYGON_COORDINATE_SPACE))
 }
 
 function getWrapXml(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
@@ -110,7 +123,12 @@ function getWrapXml(layout: ReturnType<typeof getImageFigureAttributesFromElemen
     return '<wp:wrapNone/>'
   }
 
-  return `<wp:wrapSquare wrapText="${getWrapSquareText(layout)}"/>`
+  if (layout.wrapMode === 'tight' || layout.wrapMode === 'through') {
+    const tagName = layout.wrapMode === 'tight' ? 'wrapTight' : 'wrapThrough'
+    return `<wp:${tagName} wrapText="${getWrapText(layout)}">${getWrapPolygonXml()}</wp:${tagName}>`
+  }
+
+  return `<wp:wrapSquare wrapText="${getWrapText(layout)}"/>`
 }
 
 function getHorizontalAlignmentXml(
@@ -132,7 +150,23 @@ function getHorizontalAlignmentXml(
   return `<wp:positionH relativeFrom="${horizontalRef}"><wp:align>${align}</wp:align></wp:positionH>`
 }
 
-function imageInlineDrawingXml(img: EmbeddedImage, docPrId: number, rotation: number): string {
+function getCropXml(layout?: ReturnType<typeof getImageFigureAttributesFromElement>) {
+  if (!layout || !hasImageCrop(layout)) {
+    return ''
+  }
+
+  const crop = normalizeImageCrop(layout)
+  return `<a:srcRect l="${convertCropRatioToWordValue(crop.left)}" t="${convertCropRatioToWordValue(crop.top)}" r="${convertCropRatioToWordValue(
+    crop.right
+  )}" b="${convertCropRatioToWordValue(crop.bottom)}"/>`
+}
+
+function imageInlineDrawingXml(
+  img: EmbeddedImage,
+  docPrId: number,
+  rotation: number,
+  layout?: ReturnType<typeof getImageFigureAttributesFromElement>
+): string {
   return (
     `<w:drawing>` +
     `<wp:inline distT="0" distB="0" distL="0" distR="0">` +
@@ -142,7 +176,7 @@ function imageInlineDrawingXml(img: EmbeddedImage, docPrId: number, rotation: nu
     `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
     `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
     `<pic:nvPicPr><pic:cNvPr id="0" name="${escapeXml(img.fileName)}"/><pic:cNvPicPr/></pic:nvPicPr>` +
-    `<pic:blipFill><a:blip r:embed="${img.rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:blipFill><a:blip r:embed="${img.rId}"/>${getCropXml(layout)}<a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
     `<pic:spPr><a:xfrm rot="${getWordRotationValue(rotation)}"><a:off x="0" y="0"/><a:ext cx="${img.widthEmu}" cy="${img.heightEmu}"/></a:xfrm>` +
     `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
     `</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`
@@ -187,7 +221,7 @@ function imageAnchorDrawingXml(
     `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
     `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
     `<pic:nvPicPr><pic:cNvPr id="0" name="${escapeXml(img.fileName)}"/><pic:cNvPicPr/></pic:nvPicPr>` +
-    `<pic:blipFill><a:blip r:embed="${img.rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:blipFill><a:blip r:embed="${img.rId}"/>${getCropXml(layout)}<a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
     `<pic:spPr><a:xfrm rot="${getWordRotationValue(rotation)}"><a:off x="0" y="0"/><a:ext cx="${img.widthEmu}" cy="${img.heightEmu}"/></a:xfrm>` +
     `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
     `</pic:pic></a:graphicData></a:graphic>` +
@@ -203,7 +237,7 @@ function imageDrawingXml(
 ): string {
   return layout && layout.wrapMode !== 'inline'
     ? imageAnchorDrawingXml(img, docPrId, layout, rotation)
-    : imageInlineDrawingXml(img, docPrId, rotation)
+    : imageInlineDrawingXml(img, docPrId, rotation, layout)
 }
 
 function getWordAlignmentValue(align: string | null | undefined): 'left' | 'center' | 'right' {

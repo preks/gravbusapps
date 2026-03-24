@@ -1,6 +1,7 @@
 import { Editor, type Extension, type JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { NodeSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { PAGE_FORMATS, PAGE_SIZES, type PageSize } from './constants'
 import type {
@@ -1607,7 +1608,12 @@ export function calculatePageCount(
   const contentBottomCandidates = [lastContentBottom, documentBottom].filter((value): value is number => value !== null)
   const contentBottom = contentBottomCandidates.length > 0 ? Math.max(...contentBottomCandidates) : null
   const selectionIsRange = view.state.selection.from !== view.state.selection.to
-  const selectionBottom = selectionIsRange || contentBottom === null ? getSelectionBottom(view) : 0
+  const selectionIsImageNode =
+    (view.state.selection instanceof NodeSelection ||
+      ('node' in view.state.selection && view.state.selection.node != null)) &&
+    (view.state.selection as NodeSelection).node.type.name === 'image'
+  const selectionBottom =
+    selectionIsRange || selectionIsImageNode || contentBottom === null ? getSelectionBottom(view) : 0
   let measuredBottom = selectionBottom
   if (contentBottom !== null) {
     measuredBottom = selectionIsRange ? Math.max(contentBottom, selectionBottom) : contentBottom

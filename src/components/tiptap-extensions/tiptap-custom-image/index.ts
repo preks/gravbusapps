@@ -9,6 +9,7 @@ export {
   type CustomImageAttributes,
   type CustomImageOptions,
   type CustomImageUploadHandler,
+  type SetImageCropOptions,
   type ImageAlignment,
   type ImageAnchorMode,
   type ImageDisplayMode,
@@ -19,3 +20,13 @@ export {
   type ProtectedSrcResolution,
   type SetImageLayoutOptions
 } from './types'
+export { convertCropRatioToWordValue, hasImageCrop, normalizeImageCrop, resolveImageCropDimensions } from './cropUtils'
+export { DOCUMENT_IMAGE_UI_EVENT, dispatchDocumentImageUiMode, type DocumentImageUiMode } from './pictureUiEvents'
+export {
+  isFloatingWrapMode,
+  resolveFloatingSide,
+  resolveImageWrapPreset,
+  resolveWordWrapTextSide,
+  type ImageFloatingSide,
+  type WordWrapTextSide
+} from './wrapUtils'

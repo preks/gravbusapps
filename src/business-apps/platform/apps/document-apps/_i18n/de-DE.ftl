@@ -565,7 +565,12 @@ image-context-delete = Löschen
 image-context-replace = Bild ersetzen
 image-context-alt-text = Alt-Text
 image-context-align = Ausrichten
+image-context-anchor = Verankerung
 image-context-caption = Beschriftung
+image-context-crop = Zuschneiden
+image-context-finish-crop = Zuschneiden beenden
+image-context-reset-crop = Zuschnitt zurücksetzen
+image-context-crop-active = Zuschnitt aktiv
 image-context-spacing = Abstand zum Text
 
 image-context-wrap-text = Textumbruch
@@ -577,6 +582,9 @@ image-wrap-through = Durch
 image-wrap-center = Oben und unten
 image-wrap-behind = Hinter Text
 image-wrap-in-front = Vor Text
+image-anchor-inline = Inline
+image-anchor-move-with-text = Mit Text verschieben
+image-anchor-fixed = Position auf Seite fixieren
 
 image-alt-text-dialog-title = Alt-Text
 image-alt-text-label = Beschreibung (für Barrierefreiheit)
@@ -590,6 +598,7 @@ image-position-move-up = Nach oben verschieben
 image-position-move-down = Nach unten verschieben
 image-position-bring-forward = In den Vordergrund
 image-position-send-backward = Nach hinten
+image-position-z-index = Ebenenreihenfolge
 image-sidebar-title = Bild
 table-sidebar-in-header-context = Tabelle in Kopfzeile
 table-sidebar-in-footer-context = Tabelle in Fußzeile
@@ -609,6 +618,10 @@ image-sidebar-reset-size = Originalgröße wiederherstellen
 image-sidebar-scale-width = Breite skalieren (%)
 image-sidebar-scale-height = Höhe skalieren (%)
 image-sidebar-rotation = Drehung (Grad)
+image-crop-top = Oben zuschneiden
+image-crop-right = Rechts zuschneiden
+image-crop-bottom = Unten zuschneiden
+image-crop-left = Links zuschneiden
 
 # Paged document editor
 editor-back-title = Zurück zu Dokumenten

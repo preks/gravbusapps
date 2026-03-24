@@ -11,7 +11,13 @@ import {
   CUSTOM_IMAGE_TAG,
   getImageFigureAttributesFromElement
 } from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
+import {
+  hasImageCrop,
+  normalizeImageCrop,
+  resolveImageCropDimensions
+} from '@/components/tiptap-extensions/tiptap-custom-image/cropUtils'
 import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
+import { resolveFloatingSide } from '@/components/tiptap-extensions/tiptap-custom-image/wrapUtils'
 import { buildDocxBlob, sanitizeDocxFilename } from './docxExport'
 import { sanitizePaginationRuntimeHtml } from './documentContentUtils'
 import type { DocumentPrintStyleConfig } from './pageLayoutUtils'
@@ -103,8 +109,10 @@ function applyCustomImageLayoutForExport(html: string): string {
   for (const figure of figures) {
     const attrs = getImageFigureAttributesFromElement(figure, EXPORT_IMAGE_DEFAULTS)
     const resolvedDimensions = resolveImageDimensions(attrs)
+    const crop = normalizeImageCrop(attrs)
     const img = figure.querySelector('img')
     const figcaption = figure.querySelector('figcaption')
+    const floatingSide = resolveFloatingSide(attrs)
 
     figure.classList.add('editor-image-figure')
     figure.setAttribute('data-image-wrap', attrs.wrapMode ?? EXPORT_IMAGE_DEFAULTS.wrapMode)
@@ -119,12 +127,34 @@ function applyCustomImageLayoutForExport(html: string): string {
       case 'square-left':
       case 'tight':
       case 'through':
-        figure.style.cssFloat = 'left'
+        figure.style.cssFloat = floatingSide
         figure.style.display = 'inline-block'
+        if (resolvedDimensions.width != null) {
+          figure.style.width = `${resolvedDimensions.width}px`
+        }
+        if (
+          img &&
+          resolvedDimensions.width != null &&
+          resolvedDimensions.height != null &&
+          resolvedDimensions.rotation === 0 &&
+          !hasImageCrop(attrs)
+        ) {
+          figure.style.shapeOutside =
+            attrs.wrapMode === 'tight' || attrs.wrapMode === 'through'
+              ? `url("${img.getAttribute('src') || ''}")`
+              : 'inset(0)'
+          figure.style.shapeImageThreshold = '0.1'
+        }
         break
       case 'square-right':
-        figure.style.cssFloat = 'right'
+        figure.style.cssFloat = floatingSide
         figure.style.display = 'inline-block'
+        if (resolvedDimensions.width != null) {
+          figure.style.width = `${resolvedDimensions.width}px`
+        }
+        if (resolvedDimensions.width != null) {
+          figure.style.shapeOutside = 'inset(0)'
+        }
         break
       case 'top-bottom':
         figure.style.display = 'block'
@@ -160,7 +190,40 @@ function applyCustomImageLayoutForExport(html: string): string {
         img.removeAttribute('height')
         img.style.height = 'auto'
       }
-      if (resolvedDimensions.rotation !== 0) {
+
+      if (hasImageCrop(attrs) && resolvedDimensions.width != null && resolvedDimensions.height != null) {
+        const frame = doc.createElement('div')
+        const croppedImageDimensions = resolveImageCropDimensions({
+          width: resolvedDimensions.width,
+          height: resolvedDimensions.height,
+          crop
+        })
+
+        frame.className = 'editor-image-export-frame'
+        frame.style.position = 'relative'
+        frame.style.display = 'inline-flex'
+        frame.style.overflow = 'hidden'
+        frame.style.width = `${resolvedDimensions.width}px`
+        frame.style.height = `${resolvedDimensions.height}px`
+        if (resolvedDimensions.rotation !== 0) {
+          frame.style.transform = `rotate(${resolvedDimensions.rotation}deg)`
+          frame.style.transformOrigin = 'center center'
+        }
+
+        img.removeAttribute('width')
+        img.removeAttribute('height')
+        img.style.position = 'relative'
+        img.style.width = `${croppedImageDimensions.renderedWidth}px`
+        img.style.height = `${croppedImageDimensions.renderedHeight}px`
+        img.style.left = `${croppedImageDimensions.offsetX}px`
+        img.style.top = `${croppedImageDimensions.offsetY}px`
+        img.style.maxWidth = 'none'
+        img.style.transform = ''
+        img.style.transformOrigin = ''
+
+        figure.insertBefore(frame, img)
+        frame.appendChild(img)
+      } else if (resolvedDimensions.rotation !== 0) {
         img.style.transform = `rotate(${resolvedDimensions.rotation}deg)`
         img.style.transformOrigin = 'center center'
       }

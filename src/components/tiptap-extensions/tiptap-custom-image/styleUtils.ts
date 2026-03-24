@@ -7,6 +7,7 @@ import type {
   ImageSizeUnit,
   ImageWrapMode
 } from './types'
+import { normalizeImageCrop } from './cropUtils'
 
 export const CUSTOM_IMAGE_FIGURE_CLASS = 'editor-image-figure'
 export const CUSTOM_IMAGE_TAG = 'custom-image'
@@ -100,6 +101,10 @@ export function getImageFigureAttributesFromElement(
     scaleWidthPercent: normalizeNullableNumber(readFigureAttr('data-image-scale-width-percent'), 100),
     scaleHeightPercent: normalizeNullableNumber(readFigureAttr('data-image-scale-height-percent'), 100),
     rotation: normalizeNullableNumber(readFigureAttr('data-image-rotation'), 0),
+    cropTop: normalizeNullableNumber(readFigureAttr('data-image-crop-top'), 0),
+    cropRight: normalizeNullableNumber(readFigureAttr('data-image-crop-right'), 0),
+    cropBottom: normalizeNullableNumber(readFigureAttr('data-image-crop-bottom'), 0),
+    cropLeft: normalizeNullableNumber(readFigureAttr('data-image-crop-left'), 0),
     align: normalizeImageAlign(readFigureAttr('data-image-align'), defaults.align),
     caption: caption || readFigureAttr('data-image-caption'),
     display: normalizeImageDisplay(readFigureAttr('data-image-display'), defaults.display),
@@ -134,6 +139,7 @@ export function getFigureDataAttributes(attributes: CustomImageAttributes) {
   const scaleWidthPercent = normalizeNullableNumber(attributes.scaleWidthPercent, 100) ?? 100
   const scaleHeightPercent = normalizeNullableNumber(attributes.scaleHeightPercent, 100) ?? 100
   const rotation = normalizeNullableNumber(attributes.rotation, 0) ?? 0
+  const crop = normalizeImageCrop(attributes)
   const distanceTop = normalizeNullableNumber(attributes.distanceTop, 0) ?? 0
   const distanceRight = normalizeNullableNumber(attributes.distanceRight, 0) ?? 0
   const distanceBottom = normalizeNullableNumber(attributes.distanceBottom, 0) ?? 0
@@ -157,6 +163,10 @@ export function getFigureDataAttributes(attributes: CustomImageAttributes) {
     'data-image-scale-width-percent': String(scaleWidthPercent),
     'data-image-scale-height-percent': String(scaleHeightPercent),
     'data-image-rotation': String(rotation),
+    'data-image-crop-top': String(crop.top),
+    'data-image-crop-right': String(crop.right),
+    'data-image-crop-bottom': String(crop.bottom),
+    'data-image-crop-left': String(crop.left),
     'data-image-distance-top': String(distanceTop),
     'data-image-distance-right': String(distanceRight),
     'data-image-distance-bottom': String(distanceBottom),

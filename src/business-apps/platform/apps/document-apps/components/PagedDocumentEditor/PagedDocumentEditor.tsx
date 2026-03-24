@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react'
 import { EditorContent } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
+import { NodeSelection } from '@tiptap/pm/state'
 import { Button, useTranslation } from '@newwork/nw-design-system'
 import DOMPurify from 'dompurify'
 import { ChevronRight } from 'lucide-react'
@@ -32,6 +33,7 @@ import { usePublishing } from '../../../shared/hooks/usePublishing'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { LinkBubbleMenu } from './LinkBubbleMenu'
+import { ImageBubbleMenu } from './ImageBubbleMenu'
 import { NavigationPanel } from './NavigationPanel'
 import { DocumentBottomBar } from './DocumentBottomBar'
 import { PagedDocumentAiInstructionOverlay } from './PagedDocumentAiInstructionOverlay'
@@ -1117,6 +1119,23 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     onMouseDown={event => event.preventDefault()}
                   >
                     <LinkBubbleMenu editor={editor} onEdit={openLinkDialog} data-testid="document-link-bubble-menu" />
+                  </BubbleMenu>
+                )}
+                {editor && (
+                  <BubbleMenu
+                    editor={editor}
+                    shouldShow={({ editor: e }) => {
+                      const selection = e.state.selection
+                      return selection instanceof NodeSelection && selection.node.type.name === 'image'
+                    }}
+                    pluginKey="imageBubbleMenu"
+                    onMouseDown={event => event.preventDefault()}
+                  >
+                    <ImageBubbleMenu
+                      editor={editor}
+                      onReplace={openReplaceImageDialog}
+                      data-testid="document-image-bubble-menu"
+                    />
                   </BubbleMenu>
                 )}
                 {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}

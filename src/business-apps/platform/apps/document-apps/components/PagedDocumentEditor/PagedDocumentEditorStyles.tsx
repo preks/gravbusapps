@@ -228,17 +228,6 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
       .paged-document-editor .ProseMirror figure[data-node-type='custom-image'] {
         max-width: 100%;
       }
-      .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='square-left'],
-      .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='tight'],
-      .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='through'] {
-        float: left;
-      }
-      .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='square-right'] {
-        float: right;
-      }
-      .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='top-bottom'] {
-        clear: both;
-      }
       .paged-document-editor .ProseMirror .editor-image-caption {
         margin-top: 4pt;
         color: #6b7280;
