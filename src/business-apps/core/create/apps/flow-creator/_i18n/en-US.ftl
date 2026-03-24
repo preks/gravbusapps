@@ -18,6 +18,9 @@ studio-save-name-placeholder = e.g. Employee onboarding
 studio-save-name-validation = Please enter a flow name before saving.
 studio-save-name-cancel = Cancel
 studio-save-name-confirm = Save flow
+studio-unsaved-changes = Unsaved changes
+studio-saved = Saved
+studio-loading = Loading...
 
 # Labels / Tags
 labels-title = Labels
@@ -43,8 +46,11 @@ labels-save = Save
 labels-error-duplicate = Duplicate key: {$key}
 
 # List
-list-title = Flows
+list-title = FLOWs
 list-subtitle = Browse and open existing flow templates
+list-tab-create = Create
+list-tab-flows = FLOWs
+list-subtitle-create = Design and create new flows
 list-search = Search
 list-search-placeholder = Search flows...
 list-sort = Sort
