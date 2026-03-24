@@ -35,14 +35,22 @@ import { useTeamCompensationData } from './hooks/useTeamCompensationData'
 import { useTeamMembersPipeline } from './hooks/useTeamMembersPipeline'
 
 import { TeamAllocationGrid } from './components/TeamAllocationGrid'
+import { TeamCompensationBudgetSummary } from './components/TeamCompensationBudgetSummary'
 
 import { AssetTablePagination } from '@/business-apps/hr/core/apps/assets/components/AssetTablePagination'
 
 import { TeamCompensationTableFilters } from './components/TeamCompensationTableFilters'
+import {
+  TeamCompensationLastRaiseFilterFields,
+  TeamCompensationSalaryFilterFields
+} from './components/TeamCompensationRangeFilterFields'
 
 import { formatLocaleInteger } from '../../utils/budgetCalculations'
 
 import translations from './_i18n'
+
+const PILL_SALARY_RANGE = 'range-salary'
+const PILL_LAST_RAISE_RANGE = 'range-last-raise'
 
 export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = context => {
   const { accessToken, userInfo } = context
@@ -72,7 +80,19 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
 
     sidebarFilterIds,
 
+    filterSalaryMin,
+
+    filterSalaryMax,
+
+    filterLastRaiseFrom,
+
+    filterLastRaiseTo,
+
     toggleSidebarFilter,
+
+    setSalaryFilterRange,
+
+    setLastRaiseFilterRange,
 
     currentPage,
 
@@ -135,6 +155,14 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
 
     sidebarFilterIds,
 
+    filterSalaryMin,
+
+    filterSalaryMax,
+
+    filterLastRaiseFrom,
+
+    filterLastRaiseTo,
+
     sortField,
 
     sortDirection,
@@ -144,7 +172,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     pageSize
   })
 
-  const { pageRows, totalFiltered, uniqueJobLevels } = pipeline
+  const { pageRows, totalFiltered } = pipeline
 
   const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize) || 1)
 
@@ -159,47 +187,48 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       },
 
       {
-        id: 'level',
-
-        title: t('filter-level-label'),
-
-        filters: uniqueJobLevels.map(level => ({
-          id: `level:${level}`,
-
-          label: level,
-
-          selected: sidebarFilterIds.includes(`level:${level}`)
-        }))
-      },
-
-      {
         id: 'salary',
 
         title: t('filter-salary-group'),
 
         hideSearch: true,
 
-        filters: [
-          {
-            id: 'salary:with',
+        customComponent: (
+          <TeamCompensationSalaryFilterFields
+            salaryMin={filterSalaryMin}
+            salaryMax={filterSalaryMax}
+            onSalaryMinMaxChange={setSalaryFilterRange}
+          />
+        )
+      },
 
-            label: t('filter-salary-with'),
+      {
+        id: 'lastRaise',
 
-            selected: sidebarFilterIds.includes('salary:with')
-          },
+        title: t('filter-last-raise-group'),
 
-          {
-            id: 'salary:without',
+        hideSearch: true,
 
-            label: t('filter-salary-without'),
-
-            selected: sidebarFilterIds.includes('salary:without')
-          }
-        ]
+        customComponent: (
+          <TeamCompensationLastRaiseFilterFields
+            lastRaiseFrom={filterLastRaiseFrom}
+            lastRaiseTo={filterLastRaiseTo}
+            onLastRaiseRangeChange={setLastRaiseFilterRange}
+          />
+        )
       }
     ],
 
-    [t, uniqueJobLevels, sidebarFilterIds, employeeBackendSearch]
+    [
+      t,
+      employeeBackendSearch,
+      filterSalaryMin,
+      filterSalaryMax,
+      filterLastRaiseFrom,
+      filterLastRaiseTo,
+      setSalaryFilterRange,
+      setLastRaiseFilterRange
+    ]
   )
 
   const filterLabelMap = useMemo(() => {
@@ -210,19 +239,52 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
         const eid = id.slice('employee:'.length)
 
         map[id] = getEmployeeLabel(eid) ?? eid
-      } else if (id.startsWith('level:')) {
-        const level = id.slice('level:'.length)
-
-        map[id] = t('filter-pill-level', { level })
-      } else if (id === 'salary:with') {
-        map[id] = t('filter-pill-salary-with')
-      } else if (id === 'salary:without') {
-        map[id] = t('filter-pill-salary-without')
       }
     }
 
     return map
   }, [sidebarFilterIds, getEmployeeLabel, t])
+
+  const additionalFilterPills = useMemo(() => {
+    const pills: { id: string; label: string }[] = []
+
+    if (filterSalaryMin != null || filterSalaryMax != null) {
+      const minLabel = filterSalaryMin != null ? formatLocaleInteger(filterSalaryMin) : t('filter-range-open')
+      const maxLabel = filterSalaryMax != null ? formatLocaleInteger(filterSalaryMax) : t('filter-range-open')
+      pills.push({
+        id: PILL_SALARY_RANGE,
+        label: t('filter-pill-salary-range', { min: minLabel, max: maxLabel })
+      })
+    }
+
+    if (filterLastRaiseFrom != null || filterLastRaiseTo != null) {
+      const from = filterLastRaiseFrom ?? ''
+      const to = filterLastRaiseTo ?? ''
+      let label: string
+      if (from && to) {
+        label = t('filter-pill-last-raise-range', { from, to })
+      } else if (from) {
+        label = t('filter-pill-last-raise-from', { from })
+      } else {
+        label = t('filter-pill-last-raise-to', { to })
+      }
+      pills.push({ id: PILL_LAST_RAISE_RANGE, label })
+    }
+
+    return pills
+  }, [filterSalaryMin, filterSalaryMax, filterLastRaiseFrom, filterLastRaiseTo, t])
+
+  const handleRemoveAdditionalFilterPill = useCallback(
+    (id: string) => {
+      if (id === PILL_SALARY_RANGE) {
+        setSalaryFilterRange(null, null)
+      } else if (id === PILL_LAST_RAISE_RANGE) {
+        setLastRaiseFilterRange(null, null)
+      }
+    },
+
+    [setSalaryFilterRange, setLastRaiseFilterRange]
+  )
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -279,53 +341,60 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     </Select>
   )
 
-  const toolbarRow = (
+  const companiesLoadErrorMessage =
+    !companiesLoading && companies.length === 0 && companiesLoadError ? (
+      <p
+        className="gba:max-w-sm gba:text-right gba:text-sm gba:text-destructive"
+        data-testid="manager-compensation-companies-error"
+      >
+        {t('error-companies-load', { message: companiesLoadError })}
+      </p>
+    ) : null
+
+  /** Shown only when no company is selected (no budget / table yet). */
+  const emptyCompanySelectionRow = (
     <div
       className="gba:flex gba:w-full gba:flex-row gba:flex-wrap gba:items-start gba:justify-between gba:gap-4"
-      data-testid="manager-compensation-toolbar"
+      data-testid="manager-compensation-empty-company-bar"
     >
-      <div className="gba:min-w-0 gba:flex-1">
-        {selectedCompanyId ? (
-          <TeamCompensationTableFilters
-            searchQuery={searchQuery}
-            onSearchChange={handleSearchChange}
-            onPageChange={setCurrentPage}
-            showDataFilter={showDataFilter}
-            onToggleDataFilter={() => setShowDataFilter(v => !v)}
-            sidebarFilterIds={sidebarFilterIds}
-            filterLabelMap={filterLabelMap}
-            onRemoveSidebarFilterId={id => toggleSidebarFilter(id, false)}
-            onClearAllFilters={handleClearAllFilters}
-            toolbarAfterSearch={
-              <h3 className="gba:shrink-0 gba:text-lg gba:font-semibold gba:text-foreground">
-                {t('table-section-title')}{' '}
-                <span
-                  className="gba:font-semibold gba:text-muted-foreground"
-                  data-testid="manager-compensation-team-count"
-                >
-                  {teamCountLabel}
-                </span>
-              </h3>
-            }
-          />
-        ) : (
-          <p className="gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
-        )}
-      </div>
-
-      <div className="gba:flex gba:flex-col gba:items-end gba:gap-2 gba:shrink-0">
+      <p className="gba:min-w-0 gba:flex-1 gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
+      <div className="gba:flex gba:shrink-0 gba:flex-col gba:items-end gba:gap-2">
         {companySelect}
-        {!companiesLoading && companies.length === 0 && companiesLoadError ? (
-          <p
-            className="gba:max-w-sm gba:text-right gba:text-sm gba:text-destructive"
-            data-testid="manager-compensation-companies-error"
-          >
-            {t('error-companies-load', { message: companiesLoadError })}
-          </p>
-        ) : null}
+        {companiesLoadErrorMessage}
       </div>
     </div>
   )
+
+  const teamTableFiltersRow = selectedCompanyId ? (
+    <TeamCompensationTableFilters
+      searchQuery={searchQuery}
+      onSearchChange={handleSearchChange}
+      onPageChange={setCurrentPage}
+      showDataFilter={showDataFilter}
+      onToggleDataFilter={() => setShowDataFilter(v => !v)}
+      sidebarFilterIds={sidebarFilterIds}
+      filterLabelMap={filterLabelMap}
+      onRemoveSidebarFilterId={id => toggleSidebarFilter(id, false)}
+      additionalFilterPills={additionalFilterPills}
+      onRemoveAdditionalFilterPill={handleRemoveAdditionalFilterPill}
+      onClearAllFilters={handleClearAllFilters}
+      toolbarRowDataTestId="manager-compensation-toolbar"
+      toolbarAfterSearch={
+        <h3 className="gba:shrink-0 gba:text-lg gba:font-semibold gba:text-foreground">
+          {t('table-section-title')}{' '}
+          <span className="gba:font-semibold gba:text-muted-foreground" data-testid="manager-compensation-team-count">
+            {teamCountLabel}
+          </span>
+        </h3>
+      }
+      toolbarEndRight={
+        <>
+          {companySelect}
+          {companiesLoadErrorMessage}
+        </>
+      }
+    />
+  ) : null
 
   const filterSidebar =
     showDataFilter && selectedCompanyId ? (
@@ -360,7 +429,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
           className="gba:min-h-[400px] gba:overflow-auto gba:bg-background"
           data-testid="manager-compensation-data-body"
         >
-          <div className="gba:p-4">{toolbarRow}</div>
+          <div className="gba:p-4">{emptyCompanySelectionRow}</div>
         </div>
       )
     }
@@ -372,14 +441,18 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
           data-testid="manager-compensation-data-body"
         >
           <div className="gba:p-4">
-            <div className="gba:flex gba:flex-row gba:items-start gba:gap-4">
-              {filterSidebar}
+            <div className="gba:flex gba:flex-col gba:gap-4">
+              <TeamCompensationBudgetSummary />
 
-              <div className="gba:min-w-0 gba:flex-1 gba:space-y-4">
-                {toolbarRow}
+              {teamTableFiltersRow}
 
-                <div className="gba:flex gba:justify-center gba:py-12">
-                  <Spinner />
+              <div className="gba:flex gba:flex-row gba:items-start gba:gap-4">
+                {filterSidebar}
+
+                <div className="gba:min-w-0 gba:flex-1">
+                  <div className="gba:flex gba:justify-center gba:py-12">
+                    <Spinner />
+                  </div>
                 </div>
               </div>
             </div>
@@ -395,17 +468,21 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
           data-testid="manager-compensation-data-body"
         >
           <div className="gba:p-4">
-            <div className="gba:flex gba:flex-row gba:items-start gba:gap-4">
-              {filterSidebar}
+            <div className="gba:flex gba:flex-col gba:gap-4">
+              <TeamCompensationBudgetSummary />
 
-              <div className="gba:min-w-0 gba:flex-1 gba:space-y-4">
-                {toolbarRow}
+              {teamTableFiltersRow}
 
-                <Alert variant="destructive" data-testid="manager-compensation-error">
-                  <AlertTitle>{t('error-title')}</AlertTitle>
+              <div className="gba:flex gba:flex-row gba:items-start gba:gap-4">
+                {filterSidebar}
 
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+                <div className="gba:min-w-0 gba:flex-1">
+                  <Alert variant="destructive" data-testid="manager-compensation-error">
+                    <AlertTitle>{t('error-title')}</AlertTitle>
+
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                </div>
               </div>
             </div>
           </div>
@@ -419,13 +496,15 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
         data-testid="manager-compensation-data-body"
       >
         <div className="gba:p-4">
-          <div className="gba:flex gba:flex-row gba:items-start gba:gap-4">
-            {filterSidebar}
+          <div className="gba:flex gba:flex-col gba:gap-4">
+            <TeamCompensationBudgetSummary />
 
-            <div className="gba:min-w-0 gba:flex-1 gba:space-y-4">
-              {toolbarRow}
+            {teamTableFiltersRow}
 
-              <div className="gba:space-y-4">
+            <div className="gba:flex gba:flex-row gba:items-start gba:gap-4">
+              {filterSidebar}
+
+              <div className="gba:min-w-0 gba:flex-1 gba:space-y-4">
                 <TeamAllocationGrid
                   members={pageRows}
                   sortField={sortField}
@@ -454,6 +533,8 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       headerIcon={UsersIcon}
       headerTitle={t('title')}
       headerDescription={t('subtitle')}
+      // PageHeader defaults onBack to history.back(); null hides the back control.
+      onBack={null as unknown as (() => void) | undefined}
       variant={MODULE_COLORS.HR}
       className="gba:min-h-screen"
     >

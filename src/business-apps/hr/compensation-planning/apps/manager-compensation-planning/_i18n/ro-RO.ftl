@@ -7,13 +7,16 @@ empty-select-company-hint = Selectați o companie pentru a încărca datele de c
 error-companies-load = Nu s-a putut încărca lista de companii. {$message}
 error-title = A apărut o problemă
 table-section-title = Membri echipă
+budget-summary-total-available = Buget total disponibil
+budget-summary-placeholder-value = -
+budget-summary-placeholder-footer = Totalurile bugetului vor apărea aici după conectarea sursei de date.
 table-empty = Niciun membru al echipei nu corespunde filtrelor curente.
 team-summary = { $count ->
   [one] 1 membru al echipei
   *[other] {$count} membri ai echipei
 }
 
-search-placeholder = Caută după nume, cod sau poziție...
+search-placeholder = Caută...
 
 save-drafts = Salvează ciorne
 submit-proposals = Trimite propunerile
@@ -55,20 +58,21 @@ compa-ratio-label = CR: {$ratio}
 
 filters-toggle-aria = Afișează sau ascunde filtrele
 search-toggle-aria = Caută în echipă
-filter-level-label = Nivel funcție
 filter-employee-group = Angajat
-filter-salary-group = Salariu înregistrat
-filter-level-all = Toate nivelurile
-filter-salary-label = Salariu înregistrat
-filter-salary-all = Toate
-filter-salary-with = Cu salariu anual
-filter-salary-without = Fără salariu anual
-filter-pill-level = Nivel: {$level}
-filter-pill-salary-with = Salariu: înregistrat
-filter-pill-salary-without = Salariu: lipsă
+filter-salary-group = Salariu anual
+filter-salary-min-label = Minimum (anual)
+filter-salary-max-label = Maximum (anual)
+filter-salary-min-placeholder = Min.
+filter-salary-max-placeholder = Max.
+filter-last-raise-group = Ultima mărire
+filter-last-raise-from-placeholder = De la
+filter-last-raise-to-placeholder = Până la
+filter-range-open = Oricare
+filter-pill-salary-range = Salariu: {$min} – {$max}
+filter-pill-last-raise-range = Ultima mărire: {$from} – {$to}
+filter-pill-last-raise-from = Ultima mărire de la {$from}
+filter-pill-last-raise-to = Ultima mărire până la {$to}
 filter-pill-search = Căutare: „{$q}”
-filter-remove-level-aria = Elimină filtrul de nivel
-filter-remove-salary-aria = Elimină filtrul de salariu
 filter-remove-search-aria = Elimină căutarea
 filter-remove-pill-aria = Elimină filtrul
 filter-clear-all = Șterge toate filtrele

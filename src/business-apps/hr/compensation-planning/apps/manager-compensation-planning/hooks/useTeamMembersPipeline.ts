@@ -62,8 +62,12 @@ function compare(
 export interface TeamPipelineParams {
   members: TeamMemberCompensationData[]
   searchQuery: string
-  /** `employee:{id}`, `level:{name}`, `salary:with`|`salary:without` */
+  /** `employee:{id}` */
   sidebarFilterIds: string[]
+  filterSalaryMin: number | null
+  filterSalaryMax: number | null
+  filterLastRaiseFrom: string | null
+  filterLastRaiseTo: string | null
   sortField: ManagerTeamSortField
   sortDirection: 'asc' | 'desc'
   currentPage: number
@@ -76,42 +80,39 @@ export interface TeamPipelineResult {
   /** Current page slice */
   pageRows: TeamMemberCompensationData[]
   totalFiltered: number
-  uniqueJobLevels: string[]
 }
 
-function parseSidebarFilterIds(ids: string[]): {
-  employeeIds: Set<string>
-  levelNames: Set<string>
-  salary: 'all' | 'with' | 'without'
-} {
+function parseSidebarFilterIds(ids: string[]): { employeeIds: Set<string> } {
   const employeeIds = new Set<string>()
-  const levelNames = new Set<string>()
-  let salary: 'all' | 'with' | 'without' = 'all'
   for (const id of ids) {
     if (id.startsWith('employee:')) {
       employeeIds.add(id.slice('employee:'.length))
-    } else if (id.startsWith('level:')) {
-      levelNames.add(id.slice('level:'.length))
-    } else if (id === 'salary:with') {
-      salary = 'with'
-    } else if (id === 'salary:without') {
-      salary = 'without'
     }
   }
-  return { employeeIds, levelNames, salary }
+  return { employeeIds }
+}
+
+function lastRaiseDateOnly(iso: string | null | undefined): string {
+  if (!iso) return ''
+  return iso.slice(0, 10)
 }
 
 export function useTeamMembersPipeline(params: TeamPipelineParams): TeamPipelineResult {
-  const { members, searchQuery, sidebarFilterIds, sortField, sortDirection, currentPage, pageSize } = params
+  const {
+    members,
+    searchQuery,
+    sidebarFilterIds,
+    filterSalaryMin,
+    filterSalaryMax,
+    filterLastRaiseFrom,
+    filterLastRaiseTo,
+    sortField,
+    sortDirection,
+    currentPage,
+    pageSize
+  } = params
 
   return useMemo(() => {
-    const levelSet = new Set<string>()
-    for (const m of members) {
-      if (m.jobLevel?.trim()) levelSet.add(m.jobLevel.trim())
-    }
-    const loc = sortLocale()
-    const uniqueJobLevels = [...levelSet].sort((a, b) => a.localeCompare(b, loc, { sensitivity: 'base' }))
-
     let rows = [...members]
 
     const q = searchQuery.trim().toLowerCase()
@@ -125,20 +126,41 @@ export function useTeamMembersPipeline(params: TeamPipelineParams): TeamPipeline
       )
     }
 
-    const { employeeIds, levelNames, salary } = parseSidebarFilterIds(sidebarFilterIds)
+    const { employeeIds } = parseSidebarFilterIds(sidebarFilterIds)
 
     if (employeeIds.size > 0) {
       rows = rows.filter(m => employeeIds.has(m.employeeId))
     }
 
-    if (levelNames.size > 0) {
-      rows = rows.filter(m => levelNames.has((m.jobLevel ?? '').trim()))
+    let salMin = filterSalaryMin
+    let salMax = filterSalaryMax
+    if (salMin != null && salMax != null && salMin > salMax) {
+      ;[salMin, salMax] = [salMax, salMin]
     }
 
-    if (salary === 'with') {
-      rows = rows.filter(m => m.currentAnnualSalary != null && m.currentAnnualSalary > 0)
-    } else if (salary === 'without') {
-      rows = rows.filter(m => m.currentAnnualSalary == null || m.currentAnnualSalary <= 0)
+    if (salMin != null) {
+      const lo = salMin
+      rows = rows.filter(
+        m => m.currentAnnualSalary != null && !Number.isNaN(m.currentAnnualSalary) && m.currentAnnualSalary >= lo
+      )
+    }
+    if (salMax != null) {
+      const hi = salMax
+      rows = rows.filter(
+        m => m.currentAnnualSalary != null && !Number.isNaN(m.currentAnnualSalary) && m.currentAnnualSalary <= hi
+      )
+    }
+
+    if (filterLastRaiseFrom != null || filterLastRaiseTo != null) {
+      const from = filterLastRaiseFrom ?? ''
+      const to = filterLastRaiseTo ?? ''
+      rows = rows.filter(m => {
+        const d = lastRaiseDateOnly(m.lastRaiseDate)
+        if (!d) return false
+        if (from && d < from) return false
+        if (to && d > to) return false
+        return true
+      })
     }
 
     rows.sort((a, b) => compare(a, b, sortField, sortDirection))
@@ -147,6 +169,18 @@ export function useTeamMembersPipeline(params: TeamPipelineParams): TeamPipeline
     const start = (currentPage - 1) * pageSize
     const pageRows = rows.slice(start, start + pageSize)
 
-    return { filteredSorted: rows, pageRows, totalFiltered, uniqueJobLevels }
-  }, [members, searchQuery, sidebarFilterIds, sortField, sortDirection, currentPage, pageSize])
+    return { filteredSorted: rows, pageRows, totalFiltered }
+  }, [
+    members,
+    searchQuery,
+    sidebarFilterIds,
+    filterSalaryMin,
+    filterSalaryMax,
+    filterLastRaiseFrom,
+    filterLastRaiseTo,
+    sortField,
+    sortDirection,
+    currentPage,
+    pageSize
+  ])
 }

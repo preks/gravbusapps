@@ -7,13 +7,16 @@ empty-select-company-hint = Wählen Sie ein Unternehmen, um die Teamvergütung z
 error-companies-load = Die Unternehmensliste konnte nicht geladen werden. {$message}
 error-title = Etwas ist schiefgelaufen
 table-section-title = Teammitglieder
+budget-summary-total-available = Verfügbares Gesamtbudget
+budget-summary-placeholder-value = -
+budget-summary-placeholder-footer = Budgetsummen werden angezeigt, sobald die Datenquelle verbunden ist.
 table-empty = Keine Teammitglieder entsprechen den aktuellen Filtern.
 team-summary = { $count ->
   [one] 1 Teammitglied
   *[other] {$count} Teammitglieder
 }
 
-search-placeholder = Nach Name, Code oder Position suchen...
+search-placeholder = Suchen...
 
 save-drafts = Entwürfe speichern
 submit-proposals = Vorschläge einreichen
@@ -55,20 +58,21 @@ compa-ratio-label = CR: {$ratio}
 
 filters-toggle-aria = Filter ein- oder ausblenden
 search-toggle-aria = Team durchsuchen
-filter-level-label = Stufe
 filter-employee-group = Mitarbeiter
-filter-salary-group = Gehalt vorhanden
-filter-level-all = Alle Stufen
-filter-salary-label = Gehalt vorhanden
-filter-salary-all = Alle
-filter-salary-with = Mit Jahresgehalt
-filter-salary-without = Ohne Jahresgehalt
-filter-pill-level = Stufe: {$level}
-filter-pill-salary-with = Gehalt: vorhanden
-filter-pill-salary-without = Gehalt: fehlt
+filter-salary-group = Jahresgehalt
+filter-salary-min-label = Minimum (jährlich)
+filter-salary-max-label = Maximum (jährlich)
+filter-salary-min-placeholder = Min.
+filter-salary-max-placeholder = Max.
+filter-last-raise-group = Letzte Erhöhung
+filter-last-raise-from-placeholder = Von
+filter-last-raise-to-placeholder = Bis
+filter-range-open = beliebig
+filter-pill-salary-range = Gehalt: {$min} – {$max}
+filter-pill-last-raise-range = Letzte Erhöhung: {$from} – {$to}
+filter-pill-last-raise-from = Letzte Erhöhung ab {$from}
+filter-pill-last-raise-to = Letzte Erhöhung bis {$to}
 filter-pill-search = Suche: „{$q}“
-filter-remove-level-aria = Stufenfilter entfernen
-filter-remove-salary-aria = Gehaltsfilter entfernen
 filter-remove-search-aria = Suche entfernen
 filter-remove-pill-aria = Filter entfernen
 filter-clear-all = Alle Filter löschen

@@ -12,21 +12,29 @@ export type ManagerTeamSortField =
 
 type SortDirection = 'asc' | 'desc'
 
-/** Sidebar filter ids: `employee:{uuid}`, `level:{name}`, `salary:with` | `salary:without` (salary mutually exclusive). */
+/** Sidebar filter ids: `employee:{uuid}` only (ranges use dedicated state). */
 interface ManagerPlanningState {
   searchQuery: string
   sortField: ManagerTeamSortField
   sortDirection: SortDirection
   selectedCompanyId: string | null
   sidebarFilterIds: string[]
+  /** Annual salary lower bound (inclusive); null = no minimum. */
+  filterSalaryMin: number | null
+  /** Annual salary upper bound (inclusive); null = no maximum. */
+  filterSalaryMax: number | null
+  /** Last raise date range (ISO YYYY-MM-DD); null = open bound. */
+  filterLastRaiseFrom: string | null
+  filterLastRaiseTo: string | null
   currentPage: number
   pageSize: number
 
   setSearchQuery: (query: string) => void
   setSortFromTable: (field: string, order: 'ASC' | 'DESC' | '') => void
   setSelectedCompanyId: (id: string | null) => void
-  setSelectedOrgUnitId: (id: string | null) => void
   toggleSidebarFilter: (filterId: string, selected: boolean) => void
+  setSalaryFilterRange: (min: number | null, max: number | null) => void
+  setLastRaiseFilterRange: (from: string | null, to: string | null) => void
   setCurrentPage: (page: number) => void
   setPageSize: (size: number) => void
   resetTableUi: () => void
@@ -73,9 +81,12 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
   setSelectedCompanyId: id =>
     set({
       selectedCompanyId: id,
-      selectedOrgUnitId: null,
       currentPage: 1,
       sidebarFilterIds: [],
+      filterSalaryMin: null,
+      filterSalaryMax: null,
+      filterLastRaiseFrom: null,
+      filterLastRaiseTo: null,
       searchQuery: '',
       sortField: DEFAULT_SORT_FIELD,
       sortDirection: DEFAULT_SORT_DIR,
@@ -85,16 +96,17 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
   toggleSidebarFilter: (filterId, selected) =>
     set(state => {
       let next = [...state.sidebarFilterIds]
-      if (filterId.startsWith('salary:')) {
-        next = next.filter(sid => !sid.startsWith('salary:'))
-        if (selected) next.push(filterId)
-      } else if (selected) {
+      if (selected) {
         if (!next.includes(filterId)) next = [...next, filterId]
       } else {
         next = next.filter(sid => sid !== filterId)
       }
       return { sidebarFilterIds: next, currentPage: 1 }
     }),
+
+  setSalaryFilterRange: (min, max) => set({ filterSalaryMin: min, filterSalaryMax: max, currentPage: 1 }),
+
+  setLastRaiseFilterRange: (from, to) => set({ filterLastRaiseFrom: from, filterLastRaiseTo: to, currentPage: 1 }),
 
   setCurrentPage: page => set({ currentPage: page }),
 
@@ -106,6 +118,10 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
       sortField: DEFAULT_SORT_FIELD,
       sortDirection: DEFAULT_SORT_DIR,
       sidebarFilterIds: [],
+      filterSalaryMin: null,
+      filterSalaryMax: null,
+      filterLastRaiseFrom: null,
+      filterLastRaiseTo: null,
       currentPage: 1,
       pageSize: 10
     })

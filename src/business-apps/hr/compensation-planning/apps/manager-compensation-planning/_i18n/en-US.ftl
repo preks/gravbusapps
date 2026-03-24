@@ -7,13 +7,16 @@ empty-select-company-hint = Select a company to load your team’s compensation 
 error-companies-load = Could not load the company list. {$message}
 error-title = Something went wrong
 table-section-title = Team members
+budget-summary-total-available = Total budget available
+budget-summary-placeholder-value = -
+budget-summary-placeholder-footer = Budget totals will show here once your data source is connected.
 table-empty = No team members match the current filters.
 team-summary = { $count ->
   [one] 1 team member
   *[other] {$count} team members
 }
 
-search-placeholder = Search by name, code, or position...
+search-placeholder = Search...
 
 save-drafts = Save Drafts
 submit-proposals = Submit Proposals
@@ -55,20 +58,21 @@ compa-ratio-label = CR: {$ratio}
 
 filters-toggle-aria = Show or hide filters
 search-toggle-aria = Search team members
-filter-level-label = Job level
 filter-employee-group = Employee
-filter-salary-group = Salary on file
-filter-level-all = All levels
-filter-salary-label = Salary on file
-filter-salary-all = All
-filter-salary-with = With annual salary
-filter-salary-without = Without annual salary
-filter-pill-level = Level: {$level}
-filter-pill-salary-with = Salary: On file
-filter-pill-salary-without = Salary: Not on file
+filter-salary-group = Annual salary
+filter-salary-min-label = Minimum (annual)
+filter-salary-max-label = Maximum (annual)
+filter-salary-min-placeholder = Min
+filter-salary-max-placeholder = Max
+filter-last-raise-group = Last raise
+filter-last-raise-from-placeholder = From
+filter-last-raise-to-placeholder = To
+filter-range-open = Any
+filter-pill-salary-range = Salary: {$min} – {$max}
+filter-pill-last-raise-range = Last raise: {$from} – {$to}
+filter-pill-last-raise-from = Last raise from {$from}
+filter-pill-last-raise-to = Last raise until {$to}
 filter-pill-search = Search: "{$q}"
-filter-remove-level-aria = Remove level filter
-filter-remove-salary-aria = Remove salary filter
 filter-remove-search-aria = Remove search filter
 filter-remove-pill-aria = Remove filter
 filter-clear-all = Clear all
