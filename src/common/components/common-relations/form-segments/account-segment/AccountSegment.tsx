@@ -61,6 +61,8 @@ interface AccountSegmentProps {
   accountsLoading: boolean
   accountsError: string | null
   searchAccounts: (search: string) => void
+  hasMore?: boolean
+  onLoadMore?: () => void
 
   // Account contacts from loaded entity (with nested account) for display - same pattern as account form
   accountContacts?: any[]
@@ -228,6 +230,8 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
   accountsLoading,
   accountsError,
   searchAccounts,
+  hasMore,
+  onLoadMore,
   dataTestId = 'account-segment',
   disabled = false,
   error
@@ -322,6 +326,9 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
         disabled={disabled || accountsLoading}
         loading={accountsLoading}
         onSearch={searchAccounts}
+        searchDebounce={300}
+        hasMore={Boolean(hasMore)}
+        onLoadMore={onLoadMore}
         data-testid={formatDataTestId(dataTestId, 'add-account-combobox')}
       />
 

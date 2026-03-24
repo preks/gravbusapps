@@ -9,7 +9,9 @@ interface PipelineStagesModalProps extends BusinessAppContextProps {
   onClose: () => void
   pipeline: any
   catalogConfig: {
+    pipelineCatalog?: string
     stageCatalog: string
+    stageTypeCatalog?: string
     conditionCatalog?: string
     version?: string
   }

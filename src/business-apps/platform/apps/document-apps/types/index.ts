@@ -3,3 +3,4 @@
  */
 
 export * from './document'
+export * from './layout'

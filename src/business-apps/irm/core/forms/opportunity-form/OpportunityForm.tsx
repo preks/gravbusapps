@@ -124,10 +124,10 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   const isLoading = loading || (investmentLoading && !!investmentId && !opportunity?.id)
 
   // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
-  // Account selection hook - using new declarative list hook
+  // Account selection with infinite scroll
   const useAccounts = useInvestmentAccountsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
-  // Contact selection hook - using new declarative list hook
+  // Contact selection with infinite scroll
   const useContacts = useInvestmentContactsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
   // Create form instance - resolver will be updated dynamically
