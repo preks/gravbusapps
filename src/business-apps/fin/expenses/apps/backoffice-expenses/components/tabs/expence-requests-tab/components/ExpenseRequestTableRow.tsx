@@ -162,7 +162,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell className="gba:w-[20%] gba:text-right">
         <span data-testid={`expense-request-total-amount-${record.id}`}>
-          {formatCurrency(record.reimbursableAmount, currencyCode)}
+          {formatCurrency(Number(record.totalAmount ?? 0), currencyCode)}
         </span>
       </TableCell>
     </TableRow>

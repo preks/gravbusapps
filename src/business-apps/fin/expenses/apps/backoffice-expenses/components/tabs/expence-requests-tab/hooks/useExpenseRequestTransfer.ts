@@ -17,7 +17,7 @@ const mapRecordToExpenseRequest = (record: ExpenseData) => ({
   requestTypeRef: record.requestTypeRef || '',
   employee: record.employeeId || '',
   title: record.title || '',
-  totalAmount: record.reimbursableAmount || ''
+  totalAmount: record.totalAmount != null ? String(record.totalAmount) : ''
 })
 
 export const useExpenseRequestTransfer = (

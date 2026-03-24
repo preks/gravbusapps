@@ -72,7 +72,7 @@ const formatExpenseForExport = (expense: ExpenseData, t: TranslateFn) => ({
   endDate: expense.endDate,
   requestDate: expense.requestDate,
   totalRemainingAmount: expense.totalRemainingAmount ? formatNumberFunction(String(expense.totalRemainingAmount)) : '0',
-  totalAmount: expense.reimbursableAmount ? formatNumberFunction(String(expense.reimbursableAmount)) : '0',
+  totalAmount: formatNumberFunction(String(expense.totalAmount ?? 0)),
   currency: expense.currency?.code || '-',
   status: getExpenseRequestStatusDisplay(expense.status as ExpenseStatus, t).label,
   creationDate: expense.creationDate

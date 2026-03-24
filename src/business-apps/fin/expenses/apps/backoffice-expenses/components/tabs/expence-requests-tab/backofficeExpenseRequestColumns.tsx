@@ -160,7 +160,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
     createCurrencyColumn<ExpenseData>(
       'totalAmount',
       t('header-total-amount'),
-      row => row.reimbursableAmount ?? 0,
+      row => row.totalAmount ?? 0,
       getRowCurrencyCode,
       (amount, currency) => formatCurrency(amount, currency),
       {

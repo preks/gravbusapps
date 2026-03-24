@@ -33,7 +33,17 @@ export interface BackofficeExpenseRequestsOverviewParams {
   orderBy: unknown[]
 }
 
+function toOptionalNumber(value: unknown): number | undefined {
+  if (value == null || value === '') return undefined
+  const n = Number(value)
+  return Number.isFinite(n) ? n : undefined
+}
+
 function transformExpenseRequest(item: any, t: TranslateFn): ExpenseData {
+  const reimbursable = toOptionalNumber(item.reimbursableAmount)
+  const totalFromApi = toOptionalNumber(item.totalAmount)
+  const totalAmount = totalFromApi ?? 0
+
   return {
     id: item.id,
     expenseId: String(item.id ?? '-'),
@@ -48,10 +58,10 @@ function transformExpenseRequest(item: any, t: TranslateFn): ExpenseData {
     requestDate: formatDateLocalized(item.requestDate ?? item.createdAt, t),
     reporter: buildEmployeeDisplayName(item.employee) || '-',
     type: item.requestType?.value ?? '-',
-    amount: item.reimbursableAmount ? `${item.reimbursableAmount} ${item.currency?.code ?? ''}`.trim() : '-',
+    amount: reimbursable != null ? `${reimbursable} ${item.currency?.code ?? ''}`.trim() : '-',
     advance: '',
     status: item.status ?? '',
-    payableAmount: item.reimbursableAmount ? `${item.reimbursableAmount} ${item.currency?.code ?? ''}`.trim() : '-',
+    payableAmount: reimbursable != null ? `${reimbursable} ${item.currency?.code ?? ''}`.trim() : '-',
     paymentMethod: '-',
     employeeId: String(item.employee?.id ?? '-'),
     version: item.version ?? '',
@@ -62,7 +72,8 @@ function transformExpenseRequest(item: any, t: TranslateFn): ExpenseData {
     totalRemainingAmount: item.totalRemainingAmount ?? '-',
     userId: '',
     expenseRuleId: '',
-    totalAmount: item.reimbursableAmount ?? 0,
+    reimbursableAmount: reimbursable,
+    totalAmount,
     employeeDocumentId: item.employeeDocumentId ?? null,
     documentData: null,
     employeeDocument: item.employeeDocument,
