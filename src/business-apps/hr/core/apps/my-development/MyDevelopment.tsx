@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React from 'react'
 import { ChartBarIcon } from '@phosphor-icons/react'
 import { PageLayout, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -9,6 +9,7 @@ import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { useEmployeeData } from '../employee-record/hooks/useEmployeeData'
+import { useSilentRefetchOnProcessCompletion } from '../employee-record/hooks/useSilentRefetchOnProcessCompletion'
 import HrGrowthTab from '../employee-record/components/tabs/HrGrowthTab'
 import translations from '../employee-record/_i18n'
 
@@ -24,29 +25,7 @@ export const MyDevelopment: React.FC<BusinessAppContextProps> = ({ accessToken, 
     employeeId
   )
 
-  useEffect(() => {
-    const pendingRefetchTimers = new Set<number>()
-
-    const handleProcessCompletion = (event: Event) => {
-      const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
-      const resolution = customEvent.detail.resolution
-      if (resolution === 'success') {
-        silentRefetch()
-        const followUpRefetchTimer = window.setTimeout(() => {
-          pendingRefetchTimers.delete(followUpRefetchTimer)
-          silentRefetch()
-        }, 1200)
-        pendingRefetchTimers.add(followUpRefetchTimer)
-      }
-    }
-
-    globalThis.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
-
-    return () => {
-      pendingRefetchTimers.forEach(timerId => window.clearTimeout(timerId))
-      globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
-    }
-  }, [silentRefetch])
+  useSilentRefetchOnProcessCompletion(silentRefetch)
 
   if (loading) {
     return (
