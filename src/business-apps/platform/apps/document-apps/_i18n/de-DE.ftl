@@ -769,6 +769,9 @@ page-size-a5 = A5
 page-size-letter = Letter
 page-size-legal = Legal
 page-size-tabloid = Tabloid
+page-size-custom = Benutzerdefiniert
+page-setup-custom-width-cm = Breite (cm, Hochformat)
+page-setup-custom-height-cm = Höhe (cm, Hochformat)
 
 editor-comments-title = Kommentare (Rechtsklick für Inline-Kommentar)
 editor-locked = Gesperrt

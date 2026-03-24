@@ -20,10 +20,18 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import type { DocumentFormatting, PageSizeId } from '../../types'
-import { resolvePageLayout, getDefaultPageLayout, PAGE_SIZE_LABELS } from '../../utils/pageLayoutUtils'
+import {
+  resolvePageLayout,
+  getDefaultPageLayout,
+  PAGE_SIZE_LABELS,
+  clampCustomPageDimensionCm,
+  omitCustomPageDimensions,
+  MIN_CUSTOM_PAGE_CM,
+  MAX_CUSTOM_PAGE_CM
+} from '../../utils/pageLayoutUtils'
 import translations from '../../_i18n'
 
-const PAGE_SIZE_IDS: PageSizeId[] = ['A4', 'A3', 'A5', 'LETTER', 'LEGAL', 'TABLOID']
+const PAGE_SIZE_IDS: PageSizeId[] = ['A4', 'A3', 'A5', 'LETTER', 'LEGAL', 'TABLOID', 'CUSTOM']
 
 export interface PageSetupDialogProps {
   open: boolean
@@ -47,6 +55,8 @@ export function PageSetupDialog({
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>(layout.orientation)
   const [margins, setMargins] = useState(layout.margins)
   const [pageColor, setPageColor] = useState(layout.pageColor ?? '#ffffff')
+  const [customWidthCm, setCustomWidthCm] = useState(layout.customPageWidthCm ?? PAGE_SIZE_LABELS.A4.widthCm)
+  const [customHeightCm, setCustomHeightCm] = useState(layout.customPageHeightCm ?? PAGE_SIZE_LABELS.A4.heightCm)
 
   useEffect(() => {
     if (open) {
@@ -55,13 +65,15 @@ export function PageSetupDialog({
       setOrientation(l.orientation)
       setMargins(l.margins)
       setPageColor(l.pageColor ?? '#ffffff')
+      setCustomWidthCm(l.customPageWidthCm ?? PAGE_SIZE_LABELS.A4.widthCm)
+      setCustomHeightCm(l.customPageHeightCm ?? PAGE_SIZE_LABELS.A4.heightCm)
     }
   }, [open, formatting])
 
   const handleOk = () => {
-    const next: DocumentFormatting = {
-      ...formatting,
+    const base: DocumentFormatting = {
       ...getDefaultPageLayout(),
+      ...omitCustomPageDimensions(formatting),
       pageSize,
       orientation,
       margins: { ...margins },
@@ -69,6 +81,14 @@ export function PageSetupDialog({
       pageColor,
       pageless: layout.pageless ?? false
     }
+    const next: DocumentFormatting =
+      pageSize === 'CUSTOM'
+        ? {
+            ...base,
+            customPageWidthCm: clampCustomPageDimensionCm(customWidthCm, PAGE_SIZE_LABELS.A4.widthCm),
+            customPageHeightCm: clampCustomPageDimensionCm(customHeightCm, PAGE_SIZE_LABELS.A4.heightCm)
+          }
+        : base
     onApply(next)
     onOpenChange(false)
   }
@@ -117,7 +137,15 @@ export function PageSetupDialog({
             <Label>{t('page-setup-paper-size')}</Label>
             <Select
               value={pageSize}
-              onValueChange={v => setPageSize(v as PageSizeId)}
+              onValueChange={v => {
+                const id = v as PageSizeId
+                if (id === 'CUSTOM' && pageSize !== 'CUSTOM') {
+                  const meta = PAGE_SIZE_LABELS[pageSize]
+                  setCustomWidthCm(meta.widthCm)
+                  setCustomHeightCm(meta.heightCm)
+                }
+                setPageSize(id)
+              }}
               data-testid="page-setup-paper-size"
             >
               <SelectTrigger>
@@ -129,12 +157,46 @@ export function PageSetupDialog({
                   const label = t(meta.labelKey)
                   return (
                     <SelectItem key={id} value={id}>
-                      {label} ({meta.widthCm} cm × {meta.heightCm} cm)
+                      {id === 'CUSTOM' ? (
+                        label
+                      ) : (
+                        <>
+                          {label} ({meta.widthCm} cm × {meta.heightCm} cm)
+                        </>
+                      )}
                     </SelectItem>
                   )
                 })}
               </SelectContent>
             </Select>
+            {pageSize === 'CUSTOM' ? (
+              <div className="gba:grid gba:grid-cols-2 gba:gap-3 gba:pt-1">
+                <div className="gba:space-y-1">
+                  <Label className="gba:text-muted-foreground gba:text-xs">{t('page-setup-custom-width-cm')}</Label>
+                  <Input
+                    type="number"
+                    min={MIN_CUSTOM_PAGE_CM}
+                    max={MAX_CUSTOM_PAGE_CM}
+                    step={0.1}
+                    value={customWidthCm}
+                    onChange={e => setCustomWidthCm(Number(e.target.value) || 0)}
+                    data-testid="page-setup-custom-width-cm"
+                  />
+                </div>
+                <div className="gba:space-y-1">
+                  <Label className="gba:text-muted-foreground gba:text-xs">{t('page-setup-custom-height-cm')}</Label>
+                  <Input
+                    type="number"
+                    min={MIN_CUSTOM_PAGE_CM}
+                    max={MAX_CUSTOM_PAGE_CM}
+                    step={0.1}
+                    value={customHeightCm}
+                    onChange={e => setCustomHeightCm(Number(e.target.value) || 0)}
+                    data-testid="page-setup-custom-height-cm"
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="gba:space-y-2">

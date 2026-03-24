@@ -769,6 +769,9 @@ page-size-a5 = A5
 page-size-letter = Letter
 page-size-legal = Legal
 page-size-tabloid = Tabloid
+page-size-custom = Personalizat
+page-setup-custom-width-cm = Lățime (cm, portret)
+page-setup-custom-height-cm = Înălțime (cm, portret)
 
 editor-comments-title = Comentarii (clic dreapta pe text pentru comentariu inline)
 editor-locked = Blocat

@@ -10,21 +10,59 @@ import type { Editor } from '@tiptap/core'
 const MIN_SIZE = 40
 /** Inset from page body edges when clamping drag/resize; keep 0 for flush alignment. */
 const POSITION_MARGIN = 0
+/** Set to true to draw a dashed outline around the signature image (layout/debug). */
+const SHOW_SIGNATURE_DEBUG_BORDER = false
 
-function clampPointInPageBody(
+/**
+ * Vertical span where a floating signature may sit: full page break (white sheet), not only the
+ * body text band. On page 1, include `.rm-first-page-header` so items can move into the top margin /
+ * header strip instead of stopping at `.rm-page-body-layer` top.
+ */
+function resolveSignatureVerticalExtent(
+  editor: Editor | null,
+  pageLayer: HTMLElement,
+  pageNumber: number
+): { top: number; bottom: number } {
+  const lr = pageLayer.getBoundingClientRect()
+  const pageBreak = pageLayer.closest('.rm-page-break') as HTMLElement | null
+  if (!pageBreak) {
+    return { top: lr.top, bottom: lr.bottom }
+  }
+  const pr = pageBreak.getBoundingClientRect()
+  let top = Math.min(pr.top, lr.top)
+  let bottom = Math.max(pr.bottom, lr.bottom)
+  if (pageNumber === 1 && editor?.view?.dom) {
+    const fp = editor.view.dom.querySelector('.rm-first-page-header[data-rm-page-number="1"]') as HTMLElement | null
+    if (fp) {
+      const fr = fp.getBoundingClientRect()
+      top = Math.min(top, fr.top)
+      bottom = Math.max(bottom, fr.bottom)
+    }
+  }
+  return { top, bottom }
+}
+
+/** x/y are in page-body-layer coordinates (origin = top-left of body layer). */
+function clampSignaturePosition(
   x: number,
   y: number,
-  layerWidth: number,
-  layerHeight: number,
+  lr: DOMRect,
   boxWidth: number,
   boxHeight: number,
-  margin: number
+  margin: number,
+  editor: Editor | null,
+  pageLayer: HTMLElement,
+  pageNumber: number
 ): { x: number; y: number } {
-  const maxX = layerWidth - boxWidth - margin
-  const maxY = layerHeight - boxHeight - margin
+  const maxX = lr.width - boxWidth - margin
+  const { top: extentTop, bottom: extentBottom } = resolveSignatureVerticalExtent(editor, pageLayer, pageNumber)
+  const minY = extentTop - lr.top + margin
+  const maxY = extentBottom - lr.top - boxHeight - margin
+  const safeMinY = Math.min(minY, maxY)
+  const safeMaxY = Math.max(minY, maxY)
   return {
     x: Math.round(Math.max(margin, Math.min(maxX, x))),
-    y: Math.round(Math.max(margin, Math.min(maxY, y)))
+    y: Math.round(Math.max(safeMinY, Math.min(safeMaxY, y)))
   }
 }
 
@@ -128,15 +166,17 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
       const layerRect = pageLayer?.getBoundingClientRect()
       let startX = layerRect ? e.clientX - grabOffsetX - layerRect.left : typeof attrsX === 'number' ? attrsX : 0
       let startY = layerRect ? e.clientY - grabOffsetY - layerRect.top : typeof attrsY === 'number' ? attrsY : 0
-      if (layerRect) {
-        const c = clampPointInPageBody(
+      if (layerRect && pageLayer) {
+        const c = clampSignaturePosition(
           startX,
           startY,
-          layerRect.width,
-          layerRect.height,
+          layerRect,
           displayWidth,
           displayHeight,
-          POSITION_MARGIN
+          POSITION_MARGIN,
+          editor,
+          pageLayer,
+          pageNumber
         )
         startX = c.x
         startY = c.y
@@ -147,10 +187,20 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
       const onMove = (e: MouseEvent) => {
         const layer = resolvePageBodyLayerForWrapper(editor, contentRef.current?.parentElement ?? null, pageNumber)
         const lr = layer?.getBoundingClientRect()
-        if (!lr) return
+        if (!lr || !layer) return
         const newX = e.clientX - grabOffsetX - lr.left
         const newY = e.clientY - grabOffsetY - lr.top
-        const next = clampPointInPageBody(newX, newY, lr.width, lr.height, displayWidth, displayHeight, POSITION_MARGIN)
+        const next = clampSignaturePosition(
+          newX,
+          newY,
+          lr,
+          displayWidth,
+          displayHeight,
+          POSITION_MARGIN,
+          editor,
+          layer,
+          pageNumber
+        )
         dragPositionRef.current = next
         setDragPosition(next)
       }
@@ -199,7 +249,13 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
         const pageLayer = resolvePageBodyLayerForWrapper(editor, contentRef.current?.parentElement ?? null, pageNumber)
         const lr = pageLayer?.getBoundingClientRect()
         const maxW = lr ? Math.max(MIN_SIZE, lr.width - curX - POSITION_MARGIN) : undefined
-        const maxH = lr ? Math.max(MIN_SIZE, lr.height - curY - POSITION_MARGIN) : undefined
+        const maxH =
+          lr && pageLayer
+            ? Math.max(
+                MIN_SIZE,
+                resolveSignatureVerticalExtent(editor, pageLayer, pageNumber).bottom - lr.top - curY - POSITION_MARGIN
+              )
+            : undefined
         const dx = e.clientX - startX
         const dy = e.clientY - startY
         const lock = node.attrs.lockAspectRatio !== false
@@ -254,14 +310,16 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
     }
     const wr = wrapper.getBoundingClientRect()
     const lr = pageLayer.getBoundingClientRect()
-    const clamped = clampPointInPageBody(
+    const clamped = clampSignaturePosition(
       posPageLocal.x,
       posPageLocal.y,
-      lr.width,
-      lr.height,
+      lr,
       displayWidth,
       displayHeight,
-      POSITION_MARGIN
+      POSITION_MARGIN,
+      editor,
+      pageLayer,
+      pageNumber
     )
     setRenderPos({
       left: lr.left + clamped.x - wr.left,
@@ -278,14 +336,16 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
       resolvePageBodyLayerForWrapper(editor, wrapper, pageNumber) ?? getPageBodyLayer(editor, pageNumber)
     if (!pageLayer) return
     const lr = pageLayer.getBoundingClientRect()
-    const clamped = clampPointInPageBody(
+    const clamped = clampSignaturePosition(
       posPageLocal.x,
       posPageLocal.y,
-      lr.width,
-      lr.height,
+      lr,
       displayWidth,
       displayHeight,
-      POSITION_MARGIN
+      POSITION_MARGIN,
+      editor,
+      pageLayer,
+      pageNumber
     )
     if (clamped.x === posPageLocal.x && clamped.y === posPageLocal.y) return
     editor.chain().setNodeSelection(pos).updateAttributes('signature', clamped).run()
@@ -368,7 +428,9 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
           alt={node.attrs.name || 'Signature'}
           width={displayWidth}
           height={displayHeight}
-          className="gba:rounded gba:block gba:max-w-full gba:cursor-move"
+          className={`gba:rounded gba:block gba:max-w-full gba:cursor-move gba:box-border ${
+            SHOW_SIGNATURE_DEBUG_BORDER ? 'gba:border gba:border-dashed gba:border-primary/50' : ''
+          }`}
           contentEditable={false}
           draggable={false}
           onMouseDown={onPositionDragMouseDown}
