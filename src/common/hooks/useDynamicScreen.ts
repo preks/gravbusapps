@@ -12,16 +12,6 @@ const globalScreenCache = new Map<
 // Global loading state to prevent concurrent loads of the same screen
 const globalLoadingState = new Map<string, Promise<React.ComponentType<any>>>()
 
-// Performance tracking
-const performanceMetrics = new Map<
-  string,
-  {
-    loadTime: number
-    loadCount: number
-    lastLoadTime: number
-  }
->()
-
 const DYNAMIC_SCREEN_HMR_EVENT = 'gba:dynamic-screen-hmr'
 let hmrVersion = 0
 
@@ -76,9 +66,6 @@ const loadScreenGlobally = async (screenKey: string): Promise<React.ComponentTyp
     return globalLoadingState.get(cacheKey)!
   }
 
-  // Start performance tracking
-  const startTime = performance.now()
-
   // Create loading promise
   const loadPromise = (async () => {
     try {
@@ -96,16 +83,7 @@ const loadScreenGlobally = async (screenKey: string): Promise<React.ComponentTyp
         loadedAt: Date.now()
       })
 
-      // Track performance
-      const loadTime = performance.now() - startTime
-      const existing = performanceMetrics.get(screenKey) || { loadTime: 0, loadCount: 0, lastLoadTime: 0 }
-      performanceMetrics.set(screenKey, {
-        loadTime: existing.loadTime + loadTime,
-        loadCount: existing.loadCount + 1,
-        lastLoadTime: loadTime
-      })
-
-      console.log(`[useDynamicScreen] Successfully loaded ${screenKey} in ${loadTime.toFixed(2)}ms`)
+      console.log(`[useDynamicScreen] Successfully loaded ${screenKey}`)
       return component
     } catch (error) {
       console.error(`[useDynamicScreen] Failed to load ${screenKey}:`, error)
@@ -135,7 +113,6 @@ export interface DynamicScreenHook {
   getScreenInfo: (screenKey: string) => any
   state: DynamicScreenState
   reset: () => void
-  getPerformanceMetrics: () => Map<string, any>
 }
 
 /**
@@ -238,17 +215,12 @@ export const useDynamicScreen = (): DynamicScreenHook => {
     }
   }, [])
 
-  const getPerformanceMetrics = useCallback(() => {
-    return performanceMetrics
-  }, [])
-
   return {
     loadScreen,
     getAvailableScreens,
     isScreenAvailable,
     getScreenInfo,
     state,
-    reset,
-    getPerformanceMetrics
+    reset
   }
 }
