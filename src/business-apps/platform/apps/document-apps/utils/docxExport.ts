@@ -3,6 +3,7 @@
  * Produces a real ZIP-based .docx that Word, LibreOffice, and mammoth can parse.
  */
 
+import DOMPurify from 'dompurify'
 import JSZip from 'jszip'
 import {
   CUSTOM_IMAGE_TAG,
@@ -545,7 +546,13 @@ export async function buildDocxBlob(title: string, htmlContent: string): Promise
   const ctx = newContext()
 
   const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = safeHtml
+  // CWE-79: use a recognized sanitizer directly at the sink for SAST tools.
+  tempDiv.innerHTML =
+    DOMPurify.sanitize(safeHtml, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+      ALLOW_DATA_ATTR: true
+    }) || ''
   const bodyParts: string[] = []
   convertBlock(tempDiv, bodyParts, ctx)
   if (bodyParts.length === 0) bodyParts.push('<w:p/>')
