@@ -9,6 +9,7 @@ import { AppActionForm } from '@/components/app-action-form'
 import translations from '../../_i18n'
 import { FeedbackRequestClient } from '@/common/network/feedback-request/FeedbackRequestClient'
 import { FeedbackRequestPayload } from '../types'
+import { resolveRequestedFromUserIds, resolveSubjectUserId } from '../feedbackRequestFormUtils'
 
 const prefixDataTestId = 'FeedbackRequestFormComponent'
 
@@ -89,17 +90,11 @@ const FeedbackRequestFormComponent: React.FC = () => {
     }
 
     const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
-    const targetSubjectUserId =
-      businessAppContext.additionalData?.subjectUserId ||
-      businessAppContext.additionalData?.flowContext?.subjectUserId ||
-      businessAppContext.additionalData?.contextData?.subjectUserId ||
-      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.subjectUserId ||
-      businessAppContext.additionalData?.receiverUserId ||
-      businessAppContext.additionalData?.flowContext?.receiverUserId ||
-      businessAppContext.additionalData?.contextData?.receiverUserId ||
-      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.receiverUserId ||
-      businessAppContext.userInfo?.id ||
+    const targetSubjectUserId = resolveSubjectUserId(
+      businessAppContext.additionalData,
+      businessAppContext.userInfo?.id,
       currentUserEmployeeId
+    )
     const isOnBehalfRequest = Boolean(
       businessAppContext.additionalData?.targetEmployeeId ||
         businessAppContext.additionalData?.flowContext?.targetEmployeeId ||
@@ -111,21 +106,17 @@ const FeedbackRequestFormComponent: React.FC = () => {
       : 'notification-feedback-request-sent-success'
 
     // Resolve per selected employee id to userId (map first, then live lookup).
-    const idUserIdMap = formValues.employeeIdUserIdMap || {}
-    const unresolvedSelectedIds: string[] = []
-    const requestedFromList = selectedIds
-      .map(id => {
-        const mappedUserId = idUserIdMap[id]
-        if (mappedUserId) return mappedUserId
+    const { requestedFromList, unresolvedSelectedIds } = resolveRequestedFromUserIds({
+      selectedIds,
+      employeeIdUserIdMap: formValues.employeeIdUserIdMap,
+      resolveUserIdByEmployeeId: id => {
         const resolved =
           preSelectedEmployee?.id === id
             ? preSelectedEmployee
             : (getEmployeeById(id) as { id: string; userId?: string } | undefined)
-        if (resolved?.userId) return resolved.userId
-        unresolvedSelectedIds.push(id)
-        return null
-      })
-      .filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index)
+        return resolved?.userId
+      }
+    })
 
     if (unresolvedSelectedIds.length > 0) {
       throw new Error(t('feedback-request-missing-user-id'))

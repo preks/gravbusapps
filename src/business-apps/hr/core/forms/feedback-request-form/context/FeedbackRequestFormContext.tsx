@@ -9,6 +9,7 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { FeedbackRequestClient } from '@/common/network/feedback-request/FeedbackRequestClient'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
+import { resolveRequestedFromUserIds, resolveSubjectUserId } from '../feedbackRequestFormUtils'
 
 interface FeedbackRequestFormContextType {
   formValues: FeedbackRequestFormValues
@@ -161,17 +162,11 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
       return
     }
 
-    const targetSubjectUserId =
-      businessAppContext.additionalData?.subjectUserId ||
-      businessAppContext.additionalData?.flowContext?.subjectUserId ||
-      businessAppContext.additionalData?.contextData?.subjectUserId ||
-      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.subjectUserId ||
-      businessAppContext.additionalData?.receiverUserId ||
-      businessAppContext.additionalData?.flowContext?.receiverUserId ||
-      businessAppContext.additionalData?.contextData?.receiverUserId ||
-      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.receiverUserId ||
-      businessAppContext.userInfo?.id ||
+    const targetSubjectUserId = resolveSubjectUserId(
+      businessAppContext.additionalData,
+      businessAppContext.userInfo?.id,
       currentUserEmployeeId
+    )
     const isOnBehalfRequest = Boolean(
       businessAppContext.additionalData?.targetEmployeeId ||
         businessAppContext.additionalData?.flowContext?.targetEmployeeId ||
@@ -191,19 +186,15 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
     setError(null)
 
     try {
-      const idUserIdMap = formValues.employeeIdUserIdMap || {}
-      const unresolvedSelectedIds: string[] = []
-      const requestedFromList = selectedIds
-        .map(id => {
-          const mappedUserId = idUserIdMap[id]
-          if (mappedUserId) return mappedUserId
+      const { requestedFromList, unresolvedSelectedIds } = resolveRequestedFromUserIds({
+        selectedIds,
+        employeeIdUserIdMap: formValues.employeeIdUserIdMap,
+        resolveUserIdByEmployeeId: id => {
           const resolved =
             preSelectedEmployee?.id === id ? preSelectedEmployee : knownEmployees.get(id) || getEmployeeById(id)
-          if (resolved?.userId) return resolved.userId
-          unresolvedSelectedIds.push(id)
-          return null
-        })
-        .filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index)
+          return resolved?.userId
+        }
+      })
 
       if (requestedFromList.length === 0 || unresolvedSelectedIds.length > 0) {
         throw new Error(t('feedback-request-missing-user-id'))
