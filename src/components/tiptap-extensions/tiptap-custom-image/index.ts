@@ -30,3 +30,11 @@ export {
   type ImageFloatingSide,
   type WordWrapTextSide
 } from './wrapUtils'
+export {
+  convertWrapPolygonToWordCoordinates,
+  resolveWordLikeImageLayout,
+  type WordLikeImageLayout,
+  type WordLikeImageLayoutContext,
+  type WordWrapPolygon,
+  type WordWrapPolygonPoint
+} from './wrapLayoutEngine'

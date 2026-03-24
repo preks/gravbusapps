@@ -6,6 +6,10 @@
 import DOMPurify from 'dompurify'
 import JSZip from 'jszip'
 import {
+  convertWrapPolygonToWordCoordinates,
+  resolveWordLikeImageLayout
+} from '@/components/tiptap-extensions/tiptap-custom-image'
+import {
   CUSTOM_IMAGE_TAG,
   getImageFigureAttributesFromElement
 } from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
@@ -15,7 +19,6 @@ import {
   normalizeImageCrop
 } from '@/components/tiptap-extensions/tiptap-custom-image/cropUtils'
 import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
-import { resolveWordWrapTextSide } from '@/components/tiptap-extensions/tiptap-custom-image/wrapUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
 
 function escapeXml(text: string): string {
@@ -97,21 +100,25 @@ function getWordRotationValue(rotation: number): string {
 }
 
 function getWrapText(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
-  return resolveWordWrapTextSide(layout)
+  return resolveWordLikeImageLayout(layout).wrapTextSide ?? 'bothSides'
 }
 
-function getWrapPolygonXml(): string {
+function getWrapPolygonXml(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
+  const points = convertWrapPolygonToWordCoordinates(
+    resolveWordLikeImageLayout(layout).wrapPolygon,
+    WRAP_POLYGON_COORDINATE_SPACE
+  )
+  const start = points[0]
+  if (!start) {
+    return ''
+  }
+
   return [
     '<wp:wrapPolygon edited="0">',
-    '<wp:start x="0" y="0"/>',
-    '<wp:lineTo x="0" y="21600"/>',
-    '<wp:lineTo x="21600" y="21600"/>',
-    '<wp:lineTo x="21600" y="0"/>',
-    '<wp:lineTo x="0" y="0"/>',
+    `<wp:start x="${start.x}" y="${start.y}"/>`,
+    ...points.slice(1).map(point => `<wp:lineTo x="${point.x}" y="${point.y}"/>`),
     '</wp:wrapPolygon>'
-  ]
-    .join('')
-    .replaceAll('21600', String(WRAP_POLYGON_COORDINATE_SPACE))
+  ].join('')
 }
 
 function getWrapXml(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
@@ -125,7 +132,7 @@ function getWrapXml(layout: ReturnType<typeof getImageFigureAttributesFromElemen
 
   if (layout.wrapMode === 'tight' || layout.wrapMode === 'through') {
     const tagName = layout.wrapMode === 'tight' ? 'wrapTight' : 'wrapThrough'
-    return `<wp:${tagName} wrapText="${getWrapText(layout)}">${getWrapPolygonXml()}</wp:${tagName}>`
+    return `<wp:${tagName} wrapText="${getWrapText(layout)}">${getWrapPolygonXml(layout)}</wp:${tagName}>`
   }
 
   return `<wp:wrapSquare wrapText="${getWrapText(layout)}"/>`

@@ -3,12 +3,13 @@ import type { Editor } from '@tiptap/core'
 import { NodeSelection } from '@tiptap/pm/state'
 import { NodeViewWrapper } from '@tiptap/react'
 import { RotateCw } from 'lucide-react'
+import { normalizeImageCrop } from './cropUtils'
 import { DOCUMENT_IMAGE_UI_EVENT, type DocumentImageUiMode } from './pictureUiEvents'
-import { hasImageCrop, normalizeImageCrop, resolveImageCropDimensions } from './cropUtils'
-import { DEFAULT_IMAGE_SIZE_REFERENCE, resolveImageDimensions } from './sizeUtils'
+import { DEFAULT_IMAGE_SIZE_REFERENCE } from './sizeUtils'
 import { appendClassName, CUSTOM_IMAGE_FIGURE_CLASS, getFigureDataAttributes } from './styleUtils'
 import type { CustomImageAttributes, CustomImageOptions } from './types'
-import { isFloatingWrapMode, resolveFloatingSide } from './wrapUtils'
+import { resolveWordLikeImageLayout } from './wrapLayoutEngine'
+import { isFloatingWrapMode } from './wrapUtils'
 
 interface CustomImageViewProps {
   readonly node: {
@@ -45,197 +46,6 @@ const ROTATION_SNAP_TOLERANCE = 3
 const DEFAULT_KEYBOARD_NUDGE_PX = 1
 const LARGE_KEYBOARD_NUDGE_PX = 10
 
-function getMarginStyle(attributes: CustomImageAttributes, defaultDistance: number) {
-  const top = attributes.distanceTop ?? defaultDistance
-  const right = attributes.distanceRight ?? defaultDistance
-  const bottom = attributes.distanceBottom ?? defaultDistance
-  const left = attributes.distanceLeft ?? defaultDistance
-
-  return {
-    marginTop: top,
-    marginRight: right,
-    marginBottom: bottom,
-    marginLeft: left
-  }
-}
-
-function getFigureAlignment(align: NonNullable<CustomImageAttributes['align']>) {
-  if (align === 'center') return 'center'
-  if (align === 'right') return 'flex-end'
-  return 'flex-start'
-}
-
-function getFigureMargins(align: NonNullable<CustomImageAttributes['align']>): React.CSSProperties {
-  if (align === 'center') {
-    return {
-      marginLeft: 'auto',
-      marginRight: 'auto'
-    }
-  }
-
-  if (align === 'right') {
-    return {
-      marginLeft: 'auto',
-      marginRight: 0
-    }
-  }
-
-  return {
-    marginLeft: 0,
-    marginRight: 'auto'
-  }
-}
-
-function clampNonNegative(value: number) {
-  return Math.max(0, value)
-}
-
-function getWrapperStyle(
-  attributes: CustomImageAttributes,
-  defaultDistance: number,
-  contentWidth: number | null,
-  contentHeight: number | null,
-  displaySrc: string | null,
-  cropActive: boolean
-): React.CSSProperties {
-  const wrapMode = attributes.wrapMode ?? 'inline'
-  const offsetX = attributes.offsetX ?? 0
-  const offsetY = attributes.offsetY ?? 0
-  const floatingSide = resolveFloatingSide(attributes)
-  const distanceTop = attributes.distanceTop ?? defaultDistance
-  const distanceRight = attributes.distanceRight ?? defaultDistance
-  const distanceBottom = attributes.distanceBottom ?? defaultDistance
-  const distanceLeft = attributes.distanceLeft ?? defaultDistance
-  const marginStyle = {
-    marginTop: clampNonNegative(distanceTop + Math.max(offsetY, 0)),
-    marginRight: clampNonNegative(distanceRight - offsetX),
-    marginBottom: clampNonNegative(distanceBottom + Math.max(-offsetY, 0)),
-    marginLeft: clampNonNegative(distanceLeft + offsetX)
-  }
-
-  switch (wrapMode) {
-    case 'square-left':
-    case 'tight':
-    case 'through':
-      return {
-        ...marginStyle,
-        float: floatingSide,
-        display: 'block',
-        position: 'relative',
-        width: contentWidth ?? 'fit-content',
-        maxWidth: '100%',
-        ...(contentHeight != null ? { minHeight: contentHeight } : {}),
-        shapeOutside:
-          wrapMode === 'tight' || wrapMode === 'through'
-            ? displaySrc && !cropActive && (attributes.rotation ?? 0) === 0
-              ? `url("${displaySrc}")`
-              : 'inset(0 round 8px)'
-            : 'inset(0 round 8px)',
-        shapeImageThreshold: wrapMode === 'tight' || wrapMode === 'through' ? 0.1 : undefined
-      }
-    case 'square-right':
-      return {
-        ...marginStyle,
-        float: floatingSide,
-        display: 'block',
-        position: 'relative',
-        width: contentWidth ?? 'fit-content',
-        maxWidth: '100%',
-        ...(contentHeight != null ? { minHeight: contentHeight } : {}),
-        shapeOutside: 'inset(0 round 8px)'
-      }
-    case 'top-bottom':
-      return {
-        ...marginStyle,
-        display: 'block',
-        width: '100%',
-        clear: 'both',
-        position: 'relative',
-        minHeight: Math.max((contentHeight ?? attributes.height ?? 0) + Math.max(offsetY, 0), 1),
-        overflow: 'visible'
-      }
-    case 'behind':
-    case 'front':
-      return {
-        display: 'inline-block',
-        position: 'relative',
-        width: 0,
-        height: 0,
-        overflow: 'visible',
-        verticalAlign: 'baseline'
-      }
-    case 'inline':
-    default:
-      return {
-        ...getMarginStyle(attributes, defaultDistance),
-        display: 'inline-block',
-        width: contentWidth ?? 'fit-content',
-        position: 'relative',
-        verticalAlign: 'baseline',
-        maxWidth: '100%'
-      }
-  }
-}
-
-function getAnchoredHorizontalPosition(
-  align: NonNullable<CustomImageAttributes['align']>,
-  offsetX: number
-): React.CSSProperties {
-  if (align === 'center') {
-    return {
-      left: `calc(50% + ${offsetX}px)`,
-      transform: 'translateX(-50%)'
-    }
-  }
-
-  if (align === 'right') {
-    return {
-      right: `${-offsetX}px`
-    }
-  }
-
-  return {
-    left: `${offsetX}px`
-  }
-}
-
-function getFigureStyle(attributes: CustomImageAttributes): React.CSSProperties {
-  const wrapMode = attributes.wrapMode ?? 'inline'
-  const align = attributes.align ?? 'left'
-  const offsetX = attributes.offsetX ?? 0
-  const offsetY = attributes.offsetY ?? 0
-  const zIndex = attributes.zIndex ?? 1
-
-  const base: React.CSSProperties = {
-    margin: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    width: 'fit-content',
-    textAlign: align,
-    maxWidth: '100%'
-  }
-
-  if (wrapMode === 'top-bottom' || wrapMode === 'behind' || wrapMode === 'front') {
-    return {
-      ...base,
-      position: 'absolute',
-      top: offsetY,
-      zIndex: wrapMode === 'behind' ? -1 : Math.max(1, zIndex),
-      ...getAnchoredHorizontalPosition(align, offsetX)
-    }
-  }
-
-  if (wrapMode === 'square-left' || wrapMode === 'square-right' || wrapMode === 'tight' || wrapMode === 'through') {
-    return base
-  }
-
-  return {
-    ...base,
-    ...getFigureMargins(align),
-    alignItems: getFigureAlignment(align)
-  }
-}
-
 function getHandleCursor(direction: ResizeDirection, cropMode: boolean) {
   if (cropMode) {
     if (direction === 'n' || direction === 's') return 'ns-resize'
@@ -266,10 +76,6 @@ function getPointerAngle(clientX: number, clientY: number, rect: DOMRect) {
   return (Math.atan2(clientY - centerY, clientX - centerX) * 180) / Math.PI
 }
 
-function toPixelValue(value: number | null | undefined) {
-  return Math.max(1, Math.round(value ?? 1))
-}
-
 export function CustomImageView({ node, editor, getPos, selected, options }: Readonly<CustomImageViewProps>) {
   const src = node.attrs.src ?? ''
   const [displaySrc, setDisplaySrc] = useState<string>(() => (options.isProtectedSrc(src) ? '' : src))
@@ -284,10 +90,15 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     containerHeight: null
   })
   const objectUrlRef = useRef<string | null>(null)
+  const protectedSrcResolverRef = useRef(options.resolveProtectedSrc)
+  const resolvedSrcRef = useRef<string | null>(options.isProtectedSrc(src) ? null : src)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const imageFrameRef = useRef<HTMLDivElement | null>(null)
   const interactionStateRef = useRef<InteractionState>(null)
   const previewAttrsRef = useRef<Partial<CustomImageAttributes> | null>(null)
+  const protectedSrcEnabled = options.isProtectedSrc(src) && typeof options.resolveProtectedSrc === 'function'
+  const protectedSrcAccessToken = protectedSrcEnabled ? options.getAccessToken() : ''
+  protectedSrcResolverRef.current = options.resolveProtectedSrc
 
   const mergedAttributes = useMemo<CustomImageAttributes>(
     () => ({
@@ -334,41 +145,20 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     () => ({ ...mergedAttributes, ...(previewAttrs ?? {}) }),
     [mergedAttributes, previewAttrs]
   )
-  const resolvedDimensions = useMemo(
-    () => resolveImageDimensions(interactiveAttributes, measurementContext),
-    [interactiveAttributes, measurementContext]
-  )
-  const crop = useMemo(() => normalizeImageCrop(interactiveAttributes), [interactiveAttributes])
-  const imageHasCrop = useMemo(
+  const layout = useMemo(
     () =>
-      hasImageCrop({
-        cropTop: interactiveAttributes.cropTop,
-        cropRight: interactiveAttributes.cropRight,
-        cropBottom: interactiveAttributes.cropBottom,
-        cropLeft: interactiveAttributes.cropLeft
+      resolveWordLikeImageLayout(interactiveAttributes, {
+        ...measurementContext,
+        displaySrc: displaySrc || null
       }),
-    [
-      interactiveAttributes.cropBottom,
-      interactiveAttributes.cropLeft,
-      interactiveAttributes.cropRight,
-      interactiveAttributes.cropTop
-    ]
-  )
-  const displayWidth = toPixelValue(resolvedDimensions.width)
-  const displayHeight = toPixelValue(resolvedDimensions.height)
-  const cropDimensions = useMemo(
-    () =>
-      resolveImageCropDimensions({
-        width: displayWidth,
-        height: displayHeight,
-        crop
-      }),
-    [crop, displayHeight, displayWidth]
+    [displaySrc, interactiveAttributes, measurementContext]
   )
   const figureDataAttributes = getFigureDataAttributes(interactiveAttributes)
   const isCropMode = selected && uiMode === 'crop'
   const lockAspectRatio = interactiveAttributes.lockAspectRatio ?? true
   const isFloatingImage = isFloatingWrapMode(interactiveAttributes.wrapMode)
+  const displayWidth = layout.frameWidth
+  const displayHeight = layout.frameHeight
 
   const refreshPagination = useCallback(() => {
     if (editor?.commands.refreshPagesAndStabilize) {
@@ -645,54 +435,90 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   }, [])
 
   useEffect(() => {
-    if (!src) {
-      setDisplaySrc('')
-      setError(true)
-      return
-    }
-
-    if (!options.isProtectedSrc(src) || !options.resolveProtectedSrc) {
-      setDisplaySrc(src)
-      setError(false)
-      return
-    }
-
-    const token = options.getAccessToken()
-    if (!token) {
-      setDisplaySrc(src)
-      setError(false)
-      return
-    }
-
-    setDisplaySrc('')
-    options
-      .resolveProtectedSrc(src, token)
-      .then(resolved => {
-        if (objectUrlRef.current) {
-          URL.revokeObjectURL(objectUrlRef.current)
-          objectUrlRef.current = null
-        }
-
-        if (typeof resolved === 'string') {
-          setDisplaySrc(resolved)
-        } else {
-          objectUrlRef.current = URL.createObjectURL(resolved)
-          setDisplaySrc(objectUrlRef.current)
-        }
-        setError(false)
-      })
-      .catch(() => {
-        setDisplaySrc('')
-        setError(true)
-      })
-
-    return () => {
+    const revokeObjectUrl = () => {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current)
         objectUrlRef.current = null
       }
     }
-  }, [options, src])
+
+    if (!src) {
+      revokeObjectUrl()
+      resolvedSrcRef.current = null
+      setDisplaySrc('')
+      setError(true)
+      return
+    }
+
+    if (!protectedSrcEnabled) {
+      revokeObjectUrl()
+      resolvedSrcRef.current = src
+      setDisplaySrc(src)
+      setError(false)
+      return
+    }
+
+    if (!protectedSrcAccessToken) {
+      revokeObjectUrl()
+      resolvedSrcRef.current = src
+      setDisplaySrc(src)
+      setError(false)
+      return
+    }
+
+    let disposed = false
+    const shouldKeepResolvedDisplay = resolvedSrcRef.current === src && displaySrc.length > 0
+    if (!shouldKeepResolvedDisplay) {
+      setDisplaySrc('')
+    }
+
+    const protectedSrcResolver = protectedSrcResolverRef.current
+    if (!protectedSrcResolver) {
+      return
+    }
+
+    protectedSrcResolver(src, protectedSrcAccessToken)
+      .then(resolved => {
+        if (disposed) {
+          return
+        }
+
+        if (typeof resolved === 'string') {
+          revokeObjectUrl()
+          setDisplaySrc(resolved)
+        } else {
+          revokeObjectUrl()
+          objectUrlRef.current = URL.createObjectURL(resolved)
+          setDisplaySrc(objectUrlRef.current)
+        }
+
+        resolvedSrcRef.current = src
+        setError(false)
+      })
+      .catch(() => {
+        if (disposed) {
+          return
+        }
+
+        resolvedSrcRef.current = null
+        setDisplaySrc('')
+        setError(true)
+      })
+
+    return () => {
+      disposed = true
+    }
+  }, [protectedSrcAccessToken, protectedSrcEnabled, src])
+
+  useEffect(
+    () => () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
+      }
+    },
+    []
+  )
 
   useEffect(() => {
     if (selected) return
@@ -764,77 +590,55 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     [editor, getPos]
   )
 
-  const wrapperStyle = getWrapperStyle(
-    interactiveAttributes,
-    options.defaultDistance,
-    displayWidth,
-    displayHeight,
-    displaySrc || null,
-    imageHasCrop
-  )
-  const figureStyle = getFigureStyle(interactiveAttributes)
-  const imageFrameStyle: React.CSSProperties = {
-    width: displayWidth,
-    height: displayHeight,
-    transform: interactiveAttributes.rotation ? `rotate(${interactiveAttributes.rotation}deg)` : undefined,
-    transformOrigin: 'center center'
-  }
-  const cropViewportStyle: React.CSSProperties = {
-    width: displayWidth,
-    height: displayHeight,
-    overflow: 'hidden',
-    position: 'relative',
-    borderRadius: 8
-  }
-  const renderedImageStyle: React.CSSProperties = {
-    width: cropDimensions.renderedWidth,
-    height: cropDimensions.renderedHeight,
-    maxWidth: 'none',
-    position: 'absolute',
-    left: cropDimensions.offsetX,
-    top: cropDimensions.offsetY,
-    userSelect: 'none'
-  }
-
   return (
     <NodeViewWrapper
       as="div"
       className="gba:max-w-full"
-      style={wrapperStyle}
+      style={layout.wrapperStyle}
       onClick={handleSelectNode}
       data-testid="document-editor-image-anchor"
       ref={wrapperRef}
+      {...layout.runtimeAttributes}
     >
       <div className="gba:max-w-full">
         <figure
           className={appendClassName(CUSTOM_IMAGE_FIGURE_CLASS, 'editor-image-container')}
-          style={figureStyle}
+          style={layout.figureStyle}
           data-testid="document-editor-image-figure"
           {...figureDataAttributes}
         >
           <span className="gba:relative gba:inline-flex gba:max-w-full">
             {error || !displaySrc ? (
-              <span
-                className="gba:inline-flex gba:items-center gba:justify-center gba:min-h-[80px] gba:min-w-[120px] gba:rounded gba:bg-muted gba:text-muted-foreground gba:text-sm"
-                data-testid="document-editor-image-broken"
+              <div
+                ref={imageFrameRef}
+                className="gba:relative gba:inline-flex gba:max-w-full"
+                style={layout.imageFrameStyle}
+                data-testid="document-editor-image-frame"
               >
-                Image
-              </span>
+                <div className="gba:relative" style={layout.cropViewportStyle}>
+                  <span
+                    className="gba:inline-flex gba:h-full gba:w-full gba:items-center gba:justify-center gba:rounded gba:bg-muted gba:text-muted-foreground gba:text-sm"
+                    data-testid="document-editor-image-broken"
+                  >
+                    {error ? 'Image' : 'Loading image...'}
+                  </span>
+                </div>
+              </div>
             ) : (
               <div
                 ref={imageFrameRef}
                 className={`gba:relative gba:inline-flex gba:max-w-full ${isFloatingImage && selected && !isCropMode ? 'gba:cursor-move' : ''}`}
-                style={imageFrameStyle}
+                style={layout.imageFrameStyle}
                 onMouseDown={startMoveInteraction}
                 data-testid="document-editor-image-frame"
               >
-                <div className="gba:relative" style={cropViewportStyle}>
+                <div className="gba:relative" style={layout.cropViewportStyle}>
                   <img
                     src={displaySrc}
                     alt={interactiveAttributes.alt ?? ''}
                     title={interactiveAttributes.title ?? undefined}
                     className="editor-image gba:block"
-                    style={renderedImageStyle}
+                    style={layout.renderedImageStyle}
                     contentEditable={false}
                     draggable={false}
                     onLoad={handleImageLoad}
@@ -844,19 +648,19 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
                     <>
                       <div
                         className="gba:absolute gba:top-0 gba:left-0 gba:right-0 gba:bg-black/20 gba:pointer-events-none"
-                        style={{ height: `${crop.top * 100}%` }}
+                        style={{ height: `${layout.crop.top * 100}%` }}
                       />
                       <div
                         className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-black/20 gba:pointer-events-none"
-                        style={{ height: `${crop.bottom * 100}%` }}
+                        style={{ height: `${layout.crop.bottom * 100}%` }}
                       />
                       <div
                         className="gba:absolute gba:top-0 gba:bottom-0 gba:left-0 gba:bg-black/20 gba:pointer-events-none"
-                        style={{ width: `${crop.left * 100}%` }}
+                        style={{ width: `${layout.crop.left * 100}%` }}
                       />
                       <div
                         className="gba:absolute gba:top-0 gba:bottom-0 gba:right-0 gba:bg-black/20 gba:pointer-events-none"
-                        style={{ width: `${crop.right * 100}%` }}
+                        style={{ width: `${layout.crop.right * 100}%` }}
                       />
                     </>
                   ) : null}

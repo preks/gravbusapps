@@ -7,6 +7,7 @@
 
 import DOMPurify from 'dompurify'
 import JSZip from 'jszip'
+import { resolveWordLikeImageLayout } from '@/components/tiptap-extensions/tiptap-custom-image'
 import {
   CUSTOM_IMAGE_TAG,
   getImageFigureAttributesFromElement
@@ -17,7 +18,6 @@ import {
   resolveImageCropDimensions
 } from '@/components/tiptap-extensions/tiptap-custom-image/cropUtils'
 import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
-import { resolveFloatingSide } from '@/components/tiptap-extensions/tiptap-custom-image/wrapUtils'
 import { buildDocxBlob, sanitizeDocxFilename } from './docxExport'
 import { sanitizePaginationRuntimeHtml } from './documentContentUtils'
 import type { DocumentPrintStyleConfig } from './pageLayoutUtils'
@@ -108,71 +108,73 @@ function applyCustomImageLayoutForExport(html: string): string {
 
   for (const figure of figures) {
     const attrs = getImageFigureAttributesFromElement(figure, EXPORT_IMAGE_DEFAULTS)
+    const img = figure.querySelector('img')
+    const layout = resolveWordLikeImageLayout(attrs, {
+      displaySrc: img?.getAttribute('src') || null
+    })
     const resolvedDimensions = resolveImageDimensions(attrs)
     const crop = normalizeImageCrop(attrs)
-    const img = figure.querySelector('img')
     const figcaption = figure.querySelector('figcaption')
-    const floatingSide = resolveFloatingSide(attrs)
 
     figure.classList.add('editor-image-figure')
     figure.setAttribute('data-image-wrap', attrs.wrapMode ?? EXPORT_IMAGE_DEFAULTS.wrapMode)
     figure.setAttribute('data-image-align', attrs.align ?? EXPORT_IMAGE_DEFAULTS.align)
     figure.style.maxWidth = '100%'
-    figure.style.marginTop = `${attrs.distanceTop ?? EXPORT_IMAGE_DEFAULTS.distance}px`
-    figure.style.marginRight = `${attrs.distanceRight ?? EXPORT_IMAGE_DEFAULTS.distance}px`
-    figure.style.marginBottom = `${attrs.distanceBottom ?? EXPORT_IMAGE_DEFAULTS.distance}px`
-    figure.style.marginLeft = `${attrs.distanceLeft ?? EXPORT_IMAGE_DEFAULTS.distance}px`
+    figure.style.boxSizing = 'border-box'
 
     switch (attrs.wrapMode) {
       case 'square-left':
       case 'tight':
       case 'through':
-        figure.style.cssFloat = floatingSide
-        figure.style.display = 'inline-block'
-        if (resolvedDimensions.width != null) {
-          figure.style.width = `${resolvedDimensions.width}px`
-        }
-        if (
-          img &&
-          resolvedDimensions.width != null &&
-          resolvedDimensions.height != null &&
-          resolvedDimensions.rotation === 0 &&
-          !hasImageCrop(attrs)
-        ) {
-          figure.style.shapeOutside =
-            attrs.wrapMode === 'tight' || attrs.wrapMode === 'through'
-              ? `url("${img.getAttribute('src') || ''}")`
-              : 'inset(0)'
-          figure.style.shapeImageThreshold = '0.1'
+        figure.style.cssFloat = layout.floatingSide ?? 'left'
+        figure.style.display = 'block'
+        figure.style.position = 'relative'
+        figure.style.width = `${layout.layoutWidth}px`
+        figure.style.minHeight = `${layout.layoutHeight}px`
+        if (typeof layout.wrapperStyle.shapeOutside === 'string' && layout.wrapperStyle.shapeOutside) {
+          figure.style.shapeOutside = layout.wrapperStyle.shapeOutside
         }
         break
       case 'square-right':
-        figure.style.cssFloat = floatingSide
-        figure.style.display = 'inline-block'
-        if (resolvedDimensions.width != null) {
-          figure.style.width = `${resolvedDimensions.width}px`
-        }
-        if (resolvedDimensions.width != null) {
-          figure.style.shapeOutside = 'inset(0)'
-        }
+        figure.style.cssFloat = layout.floatingSide ?? 'right'
+        figure.style.display = 'block'
+        figure.style.position = 'relative'
+        figure.style.width = `${layout.layoutWidth}px`
+        figure.style.minHeight = `${layout.layoutHeight}px`
         break
       case 'top-bottom':
         figure.style.display = 'block'
+        figure.style.position = 'relative'
         figure.style.clear = 'both'
+        figure.style.width = '100%'
+        figure.style.minHeight = `${layout.layoutHeight}px`
         figure.style.textAlign = attrs.align ?? 'left'
         break
       case 'behind':
       case 'front':
         figure.style.position = 'relative'
         figure.style.display = 'inline-block'
-        figure.style.left = `${attrs.offsetX ?? 0}px`
-        figure.style.top = `${attrs.offsetY ?? 0}px`
+        figure.style.width = '0'
+        figure.style.height = '0'
+        figure.style.overflow = 'visible'
         figure.style.zIndex = String(attrs.wrapMode === 'behind' ? 0 : (attrs.zIndex ?? 1))
         break
       case 'inline':
       default:
         figure.style.display = 'inline-block'
+        figure.style.position = 'relative'
+        figure.style.width = `${layout.layoutWidth}px`
+        figure.style.minHeight = `${layout.layoutHeight}px`
         break
+    }
+
+    if (attrs.wrapMode !== 'behind' && attrs.wrapMode !== 'front') {
+      const rightInset = Math.max(0, layout.layoutWidth - layout.figureLeft - layout.frameWidth)
+      const bottomInset = Math.max(0, layout.layoutHeight - layout.figureTop - layout.frameHeight)
+      figure.style.paddingTop = `${Math.max(0, layout.figureTop)}px`
+      figure.style.paddingRight = `${rightInset}px`
+      figure.style.paddingBottom = `${bottomInset}px`
+      figure.style.paddingLeft = `${Math.max(0, layout.figureLeft)}px`
     }
 
     if (img) {

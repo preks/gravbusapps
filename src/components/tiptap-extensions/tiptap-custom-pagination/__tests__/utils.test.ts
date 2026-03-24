@@ -1681,3 +1681,129 @@ describe('measureHeaderFooterContentHeights', () => {
     expect(measured.headerHeights.get(1)).toBe(18)
   })
 })
+
+describe('image runtime layout metrics', () => {
+  function setRect(element: HTMLElement, rect: { top: number; bottom: number; left?: number; right?: number }) {
+    Object.defineProperty(element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: rect.left ?? 0,
+        y: rect.top,
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left ?? 0,
+        right: rect.right ?? 0,
+        width: (rect.right ?? 0) - (rect.left ?? 0),
+        height: rect.bottom - rect.top,
+        toJSON: () => ({})
+      })
+    })
+  }
+
+  it('uses custom image layout metrics for image selections', () => {
+    const editorDom = document.createElement('div')
+    const anchor = document.createElement('div')
+    const figure = document.createElement('figure')
+    const image = document.createElement('img')
+
+    anchor.dataset.imageLayoutHeight = '130'
+    anchor.dataset.imageVisualBottom = '90'
+    anchor.appendChild(figure)
+    figure.appendChild(image)
+    editorDom.appendChild(anchor)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 240 })
+    setRect(anchor, { top: 20, bottom: 20 })
+    setRect(figure, { top: 20, bottom: 20 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+
+    const selection = Object.create(NodeSelection.prototype)
+    Object.defineProperties(selection, {
+      from: { configurable: true, value: 1 },
+      to: { configurable: true, value: 1 },
+      node: {
+        configurable: true,
+        value: {
+          type: {
+            name: 'image'
+          }
+        }
+      }
+    })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 1,
+          content: {
+            size: 2
+          }
+        },
+        selection
+      },
+      coordsAtPos: () => ({
+        top: 24,
+        bottom: 32,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: image,
+        offset: 0
+      })
+    } as never
+
+    expect(getSelectionBottom(view)).toBe(110)
+  })
+
+  it('uses custom image layout metrics for document end measurement', () => {
+    const editorDom = document.createElement('div')
+    const anchor = document.createElement('div')
+    const figure = document.createElement('figure')
+    const image = document.createElement('img')
+
+    anchor.dataset.imageLayoutHeight = '140'
+    anchor.dataset.imageVisualBottom = '95'
+    anchor.appendChild(figure)
+    figure.appendChild(image)
+    editorDom.appendChild(anchor)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 260 })
+    setRect(anchor, { top: 30, bottom: 30 })
+    setRect(figure, { top: 30, bottom: 30 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 1,
+          content: {
+            size: 2
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos: () => ({
+        top: 36,
+        bottom: 40,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: image,
+        offset: 0
+      })
+    } as never
+
+    expect(getDocumentContentBottom(view)).toBe(125)
+  })
+})

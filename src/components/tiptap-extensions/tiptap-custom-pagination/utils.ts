@@ -532,8 +532,18 @@ function clampToNonNegative(value: number): number {
   return Number.isFinite(value) ? Math.max(0, value) : 0
 }
 
+function readRuntimeLayoutMetric(element: HTMLElement | null, key: string): number {
+  const value = Number(element?.dataset[key] ?? '')
+  return Number.isFinite(value) ? value : 0
+}
+
 function readMeasuredElementHeight(element: HTMLElement | null): number {
   if (!element) return 0
+
+  const runtimeLayoutHeight = readRuntimeLayoutMetric(element, 'imageLayoutHeight')
+  if (runtimeLayoutHeight > 0) {
+    return runtimeLayoutHeight
+  }
 
   let contentRectHeight = 0
   if (typeof document !== 'undefined' && typeof document.createRange === 'function') {
@@ -1415,9 +1425,10 @@ function getElementBottomInEditor(editorDom: HTMLElement, element: HTMLElement):
 
 function getMeasuredElementBottomInEditor(editorDom: HTMLElement, element: HTMLElement): number {
   const layoutHeight = getElementLayoutHeight(element)
+  const visualBottom = readRuntimeLayoutMetric(element, 'imageVisualBottom')
   return Math.max(
     getElementBottomInEditor(editorDom, element),
-    getElementTopInEditor(editorDom, element) + layoutHeight
+    getElementTopInEditor(editorDom, element) + (visualBottom > 0 ? visualBottom : layoutHeight)
   )
 }
 
@@ -1477,6 +1488,11 @@ function getBlockMeasurementElementAtPosition(view: EditorView, position: number
 
     if (!(baseNode instanceof HTMLElement) || !view.dom.contains(baseNode)) {
       return null
+    }
+
+    const imageLayoutAnchor = baseNode.closest('[data-image-layout-height]')
+    if (imageLayoutAnchor instanceof HTMLElement) {
+      return imageLayoutAnchor
     }
 
     return baseNode.closest(
