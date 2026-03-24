@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify'
+
 function collapseWhitespaceLinear(input: string): string {
   let result = ''
   let previousWasWhitespace = false
@@ -64,6 +66,7 @@ const PRESERVED_HTML_TAGS = new Set([
 const PAGINATION_RUNTIME_ATTRIBUTE_PATTERN =
   /\b(?:paginationSplitId|data-pagination-split-id|paginationChainId|data-pagination-chain-id|paginationRowGroups|data-pagination-row-groups)=/i
 const TABLE_SECTION_TAG_NAMES = new Set(['tbody', 'thead', 'tfoot', 'tr', 'tablerow'])
+const DOCUMENT_EDITOR_FORBIDDEN_TAGS = ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea']
 
 function getAttributeValue(element: Element, name: string): string | null {
   return element.getAttribute(name) ?? element.getAttribute(name.toLowerCase())
@@ -413,7 +416,7 @@ export function sanitizePaginationRuntimeHtml(html: string): string {
   }
 }
 
-export function normalizeDocumentHtmlForEditor(html: string): string {
+function normalizeDocumentHtmlMarkupForEditor(html: string): string {
   const sanitizedHtml = sanitizePaginationRuntimeHtml(html)
 
   if (!sanitizedHtml.trim() || !containsCustomDocumentTags(sanitizedHtml)) {
@@ -446,6 +449,34 @@ export function normalizeDocumentHtmlForEditor(html: string): string {
   } catch {
     return sanitizedHtml
   }
+}
+
+export function sanitizeDocumentHtmlForEditor(html: string): string {
+  const normalizedHtml = normalizeDocumentHtmlMarkupForEditor(html)
+
+  if (!normalizedHtml.trim()) {
+    return '<p></p>'
+  }
+
+  if (globalThis.window === undefined) {
+    return normalizedHtml
+  }
+
+  try {
+    const sanitized = DOMPurify.sanitize(normalizedHtml, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: DOCUMENT_EDITOR_FORBIDDEN_TAGS,
+      ALLOW_DATA_ATTR: true
+    })
+
+    return sanitized.trim() || '<p></p>'
+  } catch {
+    return normalizedHtml
+  }
+}
+
+export function normalizeDocumentHtmlForEditor(html: string): string {
+  return sanitizeDocumentHtmlForEditor(html)
 }
 
 export function isEffectivelyEmptyDocumentHtml(html: string): boolean {

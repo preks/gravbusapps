@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { Doc as YDoc } from 'yjs'
-import { normalizeDocumentHtmlForEditor } from '../../../utils/documentContentUtils'
+import { normalizeDocumentHtmlForEditor, sanitizeDocumentHtmlForEditor } from '../../../utils/documentContentUtils'
 import { DocumentApiService } from '../../../services/DocumentApiService'
 import {
   applyLatestDocumentContent,
@@ -84,6 +84,49 @@ describe('applyLatestDocumentContent', () => {
     expect(setHasUnsavedChanges).toHaveBeenCalledWith(false)
     expect(setLastSaved).toHaveBeenCalledWith(new Date('2026-03-21T12:00:00.000Z'))
     expect(editorContainerRef.current?.scrollTop).toBe(24)
+    requestAnimationFrameSpy.mockRestore()
+  })
+
+  it('sanitizes remote html before hydrating the editor', async () => {
+    let currentHtml = '<p>Old</p>'
+    const setContent = jest.fn((html: string) => {
+      currentHtml = html
+      return true
+    })
+    const refreshPagesAndStabilize = jest.fn()
+    const editor = {
+      commands: {
+        setContent,
+        refreshPagesAndStabilize
+      },
+      getHTML: jest.fn(() => currentHtml),
+      isDestroyed: false
+    } as unknown as TiptapEditor
+    const requestAnimationFrameSpy = jest.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(callback => {
+      callback(0)
+      return 1
+    })
+
+    const promise = applyLatestDocumentContent({
+      editor,
+      editorContainerRef: { current: { scrollTop: 0 } } as React.MutableRefObject<HTMLDivElement | null>,
+      ydoc: new YDoc(),
+      suppressYjsSnapshotSaveRef: { current: false },
+      html: '<p onclick="alert(1)">Updated</p><script>alert("xss")</script>',
+      updatedAt: '2026-03-21T12:00:00.000Z',
+      setHasUnsavedChanges: jest.fn(),
+      setLastSaved: jest.fn()
+    })
+
+    await act(async () => {
+      jest.runOnlyPendingTimers()
+      await promise
+    })
+
+    expect(setContent).toHaveBeenCalledWith(
+      sanitizeDocumentHtmlForEditor('<p onclick="alert(1)">Updated</p><script>alert("xss")</script>'),
+      { emitUpdate: true }
+    )
     requestAnimationFrameSpy.mockRestore()
   })
 })

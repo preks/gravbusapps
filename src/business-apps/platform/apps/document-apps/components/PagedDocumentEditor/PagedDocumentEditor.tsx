@@ -12,7 +12,7 @@ import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ChevronRight } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document, DocumentFormatting } from '../../types'
-import { normalizeDocumentHtmlForEditor } from '../../utils/documentContentUtils'
+import { sanitizeDocumentHtmlForEditor } from '../../utils/documentContentUtils'
 import { createDocumentImageUploadHandler } from '../../utils/documentImageBindings'
 import {
   useDocumentEditorAvatars,
@@ -240,7 +240,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           const nextTitle = latest.title || title
           setTitle(nextTitle)
 
-          const latestHtml = latest.content || '<p></p>'
+          const latestHtml = sanitizeDocumentHtmlForEditor(latest.content || '<p></p>')
           const currentHtml = editorRef.current.getHTML?.() || ''
           if (latestHtml && latestHtml !== currentHtml) {
             isApplyingRemoteContentRef.current = true
@@ -573,7 +573,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const editorContent = React.useMemo(() => {
       const rawContent = document?.content || initialContent || '<p></p>'
-      return normalizeDocumentHtmlForEditor(rawContent)
+      return sanitizeDocumentHtmlForEditor(rawContent)
     }, [document?.content, initialContent])
     const editorEditable = React.useMemo(
       () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),

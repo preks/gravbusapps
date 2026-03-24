@@ -1,4 +1,8 @@
-import { normalizeDocumentHtmlForEditor, sanitizePaginationRuntimeHtml } from './documentContentUtils'
+import {
+  normalizeDocumentHtmlForEditor,
+  sanitizeDocumentHtmlForEditor,
+  sanitizePaginationRuntimeHtml
+} from './documentContentUtils'
 
 describe('documentContentUtils pagination sanitization', () => {
   it('merges adjacent pagination table fragments and strips runtime attrs', () => {
@@ -54,5 +58,25 @@ describe('documentContentUtils pagination sanitization', () => {
     expect(normalizeDocumentHtmlForEditor(html)).toBe(
       '<table><tbody><tr><td>One</td></tr><tr><td>Two</td></tr></tbody></table>'
     )
+  })
+
+  it('sanitizes executable markup while preserving editor-safe attributes', () => {
+    const html = [
+      '<p onclick="alert(1)" data-comment-id="comment-1">Safe text</p>',
+      '<img src="javascript:alert(1)" data-image-id="image-1" />',
+      '<script>alert("xss")</script>'
+    ].join('')
+
+    const sanitized = sanitizeDocumentHtmlForEditor(html)
+    const doc = new DOMParser().parseFromString(sanitized, 'text/html')
+    const paragraph = doc.body.querySelector('p')
+    const image = doc.body.querySelector('img')
+
+    expect(doc.body.querySelector('script')).toBeNull()
+    expect(paragraph?.getAttribute('onclick')).toBeNull()
+    expect(paragraph?.getAttribute('data-comment-id')).toBe('comment-1')
+    expect(image?.getAttribute('src')).toBeNull()
+    expect(image?.getAttribute('data-image-id')).toBe('image-1')
+    expect(doc.body.textContent).toContain('Safe text')
   })
 })

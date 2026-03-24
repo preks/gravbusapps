@@ -24,6 +24,7 @@ import type {
   PublishInput
 } from '../../shared/types/versioning'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { sanitizeDocumentHtmlForEditor } from '../utils/documentContentUtils'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -95,7 +96,7 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     id: apiDoc.id as string,
     title: apiDoc.title as string,
     description: apiDoc.description as string | undefined,
-    content: (apiDoc.content as string) || '',
+    content: sanitizeDocumentHtmlForEditor((apiDoc.content as string) || ''),
     status: apiDoc.status as DocumentStatus,
     category: apiDoc.category as string | undefined,
     tags: apiDoc.tags as string[] | undefined,
@@ -123,7 +124,7 @@ function mapApiTemplateToTemplate(apiTemplate: Record<string, unknown>): Documen
     id: apiTemplate.id as string,
     name: apiTemplate.name as string,
     description: apiTemplate.description as string | undefined,
-    content: apiTemplate.content as string,
+    content: sanitizeDocumentHtmlForEditor((apiTemplate.content as string) || ''),
     category: (apiTemplate.category as string) || 'other',
     context: apiTemplate.context as string | undefined,
     tags: (apiTemplate.tags as string[]) || [],
@@ -889,7 +890,7 @@ export const DocumentApiService = {
       // Update the document with the old content and clear Yjs state
       await this.updateDocument(documentId, {
         title: snapshot.title as string,
-        content: snapshot.content as string,
+        content: sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''),
         description: snapshot.description as string | undefined,
         tags: snapshot.tags as string[] | undefined,
         category: snapshot.category as string | undefined,

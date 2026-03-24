@@ -3,7 +3,7 @@ import type { Editor as TiptapEditor } from '@tiptap/react'
 import type { Doc as YDoc } from 'yjs'
 import { markNextPaginationHydrationDocChange } from '@/components/tiptap-extensions/tiptap-custom-pagination'
 import { DocumentApiService } from '../../../services/DocumentApiService'
-import { normalizeDocumentHtmlForEditor, sanitizePaginationRuntimeHtml } from '../../../utils/documentContentUtils'
+import { sanitizeDocumentHtmlForEditor, sanitizePaginationRuntimeHtml } from '../../../utils/documentContentUtils'
 
 export interface ExternalVersioningControls {
   restoreVersion: (versionNumber: number) => Promise<boolean>
@@ -116,7 +116,7 @@ export async function applyLatestDocumentContent({
 }: ApplyLatestDocumentContentParams): Promise<boolean> {
   const scrollContainer = editorContainerRef.current
   const scrollTopBefore = scrollContainer?.scrollTop ?? 0
-  const normalizedHtml = normalizeDocumentHtmlForEditor(html)
+  const normalizedHtml = sanitizeDocumentHtmlForEditor(html)
 
   try {
     suppressYjsSnapshotSaveRef.current = true
@@ -175,7 +175,7 @@ export async function restoreVersionContent({
   }
 
   markNextPaginationHydrationDocChange(editor)
-  editor.commands.setContent(normalizeDocumentHtmlForEditor(versionData.content))
+  editor.commands.setContent(sanitizeDocumentHtmlForEditor(versionData.content))
   schedulePostHydrationPaginationRefresh(editor)
   setTitle(versionData.title)
   setHasUnsavedChanges(false)
@@ -223,7 +223,7 @@ export function usePagedDocumentExternalContentSync({
       const latest = await DocumentApiService.getDocument(documentId, { fresh: true })
       if (!latest?.content) return false
 
-      const latestHtml = normalizeDocumentHtmlForEditor(latest.content)
+      const latestHtml = sanitizeDocumentHtmlForEditor(latest.content)
       const currentHtml = sanitizePaginationRuntimeHtml(editor.getHTML())
       if (areHtmlSemanticallyEquivalent(latestHtml, currentHtml)) {
         return false

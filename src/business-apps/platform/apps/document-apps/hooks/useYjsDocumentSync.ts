@@ -15,7 +15,7 @@ import type { DocumentFormatting } from '../types'
 import {
   containsCustomDocumentTags,
   isEffectivelyEmptyDocumentHtml,
-  normalizeDocumentHtmlForEditor,
+  sanitizeDocumentHtmlForEditor,
   sanitizePaginationRuntimeHtml
 } from '../utils/documentContentUtils'
 
@@ -162,7 +162,7 @@ export function useYjsDocumentSync({
         throw new Error('Editor not ready for content apply')
       }
 
-      const normalizedHtml = normalizeDocumentHtmlForEditor(html || '<p></p>')
+      const normalizedHtml = sanitizeDocumentHtmlForEditor(html || '<p></p>')
 
       try {
         if (suppressSnapshotSaveRef) {
