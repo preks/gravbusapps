@@ -232,6 +232,8 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             onImportFolder={onImportFolder}
             isImportingFolder={isImportingFolder}
             isRestoringSession={isRestoringSession}
+            wiringWarnings={buildProgress.wiringWarnings}
+            onRetryWiring={handlers.handleWiringRetry}
           />
         )
 

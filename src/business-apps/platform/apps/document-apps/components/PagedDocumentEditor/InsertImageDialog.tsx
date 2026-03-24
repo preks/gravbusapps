@@ -21,15 +21,17 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { Upload } from 'lucide-react'
+import type { CustomImageUploadHandler, ImageUploadContext } from '@/components/tiptap-extensions/tiptap-custom-image'
 import translations from '../../_i18n'
-import { uploadDocumentImage } from '../../services/DocumentImageUploadService'
 
 export interface InsertImageDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly editor: Editor | null
-  readonly documentId: string | null
-  readonly accessToken: string
+  readonly uploadImage: CustomImageUploadHandler
+  readonly uploadContext?: ImageUploadContext
+  readonly onSubmitImage?: (src: string) => void
+  readonly mode?: 'insert' | 'replace'
   readonly 'data-testid'?: string
 }
 
@@ -37,8 +39,10 @@ export function InsertImageDialog({
   open,
   onOpenChange,
   editor,
-  documentId,
-  accessToken,
+  uploadImage,
+  uploadContext,
+  onSubmitImage,
+  mode = 'insert',
   'data-testid': testId = 'document-editor-insert-image-dialog'
 }: InsertImageDialogProps) {
   const { t } = useTranslation(translations)
@@ -59,28 +63,36 @@ export function InsertImageDialog({
     const url = urlValue.trim()
     if (!url || !editor) return
     setError(null)
-    editor.chain().focus().setImage({ src: url }).run()
+    if (onSubmitImage) {
+      onSubmitImage(url)
+    } else {
+      editor.chain().focus().setImage({ src: url }).run()
+    }
     onOpenChange(false)
     resetState()
-  }, [editor, urlValue, onOpenChange, resetState])
+  }, [editor, onOpenChange, onSubmitImage, resetState, urlValue])
 
   const insertImage = useCallback(
     (src: string) => {
       if (!editor) return
-      editor.chain().focus().setImage({ src }).run()
+      if (onSubmitImage) {
+        onSubmitImage(src)
+      } else {
+        editor.chain().focus().setImage({ src }).run()
+      }
       onOpenChange(false)
       resetState()
     },
-    [editor, onOpenChange, resetState]
+    [editor, onOpenChange, onSubmitImage, resetState]
   )
 
   const handleFile = useCallback(
     async (file: File) => {
-      if (!editor || !accessToken) return
+      if (!editor) return
       setError(null)
       setUploading(true)
       try {
-        const { url } = await uploadDocumentImage(file, documentId, accessToken)
+        const { url } = await uploadImage(file, uploadContext)
         insertImage(url)
       } catch {
         setError(t('insert-image-upload-failed'))
@@ -88,7 +100,7 @@ export function InsertImageDialog({
         setUploading(false)
       }
     },
-    [editor, accessToken, documentId, insertImage, t]
+    [editor, insertImage, t, uploadContext, uploadImage]
   )
 
   const onFileInputChange = useCallback(
@@ -144,7 +156,9 @@ export function InsertImageDialog({
         onPointerDownOutside={() => !uploading && handleOpenChange(false)}
       >
         <DialogHeader>
-          <DialogTitle>{t('insert-image-dialog-title')}</DialogTitle>
+          <DialogTitle>
+            {t(mode === 'replace' ? 'insert-image-dialog-title-replace' : 'insert-image-dialog-title')}
+          </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="upload" className="gba:w-full">

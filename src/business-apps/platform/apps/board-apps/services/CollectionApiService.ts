@@ -58,8 +58,11 @@ interface SpaceApiResponse {
 
 interface SpaceMemberApiResponse {
   id: string
-  userId: string
+  userId?: string
+  /** Some responses use snake_case */
+  user_id?: string
   teamId?: string
+  team_id?: string
   role: string
   invitedBy?: string
   joinedAt: string
@@ -97,14 +100,49 @@ function mapToCollection(space: SpaceApiResponse): BoardCollection {
   }
 }
 
+function normalizeCollectionMemberRole(raw: string): CollectionMemberRole {
+  const r = raw.toLowerCase()
+  if (r === 'owner' || r === 'admin' || r === 'editor' || r === 'viewer') {
+    return r
+  }
+  return 'viewer'
+}
+
 function mapToMember(m: SpaceMemberApiResponse): CollectionMember {
+  const userIdRaw = m.userId ?? m.user_id
+  const teamIdRaw = m.teamId ?? m.team_id
+  const userId = typeof userIdRaw === 'string' ? userIdRaw.trim() : ''
+  const teamId = typeof teamIdRaw === 'string' ? teamIdRaw.trim() : undefined
   return {
     id: m.id,
-    userId: m.userId,
-    role: m.role.toLowerCase() as CollectionMemberRole,
+    userId,
+    ...(teamId ? { teamId } : {}),
+    role: normalizeCollectionMemberRole(m.role),
     joinedAt: m.joinedAt,
     invitedBy: m.invitedBy
   }
+}
+
+/** Path segment for member sub-routes: prefer user id, then team id (document-service parity with Spaces). */
+function memberSubresourceSegment(member: Pick<CollectionMember, 'id' | 'userId' | 'teamId'>): string | null {
+  const uid = member.userId?.trim()
+  if (uid) return uid
+  const tid = member.teamId?.trim()
+  if (tid) return tid
+  return null
+}
+
+async function requestMemberMutation(
+  collectionId: string,
+  method: 'PATCH' | 'DELETE',
+  pathSegment: string,
+  body?: Record<string, unknown>
+): Promise<void> {
+  const encoded = encodeURIComponent(pathSegment)
+  await apiRequest(`/spaces/${encodeURIComponent(collectionId)}/members/${encoded}`, {
+    method,
+    ...(body ? { body: JSON.stringify(body) } : {})
+  })
 }
 
 function mapToBoardSummary(item: SpaceContentItem): BoardSummary {
@@ -240,7 +278,9 @@ export const CollectionApiService = {
 
   async getMembers(collectionId: string): Promise<CollectionMember[]> {
     try {
-      const space = await apiRequest<SpaceApiResponse>(`/spaces/${collectionId}`)
+      const space = await apiRequest<SpaceApiResponse>(
+        `/spaces/${encodeURIComponent(collectionId)}?includeMembers=true`
+      )
       return (space.members || []).map(mapToMember)
     } catch {
       return []
@@ -267,23 +307,53 @@ export const CollectionApiService = {
     }
   },
 
-  async updateMemberRole(collectionId: string, memberId: string, role: CollectionMemberRole): Promise<boolean> {
+  /**
+   * PATCH member role. Path segment is user id or team id (see `useSpace`); if that 404s, retries with membership row `id`
+   * for backends that key PATCH differently than DELETE.
+   */
+  async updateMemberRole(
+    collectionId: string,
+    member: Pick<CollectionMember, 'id' | 'userId' | 'teamId'>,
+    role: CollectionMemberRole
+  ): Promise<boolean> {
+    const primary = memberSubresourceSegment(member)
+    const membershipId = member.id?.trim()
+    const tryPatch = async (segment: string) => {
+      await requestMemberMutation(collectionId, 'PATCH', segment, { role })
+    }
     try {
-      await apiRequest(`/spaces/${collectionId}/members/${memberId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ role })
-      })
-      return true
-    } catch {
+      if (primary) {
+        await tryPatch(primary)
+        return true
+      }
+      if (membershipId) {
+        await tryPatch(membershipId)
+        return true
+      }
+      return false
+    } catch (err) {
+      const status = (err as Error & { status?: number }).status
+      if (status === 404 && primary && membershipId && membershipId !== primary) {
+        try {
+          await tryPatch(membershipId)
+          return true
+        } catch {
+          return false
+        }
+      }
       return false
     }
   },
 
-  async removeMember(collectionId: string, memberId: string): Promise<boolean> {
+  /** DELETE must use user or team id in the path (same as `useSpace`); membership row id returns 404. */
+  async removeMember(
+    collectionId: string,
+    member: Pick<CollectionMember, 'id' | 'userId' | 'teamId'>
+  ): Promise<boolean> {
+    const primary = memberSubresourceSegment(member)
+    if (!primary) return false
     try {
-      await apiRequest(`/spaces/${collectionId}/members/${memberId}`, {
-        method: 'DELETE'
-      })
+      await requestMemberMutation(collectionId, 'DELETE', primary)
       return true
     } catch {
       return false

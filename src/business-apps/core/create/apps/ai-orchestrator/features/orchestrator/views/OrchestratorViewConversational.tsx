@@ -272,6 +272,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       state,
       chat,
       currentPlan,
+      buildSummaryMessage: buildProgress.buildSummaryMessage,
       initialJobId,
       lastSessionId,
       lastRepoId,

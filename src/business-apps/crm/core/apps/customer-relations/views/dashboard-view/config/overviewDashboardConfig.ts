@@ -42,7 +42,9 @@ export const crmOverviewDashboardConfig = {
     aggregateTable: 'OpportunityAggregate',
     pipelineFieldName: 'salesPipelineRef',
     stageFieldPath: 'salesPipelineStage',
-    stageRefField: 'salesPipelineStageRef'
+    stageRefField: 'salesPipelineStageRef',
+    stageTypeCatalog: 'SalesPipelineStageType',
+    version: 'v1'
   },
 
   // Active Tasks
