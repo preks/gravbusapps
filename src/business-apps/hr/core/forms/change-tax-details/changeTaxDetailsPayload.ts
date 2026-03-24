@@ -46,7 +46,7 @@ function buildEmployeeTaxDetailObject(
     taxIdentificationNumber: values.taxIdentificationNumber || '',
     ...(isEmployeeInGermany ? {} : { taxNumber: values.taxNumber || '' }),
     taxBracketRef: values.taxBracketRef || '',
-    socialSecurityNumber: values.socialSecurityNumber || '',
+    socialSecurityNumber: String(values.socialSecurityNumber ?? '').trim(),
     wageTaxClassRef: data?.wageTaxClassRef ?? '',
     taxableChurchAffiliationRef: values.taxableChurchAffiliationRef || '',
     healthInsuranceTypeRef: values.healthInsuranceTypeRef || '',
