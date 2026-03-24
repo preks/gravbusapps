@@ -101,7 +101,7 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
       const payload = {
         requestedFrom: selectedEmployee.userId || selectedEmployee.id,
         requestedFromList: [selectedEmployee.userId || selectedEmployee.id],
-        creatorUserId: currentUserEmployeeId,
+        subjectUserId: businessAppContext.userInfo?.id || currentUserEmployeeId,
         requestMessage: '' // Empty message for this context
       }
 
