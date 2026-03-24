@@ -1,24 +1,31 @@
-import React from 'react'
-import '@newwork/nw-design-system/style'
+import React, { useState } from 'react'
 import { Avatar, AvatarFallback, Button, Card } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
+import { CreateLayout } from '@/components/create-layout'
 import { FunctionAssistantSidebar } from './FunctionAssistantSidebar'
 import { FunctionEditorHeaderBar } from './editor/FunctionEditorHeaderBar'
 import { FunctionDefinitionCard, type FunctionDefinitionTab } from './editor/FunctionDefinitionCard'
 import { useFunctionEditorState } from '../hooks/useFunctionEditorState'
-import { RotateCcw, Sparkles, X } from 'lucide-react'
+import { Code, RotateCcw, Sparkles, X } from 'lucide-react'
 
 export interface FunctionEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
   function?: LatestFunctionItem | null
   onSaved: () => void
   onBack?: () => void
+  /** When set with onBack, editor uses CreateLayout: hero + wizard left, canvas right. */
+  heroTitle?: string
+  /** Hero subtitle (optional). */
+  heroSubtitle?: string
 }
 
+const DATA_TEST_ID = 'function-editor'
+
 export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
-  const { mode, function: func, onSaved, accessToken, onBack, userInfo } = props
+  const { mode, function: func, onSaved, accessToken, onBack, userInfo, heroTitle, heroSubtitle } = props
   const [definitionTab, setDefinitionTab] = React.useState<FunctionDefinitionTab>('general')
+  const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false)
   const [fixTestRequest, setFixTestRequest] = React.useState<null | {
     nonce: string
     source: string
@@ -98,117 +105,164 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     setDefinitionTab('general')
   }, [mode, func?.id])
 
-  return (
-    <div data-testid="function-editor" className="gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full">
-      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-hidden gba:flex-row">
-        <div className="gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto gba:p-6">
-          <FunctionEditorHeaderBar
-            mode={mode}
-            isSaving={isSaving}
-            isValid={isValid}
-            assistantOpen={assistantOpen}
-            onAssistantOpen={() => setAssistantOpen(true)}
-            onSave={handleSave}
-            onBack={onBack}
-            data-testid="function-editor-header"
-          />
+  const openAssistant = React.useCallback(() => {
+    setAssistantOpen(true)
+    setChatPanelCollapsed(false)
+  }, [setAssistantOpen])
 
-          {error && (
-            <div className="gba:text-destructive" data-testid="function-editor-error">
-              {error}
-            </div>
-          )}
+  const closeAssistant = React.useCallback(() => {
+    setAssistantOpen(false)
+    setChatPanelCollapsed(true)
+  }, [setAssistantOpen])
 
-          <div className="gba:space-y-4 gba:mt-4">
-            {canUndoAssistantApply ? (
-              <Card
-                className="gba:p-3 gba:border gba:border-border gba:bg-muted"
-                data-testid="function-editor-undo-banner"
-              >
-                <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
-                  <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
-                    <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
-                      <AvatarFallback>
-                        <Sparkles className="gba:h-4 gba:w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="gba:min-w-0">
-                      <div className="gba:text-sm gba:font-medium gba:text-foreground">AI changes applied</div>
-                      <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-                        Review the edits, then save to create a new version. You can undo this apply.
-                      </div>
-                    </div>
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={undoAssistantApply}
-                      data-testid="function-editor-undo"
-                    >
-                      <RotateCcw className="gba:h-4 gba:w-4 gba:mr-2" />
-                      Undo
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={dismissAssistantUndo}
-                      data-testid="function-editor-undo-dismiss"
-                      aria-label="Dismiss"
-                    >
-                      <X className="gba:h-4 gba:w-4" />
-                    </Button>
+  const handleCollapseChange = React.useCallback(
+    (collapsed: boolean) => {
+      setChatPanelCollapsed(collapsed)
+      if (!collapsed) setAssistantOpen(true)
+    },
+    [setAssistantOpen]
+  )
+  const usesCreateLayoutHero = heroTitle != null && onBack != null
+
+  const mainContent = (
+    <>
+      <FunctionEditorHeaderBar
+        mode={mode}
+        isSaving={isSaving}
+        isValid={isValid}
+        assistantOpen={assistantOpen}
+        onAssistantOpen={openAssistant}
+        onSave={handleSave}
+        onBack={usesCreateLayoutHero ? undefined : onBack}
+        data-testid="function-editor-header"
+      />
+      {error && (
+        <div className="gba:text-destructive" data-testid="function-editor-error">
+          {error}
+        </div>
+      )}
+      <div className="gba:space-y-4 gba:mt-4">
+        {canUndoAssistantApply ? (
+          <Card className="gba:p-3 gba:border gba:border-border gba:bg-muted" data-testid="function-editor-undo-banner">
+            <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+              <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
+                <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
+                  <AvatarFallback>
+                    <Sparkles className="gba:h-4 gba:w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="gba:min-w-0">
+                  <div className="gba:text-sm gba:font-medium gba:text-foreground">AI changes applied</div>
+                  <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                    Review the edits, then save to create a new version. You can undo this apply.
                   </div>
                 </div>
-              </Card>
-            ) : null}
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={undoAssistantApply}
+                  data-testid="function-editor-undo"
+                >
+                  <RotateCcw className="gba:h-4 gba:w-4 gba:mr-2" />
+                  Undo
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={dismissAssistantUndo}
+                  data-testid="function-editor-undo-dismiss"
+                  aria-label="Dismiss"
+                >
+                  <X className="gba:h-4 gba:w-4" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ) : null}
+        <FunctionDefinitionCard
+          mode={mode}
+          name={name}
+          description={description}
+          agentEnabled={agentEnabled}
+          workflowEnabled={workflowEnabled}
+          connectorEnabled={connectorEnabled}
+          connectorKind={connectorKind}
+          onNameChange={setName}
+          onDescriptionChange={setDescription}
+          onAgentEnabledChange={setAgentEnabled}
+          onWorkflowEnabledChange={setWorkflowEnabled}
+          onConnectorEnabledChange={setConnectorEnabled}
+          onConnectorKindChange={setConnectorKind}
+          source={source}
+          inputSchema={inputSchema}
+          outputSchema={outputSchema}
+          configKeys={configKeys}
+          connectionOptions={connectionOptions}
+          selectedConnectionId={selectedConnectionId}
+          onSelectedConnectionIdChange={setSelectedConnectionId}
+          isLoadingConnections={isLoadingConnections}
+          onSourceChange={setSource}
+          onInputSchemaChange={setInputSchema}
+          onOutputSchemaChange={setOutputSchema}
+          onConfigKeysChange={setConfigKeys}
+          testSchemaProperties={schemaProperties}
+          testRequiredFields={requiredFields}
+          testPayload={testPayloadObj}
+          onTestPayloadChange={setTestPayloadObj}
+          onTestPayloadFieldChange={updatePayloadField}
+          onTest={onTest}
+          isTesting={isTesting}
+          testError={testError}
+          testResult={testResult}
+          testLogs={testLogs}
+          onFixWithAi={handleFixWithAi}
+          activeTab={definitionTab}
+          onTabChange={setDefinitionTab}
+          data-testid="function-editor-definition"
+        />
+      </div>
+    </>
+  )
 
-            <FunctionDefinitionCard
-              mode={mode}
-              name={name}
-              description={description}
-              agentEnabled={agentEnabled}
-              workflowEnabled={workflowEnabled}
-              connectorEnabled={connectorEnabled}
-              connectorKind={connectorKind}
-              onNameChange={setName}
-              onDescriptionChange={setDescription}
-              onAgentEnabledChange={setAgentEnabled}
-              onWorkflowEnabledChange={setWorkflowEnabled}
-              onConnectorEnabledChange={setConnectorEnabled}
-              onConnectorKindChange={setConnectorKind}
-              source={source}
-              inputSchema={inputSchema}
-              outputSchema={outputSchema}
-              configKeys={configKeys}
-              connectionOptions={connectionOptions}
-              selectedConnectionId={selectedConnectionId}
-              onSelectedConnectionIdChange={setSelectedConnectionId}
-              isLoadingConnections={isLoadingConnections}
-              onSourceChange={setSource}
-              onInputSchemaChange={setInputSchema}
-              onOutputSchemaChange={setOutputSchema}
-              onConfigKeysChange={setConfigKeys}
-              testSchemaProperties={schemaProperties}
-              testRequiredFields={requiredFields}
-              testPayload={testPayloadObj}
-              onTestPayloadChange={setTestPayloadObj}
-              onTestPayloadFieldChange={updatePayloadField}
-              onTest={onTest}
-              isTesting={isTesting}
-              testError={testError}
-              testResult={testResult}
-              testLogs={testLogs}
-              onFixWithAi={handleFixWithAi}
-              activeTab={definitionTab}
-              onTabChange={setDefinitionTab}
-              data-testid="function-editor-definition"
-            />
-          </div>
-        </div>
+  if (usesCreateLayoutHero) {
+    return (
+      <CreateLayout
+        testId={DATA_TEST_ID}
+        heroVariant="editor"
+        heroIcon={Code}
+        heroTitle={heroTitle}
+        heroSubtitle={heroSubtitle}
+        onBack={onBack}
+        chatPanel={
+          <FunctionAssistantSidebar
+            accessToken={accessToken}
+            userInfo={userInfo}
+            mode={assistantMode}
+            existing={existingSnapshot}
+            onApply={applyDraft}
+            onOpenDefinitionTab={openDefinitionTab}
+            fixTestRequest={fixTestRequest}
+            onFixTestRequestHandled={() => setFixTestRequest(null)}
+            onClose={closeAssistant}
+            data-testid="function-assistant"
+          />
+        }
+        canvasPanel={<div className="gba:overflow-y-auto gba:p-6">{mainContent}</div>}
+        chatPanelCollapsed={chatPanelCollapsed}
+        onChatPanelCollapseChange={handleCollapseChange}
+        className="gba:flex-1 gba:min-h-0 gba:overflow-hidden"
+      />
+    )
+  }
 
+  return (
+    <div data-testid={DATA_TEST_ID} className="gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full">
+      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-hidden gba:flex-row">
+        <div className="gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto gba:p-6">{mainContent}</div>
         {assistantOpen ? (
           <FunctionAssistantSidebar
             accessToken={accessToken}

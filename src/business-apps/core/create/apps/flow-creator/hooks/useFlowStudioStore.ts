@@ -21,6 +21,7 @@ const initialState: FlowStudioState = {
   mode: 'simple',
   nodes: initialGraph.nodes,
   edges: initialGraph.edges,
+  chatMessages: [],
   selectedNodeId: null,
   selectedEdgeId: null,
   selectedEdgePanel: 'details',
@@ -483,7 +484,8 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
       templateId: undefined,
       templateDescription: '',
       nodes: initialGraph.nodes,
-      edges: initialGraph.edges
+      edges: initialGraph.edges,
+      chatMessages: []
     }),
   pushSnapshot: () => {
     const snapshot: FlowStudioSnapshot = { nodes: structuredClone(get().nodes), edges: structuredClone(get().edges) }
@@ -521,11 +523,18 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
     const newK = String(newKey || '').trim()
     if (!oldK || !newK || oldK === newK) return
 
-    const re = new RegExp(`(\\$workflow\\.input\\.formData\\.)${escapeRegExp(oldK)}(?=$|[^a-zA-Z0-9_])`, 'g')
+    const inputValuesPattern = new RegExp(
+      `(\\$workflow\\.input\\.inputValues\\.)${escapeRegExp(oldK)}(?=$|[^a-zA-Z0-9_])`,
+      'g'
+    )
+    const legacyFormDataPattern = new RegExp(
+      `(\\$workflow\\.input\\.formData\\.)${escapeRegExp(oldK)}(?=$|[^a-zA-Z0-9_])`,
+      'g'
+    )
     const { nodes, edges } = get()
     const next = rewriteExpressionStringsInGraph(nodes, edges, s => {
       if (!s.includes('$workflow.')) return s
-      return s.replace(re, `$1${newK}`)
+      return s.replace(inputValuesPattern, `$1${newK}`).replace(legacyFormDataPattern, `$1${newK}`)
     })
     // Only set when something changed.
     if (next.nodes.every((n, i) => n === nodes[i]) && next.edges.every((e, i) => e === edges[i])) return
@@ -564,5 +573,9 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
   toGraphDefinition: (): FlowGraphDefinition => ({
     nodes: get().nodes.map(n => ({ id: n.id, type: n.type, label: n.label, metadata: nodeToMetadata(n) })),
     edges: get().edges
-  })
+  }),
+  setChatMessages: messages =>
+    set(state => ({
+      chatMessages: typeof messages === 'function' ? messages(state.chatMessages) : messages
+    }))
 }))
