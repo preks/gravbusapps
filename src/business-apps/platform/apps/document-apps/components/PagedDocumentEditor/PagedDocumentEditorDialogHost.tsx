@@ -6,6 +6,7 @@ import { PublishDialog } from '../../../shared/components/PublishDialog'
 import { PageSetupDialog } from './PageSetupDialog'
 import { InsertImageDialog } from './InsertImageDialog'
 import { InsertTableDialog } from './InsertTableDialog'
+import { SignatureDialog } from './SignatureDialog'
 import { PageNumbersDialog } from './PageNumbersDialog'
 import { LinkDialog } from './LinkDialog'
 
@@ -39,6 +40,10 @@ export interface PagedDocumentEditorDialogHostProps {
   onSubmitImage?: ComponentProps<typeof InsertImageDialog>['onSubmitImage']
   showInsertTableDialog: boolean
   setShowInsertTableDialog: Dispatch<SetStateAction<boolean>>
+  showInsertSignatureDialog: boolean
+  setShowInsertSignatureDialog: Dispatch<SetStateAction<boolean>>
+  signatureDialogAccessToken: string | null
+  onInsertSignature: ComponentProps<typeof SignatureDialog>['onInsertSignature']
   hasEditor: boolean
   pageNumbersDialogOpen: boolean
   setPageNumbersDialogOpen: Dispatch<SetStateAction<boolean>>
@@ -81,6 +86,10 @@ export function PagedDocumentEditorDialogHost({
   onSubmitImage,
   showInsertTableDialog,
   setShowInsertTableDialog,
+  showInsertSignatureDialog,
+  setShowInsertSignatureDialog,
+  signatureDialogAccessToken,
+  onInsertSignature,
   hasEditor,
   pageNumbersDialogOpen,
   setPageNumbersDialogOpen,
@@ -157,6 +166,17 @@ export function PagedDocumentEditorDialogHost({
           onOpenChange={setShowInsertTableDialog}
           editor={activeEditor}
           data-testid="document-insert-table-dialog"
+        />
+      )}
+
+      {showInsertSignatureDialog && activeEditor && (
+        <SignatureDialog
+          open={showInsertSignatureDialog}
+          onOpenChange={setShowInsertSignatureDialog}
+          editor={activeEditor}
+          accessToken={signatureDialogAccessToken}
+          onInsertSignature={onInsertSignature}
+          data-testid="document-insert-signature-dialog"
         />
       )}
 
