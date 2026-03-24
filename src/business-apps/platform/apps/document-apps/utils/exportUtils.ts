@@ -7,7 +7,14 @@
 
 import DOMPurify from 'dompurify'
 import JSZip from 'jszip'
+import {
+  CUSTOM_IMAGE_TAG,
+  getImageFigureAttributesFromElement
+} from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
+import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
 import { buildDocxBlob, sanitizeDocxFilename } from './docxExport'
+import { sanitizePaginationRuntimeHtml } from './documentContentUtils'
+import type { DocumentPrintStyleConfig } from './pageLayoutUtils'
 
 /**
  * Escape plain text for safe insertion into HTML text nodes / <title>
@@ -23,8 +30,41 @@ export function escapeHtmlText(text: string): string {
 
 /** Allowed block spacing CSS properties for export (line and paragraph spacing). */
 const BLOCK_SPACING_PROPS = new Set(['line-height', 'margin-top', 'margin-bottom'])
+const TEXT_FORMAT_PROPS = new Set([
+  'background-color',
+  'color',
+  'font-family',
+  'font-size',
+  'font-style',
+  'font-weight',
+  'text-align',
+  'text-decoration'
+])
 
-function filterStyleToBlockSpacing(styleStr: string): string {
+function isSafeExportStyleValue(value: string): boolean {
+  const lowerValue = value.toLowerCase()
+  return (
+    !lowerValue.includes('expression(') &&
+    !lowerValue.includes('javascript:') &&
+    !lowerValue.includes('url(') &&
+    !lowerValue.includes('vbscript:') &&
+    !/[<>]/.test(value)
+  )
+}
+
+function filterStyleForExport(
+  styleStr: string,
+  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean }
+): string {
+  const allowedProps = new Set<string>()
+  if (options.preserveBlockSpacing) {
+    BLOCK_SPACING_PROPS.forEach(prop => allowedProps.add(prop))
+  }
+  if (options.preserveTextStyles) {
+    TEXT_FORMAT_PROPS.forEach(prop => allowedProps.add(prop))
+  }
+  if (allowedProps.size === 0) return ''
+
   const parts: string[] = []
   for (const rawDecl of styleStr.split(';')) {
     const decl = rawDecl.trim()
@@ -34,10 +74,10 @@ function filterStyleToBlockSpacing(styleStr: string): string {
     if (splitIdx === -1) continue
 
     const prop = decl.slice(0, splitIdx).trim().toLowerCase()
-    if (!BLOCK_SPACING_PROPS.has(prop)) continue
+    if (!allowedProps.has(prop)) continue
 
     const value = decl.slice(splitIdx + 1).trim()
-    if (!value) continue
+    if (!value || !isSafeExportStyleValue(value)) continue
 
     parts.push(`${prop}: ${value}`)
   }
@@ -45,6 +85,99 @@ function filterStyleToBlockSpacing(styleStr: string): string {
 }
 
 const EXPORT_DATA_URI_ATTR = 'data-nw-export-src'
+const EXPORT_IMAGE_DEFAULTS = {
+  align: 'left' as const,
+  wrapMode: 'inline' as const,
+  anchorMode: 'inline' as const,
+  display: 'inline' as const,
+  distance: 0
+}
+
+function applyCustomImageLayoutForExport(html: string): string {
+  if (!html || globalThis.DOMParser === undefined) return html
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const figures = Array.from(doc.body.querySelectorAll(`figure[data-node-type="${CUSTOM_IMAGE_TAG}"]`))
+
+  for (const figure of figures) {
+    const attrs = getImageFigureAttributesFromElement(figure, EXPORT_IMAGE_DEFAULTS)
+    const resolvedDimensions = resolveImageDimensions(attrs)
+    const img = figure.querySelector('img')
+    const figcaption = figure.querySelector('figcaption')
+
+    figure.classList.add('editor-image-figure')
+    figure.setAttribute('data-image-wrap', attrs.wrapMode ?? EXPORT_IMAGE_DEFAULTS.wrapMode)
+    figure.setAttribute('data-image-align', attrs.align ?? EXPORT_IMAGE_DEFAULTS.align)
+    figure.style.maxWidth = '100%'
+    figure.style.marginTop = `${attrs.distanceTop ?? EXPORT_IMAGE_DEFAULTS.distance}px`
+    figure.style.marginRight = `${attrs.distanceRight ?? EXPORT_IMAGE_DEFAULTS.distance}px`
+    figure.style.marginBottom = `${attrs.distanceBottom ?? EXPORT_IMAGE_DEFAULTS.distance}px`
+    figure.style.marginLeft = `${attrs.distanceLeft ?? EXPORT_IMAGE_DEFAULTS.distance}px`
+
+    switch (attrs.wrapMode) {
+      case 'square-left':
+      case 'tight':
+      case 'through':
+        figure.style.cssFloat = 'left'
+        figure.style.display = 'inline-block'
+        break
+      case 'square-right':
+        figure.style.cssFloat = 'right'
+        figure.style.display = 'inline-block'
+        break
+      case 'top-bottom':
+        figure.style.display = 'block'
+        figure.style.clear = 'both'
+        figure.style.textAlign = attrs.align ?? 'left'
+        break
+      case 'behind':
+      case 'front':
+        figure.style.position = 'relative'
+        figure.style.display = 'inline-block'
+        figure.style.left = `${attrs.offsetX ?? 0}px`
+        figure.style.top = `${attrs.offsetY ?? 0}px`
+        figure.style.zIndex = String(attrs.wrapMode === 'behind' ? 0 : (attrs.zIndex ?? 1))
+        break
+      case 'inline':
+      default:
+        figure.style.display = 'inline-block'
+        break
+    }
+
+    if (img) {
+      img.style.maxWidth = '100%'
+      if (resolvedDimensions.width != null) {
+        img.setAttribute('width', String(resolvedDimensions.width))
+        img.style.width = `${resolvedDimensions.width}px`
+      } else {
+        img.removeAttribute('width')
+      }
+      if (resolvedDimensions.height != null) {
+        img.setAttribute('height', String(resolvedDimensions.height))
+        img.style.height = `${resolvedDimensions.height}px`
+      } else {
+        img.removeAttribute('height')
+        img.style.height = 'auto'
+      }
+      if (resolvedDimensions.rotation !== 0) {
+        img.style.transform = `rotate(${resolvedDimensions.rotation}deg)`
+        img.style.transformOrigin = 'center center'
+      }
+    }
+
+    if (figcaption) {
+      figcaption.classList.add('editor-image-caption')
+      figcaption.style.marginTop = '4pt'
+      figcaption.style.color = '#6b7280'
+      figcaption.style.fontSize = '9pt'
+      figcaption.style.lineHeight = '1.3'
+      figcaption.style.textAlign = attrs.align ?? 'left'
+    }
+  }
+
+  return doc.body.innerHTML
+}
 
 function stripTagsToText(html: string): string {
   const out: string[] = []
@@ -100,14 +233,17 @@ function stripEventHandlers(el: Element): void {
   }
 }
 
-function applyStyleSanitization(el: Element, options: { preserveBlockSpacing: boolean }): void {
+function applyStyleSanitization(
+  el: Element,
+  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean }
+): void {
   const style = el.getAttribute('style')
   if (style == null) return
-  if (!options.preserveBlockSpacing) {
+  if (!options.preserveBlockSpacing && !options.preserveTextStyles) {
     el.removeAttribute('style')
     return
   }
-  const filtered = filterStyleToBlockSpacing(style)
+  const filtered = filterStyleForExport(style, options)
   if (filtered) el.setAttribute('style', filtered)
   else el.removeAttribute('style')
 }
@@ -140,7 +276,7 @@ function restoreAndCleanDataUriAttr(el: Element, options: { allowDataUriInImg: b
 
 function postProcessExportHtml(
   html: string,
-  options: { preserveBlockSpacing: boolean; allowDataUriInImg: boolean }
+  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean; allowDataUriInImg: boolean }
 ): string {
   if (globalThis.DOMParser === undefined) return html
 
@@ -168,10 +304,11 @@ function postProcessExportHtml(
  */
 export function sanitizeHtmlForExport(
   html: string,
-  options?: { preserveBlockSpacing?: boolean; allowDataUriInImg?: boolean }
+  options?: { preserveBlockSpacing?: boolean; preserveTextStyles?: boolean; allowDataUriInImg?: boolean }
 ): string {
   if (!html) return ''
   const preserveBlockSpacing = options?.preserveBlockSpacing === true
+  const preserveTextStyles = options?.preserveTextStyles === true
   const allowDataUriInImg = options?.allowDataUriInImg === true
 
   if (globalThis.window === undefined || globalThis.DOMParser === undefined) {
@@ -181,14 +318,14 @@ export function sanitizeHtmlForExport(
   try {
     const config: Parameters<typeof DOMPurify.sanitize>[1] = {
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-      FORBID_ATTR: preserveBlockSpacing ? [] : ['style'],
+      FORBID_ATTR: preserveBlockSpacing || preserveTextStyles ? [] : ['style'],
       ALLOW_DATA_ATTR: allowDataUriInImg
     }
 
     const input = allowDataUriInImg ? preserveDataUriImgsForPurify(html) : html
     const purified = DOMPurify.sanitize(input, config)
 
-    return postProcessExportHtml(purified, { preserveBlockSpacing, allowDataUriInImg })
+    return postProcessExportHtml(purified, { preserveBlockSpacing, preserveTextStyles, allowDataUriInImg })
   } catch {
     return stripTagsToText(html)
   }
@@ -208,6 +345,212 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
     reader.onerror = () => reject(new Error(reader.error?.message ?? 'Failed to read'))
     reader.readAsDataURL(blob)
   })
+}
+
+const DEFAULT_PRINT_STYLE_CONFIG: DocumentPrintStyleConfig = {
+  pageSizeCss: 'a4 portrait',
+  pageMarginCss: '2.54cm 2.54cm 2.54cm 2.54cm',
+  fontFamily: "'Times New Roman', Georgia, serif",
+  fontSize: '16px',
+  lineHeight: '1.15',
+  textColor: '#1a1a1a',
+  pageColor: '#ffffff'
+}
+
+function resolvePrintStyleConfig(printStyleConfig?: DocumentPrintStyleConfig): DocumentPrintStyleConfig {
+  return {
+    ...DEFAULT_PRINT_STYLE_CONFIG,
+    ...printStyleConfig
+  }
+}
+
+function normalizePageBreakMarkupForExport(html: string): string {
+  if (!html) return ''
+
+  if (globalThis.DOMParser === undefined || globalThis.document === undefined) {
+    return html.replace(/<div[^>]*data-page-break[^>]*>[\s\S]*?<\/div>/gi, '<div class="page-break"></div>')
+  }
+
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    const pageBreaks = Array.from(doc.body.querySelectorAll('div[data-page-break]'))
+
+    for (const pageBreak of pageBreaks) {
+      const normalized = doc.createElement('div')
+      normalized.className = 'page-break'
+      pageBreak.replaceWith(normalized)
+    }
+
+    return doc.body.innerHTML
+  } catch {
+    return html
+  }
+}
+
+function buildPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, extraCss = ''): string {
+  const resolved = resolvePrintStyleConfig(printStyleConfig)
+
+  return `
+      @page { size: ${resolved.pageSizeCss}; margin: ${resolved.pageMarginCss}; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        font-family: ${resolved.fontFamily};
+        font-size: ${resolved.fontSize};
+        line-height: ${resolved.lineHeight};
+        color: ${resolved.textColor};
+        background: ${resolved.pageColor};
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0 0 16pt 0;
+        line-height: 1.2;
+      }
+      h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 20pt 0 12pt 0;
+        line-height: 1.3;
+      }
+      h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin: 16pt 0 10pt 0;
+        line-height: 1.4;
+      }
+      h4, h5, h6 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 14pt 0 8pt 0;
+      }
+      p { margin: 0; }
+      ul, ol {
+        padding-inline-start: 24pt;
+        margin: 0 0 10pt 0;
+      }
+      li { margin-bottom: 4pt; }
+      li > p {
+        display: inline;
+        margin: 0;
+      }
+      blockquote {
+        border-left: 3pt solid #d0d0d0;
+        padding-left: 16pt;
+        margin: 16pt 0;
+        color: #555;
+        font-style: italic;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        max-width: 100%;
+        table-layout: fixed;
+        margin: 16pt 0;
+        background: #fff;
+        border: 1pt solid #d0d0d0;
+        break-inside: auto;
+        page-break-inside: auto;
+      }
+      td, th {
+        border: 1pt solid #333;
+        padding: 4pt 6pt;
+        text-align: start;
+        vertical-align: top;
+        font-size: 0.875rem;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      th {
+        background: #f5f5f5;
+        font-weight: bold;
+      }
+      thead { display: table-header-group; }
+      tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      pre {
+        background: #f5f5f5;
+        border: 1pt solid #e0e0e0;
+        border-radius: 4pt;
+        padding: 12pt;
+        overflow-x: auto;
+        font-family: 'Courier New', monospace;
+        font-size: 0.875rem;
+        margin: 12pt 0;
+        white-space: pre-wrap;
+      }
+      code {
+        background: #f0f0f0;
+        padding: 2pt 4pt;
+        border-radius: 2pt;
+        font-family: 'Courier New', monospace;
+        font-size: 0.875rem;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        vertical-align: bottom;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .editor-image-caption {
+        margin-top: 4pt;
+        color: #6b7280;
+        font-size: 0.75rem;
+        line-height: 1.3;
+      }
+      a {
+        color: #0066cc;
+        text-decoration: underline;
+      }
+      hr {
+        border: none;
+        border-top: 1pt solid #d0d0d0;
+        margin: 20pt 0;
+      }
+      .page-break {
+        display: block;
+        page-break-after: always;
+        break-after: page;
+        height: 0;
+        margin: 0;
+        padding: 0;
+        border: none;
+      }
+      .page-break-line,
+      .page-break-label {
+        display: none;
+      }
+      @media print {
+        body, img {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .page-break {
+          page-break-after: always;
+          break-after: page;
+          height: 0;
+          border: none;
+        }
+      }
+      ${extraCss}
+    `
+}
+
+function prepareHtmlForPrintDocument(htmlContent: string): string {
+  const normalizedContent = normalizePageBreakMarkupForExport(sanitizePaginationRuntimeHtml(htmlContent))
+
+  return applyCustomImageLayoutForExport(
+    sanitizeHtmlForExport(normalizedContent, {
+      preserveBlockSpacing: true,
+      preserveTextStyles: true,
+      allowDataUriInImg: true
+    })
+  )
 }
 
 /**
@@ -238,6 +581,7 @@ export interface PrintHtmlDocumentOptions {
   htmlContent: string
   includeTitleHeading?: boolean
   extraCss?: string
+  printStyleConfig?: DocumentPrintStyleConfig
   /** If provided (and not closed), use this window instead of opening a new one. Use when opening synchronously on user click to avoid popup blockers. */
   targetWindow?: Window | null
 }
@@ -246,15 +590,13 @@ export function buildPrintHtmlDocument({
   title,
   htmlContent,
   includeTitleHeading = false,
-  extraCss = ''
+  extraCss = '',
+  printStyleConfig
 }: PrintHtmlDocumentOptions): string {
   const safeTitle = escapeHtmlText(title || 'Document')
   const titleHeading = includeTitleHeading ? `<h1>${safeTitle}</h1>` : ''
   // CWE-79: only sanitized body HTML is embedded to prevent DOM XSS when written to document
-  const safeBodyHtml = sanitizeHtmlForExport(htmlContent, {
-    preserveBlockSpacing: true,
-    allowDataUriInImg: true
-  })
+  const safeBodyHtml = prepareHtmlForPrintDocument(htmlContent)
 
   return `<!DOCTYPE html>
 <html>
@@ -263,29 +605,7 @@ export function buildPrintHtmlDocument({
     <meta name="referrer" content="no-referrer">
     <title>${safeTitle}</title>
     <style>
-      @page { size: A4; margin: 1in; }
-      body { font-family: 'Times New Roman', Georgia, serif; font-size: 12pt; line-height: 1.6; margin: 0; padding: 0; }
-      h1 { font-size: 24pt; margin: 0 0 12pt 0; }
-      h2 { font-size: 18pt; margin: 18pt 0 10pt 0; }
-      h3 { font-size: 14pt; margin: 16pt 0 8pt 0; }
-      h4, h5, h6 { font-size: 12pt; margin: 14pt 0 6pt 0; }
-      p { margin: 0 0 10pt 0; }
-      ul, ol { padding-left: 24pt; margin: 0 0 10pt 0; }
-      li { margin-bottom: 4pt; }
-      blockquote { border-left: 3pt solid #ccc; padding-left: 12pt; margin: 12pt 0; color: #555; font-style: italic; }
-      table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
-      td, th { border: 1px solid #333; padding: 6pt 8pt; }
-      th { background: #f0f0f0; font-weight: bold; }
-      pre { background: #f5f5f5; border: 1px solid #e0e0e0; padding: 8pt; font-family: 'Courier New', monospace; font-size: 10pt; white-space: pre-wrap; }
-      code { font-family: 'Courier New', monospace; font-size: 10pt; background: #f0f0f0; padding: 2pt 4pt; }
-      img { max-width: 100%; height: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      a { color: #0066cc; text-decoration: underline; }
-      .page-break { page-break-after: always; break-after: page; height: 0; margin: 0; padding: 0; border: none; }
-      @media print {
-        body, img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .page-break { page-break-after: always; break-after: page; height: 0; border: none; }
-      }
-      ${extraCss}
+${buildPrintStylesheet(printStyleConfig, extraCss)}
     </style>
   </head>
   <body>
@@ -368,63 +688,43 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
   setTimeout(run, 500)
 }
 
+function syncElementAttributes(target: Element, source: Element): void {
+  for (const attribute of Array.from(target.attributes)) {
+    target.removeAttribute(attribute.name)
+  }
+
+  for (const attribute of Array.from(source.attributes)) {
+    target.setAttribute(attribute.name, attribute.value)
+  }
+}
+
+function replaceDocumentHtml(doc: Document, html: string): void {
+  const parsed = new DOMParser().parseFromString(html, 'text/html')
+  doc.open()
+  syncElementAttributes(doc.documentElement, parsed.documentElement)
+  syncElementAttributes(doc.head, parsed.head)
+  syncElementAttributes(doc.body, parsed.body)
+  doc.head.replaceChildren(...Array.from(parsed.head.childNodes, node => doc.importNode(node, true)))
+  doc.body.replaceChildren(...Array.from(parsed.body.childNodes, node => doc.importNode(node, true)))
+  doc.title = parsed.title
+  doc.close()
+}
+
 export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
   const { targetWindow } = options
   const useExistingWindow = targetWindow && !targetWindow.closed
 
   if (useExistingWindow) {
-    // CWE-79: escape title before any DOM use so useState-sourced title cannot reach HTML sinks
-    const safeTitleText = escapeHtmlText(options.title || 'Document')
-    const { includeTitleHeading = false, extraCss = '' } = options
+    const sanitizedBody = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+      FORBID_ATTR: [],
+      ALLOW_DATA_ATTR: true
+    })
+    const fullHtml = buildPrintHtmlDocument({ ...options, htmlContent: sanitizedBody })
 
     try {
       const doc = targetWindow.document
-      while (doc.head.firstChild) doc.head.removeChild(doc.head.firstChild)
-      while (doc.body.firstChild) doc.body.removeChild(doc.body.firstChild)
-
-      const metaCharset = doc.createElement('meta')
-      metaCharset.setAttribute('charset', 'utf-8')
-      const metaReferrer = doc.createElement('meta')
-      metaReferrer.setAttribute('name', 'referrer')
-      metaReferrer.setAttribute('content', 'no-referrer')
-      const titleEl = doc.createElement('title')
-      titleEl.textContent = safeTitleText
-      const styleEl = doc.createElement('style')
-      styleEl.textContent = `
-      @page { size: A4; margin: 1in; }
-      body { font-family: 'Times New Roman', Georgia, serif; font-size: 12pt; line-height: 1.6; margin: 0; padding: 0; }
-      h1 { font-size: 24pt; margin: 0 0 12pt 0; }
-      h2 { font-size: 18pt; margin: 18pt 0 10pt 0; }
-      h3 { font-size: 14pt; margin: 16pt 0 8pt 0; }
-      h4, h5, h6 { font-size: 12pt; margin: 14pt 0 6pt 0; }
-      p { margin: 0 0 10pt 0; }
-      ul, ol { padding-left: 24pt; margin: 0 0 10pt 0; }
-      li { margin-bottom: 4pt; }
-      blockquote { border-left: 3pt solid #ccc; padding-left: 12pt; margin: 12pt 0; color: #555; font-style: italic; }
-      table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
-      td, th { border: 1px solid #333; padding: 6pt 8pt; }
-      th { background: #f0f0f0; font-weight: bold; }
-      pre { background: #f5f5f5; border: 1px solid #e0e0e0; padding: 8pt; font-family: 'Courier New', monospace; font-size: 10pt; white-space: pre-wrap; }
-      code { font-family: 'Courier New', monospace; font-size: 10pt; background: #f0f0f0; padding: 2pt 4pt; }
-      img { max-width: 100%; height: auto; }
-      a { color: #0066cc; text-decoration: underline; }
-      .page-break { page-break-after: always; break-after: page; height: 0; margin: 0; padding: 0; border: none; }
-      @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }
-      ${extraCss}`
-      doc.head.append(metaCharset, metaReferrer, titleEl, styleEl)
-      if (includeTitleHeading) {
-        const heading = doc.createElement('h1')
-        heading.textContent = safeTitleText
-        doc.body.appendChild(heading)
-      }
-      const container = doc.createElement('div')
-      // CWE-79: assign only DOMPurify.sanitize(...) to innerHTML so SAST recognizes the known sanitizer
-      container.innerHTML = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
-        FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-        FORBID_ATTR: [],
-        ALLOW_DATA_ATTR: true
-      })
-      doc.body.appendChild(container)
+      replaceDocumentHtml(doc, fullHtml)
 
       let printed = false
       const doPrint = () => {
@@ -458,6 +758,16 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
   }
 
   printHtmlDocumentViaIframe(options)
+}
+
+export function printHtmlDocumentWithStyle(
+  options: Omit<PrintHtmlDocumentOptions, 'printStyleConfig'>,
+  printStyleConfig?: DocumentPrintStyleConfig
+): void {
+  printHtmlDocument({
+    ...options,
+    printStyleConfig
+  })
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -578,6 +888,7 @@ function htmlToWordML(html: string): string {
 
 export interface ExportImageOptions {
   getImageDataUrl?: GetImageDataUrlForExport
+  printStyleConfig?: DocumentPrintStyleConfig
 }
 
 /**
@@ -610,15 +921,29 @@ export async function exportToPDF(
   targetWindow?: Window | null,
   options?: ExportImageOptions
 ): Promise<void> {
-  let content = sanitizeHtmlForExport(htmlContent, {
-    preserveBlockSpacing: true,
-    allowDataUriInImg: true
-  })
-  content = content.replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
+  let content = htmlContent
   if (options?.getImageDataUrl) {
     content = await embedImagesInHtml(content, options.getImageDataUrl)
   }
-  printHtmlDocument({ title, htmlContent: content, targetWindow })
+  printHtmlDocument({
+    title,
+    htmlContent: content,
+    targetWindow,
+    printStyleConfig: options?.printStyleConfig
+  })
+}
+
+export async function exportToPDFWithStyle(
+  title: string,
+  htmlContent: string,
+  printStyleConfig?: DocumentPrintStyleConfig,
+  targetWindow?: Window | null,
+  options?: Omit<ExportImageOptions, 'printStyleConfig'>
+): Promise<void> {
+  await exportToPDF(title, htmlContent, targetWindow, {
+    ...options,
+    printStyleConfig
+  })
 }
 
 /**
@@ -777,7 +1102,11 @@ export async function exportToHTML(title: string, htmlContent: string): Promise<
 export async function exportToText(title: string, htmlContent: string): Promise<void> {
   // Create a temporary div to parse HTML
   const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = sanitizeHtmlForExport(htmlContent)
+  // CWE-79: use a recognized sanitizer directly at the sink for SAST tools.
+  tempDiv.innerHTML = DOMPurify.sanitize(htmlContent, {
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: ['style']
+  })
 
   // Get plain text content
   let textContent = tempDiv.textContent || tempDiv.innerText || ''
@@ -920,8 +1249,11 @@ function htmlToOdfXml(html: string): string {
   if (!html) return '      <text:p/>'
 
   const tempDiv = document.createElement('div')
-  // CWE-79: assign only sanitized output to innerHTML to prevent DOM XSS
-  tempDiv.innerHTML = sanitizeHtmlForExport(html)
+  // CWE-79: use a recognized sanitizer directly at the sink for SAST tools.
+  tempDiv.innerHTML = DOMPurify.sanitize(html, {
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: ['style']
+  })
 
   const odfParts: string[] = []
   convertHtmlChildrenToOdf(tempDiv, odfParts, 6)

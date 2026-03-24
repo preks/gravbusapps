@@ -4,7 +4,13 @@
 
 import { PAGE_FORMATS } from '@/components/tiptap-extensions/tiptap-custom-pagination'
 import type { PageFormat } from '@/components/tiptap-extensions/tiptap-custom-pagination'
-import type { DocumentFormatting, DocumentPagesFormatting, PageSizeId } from '../types/document'
+import type {
+  DocumentFormatting,
+  DocumentPagesFormatting,
+  PageNumberAlignment,
+  PageNumberNumeralStyle,
+  PageSizeId
+} from '../types/document'
 
 /** 96 DPI: 1 cm = 96/2.54 px */
 export const CM_TO_PX = 96 / 2.54
@@ -22,6 +28,16 @@ export interface PageLayoutPaginationConfig {
   marginBottom: number
   marginLeft: number
   marginRight: number
+}
+
+export interface DocumentPrintStyleConfig {
+  pageSizeCss: string
+  pageMarginCss: string
+  fontFamily: string
+  fontSize: string
+  lineHeight: string
+  textColor: string
+  pageColor: string
 }
 
 /**
@@ -130,6 +146,44 @@ export function getPaginationConfigFromFormatting(
   }
 }
 
+function formatPrintLength(value: number, unit: 'cm' | 'in'): string {
+  const rounded = Math.round(value * 100) / 100
+  return `${rounded}${unit}`
+}
+
+function getCssPageSizeName(sizeId: PageSizeId): string {
+  switch (sizeId) {
+    case 'LETTER':
+      return 'letter'
+    case 'LEGAL':
+      return 'legal'
+    case 'TABLOID':
+      return 'tabloid'
+    default:
+      return sizeId.toLowerCase()
+  }
+}
+
+export function getPrintStyleConfigFromFormatting(formatting?: DocumentFormatting | null): DocumentPrintStyleConfig {
+  const layout = resolvePageLayout(formatting)
+  const marginUnit = layout.marginUnit === 'in' ? 'in' : 'cm'
+
+  return {
+    pageSizeCss: `${getCssPageSizeName(layout.pageSize)} ${layout.orientation}`,
+    pageMarginCss: [
+      formatPrintLength(layout.margins.top, marginUnit),
+      formatPrintLength(layout.margins.right, marginUnit),
+      formatPrintLength(layout.margins.bottom, marginUnit),
+      formatPrintLength(layout.margins.left, marginUnit)
+    ].join(' '),
+    fontFamily: formatting?.fontFamily?.trim() || "'Times New Roman', Georgia, serif",
+    fontSize: typeof formatting?.fontSize === 'number' ? `${formatting.fontSize}px` : '16px',
+    lineHeight: typeof formatting?.lineHeight === 'number' ? String(formatting.lineHeight) : '1.15',
+    textColor: '#1a1a1a',
+    pageColor: layout.pageColor ?? DEFAULT_PAGE_COLOR
+  }
+}
+
 export interface DocumentPagesConfig {
   differentFirstPage: boolean
   differentOddEven: boolean
@@ -148,10 +202,60 @@ export interface DocumentPagesConfig {
   accentColor?: string
   headerAccentColor?: string
   footerAccentColor?: string
+  pageNumberNumeralStyle: PageNumberNumeralStyle
+  pageNumberStartAt: number
+  pageNumberAlignment?: PageNumberAlignment
+  pageNumberRegion?: 'header' | 'footer'
+  pageNumberShowOnFirstPage: boolean
+}
+
+function stripHtmlToText(value: string): string {
+  return value
+    .replace(/\u200B/g, '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function isStandalonePageNumberTemplate(value: string | null | undefined): boolean {
+  if (!value) return false
+  return stripHtmlToText(value) === '{page}'
+}
+
+export function sanitizeStandalonePageNumberTemplates(
+  pages?: DocumentPagesFormatting | null
+): DocumentPagesFormatting | undefined {
+  const normalized = normalizeStoredPagesFormatting(pages ?? undefined)
+  if (!normalized) return undefined
+  if (!normalized.pageNumberRegion || !normalized.pageNumberAlignment) return normalized
+
+  const sanitized: DocumentPagesFormatting = { ...normalized }
+  const fields: Array<
+    keyof Pick<
+      DocumentPagesFormatting,
+      | 'header'
+      | 'footer'
+      | 'headerFirstPage'
+      | 'footerFirstPage'
+      | 'headerOdd'
+      | 'headerEven'
+      | 'footerOdd'
+      | 'footerEven'
+    >
+  > = ['header', 'footer', 'headerFirstPage', 'footerFirstPage', 'headerOdd', 'headerEven', 'footerOdd', 'footerEven']
+
+  for (const field of fields) {
+    if (isStandalonePageNumberTemplate(sanitized[field])) {
+      sanitized[field] = null
+    }
+  }
+
+  return sanitized
 }
 
 export function getPagesConfigFromFormatting(formatting?: DocumentFormatting | null): DocumentPagesConfig {
-  const pages = formatting?.pages ?? {}
+  const pages = sanitizeStandalonePageNumberTemplates(formatting?.pages) ?? {}
 
   return {
     differentFirstPage: pages.differentFirstPage ?? false,
@@ -170,7 +274,12 @@ export function getPagesConfigFromFormatting(formatting?: DocumentFormatting | n
     footerBottomMargin: pages.footerBottomMargin,
     accentColor: pages.accentColor,
     headerAccentColor: pages.headerAccentColor,
-    footerAccentColor: pages.footerAccentColor
+    footerAccentColor: pages.footerAccentColor,
+    pageNumberNumeralStyle: pages.pageNumberNumeralStyle ?? 'decimal',
+    pageNumberStartAt: pages.pageNumberStartAt ?? 1,
+    pageNumberAlignment: pages.pageNumberAlignment,
+    pageNumberRegion: pages.pageNumberRegion,
+    pageNumberShowOnFirstPage: pages.pageNumberShowOnFirstPage ?? true
   }
 }
 
@@ -194,7 +303,12 @@ export function normalizeStoredPagesFormatting(pages?: DocumentPagesFormatting):
     footerBottomMargin: pages.footerBottomMargin,
     accentColor: pages.accentColor,
     headerAccentColor: pages.headerAccentColor,
-    footerAccentColor: pages.footerAccentColor
+    footerAccentColor: pages.footerAccentColor,
+    pageNumberNumeralStyle: pages.pageNumberNumeralStyle ?? 'decimal',
+    pageNumberStartAt: pages.pageNumberStartAt ?? 1,
+    pageNumberAlignment: pages.pageNumberAlignment,
+    pageNumberRegion: pages.pageNumberRegion,
+    pageNumberShowOnFirstPage: pages.pageNumberShowOnFirstPage ?? true
   }
 
   return normalized

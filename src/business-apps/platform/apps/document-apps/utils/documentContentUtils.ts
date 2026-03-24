@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify'
+
 function collapseWhitespaceLinear(input: string): string {
   let result = ''
   let previousWasWhitespace = false
@@ -61,8 +63,14 @@ const PRESERVED_HTML_TAGS = new Set([
   'ul'
 ])
 
-const PAGINATION_SPLIT_ATTRIBUTE_PATTERN = /\b(?:paginationSplitId|data-pagination-split-id)=/i
+const PAGINATION_RUNTIME_ATTRIBUTE_PATTERN =
+  /\b(?:paginationSplitId|data-pagination-split-id|paginationChainId|data-pagination-chain-id|paginationRowGroups|data-pagination-row-groups)=/i
 const TABLE_SECTION_TAG_NAMES = new Set(['tbody', 'thead', 'tfoot', 'tr', 'tablerow'])
+const DOCUMENT_EDITOR_FORBIDDEN_TAGS = ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea']
+
+export function containsPaginationRuntimeTableMarkup(html: string): boolean {
+  return PAGINATION_RUNTIME_ATTRIBUTE_PATTERN.test(html)
+}
 
 function getAttributeValue(element: Element, name: string): string | null {
   return element.getAttribute(name) ?? element.getAttribute(name.toLowerCase())
@@ -81,6 +89,14 @@ function removePaginationRuntimeAttributes(element: Element) {
   element.removeAttribute('paginationsplitid')
   element.removeAttribute('data-pagination-split-id')
   element.removeAttribute('dataPaginationSplitId')
+  element.removeAttribute('paginationChainId')
+  element.removeAttribute('paginationchainid')
+  element.removeAttribute('data-pagination-chain-id')
+  element.removeAttribute('dataPaginationChainId')
+  element.removeAttribute('paginationRowGroups')
+  element.removeAttribute('paginationrowgroups')
+  element.removeAttribute('data-pagination-row-groups')
+  element.removeAttribute('dataPaginationRowGroups')
 }
 
 function isWhitespaceTextNode(node: Node): boolean {
@@ -126,10 +142,10 @@ function mergeAdjacentPaginationTables(root: Element | DocumentFragment) {
   let childNode = root.firstChild
 
   while (childNode) {
-    const nextNode = childNode.nextSibling
+    const currentNode = childNode
 
-    if (childNode.nodeType === Node.ELEMENT_NODE) {
-      const childElement = childNode as Element
+    if (currentNode.nodeType === Node.ELEMENT_NODE) {
+      const childElement = currentNode as Element
       mergeAdjacentPaginationTables(childElement)
 
       if (childElement.tagName.toLowerCase() === 'table') {
@@ -152,7 +168,7 @@ function mergeAdjacentPaginationTables(root: Element | DocumentFragment) {
       removePaginationRuntimeAttributes(childElement)
     }
 
-    childNode = nextNode
+    childNode = currentNode.nextSibling
   }
 }
 
@@ -364,9 +380,11 @@ export function containsCustomDocumentTags(html: string): boolean {
 }
 
 export function sanitizePaginationRuntimeHtml(html: string): string {
-  if (!html.trim() || !PAGINATION_SPLIT_ATTRIBUTE_PATTERN.test(html)) {
+  if (!html.trim() || !containsPaginationRuntimeTableMarkup(html)) {
     return html
   }
+
+  // Canonical persistence stays as standard merged HTML tables without runtime pagination metadata.
 
   try {
     if (globalThis.DOMParser === undefined || globalThis.document === undefined) {
@@ -402,7 +420,7 @@ export function sanitizePaginationRuntimeHtml(html: string): string {
   }
 }
 
-export function normalizeDocumentHtmlForEditor(html: string): string {
+function normalizeDocumentHtmlMarkupForEditor(html: string): string {
   const sanitizedHtml = sanitizePaginationRuntimeHtml(html)
 
   if (!sanitizedHtml.trim() || !containsCustomDocumentTags(sanitizedHtml)) {
@@ -435,6 +453,34 @@ export function normalizeDocumentHtmlForEditor(html: string): string {
   } catch {
     return sanitizedHtml
   }
+}
+
+export function sanitizeDocumentHtmlForEditor(html: string): string {
+  const normalizedHtml = normalizeDocumentHtmlMarkupForEditor(html)
+
+  if (!normalizedHtml.trim()) {
+    return '<p></p>'
+  }
+
+  if (globalThis.window === undefined) {
+    return normalizedHtml
+  }
+
+  try {
+    const sanitized = DOMPurify.sanitize(normalizedHtml, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: DOCUMENT_EDITOR_FORBIDDEN_TAGS,
+      ALLOW_DATA_ATTR: true
+    })
+
+    return sanitized.trim() || '<p></p>'
+  } catch {
+    return normalizedHtml
+  }
+}
+
+export function normalizeDocumentHtmlForEditor(html: string): string {
+  return sanitizeDocumentHtmlForEditor(html)
 }
 
 export function isEffectivelyEmptyDocumentHtml(html: string): boolean {

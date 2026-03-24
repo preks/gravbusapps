@@ -5,7 +5,7 @@
 import { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { Image, Link, SeparatorHorizontal, Table } from 'lucide-react'
+import { Hash, Image, Link, SeparatorHorizontal, Table } from 'lucide-react'
 import translations from '../../_i18n'
 import { ToolbarButton, RibbonGroup } from './editorToolbarShared'
 import { TableToolsMenu } from './TableToolsMenu'
@@ -15,6 +15,8 @@ interface InsertTabContentProps {
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
   onOpenInsertTableDialog?: () => void
+  onOpenTableSidebar?: () => void
+  onOpenPageNumbersDialog?: () => void
   onInsertPageBreak?: () => void
   testId?: string
 }
@@ -24,6 +26,8 @@ export function InsertTabContent({
   onOpenLinkDialog,
   onOpenInsertImageDialog,
   onOpenInsertTableDialog,
+  onOpenTableSidebar,
+  onOpenPageNumbersDialog,
   onInsertPageBreak,
   testId = 'editor-toolbar'
 }: Readonly<InsertTabContentProps>) {
@@ -81,7 +85,12 @@ export function InsertTabContent({
       <ToolbarButton onClick={insertTable} tooltip={t('editor-toolbar-insert-table')}>
         <Table className="gba:h-4 gba:w-4" />
       </ToolbarButton>
-      <TableToolsMenu editor={editor} t={t} testId={testId} />
+      <TableToolsMenu editor={editor} t={t} testId={testId} onOpenSidebar={onOpenTableSidebar} />
+      {onOpenPageNumbersDialog && (
+        <ToolbarButton onClick={onOpenPageNumbersDialog} tooltip={t('editor-toolbar-page-numbers')}>
+          <Hash className="gba:h-4 gba:w-4" />
+        </ToolbarButton>
+      )}
       <ToolbarButton onClick={insertPageBreak} tooltip={t('editor-toolbar-page-break')}>
         <SeparatorHorizontal className="gba:h-4 gba:w-4" />
       </ToolbarButton>
