@@ -72,6 +72,8 @@ export interface TeamPipelineParams {
   sortDirection: 'asc' | 'desc'
   currentPage: number
   pageSize: number
+  /** When false, returns full filtered list as `pageRows` for client-side table pagination. */
+  paginate?: boolean
 }
 
 export interface TeamPipelineResult {
@@ -109,7 +111,8 @@ export function useTeamMembersPipeline(params: TeamPipelineParams): TeamPipeline
     sortField,
     sortDirection,
     currentPage,
-    pageSize
+    pageSize,
+    paginate = true
   } = params
 
   return useMemo(() => {
@@ -167,7 +170,7 @@ export function useTeamMembersPipeline(params: TeamPipelineParams): TeamPipeline
 
     const totalFiltered = rows.length
     const start = (currentPage - 1) * pageSize
-    const pageRows = rows.slice(start, start + pageSize)
+    const pageRows = paginate ? rows.slice(start, start + pageSize) : rows
 
     return { filteredSorted: rows, pageRows, totalFiltered }
   }, [
@@ -181,6 +184,7 @@ export function useTeamMembersPipeline(params: TeamPipelineParams): TeamPipeline
     sortField,
     sortDirection,
     currentPage,
-    pageSize
+    pageSize,
+    paginate
   ])
 }

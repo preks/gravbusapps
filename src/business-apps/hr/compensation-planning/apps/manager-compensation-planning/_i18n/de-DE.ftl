@@ -17,6 +17,8 @@ team-summary = { $count ->
 }
 
 search-placeholder = Suchen...
+filter-sheet-title = Filter
+filter-sheet-description = Liste nach Teammitglied, Jahresgehalt oder letzter Gehaltserhöhung eingrenzen.
 
 save-drafts = Entwürfe speichern
 submit-proposals = Vorschläge einreichen

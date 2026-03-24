@@ -7,19 +7,12 @@ import {
   Button,
   Card,
   CardContent,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableHead,
-  Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
 import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
-import { useCompanyOrganizationalUnits } from '@/common/data/orgchart/hooks/useCompanyOrganizationalUnits'
 import type { DistributionMethod } from '../../../../types/compensationPlanningTypes'
 import translations from '../../_i18n'
+import { BudgetDistributionOrgUnitTable } from './BudgetDistributionOrgUnitTable'
 
 interface BudgetDistributionViewProps {
   accessToken: string
@@ -108,74 +101,6 @@ const BudgetDistributionCriteriaSelector: React.FC<{
   </Card>
 )
 
-const BudgetDistributionOrgUnitTable: React.FC<{
-  accessToken: string
-  companyId: string
-  colOrgUnit: string
-  colCode: string
-  colType: string
-  colSalaryBudget: string
-  colBonusBudget: string
-  emptyMessage: string
-}> = ({ accessToken, companyId, colOrgUnit, colCode, colType, colSalaryBudget, colBonusBudget, emptyMessage }) => {
-  const { units, loading } = useCompanyOrganizationalUnits(accessToken, companyId, 100)
-
-  if (loading) {
-    return (
-      <div className="gba:flex gba:justify-center gba:py-12">
-        <Spinner />
-      </div>
-    )
-  }
-
-  return (
-    <Card className="gba:overflow-hidden">
-      <div className="gba:overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{colOrgUnit}</TableHead>
-              <TableHead>{colCode}</TableHead>
-              <TableHead>{colType}</TableHead>
-              <TableHead className="gba:text-right">{colSalaryBudget}</TableHead>
-              <TableHead className="gba:text-right">{colBonusBudget}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {units.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="gba:py-8 gba:text-center gba:text-muted-foreground">
-                  {emptyMessage}
-                </TableCell>
-              </TableRow>
-            ) : (
-              units.map(unit => (
-                <TableRow key={unit.id}>
-                  <TableCell>
-                    <span className="gba:font-medium">{unit.name}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="gba:text-sm gba:text-muted-foreground">{unit.code ?? '-'}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="gba:text-sm gba:text-muted-foreground">{unit.type ?? '-'}</span>
-                  </TableCell>
-                  <TableCell className="gba:text-right">
-                    <span className="gba:text-sm gba:text-muted-foreground">-</span>
-                  </TableCell>
-                  <TableCell className="gba:text-right">
-                    <span className="gba:text-sm gba:text-muted-foreground">-</span>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </Card>
-  )
-}
-
 export const BudgetDistributionView: React.FC<BudgetDistributionViewProps> = ({ accessToken, companyId }) => {
   const { t } = useTranslation(translations)
   const { selectedMethod, setDistributionMethod } = useBudgetDistributionStore()
@@ -195,16 +120,7 @@ export const BudgetDistributionView: React.FC<BudgetDistributionViewProps> = ({ 
         applyLabel={t('budget-distribution-apply')}
       />
 
-      <BudgetDistributionOrgUnitTable
-        accessToken={accessToken}
-        companyId={companyId}
-        colOrgUnit={t('budget-distribution-col-org-unit')}
-        colCode={t('budget-distribution-col-code')}
-        colType={t('budget-distribution-col-type')}
-        colSalaryBudget={t('budget-distribution-col-salary-budget')}
-        colBonusBudget={t('budget-distribution-col-bonus-budget')}
-        emptyMessage={t('budget-distribution-empty-org-units')}
-      />
+      <BudgetDistributionOrgUnitTable accessToken={accessToken} companyId={companyId} />
     </div>
   )
 }

@@ -17,6 +17,8 @@ team-summary = { $count ->
 }
 
 search-placeholder = Caută...
+filter-sheet-title = Filtre
+filter-sheet-description = Restrângeți lista după membru, salariu anual sau data ultimei măriri.
 
 save-drafts = Salvează ciorne
 submit-proposals = Trimite propunerile

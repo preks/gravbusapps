@@ -17,6 +17,8 @@ team-summary = { $count ->
 }
 
 search-placeholder = Search...
+filter-sheet-title = Filters
+filter-sheet-description = Narrow the list by team member, annual salary, or last raise date.
 
 save-drafts = Save Drafts
 submit-proposals = Submit Proposals

@@ -33,6 +33,8 @@ interface ManagerPlanningState {
   setSortFromTable: (field: string, order: 'ASC' | 'DESC' | '') => void
   setSelectedCompanyId: (id: string | null) => void
   toggleSidebarFilter: (filterId: string, selected: boolean) => void
+  /** Replaces all `employee:{id}` entries; keeps other sidebar ids (future use). */
+  setEmployeeSidebarFilters: (employeeIds: string[]) => void
   setSalaryFilterRange: (min: number | null, max: number | null) => void
   setLastRaiseFilterRange: (from: string | null, to: string | null) => void
   setCurrentPage: (page: number) => void
@@ -103,6 +105,15 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
       }
       return { sidebarFilterIds: next, currentPage: 1 }
     }),
+
+  setEmployeeSidebarFilters: employeeIds =>
+    set(state => ({
+      sidebarFilterIds: [
+        ...state.sidebarFilterIds.filter(id => !id.startsWith('employee:')),
+        ...employeeIds.map(id => `employee:${id}`)
+      ],
+      currentPage: 1
+    })),
 
   setSalaryFilterRange: (min, max) => set({ filterSalaryMin: min, filterSalaryMax: max, currentPage: 1 }),
 
