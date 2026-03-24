@@ -7,9 +7,8 @@ import { startProcess } from '@/common/utils/start-process'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { ExpenseData } from '../../../../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getErrorMessage } from '../../../../utils/errorUtils'
 import translations from '../../../../_i18n'
-
-const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error')
 
 export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps>) => {
   const { t } = useTranslation(translations)
@@ -90,7 +89,7 @@ export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps
     const trimmedValue = value.trim()
     // Replace all decimal numbers: digits followed by period followed by digits
     // This handles cases like 57.50, 123.45, -10.00, 307.5
-    return trimmedValue.replaceAll(/(\d)\.(\d)/g, '$1,$2')
+    return trimmedValue.replace(/(\d)\.(\d)/g, '$1,$2')
   }
 
   const handleTriggerCSV = useCallback(

@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
+import { useBackofficeAsyncSearch } from '../../../../hooks/useBackofficeAsyncSearch'
 
 interface Employee {
   id: string
   name: string
 }
-
-const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error')
 
 interface UseExpenseRequestFiltersProps {
   searchEmployees: (searchText: string) => Promise<Employee[]>
@@ -30,8 +29,6 @@ export const useExpenseRequestFilters = ({
 }: UseExpenseRequestFiltersProps) => {
   // Employee filter state
   const [employeeFilter, setEmployeeFilter] = useState('')
-  const [employeeSearchResults, setEmployeeSearchResults] = useState<Employee[]>([])
-  const [employeeSearchLoading, setEmployeeSearchLoading] = useState(false)
   const [selectedEmployees, setSelectedEmployees] = useState<Employee[]>([])
 
   // Status filter state
@@ -45,28 +42,11 @@ export const useExpenseRequestFilters = ({
   const debouncedAmountMin = useDebounce(localAmountMin, 500)
   const debouncedAmountMax = useDebounce(localAmountMax, 500)
 
-  // Employee list options (filter sheet): driven by debounced search query from parent
-  useEffect(() => {
-    const run = async () => {
-      const q = employeeListSearchQuery.trim()
-      if (q.length === 0) {
-        setEmployeeSearchResults([])
-        return
-      }
-      setEmployeeSearchLoading(true)
-      try {
-        const results = await searchEmployees(q)
-        setEmployeeSearchResults(results)
-      } catch (searchError) {
-        console.error('Error searching employees:', getErrorMessage(searchError))
-        setEmployeeSearchResults([])
-      } finally {
-        setEmployeeSearchLoading(false)
-      }
-    }
-
-    void run()
-  }, [employeeListSearchQuery, searchEmployees])
+  const { results: employeeSearchResults, loading: employeeSearchLoading } = useBackofficeAsyncSearch<Employee>({
+    query: employeeListSearchQuery,
+    searchFn: searchEmployees,
+    logContext: 'Error searching employees:'
+  })
 
   // Handle debounced amount filter
   useEffect(() => {

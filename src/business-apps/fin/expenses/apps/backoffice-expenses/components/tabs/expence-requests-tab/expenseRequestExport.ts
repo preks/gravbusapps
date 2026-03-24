@@ -4,13 +4,12 @@ import { GET_EXPENSE_REQUESTS } from '../../../queries'
 import type { ExpenseRequestQueryData, ExpenseData } from '../../../types'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { formatDateLocalized } from '../../../utils/dateUtils'
+import { getErrorMessage } from '../../../utils/errorUtils'
 import { getExpenseRequestStatusDisplay, type ExpenseStatus, type TranslateFn } from '../../../utils/utils'
 import { downloadCsv, downloadExcel, buildFilename } from '../../../utils/exportUtils'
 import { buildEmployeeDisplayName } from '../../../hooks/backofficeReportUtils'
 import { toast, useTranslation } from '@newwork/nw-design-system'
 import translations from '../../../_i18n'
-
-const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error')
 
 export const transformExpenseRequest = (item: any, t: TranslateFn): ExpenseData => ({
   id: item.id,

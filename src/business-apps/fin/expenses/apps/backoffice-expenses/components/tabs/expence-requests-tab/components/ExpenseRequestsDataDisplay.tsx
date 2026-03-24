@@ -1,13 +1,13 @@
 import { useMemo, useState, type ComponentProps, type ReactNode } from 'react'
 import { cn } from '@/common/utils/cn'
 import { DataDisplay, DataToolbar, EscapeContextProvider } from '@newwork/nw-design-system'
-import { ExpenseRequestFilterSheet } from './ExpenseRequestFilterSheet'
+import { ExpenseRequestFilterSheet, type EmployeeFilterRenderProps } from './ExpenseRequestFilterSheet'
 
 type BaseDataDisplayProps = ComponentProps<typeof DataDisplay>
 
 export interface ExpenseRequestsDataDisplayProps extends BaseDataDisplayProps {
   /** Single employee section: legacy search + results (see {@link ExpenseRequestFilterSheet}). */
-  renderEmployeeFilter?: () => ReactNode
+  renderEmployeeFilter?: (props: EmployeeFilterRenderProps) => ReactNode
 }
 
 /**

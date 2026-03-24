@@ -4,11 +4,11 @@ import { useFlowClient } from '@/common/network/flows/useFlowClient'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { ExpenseData } from '../../../../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getErrorMessage } from '../../../../utils/errorUtils'
 import translations from '../../../../_i18n'
 
 const MIN_TRANSFER_LOCK_MS = 1200
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error')
 
 const mapRecordToExpenseRequest = (record: ExpenseData) => ({
   id: record.id || '',

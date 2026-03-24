@@ -16,6 +16,11 @@ import { cn } from '@/common/utils/cn'
 import { EXPENSE_REQUEST_EMPLOYEE_FILTER_GROUP_ID } from '../constants/expenseRequestEmployeeFilter'
 import { ExpenseRequestEmployeeFilterAccordion } from './ExpenseRequestEmployeeFilterAccordion'
 
+export interface EmployeeFilterRenderProps {
+  selectedEmployeeIds: string[]
+  onSelectedEmployeeIdsChange: (employeeIds: string[]) => void
+}
+
 export interface ExpenseRequestFilterSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -29,7 +34,7 @@ export interface ExpenseRequestFilterSheetProps {
   side?: 'left' | 'right' | 'top' | 'bottom'
   className?: string
   /** Renders legacy employee search + picker when the employee group is present in configuration. */
-  renderEmployeeFilter?: () => ReactNode
+  renderEmployeeFilter?: (props: EmployeeFilterRenderProps) => ReactNode
 }
 
 /**
@@ -96,6 +101,19 @@ export function ExpenseRequestFilterSheet({
     [enableLiveFiltering, onChange]
   )
 
+  const handleEmployeeIdsChange = useCallback(
+    (employeeIds: string[]) => {
+      setDraftValues(prev => {
+        const next = { ...prev, employeeIds }
+        if (enableLiveFiltering) {
+          onChange?.(next)
+        }
+        return next
+      })
+    },
+    [enableLiveFiltering, onChange]
+  )
+
   const hasAnyActiveFilter = useMemo(
     () =>
       Object.values(draftValues).some(value =>
@@ -133,7 +151,12 @@ export function ExpenseRequestFilterSheet({
                       isExpanded={isExpanded}
                       onToggle={collapsible ? () => toggleGroup(groupId) : undefined}
                     >
-                      {renderEmployeeFilter()}
+                      {renderEmployeeFilter({
+                        selectedEmployeeIds: Array.isArray(draftValues.employeeIds)
+                          ? (draftValues.employeeIds as string[])
+                          : [],
+                        onSelectedEmployeeIdsChange: handleEmployeeIdsChange
+                      })}
                     </ExpenseRequestEmployeeFilterAccordion>
                   ) : (
                     <FilterGroup

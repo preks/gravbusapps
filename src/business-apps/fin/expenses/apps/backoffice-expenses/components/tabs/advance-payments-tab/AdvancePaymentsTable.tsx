@@ -35,9 +35,11 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import useCloseDropdownOnOutsideClick from '../common/useCloseDropdownOnOutsideClick'
 import withStoppedPropagation from '../common/withStoppedPropagation'
 
+import { useBackofficeAsyncSearch } from '../../../hooks/useBackofficeAsyncSearch'
+import { getErrorMessage } from '../../../utils/errorUtils'
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils'
 import { buildStatusDisplayName } from '../../../utils/sharedUtils'
-import { getCurrencyLabel, getDepartmentLabel } from '../expence-requests-tab/expenseRequestFilterLabels'
+import { getCurrencyLabel, getDepartmentLabel } from '../common/backofficeFilterLabels'
 import MinMaxNumberFilter from '../common/MinMaxNumberFilter'
 import DepartmentSelectFilter from '../common/DepartmentSelectFilter'
 import CurrencySelectFilter from '../common/CurrencySelectFilter'
@@ -46,8 +48,6 @@ import ExpenseDetailsShell from '../../../../../common/components/details-panel/
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { TablePagination } from '../../../../../components'
-
-const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error')
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
@@ -77,8 +77,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   // Reporter search states
   const [reporterSearchText, setReporterSearchText] = useState('')
   const [showReporterDropdown, setShowReporterDropdown] = useState(false)
-  const [reporterSearchResults, setReporterSearchResults] = useState<string[]>([])
-  const [reporterSearchLoading, setReporterSearchLoading] = useState(false)
   const [selectedReporters, setSelectedReporters] = useState<string[]>([])
 
   // Currency, department, and date filter states
@@ -112,6 +110,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const debouncedAdvanceMin = useDebounce(advanceMinFilter, 500)
   const debouncedAdvanceMax = useDebounce(advanceMaxFilter, 500)
 
+  const { results: reporterSearchResults, loading: reporterSearchLoading } = useBackofficeAsyncSearch<string>({
+    query: debouncedReporterSearchText,
+    searchFn: searchReporters,
+    logContext: 'Error searching reporters:'
+  })
+
   // Navigation handler for plan details
   const handleNavigateToPlanDetails = useCallback((record: any) => {
     if (record.expensePlan?.id) {
@@ -134,29 +138,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       navigateTo(url)
     }
   }, [])
-
-  // Handle debounced search for reporters
-  useEffect(() => {
-    const searchReportersDebounced = async () => {
-      if (!debouncedReporterSearchText.trim()) {
-        setReporterSearchResults([])
-        return
-      }
-
-      setReporterSearchLoading(true)
-      try {
-        const results = await searchReporters(debouncedReporterSearchText)
-        setReporterSearchResults(results)
-      } catch (error) {
-        console.error('Error searching reporters:', getErrorMessage(error))
-        setReporterSearchResults([])
-      } finally {
-        setReporterSearchLoading(false)
-      }
-    }
-
-    searchReportersDebounced()
-  }, [debouncedReporterSearchText, searchReporters])
 
   // Handle debounced fetch payments
   useEffect(() => {
@@ -823,11 +804,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         }}
         dataBody={renderDataBody()}
       />
-      <Sheet
-        open={!!selectedItem}
-        onOpenChange={open => !open && handleCloseDetails()}
-        title={selectedItem?.title || selectedItem?.description || t('advance-payment-details-title')}
-      >
+      <Sheet open={!!selectedItem} onOpenChange={open => !open && handleCloseDetails()}>
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <ExpenseDetailsShell
             title={selectedItem?.title || selectedItem?.description || t('advance-payment-details-title')}

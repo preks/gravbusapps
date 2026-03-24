@@ -25,6 +25,7 @@ import {
 } from './backofficeExpenseRequestColumns'
 import ExpenseRequestsTable from './ExpenseRequestsTable'
 import { ExpenseRequestPdfModal, EmployeeSearchFilter, ExpenseRequestsDataDisplay } from './components'
+import type { EmployeeFilterRenderProps } from './components/ExpenseRequestFilterSheet'
 import ExpenseRequestsTableExportOverlay from './components/ExpenseRequestsTableExportOverlay'
 import BackofficeExpenseRequestDetailsSheet from './components/BackofficeExpenseRequestDetailsSheet'
 
@@ -115,7 +116,13 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
   )
 
   const renderEmployeeFilter = useCallback(
-    () => <EmployeeSearchFilter {...employeeSearchFilterProps} />,
+    ({ selectedEmployeeIds, onSelectedEmployeeIdsChange }: EmployeeFilterRenderProps) => (
+      <EmployeeSearchFilter
+        {...employeeSearchFilterProps}
+        selectedEmployeeIds={selectedEmployeeIds}
+        onSelectedEmployeeIdsChange={onSelectedEmployeeIdsChange}
+      />
+    ),
     [employeeSearchFilterProps]
   )
 
@@ -274,7 +281,7 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
           visibleColumns={columnsFilteredByVisibility}
           onVisibleColumnsChange={setVisibleColumns}
           toolbarDensity="default"
-          enableLiveFiltering={true}
+          enableLiveFiltering={false}
           filterSheetTitle={getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_request_list.expense_plan_table.title',
             'Filter Expense Requests'

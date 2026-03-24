@@ -538,11 +538,7 @@ export function useExpenseRequestTabState({
     showEmployeeDropdown,
     setShowEmployeeDropdown,
     employeeSearchResults,
-    employeeSearchLoading,
-    selectedEmployees,
-    setSelectedEmployees,
-    setEmployeeFilter,
-    handleEmployeeFilter
+    employeeSearchLoading
   )
 
   return {
@@ -581,11 +577,7 @@ function useEmployeeSearchFilterProps(
   showEmployeeDropdown: boolean,
   setShowEmployeeDropdown: (v: boolean) => void,
   employeeSearchResults: Array<{ id: string; name: string }>,
-  employeeSearchLoading: boolean,
-  selectedEmployees: Array<{ id: string; name: string }>,
-  setSelectedEmployees: (v: Array<{ id: string; name: string }>) => void,
-  setEmployeeFilter: (v: string) => void,
-  handleEmployeeFilter: (v: string) => void
+  employeeSearchLoading: boolean
 ) {
   return useMemo(
     () => ({
@@ -595,10 +587,6 @@ function useEmployeeSearchFilterProps(
       setShowEmployeeDropdown,
       employeeSearchResults,
       employeeSearchLoading,
-      selectedEmployees,
-      setSelectedEmployees,
-      setEmployeeFilter,
-      handleEmployeeFilter,
       debouncedSearchEmployees: () => undefined
     }),
     [
@@ -607,11 +595,7 @@ function useEmployeeSearchFilterProps(
       showEmployeeDropdown,
       setShowEmployeeDropdown,
       employeeSearchResults,
-      employeeSearchLoading,
-      selectedEmployees,
-      setSelectedEmployees,
-      setEmployeeFilter,
-      handleEmployeeFilter
+      employeeSearchLoading
     ]
   )
 }

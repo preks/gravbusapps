@@ -7,7 +7,7 @@ import {
   getDepartmentLabel,
   getEffectiveDateLabel,
   getRequestDateLabel
-} from './expenseRequestFilterLabels'
+} from '../common/backofficeFilterLabels'
 
 export interface EmployeeOption {
   name: string
