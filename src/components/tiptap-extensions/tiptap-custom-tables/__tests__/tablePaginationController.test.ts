@@ -474,6 +474,7 @@ describe('tablePaginationController', () => {
     }
 
     mockedFindSplitCandidates.mockReturnValue([splitCandidate])
+    mockedFindFragmentSplitCandidates.mockReturnValue([splitCandidate])
     mockedFindMergeCandidates.mockReturnValue([])
     mockedSplitTableAtRow.mockReturnValue(true)
 
@@ -507,7 +508,7 @@ describe('tablePaginationController', () => {
     expect(mockedSplitTableAtRow).toHaveBeenCalledWith(view.state, view.state.tr, 22, 4)
   })
 
-  it('does not suppress split dispatch when layout fragments already represent a split chain', () => {
+  it('suppresses split dispatch when parity-matched layout fragments already represent a split chain', () => {
     const controller = createTablePaginationController('owned')
     const view = createView()
     const splitCandidate = {
@@ -519,6 +520,7 @@ describe('tablePaginationController', () => {
     }
 
     mockedFindSplitCandidates.mockReturnValue([splitCandidate])
+    mockedFindFragmentSplitCandidates.mockReturnValue([splitCandidate])
     mockedFindMergeCandidates.mockReturnValue([])
     mockedSplitTableAtRow.mockReturnValue(true)
 
@@ -551,17 +553,77 @@ describe('tablePaginationController', () => {
         ])
       })
     ).toMatchObject({
+      type: 'none',
+      progress: 'none',
+      reason: 'layout-fragment-pagination-satisfied'
+    })
+
+    expect(mockedSplitTableAtRow).not.toHaveBeenCalled()
+  })
+
+  it('falls back to structural split dispatch on an already split chain when fragment parity mismatches', () => {
+    const controller = createTablePaginationController('owned')
+    const view = createView()
+    const legacySplitCandidate = {
+      mode: 'split' as const,
+      tablePos: 22,
+      splitRowIndex: 4,
+      paginationChainKey: 'chain-fragment-split-mismatch',
+      paginationSplitId: 'pagination-split-fragment'
+    }
+    const fragmentSplitCandidate = {
+      mode: 'split' as const,
+      tablePos: 40,
+      splitRowIndex: 3,
+      paginationChainKey: 'chain-fragment-split-mismatch',
+      paginationSplitId: 'pagination-split-fragment'
+    }
+
+    mockedFindSplitCandidates.mockReturnValue([legacySplitCandidate])
+    mockedFindFragmentSplitCandidates.mockReturnValue([fragmentSplitCandidate])
+    mockedFindMergeCandidates.mockReturnValue([])
+    mockedSplitTableAtRow.mockReturnValue(true)
+
+    expect(
+      controller.evaluate({
+        view,
+        currentPageCount: 2,
+        measuredPageCount: 2,
+        heuristics: { allowMerge: true, allowSplit: true },
+        bodyBands: [],
+        layoutTableFragmentsState: createLayoutTableFragmentsState([
+          {
+            tablePos: 22,
+            pageNumbers: [1],
+            rowCount: 4,
+            paginationChainKey: 'chain-fragment-split-mismatch',
+            paginationSplitId: 'pagination-split-fragment',
+            fragmentIndex: 0,
+            fragmentCount: 2
+          },
+          {
+            tablePos: 40,
+            pageNumbers: [2],
+            rowCount: 4,
+            paginationChainKey: 'chain-fragment-split-mismatch',
+            paginationSplitId: 'pagination-split-fragment',
+            fragmentIndex: 1,
+            fragmentCount: 2
+          }
+        ])
+      })
+    ).toMatchObject({
       type: 'dispatch',
       progress: 'structural',
       dispatchType: 'split',
-      candidateKey: 'chain-fragment-split:split:22:4',
+      candidateKey: 'chain-fragment-split-mismatch:split:22:4',
       scheduleEvaluation: true
     })
 
     expect(mockedSplitTableAtRow).toHaveBeenCalledWith(view.state, view.state.tr, 22, 4)
   })
 
-  it('does not suppress rebalance dispatch for an already split chain', () => {
+  it('suppresses rebalance dispatch for an already split chain once fragment parity matches', () => {
     const controller = createTablePaginationController('owned')
     const view = createView()
     const splitCandidate = {
@@ -573,6 +635,7 @@ describe('tablePaginationController', () => {
     }
 
     mockedFindSplitCandidates.mockReturnValue([splitCandidate])
+    mockedFindFragmentSplitCandidates.mockReturnValue([splitCandidate])
     mockedFindMergeCandidates.mockReturnValue([])
     mockedRebalanceAdjacentPaginationTables.mockReturnValue(true)
 
@@ -605,15 +668,13 @@ describe('tablePaginationController', () => {
         ])
       })
     ).toMatchObject({
-      type: 'dispatch',
-      progress: 'structural',
-      dispatchType: 'split',
-      candidateKey: 'chain-fragment-rebalance:rebalance:22:4',
-      scheduleEvaluation: true
+      type: 'none',
+      progress: 'none',
+      reason: 'layout-fragment-pagination-satisfied'
     })
 
     expect(mockedSplitTableAtRow).not.toHaveBeenCalled()
-    expect(mockedRebalanceAdjacentPaginationTables).toHaveBeenCalledWith(view.state, view.state.tr, 22, 4)
+    expect(mockedRebalanceAdjacentPaginationTables).not.toHaveBeenCalled()
   })
 
   it('does not let layout fragments change split candidate priority across chains', () => {
@@ -726,7 +787,7 @@ describe('tablePaginationController', () => {
     expect(mockedMergeAdjacentPaginationTables).toHaveBeenCalledTimes(1)
   })
 
-  it('does not suppress merge dispatch when an existing split chain can fit again', () => {
+  it('suppresses merge dispatch when an existing split chain can fit again and fragment parity matches', () => {
     const controller = createTablePaginationController('owned')
     const view = createView()
     const mergeCandidate = {
@@ -738,6 +799,7 @@ describe('tablePaginationController', () => {
 
     mockedFindSplitCandidates.mockReturnValue([])
     mockedFindMergeCandidates.mockReturnValue([mergeCandidate])
+    mockedFindFragmentMergeCandidates.mockReturnValue([mergeCandidate])
     mockedMergeAdjacentPaginationTables.mockReturnValue(true)
 
     expect(
@@ -769,14 +831,12 @@ describe('tablePaginationController', () => {
         ])
       })
     ).toMatchObject({
-      type: 'dispatch',
-      progress: 'structural',
-      dispatchType: 'merge',
-      candidateKey: 'chain-fragment-merge:20:56',
-      scheduleEvaluation: true
+      type: 'none',
+      progress: 'none',
+      reason: 'layout-fragment-pagination-satisfied'
     })
 
-    expect(mockedMergeAdjacentPaginationTables).toHaveBeenCalledWith(view.state, view.state.tr, 20)
+    expect(mockedMergeAdjacentPaginationTables).not.toHaveBeenCalled()
   })
 
   it('reuses the initial merge candidate scan within a single evaluation', () => {

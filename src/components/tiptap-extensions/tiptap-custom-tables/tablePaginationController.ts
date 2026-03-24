@@ -73,6 +73,12 @@ interface ResolvedTablePaginationCandidates {
   mergeCandidates: MergeableTableFragmentsCandidate[]
 }
 
+interface LayoutFragmentChainSummary {
+  fragmentCount: number
+  tablePositions: Set<number>
+  hasSplitFragments: boolean
+}
+
 export type TablePaginationControllerResult =
   | {
       type: 'refresh'
@@ -128,6 +134,60 @@ function summarizeMergeCandidate(candidate: MergeableTableFragmentsCandidate) {
     secondTablePos: candidate.secondTablePos,
     paginationSplitId: candidate.paginationSplitId
   }
+}
+
+function createLayoutFragmentChainSummaries(
+  layoutTableFragments: readonly PaginationLayoutTableFragmentsState['fragments']
+) {
+  const summaries = new Map<string, LayoutFragmentChainSummary>()
+
+  layoutTableFragments.forEach(fragment => {
+    const existingSummary = summaries.get(fragment.paginationChainKey) ?? {
+      fragmentCount: 0,
+      tablePositions: new Set<number>(),
+      hasSplitFragments: false
+    }
+
+    existingSummary.fragmentCount = Math.max(existingSummary.fragmentCount, fragment.fragmentCount)
+    existingSummary.tablePositions.add(fragment.tablePos)
+    if (fragment.paginationSplitId !== null || fragment.fragmentCount > 1) {
+      existingSummary.hasSplitFragments = true
+    }
+
+    summaries.set(fragment.paginationChainKey, existingSummary)
+  })
+
+  return summaries
+}
+
+function shouldUseLayoutSatisfiedOutcome(options: {
+  resolvedCandidates: ResolvedTablePaginationCandidates
+  layoutFragmentChains: Map<string, LayoutFragmentChainSummary>
+  splitCandidate?: TableOverflowSplitCandidate | null
+  mergeCandidate?: MergeableTableFragmentsCandidate | null
+}) {
+  if (
+    options.resolvedCandidates.authority !== 'layout-fragment-guided' ||
+    options.resolvedCandidates.parityStatus !== 'match'
+  ) {
+    return false
+  }
+
+  if (options.splitCandidate) {
+    const summary = options.layoutFragmentChains.get(options.splitCandidate.paginationChainKey)
+    if (!summary?.hasSplitFragments) {
+      return false
+    }
+
+    return options.splitCandidate.mode === 'rebalance' || options.splitCandidate.paginationSplitId !== null
+  }
+
+  if (options.mergeCandidate) {
+    const summary = options.layoutFragmentChains.get(options.mergeCandidate.paginationChainKey)
+    return summary?.hasSplitFragments ?? false
+  }
+
+  return false
 }
 
 function haveMatchingCandidateKeys<TCandidate>(
@@ -439,6 +499,7 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
         fragmentGuidedSplitCandidates,
         fragmentGuidedMergeCandidates
       })
+      const layoutFragmentChains = createLayoutFragmentChainSummaries(layoutTableFragmentsState.fragments)
       const splitCandidates = resolvedCandidates.splitCandidates
       const mergeCandidates = resolvedCandidates.mergeCandidates
 
@@ -533,6 +594,28 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
             type: 'none',
             progress: 'none',
             reason: 'repeat-successful-split-candidate'
+          }
+        }
+
+        if (
+          shouldUseLayoutSatisfiedOutcome({
+            resolvedCandidates,
+            layoutFragmentChains,
+            splitCandidate: liveCandidate
+          })
+        ) {
+          preferredSplitChainKey = null
+          logPaginationDebug('table-controller-outcome', {
+            type: 'none',
+            reason: 'layout-fragment-pagination-satisfied',
+            currentPageCount,
+            measuredPageCount,
+            candidate: summarizeSplitCandidate(liveCandidate)
+          })
+          return {
+            type: 'none',
+            progress: 'none',
+            reason: 'layout-fragment-pagination-satisfied'
           }
         }
 
@@ -652,6 +735,27 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
             type: 'none',
             progress: 'none',
             reason: 'repeat-successful-merge-candidate'
+          }
+        }
+
+        if (
+          shouldUseLayoutSatisfiedOutcome({
+            resolvedCandidates,
+            layoutFragmentChains,
+            mergeCandidate: liveCandidate
+          })
+        ) {
+          logPaginationDebug('table-controller-outcome', {
+            type: 'none',
+            reason: 'layout-fragment-pagination-satisfied',
+            currentPageCount,
+            measuredPageCount,
+            candidate: summarizeMergeCandidate(liveCandidate)
+          })
+          return {
+            type: 'none',
+            progress: 'none',
+            reason: 'layout-fragment-pagination-satisfied'
           }
         }
 
