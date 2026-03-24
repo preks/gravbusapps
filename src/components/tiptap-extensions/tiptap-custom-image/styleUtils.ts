@@ -46,14 +46,21 @@ export function normalizeImageSizeReference(value: unknown, fallback: ImageSizeR
 export function normalizeNullableNumber(value: unknown, fallback: number | null = null): number | null {
   if (value === null || value === undefined || value === '') return fallback
   if (typeof value === 'number' && Number.isFinite(value)) return value
-  const parsed = Number.parseFloat(String(value))
+  if (typeof value !== 'string') return fallback
+  const parsed = Number.parseFloat(value)
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
 export function normalizeNullableBoolean(value: unknown, fallback: boolean | null = null): boolean | null {
   if (value === null || value === undefined || value === '') return fallback
   if (typeof value === 'boolean') return value
-  const lower = String(value).trim().toLowerCase()
+  if (typeof value === 'number') {
+    if (value === 1) return true
+    if (value === 0) return false
+    return fallback
+  }
+  if (typeof value !== 'string') return fallback
+  const lower = value.trim().toLowerCase()
   if (['true', '1', 'yes', 'on'].includes(lower)) return true
   if (['false', '0', 'no', 'off'].includes(lower)) return false
   return fallback

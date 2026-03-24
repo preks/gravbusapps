@@ -32,6 +32,11 @@ const ALIGN_OPTIONS: { value: PageNumberAlignment; labelKey: string }[] = [
   { value: 'inside', labelKey: 'page-numbers-align-inside' },
   { value: 'outside', labelKey: 'page-numbers-align-outside' }
 ]
+const textAlignPattern = /text-align:\s*(\w+)/
+
+function readTextAlignment(value?: string): string | undefined {
+  return textAlignPattern.exec(value ?? '')?.[1]
+}
 
 function inferRegion(p: DocumentPagesFormatting): 'header' | 'footer' {
   if (p.pageNumberRegion === 'header' || p.pageNumberRegion === 'footer') {
@@ -49,13 +54,13 @@ function inferAlignment(p: DocumentPagesFormatting, region: 'header' | 'footer')
   if (p.differentOddEven) {
     const odd = region === 'header' ? p.headerOdd : p.footerOdd
     const even = region === 'header' ? p.headerEven : p.footerEven
-    const o = (odd ?? '').match(/text-align:\s*(\w+)/)?.[1]
-    const e = (even ?? '').match(/text-align:\s*(\w+)/)?.[1]
+    const o = readTextAlignment(odd)
+    const e = readTextAlignment(even)
     if (o === 'right' && e === 'left') return 'outside'
     if (o === 'left' && e === 'right') return 'inside'
   }
   const main = region === 'header' ? p.header : p.footer
-  const a = (main ?? '').match(/text-align:\s*(\w+)/)?.[1]
+  const a = readTextAlignment(main)
   if (a === 'left') return 'left'
   if (a === 'right') return 'right'
   return 'center'

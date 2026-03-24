@@ -99,7 +99,12 @@ export function resolveSidebarPresentationState(options: {
   showHeaderFooterSidebar: boolean
   documentEditorRightReservePx: number | undefined
 } {
-  const documentRightPanelOffset = options.rightSidebar === 'comments' ? 412 : options.rightSidebar === 'ai' ? 496 : 16
+  let documentRightPanelOffset = 16
+  if (options.rightSidebar === 'comments') {
+    documentRightPanelOffset = 412
+  } else if (options.rightSidebar === 'ai') {
+    documentRightPanelOffset = 496
+  }
   const showTableSidebar =
     options.selectedTableSidebar.open &&
     options.selectedTableSidebar.editor != null &&
@@ -110,14 +115,15 @@ export function resolveSidebarPresentationState(options: {
     options.activeHeaderFooterEditor != null &&
     !showTableSidebar &&
     !(options.selectedImageSidebar.open && options.selectedImageSidebar.editor === options.activeHeaderFooterEditor)
-  const documentEditorRightReservePx =
+  const shouldReserveRightSidebarSpace =
     showHeaderFooterSidebar ||
     showTableSidebar ||
     (options.selectedImageSidebar.open &&
       options.selectedImageSidebar.pos != null &&
       options.selectedImageSidebar.attrs != null)
-      ? DOCUMENT_EDITOR_RIGHT_SIDEBAR_WIDTH_PX + documentRightPanelOffset
-      : undefined
+  const documentEditorRightReservePx = shouldReserveRightSidebarSpace
+    ? DOCUMENT_EDITOR_RIGHT_SIDEBAR_WIDTH_PX + documentRightPanelOffset
+    : undefined
 
   return {
     documentRightPanelOffset,
@@ -236,7 +242,7 @@ export function usePagedDocumentSelectionSidebars({
 
       const nextPos = mappedPos?.pos ?? current.pos
       const node = targetEditor.state.doc.nodeAt(nextPos)
-      if (!node || node.type.name !== 'image') {
+      if (node?.type.name !== 'image') {
         return null
       }
 
@@ -285,7 +291,7 @@ export function usePagedDocumentSelectionSidebars({
       }
 
       const persisted = getPersistedSelectedImageSidebar(sourceEditor)
-      if (!persisted || persisted.editor !== sourceEditor) {
+      if (persisted?.editor !== sourceEditor) {
         replaceImagePosRef.current = null
         setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
         return
@@ -354,7 +360,7 @@ export function usePagedDocumentSelectionSidebars({
 
       const nextPos = mappedPos?.pos ?? current.tablePos
       const node = targetEditor.state.doc.nodeAt(nextPos)
-      if (!node || node.type.name !== 'table') {
+      if (node?.type.name !== 'table') {
         return null
       }
 
@@ -396,7 +402,7 @@ export function usePagedDocumentSelectionSidebars({
       }
 
       const persisted = getPersistedSelectedTableSidebar(sourceEditor)
-      if (!persisted || persisted.editor !== sourceEditor) {
+      if (persisted?.editor !== sourceEditor) {
         setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
         return
       }

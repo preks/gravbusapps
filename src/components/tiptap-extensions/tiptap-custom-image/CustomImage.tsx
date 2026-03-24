@@ -618,14 +618,12 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           const current = findCurrentImage(state, this.name)
           if (!current) return false
 
-          const nextAlign =
-            normalized === 'square-right'
-              ? 'right'
-              : normalized === 'square-left' || normalized === 'tight' || normalized === 'through'
-                ? 'left'
-                : normalized === 'inline'
-                  ? (current.node.attrs.align ?? this.options.defaultAlign)
-                  : (current.node.attrs.align ?? this.options.defaultAlign)
+          let nextAlign = current.node.attrs.align ?? this.options.defaultAlign
+          if (normalized === 'square-right') {
+            nextAlign = 'right'
+          } else if (normalized === 'square-left' || normalized === 'tight' || normalized === 'through') {
+            nextAlign = 'left'
+          }
           const updated = updateCurrentImage(state, tr, this.name, {
             wrapMode: normalized,
             ...(nextAlign ? { align: nextAlign } : {}),

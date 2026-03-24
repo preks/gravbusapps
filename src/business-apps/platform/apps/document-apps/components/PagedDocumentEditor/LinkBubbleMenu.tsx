@@ -15,6 +15,10 @@ export interface LinkBubbleMenuProps {
   readonly 'data-testid'?: string
 }
 
+function preventEditorBlurOnMouseDown(event: React.MouseEvent<HTMLElement>) {
+  event.preventDefault()
+}
+
 export function LinkBubbleMenu({ editor, onEdit, 'data-testid': testId = 'link-bubble-menu' }: LinkBubbleMenuProps) {
   const { t } = useTranslation(translations)
 
@@ -38,15 +42,22 @@ export function LinkBubbleMenu({ editor, onEdit, 'data-testid': testId = 'link-b
     <div
       className="gba:flex gba:items-center gba:gap-0.5 gba:rounded-md gba:border gba:bg-popover gba:px-1 gba:py-0.5 gba:shadow-md"
       data-testid={testId}
-      onMouseDown={event => event.preventDefault()}
     >
-      <Button variant="ghost" size="sm" onClick={onEdit} className="gba:h-8 gba:gap-1" data-testid="link-bubble-edit">
+      <Button
+        variant="ghost"
+        size="sm"
+        onMouseDown={preventEditorBlurOnMouseDown}
+        onClick={onEdit}
+        className="gba:h-8 gba:gap-1"
+        data-testid="link-bubble-edit"
+      >
         <Pencil className="gba:h-4 gba:w-4" />
         {t('link-bubble-edit')}
       </Button>
       <Button
         variant="ghost"
         size="sm"
+        onMouseDown={preventEditorBlurOnMouseDown}
         onClick={handleRemoveLink}
         className="gba:h-8 gba:gap-1"
         data-testid="link-bubble-remove-link"
@@ -57,6 +68,7 @@ export function LinkBubbleMenu({ editor, onEdit, 'data-testid': testId = 'link-b
       <Button
         variant="ghost"
         size="sm"
+        onMouseDown={preventEditorBlurOnMouseDown}
         onClick={handleOpenLink}
         disabled={!href || !isAllowedHref(href)}
         className="gba:h-8 gba:gap-1"
@@ -68,6 +80,7 @@ export function LinkBubbleMenu({ editor, onEdit, 'data-testid': testId = 'link-b
       <Button
         variant="ghost"
         size="sm"
+        onMouseDown={preventEditorBlurOnMouseDown}
         onClick={handleOpenInNewTab}
         disabled={!href || !isAllowedHref(href)}
         className="gba:h-8 gba:gap-1"

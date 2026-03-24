@@ -304,17 +304,16 @@ export function createPaginationExtensionPlugins(options: {
         },
         handleDOMEvents: {
           mousedown: (view, event) => {
-            const mouseEvent = event as MouseEvent
-            if (mouseEvent.defaultPrevented) return false
-            if (mouseEvent.button !== 0) return false
-            if (mouseEvent.metaKey || mouseEvent.ctrlKey || mouseEvent.altKey || mouseEvent.shiftKey) return false
+            if (event.defaultPrevented) return false
+            if (event.button !== 0) return false
+            if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false
             if (storage.activeEditorType !== null) return false
 
-            const resolution = resolvePaginationBodyClick(view, mouseEvent.clientX, mouseEvent.clientY)
+            const resolution = resolvePaginationBodyClick(view, event.clientX, event.clientY)
             if (resolution.action === 'allow') return false
 
-            mouseEvent.preventDefault()
-            mouseEvent.stopPropagation()
+            event.preventDefault()
+            event.stopPropagation()
 
             if (resolution.action === 'set') {
               const selection = createSafePaginationSelection(view.state.doc, resolution.position)

@@ -232,11 +232,16 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   const rotation = resolvedDimensions.rotation
 
   const figureDataAttributes = getFigureDataAttributes(mergedAttributes)
-  const imgStyle: React.CSSProperties = {
-    maxWidth: '100%',
-    ...(displayWidth != null ? { width: displayWidth } : {}),
-    ...(displayHeight != null ? { height: displayHeight } : { height: 'auto' }),
-    ...(rotation !== 0 ? { transform: `rotate(${rotation}deg)`, transformOrigin: 'center center' } : {})
+  const imgStyle: React.CSSProperties = { maxWidth: '100%', height: 'auto' }
+  if (displayWidth != null) {
+    imgStyle.width = displayWidth
+  }
+  if (displayHeight != null) {
+    imgStyle.height = displayHeight
+  }
+  if (rotation !== 0) {
+    imgStyle.transform = `rotate(${rotation}deg)`
+    imgStyle.transformOrigin = 'center center'
   }
 
   const handleSelectNode = useCallback(
@@ -301,7 +306,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
         if (pos === undefined) return
 
         const node = editor.state.doc.nodeAt(pos)
-        if (!node || node.type.name !== 'image') return
+        if (node?.type.name !== 'image') return
 
         const tr = editor.state.tr.setNodeMarkup(pos, undefined, {
           ...node.attrs,
@@ -414,7 +419,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       if (pos === undefined) return
 
       const currentNode = editor.state.doc.nodeAt(pos)
-      if (!currentNode || currentNode.type.name !== 'image') return
+      if (currentNode?.type.name !== 'image') return
 
       if (currentNode.attrs.originalWidth === naturalWidth && currentNode.attrs.originalHeight === naturalHeight) {
         return

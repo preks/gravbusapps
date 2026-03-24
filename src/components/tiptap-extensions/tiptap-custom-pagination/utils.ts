@@ -222,7 +222,7 @@ function toAlphaNumeral(n: number, upper: boolean): string {
   const base = upper ? 65 : 97
   while (x > 0) {
     x -= 1
-    s = String.fromCharCode(base + (x % 26)) + s
+    s = String.fromCodePoint(base + (x % 26)) + s
     x = Math.floor(x / 26)
   }
   return s
@@ -754,7 +754,7 @@ function findPageBreakElement(
   return resolvePaginationPageBreakChildren(mountedPaginationElement).find(pageBreak => {
     if (!(pageBreak instanceof HTMLElement)) return false
     return resolvePageBreakNumber(pageBreak) === pageNumber
-  }) as HTMLElement | undefined
+  })
 }
 
 function resolvePaginationPageBreakChildren(paginationElement: HTMLElement | null) {
@@ -1261,25 +1261,25 @@ export function measureHeaderFooterContentHeights(
 
   resolvedPageNumbers.forEach(pageNumber => {
     const headerRegionLayout =
-      headerRegionLayouts !== null
-        ? (headerRegionLayouts.get(pageNumber) ?? null)
-        : resolveRegionLayoutForPage(
+      headerRegionLayouts === null
+        ? resolveRegionLayoutForPage(
             editorDom,
             'header',
             pageNumber,
             getResolvedPaginationElement(),
             getResolvedFirstPageHeader()
           )
+        : (headerRegionLayouts.get(pageNumber) ?? null)
     const footerRegionLayout =
-      footerRegionLayouts !== null
-        ? (footerRegionLayouts.get(pageNumber) ?? null)
-        : resolveRegionLayoutForPage(
+      footerRegionLayouts === null
+        ? resolveRegionLayoutForPage(
             editorDom,
             'footer',
             pageNumber,
             getResolvedPaginationElement(),
             getResolvedFirstPageHeader()
           )
+        : (footerRegionLayouts.get(pageNumber) ?? null)
     const headerHeight = clampHeaderContentHeight(
       pageFormat,
       storage,
@@ -1458,7 +1458,7 @@ function resolvePageBodyMeasurementBand(
   const top = rect.top - editorRect.top + editorDom.scrollTop
   const bottom = rect.bottom - editorRect.top + editorDom.scrollTop
 
-  if (!(bottom > top)) {
+  if (bottom <= top) {
     return null
   }
 
@@ -1609,12 +1609,10 @@ export function calculatePageCount(
   const contentBottom = contentBottomCandidates.length > 0 ? Math.max(...contentBottomCandidates) : null
   const selectionIsRange = view.state.selection.from !== view.state.selection.to
   const selectionBottom = selectionIsRange || contentBottom === null ? getSelectionBottom(view) : 0
-  const measuredBottom =
-    contentBottom === null
-      ? selectionBottom
-      : selectionIsRange
-        ? Math.max(contentBottom, selectionBottom)
-        : contentBottom
+  let measuredBottom = selectionBottom
+  if (contentBottom !== null) {
+    measuredBottom = selectionIsRange ? Math.max(contentBottom, selectionBottom) : contentBottom
+  }
   const lastPageBodyBand =
     resolvePageBodyMeasurementBand(editorDom, currentPageCount, paginationElement) ??
     (() => {
@@ -1622,9 +1620,9 @@ export function calculatePageCount(
       return pageBodyBands[pageBodyBands.length - 1] ?? null
     })()
   const pageContentHeight =
-    lastPageBodyBand !== null
-      ? Math.max(1, lastPageBodyBand.bottom - lastPageBodyBand.top)
-      : getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
+    lastPageBodyBand === null
+      ? getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
+      : Math.max(1, lastPageBodyBand.bottom - lastPageBodyBand.top)
 
   if (paginationElement) {
     const canMeasurePagination = lastPageBodyBand !== null && (contentBottom !== null || selectionBottom > 0)

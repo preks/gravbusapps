@@ -37,12 +37,16 @@ export interface SaveStatusIndicatorProps {
   t: (key: string, vars?: Record<string, string | number>) => string
 }
 
+function getApproverAvatarKey(approver: DocumentApprovalRequest['approvers'][number], index: number): string {
+  return approver.userId || approver.userName || `approver-${index}`
+}
+
 export function SaveStatusIndicator({
   isSaving,
   hasUnsavedChanges,
   lastSaved,
   t
-}: SaveStatusIndicatorProps): React.ReactNode {
+}: Readonly<SaveStatusIndicatorProps>): React.ReactNode {
   if (isSaving) {
     return (
       <Badge variant="secondary" className="gba:gap-1">
@@ -77,7 +81,7 @@ export interface ApprovalStatusBadgeProps {
   approvalRequest: DocumentApprovalRequest
 }
 
-export function ApprovalStatusBadge({ approvalRequest }: ApprovalStatusBadgeProps): React.ReactNode {
+export function ApprovalStatusBadge({ approvalRequest }: Readonly<ApprovalStatusBadgeProps>): React.ReactNode {
   const { t } = useTranslation(translations)
   const approvedBy = approvalRequest.approvers?.filter(approver => approver.status === 'approved') || []
   const pendingApprovers = approvalRequest.approvers?.filter(approver => approver.status === 'pending') || []
@@ -92,7 +96,7 @@ export function ApprovalStatusBadge({ approvalRequest }: ApprovalStatusBadgeProp
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2">
           {pendingApprovers.slice(0, 3).map((approver, index) => (
-            <Avatar key={index} className="gba:w-6 gba:h-6">
+            <Avatar key={getApproverAvatarKey(approver, index)} className="gba:w-6 gba:h-6">
               <AvatarImage
                 src={getAvatarUrl(approver.userPicture)}
                 alt={approver.userName || t('editor-approval-approver-alt')}

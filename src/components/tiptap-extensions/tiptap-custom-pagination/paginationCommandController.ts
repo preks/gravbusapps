@@ -193,7 +193,7 @@ export function createPaginationCommandController(options: {
   const scheduleFrame = options.scheduleFrame ?? requestAnimationFrame
 
   const dispatchRefreshCommand = (editor: Editor, shouldStabilize: boolean) => {
-    const storage = editor.storage.pages as PagesStorage
+    const storage = editor.storage.pages
     const runtimeOptions = options.getRuntimeOptions(editor)
     options.syncStorageFromOptions(storage, runtimeOptions)
     options.syncEditorStorage(editor as unknown as { storage: Record<string, unknown> }, storage)
@@ -274,7 +274,7 @@ export function createPaginationCommandController(options: {
     clickPosition?: { clientX: number; clientY: number },
     allowRefreshRecovery = true
   ) => {
-    const storage = editor.storage.pages as PagesStorage
+    const storage = editor.storage.pages
     const runtimeOptions = options.getRuntimeOptions(editor)
     const totalPages = storage.getPageCount()
     if (pageNumber < 1 || pageNumber > totalPages) return false
@@ -361,7 +361,7 @@ export function createPaginationCommandController(options: {
     const view = options.getMountedEditorView(editor)
     if (!view) return false
 
-    const storage = editor.storage.pages as PagesStorage
+    const storage = editor.storage.pages
     const runtimeOptions = options.getRuntimeOptions(editor)
     options.syncStorageFromOptions(storage, runtimeOptions)
     const normalizedPageNumbers = normalizeHydrationPageNumbers(pageNumbers)

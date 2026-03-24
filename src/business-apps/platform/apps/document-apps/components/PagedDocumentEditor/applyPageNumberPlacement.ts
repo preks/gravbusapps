@@ -79,8 +79,12 @@ function getLegacyStandaloneTemplateResetUpdates(editor: Editor): Partial<PagesO
   ;(Object.keys(STORAGE_HTML_FIELD_BY_OPTION) as PagesOptionField[]).forEach(field => {
     const storageValue = pagesStorage?.[STORAGE_HTML_FIELD_BY_OPTION[field]]
     const optionValue = pagesOptions[field]
-    const currentValue =
-      typeof storageValue === 'string' ? storageValue : typeof optionValue === 'string' ? optionValue : null
+    let currentValue: string | null = null
+    if (typeof storageValue === 'string') {
+      currentValue = storageValue
+    } else if (typeof optionValue === 'string') {
+      currentValue = optionValue
+    }
     if (isStandalonePageNumberTemplate(currentValue)) {
       updates[field] = ''
     }

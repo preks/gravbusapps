@@ -201,12 +201,12 @@ function resolvePageRangeSpacerHeights(editorDom: HTMLElement): Map<string, numb
 
     const dataHeight = Number.parseFloat(child.dataset.rmPageRangeHeight ?? '')
     const styleHeight = Number.parseFloat(child.style.height || '')
-    const resolvedHeight =
-      Number.isFinite(dataHeight) && dataHeight >= 0
-        ? dataHeight
-        : Number.isFinite(styleHeight) && styleHeight >= 0
-          ? styleHeight
-          : child.offsetHeight
+    let resolvedHeight = child.offsetHeight
+    if (Number.isFinite(dataHeight) && dataHeight >= 0) {
+      resolvedHeight = dataHeight
+    } else if (Number.isFinite(styleHeight) && styleHeight >= 0) {
+      resolvedHeight = styleHeight
+    }
     if (!Number.isFinite(resolvedHeight) || resolvedHeight < 0) {
       return
     }
@@ -301,17 +301,17 @@ export function resolvePageBreakerPlaceholderMetrics(
   pageBreakEls.forEach((pageBreakEl, index) => {
     const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
     const pageNumber =
-      directIndexedRange !== null ? directIndexedRange.startPage + index : resolvePageBreakNumber(pageBreakEl)
+      directIndexedRange === null ? resolvePageBreakNumber(pageBreakEl) : directIndexedRange.startPage + index
     if (pageNumber === null || pageNumber < 1 || !(breaker instanceof HTMLElement)) return
 
     const dataHeight = Number(breaker.dataset.rmBreakerPlaceholderHeight ?? '')
     const styleHeight = Number.parseFloat(breaker.style.height || '')
-    const breakerHeight =
-      (Number.isFinite(dataHeight) && dataHeight >= 0
-        ? dataHeight
-        : Number.isFinite(styleHeight) && styleHeight >= 0
-          ? styleHeight
-          : breaker.offsetHeight) ?? 0
+    let breakerHeight = breaker.offsetHeight
+    if (Number.isFinite(dataHeight) && dataHeight >= 0) {
+      breakerHeight = dataHeight
+    } else if (Number.isFinite(styleHeight) && styleHeight >= 0) {
+      breakerHeight = styleHeight
+    }
     const footerDataHeight = Number(breaker.dataset.rmBreakerFooterHeight ?? '')
     const nextHeaderDataHeight = Number(breaker.dataset.rmBreakerNextHeaderHeight ?? '')
     const footer =
@@ -327,11 +327,11 @@ export function resolvePageBreakerPlaceholderMetrics(
             `[data-rm-editor-type="header"][data-rm-page-number="${pageNumber + 1}"]`
           ) as HTMLElement | null) ?? null)
     const footerHeight =
-      (Number.isFinite(footerDataHeight) && footerDataHeight >= 0 ? footerDataHeight : (footer?.offsetHeight ?? 0)) ?? 0
+      Number.isFinite(footerDataHeight) && footerDataHeight >= 0 ? footerDataHeight : (footer?.offsetHeight ?? 0)
     const nextHeaderHeight =
-      (Number.isFinite(nextHeaderDataHeight) && nextHeaderDataHeight >= 0
+      Number.isFinite(nextHeaderDataHeight) && nextHeaderDataHeight >= 0
         ? nextHeaderDataHeight
-        : (nextHeader?.offsetHeight ?? 0)) ?? 0
+        : (nextHeader?.offsetHeight ?? 0)
 
     if (Number.isFinite(breakerHeight) && breakerHeight >= 0) {
       placeholderMetrics.set(pageNumber, {

@@ -97,7 +97,8 @@ export function usePagedDocumentPageNumberActions({
     const pagesFromEditor = readPagesFormattingFromStorage(pagesStorage as never)
     if (!pagesFromEditor) return
 
-    const mergedPages = { ...(layoutFormattingRef.current.pages ?? {}), ...pagesFromEditor }
+    const currentPages = layoutFormattingRef.current.pages
+    const mergedPages = currentPages ? { ...currentPages, ...pagesFromEditor } : { ...pagesFromEditor }
     const mergedFormatting: DocumentFormatting = { ...layoutFormattingRef.current, pages: mergedPages }
     handlePageSetupApply(buildPersistedFormatting(mergedFormatting, mergedPages))
   }, [buildPersistedFormatting, editorRef, handlePageSetupApply, layoutFormattingRef])

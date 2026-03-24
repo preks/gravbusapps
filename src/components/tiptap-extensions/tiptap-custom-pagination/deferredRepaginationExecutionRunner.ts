@@ -138,7 +138,7 @@ export function applyDeferredRepaginationExecutionPlan(options: {
       onLogDebug('deferred-repagination-batch-continue', {
         evaluationId,
         loopIteration,
-        ...(plan.continueDebug ?? {})
+        ...plan.continueDebug
       })
 
       return {
@@ -152,7 +152,7 @@ export function applyDeferredRepaginationExecutionPlan(options: {
       onLogDebug('deferred-repagination-batch-schedule', {
         evaluationId,
         loopIteration,
-        ...(plan.scheduleDebug ?? {})
+        ...plan.scheduleDebug
       })
       onScheduleEvaluation()
     }

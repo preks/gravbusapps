@@ -88,6 +88,49 @@ function getWordRotationValue(rotation: number): string {
   return String(Math.round(rotation * 60000))
 }
 
+function getWrapSquareText(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
+  if (layout.wrapMode === 'square-right') {
+    return 'left'
+  }
+
+  if (layout.wrapMode === 'square-left') {
+    return 'right'
+  }
+
+  return 'bothSides'
+}
+
+function getWrapXml(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
+  if (layout.wrapMode === 'top-bottom') {
+    return '<wp:wrapTopAndBottom/>'
+  }
+
+  if (layout.wrapMode === 'behind' || layout.wrapMode === 'front') {
+    return '<wp:wrapNone/>'
+  }
+
+  return `<wp:wrapSquare wrapText="${getWrapSquareText(layout)}"/>`
+}
+
+function getHorizontalAlignmentXml(
+  layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  horizontalRef: string,
+  offsetX: number
+): string {
+  if (offsetX !== 0) {
+    return `<wp:positionH relativeFrom="${horizontalRef}"><wp:posOffset>${offsetX}</wp:posOffset></wp:positionH>`
+  }
+
+  let align = 'left'
+  if (layout.align === 'center') {
+    align = 'center'
+  } else if (layout.align === 'right') {
+    align = 'right'
+  }
+
+  return `<wp:positionH relativeFrom="${horizontalRef}"><wp:align>${align}</wp:align></wp:positionH>`
+}
+
 function imageInlineDrawingXml(img: EmbeddedImage, docPrId: number, rotation: number): string {
   return (
     `<w:drawing>` +
@@ -122,20 +165,8 @@ function imageAnchorDrawingXml(
   const behindDoc = layout.wrapMode === 'behind'
   const horizontalRef = layout.anchorMode === 'fixed' ? 'page' : 'margin'
   const verticalRef = layout.anchorMode === 'fixed' ? 'page' : 'paragraph'
-  const wrapXml =
-    layout.wrapMode === 'top-bottom'
-      ? '<wp:wrapTopAndBottom/>'
-      : layout.wrapMode === 'behind' || layout.wrapMode === 'front'
-        ? '<wp:wrapNone/>'
-        : `<wp:wrapSquare wrapText="${
-            layout.wrapMode === 'square-right' ? 'left' : layout.wrapMode === 'square-left' ? 'right' : 'bothSides'
-          }"/>`
-  const positionH =
-    offsetX !== 0
-      ? `<wp:positionH relativeFrom="${horizontalRef}"><wp:posOffset>${offsetX}</wp:posOffset></wp:positionH>`
-      : `<wp:positionH relativeFrom="${horizontalRef}"><wp:align>${
-          layout.align === 'center' ? 'center' : layout.align === 'right' ? 'right' : 'left'
-        }</wp:align></wp:positionH>`
+  const wrapXml = getWrapXml(layout)
+  const positionH = getHorizontalAlignmentXml(layout, horizontalRef, offsetX)
   const positionV = `<wp:positionV relativeFrom="${verticalRef}"><wp:posOffset>${offsetY}</wp:posOffset></wp:positionV>`
 
   return (
@@ -275,8 +306,7 @@ function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: st
 }
 
 function convertBlock(parent: Node, parts: string[], ctx: DocxBuildContext): void {
-  for (let i = 0; i < parent.childNodes.length; i++) {
-    const node = parent.childNodes[i]
+  for (const node of Array.from(parent.childNodes)) {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent?.trim()
       if (text) parts.push(`<w:p>${wrapRun(text)}</w:p>`)

@@ -4,6 +4,7 @@
  * Connects to the document-service backend API for document management.
  */
 
+import DOMPurify from 'dompurify'
 import type {
   Document,
   DocumentSummary,
@@ -96,7 +97,12 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     id: apiDoc.id as string,
     title: apiDoc.title as string,
     description: apiDoc.description as string | undefined,
-    content: sanitizeDocumentHtmlForEditor((apiDoc.content as string) || ''),
+    content:
+      DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((apiDoc.content as string) || ''), {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
+        ALLOW_DATA_ATTR: true
+      }) || '',
     status: apiDoc.status as DocumentStatus,
     category: apiDoc.category as string | undefined,
     tags: apiDoc.tags as string[] | undefined,
@@ -124,7 +130,12 @@ function mapApiTemplateToTemplate(apiTemplate: Record<string, unknown>): Documen
     id: apiTemplate.id as string,
     name: apiTemplate.name as string,
     description: apiTemplate.description as string | undefined,
-    content: sanitizeDocumentHtmlForEditor((apiTemplate.content as string) || ''),
+    content:
+      DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((apiTemplate.content as string) || ''), {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
+        ALLOW_DATA_ATTR: true
+      }) || '',
     category: (apiTemplate.category as string) || 'other',
     context: apiTemplate.context as string | undefined,
     tags: (apiTemplate.tags as string[]) || [],
@@ -890,7 +901,12 @@ export const DocumentApiService = {
       // Update the document with the old content and clear Yjs state
       await this.updateDocument(documentId, {
         title: snapshot.title as string,
-        content: sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''),
+        content:
+          DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''), {
+            USE_PROFILES: { html: true },
+            FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
+            ALLOW_DATA_ATTR: true
+          }) || '',
         description: snapshot.description as string | undefined,
         tags: snapshot.tags as string[] | undefined,
         category: snapshot.category as string | undefined,

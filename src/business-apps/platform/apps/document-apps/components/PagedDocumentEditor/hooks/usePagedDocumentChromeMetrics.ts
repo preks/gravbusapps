@@ -8,12 +8,12 @@ export interface UsePagedDocumentChromeMetricsResult {
 export function usePagedDocumentChromeMetrics(
   editorChromeRef: MutableRefObject<HTMLDivElement | null>
 ): UsePagedDocumentChromeMetricsResult {
-  const [headerChromeNode, setHeaderChromeNodeState] = useState<HTMLDivElement | null>(null)
+  const [headerChromeNode, setHeaderChromeNode] = useState<HTMLDivElement | null>(null)
   const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState(0)
 
-  const setHeaderChromeNode = useCallback(
+  const handleHeaderChromeNodeChange = useCallback(
     (node: HTMLDivElement | null) => {
-      setHeaderChromeNodeState(node)
+      setHeaderChromeNode(node)
       editorChromeRef.current = node
     },
     [editorChromeRef]
@@ -35,6 +35,6 @@ export function usePagedDocumentChromeMetrics(
 
   return {
     measuredHeaderHeight,
-    setHeaderChromeNode
+    setHeaderChromeNode: handleHeaderChromeNodeChange
   }
 }

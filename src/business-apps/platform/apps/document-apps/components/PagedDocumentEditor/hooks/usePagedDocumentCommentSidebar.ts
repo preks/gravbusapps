@@ -96,9 +96,12 @@ export function findInlineCommentSelection(
   if (merged.length > 1) {
     const stored = tryStoredRange()
     if (stored) return stored
-    return merged.reduce((current, candidate) =>
-      candidate.to - candidate.from > current.to - current.from ? candidate : current
-    )
+    return merged
+      .slice(1)
+      .reduce(
+        (current, candidate) => (candidate.to - candidate.from > current.to - current.from ? candidate : current),
+        merged[0]
+      )
   }
 
   const single = merged[0]

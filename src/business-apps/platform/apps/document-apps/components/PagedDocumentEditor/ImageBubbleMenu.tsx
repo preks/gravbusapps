@@ -36,6 +36,35 @@ export interface ImageBubbleMenuProps {
   readonly 'data-testid'?: string
 }
 
+function preventEditorBlurOnMouseDown(event: React.MouseEvent<HTMLElement>) {
+  event.preventDefault()
+}
+
+function parseImageAttributeNumber(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+
+  return fallback
+}
+
+function resolveWrapAlignmentAttrs(wrapMode: ImageWrapMode): Partial<{ align: ImageAlignment }> {
+  if (wrapMode === 'square-right') {
+    return { align: 'right' }
+  }
+
+  if (wrapMode === 'square-left' || wrapMode === 'tight' || wrapMode === 'through') {
+    return { align: 'left' }
+  }
+
+  return {}
+}
+
 function getSelectedImage(editor: Editor): { pos: number; attrs: Record<string, unknown>; nodeSize: number } | null {
   const { selection } = editor.state
 
@@ -72,10 +101,10 @@ export function ImageBubbleMenu({
   const imageAttrs = imageSelection?.attrs ?? {}
   const wrapMode = (imageAttrs.wrapMode as ImageWrapMode | undefined) ?? 'inline'
   const align = (imageAttrs.align as ImageAlignment | undefined) ?? 'left'
-  const spacing = Number.parseFloat(String(imageAttrs.distanceRight ?? 8)) || 8
-  const offsetX = Number.parseFloat(String(imageAttrs.offsetX ?? 0)) || 0
-  const offsetY = Number.parseFloat(String(imageAttrs.offsetY ?? 0)) || 0
-  const zIndex = Number.parseFloat(String(imageAttrs.zIndex ?? 1)) || 1
+  const spacing = parseImageAttributeNumber(imageAttrs.distanceRight, 8)
+  const offsetX = parseImageAttributeNumber(imageAttrs.offsetX, 0)
+  const offsetY = parseImageAttributeNumber(imageAttrs.offsetY, 0)
+  const zIndex = parseImageAttributeNumber(imageAttrs.zIndex, 1)
 
   const updateImageAttrs = useCallback(
     (nextAttrs: Record<string, unknown>) => {
@@ -157,11 +186,16 @@ export function ImageBubbleMenu({
     <div
       className="gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:rounded-md gba:border gba:bg-popover gba:px-1 gba:py-1 gba:shadow-md"
       data-testid={testId}
-      onMouseDown={event => event.preventDefault()}
     >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:gap-1" data-testid="image-bubble-wrap-trigger">
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={preventEditorBlurOnMouseDown}
+            className="gba:h-8 gba:gap-1"
+            data-testid="image-bubble-wrap-trigger"
+          >
             {wrapButtonLabel}
             <ChevronDown className="gba:h-3 gba:w-3" />
           </Button>
@@ -176,11 +210,7 @@ export function ImageBubbleMenu({
                   display: option.value === 'inline' ? 'inline' : 'block',
                   anchorMode: option.value === 'behind' || option.value === 'front' ? 'move-with-text' : 'inline',
                   allowOverlap: option.value === 'behind' || option.value === 'front',
-                  ...(option.value === 'square-right'
-                    ? { align: 'right' }
-                    : option.value === 'square-left' || option.value === 'tight' || option.value === 'through'
-                      ? { align: 'left' }
-                      : {})
+                  ...resolveWrapAlignmentAttrs(option.value)
                 })
               }
               data-testid={`image-bubble-wrap-${option.value}`}
@@ -198,7 +228,13 @@ export function ImageBubbleMenu({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:gap-1" data-testid="image-bubble-align-trigger">
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={preventEditorBlurOnMouseDown}
+            className="gba:h-8 gba:gap-1"
+            data-testid="image-bubble-align-trigger"
+          >
             {alignButtonLabel}
             <ChevronDown className="gba:h-3 gba:w-3" />
           </Button>
@@ -223,7 +259,13 @@ export function ImageBubbleMenu({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:gap-1" data-testid="image-bubble-position-trigger">
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={preventEditorBlurOnMouseDown}
+            className="gba:h-8 gba:gap-1"
+            data-testid="image-bubble-position-trigger"
+          >
             {positionButtonLabel}
             <ChevronDown className="gba:h-3 gba:w-3" />
           </Button>
@@ -250,25 +292,54 @@ export function ImageBubbleMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Button variant="ghost" size="sm" onClick={handleSpacing} className="gba:h-8" data-testid="image-bubble-spacing">
+      <Button
+        variant="ghost"
+        size="sm"
+        onMouseDown={preventEditorBlurOnMouseDown}
+        onClick={handleSpacing}
+        className="gba:h-8"
+        data-testid="image-bubble-spacing"
+      >
         {t('image-context-spacing')}
       </Button>
-      <Button variant="ghost" size="sm" onClick={handleCaption} className="gba:h-8" data-testid="image-bubble-caption">
+      <Button
+        variant="ghost"
+        size="sm"
+        onMouseDown={preventEditorBlurOnMouseDown}
+        onClick={handleCaption}
+        className="gba:h-8"
+        data-testid="image-bubble-caption"
+      >
         {t('image-context-caption')}
       </Button>
-      <Button variant="ghost" size="sm" onClick={handleAltText} className="gba:h-8" data-testid="image-bubble-alt-text">
+      <Button
+        variant="ghost"
+        size="sm"
+        onMouseDown={preventEditorBlurOnMouseDown}
+        onClick={handleAltText}
+        className="gba:h-8"
+        data-testid="image-bubble-alt-text"
+      >
         {t('image-context-alt-text')}
       </Button>
       <Button
         variant="ghost"
         size="sm"
+        onMouseDown={preventEditorBlurOnMouseDown}
         onClick={() => onReplace(imageSelection?.pos ?? null)}
         className="gba:h-8"
         data-testid="image-bubble-replace"
       >
         {t('image-context-replace')}
       </Button>
-      <Button variant="ghost" size="sm" onClick={deleteImage} className="gba:h-8" data-testid="image-bubble-delete">
+      <Button
+        variant="ghost"
+        size="sm"
+        onMouseDown={preventEditorBlurOnMouseDown}
+        onClick={deleteImage}
+        className="gba:h-8"
+        data-testid="image-bubble-delete"
+      >
         {t('image-context-delete')}
       </Button>
     </div>

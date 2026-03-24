@@ -297,43 +297,43 @@ export function mergeDocumentLayoutPagePositionRanges(
   return Array.from(merged.values()).sort((left, right) => left.pageNumber - right.pageNumber)
 }
 
-function createLayoutSnapshot(
-  documentVersion: number,
-  layoutVersion: number,
-  pageCount: number,
-  pages: DocumentLayoutPageSnapshot[],
-  flow: DocumentLayoutFlowSnapshot[],
-  mountedRange: DocumentLayoutPageRange | null,
-  pageBounds: DocumentLayoutSnapshot['pageBounds'],
-  mountedPageBodyBounds: DocumentLayoutSnapshot['mountedPageBodyBounds'],
-  pageSpans: DocumentLayoutSnapshot['pageSpans'],
-  retainedPageSpans: DocumentLayoutSnapshot['retainedPageSpans'],
-  pagePositionRanges: DocumentLayoutPagePositionRange[],
-  pageChromeMetrics: DocumentLayoutSnapshot['pageChromeMetrics'],
-  anchors: DocumentLayoutSnapshot['anchors'],
-  tableFragments: DocumentLayoutSnapshot['tableFragments'],
-  activeRange: DocumentLayoutPageRange | null,
-  activePages: DocumentLayoutPageSnapshot[],
+function createLayoutSnapshot(options: {
+  documentVersion: number
+  layoutVersion: number
+  pageCount: number
+  pages: DocumentLayoutPageSnapshot[]
+  flow: DocumentLayoutFlowSnapshot[]
+  mountedRange: DocumentLayoutPageRange | null
+  pageBounds: DocumentLayoutSnapshot['pageBounds']
+  mountedPageBodyBounds: DocumentLayoutSnapshot['mountedPageBodyBounds']
+  pageSpans: DocumentLayoutSnapshot['pageSpans']
+  retainedPageSpans: DocumentLayoutSnapshot['retainedPageSpans']
+  pagePositionRanges: DocumentLayoutPagePositionRange[]
+  pageChromeMetrics: DocumentLayoutSnapshot['pageChromeMetrics']
+  anchors: DocumentLayoutSnapshot['anchors']
+  tableFragments: DocumentLayoutSnapshot['tableFragments']
+  activeRange: DocumentLayoutPageRange | null
+  activePages: DocumentLayoutPageSnapshot[]
   source: DocumentLayoutSnapshot['source']
-): DocumentLayoutSnapshot {
+}): DocumentLayoutSnapshot {
   return {
-    documentVersion,
-    layoutVersion,
-    source,
-    pageCount,
-    pages,
-    flow,
-    mountedRange,
-    pageBounds,
-    mountedPageBodyBounds,
-    pageSpans,
-    retainedPageSpans,
-    pagePositionRanges,
-    pageChromeMetrics,
-    anchors,
-    tableFragments,
-    activeRange,
-    activePages
+    documentVersion: options.documentVersion,
+    layoutVersion: options.layoutVersion,
+    source: options.source,
+    pageCount: options.pageCount,
+    pages: options.pages,
+    flow: options.flow,
+    mountedRange: options.mountedRange,
+    pageBounds: options.pageBounds,
+    mountedPageBodyBounds: options.mountedPageBodyBounds,
+    pageSpans: options.pageSpans,
+    retainedPageSpans: options.retainedPageSpans,
+    pagePositionRanges: options.pagePositionRanges,
+    pageChromeMetrics: options.pageChromeMetrics,
+    anchors: options.anchors,
+    tableFragments: options.tableFragments,
+    activeRange: options.activeRange,
+    activePages: options.activePages
   }
 }
 
@@ -572,25 +572,25 @@ export function usePaginationLayoutSnapshot({
             : collectDocumentLayoutAnchors(editor, measuredPageSpans, measurement.layout.mountedPageBodyBounds)
         const tableFragments = collectDocumentLayoutTableFragments(editor, measuredPageSpans)
 
-        nextSnapshot = createLayoutSnapshot(
-          nextDocumentVersion,
-          request.generation,
-          measurement.layout.pageCount,
-          measurement.layout.pages,
-          measurement.layout.flow,
-          measurement.layout.mountedRange,
+        nextSnapshot = createLayoutSnapshot({
+          documentVersion: nextDocumentVersion,
+          layoutVersion: request.generation,
+          pageCount: measurement.layout.pageCount,
+          pages: measurement.layout.pages,
+          flow: measurement.layout.flow,
+          mountedRange: measurement.layout.mountedRange,
           pageBounds,
-          measurement.layout.mountedPageBodyBounds,
-          measuredPageSpans,
-          nextRetainedPageSpans,
-          nextPagePositionRanges,
-          measurement.layout.pageChromeMetrics,
+          mountedPageBodyBounds: measurement.layout.mountedPageBodyBounds,
+          pageSpans: measuredPageSpans,
+          retainedPageSpans: nextRetainedPageSpans,
+          pagePositionRanges: nextPagePositionRanges,
+          pageChromeMetrics: measurement.layout.pageChromeMetrics,
           anchors,
           tableFragments,
-          measurement.layout.activeRange,
-          measurement.layout.activePages,
-          resolvedLayoutService.source
-        )
+          activeRange: measurement.layout.activeRange,
+          activePages: measurement.layout.activePages,
+          source: resolvedLayoutService.source
+        })
 
         return nextSnapshot
       })

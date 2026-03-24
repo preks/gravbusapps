@@ -9,6 +9,7 @@ import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } 
 import { EditorContent } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { Button, useTranslation } from '@newwork/nw-design-system'
+import DOMPurify from 'dompurify'
 import { ChevronRight } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document, DocumentFormatting } from '../../types'
@@ -240,7 +241,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           const nextTitle = latest.title || title
           setTitle(nextTitle)
 
-          const latestHtml = sanitizeDocumentHtmlForEditor(latest.content || '<p></p>')
+          const latestHtml =
+            DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(latest.content || '<p></p>'), {
+              USE_PROFILES: { html: true },
+              FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
+              ALLOW_DATA_ATTR: true
+            }) || '<p></p>'
           const currentHtml = editorRef.current.getHTML?.() || ''
           if (latestHtml && latestHtml !== currentHtml) {
             isApplyingRemoteContentRef.current = true
@@ -573,7 +579,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const editorContent = React.useMemo(() => {
       const rawContent = document?.content || initialContent || '<p></p>'
-      return sanitizeDocumentHtmlForEditor(rawContent)
+      return (
+        DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(rawContent), {
+          USE_PROFILES: { html: true },
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
+          ALLOW_DATA_ATTR: true
+        }) || '<p></p>'
+      )
     }, [document?.content, initialContent])
     const editorEditable = React.useMemo(
       () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
@@ -661,7 +673,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setPagesEditorState
     })
 
-    const activeEditor = (pagesEditorState.activeEditor as typeof editor | null) ?? editor
+    const activeHeaderFooterEditor = pagesEditorState.activeEditor
+    const activeEditor = activeHeaderFooterEditor ?? editor
     const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel, runtimeState } =
       usePagedDocumentLayoutState({
         editor,
@@ -688,7 +701,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     } = usePagedDocumentSelectionSidebars({
       editor,
       activeEditor,
-      activeHeaderFooterEditor: pagesEditorState.activeEditor as typeof editor | null,
+      activeHeaderFooterEditor,
       activeHeaderFooterType: pagesEditorState.activeEditorType,
       isHeaderFooterEditing,
       rightSidebar
@@ -932,6 +945,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const footerBottomMarginPx =
       pagesFormattingConfig.footerBottomMargin ??
       (paginationConfig ? Math.round(paginationConfig.marginBottom / 2) : 48)
+    let viewportBodyStateClass = ''
+    if (isHeaderFooterEditing && showBodyWhileEditingHeaderFooter === false) {
+      viewportBodyStateClass =
+        '[&_.rm-page-body-layer]:opacity-40 [&_.rm-page-body-layer]:pointer-events-none [&_.rm-page-body-layer]:select-none'
+    }
+    const editorViewportStyle =
+      documentEditorRightReservePx == null ? undefined : { paddingRight: documentEditorRightReservePx }
 
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:bg-background gba:relative" data-testid={testId}>
@@ -1024,12 +1044,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           {/* Editor Area with Page Layout - background matches page gap for consistent document canvas */}
           <div
             ref={editorContainerRef}
-            className={`gba:flex-1 gba:overflow-auto gba:min-w-0 document-editor-viewport ${
-              isHeaderFooterEditing && !showBodyWhileEditingHeaderFooter
-                ? '[&_.rm-page-body-layer]:opacity-40 [&_.rm-page-body-layer]:pointer-events-none [&_.rm-page-body-layer]:select-none'
-                : ''
-            }`}
-            style={documentEditorRightReservePx != null ? { paddingRight: documentEditorRightReservePx } : undefined}
+            className={`gba:flex-1 gba:overflow-auto gba:min-w-0 document-editor-viewport ${viewportBodyStateClass}`}
+            style={editorViewportStyle}
             onScroll={handleScroll}
             data-layout-source={layoutViewportModel.source}
             data-layout-window-mode={layoutViewportModel.isWindowed ? 'windowed' : 'full'}

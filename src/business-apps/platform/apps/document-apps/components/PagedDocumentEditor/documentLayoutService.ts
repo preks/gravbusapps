@@ -181,7 +181,7 @@ export function resolvePaginationTotalPagesFromPaginationRoot(
   paginationRoot: HTMLElement | null,
   pageBreakEls = resolvePageBreakElementsFromPaginationRoot(paginationRoot)
 ): number {
-  const explicitTotalPages = Number((paginationRoot as HTMLElement | null)?.dataset.rmTotalPages ?? '')
+  const explicitTotalPages = Number(paginationRoot?.dataset.rmTotalPages ?? '')
   if (Number.isInteger(explicitTotalPages) && explicitTotalPages > 0) {
     return explicitTotalPages
   }
@@ -456,12 +456,12 @@ export function buildLayoutMeasurement(
   const indexedPageNumbers = pageBreakEls
     .map(resolvePageNumberForPageBreak)
     .filter((pageNumber): pageNumber is number => pageNumber !== null)
-  const pageCount =
-    Number.isInteger(explicitTotalPages) && explicitTotalPages > 0
-      ? explicitTotalPages
-      : indexedPageNumbers.length > 0
-        ? Math.max(...indexedPageNumbers)
-        : Math.max(1, pageBreakEls.length)
+  let pageCount = Math.max(1, pageBreakEls.length)
+  if (Number.isInteger(explicitTotalPages) && explicitTotalPages > 0) {
+    pageCount = explicitTotalPages
+  } else if (indexedPageNumbers.length > 0) {
+    pageCount = Math.max(...indexedPageNumbers)
+  }
   const indexedLayout = createFlowIndexedPageList(pageCount, flowEls)
   const mountedPageBodyBounds = resolveMountedPageBodyBounds(pageBreakEls)
   const pageChromeMetrics = resolveMountedPageChromeMetrics(pageBreakEls, firstPageHeader)
@@ -595,12 +595,12 @@ export function createLegacyDomPaginationLayoutService(): DocumentLayoutService 
     measureLayout(container, request) {
       if (request.scope === 'viewport' && cachedMeasurement) {
         const activeRange = resolveActiveRange(cachedMeasurement.layout.pageCount, request)
-        const activePages =
-          cachedViewportWindow &&
-          cachedViewportWindow.activeRange.startPage === activeRange.startPage &&
-          cachedViewportWindow.activeRange.endPage === activeRange.endPage
-            ? cachedViewportWindow.activePages
-            : resolveActivePages(cachedMeasurement.layout.pages, activeRange)
+        const matchesCachedViewportWindow =
+          cachedViewportWindow?.activeRange.startPage === activeRange.startPage &&
+          cachedViewportWindow?.activeRange.endPage === activeRange.endPage
+        const activePages = matchesCachedViewportWindow
+          ? cachedViewportWindow.activePages
+          : resolveActivePages(cachedMeasurement.layout.pages, activeRange)
 
         cachedViewportWindow = {
           activeRange,

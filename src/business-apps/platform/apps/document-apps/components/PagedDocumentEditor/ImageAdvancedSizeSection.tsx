@@ -110,12 +110,12 @@ export function ImageAdvancedSizeSection({
         const linkedPercent = otherUnit === 'percent' ? convertPxToPercent(linkedAbsolute, otherReferenceLength) : null
 
         if (isWidth) {
-          nextAttrs.heightUnit = linkedPercent != null ? 'percent' : 'px'
+          nextAttrs.heightUnit = linkedPercent == null ? 'px' : 'percent'
           nextAttrs.heightPercent = linkedPercent
           nextAttrs.heightRelativeTo = 'page'
           nextAttrs.height = linkedAbsolute
         } else {
-          nextAttrs.widthUnit = linkedPercent != null ? 'percent' : 'px'
+          nextAttrs.widthUnit = linkedPercent == null ? 'px' : 'percent'
           nextAttrs.widthPercent = linkedPercent
           nextAttrs.widthRelativeTo = 'page'
           nextAttrs.width = linkedAbsolute

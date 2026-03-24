@@ -5,7 +5,7 @@ export interface PagedDocumentEditorStylesProps {
   proseMinHeight: number
 }
 
-export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: PagedDocumentEditorStylesProps) {
+export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonly<PagedDocumentEditorStylesProps>) {
   return (
     <style>{`
       .document-editor-viewport {

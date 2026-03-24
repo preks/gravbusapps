@@ -40,7 +40,7 @@ export function PagedDocumentAiInstructionOverlay({
   setIsAiSelectionPreviewExpanded,
   onClose,
   onSubmit
-}: PagedDocumentAiInstructionOverlayProps) {
+}: Readonly<PagedDocumentAiInstructionOverlayProps>) {
   if (!open) return null
 
   return (

@@ -688,6 +688,28 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
   setTimeout(run, 500)
 }
 
+function syncElementAttributes(target: Element, source: Element): void {
+  for (const attribute of Array.from(target.attributes)) {
+    target.removeAttribute(attribute.name)
+  }
+
+  for (const attribute of Array.from(source.attributes)) {
+    target.setAttribute(attribute.name, attribute.value)
+  }
+}
+
+function replaceDocumentHtml(doc: Document, html: string): void {
+  const parsed = new DOMParser().parseFromString(html, 'text/html')
+  doc.open()
+  syncElementAttributes(doc.documentElement, parsed.documentElement)
+  syncElementAttributes(doc.head, parsed.head)
+  syncElementAttributes(doc.body, parsed.body)
+  doc.head.replaceChildren(...Array.from(parsed.head.childNodes, node => doc.importNode(node, true)))
+  doc.body.replaceChildren(...Array.from(parsed.body.childNodes, node => doc.importNode(node, true)))
+  doc.title = parsed.title
+  doc.close()
+}
+
 export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
   const { targetWindow } = options
   const useExistingWindow = targetWindow && !targetWindow.closed
@@ -702,9 +724,7 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
 
     try {
       const doc = targetWindow.document
-      doc.open()
-      doc.write(fullHtml)
-      doc.close()
+      replaceDocumentHtml(doc, fullHtml)
 
       let printed = false
       const doPrint = () => {

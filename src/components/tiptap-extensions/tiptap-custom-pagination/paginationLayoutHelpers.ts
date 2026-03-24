@@ -132,8 +132,8 @@ function resolveSparseMountedMeasurementPageNumbers(editorDom: HTMLElement, page
 }
 
 function resolveWindowedMeasurementPageNumbers(editorDom: HTMLElement, pageCount: number): number[] {
-  const viewport = editorDom.closest('.document-editor-viewport') as HTMLElement | null
-  if (!viewport || viewport.dataset.layoutWindowMode !== 'windowed') {
+  const viewport = editorDom.closest('.document-editor-viewport')
+  if (!(viewport instanceof HTMLElement) || viewport.dataset.layoutWindowMode !== 'windowed') {
     return resolveMountedPaginationPageNumbers(editorDom).filter(pageNumber => pageNumber <= pageCount)
   }
 
@@ -424,7 +424,7 @@ function resolveEmptyFirstParagraphClick(
   clickY: number
 ) {
   const firstNode = view.state.doc.firstChild
-  if (!firstNode || firstNode.type.name !== 'paragraph' || firstNode.content.size !== 0) {
+  if (firstNode?.type.name !== 'paragraph' || firstNode.content.size !== 0) {
     return null
   }
 
@@ -682,15 +682,15 @@ export function resolvePaginationSelectionBodyOverflow(
     Math.max((caretRect.left + caretRect.right) / 2, targetBand.left + 1),
     Math.max(targetBand.left + 1, targetBand.right - 1)
   )
-  const targetY =
-    caretRect.bottom < targetBand.top
-      ? targetBand.top + 1
-      : caretRect.top > targetBand.bottom
-        ? targetBand.bottom - 1
-        : Math.min(
-            Math.max((caretRect.top + caretRect.bottom) / 2, targetBand.top + 1),
-            Math.max(targetBand.top + 1, targetBand.bottom - 1)
-          )
+  let targetY = Math.min(
+    Math.max((caretRect.top + caretRect.bottom) / 2, targetBand.top + 1),
+    Math.max(targetBand.top + 1, targetBand.bottom - 1)
+  )
+  if (caretRect.bottom < targetBand.top) {
+    targetY = targetBand.top + 1
+  } else if (caretRect.top > targetBand.bottom) {
+    targetY = targetBand.bottom - 1
+  }
 
   const clampedPosition =
     (direction ? findDirectionalBodyPosition(view, targetBand, direction, targetX) : null) ??

@@ -78,7 +78,6 @@ export interface PagedDocumentEditorHeaderProps {
   onOpenReplace: () => void
   onTranslate: (key: string, vars?: Record<string, string | number>) => string
   headerExtra?: ReactNode
-  leftPanel?: ReactNode
   approvalRequest?: DocumentApprovalRequest
   isLocked: boolean
   isLockedByMe: boolean
@@ -132,7 +131,7 @@ export function PagedDocumentEditorHeader({
   isLocked,
   isLockedByMe,
   testId
-}: PagedDocumentEditorHeaderProps) {
+}: Readonly<PagedDocumentEditorHeaderProps>) {
   return (
     <div ref={setHeaderChromeNode} className="gba:border-b gba:border-border/50 gba:bg-background">
       <div className="gba:px-4 gba:py-3">

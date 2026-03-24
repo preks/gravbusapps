@@ -135,19 +135,18 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
   return {
     source: 'incremental-layout-engine',
     measureLayout(container, request) {
-      const registryState =
+      const canReuseRegistryState =
         request.scope === 'viewport' && registry.container === container && registry.version > 0
-          ? registry
-          : syncRegistry(container).state
+      const registryState = canReuseRegistryState ? registry : syncRegistry(container).state
 
       if (request.scope === 'viewport' && cachedMeasurement && cachedMeasurement.version === registryState.version) {
         const activeRange = resolveActiveRange(cachedMeasurement.layout.pageCount, request)
-        const activePages =
-          cachedViewportWindow &&
-          cachedViewportWindow.activeRange.startPage === activeRange.startPage &&
-          cachedViewportWindow.activeRange.endPage === activeRange.endPage
-            ? cachedViewportWindow.activePages
-            : resolveActivePages(cachedMeasurement.layout.pages, activeRange)
+        const matchesCachedViewportWindow =
+          cachedViewportWindow?.activeRange.startPage === activeRange.startPage &&
+          cachedViewportWindow?.activeRange.endPage === activeRange.endPage
+        const activePages = matchesCachedViewportWindow
+          ? cachedViewportWindow.activePages
+          : resolveActivePages(cachedMeasurement.layout.pages, activeRange)
 
         cachedViewportWindow = {
           activeRange,

@@ -72,7 +72,7 @@ export function ImageSettingsSidebar({
       if (!editor || imagePos == null) return false
 
       const node = editor.state.doc.nodeAt(imagePos)
-      if (!node || node.type.name !== 'image') {
+      if (node?.type.name !== 'image') {
         onClose()
         return false
       }

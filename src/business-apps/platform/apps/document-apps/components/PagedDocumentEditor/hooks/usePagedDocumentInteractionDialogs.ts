@@ -429,7 +429,7 @@ export function usePagedDocumentInteractionDialogs({
       if (imagePos == null) return
 
       const node = activeEditor.state.doc.nodeAt(imagePos)
-      if (!node || node.type.name !== 'image') return
+      if (node?.type.name !== 'image') return
 
       const tr = activeEditor.state.tr.setNodeMarkup(imagePos, undefined, {
         ...node.attrs,

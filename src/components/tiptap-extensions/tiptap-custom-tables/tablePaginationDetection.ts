@@ -154,8 +154,8 @@ function readMeasuredElementHeight(element: HTMLElement | null): number {
     }
   }
 
-  const firstChild = element.firstElementChild as HTMLElement | null
-  const lastChild = element.lastElementChild as HTMLElement | null
+  const firstChild = element.firstElementChild instanceof HTMLElement ? element.firstElementChild : null
+  const lastChild = element.lastElementChild instanceof HTMLElement ? element.lastElementChild : null
   const childrenRectHeight =
     firstChild && lastChild
       ? Math.max(0, lastChild.getBoundingClientRect().bottom - firstChild.getBoundingClientRect().top)
@@ -454,16 +454,26 @@ function getTableColumnCount(tableNode: ProseMirrorNode) {
   return Math.max(1, columnCount)
 }
 
-function getSplitIndexForPushedTable(
-  view: EditorView,
-  measurementResolver: EditorMeasurementResolver,
-  tableNode: ProseMirrorNode,
-  tablePos: number,
-  tableMeasurementElement: HTMLElement | null,
-  bodyBands: TablePaginationBodyBand[],
-  tolerance: number,
+function getSplitIndexForPushedTable(options: {
+  view: EditorView
+  measurementResolver: EditorMeasurementResolver
+  tableNode: ProseMirrorNode
+  tablePos: number
+  tableMeasurementElement: HTMLElement | null
+  bodyBands: TablePaginationBodyBand[]
+  tolerance: number
   currentSplitRowCount: number | null
-) {
+}) {
+  const {
+    view,
+    measurementResolver,
+    tableNode,
+    tablePos,
+    tableMeasurementElement,
+    bodyBands,
+    tolerance,
+    currentSplitRowCount
+  } = options
   const tableDom = view.nodeDOM(tablePos)
   if (!(tableDom instanceof HTMLElement) || !(tableMeasurementElement instanceof HTMLElement)) return null
 
@@ -549,13 +559,13 @@ function scanOverflowingTableSplitCandidates(
     const paginationChainKey = getTableRuntimeChainKey(node, pos)
     const paginationSplitId = getTablePaginationSplitId(node)
     const previousFragment =
-      paginationSplitId != null
-        ? getAdjacentPaginationTableFragment(view.state.doc, pos, 'previous', paginationSplitId)
-        : null
+      paginationSplitId == null
+        ? null
+        : getAdjacentPaginationTableFragment(view.state.doc, pos, 'previous', paginationSplitId)
     const nextFragment =
-      paginationSplitId != null
-        ? getAdjacentPaginationTableFragment(view.state.doc, pos, 'next', paginationSplitId)
-        : null
+      paginationSplitId == null
+        ? null
+        : getAdjacentPaginationTableFragment(view.state.doc, pos, 'next', paginationSplitId)
 
     if (rowEntries.length < 2 || columnCount < 1) return true
 
@@ -564,16 +574,16 @@ function scanOverflowingTableSplitCandidates(
 
     let tableCandidate: TableOverflowSplitCandidate | null = null
 
-    const pushedSplitIndex = getSplitIndexForPushedTable(
+    const pushedSplitIndex = getSplitIndexForPushedTable({
       view,
       measurementResolver,
-      node,
-      pos,
+      tableNode: node,
+      tablePos: pos,
       tableMeasurementElement,
       bodyBands,
       tolerance,
-      previousFragment?.rowCount ?? null
-    )
+      currentSplitRowCount: previousFragment?.rowCount ?? null
+    })
 
     if (pushedSplitIndex !== null) {
       const safeSplitIndex = findSafeSplitRow(node, pushedSplitIndex)
@@ -731,8 +741,7 @@ function scanMergeableTableFragmentCandidates(
 
     const prevTable = previousTable
     if (
-      prevTable &&
-      prevTable.paginationChainKey === paginationChainKey &&
+      prevTable?.paginationChainKey === paginationChainKey &&
       prevTable.paginationSplitId === paginationSplitId &&
       pos === prevTable.pos + prevTable.node.nodeSize &&
       bandIndex === prevTable.bandIndex
@@ -825,8 +834,7 @@ export function findAdjacentPaginationTableFragments(doc: ProseMirrorNode): Merg
     }
 
     if (
-      previousTable &&
-      previousTable.paginationChainKey === paginationChainKey &&
+      previousTable?.paginationChainKey === paginationChainKey &&
       previousTable.paginationSplitId === paginationSplitId &&
       pos === previousTable.pos + previousTable.node.nodeSize
     ) {

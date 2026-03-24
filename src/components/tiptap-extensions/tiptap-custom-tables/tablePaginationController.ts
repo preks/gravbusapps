@@ -199,7 +199,10 @@ function haveMatchingCandidateKeys<TCandidate>(
     return false
   }
 
-  return left.every((candidate, index) => getKey(candidate) === getKey(right[index] as TCandidate))
+  return left.every((candidate, index) => {
+    const matchingCandidate = right[index]
+    return matchingCandidate !== undefined && getKey(candidate) === getKey(matchingCandidate)
+  })
 }
 
 export function resolveTablePaginationCandidateAuthority(options: {

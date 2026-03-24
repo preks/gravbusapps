@@ -61,14 +61,6 @@ export interface UsePagedDocumentShellControlsResult {
   openPageSetupDialog: () => void
 }
 
-function sanitizeExportHtml(html: string): string {
-  return DOMPurify.sanitize(html, {
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-    FORBID_ATTR: [],
-    ALLOW_DATA_ATTR: true
-  })
-}
-
 export function usePagedDocumentShellControls({
   title,
   setTitle,
@@ -170,15 +162,21 @@ export function usePagedDocumentShellControls({
 
   const getExportHtmlWithEmbeddedImages = useCallback(async (): Promise<string> => {
     if (!editor) return ''
-    return embedImagesInHtml(editor.getHTML(), getImageDataUrl)
+    const htmlWithImages = await embedImagesInHtml(editor.getHTML(), getImageDataUrl)
+
+    // CWE-79: sanitize remote-backed image replacements before returning HTML to export/print sinks.
+    return DOMPurify.sanitize(htmlWithImages, {
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+      FORBID_ATTR: [],
+      ALLOW_DATA_ATTR: true
+    })
   }, [editor, getImageDataUrl])
 
   const handleExportWord = useCallback(async () => {
     if (!editor) return
     setIsExporting(true)
     try {
-      const htmlWithImages = await getExportHtmlWithEmbeddedImages()
-      const safeHtml = sanitizeExportHtml(htmlWithImages)
+      const safeHtml = await getExportHtmlWithEmbeddedImages()
       await exportToWord(title, safeHtml)
     } catch (error) {
       console.error('[PagedDocumentEditor] Export to Word failed:', error)
@@ -191,8 +189,7 @@ export function usePagedDocumentShellControls({
     if (!editor) return
     setIsExporting(true)
     try {
-      const htmlWithImages = await getExportHtmlWithEmbeddedImages()
-      const safeHtml = sanitizeExportHtml(htmlWithImages)
+      const safeHtml = await getExportHtmlWithEmbeddedImages()
       await exportToPDFWithStyle(title, safeHtml, printStyleConfig)
     } catch (error) {
       console.error('[PagedDocumentEditor] Export to PDF failed:', error)
@@ -204,8 +201,7 @@ export function usePagedDocumentShellControls({
   const handlePrint = useCallback(async () => {
     if (!editor) return
     try {
-      const htmlContent = await getExportHtmlWithEmbeddedImages()
-      const safeHtml = sanitizeExportHtml(htmlContent)
+      const safeHtml = await getExportHtmlWithEmbeddedImages()
       printHtmlDocumentWithStyle(
         {
           title,

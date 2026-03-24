@@ -6,6 +6,7 @@
  * Used by PagedDocumentEditor when editing an existing document with collaboration.
  */
 
+import DOMPurify from 'dompurify'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Socket } from 'socket.io-client'
 import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
@@ -162,7 +163,12 @@ export function useYjsDocumentSync({
         throw new Error('Editor not ready for content apply')
       }
 
-      const normalizedHtml = sanitizeDocumentHtmlForEditor(html || '<p></p>')
+      const normalizedHtml =
+        DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(html || '<p></p>'), {
+          USE_PROFILES: { html: true },
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
+          ALLOW_DATA_ATTR: true
+        }) || '<p></p>'
 
       try {
         if (suppressSnapshotSaveRef) {

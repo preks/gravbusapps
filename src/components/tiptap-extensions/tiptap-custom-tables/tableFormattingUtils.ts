@@ -233,7 +233,7 @@ export function updateSelectedTableFragments(
 
   for (const fragment of linkedContext.fragments) {
     const tableNode = tr.doc.nodeAt(fragment.tablePos)
-    if (!tableNode || tableNode.type.name !== tableNodeName) {
+    if (tableNode?.type.name !== tableNodeName) {
       continue
     }
 
@@ -292,8 +292,12 @@ export function applyBorderPresetToSelection(
   }
   const requestedStyle = normalizeBorderStyle(options.style)
 
-  const style =
-    options.preset === 'none' ? 'none' : requestedStyle && requestedStyle !== 'none' ? requestedStyle : 'solid'
+  let style: TableBorderStyle = 'solid'
+  if (options.preset === 'none') {
+    style = 'none'
+  } else if (requestedStyle && requestedStyle !== 'none') {
+    style = requestedStyle
+  }
   const width = normalizeCssLength(options.width) ?? '1pt'
   const color = normalizeColorValue(options.color) ?? null
 
@@ -425,7 +429,7 @@ export function setSelectedRowsHeight(
 
   const normalizedHeight = rowHeight == null ? null : normalizeCssLength(rowHeight)
   const table = tr.doc.nodeAt(context.tablePos)
-  if (!table || table.type.name !== tableNodeName) return false
+  if (table?.type.name !== tableNodeName) return false
 
   const rowOffset = context.tablePos + 1
   table.forEach((rowNode, offset, index) => {
