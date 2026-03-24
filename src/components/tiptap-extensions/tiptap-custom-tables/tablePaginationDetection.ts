@@ -237,8 +237,8 @@ function createEditorMeasurementResolver(editorDom: HTMLElement): EditorMeasurem
 }
 
 function isPaginationMeasurementHelper(element: Element): boolean {
-  if (element.hasAttribute('data-rm-pagination')) return true
   if (!(element instanceof HTMLElement)) return false
+  if (element.dataset.rmPagination !== undefined) return true
 
   return (
     element.classList.contains('ProseMirror-widget') ||

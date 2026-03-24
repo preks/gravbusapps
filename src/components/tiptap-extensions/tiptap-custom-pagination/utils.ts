@@ -775,7 +775,7 @@ function resolveDirectChildPaginationChrome(editorDom: HTMLElement) {
 export function resolveDirectChildPaginationElement(editorDom: HTMLElement) {
   const directChildPaginationElement =
     Array.from(editorDom.children).find(
-      (element): element is HTMLElement => element instanceof HTMLElement && element.hasAttribute('data-rm-pagination')
+      (element): element is HTMLElement => element instanceof HTMLElement && element.dataset.rmPagination !== undefined
     ) ?? null
   if (directChildPaginationElement) {
     return directChildPaginationElement
@@ -788,7 +788,7 @@ export function resolveDirectChildPaginationElement(editorDom: HTMLElement) {
 
   return (
     Array.from(paginationChrome.children).find(
-      (element): element is HTMLElement => element instanceof HTMLElement && element.hasAttribute('data-rm-pagination')
+      (element): element is HTMLElement => element instanceof HTMLElement && element.dataset.rmPagination !== undefined
     ) ?? null
   )
 }
@@ -1347,9 +1347,8 @@ function isEffectivelyEmptyDocument(doc: ProseMirrorNode | undefined): boolean {
 }
 
 function isPaginationMeasurementHelper(element: Element): boolean {
-  if (element.hasAttribute('data-rm-pagination')) return true
-
   if (!(element instanceof HTMLElement)) return false
+  if (element.dataset.rmPagination !== undefined) return true
 
   return (
     element.classList.contains('ProseMirror-widget') ||

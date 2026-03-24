@@ -65,9 +65,8 @@ export function collectPageChromeRegions(
 function resolvePageBreakChromeStructureKey(pageBreakEls: HTMLElement[]) {
   return pageBreakEls
     .map(pageBreakEl => {
-      const pageNumber = Number(
-        pageBreakEl.querySelector('.page[data-rm-page-number]')?.getAttribute('data-rm-page-number') ?? ''
-      )
+      const pageElement = pageBreakEl.querySelector('.page[data-rm-page-number]')
+      const pageNumber = Number(pageElement instanceof HTMLElement ? (pageElement.dataset.rmPageNumber ?? '') : '')
       const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
       const regionCount = pageBreakEl.querySelectorAll(
         '.rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'

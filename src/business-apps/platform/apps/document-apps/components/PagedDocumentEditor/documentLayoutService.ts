@@ -196,7 +196,7 @@ function resolvePageNumberForPageBreak(pageBreakEl: HTMLElement): number | null 
   }
 
   const pageEl = pageBreakEl.querySelector('.page[data-rm-page-number]')
-  const pageNumber = Number(pageEl?.getAttribute('data-rm-page-number'))
+  const pageNumber = Number(pageEl instanceof HTMLElement ? (pageEl.dataset.rmPageNumber ?? '') : '')
   return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
 }
 

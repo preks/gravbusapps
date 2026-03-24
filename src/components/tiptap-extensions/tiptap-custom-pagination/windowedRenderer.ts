@@ -52,7 +52,7 @@ function resolveTotalPages(storage: PagesStorage) {
 function resolveDirectChildPaginationElement(editorDom: HTMLElement) {
   for (let index = 0; index < editorDom.children.length; index += 1) {
     const child = editorDom.children.item(index)
-    if (child instanceof HTMLElement && child.hasAttribute('data-rm-pagination')) {
+    if (child instanceof HTMLElement && child.dataset.rmPagination !== undefined) {
       return child
     }
   }
@@ -65,7 +65,7 @@ function resolveDirectChildPaginationElement(editorDom: HTMLElement) {
 
     for (let childIndex = 0; childIndex < child.children.length; childIndex += 1) {
       const nestedChild = child.children.item(childIndex)
-      if (nestedChild instanceof HTMLElement && nestedChild.hasAttribute('data-rm-pagination')) {
+      if (nestedChild instanceof HTMLElement && nestedChild.dataset.rmPagination !== undefined) {
         return nestedChild
       }
     }

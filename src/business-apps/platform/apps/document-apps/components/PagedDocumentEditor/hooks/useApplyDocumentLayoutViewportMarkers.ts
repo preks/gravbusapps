@@ -23,7 +23,7 @@ function resolveWindowPosition(
 }
 
 function resolvePageNumberForElement(element: Element): number | null {
-  const directPageNumber = element.getAttribute('data-rm-page-number')
+  const directPageNumber = element instanceof HTMLElement ? element.dataset.rmPageNumber : null
   if (directPageNumber) {
     const parsed = Number(directPageNumber)
     return Number.isFinite(parsed) ? parsed : null
@@ -31,7 +31,7 @@ function resolvePageNumberForElement(element: Element): number | null {
 
   if (element.classList.contains('rm-page-break')) {
     const pageElement = element.querySelector('.page[data-rm-page-number]')
-    const nestedPageNumber = pageElement?.getAttribute('data-rm-page-number')
+    const nestedPageNumber = pageElement instanceof HTMLElement ? pageElement.dataset.rmPageNumber : null
     if (!nestedPageNumber) return null
     const parsed = Number(nestedPageNumber)
     return Number.isFinite(parsed) ? parsed : null
@@ -124,21 +124,21 @@ export function applyViewportMarkerAttributes(
   const bodyBounds = resolveMountedPageBodyBounds(pageNumber, viewportModel)
 
   targets.forEach(target => {
-    target.setAttribute('data-layout-window-active', isActive ? 'true' : 'false')
-    target.setAttribute('data-layout-window-position', position)
-    target.setAttribute('data-layout-window-key', viewportModel.windowKey)
+    target.dataset.layoutWindowActive = isActive ? 'true' : 'false'
+    target.dataset.layoutWindowPosition = position
+    target.dataset.layoutWindowKey = viewportModel.windowKey
     if (bodyBounds) {
-      target.setAttribute('data-layout-body-top', String(bodyBounds.top))
-      target.setAttribute('data-layout-body-bottom', String(bodyBounds.bottom))
-      target.setAttribute('data-layout-body-left', String(bodyBounds.left))
-      target.setAttribute('data-layout-body-right', String(bodyBounds.right))
+      target.dataset.layoutBodyTop = String(bodyBounds.top)
+      target.dataset.layoutBodyBottom = String(bodyBounds.bottom)
+      target.dataset.layoutBodyLeft = String(bodyBounds.left)
+      target.dataset.layoutBodyRight = String(bodyBounds.right)
       return
     }
 
-    target.removeAttribute('data-layout-body-top')
-    target.removeAttribute('data-layout-body-bottom')
-    target.removeAttribute('data-layout-body-left')
-    target.removeAttribute('data-layout-body-right')
+    delete target.dataset.layoutBodyTop
+    delete target.dataset.layoutBodyBottom
+    delete target.dataset.layoutBodyLeft
+    delete target.dataset.layoutBodyRight
   })
 }
 

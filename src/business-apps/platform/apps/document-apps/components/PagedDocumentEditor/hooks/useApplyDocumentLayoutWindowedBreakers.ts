@@ -19,7 +19,7 @@ interface ParkedBreakerState {
 
 function resolvePageNumberForPageBreak(pageBreakEl: HTMLElement): number | null {
   const page = pageBreakEl.querySelector('.page[data-rm-page-number]')
-  const pageNumber = Number(page?.getAttribute('data-rm-page-number'))
+  const pageNumber = Number(page instanceof HTMLElement ? (page.dataset.rmPageNumber ?? '') : '')
   return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
 }
 

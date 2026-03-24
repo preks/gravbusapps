@@ -1397,25 +1397,25 @@ export function applyWindowAttributesToPageBreak(
   if (pageBreakNumber !== null && pageBreakNumber > 0) {
     const isActive =
       activeRange === null || (pageBreakNumber >= activeRange.startPage && pageBreakNumber <= activeRange.endPage)
-    pageBreakEl.setAttribute('data-layout-window-active', isActive ? 'true' : 'false')
-    pageBreakEl.setAttribute('data-layout-window-position', resolveWindowPosition(pageBreakNumber))
+    pageBreakEl.dataset.layoutWindowActive = isActive ? 'true' : 'false'
+    pageBreakEl.dataset.layoutWindowPosition = resolveWindowPosition(pageBreakNumber)
     if (windowKey) {
-      pageBreakEl.setAttribute('data-layout-window-key', windowKey)
+      pageBreakEl.dataset.layoutWindowKey = windowKey
     } else {
-      pageBreakEl.removeAttribute('data-layout-window-key')
+      delete pageBreakEl.dataset.layoutWindowKey
     }
   }
 
   markerTargets.forEach(target => {
-    const pageNumber = Number(target.getAttribute('data-rm-page-number'))
+    const pageNumber = Number(target.dataset.rmPageNumber ?? '')
     if (!Number.isInteger(pageNumber) || pageNumber < 1) return
     const isActive = activeRange === null || (pageNumber >= activeRange.startPage && pageNumber <= activeRange.endPage)
-    target.setAttribute('data-layout-window-active', isActive ? 'true' : 'false')
-    target.setAttribute('data-layout-window-position', resolveWindowPosition(pageNumber))
+    target.dataset.layoutWindowActive = isActive ? 'true' : 'false'
+    target.dataset.layoutWindowPosition = resolveWindowPosition(pageNumber)
     if (windowKey) {
-      target.setAttribute('data-layout-window-key', windowKey)
+      target.dataset.layoutWindowKey = windowKey
     } else {
-      target.removeAttribute('data-layout-window-key')
+      delete target.dataset.layoutWindowKey
     }
   })
 }
