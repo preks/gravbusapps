@@ -71,7 +71,7 @@ export const ChatSnippetDisplay: React.FC<ChatSnippetDisplayProps> = ({ data }) 
 
   const handleClick = () => {
     const params = new URLSearchParams()
-    params.set('conversationId', data.conversation_id)
+    params.set('conversationId', data.id)
     if (data.message_id) {
       params.set('messageId', data.message_id)
     }

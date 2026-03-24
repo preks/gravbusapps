@@ -152,7 +152,7 @@ export type NavigationData = {
 
 export type ChatReferenceData = {
   type: 'chat_reference'
-  conversation_id: string
+  id: string
   message_id?: string
   conversation_type?: string
   snippet: string
