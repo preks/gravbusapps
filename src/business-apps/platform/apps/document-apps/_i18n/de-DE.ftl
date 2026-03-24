@@ -635,7 +635,6 @@ link-dialog-invalid-url = Bitte geben Sie eine gültige URL ein.
 insert-table-dialog-title = Tabelle einfügen
 insert-table-dialog-rows = Zeilen
 insert-table-dialog-cols = Spalten
-insert-table-dialog-header-row = Erste Zeile als Kopfzeile verwenden
 insert-table-dialog-insert = Einfügen
 insert-table-dialog-cancel = Abbrechen
 insert-table-dialog-rows-range = Zeilen müssen zwischen { $min } und { $max } liegen.

@@ -325,7 +325,7 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
       setRenderPos(null)
       return
     }
-    const wrapper = contentRef.current?.parentElement
+    const wrapper = contentRef.current?.parentElement ?? null
     const pageLayer = resolvePageBodyLayerForWrapper(editor, wrapper, pageNumber)
     if (!wrapper || !pageLayer) {
       setRenderPos(null)
@@ -354,7 +354,7 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
     if (!posPageLocal || dragPosition !== null || !isFloating || !editor) return
     const pos = getPos()
     if (pos === undefined) return
-    const wrapper = contentRef.current?.parentElement
+    const wrapper = contentRef.current?.parentElement ?? null
     const pageLayer =
       resolvePageBodyLayerForWrapper(editor, wrapper, pageNumber) ?? getPageBodyLayer(editor, pageNumber)
     if (!pageLayer) return

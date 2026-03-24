@@ -1,5 +1,5 @@
 /**
- * Insert table dialog: set number of rows and columns, optional header row.
+ * Insert table dialog: set number of rows and columns.
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
@@ -13,7 +13,6 @@ import {
   Button,
   Input,
   Label,
-  Checkbox,
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
@@ -41,7 +40,6 @@ export function InsertTableDialog({
   const { t } = useTranslation(translations)
   const [rows, setRows] = useState(DEFAULT_ROWS)
   const [cols, setCols] = useState(DEFAULT_COLS)
-  const [withHeaderRow, setWithHeaderRow] = useState(true)
   const [rowsError, setRowsError] = useState<string | null>(null)
   const [colsError, setColsError] = useState<string | null>(null)
 
@@ -49,7 +47,6 @@ export function InsertTableDialog({
     if (open) {
       setRows(DEFAULT_ROWS)
       setCols(DEFAULT_COLS)
-      setWithHeaderRow(true)
       setRowsError(null)
       setColsError(null)
     }
@@ -114,9 +111,9 @@ export function InsertTableDialog({
     }
     setRowsError(null)
     setColsError(null)
-    editor?.chain().focus().insertTable({ rows: r, cols: c, withHeaderRow }).run()
+    editor?.chain().focus().insertTable({ rows: r, cols: c, withHeaderRow: false }).run()
     onOpenChange(false)
-  }, [editor, rows, cols, withHeaderRow, onOpenChange, t, clamp])
+  }, [editor, rows, cols, onOpenChange, t, clamp])
 
   const handleCancel = useCallback(() => {
     setRowsError(null)
@@ -180,17 +177,6 @@ export function InsertTableDialog({
                 {colsError}
               </p>
             )}
-          </div>
-          <div className="gba:flex gba:items-center gba:space-x-2">
-            <Checkbox
-              id="insert-table-header-row"
-              checked={withHeaderRow}
-              onCheckedChange={checked => setWithHeaderRow(checked === true)}
-              data-testid="insert-table-dialog-header-row"
-            />
-            <Label htmlFor="insert-table-header-row" className="gba:font-normal gba:cursor-pointer">
-              {t('insert-table-dialog-header-row')}
-            </Label>
           </div>
         </div>
 

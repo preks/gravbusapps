@@ -103,22 +103,66 @@ function escapeSvgStyleAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/\n/g, ' ')
 }
 
-function buildTextStyle(spec: StyleSpec, fontSize: number, fill: string): string {
-  const fontCss = fontStackToCss(spec.families)
-  const weight = spec.fontWeight ? `font-weight: ${spec.fontWeight}; ` : ''
-  return `${weight}font-family: ${fontCss}; font-size: ${fontSize}px; fill: ${fill}`
+const TYPED_SIGNATURE_STROKE_WIDTHS = [1, 2, 4, 6] as const
+
+function normalizeTypedStrokeThickness(raw: number): (typeof TYPED_SIGNATURE_STROKE_WIDTHS)[number] {
+  return (TYPED_SIGNATURE_STROKE_WIDTHS as readonly number[]).includes(raw)
+    ? (raw as (typeof TYPED_SIGNATURE_STROKE_WIDTHS)[number])
+    : 2
 }
 
-export function typedTextToSvg(text: string, style: TypedSignatureStyle, fill = '#000000'): string {
+/** Font size multiplier per pen width — pairs with stroke outline below. */
+const TYPED_THICKNESS_FONT_SCALE: Record<number, number> = {
+  1: 0.86,
+  2: 1,
+  4: 1.12,
+  6: 1.24
+}
+
+/** SVG stroke-width (px) on text; same ink as fill for a heavier “nib”. */
+const TYPED_THICKNESS_STROKE_PX: Record<number, number> = {
+  1: 0,
+  2: 0.4,
+  4: 1,
+  6: 1.65
+}
+
+function buildTextStyle(spec: StyleSpec, fontSize: number, fill: string, strokeThickness: number): string {
+  const pen = normalizeTypedStrokeThickness(strokeThickness)
+  const fontCss = fontStackToCss(spec.families)
+  const weight = spec.fontWeight ? `font-weight: ${spec.fontWeight}; ` : ''
+  const scale = TYPED_THICKNESS_FONT_SCALE[pen] ?? 1
+  const sized = Math.max(8, Math.round(fontSize * scale))
+  const sw = TYPED_THICKNESS_STROKE_PX[pen] ?? 0
+  const strokePart =
+    sw > 0
+      ? `paint-order: stroke fill; stroke: ${fill}; stroke-width: ${sw}px; stroke-linejoin: round; stroke-linecap: round; `
+      : ''
+  return `${strokePart}${weight}font-family: ${fontCss}; font-size: ${sized}px; fill: ${fill}`
+}
+
+export function typedTextToSvg(
+  text: string,
+  style: TypedSignatureStyle,
+  fill = '#000000',
+  strokeThickness = 2
+): string {
   const spec = STYLE_SPECS[style]
   const escaped = escapeSvgTextContent(text)
-  const styleAttr = escapeSvgStyleAttr(buildTextStyle(spec, spec.fontSizeFull, fill))
+  const pen = normalizeTypedStrokeThickness(strokeThickness)
+  const styleAttr = escapeSvgStyleAttr(buildTextStyle(spec, spec.fontSizeFull, fill, pen))
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TYPED_SVG_WIDTH} ${TYPED_SVG_HEIGHT}" width="${TYPED_SVG_WIDTH}" height="${TYPED_SVG_HEIGHT}"><text x="0" y="${spec.baselineYFull}" style="${styleAttr}">${escaped}</text></svg>`
 }
 
-export function typedInitialsToSvg(text: string, style: TypedSignatureStyle, fill = '#000000'): string {
+export function typedInitialsToSvg(
+  text: string,
+  style: TypedSignatureStyle,
+  fill = '#000000',
+  strokeThickness = 2
+): string {
   const spec = STYLE_SPECS[style]
   const escaped = escapeSvgTextContent(text)
-  const styleAttr = escapeSvgStyleAttr(buildTextStyle(spec, spec.fontSizeInitials, fill))
+  const pen = normalizeTypedStrokeThickness(strokeThickness)
+  const styleAttr = escapeSvgStyleAttr(buildTextStyle(spec, spec.fontSizeInitials, fill, pen))
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TYPED_INITIALS_WIDTH} ${TYPED_INITIALS_HEIGHT}" width="${TYPED_INITIALS_WIDTH}" height="${TYPED_INITIALS_HEIGHT}"><text x="0" y="${spec.baselineYInitials}" style="${styleAttr}">${escaped}</text></svg>`
 }

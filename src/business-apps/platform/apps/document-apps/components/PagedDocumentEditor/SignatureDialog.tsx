@@ -310,6 +310,8 @@ export function SignatureDialog({
         setInitialsText(sd.initials)
         setTypedStyle(parseTypedSignatureStyle(sd.style))
         setSignatureInkHex(typeof sd.inkColor === 'string' ? sd.inkColor : DEFAULT_SIGNATURE_INK_HEX)
+        const st = sd.strokeThickness
+        setStrokeThickness(typeof st === 'number' && [1, 2, 4, 6].includes(st) ? st : 2)
         setEditingSignatureId(sig.id)
         setActiveTab('typed')
         return
@@ -346,15 +348,16 @@ export function SignatureDialog({
     }
     const name = (saveName || fullName || t('signature-typed-default-name')).trim()
     if (!name || !accessToken) return
-    const snapshotSvg = typedTextToSvg(fullName.trim(), typedStyle, signatureInkHex)
-    const initialsSnapshotSvg = typedInitialsToSvg(initialsText.trim(), typedStyle, signatureInkHex)
+    const snapshotSvg = typedTextToSvg(fullName.trim(), typedStyle, signatureInkHex, strokeThickness)
+    const initialsSnapshotSvg = typedInitialsToSvg(initialsText.trim(), typedStyle, signatureInkHex, strokeThickness)
     setSaving(true)
     setError(null)
     const sourceData = {
       text: fullName.trim(),
       initials: initialsText.trim(),
       style: typedStyle,
-      inkColor: signatureInkHex
+      inkColor: signatureInkHex,
+      strokeThickness
     }
     try {
       if (editingSignatureId) {
@@ -396,6 +399,7 @@ export function SignatureDialog({
     initialsText,
     typedStyle,
     signatureInkHex,
+    strokeThickness,
     saveName,
     accessToken,
     fetchSignatures,
@@ -597,9 +601,11 @@ export function SignatureDialog({
     [onInsertSignature, onOpenChange]
   )
 
-  const typedPreviewSvg = fullName.trim() ? typedTextToSvg(fullName.trim(), typedStyle, signatureInkHex) : null
+  const typedPreviewSvg = fullName.trim()
+    ? typedTextToSvg(fullName.trim(), typedStyle, signatureInkHex, strokeThickness)
+    : null
   const typedInitialsPreviewSvg = initialsText.trim()
-    ? typedInitialsToSvg(initialsText.trim(), typedStyle, signatureInkHex)
+    ? typedInitialsToSvg(initialsText.trim(), typedStyle, signatureInkHex, strokeThickness)
     : null
 
   const saveLibraryButtonLabel = (() => {
@@ -710,7 +716,7 @@ export function SignatureDialog({
             </TabsContent>
 
             <TabsContent value="typed" className="gba:space-y-4 gba:pt-4">
-              <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-2">
+              <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-3">
                 <SignatureInkPicker
                   value={signatureInkHex}
                   onChange={setSignatureInkHex}
@@ -731,6 +737,21 @@ export function SignatureDialog({
                         {t(`signature-style-${id}`)}
                       </option>
                     ))}
+                  </select>
+                </div>
+                <div className="gba:space-y-2">
+                  <Label htmlFor={`${testId}-typed-stroke-thickness`}>{t('signature-stroke-thickness-label')}</Label>
+                  <select
+                    id={`${testId}-typed-stroke-thickness`}
+                    value={strokeThickness}
+                    onChange={e => setStrokeThickness(Number(e.target.value))}
+                    className="gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm"
+                    data-testid={`${testId}-typed-stroke-thickness`}
+                  >
+                    <option value={1}>{t('signature-stroke-extra-thin')}</option>
+                    <option value={2}>{t('signature-stroke-thin')}</option>
+                    <option value={4}>{t('signature-stroke-medium')}</option>
+                    <option value={6}>{t('signature-stroke-thick')}</option>
                   </select>
                 </div>
               </div>

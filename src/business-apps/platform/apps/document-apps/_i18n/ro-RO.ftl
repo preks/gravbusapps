@@ -635,7 +635,6 @@ link-dialog-invalid-url = Introduceți o adresă URL validă.
 insert-table-dialog-title = Inserați tabel
 insert-table-dialog-rows = Rânduri
 insert-table-dialog-cols = Coloane
-insert-table-dialog-header-row = Folosiți primul rând ca antet
 insert-table-dialog-insert = Inserați
 insert-table-dialog-cancel = Anulare
 insert-table-dialog-rows-range = Rândurile trebuie să fie între { $min } și { $max }.

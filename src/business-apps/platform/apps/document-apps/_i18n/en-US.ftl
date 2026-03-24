@@ -636,7 +636,6 @@ link-dialog-invalid-url = Please enter a valid URL.
 insert-table-dialog-title = Insert Table
 insert-table-dialog-rows = Rows
 insert-table-dialog-cols = Columns
-insert-table-dialog-header-row = Use first row as header
 insert-table-dialog-insert = Insert
 insert-table-dialog-cancel = Cancel
 insert-table-dialog-rows-range = Rows must be between { $min } and { $max }.
