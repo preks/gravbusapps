@@ -99,7 +99,6 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
     messages,
     activityLines,
     clarifyWizard,
-    canSend,
     canRetryLast,
     reset,
     send,
@@ -221,7 +220,7 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
         inputValue={input}
         inputOnChange={setInput}
         inputOnSend={send}
-        inputDisabled={Boolean(clarifyWizard) || !canSend}
+        inputDisabled={Boolean(clarifyWizard)}
         inputIsProcessing={isGenerating}
         inputPlaceholder="Describe your function or ask for changes..."
         inputSendIcon="sparkles"
