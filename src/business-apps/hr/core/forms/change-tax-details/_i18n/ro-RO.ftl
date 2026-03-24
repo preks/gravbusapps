@@ -16,3 +16,4 @@ invalid-tax-identification-number-text = Introduceți un număr de identificare 
 invalid-social-security-number-text = Introduceți un număr valid de asigurare de pensie german (ex.: 89 010299 B 123).
 invalid-cnp-text = Introduceți un CNP (Cod Numeric Personal) românesc valid de 13 cifre.
 invalid-localized-number-text = Introduceți un număr valid folosind formatul local (ex.: 1.234,56 sau 1,234.56).
+required-health-insurance-type-text = Câmpul Tipul asigurării de sănătate este obligatoriu.

@@ -16,3 +16,4 @@ invalid-tax-identification-number-text = Bitte geben Sie eine gültige 11-stelli
 invalid-social-security-number-text = Bitte geben Sie eine gültige deutsche Rentenversicherungsnummer ein (z. B. 89 010299 B 123).
 invalid-cnp-text = Bitte geben Sie eine gültige 13-stellige rumänische CNP (Cod Numeric Personal) ein.
 invalid-localized-number-text = Bitte geben Sie eine gültige Zahl im lokalen Format ein (z. B. 1.234,56 oder 1,234.56).
+required-health-insurance-type-text = Das Feld Art der Krankenversicherung ist erforderlich.

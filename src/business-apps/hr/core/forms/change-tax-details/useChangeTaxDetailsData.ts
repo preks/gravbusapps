@@ -8,7 +8,6 @@ import type { TaxInfoFormValues, TaxDetailsCatalogs, CatalogEntry } from './type
 
 const defaultCatalogs: TaxDetailsCatalogs = {
   taxBracket: [],
-  religion: [],
   churchAffiliation: [],
   healthInsuranceType: [],
   documentType: []
@@ -51,7 +50,6 @@ export function useChangeTaxDetailsData(
         })
         setCatalogs({
           taxBracket: (catalogsRes?.taxBracket as CatalogEntry[]) || [],
-          religion: (catalogsRes?.religion as CatalogEntry[]) || [],
           churchAffiliation: (catalogsRes?.churchAffiliation as CatalogEntry[]) || [],
           healthInsuranceType: (catalogsRes?.healthInsuranceType as CatalogEntry[]) || [],
           documentType: (catalogsRes?.documentType as CatalogEntry[]) || []
@@ -80,7 +78,6 @@ export function useChangeTaxDetailsData(
           healthInsuranceName: emp?.healthInsuranceName ?? '',
           healthInsuranceTypeRef: emp?.healthInsuranceTypeRef ?? null,
           taxIdentificationNumber: emp?.taxIdentificationNumber ?? '',
-          religionRef: emp?.religionRef ?? null,
           taxableChurchAffiliationRef: emp?.taxableChurchAffiliationRef ?? null,
           socialSecurityNumber: emp?.socialSecurityNumber ?? '',
           childTaxAllowance: emp?.childTaxAllowance ?? '',

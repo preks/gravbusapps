@@ -11,10 +11,9 @@ export function getChangeTaxDetailsLabels(getMessage: GetMessage, t: TranslateFn
     individualFreeAmount: t('individual-free-amount'),
     healthInsuranceType: getMessage(
       'lowcoder:change_tax_information.health_insurance_type',
-      'Type Of Health Insurance'
+      'Type of Health Insurance'
     ),
     taxIdNumber: getMessage('lowcoder:change_tax_information.tax_identification_number', 'Tax Identification Number'),
-    religion: t('religion'),
     churchAffiliation: getMessage('lowcoder:change_tax_information.taxable_church_affiliation', 'Church Affiliation'),
     socialSecurityNumber: getMessage(
       'lowcoder:change_tax_information.social_security_number',
@@ -32,8 +31,8 @@ export function getChangeTaxDetailsLabels(getMessage: GetMessage, t: TranslateFn
       'The Health Insurance field is required.'
     ),
     requiredHealthInsuranceType: getMessage(
-      'lowcoder:change_tax_information.required_health_insurance_type_text',
-      'The Type Of Health Insurance field is required.'
+      'required-health-insurance-type-text',
+      t('required-health-insurance-type-text')
     ),
     requiredTaxId: getMessage(
       'lowcoder:change_tax_information.required_tax_identification_number_text',

@@ -16,3 +16,4 @@ invalid-tax-identification-number-text = Please enter a valid 11-digit German Ta
 invalid-social-security-number-text = Please enter a valid German pension insurance number (e.g., 89 010299 B 123).
 invalid-cnp-text = Please enter a valid 13-digit Romanian CNP (Cod Numeric Personal).
 invalid-localized-number-text = Please enter a valid number using your locale format (e.g., 1,234.56 or 1.234,56).
+required-health-insurance-type-text = The Type of Health Insurance field is required.

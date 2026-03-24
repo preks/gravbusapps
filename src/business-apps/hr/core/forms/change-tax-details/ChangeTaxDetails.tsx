@@ -33,7 +33,6 @@ const defaultValues: TaxInfoFormValues = {
   healthInsuranceName: '',
   healthInsuranceTypeRef: null,
   taxIdentificationNumber: '',
-  religionRef: null,
   taxableChurchAffiliationRef: null,
   socialSecurityNumber: '',
   childTaxAllowance: '',
@@ -106,7 +105,6 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
       healthInsuranceName: toCompareString(v.healthInsuranceName),
       healthInsuranceTypeRef: v.healthInsuranceTypeRef || null,
       taxIdentificationNumber: toCompareString(v.taxIdentificationNumber),
-      religionRef: v.religionRef || null,
       taxableChurchAffiliationRef: v.taxableChurchAffiliationRef || null,
       socialSecurityNumber: toCompareString(v.socialSecurityNumber),
       childTaxAllowance: toCompareString(v.childTaxAllowance),
@@ -128,7 +126,7 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   const { formState } = form
   const { isValid, isDirty, errors } = formState
   const hasValidationErrors = Object.keys(errors || {}).length > 0
-  const isSubmitDisabledFinal = (!isValid && hasValidationErrors) || !isDirty || isUnchangedNow
+  const isSubmitDisabledFinal = !isValid || hasValidationErrors || !isDirty || isUnchangedNow
 
   const handlePreSubmit =
     healthInsuranceFileList.length > 0 && healthInsuranceFileList[0]?.originFileObj
@@ -149,12 +147,12 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   const onSubmit = useCallback(
     async (values: TaxInfoFormValues) => {
       const employeeId = getEmployeeId(additionalData, userInfo)
-      const payload = buildEmployeeTaxDetailPayload(values, data)
+      const payload = buildEmployeeTaxDetailPayload(values, data, isEmployeeInGermany)
       payload.employeeId = employeeId
       payload.employeeTaxDetail.employeeId = employeeId
       return payload as any
     },
-    [additionalData, userInfo, data]
+    [additionalData, userInfo, data, isEmployeeInGermany]
   )
 
   if (!isReady) {

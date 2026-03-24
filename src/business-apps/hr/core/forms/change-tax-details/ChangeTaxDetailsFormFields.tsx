@@ -8,6 +8,7 @@ import {
   Label,
   Switch,
   Input,
+  DateInput,
   Select,
   SelectTrigger,
   SelectContent,
@@ -22,6 +23,7 @@ import { validateTaxNumber, validateTaxId, validateSocialSecurityNumber } from '
 import type { GetMessage } from './validationScope'
 import { ACCEPTED_HEALTH_INSURANCE_DOCUMENT_FILE_TYPES } from './constants'
 import type { TaxInfoFormValues, TaxDetailsCatalogs, CatalogEntry } from './types'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 export interface ChangeTaxDetailsFormFieldsProps {
   form: UseFormReturn<TaxInfoFormValues>
@@ -78,22 +80,24 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
 
   return (
     <div className="gba:flex-1 gba:space-y-4">
-      <FormField
-        control={form.control as any}
-        name={'taxNumber' as any}
-        rules={{
-          validate: (v: string) => validateTaxNumber(v, isEmployeeInGermany, getMessage)
-        }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="change-tax-details-tax-number-label">{L.taxNumber}</FormLabel>
-            <FormControl>
-              <Input {...field} placeholder={placeholderEnter} data-testid="flw_changeTaxDetails_taxNumber" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {!isEmployeeInGermany && (
+        <FormField
+          control={form.control as any}
+          name={'taxNumber' as any}
+          rules={{
+            validate: (v: string) => validateTaxNumber(v, isEmployeeInGermany, getMessage)
+          }}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel data-testid="change-tax-details-tax-number-label">{L.taxNumber}</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder={placeholderEnter} data-testid="flw_changeTaxDetails_taxNumber" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       <FormField
         control={form.control as any}
@@ -133,7 +137,15 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
               {L.healthInsurance} <span className="gba:text-destructive">*</span>
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholderEnter} data-testid="flw_changeTaxDetails_healthInsuranceName" />
+              <Input
+                {...field}
+                onChange={e => {
+                  field.onChange(e)
+                  void form.trigger('healthInsuranceName')
+                }}
+                placeholder={placeholderEnter}
+                data-testid="flw_changeTaxDetails_healthInsuranceName"
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -150,7 +162,13 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
               {L.healthInsuranceType} <span className="gba:text-destructive">*</span>
             </FormLabel>
             <FormControl>
-              <Select value={field.value || ''} onValueChange={val => field.onChange(val || null)}>
+              <Select
+                value={field.value || ''}
+                onValueChange={val => {
+                  field.onChange(val || null)
+                  void form.trigger('healthInsuranceTypeRef')
+                }}
+              >
                 <SelectTrigger
                   className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changeTaxDetails_healthInsuranceType"
@@ -253,12 +271,17 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
                       {L.validTo}
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="date"
-                        value={field.value || ''}
-                        onChange={e => field.onChange(e.target.value || '')}
-                        data-testid="flw_changeTaxDetails_healthInsuranceDocumentValidTo"
-                      />
+                      <div data-testid="flw_changeTaxDetails_healthInsuranceDocumentValidTo">
+                        <DateInput
+                          type="date"
+                          value={(field.value as string) || ''}
+                          onChange={value => field.onChange(typeof value === 'string' ? value : '')}
+                          placeholder={placeholderSelect}
+                          className="gba:w-full"
+                          {...({ locale: getCurrentActiveUserLocale() } as any)}
+                          captionLayout="dropdown"
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -287,34 +310,6 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
                 placeholder={placeholderEnter}
                 data-testid="flw_changeTaxDetails_taxIdentificationNumber"
               />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control as any}
-        name={'religionRef' as any}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="change-tax-details-religion-label">{L.religion}</FormLabel>
-            <FormControl>
-              <Select value={field.value || ''} onValueChange={val => field.onChange(val || null)}>
-                <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
-                  data-testid="flw_changeTaxDetails_religion"
-                >
-                  <SelectValue placeholder={placeholderSelect} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(catalogs.religion || []).map(entry => (
-                    <SelectItem key={entry.id} value={String(entry.id)}>
-                      {catLabel(entry)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -365,6 +360,10 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
             <FormControl>
               <Input
                 {...field}
+                onChange={e => {
+                  field.onChange(e)
+                  void form.trigger('socialSecurityNumber')
+                }}
                 placeholder={placeholderEnter}
                 data-testid="flw_changeTaxDetails_socialSecurityNumber"
               />
