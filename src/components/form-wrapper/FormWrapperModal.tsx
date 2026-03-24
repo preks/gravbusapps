@@ -134,8 +134,11 @@ const FormWrapperModal = ({
   const internalForm = useForm<FieldValues>({ defaultValues, resolver, mode: 'onChange' })
   const form = externalForm || internalForm
   const isFormValid = useMemo(() => {
-    return form.formState.isValid && form.formState.isDirty
-  }, [form.formState.isValid, form.formState.isDirty])
+    if (!form.formState.isValid) return false
+    // Edits should be submittable without forcing a field change (e.g. code is not in the form when editing).
+    if (isEditing) return true
+    return form.formState.isDirty
+  }, [isEditing, form.formState.isValid, form.formState.isDirty])
 
   useEffect(() => {
     // Skip reset if using external form - it's already initialized with its own defaultValues
