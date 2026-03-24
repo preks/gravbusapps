@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "defaults": {
+    "menuLabel": null,
+    "searchLabel": null,
+    "icon": null,
+    "searchKeywords": [],
+    "searchTags": []
+  },
+  "nodes": {
+    "home": {
+      "icon": "House",
+      "menuLabel": "Home",
+      "searchLabel": "Home",
+      "searchKeywords": ["start", "dashboard"],
+      "searchTags": ["root"]
+    },
+    "crm": {
+      "icon": "Handshake",
+      "menuLabel": "CRM",
+      "searchLabel": "Customer Relationship Management",
+      "searchKeywords": ["sales", "pipeline", "accounts"],
+      "searchTags": ["domain", "business"],
+      "children": {
+        "core": {
+          "icon": "GridFour",
+          "menuLabel": "Core",
+          "searchLabel": "CRM Core",
+          "searchKeywords": ["foundation", "base"],
+          "searchTags": ["module"],
+          "children": {
+            "apps/customer-relations": {
+              "icon": "UsersThree",
+              "menuLabel": "Customer Relations",
+              "searchLabel": "Customer Relations App",
+              "searchKeywords": ["customers", "contacts", "relationships", "client success"],
+              "searchTags": ["app", "crm", "retention"]
+            }
+          }
+        }
+      }
+    }
+  }
+}
