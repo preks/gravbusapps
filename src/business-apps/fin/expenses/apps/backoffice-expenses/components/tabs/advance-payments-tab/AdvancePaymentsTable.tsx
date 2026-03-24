@@ -47,6 +47,8 @@ import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { TablePagination } from '../../../../../components'
 
+const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error')
+
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
   onSearchChange?: (search: string) => void
@@ -146,7 +148,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         const results = await searchReporters(debouncedReporterSearchText)
         setReporterSearchResults(results)
       } catch (error) {
-        console.error('Error searching reporters:', error)
+        console.error('Error searching reporters:', getErrorMessage(error))
         setReporterSearchResults([])
       } finally {
         setReporterSearchLoading(false)
@@ -197,7 +199,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         const statuses = await searchStatuses()
         setAvailableStatuses(statuses)
       } catch (error) {
-        console.error('Error loading available statuses:', error)
+        console.error('Error loading available statuses:', getErrorMessage(error))
       }
     }
 

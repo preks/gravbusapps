@@ -8,6 +8,7 @@ import translations from '../../../../_i18n'
 
 const MIN_TRANSFER_LOCK_MS = 1200
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error')
 
 const mapRecordToExpenseRequest = (record: ExpenseData) => ({
   id: record.id || '',
@@ -58,7 +59,7 @@ export const useExpenseRequestTransfer = (
         await Promise.resolve(refetchData?.())
         clearSelection?.()
       } catch (error) {
-        console.error('Error starting process:', error)
+        console.error('Error starting process:', getErrorMessage(error))
         showToast(t('transfer-error'), 'error')
       } finally {
         const elapsedMs = Date.now() - startedAt
@@ -105,7 +106,7 @@ export const useExpenseRequestTransfer = (
 
         clearSelection?.()
       } catch (error) {
-        console.error('Error starting bulk process:', error)
+        console.error('Error starting bulk process:', getErrorMessage(error))
         showToast(t('transfer-bulk-error'), 'error')
       } finally {
         const elapsedMs = Date.now() - startedAt

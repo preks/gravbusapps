@@ -10,6 +10,8 @@ import { buildEmployeeDisplayName } from '../../../hooks/backofficeReportUtils'
 import { toast, useTranslation } from '@newwork/nw-design-system'
 import translations from '../../../_i18n'
 
+const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error')
+
 export const transformExpenseRequest = (item: any, t: TranslateFn): ExpenseData => ({
   id: item.id,
   expenseId: String(item.id ?? '-'),
@@ -156,7 +158,7 @@ export function useExpenseRequestExport({
           description: t('export-success-description', { count: formattedData.length, format: formatLabel })
         })
       } catch (err) {
-        console.error(`[EXPORT ${formatLabel}] Error during export:`, err)
+        console.error(`[EXPORT ${formatLabel}] Error during export:`, getErrorMessage(err))
         toast.error(t('export-failed-title'), {
           description: t('export-failed-description', {
             format: formatLabel,

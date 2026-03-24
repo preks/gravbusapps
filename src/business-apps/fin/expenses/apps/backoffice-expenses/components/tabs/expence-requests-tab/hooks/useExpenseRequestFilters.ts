@@ -6,6 +6,8 @@ interface Employee {
   name: string
 }
 
+const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error')
+
 interface UseExpenseRequestFiltersProps {
   searchEmployees: (searchText: string) => Promise<Employee[]>
   handleEmployeeFilter: (filter: string) => void
@@ -56,7 +58,7 @@ export const useExpenseRequestFilters = ({
         const results = await searchEmployees(q)
         setEmployeeSearchResults(results)
       } catch (searchError) {
-        console.error('Error searching employees:', searchError instanceof Error ? searchError.message : searchError)
+        console.error('Error searching employees:', getErrorMessage(searchError))
         setEmployeeSearchResults([])
       } finally {
         setEmployeeSearchLoading(false)

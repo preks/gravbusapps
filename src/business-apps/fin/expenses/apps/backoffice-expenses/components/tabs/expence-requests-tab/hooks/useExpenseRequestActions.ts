@@ -9,6 +9,8 @@ import { ExpenseData } from '../../../../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import translations from '../../../../_i18n'
 
+const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error')
+
 export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps>) => {
   const { t } = useTranslation(translations)
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
@@ -38,8 +40,8 @@ export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
-      } catch {
-        console.error('Error downloading accounting note:', error)
+      } catch (error) {
+        console.error('Error downloading accounting note:', getErrorMessage(error))
       }
     },
     [restClient, props.accessToken]
@@ -105,8 +107,8 @@ export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps
 
         // Show success toast
         showToast(t('csv-trigger-success'), 'success')
-      } catch {
-        console.error('Failed to trigger CSV process:', error)
+      } catch (error) {
+        console.error('Failed to trigger CSV process:', getErrorMessage(error))
 
         // Show error toast
         showToast(t('csv-trigger-error'), 'error')

@@ -41,7 +41,7 @@ export interface BackofficeExpenseRequestTableChrome extends ExpenseRequestActio
 }
 
 /**
- * Renders a single-line truncated cell (matches legacy ExpenseRequestTableRow ellipsis behavior).
+ * Renders a single-line truncated cell for table text fields.
  */
 function renderTruncatedCell(value: string | undefined, testId: string, notAvailableLabel: string): ReactElement {
   const display = value?.trim() ? value : notAvailableLabel
