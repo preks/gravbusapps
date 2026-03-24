@@ -44,6 +44,27 @@ export function parseContractTypeJson(additionalValue2?: string): ContractTypeAd
   return {}
 }
 
+/**
+ * List responses with `localeCode` may surface `additionalValue2` only on translations, or omit
+ * `is_deleted` on the root row while GET-by-id still returns canonical metadata. Check every
+ * available string so soft-deleted rows are filtered consistently.
+ */
+export function isContractTypeMarkedDeleted(entry: {
+  additionalValue2?: string
+  translations?: Array<{ additionalValue2?: string }>
+}): boolean {
+  const candidates = [entry.additionalValue2, ...(entry.translations ?? []).map(t => t.additionalValue2)].filter(
+    (s): s is string => typeof s === 'string' && s.trim() !== ''
+  )
+
+  for (const raw of candidates) {
+    if (parseContractTypeJson(raw).is_deleted === true) {
+      return true
+    }
+  }
+  return false
+}
+
 export function serializeContractTypeAdditionalJson(meta: ContractTypeAdditionalJson): string {
   const out: Record<string, unknown> = {
     payroll_relevant: meta.payroll_relevant === true,

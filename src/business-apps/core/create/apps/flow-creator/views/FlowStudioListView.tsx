@@ -8,7 +8,7 @@ import {
   DataTable,
   useTranslation
 } from '@newwork/nw-design-system'
-import { RefreshCw } from 'lucide-react'
+import { ListPlus, RefreshCw } from 'lucide-react'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import type { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import translations from '../_i18n'
@@ -22,12 +22,14 @@ const PAGE_SIZE = 20
 interface FlowStudioListViewProps {
   accessToken: string
   onOpenTemplate: (templateId: string) => void
+  onCreateFlow?: () => void
   'data-testid'?: string
 }
 
 export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
   accessToken,
   onOpenTemplate,
+  onCreateFlow,
   'data-testid': testId = 'flow-studio-list-view'
 }) => {
   const { t } = useTranslation(translations)
@@ -129,7 +131,7 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
 
   if (error) {
     return (
-      <div className="gba:p-6" data-testid={`${testId}-error`}>
+      <div className="gba:py-6" data-testid={`${testId}-error`}>
         <Alert variant="destructive">
           <AlertTitle>{t('list-error-title')}</AlertTitle>
           <AlertDescription>
@@ -151,46 +153,53 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
   }
 
   return (
-    <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:px-4 gba:pb-10" data-testid={testId}>
-      <div className="gba:pt-6">
-        <DataDisplay
-          titleSections={[
-            {
-              id: 'flows',
-              label: t('list-title'),
-              metadata: { count: totalCount }
-            }
-          ]}
-          currentSection="flows"
-          searchValue={search}
-          searchPlaceholder={t('list-search-placeholder')}
-          onSearchChange={value => {
-            setSearch(value)
-            setPagination(prev => ({ ...prev, pageIndex: 0 }))
+    <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:w-full gba:pb-10" data-testid={testId}>
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'flows',
+            label: t('list-title'),
+            metadata: { count: totalCount }
+          }
+        ]}
+        currentSection="flows"
+        searchValue={search}
+        searchPlaceholder={t('list-search-placeholder')}
+        onSearchChange={value => {
+          setSearch(value)
+          setPagination(prev => ({ ...prev, pageIndex: 0 }))
+        }}
+        primaryAction={
+          onCreateFlow
+            ? {
+                label: t('list-create'),
+                onClick: onCreateFlow,
+                icon: ListPlus
+              }
+            : undefined
+        }
+        toolbarDensity="default"
+      >
+        <DataTable<FlowTemplateRow>
+          data={data}
+          columns={columns}
+          loading={isLoading && !initialLoadDoneRef.current}
+          error={null}
+          tableLayout="fixed"
+          enablePagination
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          totalCount={totalCount}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          enableSorting={false}
+          emptyMessage={t('list-empty-title')}
+          onRowClick={row => {
+            const tplId = String(row.templateId || '').trim()
+            if (tplId) onOpenTemplate(tplId)
           }}
-          toolbarDensity="default"
-        >
-          <DataTable<FlowTemplateRow>
-            data={data}
-            columns={columns}
-            loading={isLoading && !initialLoadDoneRef.current}
-            error={null}
-            tableLayout="fixed"
-            enablePagination
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            totalCount={totalCount}
-            rowsPerPageOptions={[10, 20, 50, 100]}
-            enableSorting={false}
-            emptyMessage={t('list-empty-title')}
-            onRowClick={row => {
-              const tplId = String(row.templateId || '').trim()
-              if (tplId) onOpenTemplate(tplId)
-            }}
-            data-testid={`${testId}-table`}
-          />
-        </DataDisplay>
-      </div>
+          data-testid={`${testId}-table`}
+        />
+      </DataDisplay>
     </div>
   )
 }

@@ -18,6 +18,9 @@ studio-save-name-placeholder = ex. Onboarding angajat
 studio-save-name-validation = Introduceți un nume pentru flow înainte de salvare.
 studio-save-name-cancel = Anulează
 studio-save-name-confirm = Salvează flow-ul
+studio-unsaved-changes = Modificări nesalvate
+studio-saved = Salvat
+studio-loading = Se încarcă...
 
 # Labels / Tags
 labels-title = Etichete
@@ -43,8 +46,11 @@ labels-save = Salvează
 labels-error-duplicate = Cheie duplicată: {$key}
 
 # List
-list-title = Flows
+list-title = FLOWs
 list-subtitle = Răsfoiți și deschideți șabloane de flow existente
+list-tab-create = Creează
+list-tab-flows = FLOWs
+list-subtitle-create = Proiectați și creați flows noi
 list-search = Caută
 list-search-placeholder = Caută flows...
 list-sort = Sortare

@@ -49,31 +49,35 @@ export function useDecisionBranchSanitizers(
     if (nextDefault !== config.defaultBranch) next.defaultBranch = nextDefault
 
     // LOGIC: ensure all conditions reference a valid branch.
-    const conds = config.logicConfig?.conditions
-    if (Array.isArray(conds) && conds.length > 0) {
-      let changed = false
-      const nextConds = conds.map(c => {
-        const bid = String(c?.branchId || '').trim()
-        if (bid && branchIds.has(bid)) return c
-        changed = true
-        return { ...c, branchId: nextDefault }
+    const logicConditions = config.logicConfig?.conditions
+    if (Array.isArray(logicConditions) && logicConditions.length > 0) {
+      let hasUpdatedLogicConditions = false
+      const nextLogicConditions = logicConditions.map(condition => {
+        const branchId = String(condition?.branchId || '').trim()
+        if (branchId && branchIds.has(branchId)) return condition
+        hasUpdatedLogicConditions = true
+        return { ...condition, branchId: nextDefault }
       })
-      if (changed) next.logicConfig = { ...(config.logicConfig as any), conditions: nextConds }
+      if (hasUpdatedLogicConditions) {
+        next.logicConfig = { ...(config.logicConfig as any), conditions: nextLogicConditions }
+      }
     }
 
     // AI (TASK_EXPERT): ensure mapping targets a valid branch.
-    const ai = config.aiConfig as any
-    if (ai?.executor === 'TASK_EXPERT') {
-      const mapping = ai?.mapping?.conditions
-      if (Array.isArray(mapping) && mapping.length > 0) {
-        let changed = false
-        const nextMapping = mapping.map((c: any) => {
-          const bid = String(c?.branchId || '').trim()
-          if (bid && branchIds.has(bid)) return c
-          changed = true
-          return { ...c, branchId: nextDefault }
+    const aiConfig = config.aiConfig as any
+    if (aiConfig?.executor === 'TASK_EXPERT') {
+      const mappingConditions = aiConfig?.mapping?.conditions
+      if (Array.isArray(mappingConditions) && mappingConditions.length > 0) {
+        let hasUpdatedMappingConditions = false
+        const nextMappingConditions = mappingConditions.map((condition: any) => {
+          const branchId = String(condition?.branchId || '').trim()
+          if (branchId && branchIds.has(branchId)) return condition
+          hasUpdatedMappingConditions = true
+          return { ...condition, branchId: nextDefault }
         })
-        if (changed) next.aiConfig = { ...ai, mapping: { conditions: nextMapping } }
+        if (hasUpdatedMappingConditions) {
+          next.aiConfig = { ...aiConfig, mapping: { conditions: nextMappingConditions } }
+        }
       }
     }
 
