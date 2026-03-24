@@ -1,4 +1,4 @@
-import type { ChangeEventHandler, KeyboardEventHandler, ReactNode } from 'react'
+import type { ChangeEventHandler, FocusEventHandler, KeyboardEventHandler, ReactNode } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import {
   AiButton,
@@ -132,6 +132,14 @@ export function PagedDocumentEditorHeader({
   isLockedByMe,
   testId
 }: Readonly<PagedDocumentEditorHeaderProps>) {
+  const handleTitleFocus: FocusEventHandler<HTMLInputElement> = event => {
+    if (isReadOnly) {
+      return
+    }
+    const input = event.currentTarget
+    requestAnimationFrame(() => input.select())
+  }
+
   return (
     <div ref={setHeaderChromeNode} className="gba:border-b gba:border-border/50 gba:bg-background">
       <div className="gba:px-4 gba:py-3">
@@ -158,6 +166,7 @@ export function PagedDocumentEditorHeader({
                   value={title}
                   onChange={onTitleChange}
                   onKeyDown={onTitleKeyDown}
+                  onFocus={handleTitleFocus}
                   onBlur={onTitleBlur}
                   placeholder={onTranslate('editor-title-placeholder')}
                   disabled={isReadOnly}
