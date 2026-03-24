@@ -85,11 +85,12 @@ export interface DocumentFormatting {
   /** Page size preset; used only when not pageless. */
   pageSize?: PageSizeId
   /**
-   * Portrait page width in cm when `pageSize` is `CUSTOM` (shorter side × longer side, same convention as presets).
+   * Page width in cm when `pageSize` is `CUSTOM`, in the document’s portrait coordinate system
+   * (same convention as built-in presets). The page setup UI shows width/height for the current orientation (Word-style).
    */
   customPageWidthCm?: number
   /**
-   * Portrait page height in cm when `pageSize` is `CUSTOM`.
+   * Page height in cm when `pageSize` is `CUSTOM` (portrait coordinate system; see `customPageWidthCm`).
    */
   customPageHeightCm?: number
   /** Portrait or landscape; swap width/height for landscape. */

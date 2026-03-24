@@ -15,8 +15,10 @@ const SHOW_SIGNATURE_DEBUG_BORDER = false
 
 /**
  * Vertical span where a floating signature may sit: full page break (white sheet), not only the
- * body text band. On page 1, include `.rm-first-page-header` so items can move into the top margin /
- * header strip instead of stopping at `.rm-page-body-layer` top.
+ * body text band.
+ * - Top: page break + body layer + page 1 first header (margin / header strip above the body band).
+ * - Bottom: page break + body layer + `.breaker` + this page’s footer region — the body layer alone
+ *   often ends above the printable bottom (footer / bottom margin live in the breaker).
  */
 function resolveSignatureVerticalExtent(
   editor: Editor | null,
@@ -31,6 +33,27 @@ function resolveSignatureVerticalExtent(
   const pr = pageBreak.getBoundingClientRect()
   let top = Math.min(pr.top, lr.top)
   let bottom = Math.max(pr.bottom, lr.bottom)
+
+  const breaker = pageBreak.querySelector('.breaker') as HTMLElement | null
+  if (breaker) {
+    const br = breaker.getBoundingClientRect()
+    bottom = Math.max(bottom, br.bottom)
+  }
+
+  const footer =
+    (pageBreak.querySelector(`.rm-page-footer-region[data-rm-page-number="${pageNumber}"]`) as HTMLElement | null) ??
+    (pageBreak.querySelector('.rm-page-footer-region') as HTMLElement | null)
+  if (footer) {
+    bottom = Math.max(bottom, footer.getBoundingClientRect().bottom)
+  }
+
+  const nextHeader = pageBreak.querySelector(
+    `.rm-page-header-region[data-rm-page-number="${pageNumber + 1}"]`
+  ) as HTMLElement | null
+  if (nextHeader) {
+    bottom = Math.max(bottom, nextHeader.getBoundingClientRect().bottom)
+  }
+
   if (pageNumber === 1 && editor?.view?.dom) {
     const fp = editor.view.dom.querySelector('.rm-first-page-header[data-rm-page-number="1"]') as HTMLElement | null
     if (fp) {

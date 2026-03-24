@@ -770,8 +770,8 @@ page-size-letter = Letter
 page-size-legal = Legal
 page-size-tabloid = Tabloid
 page-size-custom = Personalizat
-page-setup-custom-width-cm = Lățime (cm, portret)
-page-setup-custom-height-cm = Înălțime (cm, portret)
+page-setup-custom-width-cm = Lățime (cm)
+page-setup-custom-height-cm = Înălțime (cm)
 
 editor-comments-title = Comentarii (clic dreapta pe text pentru comentariu inline)
 editor-locked = Blocat
