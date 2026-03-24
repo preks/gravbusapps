@@ -1,6 +1,6 @@
 import type { ColumnConfig } from '../../../../common/types/columnTypes'
 import type { TranslateFn } from '../../../../utils/utils'
-import { BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS } from '../backofficeExpenseRequestColumns'
+import { BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS } from '../table/backofficeExpenseRequestColumns'
 import { backofficeExpenseRequestDataColumnLabel } from './backofficeExpenseRequestColumnLabels'
 
 /** Data column ids (no select / actions). */

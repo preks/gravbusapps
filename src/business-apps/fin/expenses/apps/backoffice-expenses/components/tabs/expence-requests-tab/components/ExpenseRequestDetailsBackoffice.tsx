@@ -9,15 +9,15 @@ import {
   useTranslation,
   Badge
 } from '@newwork/nw-design-system'
-import { getExpenseRequestStatusDisplay } from '../../../utils/utils'
-import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
+import { getExpenseRequestStatusDisplay } from '../../../../utils/utils'
+import { formatCurrencyDisplay } from '../../../../../personal-expenses/utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CalendarIcon, ClockIcon, PathIcon, ArrowRightIcon } from '@phosphor-icons/react'
 import { formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import translations from '../../../_i18n'
-import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
-import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
+import translations from '../../../../_i18n'
+import TravelOrderAttachmentPreview from '../../../../../../common/components/TravelOrderAttachmentPreview'
+import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../../common/files/useExpenseRequestFileService'
 
 export interface ExpenseRequestDetailsBackofficeProps extends BusinessAppContextProps {
   selectedItem: any

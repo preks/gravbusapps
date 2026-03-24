@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type Key } from 'react'
+import { useCallback, useEffect, useMemo, useState, type Key } from 'react'
 import type { ExpenseData } from '../../../../types'
 
 const BOOKED_STATUS = 'BOOKED'
@@ -8,10 +8,21 @@ const BOOKED_STATUS = 'BOOKED'
  */
 export function useExpenseRequestSelection(expenses: ExpenseData[] | undefined) {
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
-  const [selectedRecords, setSelectedRecords] = useState<ExpenseData[]>([])
+
+  const bookableRecords = useMemo(() => expenses?.filter(expense => expense.status === BOOKED_STATUS) ?? [], [expenses])
+
+  useEffect(() => {
+    setSelectedRowKeys(previousSelectedKeys =>
+      previousSelectedKeys.filter(key => bookableRecords.some(record => record.id === key))
+    )
+  }, [bookableRecords])
+
+  const selectedRecords = useMemo(
+    () => bookableRecords.filter(record => selectedRowKeys.includes(record.id)),
+    [bookableRecords, selectedRowKeys]
+  )
 
   const clearSelection = useCallback(() => {
-    setSelectedRecords([])
     setSelectedRowKeys([])
   }, [])
 
@@ -20,26 +31,23 @@ export function useExpenseRequestSelection(expenses: ExpenseData[] | undefined) 
       return
     }
     if (checked) {
-      setSelectedRecords(prev => [...prev, record])
-      setSelectedRowKeys(prev => [...prev, record.id])
+      setSelectedRowKeys(previousSelectedKeys =>
+        previousSelectedKeys.includes(record.id) ? previousSelectedKeys : [...previousSelectedKeys, record.id]
+      )
     } else {
-      setSelectedRecords(prev => prev.filter(r => r.id !== record.id))
-      setSelectedRowKeys(prev => prev.filter(key => key !== record.id))
+      setSelectedRowKeys(previousSelectedKeys => previousSelectedKeys.filter(key => key !== record.id))
     }
   }, [])
 
   const handleSelectAllRecords = useCallback(
     (checked: boolean) => {
       if (checked) {
-        const bookableRecords = expenses?.filter(expense => expense.status === BOOKED_STATUS) || []
-        setSelectedRecords(bookableRecords)
         setSelectedRowKeys(bookableRecords.map(record => record.id))
       } else {
-        setSelectedRecords([])
         setSelectedRowKeys([])
       }
     },
-    [expenses]
+    [bookableRecords]
   )
 
   const hasBookableSelected = useMemo(
@@ -48,18 +56,14 @@ export function useExpenseRequestSelection(expenses: ExpenseData[] | undefined) 
   )
 
   const allBookableSelected = useMemo(() => {
-    const bookableRecords = expenses?.filter(expense => expense.status === BOOKED_STATUS) || []
     return (
-      selectedRecords.length > 0 &&
+      bookableRecords.length > 0 &&
       selectedRecords.length === bookableRecords.length &&
       selectedRecords.every(record => record.status === BOOKED_STATUS)
     )
-  }, [selectedRecords, expenses])
+  }, [bookableRecords, selectedRecords])
 
-  const bookableRecordsCount = useMemo(
-    () => expenses?.filter(expense => expense.status === BOOKED_STATUS).length || 0,
-    [expenses]
-  )
+  const bookableRecordsCount = bookableRecords.length
 
   const selectedBookableCount = useMemo(
     () => selectedRecords.filter(r => r.status === BOOKED_STATUS).length,

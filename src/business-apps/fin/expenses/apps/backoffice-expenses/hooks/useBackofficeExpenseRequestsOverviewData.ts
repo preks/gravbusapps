@@ -3,7 +3,7 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EXPENSE_REQUESTS } from '../queries'
 import { ExpenseData, ExpenseRequestQueryData } from '../types'
 import type { TranslateFn } from '../utils/utils'
-import { formatDateLocalized } from '../utils/dateUtils'
+import { mapExpenseRequest } from '../components/tabs/expence-requests-tab/data/mapExpenseRequest'
 import {
   buildNumericRangeCondition,
   buildSearchCondition as buildSearchConditionBase,
@@ -12,7 +12,6 @@ import {
   buildEmployeeFilterCondition
 } from './queryFilterUtils'
 import { buildRequestEffectiveDateFilter, buildRequestTypeFilter } from './backofficeSharedOverview'
-import { buildEmployeeDisplayName } from './backofficeReportUtils'
 
 export interface BackofficeExpenseRequestsOverviewParams {
   accessToken: string
@@ -31,56 +30,6 @@ export interface BackofficeExpenseRequestsOverviewParams {
   currentPage: number
   pageSize: number
   orderBy: unknown[]
-}
-
-function toOptionalNumber(value: unknown): number | undefined {
-  if (value == null || value === '') return undefined
-  const n = Number(value)
-  return Number.isFinite(n) ? n : undefined
-}
-
-function transformExpenseRequest(item: any, t: TranslateFn): ExpenseData {
-  const reimbursable = toOptionalNumber(item.reimbursableAmount)
-  const totalFromApi = toOptionalNumber(item.totalAmount)
-  const totalAmount = totalFromApi ?? 0
-
-  return {
-    id: item.id,
-    expenseId: String(item.id ?? '-'),
-    employeeCode: item.employee?.code ?? '-',
-    code: item.code ?? '-',
-    sapNumber: item.employee?.hrReferenceCode ?? '-',
-    employee: buildEmployeeDisplayName(item.employee) || '-',
-    title: item.title ?? '-',
-    creationDate: formatDateLocalized(item.createdAt, t),
-    startDate: formatDateLocalized(item.startDate, t),
-    endDate: formatDateLocalized(item.endDate, t),
-    requestDate: formatDateLocalized(item.requestDate ?? item.createdAt, t),
-    reporter: buildEmployeeDisplayName(item.employee) || '-',
-    type: item.requestType?.value ?? '-',
-    amount: reimbursable != null ? `${reimbursable} ${item.currency?.code ?? ''}`.trim() : '-',
-    advance: '',
-    status: item.status ?? '',
-    payableAmount: reimbursable != null ? `${reimbursable} ${item.currency?.code ?? ''}`.trim() : '-',
-    paymentMethod: '-',
-    employeeId: String(item.employee?.id ?? '-'),
-    version: item.version ?? '',
-    currency: { code: item.currency?.code ?? '' },
-    currencyRef: item.currencyRef ?? '',
-    typeRef: '',
-    requestTypeRef: item.requestTypeRef ?? '',
-    totalRemainingAmount: item.totalRemainingAmount ?? '-',
-    userId: '',
-    expenseRuleId: '',
-    reimbursableAmount: reimbursable,
-    totalAmount,
-    employeeDocumentId: item.employeeDocumentId ?? null,
-    documentData: null,
-    employeeDocument: item.employeeDocument,
-    department: item.employee?.employeePosition?.costCenter?.name ?? 'N/A',
-    nonReimbursableAmount: item.nonReimbursableAmount,
-    expensePlan: item.expensePlan
-  }
 }
 
 function buildAmountFilterCondition(amountMin?: string, amountMax?: string): any[] {
@@ -284,7 +233,7 @@ export function useBackofficeExpenseRequestsOverviewData(params: BackofficeExpen
         const responseData = response as ExpenseRequestQueryData
 
         if (responseData?.ExpenseRequest) {
-          setExpenses(responseData.ExpenseRequest.map(item => transformExpenseRequest(item, t)))
+          setExpenses(responseData.ExpenseRequest.map(item => mapExpenseRequest(item, t)))
         } else {
           setExpenses([])
         }

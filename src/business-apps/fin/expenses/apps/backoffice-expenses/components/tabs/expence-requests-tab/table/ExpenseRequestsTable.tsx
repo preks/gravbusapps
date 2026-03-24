@@ -1,8 +1,8 @@
 import React from 'react'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
-import { ExpenseData } from '../../../types'
-import { ExpenseDataTable } from '../../../common/components/ExpenseDataTable'
-import { TableErrorState } from '../../../common/components/TableErrorState'
+import { ExpenseData } from '../../../../types'
+import { ExpenseDataTable } from '../../../../common/components/ExpenseDataTable'
+import { TableErrorState } from '../../../../common/components/TableErrorState'
 
 const DEFAULT_DATA_TEST_ID_PREFIX = 'expense-requests'
 

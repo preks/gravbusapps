@@ -1,12 +1,12 @@
 import { useState, useCallback, useMemo } from 'react'
-import { Button, useTranslation } from '@newwork/nw-design-system'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useCurrencySecondaryAction } from '../../../../manager-expenses/hooks/useTabState'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import translations from '../../../_i18n'
 import { ExpenseData } from '../../../types'
-import { useExpenseRequestExport } from './expenseRequestExport'
+import { useExpenseRequestExport } from './export/expenseRequestExport'
 import BackofficeTabHeaderAlert from '../common/BackofficeTabHeaderAlert'
 import useBackofficeTabSearch from '../common/useBackofficeTabSearch'
 import useBackofficeContentHeader from '../common/useBackofficeContentHeader'
@@ -22,11 +22,15 @@ import { useTableSetup } from '../../../common/hooks/useTableSetup'
 import {
   createBackofficeExpenseRequestColumns,
   type BackofficeExpenseRequestTableChrome
-} from './backofficeExpenseRequestColumns'
-import ExpenseRequestsTable from './ExpenseRequestsTable'
-import { ExpenseRequestPdfModal, EmployeeSearchFilter, ExpenseRequestsDataDisplay } from './components'
+} from './table/backofficeExpenseRequestColumns'
+import ExpenseRequestsTable from './table/ExpenseRequestsTable'
+import {
+  ExpenseRequestPdfModal,
+  EmployeeSearchFilter,
+  ExpenseRequestSecondaryActions,
+  ExpenseRequestsDataDisplay
+} from './components'
 import type { EmployeeFilterRenderProps } from './components/ExpenseRequestFilterSheet'
-import ExpenseRequestsTableExportOverlay from './components/ExpenseRequestsTableExportOverlay'
 import BackofficeExpenseRequestDetailsSheet from './components/BackofficeExpenseRequestDetailsSheet'
 
 type ExpenseRequestTabProps = BackofficeTabProps
@@ -133,57 +137,45 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     }
   }, [selectedRecords, handleBulkTransferPayment])
 
-  const secondaryActions = useMemo(() => {
-    const showExport = selectedRecords.length === 0
-    const showBulkTransfer = hasBookableSelected
-
-    return (
-      <div className="gba:flex gba:flex-wrap gba:items-center gba:justify-end gba:gap-2">
-        {currencySecondaryAction}
-        {showExport ? (
-          <ExpenseRequestsTableExportOverlay
-            visible
-            isExporting={isExporting}
-            totalItems={totalItems}
-            onExportCsv={handleExportCsv}
-            onExportExcel={handleExportExcel}
-            getCsvTitle={getExportCsvTitle}
-            getExcelTitle={getExportExcelTitle}
-            labelExporting={t('export-exporting')}
-            labelCsv={t('export-csv-label')}
-            labelExcel={t('export-excel-label')}
-          />
-        ) : null}
-        {showBulkTransfer ? (
-          <Button
-            key={`bulk-transfer-${selectedBookableCount}`}
-            onClick={handleBulkTransfer}
-            data-testid="bulk-transfer-payment-button"
-            variant="outline"
-            size="sm"
-            disabled={isBulkTransferInProgress}
-          >
-            {isBulkTransferInProgress ? t('transfer-in-progress') : t('transfer-payment-label')} (
-            {selectedBookableCount} {t('transfer-selected')})
-          </Button>
-        ) : null}
-      </div>
-    )
-  }, [
-    currencySecondaryAction,
-    selectedRecords.length,
-    isExporting,
-    totalItems,
-    handleExportCsv,
-    handleExportExcel,
-    getExportCsvTitle,
-    getExportExcelTitle,
-    t,
-    hasBookableSelected,
-    selectedBookableCount,
-    handleBulkTransfer,
-    isBulkTransferInProgress
-  ])
+  const secondaryActions = useMemo(
+    () => (
+      <ExpenseRequestSecondaryActions
+        currencySecondaryAction={currencySecondaryAction}
+        showExport={selectedRecords.length === 0}
+        isExporting={isExporting}
+        totalItems={totalItems}
+        onExportCsv={handleExportCsv}
+        onExportExcel={handleExportExcel}
+        getCsvTitle={getExportCsvTitle}
+        getExcelTitle={getExportExcelTitle}
+        labelExporting={t('export-exporting')}
+        labelCsv={t('export-csv-label')}
+        labelExcel={t('export-excel-label')}
+        showBulkTransfer={hasBookableSelected}
+        onBulkTransfer={handleBulkTransfer}
+        bulkTransferLabel={t('transfer-payment-label')}
+        transferInProgressLabel={t('transfer-in-progress')}
+        transferSelectedLabel={t('transfer-selected')}
+        selectedBookableCount={selectedBookableCount}
+        isBulkTransferInProgress={isBulkTransferInProgress}
+      />
+    ),
+    [
+      currencySecondaryAction,
+      selectedRecords.length,
+      isExporting,
+      totalItems,
+      handleExportCsv,
+      handleExportExcel,
+      getExportCsvTitle,
+      getExportExcelTitle,
+      t,
+      hasBookableSelected,
+      handleBulkTransfer,
+      selectedBookableCount,
+      isBulkTransferInProgress
+    ]
+  )
 
   const handleNavigateToExpenseRequest = useCallback((record: ExpenseData) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {

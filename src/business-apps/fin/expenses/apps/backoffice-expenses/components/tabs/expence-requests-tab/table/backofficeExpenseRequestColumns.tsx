@@ -6,13 +6,13 @@ import {
   createDateColumn,
   createFormatDate,
   createStatusBadgeColumn
-} from '../../../common/columns/expenseColumnHelpers'
-import type { ExpenseData } from '../../../types'
-import type { ExpenseRequestActionHandlers } from '../../../types/expenseRequestActionHandlers'
-import { formatCurrency } from '../../../utils/currencyUtils'
-import { extractCurrencyCode } from '../../../utils/sharedUtils'
-import { getExpenseRequestStatusDisplay, type TranslateFn } from '../../../utils/utils'
-import ExpenseRequestTableActions from './components/ExpenseRequestTableActions'
+} from '../../../../common/columns/expenseColumnHelpers'
+import type { ExpenseData } from '../../../../types'
+import type { ExpenseRequestActionHandlers } from '../../../../types/expenseRequestActionHandlers'
+import { formatCurrency } from '../../../../utils/currencyUtils'
+import { extractCurrencyCode } from '../../../../utils/sharedUtils'
+import { getExpenseRequestStatusDisplay, type TranslateFn } from '../../../../utils/utils'
+import ExpenseRequestTableActions from '../components/ExpenseRequestTableActions'
 
 export const BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS = [
   'select',

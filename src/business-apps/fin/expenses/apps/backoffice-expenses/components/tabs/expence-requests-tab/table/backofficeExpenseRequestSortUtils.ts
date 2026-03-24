@@ -1,4 +1,4 @@
-import type { ExpenseRequestListSortField } from './config/expenseRequestListSortTypes'
+import type { ExpenseRequestListSortField } from '../config/expenseRequestListSortTypes'
 
 /** Maps TanStack column `id` to GraphQL order-by field used in {@link useExpenseRequests}. */
 export function expenseRequestColumnIdToSortField(columnId: string): ExpenseRequestListSortField {
