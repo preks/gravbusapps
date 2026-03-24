@@ -95,6 +95,7 @@ export interface OrchestratorHandlers {
   handleRefine: (feedback: string) => Promise<void>
   handleStartBuild: (skipComponents?: string[]) => Promise<void>
   handleRetry: () => Promise<void>
+  handleWiringRetry: () => Promise<void>
   handleCancel: () => void
   handleReset: () => void
 }
@@ -309,6 +310,18 @@ export const useOrchestratorHandlers = ({
     userInfo
   ])
 
+  const handleWiringRetry = useCallback(async () => {
+    const sessionId = orchestratorClient.currentPlan?.sessionId ?? orchestratorClient.lastSessionId
+    const repoId = orchestratorClient.currentPlan?.repoId ?? orchestratorClient.lastRepoId
+    await buildProgress.startWiringRetry(sessionId ?? undefined, repoId ?? undefined)
+  }, [
+    buildProgress,
+    orchestratorClient.currentPlan?.sessionId,
+    orchestratorClient.currentPlan?.repoId,
+    orchestratorClient.lastSessionId,
+    orchestratorClient.lastRepoId
+  ])
+
   // Handle cancel
   const handleCancel = useCallback(() => {
     buildProgress.cancelBuild()
@@ -351,6 +364,7 @@ export const useOrchestratorHandlers = ({
     handleRefine,
     handleStartBuild,
     handleRetry,
+    handleWiringRetry,
     handleCancel,
     handleReset
   }

@@ -15,18 +15,23 @@ const createApp = (overrides: Partial<SpreadsheetAppSummary>): SpreadsheetAppSum
 })
 
 describe('useSpreadsheetAppsHubFiltering', () => {
-  it('filters automations section by enabled/available automations', () => {
+  it('keeps collection copies out of non-task sections', () => {
     const apps: SpreadsheetAppSummary[] = [
-      createApp({ id: 'a1', name: 'With automations', enabledAutomationCount: 2 }),
-      createApp({ id: 'a2', name: 'No automations', enabledAutomationCount: 0, automationCount: 0 }),
-      createApp({ id: 'a3', name: 'Legacy automation count', automationCount: 1 })
+      createApp({ id: 'main-1', name: 'Main spreadsheet' }),
+      createApp({
+        id: 'copy-1',
+        name: 'Collection copy',
+        settings: { excel_collection_copy: true },
+        permission: 'view',
+        isShared: true
+      })
     ]
 
     const { result } = renderHook(() =>
       useSpreadsheetAppsHubFiltering({
         apps,
         currentUserId: 'user-1',
-        activeSection: 'automations',
+        activeSection: 'my-files',
         favorites: new Set<string>(),
         searchQuery: '',
         sortBy: 'name',
@@ -34,15 +39,26 @@ describe('useSpreadsheetAppsHubFiltering', () => {
       })
     )
 
-    expect(result.current.filteredApps.map(app => app.id)).toEqual(['a1', 'a3'])
+    expect(result.current.filteredApps.map(app => app.id)).toEqual(['main-1'])
   })
 
-  it('filters tasks section by task or workflow counts with fallback', () => {
+  it('includes fallback pending task apps in tasks section', () => {
     const apps: SpreadsheetAppSummary[] = [
-      createApp({ id: 't1', name: 'Task count', taskCount: 3 }),
-      createApp({ id: 't2', name: 'Active workflows', activeWorkflowLinkCount: 1 }),
-      createApp({ id: 't3', name: 'Workflow history', workflowLinkCount: 2 }),
-      createApp({ id: 't4', name: 'No tasks', taskCount: 0, activeWorkflowLinkCount: 0, workflowLinkCount: 0 })
+      createApp({
+        id: 'copy-1',
+        name: 'Collection copy',
+        settings: { excel_collection_copy: true },
+        permission: 'view',
+        isShared: true
+      }),
+      createApp({
+        id: 'fallback-1',
+        name: 'Fallback task app',
+        settings: {},
+        permission: 'view',
+        isShared: true
+      }),
+      createApp({ id: 'normal-1', name: 'Normal spreadsheet' })
     ]
 
     const { result } = renderHook(() =>
@@ -51,12 +67,69 @@ describe('useSpreadsheetAppsHubFiltering', () => {
         currentUserId: 'user-1',
         activeSection: 'tasks',
         favorites: new Set<string>(),
+        taskAppIds: new Set(['fallback-1']),
         searchQuery: '',
         sortBy: 'name',
         sortOrder: 'asc'
       })
     )
 
-    expect(result.current.filteredApps.map(app => app.id)).toEqual(['t3', 't1', 't2'])
+    const ids = result.current.filteredApps.map(app => app.id)
+    expect(ids).toHaveLength(2)
+    expect(ids).toEqual(expect.arrayContaining(['copy-1', 'fallback-1']))
+  })
+
+  it('de-duplicates tasks when app is in both sources', () => {
+    const apps: SpreadsheetAppSummary[] = [
+      createApp({
+        id: 'copy-1',
+        name: 'Collection copy',
+        settings: { excel_collection_copy: true },
+        permission: 'view',
+        isShared: true
+      })
+    ]
+
+    const { result } = renderHook(() =>
+      useSpreadsheetAppsHubFiltering({
+        apps,
+        currentUserId: 'user-1',
+        activeSection: 'tasks',
+        favorites: new Set<string>(),
+        taskAppIds: new Set(['copy-1']),
+        searchQuery: '',
+        sortBy: 'name',
+        sortOrder: 'asc'
+      })
+    )
+
+    expect(result.current.filteredApps.map(app => app.id)).toEqual(['copy-1'])
+  })
+
+  it('shows collection copy tasks even when permission flags are missing', () => {
+    const apps: SpreadsheetAppSummary[] = [
+      createApp({
+        id: 'copy-no-permission',
+        name: 'Copy without permission metadata',
+        createdBy: 'manager-1',
+        isShared: undefined,
+        permission: undefined,
+        settings: { excel_collection_copy: true }
+      })
+    ]
+
+    const { result } = renderHook(() =>
+      useSpreadsheetAppsHubFiltering({
+        apps,
+        currentUserId: 'recipient-1',
+        activeSection: 'tasks',
+        favorites: new Set<string>(),
+        searchQuery: '',
+        sortBy: 'name',
+        sortOrder: 'asc'
+      })
+    )
+
+    expect(result.current.filteredApps.map(app => app.id)).toEqual(['copy-no-permission'])
   })
 })

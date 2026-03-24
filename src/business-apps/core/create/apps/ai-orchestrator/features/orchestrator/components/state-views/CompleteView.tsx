@@ -7,7 +7,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle, Download } from 'lucide-react'
+import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle, Download, AlertTriangle, RefreshCw } from 'lucide-react'
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
@@ -51,6 +51,77 @@ export interface CompleteViewProps {
   isImportingFolder?: boolean
   onReset?: () => void
   isRestoringSession?: boolean
+  wiringWarnings?: string[]
+  onRetryWiring?: () => void
+}
+
+const WiringWarningBanner: React.FC<{ warnings: string[]; onRetry?: () => void }> = ({ warnings, onRetry }) => {
+  const [dismissed, setDismissed] = useState(false)
+
+  const warningRows = useMemo(() => {
+    const occurrenceByText = new Map<string, number>()
+    return warnings.map(warning => {
+      const n = (occurrenceByText.get(warning) ?? 0) + 1
+      occurrenceByText.set(warning, n)
+      // Stable keys without array index (duplicate lines get distinct occurrence suffix)
+      return { key: `${warning}\u2060${n}`, warning }
+    })
+  }, [warnings])
+
+  useEffect(() => {
+    if (warnings.length > 0) {
+      setDismissed(false)
+    }
+  }, [warnings])
+
+  if (dismissed) return null
+
+  return (
+    <div
+      className="gba:flex gba:items-start gba:gap-3 gba:px-4 gba:py-3 gba:border-b gba:border-yellow-300 gba:bg-yellow-50 dark:gba:bg-yellow-950/30 dark:gba:border-yellow-700"
+      data-testid="wiring-warning-banner"
+    >
+      <AlertTriangle className="gba:w-5 gba:h-5 gba:text-yellow-600 gba:shrink-0 gba:mt-0.5" />
+      <div className="gba:flex-1 gba:min-w-0">
+        <p className="gba:text-sm gba:font-semibold gba:text-yellow-800 dark:gba:text-yellow-200">
+          Some connections did not complete ({warnings.length} wiring step{warnings.length > 1 ? 's' : ''})
+        </p>
+        <ul className="gba:mt-1 gba:space-y-0.5">
+          {warningRows.map(({ key, warning }) => (
+            <li key={key} className="gba:text-xs gba:text-yellow-700 dark:gba:text-yellow-300">
+              &bull; {warning}
+            </li>
+          ))}
+        </ul>
+        <p className="gba:text-xs gba:text-yellow-600 dark:gba:text-yellow-400 gba:mt-1.5">
+          Your screen and data models are working. Some connections (agent tools, flow steps, or entity relationships)
+          may need attention.
+        </p>
+      </div>
+      <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+        {onRetry && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetry}
+            className="gba:gap-1.5 gba:border-yellow-400 gba:text-yellow-800 gba:hover:bg-yellow-100 dark:gba:border-yellow-600 dark:gba:text-yellow-200 dark:gba:hover:bg-yellow-900/40"
+            data-testid="retry-wiring-button"
+          >
+            <RefreshCw className="gba:w-3.5 gba:h-3.5" />
+            Retry Wiring
+          </Button>
+        )}
+        <button
+          onClick={() => setDismissed(true)}
+          className="gba:text-yellow-600 gba:hover:text-yellow-800 dark:gba:text-yellow-400 dark:gba:hover:text-yellow-200"
+          aria-label="Dismiss wiring warnings"
+          data-testid="dismiss-wiring-warnings"
+        >
+          <XCircle className="gba:w-4 gba:h-4" />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function firstScreenWithSession(components: ComponentSpec[]): ComponentSpec | null {
@@ -78,7 +149,9 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   onDownloadPackage,
   onImportFolder,
   isImportingFolder = false,
-  isRestoringSession = false
+  isRestoringSession = false,
+  wiringWarnings,
+  onRetryWiring
 }) => {
   const [activeTab, setActiveTab] = useState<CanvasTab>('screen')
   const [pendingImportMode, setPendingImportMode] = useState<'update' | 'new' | null>(null)
@@ -428,6 +501,10 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             )
           })()}
         </div>
+      )}
+
+      {wiringWarnings && wiringWarnings.length > 0 && (
+        <WiringWarningBanner warnings={wiringWarnings} onRetry={onRetryWiring} />
       )}
 
       {/* Tab Header */}

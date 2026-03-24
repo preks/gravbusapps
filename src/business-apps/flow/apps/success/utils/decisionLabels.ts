@@ -4,10 +4,12 @@ interface DecisionStepLabelInput {
   decisionTitle?: string | null
   stepReference?: string | null
   decisionMode?: string | null
+  promptName?: string | null
+  policyDocumentTitle?: string | null
 }
 
 const GENERATED_STEP_REFERENCE_PATTERN = /^step[_-]?\d+$/i
-const GENERIC_DECISION_TITLES = new Set(['decision', 'gateway'])
+const GENERIC_DECISION_TITLES = new Set(['decision', 'gateway', 'ai', 'user', 'logic'])
 
 const normalizeValue = (value?: string | null) => value?.trim() || ''
 
@@ -35,13 +37,19 @@ export const getDecisionStepDisplayLabel = (input: DecisionStepLabelInput, fallb
     return normalizeValue(input.decisionTitle)
   }
 
-  const typeLabel = getDecisionStepTypeLabel(input.decisionMode)
-  if (typeLabel) return typeLabel
+  const promptName = normalizeValue(input.promptName)
+  if (promptName) return promptName
+
+  const policyTitle = normalizeValue(input.policyDocumentTitle)
+  if (policyTitle) return policyTitle
 
   const normalizedReference = normalizeValue(input.stepReference)
   if (normalizedReference && !isGeneratedStepReference(normalizedReference)) {
     return normalizedReference
   }
+
+  const typeLabel = getDecisionStepTypeLabel(input.decisionMode)
+  if (typeLabel) return typeLabel
 
   return fallbackLabel
 }

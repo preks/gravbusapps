@@ -24,7 +24,10 @@ interface ContactLayoutProps {
     accounts: any[]
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
 
   // Custom fields injection for ContactInformationSegment

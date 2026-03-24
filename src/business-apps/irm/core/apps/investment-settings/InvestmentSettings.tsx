@@ -183,6 +183,10 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         {
           label: t('crm.opportunity_forecasts', 'Forecasts'),
           onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'forecasts' })
+        },
+        {
+          label: t('crm.pipeline_stage_types', 'Stage Types'),
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'stage-types' })
         }
       ]
     },
@@ -320,7 +324,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
   }
 
   if (inlinePage?.key === 'opportunity-data') {
-    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | undefined
+    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | 'stage-types' | undefined
     return (
       <OpportunityDataPage
         {...context}

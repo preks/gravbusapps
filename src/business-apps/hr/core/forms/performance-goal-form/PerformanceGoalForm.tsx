@@ -63,6 +63,9 @@ interface PerformanceGoalFormData {
   milestones?: MilestoneItem[]
 }
 
+/** Stable fallback for AppActionForm — submit always receives values from RHF `handleSubmit`. */
+const APP_ACTION_FORM_DATA_PLACEHOLDER: Record<string, unknown> = {}
+
 /**
  * Performance Goal Form Component
  * Form for creating new employee performance goals or editing existing ones
@@ -220,7 +223,15 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
 
   const form = useForm<PerformanceGoalFormData>({
     defaultValues: getInitialFormData(),
-    mode: 'onChange'
+    // onBlur avoids validating the full form on every keystroke (major input lag).
+    mode: 'onBlur',
+    // Default reValidateMode is onChange — without this, fields would lag again after first blur.
+    reValidateMode: 'onBlur',
+    // Only subscribe to fields needed for the submit button — avoids re-rendering on unrelated formState.
+    formState: {
+      isDirty: true,
+      isValid: true
+    }
   })
 
   // Once milestones arrive from GraphQL, push them into the form
@@ -230,10 +241,21 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
     }
   }, [fetchedMilestones])
 
-  // Check if form is valid (modified and no errors)
-  const isFormValid = useMemo(
-    () => form.formState.isValid && form.formState.isDirty,
-    [form.formState.isValid, form.formState.isDirty]
+  const isFormValid = form.formState.isDirty && form.formState.isValid
+
+  const formHeaderEmployee = useMemo(
+    () =>
+      employee
+        ? {
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            pictureThumbnail: employee.pictureThumbnail,
+            jobTitle: Array.isArray(employee.employeePosition)
+              ? employee.employeePosition?.[0]?.jobPosition?.name
+              : (employee.employeePosition as { jobPosition?: { name?: string } })?.jobPosition?.name
+          }
+        : undefined,
+    [employee]
   )
 
   const dateToISOString = (date: Date | string): string => {
@@ -409,22 +431,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       className="gba:min-h-screen gba:w-full gba:flex gba:flex-col gba:bg-white gba:pt-3"
       data-testid="performance-goal-form-container"
     >
-      <FormHeader
-        title={getFormTitle()}
-        flowIconUrl={flowSmall}
-        employee={
-          employee
-            ? {
-                firstName: employee.firstName,
-                lastName: employee.lastName,
-                pictureThumbnail: employee.pictureThumbnail,
-                jobTitle: Array.isArray(employee.employeePosition)
-                  ? employee.employeePosition?.[0]?.jobPosition?.name
-                  : (employee.employeePosition as any)?.jobPosition?.name
-              }
-            : undefined
-        }
-      />
+      <FormHeader title={getFormTitle()} flowIconUrl={flowSmall} employee={formHeaderEmployee} />
 
       <div className="gba:flex-grow gba:w-full">
         <AppActionForm
@@ -434,7 +441,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
           onSubmit={handleFormSubmit}
           onCancel={onClose}
           onSuccess={handleFormSuccess}
-          formData={form.getValues()}
+          formData={APP_ACTION_FORM_DATA_PLACEHOLDER}
           form={form}
           submitButtonText={isEditMode ? 'Update Goal' : 'Create Goal'}
           cancelButtonText="Cancel"

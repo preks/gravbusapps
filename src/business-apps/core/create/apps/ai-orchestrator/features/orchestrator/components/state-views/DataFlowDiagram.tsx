@@ -29,6 +29,11 @@ import type { ComponentSpec, ComponentType } from '../../types/components'
 
 const MIN_SCALE = 0.55
 
+/** Stable SVG id for arrow markers (must match defs id and url(#...); avoid array index drift). */
+function diagramEdgeMarkerDomId(edgeId: string): string {
+  return `dataflow-mk-${edgeId.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+}
+
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<string, string> = {
@@ -423,22 +428,35 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
               aria-hidden="true"
             >
               <defs>
-                {edges.map((edge, i) => (
-                  <marker
-                    key={`mk-${edge.id}`}
-                    id={`mk-${i}`}
-                    markerWidth="8"
-                    markerHeight="8"
-                    refX="6"
-                    refY="3.5"
-                    orient="auto"
-                  >
-                    <path d="M 0 0 L 7 3.5 L 0 7 z" fill={edge.color} opacity="0.9" />
-                  </marker>
+                {edges.map(edge => (
+                  <React.Fragment key={edge.id}>
+                    {/* Forward arrow marker (end of path) */}
+                    <marker
+                      id={diagramEdgeMarkerDomId(edge.id)}
+                      markerWidth="8"
+                      markerHeight="8"
+                      refX="6"
+                      refY="3.5"
+                      orient="auto"
+                    >
+                      <path d="M 0 0 L 7 3.5 L 0 7 z" fill={edge.color} opacity="0.9" />
+                    </marker>
+                    {/* Backward arrow marker (start of path) for bidirectional edges */}
+                    <marker
+                      id={`${diagramEdgeMarkerDomId(edge.id)}-back`}
+                      markerWidth="8"
+                      markerHeight="8"
+                      refX="1"
+                      refY="3.5"
+                      orient="auto"
+                    >
+                      <path d="M 7 0 L 0 3.5 L 7 7 z" fill={edge.color} opacity="0.9" />
+                    </marker>
+                  </React.Fragment>
                 ))}
               </defs>
 
-              {edges.map((edge, i) => {
+              {edges.map((edge, edgeIndex) => {
                 const srcNode = nodeById.get(edge.sourceId)
                 const tgtNode = nodeById.get(edge.targetId)
                 if (!srcNode || !tgtNode) return null
@@ -448,6 +466,7 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
                 const dimmed = selected !== null && selected.id !== edge.sourceId && selected.id !== edge.targetId
                 const highlighted =
                   selected !== null && (selected.id === edge.sourceId || selected.id === edge.targetId)
+                const markerId = diagramEdgeMarkerDomId(edge.id)
 
                 return (
                   <g key={edge.id} opacity={dimmed ? 0.12 : 1} style={{ transition: 'opacity 0.2s ease' }}>
@@ -462,8 +481,12 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
                       strokeLinecap="round"
                       strokeDasharray="7 5"
                       opacity="0.9"
-                      markerEnd={`url(#mk-${i})`}
-                      style={{ animation: 'flowDash 1.6s linear infinite', animationDelay: `${i * -0.3}s` }}
+                      markerEnd={`url(#${markerId})`}
+                      markerStart={edge.isBidirectional ? `url(#${markerId}-back)` : undefined}
+                      style={{
+                        animation: 'flowDash 1.6s linear infinite',
+                        animationDelay: `${edgeIndex * -0.3}s`
+                      }}
                     />
                     {/* Edge label pill — only when this edge's endpoint is selected */}
                     {highlighted && (

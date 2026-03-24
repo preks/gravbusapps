@@ -259,6 +259,13 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
         value: loadingHealthInsuranceTypes
           ? t('common-loading')
           : getHealthInsuranceTypeValueById(taxDetails.healthInsuranceTypeRef || '')
+      },
+      {
+        label: t('employment-label-last-updated'),
+        value:
+          taxDetails.updatedAt != null && taxDetails.updatedAt !== ''
+            ? (formatDate(taxDetails.updatedAt, 'datetime.short') ?? '')
+            : ''
       }
     ]
 
@@ -267,13 +274,6 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
         {
           label: t('employment-label-request-at-office'),
           value: additionalProps.requestAtTaxOffice === true ? t('common-yes') : t('common-no')
-        },
-        {
-          label: t('employment-label-last-updated'),
-          value:
-            taxDetails.updatedAt != null && taxDetails.updatedAt !== ''
-              ? (formatDate(taxDetails.updatedAt, 'datetime.short') ?? '')
-              : ''
         },
         {
           label: t('employment-label-employee-tax-office'),

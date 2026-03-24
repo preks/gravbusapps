@@ -8,7 +8,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, TabsList, TabsTrigger, toast } from '@newwork/nw-design-system'
 
 // Components
 import {
@@ -68,7 +68,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
-  // Fetch space data
+  // Fetch space data (keep hook result for deleteSpace so the callback always closes over the real API)
+  const spaceData = useSpace(spaceId, accessToken, true)
   const {
     space,
     isLoading: spaceLoading,
@@ -77,7 +78,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     addMember,
     updateMember,
     removeMember
-  } = useSpace(spaceId, accessToken, true)
+  } = spaceData
   const {
     documents,
     notes,
@@ -246,6 +247,17 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     [updateSpace]
   )
 
+  const handleDeleteSpace = useCallback(async (): Promise<boolean> => {
+    const ok = await spaceData.deleteSpace()
+    if (ok) {
+      toast.success('Space deleted')
+      handleBack()
+    } else {
+      toast.error('Could not delete space. Only the owner can delete a space.')
+    }
+    return ok
+  }, [spaceData.deleteSpace, handleBack])
+
   const handleShare = useCallback(() => {
     setInviteDialogOpen(true)
   }, [])
@@ -406,7 +418,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         space={space}
         members={enrichedMembers}
         ownerInfo={ownerInfo}
-        isOwner={isOwner}
+        canOpenSpaceSettings={canManageMembers}
         canEdit={canEdit}
         onBack={handleBack}
         onSettings={handleSettings}
@@ -592,6 +604,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         onOpenChange={setSettingsDialogOpen}
         space={space}
         onSave={handleSaveSettings}
+        isOwner={isOwner}
+        onDeleteSpace={isOwner ? handleDeleteSpace : undefined}
         data-testid={`${testId}-settings-dialog`}
       />
     </div>

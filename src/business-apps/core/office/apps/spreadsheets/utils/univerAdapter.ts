@@ -488,3 +488,47 @@ export function createUniverConversionContext(
     indexToExcelCol
   }
 }
+
+/**
+ * Extract URL from =HYPERLINK("url","text") formula.
+ */
+export function extractUrlFromHyperlinkFormula(formula: string): string | null {
+  if (!formula || typeof formula !== 'string') return null
+  const trimmed = formula.trim()
+  const match = trimmed.match(/^=?\s*HYPERLINK\s*\(\s*"((?:[^"\\]|\\.)*)"\s*,/i)
+  if (!match) return null
+  const url = match[1].replace(/\\"/g, '"').trim()
+  return /^https?:\/\//i.test(url) ? url : null
+}
+
+/**
+ * Returns the URL for the cell at (row, col) if it is the link column and contains a valid URL.
+ * Tries data first, then parses HYPERLINK formula from cell if provided.
+ */
+export function getHyperlinkUrlFromSelection(
+  row: number,
+  col: number,
+  data: Record<string, unknown>[],
+  columns: SpreadsheetColumn[],
+  cellFormula?: string | null
+): string | null {
+  const visibleColumns = columns.filter(c => c.isVisible !== false)
+  if (col < 0 || col >= visibleColumns.length || row < 0) return null
+  const column = visibleColumns[col]
+  if (row < data.length && isLinkColumn(column)) {
+    const raw = getCellValue(data[row], column)
+    if (typeof raw === 'string' && /^https?:\/\//i.test(raw.trim())) return raw.trim()
+    if (raw && typeof raw === 'object') {
+      const url =
+        (raw as Record<string, unknown>).url ??
+        (raw as Record<string, unknown>).v ??
+        (raw as Record<string, unknown>).src
+      if (typeof url === 'string' && /^https?:\/\//i.test(url.trim())) return url.trim()
+    }
+  }
+  if (cellFormula) {
+    const fromFormula = extractUrlFromHyperlinkFormula(cellFormula)
+    if (fromFormula) return fromFormula
+  }
+  return null
+}

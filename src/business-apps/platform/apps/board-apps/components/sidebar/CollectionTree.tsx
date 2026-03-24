@@ -16,7 +16,8 @@ import {
   Share2,
   Pencil,
   Trash2,
-  Plus
+  Plus,
+  ExternalLink
 } from 'lucide-react'
 import type { BoardCollection } from '../../types/collection'
 import type { BoardSummary } from '../../types/board'
@@ -37,6 +38,7 @@ export interface CollectionTreeProps {
   onShareBoard?: (boardId: string) => void
   onRenameBoard?: (boardId: string) => void
   onDeleteBoard?: (boardId: string) => void
+  onOpenInSpaces?: (collectionId: string) => void
   'data-testid'?: string
 }
 
@@ -56,6 +58,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   onShareBoard,
   onRenameBoard,
   onDeleteBoard,
+  onOpenInSpaces,
   'data-testid': testId = 'collection-tree'
 }) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
@@ -82,7 +85,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   if (collections.length === 0) {
     return (
       <div className="gba:px-4 gba:py-3">
-        <p className="gba:text-xs gba:text-white/40 gba:text-center">No collections yet</p>
+        <p className="gba:text-xs gba:text-muted-foreground gba:text-center">No spaces yet</p>
       </div>
     )
   }
@@ -100,14 +103,16 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
             <div
               className={`gba:group gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:cursor-pointer gba:transition-colors ${
                 isActive && !activeBoardId
-                  ? 'gba:bg-white/15 gba:text-white'
-                  : 'gba:text-white/60 gba:hover:bg-white/10 gba:hover:text-white/80'
+                  ? 'gba:bg-primary/8 gba:text-foreground gba:border gba:border-primary/15'
+                  : 'gba:text-muted-foreground gba:hover:bg-background/60 gba:hover:text-foreground'
               }`}
               onClick={() => onSelectCollection(collection.id)}
               data-testid={`${testId}-item-${collection.id}`}
             >
               <button
-                className="gba:p-0.5 gba:rounded gba:hover:bg-white/10 gba:flex-shrink-0"
+                className={`gba:p-0.5 gba:rounded gba:flex-shrink-0 ${
+                  isActive && !activeBoardId ? 'gba:hover:bg-white/10' : 'gba:hover:bg-muted/50'
+                }`}
                 onClick={e => toggleExpand(collection.id, e)}
                 data-testid={`${testId}-expand-${collection.id}`}
               >
@@ -118,7 +123,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                 />
               </button>
               <FolderIcon
-                className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:opacity-70"
+                className={`gba:w-4 gba:h-4 gba:flex-shrink-0 ${isActive && !activeBoardId ? 'gba:opacity-90' : 'gba:opacity-70'}`}
                 style={collection.color ? { color: collection.color } : undefined}
               />
               <span className="gba:flex-1 gba:text-sm gba:truncate gba:select-none">
@@ -126,7 +131,11 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                 {collection.name}
               </span>
               {collection.boardCount > 0 && openMenuId !== collection.id && (
-                <span className="gba:text-xs gba:text-white/30 gba:tabular-nums gba:mr-1 gba:group-hover:hidden">
+                <span
+                  className={`gba:text-xs gba:tabular-nums gba:mr-1 gba:group-hover:hidden ${
+                    isActive && !activeBoardId ? 'gba:text-decorative-foreground/65' : 'gba:text-muted-foreground/60'
+                  }`}
+                >
                   {collection.boardCount}
                 </span>
               )}
@@ -144,7 +153,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="gba:h-5 gba:w-5 gba:p-0 gba:text-white/50 gba:hover:text-white gba:hover:bg-white/10"
+                      className="gba:h-5 gba:w-5 gba:p-0 gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60"
                       data-testid={`${testId}-menu-${collection.id}`}
                     >
                       <MoreHorizontal className="gba:w-3.5 gba:h-3.5" />
@@ -160,12 +169,16 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                     <DropdownMenuItem onClick={() => onRenameCollection(collection.id)}>
                       <Pencil className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Rename
                     </DropdownMenuItem>
+                    {onOpenInSpaces && (
+                      <DropdownMenuItem onClick={() => onOpenInSpaces(collection.id)}>
+                        <ExternalLink className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Open in Spaces
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="gba:text-destructive"
                       onClick={() => {
-                        if (confirm('Delete this collection? Boards will not be deleted.'))
-                          onDeleteCollection(collection.id)
+                        if (confirm('Delete this space? Boards will not be deleted.')) onDeleteCollection(collection.id)
                       }}
                     >
                       <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Delete
@@ -178,7 +191,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
             {isExpanded && (
               <div className="gba:ml-4 gba:space-y-0.5 gba:mt-0.5">
                 {boards.length === 0 ? (
-                  <p className="gba:text-xs gba:text-white/30 gba:pl-6 gba:py-1">No boards</p>
+                  <p className="gba:text-xs gba:text-muted-foreground/70 gba:pl-6 gba:py-1">No boards</p>
                 ) : (
                   boards.map(board => {
                     const isBoardActive = activeBoardId === board.id
@@ -187,13 +200,15 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                         key={board.id}
                         className={`gba:group/board gba:flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-sm gba:transition-colors gba:cursor-pointer ${
                           isBoardActive
-                            ? 'gba:bg-white/15 gba:text-white gba:font-medium'
-                            : 'gba:text-white/50 gba:hover:bg-white/10 gba:hover:text-white/70'
+                            ? 'gba:bg-primary/8 gba:text-foreground gba:border gba:border-primary/15'
+                            : 'gba:text-muted-foreground gba:hover:bg-background/60 gba:hover:text-foreground'
                         }`}
                         onClick={() => onSelectBoard(board.id)}
                         data-testid={`${testId}-board-${board.id}`}
                       >
-                        <LayoutGrid className="gba:w-3.5 gba:h-3.5 gba:flex-shrink-0 gba:opacity-60" />
+                        <LayoutGrid
+                          className={`gba:w-3.5 gba:h-3.5 gba:flex-shrink-0 ${isBoardActive ? 'gba:text-decorative-foreground gba:opacity-95' : 'gba:opacity-60'}`}
+                        />
                         <span className="gba:truncate gba:flex-1">{board.name}</span>
                         <div
                           className={`gba:flex gba:items-center gba:transition-opacity ${
@@ -211,7 +226,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="gba:h-5 gba:w-5 gba:p-0 gba:text-white/50 gba:hover:text-white gba:hover:bg-white/10"
+                                className="gba:h-5 gba:w-5 gba:p-0 gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60"
                                 data-testid={`${testId}-board-menu-${board.id}`}
                               >
                                 <MoreHorizontal className="gba:w-3.5 gba:h-3.5" />
@@ -250,7 +265,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                   })
                 )}
                 <button
-                  className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-xs gba:text-white/30 gba:hover:bg-white/10 gba:hover:text-white/50 gba:transition-colors"
+                  className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-xs gba:text-muted-foreground gba:hover:bg-primary/10 gba:hover:text-primary gba:transition-colors"
                   onClick={() => onCreateBoardInCollection(collection.id)}
                   data-testid={`${testId}-add-board-${collection.id}`}
                 >

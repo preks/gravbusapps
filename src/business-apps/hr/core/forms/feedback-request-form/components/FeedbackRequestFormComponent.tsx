@@ -9,6 +9,7 @@ import { AppActionForm } from '@/components/app-action-form'
 import translations from '../../_i18n'
 import { FeedbackRequestClient } from '@/common/network/feedback-request/FeedbackRequestClient'
 import { FeedbackRequestPayload } from '../types'
+import { resolveRequestedFromUserIds, resolveSubjectUserId } from '../feedbackRequestFormUtils'
 
 const prefixDataTestId = 'FeedbackRequestFormComponent'
 
@@ -44,12 +45,18 @@ const FeedbackRequestFormComponent: React.FC = () => {
   const [isMultiModalOpen, setIsMultiModalOpen] = useState(false)
   const openMultiModal = () => setIsMultiModalOpen(true)
   const closeMultiModal = () => setIsMultiModalOpen(false)
-  const confirmMultiSelect = (ids: string[], selectedEmployees: { id: string; name: string }[]) => {
+  const confirmMultiSelect = (ids: string[], selectedEmployees: { id: string; name: string; userId?: string }[]) => {
     // Prefer the provided selectedEmployees list (accumulated over searches). Fallback to current employees list.
     const selected =
       selectedEmployees && selectedEmployees.length > 0 ? selectedEmployees : employees.filter(e => ids.includes(e.id))
     setFormValues({
       employeeIds: selected.map(s => s.id),
+      employeeIdUserIdMap: selected.reduce<Record<string, string>>((acc, employee) => {
+        if (employee.userId) {
+          acc[employee.id] = employee.userId
+        }
+        return acc
+      }, {}),
       employeeNames: selected.map(s => s.name),
       // keep single-select fields for submit button enablement and preview
       employeeId: selected[0]?.id,
@@ -83,16 +90,37 @@ const FeedbackRequestFormComponent: React.FC = () => {
     }
 
     const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
+    const targetSubjectUserId = resolveSubjectUserId(
+      businessAppContext.additionalData,
+      businessAppContext.userInfo?.id,
+      currentUserEmployeeId
+    )
+    const isOnBehalfRequest = Boolean(
+      businessAppContext.additionalData?.targetEmployeeId ||
+        businessAppContext.additionalData?.flowContext?.targetEmployeeId ||
+        businessAppContext.additionalData?.contextData?.targetEmployeeId ||
+        businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.targetEmployeeId
+    )
+    const successMessageKey = isOnBehalfRequest
+      ? 'notification-feedback-request-sent-success-on-behalf'
+      : 'notification-feedback-request-sent-success'
 
-    // Resolve employees to get userIds where available
-    const resolvedEmployees = selectedIds
-      .map(id => {
-        if (preSelectedEmployee?.id === id) return preSelectedEmployee
-        return getEmployeeById(id)
-      })
-      .filter(Boolean) as Array<{ id: string; userId?: string }>
+    // Resolve per selected employee id to userId (map first, then live lookup).
+    const { requestedFromList, unresolvedSelectedIds } = resolveRequestedFromUserIds({
+      selectedIds,
+      employeeIdUserIdMap: formValues.employeeIdUserIdMap,
+      resolveUserIdByEmployeeId: id => {
+        const resolved =
+          preSelectedEmployee?.id === id
+            ? preSelectedEmployee
+            : (getEmployeeById(id) as { id: string; userId?: string } | undefined)
+        return resolved?.userId
+      }
+    })
 
-    const requestedFromList = resolvedEmployees.map(emp => emp.userId || emp.id)
+    if (unresolvedSelectedIds.length > 0) {
+      throw new Error(t('feedback-request-missing-user-id'))
+    }
 
     if (requestedFromList.length > 1) {
       const client = new FeedbackRequestClient()
@@ -100,17 +128,17 @@ const FeedbackRequestFormComponent: React.FC = () => {
       const [firstRequested, ...remainingRequested] = requestedFromList
       await client.bulkRequestFeedback({
         requestedFromList: remainingRequested,
-        creatorUserId: currentUserEmployeeId as string,
+        subjectUserId: targetSubjectUserId as string,
         requestMessage: formValues.requestMessage
       })
       const payload: FeedbackRequestPayload = {
         requestedFrom: firstRequested,
         requestedFromList,
-        creatorUserId: currentUserEmployeeId as string,
+        subjectUserId: targetSubjectUserId as string,
         requestMessage: formValues.requestMessage,
         completeNotification: {
           type: 'success',
-          message: t('notification-feedback-request-sent-success')
+          message: t(successMessageKey)
         }
       }
       return payload
@@ -119,20 +147,23 @@ const FeedbackRequestFormComponent: React.FC = () => {
     const payload: FeedbackRequestPayload = {
       requestedFrom: requestedFromList[0]!,
       requestedFromList,
-      creatorUserId: currentUserEmployeeId as string,
+      subjectUserId: targetSubjectUserId as string,
       requestMessage: formValues.requestMessage,
       completeNotification: {
         type: 'success',
-        message: t('notification-feedback-request-sent-success')
+        message: t(successMessageKey)
       }
     }
 
     return payload
   }, [
     formValues.employeeIds,
+    formValues.employeeIdUserIdMap,
     formValues.employeeId,
     formValues.requestMessage,
     businessAppContext.accessToken,
+    businessAppContext.additionalData,
+    businessAppContext.userInfo?.id,
     businessAppContext.userInfo?.employeeDetails?.employeeId,
     getEmployeeById,
     preSelectedEmployee,

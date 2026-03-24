@@ -18,6 +18,9 @@ studio-save-name-placeholder = e.g. Employee onboarding
 studio-save-name-validation = Please enter a flow name before saving.
 studio-save-name-cancel = Cancel
 studio-save-name-confirm = Save flow
+studio-unsaved-changes = Unsaved changes
+studio-saved = Saved
+studio-loading = Loading...
 
 # Labels / Tags
 labels-title = Labels
@@ -43,8 +46,11 @@ labels-save = Save
 labels-error-duplicate = Duplicate key: {$key}
 
 # List
-list-title = Flows
+list-title = FLOWs
 list-subtitle = Browse and open existing flow templates
+list-tab-create = Create
+list-tab-flows = FLOWs
+list-subtitle-create = Design and create new flows
 list-search = Search
 list-search-placeholder = Search flows...
 list-sort = Sort
@@ -175,6 +181,8 @@ task-input-params-empty = No parameters found.
 task-input-params-system = System parameters
 task-input-params-user = User parameters
 task-input-params-pick = Select value
+task-input-params-expression-placeholder = Type {{ to map flow data.
+task-input-params-unmapped = Unmapped
 
 # EveryAI Agent output schema
 task-output-schema-title = Output schema
@@ -273,6 +281,7 @@ decision-ai-taskexpert-picker-desc = Select which task expert should execute for
 decision-ai-taskexpert-picker-placeholder = Select a task expert...
 decision-ai-taskexpert-picker-search = Search task experts...
 decision-ai-taskexpert-picker-empty = No task experts found.
+decision-ai-taskexpert-params-desc = Map each prompt parameter explicitly to the flow context that should be sent to the selected task expert.
 decision-ai-taskexpert-reasoning-label = Reasoning output mapping
 decision-ai-taskexpert-reasoning-desc = Optional. Select which output field should be used as reasoning for the human fallback.
 decision-ai-taskexpert-reasoning-placeholder = Select output field (optional)

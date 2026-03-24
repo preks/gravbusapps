@@ -6,6 +6,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
 import { LinksRenderer } from '@/business-apps/flow/apps/creator/components/shared/LinksRenderer'
@@ -69,8 +73,7 @@ function formatInlineValue(value: unknown): string {
 }
 
 function getEscalationLabel(entry: DecisionLogEntry, t: (key: string) => string): string {
-  if (!entry.escalated) return '-'
-  return t('decisions-ai-escalated-to-user')
+  return entry.escalated ? t('decisions-escalation-yes') : t('decisions-escalation-no')
 }
 
 function DetailField({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
@@ -97,9 +100,9 @@ export const DecisionDetailsDialog: React.FC<DecisionDetailsDialogProps> = ({
   const aiSuggestedBranch = entry?.aiSuggestedBranch || t('value-not-available')
   const decisionPath = entry
     ? entry.decisionMode === 'AI' && entry.escalated
-      ? t('decisions-ai-escalated-to-user')
+      ? t('decisions-escalated-short')
       : entry.decisionMode === 'AI'
-        ? t('decisions-ai-direct')
+        ? t('decisions-direct')
         : entry.decisionMode === 'USER'
           ? t('decisions-user-direct')
           : entry.decisionMode === 'LOGIC'
@@ -141,6 +144,22 @@ export const DecisionDetailsDialog: React.FC<DecisionDetailsDialogProps> = ({
   const workflowVariableLabels = entry?.workflowVariableLabels || {}
   const logicRoutes = entry?.logicRoutes || []
   const availableBranches = getAvailableDecisionBranches(entry)
+  const showOverviewPath = !isAiDecision
+  const showContextTab =
+    Boolean(entry?.decisionInstructions) ||
+    Boolean(entry?.humanReviewInstructions) ||
+    Boolean(entry?.decisionLinks?.length) ||
+    Boolean(availableBranches.length) ||
+    Boolean(logicRoutes.length) ||
+    Boolean(logicMatchedCondition) ||
+    Boolean(defaultBranchLabel)
+  const showDiagnosticsTab =
+    Boolean(entry?.escalationReason) ||
+    Boolean(entry?.promptExecutionId) ||
+    Boolean(selectedBranchId && selectedBranchId !== selectedBranchLabel) ||
+    Boolean(!isUserDecision && !isAiDecision) ||
+    Boolean(showRawPayloads) ||
+    Boolean((accessToken && (entry?.templateId || entry?.originalTemplate) && entry?.stepReference) || false)
 
   const resolveExpressionLabel = (expression: string) => {
     const normalizedExpression = normalizeExpressionKey(expression)
@@ -198,7 +217,7 @@ export const DecisionDetailsDialog: React.FC<DecisionDetailsDialogProps> = ({
     )
   }
 
-  const renderLogicRoutes = () => {
+  const renderLogicRoutes = (showIds = false) => {
     if (!logicRoutes.length) return null
 
     return (
@@ -234,7 +253,7 @@ export const DecisionDetailsDialog: React.FC<DecisionDetailsDialogProps> = ({
                 ) : null}
                 {route.isDefault ? <Badge variant="outline">{t('decisions-default')}</Badge> : null}
               </div>
-              {route.branchId && route.branchId !== branchLabel ? (
+              {showIds && route.branchId && route.branchId !== branchLabel ? (
                 <span className="gba:text-xs gba:break-all gba:text-muted-foreground">
                   {t('decisions-branch-id')}: {route.branchId}
                 </span>
@@ -246,7 +265,7 @@ export const DecisionDetailsDialog: React.FC<DecisionDetailsDialogProps> = ({
     )
   }
 
-  const renderAvailableBranches = () => {
+  const renderAvailableBranches = (showIds = false) => {
     if (!availableBranches.length) return null
 
     return (
@@ -270,7 +289,7 @@ export const DecisionDetailsDialog: React.FC<DecisionDetailsDialogProps> = ({
                 ) : null}
                 {branch.isDefault && !isUserDecision ? <Badge variant="outline">{t('decisions-default')}</Badge> : null}
               </div>
-              {branch.branchId && branch.branchId !== branchLabel ? (
+              {showIds && branch.branchId && branch.branchId !== branchLabel ? (
                 <span className="gba:text-xs gba:break-all gba:text-muted-foreground">
                   {t('decisions-branch-id')}: {branch.branchId}
                 </span>
@@ -297,195 +316,239 @@ export const DecisionDetailsDialog: React.FC<DecisionDetailsDialogProps> = ({
         </DialogHeader>
 
         {entry ? (
-          <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:overflow-y-auto gba:pr-1 gba:md:grid-cols-2">
-            <DetailField label={t('decisions-decided-by')}>
-              <span>{actorName || entry.decidedBy || t('value-not-available')}</span>
-            </DetailField>
-            <DetailField label={t('decisions-mode')}>
-              <span>{formatStatusLabel(entry.decisionMode)}</span>
-            </DetailField>
-            <DetailField label={t('decisions-path')}>
-              <span>{decisionPath}</span>
-            </DetailField>
-            <DetailField label={t('decisions-selected-branch')}>
-              <div className="gba:flex gba:flex-col gba:gap-1">
+          <div className="gba:flex gba:flex-col gba:gap-5 gba:overflow-y-auto gba:pr-1">
+            <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
+              <DetailField label={t('decisions-decided-by')}>
+                <span>{actorName || entry.decidedBy || t('value-not-available')}</span>
+              </DetailField>
+              <DetailField label={t('decisions-mode')}>
+                <span>{formatStatusLabel(entry.decisionMode)}</span>
+              </DetailField>
+              {showOverviewPath ? (
+                <DetailField label={t('decisions-path')}>
+                  <span>{decisionPath}</span>
+                </DetailField>
+              ) : null}
+              <DetailField label={t('decisions-selected-branch')}>
                 <span>{selectedBranchLabel}</span>
-                {selectedBranchId && selectedBranchId !== selectedBranchLabel ? (
-                  <span className="gba:text-xs gba:break-all gba:text-muted-foreground">
-                    {t('decisions-branch-id')}: {selectedBranchId}
+              </DetailField>
+              {durationLabel ? (
+                <DetailField label={t('decisions-duration')}>
+                  <span>{durationLabel}</span>
+                </DetailField>
+              ) : null}
+              {isAiDecision ? (
+                <DetailField label={t('decisions-escalation')}>
+                  <span className={entry.escalated ? 'gba:font-medium gba:text-warning' : 'gba:text-foreground'}>
+                    {escalationLabel}
                   </span>
+                </DetailField>
+              ) : null}
+              {isAiDecision && entry.confidence != null ? (
+                <DetailField label={t('decisions-confidence')}>
+                  <span>{`${Math.round(entry.confidence * 100)}%`}</span>
+                </DetailField>
+              ) : null}
+              {isAiDecision && promptLabel ? (
+                <DetailField label={t('decisions-prompt')}>
+                  <span>{promptLabel}</span>
+                </DetailField>
+              ) : null}
+              {isAiDecision && policyLabel ? (
+                <DetailField label={t('decisions-policy')}>
+                  <span>{policyLabel}</span>
+                </DetailField>
+              ) : null}
+              {isAiDecision && entry.aiSuggestedBranch ? (
+                <DetailField label={t('decisions-ai-suggested-branch')}>
+                  <span>{aiSuggestedBranch}</span>
+                </DetailField>
+              ) : null}
+              {isAiDecision && entry.branchAgreement != null ? (
+                <DetailField label={t('decisions-branch-agreement-title')}>
+                  <span>
+                    {entry.branchAgreement
+                      ? t('decisions-branch-agreement-match')
+                      : t('decisions-branch-agreement-mismatch')}
+                  </span>
+                </DetailField>
+              ) : null}
+              {isLogicDecision && logicRouteTypeLabel ? (
+                <DetailField label={t('decisions-logic-route-type')}>
+                  <span>{logicRouteTypeLabel}</span>
+                </DetailField>
+              ) : null}
+              {isLogicDecision && logicFallbackReason ? (
+                <DetailField label={t('decisions-logic-fallback-reason')}>
+                  <span>{logicFallbackReason}</span>
+                </DetailField>
+              ) : null}
+            </div>
+
+            <Tabs defaultValue="overview" className="gba:flex gba:flex-col gba:gap-4">
+              <TabsList className="gba:w-full gba:justify-start" data-testid={`${testId}-tabs`}>
+                <TabsTrigger value="overview">{t('decisions-tab-overview')}</TabsTrigger>
+                {showContextTab ? <TabsTrigger value="context">{t('decisions-tab-context')}</TabsTrigger> : null}
+                {showDiagnosticsTab ? (
+                  <TabsTrigger value="diagnostics">{t('decisions-tab-diagnostics')}</TabsTrigger>
                 ) : null}
-              </div>
-            </DetailField>
-            {!isLogicDecision && availableBranches.length ? (
-              <DetailField label={t('decisions-available-branches')} wide>
-                {renderAvailableBranches()}
-              </DetailField>
-            ) : null}
-            {durationLabel ? (
-              <DetailField label={t('decisions-duration')}>
-                <span>{durationLabel}</span>
-              </DetailField>
-            ) : null}
-            {isAiDecision && entry.confidence != null ? (
-              <DetailField label={t('decisions-confidence')}>
-                <span>{`${Math.round(entry.confidence * 100)}%`}</span>
-              </DetailField>
-            ) : null}
-            {isAiDecision && entry.aiSuggestedBranch ? (
-              <DetailField label={t('decisions-ai-suggested-branch')}>
-                <span>{aiSuggestedBranch}</span>
-              </DetailField>
-            ) : null}
-            {isAiDecision && (entry.escalated || entry.escalationReason) ? (
-              <DetailField label={t('decisions-escalation')} wide>
-                <span>{escalationLabel}</span>
-                {entry.escalationReason ? (
-                  <span className="gba:text-sm gba:text-muted-foreground">{entry.escalationReason}</span>
-                ) : null}
-              </DetailField>
-            ) : null}
-            {isAiDecision && entry.branchAgreement != null ? (
-              <DetailField label={t('decisions-branch-agreement-title')}>
-                <span>
-                  {entry.branchAgreement
-                    ? t('decisions-branch-agreement-match')
-                    : t('decisions-branch-agreement-mismatch')}
-                </span>
-              </DetailField>
-            ) : null}
-            {isAiDecision && promptLabel ? (
-              <DetailField label={t('decisions-prompt')}>
-                <span>{promptLabel}</span>
-              </DetailField>
-            ) : null}
-            {isAiDecision && policyLabel ? (
-              <DetailField label={t('decisions-policy')}>
-                <span>{policyLabel}</span>
-              </DetailField>
-            ) : null}
-            {isAiDecision && entry.promptExecutionId ? (
-              <DetailField label={t('decisions-prompt-execution-id')} wide>
-                <span>{entry.promptExecutionId}</span>
-              </DetailField>
-            ) : null}
-            {isLogicDecision && logicRouteTypeLabel ? (
-              <DetailField label={t('decisions-logic-route-type')}>
-                <span>{logicRouteTypeLabel}</span>
-              </DetailField>
-            ) : null}
-            {isLogicDecision && logicFallbackReason ? (
-              <DetailField label={t('decisions-logic-fallback-reason')}>
-                <span>{logicFallbackReason}</span>
-              </DetailField>
-            ) : null}
-            {isLogicDecision && logicRoutes.length ? (
-              <DetailField label={t('decisions-logic-routes')} wide>
-                {renderLogicRoutes()}
-              </DetailField>
-            ) : null}
-            {isLogicDecision && !logicRoutes.length && defaultBranchLabel ? (
-              <DetailField label={t('decisions-logic-default-branch')}>
-                <span>{defaultBranchLabel}</span>
-              </DetailField>
-            ) : null}
-            {isLogicDecision && !logicRoutes.length && logicMatchedCondition ? (
-              <DetailField label={t('decisions-logic-condition')} wide>
-                <SuccessExpressionText
-                  value={logicMatchedCondition}
-                  fallback={t('value-not-available')}
-                  resolveExpressionLabel={resolveExpressionLabel}
-                  data-testid={`${testId}-logic-rule`}
-                />
-              </DetailField>
-            ) : null}
-            {isUserDecision && entry.decisionTitle ? (
-              <DetailField label={t('decisions-task-title')} wide>
-                <span>{entry.decisionTitle}</span>
-              </DetailField>
-            ) : null}
-            {(isAiDecision || isLogicDecision || isUserDecision) && entry.decisionInstructions ? (
-              <DetailField label={detailTextLabel} wide>
-                <SuccessExpressionText
-                  value={entry.decisionInstructions}
-                  fallback={t('decisions-no-instructions')}
-                  data-testid={`${testId}-instructions`}
-                />
-              </DetailField>
-            ) : null}
-            {isUserDecision && entry.decisionLinks?.length ? (
-              <div className="gba:md:col-span-2">
-                <LinksRenderer
-                  links={entry.decisionLinks}
-                  accessToken={accessToken}
-                  testId={`${testId}-decision-links`}
-                />
-              </div>
-            ) : null}
-            {isAiDecision && entry.humanReviewInstructions ? (
-              <DetailField label={t('decisions-human-review-instructions')} wide>
-                <SuccessExpressionText
-                  value={entry.humanReviewInstructions}
-                  fallback={t('decisions-no-human-review-instructions')}
-                  data-testid={`${testId}-human-instructions`}
-                />
-              </DetailField>
-            ) : null}
-            {isAiDecision && entry.decisionReasoning ? (
-              <DetailField label={t('decisions-reasoning')} wide>
-                <span className="gba:whitespace-pre-wrap">{entry.decisionReasoning}</span>
-              </DetailField>
-            ) : null}
-            {!isUserDecision && !isAiDecision ? (
-              <div className="gba:flex gba:flex-col gba:gap-2 gba:md:col-span-2">
-                <span className="gba:text-xs gba:font-semibold gba:text-muted-foreground">{inputLabel}</span>
-                {isLogicDecision ? (
-                  renderLogicConditionInputs()
-                ) : (
-                  <pre className="gba:max-h-56 gba:overflow-auto gba:rounded-lg gba:bg-muted gba:p-3 gba:text-xs gba:text-foreground">
-                    {formatJson(inputValue)}
-                  </pre>
-                )}
-              </div>
-            ) : null}
-            {showRawPayloads ? (
-              <>
-                <div className="gba:flex gba:flex-col gba:gap-2 gba:md:col-span-2">
-                  <span className="gba:text-xs gba:font-semibold gba:text-muted-foreground">
-                    {t('decisions-input')}
-                  </span>
-                  <pre className="gba:max-h-56 gba:overflow-auto gba:rounded-lg gba:bg-muted gba:p-3 gba:text-xs gba:text-foreground">
-                    {formatJson(entry.decisionInput)}
-                  </pre>
+              </TabsList>
+
+              <TabsContent value="overview" className="gba:mt-0">
+                <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
+                  {isUserDecision && entry.decisionTitle ? (
+                    <DetailField label={t('decisions-task-title')} wide>
+                      <span>{entry.decisionTitle}</span>
+                    </DetailField>
+                  ) : null}
+                  {isAiDecision && entry.decisionReasoning ? (
+                    <DetailField label={t('decisions-reasoning')} wide>
+                      <span className="gba:whitespace-pre-wrap">{entry.decisionReasoning}</span>
+                    </DetailField>
+                  ) : null}
+                  {isLogicDecision && !logicRoutes.length && logicMatchedCondition ? (
+                    <DetailField label={t('decisions-logic-condition')} wide>
+                      <SuccessExpressionText
+                        value={logicMatchedCondition}
+                        fallback={t('value-not-available')}
+                        resolveExpressionLabel={resolveExpressionLabel}
+                        data-testid={`${testId}-logic-rule`}
+                      />
+                    </DetailField>
+                  ) : null}
+                  {!entry.decisionReasoning && entry.decisionInstructions ? (
+                    <DetailField label={detailTextLabel} wide>
+                      <SuccessExpressionText
+                        value={entry.decisionInstructions}
+                        fallback={t('decisions-no-instructions')}
+                        data-testid={`${testId}-instructions-overview`}
+                      />
+                    </DetailField>
+                  ) : null}
                 </div>
-                <div className="gba:flex gba:flex-col gba:gap-2 gba:md:col-span-2">
-                  <span className="gba:text-xs gba:font-semibold gba:text-muted-foreground">
-                    {t('decisions-output')}
-                  </span>
-                  <pre className="gba:max-h-56 gba:overflow-auto gba:rounded-lg gba:bg-muted gba:p-3 gba:text-xs gba:text-foreground">
-                    {formatJson(entry.decisionOutput)}
-                  </pre>
-                </div>
-              </>
-            ) : null}
-            {accessToken && (entry.templateId || entry.originalTemplate) && entry.stepReference ? (
-              <div className="gba:md:col-span-2">
-                <ReadonlyTemplateFlowCanvas
-                  accessToken={accessToken}
-                  templateId={entry.templateId}
-                  templateDefinition={entry.originalTemplate}
-                  title={t('label-flow')}
-                  description={t('decisions-flow-preview-description')}
-                  emptyTitle={t('state-empty')}
-                  emptyDescription={t('state-empty')}
-                  selectedStepReference={entry.stepReference}
-                  isVisible={open}
-                  compact={true}
-                  showControls={false}
-                  data-testid={`${testId}-flow-preview`}
-                />
-              </div>
-            ) : null}
+              </TabsContent>
+
+              {showContextTab ? (
+                <TabsContent value="context" className="gba:mt-0">
+                  <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
+                    {(isAiDecision || isLogicDecision || isUserDecision) && entry.decisionInstructions ? (
+                      <DetailField label={detailTextLabel} wide>
+                        <SuccessExpressionText
+                          value={entry.decisionInstructions}
+                          fallback={t('decisions-no-instructions')}
+                          data-testid={`${testId}-instructions`}
+                        />
+                      </DetailField>
+                    ) : null}
+                    {isAiDecision && entry.humanReviewInstructions ? (
+                      <DetailField label={t('decisions-human-review-instructions')} wide>
+                        <SuccessExpressionText
+                          value={entry.humanReviewInstructions}
+                          fallback={t('decisions-no-human-review-instructions')}
+                          data-testid={`${testId}-human-instructions`}
+                        />
+                      </DetailField>
+                    ) : null}
+                    {!isLogicDecision && availableBranches.length ? (
+                      <DetailField label={t('decisions-available-branches')} wide>
+                        {renderAvailableBranches()}
+                      </DetailField>
+                    ) : null}
+                    {isLogicDecision && logicRoutes.length ? (
+                      <DetailField label={t('decisions-logic-routes')} wide>
+                        {renderLogicRoutes()}
+                      </DetailField>
+                    ) : null}
+                    {isLogicDecision && !logicRoutes.length && defaultBranchLabel ? (
+                      <DetailField label={t('decisions-logic-default-branch')}>
+                        <span>{defaultBranchLabel}</span>
+                      </DetailField>
+                    ) : null}
+                    {isUserDecision && entry.decisionLinks?.length ? (
+                      <div className="gba:md:col-span-2">
+                        <LinksRenderer
+                          links={entry.decisionLinks}
+                          accessToken={accessToken}
+                          testId={`${testId}-decision-links`}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </TabsContent>
+              ) : null}
+
+              {showDiagnosticsTab ? (
+                <TabsContent value="diagnostics" className="gba:mt-0">
+                  <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
+                    {selectedBranchId && selectedBranchId !== selectedBranchLabel ? (
+                      <DetailField label={t('decisions-branch-id')} wide>
+                        <span className="gba:break-all">{selectedBranchId}</span>
+                      </DetailField>
+                    ) : null}
+                    {isAiDecision && entry.escalationReason ? (
+                      <DetailField label={t('decisions-escalation')} wide>
+                        <span>{entry.escalationReason}</span>
+                      </DetailField>
+                    ) : null}
+                    {isAiDecision && entry.promptExecutionId ? (
+                      <DetailField label={t('decisions-prompt-execution-id')} wide>
+                        <span>{entry.promptExecutionId}</span>
+                      </DetailField>
+                    ) : null}
+                    {isLogicDecision && !isUserDecision && !isAiDecision ? (
+                      <div className="gba:flex gba:flex-col gba:gap-2 gba:md:col-span-2">
+                        <span className="gba:text-xs gba:font-semibold gba:text-muted-foreground">{inputLabel}</span>
+                        {isLogicDecision ? (
+                          renderLogicConditionInputs()
+                        ) : (
+                          <pre className="gba:max-h-56 gba:overflow-auto gba:rounded-lg gba:bg-muted gba:p-3 gba:text-xs gba:text-foreground">
+                            {formatJson(inputValue)}
+                          </pre>
+                        )}
+                      </div>
+                    ) : null}
+                    {showRawPayloads ? (
+                      <>
+                        <div className="gba:flex gba:flex-col gba:gap-2 gba:md:col-span-2">
+                          <span className="gba:text-xs gba:font-semibold gba:text-muted-foreground">
+                            {t('decisions-input')}
+                          </span>
+                          <pre className="gba:max-h-56 gba:overflow-auto gba:rounded-lg gba:bg-muted gba:p-3 gba:text-xs gba:text-foreground">
+                            {formatJson(entry.decisionInput)}
+                          </pre>
+                        </div>
+                        <div className="gba:flex gba:flex-col gba:gap-2 gba:md:col-span-2">
+                          <span className="gba:text-xs gba:font-semibold gba:text-muted-foreground">
+                            {t('decisions-output')}
+                          </span>
+                          <pre className="gba:max-h-56 gba:overflow-auto gba:rounded-lg gba:bg-muted gba:p-3 gba:text-xs gba:text-foreground">
+                            {formatJson(entry.decisionOutput)}
+                          </pre>
+                        </div>
+                      </>
+                    ) : null}
+                    {accessToken && (entry.templateId || entry.originalTemplate) && entry.stepReference ? (
+                      <div className="gba:md:col-span-2">
+                        <ReadonlyTemplateFlowCanvas
+                          accessToken={accessToken}
+                          templateId={entry.templateId}
+                          templateDefinition={entry.originalTemplate}
+                          title={t('label-flow')}
+                          description={t('decisions-flow-preview-description')}
+                          emptyTitle={t('state-empty')}
+                          emptyDescription={t('state-empty')}
+                          selectedStepReference={entry.stepReference}
+                          isVisible={open}
+                          compact={true}
+                          showControls={false}
+                          data-testid={`${testId}-flow-preview`}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </TabsContent>
+              ) : null}
+            </Tabs>
           </div>
         ) : null}
       </DialogContent>

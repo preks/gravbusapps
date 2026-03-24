@@ -25,11 +25,6 @@ import { useTableFilterSort } from '../hooks/useTableFilterSort'
 import type { ServerFilterParams } from '../hooks/useTableFilterSort'
 import { useFlowExpandableRows } from '../hooks/useFlowExpandableRows'
 
-const VirtuosoTable = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>((props, ref) => (
-  <table ref={ref} className="gba:w-max gba:min-w-full gba:border-collapse gba:text-xs gba:table-fixed" {...props} />
-))
-VirtuosoTable.displayName = 'VirtuosoTable'
-
 export interface BoardTableViewProps {
   columns: BoardColumn[]
   rows: BoardRow[]
@@ -120,6 +115,38 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
 
   const hasSortsOrFilters = fs.sorts.length > 0 || fs.filters.length > 0
   const reorderEnabled = Boolean(onReorderRow) && !hasSortsOrFilters
+  const hasAddColumnSlot = Boolean(onAddColumn)
+
+  const VirtuosoTable = useMemo(() => {
+    type TableProps = React.HTMLAttributes<HTMLTableElement> & { context?: unknown }
+    const TableWithColgroup = React.forwardRef<HTMLTableElement, TableProps>(function TableWithColgroup(props, ref) {
+      const { children, className, style, context, ...tableProps } = props
+      void context
+      return (
+        <table
+          ref={ref}
+          {...tableProps}
+          style={style}
+          className={['gba:table-fixed gba:w-full gba:min-w-full gba:border-collapse gba:text-xs', className]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          <colgroup>
+            {/* Under fixed layout + w-full, slack width is shared across columns. Lock grip (+ add) fixed; pin all but the last data col to w-40 so only the last data column grows. */}
+            {reorderEnabled && <col className="gba:w-7 gba:min-w-7 gba:max-w-7" />}
+            {columns.map((col, idx) => {
+              const lastData = idx === columns.length - 1
+              return <col key={col.id} className={lastData ? 'gba:min-w-40' : 'gba:w-40'} />
+            })}
+            {hasAddColumnSlot && <col className="gba:w-10 gba:min-w-10 gba:max-w-10" />}
+          </colgroup>
+          {children}
+        </table>
+      )
+    })
+    TableWithColgroup.displayName = 'TableWithColgroup'
+    return TableWithColgroup
+  }, [reorderEnabled, columns, hasAddColumnSlot])
 
   // ── @dnd-kit sensors & sortable IDs ────────────────────────────────────
 

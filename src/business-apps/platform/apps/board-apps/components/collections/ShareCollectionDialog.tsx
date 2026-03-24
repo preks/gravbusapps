@@ -26,6 +26,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEES_LIGHT_BY_USER_IDS } from '@/common/data/employee/queries/employeeQueries'
 import type { CollectionMember, CollectionMemberRole } from '../../types/collection'
 import { CollectionApiService } from '../../services/CollectionApiService'
+import { preventDialogCloseOnSelectOutside } from '../../utils/preventDialogCloseOnSelectOutside'
 
 export interface ShareCollectionDialogProps {
   open: boolean
@@ -194,26 +195,29 @@ export const ShareCollectionDialog: React.FC<ShareCollectionDialogProps> = ({
 
       setSentSuccess(true)
       onShareComplete?.()
-      toast.success(
-        `Collection shared with ${selectedUsers.length} ${selectedUsers.length === 1 ? 'person' : 'people'}`
-      )
+      toast.success(`Space shared with ${selectedUsers.length} ${selectedUsers.length === 1 ? 'person' : 'people'}`)
       setTimeout(() => onOpenChange(false), 1500)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to share collection')
+      setError(err instanceof Error ? err.message : 'Failed to share space')
       setIsSubmitting(false)
     }
   }, [selectedUsers, collectionId, onShareComplete, onOpenChange])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-lg" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg"
+        data-testid={testId}
+        onPointerDownOutside={preventDialogCloseOnSelectOutside}
+        onInteractOutside={preventDialogCloseOnSelectOutside}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
-            Share Collection
+            Share Space
           </DialogTitle>
           <DialogDescription>
-            Share &quot;{collectionName}&quot; to give people access to all boards inside.
+            Share &quot;{collectionName}&quot; to give people access to all boards in this space.
           </DialogDescription>
         </DialogHeader>
 
@@ -222,7 +226,7 @@ export const ShareCollectionDialog: React.FC<ShareCollectionDialogProps> = ({
             <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-success/10 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
               <CheckCircle className="gba:w-8 gba:h-8 gba:text-success" />
             </div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Collection Shared!</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Space Shared!</h3>
             <p className="gba:text-muted-foreground">
               {selectedUsers.length === 1
                 ? `${selectedUsers[0].displayName} now has access.`
@@ -340,6 +344,7 @@ export const ShareCollectionDialog: React.FC<ShareCollectionDialogProps> = ({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="viewer">Viewer</SelectItem>
                           <SelectItem value="editor">Editor</SelectItem>
                         </SelectContent>

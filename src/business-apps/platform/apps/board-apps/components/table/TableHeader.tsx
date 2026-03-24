@@ -54,12 +54,15 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
   return (
     <SortableContext items={columnSortableIds} strategy={horizontalListSortingStrategy}>
       <tr className="gba:bg-muted/60">
-        {reorderEnabled && <th className="gba:w-7 gba:p-0 gba:border-0 gba:bg-transparent" />}
-        {columns.map(col => (
+        {reorderEnabled && (
+          <th className="gba:w-7 gba:min-w-7 gba:max-w-7 gba:p-0 gba:border-0 gba:bg-transparent gba:overflow-hidden" />
+        )}
+        {columns.map((col, colIdx) => (
           <SortableColumnHeader
             key={col.id || col.name}
             col={col}
             columns={columns}
+            isLastDataColumn={colIdx === columns.length - 1}
             sortInfo={sortMap.get(col.name)}
             sortCount={sortCount}
             onToggleSort={onToggleSort}
@@ -96,6 +99,7 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
 function SortableColumnHeader({
   col,
   columns,
+  isLastDataColumn,
   sortInfo,
   sortCount,
   onToggleSort,
@@ -107,6 +111,7 @@ function SortableColumnHeader({
 }: {
   col: BoardColumn
   columns: BoardColumn[]
+  isLastDataColumn: boolean
   sortInfo?: { direction: 'asc' | 'desc'; priority: number }
   sortCount: number
   onToggleSort: (colName: string) => void
@@ -131,7 +136,9 @@ function SortableColumnHeader({
     <th
       ref={setNodeRef}
       style={style}
-      className="gba:px-2.5 gba:py-1.5 gba:text-left gba:font-medium gba:text-muted-foreground gba:border-b gba:border-r gba:whitespace-nowrap gba:w-40 gba:group/header"
+      className={`gba:px-2.5 gba:py-1.5 gba:text-left gba:font-medium gba:text-muted-foreground gba:border-b gba:border-r gba:whitespace-nowrap gba:group/header ${
+        isLastDataColumn ? 'gba:min-w-40' : 'gba:w-40'
+      }`}
     >
       <div className="gba:flex gba:items-center gba:gap-1">
         {columnReorderEnabled && (

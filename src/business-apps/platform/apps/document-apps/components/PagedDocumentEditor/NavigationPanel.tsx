@@ -17,6 +17,8 @@ import {
 } from '@newwork/nw-design-system'
 import { ChevronLeft, ChevronDown, ChevronUp, Search } from 'lucide-react'
 import translations from '../../_i18n'
+import { TextSelection } from '@tiptap/pm/state'
+import { createSafePaginationSelection } from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationLayoutHelpers'
 import {
   getHeadingsFromDoc,
   findMatchesInDoc,
@@ -25,9 +27,15 @@ import {
   replaceAllRanges,
   type HeadingItem
 } from '../../utils/navigationPanelUtils'
+import { scrollEditorSelectionNodeIntoView } from './commentSidebarNavigation'
+import type { DocumentLayoutViewportModel } from './hooks/useDocumentLayoutViewportModel'
 
 export interface NavigationPanelProps {
   readonly editor: Editor | null
+  readonly layoutViewportModel?: Pick<
+    DocumentLayoutViewportModel,
+    'pageBounds' | 'mountedPageBodyBounds' | 'pagePositionRanges' | 'pageSpans' | 'retainedPageSpans'
+  >
   readonly onClose: () => void
   readonly requestedTab?: NavTab
   readonly 'data-testid'?: string
@@ -64,6 +72,7 @@ function SnippetWithHighlight({
 
 export function NavigationPanel({
   editor,
+  layoutViewportModel,
   onClose,
   requestedTab = 'headings',
   'data-testid': testId = 'navigation-panel'
@@ -116,18 +125,35 @@ export function NavigationPanel({
   const scrollToPos = useCallback(
     (pos: number) => {
       if (!editor) return
-      editor.commands.focus()
-      editor.commands.setTextSelection(pos)
-      try {
-        const view = editor.view
-        const dom = view.domAtPos(pos)
-        const node = dom.node instanceof Element ? dom.node : dom.node.parentElement
-        node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      } catch {
-        // View may not be mounted yet; selection was still set.
-      }
+      const doc = editor.state.doc
+      const selection = createSafePaginationSelection(doc, pos, 1)
+      editor.view.dispatch(editor.state.tr.setSelection(selection))
+      editor.view.focus()
+      scrollEditorSelectionNodeIntoView(
+        {
+          view: editor.view,
+          commands: editor.commands,
+          layoutHints: {
+            pageBounds: layoutViewportModel?.pageBounds ?? layoutViewportModel?.mountedPageBodyBounds ?? [],
+            pageSpans: layoutViewportModel?.pageSpans ?? [],
+            retainedPageSpans: layoutViewportModel?.retainedPageSpans ?? [],
+            mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
+            pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
+          }
+        },
+        selection.from,
+        selection.to,
+        'start'
+      )
     },
-    [editor]
+    [
+      editor,
+      layoutViewportModel?.mountedPageBodyBounds,
+      layoutViewportModel?.pageBounds,
+      layoutViewportModel?.pagePositionRanges,
+      layoutViewportModel?.pageSpans,
+      layoutViewportModel?.retainedPageSpans
+    ]
   )
 
   const handleHeadingClick = useCallback(
@@ -144,18 +170,41 @@ export function NavigationPanel({
       setSelectedMatchIndex(i)
       const { from, to } = matches[i]
       if (!editor) return
-      editor.commands.focus()
-      editor.commands.setTextSelection({ from, to })
-      try {
-        const view = editor.view
-        const dom = view.domAtPos(from)
-        const node = dom.node instanceof Element ? dom.node : dom.node.parentElement
-        node?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      } catch {
-        // View may not be mounted yet; selection was still set.
-      }
+      const { state, view } = editor
+      const doc = state.doc
+      const rawA = Math.max(0, Math.min(from, doc.content.size))
+      const rawB = Math.max(0, Math.min(to, doc.content.size))
+      const clampedFrom = Math.min(rawA, rawB)
+      const clampedTo = Math.max(rawA, rawB)
+      const rangeSelection = TextSelection.between(doc.resolve(clampedFrom), doc.resolve(clampedTo), 1)
+      view.dispatch(state.tr.setSelection(rangeSelection))
+      view.focus()
+      scrollEditorSelectionNodeIntoView(
+        {
+          view: editor.view,
+          commands: editor.commands,
+          layoutHints: {
+            pageBounds: layoutViewportModel?.pageBounds ?? layoutViewportModel?.mountedPageBodyBounds ?? [],
+            pageSpans: layoutViewportModel?.pageSpans ?? [],
+            retainedPageSpans: layoutViewportModel?.retainedPageSpans ?? [],
+            mountedPageBodyBounds: layoutViewportModel?.mountedPageBodyBounds ?? [],
+            pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
+          }
+        },
+        rangeSelection.from,
+        rangeSelection.to,
+        'center'
+      )
     },
-    [editor, matches]
+    [
+      editor,
+      layoutViewportModel?.mountedPageBodyBounds,
+      layoutViewportModel?.pageBounds,
+      layoutViewportModel?.pagePositionRanges,
+      layoutViewportModel?.pageSpans,
+      layoutViewportModel?.retainedPageSpans,
+      matches
+    ]
   )
 
   const handleFindNext = useCallback(() => {

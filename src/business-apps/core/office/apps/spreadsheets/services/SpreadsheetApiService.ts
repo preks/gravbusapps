@@ -252,6 +252,16 @@ let supportsOperationBatchEndpoint: boolean | null = null
 // null => unknown, true => available, false => unavailable (skip snapshot API calls).
 let supportsUniverSnapshotEndpoint: boolean | null = null
 
+/**
+ * If we previously cached "univer-snapshot API unavailable" (404/501), clear that so the next save probes again.
+ * A transient failure or deploy mismatch otherwise disables snapshot uploads for the entire session (no network calls).
+ */
+export function revalidateSpreadsheetUniverSnapshotAfterIdleTab(): void {
+  if (supportsUniverSnapshotEndpoint === false) {
+    supportsUniverSnapshotEndpoint = null
+  }
+}
+
 // Map backend permission to frontend permission
 function mapPermission(backendPermission: string | undefined): SpreadsheetApp['permission'] {
   if (!backendPermission) return undefined
@@ -1261,6 +1271,10 @@ export const SpreadsheetApiService = {
         content: JSON.stringify(versionData.contentSnapshot),
         createdAt: versionData.createdAt as string,
         createdBy: versionData.changedBy as string,
+        createdByName:
+          (versionData.changedByName as string | undefined) || (versionData.createdByName as string | undefined),
+        createdByAvatar:
+          (versionData.changedByAvatar as string | undefined) || (versionData.createdByAvatar as string | undefined),
         changeDescription: versionData.changeSummary as string | undefined,
         isCheckpoint: !versionData.isAutoSave,
         isAutoSave: versionData.isAutoSave as boolean,
@@ -1287,6 +1301,8 @@ export const SpreadsheetApiService = {
         content: JSON.stringify(v.contentSnapshot || {}),
         createdAt: v.createdAt as string,
         createdBy: v.changedBy as string,
+        createdByName: (v.changedByName as string | undefined) || (v.createdByName as string | undefined),
+        createdByAvatar: (v.changedByAvatar as string | undefined) || (v.createdByAvatar as string | undefined),
         changeDescription: v.changeSummary as string | undefined,
         isCheckpoint: !v.isAutoSave,
         isAutoSave: v.isAutoSave as boolean,
@@ -1377,6 +1393,8 @@ export const SpreadsheetApiService = {
         content: JSON.stringify(v.contentSnapshot),
         createdAt: v.createdAt as string,
         createdBy: v.changedBy as string,
+        createdByName: (v.changedByName as string | undefined) || (v.createdByName as string | undefined),
+        createdByAvatar: (v.changedByAvatar as string | undefined) || (v.createdByAvatar as string | undefined),
         changeDescription: v.changeSummary as string | undefined,
         isCheckpoint: !v.isAutoSave,
         isAutoSave: v.isAutoSave as boolean,

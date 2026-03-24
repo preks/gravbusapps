@@ -10,6 +10,7 @@ import { Card, Button, Spinner, Badge, useTranslation } from '@newwork/nw-design
 import translations from '../_i18n'
 import { ChevronLeft, FileText, Download, ExternalLink, AlertCircle, RefreshCw } from 'lucide-react'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { createSafeObjectUrl, sanitizeDownloadFilename } from '@/common/utils/safeUrlUtils'
 import type { Document } from '../types'
 
 export interface PdfDocumentViewerProps {
@@ -82,10 +83,13 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const blob = await response.blob()
+      const url = createSafeObjectUrl(blob, mimeType => mimeType === 'application/pdf')
+      if (!url) {
+        throw new Error(t('pdf-error-load-failed'))
+      }
 
       if (!isMounted.current) return
 
-      const url = URL.createObjectURL(blob)
       setPdfUrl(url)
     } catch (err) {
       if (!isMounted.current) return
@@ -111,10 +115,11 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
 
     const link = window.document.createElement('a')
     link.href = pdfUrl
-    link.download = document.sourceFile?.originalName || `${document.title}.pdf`
-    window.document.body.appendChild(link)
+    link.download = sanitizeDownloadFilename(
+      document.sourceFile?.originalName || `${document.title}.pdf`,
+      'document.pdf'
+    )
     link.click()
-    window.document.body.removeChild(link)
   }, [pdfUrl, document.sourceFile?.originalName, document.title])
 
   /**
@@ -122,7 +127,11 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
    */
   const handleOpenInNewTab = useCallback(() => {
     if (!pdfUrl) return
-    window.open(pdfUrl, '_blank')
+    const link = window.document.createElement('a')
+    link.href = pdfUrl
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+    link.click()
   }, [pdfUrl])
 
   return (
@@ -208,10 +217,11 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
 
         {/* PDF Preview */}
         {pdfUrl && !isLoading && !error && (
-          <iframe
-            src={pdfUrl}
-            className="gba:w-full gba:h-full gba:border-0"
-            title={`PDF Preview: ${document.title}`}
+          <object
+            data={pdfUrl}
+            type="application/pdf"
+            className="gba:w-full gba:h-full"
+            aria-label={`PDF Preview: ${document.title}`}
             data-testid={`${testId}-iframe`}
           />
         )}

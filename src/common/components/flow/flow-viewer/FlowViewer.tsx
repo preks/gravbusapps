@@ -249,7 +249,16 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
     }
   }, [nodeIdsKey])
 
-  // Build ReactFlow nodes (positions from layout state, like FlowStudioCanvas)
+  // Build ReactFlow nodes (positions from layout state, like FlowStudioCanvas).
+  // When layout is recomputing (new nodes not yet in layoutNodes), place new nodes at centroid of existing positions to avoid flicker from (20, index*140) to final layout.
+  const layoutCentroid = useMemo(() => {
+    const entries = Object.values(layoutNodes)
+    if (entries.length === 0) return null
+    return {
+      x: entries.reduce((s, p) => s + p.x, 0) / entries.length,
+      y: entries.reduce((s, p) => s + p.y, 0) / entries.length
+    }
+  }, [layoutNodes])
   const rfNodes = useMemo<Node[]>(() => {
     return definition.nodes.map((node, index) => {
       const dims = getNodeDimensions(node.type)
@@ -257,7 +266,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
       const isOnActivePath = executionState?.pathNodeIds?.includes(node.id) ?? false
       const iteration = executionState?.iterations?.[node.id]
       const isSelected = selectedNodeId === node.id
-      const pos = layoutNodes[node.id] ?? { x: 20, y: index * 140 + 40 }
+      const pos = layoutNodes[node.id] ?? layoutCentroid ?? { x: 20, y: index * 140 + 40 }
 
       return {
         id: node.id,
@@ -273,7 +282,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         }
       }
     })
-  }, [definition.nodes, selectedNodeId, executionState, selectNode, layoutNodes])
+  }, [definition.nodes, selectedNodeId, executionState, selectNode, layoutNodes, layoutCentroid])
 
   // Build ReactFlow edges (points from layout state; merge getEdgeActions when provided)
   const rfEdges = useMemo<Edge[]>(() => {
@@ -296,8 +305,18 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
       const points = layoutEdgePoints[edge.id]
       const edgeActions = getEdgeActions?.(edge.id) ?? {}
       const targetStatus = executionState?.nodeStates[edge.target]
+      const sourceStatus = executionState?.nodeStates[edge.source]
+      const isParallelActiveEdge =
+        sourceNode?.type === 'fork' &&
+        edge.direction === 'forward' &&
+        (executionState?.activeNodeId === edge.source ||
+          sourceStatus === 'active' ||
+          (executionState?.pathNodeIds?.includes(edge.source) === true &&
+            executionState?.pathNodeIds?.includes(edge.target) === true))
       const edgeState =
-        executionState?.pathEdgeIds?.includes(edge.id) || executionState?.activeNodeId === edge.target
+        executionState?.pathEdgeIds?.includes(edge.id) ||
+        executionState?.activeNodeId === edge.target ||
+        isParallelActiveEdge
           ? 'active'
           : targetStatus === 'failed'
             ? 'failed'

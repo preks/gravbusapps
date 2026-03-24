@@ -13,6 +13,9 @@ export interface UseBoardCollectionsReturn {
     description?: string
     icon?: string
     color?: string
+    isPublic?: boolean
+    dimension?: { type: string; id: string; name: string }
+    memberIds?: string[]
   }) => Promise<BoardCollection | null>
   updateCollection: (
     id: string,
@@ -38,7 +41,7 @@ export function useBoardCollections(): UseBoardCollectionsReturn {
       const result = await CollectionApiService.listCollections()
       setCollections(result)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load collections')
+      setError(err instanceof Error ? err.message : 'Failed to load spaces')
     } finally {
       setIsLoading(false)
     }
@@ -62,7 +65,15 @@ export function useBoardCollections(): UseBoardCollectionsReturn {
   }, [])
 
   const createCollection = useCallback(
-    async (data: { name: string; description?: string; icon?: string; color?: string }) => {
+    async (data: {
+      name: string
+      description?: string
+      icon?: string
+      color?: string
+      isPublic?: boolean
+      dimension?: { type: string; id: string; name: string }
+      memberIds?: string[]
+    }) => {
       try {
         const created = await CollectionApiService.createCollection(data)
         setCollections(prev => [created, ...prev])

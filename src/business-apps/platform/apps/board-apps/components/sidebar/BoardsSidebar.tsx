@@ -45,6 +45,7 @@ export interface BoardsSidebarProps {
   onShareBoard?: (boardId: string) => void
   onRenameBoard?: (boardId: string) => void
   onDeleteBoard?: (boardId: string) => void
+  onOpenInSpaces?: (collectionId: string) => void
   onCollapse: () => void
   onResizeStart: (e: React.MouseEvent) => void
   'data-testid'?: string
@@ -76,20 +77,21 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
   onShareBoard,
   onRenameBoard,
   onDeleteBoard,
+  onOpenInSpaces,
   onCollapse,
   onResizeStart,
   'data-testid': testId = 'boards-sidebar'
 }) => (
   <div
-    className="gba:relative gba:flex gba:flex-col gba:h-full gba:bg-card-decorative gba:border-r gba:border-white/10 gba:select-none"
+    className="gba:relative gba:flex gba:flex-col gba:h-full gba:bg-secondary/40 gba:border-r gba:border-primary/15 gba:shadow-sm gba:select-none"
     style={{ width, minWidth: width, maxWidth: width }}
     data-testid={testId}
   >
-    {/* Header */}
-    <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:h-12 gba:border-b gba:border-white/10">
+    {/* Header — slightly elevated frosted strip so the rail feels intentional, not flat gray */}
+    <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:h-12 gba:border-b gba:border-border/80 gba:bg-card/55 gba:backdrop-blur-sm">
       <div className="gba:flex gba:items-center gba:gap-2">
-        <LayoutGrid className="gba:w-5 gba:h-5 gba:text-white/70" />
-        <span className="gba:text-sm gba:font-semibold gba:text-white gba:tracking-tight">Boards</span>
+        <LayoutGrid className="gba:w-5 gba:h-5 gba:text-primary" />
+        <span className="gba:text-sm gba:font-semibold gba:text-foreground gba:tracking-tight">Boards</span>
       </div>
       <div className="gba:flex gba:items-center gba:gap-0.5">
         <DropdownMenu>
@@ -100,7 +102,7 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="gba:h-6 gba:w-6 gba:p-0 gba:text-white/50 gba:hover:text-white gba:hover:bg-white/10"
+                    className="gba:h-6 gba:w-6 gba:p-0 gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60"
                     data-testid={`${testId}-new-btn`}
                   >
                     <Plus className="gba:w-4 gba:h-4" />
@@ -118,7 +120,7 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
               <Sparkles className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> New Board with AI
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onCreateCollection} data-testid={`${testId}-new-collection`}>
-              <FolderPlus className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> New Collection
+              <FolderPlus className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> New Space
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -128,7 +130,7 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="gba:h-6 gba:w-6 gba:p-0 gba:text-white/50 gba:hover:text-white gba:hover:bg-white/10"
+                className="gba:h-6 gba:w-6 gba:p-0 gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60"
                 onClick={onCollapse}
                 data-testid={`${testId}-collapse`}
               >
@@ -144,12 +146,12 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
     {/* Search */}
     <div className="gba:px-3 gba:py-2">
       <div className="gba:relative">
-        <Search className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:w-3.5 gba:h-3.5 gba:text-white/40" />
+        <Search className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
         <Input
           placeholder="Search..."
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}
-          className="gba:pl-8 gba:h-7 gba:text-xs gba:bg-white/10 gba:border-white/10 gba:text-white gba:placeholder:text-white/30 gba:focus:bg-white/15 gba:focus:border-white/20"
+          className="gba:pl-8 gba:h-7 gba:text-xs gba:bg-background/90 gba:border-border gba:border-primary/10 gba:text-foreground gba:placeholder:text-muted-foreground gba:focus:border-ring"
           data-testid={`${testId}-search`}
         />
       </div>
@@ -168,17 +170,17 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
         />
 
         {/* Divider */}
-        <div className="gba:mx-3 gba:my-2 gba:border-t gba:border-white/10" />
+        <div className="gba:mx-3 gba:my-2 gba:border-t gba:border-primary/10" />
 
         {/* Collections Label */}
         <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-1">
-          <span className="gba:text-xs gba:font-medium gba:text-white/40 gba:uppercase gba:tracking-wider">
-            Collections
+          <span className="gba:text-xs gba:font-medium gba:text-muted-foreground/70 gba:uppercase gba:tracking-wider">
+            Spaces
           </span>
           <Button
             variant="ghost"
             size="sm"
-            className="gba:h-5 gba:w-5 gba:p-0 gba:text-white/30 gba:hover:text-white/60 gba:hover:bg-white/10"
+            className="gba:h-5 gba:w-5 gba:p-0 gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60"
             onClick={onCreateCollection}
             data-testid={`${testId}-add-collection`}
           >
@@ -204,6 +206,7 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
             onShareBoard={onShareBoard}
             onRenameBoard={onRenameBoard}
             onDeleteBoard={onDeleteBoard}
+            onOpenInSpaces={onOpenInSpaces}
             data-testid={`${testId}-tree`}
           />
         </div>
@@ -213,7 +216,7 @@ export const BoardsSidebar: React.FC<BoardsSidebarProps> = ({
     {/* Resize Handle */}
     <div
       className={`gba:absolute gba:top-0 gba:right-0 gba:w-1 gba:h-full gba:cursor-col-resize gba:transition-colors ${
-        isResizing ? 'gba:bg-primary/50' : 'gba:hover:bg-white/20'
+        isResizing ? 'gba:bg-primary/50' : 'gba:hover:bg-border'
       }`}
       onMouseDown={onResizeStart}
       data-testid={`${testId}-resize`}

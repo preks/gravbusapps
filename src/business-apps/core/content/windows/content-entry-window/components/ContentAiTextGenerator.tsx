@@ -28,6 +28,7 @@ import {
 } from '@phosphor-icons/react'
 import type { ContentAiTextGeneratorProps, AiActionType, AiResponse } from './aiTextGeneratorTypes'
 import { ContentEntryAIService, ContentEntryInput } from '../services/ContentEntryAIService'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 
 export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   title,
@@ -65,13 +66,14 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   const [originalValues, setOriginalValues] = useState<AiResponse | null>(null)
   const buttonRef = React.useRef<HTMLDivElement>(null)
   const aiServiceRef = useRef<ContentEntryAIService | null>(null)
+  const promptManagerClient = usePromptManagerClient(context.accessToken)
 
   // Initialize AI service
   useEffect(() => {
     if (context.accessToken) {
-      aiServiceRef.current = new ContentEntryAIService(context.accessToken)
+      aiServiceRef.current = new ContentEntryAIService(promptManagerClient, context.accessToken)
     }
-  }, [context.accessToken])
+  }, [context.accessToken, promptManagerClient])
 
   // Check if content exists
   const hasContent = useMemo(() => {

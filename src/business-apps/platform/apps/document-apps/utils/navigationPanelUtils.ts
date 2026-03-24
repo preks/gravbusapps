@@ -20,10 +20,12 @@ export function getHeadingsFromDoc(doc: PMNode): HeadingItem[] {
   doc.descendants((node: PMNode, pos: number) => {
     if (node.type.name === 'heading') {
       const level = (node.attrs?.level as number) ?? 1
+      // `pos` is the index before the heading node; cursor/text selection must be inside the block (pos + 1).
+      // pos === 0 for the first doc child would resolve to parent `doc` and trigger PM TextSelection warnings.
       items.push({
         level,
         text: node.textContent,
-        pos
+        pos: pos + 1
       })
     }
   })
@@ -101,7 +103,7 @@ export function getMatchSnippet(doc: PMNode, from: number, to: number, maxContex
   const size = doc.content.size
   const start = Math.max(0, from - maxContext)
   const end = Math.min(size, to + maxContext)
-  let text = doc.textBetween(start, end).replaceAll(/\s+/g, ' ').trim()
+  let text = doc.textBetween(start, end).replace(/\s+/g, ' ').trim()
   if (start > 0) text = ELLIPSIS + text
   if (end < size) text = text + ELLIPSIS
   return text || ''

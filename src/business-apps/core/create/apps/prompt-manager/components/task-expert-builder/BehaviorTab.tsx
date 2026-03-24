@@ -128,7 +128,9 @@ export const BehaviorTab: React.FC<TabProps> = ({ state, actions }) => {
           <CardContent className="gba:space-y-3">
             <p className="gba:text-xs gba:text-muted-foreground">
               These values are enforced by the response schema as{' '}
-              <span className="gba:font-mono">decisionResult.enum</span> and shown in the system instructions.
+              <span className="gba:font-mono">decisionResult.enum</span>. The generated schema also requires{' '}
+              <span className="gba:font-mono">reasoning</span>, <span className="gba:font-mono">escalate</span>, and{' '}
+              <span className="gba:font-mono">confidence</span>.
             </p>
 
             <div className="gba:flex gba:flex-col gba:gap-2" data-testid="agent-builder-decision-options">

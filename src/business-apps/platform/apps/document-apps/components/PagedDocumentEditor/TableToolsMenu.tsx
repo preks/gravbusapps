@@ -14,6 +14,7 @@ interface TableToolsMenuProps {
   editor: Editor
   t: (key: string) => string
   testId: string
+  onOpenSidebar?: () => void
 }
 
 type TableCanCommands = ReturnType<Editor['can']> & {
@@ -54,7 +55,7 @@ function getCurrentCellAttributes(editor: Editor) {
   }
 }
 
-export function TableToolsMenu({ editor, t, testId }: Readonly<TableToolsMenuProps>) {
+export function TableToolsMenu({ editor, t, testId, onOpenSidebar }: Readonly<TableToolsMenuProps>) {
   const tableToolsEnabled = useMemo(() => isInsideTable(editor), [editor, editor.state])
   const canCommands = editor.can() as TableCanCommands
   const runTableChain = () => editor.chain().focus() as TableChain
@@ -137,6 +138,18 @@ export function TableToolsMenu({ editor, t, testId }: Readonly<TableToolsMenuPro
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
+        {onOpenSidebar ? (
+          <>
+            <DropdownMenuItem
+              onSelect={onOpenSidebar}
+              disabled={!tableToolsEnabled}
+              data-testid={`${testId}-table-open-sidebar`}
+            >
+              {t('table-sidebar-open')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         <DropdownMenuItem
           onSelect={() => editor.chain().focus().addRowBefore().run()}
           disabled={!canAddRowBefore}

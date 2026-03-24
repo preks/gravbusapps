@@ -119,7 +119,7 @@ export const BoardContentHeader: React.FC<BoardContentHeaderProps> = ({
           <DropdownMenuItem onClick={onCreateCollection}>
             <FolderPlus className="gba:w-4 gba:h-4 gba:mr-2" />
             <div>
-              <div className="gba:font-medium gba:text-sm">Collection</div>
+              <div className="gba:font-medium gba:text-sm">Space</div>
               <div className="gba:text-xs gba:text-muted-foreground">Organize boards together</div>
             </div>
           </DropdownMenuItem>

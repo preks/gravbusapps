@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import { Button, Textarea, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { Button, Textarea, Popover, PopoverContent, PopoverTrigger, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, Camera, At, UserCircle } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 import { VoiceModeButton } from './voice/VoiceModeButton'
@@ -24,14 +25,14 @@ function useIsMobileWithCamera(): boolean {
 
 type Suggestion = string | { heading?: string; message?: string }
 
-function getUploadErrorMessage(err: unknown): string {
+function getUploadErrorKey(err: unknown): string {
   if (err instanceof MaxNumberOfFilesError) {
-    return 'You can only upload up to 5 files.'
+    return 'chat-upload-error-max-files'
   }
   if (err instanceof MaxTotalSizeError) {
-    return 'The total size of the files exceeds 100MB.'
+    return 'chat-upload-error-max-size'
   }
-  return 'File upload failed. Please check size/format.'
+  return 'chat-upload-error-failed'
 }
 
 function shouldSendMessage(params: { disabled?: boolean; value: string; fileCount: number }): {
@@ -91,7 +92,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   className,
   suggestions,
   isPrechatLoading = false,
-  placeholder = 'Ask EveryAI anything...',
+  placeholder,
   // Voice mode props with defaults
   isSpeechMode = false,
   isListening = false,
@@ -108,6 +109,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   compactSuggestions = false,
   onOpenPreferences
 }) => {
+  const { t } = useTranslation(translations)
+  const effectivePlaceholder = placeholder ?? t('chat-input-placeholder')
+
   const [value, setValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
@@ -185,7 +189,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           uploadFile(file)
           attachedFiles.push(file)
         } catch (err) {
-          alert(getUploadErrorMessage(err))
+          alert(t(getUploadErrorKey(err)))
         }
       })
       // Notify parent that new files were attached so they can be pre-uploaded if desired.
@@ -731,7 +735,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             weight="bold"
                           />
                         </div>
-                        <span className="gba:font-medium">Attach file</span>
+                        <span className="gba:font-medium">{t('chat-menu-attach-file')}</span>
                         {files.length > 0 && (
                           <span
                             className="gba:ml-auto gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold"
@@ -771,7 +775,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                               weight="bold"
                             />
                           </div>
-                          <span className="gba:font-medium">Take photo</span>
+                          <span className="gba:font-medium">{t('chat-menu-take-photo')}</span>
                         </button>
                       )}
 
@@ -812,7 +816,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             weight="bold"
                           />
                         </div>
-                        <span className="gba:font-medium">Mention entity</span>
+                        <span className="gba:font-medium">{t('chat-menu-mention-entity')}</span>
                         {selectedEntities.length > 0 && (
                           <span
                             className="gba:ml-auto gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold"
@@ -860,10 +864,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             weight={isSearching ? 'fill' : 'bold'}
                           />
                         </div>
-                        <span className="gba:font-medium">Web search</span>
+                        <span className="gba:font-medium">{t('chat-menu-web-search')}</span>
                         {isSearching && (
                           <span className="gba:ml-auto gba:text-xs gba:bg-success gba:text-success-foreground gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold">
-                            ON
+                            {t('chat-menu-web-search-on')}
                           </span>
                         )}
                       </button>
@@ -896,7 +900,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             weight="bold"
                           />
                         </div>
-                        <span className="gba:font-medium">My preferences</span>
+                        <span className="gba:font-medium">{t('chat-menu-my-preferences')}</span>
                       </button>
 
                       {/* Divider */}
@@ -924,7 +928,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         <div className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:bg-destructive/10 gba:flex gba:items-center gba:justify-center gba:transition-all">
                           <Trash className="gba:h-4 gba:w-4 gba:text-destructive" weight="bold" />
                         </div>
-                        <span className="gba:font-medium">Clear chat</span>
+                        <span className="gba:font-medium">{t('chat-menu-clear-chat')}</span>
                       </button>
                     </div>
                   </PopoverContent>
@@ -950,7 +954,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     suppressContentEditableWarning
                     onInput={handleContentEditableInput}
                     onKeyDown={handleKeyDown}
-                    data-placeholder={placeholder}
+                    data-placeholder={effectivePlaceholder}
                     className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:overflow-y-auto gba:!bg-transparent focus-visible:gba:!bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:outline-none ${darkMode ? 'gba:text-white before:gba:text-white/50' : 'gba:text-foreground before:gba:text-muted-foreground'} ${!value ? 'before:content-[attr(data-placeholder)] before:pointer-events-none' : ''}`}
                     role="textbox"
                     aria-multiline="true"
@@ -961,7 +965,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     ref={textareaRef}
                     value={value}
                     onChange={e => handleValueChange(e.target.value)}
-                    placeholder={placeholder}
+                    placeholder={effectivePlaceholder}
                     className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:!bg-transparent focus-visible:gba:!bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:ring-0 ${darkMode ? 'gba:text-white gba:placeholder-white/50' : 'gba:text-foreground'}`}
                     onKeyDown={handleKeyDown}
                     disabled={disabled}

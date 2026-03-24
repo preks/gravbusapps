@@ -42,6 +42,8 @@ export const Navigation = {
 
   // HR
   HR_EMPLOYEE_RECORD: `${NAVIGATION_BASE_PATH}/employee-record`,
+  /** Self-service: same HR Development content as My Profile, dedicated route */
+  HR_MY_DEVELOPMENT: `${NAVIGATION_BASE_PATH}/apps/hr/core/apps/my-development`,
   HR_ABSENCES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/absences/manager-absences`,
   HR_RECRUITING_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-manager`,
   HR_RECRUITING_PORTAL: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-portal`,
@@ -103,7 +105,7 @@ export const Navigation = {
   CREATE_DEBUG_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/generated-resource-urls`,
   CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/apps/generated-resource-urls`,
   CREATE_PROMPT_MESH: `${NAVIGATION_BASE_PATH}/apps/agent-mesh`,
-  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/apps/flow/apps/creator`
+  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/create/flow-creator`
 } as const
 
 // Mapping of platform URLs to app paths (exported for BusinessAppIDE path resolution)
@@ -145,6 +147,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // HR
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
+  [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
   [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
   [Navigation.HR_RECRUITING_MANAGER_ROLE]: 'hr/recruiting/apps/recruiting-manager',
   [Navigation.HR_RECRUITING_PORTAL]: 'hr/recruiting/apps/recruiting-portal',
@@ -206,7 +209,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CREATE_DEBUG_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
   [Navigation.CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
   [Navigation.CREATE_PROMPT_MESH]: 'platform/apps/agent-mesh',
-  [Navigation.CREATE_FLOW_CREATOR]: 'flow/apps/creator'
+  [Navigation.CREATE_FLOW_CREATOR]: 'core/create/apps/flow-creator'
 }
 
 /**
