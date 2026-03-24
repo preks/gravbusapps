@@ -68,6 +68,10 @@ const PAGINATION_RUNTIME_ATTRIBUTE_PATTERN =
 const TABLE_SECTION_TAG_NAMES = new Set(['tbody', 'thead', 'tfoot', 'tr', 'tablerow'])
 const DOCUMENT_EDITOR_FORBIDDEN_TAGS = ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea']
 
+export function containsPaginationRuntimeTableMarkup(html: string): boolean {
+  return PAGINATION_RUNTIME_ATTRIBUTE_PATTERN.test(html)
+}
+
 function getAttributeValue(element: Element, name: string): string | null {
   return element.getAttribute(name) ?? element.getAttribute(name.toLowerCase())
 }
@@ -376,7 +380,7 @@ export function containsCustomDocumentTags(html: string): boolean {
 }
 
 export function sanitizePaginationRuntimeHtml(html: string): string {
-  if (!html.trim() || !PAGINATION_RUNTIME_ATTRIBUTE_PATTERN.test(html)) {
+  if (!html.trim() || !containsPaginationRuntimeTableMarkup(html)) {
     return html
   }
 

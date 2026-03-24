@@ -15,12 +15,8 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document, DocumentFormatting } from '../../types'
 import { sanitizeDocumentHtmlForEditor } from '../../utils/documentContentUtils'
 import { createDocumentImageUploadHandler } from '../../utils/documentImageBindings'
-import {
-  useDocumentEditorAvatars,
-  useYjsDocumentSync,
-  useDocumentEditorShortcuts,
-  useVersionUserDisplays
-} from '../../hooks'
+import { useDocumentEditorAvatars, useDocumentEditorShortcuts, useVersionUserDisplays } from '../../hooks'
+import { useYjsDocumentSync } from '../../hooks/useYjsDocumentSync'
 import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
 import {
   type ActivePagesEditorState,
@@ -67,6 +63,8 @@ const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
 const AUTOCOMPLETE_ROLLOUT_STORAGE_KEY = 'document-autocomplete-rollout'
 const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
 const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
+const DOCUMENT_TABLE_DEBUG_STORAGE_KEY = 'document-editor:debug-table-doc-id'
+const PAGINATION_DEBUG_FLAG = '__RM_PAGINATION_DEBUG'
 
 function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean {
   if (globalThis.window === undefined) return false
@@ -86,6 +84,29 @@ function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean
 
 function isDocumentPaginationDisabled(): boolean {
   return readDocumentDebugFlag('disableDocumentPagination', DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY)
+}
+
+function isTargetDocumentTableDebugEnabled(documentId?: string): boolean {
+  if (!documentId || globalThis.window === undefined) return false
+
+  const searchParams = new URLSearchParams(globalThis.window.location.search)
+  const queryValue = searchParams.get('debugDocumentTables')
+  const localValue = globalThis.window.localStorage.getItem(DOCUMENT_TABLE_DEBUG_STORAGE_KEY)
+  const configuredValue = queryValue ?? localValue
+
+  if (!configuredValue) {
+    return false
+  }
+
+  if (isTruthyFlag(configuredValue)) {
+    return true
+  }
+
+  return configuredValue
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean)
+    .includes(documentId)
 }
 
 function isTruthyFlag(value: string | null | undefined): boolean {
@@ -271,6 +292,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
     const paginationDebugDisabled = useMemo(() => isDocumentPaginationDisabled(), [])
+    const targetDocumentTableDebugEnabled = useMemo(
+      () => isTargetDocumentTableDebugEnabled(document?.id),
+      [document?.id]
+    )
+
+    useEffect(() => {
+      ;(globalThis as typeof globalThis & { [PAGINATION_DEBUG_FLAG]?: boolean })[PAGINATION_DEBUG_FLAG] =
+        targetDocumentTableDebugEnabled
+      return () => {
+        ;(globalThis as typeof globalThis & { [PAGINATION_DEBUG_FLAG]?: boolean })[PAGINATION_DEBUG_FLAG] = false
+      }
+    }, [targetDocumentTableDebugEnabled])
 
     useEffect(() => {
       setPagesEditorState({
@@ -467,6 +500,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       awareness,
       editorRef,
       suppressSnapshotSaveRef: suppressYjsSnapshotSaveRef,
+      debugTablesEnabled: targetDocumentTableDebugEnabled,
       isReadOnly,
       title,
       getFormattingForSave: () => buildPersistedFormatting(layoutFormatting),

@@ -163,6 +163,8 @@ function createLayoutFragmentChainSummaries(
 function shouldUseLayoutSatisfiedOutcome(options: {
   resolvedCandidates: ResolvedTablePaginationCandidates
   layoutFragmentChains: Map<string, LayoutFragmentChainSummary>
+  currentPageCount: number
+  splitChainState?: TablePaginationChainState | null
   splitCandidate?: TableOverflowSplitCandidate | null
   mergeCandidate?: MergeableTableFragmentsCandidate | null
 }) {
@@ -179,7 +181,10 @@ function shouldUseLayoutSatisfiedOutcome(options: {
       return false
     }
 
-    return options.splitCandidate.mode === 'rebalance' || options.splitCandidate.paginationSplitId !== null
+    return (
+      options.splitChainState?.lastSuccessfulSplitPageCount === options.currentPageCount &&
+      options.splitChainState.lastSuccessfulSplitKey !== null
+    )
   }
 
   if (options.mergeCandidate) {
@@ -604,6 +609,8 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
           shouldUseLayoutSatisfiedOutcome({
             resolvedCandidates,
             layoutFragmentChains,
+            currentPageCount,
+            splitChainState: chainState,
             splitCandidate: liveCandidate
           })
         ) {
@@ -745,6 +752,7 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
           shouldUseLayoutSatisfiedOutcome({
             resolvedCandidates,
             layoutFragmentChains,
+            currentPageCount,
             mergeCandidate: liveCandidate
           })
         ) {

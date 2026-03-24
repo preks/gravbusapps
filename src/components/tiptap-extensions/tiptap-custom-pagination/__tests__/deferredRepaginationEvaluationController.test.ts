@@ -684,6 +684,103 @@ describe('runDeferredRepaginationEvaluationLoop', () => {
     )
   })
 
+  it('settles after one structural table dispatch when the next stable pass reports layout-fragment satisfaction', () => {
+    const base = createBaseOptions()
+    const dispatchedTransaction = { steps: [] } as never
+    const onDispatch = jest.fn()
+    const evaluateTablePagination = jest
+      .fn()
+      .mockReturnValueOnce({
+        type: 'dispatch' as const,
+        dispatchType: 'split' as const,
+        candidateKey: 'chain-fragment-split:split:22:4',
+        progress: 'structural' as const,
+        transaction: dispatchedTransaction,
+        scheduleEvaluation: true
+      })
+      .mockReturnValueOnce({
+        type: 'none' as const,
+        progress: 'none' as const,
+        reason: 'layout-fragment-pagination-satisfied' as const
+      })
+    const runPass = jest.fn(({ evaluate, onDispatch: passOnDispatch }) => {
+      const result = evaluate(2)
+
+      if (result.type === 'dispatch') {
+        passOnDispatch(result.transaction)
+        return {
+          handled: false,
+          shouldContinueLoop: true,
+          structuralActionsDelta: 1
+        }
+      }
+
+      return {
+        handled: true,
+        shouldContinueLoop: false,
+        structuralActionsDelta: 0
+      }
+    })
+
+    const result = runDeferredRepaginationEvaluationLoop({
+      view: base.view,
+      evaluationId: 17,
+      storage: base.storage,
+      getRuntimeOptions: () => ({}) as never,
+      syncStorageFromOptions: jest.fn(),
+      syncRootPresentation: jest.fn(),
+      resolveMeasurementState: jest.fn(() =>
+        createMeasurementState({
+          measured: createMeasuredHeights(24),
+          currentPageCount: 2,
+          rawMeasuredPageCount: 2,
+          measuredPageCount: 2,
+          cappedPageCount: null
+        })
+      ),
+      getPreviousAddPagesMeasurement: base.getPreviousAddPagesMeasurement,
+      getRunawayGrowthCapPageCount: base.getRunawayGrowthCapPageCount,
+      setRunawayGrowthCapPageCount: base.setRunawayGrowthCapPageCount,
+      setMeasuredHeights: jest.fn(),
+      measureHeights: jest.fn(() => createMeasuredHeights(24)),
+      documentHasTables: jest.fn(() => true),
+      getBodyMeasurementBands: jest.fn(() => [{ pageNumber: 1, top: 0, bottom: 800 }]),
+      hasPendingTableMeasurements: jest.fn(() => false),
+      getStabilizationAttemptsRemaining: jest.fn(() => 2),
+      runPass,
+      evaluateTablePagination,
+      onLogDebug: jest.fn(),
+      onSetPreviousAddPagesMeasurement: base.onSetPreviousAddPagesMeasurement,
+      onClearPreviousAddPagesMeasurement: jest.fn(),
+      onSetGrowthSuppression: jest.fn(),
+      onClearGrowthSuppression: jest.fn(),
+      onDecrementStabilizationAttempts: jest.fn(),
+      onScheduleEvaluation: jest.fn(),
+      onRefreshLayoutBounds: jest.fn(),
+      onResetStabilizationAttempts: jest.fn(),
+      onRequestRefresh: jest.fn(),
+      onDispatch
+    })
+
+    expect(result).toEqual({
+      handled: true,
+      iterations: 2,
+      structuralActionsPerformed: 1
+    })
+    expect(evaluateTablePagination).toHaveBeenCalledTimes(2)
+    expect(onDispatch).toHaveBeenCalledTimes(1)
+    expect(onDispatch).toHaveBeenCalledWith(dispatchedTransaction)
+    expect(runPass).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        evaluationId: 17,
+        loopIteration: 2,
+        structuralActionsPerformed: 1,
+        currentPageCount: 2
+      })
+    )
+  })
+
   it('forwards growth suppression and refresh callbacks through the pass runtime', () => {
     const base = createBaseOptions()
     const onSetGrowthSuppression = jest.fn()

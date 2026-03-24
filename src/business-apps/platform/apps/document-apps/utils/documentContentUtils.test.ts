@@ -1,4 +1,5 @@
 import {
+  containsPaginationRuntimeTableMarkup,
   normalizeDocumentHtmlForEditor,
   sanitizeDocumentHtmlForEditor,
   sanitizePaginationRuntimeHtml
@@ -25,6 +26,14 @@ describe('documentContentUtils pagination sanitization', () => {
       '<table data-pagination-chain-id="pagination-chain-2" data-pagination-row-groups="0-1"><tbody><tr><td>Cell</td></tr></tbody></table>'
 
     expect(sanitizePaginationRuntimeHtml(html)).toBe('<table><tbody><tr><td>Cell</td></tr></tbody></table>')
+  })
+
+  it('detects runtime pagination table markup before sanitization', () => {
+    const html =
+      '<table data-pagination-chain-id="pagination-chain-2" data-pagination-row-groups="0-1"><tbody><tr><td>Cell</td></tr></tbody></table>'
+
+    expect(containsPaginationRuntimeTableMarkup(html)).toBe(true)
+    expect(containsPaginationRuntimeTableMarkup(sanitizePaginationRuntimeHtml(html))).toBe(false)
   })
 
   it('keeps a normal second table separate while merging one split chain', () => {
