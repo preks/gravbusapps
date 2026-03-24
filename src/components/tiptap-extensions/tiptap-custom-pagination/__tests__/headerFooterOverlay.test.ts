@@ -107,7 +107,7 @@ describe('HeaderFooterOverlayManager', () => {
     manager.close()
   })
 
-  it('makes the active header shell editable while inline editing is open and restores it on close', () => {
+  it('keeps outer header chrome non-editable and only enables the inline editor host', () => {
     const storage = createStorage()
     const options = createOptions()
     const hostEditor = {
@@ -156,8 +156,8 @@ describe('HeaderFooterOverlayManager', () => {
       onClose: jest.fn()
     })
 
-    expect(region.getAttribute('contenteditable')).toBe('true')
-    expect(shell.getAttribute('contenteditable')).toBe('true')
+    expect(region.getAttribute('contenteditable')).toBe('false')
+    expect(shell.getAttribute('contenteditable')).toBe('false')
     expect(contentHost.getAttribute('contenteditable')).toBe('true')
 
     manager.close()

@@ -17,6 +17,10 @@ export interface VoiceInputButtonProps {
   variant?: 'default' | 'prominent'
   label?: string
   listeningLabel?: string
+  /** When set, overrides the idle-state tooltip primary line (e.g. i18n). */
+  idleTooltipPrimary?: string
+  /** When set, overrides the idle-state tooltip secondary line (e.g. i18n). */
+  idleTooltipSecondary?: string
   'data-testid'?: string
 }
 
@@ -33,8 +37,12 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
   variant = 'default',
   label,
   listeningLabel,
+  idleTooltipPrimary,
+  idleTooltipSecondary,
   'data-testid': testId = 'voice-input-button'
 }) => {
+  const idlePrimary = idleTooltipPrimary ?? 'Click to start voice input'
+  const idleSecondary = idleTooltipSecondary ?? 'Speak clearly into your microphone'
   const handleClick = () => {
     if (isListening) {
       onStopListening()
@@ -144,8 +152,8 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
         </Button>
       </TooltipTrigger>
       <TooltipContent>
-        <p>Click to start voice input</p>
-        <p className="gba:text-xs gba:text-muted-foreground">Speak clearly into your microphone</p>
+        <p>{idlePrimary}</p>
+        <p className="gba:text-xs gba:text-muted-foreground">{idleSecondary}</p>
       </TooltipContent>
     </Tooltip>
   )
