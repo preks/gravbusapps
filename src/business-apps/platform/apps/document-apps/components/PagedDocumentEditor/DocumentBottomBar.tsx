@@ -9,6 +9,8 @@ interface DocumentBottomBarProps {
   charCount: number
   currentPage: number
   pageCount: number
+  layoutWindowLabel?: string
+  layoutWindowMode?: 'full' | 'windowed'
   onZoomOut: () => void
   onZoomChange: (zoom: number) => void
   onZoomIn: () => void
@@ -21,6 +23,8 @@ export function DocumentBottomBar({
   charCount,
   currentPage,
   pageCount,
+  layoutWindowLabel,
+  layoutWindowMode = 'full',
   onZoomOut,
   onZoomChange,
   onZoomIn,
@@ -32,6 +36,8 @@ export function DocumentBottomBar({
     <div
       className="gba:flex gba:w-full gba:min-w-0 gba:items-center gba:justify-between gba:gap-4 gba:border-t gba:border-border/40 gba:bg-background gba:px-3 gba:py-1"
       data-testid={testId}
+      data-layout-window={layoutWindowLabel}
+      data-layout-window-mode={layoutWindowMode}
     >
       <div className="gba:flex gba:min-w-0 gba:flex-shrink gba:items-center gba:gap-2 gba:text-[11px] gba:text-muted-foreground">
         <span className="gba:min-w-0 gba:truncate">{t('editor-word-count', { count: wordCount })}</span>

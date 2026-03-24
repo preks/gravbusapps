@@ -11,7 +11,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  useTranslation
+  useTranslation,
+  Switch
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -22,16 +23,19 @@ import {
   CONTRACT_TYPE_CATALOG,
   CONTRACT_TYPE_VERSION
 } from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes'
+import { useUserLocale } from '@/common/locale/useUserLocale'
 import { useCodeError } from '@/business-apps/mdm/hooks/useCodeError'
 import { ContractTypeTable } from '../../apps/employment-data/components/tabs/ContractTypesTab'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import translations from './_i18n'
-
-export interface ProbationPeriod {
-  value: number | null
-  unit: 'day' | 'week' | 'month' | ''
-}
+import {
+  mergeCatalogEntryForPut,
+  parseContractTypeJson,
+  serializeContractTypeAdditionalJson,
+  upsertCatalogTranslationForLocale
+} from '@/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata'
+import type { CatalogEntry } from '@/common/types/CatalogTypes'
 
 const noLeadingWhitespace = (value: string) => value === value.trimStart()
 
@@ -75,7 +79,8 @@ const buildContractTypeFormSchema = (msgs: {
         .string()
         .refine(val => !val || /^[1-9]\d{0,3}$/.test(val), msgs.probationValueInvalid)
         .optional(),
-      probationUnit: z.enum(['day', 'week', 'month', '']).optional()
+      probationUnit: z.enum(['day', 'week', 'month', '']).optional(),
+      payrollRelevant: z.boolean().optional()
     })
     .superRefine(buildProbationRefinement(msgs.probationUnitRequired))
 
@@ -110,7 +115,8 @@ const buildCreateContractTypeFormSchema = (msgs: {
         .string()
         .refine(val => !val || /^[1-9]\d{0,3}$/.test(val), msgs.probationValueInvalid)
         .optional(),
-      probationUnit: z.enum(['day', 'week', 'month', '']).optional()
+      probationUnit: z.enum(['day', 'week', 'month', '']).optional(),
+      payrollRelevant: z.boolean().optional()
     })
     .superRefine(buildProbationRefinement(msgs.probationUnitRequired))
 
@@ -212,6 +218,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
   const { t } = useTranslation(translations)
   const dataTestId = formatDataTestId(prefixDataTestId, 'ContractTypeForm')
   const catalogClient = useCatalogManagerClient(accessToken)
+  const userLocale = useUserLocale() ?? 'en-US'
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
 
   const validationMsgs = useMemo(
@@ -245,6 +252,8 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       description: data.description?.trim() || ''
     }
 
+    const codeForSave = contractType?.code?.trim() || trimmedData.code
+
     if (!validateCode(trimmedData.code) && !contractType) {
       return
     }
@@ -252,47 +261,48 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
     const hasProbationValue = trimmedData.probationValue && trimmedData.probationValue.trim() !== ''
     const hasProbationUnit = trimmedData.probationUnit && trimmedData.probationUnit.trim() !== ''
 
-    const probationPeriod: ProbationPeriod = {
-      value: hasProbationValue ? Number(trimmedData.probationValue) : null,
-      unit: hasProbationUnit ? trimmedData.probationUnit : ''
-    }
-    const additionalValue2 = hasProbationValue && hasProbationUnit ? JSON.stringify(probationPeriod) : ''
+    const existingJson = contractType ? parseContractTypeJson(contractType.probationPeriod) : {}
 
-    const payload = {
-      ...(contractType ? { id: contractType.id } : {}),
-      code: trimmedData.code,
-      value: trimmedData.value,
-      additionalValue1: trimmedData.description,
-      additionalValue2,
-      translations: []
-    }
+    const additionalJson = serializeContractTypeAdditionalJson({
+      value: hasProbationValue && hasProbationUnit ? Number(trimmedData.probationValue) : null,
+      unit: hasProbationValue && hasProbationUnit ? String(trimmedData.probationUnit) : '',
+      payroll_relevant: trimmedData.payrollRelevant === true,
+      is_deleted: existingJson.is_deleted === true
+    })
 
     if (contractType) {
+      const fresh = await catalogClient.getCatalogEntryById(contractType.id)
+      const translations = upsertCatalogTranslationForLocale(fresh.translations, userLocale, {
+        value: trimmedData.value,
+        additionalValue1: trimmedData.description
+      })
+      const payload = mergeCatalogEntryForPut(fresh, {
+        value: trimmedData.value,
+        additionalValue1: trimmedData.description,
+        additionalValue2: additionalJson,
+        translations
+      })
       await catalogClient.updateCatalogEntry(
         CONTRACT_TYPE_CATALOG,
         CONTRACT_TYPE_VERSION,
         contractType.id ?? '',
-        payload
+        payload as Partial<Omit<CatalogEntry, 'id' | 'type'>>
       )
     } else {
-      await catalogClient.createCatalogEntry(CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION, payload)
+      await catalogClient.createCatalogEntry(CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION, {
+        code: codeForSave,
+        value: trimmedData.value,
+        additionalValue1: trimmedData.description,
+        additionalValue2: additionalJson,
+        translations: []
+      } as Omit<CatalogEntry, 'id' | 'type'>)
     }
 
     refetch()
   }
 
-  const parseProbationPeriod = (additionalValue2?: string): ProbationPeriod => {
-    if (!additionalValue2) return { value: null, unit: '' }
-    try {
-      const parsed = JSON.parse(additionalValue2)
-      return { value: parsed.value ?? null, unit: parsed.unit ?? '' }
-    } catch {
-      return { value: null, unit: '' }
-    }
-  }
-
-  const existingProbation = useMemo(
-    () => parseProbationPeriod(contractType?.probationPeriod),
+  const existingParsed = useMemo(
+    () => parseContractTypeJson(contractType?.probationPeriod),
     [contractType?.probationPeriod]
   )
 
@@ -301,10 +311,11 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       value: contractType?.value || '',
       code: contractType?.code || '',
       description: contractType?.description || '',
-      probationValue: existingProbation.value?.toString() || '',
-      probationUnit: existingProbation.unit || undefined
+      probationValue: existingParsed.value != null && existingParsed.unit ? String(existingParsed.value) : '',
+      probationUnit: existingParsed.unit || undefined,
+      payrollRelevant: existingParsed.payroll_relevant === true
     }),
-    [contractType, existingProbation]
+    [contractType, existingParsed]
   )
 
   const resolver = useMemo(() => zodResolver(activeSchema) as any, [activeSchema])
@@ -380,6 +391,27 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       />
 
       <ProbationPeriodFields dataTestId={dataTestId} t={t} />
+
+      <FormField
+        name="payrollRelevant"
+        render={({ field }) => (
+          <FormItem className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:rounded-lg gba:border gba:p-4">
+            <div className="gba:space-y-0.5">
+              <FormLabel className="gba:text-base">Payroll relevant</FormLabel>
+              <p className="gba:text-sm gba:text-muted-foreground">
+                When enabled, this contract type is treated as relevant for payroll processes.
+              </p>
+            </div>
+            <FormControl>
+              <Switch
+                checked={field.value === true}
+                onCheckedChange={field.onChange}
+                data-testid={`${dataTestId}-payroll-relevant`}
+              />
+            </FormControl>
+          </FormItem>
+        )}
+      />
     </FormWrapperModal>
   )
 }

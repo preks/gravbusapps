@@ -16,6 +16,8 @@ interface EditorToolbarProps {
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
   onOpenInsertTableDialog?: () => void
+  onOpenTableSidebar?: () => void
+  onOpenPageNumbersDialog?: () => void
   onOpenFind?: () => void
   onOpenReplace?: () => void
   'data-testid'?: string
@@ -27,6 +29,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onOpenLinkDialog,
   onOpenInsertImageDialog,
   onOpenInsertTableDialog,
+  onOpenTableSidebar,
+  onOpenPageNumbersDialog,
   onOpenFind,
   onOpenReplace,
   'data-testid': testId = 'editor-toolbar'
@@ -125,6 +129,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           onOpenLinkDialog={onOpenLinkDialog}
           onOpenInsertImageDialog={onOpenInsertImageDialog}
           onOpenInsertTableDialog={onOpenInsertTableDialog}
+          onOpenTableSidebar={onOpenTableSidebar}
+          onOpenPageNumbersDialog={onOpenPageNumbersDialog}
           onOpenFind={onOpenFind}
           onOpenReplace={onOpenReplace}
           voiceProps={voiceProps}

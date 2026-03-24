@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { parseContractTypeJson } from '@/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata'
 import { SelectOption } from '../types'
 
 const CONTRACT_TYPE_CATALOG = 'ContractType'
@@ -58,7 +59,9 @@ export const useContractTypes = (accessToken: string): UseContractTypesReturn =>
           }
         )
 
-        const entries = response.data || []
+        const entries = (response.data || []).filter(
+          (entry: any) => !parseContractTypeJson(entry.additionalValue2).is_deleted
+        )
         const selectOptions: SelectOption[] = entries.map((entry: any) => ({
           id: entry.id,
           name: entry.value || entry.code || 'Unknown',

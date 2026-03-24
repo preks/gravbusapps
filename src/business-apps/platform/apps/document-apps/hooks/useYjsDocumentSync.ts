@@ -6,6 +6,7 @@
  * Used by PagedDocumentEditor when editing an existing document with collaboration.
  */
 
+import DOMPurify from 'dompurify'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Socket } from 'socket.io-client'
 import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
@@ -14,12 +15,123 @@ import { DocumentApiService } from '../services/DocumentApiService'
 import type { DocumentFormatting } from '../types'
 import {
   containsCustomDocumentTags,
+  containsPaginationRuntimeTableMarkup,
   isEffectivelyEmptyDocumentHtml,
-  normalizeDocumentHtmlForEditor,
+  sanitizeDocumentHtmlForEditor,
   sanitizePaginationRuntimeHtml
 } from '../utils/documentContentUtils'
 
 const SNAPSHOT_SAVE_DELAY_MS = 2000
+
+type HydrationRefreshableEditor = {
+  commands: {
+    setContent: (editorHtml: string, emit?: boolean) => void
+    refreshPages?: () => boolean
+    refreshPagesAndStabilize?: () => boolean
+  }
+  getHTML?: () => string
+}
+
+interface TableDebugSummary {
+  index: number
+  rowCount: number
+  firstRowCellCount: number
+  paginationAttrs: Record<string, string>
+  tableAttrs: Record<string, string>
+  nextTablePaginationAttrs: Record<string, string> | null
+}
+
+function schedulePostHydrationPaginationRefresh(editor: HydrationRefreshableEditor) {
+  const refreshPagination = () => {
+    if (editor.commands.refreshPagesAndStabilize) {
+      editor.commands.refreshPagesAndStabilize()
+      return
+    }
+
+    editor.commands.refreshPages?.()
+  }
+
+  requestAnimationFrame(() => {
+    refreshPagination()
+  })
+
+  setTimeout(() => {
+    refreshPagination()
+  }, 120)
+}
+
+function waitForNextAnimationFrame(): Promise<void> {
+  return new Promise(resolve => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => resolve())
+      return
+    }
+
+    setTimeout(resolve, 16)
+  })
+}
+
+function getDebuggableTableAttributes(element: Element): Record<string, string> {
+  return Object.fromEntries(
+    Array.from(element.attributes)
+      .filter(attribute => {
+        const name = attribute.name.toLowerCase()
+        return (
+          name === 'class' || name === 'style' || name.startsWith('data-pagination-') || name.startsWith('data-table-')
+        )
+      })
+      .map(attribute => [attribute.name, attribute.value])
+  )
+}
+
+function collectTableDebugSummaryFromHtml(html: string): TableDebugSummary[] {
+  if (!html || globalThis.DOMParser === undefined) {
+    return []
+  }
+
+  try {
+    const doc = new globalThis.DOMParser().parseFromString(html, 'text/html')
+    return Array.from(doc.body.querySelectorAll('table')).map((table, index) => {
+      const firstRow = table.querySelector('tr')
+      const paginationAttrs = Object.fromEntries(
+        Object.entries(getDebuggableTableAttributes(table)).filter(([name]) => name.startsWith('data-pagination-'))
+      )
+      const nextTable = table.nextElementSibling?.tagName.toLowerCase() === 'table' ? table.nextElementSibling : null
+      const nextTablePaginationAttrs =
+        nextTable == null
+          ? null
+          : Object.fromEntries(
+              Object.entries(getDebuggableTableAttributes(nextTable)).filter(([name]) =>
+                name.startsWith('data-pagination-')
+              )
+            )
+
+      return {
+        index,
+        rowCount: table.querySelectorAll('tr').length,
+        firstRowCellCount: firstRow?.children.length ?? 0,
+        paginationAttrs,
+        tableAttrs: getDebuggableTableAttributes(table),
+        nextTablePaginationAttrs
+      }
+    })
+  } catch {
+    return []
+  }
+}
+
+function logDocumentTableDebug(
+  enabled: boolean | undefined,
+  documentId: string | undefined,
+  event: string,
+  payload: Record<string, unknown>
+) {
+  if (!enabled || !documentId) {
+    return
+  }
+
+  console.info(`[document-table-debug:${documentId}] ${event}`, payload)
+}
 
 export interface UseYjsDocumentSyncParams {
   documentId: string | undefined
@@ -28,6 +140,7 @@ export interface UseYjsDocumentSyncParams {
   awareness: import('y-protocols/awareness').Awareness
   editorRef: React.MutableRefObject<unknown>
   suppressSnapshotSaveRef?: React.MutableRefObject<boolean>
+  debugTablesEnabled?: boolean
   isReadOnly: boolean
   title: string
   getFormattingForSave?: () => DocumentFormatting | undefined
@@ -47,6 +160,7 @@ export function useYjsDocumentSync({
   awareness,
   editorRef,
   suppressSnapshotSaveRef,
+  debugTablesEnabled = false,
   isReadOnly,
   title,
   getFormattingForSave,
@@ -58,6 +172,8 @@ export function useYjsDocumentSync({
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const providerRef = useRef<SocketIoYjsProvider | null>(null)
   const recoveryAttemptedRef = useRef(false)
+  const paginationRuntimeRecoveryAttemptedRef = useRef(false)
+  const pendingNormalizationRecoveryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const scheduleSnapshotSave = useCallback(
     (currentEditor: { getHTML?: () => string }) => {
@@ -128,16 +244,25 @@ export function useYjsDocumentSync({
         await new Promise(resolve => setTimeout(resolve, 25))
       }
 
-      const ed = editorRef.current as {
-        commands: { setContent: (editorHtml: string, emit?: boolean) => void }
-        getHTML?: () => string
-      } | null
+      const ed = editorRef.current as HydrationRefreshableEditor | null
 
       if (!ed) {
         throw new Error('Editor not ready for content apply')
       }
 
-      const normalizedHtml = normalizeDocumentHtmlForEditor(html || '<p></p>')
+      const normalizedHtml =
+        DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(html || '<p></p>'), {
+          USE_PROFILES: { html: true },
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
+          ALLOW_DATA_ATTR: true
+        }) || '<p></p>'
+
+      logDocumentTableDebug(debugTablesEnabled, documentId, 'apply-normalized-content:before-set', {
+        sourceHtmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(html || ''),
+        normalizedHtmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(normalizedHtml),
+        sourceTableSummary: collectTableDebugSummaryFromHtml(html || ''),
+        normalizedTableSummary: collectTableDebugSummaryFromHtml(normalizedHtml)
+      })
 
       try {
         if (suppressSnapshotSaveRef) {
@@ -145,7 +270,13 @@ export function useYjsDocumentSync({
         }
         markNextPaginationHydrationDocChange(ed)
         ed.commands.setContent(normalizedHtml, true)
-        await new Promise(resolve => setTimeout(resolve, 100))
+        schedulePostHydrationPaginationRefresh(ed)
+        await new Promise(resolve => setTimeout(resolve, 140))
+        const postApplyHtml = ed.getHTML?.() || ''
+        logDocumentTableDebug(debugTablesEnabled, documentId, 'apply-normalized-content:after-set', {
+          postApplyHtmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(postApplyHtml),
+          postApplyTableSummary: collectTableDebugSummaryFromHtml(postApplyHtml)
+        })
       } finally {
         setTimeout(() => {
           if (suppressSnapshotSaveRef) {
@@ -154,7 +285,33 @@ export function useYjsDocumentSync({
         }, 1500)
       }
     },
-    [documentId, editorRef, suppressSnapshotSaveRef]
+    [debugTablesEnabled, documentId, editorRef, suppressSnapshotSaveRef]
+  )
+
+  const getCurrentEditorHtmlSnapshot = useCallback(async (): Promise<string> => {
+    await getEditorReadyPromise()
+    await waitForNextAnimationFrame()
+    await waitForNextAnimationFrame()
+
+    const ed = editorRef.current as HydrationRefreshableEditor | null
+    return ed?.getHTML?.() || ''
+  }, [editorRef, getEditorReadyPromise])
+
+  const scheduleNormalizedRecovery = useCallback(
+    (html: string, reason: 'custom-tags' | 'pagination-runtime') => {
+      if (pendingNormalizationRecoveryRef.current) {
+        clearTimeout(pendingNormalizationRecoveryRef.current)
+      }
+
+      pendingNormalizationRecoveryRef.current = setTimeout(() => {
+        pendingNormalizationRecoveryRef.current = null
+
+        void applyNormalizedContentToEditor(html).catch(error => {
+          console.error(`[PagedDocumentEditor] Failed normalized recovery for ${reason}:`, error)
+        })
+      }, 0)
+    },
+    [applyNormalizedContentToEditor]
   )
 
   const handleReadyStateApplied = useCallback(
@@ -167,19 +324,51 @@ export function useYjsDocumentSync({
       const serializedFragment =
         typeof info.fragmentContent === 'string' ? info.fragmentContent : JSON.stringify(info.fragmentContent ?? null)
       const looksCorrupted = containsCustomDocumentTags(serializedFragment)
+      const fragmentContainsPaginationRuntimeMarkup = containsPaginationRuntimeTableMarkup(serializedFragment)
+
+      logDocumentTableDebug(debugTablesEnabled, documentId, 'ready-state-applied', {
+        source: info.source,
+        status: info.status,
+        fragmentLength: info.fragmentLength,
+        looksCorrupted,
+        fragmentContainsPaginationRuntimeMarkup
+      })
 
       if (!documentId || recoveryAttemptedRef.current || !looksCorrupted) {
+        // Continue below to inspect rendered HTML for leaked pagination table runtime markup.
+      } else {
+        recoveryAttemptedRef.current = true
+
+        const latest = await DocumentApiService.getDocument(documentId, { fresh: true })
+        if (latest?.content) {
+          scheduleNormalizedRecovery(latest.content, 'custom-tags')
+        }
         return
       }
 
-      recoveryAttemptedRef.current = true
+      if (!documentId || paginationRuntimeRecoveryAttemptedRef.current) {
+        return
+      }
 
-      const latest = await DocumentApiService.getDocument(documentId, { fresh: true })
-      if (!latest?.content) return
+      const currentHtml = await getCurrentEditorHtmlSnapshot()
+      logDocumentTableDebug(debugTablesEnabled, documentId, 'ready-state-html-snapshot', {
+        htmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(currentHtml),
+        tableSummary: collectTableDebugSummaryFromHtml(currentHtml)
+      })
+      if (!containsPaginationRuntimeTableMarkup(currentHtml)) {
+        return
+      }
 
-      await applyNormalizedContentToEditor(latest.content)
+      const normalizedCurrentHtml = sanitizePaginationRuntimeHtml(currentHtml)
+      if (normalizedCurrentHtml === currentHtml) {
+        return
+      }
+
+      paginationRuntimeRecoveryAttemptedRef.current = true
+      console.warn('[PagedDocumentEditor] Recovering collaboration state with leaked pagination table runtime markup')
+      scheduleNormalizedRecovery(currentHtml, 'pagination-runtime')
     },
-    [applyNormalizedContentToEditor, documentId]
+    [debugTablesEnabled, documentId, getCurrentEditorHtmlSnapshot, scheduleNormalizedRecovery]
   )
 
   // Drive Yjs sync over Socket.IO: create provider, start, cleanup
@@ -187,6 +376,11 @@ export function useYjsDocumentSync({
     if (!documentId || !collaborationSocket) return
 
     recoveryAttemptedRef.current = false
+    paginationRuntimeRecoveryAttemptedRef.current = false
+    if (pendingNormalizationRecoveryRef.current) {
+      clearTimeout(pendingNormalizationRecoveryRef.current)
+      pendingNormalizationRecoveryRef.current = null
+    }
 
     const provider = new SocketIoYjsProvider({
       socket: collaborationSocket,
@@ -210,6 +404,10 @@ export function useYjsDocumentSync({
     provider.start()
 
     return () => {
+      if (pendingNormalizationRecoveryRef.current) {
+        clearTimeout(pendingNormalizationRecoveryRef.current)
+        pendingNormalizationRecoveryRef.current = null
+      }
       provider.destroy()
       providerRef.current = null
       setIsYjsSynced(false)
@@ -231,6 +429,9 @@ export function useYjsDocumentSync({
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current)
+      }
+      if (pendingNormalizationRecoveryRef.current) {
+        clearTimeout(pendingNormalizationRecoveryRef.current)
       }
     }
   }, [])

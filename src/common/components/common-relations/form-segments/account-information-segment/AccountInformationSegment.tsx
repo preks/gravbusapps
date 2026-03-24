@@ -38,7 +38,10 @@ interface AccountInformationSegmentProps {
     contacts: any[]
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
 
   // Custom fields (context-specific, e.g., CRM Sales Campaign)
@@ -94,13 +97,16 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
     })
   }, [useContacts?.contacts])
 
-  // Search function that calls refetch with search variables
+  // Search function — prefers the stateful `search` fn, falls back to `refetch`
   const searchContacts = useCallback(
     (searchTerm: string) => {
-      if (!useContacts?.refetch) return
-      useContacts.refetch({ search: searchTerm.trim(), limit: 20, offset: 0 })
+      if (useContacts?.search) {
+        useContacts.search(searchTerm.trim())
+      } else if (useContacts?.refetch) {
+        useContacts.refetch({ search: searchTerm.trim(), limit: 20, offset: 0 })
+      }
     },
-    [useContacts?.refetch]
+    [useContacts?.search, useContacts?.refetch]
   )
 
   // Helper function to parse picture string
@@ -458,6 +464,8 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
                     contactsLoading={useContacts.loading}
                     contactsError={useContacts.error}
                     searchContacts={searchContacts}
+                    hasMore={useContacts.hasMore}
+                    onLoadMore={useContacts.loadMore}
                     accountContacts={field.value || []}
                     dataTestId="account-information-segment-contacts"
                     error={fieldState.error?.message || null}
