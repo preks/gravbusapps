@@ -543,6 +543,7 @@ export function resolvePaginationBodyClick(
 ): PaginationBodyClickResolution {
   const bodyBands = getPageBodyBands(view.dom)
   if (!bodyBands.length) return { action: 'allow' }
+  const hasRangeSelection = !view.state.selection.empty
 
   const firstPageBodyBand = bodyBands[0] ?? null
   const emptyFirstParagraphPosition = resolveEmptyFirstParagraphClick(view, firstPageBodyBand, clientX, clientY)
@@ -551,7 +552,9 @@ export function resolvePaginationBodyClick(
   }
 
   const bodyBand = resolveBodyBandAtOffset(bodyBands, clientY)
-  if (!bodyBand) return { action: 'block' }
+  if (!bodyBand) {
+    return hasRangeSelection ? { action: 'allow' } : { action: 'block' }
+  }
 
   const initialPosition = getPositionAtCoords(view, clientX, clientY)
   if (initialPosition != null) {
@@ -559,12 +562,16 @@ export function resolvePaginationBodyClick(
       if (isEmptyParagraphPosition(view, initialPosition)) {
         return { action: 'set', position: initialPosition }
       }
-      return { action: 'allow' }
+      return hasRangeSelection ? { action: 'set', position: initialPosition } : { action: 'allow' }
     }
   }
 
   const clampedPosition = findClampedBodyPosition(view, bodyBand, clientX, clientY)
-  return clampedPosition == null ? { action: 'block' } : { action: 'set', position: clampedPosition }
+  if (clampedPosition != null) {
+    return { action: 'set', position: clampedPosition }
+  }
+
+  return hasRangeSelection ? { action: 'allow' } : { action: 'block' }
 }
 
 function getBodyBandProbeXs(bodyBand: PageBodyBand, preferredX: number) {
