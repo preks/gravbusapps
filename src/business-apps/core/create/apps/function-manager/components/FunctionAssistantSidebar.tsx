@@ -1,6 +1,7 @@
 import React from 'react'
-import { Button, ScrollArea, Textarea } from '@newwork/nw-design-system'
-import { Calculator, KeyRound, Link2, Plug, Scale, Shuffle, Sparkles, Webhook, X } from 'lucide-react'
+import { Button } from '@newwork/nw-design-system'
+import { CreateChatPanel } from '@/common/components/ai-builder'
+import { Calculator, KeyRound, Link2, Plug, Scale, Shuffle, Webhook } from 'lucide-react'
 import type {
   FunctionAssistantDraftResponse,
   FunctionAssistantExistingSnapshot,
@@ -134,130 +135,100 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
 
   const hasUserMessage = messages.some(m => m.role === 'user')
 
-  return (
-    <div
-      className="gba:w-full gba:max-w-lg gba:min-h-0 gba:bg-background gba:flex gba:flex-col gba:flex-none gba:overflow-hidden gba:border-l gba:border-border gba:animate-in gba:slide-in-from-right"
-      data-testid={testId}
-    >
-      {/* Chat body */}
-      <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col">
-        <ScrollArea className="gba:flex-1 gba:min-h-0" data-testid={`${testId}-scroll`}>
-          <div className="gba:p-4 gba:space-y-4 gba:overflow-x-hidden">
-            {!hasUserMessage ? (
-              <div className="gba:space-y-5" data-testid={`${testId}-welcome`}>
-                {/* Hero */}
-                <div className="gba:space-y-2">
-                  <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Build functions with AI</h2>
-                  <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">
-                    Choose a use case below to get started.
-                  </p>
-                </div>
-
-                {/* Use case grid */}
-                <div className="gba:space-y-2">
-                  {USE_CASES.map(uc => (
-                    <button
-                      key={uc.key}
-                      type="button"
-                      onClick={() => {
-                        void startUseCase(uc.key)
-                      }}
-                      className="gba:w-full gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-xl gba:border gba:border-border gba:bg-card gba:text-left gba:cursor-pointer gba:transition-colors gba:hover:bg-accent gba:hover:border-accent gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring"
-                      data-testid={`${testId}-usecase-${uc.key}`}
-                    >
-                      <div className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:bg-muted">
-                        <uc.icon className="gba:h-5 gba:w-5 gba:text-foreground" />
-                      </div>
-                      <div className="gba:min-w-0">
-                        <div className="gba:text-sm gba:font-medium gba:text-foreground">{uc.title}</div>
-                        <div className="gba:text-xs gba:text-muted-foreground gba:leading-snug">{uc.desc}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {/* Messages */}
-            <div className="gba:space-y-3" data-testid={`${testId}-messages`}>
-              {messages.map(m => (
-                <AssistantChatMessage
-                  key={m.id}
-                  message={m}
-                  activityLines={activityLines}
-                  userInfo={userInfo}
-                  userAvatarSrc={userAvatarSrc}
-                  onOpenDefinitionTab={onOpenDefinitionTab}
-                  onRetryLast={retryLast}
-                  canRetryLast={canRetryLast}
-                  clarifyWizard={clarifyWizard}
-                  onClarifyAnswerChange={setClarifyAnswer}
-                  onClarifyBack={goClarifyBack}
-                  onClarifyNext={goClarifyNext}
-                  onClarifySubmit={submitClarify}
-                  onQuickInsert={text => {
-                    const line = String(text || '').trim()
-                    if (!line) return
-                    setInput(prev => (prev.trim() ? `${prev.trim()}\n${line}\n` : `${line}\n`))
-                  }}
-                  onQuickSubmit={text => {
-                    void sendText(text)
-                  }}
-                  onApplyDraftDirect={applyDraft}
-                />
-              ))}
-              <div ref={bottomRef} />
-            </div>
+  const chatContent = (
+    <div className="gba:space-y-4 gba:overflow-x-hidden" data-testid={`${testId}-scroll`}>
+      {!hasUserMessage ? (
+        <div className="gba:space-y-5" data-testid={`${testId}-welcome`}>
+          <div className="gba:space-y-2">
+            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Build functions with AI</h2>
+            <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">
+              Choose a use case below to get started.
+            </p>
           </div>
-        </ScrollArea>
-
-        {/* Composer */}
-        <div className="gba:px-4 gba:py-3 gba:space-y-2 gba:border-t gba:border-border gba:bg-background">
-          <Textarea
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            rows={3}
-            className="gba:resize-none"
-            disabled={Boolean(clarifyWizard)}
-            data-testid={`${testId}-input`}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                send()
-              }
-            }}
-          />
-
-          <div className="gba:flex gba:items-center gba:justify-end gba:gap-1">
-            <Button type="button" variant="ghost" size="sm" onClick={reset} data-testid={`${testId}-reset`}>
-              Reset
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={send}
-              disabled={!canSend || isGenerating}
-              data-testid={`${testId}-send`}
-            >
-              <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" />
-              {isGenerating ? 'Sending…' : 'Send'}
-            </Button>
-            {onClose ? (
-              <Button
+          <div className="gba:space-y-2">
+            {USE_CASES.map(uc => (
+              <button
+                key={uc.key}
                 type="button"
-                variant="ghost"
-                size="sm"
-                onClick={onClose}
-                data-testid={`${testId}-close`}
-                aria-label="Close"
+                onClick={() => {
+                  void startUseCase(uc.key)
+                }}
+                className="gba:w-full gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-xl gba:border gba:border-border gba:bg-card gba:text-left gba:cursor-pointer gba:transition-colors gba:hover:bg-accent gba:hover:border-accent gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring"
+                data-testid={`${testId}-usecase-${uc.key}`}
               >
-                <X className="gba:h-4 gba:w-4" />
-              </Button>
-            ) : null}
+                <div className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:bg-muted">
+                  <uc.icon className="gba:h-5 gba:w-5 gba:text-foreground" />
+                </div>
+                <div className="gba:min-w-0">
+                  <div className="gba:text-sm gba:font-medium gba:text-foreground">{uc.title}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground gba:leading-snug">{uc.desc}</div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
+      ) : null}
+      <div className="gba:space-y-3" data-testid={`${testId}-messages`}>
+        {messages.map(m => (
+          <AssistantChatMessage
+            key={m.id}
+            message={m}
+            activityLines={activityLines}
+            userInfo={userInfo}
+            userAvatarSrc={userAvatarSrc}
+            onOpenDefinitionTab={onOpenDefinitionTab}
+            onRetryLast={retryLast}
+            canRetryLast={canRetryLast}
+            clarifyWizard={clarifyWizard}
+            onClarifyAnswerChange={setClarifyAnswer}
+            onClarifyBack={goClarifyBack}
+            onClarifyNext={goClarifyNext}
+            onClarifySubmit={submitClarify}
+            onQuickInsert={text => {
+              const line = String(text || '').trim()
+              if (!line) return
+              setInput(prev => (prev.trim() ? `${prev.trim()}\n${line}\n` : `${line}\n`))
+            }}
+            onQuickSubmit={text => {
+              void sendText(text)
+            }}
+            onApplyDraftDirect={applyDraft}
+          />
+        ))}
+        <div ref={bottomRef} />
       </div>
+    </div>
+  )
+
+  return (
+    <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full" data-testid={testId}>
+      <CreateChatPanel
+        title="AI Assistant"
+        subtitle={isGenerating ? 'Thinking...' : 'Ready to help'}
+        onClose={onClose}
+        headerRightSlot={
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={reset}
+            className="gba:text-xs gba:text-muted-foreground"
+            data-testid={`${testId}-reset`}
+          >
+            Reset
+          </Button>
+        }
+        inputValue={input}
+        inputOnChange={setInput}
+        inputOnSend={send}
+        inputDisabled={Boolean(clarifyWizard) || !canSend}
+        inputIsProcessing={isGenerating}
+        inputPlaceholder="Describe your function or ask for changes..."
+        inputSendIcon="sparkles"
+        data-testid={`${testId}-panel`}
+      >
+        {chatContent}
+      </CreateChatPanel>
     </div>
   )
 }
