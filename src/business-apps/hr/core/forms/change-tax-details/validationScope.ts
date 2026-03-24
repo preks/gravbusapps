@@ -197,7 +197,9 @@ function calculateGermanSsnCheckDigit(compact: string): number | null {
   const birthLetter = compact[8]?.toUpperCase()
   if (!birthLetter || !/^[A-Z]$/.test(birthLetter)) return null
 
-  const letterCode = String(birthLetter.charCodeAt(0) - 64).padStart(2, '0') // A=01 ... Z=26
+  const codePoint = birthLetter.codePointAt(0)
+  if (codePoint == null) return null
+  const letterCode = String(codePoint - 64).padStart(2, '0') // A=01 ... Z=26
   const expanded = `${compact.substring(0, 8)}${letterCode}${compact.substring(9, 11)}`
   if (!/^\d{12}$/.test(expanded)) return null
 
@@ -213,59 +215,94 @@ function calculateGermanSsnCheckDigit(compact: string): number | null {
   return total % 10
 }
 
+function validateSsnBirthDate(
+  compact: string,
+  getMessage: GetMessage,
+  context?: GermanSsnValidationContext
+): string | true {
+  const storedBirthDate = toDdMmYy(String(context?.employeeBirthDate || ''))
+  if (!storedBirthDate) {
+    return getMessage(SSN_BIRTH_DATE_MISSING_MSG_KEY, SSN_BIRTH_DATE_MISSING_MSG_FALLBACK)
+  }
+
+  const ssnBirthDate = compact.substring(2, 8)
+  return storedBirthDate === ssnBirthDate
+    ? true
+    : getMessage(SSN_BIRTH_DATE_MISMATCH_MSG_KEY, SSN_BIRTH_DATE_MISMATCH_MSG_FALLBACK)
+}
+
+function validateSsnBirthName(
+  compact: string,
+  getMessage: GetMessage,
+  context?: GermanSsnValidationContext
+): string | true {
+  const ssnBirthNameLetter = compact[8]?.toUpperCase()
+  const storedBirthNameLetter = getFirstSsnLetter(context?.employeeBirthName)
+  const storedLastNameLetter = getFirstSsnLetter(context?.employeeLastName)
+  const expectedLetter = storedBirthNameLetter || storedLastNameLetter
+
+  if (!expectedLetter) {
+    return getMessage(SSN_BIRTH_NAME_MISSING_MSG_KEY, SSN_BIRTH_NAME_MISSING_MSG_FALLBACK)
+  }
+
+  return ssnBirthNameLetter === expectedLetter
+    ? true
+    : getMessage(SSN_BIRTH_NAME_MISMATCH_MSG_KEY, SSN_BIRTH_NAME_MISMATCH_MSG_FALLBACK)
+}
+
+function validateSsnCheckDigit(compact: string, getMessage: GetMessage): string | true {
+  const expectedCheckDigit = calculateGermanSsnCheckDigit(compact)
+  const providedCheckDigit = Number.parseInt(compact[11], 10)
+  if (expectedCheckDigit == null || Number.isNaN(providedCheckDigit) || expectedCheckDigit !== providedCheckDigit) {
+    return getMessage(SSN_CHECK_DIGIT_MSG_KEY, SSN_CHECK_DIGIT_MSG_FALLBACK)
+  }
+  return true
+}
+
+function validateSsnGenericRules(
+  compact: string,
+  getMessage: GetMessage,
+  context?: GermanSsnValidationContext
+): string | true {
+  const region = compact.substring(0, 2)
+  if (!DE_SSN_VALID_REGION_CODES.has(region)) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
+
+  const dd = Number.parseInt(compact.substring(2, 4), 10)
+  const mm = Number.parseInt(compact.substring(4, 6), 10)
+  if (dd < 1 || dd > 31 || mm < 1 || mm > 12) {
+    return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
+  }
+
+  if (!context?.employeeGender) return true
+
+  const genderDigits = Number.parseInt(compact.substring(9, 11), 10)
+  const validMale = genderDigits >= 0 && genderDigits <= 49
+  const validFemale = genderDigits >= 50 && genderDigits <= 99
+  if (context.employeeGender === 'male' && !validMale) {
+    return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
+  }
+  if (context.employeeGender !== 'male' && !validFemale) {
+    return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
+  }
+  return true
+}
+
 function validateGermanSSN(
   compact: string,
   getMessage: GetMessage,
   context?: GermanSsnValidationContext
 ): string | true {
   if (!/^\d{8}[A-Za-z]\d{3}$/.test(compact)) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
+  const birthDateValidation = validateSsnBirthDate(compact, getMessage, context)
+  if (birthDateValidation !== true) return birthDateValidation
 
-  const storedBirthDate = toDdMmYy(String(context?.employeeBirthDate || ''))
-  if (!storedBirthDate) {
-    return getMessage(SSN_BIRTH_DATE_MISSING_MSG_KEY, SSN_BIRTH_DATE_MISSING_MSG_FALLBACK)
-  }
-  const ssnBirthDate = compact.substring(2, 8)
-  if (storedBirthDate !== ssnBirthDate) {
-    return getMessage(SSN_BIRTH_DATE_MISMATCH_MSG_KEY, SSN_BIRTH_DATE_MISMATCH_MSG_FALLBACK)
-  }
+  const birthNameValidation = validateSsnBirthName(compact, getMessage, context)
+  if (birthNameValidation !== true) return birthNameValidation
 
-  const ssnBirthNameLetter = compact[8]?.toUpperCase()
-  const storedBirthNameLetter = getFirstSsnLetter(context?.employeeBirthName)
-  const storedLastNameLetter = getFirstSsnLetter(context?.employeeLastName)
-  const expectedLetter = storedBirthNameLetter || storedLastNameLetter
-  if (!expectedLetter) {
-    return getMessage(SSN_BIRTH_NAME_MISSING_MSG_KEY, SSN_BIRTH_NAME_MISSING_MSG_FALLBACK)
-  }
-  if (ssnBirthNameLetter !== expectedLetter) {
-    return getMessage(SSN_BIRTH_NAME_MISMATCH_MSG_KEY, SSN_BIRTH_NAME_MISMATCH_MSG_FALLBACK)
-  }
+  const checkDigitValidation = validateSsnCheckDigit(compact, getMessage)
+  if (checkDigitValidation !== true) return checkDigitValidation
 
-  const expectedCheckDigit = calculateGermanSsnCheckDigit(compact)
-  const providedCheckDigit = Number.parseInt(compact[11], 10)
-  if (expectedCheckDigit == null || Number.isNaN(providedCheckDigit) || expectedCheckDigit !== providedCheckDigit) {
-    return getMessage(SSN_CHECK_DIGIT_MSG_KEY, SSN_CHECK_DIGIT_MSG_FALLBACK)
-  }
-
-  // Keep broad "invalid German SSN" checks as late/fallback checks
-  // so more specific mismatch messages (birth date/name/check digit) are shown first.
-  const region = compact.substring(0, 2)
-  if (!DE_SSN_VALID_REGION_CODES.has(region)) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
-  const dd = Number.parseInt(compact.substring(2, 4), 10)
-  const mm = Number.parseInt(compact.substring(4, 6), 10)
-  if (dd < 1 || dd > 31 || mm < 1 || mm > 12) {
-    return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
-  }
-  if (context?.employeeGender) {
-    const genderDigits = Number.parseInt(compact.substring(9, 11), 10)
-    const validMale = genderDigits >= 0 && genderDigits <= 49
-    const validFemale = genderDigits >= 50 && genderDigits <= 99
-    if (context.employeeGender === 'male' && !validMale)
-      return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
-    if (context.employeeGender !== 'male' && !validFemale)
-      return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
-  }
-
-  return true
+  return validateSsnGenericRules(compact, getMessage, context)
 }
 
 /** Social Security Number: German format when DE, Romanian CNP when RO. Returns error string or true. */

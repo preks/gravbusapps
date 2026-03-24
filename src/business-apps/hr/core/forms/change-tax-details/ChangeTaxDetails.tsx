@@ -64,8 +64,8 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
 
   const getMessage = useCallback(
     (key: string, fallback: string) => {
-      void fallback
-      return t(key)
+      const translated = t(key)
+      return translated === key ? fallback : translated
     },
     [t]
   )
