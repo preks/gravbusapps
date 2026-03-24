@@ -16,7 +16,6 @@ import ExpenseRequestTableActions from './components/ExpenseRequestTableActions'
 
 export const BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS = [
   'select',
-  'actions',
   'employee',
   'employeeCode',
   'sapNumber',
@@ -27,7 +26,8 @@ export const BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS = [
   'createdAt',
   'status',
   'totalRemainingAmount',
-  'totalAmount'
+  'totalAmount',
+  'actions'
 ] as const
 
 export interface BackofficeExpenseRequestTableChrome extends ExpenseRequestActionHandlers {
@@ -174,7 +174,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
 }
 
 /**
- * Full column set: bulk-select, row actions, then data columns (for {@link ExpenseDataTable}).
+ * Full column set: bulk-select, data columns, then row actions (last column — matches manager expense requests).
  */
 export function createBackofficeExpenseRequestColumns(
   t: TranslateFn,
@@ -217,24 +217,29 @@ export function createBackofficeExpenseRequestColumns(
 
   const actionsColumn: ColumnDef<ExpenseData> = {
     id: 'actions',
-    header: t('header-actions'),
+    header: () => (
+      <span className="gba:block gba:w-full gba:text-right gba:pr-2 gba:whitespace-nowrap">{t('header-actions')}</span>
+    ),
     enableSorting: false,
-    size: 60,
-    minSize: 60,
-    maxSize: 60,
+    size: 96,
+    minSize: 88,
+    maxSize: 120,
+    meta: { align: 'right' as const },
     cell: ({ row }) => (
-      <ExpenseRequestTableActions
-        record={row.original}
-        accessToken={chrome.accessToken}
-        transferInProgress={chrome.isTransferInProgress(row.original.id)}
-        onNavigateToExpenseRequest={chrome.onNavigateToExpenseRequest}
-        onDownloadAccountingNote={chrome.onDownloadAccountingNote}
-        onTriggerCSV={chrome.onTriggerCSV}
-        onPrintExpenseRequest={chrome.onPrintExpenseRequest}
-        onTransferPayment={chrome.onTransferPayment}
-      />
+      <div className="gba:box-border gba:flex gba:w-full gba:min-w-0 gba:items-center gba:justify-end gba:pr-3 gba:pl-1">
+        <ExpenseRequestTableActions
+          record={row.original}
+          accessToken={chrome.accessToken}
+          transferInProgress={chrome.isTransferInProgress(row.original.id)}
+          onNavigateToExpenseRequest={chrome.onNavigateToExpenseRequest}
+          onDownloadAccountingNote={chrome.onDownloadAccountingNote}
+          onTriggerCSV={chrome.onTriggerCSV}
+          onPrintExpenseRequest={chrome.onPrintExpenseRequest}
+          onTransferPayment={chrome.onTransferPayment}
+        />
+      </div>
     )
   }
 
-  return [selectColumn, actionsColumn, ...createBackofficeExpenseRequestDataColumns(t)]
+  return [selectColumn, ...createBackofficeExpenseRequestDataColumns(t), actionsColumn]
 }

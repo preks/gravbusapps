@@ -18,6 +18,11 @@ import {
   useExpenseRequestSelection,
   useExpenseRequestTabState
 } from './hooks'
+import { useTableSetup } from '../../../common/hooks/useTableSetup'
+import {
+  createBackofficeExpenseRequestColumns,
+  type BackofficeExpenseRequestTableChrome
+} from './backofficeExpenseRequestColumns'
 import ExpenseRequestsTable from './ExpenseRequestsTable'
 import { ExpenseRequestPdfModal, EmployeeSearchFilter, ExpenseRequestsDataDisplay } from './components'
 import ExpenseRequestsTableExportOverlay from './components/ExpenseRequestsTableExportOverlay'
@@ -189,6 +194,61 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     setSelectedExpense(null)
   }, [])
 
+  const tableChrome: BackofficeExpenseRequestTableChrome = useMemo(
+    () => ({
+      accessToken: accessToken ?? '',
+      bookableRecordsCount,
+      allBookableSelected,
+      onSelectAllRecords: handleSelectAllRecords,
+      selectedRowKeys,
+      onSelectRecord: handleSelectRecord,
+      isTransferInProgress,
+      onNavigateToExpenseRequest: handleNavigateToExpenseRequest,
+      onDownloadAccountingNote: handleDownloadAccountingNote,
+      onTriggerCSV: handleTriggerCSV,
+      onPrintExpenseRequest: handlePrintExpenseRequest,
+      onTransferPayment: handleTransferPayment
+    }),
+    [
+      accessToken,
+      bookableRecordsCount,
+      allBookableSelected,
+      handleSelectAllRecords,
+      selectedRowKeys,
+      handleSelectRecord,
+      isTransferInProgress,
+      handleNavigateToExpenseRequest,
+      handleDownloadAccountingNote,
+      handleTriggerCSV,
+      handlePrintExpenseRequest,
+      handleTransferPayment
+    ]
+  )
+
+  const allExpenseRequestColumns = useMemo(
+    () => createBackofficeExpenseRequestColumns(t, tableChrome),
+    [t, tableChrome]
+  )
+
+  const visibleExpenseRequestColumnIds = useMemo(
+    () => ['select', ...columnsFilteredByVisibility, 'actions'],
+    [columnsFilteredByVisibility]
+  )
+
+  const {
+    columns: expenseRequestTableColumns,
+    pagination,
+    handlePaginationChange
+  } = useTableSetup(
+    props,
+    allExpenseRequestColumns,
+    visibleExpenseRequestColumnIds,
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize
+  )
+
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-requests-tab-container">
       <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="expense-requests-table-wrapper">
@@ -227,35 +287,17 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
           renderEmployeeFilter={renderEmployeeFilter}
         >
           <ExpenseRequestsTable
-            accessToken={props.accessToken}
-            userInfo={props.userInfo}
             expenses={expenses ?? []}
             loading={loading}
             error={error}
             totalItems={totalItems}
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
-            pageSize={pageSize}
-            setPageSize={setPageSize}
+            columns={expenseRequestTableColumns}
             sorting={sortingState}
             onSortingChange={handleSortingChange}
-            visibleColumnIds={['select', 'actions', ...columnsFilteredByVisibility]}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
             emptyMessage={listEmptyMessage}
             onRowClick={handleRowClick}
-            tableChrome={{
-              accessToken: accessToken ?? '',
-              bookableRecordsCount,
-              allBookableSelected,
-              onSelectAllRecords: handleSelectAllRecords,
-              selectedRowKeys,
-              onSelectRecord: handleSelectRecord,
-              isTransferInProgress,
-              onNavigateToExpenseRequest: handleNavigateToExpenseRequest,
-              onDownloadAccountingNote: handleDownloadAccountingNote,
-              onTriggerCSV: handleTriggerCSV,
-              onPrintExpenseRequest: handlePrintExpenseRequest,
-              onTransferPayment: handleTransferPayment
-            }}
           />
         </ExpenseRequestsDataDisplay>
 
