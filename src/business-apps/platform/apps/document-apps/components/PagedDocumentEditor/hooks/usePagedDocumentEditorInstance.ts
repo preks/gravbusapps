@@ -28,7 +28,7 @@ import { isDocumentImageProtectedSrc, resolveProtectedDocumentImageSrc } from '.
 import { createYjsCursorExtension } from '../extensions/YjsCursor'
 import { LineAndParagraphSpacing } from '../extensions/LineAndParagraphSpacing'
 import { ParagraphIndent } from '../extensions/ParagraphIndent'
-import { DocumentImage, PageBreak, SearchHighlight } from '../extensions'
+import { DocumentImage, PageBreak, SearchHighlight, Signature } from '../extensions'
 import { InlineComment as InlineCommentExtension } from '../../../../shared/extensions/InlineCommentExtension'
 
 const PAGE_GAP_PX = 24
@@ -66,6 +66,7 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
         class: 'editor-image'
       }
     }),
+    Signature,
     Table.configure({
       resizable: true,
       renderWrapper: false,

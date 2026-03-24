@@ -20,6 +20,7 @@ import {
   getPaginationConfigFromFormatting,
   getPrintStyleConfigFromFormatting,
   normalizeStoredPagesFormatting,
+  omitCustomPageDimensions,
   resolvePageLayout,
   sanitizeStandalonePageNumberTemplates
 } from '../../../utils/pageLayoutUtils'
@@ -93,7 +94,9 @@ export function usePagedDocumentFormattingState({
       margins: fromDoc.margins,
       marginUnit: fromDoc.marginUnit,
       pageColor: fromDoc.pageColor,
-      pageless: fromDoc.pageless
+      pageless: fromDoc.pageless,
+      customPageWidthCm: fromDoc.customPageWidthCm,
+      customPageHeightCm: fromDoc.customPageHeightCm
     })
   }, [documentFormatting, initialFormatting])
 
@@ -177,13 +180,19 @@ export function usePagedDocumentFormattingState({
       const resolved = resolvePageLayout(formattingSource)
       return {
         ...documentFormatting,
-        ...formattingSource,
+        ...omitCustomPageDimensions(formattingSource),
         pageSize: resolved.pageSize,
         orientation: resolved.orientation,
         margins: resolved.margins,
         marginUnit: resolved.marginUnit,
         pageColor: resolved.pageColor,
         pageless: resolved.pageless,
+        ...(resolved.pageSize === 'CUSTOM'
+          ? {
+              customPageWidthCm: resolved.customPageWidthCm,
+              customPageHeightCm: resolved.customPageHeightCm
+            }
+          : {}),
         pages: getPersistedPagesFormatting(pagesOverride ?? formattingSource.pages)
       }
     },

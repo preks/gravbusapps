@@ -72,6 +72,7 @@ export interface PagedDocumentEditorHeaderProps {
   canOpenPageNumbersDialog: boolean
   onOpenLinkDialog: () => void
   onOpenInsertImageDialog: () => void
+  onOpenInsertSignatureDialog?: () => void
   onOpenInsertTableDialog: () => void
   onOpenTableSidebar: () => void
   onOpenPageNumbersDialog: () => void
@@ -121,6 +122,7 @@ export function PagedDocumentEditorHeader({
   canOpenPageNumbersDialog,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
+  onOpenInsertSignatureDialog,
   onOpenInsertTableDialog,
   onOpenTableSidebar,
   onOpenPageNumbersDialog,
@@ -395,6 +397,7 @@ export function PagedDocumentEditorHeader({
         editor={activeEditor}
         onOpenLinkDialog={onOpenLinkDialog}
         onOpenInsertImageDialog={onOpenInsertImageDialog}
+        onOpenInsertSignatureDialog={onOpenInsertSignatureDialog}
         onOpenInsertTableDialog={onOpenInsertTableDialog}
         onOpenTableSidebar={onOpenTableSidebar}
         onOpenPageNumbersDialog={canOpenPageNumbersDialog ? onOpenPageNumbersDialog : undefined}
