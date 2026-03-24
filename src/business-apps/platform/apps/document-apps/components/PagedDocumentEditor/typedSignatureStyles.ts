@@ -1,8 +1,13 @@
 /**
- * Typed (rendered) signature font styles — system font stacks similar to common e-sign products.
+ * Typed (rendered) signature styles using handwriting-oriented web fonts + OS fallbacks.
+ *
+ * Primary faces (loaded in index.html; also @import’d into exported SVG so snapshots render
+ * consistently when opened online). Generic serif/sans options are avoided for “signature” rows —
+ * they read as typed text, not pen strokes.
  */
 
 export const TYPED_SIGNATURE_STYLE_IDS = [
+  'normal',
   'cursive',
   'formal',
   'script',
@@ -19,13 +24,17 @@ export const TYPED_SVG_HEIGHT = 80
 export const TYPED_INITIALS_WIDTH = 160
 export const TYPED_INITIALS_HEIGHT = 80
 
+/** Same URL as index.html — keep in sync for preview vs saved SVG. */
+export const SIGNATURE_TYPED_FONTS_STYLESHEET_URL =
+  'https://fonts.googleapis.com/css2?family=Allura&family=Caveat:wght@400;600&family=Dancing+Script:wght@400;700&family=Great+Vibes&family=Italianno&family=Sacramento&display=swap'
+
 function isTypedSignatureStyle(v: string): v is TypedSignatureStyle {
   return (TYPED_SIGNATURE_STYLE_IDS as readonly string[]).includes(v)
 }
 
-/** Restores saved style; unknown or legacy values fall back to cursive. */
+/** Restores saved style; unknown values fall back to normal. */
 export function parseTypedSignatureStyle(v: unknown): TypedSignatureStyle {
-  return typeof v === 'string' && isTypedSignatureStyle(v) ? v : 'cursive'
+  return typeof v === 'string' && isTypedSignatureStyle(v) ? v : 'normal'
 }
 
 function fontStackToCss(families: string[]): string {
@@ -42,57 +51,88 @@ type StyleSpec = {
   fontWeight?: string
 }
 
+/**
+ * Style presets → pen-like scripts (not body fonts).
+ * - Dancing Script: natural flowing signature (default “cursive”).
+ * - Great Vibes / Allura / Sacramento / Italianno: formal / script / delicate / classic flourish.
+ * - Caveat: informal modern hand-print.
+ */
 const STYLE_SPECS: Record<TypedSignatureStyle, StyleSpec> = {
+  /** Plain print-style name (not script) — closest to “typed on the line”. */
+  normal: {
+    families: ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+    fontSizeFull: 26,
+    fontSizeInitials: 30,
+    baselineYFull: 48,
+    baselineYInitials: 50
+  },
   cursive: {
-    families: ['cursive'],
-    fontSizeFull: 32,
-    fontSizeInitials: 36,
-    baselineYFull: 50,
-    baselineYInitials: 52
+    families: ['Dancing Script', 'Segoe Script', 'Apple Chancery', 'cursive'],
+    fontSizeFull: 34,
+    fontSizeInitials: 38,
+    baselineYFull: 52,
+    baselineYInitials: 54
   },
   formal: {
-    families: ['Georgia', 'Times New Roman', 'Times', 'serif'],
+    families: ['Great Vibes', 'Snell Roundhand', 'Apple Chancery', 'cursive'],
     fontSizeFull: 32,
     fontSizeInitials: 36,
     baselineYFull: 50,
     baselineYInitials: 52
   },
   script: {
-    families: ['Segoe Script', 'Apple Chancery', 'Snell Roundhand', 'Brush Script MT', 'cursive'],
+    families: ['Allura', 'Segoe Script', 'Brush Script MT', 'cursive'],
     fontSizeFull: 34,
     fontSizeInitials: 38,
     baselineYFull: 52,
     baselineYInitials: 54
   },
   elegant: {
-    families: ['Palatino Linotype', 'Palatino', 'Book Antiqua', 'serif'],
-    fontSizeFull: 30,
-    fontSizeInitials: 34,
-    baselineYFull: 48,
-    baselineYInitials: 50
+    families: ['Sacramento', 'Snell Roundhand', 'Apple Chancery', 'cursive'],
+    fontSizeFull: 36,
+    fontSizeInitials: 40,
+    baselineYFull: 54,
+    baselineYInitials: 56
   },
   modern: {
-    families: ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
-    fontSizeFull: 28,
-    fontSizeInitials: 32,
-    baselineYFull: 46,
-    baselineYInitials: 48
-  },
-  classic: {
-    families: ['Times New Roman', 'Times', 'Liberation Serif', 'serif'],
+    families: ['Caveat', 'Segoe Script', 'cursive'],
     fontSizeFull: 32,
     fontSizeInitials: 36,
     baselineYFull: 50,
     baselineYInitials: 52
   },
+  classic: {
+    families: ['Italianno', 'Great Vibes', 'cursive'],
+    fontSizeFull: 38,
+    fontSizeInitials: 42,
+    baselineYFull: 54,
+    baselineYInitials: 56
+  },
   bold: {
-    families: ['Arial Black', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
-    fontSizeFull: 28,
-    fontSizeInitials: 32,
-    baselineYFull: 46,
-    baselineYInitials: 48,
+    families: ['Dancing Script', 'Segoe Script', 'Brush Script MT', 'cursive'],
+    fontSizeFull: 32,
+    fontSizeInitials: 36,
+    baselineYFull: 50,
+    baselineYInitials: 52,
     fontWeight: '700'
   }
+}
+
+/** Font + weight for live preview inputs (Type tab) and style dropdown rows. */
+export function getTypedSignatureInputPreviewStyle(style: TypedSignatureStyle): {
+  fontFamily: string
+  fontWeight?: string
+} {
+  const spec = STYLE_SPECS[style]
+  return {
+    fontFamily: fontStackToCss(spec.families),
+    ...(spec.fontWeight ? { fontWeight: spec.fontWeight } : {})
+  }
+}
+
+function svgGoogleFontImportDefs(): string {
+  const href = SIGNATURE_TYPED_FONTS_STYLESHEET_URL.replace(/&/g, '&amp;')
+  return `<defs><style type="text/css">@import url("${href}");</style></defs>`
 }
 
 function escapeSvgTextContent(s: string): string {
@@ -151,7 +191,7 @@ export function typedTextToSvg(
   const escaped = escapeSvgTextContent(text)
   const pen = normalizeTypedStrokeThickness(strokeThickness)
   const styleAttr = escapeSvgStyleAttr(buildTextStyle(spec, spec.fontSizeFull, fill, pen))
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TYPED_SVG_WIDTH} ${TYPED_SVG_HEIGHT}" width="${TYPED_SVG_WIDTH}" height="${TYPED_SVG_HEIGHT}"><text x="0" y="${spec.baselineYFull}" style="${styleAttr}">${escaped}</text></svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TYPED_SVG_WIDTH} ${TYPED_SVG_HEIGHT}" width="${TYPED_SVG_WIDTH}" height="${TYPED_SVG_HEIGHT}">${svgGoogleFontImportDefs()}<text x="0" y="${spec.baselineYFull}" style="${styleAttr}">${escaped}</text></svg>`
 }
 
 export function typedInitialsToSvg(
@@ -164,5 +204,5 @@ export function typedInitialsToSvg(
   const escaped = escapeSvgTextContent(text)
   const pen = normalizeTypedStrokeThickness(strokeThickness)
   const styleAttr = escapeSvgStyleAttr(buildTextStyle(spec, spec.fontSizeInitials, fill, pen))
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TYPED_INITIALS_WIDTH} ${TYPED_INITIALS_HEIGHT}" width="${TYPED_INITIALS_WIDTH}" height="${TYPED_INITIALS_HEIGHT}"><text x="0" y="${spec.baselineYInitials}" style="${styleAttr}">${escaped}</text></svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TYPED_INITIALS_WIDTH} ${TYPED_INITIALS_HEIGHT}" width="${TYPED_INITIALS_WIDTH}" height="${TYPED_INITIALS_HEIGHT}">${svgGoogleFontImportDefs()}<text x="0" y="${spec.baselineYInitials}" style="${styleAttr}">${escaped}</text></svg>`
 }

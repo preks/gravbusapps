@@ -32,6 +32,7 @@ import translations from '../../_i18n'
 import { UserSignatureApiService, type UserSignatureDto } from '../../services/UserSignatureApiService'
 import { SignatureCanvas, strokesToSvg } from './SignatureCanvas'
 import { SignatureInkPicker } from './SignatureInkPicker'
+import { SignatureTypedStylePicker } from './SignatureTypedStylePicker'
 import { SignaturePicker } from './SignaturePicker'
 import { DEFAULT_SIGNATURE_INK_HEX } from './signatureInkPalette'
 import type { StrokeData, StrokePoint } from '@/business-apps/platform/apps/shared/types/strokes'
@@ -39,8 +40,8 @@ import {
   typedTextToSvg,
   typedInitialsToSvg,
   type TypedSignatureStyle,
-  TYPED_SIGNATURE_STYLE_IDS,
-  parseTypedSignatureStyle
+  parseTypedSignatureStyle,
+  getTypedSignatureInputPreviewStyle
 } from './typedSignatureStyles'
 
 const UPLOAD_MAX_WIDTH = 800
@@ -171,7 +172,7 @@ export function SignatureDialog({
 
   const [fullName, setFullName] = useState('')
   const [initialsText, setInitialsText] = useState('')
-  const [typedStyle, setTypedStyle] = useState<TypedSignatureStyle>('cursive')
+  const [typedStyle, setTypedStyle] = useState<TypedSignatureStyle>('normal')
   const [drawnStrokes, setDrawnStrokes] = useState<StrokeData[]>([])
   const [drawnInitialsStrokes, setDrawnInitialsStrokes] = useState<StrokeData[]>([])
   const [strokeThickness, setStrokeThickness] = useState(2)
@@ -230,7 +231,7 @@ export function SignatureDialog({
     setFullName('')
     setInitialsText('')
     setSaveName('')
-    setTypedStyle('cursive')
+    setTypedStyle('normal')
     setDrawnStrokes([])
     setDrawnInitialsStrokes([])
     setDrawCanvasMountKey(k => k + 1)
@@ -254,7 +255,7 @@ export function SignatureDialog({
     setDrawnInitialsStrokes([])
     setDrawCanvasMountKey(k => k + 1)
     setSignatureInkHex(DEFAULT_SIGNATURE_INK_HEX)
-    setTypedStyle('cursive')
+    setTypedStyle('normal')
   }, [])
 
   const handleCancelEdit = useCallback(() => {
@@ -640,6 +641,7 @@ export function SignatureDialog({
                   onChange={e => setFullName(e.target.value)}
                   placeholder={t('signature-full-name-placeholder')}
                   data-testid={`${testId}-full-name`}
+                  style={activeTab === 'typed' ? getTypedSignatureInputPreviewStyle(typedStyle) : undefined}
                 />
               </div>
               <div className="gba:space-y-2">
@@ -723,22 +725,12 @@ export function SignatureDialog({
                   id={`${testId}-typed-ink`}
                   data-testid={`${testId}-typed-ink-picker`}
                 />
-                <div className="gba:space-y-2">
-                  <Label htmlFor={`${testId}-typed-style`}>{t('signature-typed-style')}</Label>
-                  <select
-                    id={`${testId}-typed-style`}
-                    value={typedStyle}
-                    onChange={e => setTypedStyle(e.target.value as TypedSignatureStyle)}
-                    className="gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm"
-                    data-testid={`${testId}-typed-style`}
-                  >
-                    {TYPED_SIGNATURE_STYLE_IDS.map(id => (
-                      <option key={id} value={id} data-testid={`${testId}-typed-style-${id}`}>
-                        {t(`signature-style-${id}`)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SignatureTypedStylePicker
+                  value={typedStyle}
+                  onChange={setTypedStyle}
+                  id={`${testId}-typed-style`}
+                  data-testid={`${testId}-typed-style`}
+                />
                 <div className="gba:space-y-2">
                   <Label htmlFor={`${testId}-typed-stroke-thickness`}>{t('signature-stroke-thickness-label')}</Label>
                   <select

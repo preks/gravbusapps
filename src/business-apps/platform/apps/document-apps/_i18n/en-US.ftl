@@ -564,6 +564,7 @@ signature-ink-family-red = Red
 signature-ink-tone-dark = Dark
 signature-ink-tone-medium = Medium
 signature-ink-tone-light = Light
+signature-style-normal = Normal
 signature-style-cursive = Cursive
 signature-style-formal = Formal
 signature-style-script = Script

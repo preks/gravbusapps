@@ -563,6 +563,7 @@ signature-ink-family-red = Roșu
 signature-ink-tone-dark = Închis
 signature-ink-tone-medium = Mediu
 signature-ink-tone-light = Deschis
+signature-style-normal = Normal
 signature-style-cursive = Cursiv
 signature-style-formal = Formal
 signature-style-script = Script

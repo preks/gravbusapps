@@ -563,6 +563,7 @@ signature-ink-family-red = Rot
 signature-ink-tone-dark = Dunkel
 signature-ink-tone-medium = Mittel
 signature-ink-tone-light = Hell
+signature-style-normal = Normal
 signature-style-cursive = Schreibschrift
 signature-style-formal = Formal
 signature-style-script = Skript
