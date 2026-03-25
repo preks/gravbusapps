@@ -49,7 +49,7 @@ export const NewworkBusinessApps: React.FC<NewworkBusinessAppsProps> = ({
       title: 'HR+',
       description: 'Employee management, time tracking, absences, and organizational structure.',
       icon: Users,
-      href: '/platform/apps/hr/core/apps/my-portal',
+      href: '/platform/hr/core/apps/hr-launcher',
       badge: 'Popular',
       badgeVariant: 'success',
       accentColor: 'info'
@@ -184,7 +184,7 @@ export const NewworkBusinessApps: React.FC<NewworkBusinessAppsProps> = ({
 
     if (maxScore > 0) {
       if (scores.hr === maxScore) {
-        targetUrl = '/platform/apps/hr/core/apps/my-portal'
+        targetUrl = '/platform/hr/core/apps/hr-launcher'
       } else if (scores.sales === maxScore) {
         targetUrl = '/platform/crm/customer-relations'
       } else if (scores.finance === maxScore) {
