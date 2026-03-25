@@ -17,7 +17,7 @@ describe('CustomTable pagination structure', () => {
     const editor = new Editor({
       extensions: [
         StarterKit.configure({
-          history: false
+          undoRedo: false
         }),
         Table.configure({
           resizable: false,
@@ -35,7 +35,7 @@ describe('CustomTable pagination structure', () => {
         normalizeDocumentHtmlForEditor(
           '<table><tbody><tr><td rowspan="2">A</td><td>B</td></tr><tr><td>C</td></tr><tr><td>D</td><td>E</td></tr></tbody></table>'
         ),
-        false
+        { emitUpdate: false }
       )
       await waitForEditorPlugins()
 

@@ -61,6 +61,31 @@ describe('ensurePagesStyles', () => {
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .column-resize-handle')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after')
   })
+
+  it('keeps the standalone first page header shell behind overlapping body content', () => {
+    const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
+
+    ensurePagesStyles(targetDocument)
+
+    const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
+
+    expect(style?.textContent).toMatch(/\.rm-pages-root \.rm-first-page-header \{[\s\S]*?z-index: 1;/)
+  })
+
+  it('keeps the blank first-page header shell click-through while preserving visible header targets', () => {
+    const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
+
+    ensurePagesStyles(targetDocument)
+
+    const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
+
+    expect(style?.textContent).toMatch(
+      /\.rm-pages-root \.rm-first-page-header > \.rm-page-header \{[\s\S]*?pointer-events: none;/
+    )
+    expect(style?.textContent).toMatch(
+      /\.rm-pages-root \.rm-first-page-header \.rm-page-header-content,[\s\S]*?pointer-events: auto;/
+    )
+  })
 })
 
 describe('refreshHeaderFooterRegionDisplay', () => {

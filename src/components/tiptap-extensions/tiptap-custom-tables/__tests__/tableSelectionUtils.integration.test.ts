@@ -7,7 +7,7 @@ function createEditor(content: string) {
   return new Editor({
     extensions: [
       StarterKit.configure({
-        history: false
+        undoRedo: false
       }),
       Table.configure({
         resizable: false,

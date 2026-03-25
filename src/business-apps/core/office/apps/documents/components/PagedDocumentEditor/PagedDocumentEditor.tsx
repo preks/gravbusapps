@@ -1172,59 +1172,64 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       documentEditorRightReservePx == null ? undefined : { paddingRight: documentEditorRightReservePx }
 
     return (
-      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background gba:relative" data-testid={testId}>
-        <PagedDocumentEditorHeader
-          document={document}
-          title={title}
-          isReadOnly={isReadOnly}
-          isSaving={isSaving}
-          isExporting={isExporting}
-          hasUnsavedChanges={hasUnsavedChanges}
-          lastSaved={lastSaved}
-          participants={participants}
-          unresolvedCommentCount={comments.unresolvedCount}
-          rightSidebar={rightSidebar}
-          publishingStatus={publishing.metadata?.status || 'draft'}
-          setHeaderChromeNode={setHeaderChromeNode}
-          onBack={onBack}
-          onTitleChange={handleTitleChange}
-          onTitleKeyDown={handleTitleKeyDown}
-          onTitleBlur={handleTitleBlur}
-          onSave={handleSave}
-          onCommentsButtonPointerDown={handleCommentsButtonPointerDown}
-          onToggleCommentsSidebar={toggleCommentsSidebar}
-          onOpenVersionHistory={openVersionHistory}
-          onOpenCheckpointDialog={openCheckpointDialog}
-          onAcquireLock={() => fileLock.acquireLock()}
-          onReleaseLock={() => fileLock.releaseLock()}
-          onOpenPublishDialog={openPublishDialog}
-          onOpenPageSetupDialog={openPageSetupDialog}
-          onSaveAsTemplate={onSaveAsTemplate ? handleSaveAsTemplate : undefined}
-          onSendForApproval={onSendForApproval}
-          onExportWord={handleExportWord}
-          onExportPDF={handleExportPDF}
-          onPrint={handlePrint}
-          onAiEditClick={handleAiEditClick}
-          activeEditor={activeEditor}
-          canOpenPageNumbersDialog={Boolean(editor)}
-          onOpenLinkDialog={openLinkDialog}
-          onOpenInsertImageDialog={openInsertImageDialog}
-          onOpenInsertSignatureDialog={() => setShowInsertSignatureDialog(true)}
-          onOpenInsertTableDialog={handleOpenInsertTableDialog}
-          onOpenTableSidebar={openTableSettingsSidebar}
-          onOpenPageNumbersDialog={handleOpenPageNumbersDialog}
-          onOpenFind={() => openNavigationPanelTab('find')}
-          onOpenReplace={() => openNavigationPanelTab('replace')}
-          onTranslate={t}
-          headerExtra={headerExtra}
-          approvalRequest={document?.approvalRequest}
-          isLocked={Boolean(fileLock.lock?.isLocked)}
-          isLockedByMe={fileLock.isLockedByMe}
-          testId={testId}
-        />
+      <div
+        className="gba:relative gba:flex gba:h-full gba:min-h-0 gba:min-w-0 gba:flex-col gba:bg-background"
+        data-testid={testId}
+      >
+        <div className="gba:sticky gba:top-0 gba:z-20 gba:flex-shrink-0 gba:bg-background">
+          <PagedDocumentEditorHeader
+            document={document}
+            title={title}
+            isReadOnly={isReadOnly}
+            isSaving={isSaving}
+            isExporting={isExporting}
+            hasUnsavedChanges={hasUnsavedChanges}
+            lastSaved={lastSaved}
+            participants={participants}
+            unresolvedCommentCount={comments.unresolvedCount}
+            rightSidebar={rightSidebar}
+            publishingStatus={publishing.metadata?.status || 'draft'}
+            setHeaderChromeNode={setHeaderChromeNode}
+            onBack={onBack}
+            onTitleChange={handleTitleChange}
+            onTitleKeyDown={handleTitleKeyDown}
+            onTitleBlur={handleTitleBlur}
+            onSave={handleSave}
+            onCommentsButtonPointerDown={handleCommentsButtonPointerDown}
+            onToggleCommentsSidebar={toggleCommentsSidebar}
+            onOpenVersionHistory={openVersionHistory}
+            onOpenCheckpointDialog={openCheckpointDialog}
+            onAcquireLock={() => fileLock.acquireLock()}
+            onReleaseLock={() => fileLock.releaseLock()}
+            onOpenPublishDialog={openPublishDialog}
+            onOpenPageSetupDialog={openPageSetupDialog}
+            onSaveAsTemplate={onSaveAsTemplate ? handleSaveAsTemplate : undefined}
+            onSendForApproval={onSendForApproval}
+            onExportWord={handleExportWord}
+            onExportPDF={handleExportPDF}
+            onPrint={handlePrint}
+            onAiEditClick={handleAiEditClick}
+            activeEditor={activeEditor}
+            canOpenPageNumbersDialog={Boolean(editor)}
+            onOpenLinkDialog={openLinkDialog}
+            onOpenInsertImageDialog={openInsertImageDialog}
+            onOpenInsertSignatureDialog={() => setShowInsertSignatureDialog(true)}
+            onOpenInsertTableDialog={handleOpenInsertTableDialog}
+            onOpenTableSidebar={openTableSettingsSidebar}
+            onOpenPageNumbersDialog={handleOpenPageNumbersDialog}
+            onOpenFind={() => openNavigationPanelTab('find')}
+            onOpenReplace={() => openNavigationPanelTab('replace')}
+            onTranslate={t}
+            headerExtra={headerExtra}
+            approvalRequest={document?.approvalRequest}
+            isLocked={Boolean(fileLock.lock?.isLocked)}
+            isLockedByMe={fileLock.isLockedByMe}
+            testId={testId}
+          />
+        </div>
 
         {/* Main content: Navigation panel, or expand strip + optional template panel, then editor */}
-        <div className="gba:flex gba:flex-1 gba:min-h-0 gba:flex-row">
+        <div className="gba:flex gba:flex-1 gba:min-h-0 gba:min-w-0 gba:flex-row gba:overflow-hidden">
           {showNavigationPanel ? (
             <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
               <NavigationPanel
@@ -1263,7 +1268,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           {/* Editor Area with Page Layout - background matches page gap for consistent document canvas */}
           <div
             ref={editorContainerRef}
-            className={`gba:flex-1 gba:overflow-auto gba:min-w-0 document-editor-viewport ${viewportBodyStateClass}`}
+            className={`gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto document-editor-viewport ${viewportBodyStateClass}`}
             style={editorViewportStyle}
             onScroll={handleScroll}
             data-layout-source={layoutViewportModel.source}
@@ -1310,19 +1315,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           </div>
         </div>
 
-        <DocumentBottomBar
-          zoom={zoom}
-          wordCount={wordCount}
-          charCount={charCount}
-          currentPage={pagesEditorState.activePageNumber ?? Math.min(currentPage, layoutSnapshot.pageCount)}
-          pageCount={layoutSnapshot.pageCount}
-          layoutWindowLabel={layoutViewportModel.rangeLabel}
-          layoutWindowMode={layoutViewportModel.isWindowed ? 'windowed' : 'full'}
-          onZoomOut={handleZoomOut}
-          onZoomChange={setZoom}
-          onZoomIn={handleZoomIn}
-          data-testid={`${testId}-bottom-bar`}
-        />
+        <div className="gba:sticky gba:bottom-0 gba:z-20 gba:flex-shrink-0 gba:bg-background">
+          <DocumentBottomBar
+            zoom={zoom}
+            wordCount={wordCount}
+            charCount={charCount}
+            currentPage={pagesEditorState.activePageNumber ?? Math.min(currentPage, layoutSnapshot.pageCount)}
+            pageCount={layoutSnapshot.pageCount}
+            layoutWindowLabel={layoutViewportModel.rangeLabel}
+            layoutWindowMode={layoutViewportModel.isWindowed ? 'windowed' : 'full'}
+            onZoomOut={handleZoomOut}
+            onZoomChange={setZoom}
+            onZoomIn={handleZoomIn}
+            data-testid={`${testId}-bottom-bar`}
+          />
+        </div>
 
         <PagedDocumentAiInstructionOverlay
           open={Boolean(document?.id && showAiInstructionDialog)}

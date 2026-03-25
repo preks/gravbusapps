@@ -317,11 +317,16 @@ export function createPaginationExtensionPlugins(options: {
             const clickedEditableContent =
               targetElement?.closest('.ProseMirror[contenteditable="true"]') !== null &&
               targetElement?.closest('.rm-page-inline-editor') === null
-            if (clickedEditableContent) {
+            const resolution = resolvePaginationBodyClick(view, event.clientX, event.clientY)
+            if (clickedEditableContent && resolution.action !== 'set') {
               return false
             }
-
-            const resolution = resolvePaginationBodyClick(view, event.clientX, event.clientY)
+            if (clickedEditableContent && resolution.action === 'set') {
+              const selection = createSafePaginationSelection(view.state.doc, resolution.position)
+              view.focus()
+              view.dispatch(view.state.tr.setSelection(selection).scrollIntoView())
+              return false
+            }
             if (resolution.action === 'allow') return false
 
             event.preventDefault()

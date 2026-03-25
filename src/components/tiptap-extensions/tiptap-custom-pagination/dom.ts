@@ -637,10 +637,14 @@ export function ensurePagesStyles(targetDocument: Document) {
       width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
       margin-left: calc(-1 * var(--rm-page-margin-left));
       margin-right: calc(-1 * var(--rm-page-margin-right));
-      z-index: 2;
+      z-index: 1;
       pointer-events: none;
     }
     .rm-pages-root .rm-first-page-header > .rm-page-header {
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-first-page-header .rm-page-header-content,
+    .rm-pages-root .rm-first-page-header .rm-page-number-slot {
       pointer-events: auto;
     }
     .rm-pages-root .rm-page-header,
