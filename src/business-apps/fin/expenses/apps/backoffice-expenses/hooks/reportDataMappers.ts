@@ -13,9 +13,10 @@ import {
 } from '../utils/utils'
 import { extractCurrencyCode } from '../utils/sharedUtils'
 import {
+  advancePaidFromApiOrSettled,
   buildEmployeeDisplayName,
+  coerceReportAmount,
   getFormerEmployeeLabel,
-  getSettledAdvancePaidAmount,
   isPaidLikeStatus,
   toUpperText,
   hasStatusTransition,
@@ -53,9 +54,12 @@ const mapSingleRequest = (
     createdAt: request.createdAt || '',
     status: request.status || '',
     statusLabel: statusDisplay.label,
-    totalAmount: Number(request.reimbursableAmount ?? 0),
-    advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
-    remainingAmount: Number(request.totalRemainingAmount ?? 0),
+    totalAmount: coerceReportAmount(request.totalAmount),
+    advancePaidAmount: advancePaidFromApiOrSettled(
+      request?.advancePaymentPaidAmount ?? request?.expensePlan?.advancePaymentPaidAmount,
+      request?.expensePlan?.advancePayment
+    ),
+    remainingAmount: coerceReportAmount(request.totalRemainingAmount),
     currency: extractCurrencyCode(request.currencyRef),
     employeeName:
       buildEmployeeDisplayName(request.employee) ||
@@ -93,9 +97,9 @@ export const mapPlansFromOverview = (
       endDate: plan.endDate || '',
       status: plan.status || '',
       statusLabel: statusDisplay.label,
-      totalAmount: Number(plan.totalAmount || 0),
-      advancePaidAmount: getSettledAdvancePaidAmount(plan?.advancePayment),
-      remainingAmount: Number(plan.totalRemainingAmount ?? 0),
+      totalAmount: coerceReportAmount(plan.totalAmount),
+      advancePaidAmount: advancePaidFromApiOrSettled(plan?.advancePaymentPaidAmount, plan?.advancePayment),
+      remainingAmount: coerceReportAmount(plan.totalRemainingAmount),
       currency: extractCurrencyCode(plan.currencyRef),
       employeeName:
         buildEmployeeDisplayName(plan.employee) ||
@@ -350,7 +354,7 @@ const mapApprovalPayoutCycleRow = (
     ),
     status: request?.status || '',
     statusLabel: statusDisplay.label,
-    totalAmount: Number(request.reimbursableAmount ?? 0),
+    totalAmount: Number(request.totalAmount ?? 0),
     currency: extractCurrencyCode(request.currencyRef)
   }
 }
