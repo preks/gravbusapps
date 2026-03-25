@@ -308,6 +308,18 @@ export function createPaginationExtensionPlugins(options: {
             if (event.button !== 0) return false
             if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false
             if (storage.activeEditorType !== null) return false
+            const targetElement =
+              event.target instanceof Element
+                ? event.target
+                : event.target instanceof Node
+                  ? event.target.parentElement
+                  : null
+            const clickedEditableContent =
+              targetElement?.closest('.ProseMirror[contenteditable="true"]') !== null &&
+              targetElement?.closest('.rm-page-inline-editor') === null
+            if (clickedEditableContent) {
+              return false
+            }
 
             const resolution = resolvePaginationBodyClick(view, event.clientX, event.clientY)
             if (resolution.action === 'allow') return false
@@ -317,13 +329,38 @@ export function createPaginationExtensionPlugins(options: {
 
             if (resolution.action === 'set') {
               const selection = createSafePaginationSelection(view.state.doc, resolution.position)
-              if (!selection.eq(view.state.selection)) {
-                view.dispatch(view.state.tr.setSelection(selection))
-              }
+              view.focus()
+              view.dispatch(view.state.tr.setSelection(selection).scrollIntoView())
               view.focus()
             }
 
             return true
+          },
+          click: (view, event) => {
+            if (event.defaultPrevented) return false
+            if (event.button !== 0) return false
+            if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false
+            if (storage.activeEditorType !== null) return false
+            const targetElement =
+              event.target instanceof Element
+                ? event.target
+                : event.target instanceof Node
+                  ? event.target.parentElement
+                  : null
+            const clickedEditableContent =
+              targetElement?.closest('.ProseMirror[contenteditable="true"]') !== null &&
+              targetElement?.closest('.rm-page-inline-editor') === null
+            if (!clickedEditableContent) {
+              return false
+            }
+
+            const resolution = resolvePaginationBodyClick(view, event.clientX, event.clientY)
+            if (resolution.action !== 'set') {
+              return false
+            }
+
+            view.focus()
+            return false
           }
         }
       },

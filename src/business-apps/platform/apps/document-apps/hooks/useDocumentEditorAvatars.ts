@@ -7,15 +7,15 @@
 
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type { DocumentParticipant } from '../../shared/services/CollaborationClient'
+import type { OfficeDocumentParticipant } from '@/common/network/office/OfficeWebSocketClient'
 
 export interface UseDocumentEditorAvatarsParams {
   accessToken: string
-  rawParticipants: DocumentParticipant[]
+  rawParticipants: OfficeDocumentParticipant[]
 }
 
 export interface UseDocumentEditorAvatarsResult {
-  participants: DocumentParticipant[]
+  participants: OfficeDocumentParticipant[]
   currentUserId: string | null
   currentUserName: string | null
   currentUserAvatar: string | null
@@ -25,7 +25,7 @@ export function useDocumentEditorAvatars({
   accessToken,
   rawParticipants
 }: UseDocumentEditorAvatarsParams): UseDocumentEditorAvatarsResult {
-  const [participants, setParticipants] = useState<DocumentParticipant[]>(rawParticipants)
+  const [participants, setParticipants] = useState<OfficeDocumentParticipant[]>(rawParticipants)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentUserName, setCurrentUserName] = useState<string | null>(null)
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null)

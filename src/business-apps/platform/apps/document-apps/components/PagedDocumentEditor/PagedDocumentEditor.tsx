@@ -17,6 +17,7 @@ import type { Document, DocumentFormatting } from '../../types'
 import { sanitizeDocumentHtmlForEditor } from '../../utils/documentContentUtils'
 import { createDocumentImageUploadHandler } from '../../utils/documentImageBindings'
 import { useDocumentEditorAvatars, useDocumentEditorShortcuts, useVersionUserDisplays } from '../../hooks'
+import { useOfficeDocumentCollaboration } from '../../hooks/useOfficeDocumentCollaboration'
 import { useYjsDocumentSync } from '../../hooks/useYjsDocumentSync'
 import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
 import {
@@ -24,7 +25,6 @@ import {
   type PaginationPlusStorage as PagesStorage
 } from '@/components/tiptap-extensions/tiptap-custom-pagination'
 import { useImageDataUrlResolver } from '../../hooks/useImageDataUrlResolver'
-import { useCollaboration } from '../../../shared/hooks/useCollaboration'
 import { useVersioning } from '../../../shared/hooks/useVersioning'
 import { useFileLock } from '../../../shared/hooks/useFileLock'
 import { useComments } from '../../../shared/hooks/useComments'
@@ -429,8 +429,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const entityId = document?.id || ''
 
     // Collaboration state
-    const { participants: rawParticipants, socket: collaborationSocket } = useCollaboration({
-      entityType: 'document',
+    const { participants: rawParticipants, socket: collaborationSocket } = useOfficeDocumentCollaboration({
       entityId,
       enabled: !!document?.id,
       accessToken,

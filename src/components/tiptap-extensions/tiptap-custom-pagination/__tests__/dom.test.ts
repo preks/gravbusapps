@@ -132,6 +132,78 @@ describe('refreshHeaderFooterRegionDisplay', () => {
   })
 })
 
+describe('createHeaderFooterRegion interaction guards', () => {
+  it('allows mousedown to pass through empty inactive header regions', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: []
+    })
+
+    const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    region.dispatchEvent(event)
+
+    expect(region.dataset.rmHasVisibleContent).toBe('false')
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('allows mousedown to pass through visible inactive header regions', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    setStoredVariantContent(storage, 'header', 'default', {
+      html: '<p>Header</p>',
+      json: null
+    })
+
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: []
+    })
+
+    const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    region.dispatchEvent(event)
+
+    expect(region.dataset.rmHasVisibleContent).toBe('true')
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('keeps intercepting selectstart for inactive header regions with visible content', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    setStoredVariantContent(storage, 'header', 'default', {
+      html: '<p>Header</p>',
+      json: null
+    })
+
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: []
+    })
+
+    const event = new Event('selectstart', { bubbles: true, cancelable: true })
+    region.dispatchEvent(event)
+
+    expect(region.dataset.rmHasVisibleContent).toBe('true')
+    expect(event.defaultPrevented).toBe(true)
+  })
+})
+
 describe('createPaginationWrapper', () => {
   it('collapses off-window page runs into spacers around the mounted shell range', () => {
     const options = createTestOptions()

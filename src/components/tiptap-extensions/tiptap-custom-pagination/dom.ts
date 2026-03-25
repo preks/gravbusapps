@@ -1080,6 +1080,7 @@ export function refreshPageMinHeight(targetNode: HTMLElement) {
 
 function blockInactiveRegion(event: Event, region: HTMLElement) {
   if (region.dataset.rmOverlayActive === 'true') return
+  if (region.dataset.rmHasVisibleContent !== 'true') return
 
   event.preventDefault()
   event.stopPropagation()
@@ -1156,9 +1157,6 @@ export function createHeaderFooterRegion(params: {
   region.appendChild(inner)
   requestAnimationFrame(() => layoutPageNumberSlots(region))
 
-  region.addEventListener('mousedown', event => {
-    blockInactiveRegion(event, region)
-  })
   region.addEventListener('selectstart', event => {
     blockInactiveRegion(event, region)
   })

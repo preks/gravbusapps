@@ -9,6 +9,11 @@ export { useTemplateEntityFields } from './useTemplateEntityFields'
 export type { TemplateEntityFieldFromBe, UseTemplateEntityFieldsResult } from './useTemplateEntityFields'
 export { useDocumentEditorAvatars } from './useDocumentEditorAvatars'
 export type { UseDocumentEditorAvatarsParams, UseDocumentEditorAvatarsResult } from './useDocumentEditorAvatars'
+export { useOfficeDocumentCollaboration } from './useOfficeDocumentCollaboration'
+export type {
+  UseOfficeDocumentCollaborationOptions,
+  UseOfficeDocumentCollaborationReturn
+} from './useOfficeDocumentCollaboration'
 export { useYjsDocumentSync } from './useYjsDocumentSync'
 export type { UseYjsDocumentSyncParams, UseYjsDocumentSyncResult } from './useYjsDocumentSync'
 export { useDocumentEditorShortcuts } from './useDocumentEditorShortcuts'

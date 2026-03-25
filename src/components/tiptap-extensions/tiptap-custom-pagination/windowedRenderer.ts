@@ -359,7 +359,7 @@ export function renderWindowedPaginationChrome(params: WindowedRenderWrapperPara
   const chromeRoot = document.createElement('div')
   chromeRoot.dataset.rmPaginationChrome = 'true'
   chromeRoot.style.display = 'contents'
-  chromeRoot.append(renderWindowedPaginationWrapper(params), renderWindowedFirstPageHeader(params))
+  chromeRoot.append(renderWindowedFirstPageHeader(params), renderWindowedPaginationWrapper(params))
   return chromeRoot
 }
 

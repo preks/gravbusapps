@@ -81,6 +81,10 @@ export const DOCUMENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_API_URL'
   servicePath: '/document',
   apiPath: '/api/v1'
 })
+export const OFFICE_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL', {
+  servicePath: '/document',
+  apiPath: ''
+})
 export const EMPLOYEE_EXPENSE_API_URL = resolveServiceUrl('NEXT_PUBLIC_EMPLOYEE_EXPENSE_API_URL', {
   servicePath: '/processes/employee-expense',
   apiPath: ''

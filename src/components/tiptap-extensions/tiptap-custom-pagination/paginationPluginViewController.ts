@@ -54,6 +54,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   getDeferredStabilizationAttemptCount: (view: EditorView) => number
   shouldScheduleDeferredRepaginationOnUpdate: (options: {
     activeEditorType: PagesStorage['activeEditorType']
+    hasTables: boolean
     externalDocChange: boolean
     paginationOwnedDocChange: boolean
     hydrationOwnedDocChange: boolean
