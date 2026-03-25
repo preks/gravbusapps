@@ -53,7 +53,6 @@ const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({
         )}
         {(isSelfView || canRequestFeedbackOnBehalf) && (
           <AppAction
-            key={`request-feedback-${isSelfView ? 'self' : 'other'}-${canRequestFeedbackOnBehalf ? 'on' : 'off'}-${employee?.id ?? 'none'}`}
             variant="update-secondary"
             buttonSize="default"
             contexts={[
