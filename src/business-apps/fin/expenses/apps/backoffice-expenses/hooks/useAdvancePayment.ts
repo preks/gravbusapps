@@ -23,7 +23,7 @@ type OrderByValue = OrderDirection | { [field: string]: OrderByValue }
 type OrderByEntry = { [field: string]: OrderByValue }
 type OrderByClause = OrderByEntry[]
 
-interface FetchPaymentsOptions {
+export interface FetchPaymentsOptions {
   searchTerm?: string
   page?: number
   pageSize?: number

@@ -5,7 +5,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { useFilterData } from '../../../hooks/useFilterData'
 import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOptions'
@@ -48,14 +47,35 @@ import ExpenseDetailsShell from '../../../../../common/components/details-panel/
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { TablePagination } from '../../../../../components'
+import type { AdvancePaymentItem } from '../../../types'
+import type { FetchPaymentsOptions } from '../../../hooks/useAdvancePayment'
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
   onSearchChange?: (search: string) => void
+  isActive?: boolean
+  payments: AdvancePaymentItem[]
+  totalCount: number
+  isLoading: boolean
+  error: unknown
+  fetchPayments: (options?: FetchPaymentsOptions) => Promise<void>
+  searchReporters: (searchTerm: string) => Promise<string[]>
+  searchStatuses: () => Promise<string[]>
 }
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
-  const { search, onSearchChange, ...context } = props
+  const {
+    search,
+    onSearchChange,
+    payments,
+    totalCount,
+    isLoading,
+    error,
+    fetchPayments,
+    searchReporters,
+    searchStatuses,
+    ...context
+  } = props
   const { t } = useTranslation(translations)
   // Pre-register common advance payment details bundle so the details sidebar shows translated labels on first render
   useTranslation(advancePaymentDetailsTranslations)
@@ -98,9 +118,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     () => getActiveStructureDepartmentOptions(organizationalUnits),
     [organizationalUnits]
   )
-
-  const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } =
-    useAdvancePayments(context)
 
   // Debounced values using useDebounce hook
   const debouncedSearchText = useDebounce(searchText, 300)
