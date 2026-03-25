@@ -62,10 +62,9 @@ export interface SocketIoYjsProviderOptions {
   onSyncedChange?: (isSynced: boolean) => void
   onBootstrapRequired?: (html: string) => Promise<void> | void
   onReadyStateApplied?: (info: {
-    source: 'sync' | 'event' | 'remote-update'
+    source: 'sync' | 'event'
     status: 'ready' | 'already_ready'
     fragmentLength: number
-    fragmentContent: unknown
   }) => Promise<void> | void
   onLocalDocumentChange?: () => void
   onRemoteDocumentChange?: () => void
@@ -97,10 +96,9 @@ export class SocketIoYjsProvider {
   private onSyncedChange?: (isSynced: boolean) => void
   private onBootstrapRequired?: (html: string) => Promise<void> | void
   private readonly onReadyStateApplied?: (info: {
-    source: 'sync' | 'event' | 'remote-update'
+    source: 'sync' | 'event'
     status: 'ready' | 'already_ready'
     fragmentLength: number
-    fragmentContent: unknown
   }) => Promise<void> | void
   private onLocalDocumentChange?: () => void
   private onRemoteDocumentChange?: () => void
@@ -233,12 +231,11 @@ export class SocketIoYjsProvider {
     if (this.destroyed) return false
 
     if (response.status === 'ready') {
-      const applyResult = this.applyDocState(response.state)
+      const fragmentLength = this.applyDocState(response.state)
       await this.onReadyStateApplied?.({
         source: 'sync',
         status: response.status,
-        fragmentLength: applyResult.fragmentLength,
-        fragmentContent: applyResult.fragmentContent
+        fragmentLength
       })
       const awarenessPayload = response.awareness
       if (awarenessPayload) {
@@ -321,24 +318,17 @@ export class SocketIoYjsProvider {
     this.handleWaitingStatus(response as Extract<YjsSyncResponse, { success: true; status: 'waiting' }>)
   }
 
-  private applyDocState(stateBase64: string): { fragmentLength: number; fragmentContent: unknown } {
+  private applyDocState(stateBase64: string): number {
     try {
       const stateBytes = base64ToUint8Array(stateBase64)
       Y.applyUpdate(this.ydoc, stateBytes, 'remote')
       this.onRemoteDocumentChange?.()
 
       const fragment = this.ydoc.getXmlFragment('default')
-      const fragmentContent = fragment.toJSON()
-      return {
-        fragmentLength: fragment.length,
-        fragmentContent
-      }
+      return fragment.length
     } catch (error) {
       console.error('[SocketIoYjsProvider] Failed applying doc state:', error)
-      return {
-        fragmentLength: -1,
-        fragmentContent: null
-      }
+      return -1
     }
   }
 
@@ -360,12 +350,11 @@ export class SocketIoYjsProvider {
 
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
-      const applyResult = this.applyDocState(event.state)
+      const fragmentLength = this.applyDocState(event.state)
       void this.onReadyStateApplied?.({
         source: 'event',
         status: 'ready',
-        fragmentLength: applyResult.fragmentLength,
-        fragmentContent: applyResult.fragmentContent
+        fragmentLength
       })
       if (event.awareness) {
         this.applyAwarenessState(event.awareness)
@@ -385,13 +374,7 @@ export class SocketIoYjsProvider {
     if (eventEntityType !== this.entityType) return
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
-      const applyResult = this.applyDocState(event.update)
-      void this.onReadyStateApplied?.({
-        source: 'remote-update',
-        status: 'ready',
-        fragmentLength: applyResult.fragmentLength,
-        fragmentContent: applyResult.fragmentContent
-      })
+      this.applyDocState(event.update)
     })
   }
 
