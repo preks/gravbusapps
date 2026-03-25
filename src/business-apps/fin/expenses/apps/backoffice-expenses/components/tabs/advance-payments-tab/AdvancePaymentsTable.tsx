@@ -5,7 +5,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useDebounce } from '@/common/hooks/useDebounce'
 import { useTranslation } from '@newwork/nw-design-system'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import translations from '../../../_i18n'
@@ -16,6 +15,7 @@ import type { AdvancePaymentItem } from '../../../types'
 import type { FetchPaymentsOptions } from '../../../hooks/useAdvancePayment'
 import { useAdvancePaymentsFilterState } from './hooks/useAdvancePaymentsFilterState'
 import { buildAdvancePaymentFetchOptions } from './hooks/advancePaymentQueryBuilder'
+import { useAdvancePaymentsTableUrlSearch } from './hooks/useAdvancePaymentsTableUrlSearch'
 import AdvancePaymentsDataBody from './components/AdvancePaymentsDataBody'
 import AdvancePaymentsDetailsSheet from './components/AdvancePaymentsDetailsSheet'
 
@@ -49,7 +49,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   // Pre-register common advance payment details bundle so the details sidebar shows translated labels on first render
   useTranslation(advancePaymentDetailsTranslations)
 
-  const [searchText, setSearchText] = useState(search ?? '')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [selectedItem, setSelectedItem] = useState<AdvancePaymentItem | null>(null)
@@ -60,7 +59,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     [organizationalUnits]
   )
 
-  const debouncedSearchText = useDebounce(searchText, 300)
+  const { searchText, debouncedSearchText, handleSearchChange } = useAdvancePaymentsTableUrlSearch({
+    searchFromParent: search,
+    onSearchChange
+  })
   const {
     queryFilterState,
     filterGroups,
@@ -89,21 +91,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     fetchPayments(fetchOptions)
   }, [debouncedSearchText, currentPage, pageSize, queryFilterState, fetchPayments])
 
-  useEffect(() => {
-    const normalizedSearch = search ?? ''
-    if (normalizedSearch !== searchText) {
-      setSearchText(normalizedSearch)
-      setCurrentPage(1)
-    }
-  }, [search, searchText])
-
-  const handleSearchChange = useCallback(
+  const handleSearchChangeWithReset = useCallback(
     (value: string = '') => {
-      setSearchText(value)
       setCurrentPage(1)
-      onSearchChange?.(value)
+      handleSearchChange(value)
     },
-    [onSearchChange]
+    [handleSearchChange]
   )
 
   const handleCloseDetails = useCallback(() => {
@@ -126,7 +119,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           listTitle: t('tab-advance-payments'),
           listAmount: totalCount ? `${totalCount}` : undefined,
           search: searchText,
-          setSearch: handleSearchChange,
+          setSearch: handleSearchChangeWithReset,
           placeholder: t('advance-payment-search'),
           filter: totalCount === 0 && !isLoading ? [] : selectedFilters,
           setFilter: handleSetFilter as (filter: string[]) => void,
