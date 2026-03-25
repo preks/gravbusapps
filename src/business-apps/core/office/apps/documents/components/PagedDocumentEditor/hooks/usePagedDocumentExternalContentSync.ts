@@ -53,6 +53,13 @@ export interface UsePagedDocumentExternalContentSyncResult {
   handleRestoreVersion: (versionNumber: number) => Promise<void>
 }
 
+interface PendingHydrationRefresh {
+  rafId: number | null
+  timeoutId: ReturnType<typeof setTimeout> | null
+}
+
+const pendingHydrationRefreshes = new WeakMap<TiptapEditor, PendingHydrationRefresh>()
+
 export function schedulePostHydrationPaginationRefresh(editor: TiptapEditor) {
   const refreshPagination = () => {
     if (editor.commands.refreshPagesAndStabilize) {
@@ -63,16 +70,28 @@ export function schedulePostHydrationPaginationRefresh(editor: TiptapEditor) {
     editor.commands.refreshPages?.()
   }
 
+  const pendingRefresh = pendingHydrationRefreshes.get(editor)
+  if (pendingRefresh?.rafId != null) {
+    cancelAnimationFrame(pendingRefresh.rafId)
+  }
+  if (pendingRefresh?.timeoutId != null) {
+    clearTimeout(pendingRefresh.timeoutId)
+  }
+
   if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(() => {
+    const rafId = requestAnimationFrame(() => {
+      pendingHydrationRefreshes.delete(editor)
       refreshPagination()
-      requestAnimationFrame(() => refreshPagination())
     })
+    pendingHydrationRefreshes.set(editor, { rafId, timeoutId: null })
     return
   }
 
-  refreshPagination()
-  setTimeout(refreshPagination, 0)
+  const timeoutId = setTimeout(() => {
+    pendingHydrationRefreshes.delete(editor)
+    refreshPagination()
+  }, 0)
+  pendingHydrationRefreshes.set(editor, { rafId: null, timeoutId })
 }
 
 function normalizeHtmlForComparison(html: string): string {

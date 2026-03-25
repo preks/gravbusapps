@@ -15,6 +15,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { LlmProvider } from './useAiEditProvider'
 import type { AiEditResult } from '../../utils/documentOfficeOperations'
+import { truncateHtmlForAiContext } from '../../utils/documentContentUtils'
 
 export interface CapturedSelection {
   from: number
@@ -149,7 +150,7 @@ export function useAiEdit({ accessToken, editor, documentId, documentTitle, llmP
     setIsApplied(false)
 
     try {
-      const documentHtml = editor.getHTML()
+      const documentHtml = truncateHtmlForAiContext(editor.getHTML())
       const documentPlainText = editor.getText()
 
       const payload: {

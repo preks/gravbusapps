@@ -14,6 +14,7 @@ import { buildDocumentEditAdditionInfo } from '@/common/utils/buildDocumentEditP
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { isAllowedHref, escapeHtmlAttr, escapeHtmlText } from '../../../utils/linkUtils'
+import { truncateHtmlForAiContext } from '../../../utils/documentContentUtils'
 import type { LinkDialogInitialValues, LinkDialogMode } from '../LinkDialog'
 import { requestEditorSelectionAnchorPosition } from '../commentSidebarNavigation'
 import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
@@ -555,7 +556,7 @@ export function usePagedDocumentInteractionDialogs({
       documentTitle: title,
       selectedText: aiSelectionSnapshot,
       selectedHtml: aiSelectionSnapshotHtml,
-      fullDocumentHtml: editor?.getHTML() || ''
+      fullDocumentHtml: truncateHtmlForAiContext(editor?.getHTML() || '')
     })
 
     setShowAiInstructionDialog(false)
