@@ -7,6 +7,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import { useFlowStudioStore } from './useFlowStudioStore'
 import { studioGraphToTemplate, templateToStudioGraph } from '../utils/templateConverter'
+import { templateRequiresAdvancedMode } from '../utils/aiTemplateValidator'
 
 interface FlowStudioClient {
   /** Save the current flow to the backend */
@@ -34,6 +35,7 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
   const templateClient = useFlowTemplateClient(accessToken)
   const markClean = useFlowStudioStore(s => s.markClean)
   const loadTemplate = useFlowStudioStore(s => s.loadTemplate)
+  const setMode = useFlowStudioStore(s => s.setMode)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,15 +57,29 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
       )
 
       if (templateId) {
-        // Update existing template
-        await templateClient.updateTemplate(templateId, template)
+        const updated = await templateClient.updateTemplate(templateId, template)
+        useFlowStudioStore.setState(currentState => ({
+          templateId: updated?.id ?? templateId,
+          templateName: updated?.name ?? currentState.templateName,
+          templateDescription: updated?.description ?? currentState.templateDescription,
+          templateTags: updated?.tags ?? currentState.templateTags,
+          templateVersion:
+            typeof updated?.version === 'number' && Number.isInteger(updated.version) && updated.version >= 1
+              ? updated.version
+              : currentState.templateVersion
+        }))
       } else {
-        // Create new template
         const created = await templateClient.createTemplate(template)
-        // Store the new template ID back (via store if needed)
-        if (created?.id) {
-          useFlowStudioStore.setState({ templateId: created.id })
-        }
+        useFlowStudioStore.setState(currentState => ({
+          templateId: created?.id ?? currentState.templateId,
+          templateName: created?.name ?? currentState.templateName,
+          templateDescription: created?.description ?? currentState.templateDescription,
+          templateTags: created?.tags ?? currentState.templateTags,
+          templateVersion:
+            typeof created?.version === 'number' && Number.isInteger(created.version) && created.version >= 1
+              ? created.version
+              : currentState.templateVersion
+        }))
       }
 
       markClean()
@@ -99,6 +115,7 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
           version: template.version,
           tags: template.tags ?? {}
         })
+        if (templateRequiresAdvancedMode(template)) setMode('advanced')
 
         markClean()
       } catch (err) {
@@ -109,7 +126,7 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
         setIsLoading(false)
       }
     },
-    [templateClient, loadTemplate, markClean]
+    [templateClient, loadTemplate, setMode, markClean]
   )
 
   return useMemo(() => ({ saveFlow, loadFlow, isLoading, error }), [saveFlow, loadFlow, isLoading, error])

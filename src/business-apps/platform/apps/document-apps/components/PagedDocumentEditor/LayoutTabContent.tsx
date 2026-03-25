@@ -33,7 +33,7 @@ import translations from '../../_i18n'
 import { RibbonGroup } from './editorToolbarShared'
 import { LayoutWordRibbonDropdown, LayoutRibbonNumericField } from './layoutWordRibbon'
 
-const PAGE_SIZE_IDS: PageSizeId[] = ['A4', 'A3', 'A5', 'LETTER', 'LEGAL', 'TABLOID']
+const PAGE_SIZE_IDS: PageSizeId[] = ['A4', 'A3', 'A5', 'LETTER', 'LEGAL', 'TABLOID', 'CUSTOM']
 
 const MARGIN_PRESETS: Record<string, { top: number; right: number; bottom: number; left: number }> = {
   normal: { top: 2.54, right: 2.54, bottom: 2.54, left: 2.54 },
@@ -87,6 +87,8 @@ function marginStringToPt(s: string | null | undefined): number {
 
 export interface LayoutFormattingPatch {
   pageSize?: PageSizeId
+  customPageWidthCm?: number
+  customPageHeightCm?: number
   orientation?: 'portrait' | 'landscape'
   margins?: DocumentFormatting['margins']
   pageColor?: string
@@ -213,16 +215,34 @@ export function LayoutTabContent({
           {PAGE_SIZE_IDS.map(id => {
             const meta = PAGE_SIZE_LABELS[id]
             const label = t(meta.labelKey)
+            const sizeLabel = id === 'CUSTOM' ? label : `${label} (${meta.widthCm} cm × ${meta.heightCm} cm)`
             return (
-              <DropdownMenuItem key={id} onSelect={() => onApplyLayoutPatch({ pageSize: id })}>
+              <DropdownMenuItem
+                key={id}
+                onSelect={() => {
+                  if (id === 'CUSTOM') {
+                    const dims =
+                      layout.pageSize === 'CUSTOM'
+                        ? {
+                            customPageWidthCm: layout.customPageWidthCm ?? PAGE_SIZE_LABELS.A4.widthCm,
+                            customPageHeightCm: layout.customPageHeightCm ?? PAGE_SIZE_LABELS.A4.heightCm
+                          }
+                        : {
+                            customPageWidthCm: PAGE_SIZE_LABELS[layout.pageSize].widthCm,
+                            customPageHeightCm: PAGE_SIZE_LABELS[layout.pageSize].heightCm
+                          }
+                    onApplyLayoutPatch({ pageSize: 'CUSTOM', ...dims })
+                  } else {
+                    onApplyLayoutPatch({ pageSize: id })
+                  }
+                }}
+              >
                 {layout.pageSize === id ? (
                   <Check className="gba:mr-2 gba:h-4 gba:w-4 gba:shrink-0" />
                 ) : (
                   <span className="gba:mr-2 gba:w-4" />
                 )}
-                <span className="gba:truncate">
-                  {label} ({meta.widthCm} cm × {meta.heightCm} cm)
-                </span>
+                <span className="gba:truncate">{sizeLabel}</span>
               </DropdownMenuItem>
             )
           })}

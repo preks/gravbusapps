@@ -333,6 +333,11 @@ hr-growth-skills = Skills
 hr-growth-feedback = Feedback Hub
 hr-growth-performance = Goals
 
+# My Development (self-service screen — same content as HR Development tab)
+my-development-page-title = My Development
+my-development-page-description = Skills, feedback, goals, and performance — the same experience as HR Development in My Profile.
+my-development-unavailable = Your development area could not be loaded. Try again later.
+
 # Feedback Hub (sub-page under HR Development)
 feedback-hub-title = Feedback Hub
 feedback-hub-description = Give and receive feedback from colleagues and managers. Track requests and review insights.

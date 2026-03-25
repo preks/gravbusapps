@@ -3,7 +3,7 @@
  * Provides the visual flow designer with Simple/Advanced mode toggle.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,29 +25,81 @@ import {
   Label,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ArrowLeft, ListPlus, Workflow } from 'lucide-react'
+import { FileText, Sparkles, Workflow } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
+import { CreateLayout } from '@/components/create-layout/CreateLayout'
 import translations from './_i18n'
 import { FlowStudioCanvas } from './components/canvas/FlowStudioCanvas'
+import { FlowStudioChatPanel } from './components/FlowStudioChatPanel'
 import { NodeContextMenu } from './components/shared/NodeContextMenu'
 import { PendingDeleteDialog } from './components/shared/PendingDeleteDialog'
 import { TemplateLabelsDialog } from './components/shared/TemplateLabelsDialog'
 import { useFlowStudioStore } from './hooks/useFlowStudioStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import type { DesignerMode } from './types/studioTypes'
+import { MockDataProvider } from '@/business-apps/flow/providers'
+import { useFlowStudioClient } from './hooks/useFlowStudioClient'
+import { FlowStudioCreateView } from './views/FlowStudioCreateView'
 import { FlowStudioListView } from './views/FlowStudioListView'
 
-import { useFlowStudioClient } from './hooks/useFlowStudioClient'
-
 const FLOW_ID_PARAM = 'flowId'
+const FLOW_ID_NEW = 'new'
 const UNTITLED_FLOW_NAME = 'Untitled Flow'
+const LIST_VIEW_CREATE = 'create'
+const LIST_VIEW_FLOWS = 'flows'
+const FLOW_HEADER_MAX_TAG_PILLS = 4
+const FLOW_HEADER_PRIORITY_TAG_KEYS = ['app', 'serviceCategory', 'digitalWorkplaceCategory'] as const
+type ListSubView = typeof LIST_VIEW_CREATE | typeof LIST_VIEW_FLOWS
 
+function getTemplateTagLabel(tagKey: string): string {
+  if (tagKey === 'app') return 'App'
+  if (tagKey === 'serviceCategory') return 'Service'
+  if (tagKey === 'digitalWorkplaceCategory') return 'DWP'
+  return tagKey
+}
+
+function getTemplateTagValueCode(tagValue: string): string {
+  const tagValueParts = tagValue.split(':')
+  return tagValueParts[tagValueParts.length - 1] || tagValue
+}
+
+function getTemplateTagPills(templateTags: Record<string, unknown> | null | undefined): string[] {
+  const templateTagEntries = Object.entries(templateTags ?? {})
+    .map(([rawTagKey, rawTagValue]) => ({
+      key: String(rawTagKey || '').trim(),
+      value: typeof rawTagValue === 'string' ? rawTagValue.trim() : ''
+    }))
+    .filter(({ key, value }) => Boolean(key) && Boolean(value))
+
+  templateTagEntries.sort((leftEntry, rightEntry) => {
+    const leftPriorityIndex = FLOW_HEADER_PRIORITY_TAG_KEYS.indexOf(
+      leftEntry.key as (typeof FLOW_HEADER_PRIORITY_TAG_KEYS)[number]
+    )
+    const rightPriorityIndex = FLOW_HEADER_PRIORITY_TAG_KEYS.indexOf(
+      rightEntry.key as (typeof FLOW_HEADER_PRIORITY_TAG_KEYS)[number]
+    )
+
+    if (leftPriorityIndex === -1 && rightPriorityIndex === -1) {
+      return leftEntry.key.localeCompare(rightEntry.key)
+    }
+
+    if (leftPriorityIndex === -1) return 1
+    if (rightPriorityIndex === -1) return -1
+    return leftPriorityIndex - rightPriorityIndex
+  })
+
+  return templateTagEntries
+    .slice(0, FLOW_HEADER_MAX_TAG_PILLS)
+    .map(({ key, value }) => `${getTemplateTagLabel(key)}: ${getTemplateTagValueCode(value)}`)
+}
+
+/** Returns flow id from URL, or null when param is missing or equals "new" (create-new screen). */
 function getFlowIdFromUrl(): string | null {
   if (globalThis.window === undefined) return null
   const urlParams = new URLSearchParams(globalThis.location.search)
-  const id = urlParams.get(FLOW_ID_PARAM)
-  return id?.trim() || null
+  const id = urlParams.get(FLOW_ID_PARAM)?.trim() ?? ''
+  if (id.toLowerCase() === FLOW_ID_NEW) return null
+  return id || null
 }
 
 function updateUrlWithFlowId(flowId: string | null, push = false): void {
@@ -58,12 +110,27 @@ function updateUrlWithFlowId(flowId: string | null, push = false): void {
   } else {
     urlParams.delete(FLOW_ID_PARAM)
   }
-  const newUrl = `${globalThis.location.pathname}?${urlParams.toString()}${globalThis.location.hash}`
+  const query = urlParams.toString()
+  const newUrl = query
+    ? `${globalThis.location.pathname}?${query}${globalThis.location.hash}`
+    : `${globalThis.location.pathname}${globalThis.location.hash}`
   if (push) {
     globalThis.history.pushState({}, '', newUrl)
   } else {
     globalThis.history.replaceState({}, '', newUrl)
   }
+}
+
+function getListSubViewFromHash(): ListSubView {
+  if (globalThis.window === undefined) return LIST_VIEW_CREATE
+  const hash = globalThis.location.hash.replace('#', '')
+  if (hash === LIST_VIEW_FLOWS) return LIST_VIEW_FLOWS
+  return LIST_VIEW_CREATE
+}
+
+function setHashForListSubView(subView: ListSubView): void {
+  if (globalThis.window === undefined) return
+  globalThis.location.hash = subView
 }
 
 function isUntitledTemplateName(value: string): boolean {
@@ -104,17 +171,33 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const selectNode = useFlowStudioStore(s => s.selectNode)
   const selectEdge = useFlowStudioStore(s => s.selectEdge)
 
-  const { saveFlow, loadFlow, isLoading: isLoadingTemplate } = useFlowStudioClient(accessToken)
+  const { saveFlow, loadFlow, isLoading } = useFlowStudioClient(accessToken)
   const urlFlowIdOnMount = getFlowIdFromUrl()
-  const [labelsReady, setLabelsReady] = useState(false)
   const [view, setView] = useState<'list' | 'designer'>(templateId || urlFlowIdOnMount ? 'designer' : 'list')
+  const [listSubView, setListSubView] = useState<ListSubView>(() => getListSubViewFromHash())
   const [labelsOpen, setLabelsOpen] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
+  const [designerInitialPrompt, setDesignerInitialPrompt] = useState('')
+  const initialPromptConsumedRef = useRef(false)
+  const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false)
   const [saveNameDialogOpen, setSaveNameDialogOpen] = useState(false)
   const [pendingTemplateName, setPendingTemplateName] = useState('')
   const [saveNameError, setSaveNameError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showValidationIssues, setShowValidationIssues] = useState(false)
+
+  useEffect(() => {
+    if (view !== 'list') return
+    const onHashChange = () => setListSubView(getListSubViewFromHash())
+    globalThis.window?.addEventListener('hashchange', onHashChange)
+    return () => globalThis.window?.removeEventListener('hashchange', onHashChange)
+  }, [view])
+
+  useEffect(() => {
+    if (view !== 'list') return
+    const current = getListSubViewFromHash()
+    if (current !== listSubView) setHashForListSubView(listSubView)
+  }, [view, listSubView])
 
   const handleModeChange = useCallback(
     (newMode: DesignerMode) => {
@@ -122,52 +205,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     },
     [setMode]
   )
-
-  useEffect(() => {
-    setLabelsReady(true)
-  }, [])
-
-  const tagPills = useMemo(() => {
-    const tags = (templateTags || {}) as Record<string, unknown>
-    const entries = Object.entries(tags)
-      .map(([k, v]) => ({ k: String(k || '').trim(), v: (typeof v === 'string' ? v : '').trim() }))
-      .filter(e => Boolean(e.k) && Boolean(e.v))
-
-    // reserved keys first
-    const order = ['app', 'serviceCategory', 'digitalWorkplaceCategory']
-    entries.sort((a, b) => {
-      const ia = order.indexOf(a.k)
-      const ib = order.indexOf(b.k)
-      if (ia === -1 && ib === -1) return a.k.localeCompare(b.k)
-      if (ia === -1) return 1
-      if (ib === -1) return -1
-      return ia - ib
-    })
-
-    const parseCode = (v: string) => {
-      const parts = v.split(':')
-      return parts[parts.length - 1] || v
-    }
-    const labelForKey = (k: string) => {
-      if (k === 'app') return 'App'
-      if (k === 'serviceCategory') return 'Service'
-      if (k === 'digitalWorkplaceCategory') return 'DWP'
-      return k
-    }
-
-    return entries.slice(0, 4).map(e => `${labelForKey(e.k)}: ${parseCode(e.v)}`)
-  }, [templateTags])
-
-  const hasAnyTags = tagPills.length > 0
-
-  const appEyebrowLabel = useMemo(() => t('app-eyebrow'), [t, labelsReady])
-  const appTitlePlaceholder = useMemo(() => t('app-title'), [t, labelsReady])
-  const appDescriptionLabel = useMemo(() => t('app-description'), [t, labelsReady])
-  const listTitleLabel = useMemo(() => t('list-title'), [t, labelsReady])
-  const listSubtitleLabel = useMemo(() => t('list-subtitle'), [t, labelsReady])
-  const studioBackToListLabel = useMemo(() => t('studio-back-to-list'), [t, labelsReady])
-  const listCreateLabel = useMemo(() => t('list-create'), [t, labelsReady])
-
+  const templateTagPills = getTemplateTagPills(templateTags as Record<string, unknown>)
   const getSaveErrorMessage = useCallback(
     (error: unknown) => (error instanceof Error ? error.message : 'Failed to save flow'),
     []
@@ -187,12 +225,33 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     [loadFlow]
   )
 
+  const openTemplateAfterCreate = useCallback(
+    (templateId: string) => {
+      updateUrlWithFlowId(templateId, true)
+      setView('designer')
+      loadFlow(templateId).catch(() => undefined)
+    },
+    [loadFlow]
+  )
+
   const createNewFlow = useCallback(() => {
     setSaveError(null)
-    updateUrlWithFlowId(null)
+    updateUrlWithFlowId(FLOW_ID_NEW)
+    setDesignerInitialPrompt('')
     resetStore()
     setView('designer')
   }, [resetStore])
+
+  const openDesignerWithAI = useCallback(
+    (prompt: string) => {
+      updateUrlWithFlowId(FLOW_ID_NEW)
+      initialPromptConsumedRef.current = false
+      setDesignerInitialPrompt(prompt)
+      resetStore()
+      setView('designer')
+    },
+    [resetStore]
+  )
 
   const backToList = useCallback(() => {
     setSaveError(null)
@@ -310,167 +369,161 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background" data-testid={testId}>
-      <div className="gba:relative gba:overflow-hidden gba:shrink-0" data-testid={`${testId}-hero`}>
-        <PremiumHeroBackground data-testid={`${testId}-hero-background`} />
-        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
-
-        {/* Content */}
-        <div className="gba:relative gba:px-6 gba:py-5">
-          <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-            <div className="gba:flex gba:items-start gba:gap-3">
-              <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-white/15">
-                <Workflow className="gba:h-5 gba:w-5 gba:text-white" />
-              </div>
-              <div className="gba:flex gba:flex-col gba:gap-0.5">
-                <span className="gba:text-xs gba:font-medium gba:tracking-[0.3em] gba:text-white/60 gba:uppercase">
-                  {appEyebrowLabel}
-                </span>
-                {view === 'designer' ? (
-                  <>
-                    <input
-                      type="text"
-                      value={templateName}
-                      onChange={e => setTemplateMetadata({ name: e.target.value })}
-                      className="gba:text-xl gba:font-semibold gba:bg-transparent gba:border-none gba:outline-none gba:p-0 gba:leading-tight gba:text-white placeholder:gba:text-white/50"
-                      placeholder={appTitlePlaceholder}
-                      data-testid={`${testId}-name-input`}
-                    />
-                    <span className="gba:text-sm gba:text-white/80">{appDescriptionLabel}</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="gba:text-xl gba:font-semibold gba:text-white" data-testid={`${testId}-list-title`}>
-                      {listTitleLabel}
-                    </div>
-                    <span className="gba:text-sm gba:text-white/80">{listSubtitleLabel}</span>
-                  </>
-                )}
-              </div>
+      {view === 'designer' ? (
+        <>
+          {saveError ? (
+            <div
+              className="gba:shrink-0 gba:border-b gba:border-destructive-secondary gba:bg-destructive-secondary gba:px-5 gba:py-3"
+              data-testid={`${testId}-save-error`}
+            >
+              <p className="gba:text-sm gba:text-destructive-secondary-foreground">{saveError}</p>
             </div>
-
-            {view === 'designer' && (
-              <div className="gba:flex gba:items-center gba:gap-2">
+          ) : null}
+          <CreateLayout
+            heroVariant="editor"
+            heroOverline={t('app-eyebrow')}
+            heroIcon={<Workflow className="gba:w-5 gba:h-5 gba:text-white" />}
+            heroTitle={
+              <input
+                type="text"
+                value={templateName}
+                onChange={event => setTemplateMetadata({ name: event.target.value })}
+                className="gba:w-full gba:max-w-2xl gba:text-xl gba:sm:text-3xl gba:font-semibold gba:bg-transparent gba:border-none gba:outline-none gba:p-0 gba:leading-tight gba:text-white placeholder:gba:text-white/50"
+                placeholder={t('app-title')}
+                aria-label={t('app-title')}
+                data-testid={`${testId}-name-input`}
+              />
+            }
+            heroSubtitle={t('app-description')}
+            onBack={requestCloseToList}
+            heroBackLabel={t('studio-back-to-list')}
+            heroExtra={
+              <div
+                className="gba:flex gba:flex-col gba:items-end gba:gap-2"
+                data-testid={`${testId}-hero-extra-content`}
+              >
                 <Button
                   variant="secondary"
                   size="sm"
                   tone="inverse"
-                  onClick={requestCloseToList}
-                  data-testid={`${testId}-close`}
+                  onClick={() => setLabelsOpen(true)}
+                  data-testid={`${testId}-labels-trigger`}
                   type="button"
                 >
-                  <ArrowLeft className="gba:h-4 gba:w-4 gba:mr-1" />
-                  {studioBackToListLabel}
+                  {t('labels-title')}
                 </Button>
-              </div>
-            )}
-
-            {view === 'list' && (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  tone="inverse"
-                  onClick={createNewFlow}
-                  data-testid={`${testId}-hero-create`}
-                  type="button"
-                >
-                  <ListPlus className="gba:h-4 gba:w-4 gba:mr-1" />
-                  {listCreateLabel}
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="gba:flex gba:items-center gba:gap-2 gba:mt-3">
-            {}
-            {view === 'designer' && (
-              <>
-                {hasAnyTags ? (
-                  <>
-                    {tagPills.map((pill, index) => (
+                {templateTagPills.length > 0 || isLoading ? (
+                  <div
+                    className="gba:flex gba:max-w-sm gba:flex-wrap gba:justify-end gba:gap-2"
+                    data-testid={`${testId}-labels-row`}
+                  >
+                    {templateTagPills.map((templateTagPill, templateTagPillIndex) => (
                       <Badge
-                        key={pill}
-                        variant="secondary"
-                        className="gba:bg-white/15 gba:text-white gba:border-none"
-                        data-testid={`${testId}-tag-pill-${index}`}
+                        key={`${templateTagPill}-${templateTagPillIndex}`}
+                        variant="outline"
+                        size="sm"
+                        className="gba:border-white/15 gba:bg-white/10 gba:text-white/80"
+                        data-testid={`${testId}-tag-pill-${templateTagPillIndex}`}
                       >
-                        {pill}
+                        {templateTagPill}
                       </Badge>
                     ))}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setLabelsOpen(true)}
-                      className="gba:h-7 gba:bg-white/15 gba:text-white gba:border-none"
-                      data-testid={`${testId}-manage-labels`}
-                      type="button"
-                    >
-                      {t('labels-title')}
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setLabelsOpen(true)}
-                    className="gba:h-7 gba:bg-white/15 gba:text-white gba:border-none"
-                    data-testid={`${testId}-add-labels`}
-                    type="button"
-                  >
-                    {t('labels-custom-add')}
-                  </Button>
-                )}
-              </>
-            )}
-            {isDirty && (
-              <Badge variant="secondary" className="gba:bg-warning gba:text-warning-foreground gba:border-none">
-                Unsaved changes
-              </Badge>
-            )}
-            {view === 'designer' && isLoadingTemplate && (
-              <Badge
-                variant="secondary"
-                className="gba:bg-white/15 gba:text-white gba:border-none"
-                data-testid={`${testId}-loading`}
-              >
-                Loading…
-              </Badge>
-            )}
-            {}
-          </div>
-        </div>
-      </div>
-
-      {/* Main content area */}
-      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
-        {view === 'list' ? (
-          <FlowStudioListView
-            accessToken={accessToken}
-            onOpenTemplate={openTemplateFromList}
-            data-testid={`${testId}-list`}
-          />
-        ) : (
-          <div className="gba:flex gba:flex-1 gba:flex-col gba:min-h-0">
-            {saveError ? (
-              <div
-                className="gba:border-b gba:border-destructive-secondary gba:bg-destructive-secondary gba:px-5 gba:py-3"
-                data-testid={`${testId}-save-error`}
-              >
-                <p className="gba:text-sm gba:text-destructive-secondary-foreground">{saveError}</p>
+                    {isLoading ? (
+                      <Badge
+                        variant="outline"
+                        size="sm"
+                        className="gba:border-white/15 gba:bg-white/10 gba:text-white/80"
+                        data-testid={`${testId}-loading-pill`}
+                      >
+                        {t('studio-loading')}
+                      </Badge>
+                    ) : null}
+                  </div>
+                ) : null}
+                <Badge variant={isDirty ? 'info' : 'success'} size="sm" data-testid={`${testId}-save-status-pill`}>
+                  {isDirty ? t('studio-unsaved-changes') : t('studio-saved')}
+                </Badge>
               </div>
-            ) : null}
-            <FlowStudioCanvas
-              accessToken={accessToken}
-              userInfo={userInfo}
-              mode={mode}
-              onModeChange={handleModeChange}
-              onSave={requestSave}
-              showValidationIssues={showValidationIssues}
-              data-testid={`${testId}-canvas`}
-            />
-          </div>
-        )}
-      </div>
+            }
+            chatPanel={
+              <FlowStudioChatPanel
+                accessToken={accessToken}
+                userInfo={userInfo}
+                initialPrompt={initialPromptConsumedRef.current ? '' : designerInitialPrompt}
+                onInitialPromptConsumed={() => {
+                  initialPromptConsumedRef.current = true
+                  setDesignerInitialPrompt('')
+                }}
+                onClose={() => setChatPanelCollapsed(true)}
+                data-testid={`${testId}-chat-panel`}
+              />
+            }
+            canvasPanel={
+              <FlowStudioCanvas
+                accessToken={accessToken}
+                userInfo={userInfo}
+                mode={mode}
+                onModeChange={handleModeChange}
+                onSave={requestSave}
+                showValidationIssues={showValidationIssues}
+                data-testid={`${testId}-canvas`}
+              />
+            }
+            chatPanelCollapsed={chatPanelCollapsed}
+            onChatPanelCollapseChange={setChatPanelCollapsed}
+            testId={`${testId}-create-layout`}
+          />
+        </>
+      ) : null}
+      {view === 'list' ? (
+        <CreateLayout
+          heroVariant="overview"
+          heroOverline={t('app-eyebrow')}
+          heroIcon={<Workflow className="gba:w-8 gba:h-8 gba:text-white" />}
+          heroTitle={t('list-title')}
+          heroSubtitle={listSubView === LIST_VIEW_CREATE ? t('list-subtitle-create') : t('list-subtitle')}
+          views={[
+            {
+              value: LIST_VIEW_CREATE,
+              label: t('list-tab-create'),
+              icon: <Sparkles className="gba:h-4 gba:w-4" />
+            },
+            {
+              value: LIST_VIEW_FLOWS,
+              label: t('list-tab-flows'),
+              icon: <FileText className="gba:h-4 gba:w-4" />
+            }
+          ]}
+          currentView={listSubView}
+          onViewChange={value => {
+            if (value === LIST_VIEW_CREATE || value === LIST_VIEW_FLOWS) {
+              setListSubView(value)
+            }
+          }}
+          canvasPanel={
+            listSubView === LIST_VIEW_CREATE ? (
+              <MockDataProvider>
+                <FlowStudioCreateView
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  onCreateNewFlow={createNewFlow}
+                  onOpenDesignerWithAI={openDesignerWithAI}
+                  onTemplateCreated={openTemplateAfterCreate}
+                  data-testid={`${testId}-create-view`}
+                />
+              </MockDataProvider>
+            ) : (
+              <FlowStudioListView
+                accessToken={accessToken}
+                onCreateFlow={createNewFlow}
+                onOpenTemplate={openTemplateFromList}
+                data-testid={`${testId}-list`}
+              />
+            )
+          }
+          testId={`${testId}-overview-layout`}
+        />
+      ) : null}
 
       {/* Context menu */}
       {view === 'designer' ? (

@@ -17,6 +17,8 @@ import {
 } from '@newwork/nw-design-system'
 import { ChevronLeft, ChevronDown, ChevronUp, Search } from 'lucide-react'
 import translations from '../../_i18n'
+import { TextSelection } from '@tiptap/pm/state'
+import { createSafePaginationSelection } from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationLayoutHelpers'
 import {
   getHeadingsFromDoc,
   findMatchesInDoc,
@@ -123,8 +125,10 @@ export function NavigationPanel({
   const scrollToPos = useCallback(
     (pos: number) => {
       if (!editor) return
-      editor.commands.focus()
-      editor.commands.setTextSelection(pos)
+      const doc = editor.state.doc
+      const selection = createSafePaginationSelection(doc, pos, 1)
+      editor.view.dispatch(editor.state.tr.setSelection(selection))
+      editor.view.focus()
       scrollEditorSelectionNodeIntoView(
         {
           view: editor.view,
@@ -137,8 +141,8 @@ export function NavigationPanel({
             pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
           }
         },
-        pos,
-        pos,
+        selection.from,
+        selection.to,
         'start'
       )
     },
@@ -166,8 +170,15 @@ export function NavigationPanel({
       setSelectedMatchIndex(i)
       const { from, to } = matches[i]
       if (!editor) return
-      editor.commands.focus()
-      editor.commands.setTextSelection({ from, to })
+      const { state, view } = editor
+      const doc = state.doc
+      const rawA = Math.max(0, Math.min(from, doc.content.size))
+      const rawB = Math.max(0, Math.min(to, doc.content.size))
+      const clampedFrom = Math.min(rawA, rawB)
+      const clampedTo = Math.max(rawA, rawB)
+      const rangeSelection = TextSelection.between(doc.resolve(clampedFrom), doc.resolve(clampedTo), 1)
+      view.dispatch(state.tr.setSelection(rangeSelection))
+      view.focus()
       scrollEditorSelectionNodeIntoView(
         {
           view: editor.view,
@@ -180,8 +191,8 @@ export function NavigationPanel({
             pagePositionRanges: layoutViewportModel?.pagePositionRanges ?? []
           }
         },
-        from,
-        to,
+        rangeSelection.from,
+        rangeSelection.to,
         'center'
       )
     },

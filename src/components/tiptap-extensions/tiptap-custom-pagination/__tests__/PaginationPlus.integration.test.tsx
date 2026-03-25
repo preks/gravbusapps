@@ -32,6 +32,7 @@ import {
   resolvePaginationMeasurementState
 } from '../paginationPageCountPolicy'
 import * as paginationUtils from '../utils'
+import { TablePaginationControllerResult } from '../../tiptap-custom-tables/tablePaginationController'
 
 describe('resolveDeferredRepaginationOutcome', () => {
   it('refreshes first and only prefers a split on the next stable pass after page growth', () => {
@@ -1638,6 +1639,9 @@ describe('resolvePaginationBodyClick', () => {
     const view = {
       dom: editorDom,
       state: {
+        selection: {
+          empty: true
+        },
         doc: {
           firstChild: {
             type: {
@@ -1688,6 +1692,9 @@ describe('resolvePaginationBodyClick', () => {
     const view = {
       dom: editorDom,
       state: {
+        selection: {
+          empty: true
+        },
         doc: {
           firstChild: {
             type: {
@@ -1722,6 +1729,181 @@ describe('resolvePaginationBodyClick', () => {
     } as never
 
     expect(resolvePaginationBodyClick(view, 72, 158)).toEqual({ action: 'set', position: 1 })
+  })
+
+  it('collapses an existing range to the first paragraph when clicking an empty first line', () => {
+    const editorDom = document.createElement('div')
+    const bodyBand = document.createElement('div')
+
+    bodyBand.className = 'rm-page-body-layer'
+    bodyBand.dataset.rmPageNumber = '1'
+    editorDom.appendChild(bodyBand)
+    document.body.appendChild(editorDom)
+
+    setRect(bodyBand, { top: 100, bottom: 300, left: 20, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        selection: {
+          empty: false,
+          from: 1,
+          to: 4
+        },
+        doc: {
+          firstChild: {
+            type: {
+              name: 'paragraph'
+            },
+            content: {
+              size: 0
+            }
+          },
+          resolve: () => ({
+            parent: {
+              type: {
+                name: 'paragraph'
+              },
+              content: {
+                size: 0
+              }
+            },
+            parentOffset: 0,
+            nodeBefore: null,
+            nodeAfter: null
+          })
+        }
+      },
+      coordsAtPos: () => ({
+        top: 150,
+        bottom: 168,
+        left: 72,
+        right: 72
+      }),
+      posAtCoords: () => ({
+        pos: 2
+      })
+    } as never
+
+    expect(resolvePaginationBodyClick(view, 72, 158)).toEqual({ action: 'set', position: 1 })
+  })
+
+  it('collapses an existing range to the clicked position inside the body band', () => {
+    const editorDom = document.createElement('div')
+    const bodyBand = document.createElement('div')
+
+    bodyBand.className = 'rm-page-body-layer'
+    bodyBand.dataset.rmPageNumber = '1'
+    editorDom.appendChild(bodyBand)
+    document.body.appendChild(editorDom)
+
+    setRect(bodyBand, { top: 100, bottom: 300, left: 20, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        selection: {
+          empty: false
+        },
+        doc: {
+          firstChild: {
+            type: {
+              name: 'paragraph'
+            },
+            content: {
+              size: 5
+            }
+          },
+          resolve: () => ({
+            parent: {
+              type: {
+                name: 'paragraph'
+              },
+              content: {
+                size: 5
+              }
+            },
+            parentOffset: 2,
+            nodeBefore: {
+              textContent: 'a'
+            },
+            nodeAfter: {
+              textContent: 'b'
+            }
+          })
+        }
+      },
+      coordsAtPos: () => ({
+        top: 150,
+        bottom: 168,
+        left: 72,
+        right: 72
+      }),
+      posAtCoords: () => ({
+        pos: 3
+      })
+    } as never
+
+    expect(resolvePaginationBodyClick(view, 72, 158)).toEqual({ action: 'set', position: 3 })
+  })
+
+  it('allows native click handling for an existing text range even when no body band resolves', () => {
+    const editorDom = document.createElement('div')
+    const bodyBand = document.createElement('div')
+
+    bodyBand.className = 'rm-page-body-layer'
+    bodyBand.dataset.rmPageNumber = '1'
+    editorDom.appendChild(bodyBand)
+    document.body.appendChild(editorDom)
+
+    setRect(bodyBand, { top: 100, bottom: 300, left: 20, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        selection: {
+          empty: false
+        },
+        doc: {
+          firstChild: {
+            type: {
+              name: 'paragraph'
+            },
+            content: {
+              size: 5
+            }
+          },
+          resolve: () => ({
+            parent: {
+              type: {
+                name: 'paragraph'
+              },
+              content: {
+                size: 5
+              }
+            },
+            parentOffset: 2,
+            nodeBefore: {
+              textContent: 'a'
+            },
+            nodeAfter: {
+              textContent: 'b'
+            }
+          })
+        }
+      },
+      coordsAtPos: () => ({
+        top: 150,
+        bottom: 168,
+        left: 72,
+        right: 72
+      }),
+      posAtCoords: () => ({
+        pos: 3
+      })
+    } as never
+
+    expect(resolvePaginationBodyClick(view, 72, 320)).toEqual({ action: 'allow' })
   })
 })
 

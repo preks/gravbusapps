@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { UseFormReturn } from 'react-hook-form'
+import { UseFormReturn, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import {
   Input,
@@ -57,7 +57,7 @@ const OBJECTIVE_TYPES = [
   { value: 'MILESTONE_PERFORMANCE_GOAL', label: 'Milestone' }
 ]
 
-export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
+const FormScreenComponentInner: React.FC<FormScreenComponentProps> = ({
   prefixDataTestId = 'performance-goal-form',
   dataTestId = 'performance-goal-form-modal',
   form,
@@ -74,10 +74,14 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   const [initialProgress] = useState(() => form.getValues('progressPercent'))
   const [newMilestoneTitle, setNewMilestoneTitle] = useState('')
 
-  const progressPercent = form.watch('progressPercent')
-  const completionDate = form.watch('completionDate')
-  const objectiveType = form.watch('objectiveType') || 'PERCENTAGE_PERFORMANCE_GOAL'
-  const milestones = form.watch('milestones') || []
+  const watched = useWatch({
+    control: form.control,
+    name: ['progressPercent', 'completionDate', 'objectiveType', 'milestones']
+  })
+  const progressPercent = (watched?.[0] as number | undefined) ?? 0
+  const completionDate = watched?.[1] as Date | undefined
+  const objectiveType = (watched?.[2] as string | undefined) || 'PERCENTAGE_PERFORMANCE_GOAL'
+  const milestones = (watched?.[3] as MilestoneItem[] | undefined) ?? []
 
   const isStartDateDisabled = initialProgress > 0
   const isFieldsDisabled = initialProgress === 100
@@ -484,5 +488,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     </div>
   )
 }
+
+export const FormScreenComponent = React.memo(FormScreenComponentInner)
 
 export default FormScreenComponent

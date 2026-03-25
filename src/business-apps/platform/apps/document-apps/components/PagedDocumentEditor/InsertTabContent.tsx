@@ -5,7 +5,7 @@
 import { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { Hash, Image, Link, SeparatorHorizontal, Table } from 'lucide-react'
+import { Hash, Image, Link, PenLine, SeparatorHorizontal, Table } from 'lucide-react'
 import translations from '../../_i18n'
 import { ToolbarButton, RibbonGroup } from './editorToolbarShared'
 import { TableToolsMenu } from './TableToolsMenu'
@@ -14,6 +14,7 @@ interface InsertTabContentProps {
   editor: Editor
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
+  onOpenInsertSignatureDialog?: () => void
   onOpenInsertTableDialog?: () => void
   onOpenTableSidebar?: () => void
   onOpenPageNumbersDialog?: () => void
@@ -25,6 +26,7 @@ export function InsertTabContent({
   editor,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
+  onOpenInsertSignatureDialog,
   onOpenInsertTableDialog,
   onOpenTableSidebar,
   onOpenPageNumbersDialog,
@@ -81,6 +83,13 @@ export function InsertTabContent({
       </ToolbarButton>
       <ToolbarButton onClick={addImage} tooltip={t('editor-toolbar-insert-image')}>
         <Image className="gba:h-4 gba:w-4" />
+      </ToolbarButton>
+      <ToolbarButton
+        onClick={() => onOpenInsertSignatureDialog?.()}
+        tooltip={t('editor-toolbar-insert-signature')}
+        data-testid={`${testId}-insert-signature`}
+      >
+        <PenLine className="gba:h-4 gba:w-4" />
       </ToolbarButton>
       <ToolbarButton onClick={insertTable} tooltip={t('editor-toolbar-insert-table')}>
         <Table className="gba:h-4 gba:w-4" />
