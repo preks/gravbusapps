@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import {
-  ChatApiClient,
-  type UserOverviewResponse,
-  type UserContactsResponse,
-  type UserActivityResponse,
-  type UserReactionsResponse,
-  type GlobalStatsResponse
-} from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
+import type {
+  UserOverviewResponse,
+  UserContactsResponse,
+  UserActivityResponse,
+  UserReactionsResponse,
+  GlobalStatsResponse
+} from '../types'
 
 interface UseEveryOneAnalyticsOptions {
-  apiClient: ChatApiClient | null
+  apiClient: ChatClient | null
   isActive?: boolean
 }
 
@@ -46,23 +46,23 @@ export function useEveryOneAnalytics({ apiClient, isActive = true }: UseEveryOne
     try {
       // Fetch all data in parallel
       const [userOverview, userContacts, userActivity, userReactions, globalStats] = await Promise.all([
-        apiClient.getUserOverview().catch(err => {
+        apiClient.getAnalyticsUserOverview().catch(err => {
           console.warn('Failed to fetch user overview:', err)
           return null
         }),
-        apiClient.getUserContacts().catch(err => {
+        apiClient.getAnalyticsUserContacts().catch(err => {
           console.warn('Failed to fetch user contacts:', err)
           return null
         }),
-        apiClient.getUserActivity().catch(err => {
+        apiClient.getAnalyticsUserActivity().catch(err => {
           console.warn('Failed to fetch user activity:', err)
           return null
         }),
-        apiClient.getUserReactions().catch(err => {
+        apiClient.getAnalyticsUserReactions().catch(err => {
           console.warn('Failed to fetch user reactions:', err)
           return null
         }),
-        apiClient.getGlobalStats().catch(err => {
+        apiClient.getAnalyticsGlobalStats().catch(err => {
           console.warn('Failed to fetch global stats:', err)
           return null
         })
@@ -95,7 +95,7 @@ export function useEveryOneAnalytics({ apiClient, isActive = true }: UseEveryOne
   const refreshUserOverview = useCallback(async () => {
     if (!apiClient) return
     try {
-      const userOverview = await apiClient.getUserOverview()
+      const userOverview = await apiClient.getAnalyticsUserOverview()
       if (isMounted.current) {
         setState(prev => ({ ...prev, userOverview }))
       }
@@ -107,7 +107,7 @@ export function useEveryOneAnalytics({ apiClient, isActive = true }: UseEveryOne
   const refreshUserContacts = useCallback(async () => {
     if (!apiClient) return
     try {
-      const userContacts = await apiClient.getUserContacts()
+      const userContacts = await apiClient.getAnalyticsUserContacts()
       if (isMounted.current) {
         setState(prev => ({ ...prev, userContacts }))
       }
@@ -119,7 +119,7 @@ export function useEveryOneAnalytics({ apiClient, isActive = true }: UseEveryOne
   const refreshGlobalStats = useCallback(async () => {
     if (!apiClient) return
     try {
-      const globalStats = await apiClient.getGlobalStats()
+      const globalStats = await apiClient.getAnalyticsGlobalStats()
       if (isMounted.current) {
         setState(prev => ({ ...prev, globalStats }))
       }

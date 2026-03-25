@@ -15,8 +15,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ErrorAlert } from '@/components/error-alert'
 import { JobApplicationSelect } from '@/common/components/recruiting/form-components/job-application-select'
 import { MultiEmployeeSelect } from '@/components/multi-employee-select'
-import { createCalendarApiClient } from '@/business-apps/platform/apps/chat/calendar/calendarApiClient'
-import { env } from '@/common/env/EnvUtils'
+import { useChatClient } from '@/common/network/chat/useChatClient'
 import type { CreateMeetingData, UpdateMeetingData } from '@/business-apps/platform/apps/chat/calendar/types'
 import type { EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import {
@@ -218,22 +217,7 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
     })
   }, [externalUserIds])
 
-  const getChatApiUrl = useCallback((): string => {
-    let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-    baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-
-    const isLocalPlatform = baseUrl.includes('localhost')
-    if (isLocalPlatform) {
-      baseUrl = 'https://newwork-dev.newwork.com'
-    }
-
-    let apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1`
-    if (apiUrl.includes('localhost')) {
-      apiUrl = `${baseUrl}/chat-service/api/v1`
-    }
-
-    return apiUrl
-  }, [])
+  const chatClient = useChatClient(accessToken || undefined)
 
   // Helper function to get candidate name
   const getCandidateNameForMeeting = useCallback((): string => {
@@ -272,9 +256,6 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
   // Helper function to create or update meeting
   const createOrUpdateMeeting = useCallback(
     async (meetingTitle: string, startTime: Date, endTime: Date, participantIds: string[]): Promise<string> => {
-      const apiUrl = getChatApiUrl()
-      const calendarClient = createCalendarApiClient(apiUrl, accessToken || '')
-
       if (jobInterview?.meetingLink && jobInterview.id) {
         const updateData: UpdateMeetingData = {
           title: meetingTitle,
@@ -284,8 +265,11 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
           addParticipantIds: participantIds,
           notifyParticipants: true
         }
-        const updatedMeeting = await calendarClient.updateMeeting(jobInterview.meetingLink, updateData)
-        return updatedMeeting.id
+        const { meeting } = await chatClient.updateMeeting<{ meeting: { id: string } }>(
+          jobInterview.meetingLink,
+          updateData
+        )
+        return meeting.id
       } else {
         const createData: CreateMeetingData = {
           title: meetingTitle,
@@ -295,11 +279,11 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
           meetingLink: 'auto-generate',
           participantIds: participantIds
         }
-        const meeting = await calendarClient.createMeeting(createData)
+        const { meeting } = await chatClient.createMeeting<{ meeting: { id: string } }>(createData)
         return meeting.id
       }
     },
-    [accessToken, getChatApiUrl, jobInterview]
+    [chatClient, jobInterview]
   )
 
   const handlePreSubmit = useCallback(

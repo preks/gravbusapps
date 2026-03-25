@@ -8,15 +8,15 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider
+  TooltipProvider,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Calendar, Video, Users, ExternalLink, ListTodo } from 'lucide-react'
-import { createCalendarApiClient } from '../../calendar/calendarApiClient'
+import { useChatClient } from '@/common/network/chat/useChatClient'
 import type { CalendarEvent } from '../../calendar/types'
 import { getAgendaFromMetadata } from '../../calendar/utils/agendaUtils'
 import { useEmployeeAvatarsCache, EmployeeAvatarInfo } from '../../hooks/useEmployeeAvatarsCache'
-import { useChatTranslation } from '../../contexts/TranslationContext'
-import { env } from '@/common/env/EnvUtils'
+import translations from '../../_i18n'
 
 interface UpcomingMeetingsProps {
   accessToken: string
@@ -118,7 +118,7 @@ interface MeetingCardProps {
  * MeetingCard - Individual meeting item
  */
 const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, 'data-testid': testId }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const timeInfo = formatRelativeTime(meeting.start)
   const joinable = canJoinMeeting(meeting)
   const hasExternalLink = meeting.meetingLink && meeting.meetingLink !== 'auto-generate'
@@ -273,30 +273,7 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
   // Use avatar cache for resolving participant avatars
   const avatarCache = useEmployeeAvatarsCache(accessToken)
 
-  // Create API client
-  const apiClient = useMemo(() => {
-    if (!accessToken) return null
-
-    let baseUrl = env('NEXT_PUBLIC_PLATFORM_API') || ''
-    const chatServiceOverride = env('NEXT_PUBLIC_CHAT_SERVICE_OVERRIDE')
-
-    let apiUrl: string
-    if (chatServiceOverride) {
-      const localUrl = chatServiceOverride.endsWith('/') ? chatServiceOverride.slice(0, -1) : chatServiceOverride
-      apiUrl = `${localUrl}/api/v1`
-    } else {
-      const isLocalPlatform = baseUrl.includes('localhost')
-      if (isLocalPlatform) {
-        baseUrl = 'https://newwork-dev.newwork.com'
-      }
-      apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
-      if (apiUrl.includes('localhost')) {
-        apiUrl = `${baseUrl}/chat-service/api/v1`
-      }
-    }
-
-    return createCalendarApiClient(apiUrl, accessToken)
-  }, [accessToken])
+  const apiClient = useChatClient(accessToken)
 
   // Collect all participant user IDs from meetings
   const allParticipantUserIds = useMemo(() => {
@@ -339,9 +316,16 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
       const endDate = new Date()
       endDate.setDate(endDate.getDate() + 7) // Get meetings for next 7 days
 
-      const events = await apiClient.getCalendarEvents(now, endDate)
+      const response = await apiClient.getCalendarEvents<{ events: CalendarEvent[] }>(
+        now.toISOString(),
+        endDate.toISOString()
+      )
+      const events = (response.events || []).map(e => ({
+        ...e,
+        start: new Date(e.start),
+        end: new Date(e.end)
+      }))
 
-      // Filter to only scheduled/in_progress and sort by start time
       const upcomingMeetings = events
         .filter(e => e.status === 'scheduled' || e.status === 'in_progress')
         .sort((a, b) => a.start.getTime() - b.start.getTime())

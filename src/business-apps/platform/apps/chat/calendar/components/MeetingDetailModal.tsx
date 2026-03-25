@@ -13,14 +13,15 @@ import {
   AvatarFallback,
   Spinner,
   Separator,
-  useLocale
+  useLocale,
+  useTranslation
 } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import 'dayjs/locale/de'
 import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import translations from '../../_i18n'
 import {
   Calendar,
   Clock,
@@ -127,7 +128,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
   onOpenChat,
   activeConversationCalls
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const { locale } = useLocale()
   const [responseComment, setResponseComment] = useState('')
   const [isResponding, setIsResponding] = useState(false)
