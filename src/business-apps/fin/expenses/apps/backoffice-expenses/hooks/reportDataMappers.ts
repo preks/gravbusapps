@@ -128,7 +128,7 @@ export const mapPaymentsFromOverview = (
       requestDate: p.createdAt || '',
       status: p.status || '',
       statusLabel: statusDisplay.label,
-      amount: Number(p.amount || 0),
+      amount: coerceReportAmount(p.amount),
       employeeName:
         buildEmployeeDisplayName(p.expensePlan?.employee) ||
         buildEmployeeDisplayName(p.employee) ||
@@ -198,7 +198,7 @@ export const processExpensePlansData = (
       endDate: plan.endDate || '',
       status: plan.status || '',
       statusLabel: statusDisplay.label,
-      totalAmount: plan.totalAmount || 0,
+      totalAmount: coerceReportAmount(plan.totalAmount),
       currency: extractCurrencyCode(plan.currencyRef),
       employeeName: resolveDisplayName([plan.employeeId, plan.createdBy], employeeNameById),
       departmentName: resolveDepartmentName([plan.employeeId, plan.createdBy]),
@@ -237,7 +237,7 @@ export const mapAdvancePaymentToReport = (
     requestDate: p.createdAt || '',
     status: p.status || '',
     statusLabel: statusDisplay.label,
-    amount: p.amount || 0,
+    amount: coerceReportAmount(p.amount),
     employeeName: resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
     departmentName: resolveDepartmentName([p.expensePlan?.employeeId, p.createdBy, p.expensePlan?.createdBy]),
     paymentMethod: p.paymentMethod || undefined,
@@ -354,7 +354,7 @@ const mapApprovalPayoutCycleRow = (
     ),
     status: request?.status || '',
     statusLabel: statusDisplay.label,
-    totalAmount: Number(request.totalAmount ?? 0),
+    totalAmount: coerceReportAmount(request.totalAmount),
     currency: extractCurrencyCode(request.currencyRef)
   }
 }

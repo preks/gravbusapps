@@ -126,6 +126,23 @@ export function buildExpenseRequestFilterConfiguration(params: {
   }
 }
 
+function parseAmountFilterBounds(
+  amountMinFilter: string,
+  amountMaxFilter: string
+): { min?: number; max?: number } | null {
+  if (!amountMinFilter && !amountMaxFilter) {
+    return null
+  }
+  const minParsed = amountMinFilter ? Number.parseFloat(amountMinFilter) : undefined
+  const maxParsed = amountMaxFilter ? Number.parseFloat(amountMaxFilter) : undefined
+  const min = minParsed !== undefined && !Number.isNaN(minParsed) ? minParsed : undefined
+  const max = maxParsed !== undefined && !Number.isNaN(maxParsed) ? maxParsed : undefined
+  if (min === undefined && max === undefined) {
+    return null
+  }
+  return { min, max }
+}
+
 export function buildExpenseRequestFiltersObject(params: {
   statusFilter: string[]
   requestTypeFilterLocal: string[]
@@ -152,11 +169,9 @@ export function buildExpenseRequestFiltersObject(params: {
   if (statusFilter.length > 0) {
     filters.statusIds = statusFilter
   }
-
   if (requestTypeFilterLocal.length > 0) {
     filters.requestTypeIds = requestTypeFilterLocal
   }
-
   if (departmentIds.length > 0) {
     filters.departmentIds = departmentIds
   }
@@ -165,21 +180,14 @@ export function buildExpenseRequestFiltersObject(params: {
   if (effectiveDateLabel) {
     filters.effectiveDateRange = effectiveDateLabel
   }
-
   const requestDateLabel = formatDateRangeForChip(requestDateRange)
   if (requestDateLabel) {
     filters.requestDateRange = requestDateLabel
   }
 
-  if (amountMinFilter || amountMaxFilter) {
-    const minParsed = amountMinFilter ? Number.parseFloat(amountMinFilter) : undefined
-    const maxParsed = amountMaxFilter ? Number.parseFloat(amountMaxFilter) : undefined
-    const min = minParsed !== undefined && !Number.isNaN(minParsed) ? minParsed : undefined
-    const max = maxParsed !== undefined && !Number.isNaN(maxParsed) ? maxParsed : undefined
-
-    if (min !== undefined || max !== undefined) {
-      filters.amount = { min, max }
-    }
+  const amountBounds = parseAmountFilterBounds(amountMinFilter, amountMaxFilter)
+  if (amountBounds) {
+    filters.amount = amountBounds
   }
 
   if (selectedEmployees.length > 0) {
@@ -233,116 +241,117 @@ interface ApplyExpenseRequestDisplayFiltersParams {
   setCurrentPage: (page: number) => void
 }
 
-export function applyExpenseRequestDisplayFilters({
-  filters,
-  statusFilter,
-  setStatusFilter,
-  handleStatusFilter,
-  setRequestTypeFilterLocal,
-  setRequestTypeFilter,
-  departmentIds,
-  setDepartmentIds,
-  handleDepartmentFilter,
-  amountMinFilter,
-  amountMaxFilter,
-  handleAmountFilter,
-  employeeMultiSelectOptions,
-  selectedEmployees,
-  employeeSearchResults,
-  setSelectedEmployees,
-  employeeFilter,
-  setEmployeeFilter,
-  handleEmployeeFilter,
-  setEmployeeSheetSearchQuery,
-  setShowEmployeeDropdown,
-  setEffectiveDateRange,
-  setRequestDateRange,
-  setEffectiveDateRangeFilter,
-  setRequestDateRangeFilter,
-  setCurrentPage
-}: ApplyExpenseRequestDisplayFiltersParams) {
-  if (Object.keys(filters).length === 0) {
-    setStatusFilter([])
-    handleStatusFilter('')
-    setRequestTypeFilterLocal([])
-    setRequestTypeFilter([])
-    setDepartmentIds([])
-    handleDepartmentFilter('')
-    handleAmountFilter('', '')
-    setEmployeeSheetSearchQuery('')
-    setShowEmployeeDropdown(false)
-    setSelectedEmployees([])
-    setEmployeeFilter('')
-    handleEmployeeFilter('')
-    setEffectiveDateRange(null)
-    setRequestDateRange(null)
-    setEffectiveDateRangeFilter(null)
-    setRequestDateRangeFilter(null)
-    setCurrentPage(1)
+function resetAllExpenseRequestDisplayFilters(p: ApplyExpenseRequestDisplayFiltersParams): void {
+  p.setStatusFilter([])
+  p.handleStatusFilter('')
+  p.setRequestTypeFilterLocal([])
+  p.setRequestTypeFilter([])
+  p.setDepartmentIds([])
+  p.handleDepartmentFilter('')
+  p.handleAmountFilter('', '')
+  p.setEmployeeSheetSearchQuery('')
+  p.setShowEmployeeDropdown(false)
+  p.setSelectedEmployees([])
+  p.setEmployeeFilter('')
+  p.handleEmployeeFilter('')
+  p.setEffectiveDateRange(null)
+  p.setRequestDateRange(null)
+  p.setEffectiveDateRangeFilter(null)
+  p.setRequestDateRangeFilter(null)
+  p.setCurrentPage(1)
+}
+
+function syncDepartmentFromDisplayFilters(p: ApplyExpenseRequestDisplayFiltersParams): void {
+  if ('departmentIds' in p.filters) {
+    const nextDepartmentIds = (p.filters.departmentIds as string[] | undefined) ?? []
+    p.setDepartmentIds(nextDepartmentIds)
+    p.handleDepartmentFilter(nextDepartmentIds.join(','))
     return
   }
-
-  const statusIds = (filters.statusIds as string[] | undefined) ?? []
-  if (statusIds !== statusFilter) {
-    setStatusFilter(statusIds)
+  if (p.departmentIds.length > 0) {
+    p.setDepartmentIds([])
+    p.handleDepartmentFilter('')
   }
-  handleStatusFilter(statusIds.join(','))
+}
 
-  const requestTypeIds = (filters.requestTypeIds as string[] | undefined) ?? []
-  setRequestTypeFilterLocal(requestTypeIds)
-  setRequestTypeFilter(requestTypeIds)
+function formatAmountFilterStrings(amount: { min?: number; max?: number }): { minValue: string; maxValue: string } {
+  const minValue = amount.min !== undefined && !Number.isNaN(Number(amount.min)) ? String(amount.min) : ''
+  const maxValue = amount.max !== undefined && !Number.isNaN(Number(amount.max)) ? String(amount.max) : ''
+  return { minValue, maxValue }
+}
 
-  if ('departmentIds' in filters) {
-    const nextDepartmentIds = (filters.departmentIds as string[] | undefined) ?? []
-    setDepartmentIds(nextDepartmentIds)
-    handleDepartmentFilter(nextDepartmentIds.join(','))
-  } else if (departmentIds.length > 0) {
-    setDepartmentIds([])
-    handleDepartmentFilter('')
-  }
-
-  if ('amount' in filters) {
-    const amount = filters.amount as { min?: number; max?: number } | null | undefined
+function syncAmountFromDisplayFilters(p: ApplyExpenseRequestDisplayFiltersParams): void {
+  if ('amount' in p.filters) {
+    const amount = p.filters.amount as { min?: number; max?: number } | null | undefined
     if (amount && (amount.min !== undefined || amount.max !== undefined)) {
-      const minValue = amount.min !== undefined && !Number.isNaN(Number(amount.min)) ? String(amount.min) : ''
-      const maxValue = amount.max !== undefined && !Number.isNaN(Number(amount.max)) ? String(amount.max) : ''
-      handleAmountFilter(minValue, maxValue)
+      const { minValue, maxValue } = formatAmountFilterStrings(amount)
+      p.handleAmountFilter(minValue, maxValue)
     } else {
-      handleAmountFilter('', '')
+      p.handleAmountFilter('', '')
     }
-  } else if (amountMinFilter || amountMaxFilter) {
-    handleAmountFilter('', '')
+    return
   }
+  if (p.amountMinFilter || p.amountMaxFilter) {
+    p.handleAmountFilter('', '')
+  }
+}
 
-  if ('employeeIds' in filters) {
-    const employeeIds = (filters.employeeIds as string[] | undefined) ?? []
-    const labelById = buildEmployeeLabelByIdMap(employeeMultiSelectOptions, selectedEmployees, employeeSearchResults)
+function syncEmployeesFromDisplayFilters(p: ApplyExpenseRequestDisplayFiltersParams): void {
+  if ('employeeIds' in p.filters) {
+    const employeeIds = (p.filters.employeeIds as string[] | undefined) ?? []
+    const labelById = buildEmployeeLabelByIdMap(
+      p.employeeMultiSelectOptions,
+      p.selectedEmployees,
+      p.employeeSearchResults
+    )
     const nextSelectedEmployees = employeeIds.map(id => ({
       id,
       name: labelById.get(id) ?? id
     }))
-
-    setSelectedEmployees(nextSelectedEmployees)
+    p.setSelectedEmployees(nextSelectedEmployees)
     const joinedEmployeeIds = employeeIds.join(',')
-    setEmployeeFilter(joinedEmployeeIds)
-    handleEmployeeFilter(joinedEmployeeIds)
-  } else if (selectedEmployees.length > 0 || employeeFilter.trim() !== '') {
-    setSelectedEmployees([])
-    setEmployeeFilter('')
-    handleEmployeeFilter('')
-    setEmployeeSheetSearchQuery('')
-    setShowEmployeeDropdown(false)
+    p.setEmployeeFilter(joinedEmployeeIds)
+    p.handleEmployeeFilter(joinedEmployeeIds)
+    return
+  }
+  if (p.selectedEmployees.length > 0 || p.employeeFilter.trim() !== '') {
+    p.setSelectedEmployees([])
+    p.setEmployeeFilter('')
+    p.handleEmployeeFilter('')
+    p.setEmployeeSheetSearchQuery('')
+    p.setShowEmployeeDropdown(false)
+  }
+}
+
+export function applyExpenseRequestDisplayFilters(params: ApplyExpenseRequestDisplayFiltersParams): void {
+  if (Object.keys(params.filters).length === 0) {
+    resetAllExpenseRequestDisplayFilters(params)
+    return
   }
 
-  applyDateRangeFromFilter(filters.effectiveDateRange, range => {
-    setEffectiveDateRange(range)
-    syncDateRangeToQuery(range, setEffectiveDateRangeFilter)
+  const statusIds = (params.filters.statusIds as string[] | undefined) ?? []
+  if (statusIds !== params.statusFilter) {
+    params.setStatusFilter(statusIds)
+  }
+  params.handleStatusFilter(statusIds.join(','))
+
+  const requestTypeIds = (params.filters.requestTypeIds as string[] | undefined) ?? []
+  params.setRequestTypeFilterLocal(requestTypeIds)
+  params.setRequestTypeFilter(requestTypeIds)
+
+  syncDepartmentFromDisplayFilters(params)
+  syncAmountFromDisplayFilters(params)
+  syncEmployeesFromDisplayFilters(params)
+
+  applyDateRangeFromFilter(params.filters.effectiveDateRange, range => {
+    params.setEffectiveDateRange(range)
+    syncDateRangeToQuery(range, params.setEffectiveDateRangeFilter)
   })
 
-  applyDateRangeFromFilter(filters.requestDateRange, range => {
-    setRequestDateRange(range)
-    syncDateRangeToQuery(range, setRequestDateRangeFilter)
+  applyDateRangeFromFilter(params.filters.requestDateRange, range => {
+    params.setRequestDateRange(range)
+    syncDateRangeToQuery(range, params.setRequestDateRangeFilter)
   })
 
-  setCurrentPage(1)
+  params.setCurrentPage(1)
 }

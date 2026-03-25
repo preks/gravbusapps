@@ -3,6 +3,14 @@ import type { ExpenseData } from '../../../../types'
 
 const BOOKED_STATUS = 'BOOKED'
 
+function filterKeysToBookableIds(keys: Key[], bookableRecords: ExpenseData[]): Key[] {
+  if (bookableRecords.length === 0) {
+    return []
+  }
+  const bookableIds = new Set(bookableRecords.map(record => record.id))
+  return keys.filter(key => bookableIds.has(String(key)))
+}
+
 /**
  * Row selection for backoffice expense requests: only BOOKED rows are selectable for bulk transfer.
  */
@@ -12,9 +20,7 @@ export function useExpenseRequestSelection(expenses: ExpenseData[] | undefined) 
   const bookableRecords = useMemo(() => expenses?.filter(expense => expense.status === BOOKED_STATUS) ?? [], [expenses])
 
   useEffect(() => {
-    setSelectedRowKeys(previousSelectedKeys =>
-      previousSelectedKeys.filter(key => bookableRecords.some(record => record.id === key))
-    )
+    setSelectedRowKeys(previousKeys => filterKeysToBookableIds(previousKeys, bookableRecords))
   }, [bookableRecords])
 
   const selectedRecords = useMemo(

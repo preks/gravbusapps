@@ -42,6 +42,56 @@ function buildSearchCondition(searchTerm: string): any[] {
   return buildSearchConditionBase(searchTerm, buildExpenseRequestSearchOrConditions)
 }
 
+function buildExcludedStatusesForRequestList(statusFilter: string): string[] {
+  const activeStatuses = statusFilter
+    ? statusFilter
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+    : []
+  const excludedStatuses = ['DISCARDED']
+  if (!activeStatuses.includes('CREATED')) {
+    excludedStatuses.push('CREATED')
+  }
+  return excludedStatuses
+}
+
+function appendDepartmentConditions(conditions: any[], departmentFilter: string): void {
+  if (!departmentFilter) {
+    return
+  }
+  const departmentIds = departmentFilter
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+  if (departmentIds.length === 1) {
+    conditions.push({
+      employee: { employeePosition: { organizationalUnitId: { _eq: departmentIds[0] } } }
+    })
+  } else if (departmentIds.length > 1) {
+    conditions.push({
+      employee: { employeePosition: { organizationalUnitId: { _in: departmentIds } } }
+    })
+  }
+}
+
+function appendRequestCreatedAtRange(
+  conditions: any[],
+  requestDateRangeFilter: { from?: string; to?: string } | null
+): void {
+  if (!requestDateRangeFilter?.from && !requestDateRangeFilter?.to) {
+    return
+  }
+  const createdAtCond: Record<string, string> = {}
+  if (requestDateRangeFilter.from) {
+    createdAtCond._gte = requestDateRangeFilter.from
+  }
+  if (requestDateRangeFilter.to) {
+    createdAtCond._lte = requestDateRangeFilter.to
+  }
+  conditions.push({ createdAt: createdAtCond })
+}
+
 function buildWhereConditions(
   options: Pick<
     BackofficeExpenseRequestsOverviewParams,
@@ -70,14 +120,7 @@ function buildWhereConditions(
     requestTypeFilter
   } = options
 
-  const activeStatuses = statusFilter
-    ? statusFilter
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean)
-    : []
-  const excludedStatuses = ['DISCARDED']
-  if (!activeStatuses.includes('CREATED')) excludedStatuses.push('CREATED')
+  const excludedStatuses = buildExcludedStatusesForRequestList(statusFilter)
 
   const conditions: any[] = [
     { isDeleted: { _eq: false } },
@@ -88,22 +131,7 @@ function buildWhereConditions(
     ...buildSearchCondition(searchTerm)
   ]
 
-  if (departmentFilter) {
-    const departmentIds = departmentFilter
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-    if (departmentIds.length === 1) {
-      conditions.push({
-        employee: { employeePosition: { organizationalUnitId: { _eq: departmentIds[0] } } }
-      })
-    }
-    if (departmentIds.length > 1) {
-      conditions.push({
-        employee: { employeePosition: { organizationalUnitId: { _in: departmentIds } } }
-      })
-    }
-  }
+  appendDepartmentConditions(conditions, departmentFilter)
 
   if (currencyRefFilter) {
     conditions.push({ currencyRef: { _eq: currencyRefFilter } })
@@ -114,12 +142,7 @@ function buildWhereConditions(
     conditions.push(effectiveDateFilter)
   }
 
-  if (requestDateRangeFilter?.from || requestDateRangeFilter?.to) {
-    const createdAtCond: any = {}
-    if (requestDateRangeFilter.from) createdAtCond._gte = requestDateRangeFilter.from
-    if (requestDateRangeFilter.to) createdAtCond._lte = requestDateRangeFilter.to
-    conditions.push({ createdAt: createdAtCond })
-  }
+  appendRequestCreatedAtRange(conditions, requestDateRangeFilter)
 
   const requestTypeFilterCond = buildRequestTypeFilter(requestTypeFilter)
   if (requestTypeFilterCond) {

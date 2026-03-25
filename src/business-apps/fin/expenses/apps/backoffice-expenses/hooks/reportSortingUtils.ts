@@ -1,11 +1,10 @@
 import type { SortingState } from '@tanstack/react-table'
 import { ReportType } from '../types/reportTypes'
 
-const DEFAULT_EXPENSE_ITEM_ORDER: any[] = [{ createdAt: 'DESC' }]
-export const DEFAULT_EXPENSE_REQUEST_ORDER: any[] = [{ createdAt: 'DESC' }]
-export const DEFAULT_EXPENSE_PLAN_ORDER: any[] = [{ createdAt: 'DESC' }]
-export const DEFAULT_ADVANCE_PAYMENT_ORDER: any[] = [{ createdAt: 'DESC' }]
-const DEFAULT_APPROVAL_PAYOUT_ORDER: any[] = [{ createdAt: 'DESC' }]
+const DEFAULT_SORT_ORDER: any[] = [{ createdAt: 'DESC' }]
+export const DEFAULT_EXPENSE_REQUEST_ORDER = DEFAULT_SORT_ORDER
+export const DEFAULT_EXPENSE_PLAN_ORDER = DEFAULT_SORT_ORDER
+export const DEFAULT_ADVANCE_PAYMENT_ORDER = DEFAULT_SORT_ORDER
 
 type NullableAmountOrder = 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
 
@@ -32,22 +31,48 @@ function tryExpenseReportAmountSort(
   return undefined
 }
 
+function mapSimpleFieldSort(
+  sortField: string,
+  sortDirection: string,
+  fieldMap: Record<string, string>,
+  defaultOrder: any[]
+): any[] {
+  const mappedField = fieldMap[sortField]
+  return mappedField ? [{ [mappedField]: sortDirection }] : defaultOrder
+}
+
+const EXPENSE_PLAN_TEXT_SORT_MAP: Record<string, string> = {
+  title: 'title',
+  code: 'code',
+  createdAt: 'createdAt',
+  status: 'status',
+  startDate: 'startDate',
+  endDate: 'endDate'
+}
+
+const EXPENSE_REQUEST_TEXT_SORT_MAP: Record<string, string> = {
+  ...EXPENSE_PLAN_TEXT_SORT_MAP,
+  requestDate: 'createdAt'
+}
+
 export function mapSortingToOrderBy(selectedReportType: ReportType | null, sorting: SortingState): any[] {
   const primarySort = Array.isArray(sorting) && sorting.length > 0 ? sorting[0] : undefined
   const sortDirection = primarySort?.desc ? 'DESC' : 'ASC'
   const sortField = String(primarySort?.id || '').trim()
 
   switch (selectedReportType) {
-    case ReportType.EXPENSE_ITEM: {
-      const fieldMap: Record<string, string> = {
-        title: 'title',
-        date: 'expenseDate',
-        amount: 'reimbursableAmount',
-        status: 'status'
-      }
-      const mappedField = fieldMap[sortField]
-      return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_EXPENSE_ITEM_ORDER
-    }
+    case ReportType.EXPENSE_ITEM:
+      return mapSimpleFieldSort(
+        sortField,
+        sortDirection,
+        {
+          title: 'title',
+          date: 'expenseDate',
+          amount: 'reimbursableAmount',
+          status: 'status'
+        },
+        DEFAULT_SORT_ORDER
+      )
     case ReportType.EXPENSE_REQUEST: {
       const amountSort = tryExpenseReportAmountSort(sortField, primarySort?.desc, dir => ({
         expensePlan: { advancePaymentPaidAmount: dir }
@@ -55,17 +80,7 @@ export function mapSortingToOrderBy(selectedReportType: ReportType | null, sorti
       if (amountSort) {
         return amountSort
       }
-      const fieldMap: Record<string, string> = {
-        title: 'title',
-        code: 'code',
-        createdAt: 'createdAt',
-        status: 'status',
-        requestDate: 'createdAt',
-        startDate: 'startDate',
-        endDate: 'endDate'
-      }
-      const mappedField = fieldMap[sortField]
-      return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_EXPENSE_REQUEST_ORDER
+      return mapSimpleFieldSort(sortField, sortDirection, EXPENSE_REQUEST_TEXT_SORT_MAP, DEFAULT_EXPENSE_REQUEST_ORDER)
     }
     case ReportType.EXPENSE_PLAN: {
       const amountSort = tryExpenseReportAmountSort(sortField, primarySort?.desc, dir => ({
@@ -74,38 +89,33 @@ export function mapSortingToOrderBy(selectedReportType: ReportType | null, sorti
       if (amountSort) {
         return amountSort
       }
-      const fieldMap: Record<string, string> = {
-        title: 'title',
-        code: 'code',
-        createdAt: 'createdAt',
-        status: 'status',
-        startDate: 'startDate',
-        endDate: 'endDate'
-      }
-      const mappedField = fieldMap[sortField]
-      return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_EXPENSE_PLAN_ORDER
+      return mapSimpleFieldSort(sortField, sortDirection, EXPENSE_PLAN_TEXT_SORT_MAP, DEFAULT_EXPENSE_PLAN_ORDER)
     }
-    case ReportType.ADVANCE_PAYMENT: {
-      const fieldMap: Record<string, string> = {
-        createdAt: 'createdAt',
-        status: 'status',
-        amount: 'amount',
-        paymentMethod: 'paymentMethod'
-      }
-      const mappedField = fieldMap[sortField]
-      return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_ADVANCE_PAYMENT_ORDER
-    }
-    case ReportType.APPROVAL_PAYOUT_CYCLE: {
-      const fieldMap: Record<string, string> = {
-        title: 'title',
-        code: 'code',
-        status: 'status',
-        totalAmount: 'totalAmount'
-      }
-      const mappedField = fieldMap[sortField]
-      return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_APPROVAL_PAYOUT_ORDER
-    }
+    case ReportType.ADVANCE_PAYMENT:
+      return mapSimpleFieldSort(
+        sortField,
+        sortDirection,
+        {
+          createdAt: 'createdAt',
+          status: 'status',
+          amount: 'amount',
+          paymentMethod: 'paymentMethod'
+        },
+        DEFAULT_ADVANCE_PAYMENT_ORDER
+      )
+    case ReportType.APPROVAL_PAYOUT_CYCLE:
+      return mapSimpleFieldSort(
+        sortField,
+        sortDirection,
+        {
+          title: 'title',
+          code: 'code',
+          status: 'status',
+          totalAmount: 'totalAmount'
+        },
+        DEFAULT_SORT_ORDER
+      )
     default:
-      return [{ createdAt: 'DESC' }]
+      return DEFAULT_SORT_ORDER
   }
 }
