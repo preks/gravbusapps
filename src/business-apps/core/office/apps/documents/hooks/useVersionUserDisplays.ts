@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type { Version } from '../../shared/types/versioning'
+import type { Version } from '@/business-apps/platform/apps/shared/types/versioning'
 
 export interface VersionUserDisplay {
   displayName: string

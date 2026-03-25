@@ -3,7 +3,10 @@ import type { Editor as TiptapEditor } from '@tiptap/react'
 import { Plugin, PluginKey, type Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Awareness } from 'y-protocols/awareness'
-import { emitDocumentActivity, emitDocumentActivityEnd } from '../../../../spaces/hooks/useSpaceDocumentActivity'
+import {
+  emitDocumentActivity,
+  emitDocumentActivityEnd
+} from '@/business-apps/platform/apps/spaces/hooks/useSpaceDocumentActivity'
 import type { PagedDocumentAutocompleteController } from './usePagedDocumentAutocompleteController'
 
 const AUTOCOMPLETE_PLUGIN_KEY = new PluginKey('documentAutocompleteGhost')

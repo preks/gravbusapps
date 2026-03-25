@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
-import type { UseCommentsReturn } from '../../../shared/hooks/useComments'
+import type { UseCommentsReturn } from '@/business-apps/platform/apps/shared/hooks/useComments'
 import { scrollInlineCommentRangeIntoView } from '../commentSidebarNavigation'
 import { findInlineCommentSelection, usePagedDocumentCommentSidebar } from '../hooks/usePagedDocumentCommentSidebar'
 

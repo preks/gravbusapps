@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useRef } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { VoiceVisualizer, useVoiceInput, normalizeDictationTranscript } from '../../../shared'
+import { VoiceVisualizer, useVoiceInput, normalizeDictationTranscript } from '@/business-apps/platform/apps/shared'
 import translations from '../../_i18n'
 import { EditorToolbarRibbon } from './EditorToolbarRibbon'
 

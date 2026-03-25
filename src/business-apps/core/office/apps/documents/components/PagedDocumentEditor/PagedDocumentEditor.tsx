@@ -19,16 +19,16 @@ import { createDocumentImageUploadHandler } from '../../utils/documentImageBindi
 import { useDocumentEditorAvatars, useDocumentEditorShortcuts, useVersionUserDisplays } from '../../hooks'
 import { useOfficeDocumentCollaboration } from '../../hooks/useOfficeDocumentCollaboration'
 import { useYjsDocumentSync } from '../../hooks/useYjsDocumentSync'
-import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
+import { useEditorKeyboardIsolation } from '@/business-apps/platform/apps/shared/hooks/useEditorKeyboardIsolation'
 import {
   type ActivePagesEditorState,
   type PaginationPlusStorage as PagesStorage
 } from '@/components/tiptap-extensions/tiptap-custom-pagination'
 import { useImageDataUrlResolver } from '../../hooks/useImageDataUrlResolver'
-import { useVersioning } from '../../../shared/hooks/useVersioning'
-import { useFileLock } from '../../../shared/hooks/useFileLock'
-import { useComments } from '../../../shared/hooks/useComments'
-import { usePublishing } from '../../../shared/hooks/usePublishing'
+import { useVersioning } from '@/business-apps/platform/apps/shared/hooks/useVersioning'
+import { useFileLock } from '@/business-apps/platform/apps/shared/hooks/useFileLock'
+import { useComments } from '@/business-apps/platform/apps/shared/hooks/useComments'
+import { usePublishing } from '@/business-apps/platform/apps/shared/hooks/usePublishing'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { LinkBubbleMenu } from './LinkBubbleMenu'

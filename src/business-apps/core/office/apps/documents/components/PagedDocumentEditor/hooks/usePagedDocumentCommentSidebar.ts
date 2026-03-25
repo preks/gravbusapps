@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import type { Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
-import type { UseCommentsReturn } from '../../../shared/hooks/useComments'
+import type { UseCommentsReturn } from '@/business-apps/platform/apps/shared/hooks/useComments'
 import { computePanelCommentAnchor, type PanelCommentAnchor } from '../../../utils/commentPanelAnchor'
 import { scrollInlineCommentRangeIntoView } from '../commentSidebarNavigation'
 import type { RightSidebar } from './usePagedDocumentInteractionDialogs'

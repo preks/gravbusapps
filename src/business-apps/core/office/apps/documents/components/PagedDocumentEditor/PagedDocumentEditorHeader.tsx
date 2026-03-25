@@ -30,8 +30,8 @@ import {
   Wand2
 } from 'lucide-react'
 import type { Document, DocumentApprovalRequest } from '../../types'
-import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
-import { StatusBadge } from '../../../shared/components/StatusBadge'
+import { PresenceIndicator } from '@/business-apps/platform/apps/shared/components/PresenceIndicator'
+import { StatusBadge } from '@/business-apps/platform/apps/shared/components/StatusBadge'
 import { EditorToolbar } from './EditorToolbar'
 import { ApprovalStatusBadge, SaveStatusIndicator } from './PagedDocumentEditorHeaderStatus'
 import type { RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'

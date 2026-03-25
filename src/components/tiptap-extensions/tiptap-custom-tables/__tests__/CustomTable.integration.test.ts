@@ -3,7 +3,7 @@ import StarterKit from '@tiptap/starter-kit'
 import {
   normalizeDocumentHtmlForEditor,
   sanitizePaginationRuntimeHtml
-} from '@/business-apps/platform/apps/document-apps/utils/documentContentUtils'
+} from '@/business-apps/core/office/apps/documents/utils/documentContentUtils'
 import { Table, TableCell, TableHeader, TableRow } from '..'
 
 function waitForEditorPlugins() {

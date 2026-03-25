@@ -25,7 +25,7 @@ import type {
   CommentQueryOptions,
   LockFileInput,
   PublishInput
-} from '../../shared/types/versioning'
+} from '@/business-apps/platform/apps/shared/types/versioning'
 import { sanitizeDocumentHtmlForEditor } from '../utils/documentContentUtils'
 
 let currentAccessToken: string | null = null

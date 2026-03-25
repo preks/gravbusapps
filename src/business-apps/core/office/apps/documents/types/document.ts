@@ -5,7 +5,13 @@
  * and approval workflow types.
  */
 
-import type { Version, Comment, FileLock, PublishStatus, PublishMetadata } from '../../shared/types/versioning'
+import type {
+  Version,
+  Comment,
+  FileLock,
+  PublishStatus,
+  PublishMetadata
+} from '@/business-apps/platform/apps/shared/types/versioning'
 
 // Re-export shared types for convenience
 export type { Version, Comment, FileLock, PublishStatus, PublishMetadata }

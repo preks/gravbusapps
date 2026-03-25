@@ -9,7 +9,7 @@
 import DOMPurify from 'dompurify'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Socket } from 'socket.io-client'
-import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
+import { SocketIoYjsProvider } from '@/business-apps/platform/apps/shared/services/SocketIoYjsProvider'
 import { markNextPaginationHydrationDocChange } from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { DocumentFormatting } from '../types'

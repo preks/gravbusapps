@@ -14,7 +14,11 @@ import type {
   TemplateSummary,
   Version
 } from '../types'
-import type { CommentQueryOptions, CreateCommentInput, LockFileInput } from '../../shared/types/versioning'
+import type {
+  CommentQueryOptions,
+  CreateCommentInput,
+  LockFileInput
+} from '@/business-apps/platform/apps/shared/types/versioning'
 import { sanitizeDocumentHtmlForEditor } from './documentContentUtils'
 
 export interface PaginatedResponse<T> {

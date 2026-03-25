@@ -3,7 +3,7 @@
  */
 
 import React from 'react'
-import { VoiceInputButton } from '../../../shared'
+import { VoiceInputButton } from '@/business-apps/platform/apps/shared'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 import { RibbonGroup } from './editorToolbarShared'

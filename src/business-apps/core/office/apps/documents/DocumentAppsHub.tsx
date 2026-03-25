@@ -92,7 +92,7 @@ import { useDocumentTemplates } from './hooks/useDocumentTemplates'
 import { useDocumentAppsHubUserLookup } from './hooks/useDocumentAppsHubUserLookup'
 import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
-import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
+import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
 
 // Entities / context
 import { getContextForCategory, getContextForEntityKeys } from './entities'

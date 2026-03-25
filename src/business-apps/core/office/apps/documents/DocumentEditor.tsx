@@ -7,7 +7,7 @@
 
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import ReactQuill from 'react-quill'
-import { useEditorKeyboardIsolation } from '../shared/hooks/useEditorKeyboardIsolation'
+import { useEditorKeyboardIsolation } from '@/business-apps/platform/apps/shared/hooks/useEditorKeyboardIsolation'
 import {
   Button,
   Input,

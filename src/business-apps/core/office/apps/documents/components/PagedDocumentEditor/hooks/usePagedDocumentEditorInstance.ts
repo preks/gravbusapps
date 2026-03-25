@@ -29,7 +29,7 @@ import { createYjsCursorExtension } from '../extensions/YjsCursor'
 import { LineAndParagraphSpacing } from '../extensions/LineAndParagraphSpacing'
 import { ParagraphIndent } from '../extensions/ParagraphIndent'
 import { DocumentImage, PageBreak, SearchHighlight, Signature } from '../extensions'
-import { InlineComment as InlineCommentExtension } from '../../../../shared/extensions/InlineCommentExtension'
+import { InlineComment as InlineCommentExtension } from '@/business-apps/platform/apps/shared/extensions/InlineCommentExtension'
 
 const PAGE_GAP_PX = 24
 
