@@ -164,7 +164,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, enab
     () => ({ accessToken: enabled ? accessToken : '', userInfo }),
     [accessToken, userInfo, enabled]
   )
-  const [selectedCurrency, setSelectedCurrency] = useState('all')
+  const [selectedCurrency, setSelectedCurrency] = useState('EUR')
   const activeCurrency = selectedCurrency === 'all' ? undefined : selectedCurrency
   // Raw filter values from the filter sheet (used as display state in DataDisplay)
   const [rawFilterSheetFilters, setRawFilterSheetFilters] = useState<Record<string, any>>({})
@@ -259,7 +259,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, enab
           setSelectedCurrency(newCurrency)
           sectionState.handlePaginationChange({ pageIndex: 0, pageSize: sectionState.pageSize })
         }}
-        allOptionLabel="All"
         dataTestId="planned-exits-currency-filter"
       />
     ),

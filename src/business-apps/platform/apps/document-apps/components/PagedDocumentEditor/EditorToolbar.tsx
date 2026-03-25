@@ -15,6 +15,7 @@ interface EditorToolbarProps {
   onInsertPageBreak?: () => void
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
+  onOpenInsertSignatureDialog?: () => void
   onOpenInsertTableDialog?: () => void
   onOpenTableSidebar?: () => void
   onOpenPageNumbersDialog?: () => void
@@ -28,6 +29,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onInsertPageBreak,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
+  onOpenInsertSignatureDialog,
   onOpenInsertTableDialog,
   onOpenTableSidebar,
   onOpenPageNumbersDialog,
@@ -128,6 +130,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           onInsertPageBreak={onInsertPageBreak}
           onOpenLinkDialog={onOpenLinkDialog}
           onOpenInsertImageDialog={onOpenInsertImageDialog}
+          onOpenInsertSignatureDialog={onOpenInsertSignatureDialog}
           onOpenInsertTableDialog={onOpenInsertTableDialog}
           onOpenTableSidebar={onOpenTableSidebar}
           onOpenPageNumbersDialog={onOpenPageNumbersDialog}

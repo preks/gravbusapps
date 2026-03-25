@@ -50,9 +50,7 @@ export class HeaderFooterOverlayManager {
 
     const { target, type, pageNumber, clickPosition, initialContent, storage, options } = params
     const contentSelector = type === 'header' ? '.rm-page-header-content' : '.rm-page-footer-content'
-    const shellSelector = type === 'header' ? '.rm-page-header' : '.rm-page-footer'
     const contentHost = target.querySelector(contentSelector) as HTMLElement | null
-    const shellHost = target.querySelector(shellSelector) as HTMLElement | null
     const hint = target.querySelector('.rm-page-region-hint') as HTMLElement | null
     const pageNumberSlot = target.querySelector('[data-rm-page-number-slot="true"]') as HTMLElement | null
     const variant = resolveVariantForPage(pageNumber, options)
@@ -71,19 +69,10 @@ export class HeaderFooterOverlayManager {
 
     const previousEditable = this.hostEditor.isEditable
     this.hostEditor.setEditable(false, false)
-    const shellEditableElements = [target, shellHost].filter(
-      (element): element is HTMLElement => element instanceof HTMLElement
-    )
-    const shellEditableSnapshot = shellEditableElements.map(element => ({
-      element,
-      contentEditable: element.getAttribute('contenteditable')
-    }))
+    const shellEditableSnapshot: Array<{ element: HTMLElement; contentEditable: string | null }> = []
 
     target.dataset.rmOverlayActive = 'true'
     target.dataset.rmHasVisibleContent = 'true'
-    shellEditableElements.forEach(element => {
-      element.setAttribute('contenteditable', 'true')
-    })
     contentHost.classList.add('rm-page-inline-editor')
     contentHost.style.setProperty('--rm-overlay-accent', accentColor)
     contentHost.setAttribute('contenteditable', 'true')

@@ -1,4 +1,5 @@
-import type { ChangeEventHandler, KeyboardEventHandler, ReactNode } from 'react'
+import { useRef } from 'react'
+import type { ChangeEventHandler, FocusEventHandler, KeyboardEventHandler, MouseEventHandler, ReactNode } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import {
   AiButton,
@@ -71,6 +72,7 @@ export interface PagedDocumentEditorHeaderProps {
   canOpenPageNumbersDialog: boolean
   onOpenLinkDialog: () => void
   onOpenInsertImageDialog: () => void
+  onOpenInsertSignatureDialog?: () => void
   onOpenInsertTableDialog: () => void
   onOpenTableSidebar: () => void
   onOpenPageNumbersDialog: () => void
@@ -120,6 +122,7 @@ export function PagedDocumentEditorHeader({
   canOpenPageNumbersDialog,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
+  onOpenInsertSignatureDialog,
   onOpenInsertTableDialog,
   onOpenTableSidebar,
   onOpenPageNumbersDialog,
@@ -132,6 +135,56 @@ export function PagedDocumentEditorHeader({
   isLockedByMe,
   testId
 }: Readonly<PagedDocumentEditorHeaderProps>) {
+  /**
+   * After mousedown+focus+select on a previously unfocused title, the same gesture's mouseup can still
+   * move the caret in some browsers. We preventDefault on that one mouseup only.
+   * When the field is already focused, clear the flag so a click can collapse the selection normally.
+   */
+  const blockNextTitleMouseUpRef = useRef(false)
+  const titleSelectDoneInMouseDownRef = useRef(false)
+
+  const handleTitleMouseDown: MouseEventHandler<HTMLInputElement> = event => {
+    if (isReadOnly) {
+      return
+    }
+    const input = event.currentTarget
+    if (document.activeElement === input) {
+      blockNextTitleMouseUpRef.current = false
+      return
+    }
+    event.preventDefault()
+    input.focus()
+    input.select()
+    blockNextTitleMouseUpRef.current = true
+    titleSelectDoneInMouseDownRef.current = true
+  }
+
+  const handleTitleMouseUp: MouseEventHandler<HTMLInputElement> = event => {
+    if (!blockNextTitleMouseUpRef.current) {
+      return
+    }
+    blockNextTitleMouseUpRef.current = false
+    event.preventDefault()
+  }
+
+  /** Tab / programmatic focus: select all. Skip when mousedown already focused + selected. */
+  const handleTitleFocus: FocusEventHandler<HTMLInputElement> = event => {
+    if (isReadOnly) {
+      return
+    }
+    if (titleSelectDoneInMouseDownRef.current) {
+      titleSelectDoneInMouseDownRef.current = false
+      return
+    }
+    event.currentTarget.select()
+  }
+
+  const handleTitleBlur = () => {
+    blockNextTitleMouseUpRef.current = false
+    titleSelectDoneInMouseDownRef.current = false
+    onTitleBlur()
+  }
+
   return (
     <div ref={setHeaderChromeNode} className="gba:border-b gba:border-border/50 gba:bg-background">
       <div className="gba:px-4 gba:py-3">
@@ -158,7 +211,10 @@ export function PagedDocumentEditorHeader({
                   value={title}
                   onChange={onTitleChange}
                   onKeyDown={onTitleKeyDown}
-                  onBlur={onTitleBlur}
+                  onMouseDown={handleTitleMouseDown}
+                  onMouseUp={handleTitleMouseUp}
+                  onFocus={handleTitleFocus}
+                  onBlur={handleTitleBlur}
                   placeholder={onTranslate('editor-title-placeholder')}
                   disabled={isReadOnly}
                   className="gba:h-auto gba:min-w-0 gba:w-full gba:border-0 gba:bg-transparent gba:p-0 gba:text-base gba:font-semibold focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
@@ -341,6 +397,7 @@ export function PagedDocumentEditorHeader({
         editor={activeEditor}
         onOpenLinkDialog={onOpenLinkDialog}
         onOpenInsertImageDialog={onOpenInsertImageDialog}
+        onOpenInsertSignatureDialog={onOpenInsertSignatureDialog}
         onOpenInsertTableDialog={onOpenInsertTableDialog}
         onOpenTableSidebar={onOpenTableSidebar}
         onOpenPageNumbersDialog={canOpenPageNumbersDialog ? onOpenPageNumbersDialog : undefined}

@@ -248,6 +248,13 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
       .paged-document-editor .ProseMirror .editor-image {
         margin: 0;
       }
+      .paged-document-editor .ProseMirror .signature-float-anchor[data-floating='true'] {
+        width: 0 !important;
+        height: 0 !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+      }
 
       .paged-document-editor .ProseMirror .tableWrapper {
         overflow: visible;

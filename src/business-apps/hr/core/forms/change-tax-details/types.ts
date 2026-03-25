@@ -11,7 +11,6 @@ export interface TaxInfoFormValues {
   healthInsuranceName: string
   healthInsuranceTypeRef: string | null
   taxIdentificationNumber: string
-  religionRef: string | null
   taxableChurchAffiliationRef: string | null
   socialSecurityNumber: string
   childTaxAllowance: string
@@ -26,7 +25,6 @@ export interface TaxInfoFormValues {
 
 export interface TaxDetailsCatalogs {
   taxBracket: CatalogEntry[]
-  religion: CatalogEntry[]
   churchAffiliation: CatalogEntry[]
   healthInsuranceType: CatalogEntry[]
   documentType: CatalogEntry[]
