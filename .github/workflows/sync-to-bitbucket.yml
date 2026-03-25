@@ -22,16 +22,16 @@ jobs:
 
       - name: Push to Bitbucket
         env:
-          BB_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
-          BB_APP_PASSWORD: ${{ secrets.BITBUCKET_APP_PASSWORD }}
+          BB_ACCESS_TOKEN: ${{ secrets.BITBUCKET_ACCESS_TOKEN }}
           BB_WORKSPACE: ${{ secrets.BITBUCKET_WORKSPACE }}
           BB_REPO_SLUG: ${{ secrets.BITBUCKET_REPO_SLUG }}
         run: |
           BRANCH="${GITHUB_REF#refs/heads/}"
           echo "Syncing branch: $BRANCH"
 
+          # x-token-auth is the required username when using Bitbucket HTTP Access Tokens
           git remote add bitbucket \
-            "https://${BB_USERNAME}:${BB_APP_PASSWORD}@bitbucket.org/${BB_WORKSPACE}/${BB_REPO_SLUG}.git"
+            "https://x-token-auth:${BB_ACCESS_TOKEN}@bitbucket.org/${BB_WORKSPACE}/${BB_REPO_SLUG}.git"
 
           git push bitbucket "HEAD:refs/heads/${BRANCH}"
 
