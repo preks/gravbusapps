@@ -22,6 +22,7 @@ export interface EditorToolbarRibbonProps {
   onInsertPageBreak?: () => void
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
+  onOpenInsertSignatureDialog?: () => void
   onOpenInsertTableDialog?: () => void
   onOpenTableSidebar?: () => void
   onOpenPageNumbersDialog?: () => void
@@ -43,6 +44,7 @@ export function EditorToolbarRibbon({
   onInsertPageBreak,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
+  onOpenInsertSignatureDialog,
   onOpenInsertTableDialog,
   onOpenTableSidebar,
   onOpenPageNumbersDialog,
@@ -125,6 +127,7 @@ export function EditorToolbarRibbon({
             editor={editor}
             onOpenLinkDialog={onOpenLinkDialog}
             onOpenInsertImageDialog={onOpenInsertImageDialog}
+            onOpenInsertSignatureDialog={onOpenInsertSignatureDialog}
             onOpenInsertTableDialog={onOpenInsertTableDialog}
             onOpenTableSidebar={onOpenTableSidebar}
             onOpenPageNumbersDialog={onOpenPageNumbersDialog}

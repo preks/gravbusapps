@@ -20,6 +20,10 @@ export const DEFAULT_MARGIN_CM = 2.54
 
 export const DEFAULT_PAGE_COLOR = '#ffffff'
 
+/** Min/max custom page edge in cm (portrait width/height). */
+export const MIN_CUSTOM_PAGE_CM = 1
+export const MAX_CUSTOM_PAGE_CM = 200
+
 export interface PageLayoutPaginationConfig {
   pageFormat: PageFormat
   pageWidth: number
@@ -75,19 +79,23 @@ export function marginPxToCm(px: number): number {
   return Math.round((px / CM_TO_PX) * 100) / 100
 }
 
+export type ResolvedDocumentPageLayout = Required<
+  Pick<DocumentFormatting, 'pageSize' | 'orientation' | 'margins' | 'marginUnit' | 'pageColor' | 'pageless'>
+> & {
+  customPageWidthCm?: number
+  customPageHeightCm?: number
+}
+
 /**
  * Resolves effective page layout from document formatting (fills defaults).
  */
-export function resolvePageLayout(
-  formatting?: DocumentFormatting | null
-): Required<
-  Pick<DocumentFormatting, 'pageSize' | 'orientation' | 'margins' | 'marginUnit' | 'pageColor' | 'pageless'>
-> {
+export function resolvePageLayout(formatting?: DocumentFormatting | null): ResolvedDocumentPageLayout {
   const defaults = getDefaultPageLayout()
   if (!formatting) return defaults
   const margins = formatting.margins ?? defaults.margins
-  return {
-    pageSize: formatting.pageSize ?? defaults.pageSize,
+  const pageSize = formatting.pageSize ?? defaults.pageSize
+  const base: ResolvedDocumentPageLayout = {
+    pageSize,
     orientation: formatting.orientation ?? defaults.orientation,
     marginUnit: formatting.marginUnit ?? defaults.marginUnit,
     pageColor: formatting.pageColor ?? defaults.pageColor,
@@ -98,6 +106,20 @@ export function resolvePageLayout(
       bottom: margins.bottom ?? defaults.margins.bottom,
       left: margins.left ?? defaults.margins.left
     }
+  }
+  if (pageSize !== 'CUSTOM') {
+    return base
+  }
+  return {
+    ...base,
+    customPageWidthCm: clampCustomPageDimensionCm(
+      formatting.customPageWidthCm ?? PAGE_SIZE_LABELS.A4.widthCm,
+      PAGE_SIZE_LABELS.A4.widthCm
+    ),
+    customPageHeightCm: clampCustomPageDimensionCm(
+      formatting.customPageHeightCm ?? PAGE_SIZE_LABELS.A4.heightCm,
+      PAGE_SIZE_LABELS.A4.heightCm
+    )
   }
 }
 
@@ -111,10 +133,24 @@ export function getPaginationConfigFromFormatting(
   const layout = resolvePageLayout(formatting)
   if (layout.pageless) return null
 
-  const normalizedSizeId = normalizePageSizeId(layout.pageSize)
-  const preset = PAGE_FORMATS[normalizedSizeId] ?? PAGE_FORMATS.A4
-  let pageWidth = preset.width
-  let pageHeight = preset.height
+  let pageWidth: number
+  let pageHeight: number
+  let formatName: string
+
+  if (layout.pageSize === 'CUSTOM') {
+    const wCm = layout.customPageWidthCm ?? PAGE_SIZE_LABELS.A4.widthCm
+    const hCm = layout.customPageHeightCm ?? PAGE_SIZE_LABELS.A4.heightCm
+    pageWidth = Math.round(wCm * CM_TO_PX)
+    pageHeight = Math.round(hCm * CM_TO_PX)
+    formatName = 'Custom'
+  } else {
+    const normalizedSizeId = normalizePageSizeId(layout.pageSize)
+    const preset = PAGE_FORMATS[normalizedSizeId] ?? PAGE_FORMATS.A4
+    pageWidth = preset.width
+    pageHeight = preset.height
+    formatName = preset.name
+  }
+
   if (layout.orientation === 'landscape') {
     ;[pageWidth, pageHeight] = [pageHeight, pageWidth]
   }
@@ -124,7 +160,7 @@ export function getPaginationConfigFromFormatting(
   const marginLeft = marginCmToPx(layout.margins.left)
   const marginRight = marginCmToPx(layout.margins.right)
   const pageFormat: PageFormat = {
-    name: normalizedSizeId,
+    name: formatName,
     width: pageWidth,
     height: pageHeight,
     margins: {
@@ -151,7 +187,7 @@ function formatPrintLength(value: number, unit: 'cm' | 'in'): string {
   return `${rounded}${unit}`
 }
 
-function getCssPageSizeName(sizeId: PageSizeId): string {
+function getCssPageSizeName(sizeId: Exclude<PageSizeId, 'CUSTOM'>): string {
   switch (sizeId) {
     case 'LETTER':
       return 'letter'
@@ -168,8 +204,26 @@ export function getPrintStyleConfigFromFormatting(formatting?: DocumentFormattin
   const layout = resolvePageLayout(formatting)
   const marginUnit = layout.marginUnit === 'in' ? 'in' : 'cm'
 
+  let pageSizeCss: string
+  if (layout.pageSize === 'CUSTOM') {
+    const wCm = layout.customPageWidthCm ?? PAGE_SIZE_LABELS.A4.widthCm
+    const hCm = layout.customPageHeightCm ?? PAGE_SIZE_LABELS.A4.heightCm
+    let cssW = wCm
+    let cssH = hCm
+    if (layout.orientation === 'landscape') {
+      ;[cssW, cssH] = [cssH, cssW]
+    }
+    if (marginUnit === 'in') {
+      pageSizeCss = `${formatPrintLength(cssW / 2.54, 'in')} ${formatPrintLength(cssH / 2.54, 'in')}`
+    } else {
+      pageSizeCss = `${formatPrintLength(cssW, 'cm')} ${formatPrintLength(cssH, 'cm')}`
+    }
+  } else {
+    pageSizeCss = `${getCssPageSizeName(layout.pageSize)} ${layout.orientation}`
+  }
+
   return {
-    pageSizeCss: `${getCssPageSizeName(layout.pageSize)} ${layout.orientation}`,
+    pageSizeCss,
     pageMarginCss: [
       formatPrintLength(layout.margins.top, marginUnit),
       formatPrintLength(layout.margins.right, marginUnit),
@@ -314,7 +368,7 @@ export function normalizeStoredPagesFormatting(pages?: DocumentPagesFormatting):
   return normalized
 }
 
-function normalizePageSizeId(sizeId: PageSizeId): keyof typeof PAGE_FORMATS {
+function normalizePageSizeId(sizeId: Exclude<PageSizeId, 'CUSTOM'>): keyof typeof PAGE_FORMATS {
   switch (sizeId) {
     case 'LETTER':
       return 'Letter'
@@ -334,5 +388,19 @@ export const PAGE_SIZE_LABELS: Record<PageSizeId, { labelKey: string; widthCm: n
   A5: { labelKey: 'page-size-a5', widthCm: 14.8, heightCm: 21 },
   LETTER: { labelKey: 'page-size-letter', widthCm: 21.6, heightCm: 27.9 },
   LEGAL: { labelKey: 'page-size-legal', widthCm: 21.6, heightCm: 35.6 },
-  TABLOID: { labelKey: 'page-size-tabloid', widthCm: 27.9, heightCm: 43.2 }
+  TABLOID: { labelKey: 'page-size-tabloid', widthCm: 27.9, heightCm: 43.2 },
+  CUSTOM: { labelKey: 'page-size-custom', widthCm: 21, heightCm: 29.7 }
+}
+
+export function clampCustomPageDimensionCm(value: number, fallbackCm: number): number {
+  if (!Number.isFinite(value) || value <= 0) return fallbackCm
+  return Math.min(MAX_CUSTOM_PAGE_CM, Math.max(MIN_CUSTOM_PAGE_CM, Math.round(value * 100) / 100))
+}
+
+/** Copy of formatting without custom page dimensions (for switching back to presets). */
+export function omitCustomPageDimensions(formatting: DocumentFormatting): DocumentFormatting {
+  const next: DocumentFormatting = { ...formatting }
+  delete next.customPageWidthCm
+  delete next.customPageHeightCm
+  return next
 }

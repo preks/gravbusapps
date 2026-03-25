@@ -314,6 +314,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [document?.id])
 
     const [showInsertTableDialog, setShowInsertTableDialog] = useState(false)
+    const [showInsertSignatureDialog, setShowInsertSignatureDialog] = useState(false)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
@@ -717,6 +718,39 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         isYjsSynced,
         layoutInputsKey
       })
+
+    const handleInsertSignatureFromDialog = useCallback(
+      (sig: {
+        snapshotSvg: string
+        name: string
+        kind: 'typed' | 'drawn' | 'uploaded'
+        id?: string
+        insertPart: 'full' | 'initials'
+      }) => {
+        if (!activeEditor) return
+        const pageNum = pagesEditorState.activePageNumber ?? currentPage ?? 1
+        const isInitials = sig.insertPart === 'initials'
+        const width = isInitials ? 120 : 200
+        const height = isInitials ? 64 : 80
+        activeEditor
+          .chain()
+          .focus()
+          .insertSignature({
+            signatureId: sig.id,
+            kind: sig.kind,
+            snapshotSvg: sig.snapshotSvg,
+            name: sig.name,
+            pageNumber: pageNum,
+            x: 50,
+            y: 80,
+            width,
+            height
+          })
+          .run()
+      },
+      [activeEditor, pagesEditorState.activePageNumber, currentPage]
+    )
+
     const {
       replaceImagePosRef,
       selectedImageSidebar,
@@ -1025,6 +1059,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           canOpenPageNumbersDialog={Boolean(editor)}
           onOpenLinkDialog={openLinkDialog}
           onOpenInsertImageDialog={openInsertImageDialog}
+          onOpenInsertSignatureDialog={() => setShowInsertSignatureDialog(true)}
           onOpenInsertTableDialog={handleOpenInsertTableDialog}
           onOpenTableSidebar={openTableSettingsSidebar}
           onOpenPageNumbersDialog={handleOpenPageNumbersDialog}
@@ -1182,6 +1217,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           onSubmitImage={imageDialogMode === 'replace' ? handleReplaceSelectedImage : undefined}
           showInsertTableDialog={showInsertTableDialog}
           setShowInsertTableDialog={setShowInsertTableDialog}
+          showInsertSignatureDialog={showInsertSignatureDialog}
+          setShowInsertSignatureDialog={setShowInsertSignatureDialog}
+          signatureDialogAccessToken={accessTokenProp ?? null}
+          onInsertSignature={handleInsertSignatureFromDialog}
           hasEditor={Boolean(editor)}
           pageNumbersDialogOpen={pageNumbersDialogOpen}
           setPageNumbersDialogOpen={setPageNumbersDialogOpen}

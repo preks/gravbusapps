@@ -36,7 +36,7 @@ export interface DocumentFileInfo {
 /**
  * Page size preset id used by the local pages extension/page setup UI.
  */
-export type PageSizeId = 'A4' | 'A3' | 'A5' | 'LETTER' | 'LEGAL' | 'TABLOID'
+export type PageSizeId = 'A4' | 'A3' | 'A5' | 'LETTER' | 'LEGAL' | 'TABLOID' | 'CUSTOM'
 
 export type PageNumberNumeralStyle = 'decimal' | 'lowerRoman' | 'upperRoman' | 'lowerAlpha' | 'upperAlpha'
 
@@ -84,6 +84,15 @@ export interface DocumentFormatting {
   }
   /** Page size preset; used only when not pageless. */
   pageSize?: PageSizeId
+  /**
+   * Page width in cm when `pageSize` is `CUSTOM`, in the document’s portrait coordinate system
+   * (same convention as built-in presets). The page setup UI shows width/height for the current orientation (Word-style).
+   */
+  customPageWidthCm?: number
+  /**
+   * Page height in cm when `pageSize` is `CUSTOM` (portrait coordinate system; see `customPageWidthCm`).
+   */
+  customPageHeightCm?: number
   /** Portrait or landscape; swap width/height for landscape. */
   orientation?: 'portrait' | 'landscape'
   /** Display unit for margins; default 'cm'. */
