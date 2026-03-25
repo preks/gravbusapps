@@ -36,13 +36,14 @@ export function useExpenseRequestsTableUrlSearch(options: UseExpenseRequestsTabl
   const debouncedSearchText = useDebounce(searchText, 300)
 
   const setOrDeleteParam = useCallback(
-    (searchParams: URLSearchParams, key: string, value: unknown, shouldKeep: boolean) => {
-      if (value !== undefined) {
-        if (shouldKeep) {
-          searchParams.set(key, String(value))
-        } else {
-          searchParams.delete(key)
-        }
+    (searchParams: URLSearchParams, key: string, value: string | number | undefined, shouldKeep: boolean) => {
+      if (value === undefined) {
+        return
+      }
+      if (shouldKeep) {
+        searchParams.set(key, String(value))
+      } else {
+        searchParams.delete(key)
       }
     },
     []

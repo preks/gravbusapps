@@ -25,10 +25,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
   }>({ field: 'createdAt', order: 'DESC', lastField: 'createdAt' })
 
   // Derived orderBy for the data hook
-  const [orderBy, setOrderByState] = useState<unknown[]>([{ createdAt: 'DESC' }])
+  const [orderBy, setOrderBy] = useState<unknown[]>([{ createdAt: 'DESC' }])
 
   useEffect(() => {
-    setOrderByState(buildBackofficeExpenseRequestOrderBy(sorting.field, sorting.order))
+    setOrderBy(buildBackofficeExpenseRequestOrderBy(sorting.field, sorting.order))
   }, [sorting.field, sorting.order])
 
   // Filter state
@@ -137,7 +137,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
     setCurrentPage(pagination.current)
     setPageSize(pagination.pageSize)
     if (sorter) {
-      setOrderByState(Array.isArray(sorter) ? sorter : [sorter])
+      applyOrderBy(Array.isArray(sorter) ? sorter : [sorter])
     }
   }
 
@@ -150,7 +150,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
     setCurrentPage(1)
   }, [])
 
-  const setOrderBy = useCallback((newOrderBy: any[]) => {
+  const applyOrderBy = useCallback((newOrderBy: any[]) => {
     if (newOrderBy.length > 0) {
       const firstOrder = newOrderBy[0]
       const field = Object.keys(firstOrder)[0] as ExpenseRequestListSortField
@@ -246,7 +246,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
     handleTableChange,
     handleSearch,
     handleSortChange,
-    setOrderBy,
+    applyOrderBy,
     amountMinFilter,
     amountMaxFilter,
     processExpensePayment,

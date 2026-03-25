@@ -18,7 +18,7 @@ function formatPayableAmount(
   currencyCode: string
 ): string {
   const displayAmount = payableAmount ?? reimbursableAmount
-  if (displayAmount == null) {
+  if (displayAmount === undefined) {
     return '-'
   }
   return `${displayAmount} ${currencyCode}`.trim()
@@ -48,7 +48,7 @@ export function mapExpenseRequest(item: ExpenseRequest, t: TranslateFn): Expense
     requestDate: formatDateLocalized(item.requestDate ?? item.createdAt, t),
     reporter: employeeDisplayName,
     type: item.requestType?.value ?? '-',
-    amount: reimbursableAmount != null ? `${reimbursableAmount} ${currencyCode}`.trim() : String(totalAmount),
+    amount: reimbursableAmount === undefined ? String(totalAmount) : `${reimbursableAmount} ${currencyCode}`.trim(),
     advance: advancePaymentPaidAmount ?? '',
     status: item.status ?? '',
     payableAmount: formatPayableAmount(payableAmount, reimbursableAmount, currencyCode),

@@ -50,15 +50,14 @@ export function createDateColumn<T extends object>(
   const accessorFn = hasFn
     ? (accessor as (row: T) => string | null | undefined)
     : (row: T) => {
-        const key = accessor as keyof T & string
-        return (row as Record<string, string | null | undefined>)[key] ?? null
+        return (row as Record<string, string | null | undefined>)[accessor] ?? null
       }
   return {
     id,
     accessorFn,
     header,
     enableSorting: true,
-    ...(sortDescFirst !== undefined ? { sortDescFirst } : {}),
+    ...(sortDescFirst === undefined ? {} : { sortDescFirst }),
     size: 110,
     minSize: 90,
     maxSize: 150,

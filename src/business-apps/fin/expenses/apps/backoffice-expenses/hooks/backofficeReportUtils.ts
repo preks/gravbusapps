@@ -35,7 +35,10 @@ export function coerceReportAmount(value: unknown): number {
   if (Number.isFinite(direct)) {
     return direct
   }
-  const normalized = String(value).replace(/,/g, '')
+  if (typeof value !== 'string') {
+    return 0
+  }
+  const normalized = value.replace(/,/g, '')
   const n = Number(normalized)
   return Number.isFinite(n) ? n : 0
 }

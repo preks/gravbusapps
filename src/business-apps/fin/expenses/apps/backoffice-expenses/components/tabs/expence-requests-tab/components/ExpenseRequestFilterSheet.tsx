@@ -75,7 +75,7 @@ export function ExpenseRequestFilterSheet({
     const initial = new Set<string>()
     configuration?.groups?.forEach((group, index) => {
       const id = group.id || `group-${index}`
-      const expanded = group.defaultExpanded !== undefined ? group.defaultExpanded : index === 0
+      const expanded = group.defaultExpanded ?? index === 0
       if (expanded) initial.add(id)
     })
     return initial
