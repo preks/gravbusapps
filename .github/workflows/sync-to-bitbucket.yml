@@ -21,6 +21,7 @@ jobs:
 
       - name: Merge latest Bitbucket develop into branch
         env:
+          BB_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
           BB_ACCESS_TOKEN: ${{ secrets.BITBUCKET_ACCESS_TOKEN }}
           BB_WORKSPACE: ${{ secrets.BITBUCKET_WORKSPACE }}
           BB_REPO_SLUG: ${{ secrets.BITBUCKET_REPO_SLUG }}
@@ -29,7 +30,7 @@ jobs:
           git config user.name "github-actions[bot]"
 
           git remote add bitbucket \
-            "https://x-token-auth:${BB_ACCESS_TOKEN}@bitbucket.org/${BB_WORKSPACE}/${BB_REPO_SLUG}.git"
+            "https://${BB_USERNAME}:${BB_ACCESS_TOKEN}@bitbucket.org/${BB_WORKSPACE}/${BB_REPO_SLUG}.git"
 
           # Pull latest develop from Bitbucket and merge into this branch
           git fetch bitbucket develop
@@ -37,6 +38,7 @@ jobs:
 
       - name: Push branch to Bitbucket
         env:
+          BB_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
           BB_ACCESS_TOKEN: ${{ secrets.BITBUCKET_ACCESS_TOKEN }}
           BB_WORKSPACE: ${{ secrets.BITBUCKET_WORKSPACE }}
           BB_REPO_SLUG: ${{ secrets.BITBUCKET_REPO_SLUG }}
@@ -45,6 +47,7 @@ jobs:
 
       - name: Create Bitbucket PR (if one does not exist yet)
         env:
+          BB_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
           BB_ACCESS_TOKEN: ${{ secrets.BITBUCKET_ACCESS_TOKEN }}
           BB_WORKSPACE: ${{ secrets.BITBUCKET_WORKSPACE }}
           BB_REPO_SLUG: ${{ secrets.BITBUCKET_REPO_SLUG }}
@@ -52,10 +55,11 @@ jobs:
           BRANCH="${{ github.head_ref }}"
           PR_TITLE="${{ github.event.pull_request.title }}"
           GH_PR_NUMBER="${{ github.event.pull_request.number }}"
+          BB_AUTH=$(echo -n "${BB_USERNAME}:${BB_ACCESS_TOKEN}" | base64)
 
           # Check if an open PR already exists for this branch on Bitbucket
           EXISTING=$(curl -s \
-            -H "Authorization: Bearer ${BB_ACCESS_TOKEN}" \
+            -H "Authorization: Basic ${BB_AUTH}" \
             "https://api.bitbucket.org/2.0/repositories/${BB_WORKSPACE}/${BB_REPO_SLUG}/pullrequests?q=source.branch.name=%22${BRANCH}%22+AND+state=%22OPEN%22")
 
           PR_COUNT=$(echo "$EXISTING" | jq '.size')
@@ -63,7 +67,7 @@ jobs:
           if [ "$PR_COUNT" -eq "0" ]; then
             echo "Creating Bitbucket PR for branch: $BRANCH"
             curl -s -f -X POST \
-              -H "Authorization: Bearer ${BB_ACCESS_TOKEN}" \
+              -H "Authorization: Basic ${BB_AUTH}" \
               -H "Content-Type: application/json" \
               "https://api.bitbucket.org/2.0/repositories/${BB_WORKSPACE}/${BB_REPO_SLUG}/pullrequests" \
               -d "$(jq -n \
