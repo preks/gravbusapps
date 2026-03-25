@@ -133,7 +133,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
         className="gba:min-h-[400px] gba:overflow-auto gba:bg-background"
         data-testid="compensation-planning-data-body"
       >
-        <div className="gba:space-y-4 gba:p-4">
+        <div className="gba:space-y-4">
           {toolbarRow}
           {selectedCompanyId ? <div className="gba:space-y-4">{renderTabContent()}</div> : null}
         </div>

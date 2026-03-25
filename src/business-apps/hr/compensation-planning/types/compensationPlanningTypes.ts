@@ -119,7 +119,6 @@ export interface TeamMemberCompensationData {
   pictureThumbnail?: string
 
   jobPosition: string | null
-  jobLevel: string | null
   jobFunction: string | null
   orgUnitName: string | null
   hireDate: string | null
@@ -144,6 +143,9 @@ export interface TeamMemberCompensationData {
   weeklyHours: number | null
 
   currentBonusTotal: number | null
+
+  performanceOverallScore?: number | null
+  performanceRatingScaleMax?: number | null
 
   proposal?: CompensationEmployeeProposal
 }

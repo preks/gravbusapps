@@ -24,10 +24,6 @@ interface EmployeePositionResult {
     id: string
     name: string
     jobLevel: {
-      id: string
-      name: string
-      code: string
-      hierarchyOrder: number | null
       compensationBand: {
         id: string
         name: string
@@ -82,13 +78,15 @@ interface UseTeamCompensationDataParams {
   companyId?: string | null
   orgUnitId?: string | null
   supervisorEmployeeId?: string | null
+  supervisorOnly?: boolean
 }
 
 export function useTeamCompensationData({
   accessToken,
   companyId,
   orgUnitId,
-  supervisorEmployeeId
+  supervisorEmployeeId,
+  supervisorOnly = false
 }: UseTeamCompensationDataParams) {
   const [teamMembers, setTeamMembers] = useState<TeamMemberCompensationData[]>([])
   const [loading, setLoading] = useState(false)
@@ -98,7 +96,16 @@ export function useTeamCompensationData({
 
   const fetchData = useCallback(async () => {
     if (!accessToken) return
-    if (!companyId && !orgUnitId && !supervisorEmployeeId) return
+    if (supervisorOnly) {
+      if (!supervisorEmployeeId || !companyId) {
+        setTeamMembers([])
+        setLoading(false)
+        setError(null)
+        return
+      }
+    } else if (!companyId && !orgUnitId && !supervisorEmployeeId) {
+      return
+    }
 
     setLoading(true)
     setError(null)
@@ -166,7 +173,6 @@ export function useTeamCompensationData({
           displayName: pos.employee?.displayName ?? `${pos.firstName} ${pos.lastName}`,
           pictureThumbnail: pos.employee?.pictureThumbnail ?? undefined,
           jobPosition: pos.jobPosition?.name ?? null,
-          jobLevel: pos.jobPosition?.jobLevel?.name ?? null,
           jobFunction: null,
           orgUnitName: pos.organizationalUnit?.name ?? null,
           hireDate: pos.employee?.workingCondition?.hireDate ?? pos.hireDate,
@@ -194,7 +200,7 @@ export function useTeamCompensationData({
     } finally {
       setLoading(false)
     }
-  }, [accessToken, companyId, orgUnitId, supervisorEmployeeId, graphqlClient])
+  }, [accessToken, companyId, orgUnitId, supervisorEmployeeId, supervisorOnly, graphqlClient])
 
   useEffect(() => {
     fetchData()

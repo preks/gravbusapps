@@ -17,7 +17,6 @@ const EMPTY_RANGE_INPUT_PLACEHOLDER = '\u200b'
 
 const VISIBLE_COLUMN_IDS = [
   'displayName',
-  'jobLevel',
   'hireDate',
   'currentAnnualSalary',
   'compaRatio',
@@ -242,6 +241,12 @@ export const TeamCompensationMembersTable: React.FC<TeamCompensationMembersTable
 
   const data = useMemo((): TeamMemberTableRow[] => filteredRows.map(m => ({ ...m, id: m.employeeId })), [filteredRows])
 
+  const pageIndexZeroBased = Math.max(0, currentPage - 1)
+  const pagedData = useMemo(() => {
+    const start = pageIndexZeroBased * pageSize
+    return data.slice(start, start + pageSize)
+  }, [data, pageIndexZeroBased, pageSize])
+
   const columns = useMemo(() => buildTeamCompensationMembersColumns(t, tenure), [t, tenure])
 
   const visibleTableColumns = useMemo(
@@ -252,7 +257,6 @@ export const TeamCompensationMembersTable: React.FC<TeamCompensationMembersTable
   const sortableColumns = useMemo(
     () => [
       { id: 'displayName', label: t('col-employee') },
-      { id: 'jobLevel', label: t('col-level') },
       { id: 'hireDate', label: t('col-tenure') },
       { id: 'currentAnnualSalary', label: t('col-current-salary') },
       { id: 'compaRatio', label: t('col-band-position') },
@@ -265,7 +269,6 @@ export const TeamCompensationMembersTable: React.FC<TeamCompensationMembersTable
   const availableColumnsForDisplay = useMemo(
     () => [
       { id: 'displayName', label: t('col-employee') },
-      { id: 'jobLevel', label: t('col-level') },
       { id: 'hireDate', label: t('col-tenure') },
       { id: 'currentAnnualSalary', label: t('col-current-salary') },
       { id: 'compaRatio', label: t('col-band-position') },
@@ -278,18 +281,21 @@ export const TeamCompensationMembersTable: React.FC<TeamCompensationMembersTable
 
   const handlePaginationChange = useCallback(
     (next: { pageIndex: number; pageSize: number }) => {
+      if (next.pageSize !== pageSize) {
+        setPageSize(next.pageSize)
+      }
       setCurrentPage(next.pageIndex + 1)
-      setPageSize(next.pageSize)
     },
-    [setCurrentPage, setPageSize]
+    [setCurrentPage, setPageSize, pageSize]
   )
 
   useEffect(() => {
-    const maxPage = Math.max(1, Math.ceil(totalFiltered / pageSize) || 1)
+    const safePageSize = Math.max(1, pageSize)
+    const maxPage = Math.max(1, Math.ceil(totalFiltered / safePageSize))
     if (currentPage > maxPage) {
       setCurrentPage(1)
     }
-  }, [currentPage, totalFiltered, pageSize, setCurrentPage])
+  }, [totalFiltered, pageSize, currentPage, setCurrentPage])
 
   const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
 
@@ -324,10 +330,11 @@ export const TeamCompensationMembersTable: React.FC<TeamCompensationMembersTable
     >
       <TooltipProvider>
         <DataTable<TeamMemberTableRow>
-          data={data}
+          data={pagedData}
           columns={visibleTableColumns}
           loading={loading}
           error={error ?? undefined}
+          totalCount={totalFiltered}
           sorting={sorting}
           onSortingChange={handleSortingChange}
           pagination={pagination}

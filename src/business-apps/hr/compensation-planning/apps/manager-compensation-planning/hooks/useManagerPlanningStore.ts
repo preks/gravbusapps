@@ -3,7 +3,6 @@ import { create } from 'zustand'
 /** Field names passed to SortableTableHead (must match compare keys in useTeamMembersPipeline) */
 export type ManagerTeamSortField =
   | 'displayName'
-  | 'jobLevel'
   | 'hireDate'
   | 'currentAnnualSalary'
   | 'compaRatio'
@@ -63,7 +62,6 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
     }
     const validFields: ManagerTeamSortField[] = [
       'displayName',
-      'jobLevel',
       'hireDate',
       'currentAnnualSalary',
       'compaRatio',
@@ -121,7 +119,14 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
 
   setCurrentPage: page => set({ currentPage: page }),
 
-  setPageSize: size => set({ pageSize: size, currentPage: 1 }),
+  /** Only resets to page 1 when the size actually changes (same size must not clear a page navigation). */
+  setPageSize: size =>
+    set(state => {
+      if (state.pageSize === size) {
+        return state
+      }
+      return { pageSize: size, currentPage: 1 }
+    }),
 
   resetTableUi: () =>
     set({

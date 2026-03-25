@@ -20,8 +20,6 @@ function compare(
 ): number {
   const mul = direction === 'asc' ? 1 : -1
 
-  const str = (x: string | null | undefined) => (x ?? '').toLowerCase()
-
   const cmpNumNullsLast = (na: number | null | undefined, nb: number | null | undefined) => {
     const aNull = na == null || Number.isNaN(na)
     const bNull = nb == null || Number.isNaN(nb)
@@ -36,8 +34,6 @@ function compare(
   switch (field) {
     case 'displayName':
       return mul * a.displayName.localeCompare(b.displayName, loc, { sensitivity: 'base' })
-    case 'jobLevel':
-      return mul * str(a.jobLevel).localeCompare(str(b.jobLevel), loc, { sensitivity: 'base' })
     case 'hireDate': {
       const ta = a.hireDate ? new Date(a.hireDate).getTime() : NaN
       const tb = b.hireDate ? new Date(b.hireDate).getTime() : NaN
@@ -124,8 +120,7 @@ export function useTeamMembersPipeline(params: TeamPipelineParams): TeamPipeline
         m =>
           m.displayName.toLowerCase().includes(q) ||
           m.employeeCode.toLowerCase().includes(q) ||
-          (m.jobPosition?.toLowerCase().includes(q) ?? false) ||
-          (m.jobLevel?.toLowerCase().includes(q) ?? false)
+          (m.jobPosition?.toLowerCase().includes(q) ?? false)
       )
     }
 

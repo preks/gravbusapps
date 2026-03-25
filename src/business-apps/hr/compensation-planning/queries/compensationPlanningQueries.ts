@@ -23,11 +23,6 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
         id
         name
         jobLevel {
-          id
-          name
-          code
-          hierarchyOrder
-          compensationBandId
           compensationBand {
             id
             name

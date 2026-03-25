@@ -1,6 +1,9 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
   PageLayout,
   Spinner,
   Select,
@@ -24,6 +27,8 @@ import { useManagerPlanningStore } from './hooks/useManagerPlanningStore'
 import { useDefaultCompanyForCurrentUser } from '../../hooks/useDefaultCompanyForCurrentUser'
 
 import { useTeamCompensationData } from './hooks/useTeamCompensationData'
+
+import { useTeamMemberPerformanceScores } from './hooks/useTeamMemberPerformanceScores'
 
 import { useTeamMembersPipeline } from './hooks/useTeamMembersPipeline'
 
@@ -84,11 +89,32 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     error
   } = useTeamCompensationData({
     accessToken,
-    companyId: selectedCompanyId
+    companyId: selectedCompanyId,
+    supervisorEmployeeId: employeeId ?? undefined,
+    supervisorOnly: true
   })
 
+  const employeeIdsForPerformance = useMemo(() => [...new Set(teamMembers.map(m => m.employeeId))], [teamMembers])
+
+  const {
+    scoreByEmployeeId,
+    loading: performanceScoresLoading,
+    error: performanceScoresError,
+    performanceCyclesQueryError
+  } = useTeamMemberPerformanceScores(accessToken, employeeIdsForPerformance)
+
+  const teamMembersWithPerformance = useMemo(
+    () =>
+      teamMembers.map(m => ({
+        ...m,
+        performanceOverallScore: scoreByEmployeeId.get(m.employeeId) ?? null,
+        performanceRatingScaleMax: 5
+      })),
+    [teamMembers, scoreByEmployeeId]
+  )
+
   const pipeline = useTeamMembersPipeline({
-    members: teamMembers,
+    members: teamMembersWithPerformance,
     searchQuery,
     sidebarFilterIds,
     filterSalaryMin,
@@ -182,11 +208,25 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       >
         <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4">
           <TeamCompensationBudgetSummary />
+          {performanceCyclesQueryError ? (
+            <Alert variant="default" data-testid="manager-compensation-performance-cycles-query-error">
+              <AlertTitle>{t('error-performance-cycles-query-title')}</AlertTitle>
+              <AlertDescription>
+                {t('error-performance-cycles-query', { message: performanceCyclesQueryError })}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {performanceScoresError ? (
+            <Alert variant="destructive" data-testid="manager-compensation-performance-scores-error">
+              <AlertTitle>{t('error-performance-scores-title')}</AlertTitle>
+              <AlertDescription>{t('error-performance-scores', { message: performanceScoresError })}</AlertDescription>
+            </Alert>
+          ) : null}
           <TeamCompensationMembersTable
-            teamMembers={teamMembers}
+            teamMembers={teamMembersWithPerformance}
             filteredRows={pipeline.filteredSorted}
             totalFiltered={pipeline.totalFiltered}
-            loading={dataLoading}
+            loading={dataLoading || performanceScoresLoading}
             error={error}
             companyToolbarEnd={companyToolbarEnd}
           />

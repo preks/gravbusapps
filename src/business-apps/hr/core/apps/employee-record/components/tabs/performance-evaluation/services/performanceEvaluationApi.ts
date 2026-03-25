@@ -7,7 +7,7 @@ import {
   PerformanceEvaluationDetailQueryParams
 } from '../types/performanceEvaluation.types'
 
-const PERFORMANCE_EVALUATIONS_BASE_PATH = '/processes/employee/performance-evaluations'
+const PERFORMANCE_EVALUATIONS_BASE_PATH = '/performance-evaluations'
 const EMPLOYEE_PERFORMANCE_EVALUATIONS_ANALYSIS_PATH = `${PERFORMANCE_EVALUATIONS_BASE_PATH}/analysis/employees`
 
 export const getEmployeePerformanceEvaluationsAnalysis = async (

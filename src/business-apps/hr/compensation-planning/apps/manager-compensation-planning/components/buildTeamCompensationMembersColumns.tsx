@@ -5,6 +5,8 @@ import type { TeamMemberCompensationData } from '../../../types/compensationPlan
 import { formatCurrency, formatPercent } from '../../../utils/budgetCalculations'
 import { formatDate } from '@/common/utils/windowUtils'
 import { CompaRatioBar } from './CompaRatioBar'
+import { formatPerformanceScoreDisplay } from '../../../utils/formatPerformanceScoreDisplay'
+import { pictureThumbnailToDataUrl } from '../../../utils/pictureThumbnailDataUrl'
 
 export type TeamMemberTableRow = TeamMemberCompensationData & { id: string }
 
@@ -19,40 +21,30 @@ export function buildTeamCompensationMembersColumns(
       id: 'displayName',
       accessorKey: 'displayName',
       header: t('col-employee'),
+      size: 300,
+      minSize: 220,
+      maxSize: 560,
       meta: { type: 'text' },
       cell: ({ row }) => {
         const member = row.original
+        const avatarSrc = pictureThumbnailToDataUrl(member.pictureThumbnail)
         return (
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <Avatar className="gba:h-9 gba:w-9 gba:flex-shrink-0">
-              {member.pictureThumbnail ? <AvatarImage src={member.pictureThumbnail} alt="" /> : null}
+          <div className="gba:flex gba:items-start gba:gap-3 gba:min-w-0">
+            <Avatar className="gba:h-9 gba:w-9 gba:mt-0.5 gba:flex-shrink-0">
+              {avatarSrc ? <AvatarImage src={avatarSrc} alt={member.displayName} /> : null}
               <AvatarFallback className="gba:text-sm gba:font-medium">
                 {(member.firstName?.[0] ?? '') + (member.lastName?.[0] ?? '')}
               </AvatarFallback>
             </Avatar>
-            <div className="gba:min-w-0">
-              <div className="gba:font-medium gba:text-sm gba:text-foreground gba:leading-tight gba:truncate">
+            <div className="gba:min-w-0 gba:flex-1 gba:space-y-0.5">
+              <div className="gba:font-medium gba:text-sm gba:text-foreground gba:leading-snug gba:break-words">
                 {member.displayName}
               </div>
-              <div className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mt-0.5">
+              <div className="gba:text-sm gba:text-muted-foreground gba:leading-snug gba:break-words">
                 {member.jobPosition ?? '—'}
               </div>
             </div>
           </div>
-        )
-      }
-    },
-    {
-      id: 'jobLevel',
-      accessorKey: 'jobLevel',
-      header: t('col-level'),
-      meta: { type: 'text' },
-      cell: ({ getValue }) => {
-        const v = getValue() as string | null | undefined
-        return (
-          <span className="gba:font-mono gba:text-sm gba:text-muted-foreground">
-            {v?.trim() ? v : t('table-cell-empty')}
-          </span>
         )
       }
     },
@@ -126,11 +118,28 @@ export function buildTeamCompensationMembersColumns(
       id: 'performance',
       header: t('col-performance'),
       enableSorting: false,
-      cell: () => (
-        <span className="gba:text-sm gba:text-muted-foreground" data-testid="team-compensation-performance-placeholder">
-          {t('table-cell-empty')}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const score = row.original.performanceOverallScore
+        const max = row.original.performanceRatingScaleMax ?? 5
+        if (score == null || Number.isNaN(score)) {
+          return (
+            <span className="gba:text-sm gba:text-muted-foreground" data-testid="team-compensation-performance-empty">
+              {t('table-cell-empty')}
+            </span>
+          )
+        }
+        return (
+          <span
+            className="gba:text-sm gba:tabular-nums gba:text-foreground"
+            data-testid="team-compensation-performance-score"
+          >
+            {t('performance-score-out-of', {
+              score: formatPerformanceScoreDisplay(score),
+              max: String(max)
+            })}
+          </span>
+        )
+      },
       meta: { type: 'text' }
     },
     {
