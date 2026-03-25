@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
 import type { Message, ConversationParticipant } from '../types'
-import type { ChatApiClient } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import {
   Avatar,
   AvatarImage,
@@ -13,7 +13,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useCreateMeetingMinutes } from '../hooks/useCreateMeetingMinutes'
 import { ArrowBendUpLeftIcon, DotsThreeIcon, PencilSimpleIcon } from '@phosphor-icons/react'
@@ -25,7 +26,7 @@ import { MessageAttachments, type MessageAttachment } from './MessageAttachments
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 import { isPreviewable } from './utils/attachmentUtils'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 import { MessageReactionBar } from './MessageReactionBar'
 import { TranscriptReadyBlock } from './TranscriptReadyBlock'
 import { MeetingMinutesReadyBlock } from './MeetingMinutesReadyBlock'
@@ -45,7 +46,7 @@ interface MessageItemProps {
   timestampRefreshKey?: number // Triggers timestamp recalculation when changed
   aiInitiatedByCurrentUser?: boolean // Explicitly computed by MessageList for backward compatibility
   compact?: boolean // Compact mode for in-call chat
-  apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
+  apiClient?: ChatClient | null // For transcript/meeting minutes functionality
   onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
   onReplyWithQuote?: (message: Message) => void
   onNavigateToQuotedMessage?: (quotedMessageId: string) => void
@@ -120,7 +121,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     onReplyWithQuote,
     onNavigateToQuotedMessage
   }) => {
-    const t = useChatTranslation()
+    const { t } = useTranslation(translations)
     const isAIResponse = message.metadata?.isAIResponse === true
     const isExpertResponse = message.metadata?.isEveryExpertResponse === true
     // AI/Expert responses should never be styled as "own message" even if sent by current user

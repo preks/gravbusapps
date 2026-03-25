@@ -9,7 +9,7 @@
  */
 
 import type { GroupCallParticipant, VideoQuality } from './groupWebrtcClient'
-import type { ChatWebSocketClient } from './chatWebSocketClient'
+import type { ChatWebSocketClient } from '@/common/network/chat/ChatWebSocketClient'
 import type { CallParticipant, CallType } from './webrtcClient'
 import type { RTKRnnoiseMiddleware } from './rtkRnnoiseMiddleware'
 

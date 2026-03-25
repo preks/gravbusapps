@@ -8,7 +8,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Spinner, ScrollArea } from '@newwork/nw-design-system'
 import { Calendar, Clock, Video, ArrowRight, CalendarBlank, Users } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { env } from '@/common/env/EnvUtils'
+import { useChatClient } from '@/common/network/chat/useChatClient'
 import type { SpaceMember } from '../types/space.types'
 
 export interface SpaceMeeting {
@@ -44,24 +44,6 @@ export interface SpaceCalendarProps {
   'data-testid'?: string
 }
 
-/**
- * Get the meetings API URL (calendar is under /meetings)
- */
-function getMeetingsApiUrl(): string {
-  let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-  baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-
-  const currentHost = typeof window !== 'undefined' ? window.location.hostname : ''
-  const currentPort = typeof window !== 'undefined' ? window.location.port : ''
-  const isLocalPlatform = currentHost === 'localhost' && ['3000', '5173'].includes(currentPort)
-
-  if (isLocalPlatform) {
-    baseUrl = 'https://newwork-dev.newwork.com'
-  }
-
-  return `${baseUrl}/chat-service/api/v1/meetings`
-}
-
 export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   spaceId,
   members,
@@ -70,11 +52,11 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   onScheduleMeeting,
   'data-testid': testId = 'space-calendar'
 }) => {
+  const chatClient = useChatClient(accessToken)
   const [meetings, setMeetings] = useState<SpaceMeeting[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch meetings for space members
   const fetchMeetings = useCallback(async () => {
     if (!accessToken || members.length === 0) {
       setMeetings([])
@@ -85,44 +67,24 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
     setError(null)
 
     try {
-      const apiUrl = getMeetingsApiUrl()
-
-      // Get meetings for the next 30 days
       const startDate = new Date()
       const endDate = new Date()
       endDate.setDate(endDate.getDate() + 30)
 
-      const params = new URLSearchParams({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
-      })
+      const data = await chatClient.getCalendarEvents<{ events: SpaceMeeting[] }>(
+        startDate.toISOString(),
+        endDate.toISOString()
+      )
+      const allMeetings: SpaceMeeting[] = data?.events || []
 
-      const response = await fetch(`${apiUrl}/calendar/events?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch calendar events')
-      }
-
-      const data = await response.json()
-      const allMeetings: SpaceMeeting[] = Array.isArray(data) ? data : data.events || []
-
-      // Filter meetings where participants include space members
       const memberIds = new Set(members.map(m => m.userId))
       const spaceMeetings = allMeetings.filter(meeting => {
-        // A meeting is relevant if the organizer is a space member
         if (meeting.organizer?.id && memberIds.has(meeting.organizer.id)) {
           return true
         }
-        // For now, show all user's meetings (they're already filtered by the API to user's meetings)
         return true
       })
 
-      // Sort by start time and limit (only future meetings)
       const sortedMeetings = spaceMeetings
         .filter(m => new Date(m.start) > new Date())
         .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
@@ -136,7 +98,7 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, members, maxMeetings])
+  }, [accessToken, members, maxMeetings, chatClient])
 
   useEffect(() => {
     fetchMeetings()
