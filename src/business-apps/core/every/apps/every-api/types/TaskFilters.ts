@@ -4,6 +4,7 @@
  * Query parameters for filtering and pagination of unified tasks
  */
 
+import { EVERYBOX_FIRST_PAGE_LIMIT } from '../constants/everyboxPagination'
 import { TaskSource, TaskStatus } from './UnifiedTask'
 
 export interface TaskFilters {
@@ -145,7 +146,7 @@ export interface ParsedTaskFilters
  */
 export const DEFAULT_FILTERS: ParsedTaskFilters = {
   source: 'all',
-  limit: 20,
+  limit: EVERYBOX_FIRST_PAGE_LIMIT,
   offset: 0,
   sortBy: 'createdAt',
   sortOrder: 'desc',

@@ -7,7 +7,7 @@
  *   Example: ?taskId=abc-123 will open the task detail panel for task with ID "abc-123"
  */
 
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import {
   Button,
   Alert,
@@ -264,6 +264,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [displayedCount, setDisplayedCount] = useState(20) // Show 20 tasks initially
   const [showAiAssistant, setShowAiAssistant] = useState(false) // AI Writing Assistant panel
 
+  const tasksForInitRef = useRef(tasks)
+  const completedTasksForInitRef = useRef(completedTasks)
+  const isLoadingForInitRef = useRef(isLoading)
+  tasksForInitRef.current = tasks
+  completedTasksForInitRef.current = completedTasks
+  isLoadingForInitRef.current = isLoading
+
   const TASKS_PER_PAGE = 20
 
   // Infinite scroll refs
@@ -289,14 +296,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
     }
   }, [localCompletedTasks.length, localTasks.length, filterType])
 
-  // Sync local tasks with props
-  // Filter out completed tasks from active tasks to prevent duplicates
-  useEffect(() => {
+  // Sync local tasks with props before paint so we never flash an empty list one frame
+  // behind fresh `tasks` from the parent (e.g. bootstrap hydration).
+  useLayoutEffect(() => {
     setLocalTasks(filterActiveTasks(tasks))
   }, [tasks])
 
-  useEffect(() => {
-    // Ensure completed tasks only include truly completed tasks
+  useLayoutEffect(() => {
     setLocalCompletedTasks(filterCompletedTasks(completedTasks))
   }, [completedTasks])
 
@@ -310,30 +316,55 @@ export const InboxView: React.FC<InboxViewProps> = ({
     }
   }, [localTasks, localCompletedTasks, selectedTask?.id, selectedTask?.source])
 
-  // Initialize selected task from URL when tasks are loaded, or auto-select first task
+  // Initialize selected task from URL when tasks are loaded, or auto-select first task.
+  // Defer by two animation frames so the list paints before the detail panel opens (less flicker).
   useEffect(() => {
-    if (!isInitialized && tasks.length > 0 && !isLoading) {
+    if (isInitialized || tasks.length === 0 || isLoading) {
+      return
+    }
+
+    let cancelled = false
+    let raf1 = 0
+    let raf2 = 0
+
+    const applyInitialSelection = () => {
+      if (cancelled || isLoadingForInitRef.current) {
+        return
+      }
+      const active = tasksForInitRef.current
+      const completed = completedTasksForInitRef.current
+      if (active.length === 0) {
+        return
+      }
+
       const taskIdFromUrl = getInitialTaskId()
       if (taskIdFromUrl) {
-        // Search in both active and completed tasks
-        const allTasks = [...tasks, ...completedTasks]
+        const allTasks = [...active, ...completed]
         const taskToSelect = allTasks.find(t => t.id === taskIdFromUrl)
         if (taskToSelect) {
           userSelectedKeyRef.current = ''
           setSelectedTask(taskToSelect)
         } else {
-          // If task from URL not found, select first task
           userSelectedKeyRef.current = ''
-          setSelectedTask(tasks[0])
-          updateTaskUrl(tasks[0].id)
+          setSelectedTask(active[0])
+          updateTaskUrl(active[0].id)
         }
       } else {
-        // No task in URL, auto-select first task
         userSelectedKeyRef.current = ''
-        setSelectedTask(tasks[0])
-        updateTaskUrl(tasks[0].id)
+        setSelectedTask(active[0])
+        updateTaskUrl(active[0].id)
       }
       setIsInitialized(true)
+    }
+
+    raf1 = globalThis.requestAnimationFrame(() => {
+      raf2 = globalThis.requestAnimationFrame(applyInitialSelection)
+    })
+
+    return () => {
+      cancelled = true
+      globalThis.cancelAnimationFrame(raf1)
+      globalThis.cancelAnimationFrame(raf2)
     }
   }, [tasks, completedTasks, isLoading, isInitialized])
 
