@@ -1,39 +1,82 @@
-name: Sync to Bitbucket
+name: Sync PR to Bitbucket
 
-# Triggers when code lands on main deployment branches
-# (either via direct push or merged PR)
+# Triggers when a PR targeting develop is opened, re-opened, or updated
 on:
-  push:
+  pull_request:
+    types: [opened, reopened, synchronize]
     branches:
-      - main
       - develop
-      - 'hotfix/**'
 
 jobs:
-  sync:
-    name: Mirror branch to Bitbucket
+  sync-pr:
+    name: Mirror PR branch to Bitbucket
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout full history
+      - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.head_ref }}
 
-      - name: Push to Bitbucket
+      - name: Merge latest Bitbucket develop into branch
         env:
           BB_ACCESS_TOKEN: ${{ secrets.BITBUCKET_ACCESS_TOKEN }}
           BB_WORKSPACE: ${{ secrets.BITBUCKET_WORKSPACE }}
           BB_REPO_SLUG: ${{ secrets.BITBUCKET_REPO_SLUG }}
         run: |
-          BRANCH="${GITHUB_REF#refs/heads/}"
-          echo "Syncing branch: $BRANCH"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
 
-          # x-token-auth is the required username when using Bitbucket HTTP Access Tokens
           git remote add bitbucket \
             "https://x-token-auth:${BB_ACCESS_TOKEN}@bitbucket.org/${BB_WORKSPACE}/${BB_REPO_SLUG}.git"
 
-          git push bitbucket "HEAD:refs/heads/${BRANCH}"
+          # Pull latest develop from Bitbucket and merge into this branch
+          git fetch bitbucket develop
+          git merge bitbucket/develop --no-edit
 
-          echo "Successfully synced '$BRANCH' to Bitbucket."
-          echo "Bitbucket Pipelines will now pick up the push and run the pipeline."
+      - name: Push branch to Bitbucket
+        env:
+          BB_ACCESS_TOKEN: ${{ secrets.BITBUCKET_ACCESS_TOKEN }}
+          BB_WORKSPACE: ${{ secrets.BITBUCKET_WORKSPACE }}
+          BB_REPO_SLUG: ${{ secrets.BITBUCKET_REPO_SLUG }}
+        run: |
+          git push bitbucket "HEAD:refs/heads/${{ github.head_ref }}" --force
+
+      - name: Create Bitbucket PR (if one does not exist yet)
+        env:
+          BB_ACCESS_TOKEN: ${{ secrets.BITBUCKET_ACCESS_TOKEN }}
+          BB_WORKSPACE: ${{ secrets.BITBUCKET_WORKSPACE }}
+          BB_REPO_SLUG: ${{ secrets.BITBUCKET_REPO_SLUG }}
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          GH_PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          # Check if an open PR already exists for this branch on Bitbucket
+          EXISTING=$(curl -s \
+            -H "Authorization: Bearer ${BB_ACCESS_TOKEN}" \
+            "https://api.bitbucket.org/2.0/repositories/${BB_WORKSPACE}/${BB_REPO_SLUG}/pullrequests?q=source.branch.name=%22${BRANCH}%22+AND+state=%22OPEN%22")
+
+          PR_COUNT=$(echo "$EXISTING" | jq '.size')
+
+          if [ "$PR_COUNT" -eq "0" ]; then
+            echo "Creating Bitbucket PR for branch: $BRANCH"
+            curl -s -f -X POST \
+              -H "Authorization: Bearer ${BB_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.bitbucket.org/2.0/repositories/${BB_WORKSPACE}/${BB_REPO_SLUG}/pullrequests" \
+              -d "$(jq -n \
+                --arg title "$PR_TITLE" \
+                --arg branch "$BRANCH" \
+                --arg gh_pr "$GH_PR_NUMBER" \
+                '{
+                  title: $title,
+                  source: { branch: { name: $branch } },
+                  destination: { branch: { name: "develop" } },
+                  description: ("Synced from GitHub PR #" + $gh_pr)
+                }')"
+            echo "Bitbucket PR created."
+          else
+            echo "Bitbucket PR already exists for branch: $BRANCH — branch updated."
+          fi
