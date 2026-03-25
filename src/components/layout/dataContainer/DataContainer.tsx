@@ -110,6 +110,12 @@ export interface DataContainerProps<T extends DataControllerProps = DataControll
    * Use this to keep consistency with views (e.g. Expenses) where the filter is visible by default.
    */
   defaultShowDataFilter?: boolean
+
+  /**
+   * Overrides default body overflow. Use e.g. `overflow-y-auto overflow-x-hidden` when the body
+   * embeds a DataTable that already scrolls horizontally, to avoid double horizontal scrollbars.
+   */
+  dataBodyClassName?: string
 }
 
 export const DataContainer = <T extends DataControllerProps = DataControllerProps>({
@@ -124,7 +130,8 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
   floatingDetails = false,
   onDetailsPanelClose = () => {},
   addLeftPaddingWhenNoFilter = false,
-  defaultShowDataFilter = false
+  defaultShowDataFilter = false,
+  dataBodyClassName
 }: DataContainerProps<T>): JSX.Element => {
   // Sidebar open/close state - allow showing filter by default for consistency (e.g. with Expenses view)
   const [showDataFilter, setShowDataFilter] = React.useState(defaultShowDataFilter)
@@ -189,7 +196,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
             />
           )}
           <div
-            className={cn('gba:min-h-[400px] gba:overflow-auto', {
+            className={cn('gba:min-h-[400px]', dataBodyClassName ?? 'gba:overflow-auto', {
               'gba:bg-gray-50': contentBackground === 'gray',
               'gba:bg-white': contentBackground === 'white'
             })}

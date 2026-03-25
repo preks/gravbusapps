@@ -1,9 +1,13 @@
-import React from 'react'
+import React, { useMemo } from 'react'
+import type { ActionOption } from '@newwork/nw-design-system'
 import { useTranslation } from '@newwork/nw-design-system'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
+import {
+  RowActionsIcon,
+  RowActionsWrapper
+} from '../../../../../manager-expenses/common/components/RowActionComponents'
 import { ExpenseData } from '../../../../types'
 import translations from '../../../../_i18n'
-import withStoppedPropagation from '../../common/withStoppedPropagation'
 import type { ExpenseRequestActionHandlers } from '../../../../types/expenseRequestActionHandlers'
 
 interface ExpenseRequestTableActionsProps extends ExpenseRequestActionHandlers {
@@ -33,70 +37,94 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
     record.employeeDocumentId !== null
 
   const canTransferPayment = record.status === 'BOOKED'
-  const onNavigate = withStoppedPropagation(() => onNavigateToExpenseRequest(record))
-  const onDownload = withStoppedPropagation(() => onDownloadAccountingNote(record))
-  const onTriggerCsvAction = withStoppedPropagation(() => onTriggerCSV(record))
-  const onPrint = withStoppedPropagation(() => onPrintExpenseRequest(record))
-  const onTransfer = withStoppedPropagation(() => {
-    if (transferInProgress) {
-      return
+
+  const customActions: ActionOption[] = useMemo(() => {
+    const navigationsCategory = t('action-navigations')
+    const actionsList: ActionOption[] = [
+      {
+        category: navigationsCategory,
+        key: 'view-expense-request-details',
+        label: t('action-view-request-details'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onNavigateToExpenseRequest(record)
+        }
+      },
+      {
+        category: navigationsCategory,
+        key: 'download-accounting-note',
+        label: t('action-download-accounting-note'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onDownloadAccountingNote(record)
+        }
+      },
+      {
+        category: navigationsCategory,
+        key: 'trigger-csv',
+        label: t('action-trigger-csv'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onTriggerCSV(record)
+        }
+      }
+    ]
+
+    if (canTransferPayment) {
+      actionsList.push({
+        category: navigationsCategory,
+        key: 'transfer-payment',
+        label: transferInProgress ? t('transfer-in-progress') : t('transfer-payment-label'),
+        disabled: transferInProgress,
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          if (!transferInProgress) {
+            onTransferPayment(record)
+          }
+        }
+      })
     }
-    onTransferPayment(record)
-  })
+
+    if (canPrint) {
+      actionsList.push({
+        category: navigationsCategory,
+        key: 'print-expense-request',
+        label: t('action-print'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onPrintExpenseRequest(record)
+        }
+      })
+    }
+
+    return actionsList
+  }, [
+    record,
+    canPrint,
+    canTransferPayment,
+    transferInProgress,
+    t,
+    onNavigateToExpenseRequest,
+    onDownloadAccountingNote,
+    onTriggerCSV,
+    onPrintExpenseRequest,
+    onTransferPayment
+  ])
 
   return (
-    <div className="gba:flex gba:justify-start gba:gap-2" onClick={e => e.stopPropagation()}>
-      <AppActionButton
-        data-testid={`expense-request-actions-${record.id}`}
-        size="icon"
-        staticFlowData={[
-          {
-            category: t('action-navigations'),
-            key: 'view-expense-request-details',
-            label: t('action-view-request-details'),
-            onClick: onNavigate
-          },
-          {
-            category: t('action-navigations'),
-            key: 'download-accounting-note',
-            label: t('action-download-accounting-note'),
-            onClick: onDownload
-          },
-          {
-            category: t('action-navigations'),
-            key: 'trigger-csv',
-            label: t('action-trigger-csv'),
-            onClick: onTriggerCsvAction
-          },
-          ...(canTransferPayment
-            ? [
-                {
-                  category: t('action-navigations'),
-                  key: 'transfer-payment',
-                  label: transferInProgress ? t('transfer-in-progress') : t('transfer-payment-label'),
-                  disabled: transferInProgress,
-                  onClick: onTransfer
-                }
-              ]
-            : []),
-          ...(canPrint
-            ? [
-                {
-                  category: t('action-navigations'),
-                  key: 'print-expense-request',
-                  label: t('action-print'),
-                  onClick: onPrint
-                }
-              ]
-            : [])
-        ]}
+    <RowActionsWrapper>
+      <AppAction
+        variant="table-row"
+        customActions={customActions}
         prefixDataTestId="expense-request-actions"
         accessToken={accessToken}
-        emptyStateBehavior="enable"
-        deferMainContextRequestsUntilClick
-      />
-    </div>
+        data-testid={`expense-request-actions-${record.id}`}
+        emptyState="enable"
+      >
+        <RowActionsIcon />
+      </AppAction>
+    </RowActionsWrapper>
   )
 }
 
-export default ExpenseRequestTableActions
+export default React.memo(ExpenseRequestTableActions)

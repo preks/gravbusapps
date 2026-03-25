@@ -118,7 +118,7 @@ export const GET_EXPENSE_PLANS_BACKOFFICE = `
         amount
         status
       }
-      startDate endDate status activeFrom activeTo totalAmount totalRemainingAmount currencyRef
+      startDate endDate status activeFrom activeTo totalAmount totalRemainingAmount advancePaymentPaidAmount currencyRef
       createdAt updatedAt decisionDate planDate
       employeeDocument { id file fileSize name mimeType }
     }
@@ -139,6 +139,7 @@ export const GET_EXPENSE_REQUESTS_BACKOFFICE = `
       requestType { value translations { value localeCode } }
       expensePlan {
         code
+        advancePaymentPaidAmount
         requestType { value translations { value localeCode } }
         advancePayment(where: { isDeleted: { _eq: false } }) {
           id
