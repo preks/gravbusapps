@@ -1,6 +1,7 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { TypingIndicator } from '../types'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 
 interface TypingIndicatorProps {
   typingUsers: TypingIndicator[]
@@ -14,7 +15,7 @@ interface TypingIndicatorProps {
  */
 export const TypingIndicator: React.FC<TypingIndicatorProps> = React.memo(
   ({ typingUsers, conversationId }) => {
-    const t = useChatTranslation()
+    const { t } = useTranslation(translations)
 
     // Filter typing users for this conversation
     const activeTypingUsers = typingUsers.filter(u => u.conversationId === conversationId && u.isTyping)

@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { Alert, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
 import { navigateTo, buildPlatformUrl, getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 import { setPendingJoinMeeting } from '../pendingJoinMeetingFromPlatform'
 import { useCalendar } from './hooks/useCalendar'
 import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
@@ -26,27 +25,6 @@ const CalendarInner: React.FC<CalendarProps> = ({
   externalCalendarEvents = [],
   onOpenChat
 }) => {
-  // Build API URL for calendar API
-  let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-  baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-
-  const chatServiceOverride = env('NEXT_PUBLIC_CHAT_SERVICE_URL')
-
-  let apiUrl: string
-  if (chatServiceOverride) {
-    const localUrl = chatServiceOverride.endsWith('/') ? chatServiceOverride.slice(0, -1) : chatServiceOverride
-    apiUrl = `${localUrl}/api/v1`
-  } else {
-    const isLocalPlatform = baseUrl.includes('localhost')
-    if (isLocalPlatform) {
-      baseUrl = 'https://newwork-dev.newwork.com'
-    }
-    apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
-    if (apiUrl.includes('localhost')) {
-      apiUrl = `${baseUrl}/chat-service/api/v1`
-    }
-  }
-
   // Convert activeCalls to Map for component compatibility
   const activeConversationCalls = useMemo(() => {
     const map = new Map()
@@ -82,7 +60,6 @@ const CalendarInner: React.FC<CalendarProps> = ({
     viewTitle
   } = useCalendar({
     accessToken,
-    apiUrl,
     externalEvents: externalCalendarEvents
   })
 
@@ -94,7 +71,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const [editingMeeting, setEditingMeeting] = useState<CalendarEvent | null>(null)
   const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
 
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const { fetchAvatarsSync, requestAvatars } = useEmployeeAvatarsCache(accessToken)
 
   // Ref so timeout callback can read latest events (after date change triggers fetch)
@@ -116,7 +93,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
       // For internal meetings, fetch full meeting data so we have up-to-date participant responses
       if (isInternalMeeting && apiClient) {
         try {
-          const meeting = await apiClient.getMeeting(selectedEvent.id)
+          const { meeting } = await apiClient.getMeeting<{ meeting: any }>(selectedEvent.id)
           const participants: EventParticipant[] =
             meeting.participants?.map(p => ({
               id: p.userId,
