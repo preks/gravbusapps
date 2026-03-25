@@ -51,32 +51,34 @@ const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({
             {t('feedback-hub-give-feedback')}
           </AppAction>
         )}
-        <AppAction
-          key={`request-feedback-${isSelfView ? 'self' : 'other'}-${canRequestFeedbackOnBehalf ? 'on' : 'off'}-${employee?.id ?? 'none'}`}
-          variant="update-secondary"
-          buttonSize="default"
-          contexts={[
-            {
-              context: FlowContextName.employeeRequestFeedback,
-              contextData:
-                !isSelfView && canRequestFeedbackOnBehalf
-                  ? {
-                      // Keep initiator context as current user.
-                      employeeId: currentUserEmployeeId,
-                      // Run the request flow on behalf of the viewed employee.
-                      targetEmployeeId: employee?.id,
-                      subjectUserId: employee?.userId || employee?.additionalProperties?.userId,
-                      isRequestingFeedback: true
-                    }
-                  : { employeeId: currentUserEmployeeId, isRequestingFeedback: true }
-            }
-          ]}
-          prefixDataTestId="request-feedback"
-          accessToken={accessToken}
-          autoExecute={true}
-        >
-          {t('feedback-hub-request-feedback')}
-        </AppAction>
+        {(isSelfView || canRequestFeedbackOnBehalf) && (
+          <AppAction
+            key={`request-feedback-${isSelfView ? 'self' : 'other'}-${canRequestFeedbackOnBehalf ? 'on' : 'off'}-${employee?.id ?? 'none'}`}
+            variant="update-secondary"
+            buttonSize="default"
+            contexts={[
+              {
+                context: FlowContextName.employeeRequestFeedback,
+                contextData:
+                  !isSelfView && canRequestFeedbackOnBehalf
+                    ? {
+                        // Keep initiator context as current user.
+                        employeeId: currentUserEmployeeId,
+                        // Run the request flow on behalf of the viewed employee.
+                        targetEmployeeId: employee?.id,
+                        subjectUserId: employee?.userId || employee?.additionalProperties?.userId,
+                        isRequestingFeedback: true
+                      }
+                    : { employeeId: currentUserEmployeeId, isRequestingFeedback: true }
+              }
+            ]}
+            prefixDataTestId="request-feedback"
+            accessToken={accessToken}
+            autoExecute={true}
+          >
+            {t('feedback-hub-request-feedback')}
+          </AppAction>
+        )}
       </div>
     </div>
   </div>
