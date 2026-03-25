@@ -340,13 +340,6 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     )
   }, [dateVal, clockInVal, clockOutVal, notesVal, initialValues])
 
-  // const isZeroPlannedDay = useMemo(() => {
-  //   if (!dateVal || !workingHours) return false
-  //   const dateIso = toUtcMidnightIso(dateVal)
-  //   if (!dateIso) return false
-  //   return getPlannedMinutesForDate(dateIso, workingHours) === 0
-  // }, [dateVal, workingHours])
-
   const isDateAbsence = useMemo(() => {
     if (!dateVal) return false
     let key = ''
@@ -690,12 +683,6 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
               )}
             />
           </div>
-
-          {/* {isZeroPlannedDay && !isDateAbsence && (
-            <p className="gba:text-sm gba:text-warning" data-testid="rcf-zero-planned-warning">
-              {t('request-correction-zero-planned-warning')}
-            </p>
-          )} */}
 
           <FormField
             control={form.control as any}
