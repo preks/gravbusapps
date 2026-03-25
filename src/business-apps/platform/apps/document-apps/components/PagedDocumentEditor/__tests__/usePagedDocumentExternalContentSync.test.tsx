@@ -1,8 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { Doc as YDoc } from 'yjs'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import { normalizeDocumentHtmlForEditor, sanitizeDocumentHtmlForEditor } from '../../../utils/documentContentUtils'
-import { DocumentApiService } from '../../../services/DocumentApiService'
 import {
   applyLatestDocumentContent,
   areHtmlSemanticallyEquivalent,
@@ -14,12 +14,16 @@ jest.mock('@/components/tiptap-extensions/tiptap-custom-pagination', () => ({
   markNextPaginationHydrationDocChange: jest.fn()
 }))
 
-jest.mock('../../../services/DocumentApiService', () => ({
-  DocumentApiService: {
-    getDocument: jest.fn(),
-    getVersion: jest.fn()
-  }
+jest.mock('@/common/network/office/useOfficeClient', () => ({
+  useOfficeClient: jest.fn(() => ({
+    documents: {
+      get: jest.fn(),
+      getDocumentVersion: jest.fn()
+    }
+  }))
 }))
+
+const mockedUseOfficeClient = useOfficeClient as jest.Mock
 
 describe('areHtmlSemanticallyEquivalent', () => {
   it('treats formatting-only html differences as equivalent', () => {
@@ -30,6 +34,12 @@ describe('areHtmlSemanticallyEquivalent', () => {
 describe('applyLatestDocumentContent', () => {
   beforeEach(() => {
     jest.useFakeTimers()
+    mockedUseOfficeClient.mockReturnValue({
+      documents: {
+        get: jest.fn(),
+        getDocumentVersion: jest.fn()
+      }
+    })
   })
 
   afterEach(() => {
@@ -159,12 +169,14 @@ describe('restoreVersionContent', () => {
       return 1
     })
 
-    ;(DocumentApiService.getVersion as jest.Mock).mockResolvedValue({
+    const officeClient = mockedUseOfficeClient()
+    ;(officeClient.documents.getDocumentVersion as jest.Mock).mockResolvedValue({
       title: 'Restored title',
       content: '<p>Restored body</p>'
     })
 
     await restoreVersionContent({
+      officeClient,
       documentId: 'doc-1',
       versionNumber: 3,
       editor,
@@ -175,7 +187,7 @@ describe('restoreVersionContent', () => {
       closeVersionHistory
     })
 
-    expect(DocumentApiService.getVersion).toHaveBeenCalledWith('doc-1', 3)
+    expect(officeClient.documents.getDocumentVersion).toHaveBeenCalledWith('doc-1', 3)
     expect(versioning.restoreVersion).toHaveBeenCalledWith(3)
     expect(setContent).toHaveBeenCalledWith(normalizeDocumentHtmlForEditor('<p>Restored body</p>'))
     expect(refreshPagesAndStabilize).toHaveBeenCalled()
@@ -217,13 +229,19 @@ describe('usePagedDocumentExternalContentSync', () => {
       return 1
     })
 
-    ;(DocumentApiService.getDocument as jest.Mock).mockResolvedValue({
+    const officeClient = mockedUseOfficeClient()
+    ;(officeClient.documents.get as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      title: 'Doc 1',
+      ownerId: 'owner-1',
       content: '<p>Updated remotely</p>',
-      updatedAt: '2026-03-21T13:00:00.000Z'
+      updatedAt: '2026-03-21T13:00:00.000Z',
+      status: 'draft'
     })
 
     renderHook(() =>
       usePagedDocumentExternalContentSync({
+        accessToken: 'token-1',
         editor,
         documentId: 'doc-1',
         editorContainerRef: { current: { scrollTop: 0 } } as React.MutableRefObject<HTMLDivElement | null>,
@@ -248,7 +266,7 @@ describe('usePagedDocumentExternalContentSync', () => {
       await Promise.resolve()
     })
 
-    expect(DocumentApiService.getDocument).toHaveBeenCalledWith('doc-1', { fresh: true })
+    expect(officeClient.documents.get).toHaveBeenCalledWith(expect.stringContaining('doc-1?_ts='), undefined)
     expect(setContent).toHaveBeenCalledWith(normalizeDocumentHtmlForEditor('<p>Updated remotely</p>'), {
       emitUpdate: true
     })

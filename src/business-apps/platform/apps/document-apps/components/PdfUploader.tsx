@@ -9,8 +9,9 @@
 import React, { useState, useCallback, useRef } from 'react'
 import { Card, Button, Badge, Spinner, Progress, useTranslation } from '@newwork/nw-design-system'
 import { FileText, Upload, X, Check, AlertCircle, FileUp } from 'lucide-react'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { Document } from '../types'
-import { DocumentApiService } from '../services/DocumentApiService'
+import { mapApiDocumentToDocument } from '../utils/documentOfficeOperations'
 import translations from '../_i18n'
 
 export interface PdfUploaderProps {
@@ -43,6 +44,7 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
   'data-testid': testId = 'pdf-uploader'
 }) => {
   const { t } = useTranslation(translations)
+  const officeClient = useOfficeClient(accessToken)
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -80,16 +82,15 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
       setUploadProgress(10) // Start progress
 
       try {
-        // Set the access token
-        DocumentApiService.setAccessToken(accessToken)
-
         // Simulate progress during upload
         const progressInterval = setInterval(() => {
           setUploadProgress(prev => Math.min(prev + 10, 90))
         }, 200)
 
         // Upload the PDF
-        const document = await DocumentApiService.importPdf(file)
+        const formData = new FormData()
+        formData.append('file', file)
+        const document = mapApiDocumentToDocument(await officeClient.documents.importPdf(formData))
 
         clearInterval(progressInterval)
         setUploadProgress(100)
@@ -106,7 +107,7 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
         onError?.(errorMsg)
       }
     },
-    [accessToken, maxFileSize, onUploadComplete, onError, t]
+    [maxFileSize, officeClient, onUploadComplete, onError, t]
   )
 
   /**

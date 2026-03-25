@@ -3,8 +3,9 @@ import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, t
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import type { Doc as YDoc } from 'yjs'
 import { markNextPaginationHydrationDocChange } from '@/components/tiptap-extensions/tiptap-custom-pagination'
-import { DocumentApiService } from '../../../services/DocumentApiService'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import { sanitizeDocumentHtmlForEditor, sanitizePaginationRuntimeHtml } from '../../../utils/documentContentUtils'
+import { getDocumentById, getDocumentVersion } from '../../../utils/documentOfficeOperations'
 
 export interface ExternalVersioningControls {
   restoreVersion: (versionNumber: number) => Promise<boolean>
@@ -23,6 +24,7 @@ export interface ApplyLatestDocumentContentParams {
 }
 
 export interface RestoreVersionContentParams {
+  officeClient: ReturnType<typeof useOfficeClient>
   documentId: string
   versionNumber: number
   editor: TiptapEditor | null
@@ -34,6 +36,7 @@ export interface RestoreVersionContentParams {
 }
 
 export interface UsePagedDocumentExternalContentSyncParams {
+  accessToken?: string
   editor: TiptapEditor | null
   documentId?: string
   editorContainerRef: MutableRefObject<HTMLDivElement | null>
@@ -161,6 +164,7 @@ export async function applyLatestDocumentContent({
 }
 
 export async function restoreVersionContent({
+  officeClient,
   documentId,
   versionNumber,
   editor,
@@ -170,7 +174,7 @@ export async function restoreVersionContent({
   setLastSaved,
   closeVersionHistory
 }: RestoreVersionContentParams): Promise<void> {
-  const versionData = await DocumentApiService.getVersion(documentId, versionNumber)
+  const versionData = await getDocumentVersion(officeClient, documentId, versionNumber)
   if (!versionData) {
     console.error('[PagedDocumentEditor] Failed to get version data')
     return
@@ -199,6 +203,7 @@ export async function restoreVersionContent({
 }
 
 export function usePagedDocumentExternalContentSync({
+  accessToken,
   editor,
   documentId,
   editorContainerRef,
@@ -210,6 +215,7 @@ export function usePagedDocumentExternalContentSync({
   versioning,
   setShowVersionHistory
 }: UsePagedDocumentExternalContentSyncParams): UsePagedDocumentExternalContentSyncResult {
+  const officeClient = useOfficeClient(accessToken)
   const everyAiFallbackPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const applyLatestDocumentContentFromSource = useCallback(
@@ -233,7 +239,7 @@ export function usePagedDocumentExternalContentSync({
     if (!documentId || !editor) return false
 
     try {
-      const latest = await DocumentApiService.getDocument(documentId, { fresh: true })
+      const latest = await getDocumentById(officeClient, documentId, { fresh: true })
       if (!latest?.content) return false
 
       const latestHtml =
@@ -252,7 +258,7 @@ export function usePagedDocumentExternalContentSync({
       console.warn('[PagedDocumentEditor] Failed syncing document after AI edit', error)
       return false
     }
-  }, [applyLatestDocumentContentFromSource, documentId, editor])
+  }, [applyLatestDocumentContentFromSource, documentId, editor, officeClient])
 
   const clearEveryAiFallbackPoll = useCallback(() => {
     if (everyAiFallbackPollRef.current) {
@@ -311,6 +317,7 @@ export function usePagedDocumentExternalContentSync({
       if (!documentId) return
 
       await restoreVersionContent({
+        officeClient,
         documentId,
         versionNumber,
         editor,
@@ -321,7 +328,7 @@ export function usePagedDocumentExternalContentSync({
         closeVersionHistory: () => setShowVersionHistory(false)
       })
     },
-    [documentId, editor, setHasUnsavedChanges, setLastSaved, setShowVersionHistory, setTitle, versioning]
+    [documentId, editor, officeClient, setHasUnsavedChanges, setLastSaved, setShowVersionHistory, setTitle, versioning]
   )
 
   return {

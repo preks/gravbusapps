@@ -25,6 +25,7 @@ import { useAiEdit } from './useAiEdit'
 import { AiEditPreview } from './AiEditPreview'
 
 export interface AiEditPanelProps {
+  accessToken?: string
   editor: Editor | null
   documentId: string
   documentTitle: string
@@ -36,6 +37,7 @@ export interface AiEditPanelProps {
 
 export const AiEditPanel: React.FC<AiEditPanelProps> = ({
   editor,
+  accessToken,
   documentId,
   documentTitle,
   onClose,
@@ -45,7 +47,7 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const { llmProvider, setLlmProvider } = useAiEditProvider(currentUserId)
-  const ai = useAiEdit({ editor, documentId, documentTitle, llmProvider })
+  const ai = useAiEdit({ accessToken, editor, documentId, documentTitle, llmProvider })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Focus textarea on mount

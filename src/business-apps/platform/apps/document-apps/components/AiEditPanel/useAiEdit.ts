@@ -8,12 +8,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import type { Editor } from '@tiptap/react'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import translations from '../../_i18n'
 import { DOMSerializer } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import { DocumentApiService } from '../../services/DocumentApiService'
 import type { LlmProvider } from './useAiEditProvider'
+import type { AiEditResult } from '../../utils/documentOfficeOperations'
 
 export interface CapturedSelection {
   from: number
@@ -27,14 +28,16 @@ export type AiEditMode = 'document' | 'selection'
 const AI_SELECTION_PLUGIN_KEY = new PluginKey('aiSelectionHighlight')
 
 export interface UseAiEditOptions {
+  accessToken?: string
   editor: Editor | null
   documentId: string
   documentTitle: string
   llmProvider: LlmProvider
 }
 
-export function useAiEdit({ editor, documentId, documentTitle, llmProvider }: UseAiEditOptions) {
+export function useAiEdit({ accessToken, editor, documentId, documentTitle, llmProvider }: UseAiEditOptions) {
   const { t } = useTranslation(translations)
+  const officeClient = useOfficeClient(accessToken)
   const [instruction, setInstruction] = useState('')
   const [mode, setModeState] = useState<AiEditMode>('document')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -149,7 +152,20 @@ export function useAiEdit({ editor, documentId, documentTitle, llmProvider }: Us
       const documentHtml = editor.getHTML()
       const documentPlainText = editor.getText()
 
-      const payload: Parameters<typeof DocumentApiService.aiEdit>[1] = {
+      const payload: {
+        instruction: string
+        llmProvider?: 'openai' | 'groq'
+        documentHtml: string
+        documentPlainText: string
+        mode: AiEditMode
+        title: string
+        selection?: {
+          start?: number
+          end?: number
+          selectedPlainText?: string
+          selectionHtml?: string
+        }
+      } = {
         instruction: instruction.trim(),
         llmProvider,
         documentHtml,
@@ -167,7 +183,7 @@ export function useAiEdit({ editor, documentId, documentTitle, llmProvider }: Us
         }
       }
 
-      const result = await DocumentApiService.aiEdit(documentId, payload)
+      const result = await officeClient.documents.aiEdit<AiEditResult>(documentId, payload)
 
       if (result.mode === 'document' && result.updatedHtml) {
         setPreviewHtml(result.updatedHtml)
@@ -180,7 +196,7 @@ export function useAiEdit({ editor, documentId, documentTitle, llmProvider }: Us
     } finally {
       setIsProcessing(false)
     }
-  }, [editor, instruction, llmProvider, mode, documentId, documentTitle, capturedSelection, t])
+  }, [capturedSelection, documentId, documentTitle, editor, instruction, llmProvider, mode, officeClient, t])
 
   /** Apply the preview to the TipTap editor */
   const apply = useCallback(() => {

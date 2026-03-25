@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, toast } from '@newwork/nw-design-system'
 import { FileText } from 'lucide-react'
-import { DocumentExternalSourceService } from '../../services/DocumentExternalSourceService'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type {
   UnstructuredConnectorSummary,
   UnstructuredPreviewItem,
@@ -30,6 +30,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
   onAfterImport,
   'data-testid': testId = 'external-document-import-sheet'
 }) => {
+  const officeClient = useOfficeClient(accessToken)
   const promptManagerClient = usePromptManagerClient(accessToken)
   const [step, setStep] = useState<Step>('select')
   const [connectors, setConnectors] = useState<UnstructuredConnectorSummary[]>([])
@@ -67,18 +68,12 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
   const pmClientRef = useRef(promptManagerClient)
   pmClientRef.current = promptManagerClient
 
-  useEffect(() => {
-    if (accessToken) {
-      DocumentExternalSourceService.setAccessToken(accessToken)
-    }
-  }, [accessToken])
-
   const loadConnectors = useCallback(async () => {
     setIsLoadingConnectors(true)
     setConnectorError(null)
     try {
       const [allConnectors, activeConnections, mcpConns] = await Promise.all([
-        DocumentExternalSourceService.listConnectors(),
+        officeClient.documents.listExternalSourceConnectors<UnstructuredConnectorSummary[]>(),
         pmClientRef.current.getExternalConnections({
           kind: 'unstructured',
           consumerType: 'document_import',
@@ -123,8 +118,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
     }
   }, [open, step, loadConnectors])
 
-  const isMcpConnector = (c: UnstructuredConnectorSummary | null) =>
-    (c as any)?.config?.__kind === 'mcp'
+  const isMcpConnector = (c: UnstructuredConnectorSummary | null) => (c as any)?.config?.__kind === 'mcp'
 
   useEffect(() => {
     const loadSharedConnections = async () => {
@@ -181,10 +175,14 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
     setEstimatedTotal(undefined)
     setStep('preview')
     try {
-      const result = await DocumentExternalSourceService.preview(
-        selectedConnector.id,
-        selectedConnectionId || undefined
-      )
+      const result = await officeClient.documents.previewExternalSources<{
+        items: UnstructuredPreviewItem[]
+        estimatedTotal?: number
+      }>({
+        connectorId: selectedConnector.id,
+        connectionId: selectedConnectionId || undefined,
+        limit: 20
+      })
       if (result) {
         setPreviewItems(result.items)
         setEstimatedTotal(result.estimatedTotal)
@@ -203,7 +201,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
 
   const pollRunStatus = useCallback(
     async (activeRunId: string) => {
-      const status = await DocumentExternalSourceService.getRunStatus(activeRunId)
+      const status = await officeClient.documents.getExternalSourceRunStatus<any>(activeRunId)
       if (!status) return
       setRunStatus(status.status)
       setTotalDiscovered(status.totalDiscovered)
@@ -243,7 +241,7 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
     if (!selectedConnector) return
     setIsImporting(true)
     try {
-      const result = await DocumentExternalSourceService.startSync({
+      const result = await officeClient.documents.startExternalSourceSync<{ runId: string }>({
         connectorId: selectedConnector.id,
         connectorName: selectedConnector.name,
         connectorDescription: selectedConnector.description ?? undefined,
@@ -276,8 +274,8 @@ export const ExternalDocumentImportSheet: React.FC<ExternalDocumentImportSheetPr
 
   const handleCancel = useCallback(async () => {
     if (!runId) return
-    await DocumentExternalSourceService.cancelRun(runId)
-  }, [runId])
+    await officeClient.documents.cancelExternalSourceRun(runId)
+  }, [officeClient, runId])
 
   const handleRetry = useCallback(() => {
     setStep('config')

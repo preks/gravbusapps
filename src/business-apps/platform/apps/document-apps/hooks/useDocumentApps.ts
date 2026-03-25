@@ -8,12 +8,18 @@
  * Server-driven pagination — fetches exactly one page per request.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
-import { DocumentApiService } from '../services/DocumentApiService'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { Document, DocumentSummary, ApprovalWorkflowConfig, DocumentApprovalRequest } from '../types'
 import translations from '../_i18n'
+import {
+  buildDocumentApprovalRequest,
+  getDocumentById,
+  mapApiDocToSummary,
+  mapApiDocumentToDocument
+} from '../utils/documentOfficeOperations'
 
 interface ServerPageMeta {
   total: number
@@ -59,6 +65,7 @@ interface UseDocumentAppsResult extends UseDocumentAppsState {
 
 export function useDocumentApps(accessToken: string, userId?: string): UseDocumentAppsResult {
   const { t } = useTranslation(translations)
+  const officeClient = useOfficeClient(accessToken)
   const [state, setState] = useState<UseDocumentAppsState>({
     documents: [],
     currentDocument: null,
@@ -70,10 +77,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
   })
 
   const lastQueryRef = useRef<ListQueryParams>({})
-
-  useEffect(() => {
-    DocumentApiService.setAccessToken(accessToken || null)
-  }, [accessToken])
 
   const refreshDocuments = useCallback(
     async (queryOverride?: ListQueryParams) => {
@@ -96,15 +99,38 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         const backendSortBy = query.sortBy ?? (sortByMap[query.sortBy as string] || 'updatedAt')
         const backendSortOrder = query.sortOrder ?? 'DESC'
 
-        const result = await DocumentApiService.listDocuments({
-          section: query.section,
-          favoriteIds: query.favoriteIds,
-          search: query.search,
-          page: query.page ?? 1,
-          limit: query.limit ?? 20,
-          sortBy: backendSortBy,
-          sortOrder: backendSortOrder
-        })
+        const params = new URLSearchParams()
+        if (query.section) params.set('section', query.section)
+        if (query.favoriteIds) params.set('favoriteIds', query.favoriteIds)
+        if (query.search) params.set('search', query.search)
+        params.set('page', String(query.page ?? 1))
+        params.set('limit', String(query.limit ?? 20))
+        params.set('sortBy', backendSortBy)
+        params.set('sortOrder', backendSortOrder)
+
+        let rawResult
+        try {
+          rawResult = await officeClient.documents.list<ServerPageMeta & { items: Record<string, unknown>[] }>(
+            params.toString()
+          )
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.includes('section should not exist')) {
+            throw error
+          }
+
+          params.delete('section')
+          if (query.section === 'archived') params.set('status', 'archived')
+          else if (query.section === 'shared') params.set('includeShared', 'true')
+          else if (query.section === 'my-documents') params.set('includeShared', 'false')
+          rawResult = await officeClient.documents.list<ServerPageMeta & { items: Record<string, unknown>[] }>(
+            params.toString()
+          )
+        }
+
+        const result = {
+          ...rawResult,
+          items: rawResult.items.map(mapApiDocToSummary)
+        }
 
         const documents = result.items.map(doc => {
           const isOwner = doc.createdBy === userId
@@ -136,7 +162,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         }))
       }
     },
-    [accessToken, userId, t]
+    [accessToken, officeClient, userId, t]
   )
 
   const loadDocument = useCallback(
@@ -144,7 +170,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return null
 
       try {
-        const document = await DocumentApiService.getDocument(id)
+        const document = await getDocumentById(officeClient, id)
         if (document) {
           const permission = document.permission || 'owner'
           setState(prev => ({
@@ -160,7 +186,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [accessToken, t]
+    [accessToken, officeClient, t]
   )
 
   const createDocument = useCallback(
@@ -168,7 +194,18 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return null
 
       try {
-        const newDocument = await DocumentApiService.createDocument(document)
+        const newDocument = mapApiDocumentToDocument(
+          await officeClient.documents.create({
+            title: document.title || 'Untitled Document',
+            description: document.description,
+            content: document.content || '',
+            status: document.status || 'draft',
+            category: document.category,
+            tags: document.tags,
+            formatting: document.formatting,
+            templateId: undefined
+          })
+        )
         if (newDocument) {
           toast.success(t('doc-apps-toast-document-created'))
           await refreshDocuments()
@@ -180,7 +217,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [accessToken, refreshDocuments, t]
+    [accessToken, officeClient, refreshDocuments, t]
   )
 
   const updateDocument = useCallback(
@@ -188,7 +225,22 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return null
 
       try {
-        const updatedDocument = await DocumentApiService.updateDocument(id, updates)
+        const payload: Record<string, unknown> = {
+          title: updates.title,
+          description: updates.description,
+          content: updates.content,
+          status: updates.status,
+          category: updates.category,
+          tags: updates.tags,
+          formatting: updates.formatting,
+          createVersion: true
+        }
+        const contentJson = (updates as Record<string, unknown>).contentJson
+        if (contentJson !== undefined) payload.contentJson = contentJson
+        Object.keys(payload).forEach(key => {
+          if (payload[key] === undefined) delete payload[key]
+        })
+        const updatedDocument = mapApiDocumentToDocument(await officeClient.documents.update(id, payload))
         if (updatedDocument) {
           setState(prev => ({
             ...prev,
@@ -216,7 +268,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [accessToken, t]
+    [accessToken, officeClient, t]
   )
 
   const deleteDocument = useCallback(
@@ -224,7 +276,8 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return false
 
       try {
-        const success = await DocumentApiService.deleteDocument(id)
+        await officeClient.documents.delete(id)
+        const success = true
         if (success) {
           toast.success(t('doc-apps-toast-document-deleted'))
           await refreshDocuments()
@@ -236,7 +289,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return false
       }
     },
-    [accessToken, refreshDocuments, t]
+    [accessToken, officeClient, refreshDocuments, t]
   )
 
   const duplicateDocument = useCallback(
@@ -244,7 +297,8 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return null
 
       try {
-        const duplicate = await DocumentApiService.duplicateDocument(id)
+        const duplicated = await officeClient.documents.duplicate<Record<string, unknown>>(id)
+        const duplicate = duplicated ? mapApiDocumentToDocument(duplicated) : null
         if (duplicate) {
           toast.success(t('doc-apps-toast-document-duplicated'))
           await refreshDocuments()
@@ -256,7 +310,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [accessToken, refreshDocuments, t]
+    [accessToken, officeClient, refreshDocuments, t]
   )
 
   const shareDocument = useCallback(
@@ -265,7 +319,15 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
 
       try {
         const shares = userIds.map(userId => ({ userId, permission }))
-        const success = await DocumentApiService.shareDocument(id, shares)
+        await officeClient.createShare({
+          entityType: 'document',
+          entityId: id,
+          recipients: shares.map(share => ({
+            userId: share.userId,
+            permission: share.permission
+          }))
+        })
+        const success = true
         if (success) {
           toast.success(t('doc-apps-toast-share-success'))
           await refreshDocuments()
@@ -277,7 +339,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return false
       }
     },
-    [accessToken, refreshDocuments, t]
+    [accessToken, officeClient, refreshDocuments, t]
   )
 
   const revokeAccess = useCallback(
@@ -285,7 +347,12 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return false
 
       try {
-        const success = await DocumentApiService.revokeAccess(id, revokeUserId)
+        const shares = await officeClient.getSharingForDocument<Array<{ id: string; userId: string }>>(id)
+        const share = shares.find(entry => entry.userId === revokeUserId)
+        if (share) {
+          await officeClient.deleteShare(share.id)
+        }
+        const success = true
         if (success) {
           toast.success(t('doc-apps-toast-access-revoked'))
           await refreshDocuments()
@@ -297,7 +364,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return false
       }
     },
-    [accessToken, refreshDocuments, t]
+    [accessToken, officeClient, refreshDocuments, t]
   )
 
   const sendForApproval = useCallback(
@@ -305,14 +372,24 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return null
 
       try {
-        const success = await DocumentApiService.sendForApproval(config.documentId, config.approvers, config.message)
+        await officeClient.documents.createApproval({
+          entityType: 'document',
+          entityId: config.documentId,
+          title: 'Document Approval',
+          message: config.message,
+          approvers: config.approvers.map(userId => ({ userId }))
+        })
+        const success = true
 
         if (success) {
-          await DocumentApiService.updateDocumentStatus(config.documentId, 'pending_approval')
+          await officeClient.documents.updateStatus(config.documentId, { status: 'pending_approval' })
           toast.success(t('doc-apps-toast-sent-approval'))
           await refreshDocuments()
 
-          const approvalRequest = await DocumentApiService.getApprovalStatus(config.documentId)
+          const approvals = await officeClient.documents.getApprovalsForDocument<Record<string, unknown>[]>(
+            config.documentId
+          )
+          const approvalRequest = buildDocumentApprovalRequest(config.documentId, approvals)
           return approvalRequest
         }
         return null
@@ -322,7 +399,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [accessToken, refreshDocuments, t]
+    [accessToken, officeClient, refreshDocuments, t]
   )
 
   const cancelApproval = useCallback(
@@ -330,10 +407,14 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return false
 
       try {
-        const success = await DocumentApiService.cancelApproval(documentId)
+        const approvals = await officeClient.documents.getApprovalsForDocument<Array<{ id: string }>>(documentId)
+        if (approvals.length > 0) {
+          await officeClient.documents.deleteApproval(approvals[0].id)
+        }
+        const success = true
 
         if (success) {
-          await DocumentApiService.updateDocumentStatus(documentId, 'draft')
+          await officeClient.documents.updateStatus(documentId, { status: 'draft' })
           toast.success(t('doc-apps-toast-approval-cancelled'))
           await refreshDocuments()
         }
@@ -344,7 +425,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return false
       }
     },
-    [accessToken, refreshDocuments, t]
+    [accessToken, officeClient, refreshDocuments, t]
   )
 
   const clearCurrentDocument = useCallback(() => {
@@ -360,7 +441,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return null
 
       try {
-        const document = await DocumentApiService.getDocument(id)
+        const document = await getDocumentById(officeClient, id)
         if (!document) return null
         return document.content
       } catch (error) {
@@ -368,7 +449,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [accessToken]
+    [accessToken, officeClient]
   )
 
   return {

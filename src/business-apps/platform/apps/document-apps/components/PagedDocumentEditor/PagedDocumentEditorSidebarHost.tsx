@@ -169,6 +169,7 @@ export function PagedDocumentEditorSidebarHost({
 
       {documentId && rightSidebar === 'ai' && (
         <AiEditPanel
+          accessToken={accessToken}
           editor={editor}
           documentId={documentId}
           documentTitle={title}

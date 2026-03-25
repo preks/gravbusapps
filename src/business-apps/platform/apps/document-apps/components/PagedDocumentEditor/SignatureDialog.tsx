@@ -28,8 +28,9 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { Loader2, Upload } from 'lucide-react'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import translations from '../../_i18n'
-import { UserSignatureApiService, type UserSignatureDto } from '../../services/UserSignatureApiService'
+import type { UserSignatureDto } from '../../services/UserSignatureApiService'
 import { SignatureCanvas, strokesToSvg } from './SignatureCanvas'
 import { SignatureInkPicker } from './SignatureInkPicker'
 import { SignatureTypedStylePicker } from './SignatureTypedStylePicker'
@@ -165,6 +166,7 @@ export function SignatureDialog({
   'data-testid': testId = 'signature-dialog'
 }: Readonly<SignatureDialogProps>) {
   const { t } = useTranslation(translations)
+  const officeClient = useOfficeClient(accessToken ?? undefined)
   const [activeTab, setActiveTab] = useState<'typed' | 'drawn' | 'library' | 'upload'>('library')
   const [signatures, setSignatures] = useState<UserSignatureDto[]>([])
   const [loading, setLoading] = useState(false)
@@ -204,7 +206,7 @@ export function SignatureDialog({
     if (!accessToken) return
     setLoading(true)
     try {
-      const list = await UserSignatureApiService.list(accessToken)
+      const list = await officeClient.documents.listSignatures<UserSignatureDto[]>()
       setSignatures(list)
       // Preserve the current selection when refreshing so the list does not remount/scroll to top.
       setSelectedId(prev => {
@@ -275,13 +277,13 @@ export function SignatureDialog({
     setDeletingSignature(true)
     setError(null)
     try {
-      await UserSignatureApiService.remove(id, accessToken)
+      await officeClient.documents.deleteSignature(id)
       setSignaturePendingDelete(null)
       if (editingSignatureId === id) {
         discardEditForms()
         setActiveTab('library')
       }
-      const list = await UserSignatureApiService.list(accessToken)
+      const list = await officeClient.documents.listSignatures<UserSignatureDto[]>()
       setSignatures(list)
       setSelectedId(prev => {
         if (prev !== id) return prev
@@ -362,27 +364,20 @@ export function SignatureDialog({
     }
     try {
       if (editingSignatureId) {
-        await UserSignatureApiService.update(
-          editingSignatureId,
-          {
-            name,
-            snapshotSvg,
-            initialsSnapshotSvg,
-            sourceData
-          },
-          accessToken
-        )
+        await officeClient.documents.updateSignature(editingSignatureId, {
+          name,
+          snapshotSvg,
+          initialsSnapshotSvg,
+          sourceData
+        })
       } else {
-        await UserSignatureApiService.create(
-          {
-            name,
-            kind: 'typed',
-            snapshotSvg,
-            initialsSnapshotSvg,
-            sourceData
-          },
-          accessToken
-        )
+        await officeClient.documents.createSignature({
+          name,
+          kind: 'typed',
+          snapshotSvg,
+          initialsSnapshotSvg,
+          sourceData
+        })
       }
       await fetchSignatures()
       setEditingSignatureId(null)
@@ -436,27 +431,20 @@ export function SignatureDialog({
     }
     try {
       if (editingSignatureId) {
-        await UserSignatureApiService.update(
-          editingSignatureId,
-          {
-            name,
-            snapshotSvg,
-            initialsSnapshotSvg,
-            sourceData
-          },
-          accessToken
-        )
+        await officeClient.documents.updateSignature(editingSignatureId, {
+          name,
+          snapshotSvg,
+          initialsSnapshotSvg,
+          sourceData
+        })
       } else {
-        await UserSignatureApiService.create(
-          {
-            name,
-            kind: 'drawn',
-            snapshotSvg,
-            initialsSnapshotSvg,
-            sourceData
-          },
-          accessToken
-        )
+        await officeClient.documents.createSignature({
+          name,
+          kind: 'drawn',
+          snapshotSvg,
+          initialsSnapshotSvg,
+          sourceData
+        })
       }
       await fetchSignatures()
       setEditingSignatureId(null)
@@ -544,16 +532,13 @@ export function SignatureDialog({
     setSaving(true)
     setError(null)
     try {
-      await UserSignatureApiService.create(
-        {
-          name,
-          kind: 'uploaded',
-          snapshotSvg: uploadedSnapshotSvg,
-          initialsSnapshotSvg: uploadedInitialsSnapshotSvg,
-          sourceData: { type: 'upload', initialsText: initialsText.trim() }
-        },
-        accessToken
-      )
+      await officeClient.documents.createSignature({
+        name,
+        kind: 'uploaded',
+        snapshotSvg: uploadedSnapshotSvg,
+        initialsSnapshotSvg: uploadedInitialsSnapshotSvg,
+        sourceData: { type: 'upload', initialsText: initialsText.trim() }
+      })
       await fetchSignatures()
       setActiveTab('library')
       setUploadedSnapshotSvg(null)

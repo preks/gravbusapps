@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import {
   GET_EMPLOYEES_LIGHT_BY_USER_IDS,
   GET_EMPLOYEE_LIGHT_BY_USER_ID
 } from '@/common/data/employee/queries/employeeQueries'
-import { DocumentApiService } from '../services/DocumentApiService'
 import type { DocumentSummary } from '../types'
 import type { SharedUserInfo } from '../components/DocumentPreviewCard'
+import { buildSharedUserEntries } from '../utils/documentOfficeOperations'
 
 type OwnerInfo = { name: string; avatar?: string }
 type OwnerInfoMap = Map<string, OwnerInfo>
@@ -43,14 +44,11 @@ export function useDocumentAppsHubUserLookup(params: {
   sharedUsersMap: Record<string, SharedUserInfo[]>
   refreshSharedUsersForDocument: (documentId: string) => Promise<void>
 } {
+  const officeClient = useOfficeClient(params.accessToken)
   const graphqlClient = useGraphQLClient(params.accessToken)
 
   const [ownerInfoMap, setOwnerInfoMap] = useState<OwnerInfoMap>(new Map())
   const [sharedUsersMap, setSharedUsersMap] = useState<Record<string, SharedUserInfo[]>>({})
-
-  useEffect(() => {
-    DocumentApiService.setAccessToken(params.accessToken || null)
-  }, [params.accessToken])
 
   const userInfoCacheRef = useRef<Map<string, EmployeeRow | null>>(new Map())
   const graphqlClientRef = useRef(graphqlClient)
@@ -147,45 +145,48 @@ export function useDocumentAppsHubUserLookup(params: {
   }
 
   // On-demand refresh for ManageSharesDialog — fetches full sharing data for one document
-  const refreshSharedUsersForDocument = useCallback(async (documentId: string) => {
-    const client = graphqlClientRef.current
-    try {
-      const shares = await DocumentApiService.getSharedUsers(documentId)
-      if (shares.length === 0) {
-        setSharedUsersMap(prev => ({ ...prev, [documentId]: [] }))
-        return
-      }
-
-      const sharedUsers: SharedUserInfo[] = []
-      for (const share of shares) {
-        let emp = userInfoCacheRef.current.get(share.userId)
-        if (emp === undefined) {
-          // Not in cache — single lookup
-          try {
-            if (client) {
-              const q = GET_EMPLOYEE_LIGHT_BY_USER_ID(share.userId)
-              const res = await client.request<{ Employee: EmployeeRow[] }>(q)
-              emp = res.Employee?.[0] ?? null
-              userInfoCacheRef.current.set(share.userId, emp)
-            }
-          } catch {
-            emp = null
-            userInfoCacheRef.current.set(share.userId, null)
-          }
+  const refreshSharedUsersForDocument = useCallback(
+    async (documentId: string) => {
+      const client = graphqlClientRef.current
+      try {
+        const shares = buildSharedUserEntries(await officeClient.getSharingForDocument<any[]>(documentId))
+        if (shares.length === 0) {
+          setSharedUsersMap(prev => ({ ...prev, [documentId]: [] }))
+          return
         }
-        sharedUsers.push({
-          userId: share.userId,
-          userName: emp?.displayName || `User ${share.userId.slice(0, 8)}...`,
-          userAvatar: toAvatarDataUrl(emp?.pictureThumbnail),
-          permission: share.permission
-        } as SharedUserInfo)
-      }
 
-      setSharedUsersMap(prev => ({ ...prev, [documentId]: sharedUsers }))
-    } catch {
-      setSharedUsersMap(prev => ({ ...prev, [documentId]: [] }))
-    }
-  }, [])
+        const sharedUsers: SharedUserInfo[] = []
+        for (const share of shares) {
+          let emp = userInfoCacheRef.current.get(share.userId)
+          if (emp === undefined) {
+            // Not in cache — single lookup
+            try {
+              if (client) {
+                const q = GET_EMPLOYEE_LIGHT_BY_USER_ID(share.userId)
+                const res = await client.request<{ Employee: EmployeeRow[] }>(q)
+                emp = res.Employee?.[0] ?? null
+                userInfoCacheRef.current.set(share.userId, emp)
+              }
+            } catch {
+              emp = null
+              userInfoCacheRef.current.set(share.userId, null)
+            }
+          }
+          sharedUsers.push({
+            userId: share.userId,
+            userName: emp?.displayName || `User ${share.userId.slice(0, 8)}...`,
+            userAvatar: toAvatarDataUrl(emp?.pictureThumbnail),
+            permission: share.permission
+          } as SharedUserInfo)
+        }
+
+        setSharedUsersMap(prev => ({ ...prev, [documentId]: sharedUsers }))
+      } catch {
+        setSharedUsersMap(prev => ({ ...prev, [documentId]: [] }))
+      }
+    },
+    [officeClient]
+  )
 
   return { ownerInfoMap, sharedUsersMap, refreshSharedUsersForDocument }
 }

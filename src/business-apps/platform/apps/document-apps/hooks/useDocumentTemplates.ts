@@ -9,9 +9,15 @@
 import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
-import { DocumentApiService } from '../services/DocumentApiService'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import translations from '../_i18n'
 import type { Document, DocumentTemplate, TemplateSummary, TemplateCategory } from '../types'
+import {
+  getDocumentById,
+  getDocumentTemplate,
+  listDocumentTemplates,
+  mapApiTemplateToTemplate
+} from '../utils/documentOfficeOperations'
 
 interface UseDocumentTemplatesState {
   templates: TemplateSummary[]
@@ -51,6 +57,7 @@ function useDocumentTemplatesImpl(
   _userId?: string
 ): UseDocumentTemplatesResult {
   const { t } = useTranslation(translations)
+  const officeClient = useOfficeClient(accessToken ?? undefined)
   const [state, setState] = useState<UseDocumentTemplatesState>({
     templates: [],
     isLoading: true,
@@ -65,7 +72,7 @@ function useDocumentTemplatesImpl(
 
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
-      const templates = await DocumentApiService.listTemplates({ includePublic: true })
+      const templates = await listDocumentTemplates(officeClient, { includePublic: true })
       setState({ templates, isLoading: false, error: null })
     } catch (error) {
       console.error('[useDocumentTemplates] Failed to load templates:', error)
@@ -75,7 +82,7 @@ function useDocumentTemplatesImpl(
         error: t('doc-templates-error-load-templates')
       }))
     }
-  }, [accessToken, t])
+  }, [accessToken, officeClient, t])
 
   useEffect(() => {
     refreshTemplates()
@@ -85,14 +92,14 @@ function useDocumentTemplatesImpl(
     async (id: string): Promise<DocumentTemplate | null> => {
       if (!accessToken) return null
       try {
-        return await DocumentApiService.getTemplate(id)
+        return await getDocumentTemplate(officeClient, id)
       } catch (error) {
         console.error('[useDocumentTemplates] Failed to load template:', error)
         toast.error(t('doc-templates-toast-load-failed'))
         return null
       }
     },
-    [accessToken, t]
+    [accessToken, officeClient, t]
   )
 
   const createTemplate = useCallback(
@@ -104,7 +111,7 @@ function useDocumentTemplatesImpl(
         return null
       }
       try {
-        const newTemplate = await DocumentApiService.createTemplate(template)
+        const newTemplate = mapApiTemplateToTemplate(await officeClient.documents.createTemplate(template))
         toast.success(t('doc-templates-toast-created'))
         await refreshTemplates()
         return newTemplate
@@ -114,14 +121,14 @@ function useDocumentTemplatesImpl(
         return null
       }
     },
-    [accessToken, refreshTemplates, t]
+    [accessToken, officeClient, refreshTemplates, t]
   )
 
   const updateTemplate = useCallback(
     async (id: string, updates: Partial<DocumentTemplate>): Promise<DocumentTemplate | null> => {
       if (!accessToken) return null
       try {
-        const updated = await DocumentApiService.updateTemplate(id, updates)
+        const updated = mapApiTemplateToTemplate(await officeClient.documents.updateTemplate(id, updates))
         await refreshTemplates()
         return updated
       } catch (error) {
@@ -130,14 +137,15 @@ function useDocumentTemplatesImpl(
         return null
       }
     },
-    [accessToken, refreshTemplates, t]
+    [accessToken, officeClient, refreshTemplates, t]
   )
 
   const deleteTemplate = useCallback(
     async (id: string): Promise<boolean> => {
       if (!accessToken) return false
       try {
-        const success = await DocumentApiService.deleteTemplate(id)
+        await officeClient.documents.deleteTemplate(id)
+        const success = true
         if (success) {
           toast.success(t('doc-templates-toast-deleted'))
           await refreshTemplates()
@@ -149,14 +157,18 @@ function useDocumentTemplatesImpl(
         return false
       }
     },
-    [accessToken, refreshTemplates, t]
+    [accessToken, officeClient, refreshTemplates, t]
   )
 
   const createDocumentFromTemplate = useCallback(
     async (templateId: string, title: string): Promise<Document | null> => {
       if (!accessToken) return null
       try {
-        const newDocument = await DocumentApiService.createDocumentFromTemplate(templateId, title)
+        const createdDocument = await officeClient.documents.create({
+          title,
+          templateId
+        })
+        const newDocument = createdDocument ? await getDocumentById(officeClient, createdDocument.id as string) : null
         if (newDocument) toast.success(t('doc-templates-toast-document-created'))
         return newDocument
       } catch (error) {
@@ -165,7 +177,7 @@ function useDocumentTemplatesImpl(
         return null
       }
     },
-    [accessToken, t]
+    [accessToken, officeClient, t]
   )
 
   const saveDocumentAsTemplate = useCallback(
@@ -180,21 +192,23 @@ function useDocumentTemplatesImpl(
         return null
       }
       try {
-        const document = await DocumentApiService.getDocument(documentId)
+        const document = await getDocumentById(officeClient, documentId)
         if (!document) {
           toast.error(t('doc-templates-toast-document-not-found'))
           return null
         }
-        const newTemplate = await DocumentApiService.createTemplate({
-          name: templateName,
-          description: `Template created from: ${document.title}`,
-          content: document.content,
-          category,
-          tags: document.tags,
-          formatting: document.formatting,
-          isPublic,
-          createdBy: document.createdBy
-        })
+        const newTemplate = mapApiTemplateToTemplate(
+          await officeClient.documents.createTemplate({
+            name: templateName,
+            description: `Template created from: ${document.title}`,
+            content: document.content,
+            category,
+            tags: document.tags,
+            formatting: document.formatting,
+            isPublic,
+            createdBy: document.createdBy
+          })
+        )
         toast.success(t('doc-templates-toast-saved-as-template'))
         await refreshTemplates()
         return newTemplate
@@ -204,7 +218,7 @@ function useDocumentTemplatesImpl(
         return null
       }
     },
-    [accessToken, refreshTemplates, t]
+    [accessToken, officeClient, refreshTemplates, t]
   )
 
   const getTemplatesByCategory = useCallback(

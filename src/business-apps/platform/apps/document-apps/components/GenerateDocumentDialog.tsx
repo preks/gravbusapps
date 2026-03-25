@@ -26,9 +26,10 @@ import {
 } from '@newwork/nw-design-system'
 import { AlertCircle, CheckCircle, Info } from 'lucide-react'
 import { toast } from 'sonner'
-import { DocumentApiService } from '../services/DocumentApiService'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import { resolvePlaceholders, extractEntityKeysFromContent } from '../utils/templatePlaceholders'
 import type { TemplateSummary } from '../types'
+import { getDocumentTemplate, listDocumentTemplates } from '../utils/documentOfficeOperations'
 import translations from '../_i18n'
 
 export interface GenerateDocumentDialogProps {
@@ -60,6 +61,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
   'data-testid': testId = 'generate-document-dialog'
 }) => {
   const { t } = useTranslation(translations)
+  const officeClient = useOfficeClient(accessToken)
   const defaultTitleResolved = defaultTitle ?? t('generate-document-default-title')
   const [templates, setTemplates] = useState<TemplateSummary[]>([])
   const [loading, setLoading] = useState(false)
@@ -88,7 +90,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     }
     let cancelled = false
     setLoadingTemplateContent(true)
-    DocumentApiService.getTemplate(selectedTemplateId, accessToken)
+    getDocumentTemplate(officeClient, selectedTemplateId)
       .then(t => {
         if (!cancelled && t?.content) setSelectedTemplateContent(t.content)
         else if (!cancelled) setSelectedTemplateContent(null)
@@ -102,7 +104,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     return () => {
       cancelled = true
     }
-  }, [selectedTemplateId, open, accessToken])
+  }, [selectedTemplateId, open, officeClient])
 
   /**
    * Placeholder data status: when a template is selected, show only entities referenced in that template;
@@ -133,7 +135,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     setLoading(true)
     setError(null)
     try {
-      const list = await DocumentApiService.listTemplates({ includePublic: true }, accessToken)
+      const list = await listDocumentTemplates(officeClient, { includePublic: true })
       setTemplates(list)
       if (list.length > 0 && !selectedTemplateId) {
         setSelectedTemplateId(list[0].id)
@@ -144,7 +146,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     } finally {
       setLoading(false)
     }
-  }, [selectedTemplateId, accessToken, t])
+  }, [officeClient, selectedTemplateId, t])
 
   useEffect(() => {
     if (open) {
@@ -159,7 +161,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     }
     setGenerating(true)
     try {
-      const template = await DocumentApiService.getTemplate(selectedTemplateId, accessToken)
+      const template = await getDocumentTemplate(officeClient, selectedTemplateId)
       if (!template?.content) {
         toast.error(t('generate-document-no-content'))
         setGenerating(false)
@@ -167,20 +169,18 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
       }
       const resolvedContent = resolvePlaceholders(template.content, entityDataMap)
       const title = template.name ? `${template.name} - ${defaultTitleResolved}` : defaultTitleResolved
-      const doc = await DocumentApiService.createDocumentFromTemplate(selectedTemplateId, title, accessToken)
+      const doc = await officeClient.documents.create({
+        title,
+        templateId: selectedTemplateId
+      })
       if (doc?.id) {
-        await DocumentApiService.updateDocument(
-          doc.id,
-          {
-            content: resolvedContent,
-            ...({ contentJson: {} } as { contentJson?: unknown })
-          },
-          undefined,
-          accessToken
-        )
+        await officeClient.documents.update(doc.id as string, {
+          content: resolvedContent,
+          contentJson: {}
+        })
         toast.success(t('generate-document-created'))
         onOpenChange(false)
-        onSuccess?.(doc.id)
+        onSuccess?.(doc.id as string)
       } else {
         toast.error(t('generate-document-create-failed'))
       }
@@ -190,7 +190,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     } finally {
       setGenerating(false)
     }
-  }, [selectedTemplateId, entityDataMap, defaultTitleResolved, onOpenChange, onSuccess, accessToken, t])
+  }, [defaultTitleResolved, entityDataMap, officeClient, onOpenChange, onSuccess, selectedTemplateId, t])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} data-testid={testId}>

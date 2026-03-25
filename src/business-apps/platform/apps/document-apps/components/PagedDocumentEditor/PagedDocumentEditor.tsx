@@ -12,6 +12,7 @@ import { Button, useTranslation } from '@newwork/nw-design-system'
 import DOMPurify from 'dompurify'
 import { ChevronRight } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { Document, DocumentFormatting } from '../../types'
 import { sanitizeDocumentHtmlForEditor } from '../../utils/documentContentUtils'
 import { createDocumentImageUploadHandler } from '../../utils/documentImageBindings'
@@ -23,7 +24,6 @@ import {
   type PaginationPlusStorage as PagesStorage
 } from '@/components/tiptap-extensions/tiptap-custom-pagination'
 import { useImageDataUrlResolver } from '../../hooks/useImageDataUrlResolver'
-import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
 import { useVersioning } from '../../../shared/hooks/useVersioning'
 import { useFileLock } from '../../../shared/hooks/useFileLock'
@@ -57,6 +57,18 @@ import { CLOSED_TABLE_SIDEBAR, usePagedDocumentSelectionSidebars } from './hooks
 import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
+import {
+  buildDocumentLock,
+  buildPublishMetadata,
+  compareDocumentVersions,
+  createDocumentComment,
+  createDocumentVersion,
+  getDocumentById,
+  listDocumentComments,
+  listDocumentVersions,
+  replyToDocumentComment,
+  updateDocumentComment
+} from '../../utils/documentOfficeOperations'
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
@@ -209,6 +221,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     ref
   ) {
     const { t } = useTranslation(translations)
+    const officeClient = useOfficeClient(accessTokenProp)
     // Editor state
     const [title, setTitle] = useState(document?.title || initialTitle || t('title-untitled-document'))
     const [lastSaved, setLastSaved] = useState<Date | null>(document ? new Date(document.updatedAt) : null)
@@ -233,10 +246,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const pendingRemoteApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
-      DocumentApiService.setAccessToken(accessTokenProp || null)
-    }, [accessTokenProp])
-
-    useEffect(() => {
       lastRemoteUpdateMsRef.current = parseIsoDateMs(document?.updatedAt)
     }, [document?.id, document?.updatedAt])
 
@@ -256,7 +265,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         if (!targetDocumentId || targetDocumentId !== document.id) return
 
         try {
-          const latest = await DocumentApiService.getDocument(document.id)
+          const latest = await getDocumentById(officeClient, document.id)
           if (!latest || !editorRef.current) return
 
           const nextTitle = latest.title || title
@@ -288,7 +297,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       return () => {
         globalThis.window.removeEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
       }
-    }, [document?.id, title])
+    }, [document?.id, officeClient, title])
 
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
     const paginationDebugDisabled = useMemo(() => isDocumentPaginationDisabled(), [])
@@ -439,10 +448,150 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     )
 
     // Versioning, Comments, Locking, Publishing hooks
+    const documentVersioningApi = useMemo(
+      () => ({
+        createVersion: (
+          id: string,
+          options: { content?: string; changeDescription?: string; isCheckpoint?: boolean }
+        ) => createDocumentVersion(officeClient, id, options),
+        listVersions: (id: string, page?: number, limit?: number) =>
+          listDocumentVersions(officeClient, id, page, limit),
+        getVersion: (id: string, versionNumber: number) => officeClient.documents.getDocumentVersion(id, versionNumber),
+        restoreVersion: async (id: string, versionNumber: number) => {
+          try {
+            const versionData = await officeClient.documents.getDocumentVersion<Record<string, unknown>>(
+              id,
+              versionNumber
+            )
+            const snapshot = versionData.contentSnapshot as Record<string, unknown>
+            if (!snapshot) return false
+
+            await officeClient.documents.update(id, {
+              title: snapshot.title as string,
+              content:
+                DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''), {
+                  USE_PROFILES: { html: true },
+                  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
+                  ALLOW_DATA_ATTR: true
+                }) || '',
+              description: snapshot.description as string | undefined,
+              tags: snapshot.tags as string[] | undefined,
+              category: snapshot.category as string | undefined,
+              contentJson: {}
+            })
+            await createDocumentVersion(officeClient, id, {
+              changeDescription: `Restored from version ${versionNumber}`,
+              isCheckpoint: true
+            })
+            return true
+          } catch {
+            return false
+          }
+        },
+        compareVersions: (id: string, versionA: number, versionB: number) =>
+          compareDocumentVersions(officeClient, id, versionA, versionB),
+        deleteVersion: async (id: string, versionNumber: number) => {
+          try {
+            await officeClient.documents.deleteVersion(id, versionNumber)
+            return true
+          } catch {
+            return false
+          }
+        }
+      }),
+      [officeClient]
+    )
+    const documentCommentsApi = useMemo(
+      () => ({
+        createComment: (id: string, input: any) => createDocumentComment(officeClient, id, input),
+        listComments: (id: string, options?: any) => listDocumentComments(officeClient, id, options),
+        updateComment: (commentId: string, updates: any) => updateDocumentComment(officeClient, commentId, updates),
+        resolveComment: async (commentId: string) => {
+          try {
+            await officeClient.documents.resolveComment(commentId)
+            return true
+          } catch {
+            return false
+          }
+        },
+        deleteComment: async (commentId: string) => {
+          try {
+            await officeClient.documents.deleteComment(commentId)
+            return true
+          } catch {
+            return false
+          }
+        },
+        replyToComment: (commentId: string, reply: string) => replyToDocumentComment(officeClient, commentId, reply)
+      }),
+      [officeClient]
+    )
+    const documentLockApi = useMemo(
+      () => ({
+        lockFile: async (id: string, input?: any) => {
+          try {
+            const response = await officeClient.documents.acquireLock<Record<string, unknown>>(id, input || {})
+            return buildDocumentLock({ ...response, isLocked: true })
+          } catch {
+            return null
+          }
+        },
+        unlockFile: async (id: string) => {
+          try {
+            await officeClient.documents.releaseLock(id)
+            return true
+          } catch {
+            return false
+          }
+        },
+        getLockStatus: async (id: string) => {
+          try {
+            return buildDocumentLock(await officeClient.documents.getLock<Record<string, unknown>>(id))
+          } catch {
+            return null
+          }
+        },
+        forceUnlock: async (id: string) => {
+          try {
+            await officeClient.documents.forceReleaseLock(id)
+            return true
+          } catch {
+            return false
+          }
+        }
+      }),
+      [officeClient]
+    )
+    const documentPublishingApi = useMemo(
+      () => ({
+        publish: async (id: string, input?: any) =>
+          buildPublishMetadata(
+            await officeClient.documents.publish<Record<string, unknown>>(id, input || {}),
+            'published'
+          ),
+        unpublish: async (id: string) => {
+          try {
+            await officeClient.documents.unpublish(id)
+            return true
+          } catch {
+            return false
+          }
+        },
+        updateStatus: async (id: string, status: any) => {
+          try {
+            await officeClient.documents.updateStatus(id, { status })
+            return { status }
+          } catch {
+            return null
+          }
+        }
+      }),
+      [officeClient]
+    )
     const versioning = useVersioning({
       entityId,
       entityType: 'document',
-      apiService: DocumentApiService,
+      apiService: documentVersioningApi,
       autoSaveEnabled: !!document?.id && !isReadOnly,
       autoSaveInterval: 30000,
       onVersionCreated: () => {}
@@ -453,14 +602,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const comments = useComments({
       entityId,
       entityType: 'document',
-      apiService: DocumentApiService
+      apiService: documentCommentsApi
     })
 
     const fileLock = useFileLock({
       entityId,
       entityType: 'document',
       currentUserId: currentUserId || undefined,
-      apiService: DocumentApiService
+      apiService: documentLockApi
     })
 
     const currentPublishStatus = document?.publishMetadata?.status || 'draft'
@@ -469,7 +618,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       entityId,
       entityType: 'document',
       currentStatus: currentPublishStatus,
-      apiService: DocumentApiService
+      apiService: documentPublishingApi
     })
 
     const getPagesStorageSnapshot = useCallback((): PagesStorage | null => {
@@ -495,6 +644,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     })
 
     const { isYjsSynced } = useYjsDocumentSync({
+      accessToken,
       documentId: document?.id,
       collaborationSocket,
       ydoc,
@@ -529,7 +679,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       const pollLatestDocumentState = async () => {
         try {
-          const latest = await DocumentApiService.getDocument(document.id)
+          const latest = await getDocumentById(officeClient, document.id)
           if (!latest || cancelled) return
 
           const latestUpdatedAtMs = parseIsoDateMs(latest.updatedAt)
@@ -572,7 +722,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         cancelled = true
         globalThis.window.clearInterval(pollInterval)
       }
-    }, [document?.id, isYjsSynced, title])
+    }, [document?.id, isYjsSynced, officeClient, title])
 
     useEffect(() => {
       return () => {
@@ -944,6 +1094,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }
     const { measuredHeaderHeight, setHeaderChromeNode } = usePagedDocumentChromeMetrics(editorChromeRef)
     const { handleRestoreVersion } = usePagedDocumentExternalContentSync({
+      accessToken,
       editor,
       documentId: document?.id,
       editorContainerRef,

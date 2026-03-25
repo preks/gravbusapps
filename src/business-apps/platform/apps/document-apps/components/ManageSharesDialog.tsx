@@ -29,10 +29,11 @@ import {
 } from '@newwork/nw-design-system'
 import { Users, Eye, Pencil, MessageSquare, Trash2, AlertCircle, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
-import { DocumentApiService } from '../services/DocumentApiService'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 import type { DocumentShare } from '../types'
+import { buildSharedUserEntries } from '../utils/documentOfficeOperations'
 import translations from '../_i18n'
 
 export interface ManageSharesDialogProps {
@@ -83,6 +84,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   'data-testid': testId = 'manage-shares-dialog'
 }) => {
   const { t } = useTranslation(translations)
+  const officeClient = useOfficeClient(accessToken)
 
   const formatRelativeDate = useCallback(
     (dateString: string): string => {
@@ -109,10 +111,6 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   const [updatingShareId, setUpdatingShareId] = useState<string | null>(null)
   const [removingShareId, setRemovingShareId] = useState<string | null>(null)
 
-  useEffect(() => {
-    DocumentApiService.setAccessToken(accessToken || null)
-  }, [accessToken])
-
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -124,7 +122,9 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
     setError(null)
 
     try {
-      const rawShares = await DocumentApiService.getSharedUsers(documentId)
+      const rawShares = buildSharedUserEntries(
+        await officeClient.getSharingForDocument<Record<string, unknown>[]>(documentId)
+      )
 
       // Set shares first (without user info)
       const sharesWithPlaceholder: ShareWithUserInfo[] = rawShares.map(s => ({
@@ -192,7 +192,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [documentId, graphqlClient, t])
+  }, [documentId, graphqlClient, officeClient, t])
 
   /**
    * Fetch shares when dialog opens
@@ -211,7 +211,8 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
       setUpdatingShareId(shareId)
 
       try {
-        const success = await DocumentApiService.updateSharePermission(shareId, newPermission)
+        await officeClient.updateShare(shareId, { permission: newPermission })
+        const success = true
         if (success) {
           setShares(prev => prev.map(s => (s.id === shareId ? { ...s, permission: newPermission } : s)))
           toast.success(t('manage-shares-toast-updated'))
@@ -225,7 +226,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         setUpdatingShareId(null)
       }
     },
-    [onSharesChanged, t]
+    [officeClient, onSharesChanged, t]
   )
 
   /**
@@ -238,7 +239,8 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
       setRemovingShareId(shareId)
 
       try {
-        const success = await DocumentApiService.revokeShareById(shareId)
+        await officeClient.deleteShare(shareId)
+        const success = true
         if (success) {
           setShares(prev => prev.filter(s => s.id !== shareId))
           toast.success(t('manage-shares-toast-removed', { name: userName }))
@@ -252,7 +254,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         setRemovingShareId(null)
       }
     },
-    [onSharesChanged, t]
+    [officeClient, onSharesChanged, t]
   )
 
   return (

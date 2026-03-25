@@ -9,7 +9,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, Button, Spinner, Badge, useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { ChevronLeft, FileText, Download, ExternalLink, AlertCircle, RefreshCw } from 'lucide-react'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import { createSafeObjectUrl, sanitizeDownloadFilename } from '@/common/utils/safeUrlUtils'
 import type { Document } from '../types'
 
@@ -39,6 +39,7 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
   'data-testid': testId = 'pdf-document-viewer'
 }) => {
   const { t } = useTranslation(translations)
+  const officeClient = useOfficeClient(accessToken)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -75,14 +76,7 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
     }
 
     try {
-      const apiUrl = getDocumentServiceApiUrl()
-      const response = await fetch(`${apiUrl}/documents/${document.id}/file`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      })
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      const blob = await response.blob()
+      const blob = await officeClient.documents.getDocumentFile(document.id)
       const url = createSafeObjectUrl(blob, mimeType => mimeType === 'application/pdf')
       if (!url) {
         throw new Error(t('pdf-error-load-failed'))
@@ -100,7 +94,7 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
         setIsLoading(false)
       }
     }
-  }, [document.sourceFile?.path, accessToken, pdfUrl, t])
+  }, [document.id, document.sourceFile?.path, officeClient, pdfUrl, t])
 
   // Load PDF on mount
   useEffect(() => {

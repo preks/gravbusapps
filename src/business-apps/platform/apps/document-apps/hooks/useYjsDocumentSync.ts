@@ -11,7 +11,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Socket } from 'socket.io-client'
 import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
 import { markNextPaginationHydrationDocChange } from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
-import { DocumentApiService } from '../services/DocumentApiService'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { DocumentFormatting } from '../types'
 import {
   containsCustomDocumentTags,
@@ -20,6 +20,7 @@ import {
   sanitizeDocumentHtmlForEditor,
   sanitizePaginationRuntimeHtml
 } from '../utils/documentContentUtils'
+import { getDocumentById } from '../utils/documentOfficeOperations'
 
 const SNAPSHOT_SAVE_DELAY_MS = 2000
 
@@ -134,6 +135,7 @@ function logDocumentTableDebug(
 }
 
 export interface UseYjsDocumentSyncParams {
+  accessToken?: string
   documentId: string | undefined
   collaborationSocket: Socket | null
   ydoc: import('yjs').Doc
@@ -154,6 +156,7 @@ export interface UseYjsDocumentSyncResult {
 }
 
 export function useYjsDocumentSync({
+  accessToken,
   documentId,
   collaborationSocket,
   ydoc,
@@ -167,6 +170,7 @@ export function useYjsDocumentSync({
   setLastSaved,
   setHasUnsavedChanges
 }: UseYjsDocumentSyncParams): UseYjsDocumentSyncResult {
+  const officeClient = useOfficeClient(accessToken)
   const [isYjsSynced, setIsYjsSynced] = useState(false)
   const scheduleSnapshotSaveRef = useRef<(editor: { getHTML?: () => string }) => void>(() => {})
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -201,7 +205,11 @@ export function useYjsDocumentSync({
           updates.contentJson = {}
         }
 
-        DocumentApiService.updateDocument(documentId, updates, { createVersion: false })
+        officeClient.documents
+          .update(documentId, {
+            ...updates,
+            createVersion: false
+          })
           .then(() => {
             setLastSaved(new Date())
             setHasUnsavedChanges(false)
@@ -339,7 +347,7 @@ export function useYjsDocumentSync({
       } else {
         recoveryAttemptedRef.current = true
 
-        const latest = await DocumentApiService.getDocument(documentId, { fresh: true })
+        const latest = await getDocumentById(officeClient, documentId, { fresh: true })
         if (latest?.content) {
           scheduleNormalizedRecovery(latest.content, 'custom-tags')
         }
@@ -368,7 +376,7 @@ export function useYjsDocumentSync({
       console.warn('[PagedDocumentEditor] Recovering collaboration state with leaked pagination table runtime markup')
       scheduleNormalizedRecovery(currentHtml, 'pagination-runtime')
     },
-    [debugTablesEnabled, documentId, getCurrentEditorHtmlSnapshot, scheduleNormalizedRecovery]
+    [debugTablesEnabled, documentId, getCurrentEditorHtmlSnapshot, officeClient, scheduleNormalizedRecovery]
   )
 
   // Drive Yjs sync over Socket.IO: create provider, start, cleanup

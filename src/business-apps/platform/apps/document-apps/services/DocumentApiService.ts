@@ -5,11 +5,13 @@
  */
 
 import DOMPurify from 'dompurify'
+import { officeClient } from '@/common/network/office/OfficeClient'
 import type {
   Document,
   DocumentSummary,
   DocumentStatus,
   DocumentTemplate,
+  TemplateCategory,
   TemplateSummary,
   DocumentShare,
   DocumentApprovalRequest,
@@ -24,40 +26,61 @@ import type {
   LockFileInput,
   PublishInput
 } from '../../shared/types/versioning'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import { sanitizeDocumentHtmlForEditor } from '../utils/documentContentUtils'
-
-const API_URL = getDocumentServiceApiUrl()
 
 let currentAccessToken: string | null = null
 
-// API request helper
+function getOfficeClient(accessTokenOverride?: string | null) {
+  const token = accessTokenOverride ?? currentAccessToken
+  if (token) {
+    officeClient.setAccessToken(token)
+  }
+  return officeClient
+}
+
+function normalizeRequestBody(body: BodyInit | null | undefined): unknown {
+  if (body === undefined || body === null || body instanceof FormData) {
+    return body
+  }
+
+  if (typeof body !== 'string') {
+    return body
+  }
+
+  try {
+    return JSON.parse(body)
+  } catch {
+    return body
+  }
+}
+
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {},
   accessTokenOverride?: string | null
 ): Promise<T> {
-  const token = accessTokenOverride ?? currentAccessToken
-
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers
+  const client = getOfficeClient(accessTokenOverride)
+  const method = options.method?.toUpperCase() ?? 'GET'
+  const requestOptions = {
+    headers: options.headers as Record<string, string> | undefined,
+    signal: options.signal ?? undefined
   }
+  const body = normalizeRequestBody(options.body)
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers
-  })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }))
-    throw new Error(error.message || `API Error: ${response.status}`)
+  switch (method) {
+    case 'GET':
+      return client.get<T>(endpoint, requestOptions)
+    case 'POST':
+      return client.post<T>(endpoint, body, requestOptions)
+    case 'PUT':
+      return client.put<T>(endpoint, body, requestOptions)
+    case 'PATCH':
+      return client.patch<T>(endpoint, body, requestOptions)
+    case 'DELETE':
+      return client.delete<T>(endpoint, { ...requestOptions, body })
+    default:
+      throw new Error(`Unsupported API method: ${method}`)
   }
-
-  // Handle empty responses
-  const text = await response.text()
-  return (text ? JSON.parse(text) : null) as T
 }
 
 interface PaginatedResponse<T> {
@@ -111,7 +134,6 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     createdBy: apiDoc.ownerId as string,
     version: (apiDoc.currentVersion as number) || 1,
     versionHistory: [],
-    wordCount: (apiDoc.wordCount as number) || 0,
     formatting: apiDoc.formatting as Document['formatting'],
     sharedWith: [],
     approvalRequest: apiDoc.approvalRequest as DocumentApprovalRequest | undefined,
@@ -136,7 +158,7 @@ function mapApiTemplateToTemplate(apiTemplate: Record<string, unknown>): Documen
         FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
         ALLOW_DATA_ATTR: true
       }) || '',
-    category: (apiTemplate.category as string) || 'other',
+    category: ((apiTemplate.category as TemplateCategory | undefined) ?? 'other') as TemplateCategory,
     context: apiTemplate.context as string | undefined,
     tags: (apiTemplate.tags as string[]) || [],
     createdAt: apiTemplate.createdAt as string,
@@ -202,6 +224,9 @@ function mapApiDocToSummary(doc: Record<string, unknown>): DocumentSummary {
 export const DocumentApiService = {
   setAccessToken(token: string | null) {
     currentAccessToken = token
+    if (token) {
+      officeClient.setAccessToken(token)
+    }
   },
   // ============ Documents ============
 
@@ -363,22 +388,7 @@ export const DocumentApiService = {
     if (options?.category) formData.append('category', options.category)
     if (options?.tags?.length) formData.append('tags', options.tags.join(','))
 
-    const token = currentAccessToken
-
-    const response = await fetch(`${API_URL}/documents/import/pdf`, {
-      method: 'POST',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: formData
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: response.statusText }))
-      throw new Error(error.message || `API Error: ${response.status}`)
-    }
-
-    const created = await response.json()
+    const created = await getOfficeClient().documents.importPdf(formData)
     return mapApiDocumentToDocument(created)
   },
 
@@ -583,7 +593,7 @@ export const DocumentApiService = {
       id: t.id as string,
       name: t.name as string,
       description: t.description as string | undefined,
-      category: (t.category as string) || 'other',
+      category: ((t.category as TemplateCategory | undefined) ?? 'other') as TemplateCategory,
       context: t.context as string | undefined,
       tags: (t.tags as string[]) || [],
       createdAt: t.createdAt as string,
@@ -899,19 +909,23 @@ export const DocumentApiService = {
       }
 
       // Update the document with the old content and clear Yjs state
-      await this.updateDocument(documentId, {
-        title: snapshot.title as string,
-        content:
-          DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''), {
-            USE_PROFILES: { html: true },
-            FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-            ALLOW_DATA_ATTR: true
-          }) || '',
-        description: snapshot.description as string | undefined,
-        tags: snapshot.tags as string[] | undefined,
-        category: snapshot.category as string | undefined,
-        contentJson: {} // Clear Yjs state to force re-initialization with restored content
-      })
+      await this.updateDocument(
+        documentId,
+        {
+          title: snapshot.title as string,
+          content:
+            DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''), {
+              USE_PROFILES: { html: true },
+              FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
+              ALLOW_DATA_ATTR: true
+            }) || '',
+          description: snapshot.description as string | undefined,
+          tags: snapshot.tags as string[] | undefined,
+          category: snapshot.category as string | undefined,
+          contentJson: {}
+        } as Partial<Document> & { contentJson?: Record<string, never> },
+        undefined
+      )
 
       // Create a new version marking it as a restore
       await this.createVersion(documentId, {
