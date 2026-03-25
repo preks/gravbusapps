@@ -205,7 +205,6 @@ export function createBackofficeExpenseRequestColumns(
       return (
         <div
           className="gba:flex gba:items-center gba:justify-center"
-          role="presentation"
           onClick={e => e.stopPropagation()}
           onKeyDown={e => e.stopPropagation()}
         >
