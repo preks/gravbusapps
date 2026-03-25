@@ -1,0 +1,39 @@
+name: Sync to Bitbucket
+
+# Triggers when code lands on main deployment branches
+# (either via direct push or merged PR)
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'hotfix/**'
+
+jobs:
+  sync:
+    name: Mirror branch to Bitbucket
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to Bitbucket
+        env:
+          BB_ACCESS_TOKEN: ${{ secrets.BITBUCKET_ACCESS_TOKEN }}
+          BB_WORKSPACE: ${{ secrets.BITBUCKET_WORKSPACE }}
+          BB_REPO_SLUG: ${{ secrets.BITBUCKET_REPO_SLUG }}
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          echo "Syncing branch: $BRANCH"
+
+          # x-token-auth is the required username when using Bitbucket HTTP Access Tokens
+          git remote add bitbucket \
+            "https://x-token-auth:${BB_ACCESS_TOKEN}@bitbucket.org/${BB_WORKSPACE}/${BB_REPO_SLUG}.git"
+
+          git push bitbucket "HEAD:refs/heads/${BRANCH}"
+
+          echo "Successfully synced '$BRANCH' to Bitbucket."
+          echo "Bitbucket Pipelines will now pick up the push and run the pipeline."
