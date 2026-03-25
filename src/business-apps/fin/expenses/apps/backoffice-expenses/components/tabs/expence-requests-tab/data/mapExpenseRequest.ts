@@ -12,6 +12,18 @@ function toOptionalNumber(value: unknown): number | undefined {
   return Number.isFinite(parsedValue) ? parsedValue : undefined
 }
 
+function formatPayableAmount(
+  payableAmount: number | undefined,
+  reimbursableAmount: number | undefined,
+  currencyCode: string
+): string {
+  const displayAmount = payableAmount ?? reimbursableAmount
+  if (displayAmount == null) {
+    return '-'
+  }
+  return `${displayAmount} ${currencyCode}`.trim()
+}
+
 export function mapExpenseRequest(item: ExpenseRequest, t: TranslateFn): ExpenseData {
   const reimbursableAmount = toOptionalNumber(item.reimbursableAmount)
   const totalAmount = toOptionalNumber(item.totalAmount) ?? 0
@@ -39,12 +51,7 @@ export function mapExpenseRequest(item: ExpenseRequest, t: TranslateFn): Expense
     amount: reimbursableAmount != null ? `${reimbursableAmount} ${currencyCode}`.trim() : String(totalAmount),
     advance: advancePaymentPaidAmount ?? '',
     status: item.status ?? '',
-    payableAmount:
-      payableAmount != null
-        ? `${payableAmount} ${currencyCode}`.trim()
-        : reimbursableAmount != null
-          ? `${reimbursableAmount} ${currencyCode}`.trim()
-          : '-',
+    payableAmount: formatPayableAmount(payableAmount, reimbursableAmount, currencyCode),
     paymentMethod: (item as { paymentMethod?: string }).paymentMethod ?? '-',
     employeeId: String(item.employee?.id ?? '-'),
     version: String(item.version ?? ''),

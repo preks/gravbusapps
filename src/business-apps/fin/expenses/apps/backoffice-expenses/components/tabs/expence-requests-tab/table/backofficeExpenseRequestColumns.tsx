@@ -203,7 +203,12 @@ export function createBackofficeExpenseRequestColumns(
         return <span className="gba:block gba:w-6" />
       }
       return (
-        <div className="gba:flex gba:items-center gba:justify-center" onClick={e => e.stopPropagation()}>
+        <div
+          className="gba:flex gba:items-center gba:justify-center"
+          role="presentation"
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => e.stopPropagation()}
+        >
           <Checkbox
             checked={chrome.selectedRowKeys.includes(record.id)}
             onCheckedChange={value => chrome.onSelectRecord(record, value === true)}

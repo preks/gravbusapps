@@ -2,6 +2,10 @@ import type { ExpenseRequestListSortField } from './expenseRequestListSortTypes'
 
 const DEFAULT_ORDER: unknown[] = [{ createdAt: 'DESC' }, { id: 'DESC' }]
 
+function nullsLastDirection(order: 'ASC' | 'DESC'): 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' {
+  return order === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
+}
+
 /**
  * Maps list sort field + direction to the GraphQL `orderBy` array for {@link GET_EXPENSE_REQUESTS}.
  */
@@ -24,10 +28,11 @@ export function buildBackofficeExpenseRequestOrderBy(
     case 'status':
       return [{ status: order }, { id: order }]
     case 'totalAmount':
+      return [{ totalAmount: nullsLastDirection(order) }, { id: order }]
     case 'reimbursableAmount':
-      return [{ reimbursableAmount: order }, { id: order }]
+      return [{ reimbursableAmount: nullsLastDirection(order) }, { id: order }]
     case 'totalRemainingAmount':
-      return [{ totalRemainingAmount: order }, { id: order }]
+      return [{ totalRemainingAmount: nullsLastDirection(order) }, { id: order }]
     case 'employee.fullName':
       return [{ employee: { firstName: order } }, { employee: { lastName: order } }, { id: order }]
     case 'employee.code':

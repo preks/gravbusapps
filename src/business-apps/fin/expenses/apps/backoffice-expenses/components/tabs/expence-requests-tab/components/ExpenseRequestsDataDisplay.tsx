@@ -61,6 +61,10 @@ export function ExpenseRequestsDataDisplay({
     [titleSections, title]
   )
 
+  const primarySortEntry = sorting?.length > 0 ? sorting[0] : undefined
+  const currentSortId = primarySortEntry?.id ?? undefined
+  const currentSortDirection = primarySortEntry ? (primarySortEntry.desc ? 'desc' : 'asc') : undefined
+
   return (
     <EscapeContextProvider>
       <div className={cn('nw:flex nw:flex-col nw:h-full', className)} data-testid={dataTestId}>
@@ -85,8 +89,8 @@ export function ExpenseRequestsDataDisplay({
           currentView={currentView}
           onViewChange={onViewChange}
           sortOptions={sortableColumns.map(c => ({ value: c.id, label: c.label }))}
-          currentSort={sorting?.length > 0 && sorting[0]?.id ? sorting[0].id : undefined}
-          sortDirection={sorting?.length > 0 && sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined}
+          currentSort={currentSortId}
+          sortDirection={currentSortDirection}
           onSortChange={
             onSortingChange
               ? (columnId, direction) => {
