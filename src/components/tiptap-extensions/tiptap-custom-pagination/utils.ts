@@ -597,12 +597,12 @@ export function getPageLayoutHeights(
 export function getPageSpacerHeight(
   pageFormat: PageFormat,
   storage: Pick<PagesStorage, 'headerTopMargin' | 'footerBottomMargin'>,
-  pageNumber: number,
+  _pageNumber: number,
   headerHeight = 0,
   footerHeight = 0
 ): number {
-  const { headerReserved, bodyHeight } = getPageLayoutHeights(pageFormat, storage, headerHeight, footerHeight)
-  return pageNumber === 1 ? headerReserved + bodyHeight : bodyHeight
+  const { bodyHeight } = getPageLayoutHeights(pageFormat, storage, headerHeight, footerHeight)
+  return bodyHeight
 }
 
 export function getPageContentHeight(pageFormat: PageFormat): number {

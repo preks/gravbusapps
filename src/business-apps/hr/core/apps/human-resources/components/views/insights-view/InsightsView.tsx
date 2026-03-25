@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import {
-  CalendarIcon,
-  UserIcon,
-  UsersIcon,
-  ClockIcon,
-  WarningCircleIcon
-} from '@phosphor-icons/react'
+import { CalendarIcon, UserIcon, UsersIcon, ClockIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import {
   Spinner,
@@ -34,9 +28,9 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { format, addDays, isWithinInterval, parseISO, differenceInYears } from 'date-fns'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components'
-import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
-import { exportToWord } from '@/business-apps/platform/apps/document-apps/utils/exportUtils'
+import { GenerateDocumentDialog } from '@/business-apps/core/office/apps/documents/components'
+import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
+import { exportToWord } from '@/business-apps/core/office/apps/documents/utils/exportUtils'
 import { toast } from 'sonner'
 
 interface EmployeeInsight {
