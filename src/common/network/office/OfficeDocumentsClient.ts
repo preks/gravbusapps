@@ -1,5 +1,5 @@
 import type { RestClient } from '../rest/RestClient'
-import type { RequestOptions } from '../rest/RestClient'
+import { ResponseType, type RequestOptions } from '../rest/RestClient'
 
 function shouldRetryWithLegacyPost(error: unknown): boolean {
   return error instanceof Error && /REST request failed: (404|405|501) - /.test(error.message)
@@ -13,6 +13,12 @@ export class OfficeDocumentsClient {
   }
   get<T = any>(id: string, options?: RequestOptions) {
     return this.client.get<T>(`/documents/${id}`, options)
+  }
+  getDocumentFile(documentId: string, options?: RequestOptions) {
+    return this.client.get<Blob>(`/documents/${documentId}/file`, {
+      ...options,
+      responseType: ResponseType.BLOB
+    })
   }
   create<T = any>(body: any, options?: RequestOptions) {
     return this.client.post<T>('/documents', body, options)
@@ -168,5 +174,24 @@ export class OfficeDocumentsClient {
   }
   listExternalSourceRuns<T = any>(options?: RequestOptions) {
     return this.client.get<T>('/documents/external-sources/runs', options)
+  }
+
+  listSignatures<T = any>(options?: RequestOptions) {
+    return this.client.get<T>('/signatures', options)
+  }
+  getSignature<T = any>(id: string, options?: RequestOptions) {
+    return this.client.get<T>(`/signatures/${id}`, options)
+  }
+  createSignature<T = any>(body: any, options?: RequestOptions) {
+    return this.client.post<T>('/signatures', body, options)
+  }
+  updateSignature<T = any>(id: string, body: any, options?: RequestOptions) {
+    return this.client.patch<T>(`/signatures/${id}`, body, options)
+  }
+  deleteSignature(id: string, options?: RequestOptions) {
+    return this.client.delete(`/signatures/${id}`, options)
+  }
+  setDefaultSignature<T = any>(id: string, options?: RequestOptions) {
+    return this.client.post<T>(`/signatures/${id}/default`, undefined, options)
   }
 }

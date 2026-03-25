@@ -6,7 +6,7 @@ import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '
 import { VoiceModeButton } from './voice/VoiceModeButton'
 import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
-import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
+import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
 
 // Detect if running on a mobile device with camera capabilities
 function useIsMobileWithCamera(): boolean {
