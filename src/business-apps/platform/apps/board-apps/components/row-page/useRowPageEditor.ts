@@ -154,7 +154,7 @@ export function useRowPageEditor({ accessToken, documentId, onDirty, ydoc, aware
       if (!editor) return
       isSettingContentRef.current = true
       try {
-        editor.commands.setContent(html || '', false)
+        editor.commands.setContent(html || '', { emitUpdate: false })
       } finally {
         isSettingContentRef.current = false
       }

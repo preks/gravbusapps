@@ -251,6 +251,41 @@ export class SocketIoYjsProvider {
     return true
   }
 
+  private async flushLayoutAfterBootstrap(): Promise<void> {
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve())
+      })
+    })
+  }
+
+  /**
+   * TipTap Collaboration mirrors the document into Y.XmlFragment("default").
+   * Encoding the Y.Doc before that fragment is populated produces a persisted snapshot
+   * that reopens as a blank editor; wait until the fragment has at least one node.
+   */
+  private async waitForDefaultXmlFragment(maxWaitMs: number): Promise<boolean> {
+    const deadline = Date.now() + maxWaitMs
+    while (Date.now() < deadline) {
+      if (this.destroyed) return false
+      try {
+        if (this.ydoc.getXmlFragment('default').length > 0) {
+          return true
+        }
+      } catch {
+        // ignore — treat as not ready yet
+      }
+      await new Promise<void>(resolve => {
+        window.setTimeout(resolve, 40)
+      })
+    }
+    try {
+      return this.ydoc.getXmlFragment('default').length > 0
+    } catch {
+      return false
+    }
+  }
+
   private async handleBootstrapInitializer(
     response: Extract<YjsSyncResponse, { success: true; status: 'bootstrap'; role: 'initializer' }>
   ): Promise<boolean> {
@@ -265,6 +300,16 @@ export class SocketIoYjsProvider {
     }
 
     if (this.destroyed) return true
+
+    await this.flushLayoutAfterBootstrap()
+    const fragmentReady = await this.waitForDefaultXmlFragment(8000)
+    if (!fragmentReady) {
+      console.error(
+        '[SocketIoYjsProvider] Collaborative default fragment still empty after bootstrap; will retry sync instead of sending poisoned Yjs state'
+      )
+      this.scheduleSyncRetry()
+      return true
+    }
 
     const fullStateBase64 = uint8ArrayToBase64(Y.encodeStateAsUpdate(this.ydoc))
     const bootstrapResp = await emitWithAck<{ success: boolean; error?: string }>(
