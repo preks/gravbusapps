@@ -554,16 +554,46 @@ function prepareHtmlForPrintDocument(htmlContent: string): string {
 }
 
 /**
+ * Converts div[data-signature-node] elements to img with data URL so export/print render the signature.
+ */
+function materializeSignatureNodesInHtml(html: string): string {
+  if (typeof DOMParser === 'undefined') return html
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const divs = doc.body.querySelectorAll('div[data-signature-node]')
+  for (const div of divs) {
+    const svg = div.getAttribute('data-snapshot-svg')
+    if (!svg) continue
+    try {
+      const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
+      const img = doc.createElement('img')
+      img.setAttribute('src', dataUrl)
+      img.setAttribute('alt', div.getAttribute('data-name') || 'Signature')
+      const w = div.getAttribute('data-width')
+      const h = div.getAttribute('data-height')
+      if (w) img.setAttribute('width', w)
+      if (h) img.setAttribute('height', h)
+      div.replaceWith(img)
+    } catch {
+      // leave div in place if encoding fails
+    }
+  }
+  return doc.body.innerHTML
+}
+
+/**
  * Replaces each img src in html with the result of getImageDataUrl(src) when not null.
+ * Also materializes signature nodes (div[data-signature-node]) to img with embedded SVG data URLs.
  * Use so exported Word/PDF contain embedded images instead of unreachable URLs.
  */
 export async function embedImagesInHtml(html: string, getImageDataUrl: GetImageDataUrlForExport): Promise<string> {
+  const content = materializeSignatureNodesInHtml(html)
   const imgRegex = /<img([^>]*?)src\s*=\s*["']([^"']+)["']([^>]*)>/gi
   let result = ''
   let lastIndex = 0
   let m: RegExpExecArray | null
-  while ((m = imgRegex.exec(html)) !== null) {
-    result += html.slice(lastIndex, m.index)
+  while ((m = imgRegex.exec(content)) !== null) {
+    result += content.slice(lastIndex, m.index)
     const dataUrl = await getImageDataUrl(m[2])
     if (dataUrl == null) {
       result += m[0]
@@ -572,7 +602,7 @@ export async function embedImagesInHtml(html: string, getImageDataUrl: GetImageD
     }
     lastIndex = imgRegex.lastIndex
   }
-  result += html.slice(lastIndex)
+  result += content.slice(lastIndex)
   return result
 }
 
