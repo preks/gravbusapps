@@ -59,6 +59,7 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
       isAllowedUri: (url, ctx) => !!ctx.defaultValidate(url) && isAllowedHref(url)
     }),
     DocumentImage.configure({
+      inline: true,
       getAccessToken: () => accessToken,
       isProtectedSrc: isDocumentImageProtectedSrc,
       resolveProtectedSrc: (src, token) => resolveProtectedDocumentImageSrc(src, token),

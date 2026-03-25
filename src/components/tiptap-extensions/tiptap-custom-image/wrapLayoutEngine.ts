@@ -4,6 +4,7 @@ import type { ImageMeasurementContext } from './sizeUtils'
 import { resolveImageDimensions } from './sizeUtils'
 import { normalizeImageAlign, normalizeImageAnchorMode, normalizeImageWrapMode } from './styleUtils'
 import type { CustomImageAttributes } from './types'
+import type { ImageWrapContour } from './wrapContourUtils'
 import {
   resolveFloatingSide,
   resolveWordWrapTextSide,
@@ -18,18 +19,30 @@ export interface WordWrapPolygonPoint {
 
 export interface WordWrapPolygon {
   points: WordWrapPolygonPoint[]
-  source: 'frame-rect' | 'cropped-frame-rect' | 'rotated-frame-fallback' | 'tight-fallback' | 'through-fallback'
+  source:
+    | 'frame-rect'
+    | 'cropped-frame-rect'
+    | 'rotated-frame-fallback'
+    | 'tight-fallback'
+    | 'through-fallback'
+    | 'alpha-mask-outer'
   supportsInnerContours: boolean
 }
 
 export interface WordLikeImageLayoutContext extends ImageMeasurementContext {
   displaySrc?: string | null
+  wrapContour?: ImageWrapContour | null
 }
 
 export interface WordLikeImageLayout {
   wrapMode: NonNullable<CustomImageAttributes['wrapMode']>
   align: NonNullable<CustomImageAttributes['align']>
   anchorMode: NonNullable<CustomImageAttributes['anchorMode']>
+  renderMode: 'local' | 'overlay'
+  flowMode: 'inline' | 'float' | 'block' | 'overlay-anchor'
+  measurementMode: 'flow' | 'overlay'
+  overlayLayer: 'behind' | 'floating' | 'front' | null
+  overlayZIndex: number | null
   floatingSide: ImageFloatingSide | null
   wrapTextSide: WordWrapTextSide | null
   anchorReference: 'inline' | 'paragraph' | 'page'
@@ -79,10 +92,17 @@ function createRectPolygon(source: WordWrapPolygon['source']): WordWrapPolygon {
   }
 }
 
-function resolveWrapPolygon(attributes: CustomImageAttributes): WordWrapPolygon | null {
+function resolveWrapPolygon(
+  attributes: CustomImageAttributes,
+  contour?: ImageWrapContour | null
+): WordWrapPolygon | null {
   const wrapMode = normalizeImageWrapMode(attributes.wrapMode, 'inline')
   if (wrapMode !== 'tight' && wrapMode !== 'through') {
     return null
+  }
+
+  if (contour?.polygon.points.length) {
+    return contour.polygon
   }
 
   if ((attributes.rotation ?? 0) !== 0) {
@@ -94,30 +114,6 @@ function resolveWrapPolygon(attributes: CustomImageAttributes): WordWrapPolygon 
   }
 
   return createRectPolygon(wrapMode === 'through' ? 'through-fallback' : 'tight-fallback')
-}
-
-function convertPolygonToCssValue(
-  polygon: WordWrapPolygon | null,
-  bounds: {
-    figureLeft: number
-    figureTop: number
-    figureWidth: number
-    figureHeight: number
-    layoutWidth: number
-    layoutHeight: number
-  }
-) {
-  if (!polygon || bounds.layoutWidth <= 0 || bounds.layoutHeight <= 0) {
-    return undefined
-  }
-
-  const points = polygon.points.map(point => {
-    const x = ((bounds.figureLeft + point.x * bounds.figureWidth) / bounds.layoutWidth) * 100
-    const y = ((bounds.figureTop + point.y * bounds.figureHeight) / bounds.layoutHeight) * 100
-    return `${x.toFixed(3)}% ${y.toFixed(3)}%`
-  })
-
-  return `polygon(${points.join(', ')})`
 }
 
 export function convertWrapPolygonToWordCoordinates(
@@ -204,15 +200,7 @@ export function resolveWordLikeImageLayout(
     height: frameHeight,
     crop
   })
-  const wrapPolygon = resolveWrapPolygon(attributes)
-  const shapeOutside = convertPolygonToCssValue(wrapPolygon, {
-    figureLeft,
-    figureTop,
-    figureWidth: frameWidth,
-    figureHeight: frameHeight,
-    layoutWidth,
-    layoutHeight
-  })
+  const wrapPolygon = resolveWrapPolygon(attributes, context.wrapContour)
   const renderedImageStyle: CSSProperties = {
     width: cropDimensions.renderedWidth,
     height: cropDimensions.renderedHeight,
@@ -248,6 +236,11 @@ export function resolveWordLikeImageLayout(
   let figureStyle: CSSProperties
   let exclusionMode: WordLikeImageLayout['exclusionMode']
   let fallbackStrategy = 'word-layout-frame'
+  let renderMode: WordLikeImageLayout['renderMode'] = 'local'
+  let flowMode: WordLikeImageLayout['flowMode'] = 'inline'
+  let measurementMode: WordLikeImageLayout['measurementMode'] = 'flow'
+  let overlayLayer: WordLikeImageLayout['overlayLayer'] = null
+  let overlayZIndex: WordLikeImageLayout['overlayZIndex'] = null
 
   if (wrapMode === 'inline') {
     exclusionMode = 'none'
@@ -267,50 +260,66 @@ export function resolveWordLikeImageLayout(
     }
   } else if (wrapMode === 'top-bottom') {
     exclusionMode = 'top-bottom'
-    wrapperStyle = {
-      display: 'block',
-      position: 'relative',
-      width: '100%',
-      minHeight: layoutHeight,
-      clear: 'both',
-      overflow: 'visible'
-    }
-    figureStyle = {
-      ...baseFigureStyle,
-      position: 'absolute',
-      top: figureTop,
-      zIndex: Math.max(1, attributes.zIndex ?? 1),
-      ...resolveHorizontalAnchorStyle(align, offsetX, distanceLeft, distanceRight)
-    }
-  } else if (wrapMode === 'behind' || wrapMode === 'front') {
-    exclusionMode = 'none'
+    renderMode = 'overlay'
+    flowMode = 'block'
+    measurementMode = 'overlay'
+    overlayLayer = 'floating'
+    overlayZIndex = Math.max(1, attributes.zIndex ?? 1)
     wrapperStyle = {
       display: 'inline-block',
       position: 'relative',
       width: 0,
       height: 0,
       overflow: 'visible',
+      minHeight: 0,
+      verticalAlign: 'baseline'
+    }
+    figureStyle = {
+      ...baseFigureStyle,
+      position: 'absolute',
+      top: figureTop,
+      zIndex: overlayZIndex,
+      ...resolveHorizontalAnchorStyle(align, offsetX, distanceLeft, distanceRight)
+    }
+  } else if (wrapMode === 'behind' || wrapMode === 'front') {
+    exclusionMode = 'none'
+    renderMode = 'overlay'
+    flowMode = 'overlay-anchor'
+    measurementMode = 'overlay'
+    overlayLayer = wrapMode
+    overlayZIndex = Math.max(1, attributes.zIndex ?? 1)
+    wrapperStyle = {
+      display: 'inline-block',
+      position: 'relative',
+      width: 0,
+      height: 0,
+      overflow: 'visible',
+      minHeight: 0,
       verticalAlign: 'baseline'
     }
     figureStyle = {
       ...baseFigureStyle,
       position: 'absolute',
       top: offsetY,
-      zIndex: wrapMode === 'behind' ? -1 : Math.max(1, attributes.zIndex ?? 1),
+      zIndex: wrapMode === 'behind' ? -1 : overlayZIndex,
       ...resolveHorizontalAnchorStyle(align, offsetX, distanceLeft, distanceRight)
     }
     fallbackStrategy = anchorMode === 'fixed' ? 'page-anchor-approximation' : 'overlay-anchor'
   } else {
     exclusionMode = wrapMode === 'tight' || wrapMode === 'through' ? 'polygon' : 'square'
+    renderMode = 'overlay'
+    flowMode = 'float'
+    measurementMode = 'overlay'
+    overlayLayer = 'floating'
+    overlayZIndex = Math.max(1, attributes.zIndex ?? 1)
     wrapperStyle = {
-      display: 'block',
+      display: 'inline-block',
       position: 'relative',
-      float: floatingSide ?? 'left',
-      width: layoutWidth,
-      minHeight: layoutHeight,
-      maxWidth: '100%',
-      ...(shapeOutside ? { shapeOutside } : {}),
-      ...(wrapMode === 'tight' || wrapMode === 'through' ? { shapeMargin: '0px' } : {})
+      width: 0,
+      height: 0,
+      overflow: 'visible',
+      minHeight: 0,
+      verticalAlign: 'baseline'
     }
     figureStyle = {
       ...baseFigureStyle,
@@ -319,11 +328,16 @@ export function resolveWordLikeImageLayout(
       top: figureTop
     }
     if (wrapMode === 'through') {
-      fallbackStrategy = wrapPolygon?.supportsInnerContours
-        ? 'through-inner-contours'
-        : 'through-outer-contour-fallback'
+      fallbackStrategy =
+        wrapPolygon?.source === 'alpha-mask-outer'
+          ? wrapPolygon.supportsInnerContours
+            ? 'through-alpha-mask'
+            : 'through-alpha-mask-outer-fallback'
+          : wrapPolygon?.supportsInnerContours
+            ? 'through-inner-contours'
+            : 'through-outer-contour-fallback'
     } else if (wrapMode === 'tight') {
-      fallbackStrategy = 'tight-outer-contour'
+      fallbackStrategy = wrapPolygon?.source === 'alpha-mask-outer' ? 'tight-alpha-mask' : 'tight-outer-contour'
     }
   }
 
@@ -331,6 +345,11 @@ export function resolveWordLikeImageLayout(
     wrapMode,
     align,
     anchorMode,
+    renderMode,
+    flowMode,
+    measurementMode,
+    overlayLayer,
+    overlayZIndex,
     floatingSide,
     wrapTextSide,
     anchorReference,
@@ -352,11 +371,16 @@ export function resolveWordLikeImageLayout(
     wrapperStyle,
     figureStyle,
     runtimeAttributes: {
-      'data-image-layout-height': String(layoutHeight),
-      'data-image-layout-width': String(layoutWidth),
-      'data-image-visual-bottom': String(Math.max(1, figureTop + frameHeight)),
+      'data-image-layout-height': String(measurementMode === 'overlay' ? 0 : layoutHeight),
+      'data-image-layout-width': String(measurementMode === 'overlay' ? 0 : layoutWidth),
+      'data-image-visual-bottom': String(measurementMode === 'overlay' ? 0 : Math.max(1, figureTop + frameHeight)),
       'data-image-anchor-reference': anchorReference,
       'data-image-exclusion-mode': exclusionMode,
+      'data-image-wrap-text-side': wrapTextSide ?? 'none',
+      'data-image-flow-mode': flowMode,
+      'data-image-measurement-mode': measurementMode,
+      'data-image-render-mode': renderMode,
+      'data-image-wrap-mode': wrapMode,
       'data-image-wrap-polygon-source': wrapPolygon?.source ?? 'none',
       'data-image-wrap-fallback': fallbackStrategy
     }

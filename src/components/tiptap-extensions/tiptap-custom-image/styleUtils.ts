@@ -77,11 +77,15 @@ export function getImageFigureAttributesFromElement(
     distance: number
   }
 ): CustomImageAttributes {
-  const figure = element.tagName.toLowerCase() === 'figure' ? element : element.closest('figure')
-  const image = element.tagName.toLowerCase() === 'img' ? element : figure?.querySelector('img')
-  const caption = figure?.querySelector('figcaption')?.textContent?.trim() ?? null
+  const container =
+    element.getAttribute('data-node-type') === CUSTOM_IMAGE_TAG
+      ? element
+      : (element.closest(`[data-node-type="${CUSTOM_IMAGE_TAG}"]`) ??
+        (element.tagName.toLowerCase() === 'figure' ? element : element.closest('figure')))
+  const image = element.tagName.toLowerCase() === 'img' ? element : container?.querySelector('img')
+  const caption = container?.querySelector('figcaption, [data-image-caption-text="true"]')?.textContent?.trim() ?? null
 
-  const readFigureAttr = (name: string) => figure?.getAttribute(name) ?? element.getAttribute(name)
+  const readFigureAttr = (name: string) => container?.getAttribute(name) ?? element.getAttribute(name)
   const readImageAttr = (name: string) => image?.getAttribute(name) ?? element.getAttribute(name)
 
   return {

@@ -21,12 +21,17 @@ describe('wrapLayoutEngine', () => {
     expect(layout.layoutHeight).toBe(97)
     expect(layout.figureLeft).toBe(22)
     expect(layout.figureTop).toBe(4)
+    expect(layout.measurementMode).toBe('overlay')
     expect(layout.wrapperStyle).toMatchObject({
-      float: 'right',
-      width: 148,
-      minHeight: 97
+      width: 0,
+      height: 0,
+      minHeight: 0
     })
+    expect(layout.renderMode).toBe('overlay')
+    expect(layout.flowMode).toBe('float')
+    expect(layout.overlayLayer).toBe('floating')
     expect(layout.runtimeAttributes['data-image-exclusion-mode']).toBe('square')
+    expect(layout.runtimeAttributes['data-image-wrap-text-side']).toBe('left')
   })
 
   it('resolves page anchoring for fixed top-bottom layouts', () => {
@@ -41,9 +46,14 @@ describe('wrapLayoutEngine', () => {
 
     expect(layout.anchorReference).toBe('page')
     expect(layout.exclusionMode).toBe('top-bottom')
+    expect(layout.renderMode).toBe('overlay')
+    expect(layout.flowMode).toBe('block')
+    expect(layout.measurementMode).toBe('overlay')
+    expect(layout.overlayLayer).toBe('floating')
+    expect(layout.runtimeAttributes['data-image-wrap-text-side']).toBe('none')
     expect(layout.wrapperStyle).toMatchObject({
-      clear: 'both',
-      width: '100%'
+      width: 0,
+      height: 0
     })
     expect(layout.figureStyle.left).toBe('calc(50% + 24px)')
     expect(layout.figureStyle.transform).toBe('translateX(-50%)')
@@ -64,9 +74,34 @@ describe('wrapLayoutEngine', () => {
 
     expect(tightLayout.wrapPolygon?.source).toBe('cropped-frame-rect')
     expect(tightLayout.exclusionMode).toBe('polygon')
-    expect(typeof tightLayout.wrapperStyle.shapeOutside).toBe('string')
+    expect(tightLayout.wrapperStyle.shapeOutside).toBeUndefined()
     expect(throughLayout.wrapPolygon?.source).toBe('through-fallback')
     expect(throughLayout.fallbackStrategy).toBe('through-outer-contour-fallback')
     expect(throughLayout.wrapTextSide).toBe('bothSides')
+  })
+
+  it('marks behind-text images as overlay-rendered with no flow measurement footprint', () => {
+    const layout = resolveWordLikeImageLayout({
+      width: 180,
+      height: 90,
+      wrapMode: 'behind',
+      align: 'center',
+      zIndex: 4
+    })
+
+    expect(layout.renderMode).toBe('overlay')
+    expect(layout.flowMode).toBe('overlay-anchor')
+    expect(layout.measurementMode).toBe('overlay')
+    expect(layout.overlayLayer).toBe('behind')
+    expect(layout.overlayZIndex).toBe(4)
+    expect(layout.wrapperStyle).toMatchObject({
+      display: 'inline-block',
+      width: 0,
+      height: 0,
+      minHeight: 0
+    })
+    expect(layout.runtimeAttributes['data-image-layout-height']).toBe('0')
+    expect(layout.runtimeAttributes['data-image-visual-bottom']).toBe('0')
+    expect(layout.runtimeAttributes['data-image-render-mode']).toBe('overlay')
   })
 })

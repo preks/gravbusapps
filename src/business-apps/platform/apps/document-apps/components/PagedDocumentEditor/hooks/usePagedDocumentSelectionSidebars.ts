@@ -506,6 +506,10 @@ export function usePagedDocumentSelectionSidebars({
         return
       }
 
+      if (target.closest('[data-image-overlay-anchor="true"]')) {
+        return
+      }
+
       if (shouldKeepImageSidebarOpenForUiMode(selectedImageSidebarRef.current, activeImageUiStateRef.current)) {
         return
       }

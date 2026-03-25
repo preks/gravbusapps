@@ -563,6 +563,21 @@ export function refreshHeaderFooterRegionDisplay(params: {
   requestAnimationFrame(() => layoutPageNumberSlots(region))
 }
 
+function createPageImageOverlayLayer(params: {
+  pageNumber: number
+  pageBodyHeight: number
+  layer: 'behind' | 'floating' | 'front'
+}): HTMLElement {
+  const overlayLayer = document.createElement('div')
+  overlayLayer.className = 'rm-page-image-overlay-layer'
+  overlayLayer.dataset.rmPageImageOverlay = 'true'
+  overlayLayer.dataset.rmPageNumber = String(params.pageNumber)
+  overlayLayer.dataset.rmImageLayer = params.layer
+  overlayLayer.style.height = `var(--rm-page-body-${params.pageNumber}, ${params.pageBodyHeight}px)`
+  overlayLayer.style.top = `calc(-1 * var(--rm-page-body-${params.pageNumber}, ${params.pageBodyHeight}px))`
+  return overlayLayer
+}
+
 export function ensurePagesStyles(targetDocument: Document) {
   if (targetDocument.head.querySelector(`[${STYLE_ATTR}]`)) return
 
@@ -601,6 +616,25 @@ export function ensurePagesStyles(targetDocument: Document) {
       pointer-events: none;
       background: transparent;
       z-index: 1;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer {
+      position: absolute;
+      left: 0;
+      width: var(--rm-page-width);
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="behind"] {
+      z-index: 0;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="floating"] {
+      z-index: 3;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="front"] {
+      z-index: 4;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer > * {
+      pointer-events: auto;
     }
     .rm-pages-root .breaker {
       position: relative;
@@ -1233,7 +1267,22 @@ export function createPageBreakElement(params: {
   bodyLayer.dataset.rmPageNumber = String(pageNumber)
   bodyLayer.style.height = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
   bodyLayer.style.top = `calc(-1 * var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px))`
-  page.appendChild(bodyLayer)
+  const behindImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'behind'
+  })
+  const floatingImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'floating'
+  })
+  const frontImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'front'
+  })
+  page.append(behindImageLayer, bodyLayer, floatingImageLayer, frontImageLayer)
 
   const breaker =
     !shouldRenderFullPageBreaker(pageNumber, activeRange) && placeholderBreakerMetrics != null
@@ -1390,7 +1439,7 @@ export function applyWindowAttributesToPageBreak(
   }
 
   const markerTargets = pageBreakEl.querySelectorAll(
-    '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
+    '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-image-overlay-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
   )
 
   const pageBreakNumber = resolvePageBreakNumber(pageBreakEl)

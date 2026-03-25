@@ -60,4 +60,33 @@ describe('styleUtils custom image crop attrs', () => {
       anchorMode: 'fixed'
     })
   })
+
+  it('reads crop and layout attrs back from inline span markup', () => {
+    const wrapper = document.createElement('span')
+    const image = document.createElement('img')
+    const caption = document.createElement('span')
+
+    wrapper.setAttribute('data-node-type', 'custom-image')
+    wrapper.setAttribute('data-image-wrap', 'behind')
+    wrapper.setAttribute('data-image-anchor', 'move-with-text')
+    wrapper.setAttribute('data-image-offset-x', '18')
+    wrapper.setAttribute('data-image-offset-y', '-4')
+    caption.setAttribute('data-image-caption-text', 'true')
+    caption.textContent = 'Example caption'
+    image.setAttribute('src', 'data:image/png;base64,def')
+    image.setAttribute('width', '180')
+    image.setAttribute('height', '90')
+    wrapper.append(image, caption)
+
+    expect(getImageFigureAttributesFromElement(wrapper, defaults)).toMatchObject({
+      src: 'data:image/png;base64,def',
+      width: 180,
+      height: 90,
+      wrapMode: 'behind',
+      anchorMode: 'move-with-text',
+      offsetX: 18,
+      offsetY: -4,
+      caption: 'Example caption'
+    })
+  })
 })

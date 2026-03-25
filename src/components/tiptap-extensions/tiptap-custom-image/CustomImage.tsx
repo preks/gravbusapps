@@ -138,6 +138,14 @@ export const CustomImage = Image.extend<CustomImageOptions>({
 
   draggable: false,
 
+  inline() {
+    return this.options.inline
+  },
+
+  group() {
+    return this.options.inline ? 'inline' : 'block'
+  },
+
   parseHTML() {
     const defaults = {
       align: this.options.defaultAlign,
@@ -156,9 +164,16 @@ export const CustomImage = Image.extend<CustomImageOptions>({
         }
       },
       {
+        tag: `span[data-node-type="${CUSTOM_IMAGE_TAG}"]`,
+        getAttrs: element => {
+          const attrs = getImageFigureAttributesFromElement(element, defaults)
+          return attrs.src ? attrs : false
+        }
+      },
+      {
         tag: 'img[src]',
         getAttrs: element => {
-          if (element.parentElement?.closest(`figure[data-node-type="${CUSTOM_IMAGE_TAG}"]`)) {
+          if (element.parentElement?.closest(`[data-node-type="${CUSTOM_IMAGE_TAG}"]`)) {
             return false
           }
 
@@ -678,6 +693,15 @@ export const CustomImage = Image.extend<CustomImageOptions>({
       height: height == null ? undefined : String(Math.round(height)),
       class: imageClass
     })
+
+    if (this.options.inline) {
+      return [
+        'span',
+        figureOutputAttrs,
+        ['img', imageOutputAttrs],
+        ...(caption ? [['span', { class: 'editor-image-caption', 'data-image-caption-text': 'true' }, caption]] : [])
+      ]
+    }
 
     return [
       'figure',

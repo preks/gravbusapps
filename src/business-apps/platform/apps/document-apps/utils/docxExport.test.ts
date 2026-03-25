@@ -56,4 +56,21 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('<wp:start x="0" y="0"/>')
     expect(documentXml).toContain('<wp:lineTo x="21600" y="21600"/>')
   })
+
+  it('exports behind-text images as behindDoc anchors without text wrapping exclusion', async () => {
+    const html = [
+      '<figure data-node-type="custom-image"',
+      ' data-image-wrap="behind"',
+      ' data-image-anchor="move-with-text">',
+      '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sWwaP8AAAAASUVORK5CYII=" width="180" height="90" />',
+      '</figure>'
+    ].join('')
+
+    const blob = await buildDocxBlob('Behind doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<wp:anchor')
+    expect(documentXml).toContain('behindDoc="1"')
+    expect(documentXml).toContain('<wp:wrapNone/>')
+  })
 })

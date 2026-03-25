@@ -2,12 +2,22 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/core'
 import { NodeSelection } from '@tiptap/pm/state'
 import { NodeViewWrapper } from '@tiptap/react'
-import { RotateCw } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { CustomImageFigure, type ResizeDirection } from './CustomImageFigure'
 import { normalizeImageCrop } from './cropUtils'
+import { resolveImageOverlayFigureStyle, resolveImageOverlayMount } from './imageOverlayUtils'
 import { DOCUMENT_IMAGE_UI_EVENT, type DocumentImageUiMode } from './pictureUiEvents'
 import { DEFAULT_IMAGE_SIZE_REFERENCE } from './sizeUtils'
-import { appendClassName, CUSTOM_IMAGE_FIGURE_CLASS, getFigureDataAttributes } from './styleUtils'
+import { getFigureDataAttributes } from './styleUtils'
 import type { CustomImageAttributes, CustomImageOptions } from './types'
+import { analyzeImageWrapContour, type ImageWrapContour } from './wrapContourUtils'
+import {
+  getImageFlowShimAttributes,
+  resolveImageAnchorGeometryElement,
+  resolveImageFlowShimStyle,
+  resolveImageFlowShimTarget,
+  syncImageFlowShimHost
+} from './wrapFlowShimRuntime'
 import { resolveWordLikeImageLayout } from './wrapLayoutEngine'
 import { isFloatingWrapMode } from './wrapUtils'
 
@@ -32,15 +42,12 @@ interface CustomImageViewProps {
   >
 }
 
-type ResizeDirection = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
 type InteractionState =
   | { kind: 'resize'; direction: ResizeDirection }
   | { kind: 'crop'; direction: ResizeDirection }
   | { kind: 'rotate' }
   | { kind: 'move' }
   | null
-
-const HANDLE_DIRECTIONS: ReadonlyArray<ResizeDirection> = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
 const ROTATION_SNAP_INCREMENT = 15
 const ROTATION_SNAP_TOLERANCE = 3
 const DEFAULT_KEYBOARD_NUDGE_PX = 1
@@ -76,6 +83,23 @@ function getPointerAngle(clientX: number, clientY: number, rect: DOMRect) {
   return (Math.atan2(clientY - centerY, clientX - centerX) * 180) / Math.PI
 }
 
+function getEditorViewSafely(editor: Editor | null) {
+  if (!editor || editor.isDestroyed) {
+    return null
+  }
+
+  try {
+    return editor.view
+  } catch {
+    return null
+  }
+}
+
+function getEditorDomSafely(editor: Editor | null) {
+  const view = getEditorViewSafely(editor)
+  return view?.dom instanceof HTMLElement ? view.dom : null
+}
+
 export function CustomImageView({ node, editor, getPos, selected, options }: Readonly<CustomImageViewProps>) {
   const src = node.attrs.src ?? ''
   const [displaySrc, setDisplaySrc] = useState<string>(() => (options.isProtectedSrc(src) ? '' : src))
@@ -89,11 +113,16 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     containerWidth: null,
     containerHeight: null
   })
+  const [overlayMount, setOverlayMount] = useState<ReturnType<typeof resolveImageOverlayMount> | null>(null)
+  const [flowShimMount, setFlowShimMount] = useState<HTMLElement | null>(null)
+  const [wrapContour, setWrapContour] = useState<ImageWrapContour | null>(null)
   const objectUrlRef = useRef<string | null>(null)
   const protectedSrcResolverRef = useRef(options.resolveProtectedSrc)
   const resolvedSrcRef = useRef<string | null>(options.isProtectedSrc(src) ? null : src)
-  const wrapperRef = useRef<HTMLDivElement | null>(null)
-  const imageFrameRef = useRef<HTMLDivElement | null>(null)
+  const wrapperRef = useRef<HTMLElement | null>(null)
+  const flowShimHostRef = useRef<HTMLElement | null>(null)
+  const flowShimElementRef = useRef<HTMLElement | null>(null)
+  const imageFrameRef = useRef<HTMLElement | null>(null)
   const interactionStateRef = useRef<InteractionState>(null)
   const previewAttrsRef = useRef<Partial<CustomImageAttributes> | null>(null)
   const protectedSrcEnabled = options.isProtectedSrc(src) && typeof options.resolveProtectedSrc === 'function'
@@ -149,16 +178,46 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     () =>
       resolveWordLikeImageLayout(interactiveAttributes, {
         ...measurementContext,
-        displaySrc: displaySrc || null
+        displaySrc: displaySrc || null,
+        wrapContour
       }),
-    [displaySrc, interactiveAttributes, measurementContext]
+    [displaySrc, interactiveAttributes, measurementContext, wrapContour]
   )
   const figureDataAttributes = getFigureDataAttributes(interactiveAttributes)
   const isCropMode = selected && uiMode === 'crop'
   const lockAspectRatio = interactiveAttributes.lockAspectRatio ?? true
   const isFloatingImage = isFloatingWrapMode(interactiveAttributes.wrapMode)
+  const usesPageOverlayVisual = layout.renderMode === 'overlay'
+  const usesFlowShim = usesPageOverlayVisual && layout.exclusionMode !== 'none'
   const displayWidth = layout.frameWidth
   const displayHeight = layout.frameHeight
+  const shouldRenderOverlayPortal = usesPageOverlayVisual && overlayMount !== null
+  const flowShimStyle = useMemo(() => resolveImageFlowShimStyle(layout, wrapContour), [layout, wrapContour])
+  const anchorRuntimeAttributes = useMemo(
+    () =>
+      usesFlowShim
+        ? {
+            ...layout.runtimeAttributes,
+            'data-image-exclusion-mode': 'none',
+            'data-image-layout-height': '0',
+            'data-image-layout-width': '0',
+            'data-image-visual-bottom': '0',
+            'data-image-measurement-mode': 'overlay'
+          }
+        : layout.runtimeAttributes,
+    [layout.runtimeAttributes, usesFlowShim]
+  )
+  const overlayFigureStyle = useMemo(
+    () =>
+      overlayMount && shouldRenderOverlayPortal
+        ? resolveImageOverlayFigureStyle({
+            layout,
+            attributes: interactiveAttributes,
+            mount: overlayMount
+          })
+        : null,
+    [interactiveAttributes, layout, overlayMount, shouldRenderOverlayPortal]
+  )
 
   const refreshPagination = useCallback(() => {
     if (editor?.commands.refreshPagesAndStabilize) {
@@ -174,6 +233,8 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   const commitAttrs = useCallback(
     (nextAttrs: Partial<CustomImageAttributes>) => {
       if (!editor) return false
+      const view = getEditorViewSafely(editor)
+      if (!view) return false
       const pos = getPos()
       if (pos === undefined) return false
 
@@ -185,8 +246,8 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
         ...nextAttrs
       })
       tr.setSelection(NodeSelection.create(tr.doc, pos))
-      editor.view.dispatch(tr)
-      editor.view.focus()
+      view.dispatch(tr)
+      view.focus()
       refreshPagination()
       return true
     },
@@ -196,14 +257,16 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   const handleSelectNode = useCallback(
     (event: React.MouseEvent) => {
       if (!editor) return
+      const view = getEditorViewSafely(editor)
+      if (!view) return
       const pos = getPos()
       if (pos === undefined) return
       event.preventDefault()
       event.stopPropagation()
 
       const tr = editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, pos))
-      editor.view.dispatch(tr)
-      editor.view.focus()
+      view.dispatch(tr)
+      view.focus()
     },
     [editor, getPos]
   )
@@ -516,9 +579,71 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
         URL.revokeObjectURL(objectUrlRef.current)
         objectUrlRef.current = null
       }
+      flowShimElementRef.current = null
+      if (flowShimHostRef.current?.parentElement) {
+        flowShimHostRef.current.parentElement.removeChild(flowShimHostRef.current)
+      }
+      flowShimHostRef.current = null
     },
     []
   )
+
+  useEffect(() => {
+    if (interactiveAttributes.wrapMode !== 'tight' && interactiveAttributes.wrapMode !== 'through') {
+      setWrapContour(null)
+      return
+    }
+
+    setWrapContour(null)
+  }, [
+    displaySrc,
+    interactiveAttributes.cropBottom,
+    interactiveAttributes.cropLeft,
+    interactiveAttributes.cropRight,
+    interactiveAttributes.cropTop,
+    interactiveAttributes.rotation,
+    interactiveAttributes.wrapMode
+  ])
+
+  useEffect(() => {
+    if (!usesFlowShim) {
+      flowShimElementRef.current = null
+      if (flowShimHostRef.current?.parentElement) {
+        flowShimHostRef.current.parentElement.removeChild(flowShimHostRef.current)
+      }
+      setFlowShimMount(null)
+      return
+    }
+
+    const wrapper = wrapperRef.current
+    if (!(wrapper instanceof HTMLElement)) {
+      if (flowShimHostRef.current?.parentElement) {
+        flowShimHostRef.current.parentElement.removeChild(flowShimHostRef.current)
+      }
+      setFlowShimMount(null)
+      return
+    }
+
+    const target = resolveImageFlowShimTarget(wrapper, layout)
+    if (!(target instanceof HTMLElement)) {
+      if (flowShimHostRef.current?.parentElement) {
+        flowShimHostRef.current.parentElement.removeChild(flowShimHostRef.current)
+      }
+      setFlowShimMount(null)
+      return
+    }
+
+    const host = flowShimHostRef.current ?? document.createElement('span')
+    flowShimHostRef.current = host
+    syncImageFlowShimHost(target, host, getPos() ?? Number.MAX_SAFE_INTEGER)
+    setFlowShimMount(host)
+  }, [getPos, layout, usesFlowShim])
+
+  useEffect(() => {
+    if (!usesFlowShim || !flowShimMount) {
+      flowShimElementRef.current = null
+    }
+  }, [flowShimMount, usesFlowShim])
 
   useEffect(() => {
     if (selected) return
@@ -544,9 +669,11 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     if (!selected || !editor || !isFloatingImage) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      const editorDom = getEditorDomSafely(editor)
+      if (!editorDom) return
       if (event.metaKey || event.ctrlKey || event.altKey) return
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
-      if (!editor.view.dom.contains(document.activeElement)) return
+      if (!editorDom.contains(document.activeElement)) return
 
       event.preventDefault()
       const step = event.shiftKey ? LARGE_KEYBOARD_NUDGE_PX : DEFAULT_KEYBOARD_NUDGE_PX
@@ -570,6 +697,12 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
       if (!editor || naturalWidth <= 0 || naturalHeight <= 0) return
 
+      if (interactiveAttributes.wrapMode === 'tight' || interactiveAttributes.wrapMode === 'through') {
+        setWrapContour(analyzeImageWrapContour(img, interactiveAttributes))
+      } else {
+        setWrapContour(null)
+      }
+
       const pos = getPos()
       if (pos === undefined) return
 
@@ -580,156 +713,178 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
         return
       }
 
+      const view = getEditorViewSafely(editor)
+      if (!view) return
+
       const tr = editor.state.tr.setNodeMarkup(pos, undefined, {
         ...currentNode.attrs,
         originalWidth: naturalWidth,
         originalHeight: naturalHeight
       })
-      editor.view.dispatch(tr)
+      view.dispatch(tr)
     },
-    [editor, getPos]
+    [editor, getPos, interactiveAttributes]
   )
+
+  const refreshOverlayMount = useCallback(() => {
+    const wrapper = wrapperRef.current
+    const editorElement = getEditorDomSafely(editor)
+    const anchorElement =
+      flowShimElementRef.current ??
+      (wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null)
+
+    if (!usesPageOverlayVisual || !(anchorElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
+      setOverlayMount(null)
+      return
+    }
+
+    setOverlayMount(
+      resolveImageOverlayMount({
+        editorElement,
+        anchorElement,
+        layout
+      })
+    )
+  }, [editor, layout, usesPageOverlayVisual])
+
+  useEffect(() => {
+    if (!usesPageOverlayVisual) {
+      setOverlayMount(null)
+      return
+    }
+
+    const frame = requestAnimationFrame(() => {
+      refreshOverlayMount()
+    })
+
+    return () => {
+      cancelAnimationFrame(frame)
+    }
+  }, [
+    displayHeight,
+    displayWidth,
+    interactiveAttributes.align,
+    interactiveAttributes.anchorMode,
+    interactiveAttributes.offsetX,
+    interactiveAttributes.offsetY,
+    layout.figureLeft,
+    layout.figureTop,
+    layout.overlayLayer,
+    usesPageOverlayVisual,
+    refreshOverlayMount,
+    selected
+  ])
+
+  useEffect(() => {
+    if (!usesPageOverlayVisual) {
+      return
+    }
+
+    const wrapper = wrapperRef.current
+    const editorElement = getEditorDomSafely(editor)
+    const anchorElement =
+      flowShimElementRef.current ??
+      (wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null)
+    if (!(anchorElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
+      return
+    }
+
+    const scheduleRefresh = () => {
+      requestAnimationFrame(() => {
+        refreshOverlayMount()
+      })
+    }
+
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleRefresh)
+    resizeObserver?.observe(anchorElement)
+    resizeObserver?.observe(editorElement)
+
+    const mutationObserver = new MutationObserver(scheduleRefresh)
+    mutationObserver.observe(editorElement, {
+      attributes: true,
+      attributeFilter: ['style', 'data-layout-window-key', 'data-layout-mounted-start', 'data-layout-mounted-end'],
+      childList: true,
+      subtree: true
+    })
+
+    return () => {
+      resizeObserver?.disconnect()
+      mutationObserver.disconnect()
+    }
+  }, [editor, layout, refreshOverlayMount, usesPageOverlayVisual])
+
+  const renderImageFigure = useCallback(
+    (figureStyleOverride?: React.CSSProperties, selectionAnchorAttributes?: Record<string, string>) => (
+      <CustomImageFigure
+        layout={layout}
+        interactiveAttributes={interactiveAttributes}
+        figureDataAttributes={figureDataAttributes}
+        displaySrc={displaySrc}
+        error={error}
+        selected={selected}
+        isCropMode={isCropMode}
+        isFloatingImage={isFloatingImage}
+        figureStyleOverride={figureStyleOverride}
+        selectionAnchorAttributes={selectionAnchorAttributes}
+        imageFrameRef={imageFrameRef}
+        onSelect={handleSelectNode}
+        onStartMove={startMoveInteraction}
+        onStartResize={startResizeInteraction}
+        onStartRotate={startRotateInteraction}
+        onImageLoad={handleImageLoad}
+        getHandleCursor={getHandleCursor}
+      />
+    ),
+    [
+      displaySrc,
+      error,
+      figureDataAttributes,
+      handleImageLoad,
+      handleSelectNode,
+      interactiveAttributes,
+      isCropMode,
+      isFloatingImage,
+      layout,
+      selected,
+      startMoveInteraction,
+      startResizeInteraction,
+      startRotateInteraction
+    ]
+  )
+
+  const shouldRenderLocalFigure = !usesPageOverlayVisual || overlayMount === null
 
   return (
     <NodeViewWrapper
-      as="div"
+      as="span"
       className="gba:max-w-full"
       style={layout.wrapperStyle}
       onClick={handleSelectNode}
       data-testid="document-editor-image-anchor"
       ref={wrapperRef}
-      {...layout.runtimeAttributes}
+      {...anchorRuntimeAttributes}
     >
-      <div className="gba:max-w-full">
-        <figure
-          className={appendClassName(CUSTOM_IMAGE_FIGURE_CLASS, 'editor-image-container')}
-          style={layout.figureStyle}
-          data-testid="document-editor-image-figure"
-          {...figureDataAttributes}
-        >
-          <span className="gba:relative gba:inline-flex gba:max-w-full">
-            {error || !displaySrc ? (
-              <div
-                ref={imageFrameRef}
-                className="gba:relative gba:inline-flex gba:max-w-full"
-                style={layout.imageFrameStyle}
-                data-testid="document-editor-image-frame"
-              >
-                <div className="gba:relative" style={layout.cropViewportStyle}>
-                  <span
-                    className="gba:inline-flex gba:h-full gba:w-full gba:items-center gba:justify-center gba:rounded gba:bg-muted gba:text-muted-foreground gba:text-sm"
-                    data-testid="document-editor-image-broken"
-                  >
-                    {error ? 'Image' : 'Loading image...'}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div
-                ref={imageFrameRef}
-                className={`gba:relative gba:inline-flex gba:max-w-full ${isFloatingImage && selected && !isCropMode ? 'gba:cursor-move' : ''}`}
-                style={layout.imageFrameStyle}
-                onMouseDown={startMoveInteraction}
-                data-testid="document-editor-image-frame"
-              >
-                <div className="gba:relative" style={layout.cropViewportStyle}>
-                  <img
-                    src={displaySrc}
-                    alt={interactiveAttributes.alt ?? ''}
-                    title={interactiveAttributes.title ?? undefined}
-                    className="editor-image gba:block"
-                    style={layout.renderedImageStyle}
-                    contentEditable={false}
-                    draggable={false}
-                    onLoad={handleImageLoad}
-                    data-testid="document-editor-image"
-                  />
-                  {isCropMode ? (
-                    <>
-                      <div
-                        className="gba:absolute gba:top-0 gba:left-0 gba:right-0 gba:bg-black/20 gba:pointer-events-none"
-                        style={{ height: `${layout.crop.top * 100}%` }}
-                      />
-                      <div
-                        className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-black/20 gba:pointer-events-none"
-                        style={{ height: `${layout.crop.bottom * 100}%` }}
-                      />
-                      <div
-                        className="gba:absolute gba:top-0 gba:bottom-0 gba:left-0 gba:bg-black/20 gba:pointer-events-none"
-                        style={{ width: `${layout.crop.left * 100}%` }}
-                      />
-                      <div
-                        className="gba:absolute gba:top-0 gba:bottom-0 gba:right-0 gba:bg-black/20 gba:pointer-events-none"
-                        style={{ width: `${layout.crop.right * 100}%` }}
-                      />
-                    </>
-                  ) : null}
-                </div>
-                {selected ? (
-                  <div
-                    className={`gba:absolute gba:-inset-1 gba:border-2 gba:border-primary/70 gba:pointer-events-none ${
-                      isCropMode ? 'gba:border-dashed' : 'gba:border-solid'
-                    }`}
-                    data-testid="document-editor-image-selection-frame"
-                  />
-                ) : null}
-                {selected && !error && displaySrc
-                  ? HANDLE_DIRECTIONS.map(direction => {
-                      const directionClasses: Record<ResizeDirection, string> = {
-                        n: 'gba:top-0 gba:left-1/2 gba:-translate-x-1/2 gba:-translate-y-1/2',
-                        ne: 'gba:top-0 gba:right-0 gba:translate-x-1/2 gba:-translate-y-1/2',
-                        e: 'gba:top-1/2 gba:right-0 gba:translate-x-1/2 gba:-translate-y-1/2',
-                        se: 'gba:bottom-0 gba:right-0 gba:translate-x-1/2 gba:translate-y-1/2',
-                        s: 'gba:bottom-0 gba:left-1/2 gba:-translate-x-1/2 gba:translate-y-1/2',
-                        sw: 'gba:bottom-0 gba:left-0 gba:-translate-x-1/2 gba:translate-y-1/2',
-                        w: 'gba:top-1/2 gba:left-0 gba:-translate-x-1/2 gba:-translate-y-1/2',
-                        nw: 'gba:top-0 gba:left-0 gba:-translate-x-1/2 gba:-translate-y-1/2'
-                      }
-
-                      return (
-                        <button
-                          key={direction}
-                          type="button"
-                          className={`gba:absolute gba:z-20 gba:h-3 gba:w-3 gba:rounded-full gba:border gba:border-primary gba:bg-background gba:p-0 ${directionClasses[direction]}`}
-                          style={{ cursor: getHandleCursor(direction, isCropMode) }}
-                          onMouseDown={event => startResizeInteraction(direction, event)}
-                          data-image-handle="true"
-                          data-testid={`document-editor-image-handle-${direction}`}
-                        />
-                      )
-                    })
-                  : null}
-                {selected && !error && displaySrc ? (
-                  <div
-                    className="gba:absolute gba:bottom-full gba:left-1/2 gba:z-10 gba:flex gba:flex-col gba:items-center gba:-translate-x-1/2 gba:pb-2"
-                    data-image-handle="true"
-                  >
-                    <button
-                      type="button"
-                      aria-label="Rotate image"
-                      className="gba:flex gba:h-6 gba:w-6 gba:items-center gba:justify-center gba:rounded-full gba:border gba:border-primary gba:bg-background gba:p-0 gba:text-primary gba:shadow-sm gba:cursor-grab hover:gba:bg-accent"
-                      onMouseDown={startRotateInteraction}
-                      data-image-handle="true"
-                      data-testid="document-editor-image-rotate-handle"
-                    >
-                      <RotateCw className="gba:h-3.5 gba:w-3.5" />
-                    </button>
-                    <span className="gba:h-4 gba:w-px gba:bg-primary/70 gba:pointer-events-none" />
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </span>
-          {interactiveAttributes.caption ? (
-            <figcaption
-              className="editor-image-caption gba:mt-1 gba:text-xs gba:text-muted-foreground"
-              data-testid="document-editor-image-caption"
-            >
-              {interactiveAttributes.caption}
-            </figcaption>
-          ) : null}
-        </figure>
-      </div>
+      {usesFlowShim && flowShimMount && flowShimStyle
+        ? createPortal(
+            <span
+              ref={element => {
+                flowShimElementRef.current = element
+              }}
+              data-testid="document-editor-image-flow-shim"
+              contentEditable={false}
+              style={flowShimStyle}
+              {...getImageFlowShimAttributes(layout, wrapContour)}
+            />,
+            flowShimMount
+          )
+        : null}
+      {shouldRenderLocalFigure ? <span className="gba:max-w-full">{renderImageFigure()}</span> : null}
+      {shouldRenderOverlayPortal && overlayMount && overlayFigureStyle
+        ? createPortal(
+            renderImageFigure(overlayFigureStyle, { 'data-image-overlay-anchor': 'true' }),
+            overlayMount.layer
+          )
+        : null}
     </NodeViewWrapper>
   )
 }

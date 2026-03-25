@@ -24,6 +24,7 @@ export { convertCropRatioToWordValue, hasImageCrop, normalizeImageCrop, resolveI
 export { DOCUMENT_IMAGE_UI_EVENT, dispatchDocumentImageUiMode, type DocumentImageUiMode } from './pictureUiEvents'
 export {
   isFloatingWrapMode,
+  isOverlayWrapMode,
   resolveFloatingSide,
   resolveImageWrapPreset,
   resolveWordWrapTextSide,
@@ -38,3 +39,14 @@ export {
   type WordWrapPolygon,
   type WordWrapPolygonPoint
 } from './wrapLayoutEngine'
+export {
+  analyzeImageWrapContour,
+  buildShapeOutsidePolygon,
+  deserializeImageWrapContour,
+  resolveContourSlicesForWrapMode,
+  serializeImageWrapContour,
+  type ImageWrapContour,
+  type WrapContourPoint,
+  type WrapContourSlice,
+  type WrapContourSpan
+} from './wrapContourUtils'

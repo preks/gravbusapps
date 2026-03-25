@@ -3,6 +3,11 @@ import StarterKit from '@tiptap/starter-kit'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
+import {
+  applyImageWrapExclusions,
+  resolveImageWrapExclusions,
+  type PageWrapBand
+} from '@/components/tiptap-extensions/tiptap-custom-image/wrapExclusionRuntime'
 import { PAGE_FORMATS, PAGE_SIZES, type PageSize } from './constants'
 import type {
   BuiltInPageFormatName,
@@ -58,14 +63,38 @@ export interface PageCountDebugInfo {
 
 export interface PageBodyMeasurementBand {
   pageNumber: number
+  left: number
+  right: number
   top: number
   bottom: number
+  pageLeft: number
+  pageRight: number
 }
 
 function sortPageBodyMeasurementBandsIfNeeded<T extends { pageNumber: number }>(bands: T[]): T[] {
   for (let index = 1; index < bands.length; index += 1) {
-    if (bands[index - 1].pageNumber > bands[index].pageNumber) {
-      return [...bands].sort((left, right) => left.pageNumber - right.pageNumber)
+    const previousBand = bands[index - 1] as (T & { top?: number; left?: number }) | undefined
+    const currentBand = bands[index] as T & { top?: number; left?: number }
+    if (
+      previousBand &&
+      (previousBand.pageNumber > currentBand.pageNumber ||
+        (previousBand.pageNumber === currentBand.pageNumber &&
+          ((previousBand.top ?? 0) > (currentBand.top ?? 0) ||
+            ((previousBand.top ?? 0) === (currentBand.top ?? 0) &&
+              (previousBand.left ?? 0) > (currentBand.left ?? 0)))))
+    ) {
+      return [...bands].sort((left, right) => {
+        if (left.pageNumber !== right.pageNumber) {
+          return left.pageNumber - right.pageNumber
+        }
+
+        const topDelta = ((left as { top?: number }).top ?? 0) - ((right as { top?: number }).top ?? 0)
+        if (topDelta !== 0) {
+          return topDelta
+        }
+
+        return ((left as { left?: number }).left ?? 0) - ((right as { left?: number }).left ?? 0)
+      })
     }
   }
 
@@ -537,8 +566,16 @@ function readRuntimeLayoutMetric(element: HTMLElement | null, key: string): numb
   return Number.isFinite(value) ? value : 0
 }
 
+function readRuntimeLayoutMode(element: HTMLElement | null, key: string): string {
+  const value = element?.dataset[key]
+  return typeof value === 'string' ? value : ''
+}
+
 function readMeasuredElementHeight(element: HTMLElement | null): number {
   if (!element) return 0
+  if (readRuntimeLayoutMode(element, 'imageMeasurementMode') === 'overlay') {
+    return 0
+  }
 
   const runtimeLayoutHeight = readRuntimeLayoutMetric(element, 'imageLayoutHeight')
   if (runtimeLayoutHeight > 0) {
@@ -1423,7 +1460,63 @@ function getElementBottomInEditor(editorDom: HTMLElement, element: HTMLElement):
   return elementRect.bottom - editorRect.top + editorDom.scrollTop
 }
 
+type PageBodyBandCoordinateSpace = 'viewport' | 'editor'
+
+function resolveBandRectInCoordinateSpace(
+  editorDom: HTMLElement,
+  element: HTMLElement,
+  coordinateSpace: PageBodyBandCoordinateSpace
+): PageWrapBand {
+  const rect = element.getBoundingClientRect()
+  if (coordinateSpace === 'viewport') {
+    return {
+      pageNumber: Number(element.dataset.rmPageNumber ?? '0'),
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom
+    }
+  }
+
+  const editorRect = editorDom.getBoundingClientRect()
+  const scrollLeft = editorDom.scrollLeft ?? 0
+  return {
+    pageNumber: Number(element.dataset.rmPageNumber ?? '0'),
+    left: rect.left - editorRect.left + scrollLeft,
+    right: rect.right - editorRect.left + scrollLeft,
+    top: rect.top - editorRect.top + editorDom.scrollTop,
+    bottom: rect.bottom - editorRect.top + editorDom.scrollTop
+  }
+}
+
+function resolveRawPageBodyBands(editorDom: HTMLElement, coordinateSpace: PageBodyBandCoordinateSpace): PageWrapBand[] {
+  return resolvePageBodyLayers(editorDom)
+    .map(element => resolveBandRectInCoordinateSpace(editorDom, element, coordinateSpace))
+    .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
+}
+
+export function resolvePageBodyWrapBands(
+  editorDom: HTMLElement,
+  coordinateSpace: PageBodyBandCoordinateSpace
+): PageWrapBand[] {
+  const rawBodyBands = resolveRawPageBodyBands(editorDom, coordinateSpace)
+  if (rawBodyBands.length === 0) {
+    return []
+  }
+
+  return applyImageWrapExclusions(
+    rawBodyBands,
+    resolveImageWrapExclusions(editorDom, rawBodyBands, {
+      resolveRect: element => resolveBandRectInCoordinateSpace(editorDom, element, coordinateSpace)
+    })
+  )
+}
+
 function getMeasuredElementBottomInEditor(editorDom: HTMLElement, element: HTMLElement): number {
+  if (readRuntimeLayoutMode(element, 'imageMeasurementMode') === 'overlay') {
+    return getElementBottomInEditor(editorDom, element)
+  }
+
   const layoutHeight = getElementLayoutHeight(element)
   const visualBottom = readRuntimeLayoutMetric(element, 'imageVisualBottom')
   return Math.max(
@@ -1433,20 +1526,61 @@ function getMeasuredElementBottomInEditor(editorDom: HTMLElement, element: HTMLE
 }
 
 export function getPageBodyMeasurementBands(editorDom: HTMLElement): PageBodyMeasurementBand[] {
-  const editorRect = editorDom.getBoundingClientRect()
+  const rawBodyBands = resolveRawPageBodyBands(editorDom, 'editor')
+  const pageBoundsByNumber = new Map<number, { left: number; right: number }>()
 
-  const bodyBands = resolvePageBodyLayers(editorDom)
-    .map(element => {
-      const rect = element.getBoundingClientRect()
+  rawBodyBands.forEach(band => {
+    pageBoundsByNumber.set(band.pageNumber, {
+      left: band.left,
+      right: band.right
+    })
+  })
+
+  return sortPageBodyMeasurementBandsIfNeeded(
+    resolvePageBodyWrapBands(editorDom, 'editor').map(band => {
+      const pageBounds = pageBoundsByNumber.get(band.pageNumber)
       return {
-        pageNumber: Number(element.dataset.rmPageNumber ?? '0'),
-        top: rect.top - editorRect.top + editorDom.scrollTop,
-        bottom: rect.bottom - editorRect.top + editorDom.scrollTop
+        ...band,
+        pageLeft: pageBounds?.left ?? band.left,
+        pageRight: pageBounds?.right ?? band.right
       }
     })
-    .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
+  )
+}
 
-  return sortPageBodyMeasurementBandsIfNeeded(bodyBands)
+interface PageBodyMeasurementSummary {
+  pageNumber: number
+  top: number
+  bottom: number
+  physicalHeight: number
+  effectiveContentHeight: number
+}
+
+function resolvePageBodyMeasurementSummary(
+  bodyBands: PageBodyMeasurementBand[],
+  pageNumber: number
+): PageBodyMeasurementSummary | null {
+  const pageBands = bodyBands.filter(band => band.pageNumber === pageNumber)
+  if (pageBands.length === 0) {
+    return null
+  }
+
+  const top = Math.min(...pageBands.map(band => band.top))
+  const bottom = Math.max(...pageBands.map(band => band.bottom))
+  const effectiveContentHeight = pageBands.reduce((total, band) => {
+    const pageWidth = Math.max(1, band.pageRight - band.pageLeft)
+    const bandWidth = Math.max(0, band.right - band.left)
+    const bandHeight = Math.max(0, band.bottom - band.top)
+    return total + bandHeight * (bandWidth / pageWidth)
+  }, 0)
+
+  return {
+    pageNumber,
+    top,
+    bottom,
+    physicalHeight: Math.max(1, bottom - top),
+    effectiveContentHeight: Math.max(1, effectiveContentHeight)
+  }
 }
 
 function resolvePageBodyMeasurementBand(
@@ -1456,6 +1590,12 @@ function resolvePageBodyMeasurementBand(
 ): PageBodyMeasurementBand | null {
   if (!Number.isInteger(pageNumber) || pageNumber < 1) return null
 
+  const measurementBands = getPageBodyMeasurementBands(editorDom)
+  const pageBands = measurementBands.filter(band => band.pageNumber === pageNumber)
+  if (pageBands.length > 0) {
+    return pageBands[pageBands.length - 1] ?? null
+  }
+
   const resolvedPaginationElement = paginationElement ?? resolveDirectChildPaginationElement(editorDom) ?? null
   const bodyLayer =
     resolveDirectIndexedPageBodyLayer(resolvedPaginationElement, pageNumber, editorDom) ??
@@ -1464,19 +1604,15 @@ function resolvePageBodyMeasurementBand(
     null
   if (!(bodyLayer instanceof HTMLElement)) return null
 
-  const editorRect = editorDom.getBoundingClientRect()
-  const rect = bodyLayer.getBoundingClientRect()
-  const top = rect.top - editorRect.top + editorDom.scrollTop
-  const bottom = rect.bottom - editorRect.top + editorDom.scrollTop
-
-  if (bottom <= top) {
+  const rect = resolveBandRectInCoordinateSpace(editorDom, bodyLayer, 'editor')
+  if (rect.bottom <= rect.top) {
     return null
   }
 
   return {
-    pageNumber,
-    top,
-    bottom
+    ...rect,
+    pageLeft: rect.left,
+    pageRight: rect.right
   }
 }
 
@@ -1634,19 +1770,36 @@ export function calculatePageCount(
   if (contentBottom !== null) {
     measuredBottom = selectionIsRange ? Math.max(contentBottom, selectionBottom) : contentBottom
   }
-  const lastPageBodyBand =
-    resolvePageBodyMeasurementBand(editorDom, currentPageCount, paginationElement) ??
-    (() => {
-      const pageBodyBands = getPageBodyMeasurementBands(editorDom)
-      return pageBodyBands[pageBodyBands.length - 1] ?? null
-    })()
+  const pageBodyBands = getPageBodyMeasurementBands(editorDom)
+  const fallbackLastBand = pageBodyBands[pageBodyBands.length - 1] ?? null
+  const resolvedCurrentPageBand = resolvePageBodyMeasurementBand(editorDom, currentPageCount, paginationElement)
+  const lastPageMeasurement =
+    resolvePageBodyMeasurementSummary(pageBodyBands, currentPageCount) ??
+    (resolvedCurrentPageBand
+      ? {
+          pageNumber: currentPageCount,
+          top: resolvedCurrentPageBand.top,
+          bottom: resolvedCurrentPageBand.bottom,
+          physicalHeight: Math.max(1, resolvedCurrentPageBand.bottom - resolvedCurrentPageBand.top),
+          effectiveContentHeight: Math.max(1, resolvedCurrentPageBand.bottom - resolvedCurrentPageBand.top)
+        }
+      : null) ??
+    (fallbackLastBand
+      ? {
+          pageNumber: fallbackLastBand.pageNumber,
+          top: fallbackLastBand.top,
+          bottom: fallbackLastBand.bottom,
+          physicalHeight: Math.max(1, fallbackLastBand.bottom - fallbackLastBand.top),
+          effectiveContentHeight: Math.max(1, fallbackLastBand.bottom - fallbackLastBand.top)
+        }
+      : null)
   const pageContentHeight =
-    lastPageBodyBand === null
+    lastPageMeasurement === null
       ? getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
-      : Math.max(1, lastPageBodyBand.bottom - lastPageBodyBand.top)
+      : lastPageMeasurement.effectiveContentHeight
 
   if (paginationElement) {
-    const canMeasurePagination = lastPageBodyBand !== null && (contentBottom !== null || selectionBottom > 0)
+    const canMeasurePagination = lastPageMeasurement !== null && (contentBottom !== null || selectionBottom > 0)
 
     if (!canMeasurePagination) {
       const resultPageCount = Math.max(1, currentPageCount)
@@ -1660,14 +1813,14 @@ export function calculatePageCount(
         selectionBottom,
         measuredBottom,
         pageContentHeight,
-        lastPageBodyBottom: lastPageBodyBand?.bottom ?? null,
+        lastPageBodyBottom: lastPageMeasurement?.bottom ?? null,
         lastPageGap: null,
         lowerBound: null
       })
       return resultPageCount
     }
 
-    const lastPageGap = measuredBottom - lastPageBodyBand.bottom
+    const lastPageGap = measuredBottom - lastPageMeasurement.bottom
 
     const gapResolution = resolvePageCountFromLastPageGap({
       currentPageCount,
@@ -1688,7 +1841,7 @@ export function calculatePageCount(
         selectionBottom,
         measuredBottom,
         pageContentHeight,
-        lastPageBodyBottom: lastPageBodyBand.bottom,
+        lastPageBodyBottom: lastPageMeasurement.bottom,
         lastPageGap,
         lowerBound: gapResolution.lowerBound
       })
@@ -1706,7 +1859,7 @@ export function calculatePageCount(
         selectionBottom,
         measuredBottom,
         pageContentHeight,
-        lastPageBodyBottom: lastPageBodyBand.bottom,
+        lastPageBodyBottom: lastPageMeasurement.bottom,
         lastPageGap,
         lowerBound: gapResolution.lowerBound
       })
@@ -1723,7 +1876,7 @@ export function calculatePageCount(
       selectionBottom,
       measuredBottom,
       pageContentHeight,
-      lastPageBodyBottom: lastPageBodyBand.bottom,
+      lastPageBodyBottom: lastPageMeasurement.bottom,
       lastPageGap,
       lowerBound: gapResolution.lowerBound
     })

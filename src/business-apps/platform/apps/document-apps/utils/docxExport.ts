@@ -6,6 +6,7 @@
 import DOMPurify from 'dompurify'
 import JSZip from 'jszip'
 import {
+  analyzeImageWrapContour,
   convertWrapPolygonToWordCoordinates,
   resolveWordLikeImageLayout
 } from '@/components/tiptap-extensions/tiptap-custom-image'
@@ -99,15 +100,12 @@ function getWordRotationValue(rotation: number): string {
   return String(Math.round(rotation * 60000))
 }
 
-function getWrapText(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
-  return resolveWordLikeImageLayout(layout).wrapTextSide ?? 'bothSides'
+function getWrapText(layout: ReturnType<typeof resolveWordLikeImageLayout>): string {
+  return layout.wrapTextSide ?? 'bothSides'
 }
 
-function getWrapPolygonXml(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
-  const points = convertWrapPolygonToWordCoordinates(
-    resolveWordLikeImageLayout(layout).wrapPolygon,
-    WRAP_POLYGON_COORDINATE_SPACE
-  )
+function getWrapPolygonXml(layout: ReturnType<typeof resolveWordLikeImageLayout>): string {
+  const points = convertWrapPolygonToWordCoordinates(layout.wrapPolygon, WRAP_POLYGON_COORDINATE_SPACE)
   const start = points[0]
   if (!start) {
     return ''
@@ -121,7 +119,7 @@ function getWrapPolygonXml(layout: ReturnType<typeof getImageFigureAttributesFro
   ].join('')
 }
 
-function getWrapXml(layout: ReturnType<typeof getImageFigureAttributesFromElement>): string {
+function getWrapXml(layout: ReturnType<typeof resolveWordLikeImageLayout>): string {
   if (layout.wrapMode === 'top-bottom') {
     return '<wp:wrapTopAndBottom/>'
   }
@@ -155,6 +153,39 @@ function getHorizontalAlignmentXml(
   }
 
   return `<wp:positionH relativeFrom="${horizontalRef}"><wp:align>${align}</wp:align></wp:positionH>`
+}
+
+async function loadImageForWrapContour(src: string): Promise<HTMLImageElement | null> {
+  if (!src) {
+    return null
+  }
+
+  return new Promise(resolve => {
+    const image = new Image()
+    const timeout = globalThis.setTimeout(() => resolve(null), 100)
+    image.onload = () => {
+      globalThis.clearTimeout(timeout)
+      resolve(image)
+    }
+    image.onerror = () => {
+      globalThis.clearTimeout(timeout)
+      resolve(null)
+    }
+    image.src = src
+  })
+}
+
+async function resolveDocxWordLayout(
+  layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  src: string
+): Promise<ReturnType<typeof resolveWordLikeImageLayout>> {
+  if (layout.wrapMode !== 'tight' && layout.wrapMode !== 'through') {
+    return resolveWordLikeImageLayout(layout)
+  }
+
+  const image = await loadImageForWrapContour(src)
+  const wrapContour = image ? analyzeImageWrapContour(image, layout) : null
+  return resolveWordLikeImageLayout(layout, { wrapContour })
 }
 
 function getCropXml(layout?: ReturnType<typeof getImageFigureAttributesFromElement>) {
@@ -194,6 +225,7 @@ function imageAnchorDrawingXml(
   img: EmbeddedImage,
   docPrId: number,
   layout: ReturnType<typeof getImageFigureAttributesFromElement>,
+  wordLayout: ReturnType<typeof resolveWordLikeImageLayout>,
   rotation: number
 ): string {
   const distT = pxToEmu(layout.distanceTop ?? DOCX_IMAGE_DEFAULTS.distance)
@@ -207,7 +239,7 @@ function imageAnchorDrawingXml(
   const behindDoc = layout.wrapMode === 'behind'
   const horizontalRef = layout.anchorMode === 'fixed' ? 'page' : 'margin'
   const verticalRef = layout.anchorMode === 'fixed' ? 'page' : 'paragraph'
-  const wrapXml = getWrapXml(layout)
+  const wrapXml = getWrapXml(wordLayout)
   const positionH = getHorizontalAlignmentXml(layout, horizontalRef, offsetX)
   const positionV = `<wp:positionV relativeFrom="${verticalRef}"><wp:posOffset>${offsetY}</wp:posOffset></wp:positionV>`
 
@@ -240,10 +272,11 @@ function imageDrawingXml(
   img: EmbeddedImage,
   docPrId: number,
   layout?: ReturnType<typeof getImageFigureAttributesFromElement>,
+  wordLayout?: ReturnType<typeof resolveWordLikeImageLayout>,
   rotation = 0
 ): string {
   return layout && layout.wrapMode !== 'inline'
-    ? imageAnchorDrawingXml(img, docPrId, layout, rotation)
+    ? imageAnchorDrawingXml(img, docPrId, layout, wordLayout ?? resolveWordLikeImageLayout(layout), rotation)
     : imageInlineDrawingXml(img, docPrId, rotation, layout)
 }
 
@@ -253,19 +286,20 @@ function getWordAlignmentValue(align: string | null | undefined): 'left' | 'cent
   return 'left'
 }
 
-function convertFigure(el: HTMLElement, parts: string[], ctx: DocxBuildContext): void {
+async function convertFigure(el: HTMLElement, parts: string[], ctx: DocxBuildContext): Promise<void> {
   const imgEl = el.querySelector('img[src]')
   if (!imgEl) return
 
   const layout = getImageFigureAttributesFromElement(el, DOCX_IMAGE_DEFAULTS)
   const src = imgEl.getAttribute('src') || ''
+  const wordLayout = await resolveDocxWordLayout(layout, src)
   const resolvedDimensions = resolveImageDimensions(layout)
   const width = resolvedDimensions.width ?? DEFAULT_IMG_WIDTH
   const height = resolvedDimensions.height ?? DEFAULT_IMG_HEIGHT
   const img = registerImage(ctx, src, width, height)
   if (!img) return
 
-  parts.push(`<w:p>${imageDrawingXml(img, ctx.images.length, layout, resolvedDimensions.rotation)}</w:p>`)
+  parts.push(`<w:p>${imageDrawingXml(img, ctx.images.length, layout, wordLayout, resolvedDimensions.rotation)}</w:p>`)
 
   if (layout.caption?.trim()) {
     const jc = getWordAlignmentValue(layout.align)
@@ -347,7 +381,7 @@ function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: st
   return result
 }
 
-function convertBlock(parent: Node, parts: string[], ctx: DocxBuildContext): void {
+async function convertBlock(parent: Node, parts: string[], ctx: DocxBuildContext): Promise<void> {
   for (const node of Array.from(parent.childNodes)) {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent?.trim()
@@ -415,14 +449,14 @@ function convertBlock(parent: Node, parts: string[], ctx: DocxBuildContext): voi
           if (el.hasAttribute('data-page-break')) {
             parts.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
           } else {
-            convertBlock(el, parts, ctx)
+            await convertBlock(el, parts, ctx)
           }
           break
         case 'figure':
           if (el.getAttribute('data-node-type') === CUSTOM_IMAGE_TAG) {
-            convertFigure(el, parts, ctx)
+            await convertFigure(el, parts, ctx)
           } else {
-            convertBlock(el, parts, ctx)
+            await convertBlock(el, parts, ctx)
           }
           break
         default:
@@ -595,7 +629,7 @@ export async function buildDocxBlob(title: string, htmlContent: string): Promise
       ALLOW_DATA_ATTR: true
     }) || ''
   const bodyParts: string[] = []
-  convertBlock(tempDiv, bodyParts, ctx)
+  await convertBlock(tempDiv, bodyParts, ctx)
   if (bodyParts.length === 0) bodyParts.push('<w:p/>')
 
   const zip = new JSZip()

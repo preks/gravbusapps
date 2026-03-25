@@ -28,6 +28,10 @@ export function isFloatingWrapMode(wrapMode: CustomImageAttributes['wrapMode']) 
   )
 }
 
+export function isOverlayWrapMode(wrapMode: CustomImageAttributes['wrapMode']) {
+  return wrapMode === 'behind' || wrapMode === 'front'
+}
+
 export function resolveFloatingSide(attributes: Pick<CustomImageAttributes, 'wrapMode' | 'align'>): ImageFloatingSide {
   const wrapMode = normalizeImageWrapMode(attributes.wrapMode, 'inline')
   if (wrapMode === 'square-right') {

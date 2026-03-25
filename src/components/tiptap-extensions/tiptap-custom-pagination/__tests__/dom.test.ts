@@ -213,6 +213,25 @@ describe('createPaginationWrapper', () => {
     expect(secondBreaker.querySelector('.rm-page-header-region[data-rm-page-number="3"]')).not.toBeNull()
   })
 
+  it('creates behind, floating, and front image overlay layers inside each page shell', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    const pageBreak = createPageBreakElement({
+      pageNumber: 1,
+      totalPages: 2,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: [],
+      activeRange: { startPage: 1, endPage: 1 },
+      placeholderBreakerMetrics: null
+    })
+
+    expect(pageBreak.querySelector('.rm-page-image-overlay-layer[data-rm-image-layer="behind"]')).not.toBeNull()
+    expect(pageBreak.querySelector('.rm-page-image-overlay-layer[data-rm-image-layer="floating"]')).not.toBeNull()
+    expect(pageBreak.querySelector('.rm-page-image-overlay-layer[data-rm-image-layer="front"]')).not.toBeNull()
+  })
+
   it('renders leading and trailing spacers when the mounted window sits in the middle', () => {
     const options = createTestOptions()
     const storage = createStorageFromOptions(options)
@@ -460,6 +479,7 @@ describe('windowed pagination renderer state', () => {
     const pageBreak = document.createElement('div')
     const page = document.createElement('div')
     const body = document.createElement('div')
+    const imageOverlay = document.createElement('div')
     const footer = document.createElement('div')
     const header = document.createElement('div')
 
@@ -468,12 +488,15 @@ describe('windowed pagination renderer state', () => {
     page.dataset.rmPageNumber = '2'
     body.className = 'rm-page-body-layer'
     body.dataset.rmPageNumber = '2'
+    imageOverlay.className = 'rm-page-image-overlay-layer'
+    imageOverlay.dataset.rmPageNumber = '2'
+    imageOverlay.dataset.rmImageLayer = 'behind'
     footer.className = 'rm-page-footer-region'
     footer.dataset.rmPageNumber = '2'
     header.className = 'rm-page-header-region'
     header.dataset.rmPageNumber = '3'
 
-    pageBreak.append(page, body, footer, header)
+    pageBreak.append(page, body, imageOverlay, footer, header)
 
     applyWindowAttributesToPageBreak(pageBreak, { startPage: 2, endPage: 2 }, 'window-7')
 
@@ -481,6 +504,7 @@ describe('windowed pagination renderer state', () => {
     expect(pageBreak.dataset.layoutWindowPosition).toBe('inside')
     expect(pageBreak.dataset.layoutWindowKey).toBe('window-7')
     expect(body.dataset.layoutWindowActive).toBe('true')
+    expect(imageOverlay.dataset.layoutWindowActive).toBe('true')
     expect(footer.dataset.layoutWindowActive).toBe('true')
     expect(header.dataset.layoutWindowActive).toBe('false')
     expect(header.dataset.layoutWindowPosition).toBe('after')
