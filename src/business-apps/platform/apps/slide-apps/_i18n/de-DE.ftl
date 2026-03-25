@@ -76,6 +76,8 @@ toast-favorite-removed = Aus Favoriten entfernt
 toast-favorite-added = Zu Favoriten hinzugefügt
 toast-imported-slides = { $count } Folien importiert
 toast-import-failed = PowerPoint-Import fehlgeschlagen
+toast-import-partial = Präsentation erstellt, aber Folieninhalte konnten nicht gespeichert werden. Versuchen Sie, sie erneut zu öffnen und zu speichern.
+import-saving = Präsentation wird gespeichert...
 toast-template-matched = Vorlage wird verwendet: { $name }
 toast-template-applied = Vorlage angewendet
 
@@ -506,6 +508,22 @@ parser-slide-not-found = Folie { $number } nicht gefunden
 parser-no-slides-parsed = Keine Folien konnten geparst werden. Leere Folie erstellt.
 parser-failed = PowerPoint-Datei konnte nicht geparst werden
 parser-imported-slide = Importierte Folie
+parser-shape-unsupported = Formtyp „{ $type }" auf Folie { $slide } wurde als Rechteck importiert
+parser-chart-unsupported = Diagrammtyp „{ $type }" auf Folie { $slide } konnte nicht importiert werden
+parser-chart-imported = { $type }-Diagramm auf Folie { $slide } importiert
+parser-table-imported = Tabelle importiert ({ $rows } Zeilen, { $cols } Spalten) auf Folie { $slide }
+parser-notes-imported = Sprechernotizen für { $count } { $count ->
+    [one] Folie
+   *[other] Folien
+} importiert
+parser-transition-unsupported = Übergang „{ $type }" auf Folie { $slide } wurde angenähert
+parser-group-flattened = Gruppierte Formen auf Folie { $slide } wurden aufgelöst
+parser-theme-mapped = Präsentationsdesign wurde „{ $theme }" zugeordnet
+import-preview-title = Importvorschau
+import-preview-select-slides = Folien zum Import auswählen
+import-preview-selected = { $selected } von { $total } Folien ausgewählt
+import-preview-import-all = Alle importieren
+import-preview-import-selected = Auswahl importieren
 
 # SlidesApiService
 api-error = API-Fehler: { $status }

@@ -76,6 +76,8 @@ toast-favorite-removed = Eliminat din favorite
 toast-favorite-added = Adăugat la favorite
 toast-imported-slides = Importate { $count } slide-uri
 toast-import-failed = Import PowerPoint eșuat
+toast-import-partial = Prezentarea a fost creată, dar conținutul slide-urilor nu a putut fi salvat. Încercați să redeschideți și să resalvați.
+import-saving = Se salvează prezentarea...
 toast-template-matched = Se folosește șablonul: { $name }
 toast-template-applied = Șablon aplicat
 
@@ -487,6 +489,23 @@ parser-slide-not-found = Slide { $number } negăsit
 parser-no-slides-parsed = Nicun slide nu a putut fi parsat. A fost creat un slide gol.
 parser-failed = Fișierul PowerPoint nu a putut fi parsat
 parser-imported-slide = Slide importat
+parser-shape-unsupported = Tipul de formă „{ $type }" de pe slide-ul { $slide } a fost importat ca dreptunghi
+parser-chart-unsupported = Tipul de grafic „{ $type }" de pe slide-ul { $slide } nu a putut fi importat
+parser-chart-imported = Grafic { $type } importat pe slide-ul { $slide }
+parser-table-imported = Tabel importat ({ $rows } rânduri, { $cols } coloane) pe slide-ul { $slide }
+parser-notes-imported = Note de prezentator importate pentru { $count } { $count ->
+    [one] slide
+    [few] slide-uri
+   *[other] de slide-uri
+}
+parser-transition-unsupported = Tranziția „{ $type }" de pe slide-ul { $slide } a fost aproximată
+parser-group-flattened = Formele grupate de pe slide-ul { $slide } au fost degrupate
+parser-theme-mapped = Tema prezentării a fost asociată cu „{ $theme }"
+import-preview-title = Previzualizare import
+import-preview-select-slides = Selectați slide-urile de importat
+import-preview-selected = { $selected } din { $total } slide-uri selectate
+import-preview-import-all = Importă toate
+import-preview-import-selected = Importă selecția
 
 # SlidesApiService
 api-error = Eroare API: { $status }

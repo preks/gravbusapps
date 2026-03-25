@@ -76,6 +76,8 @@ toast-favorite-removed = Removed from favorites
 toast-favorite-added = Added to favorites
 toast-imported-slides = Imported { $count } slides
 toast-import-failed = Failed to import PowerPoint
+toast-import-partial = Presentation created, but slide content could not be saved. Try opening and re-saving.
+import-saving = Saving presentation...
 toast-template-matched = Using template: { $name }
 toast-template-applied = Template applied
 
@@ -509,6 +511,22 @@ parser-slide-not-found = Slide { $number } not found
 parser-no-slides-parsed = No slides could be parsed. Created a blank slide.
 parser-failed = Failed to parse PowerPoint file
 parser-imported-slide = Imported Slide
+parser-shape-unsupported = Shape type "{ $type }" on slide { $slide } was imported as a rectangle
+parser-chart-unsupported = Chart type "{ $type }" on slide { $slide } could not be imported
+parser-chart-imported = Imported { $type } chart on slide { $slide }
+parser-table-imported = Imported table ({ $rows } rows, { $cols } columns) on slide { $slide }
+parser-notes-imported = Imported speaker notes for { $count } { $count ->
+    [one] slide
+   *[other] slides
+}
+parser-transition-unsupported = Transition "{ $type }" on slide { $slide } was approximated
+parser-group-flattened = Grouped shapes on slide { $slide } were ungrouped
+parser-theme-mapped = Presentation theme was mapped to "{ $theme }"
+import-preview-title = Import Preview
+import-preview-select-slides = Select slides to import
+import-preview-selected = { $selected } of { $total } slides selected
+import-preview-import-all = Import All
+import-preview-import-selected = Import Selected
 
 # SlidesApiService (used when throwing to user)
 api-error = API Error: { $status }

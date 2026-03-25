@@ -26,6 +26,7 @@ import type {
 import { gradientToCss } from './slideElements'
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
+import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
 
 const hexToRgba = (hex: string, alpha: number): string => {
   const cleanHex = hex.replace('#', '')
@@ -176,7 +177,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         }
         case 'image':
           return background.imageUrl
-            ? { backgroundImage: `url(${background.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            ? {
+                backgroundImage: `url(${getCachedImageUrl(background.imageUrl)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+              }
             : {}
         case 'video':
           return { backgroundColor: '#000000' }
@@ -1059,7 +1064,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             <>
               {!failedImages.has(element.id) && sanitizeMediaUrl((element as ImageElement).src, ['image/']) ? (
                 <img
-                  src={sanitizeMediaUrl((element as ImageElement).src, ['image/'])}
+                  src={getCachedImageUrl(sanitizeMediaUrl((element as ImageElement).src, ['image/']))}
                   alt={(element as ImageElement).alt}
                   style={{
                     width: '100%',

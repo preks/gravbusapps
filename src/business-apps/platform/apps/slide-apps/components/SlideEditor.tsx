@@ -40,7 +40,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { Slide as SlideType } from '../types'
 import { SlidesApiService } from '../services'
 import { SlideCanvas } from './SlideCanvas'
-import { SlideChartRenderer } from './SlideChartRenderer'
+import { SlideThumbnail } from './SlideThumbnail'
 import { PropertyPanel } from './PropertyPanel'
 import { CollaboratorCursors } from './CollaboratorCursors'
 import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
@@ -50,6 +50,7 @@ import { SLIDE_THEMES, getThemeById } from './slideThemes'
 import { SlideToolbarRibbon } from './toolbar'
 import { useToolbarContext } from '../hooks/useToolbarContext'
 import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
+import { clearImageObjectUrlCache } from '../hooks/useImageObjectUrls'
 import { usePresentationCast, type CastSlideData } from '../hooks/usePresentationCast'
 import { useEffectManager } from '../hooks/useEffectManager'
 import { useSpeechMatcher, type MatchResult, type VideoTriggerResult } from '../hooks/useSpeechMatcher'
@@ -60,7 +61,6 @@ import {
   type AnySlideElement,
   type SlideData,
   type SlideTransition,
-  type ChartElement,
   createTextElement,
   createImageElement,
   createVideoElement,
@@ -715,6 +715,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   useEffect(() => {
     canSnapshotSaveRef.current = isSynced && isInitialized
   }, [isSynced, isInitialized])
+
+  // Cancel pending snapshot save and release cached Object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (snapshotSaveTimeoutRef.current) {
+        clearTimeout(snapshotSaveTimeoutRef.current)
+        snapshotSaveTimeoutRef.current = null
+      }
+      clearImageObjectUrlCache()
+    }
+  }, [])
 
   // Set initial save time when collaboration syncs
   useEffect(() => {
@@ -2376,132 +2387,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                       isDraggedOver ? 'gba:border-primary gba:border-dashed gba:bg-primary/10' : ''
                     }`}
                   >
-                    {/* Mini Preview - CSS transform for accurate rendering */}
-                    <div
-                      className="gba:relative gba:overflow-hidden"
-                      style={{
-                        width: '100%',
-                        aspectRatio: '16 / 9'
-                      }}
-                    >
-                      {/* Scaled canvas container */}
-                      <div
-                        className="gba:absolute gba:inset-0"
-                        style={(() => {
-                          const bg = s.background
-                          if (!bg) return { backgroundColor: '#fff' }
-
-                          switch (bg.type) {
-                            case 'gradient':
-                              return bg.gradient ? { background: gradientToCss(bg.gradient) } : {}
-                            case 'branded': {
-                              const layers: string[] = []
-                              if (bg.overlay) {
-                                layers.push(gradientToCss(bg.overlay))
-                              }
-                              if (bg.gradient) {
-                                layers.push(gradientToCss(bg.gradient))
-                              }
-                              const baseColor = bg.color || '#0a0a0a'
-                              if (layers.length > 0) {
-                                return { background: `${layers.join(', ')}, ${baseColor}` }
-                              }
-                              return { backgroundColor: baseColor }
-                            }
-                            case 'image':
-                              return bg.imageUrl
-                                ? {
-                                    backgroundImage: `url(${bg.imageUrl})`,
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: 'center'
-                                  }
-                                : {}
-                            default:
-                              return { backgroundColor: bg.color || '#ffffff' }
-                          }
-                        })()}
-                      >
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: 1280,
-                            height: 720,
-                            transform: `scale(${thumbScale})`,
-                            transformOrigin: 'top left'
-                          }}
-                        >
-                          {[...(s.elements || [])]
-                            .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
-                            .map(el => (
-                              <div
-                                key={el.id}
-                                className="gba:absolute"
-                                style={{
-                                  left: el.position.x,
-                                  top: el.position.y,
-                                  width: el.size.width,
-                                  height: el.size.height,
-                                  zIndex: el.zIndex || 0,
-                                  backgroundColor:
-                                    el.type === 'shape' && !(el as any).gradient ? (el as any).fill : 'transparent',
-                                  background:
-                                    el.type === 'shape' && (el as any).gradient
-                                      ? gradientToCss((el as any).gradient)
-                                      : undefined,
-                                  borderRadius:
-                                    el.type === 'shape'
-                                      ? (el as any).shapeType === 'circle' || (el as any).shapeType === 'ellipse'
-                                        ? '50%'
-                                        : (el as any).cornerRadius || (el as any).borderRadius
-                                      : undefined,
-                                  overflow: el.type === 'text' ? 'hidden' : undefined
-                                }}
-                              >
-                                {el.type === 'text' && (
-                                  <div
-                                    className="gba:w-full gba:h-full gba:overflow-hidden gba:whitespace-pre-wrap"
-                                    style={{
-                                      color: (el as any).color,
-                                      fontSize: (el as any).fontSize,
-                                      fontWeight: (el as any).fontWeight,
-                                      fontFamily: (el as any).fontFamily,
-                                      textAlign: (el as any).textAlign,
-                                      lineHeight: (el as any).lineHeight || 1.2,
-                                      background: (el as any).gradient ? gradientToCss((el as any).gradient) : undefined
-                                    }}
-                                  >
-                                    {(el as any).content}
-                                  </div>
-                                )}
-                                {el.type === 'image' && sanitizeMediaUrl((el as any).src, ['image/']) && (
-                                  <img
-                                    // nosemgrep: react-insecure-url
-                                    // snyk-ignore: URL is validated by sanitizeMediaUrl
-                                    src={sanitizeMediaUrl((el as any).src, ['image/'])}
-                                    alt=""
-                                    className="gba:w-full gba:h-full gba:object-cover"
-                                  />
-                                )}
-                                {el.type === 'chart' && (
-                                  <SlideChartRenderer
-                                    element={el as ChartElement}
-                                    width={el.size.width}
-                                    height={el.size.height}
-                                  />
-                                )}
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                      {/* Slide number overlay */}
-                      <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
-                        <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">
-                          {idx + 1}
-                        </span>
-                      </div>
-                    </div>
+                    <SlideThumbnail slide={s} index={idx} thumbScale={thumbScale} />
                   </div>
                 )
               })}
@@ -2576,6 +2462,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 }}
               >
                 <SlideCanvas
+                  key={currentSlide.id || currentSlideIndex}
                   elements={currentSlide.elements}
                   selectedIds={selectedElementIds}
                   background={currentSlide.background}

@@ -368,7 +368,9 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
 
     const handleSlidesChange = () => {
       const newSlides = yjsToSlides(ySlides)
-      // Only update if slides actually changed (compare stringified versions to avoid unnecessary updates)
+      // Don't reset to empty — the Yjs doc starts empty before sync/bootstrap.
+      // Overwriting with [] would lose the REST-loaded initial slides.
+      if (newSlides.length === 0) return
       setSlides(prevSlides => {
         const prevJson = JSON.stringify(prevSlides)
         const newJson = JSON.stringify(newSlides)
