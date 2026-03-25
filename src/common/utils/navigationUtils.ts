@@ -191,7 +191,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.OFFICE_EMAILS]: 'core/office/apps/emails',
   [Navigation.OFFICE_EMAILS_OAUTH_CALLBACK]: 'core/office/apps/emails',
   [Navigation.OFFICE_NOTES]: 'core/office/apps/notes',
-  [Navigation.OFFICE_SLIDES]: 'platform/apps/slide-apps',
+  [Navigation.OFFICE_SLIDES]: 'core/office/apps/slides',
   [Navigation.OFFICE_SPACES]: 'core/office/apps/spaces',
   [Navigation.OFFICE_SPREADSHEETS]: 'core/office/apps/spreadsheets',
 
