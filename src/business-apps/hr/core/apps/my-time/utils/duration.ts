@@ -53,6 +53,16 @@ export const minutesToHHMM = (minutes: number): string => {
 }
 
 /**
+ * Convert total minutes to signed "HH:MM" string, preserving negative values.
+ * Use for difference/delta fields where negative is meaningful.
+ * Examples: -60 -> "-01:00", 90 -> "01:30", 0 -> "00:00"
+ */
+export const minutesToSignedHHMM = (minutes: number): string => {
+  if (minutes < 0) return `-${minutesToHHMM(Math.abs(minutes))}`
+  return minutesToHHMM(minutes)
+}
+
+/**
  * Parse any duration string from BE and return normalized "HH:MM" for display.
  * Handles "HH:MM", "Xh Ym"/"Xh", and negative (e.g. "-30m" -> "-00:30").
  */

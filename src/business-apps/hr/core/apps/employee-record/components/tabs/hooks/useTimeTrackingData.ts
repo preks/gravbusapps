@@ -15,7 +15,11 @@ import { GET_EMPLOYEE_ABSENCES } from '@/business-apps/hr/absences/apps/personal
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
-import { parseDurationToMinutes, minutesToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
+import {
+  parseDurationToMinutes,
+  minutesToHHMM,
+  minutesToSignedHHMM
+} from '@/business-apps/hr/core/apps/my-time/utils/duration'
 
 export type TimeEntry = {
   id: string
@@ -574,7 +578,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           effectiveTime: minutesToHHMM(effectiveMinutes),
           breakTime: minutesToHHMM(breakMinutes),
           plannedTime: minutesToHHMM(plannedMinutes),
-          differenceTime: minutesToHHMM(diffMinutes),
+          differenceTime: minutesToSignedHHMM(diffMinutes),
           notes: 'Clock-out'
         }
       })

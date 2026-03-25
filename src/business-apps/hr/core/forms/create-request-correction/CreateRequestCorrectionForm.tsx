@@ -20,13 +20,47 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import translations from '../_i18n'
-import { parseDurationToMinutes, minutesToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
+import {
+  parseDurationToMinutes,
+  minutesToHHMM,
+  minutesToSignedHHMM
+} from '@/business-apps/hr/core/apps/my-time/utils/duration'
 import {
   employeeAttendanceMonthlyAllQuery,
   employeeRegionLookupQuery,
   employmentRegionHolidaysQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { getEmployeeAbsences } from '@/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeAbsences'
+import { GET_EMPLOYEE_WEEKLY_SCHEDULE } from '@/business-apps/hr/core/apps/employee-record/queries/queries'
+
+type WeeklyWorkingHours = {
+  sundayHours?: number
+  mondayHours?: number
+  tuesdayHours?: number
+  wednesdayHours?: number
+  thursdayHours?: number
+  fridayHours?: number
+  saturdayHours?: number
+}
+
+const getPlannedMinutesForDate = (dateIso: string, wh?: WeeklyWorkingHours): number => {
+  if (!wh || !dateIso) return 0
+  const d = new Date(dateIso)
+  const day = d.getUTCDay()
+  const hoursByDay = [
+    wh.sundayHours,
+    wh.mondayHours,
+    wh.tuesdayHours,
+    wh.wednesdayHours,
+    wh.thursdayHours,
+    wh.fridayHours,
+    wh.saturdayHours
+  ]
+  const hours = hoursByDay[day] ?? 0
+  return typeof hours === 'number' ? Math.max(0, Math.round(hours * 60)) : 0
+}
+
+const DEFAULT_BREAK_TIME = '01:00'
 
 // Query to fetch employee header info
 const GET_EMPLOYEE_HEADER_INFO = `
@@ -65,6 +99,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   })
   const [submitting, setSubmitting] = useState(false)
   const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeInfo | undefined>(undefined)
+  const [workingHours, setWorkingHours] = useState<WeeklyWorkingHours | undefined>(undefined)
   const [disabledDatesSet, setDisabledDatesSet] = useState<Set<string>>(new Set())
   const [absenceDatesSet, setAbsenceDatesSet] = useState<Set<string>>(new Set())
 
@@ -103,6 +138,22 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   useEffect(() => {
     fetchEmployeeHeaderInfo()
   }, [fetchEmployeeHeaderInfo])
+
+  useEffect(() => {
+    if (!accessToken || !resolvedEmployeeId) return
+    const fetchWorkingHours = async () => {
+      try {
+        const res = await graphqlClient.request<any>(GET_EMPLOYEE_WEEKLY_SCHEDULE, {
+          employeeId: resolvedEmployeeId
+        })
+        const wh = res?.Employee?.[0]?.workingHours?.[0]
+        if (wh) setWorkingHours(wh)
+      } catch {
+        // Non-critical: planned time will fall back to 0
+      }
+    }
+    fetchWorkingHours()
+  }, [accessToken, resolvedEmployeeId, graphqlClient])
 
   const toLocalDateKey = (d: Date): string => {
     const y = d.getFullYear()
@@ -170,13 +221,11 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
 
         const absences: any[] = absencesRes?.EmployeeAbsence ?? []
         const approvedAbsences = absences.filter((a: any) => String(a.status).toUpperCase() === 'APPROVED')
+        const WORK_ABSENCE_GROUP = 'AbsenceGroup:v1:WORK'
         const isBlockingAbsence = (a: any): boolean => {
-          const translations: { value?: string }[] = a?.type?.translations ?? []
-          const objVal = String(a?.type?.objectValue ?? '').toLowerCase()
-          const allText = translations.map(tr => String(tr?.value ?? '').toLowerCase()).join(' ') + ' ' + objVal
-          const nonBlockingPatterns =
-            /\b(remote|home\s*office|telearbeit|lucru\s*de\s*acas[aă]|relocare|relocation|telemunc[aă])\b/
-          return !nonBlockingPatterns.test(allText)
+          const parentEntryId = a?.type?.parentEntryId
+          if (parentEntryId === WORK_ABSENCE_GROUP) return false
+          return true
         }
         const blockingAbsences = approvedAbsences.filter(isBlockingAbsence)
         blockingAbsences.forEach((a: { startDate: string; endDate: string }) => {
@@ -291,6 +340,13 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     )
   }, [dateVal, clockInVal, clockOutVal, notesVal, initialValues])
 
+  // const isZeroPlannedDay = useMemo(() => {
+  //   if (!dateVal || !workingHours) return false
+  //   const dateIso = toUtcMidnightIso(dateVal)
+  //   if (!dateIso) return false
+  //   return getPlannedMinutesForDate(dateIso, workingHours) === 0
+  // }, [dateVal, workingHours])
+
   const isDateAbsence = useMemo(() => {
     if (!dateVal) return false
     let key = ''
@@ -374,15 +430,6 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return m ? m[1] : ''
   }
 
-  // Format minutes as HH:MM for BE; negative difference as "-HH:MM"
-  const minutesToHHMMPayload = (minutes: number): string => {
-    const abs = Math.abs(Math.floor(minutes))
-    const h = Math.floor(abs / 60)
-    const m = abs % 60
-    const str = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
-    return minutes < 0 ? `-${str}` : str
-  }
-
   // Render the calendar with a preselected date, constrained behavior, and selection handling
   const renderCalendar = useCallback(
     (field: any) => {
@@ -405,10 +452,8 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
             const start = new Date()
             start.setDate(1)
             start.setHours(0, 0, 0, 0)
-            const end = new Date(start)
-            end.setMonth(end.getMonth() + 1)
-            end.setDate(0)
-            end.setHours(23, 59, 59, 999)
+            const today = new Date()
+            today.setHours(23, 59, 59, 999)
 
             const rangeMatchers: ({ before?: Date; after?: Date } | ((date: Date) => boolean))[] =
               platformParams.attendanceDateISO
@@ -416,7 +461,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
                     const d = new Date(platformParams.attendanceDateISO)
                     return [{ before: d }, { after: d }]
                   })()
-                : [{ before: start }, { after: end }]
+                : [{ before: start }, { after: today }]
 
             // When user can pick any date in the month, disable only dates that already have an attendance entry
             if (!platformParams.attendanceDateISO) {
@@ -454,16 +499,20 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
       const nowIso = new Date().toISOString()
 
       const payloadObject = additionalData?.psi_taskPayload?.psi_initialParameters
+      const externalContext = additionalData?.externalContextData || {}
       const requestEmployeeId = payloadObject?.employeeId
 
-      // Recalculate recorded/effective/difference, keep planned as original value
       const recordedMinutes = Math.max(
         0,
         Math.round((new Date(endTimeISO).getTime() - new Date(startTimeISO).getTime()) / 60000)
       )
-      const breakMinutes = parseDurationToMinutes(payloadObject?.breakTime || '0h')
+      const breakTimeRaw = payloadObject?.breakTime || externalContext.breakTime || DEFAULT_BREAK_TIME
+      const breakMinutes = parseDurationToMinutes(breakTimeRaw)
       const effectiveMinutes = Math.max(0, recordedMinutes - breakMinutes)
-      const plannedMinutes = parseDurationToMinutes(payloadObject?.plannedTime || '0h')
+      const plannedTimeRaw = payloadObject?.plannedTime || externalContext.plannedTime
+      const plannedMinutes = plannedTimeRaw
+        ? parseDurationToMinutes(plannedTimeRaw)
+        : getPlannedMinutesForDate(attendanceDateISO, workingHours)
       const differenceMinutes = effectiveMinutes - plannedMinutes
 
       const payload = {
@@ -484,7 +533,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           breakTime: minutesToHHMM(breakMinutes),
           effectiveTime: minutesToHHMM(effectiveMinutes),
           plannedTime: minutesToHHMM(plannedMinutes),
-          differenceTime: minutesToHHMMPayload(differenceMinutes)
+          differenceTime: minutesToSignedHHMM(differenceMinutes)
         },
         employeeInfo: {
           userId: payloadObject?.userId,
@@ -552,6 +601,8 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
                     // no-op
                   }
                   if (key && absenceDatesSet.has(key)) return t('request-correction-date-absence-error')
+                  if (key && getPlannedMinutesForDate(toUtcMidnightIso(key), workingHours) === 0)
+                    return t('request-correction-zero-planned-warning')
                   return true
                 }
               }}
@@ -562,11 +613,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
                     <span className="gba:text-destructive">*</span>
                   </FormLabel>
                   <FormControl>
-                    <div data-testid="rcf-date">
-                      {/** Ensure the preselected date from props is visually selected */}
-                      {/** Prefer platform-provided attendance date; fallback to field value */}
-                      {renderCalendar(field)}
-                    </div>
+                    <div data-testid="rcf-date">{renderCalendar(field)}</div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -643,6 +690,12 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
               )}
             />
           </div>
+
+          {/* {isZeroPlannedDay && !isDateAbsence && (
+            <p className="gba:text-sm gba:text-warning" data-testid="rcf-zero-planned-warning">
+              {t('request-correction-zero-planned-warning')}
+            </p>
+          )} */}
 
           <FormField
             control={form.control as any}
