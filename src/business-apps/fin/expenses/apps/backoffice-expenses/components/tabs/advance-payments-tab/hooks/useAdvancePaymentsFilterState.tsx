@@ -12,6 +12,11 @@ import { getCurrencyLabel, getDepartmentLabel } from '../../common/backofficeFil
 import MinMaxNumberFilter from '../../common/MinMaxNumberFilter'
 import DepartmentSelectFilter from '../../common/DepartmentSelectFilter'
 import CurrencySelectFilter from '../../common/CurrencySelectFilter'
+import {
+  buildSelectedAdvancePaymentFilters,
+  hasActiveAdvancePaymentFilters,
+  type AdvancePaymentFilterState
+} from './advancePaymentQueryBuilder'
 
 interface DepartmentOption {
   id: string
@@ -135,31 +140,34 @@ export function useAdvancePaymentsFilterState({
     ))
   }, [handleReporterClick, reporterSearchLoading, reporterSearchResults, selectedReporters, t])
 
-  const hasActiveFilters = useMemo(() => {
-    return (
-      statusFilter.length > 0 ||
-      reporterFilter.trim() !== '' ||
-      amountMinFilter.trim() !== '' ||
-      amountMaxFilter.trim() !== '' ||
-      advanceMinFilter.trim() !== '' ||
-      advanceMaxFilter.trim() !== '' ||
-      currencyRef.trim() !== '' ||
-      departmentId.trim() !== '' ||
-      dateFrom.trim() !== '' ||
-      dateTo.trim() !== ''
-    )
-  }, [
-    advanceMaxFilter,
-    advanceMinFilter,
-    amountMaxFilter,
-    amountMinFilter,
-    currencyRef,
-    dateFrom,
-    dateTo,
-    departmentId,
-    reporterFilter,
-    statusFilter
-  ])
+  const filterState = useMemo<AdvancePaymentFilterState>(
+    () => ({
+      statusFilter,
+      reporterFilter,
+      currencyRef,
+      departmentId,
+      dateFrom,
+      dateTo,
+      amountMinFilter,
+      amountMaxFilter,
+      advanceMinFilter,
+      advanceMaxFilter
+    }),
+    [
+      statusFilter,
+      reporterFilter,
+      currencyRef,
+      departmentId,
+      dateFrom,
+      dateTo,
+      amountMinFilter,
+      amountMaxFilter,
+      advanceMinFilter,
+      advanceMaxFilter
+    ]
+  )
+
+  const hasActiveFilters = useMemo(() => hasActiveAdvancePaymentFilters(filterState), [filterState])
 
   const filterGroups: DataFilterGroup[] = useMemo(
     () => [
@@ -321,29 +329,7 @@ export function useAdvancePaymentsFilterState({
     ]
   )
 
-  const selectedFilters = useMemo(
-    () => [
-      ...statusFilter,
-      ...(reporterFilter ? ['reporter'] : []),
-      ...(currencyRef ? ['currency'] : []),
-      ...(departmentId ? ['department'] : []),
-      ...(dateFrom || dateTo ? ['dateRange'] : []),
-      ...(amountMinFilter || amountMaxFilter ? ['amount'] : []),
-      ...(advanceMinFilter || advanceMaxFilter ? ['advance'] : [])
-    ],
-    [
-      advanceMaxFilter,
-      advanceMinFilter,
-      amountMaxFilter,
-      amountMinFilter,
-      currencyRef,
-      dateFrom,
-      dateTo,
-      departmentId,
-      reporterFilter,
-      statusFilter
-    ]
-  )
+  const selectedFilters = useMemo(() => buildSelectedAdvancePaymentFilters(filterState), [filterState])
 
   const filterLabelMap = useMemo(
     () => ({
@@ -454,21 +440,20 @@ export function useAdvancePaymentsFilterState({
     ]
   )
 
+  const queryFilterState = useMemo<AdvancePaymentFilterState>(
+    () => ({
+      ...filterState,
+      amountMinFilter: debouncedAmountMin,
+      amountMaxFilter: debouncedAmountMax,
+      advanceMinFilter: debouncedAdvanceMin,
+      advanceMaxFilter: debouncedAdvanceMax
+    }),
+    [debouncedAdvanceMax, debouncedAdvanceMin, debouncedAmountMax, debouncedAmountMin, filterState]
+  )
+
   return {
-    statusFilter,
-    amountMinFilter,
-    amountMaxFilter,
-    advanceMinFilter,
-    advanceMaxFilter,
-    reporterFilter,
-    currencyRef,
-    departmentId,
-    dateFrom,
-    dateTo,
-    debouncedAmountMin,
-    debouncedAmountMax,
-    debouncedAdvanceMin,
-    debouncedAdvanceMax,
+    filterState,
+    queryFilterState,
     filterGroups,
     selectedFilters,
     filterLabelMap,

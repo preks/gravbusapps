@@ -15,6 +15,7 @@ import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOp
 import type { AdvancePaymentItem } from '../../../types'
 import type { FetchPaymentsOptions } from '../../../hooks/useAdvancePayment'
 import { useAdvancePaymentsFilterState } from './hooks/useAdvancePaymentsFilterState'
+import { buildAdvancePaymentFetchOptions } from './hooks/advancePaymentQueryBuilder'
 import AdvancePaymentsDataBody from './components/AdvancePaymentsDataBody'
 import AdvancePaymentsDetailsSheet from './components/AdvancePaymentsDetailsSheet'
 
@@ -61,16 +62,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   const debouncedSearchText = useDebounce(searchText, 300)
   const {
-    statusFilter,
-    reporterFilter,
-    currencyRef,
-    departmentId,
-    dateFrom,
-    dateTo,
-    debouncedAmountMin,
-    debouncedAmountMax,
-    debouncedAdvanceMin,
-    debouncedAdvanceMax,
+    queryFilterState,
     filterGroups,
     selectedFilters,
     filterLabelMap,
@@ -87,37 +79,15 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   })
 
   useEffect(() => {
-    fetchPayments({
+    const fetchOptions = buildAdvancePaymentFetchOptions({
       searchTerm: debouncedSearchText,
       page: currentPage,
       pageSize,
-      status: statusFilter.length > 0 ? statusFilter.join(',') : undefined,
-      amountMin: debouncedAmountMin,
-      amountMax: debouncedAmountMax,
-      advanceMin: debouncedAdvanceMin,
-      advanceMax: debouncedAdvanceMax,
-      reporter: reporterFilter,
-      currencyRef: currencyRef || undefined,
-      departmentId: departmentId || undefined,
-      dateFrom: dateFrom || undefined,
-      dateTo: dateTo || undefined
+      filters: queryFilterState
     })
-  }, [
-    debouncedSearchText,
-    currentPage,
-    pageSize,
-    statusFilter,
-    debouncedAmountMin,
-    debouncedAmountMax,
-    debouncedAdvanceMin,
-    debouncedAdvanceMax,
-    reporterFilter,
-    currencyRef,
-    departmentId,
-    dateFrom,
-    dateTo,
-    fetchPayments
-  ])
+
+    fetchPayments(fetchOptions)
+  }, [debouncedSearchText, currentPage, pageSize, queryFilterState, fetchPayments])
 
   useEffect(() => {
     const normalizedSearch = search ?? ''
