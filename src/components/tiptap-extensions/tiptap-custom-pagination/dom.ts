@@ -414,7 +414,11 @@ function createPageRangeSpacer(params: {
   const pageSegmentHeights: number[] = []
 
   const preservedHeight = spacerHeightsByRange.get(createPageRangeKey(startPage, endPage))
-  let totalHeight = Number.isFinite(preservedHeight) ? (preservedHeight ?? 0) : 0
+  const validPreservedHeight =
+    typeof preservedHeight === 'number' && Number.isFinite(preservedHeight) && preservedHeight > 0
+      ? preservedHeight
+      : undefined
+  let totalHeight = validPreservedHeight ?? 0
   if (!Number.isFinite(totalHeight) || totalHeight <= 0) {
     totalHeight = 0
   }
@@ -435,7 +439,7 @@ function createPageRangeSpacer(params: {
       )
     pageSegmentHeights.push(pageHeight)
 
-    if (!Number.isFinite(preservedHeight) || preservedHeight <= 0) {
+    if (validPreservedHeight === undefined) {
       totalHeight += pageHeight
     }
   }
@@ -1391,7 +1395,7 @@ export function applyWindowAttributesToPageBreak(
     return 'inside'
   }
 
-  const markerTargets = pageBreakEl.querySelectorAll(
+  const markerTargets = pageBreakEl.querySelectorAll<HTMLElement>(
     '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
   )
 
