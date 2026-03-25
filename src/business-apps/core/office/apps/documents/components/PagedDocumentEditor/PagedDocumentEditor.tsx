@@ -182,7 +182,8 @@ const DOCUMENT_LIVE_SYNC_POLL_INTERVAL_MS = 8000
 
 /**
  * When true, poll the document API while Yjs reports synced (emergency fallback).
- * Off by default.
+ * Off by default — keep false in production unless Yjs is proven unavailable; polling
+ * duplicates full-document work and fights collaborative state.
  */
 const ENABLE_DOCUMENT_LIVE_SYNC_POLL_FALLBACK = false
 function useNavigationPanelState(): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
@@ -221,6 +222,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     ref
   ) {
     const { t } = useTranslation(translations)
+    const translateRef = useRef(t)
+    translateRef.current = t
+    const translateStable = useCallback((key: string) => translateRef.current(key), [])
     const officeClient = useOfficeClient(accessTokenProp)
     // Editor state
     const [title, setTitle] = useState(document?.title || initialTitle || t('title-untitled-document'))
@@ -244,6 +248,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const pendingRemoteContentRef = useRef<string | null>(null)
     const pendingRemoteTitleRef = useRef<string | null>(null)
     const pendingRemoteApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    /** Latest Yjs sync flag for socket handlers defined before `useYjsDocumentSync`. */
+    const isYjsSyncedRef = useRef(false)
 
     useEffect(() => {
       lastRemoteUpdateMsRef.current = parseIsoDateMs(document?.updatedAt)
@@ -278,7 +284,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               ALLOW_DATA_ATTR: true
             }) || '<p></p>'
           const currentHtml = editorRef.current.getHTML?.() || ''
-          if (latestHtml && latestHtml !== currentHtml) {
+          if (!isYjsSyncedRef.current && latestHtml && latestHtml !== currentHtml) {
             isApplyingRemoteContentRef.current = true
             editorRef.current.commands?.setContent?.(latestHtml, false)
             queueMicrotask(() => {
@@ -339,6 +345,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const formattingYMap = React.useMemo(() => ydoc.getMap('documentFormatting'), [ydoc])
     const metaYMap = React.useMemo(() => ydoc.getMap('documentMeta'), [ydoc])
 
+    useEffect(() => {
+      return () => {
+        try {
+          awareness.destroy()
+        } catch {
+          // ignore
+        }
+        try {
+          ydoc.destroy()
+        } catch {
+          // ignore
+        }
+      }
+    }, [ydoc, awareness])
+
     const onErrorCallback = useCallback((error: Error) => {
       console.error('[PagedDocumentEditor] Collaboration error:', error)
     }, [])
@@ -394,6 +415,20 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         const nextHtml = typeof operationData?.content === 'string' ? operationData.content : null
         if (!nextHtml) return
         const nextTitle = typeof operationData?.title === 'string' ? operationData.title : null
+
+        if (isYjsSyncedRef.current) {
+          if (pendingRemoteApplyTimeoutRef.current) {
+            clearTimeout(pendingRemoteApplyTimeoutRef.current)
+            pendingRemoteApplyTimeoutRef.current = null
+          }
+          pendingRemoteContentRef.current = null
+          pendingRemoteTitleRef.current = null
+          if (nextTitle) {
+            setTitle(prev => (prev === nextTitle ? prev : nextTitle))
+          }
+          return
+        }
+
         const typingAgeMs = Date.now() - lastLocalTypingMsRef.current
         if (typingAgeMs < DOCUMENT_REMOTE_TYPING_GUARD_MS) {
           pendingRemoteContentRef.current = nextHtml
@@ -657,6 +692,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setLastSaved,
       setHasUnsavedChanges
     })
+
+    useEffect(() => {
+      isYjsSyncedRef.current = isYjsSynced
+    }, [isYjsSynced])
+
     const { persistFormatting } = useSyncPagedDocumentFormatting({
       documentId: document?.id,
       documentFormatting: document?.formatting,
@@ -836,7 +876,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       onEditorUpdateRef: editorOnUpdateRef,
       onActiveEditorChange: handlePagesActiveEditorChange,
       onCommentClick: handleOpenCommentThread,
-      translate: t,
+      translate: translateStable,
       handlePaste: imageHandlers.handlePaste,
       handleDrop: imageHandlers.handleDrop,
       autocompleteSuggestionRef,
