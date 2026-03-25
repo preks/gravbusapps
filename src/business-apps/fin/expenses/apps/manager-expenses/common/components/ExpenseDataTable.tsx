@@ -18,11 +18,6 @@ export interface ExpenseDataTableProps<T = unknown> {
   dataTestId?: string
 }
 
-function normalizeTotalCountForDataTable(value: number | undefined): number {
-  const n = typeof value === 'number' ? value : Number(value)
-  return Number.isFinite(n) ? n : 0
-}
-
 export function ExpenseDataTable<T extends { id?: string }>(props: Readonly<ExpenseDataTableProps<T>>) {
   const {
     data,
@@ -40,20 +35,17 @@ export function ExpenseDataTable<T extends { id?: string }>(props: Readonly<Expe
     dataTestId = 'expense-data-table'
   } = props
 
-  const safeTotalCount = normalizeTotalCountForDataTable(totalCount)
-
   return (
     <DataTable<T>
       data={data}
       columns={columns}
       loading={loading}
       error={error ?? undefined}
-      totalCount={safeTotalCount}
+      totalCount={totalCount}
       sorting={sorting}
       onSortingChange={onSortingChange}
       pagination={pagination}
       onPaginationChange={onPaginationChange}
-      rowsPerPage={pagination?.pageSize}
       enablePagination
       enableSorting
       enableSelection={false}
