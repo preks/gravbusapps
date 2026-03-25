@@ -61,7 +61,7 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
     DocumentImage.configure({
       getAccessToken: () => accessToken,
       isProtectedSrc: isDocumentImageProtectedSrc,
-      resolveProtectedSrc: (src, token) => resolveProtectedDocumentImageSrc(src, token),
+      resolveProtectedSrc: resolveProtectedDocumentImageSrc,
       HTMLAttributes: {
         class: 'editor-image'
       }
