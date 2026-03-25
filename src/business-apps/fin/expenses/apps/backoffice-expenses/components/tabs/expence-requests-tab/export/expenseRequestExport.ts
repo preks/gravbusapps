@@ -1,49 +1,14 @@
 import { useCallback, useState } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EXPENSE_REQUESTS } from '../../../queries'
-import type { ExpenseRequestQueryData, ExpenseData } from '../../../types'
+import { GET_EXPENSE_REQUESTS } from '../../../../queries'
+import type { ExpenseRequestQueryData, ExpenseData } from '../../../../types'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
-import { formatDateLocalized } from '../../../utils/dateUtils'
-import { getExpenseRequestStatusDisplay, type ExpenseStatus, type TranslateFn } from '../../../utils/utils'
-import { downloadCsv, downloadExcel, buildFilename } from '../../../utils/exportUtils'
-import { buildEmployeeDisplayName } from '../../../hooks/backofficeReportUtils'
+import { getErrorMessage } from '../../../../utils/errorUtils'
+import { mapExpenseRequest } from '../data/mapExpenseRequest'
+import { getExpenseRequestStatusDisplay, type ExpenseStatus, type TranslateFn } from '../../../../utils/utils'
+import { downloadCsv, downloadExcel, buildFilename } from '../../../../utils/exportUtils'
 import { toast, useTranslation } from '@newwork/nw-design-system'
-import translations from '../../../_i18n'
-
-export const transformExpenseRequest = (item: any, t: TranslateFn): ExpenseData => ({
-  id: item.id,
-  expenseId: String(item.id ?? '-'),
-  code: item.code ?? '-',
-  sapNumber: item.employee?.hrReferenceCode ?? '-',
-  employee: buildEmployeeDisplayName(item.employee) || '-',
-  employeeCode: item.employee?.code ?? '-',
-  title: item.title ?? '-',
-  department: item.employee?.employeePosition?.costCenter?.name ?? '-',
-  startDate: formatDateLocalized(item.startDate, t),
-  endDate: formatDateLocalized(item.endDate, t),
-  requestDate: formatDateLocalized(item.requestDate, t),
-  reporter: buildEmployeeDisplayName(item.employee) || '-',
-  type: item.requestType?.value ?? '-',
-  amount: String(item.totalAmount ?? 0),
-  advance: item.advancePaymentPaidAmount ?? 0,
-  payableAmount: String(item.payableAmount ?? 0),
-  paymentMethod: item.paymentMethod ?? '-',
-  employeeId: item.employee?.id ?? '-',
-  version: String(item.version ?? ''),
-  currencyRef: item.currencyRef ?? '',
-  typeRef: item.typeRef ?? '',
-  requestTypeRef: item.requestTypeRef ?? '',
-  totalRemainingAmount: item.totalRemainingAmount ?? 0,
-  userId: item.userId ?? '-',
-  expenseRuleId: item.expenseRuleId ?? '-',
-  totalAmount: item.totalAmount ?? 0,
-  reimbursableAmount: item.reimbursableAmount,
-  currency: { code: item.currency?.code ?? '' },
-  status: item.status ?? '',
-  creationDate: formatDateLocalized(item.createdAt, t),
-  employeeDocumentId: item.employeeDocumentId ?? '-',
-  documentData: item.documentData
-})
+import translations from '../../../../_i18n'
 
 export const getExportColumns = (t: (key: string) => string) => [
   { key: 'employee', title: t('header-employee') },
@@ -72,7 +37,7 @@ const formatExpenseForExport = (expense: ExpenseData, t: TranslateFn) => ({
   endDate: expense.endDate,
   requestDate: expense.requestDate,
   totalRemainingAmount: expense.totalRemainingAmount ? formatNumberFunction(String(expense.totalRemainingAmount)) : '0',
-  totalAmount: expense.reimbursableAmount ? formatNumberFunction(String(expense.reimbursableAmount)) : '0',
+  totalAmount: formatNumberFunction(String(expense.totalAmount ?? 0)),
   currency: expense.currency?.code || '-',
   status: getExpenseRequestStatusDisplay(expense.status as ExpenseStatus, t).label,
   creationDate: expense.creationDate
@@ -111,7 +76,7 @@ export function useExpenseRequestExport({
 
       if (!responseData?.ExpenseRequest || responseData.ExpenseRequest.length === 0) break
 
-      allExpenses.push(...responseData.ExpenseRequest.map((item: any) => transformExpenseRequest(item, t)))
+      allExpenses.push(...responseData.ExpenseRequest.map(item => mapExpenseRequest(item, t)))
 
       if (responseData.ExpenseRequest.length < batchLimit) break
       offset += batchLimit
@@ -156,7 +121,7 @@ export function useExpenseRequestExport({
           description: t('export-success-description', { count: formattedData.length, format: formatLabel })
         })
       } catch (err) {
-        console.error(`[EXPORT ${formatLabel}] Error during export:`, err)
+        console.error(`[EXPORT ${formatLabel}] Error during export:`, getErrorMessage(err))
         toast.error(t('export-failed-title'), {
           description: t('export-failed-description', {
             format: formatLabel,
