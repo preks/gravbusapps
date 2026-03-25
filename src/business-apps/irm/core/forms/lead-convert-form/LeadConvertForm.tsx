@@ -12,7 +12,10 @@ import {
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout/leadConvertSchema'
 import { accountSchema } from '@/common/components/common-relations/form-layouts/account-layout'
 import { contactSchema } from '@/common/components/common-relations/form-layouts/contact-layout'
-import { opportunitySchema } from '@/common/components/common-relations/form-layouts/opportunity-layout'
+import {
+  opportunitySchemaBase,
+  addPipelineStageRefinement
+} from '@/common/components/common-relations/form-layouts/opportunity-layout'
 import { useInvestmentAccountsList } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { useInvestmentContactsList } from '@/common/data/investment/hooks/useInvestmentContacts'
 import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
@@ -68,13 +71,19 @@ import {
 } from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/extractProspectFields'
 
 // IRM-specific schema extension for Opportunity (adds investment fields)
-const baseInvestmentOpportunitySchema = opportunitySchema.extend({
+// Use opportunitySchemaBase (without refinements) to allow extension
+const baseInvestmentOpportunitySchema = opportunitySchemaBase.extend({
   investmentName: z.string().min(1, 'Investment Name is required'),
   dealType: z.string().nullable().optional()
 })
 
-// Create investment opportunity schema with investmentTypeId
-const investmentOpportunitySchema = createInvestmentOpportunitySchema(baseInvestmentOpportunitySchema)
+// Create investment opportunity schema with investmentTypeId (without refinements yet)
+const investmentOpportunitySchemaWithoutRefinement = createInvestmentOpportunitySchema(baseInvestmentOpportunitySchema)
+
+// Apply pipeline/stage validation refinement as the final step
+const investmentOpportunitySchema = addPipelineStageRefinement(
+  investmentOpportunitySchemaWithoutRefinement as any
+) as typeof investmentOpportunitySchemaWithoutRefinement
 
 type ConvertLeadFormData = LeadConvertSchema
 
@@ -178,13 +187,13 @@ export const ConvertInvestmentLeadForm = ({
   // Convert group/type to investmentTypeId for baseOpportunityValues
   const baseOpportunityValuesWithTypeId = useMemo(() => {
     if (
-      baseOpportunityValues.investmentGroupRef ||
-      baseOpportunityValues.investmentTypeRef ||
+      (baseOpportunityValues as any).investmentGroupRef ||
+      (baseOpportunityValues as any).investmentTypeRef ||
       (leadData as any)?.investmentGroupRef ||
       (leadData as any)?.investmentTypeRef
     ) {
-      const groupId = baseOpportunityValues.investmentGroupRef || (leadData as any)?.investmentGroupRef || null
-      const typeId = baseOpportunityValues.investmentTypeRef || (leadData as any)?.investmentTypeRef || null
+      const groupId = (baseOpportunityValues as any).investmentGroupRef || (leadData as any)?.investmentGroupRef || null
+      const typeId = (baseOpportunityValues as any).investmentTypeRef || (leadData as any)?.investmentTypeRef || null
       const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
       return {
         ...baseOpportunityValues,
@@ -220,7 +229,7 @@ export const ConvertInvestmentLeadForm = ({
   })
 
   // Watch investmentTypeId from form (after form is created)
-  const watchedInvestmentTypeId = opportunityForm.watch('investmentTypeId')
+  const watchedInvestmentTypeId = (opportunityForm as any).watch('investmentTypeId')
 
   // Get effective type ID from form or initial value
   const effectiveTypeId = watchedInvestmentTypeId || initialEffectiveTypeId || null
@@ -368,7 +377,7 @@ export const ConvertInvestmentLeadForm = ({
   const updateDynamicFieldsFromLeadData = useCallback(() => {
     if (!opportunityForm) return null
 
-    const currentValues = opportunityForm.getValues()
+    const currentValues = opportunityForm.getValues() as any
     const updatedValues = { ...currentValues }
 
     const formInvestmentTypeId = currentValues.investmentTypeId || null
@@ -420,37 +429,23 @@ export const ConvertInvestmentLeadForm = ({
     updateDynamicFieldsFromLeadData
   ])
 
-  // Use central hooks for accounts and contacts - extract refetch directly
-  const {
-    accounts: accountsList,
-    total: accountsTotal,
-    loading: accountsLoading,
-    error: accountsError,
-    refetch: refetchAccounts
-  } = useInvestmentAccountsList(businessAppContext, { limit: 20 })
+  // Accounts with infinite scroll
+  const accountsData = useInvestmentAccountsList(businessAppContext, { limit: 20 })
+  const accountsList = accountsData.accounts as any[]
+  const accountsLoading = accountsData.loading
+  const accountsError = accountsData.error
+  const searchAccounts = accountsData.search
+  const loadMoreAccounts = accountsData.loadMore
+  const hasMoreAccounts = accountsData.hasMore
 
-  const {
-    contacts: contactsList,
-    total: contactsTotal,
-    loading: contactsLoading,
-    error: contactsError,
-    refetch: refetchContacts
-  } = useInvestmentContactsList(businessAppContext, { limit: 20 })
-
-  // Memoize search functions to prevent re-renders - use refetch directly
-  const searchAccounts = useCallback(
-    (search: string) => {
-      refetchAccounts({ search, limit: 20, offset: 0 })
-    },
-    [refetchAccounts]
-  )
-
-  const searchContacts = useCallback(
-    (search: string) => {
-      refetchContacts({ search, limit: 20, offset: 0 })
-    },
-    [refetchContacts]
-  )
+  // Contacts with infinite scroll
+  const contactsData = useInvestmentContactsList(businessAppContext, { limit: 20 })
+  const contactsList = contactsData.contacts as any[]
+  const contactsLoading = contactsData.loading
+  const contactsError = contactsData.error
+  const searchContacts = contactsData.search
+  const loadMoreContacts = contactsData.loadMore
+  const hasMoreContacts = contactsData.hasMore
 
   // Transform accounts to SelectOption[] (like AccountInformationSegment does)
   const accountOptions = useMemo<AccountSelectOption[]>(() => {
@@ -601,9 +596,13 @@ export const ConvertInvestmentLeadForm = ({
           accounts={accountOptions}
           isLoadingAccounts={accountsLoading}
           searchAccounts={searchAccounts}
+          hasMoreAccounts={hasMoreAccounts}
+          onLoadMoreAccounts={loadMoreAccounts}
           contacts={contactOptions}
           isLoadingContacts={contactsLoading}
           searchContacts={searchContacts}
+          hasMoreContacts={hasMoreContacts}
+          onLoadMoreContacts={loadMoreContacts}
           loading={loading}
         />
       )
@@ -629,10 +628,13 @@ export const ConvertInvestmentLeadForm = ({
                 contacts: contactsList,
                 loading: contactsLoading,
                 error: contactsError,
-                refetch: refetchContacts
+                hasMore: hasMoreContacts,
+                search: searchContacts,
+                loadMore: loadMoreContacts
               }}
               loading={loading}
               avatarFileRef={accountAvatarFileRef}
+              accountContext="irm"
             />
           </CatalogSelect.Provider>
         )
@@ -656,7 +658,9 @@ export const ConvertInvestmentLeadForm = ({
                 accounts: accountsList,
                 loading: accountsLoading,
                 error: accountsError,
-                refetch: refetchAccounts
+                hasMore: hasMoreAccounts,
+                search: searchAccounts,
+                loadMore: loadMoreAccounts
               }}
               loading={loading}
               avatarFileRef={contactAvatarFileRef}
@@ -681,17 +685,19 @@ export const ConvertInvestmentLeadForm = ({
               ownerEmployee={leadData?.ownerEmployee}
               useAccounts={{
                 accounts: accountsList,
-                total: accountsTotal,
                 loading: accountsLoading,
                 error: accountsError,
-                refetch: refetchAccounts
+                hasMore: hasMoreAccounts,
+                search: searchAccounts,
+                loadMore: loadMoreAccounts
               }}
               useContacts={{
                 contacts: contactsList,
-                total: contactsTotal,
                 loading: contactsLoading,
                 error: contactsError,
-                refetch: refetchContacts
+                hasMore: hasMoreContacts,
+                search: searchContacts,
+                loadMore: loadMoreContacts
               }}
               loading={!isOpportunityFormReady}
               pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
@@ -733,20 +739,20 @@ export const ConvertInvestmentLeadForm = ({
     accountsLoading,
     contactsLoading,
     searchAccounts,
+    loadMoreAccounts,
+    hasMoreAccounts,
     searchContacts,
+    loadMoreContacts,
+    hasMoreContacts,
     businessAppContext,
     accountForm,
     contactForm,
     opportunityForm,
     leadData?.ownerEmployee?.id,
     contactsList.length,
-    contactsTotal,
     contactsError,
-    refetchContacts,
     accountsList.length,
-    accountsTotal,
     accountsError,
-    refetchAccounts,
     loading,
     baseOpportunityValuesWithTypeId.investmentTypeId,
     formFieldsDefinition ? JSON.stringify(formFieldsDefinition) : null,
@@ -800,7 +806,7 @@ export const ConvertInvestmentLeadForm = ({
       // For opportunity: merge base form values with dynamic prospect fields
       const opportunity = data.createOpportunity
         ? (() => {
-            const opportunityValues = opportunityForm.getValues()
+            const opportunityValues = opportunityForm.getValues() as any
             const prospectFields = extractProspectFieldsFromFormValues(opportunityValues, formFieldsDefinition)
 
             // Convert investmentTypeId back to group/type for payload

@@ -1,5 +1,3 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-
 export interface HasEmployeeDocument {
   code?: string | null
   employeeDocument?: {
@@ -51,18 +49,22 @@ const extractFileNameFromPath = (fileUrl: string): string | null => {
 /**
  * Gets file name from employee document record.
  * Prioritizes the name field from query results, falls back to URL extraction if needed.
+ *
+ * @param record - The employee document record
+ * @param t - Translation function for fallback labels
+ * @param fallbackKey - Optional FTL key for the fallback label
+ * @param fallbackDefault - Optional default string if no translation key is provided
  */
 export const getFileNameFromEmployeeDocument = (
   record: HasEmployeeDocument,
-  fallbackTranslationKey?: string,
+  t?: (key: string, vars?: Record<string, unknown>) => string,
+  fallbackKey?: string,
   fallbackDefault?: string
 ): string => {
-  // First priority: use name from query results (most reliable)
   const name = record.employeeDocument?.name
   const trimmedName = typeof name === 'string' ? name.trim() : ''
   if (trimmedName) return trimmedName
 
-  // Second priority: extract from file URL if available
   const file = record.employeeDocument?.file
   const trimmedFile = typeof file === 'string' ? file.trim() : ''
   if (trimmedFile) {
@@ -73,14 +75,12 @@ export const getFileNameFromEmployeeDocument = (
     if (pathFileName) return pathFileName
   }
 
-  // Third priority: use code as fallback
   const code = record.code
   const trimmedCode = typeof code === 'string' ? code.trim() : ''
   if (trimmedCode) return `${trimmedCode}.pdf`
 
-  // Last resort: use translation or default
-  if (fallbackTranslationKey) {
-    return getTranslationFromI18nKeyAndLabel(fallbackTranslationKey, fallbackDefault || 'document.pdf')
+  if (fallbackKey && t) {
+    return t(fallbackKey)
   }
 
   return fallbackDefault || 'document.pdf'

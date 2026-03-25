@@ -1,14 +1,15 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { CatalogSelect } from '@/components/catalog-select'
 import { useCreateCatalogEntries } from '@/common/data/catalog/hooks/useCreateCatalogEntries'
+import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildFileUrl } from '@/common/utils/fileUtils'
@@ -16,6 +17,7 @@ import ArticleSegment from './segments/ArticleSegment'
 import QuestionSegment from './segments/QuestionSegment'
 import DocumentSegment from './segments/DocumentSegment'
 import GlossarySegment from './segments/GlossarySegment'
+import PolicySegment from './segments/PolicySegment'
 import translations from './_i18n'
 
 export interface ContentEntryWindowProps extends BusinessAppContextProps {
@@ -45,11 +47,38 @@ export interface ContentEntryFormValues {
   tags: string[] | undefined
 }
 
+/** Ensures value is full ISO Instant for backend (java.time.Instant). Passes through if already ISO; converts date-only (YYYY-MM-DD) or Date. */
+function toInstantStartOfDay(value: Date | string | null | undefined): string | null {
+  if (value == null || value === '') return null
+  if (typeof value === 'string' && value.includes('T')) return value
+  const dateOnly = typeof value === 'string' ? value.slice(0, 10) : value.toISOString().slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) return null
+  return `${dateOnly}T00:00:00.000Z`
+}
+
+function useStableArray<T>(next: T[] | undefined): T[] | undefined {
+  const ref = useRef<T[] | undefined>(undefined)
+  if (!arraysEqual(ref.current, next)) {
+    ref.current = next
+  }
+  return ref.current
+}
+
+function arraysEqual<T>(a: T[] | undefined, b: T[] | undefined): boolean {
+  if (a === b) return true
+  if (!a || !b || a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
 const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => {
   const { t } = useTranslation(translations)
   const catalogContext = CatalogSelect.useContext()
   const { validateField } = CatalogSelect.useValidation()
   const { createCatalogEntries } = useCreateCatalogEntries(context)
+  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: context.accessToken || '' })
   const fileClient = useFileClient(context)
   // Extract props to mark as used
   const { contentId, contentGroupRef } = context
@@ -224,7 +253,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           allowComment: z.boolean(),
           allowReaction: z.boolean(),
           startDate: z.union([z.date(), z.string()]).nullable(),
-          endDate: z.union([z.date(), z.string()]).nullable(),
+          endDate: z.union([z.date(), z.string()]).nullable().optional(),
           schedulePublication: z.boolean(),
           categories: z.array(z.string()).optional(),
           tags: z.array(z.string()).optional()
@@ -326,15 +355,35 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       return mappedFormValues
     }
 
-    // Otherwise use defaults
-    return {
+    // For new entries, check additionalData for initial values from flow proposals
+    const additionalData = context.additionalData
+    // Use nullish coalescing to preserve empty strings but default to empty string if undefined
+    const initialTitle = additionalData?.title ?? additionalData?.contentEntry?.title ?? ''
+    const initialPreview =
+      additionalData?.preview ?? additionalData?.previewText ?? additionalData?.contentEntry?.preview ?? ''
+    const initialContent = additionalData?.content ?? additionalData?.contentEntry?.content ?? ''
+    const initialRole = additionalData?.role ?? additionalData?.contentEntry?.role ?? undefined
+    const initialContentGroupRef =
+      additionalData?.contentGroupRef ?? additionalData?.contentEntry?.contentGroupRef ?? extractedContentGroupRef ?? ''
+    const rawInitialContentTypeRef =
+      additionalData?.contentTypeRef ??
+      additionalData?.contentEntry?.contentTypeRef ??
+      additionalData?.contentEntry?.contentType ??
+      additionalData?.contentEntry?.contentTypeName ??
+      ''
+    const initialContentTypeRef = initialContentGroupRef ? rawInitialContentTypeRef : ''
+
+    const isPolicy = initialContentGroupRef === ContentGroup.POLICY
+
+    const defaults = {
       id: '',
       version: 0,
-      title: '',
-      previewText: '',
-      content: '',
-      contentGroupRef: extractedContentGroupRef || '',
-      contentTypeRef: '',
+      title: initialTitle,
+      previewText: initialPreview,
+      content: initialContent,
+      contentGroupRef: initialContentGroupRef,
+      contentTypeRef: initialContentTypeRef,
+      role: initialRole,
       tags: [],
       categories: [],
       contentImage: null,
@@ -344,10 +393,12 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       allowReaction: true,
       author: authorName,
       schedulePublication: false,
-      startDate: null,
+      startDate: isPolicy ? new Date().toISOString().replace('Z', '+00:00') : null,
       endDate: null
     }
-  }, [mappedFormValues, extractedContentGroupRef, authorName])
+
+    return defaults
+  }, [mappedFormValues, extractedContentGroupRef, authorName, context.additionalData])
 
   const form = useForm<ContentEntryFormValues, any, ContentEntryFormValues>({
     resolver: zodResolver(schema) as any,
@@ -409,6 +460,141 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       form.reset(formValues)
     }
   }, [loadedContentEntry?.id, authorName, form])
+
+  // Sync initial values from additionalData for new entries (flow proposals)
+  useEffect(() => {
+    // Skip if we have a loaded entry (update mode) - that's handled by the other useEffect
+    if (loadedContentEntry?.id || !context.additionalData) {
+      return
+    }
+
+    const additionalData = context.additionalData
+
+    // Extract initial values from additionalData (support multiple formats)
+    const initialTitle = additionalData.title ?? additionalData.contentEntry?.title ?? null
+    const initialPreview =
+      additionalData.preview ?? additionalData.previewText ?? additionalData.contentEntry?.preview ?? null
+    const initialContent = additionalData.content ?? additionalData.contentEntry?.content ?? null
+    const initialContentGroupRef =
+      additionalData.contentGroupRef ?? additionalData.contentEntry?.contentGroupRef ?? extractedContentGroupRef ?? null
+    const initialRole = additionalData.role ?? additionalData.contentEntry?.role ?? null
+    const rawInitialContentTypeRef =
+      additionalData.contentTypeRef ??
+      additionalData.contentEntry?.contentTypeRef ??
+      additionalData.contentEntry?.contentType ??
+      additionalData.contentEntry?.contentTypeName ??
+      null
+    const initialContentTypeRef = initialContentGroupRef ? rawInitialContentTypeRef : null
+
+    // Skip if no values to set
+    if (
+      !initialTitle &&
+      !initialPreview &&
+      !initialContent &&
+      !initialContentGroupRef &&
+      !initialContentTypeRef &&
+      !initialRole
+    ) {
+      return
+    }
+
+    // Get current form values
+    const currentTitle = form.getValues('title')
+    const currentPreview = form.getValues('previewText')
+    const currentContent = form.getValues('content')
+    const currentContentGroupRef = form.getValues('contentGroupRef')
+    const currentRole = form.getValues('role')
+    const currentContentTypeRef = form.getValues('contentTypeRef')
+
+    // Update fields that need to be changed
+    if (initialTitle !== null && initialTitle !== currentTitle) {
+      form.setValue('title', initialTitle, { shouldDirty: false, shouldValidate: false })
+    }
+
+    if (initialPreview !== null && initialPreview !== currentPreview) {
+      form.setValue('previewText', initialPreview, { shouldDirty: false, shouldValidate: false })
+    }
+
+    if (initialContent !== null && initialContent !== currentContent) {
+      form.setValue('content', initialContent, { shouldDirty: false, shouldValidate: false })
+    }
+
+    if (initialContentGroupRef !== null && initialContentGroupRef !== currentContentGroupRef) {
+      form.setValue('contentGroupRef', initialContentGroupRef, { shouldDirty: false, shouldValidate: false })
+    }
+
+    if (initialContentTypeRef !== null && initialContentTypeRef !== currentContentTypeRef) {
+      form.setValue('contentTypeRef', initialContentTypeRef, { shouldDirty: false, shouldValidate: false })
+    }
+
+    if (initialRole !== null && initialRole !== currentRole) {
+      form.setValue('role', initialRole, { shouldDirty: false, shouldValidate: false })
+    }
+  }, [loadedContentEntry?.id, context.additionalData, extractedContentGroupRef, form])
+
+  const contentTypeResolutionRef = useRef(false)
+  useEffect(() => {
+    if (contentTypeResolutionRef.current) return
+    if (loadedContentEntry?.id) return
+    if (!context.additionalData || !context.accessToken) return
+
+    const additionalData = context.additionalData
+    const rawContentType =
+      additionalData.contentTypeRef ??
+      additionalData.contentEntry?.contentTypeRef ??
+      additionalData.contentEntry?.contentType ??
+      additionalData.contentEntry?.contentTypeName ??
+      null
+    const contentGroupRef =
+      additionalData.contentGroupRef ?? additionalData.contentEntry?.contentGroupRef ?? extractedContentGroupRef ?? null
+
+    if (!rawContentType || !contentGroupRef) return
+
+    const isLikelyId =
+      typeof rawContentType === 'string' && (rawContentType.includes(':') || /^[0-9a-fA-F-]{36}$/.test(rawContentType))
+    if (isLikelyId) {
+      contentTypeResolutionRef.current = true
+      return
+    }
+
+    const currentContentTypeRef = form.getValues('contentTypeRef')
+    if (currentContentTypeRef && currentContentTypeRef !== rawContentType) return
+
+    const resolveContentTypeRef = async () => {
+      try {
+        const response = await fetchCatalogEntriesByIdentifier('ContentType', {
+          version: 'v1',
+          search: String(rawContentType),
+          parentEntryId: String(contentGroupRef),
+          limit: 25,
+          offset: 0
+        })
+        const entries = response.entries || []
+        if (entries.length === 0) return
+
+        const lowerNeedle = String(rawContentType).toLowerCase()
+        const exactMatch =
+          entries.find(entry => entry.value?.toLowerCase() === lowerNeedle) ||
+          entries.find(entry => entry.code?.toLowerCase() === lowerNeedle)
+        const resolved = exactMatch?.id || entries[0]?.id
+        if (resolved) {
+          form.setValue('contentTypeRef', resolved, { shouldDirty: false, shouldValidate: false })
+          contentTypeResolutionRef.current = true
+        }
+      } catch (error) {
+        console.error('[ContentEntryWindow] Failed to resolve content type ref:', error)
+      }
+    }
+
+    resolveContentTypeRef()
+  }, [
+    loadedContentEntry?.id,
+    context.additionalData,
+    context.accessToken,
+    extractedContentGroupRef,
+    form,
+    fetchCatalogEntriesByIdentifier
+  ])
 
   // Separate useEffect for image loading (following ArticleView pattern)
   useEffect(() => {
@@ -488,15 +674,18 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     }
   }, [loadedContentEntry?.picture, context.accessToken])
 
-  const { control, watch, setValue } = form
-  const watchContentGroupRef = watch('contentGroupRef')
-  const watchTitle = watch('title')
-  const watchPreviewText = watch('previewText')
-  const watchContent = watch('content')
-  const watchSchedulePublication = watch('schedulePublication')
-  const watchContentTypeRef = watch('contentTypeRef')
-  const watchCategories = watch('categories')
-  const watchTags = watch('tags')
+  const { control, setValue } = form
+  const watchContentGroupRef = useWatch({ control, name: 'contentGroupRef' })
+  const watchTitle = useWatch({ control, name: 'title' })
+  const watchPreviewText = useWatch({ control, name: 'previewText' })
+  const watchSchedulePublication = useWatch({ control, name: 'schedulePublication' })
+  const watchContentTypeRef = useWatch({ control, name: 'contentTypeRef' })
+  const watchCategories = useWatch({ control, name: 'categories' })
+  const watchTags = useWatch({ control, name: 'tags' })
+  const watchDisplayAuthor = useWatch({ control, name: 'displayAuthor' })
+
+  const stableWatchCategories = useStableArray(watchCategories)
+  const stableWatchTags = useStableArray(watchTags)
 
   // Handler for AI-generated catalog fields (must be after form initialization)
   const handleContentTypeRefChange = useCallback(
@@ -572,17 +761,27 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const currentSegment = useMemo(() => {
     if (!watchContentGroupRef) return 'article'
 
-    if (watchContentGroupRef === 'ContentGroup:v1:QUESTION') {
+    if (watchContentGroupRef === ContentGroup.QUESTION) {
       return 'question'
-    } else if (watchContentGroupRef === 'ContentGroup:v1:DOCUMENT') {
+    } else if (watchContentGroupRef === ContentGroup.DOCUMENT) {
       return 'document'
-    } else if (watchContentGroupRef === 'ContentGroup:v1:GLOSSARY') {
+    } else if (watchContentGroupRef === ContentGroup.GLOSSARY) {
       return 'glossary'
+    } else if (watchContentGroupRef === ContentGroup.POLICY) {
+      return 'policy'
     } else {
       // NEWS, KNOWLEDGE, INTRANET use article segment
       return 'article'
     }
   }, [watchContentGroupRef])
+
+  useEffect(() => {
+    if (currentSegment !== 'glossary' || !watchContentTypeRef) {
+      return
+    }
+
+    setValue('contentTypeRef', '', { shouldValidate: false })
+  }, [currentSegment, watchContentTypeRef, setValue])
 
   // Register form with catalog provider
   useEffect(() => {
@@ -608,6 +807,17 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       }
     }
   }, [extractedContentGroupRef, extractedContentId, form])
+
+  // Policy: default Valid From to today when creating new policy and startDate is empty
+  useEffect(() => {
+    if (
+      currentSegment === 'policy' &&
+      !contentEntryId &&
+      (form.getValues('startDate') == null || form.getValues('startDate') === '')
+    ) {
+      form.setValue('startDate', new Date().toISOString().replace('Z', '+00:00'))
+    }
+  }, [currentSegment, contentEntryId, form])
 
   // Helper: Upload image file
   const uploadImageFile = useCallback(
@@ -818,15 +1028,15 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       // Employee relations
       ...(isUpdate ? { updaterEmployeeId: employeeId } : { creatorEmployeeId: employeeId }),
 
-      // Settings
+      // Settings - Policies: always disable comments and reactions
       displayCreator: data.displayAuthor,
       displayUpdater: false,
-      allowComment: data.allowComment,
-      allowReaction: data.allowReaction,
+      allowComment: data.contentGroupRef === ContentGroup.POLICY ? false : data.allowComment,
+      allowReaction: data.contentGroupRef === ContentGroup.POLICY ? false : data.allowReaction,
 
-      // Optional fields
-      activeFrom: data.startDate || null,
-      activeTo: data.endDate || null,
+      // Optional fields (backend expects java.time.Instant, not date-only string)
+      activeFrom: toInstantStartOfDay(data.startDate) ?? null,
+      activeTo: toInstantStartOfDay(data.endDate) ?? null,
 
       // Bulk Operations: Categories
       ...(data.categories &&
@@ -887,11 +1097,10 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             setImageFile={setImageFile}
             watchTitle={watchTitle}
             watchPreviewText={watchPreviewText}
-            watchContent={watchContent}
             watchSchedulePublication={watchSchedulePublication}
             watchContentTypeRef={watchContentTypeRef}
-            watchCategories={watchCategories}
-            watchTags={watchTags}
+            watchCategories={stableWatchCategories}
+            watchTags={stableWatchTags}
             setValue={setValue}
             context={context}
             extractedContentGroupRef={extractedContentGroupRef}
@@ -921,7 +1130,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         {currentSegment === 'document' && (
           <DocumentSegment
             control={control}
-            watchDisplayAuthor={watch('displayAuthor')}
+            watchDisplayAuthor={watchDisplayAuthor}
             authorName={authorName}
             image={image}
             setImage={setImage}
@@ -944,6 +1153,29 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             onCreateTag={onCreateTag}
             onCategoriesChange={handleCategoriesChange}
             onTagsChange={handleTagsChange}
+          />
+        )}
+
+        {currentSegment === 'policy' && (
+          <PolicySegment
+            control={control}
+            watchTitle={watchTitle}
+            watchPreviewText={watchPreviewText}
+            watchContentTypeRef={watchContentTypeRef}
+            watchCategories={stableWatchCategories}
+            watchTags={stableWatchTags}
+            setValue={setValue}
+            context={context}
+            extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
+            onContentTypeRefChange={handleContentTypeRefChange}
+            onContentCategoryRefsChange={handleContentCategoryRefsChange}
+            onContentCategoryNamesChange={handleContentCategoryNamesChange}
+            onContentTagRefsChange={handleContentTagRefsChange}
+            onContentTagNamesChange={handleContentTagNamesChange}
           />
         )}
       </div>

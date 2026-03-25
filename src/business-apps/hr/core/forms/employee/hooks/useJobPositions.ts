@@ -76,8 +76,6 @@ export const useJobPositions = ({
     if (currentSearch !== search || currentOrgUnitId !== organizationalUnitId) {
       setCurrentSearch(search)
       setCurrentOrgUnitId(organizationalUnitId)
-      setJobPositions([])
-      setAllJobPositions([])
       setOffset(0)
       setHasMore(true)
       setTotal(0)
@@ -150,8 +148,6 @@ export const useJobPositions = ({
   // Search job positions
   const searchPositions = useCallback((searchTerm?: string) => {
     setCurrentSearch(searchTerm)
-    setJobPositions([])
-    setAllJobPositions([])
     setOffset(0)
     setHasMore(true)
     setTotal(0)

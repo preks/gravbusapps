@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { PiCaretUp, PiCaretDown } from 'react-icons/pi'
+import { CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { cn } from '../../common/utils/cn'
 import { DebouncedInput } from './DebouncedInput'
@@ -34,6 +34,10 @@ export interface DataFilterGroup {
    * If true, hides the search input for this filter group
    */
   hideSearch?: boolean
+  /**
+   * Optional message when no filters are shown (e.g. "Type to search for an employee")
+   */
+  emptyMessage?: string
 }
 
 /**
@@ -59,6 +63,8 @@ export interface DataFilterProps {
   onClose: () => void
   filterGroups?: DataFilterGroup[]
   onFilterChange?: (filterId: string, selected: boolean) => void
+  /** Called when user types in a group's search box; use to sync search for backend-search groups (e.g. employee). */
+  onGroupSearchChange?: (groupId: string, value: string) => void
   className?: string
   children?: React.ReactNode
 }
@@ -67,6 +73,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
   show,
   filterGroups = [],
   onFilterChange,
+  onGroupSearchChange,
   className = '',
   children
 }) => {
@@ -101,6 +108,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
   // Handle per-group search input changes
   const handleGroupSearchChange = (groupId: string, value: string) => {
     setGroupSearchQueries(prev => ({ ...prev, [groupId]: value }))
+    onGroupSearchChange?.(groupId, value)
   }
 
   if (!show) return null
@@ -145,7 +153,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
           data-testid="data-filter-form"
         >
           <div
-            className="gba:flex gba:flex-col gba:w-full gba:gap-1 gba:overflow-y-auto gba:grow"
+            className="gba:flex gba:flex-col gba:w-full gba:min-w-0 gba:gap-1 gba:grow gba:overflow-y-auto gba:overflow-x-hidden"
             data-testid="data-filter-groups-container"
           >
             {filteredGroups.map(group => {
@@ -228,21 +236,24 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                   </button>
                 ))
               } else {
-                filterContent = (
+                const suppressBackendEmpty = typeof group.backendSearch === 'function' && !group.emptyMessage
+
+                filterContent = suppressBackendEmpty ? null : (
                   <div
                     className="gba:p-2 gba:text-gray-400 gba:text-sm"
                     data-testid={`data-filter-group-empty-${group.id}`}
                   >
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_management_hub_backoffice.absence_details.no_filters_found',
-                      'No filters found'
-                    )}
+                    {group.emptyMessage ??
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_management_hub_backoffice.absence_details.no_filters_found',
+                        'No filters found'
+                      )}
                   </div>
                 )
               }
 
               return (
-                <div key={group.id} className="gba:w-full" data-testid={`data-filter-group-${group.id}`}>
+                <div key={group.id} className="gba:w-full gba:min-w-0" data-testid={`data-filter-group-${group.id}`}>
                   <button
                     className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:w-full gba:pt-2 gba:!pl-2 gba:!pr-2 gba:!pb-[14px] gba:hover:bg-gray-100/50 gba:transition-colors gba:!border-b gba:!border-gray-200"
                     onClick={() => toggleGroup(group.id)}
@@ -269,22 +280,25 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         </div>
                       )}
                       {isExpanded ? (
-                        <PiCaretUp size={20} className="gba:text-black" aria-hidden="true" />
+                        <CaretUpIcon size={20} className="gba:text-black" aria-hidden="true" />
                       ) : (
-                        <PiCaretDown size={20} className="gba:text-black" aria-hidden="true" />
+                        <CaretDownIcon size={20} className="gba:text-black" aria-hidden="true" />
                       )}
                     </div>
                   </button>
 
                   {isExpanded && (
                     <div
-                      className="gba:flex gba:flex-col gba:w-full gba:pl-2"
+                      className="gba:flex gba:flex-col gba:w-full gba:min-w-0 gba:max-w-full gba:pl-2"
                       id={groupId}
                       data-testid={`data-filter-group-content-${group.id}`}
                     >
                       {/* Render custom component if provided */}
                       {group.customComponent ? (
-                        <div className="gba:w-full gba:mt-1" data-testid={`data-filter-group-custom-${group.id}`}>
+                        <div
+                          className="gba:w-full gba:min-w-0 gba:max-w-full gba:mt-1"
+                          data-testid={`data-filter-group-custom-${group.id}`}
+                        >
                           {group.customComponent}
                         </div>
                       ) : (

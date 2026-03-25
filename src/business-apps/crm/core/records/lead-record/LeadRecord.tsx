@@ -11,7 +11,7 @@ import {
   IconAvatar,
   HeaderSlot
 } from '@newwork/nw-design-system'
-import { UserIcon, FileTextIcon, FlagIcon, RobotIcon } from '@phosphor-icons/react'
+import { UserIcon, FileTextIcon, FlagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -23,7 +23,8 @@ import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { APPROVAL_TASK_TYPE_REF } from '@/common/data/customer/constants/customerConstants'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
 import { StatusProgression } from './components/StatusProgression'
 import { HomeView } from './views/home-view/HomeView'
@@ -253,32 +254,14 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     [leadData]
   )
 
-  const headerActions = useMemo(() => {
-    const actions: AiAction[] = [
-      {
-        key: 'ai-summary',
-        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <RobotIcon size={16} />,
-        hook: aiSummaryHook,
-        config: {
-          entityType: 'lead',
-          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
-          loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-            'crm.ai.summary.lead.subtitle',
-            'Analyzing lead data and activities'
-          )
-        }
-      }
-    ]
-
-    return (
-      <AiActions
-        actions={actions}
-        dataTestId={`lead-update-button-${leadId}`}
-        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
-      />
-    )
-  }, [aiSummaryHook, leadId])
+  const headerActions = (
+    <AiActions
+      entityType="lead"
+      entityId={leadId}
+      features={['summary', 'meeting-planner']}
+      hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+    />
+  )
 
   // Calculate leadName early for use in headerActionButton
   const leadName =
@@ -362,8 +345,8 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         leadId,
-        typeRef: 'SalesTaskType:v1:APPROVAL',
-        salesTask: { lead: leadId, type: 'SalesTaskType:v1:APPROVAL' }
+        typeRef: APPROVAL_TASK_TYPE_REF,
+        salesTask: { lead: leadId, type: APPROVAL_TASK_TYPE_REF }
       },
       prefixDataTestId: 'lead-approval',
       emptyStateBehavior: 'enable' as const

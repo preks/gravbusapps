@@ -13,3 +13,10 @@ opportunity-stage-no-stages-available = Nicio etapă disponibilă
 opportunity-stage-no-stages-for-pipeline = Nicio etapă disponibilă pentru acest pipeline
 opportunity-stage-loading = Se încarcă etapele...
 opportunity-status-placeholder = Vă rugăm să selectați...
+
+# Validation errors
+opportunity-validation-ownerRequired = Proprietarul este obligatoriu
+opportunity-validation-nameRequired = Numele oportunității este obligatoriu
+opportunity-validation-pipelineRequired = Pipeline este obligatoriu
+opportunity-validation-stageRequired = Etapa este obligatorie
+opportunity-validation-stageRequiredWhenPipelineSelected = Etapa este obligatorie când Pipeline-ul este selectat

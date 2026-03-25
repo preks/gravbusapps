@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+PHASE_DIVIDER="================================================================================"
+
+log_phase() {
+  echo ""
+  echo "$PHASE_DIVIDER"
+  echo "$1"
+  echo "$PHASE_DIVIDER"
+}
+
 # Check if manual screen list file is provided as argument
 SCREEN_LIST_FILE="${1:-}"
 
@@ -21,15 +30,14 @@ if [[ ! -s "$SCREENS_FILE" ]]; then
   exit 0
 fi
 
-echo "Screens to publish:"
+log_phase "SCREENS TO PUBLISH"
 cat "$SCREENS_FILE"
-echo "---"
 
 # Loop through each app/form directory and publish it
 declare -a FAILED_SCREENS=()
 declare -a SKIPPED_SCREENS=()
 while IFS= read -r app_dir; do
-  echo "Processing $app_dir …"
+  echo "Processing $app_dir ..."
   
   # Remove src/business-apps/ prefix from the directory path if present
   # Note: app_dir is already a directory path, not a file path
@@ -38,7 +46,7 @@ while IFS= read -r app_dir; do
   # Check if the screen directory still exists (not removed)
   screen_index_file="src/business-apps/$publish_path/index.ts"
   if [[ ! -f "$screen_index_file" ]]; then
-    echo "⚠️  Skipping removed screen: $publish_path ($screen_index_file not found)"
+    echo "WARNING: Skipping removed screen: $publish_path ($screen_index_file not found)"
     SKIPPED_SCREENS+=("$publish_path")
     continue
   fi
@@ -46,7 +54,7 @@ while IFS= read -r app_dir; do
   echo "Publishing: $publish_path"
 
   # Publish the screen (with no-interaction flag for pipeline usage)
-  if ! yarn publish:screen -- "$publish_path" --no-interaction; then
+  if ! yarn publish:screen -- "$publish_path" --ci; then
     echo "Publish failed for: $publish_path"
     FAILED_SCREENS+=("$publish_path")
     # Continue with next iteration without exiting the script
@@ -55,8 +63,7 @@ while IFS= read -r app_dir; do
 done < "$SCREENS_FILE"
 
 # Summarize results and set exit code accordingly
-echo "---"
-echo "Publishing Summary:"
+log_phase "PUBLISHING SUMMARY"
 
 if [[ ${#SKIPPED_SCREENS[@]} -gt 0 ]]; then
   echo "Skipped removed screens (${#SKIPPED_SCREENS[@]}):"
@@ -77,5 +84,5 @@ else
   # Update component hashes after successful publish
   echo ""
   echo "Updating component hashes..."
-  node scripts/update-dev-hashes.js || echo "⚠️  Hash update failed (non-critical)"
+  node scripts/update-dev-hashes.js || echo "WARNING: Hash update failed (non-critical)"
 fi

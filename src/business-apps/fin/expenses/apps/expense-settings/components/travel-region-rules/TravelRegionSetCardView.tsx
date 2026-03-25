@@ -15,7 +15,7 @@ import {
   DialogDescription,
   DialogFooter
 } from '@newwork/nw-design-system'
-import { PiPlus, PiMapPin, PiTable, PiTrash, PiPencil } from 'react-icons/pi'
+import { PlusIcon, MapPinIcon, TableIcon, TrashIcon, PencilIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -257,163 +257,142 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
     setDeleteConfirmation({ isOpen: false, set: null })
   }
 
+  const deleteAllowanceRuleDetails = async (rule: any, errors: string[]) => {
+    const allDetailsQuery = `
+      query GetAllDetailsForRule($ruleId: uuid!) {
+        AllowanceRegionRuleDetail(where: { allowanceRegionRuleId: { _eq: $ruleId } }) {
+          id
+          version
+          allowanceRegionRuleId
+          isDeleted
+        }
+      }
+    `
+
+    const allDetailsResult = await graphqlClient.request<any>(allDetailsQuery, {
+      ruleId: rule.id
+    })
+
+    const allDetails = allDetailsResult.AllowanceRegionRuleDetail || []
+    console.log(`🔍 Found ${allDetails.length} details for rule ${rule.id}`)
+
+    for (const detail of allDetails) {
+      try {
+        console.log(`🗑️ Deleting detail ${detail.id}`)
+        await expenseSettingsClient.deleteAllowanceRegionRuleDetail({
+          id: detail.id,
+          version: detail.version
+        })
+        console.log(`✅ Deleted detail ${detail.id}`)
+      } catch (err: any) {
+        const errorMsg = `Failed to delete detail ${detail.id}: ${err?.message || 'Unknown error'}`
+        console.error(`❌ ${errorMsg}`, err)
+        errors.push(errorMsg)
+      }
+    }
+  }
+
+  const deleteAllowanceRules = async (setId: string, errors: string[]) => {
+    const allRulesQuery = `
+      query GetAllRulesForSet($setId: String!) {
+        AllowanceRegionRule(where: { travelRegionSetRef: { _eq: $setId } }) {
+          id
+          version
+          travelRegionSetRef
+          isDeleted
+        }
+      }
+    `
+
+    const allRulesResult = await graphqlClient.request<any>(allRulesQuery, {
+      setId
+    })
+
+    const allRules = allRulesResult.AllowanceRegionRule || []
+    console.log(`🔍 Found ${allRules.length} rules referencing set ${setId}`)
+
+    for (const rule of allRules) {
+      await deleteAllowanceRuleDetails(rule, errors)
+
+      if (errors.length === 0) {
+        try {
+          console.log(`🗑️ Deleting rule ${rule.id}`)
+          await expenseSettingsClient.deleteAllowanceRegionRule(rule.id, rule.version)
+          console.log(`✅ Deleted rule ${rule.id}`)
+        } catch (err: any) {
+          const errorMsg = `Failed to delete rule ${rule.id}: ${err?.message || 'Unknown error'}`
+          console.error(`❌ ${errorMsg}`, err)
+          errors.push(errorMsg)
+        }
+      }
+    }
+  }
+
+  const deleteCatalogEntryWithFallback = async (
+    catalogType: string,
+    version: string,
+    fullId: string
+  ): Promise<void> => {
+    try {
+      await catalogClient.deleteCatalogEntry(catalogType, version, fullId)
+      console.log(`✅ Deleted ${catalogType} with full ID: ${fullId}`)
+    } catch (error_: any) {
+      console.log(`⚠️ Full ID delete failed, trying short ID...`, error_)
+      const idParts = fullId.split(':')
+      const shortId = idParts.length >= 3 ? idParts.slice(2).join(':') : fullId
+      console.log(`🗑️ Deleting ${catalogType} with short ID: ${shortId}`)
+      await catalogClient.deleteCatalogEntry(catalogType, version, shortId)
+      console.log(`✅ Deleted ${catalogType} with short ID: ${shortId}`)
+    }
+  }
+
+  const deleteChildRegions = async (regionIds: string[], errors: string[]) => {
+    console.log(`🔍 Deleting ${regionIds.length} child regions`)
+    for (const regionId of regionIds) {
+      try {
+        console.log(`🗑️ Deleting region: ${regionId}`)
+        await deleteCatalogEntryWithFallback('TravelRegion', 'v1', regionId)
+      } catch (err: any) {
+        const errorMsg = `Failed to delete child region ${regionId}: ${err?.message || 'Unknown error'}`
+        console.error(`❌ ${errorMsg}`, {
+          error: err,
+          message: err?.message,
+          status: err?.status,
+          response: err?.response,
+          data: err?.response?.data
+        })
+        errors.push(errorMsg)
+      }
+    }
+  }
+
   const handleDeleteConfirm = async () => {
     if (!deleteConfirmation.set) return
 
     setIsDeleting(true)
+    const errors: string[] = []
+
     try {
       const { set } = deleteConfirmation
       const childCount = set.childCount || 0
 
-      // Step 1: Check for AllowanceRegionRule records that reference this set (including soft-deleted ones)
-
-      const allRulesQuery = `
-        query GetAllRulesForSet($setId: String!) {
-          AllowanceRegionRule(where: { travelRegionSetRef: { _eq: $setId } }) {
-            id
-            version
-            travelRegionSetRef
-            isDeleted
-          }
-        }
-      `
-
-      const allRulesResult = await graphqlClient.request<any>(allRulesQuery, {
-        setId: set.id
-      })
-
-      const allRules = allRulesResult.AllowanceRegionRule || []
-
-      // Step 2: For each rule, hard delete all its details first, then delete the rule
-      for (const rule of allRules) {
-        // Get all details for this rule (including soft-deleted ones)
-        const allDetailsQuery = `
-          query GetAllDetailsForRule($ruleId: uuid!) {
-            AllowanceRegionRuleDetail(where: { allowanceRegionRuleId: { _eq: $ruleId } }) {
-              id
-              version
-              allowanceRegionRuleId
-              isDeleted
-            }
-          }
-        `
-
-        const allDetailsResult = await graphqlClient.request<any>(allDetailsQuery, {
-          ruleId: rule.id
-        })
-
-        const allDetails = allDetailsResult.AllowanceRegionRuleDetail || []
-
-        // Hard delete all details
-        for (const detail of allDetails) {
-          try {
-            await expenseSettingsClient.deleteAllowanceRegionRuleDetail({
-              id: detail.id,
-              version: detail.version
-            })
-          } catch (err: any) {
-            console.error(`❌ Failed to hard delete detail ${detail.id}:`, err)
-            throw new Error(`Failed to hard delete detail ${detail.id}: ${err?.message || 'Unknown error'}`)
-          }
-        }
-
-        // Hard delete the rule
-
-        try {
-          await expenseSettingsClient.deleteAllowanceRegionRule(rule.id, rule.version)
-        } catch (err: any) {
-          console.error(`❌ Failed to hard delete rule ${rule.id}:`, err)
-          throw new Error(`Failed to hard delete rule ${rule.id}: ${err?.message || 'Unknown error'}`)
-        }
+      // Step 1: Delete all allowance rules and their details
+      await deleteAllowanceRules(set.id, errors)
+      if (errors.length > 0) {
+        throw new Error(`Cascade delete failed:\n${errors.join('\n')}`)
       }
 
-      if (allRules.length > 0) {
-      } else {
-      }
-
-      // Step 3: Hard delete all child travel regions (DELETE endpoint will physically remove them)
+      // Step 2: Delete all child travel regions
       if (childCount > 0 && set.childRegionIds && set.childRegionIds.length > 0) {
-        for (const regionId of set.childRegionIds) {
-          try {
-            // Step 3a: Check and delete catalog_entry_localized records first
-
-            const localizedQuery = `
-              query GetLocalizedEntries($catalogEntryId: String!) {
-                CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
-                  id
-                  catalogEntryId
-                  localeCode
-                }
-              }
-            `
-            const localizedResult = await graphqlClient.request<any>(localizedQuery, { catalogEntryId: regionId })
-            const localizedEntries = localizedResult.CatalogEntryLocalized || []
-
-            if (localizedEntries.length > 0) {
-              const deleteLocalizedMutation = `
-                mutation DeleteLocalizedEntries($catalogEntryId: String!) {
-                  delete_CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
-                    affected_rows
-                  }
-                }
-              `
-              await graphqlClient.request<any>(deleteLocalizedMutation, { catalogEntryId: regionId })
-            } else {
-            }
-
-            // Step 3b: Now hard delete the catalog entry
-            const entryIdParts = regionId.split(':')
-            const shortId = entryIdParts.length >= 3 ? entryIdParts[2] : regionId
-
-            await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', shortId)
-          } catch (err: any) {
-            console.error(`❌ Failed to hard delete region ${regionId}:`, {
-              error: err,
-              message: err?.message,
-              status: err?.status,
-              response: err?.response,
-              data: err?.response?.data
-            })
-            throw new Error(`Failed to hard delete child region ${regionId}: ${err?.message || 'Unknown error'}`)
-          }
+        await deleteChildRegions(set.childRegionIds, errors)
+        if (errors.length > 0) {
+          throw new Error(`Cascade delete failed:\n${errors.join('\n')}`)
         }
       }
 
-      // Step 4: Hard delete the travel region set (DELETE endpoint will physically remove it)
-
-      // Step 4a: Check and delete catalog_entry_localized records for the set first
-
-      const setLocalizedQuery = `
-        query GetSetLocalizedEntries($catalogEntryId: String!) {
-          CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
-            id
-            catalogEntryId
-            localeCode
-          }
-        }
-      `
-      const setLocalizedResult = await graphqlClient.request<any>(setLocalizedQuery, { catalogEntryId: set.id })
-      const setLocalizedEntries = setLocalizedResult.CatalogEntryLocalized || []
-
-      if (setLocalizedEntries.length > 0) {
-        const deleteSetLocalizedMutation = `
-          mutation DeleteSetLocalizedEntries($catalogEntryId: String!) {
-            delete_CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
-              affected_rows
-            }
-          }
-        `
-        await graphqlClient.request<any>(deleteSetLocalizedMutation, { catalogEntryId: set.id })
-      } else {
-      }
-
-      // Step 4b: Now hard delete the catalog entry for the set
-      // Extract the short ID for the DELETE endpoint
-      // Format: "TravelRegionSet:v1:Miahela Test" -> use "Miahela Test"
-      const setIdParts = set.id.split(':')
-      const shortSetId = setIdParts.length >= 3 ? setIdParts.slice(2).join(':') : set.id
-
-      await catalogClient.deleteCatalogEntry('TravelRegionSet', 'v1', shortSetId)
+      // Step 3: Delete the travel region set
+      console.log(`🗑️ Deleting set: ${set.id}`)
+      await deleteCatalogEntryWithFallback('TravelRegionSet', 'v1', set.id)
 
       const message =
         childCount > 0
@@ -427,7 +406,8 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       loadTravelRegionSets()
     } catch (err) {
       console.error('❌ Error deleting travel region set:', err)
-      toast(`Failed to delete Travel Region Set: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error')
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      toast(`Failed to delete Travel Region Set: ${errorMessage}`, 'error')
     } finally {
       setIsDeleting(false)
     }
@@ -454,7 +434,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
               onClick={onViewUnassigned}
               data-testid={`${prefixDataTestId}-view-unassigned-button`}
             >
-              <PiTable className="gba:w-4 gba:h-4 gba:mr-2" />
+              <TableIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               View Unassigned Rules
             </Button>
             <Button
@@ -462,7 +442,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
               onClick={handleCreateTravelRegionSet}
               data-testid={`${prefixDataTestId}-add-travel-region-set-button`}
             >
-              <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+              <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               Add Travel Region Set
             </Button>
           </div>
@@ -479,7 +459,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
           >
             <CardHeader className="gba:flex gba:flex-row gba:items-center gba:space-y-0 gba:pb-3">
               <div className="gba:w-12 gba:h-12 gba:bg-blue-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mr-4">
-                <PiMapPin className="gba:text-blue-600 gba:text-xl" />
+                <MapPinIcon className="gba:text-blue-600 gba:text-xl" />
               </div>
               <div className="gba:flex-1">
                 <CardTitle className="gba:text-lg gba:font-semibold">{set.value}</CardTitle>
@@ -503,7 +483,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
                       }}
                       data-testid={`${prefixDataTestId}-view-matrix-button-${set.id}`}
                     >
-                      <PiMapPin className="gba:w-4 gba:h-4 gba:mr-1" />
+                      <MapPinIcon className="gba:w-4 gba:h-4 gba:mr-1" />
                       View Matrix
                     </Button>
                     <Button
@@ -514,7 +494,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
                       className="hover:gba:bg-accent"
                       title="Edit travel region set"
                     >
-                      <PiPencil className="gba:w-4 gba:h-4" />
+                      <PencilIcon className="gba:w-4 gba:h-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -533,7 +513,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
                           : 'Delete travel region set'
                       }
                     >
-                      <PiTrash className="gba:w-4 gba:h-4" />
+                      <TrashIcon className="gba:w-4 gba:h-4" />
                     </Button>
                   </div>
                 </div>
@@ -552,13 +532,13 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
 
       {travelRegionSets.length === 0 && (
         <div className="gba:text-center gba:py-12">
-          <PiMapPin className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
+          <MapPinIcon className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
           <h4 className="gba:text-lg gba:font-medium gba:text-gray-600 gba:mb-2">No Travel Region Sets Found</h4>
           <p className="gba:text-gray-500 gba:mb-4">
             Create your first travel region set to start organizing your travel allowance rules.
           </p>
           <Button variant="default" onClick={handleCreateTravelRegionSet}>
-            <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+            <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
             Create Travel Region Set
           </Button>
         </div>

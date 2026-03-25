@@ -31,7 +31,6 @@ export function useExpensePlanWidgetFilters(selectedFilters: string[], activeWid
         ExpenseStatus.ASSIGNED,
         ExpenseStatus.PENDING,
         ExpenseStatus.APPROVED,
-        ExpenseStatus.RETURNED,
         ExpenseStatus.REJECTED,
         ExpenseStatus.VERIFIED,
         ExpenseStatus.BOOKED,

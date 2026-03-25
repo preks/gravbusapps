@@ -5,7 +5,8 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGetCrmDocuments, getCrmDocumentApiConfig } from '@/business-apps/crm/common/utils/documentUtils'
 import { useCrmDocuments } from '@/business-apps/crm/common/hooks/useCrmDocuments'
-import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   leadId: string
@@ -20,6 +21,9 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ leadId, ...context }
     fetchDocuments,
     errorMessage: getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
   })
+
+  // REST client for document operations (CRM uses Kogito processes)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   const documentCreateFolderActionProps = useMemo(
     () => ({
@@ -44,16 +48,21 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ leadId, ...context }
     [leadId]
   )
 
-  const customActions = useMemo(
-    () =>
-      createDocumentSectionActions({
-        domain: 'customer-relations',
-        documentFieldName: 'crmDocument',
-        entityType: 'lead',
-        updateProcessName: 'updateCrmDocument',
-        deleteEndpoint: '/customer-relations/deleteCrmDocument',
-        getTranslation: getTranslationFromI18nKeyAndLabel
-      }),
+  const documentUpdateActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerDocumentUpdate],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'lead-document-update'
+    }),
+    []
+  )
+
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerDocumentDelete],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'lead-document-delete'
+    }),
     []
   )
 
@@ -66,9 +75,11 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ leadId, ...context }
         error={error}
         onRefresh={refetch}
         apiConfig={getCrmDocumentApiConfig('lead')}
-        customActions={customActions}
+        restClient={restClient}
         createFolderActionProps={documentCreateFolderActionProps}
         uploadActionProps={documentUploadActionProps}
+        updateActionProps={documentUpdateActionProps}
+        deleteActionProps={documentDeleteActionProps}
         data-testid="lead-document-section"
         accessToken={context.accessToken}
         userInfo={context.userInfo}

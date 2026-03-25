@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { PiX } from 'react-icons/pi'
+import { XIcon } from '@phosphor-icons/react'
 import { User } from 'lucide-react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { ContactTypeLabels } from '@/common/data/relations/constants/contactConstants'
@@ -52,6 +52,8 @@ interface ContactSegmentProps {
   contactsLoading: boolean
   contactsError: string | null
   searchContacts: (search: string) => void
+  hasMore?: boolean
+  onLoadMore?: () => void
 
   // Contact relations with full data (for display)
   contactRelations?: any[]
@@ -207,7 +209,7 @@ const ContactItem: React.FC<{
         aria-label={`Remove ${contactData.name}`}
         disabled={disabled}
       >
-        <PiX className="gba:w-4 gba:h-4" />
+        <XIcon className="gba:w-4 gba:h-4" />
       </Button>
     </div>
   )
@@ -221,6 +223,8 @@ const ContactSegment: React.FC<ContactSegmentProps> = ({
   contactsLoading,
   contactsError,
   searchContacts,
+  hasMore,
+  onLoadMore,
   contactRelations = [],
   dataTestId = 'contact-segment',
   disabled = false,
@@ -309,6 +313,9 @@ const ContactSegment: React.FC<ContactSegmentProps> = ({
         disabled={disabled || contactsLoading}
         loading={contactsLoading}
         onSearch={searchContacts}
+        searchDebounce={300}
+        hasMore={Boolean(hasMore)}
+        onLoadMore={onLoadMore}
         data-testid={formatDataTestId(dataTestId, 'add-contact-combobox')}
       />
 

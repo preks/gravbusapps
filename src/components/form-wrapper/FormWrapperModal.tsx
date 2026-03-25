@@ -7,11 +7,13 @@ import {
   Form,
   DialogTitle,
   Alert,
-  toast
+  toast,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useForm, type Resolver, type UseFormReturn, type FieldValues } from 'react-hook-form'
 import type { ZodType } from 'zod'
 import { cn } from '@/common/utils/cn'
+import translations from './_i18n'
 
 export interface FormMessage {
   type: 'success' | 'error' | 'info'
@@ -118,18 +120,25 @@ const FormWrapperModal = ({
   // Validation behavior
   validateBeforeSubmit = true
 }: FormWrapperModalProps) => {
+  const { t } = useTranslation(translations)
   const [isOpen, setIsOpen] = useState(open)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<FormMessage | null>(null)
   const isSubmittingRef = useRef(false)
-  const isEditingForm = useMemo(() => (isEditing ? 'Update' : 'Create'), [isEditing])
+  const isEditingForm = useMemo(
+    () => (isEditing ? t('submit-button-update') : t('submit-button-create')),
+    [isEditing, t]
+  )
 
   // Create internal form if no external form provided
   const internalForm = useForm<FieldValues>({ defaultValues, resolver, mode: 'onChange' })
   const form = externalForm || internalForm
   const isFormValid = useMemo(() => {
-    return form.formState.isValid && form.formState.isDirty
-  }, [form.formState.isValid, form.formState.isDirty])
+    if (!form.formState.isValid) return false
+    // Edits should be submittable without forcing a field change (e.g. code is not in the form when editing).
+    if (isEditing) return true
+    return form.formState.isDirty
+  }, [isEditing, form.formState.isValid, form.formState.isDirty])
 
   useEffect(() => {
     // Skip reset if using external form - it's already initialized with its own defaultValues
@@ -205,7 +214,7 @@ const FormWrapperModal = ({
       } catch (error) {
         console.error('Form submission error:', error)
 
-        const defaultErrorMessage = 'Something went wrong'
+        const defaultErrorMessage = t('error-default')
         const errorMsg = error instanceof Error ? error.message : defaultErrorMessage
 
         setMessage({ type: 'error', message: errorMsg })
@@ -255,7 +264,7 @@ const FormWrapperModal = ({
       {childAddButton && <DialogTrigger asChild>{childAddButton}</DialogTrigger>}
       <DialogContent
         data-testid={dataTestId}
-        className={cn('gba:max-h-screen gba:w-[553px] gba:overflow-y-auto', { 'gba:!z-[1002]': isDrawerActive })}
+        className={cn('gba:max-h-screen gba:w-[553px] gba:overflow-y-auto', { 'gba:z-1002!': isDrawerActive })}
       >
         <DialogTitle>{title}</DialogTitle>
         <div className={cn('gba:flex gba:flex-col gba:gap-4', contentClassName)}>
@@ -290,7 +299,7 @@ const FormWrapperModal = ({
                     disabled={loading || isSubmitting}
                     data-testid={cancelButtonTestId || `${dataTestId}-cancel-button`}
                   >
-                    {cancelButtonText || 'Cancel'}
+                    {cancelButtonText || t('cancel-button')}
                   </Button>
                 )}
                 <Button
@@ -301,7 +310,7 @@ const FormWrapperModal = ({
                   variant={submitButtonVariant}
                   data-testid={submitButtonTestId || `${dataTestId}-submit-button`}
                 >
-                  {isSubmitting ? 'Saving...' : submitButtonText || isEditingForm}
+                  {isSubmitting ? t('submit-button-saving') : submitButtonText || isEditingForm}
                 </Button>
               </div>
             </form>

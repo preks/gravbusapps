@@ -2,8 +2,7 @@
 
 import React from 'react'
 import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer'
-import { PiBriefcase } from 'react-icons/pi'
-
+import { BriefcaseIcon } from '@phosphor-icons/react'
 /**
  * JobDetailsDrawer Props Interface
  */
@@ -24,7 +23,7 @@ const JobDetailsDrawer: React.FC<JobDetailsDrawerProps> = ({
   title,
   content,
   onClose,
-  icon = <PiBriefcase className="gba:h-5 gba:w-5" /> // Default icon is briefcase
+  icon = <BriefcaseIcon className="gba:h-5 gba:w-5" /> // Default icon is briefcase
 }) => {
   // Clone the content element and pass the isVisible prop
   const contentWithVisibilityProp = React.cloneElement(content, { isVisible: open })

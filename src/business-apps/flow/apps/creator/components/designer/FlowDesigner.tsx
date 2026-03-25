@@ -28,6 +28,7 @@ import { FlowRenderer } from '@/business-apps/flow/common/components'
 import { FlowStep, FlowStepType, AssignmentMode } from '../../types/flowTemplate'
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { InputFieldsContent, InputFieldsTrigger } from '../steps/InputFieldsConfiguration'
 import { LinksContent, LinksTrigger } from '../steps/LinksConfiguration'
 import { TagConfiguration } from '../steps/TagConfiguration'
@@ -37,9 +38,11 @@ import { FlowTags } from '@/business-apps/flow/types'
 import { ExpressionInput } from '../shared/ExpressionInput'
 import { FunctionConfiguration } from '../steps/FunctionConfiguration'
 import { AgentConfiguration } from '../steps/AgentConfiguration'
+import { EventSubscriptionsConfiguration } from '../steps/EventSubscriptionsConfiguration'
 
 interface FlowDesignerProps extends BusinessAppContextProps {
   initialTemplate?: FlowTemplate | null
+  draftId?: string | null
   onSave?: (template: FlowTemplate) => Promise<void>
   onCancel?: () => void
   'data-testid'?: string
@@ -49,6 +52,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
   accessToken,
   userInfo,
   initialTemplate,
+  draftId,
   onSave,
   onCancel,
   'data-testid': testId = 'flow-designer'
@@ -64,7 +68,8 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         dueInMinutes: step.dueInMinutes || 60,
         form: step.form || step.inputs || [],
         links: step.links || [],
-        assignment: step.assignment
+        assignment: step.assignment,
+        eventSubscriptions: (step as any).eventSubscriptions || []
       }))
     }
 
@@ -78,14 +83,17 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         dueInMinutes: 60,
         form: [],
         links: [],
-        assignment: { assignmentMode: AssignmentMode.CLAIM, targets: null, allowReassignment: true }
+        assignment: { assignmentMode: AssignmentMode.CLAIM, targets: null, allowReassignment: true },
+        eventSubscriptions: []
       }
     ]
   }
 
   const [steps, setSteps] = React.useState<FlowStep[]>(getInitialSteps)
   const [selectedStepIndex, setSelectedStepIndex] = React.useState<number>(0)
-  const [activeTab, setActiveTab] = React.useState<'general' | 'form' | 'assignment' | 'function' | 'agent'>('general')
+  const [activeTab, setActiveTab] = React.useState<'general' | 'form' | 'assignment' | 'parameters' | 'events'>(
+    'general'
+  )
   const [isSummarySelected, setIsSummarySelected] = React.useState<boolean>(false)
 
   // Template metadata state
@@ -94,9 +102,69 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
   const [templateTags, setTemplateTags] = React.useState<FlowTags>(initialTemplate?.tags || {})
   const [summaryFields, setSummaryFields] = React.useState<any[]>((initialTemplate as any)?.summaryFields || [])
 
+  // Draft autosave / sync state (enabled when draftId is present)
+  const [draftDirty, setDraftDirty] = React.useState(false)
+  const [draftAutosaveStatus, setDraftAutosaveStatus] = React.useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [draftAutosaveError, setDraftAutosaveError] = React.useState<string | null>(null)
+  const [remoteUpdateAvailable, setRemoteUpdateAvailable] = React.useState<{
+    hash: string
+    updatedAt?: string | null
+  } | null>(null)
+
+  const suppressDraftSyncRef = React.useRef(false)
+  const draftRevisionRef = React.useRef(0)
+  const autosaveTimerRef = React.useRef<number | null>(null)
+  const autosaveInFlightRef = React.useRef(false)
+  const lastSeenRemoteHashRef = React.useRef<string | null>(null)
+  const draftDirtyRef = React.useRef(false)
+
+  React.useEffect(() => {
+    draftDirtyRef.current = draftDirty
+  }, [draftDirty])
+
+  const applyDraftTemplateToState = React.useCallback((template: any) => {
+    if (!template || typeof template !== 'object') return
+
+    suppressDraftSyncRef.current = true
+
+    // Update template metadata
+    setTemplateName(typeof template.name === 'string' ? template.name : '')
+    setTemplateDescription(typeof template.description === 'string' ? template.description : '')
+    setTemplateTags((template.tags && typeof template.tags === 'object' ? template.tags : {}) as any)
+    setSummaryFields((template as any)?.summaryFields || [])
+
+    // Update steps if they exist
+    if (Array.isArray(template.steps) && template.steps.length > 0) {
+      const newSteps = template.steps.map((step: any) => ({
+        id: step.id,
+        title: step.title,
+        message: step.message || 'Describe the task to be performed.',
+        type: step.type as FlowStepType,
+        kind: step.kind,
+        dueInMinutes: step.dueInMinutes || 60,
+        form: step.form || step.inputs || [],
+        links: step.links || [],
+        assignment: step.assignment,
+        eventSubscriptions: step.eventSubscriptions || []
+      }))
+      setSteps(newSteps)
+      setSelectedStepIndex(0)
+    }
+
+    // Hydration should not trigger autosave; re-enable on next tick.
+    window.setTimeout(() => {
+      suppressDraftSyncRef.current = false
+      setDraftDirty(false)
+      setDraftAutosaveStatus('idle')
+      setDraftAutosaveError(null)
+      setRemoteUpdateAvailable(null)
+    }, 0)
+  }, [])
+
   // Update steps and metadata when initialTemplate changes
   React.useEffect(() => {
     if (initialTemplate) {
+      suppressDraftSyncRef.current = true
       // Update template metadata
       setTemplateName(initialTemplate.name || '')
       setTemplateDescription(initialTemplate.description || '')
@@ -115,6 +183,15 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         setSteps(newSteps)
         setSelectedStepIndex(0)
       }
+
+      // Hydration should not trigger autosave; re-enable on next tick.
+      window.setTimeout(() => {
+        suppressDraftSyncRef.current = false
+        setDraftDirty(false)
+        setDraftAutosaveStatus('idle')
+        setDraftAutosaveError(null)
+        setRemoteUpdateAvailable(null)
+      }, 0)
     }
   }, [initialTemplate])
 
@@ -183,6 +260,228 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
   // Flow template client for API calls
   const flowTemplateClient = useFlowTemplateClient(accessToken)
 
+  const buildCurrentTemplatePayload = React.useCallback((): FlowTemplate => {
+    const templateData: FlowTemplate = {
+      type: initialTemplate?.type || 'TEMPLATE',
+      name: templateName.trim() || initialTemplate?.name || 'Untitled',
+      description: templateDescription.trim(),
+      version: initialTemplate?.version || 1,
+      steps: steps.map(step => ({
+        ...step,
+        // Ensure form and inputs are properly set
+        form: step.form || step.inputs || [],
+        inputs: step.inputs || step.form || []
+      })),
+      // Include tags in the template
+      tags: Object.keys(templateTags).length > 0 ? templateTags : undefined,
+      // Include summaryFields at template level
+      ...(summaryFields.length > 0 && { summaryFields })
+    } as any
+
+    // Never persist an `id` for drafts (drafts must create-on-save into Flow Engine).
+    if ((templateData as any)?.id) {
+      delete (templateData as any).id
+    }
+    return templateData
+  }, [
+    initialTemplate?.type,
+    initialTemplate?.name,
+    initialTemplate?.version,
+    steps,
+    summaryFields,
+    templateDescription,
+    templateName,
+    templateTags
+  ])
+
+  const saveDraftNow = React.useCallback(async () => {
+    if (!draftId || !accessToken) return
+    if (autosaveInFlightRef.current) return
+
+    autosaveInFlightRef.current = true
+    const savingRevision = draftRevisionRef.current
+    setDraftAutosaveStatus('saving')
+    setDraftAutosaveError(null)
+
+    try {
+      const templateData = buildCurrentTemplatePayload()
+      const baseUrl = resolveFlowbotBaseUrl()
+      const res = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}`, {
+        method: 'PUT',
+        headers: {
+          accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ template: templateData })
+      })
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        throw new Error(`Failed to autosave draft: ${res.status} ${res.statusText} ${body}`.trim())
+      }
+
+      // Best-effort: refresh remote hash baseline so polling doesn't mis-detect our own saves.
+      try {
+        const metaRes = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}/meta`, {
+          method: 'GET',
+          headers: {
+            accept: 'application/json',
+            Authorization: `Bearer ${accessToken}`
+          }
+        })
+        if (metaRes.ok) {
+          const meta: any = await metaRes.json()
+          if (meta && typeof meta.hash === 'string') {
+            lastSeenRemoteHashRef.current = meta.hash
+          }
+        }
+      } catch {
+        // ignore meta refresh failures
+      }
+
+      if (draftRevisionRef.current === savingRevision) {
+        setDraftDirty(false)
+        setDraftAutosaveStatus('saved')
+        setRemoteUpdateAvailable(null)
+      } else {
+        // New edits occurred while saving; keep dirty and let debounce schedule another save.
+        setDraftAutosaveStatus('idle')
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Draft autosave failed'
+      setDraftAutosaveStatus('error')
+      setDraftAutosaveError(message)
+    } finally {
+      autosaveInFlightRef.current = false
+    }
+  }, [accessToken, buildCurrentTemplatePayload, draftId])
+
+  // Debounced autosave whenever draft-relevant state changes.
+  React.useEffect(() => {
+    if (!draftId || !accessToken) return
+    if (suppressDraftSyncRef.current) return
+
+    draftRevisionRef.current += 1
+    setDraftDirty(true)
+    setDraftAutosaveStatus(prev => (prev === 'saved' ? 'idle' : prev))
+
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current)
+    }
+    autosaveTimerRef.current = window.setTimeout(() => {
+      saveDraftNow()
+    }, 2000)
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = null
+      }
+    }
+  }, [accessToken, draftId, saveDraftNow, steps, summaryFields, templateDescription, templateName, templateTags])
+
+  const fetchRemoteDraft = React.useCallback(async () => {
+    if (!draftId || !accessToken) return null
+    const baseUrl = resolveFlowbotBaseUrl()
+    const res = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}`, {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      }
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`Failed to fetch draft: ${res.status} ${res.statusText} ${body}`.trim())
+    }
+    return res.json()
+  }, [accessToken, draftId])
+
+  const handleReloadRemoteDraft = React.useCallback(async () => {
+    if (!remoteUpdateAvailable) return
+    try {
+      const template = await fetchRemoteDraft()
+      if (template) {
+        applyDraftTemplateToState(template)
+        lastSeenRemoteHashRef.current = remoteUpdateAvailable.hash
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to reload remote draft'
+      setDraftAutosaveStatus('error')
+      setDraftAutosaveError(message)
+    } finally {
+      setRemoteUpdateAvailable(null)
+    }
+  }, [applyDraftTemplateToState, fetchRemoteDraft, remoteUpdateAvailable])
+
+  const handleKeepMyChanges = React.useCallback(() => {
+    if (!remoteUpdateAvailable) return
+    // User chooses to keep local edits; treat current remote as acknowledged so banner doesn't reappear.
+    lastSeenRemoteHashRef.current = remoteUpdateAvailable.hash
+    setRemoteUpdateAvailable(null)
+  }, [remoteUpdateAvailable])
+
+  // Poll remote draft meta to detect AI/other updates.
+  React.useEffect(() => {
+    if (!draftId || !accessToken) return
+
+    let cancelled = false
+    const baseUrl = resolveFlowbotBaseUrl()
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}/meta`, {
+          method: 'GET',
+          headers: {
+            accept: 'application/json',
+            Authorization: `Bearer ${accessToken}`
+          }
+        })
+        if (!res.ok) return
+        const meta: any = await res.json().catch(() => null)
+        if (cancelled) return
+
+        const remoteHash = typeof meta?.hash === 'string' ? meta.hash : null
+        if (!remoteHash) return
+
+        // First observation establishes baseline.
+        if (!lastSeenRemoteHashRef.current) {
+          lastSeenRemoteHashRef.current = remoteHash
+          return
+        }
+
+        if (remoteHash === lastSeenRemoteHashRef.current) {
+          return
+        }
+
+        // Remote changed.
+        if (autosaveInFlightRef.current || draftDirtyRef.current) {
+          setRemoteUpdateAvailable({ hash: remoteHash, updatedAt: meta?.updatedAt })
+          return
+        }
+
+        // Safe to auto-reload when we have no local unsaved changes.
+        const template = await fetchRemoteDraft()
+        if (cancelled) return
+        if (template) {
+          applyDraftTemplateToState(template)
+          lastSeenRemoteHashRef.current = remoteHash
+          setRemoteUpdateAvailable(null)
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }
+
+    poll()
+    const interval = window.setInterval(poll, 8000)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [accessToken, applyDraftTemplateToState, draftId, fetchRemoteDraft])
+
   const updateStep = (updates: Partial<FlowStep>) => {
     setSteps(prev => prev.map((s, i) => (i === selectedStepIndex ? { ...s, ...updates } : s)))
   }
@@ -215,7 +514,8 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         kind: 'USER',
         form: [],
         links: [],
-        assignment: { assignmentMode: AssignmentMode.CLAIM, targets: null, allowReassignment: true }
+        assignment: { assignmentMode: AssignmentMode.CLAIM, targets: null, allowReassignment: true },
+        eventSubscriptions: []
       } as FlowStep
       const updated = [...prev]
       updated.splice(selectedStepIndex + 1, 0, newStep)
@@ -311,7 +611,20 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
               </Badge>
             )}
           </div>
-          <div className="gba:flex gba:gap-2">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {draftId && (
+              <Badge variant="outline" className="gba:text-xs gba:mr-2" data-testid={`${testId}-draft-autosave-status`}>
+                {draftAutosaveStatus === 'saving'
+                  ? 'Saving draft...'
+                  : draftAutosaveStatus === 'saved'
+                    ? 'Draft saved'
+                    : draftAutosaveStatus === 'error'
+                      ? 'Autosave failed'
+                      : draftDirty
+                        ? 'Draft not saved'
+                        : 'Draft up to date'}
+              </Badge>
+            )}
             {onCancel && (
               <Button variant="outline" onClick={onCancel} data-testid={`${testId}-cancel`}>
                 Cancel
@@ -336,6 +649,40 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         {saveError && (
           <div className="gba:mb-4 gba:p-3 gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md">
             <p className="gba:text-sm gba:text-red-800">{saveError}</p>
+          </div>
+        )}
+
+        {/* Remote update banner (AI or other editor updated the draft) */}
+        {draftId && remoteUpdateAvailable && (
+          <div className="gba:mb-4 gba:p-3 gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded-md">
+            <p className="gba:text-sm gba:text-amber-900">
+              Draft updated elsewhere{remoteUpdateAvailable.updatedAt ? ` (${remoteUpdateAvailable.updatedAt})` : ''}.
+            </p>
+            <div className="gba:flex gba:gap-2 gba:mt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReloadRemoteDraft}
+                data-testid={`${testId}-draft-reload-remote`}
+              >
+                Reload remote
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleKeepMyChanges}
+                data-testid={`${testId}-draft-keep-local`}
+              >
+                Keep my changes
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Draft autosave error */}
+        {draftId && draftAutosaveStatus === 'error' && draftAutosaveError && (
+          <div className="gba:mb-4 gba:p-3 gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md">
+            <p className="gba:text-sm gba:text-red-800">{draftAutosaveError}</p>
           </div>
         )}
 
@@ -635,6 +982,13 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                       selectedStep.type !== FlowStepType.AI_TASK_EXPERT && (
                         <TabsTrigger value="assignment">Assignment</TabsTrigger>
                       )}
+                    {selectedStep.type !== FlowStepType.FUNCTION &&
+                      selectedStep.type !== FlowStepType.AI_AGENT &&
+                      selectedStep.type !== FlowStepType.AI_TASK_EXPERT && (
+                        <TabsTrigger value="events" data-testid={`${testId}-events-tab`}>
+                          Events
+                        </TabsTrigger>
+                      )}
                   </TabsList>
                   <div className="gba:flex-1 gba:min-h-0 gba:relative">
                     <TabsContent value="general" className="gba:absolute gba:inset-0 gba:overflow-auto">
@@ -903,6 +1257,9 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                           >
                             <option value={AssignmentMode.CLAIM}>Claim (Users can claim tasks)</option>
                             <option value={AssignmentMode.ASSIGN}>Assign (Tasks are assigned to specific users)</option>
+                            <option value={AssignmentMode.ASSIGN_DEFERRED}>
+                              Assign Deferred (Resolves after previous steps)
+                            </option>
                           </select>
                         </div>
 
@@ -920,9 +1277,28 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                             assignmentMode={selectedStep.assignment?.assignmentMode || AssignmentMode.CLAIM}
                             accessToken={accessToken}
                             userInfo={userInfo}
+                            template={{ ...initialTemplate, steps } as any}
+                            stepIndex={selectedStepIndex}
                             data-testid={`${testId}-assignment-selector`}
                           />
                         </div>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="events" className="gba:absolute gba:inset-0 gba:overflow-auto">
+                      <div className="gba:space-y-4 gba:pr-2 gba:pb-4">
+                        {accessToken ? (
+                          <EventSubscriptionsConfiguration
+                            subscriptions={(selectedStep as any).eventSubscriptions || []}
+                            onUpdate={subscriptions => updateStep({ eventSubscriptions: subscriptions } as any)}
+                            stepIndex={selectedStepIndex}
+                            testId={`${testId}-event-subscriptions`}
+                            accessToken={accessToken}
+                          />
+                        ) : (
+                          <div className="gba:text-center gba:text-muted-foreground gba:p-4">
+                            Access token required for event subscriptions
+                          </div>
+                        )}
                       </div>
                     </TabsContent>
                   </div>

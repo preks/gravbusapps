@@ -1,42 +1,29 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Label,
-  Textarea,
   toast,
   Toaster,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
   ThemeProvider,
-  ThemeSwitch,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  SidebarProvider,
-  SidebarInset,
-  SidebarTrigger,
-  Separator,
   LocalizationProvider,
-  SupportedLocale,
-  Badge
+  ShellProvider,
+  ShellLayout,
+  type ModuleSelectorProps
 } from '@newwork/nw-design-system'
-import { Gear, Info, Clock, Warning, CheckCircle, XCircle } from '@phosphor-icons/react'
-import { IDEMainMenu, BusinessAppInfo } from '@/components/ide-main-menu'
+import { IDEMenu, BusinessAppInfo } from '@/components/ide-main-menu'
+import { useIDEBreadcrumb } from '@/components/ide-breadcrumb/useIDEBreadcrumb'
+import { IDEHeader } from '@/components/ide-header'
+import type { TokenStatus, DensityOption } from '@/components/ide-header'
+import { IDEContextPanel } from '@/components/ide-context-panel'
+import {
+  GlobalSearchCommand,
+  SettingsDialog,
+  PublishConfirmDialog,
+  PerformanceWindow
+} from '@/components/ide-header/components'
 import { IDERenderer } from '@/components/ide-renderer'
+import { IDEStartScreen } from './components/ide-start-screen'
 import { UserInfoProps } from './common/BusinessAppContext'
 import ProcessEventListener, { ProcessLocalDevEvent } from './common/components/process/ProcessEventListener'
-import { IDEStartScreen } from './components/ide-start-screen'
-import HeaderLogo from './assets/icons/header_logo.svg'
 import FeatureHubProvider from './common/components/feature/FeatureHubProvider'
-import { useDynamicScreen } from './common/hooks/useDynamicScreen'
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog'
 import { useRewrapAntDStylesLive } from './common/hooks/useRewrapAntDStylesLive'
 import { BlinkProvider } from './common/providers/BlinkProvider'
@@ -45,9 +32,55 @@ import { useUserProfileFromKeycloak } from './common/user-profile/useUserProfile
 import {
   STORAGE_KEY_USER_INFO,
   STORAGE_KEY_ACCESS_TOKEN,
-  STORAGE_KEY_ADDITIONAL_DATA,
-  STORAGE_KEY_SIDEBAR_COLLAPSED
+  STORAGE_KEY_ADDITIONAL_DATA
 } from './common/constants/ideStorageKeys'
+import { NAVIGATION_BASE_PATH, PLATFORM_URL_TO_APP_MAPPING, navigateTo } from './common/utils/navigationUtils'
+import menuConfiguration from '@/components/ide-main-menu/menu-configuration.json'
+
+type Locales = 'en-US' | 'de-DE' | 'ro-RO'
+const PERFORMANCE_WINDOW_OPEN_STORAGE_KEY = 'gba:performance-window-open'
+
+function readPersistedPerformanceWindowOpen(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  try {
+    return window.sessionStorage.getItem(PERFORMANCE_WINDOW_OPEN_STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function getAppPathForPlatformUrl(pathname: string): string | undefined {
+  const normalized = pathname?.replace(/\/$/, '') || ''
+  const withLeading = normalized.startsWith('/') ? normalized : `/${normalized}`
+  return PLATFORM_URL_TO_APP_MAPPING[withLeading]
+}
+
+function getPlatformPathForAppPath(appPath: string): string | undefined {
+  if (!appPath) return undefined
+  return Object.keys(PLATFORM_URL_TO_APP_MAPPING).find(
+    platformPath => PLATFORM_URL_TO_APP_MAPPING[platformPath] === appPath
+  )
+}
+
+const ALL_MAIN_MODULE_ID = 'all-main-modules'
+const ALL_SUBMODULE_ID = 'all-submodules'
+const DEFAULT_SUBMODULE_ID = 'default'
+const EXAMPLES_MODULE_ID = 'examples'
+
+function getPrimarySubModuleId(businessApp: BusinessAppInfo): string {
+  return businessApp.subModule?.split('/')[0] || DEFAULT_SUBMODULE_ID
+}
+
+function formatFilterLabel(value: string): string {
+  if (value === DEFAULT_SUBMODULE_ID) {
+    return 'General'
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
 
 // Get available modules without eagerly loading them
 const modulePatterns = import.meta.glob('./business-apps/**/index.ts', {
@@ -66,14 +99,6 @@ const allModulePaths = Object.keys(modulePatterns)
 
 // Build the businessApps array from index.ts files (matching getDynamicEntries logic)
 for (const path in modulePatterns) {
-  if (
-    path.includes('/opportunity-tabs/') ||
-    path.includes('/oportunity-tabs/') ||
-    path.includes('/opportunity-components/')
-  ) {
-    continue
-  }
-
   const excludedDirs = ['/components/', '/modules/', '/hooks/', '/lib/', '/utils/']
   if (excludedDirs.some(dir => path.includes(dir))) {
     continue
@@ -131,8 +156,7 @@ for (const path in modulePatterns) {
     }
 
     // Determine the type based on the parent directory
-    // Records are treated as apps (full-screen, not dialogs)
-    let componentType: 'app' | 'form' | 'popup' | 'window' = 'app'
+    let componentType: 'app' | 'record' | 'form' | 'popup' | 'window' = 'app'
     if (pathParts.includes('forms')) {
       componentType = 'form'
     } else if (pathParts.includes('popups')) {
@@ -140,7 +164,7 @@ for (const path in modulePatterns) {
     } else if (pathParts.includes('windows')) {
       componentType = 'window'
     } else if (pathParts.includes('records')) {
-      componentType = 'app' // Records display as full-screen apps
+      componentType = 'record'
     }
 
     let subModule = ''
@@ -178,13 +202,15 @@ for (const path in examplePatterns) {
   // Example path: ./common/examples/forms/example-catalog-select-form/index.ts
 
   // Determine type based on directory
-  let componentType: 'app' | 'form' | 'popup' | 'window' = 'app'
+  let componentType: 'app' | 'record' | 'form' | 'popup' | 'window' = 'app'
   if (pathParts.includes('forms')) {
     componentType = 'form'
   } else if (pathParts.includes('popups')) {
     componentType = 'popup'
   } else if (pathParts.includes('windows')) {
     componentType = 'window'
+  } else if (pathParts.includes('records')) {
+    componentType = 'record'
   }
 
   // Find index of "examples" segment
@@ -235,17 +261,26 @@ for (const path in examplePatterns) {
   })
 }
 
+const filterableBusinessApps = businessApps.filter(businessApp => businessApp.module !== EXAMPLES_MODULE_ID)
+
 export interface CompMeta {
   name: string
   layoutInfo?: any
 }
 
 const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
-  const { domain, processName, processInstanceId, startProcessBody } = event
+  const { domain, processName, processInstanceId, startProcessBody, builderType, skipScreen } = event
+  const parts = [
+    `Domain: ${domain}`,
+    `Process: ${processName}`,
+    processInstanceId ? `ID: ${processInstanceId}` : null,
+    builderType ? `Builder: ${builderType}` : null,
+    skipScreen === undefined ? null : `Skip Screen: ${skipScreen}`,
+    `Process body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`
+  ].filter(Boolean)
+
   toast.success('Process Start Event Detected', {
-    description: `Domain: ${domain}, \nProcess: ${processName}${
-      processInstanceId ? `, ID: ${processInstanceId}` : ''
-    }\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
+    description: parts.join('\n'),
     position: 'top-right'
   })
 }
@@ -257,7 +292,7 @@ export interface BusinessAppIDEProps {
 
 export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const { packageVersion } = props
-  const { getPerformanceMetrics } = useDynamicScreen()
+  const { breadcrumbItems, goBack, resetBreadcrumbToHome, resetBreadcrumbToApp } = useIDEBreadcrumb(businessApps)
 
   useRewrapAntDStylesLive()
 
@@ -271,53 +306,214 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
 
-  // Check for different parameter types (app, form, popup, window)
-  const appFromUrl = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
+  // Check for different parameter types (app, record, form, popup, window)
+  const appFromUrl =
+    urlParams.get('app') ||
+    urlParams.get('record') ||
+    urlParams.get('form') ||
+    urlParams.get('popup') ||
+    urlParams.get('window')
+
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+  // /platform is home (no app); only paths under /platform/... with a mapping resolve to an app
+  const appPathFromPathname =
+    pathname && pathname !== NAVIGATION_BASE_PATH ? getAppPathForPlatformUrl(pathname) : undefined
+  const inferredAppFromPath =
+    !appPathFromPathname && !appFromUrl && (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft'))
+      ? 'flow/apps/creator'
+      : null
+  const effectiveAppFromUrl = appPathFromPathname ?? appFromUrl ?? inferredAppFromPath
 
   const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
     // First try to find by full path (new format), then fallback to name (legacy format)
-    getAppByPath(appFromUrl || '') || getAppByName(appFromUrl || '') || null
+    getAppByPath(effectiveAppFromUrl || '') || getAppByName(effectiveAppFromUrl || '') || null
   )
+  const [selectedMainModuleId, setSelectedMainModuleId] = useState(ALL_MAIN_MODULE_ID)
+  const [selectedSubModuleId, setSelectedSubModuleId] = useState(ALL_SUBMODULE_ID)
+  const [hasLoadedSettings, setHasLoadedSettings] = useState(false)
   const [userInfo, setUserInfo] = useState<string>('')
   const [userInfoError, setUserInfoError] = useState<string>('')
   const [accessToken, setAccessToken] = useState<string>('')
   const [additionalData, setAdditionalData] = useState<string>('')
   const [additionalDataError, setAdditionalDataError] = useState<string>('')
-  const [settingsModalVisible, setSettingsModalVisible] = useState<boolean>(false)
-  const [performanceModalVisible, setPerformanceModalVisible] = useState<boolean>(false)
-  const [collapsed, setCollapsed] = useState<boolean>(localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === 'true')
+  const [searchCommandOpen, setSearchCommandOpen] = useState<boolean>(false)
+  const [performanceWindowOpen, setPerformanceWindowOpen] = useState<boolean>(readPersistedPerformanceWindowOpen)
+  const [density, setDensity] = useState<DensityOption>(
+    (localStorage.getItem('business-app-ide-ui-density') as DensityOption) || 'default'
+  )
+  const [enableChat, setEnableChat] = useState<boolean>(localStorage.getItem('business-app-ide-enable-chat') === 'true')
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      window.sessionStorage.setItem(PERFORMANCE_WINDOW_OPEN_STORAGE_KEY, String(performanceWindowOpen))
+    } catch {
+      // Ignore storage errors to keep the profiler passive.
+    }
+  }, [performanceWindowOpen])
+
+  const mainModuleOptions = useMemo<NonNullable<ModuleSelectorProps['spaces']>>(
+    () => [
+      { id: ALL_MAIN_MODULE_ID, label: 'All' },
+      ...Array.from(new Set(filterableBusinessApps.map(businessApp => businessApp.module)))
+        .sort((leftModuleId, rightModuleId) => leftModuleId.localeCompare(rightModuleId))
+        .map(moduleId => ({
+          id: moduleId,
+          label: formatFilterLabel(moduleId)
+        }))
+    ],
+    []
+  )
+
+  const activeMainModuleFilter = selectedMainModuleId === ALL_MAIN_MODULE_ID ? null : selectedMainModuleId
+
+  const availableSubModuleOptions = useMemo<NonNullable<ModuleSelectorProps['modules']>>(() => {
+    if (!activeMainModuleFilter) {
+      return []
+    }
+
+    return [
+      { id: ALL_SUBMODULE_ID, label: 'All' },
+      ...Array.from(
+        new Set(
+          filterableBusinessApps
+            .filter(businessApp => businessApp.module === activeMainModuleFilter)
+            .map(getPrimarySubModuleId)
+        )
+      )
+        .sort((leftSubModuleId, rightSubModuleId) => leftSubModuleId.localeCompare(rightSubModuleId))
+        .map(subModuleId => ({
+          id: subModuleId,
+          label: formatFilterLabel(subModuleId)
+        }))
+    ]
+  }, [activeMainModuleFilter])
+
+  useEffect(() => {
+    if (!activeMainModuleFilter) {
+      if (selectedSubModuleId !== ALL_SUBMODULE_ID) {
+        setSelectedSubModuleId(ALL_SUBMODULE_ID)
+      }
+      return
+    }
+
+    const hasSelectedSubModule = availableSubModuleOptions.some(moduleOption => moduleOption.id === selectedSubModuleId)
+    if (!hasSelectedSubModule) {
+      setSelectedSubModuleId(ALL_SUBMODULE_ID)
+    }
+  }, [activeMainModuleFilter, availableSubModuleOptions, selectedSubModuleId])
+
+  const activeSubModuleFilter =
+    activeMainModuleFilter && selectedSubModuleId !== ALL_SUBMODULE_ID ? selectedSubModuleId : null
+
+  const filteredCatalogBusinessApps = useMemo(() => {
+    return filterableBusinessApps.filter(businessApp => {
+      if (activeMainModuleFilter && businessApp.module !== activeMainModuleFilter) {
+        return false
+      }
+
+      if (activeSubModuleFilter && getPrimarySubModuleId(businessApp) !== activeSubModuleFilter) {
+        return false
+      }
+
+      return true
+    })
+  }, [activeMainModuleFilter, activeSubModuleFilter])
+
+  const moduleSelectorConfig = useMemo<ModuleSelectorProps>(
+    () => ({
+      spaces: mainModuleOptions,
+      currentSpaceId: selectedMainModuleId,
+      onSpaceChange: setSelectedMainModuleId,
+      modules: activeMainModuleFilter ? availableSubModuleOptions : undefined,
+      currentModuleId: activeMainModuleFilter ? selectedSubModuleId : undefined,
+      onModuleChange: activeMainModuleFilter ? setSelectedSubModuleId : undefined
+    }),
+    [activeMainModuleFilter, availableSubModuleOptions, mainModuleOptions, selectedMainModuleId, selectedSubModuleId]
+  )
 
   // Density state (affects spacing multipliers across DS components)
-  const [density, setDensity] = useState<'default' | 'compact' | 'comfortable'>('default')
   const densityClass =
     density === 'compact'
-      ? 'gba:density-compact'
+      ? 'nw:density-compact'
       : density === 'comfortable'
-        ? 'gba:density-comfortable'
-        : 'gba:density-default'
+        ? 'nw:density-comfortable'
+        : 'nw:density-default'
 
   // Locale state for LocalizationProvider
-  const [locale, setLocale] = useState<SupportedLocale>('en-US')
+  const [locale, setLocale] = useState<Locales>('en-US')
+  const [enableIdeStructureIdAutofill, setEnableIdeStructureIdAutofill] = useState(true)
+
+  // Persist density changes
+  useEffect(() => {
+    localStorage.setItem('business-app-ide-ui-density', density)
+  }, [density])
 
   // Apply density globally on <html> to ensure DS components outside wrapper are affected
   useEffect(() => {
     const root = window?.document?.documentElement
     if (!root) return
-    root.classList.remove('gba:density-default', 'gba:density-compact', 'gba:density-comfortable')
+    root.classList.remove('nw:density-default', 'nw:density-compact', 'nw:density-comfortable')
     root.classList.add(densityClass)
   }, [densityClass])
 
   const [lastPublishedDate, setLastPublishedDate] = useState<string>('')
-  const [openKeys, setOpenKeys] = useState<string[]>([])
 
   // Token expiration tracking
-  const [tokenStatus, setTokenStatus] = useState<{
-    isValid: boolean
-    isExpired: boolean
-    expiresAt: Date | null
-    remainingTime: string
-    variant: 'success' | 'warning' | 'destructive' | 'secondary'
-  } | null>(null)
+  const [tokenStatus, setTokenStatus] = useState<TokenStatus | null>(null)
+
+  // Publish screen state
+  const [publishConfirmDialogVisible, setPublishConfirmDialogVisible] = useState(false)
+
+  // Actually publish the screen after confirmation
+  const handleConfirmPublish = useCallback(async () => {
+    if (!selectedApp) return
+
+    setPublishConfirmDialogVisible(false)
+
+    try {
+      const response = await fetch('/__publish-screen', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ screenPath: selectedApp.screenKey })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Screen published successfully', {
+          description: (
+            <span className="gba:text-foreground">
+              <code className="gba:font-medium">{selectedApp.screenKey}</code>
+            </span>
+          ),
+          position: 'top-right'
+        })
+        // Update last published date
+        setLastPublishedDate(new Date().toLocaleString())
+      } else {
+        toast.error('Publish failed', {
+          description: <span className="gba:text-foreground">{result.error || 'An unknown error occurred'}</span>,
+          position: 'top-right'
+        })
+        console.error('Publish error details:', result)
+      }
+    } catch (error) {
+      console.error('Publish error:', error)
+      toast.error('Publish failed', {
+        description: (
+          <span className="gba:text-foreground">{error instanceof Error ? error.message : 'Network error'}</span>
+        ),
+        position: 'top-right'
+      })
+    }
+  }, [selectedApp])
 
   // Utility function to decode and analyze JWT token
   const analyzeToken = useCallback((token: string) => {
@@ -343,7 +539,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       const remainingMs = expiresAt.getTime() - now.getTime()
 
       let remainingTime = ''
-      let variant: 'success' | 'warning' | 'destructive' | 'secondary' = 'success'
+      let variant: 'success' | 'warning' | 'destructive' = 'success'
 
       if (isExpired) {
         remainingTime = 'Expired'
@@ -418,7 +614,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
 
     // Load saved density
-    const savedDensity = localStorage.getItem('business-app-ide-density') as
+    const savedDensity = localStorage.getItem('business-app-ide-ui-density') as
       | 'default'
       | 'compact'
       | 'comfortable'
@@ -428,65 +624,83 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
 
     // Load saved locale
-    const savedLocale = localStorage.getItem('business-app-ide-locale') as SupportedLocale | null
+    const savedLocale = localStorage.getItem('business-app-ide-locale') as Locales | null
     if (savedLocale) {
       setLocale(savedLocale)
     }
 
-    // Set open keys based on the currently selected app (from URL)
-    // Only if menu is not collapsed initially and using legacy menu
-    const initialSelectedApp = getAppByPath(appFromUrl || '') || getAppByName(appFromUrl || '')
-    const initialCollapsed = localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === 'true'
-    if (!initialCollapsed && initialSelectedApp) {
-      const requiredKeys = getRequiredOpenKeysForApp(initialSelectedApp)
-      setOpenKeys(requiredKeys)
+    // Load saved structure id autofill toggle
+    const savedAutofill = localStorage.getItem('business-app-ide-structure-id-autofill')
+    if (savedAutofill === 'true' || savedAutofill === 'false') {
+      setEnableIdeStructureIdAutofill(savedAutofill === 'true')
     }
+
+    setHasLoadedSettings(true)
   }, [])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_SIDEBAR_COLLAPSED, String(collapsed))
-
-    // When menu expands, restore the path to current app
-    if (!collapsed && selectedApp) {
-      const requiredKeys = getRequiredOpenKeysForApp(selectedApp)
-      setOpenKeys(requiredKeys)
+    if (!selectedApp) {
+      setLastPublishedDate('')
+      return
     }
-  }, [collapsed, selectedApp])
 
-  useEffect(() => {
-    // Update open keys when selected app changes to ensure the path is visible
-    // Only do this when menu is not collapsed
-    if (selectedApp && !collapsed) {
-      const requiredKeys = getRequiredOpenKeysForApp(selectedApp)
-      setOpenKeys(prevKeys => {
-        // Only add required keys if they're not already open
-        // This ensures the path to the selected app is visible without disrupting user's menu state
-        const missingKeys = requiredKeys.filter(key => !prevKeys.includes(key))
-        if (missingKeys.length > 0) {
-          return [...prevKeys, ...missingKeys]
-        }
-        return prevKeys
-      })
-    }
-  }, [selectedApp, collapsed])
+    fetchLastPublishedDate(selectedApp)
 
-  useEffect(() => {
+    const platformPath = getPlatformPathForAppPath(selectedApp.screenKey)
     const url = new URL(window.location.href)
 
-    // Clear all type parameters first
-    url.searchParams.delete('app')
-    url.searchParams.delete('form')
-    url.searchParams.delete('popup')
-
-    if (selectedApp) {
-      // Set the appropriate parameter based on the app's type
-      url.searchParams.set(selectedApp.type, selectedApp.screenKey)
-      fetchLastPublishedDate(selectedApp)
+    if (platformPath) {
+      url.pathname = platformPath
+      url.searchParams.delete('app')
+      url.searchParams.delete('record')
+      url.searchParams.delete('form')
+      url.searchParams.delete('popup')
+      url.searchParams.delete('window')
     } else {
-      setLastPublishedDate('')
+      url.searchParams.delete('app')
+      url.searchParams.delete('record')
+      url.searchParams.delete('form')
+      url.searchParams.delete('popup')
+      url.searchParams.delete('window')
+      url.searchParams.set(selectedApp.type, selectedApp.screenKey)
     }
-    window.history.pushState({}, '', url.toString())
+    const targetUrl = url.pathname + (url.search || '')
+    const currentUrl = window.location.pathname + window.location.search
+    if (targetUrl !== currentUrl) {
+      window.history.pushState({}, '', targetUrl)
+    }
   }, [selectedApp])
+
+  // Redirect root to platform home so localhost:3002 lands on /platform.
+  // Do not touch the URL when it has OAuth callback params (code, state) – Keycloak must process them first; overwriting causes a login loop.
+  useEffect(() => {
+    const path = window.location.pathname
+    const search = window.location.search
+    const hasOAuthParams = search.includes('code=') || search.includes('state=')
+    if ((path === '/' || path === '') && !hasOAuthParams) {
+      window.history.replaceState({}, '', NAVIGATION_BASE_PATH)
+    }
+  }, [])
+
+  // Sync selectedApp from URL when user navigates back/forward (pathname or query)
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathname = window.location.pathname
+      const params = new URLSearchParams(window.location.search)
+      const appFromQuery =
+        params.get('app') || params.get('record') || params.get('form') || params.get('popup') || params.get('window')
+      const appPathFromPathname = getAppPathForPlatformUrl(pathname)
+      const effectivePath = appPathFromPathname ?? appFromQuery
+      if (effectivePath) {
+        const app = getAppByPath(effectivePath) || getAppByName(effectivePath)
+        setSelectedApp(app)
+      } else {
+        setSelectedApp(null)
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   /**
    * Fetches the last published date for a business app from Azure Storage
@@ -531,36 +745,6 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       console.warn(`Failed to fetch last published date for ${app.name}:`, error)
       setLastPublishedDate('')
     }
-  }
-
-  /**
-   * Calculates which menu keys should be open to show the path to the selected app
-   */
-  const getRequiredOpenKeysForApp = (app: BusinessAppInfo | null): string[] => {
-    if (!app) return []
-
-    const requiredKeys: string[] = []
-
-    // Always open the module
-    requiredKeys.push(app.module)
-
-    // If there's a submodule, open it too
-    if (app.subModule) {
-      const subModuleParts = app.subModule.split('/')
-      const firstSubModule = subModuleParts[0]
-      if (firstSubModule !== 'default') {
-        requiredKeys.push(`${app.module}/${firstSubModule}`)
-      }
-    }
-
-    return requiredKeys
-  }
-
-  /**
-   * Handles menu open keys change
-   */
-  const handleOpenChange = (keys: string[]): void => {
-    setOpenKeys(keys)
   }
 
   // Recently used apps tracking - centralized tracking for both IDEStartScreen and IdeMainMenu
@@ -610,11 +794,14 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   const handleAppSelect = (app: BusinessAppInfo) => {
     updateRecentlyUsedApps(app)
+    resetBreadcrumbToApp(app)
     setSelectedApp(app)
   }
 
-  const goToStartScreen = () => {
+  const handleHomeClick = () => {
+    resetBreadcrumbToHome()
     setSelectedApp(null)
+    navigateTo(NAVIGATION_BASE_PATH)
   }
 
   const validateUserInfo = (value: string): void => {
@@ -649,18 +836,22 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     localStorage.setItem(STORAGE_KEY_USER_INFO, userInfo)
     localStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, accessToken)
     localStorage.setItem(STORAGE_KEY_ADDITIONAL_DATA, additionalData)
-    setSettingsModalVisible(false)
   }
-
-  // Persist density selection
-  useEffect(() => {
-    localStorage.setItem('business-app-ide-density', density)
-  }, [density])
 
   // Persist locale selection
   useEffect(() => {
     localStorage.setItem('business-app-ide-locale', locale)
   }, [locale])
+
+  // Persist structure id autofill selection
+  useEffect(() => {
+    localStorage.setItem('business-app-ide-structure-id-autofill', String(enableIdeStructureIdAutofill))
+  }, [enableIdeStructureIdAutofill])
+
+  // Persist chat enable selection
+  useEffect(() => {
+    localStorage.setItem('business-app-ide-enable-chat', String(enableChat))
+  }, [enableChat])
 
   const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
@@ -686,8 +877,103 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     return undefined
   }, [additionalData])
 
+  const getIdeActiveStructureId = useCallback((): string | undefined => {
+    if (typeof process !== 'undefined' && process.env?.IDE_ACTIVE_STRUCTURE_ID) {
+      return String(process.env.IDE_ACTIVE_STRUCTURE_ID)
+    }
+
+    return undefined
+  }, [])
+
+  useEffect(() => {
+    if (!hasLoadedSettings || !enableIdeStructureIdAutofill) return
+    const ideStructureId = getIdeActiveStructureId()
+    if (!ideStructureId) return
+
+    if (!additionalData || additionalData.trim().length === 0) {
+      setAdditionalData(JSON.stringify({ platformContext: { structureId: ideStructureId } }, null, 2))
+      return
+    }
+
+    const existingAdditionalData = parsedAdditionalData()
+    if (!existingAdditionalData) return
+
+    const hasStructureId =
+      existingAdditionalData?.platformContext?.structureId ||
+      existingAdditionalData?.structureId ||
+      existingAdditionalData?.activeStructureId
+
+    if (hasStructureId) return
+
+    const mergedAdditionalData = {
+      ...existingAdditionalData,
+      platformContext: {
+        ...existingAdditionalData.platformContext,
+        structureId: ideStructureId
+      }
+    }
+
+    const serialized = JSON.stringify(mergedAdditionalData, null, 2)
+    if (serialized !== additionalData) {
+      setAdditionalData(serialized)
+    }
+  }, [additionalData, enableIdeStructureIdAutofill, getIdeActiveStructureId, hasLoadedSettings, parsedAdditionalData])
+
+  // Provide a local platform context for localhost IDE usage.
+  // This mirrors platform-provided values without hardcoding any IDs.
+  useEffect(() => {
+    if (typeof globalThis === 'undefined') return
+
+    const localUserInfo = parsedUserInfo()
+    const localAdditionalData = parsedAdditionalData()
+    if (!localUserInfo && !localAdditionalData) return
+
+    const lowcoder = ((globalThis as any).lowcoder ??= {})
+    const platformContext = { ...lowcoder.platformContext }
+    const additionalPlatformContext = localAdditionalData?.platformContext ?? {}
+
+    const structureId =
+      platformContext.structureId ||
+      additionalPlatformContext.structureId ||
+      localAdditionalData?.structureId ||
+      localAdditionalData?.activeStructureId
+
+    if (structureId && !platformContext.structureId) {
+      platformContext.structureId = structureId
+    }
+
+    if (structureId && !lowcoder.activeStructureId) {
+      lowcoder.activeStructureId = structureId
+    }
+
+    if (localUserInfo?.employeeDetails?.employeeId && !platformContext.employeeId) {
+      platformContext.employeeId = localUserInfo.employeeDetails.employeeId
+    }
+
+    if (localUserInfo?.employeeDetails?.organizationalUnit?.id && !platformContext.organizationalUnitId) {
+      platformContext.organizationalUnitId = localUserInfo.employeeDetails.organizationalUnit.id
+    }
+
+    if (localUserInfo?.employeeDetails?.supervisor?.id && !platformContext.managerId) {
+      platformContext.managerId = localUserInfo.employeeDetails.supervisor.id
+    }
+
+    if (localUserInfo?.id && !platformContext.userId) {
+      platformContext.userId = localUserInfo.id
+    }
+
+    lowcoder.platformContext = platformContext
+  }, [parsedAdditionalData, parsedUserInfo])
+
   // --- Authentication & user profile (Keycloak-based) ---
-  const { initialized: authInitialized, accessToken: authToken, tokenParsed, logout, refreshToken } = useBusinessAuth()
+  const {
+    initialized: authInitialized,
+    accessToken: authToken,
+    tokenParsed,
+    logout,
+    refreshToken,
+    isMsOAuthCallback
+  } = useBusinessAuth()
   const { userInfo: profileUserInfo, loading: profileLoading } = useUserProfileFromKeycloak(authToken, tokenParsed)
 
   // When auth/profile become available, synchronize into IDE state and localStorage
@@ -714,28 +1000,51 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
   }, [profileUserInfo])
 
+  // After auth init, sync selectedApp from URL (covers path restore after reload)
+  useEffect(() => {
+    if (!authInitialized) return
+    const pathname = window.location.pathname
+    const params = new URLSearchParams(window.location.search)
+    const appFromQuery =
+      params.get('app') || params.get('record') || params.get('form') || params.get('popup') || params.get('window')
+    const appPathFromPathname = getAppPathForPlatformUrl(pathname)
+    const effectivePath = appPathFromPathname ?? appFromQuery
+    if (effectivePath) {
+      const app = getAppByPath(effectivePath) || getAppByName(effectivePath)
+      setSelectedApp(app)
+    } else if (pathname === '' || pathname === '/' || pathname === NAVIGATION_BASE_PATH) {
+      setSelectedApp(null)
+    }
+  }, [authInitialized])
+
   const handleLogout = useCallback(async () => {
     await logout()
     setAccessToken('')
     setUserInfo('')
     setAdditionalData('')
     setTokenStatus(null)
-    setSettingsModalVisible(false)
   }, [logout])
 
   const handleTokenBadgeClick = useCallback(async () => {
     await refreshToken()
-    setSettingsModalVisible(true)
   }, [refreshToken])
 
-  // While authentication is initializing, show a minimal loading shell
-  if (!authInitialized || profileLoading) {
+  // While authentication is initializing, show a minimal loading shell.
+  // Only block on profile loading when we do not have profile yet (avoids fullscreen "Signing in" on token refresh).
+  // Exception: if this is a Microsoft OAuth callback, render immediately so email app can handle it.
+  const hasSavedReturnPath = typeof window !== 'undefined' && sessionStorage.getItem('keycloak_return_path') != null
+  if (!authInitialized || (profileLoading && !profileUserInfo && !isMsOAuthCallback)) {
+    const loadingLabel = isMsOAuthCallback
+      ? 'Completing Microsoft sign-in…'
+      : hasSavedReturnPath
+        ? 'Loading…'
+        : 'Signing you in to NEWWORK…'
     return (
       <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
         <LocalizationProvider locale={locale}>
           <div className={densityClass}>
             <div className="gba:h-screen gba:flex gba:items-center gba:justify-center">
-              <div className="gba:text-sm gba:text-muted-foreground">Signing you in to NEWWORK…</div>
+              <div className="gba:text-sm gba:text-muted-foreground">{loadingLabel}</div>
             </div>
           </div>
         </LocalizationProvider>
@@ -746,385 +1055,140 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   return (
     <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
       <LocalizationProvider locale={locale}>
-        <div className={densityClass}>
-          <BlinkProvider accessToken={accessToken || ''} currentUserId={parsedUserInfo()?.id || ''}>
-            <UiCatalogProvider>
-              <div className="gba:h-screen gba:flex gba:flex-col gba:overflow-hidden">
-                <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
-                <FeatureHubProvider userId={parsedUserInfo()?.id ?? ''} />
+        <BlinkProvider accessToken={accessToken || ''} currentUserId={parsedUserInfo()?.id || ''}>
+          <UiCatalogProvider>
+            <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
+            <FeatureHubProvider userId={parsedUserInfo()?.id ?? ''} />
 
-                {/* Sidebar + Inset layout */}
-                <SidebarProvider open={!collapsed} onOpenChange={open => setCollapsed(!open)}>
-                  <IDEMainMenu
+            <ShellProvider config={{ appName: 'Business Apps IDE', persistence: true }}>
+              <ShellLayout
+                sidebar={
+                  <IDEMenu
                     businessApps={businessApps}
+                    menuConfiguration={menuConfiguration}
+                    activeMainModuleFilter={activeMainModuleFilter}
+                    activeSubModuleFilter={activeSubModuleFilter}
                     selectedApp={selectedApp}
-                    openKeys={openKeys}
-                    onOpenChange={handleOpenChange}
                     onAppSelect={handleAppSelect}
+                    onHomeClick={handleHomeClick}
                   />
-                  <SidebarInset>
-                    {/* Header inside inset, responsive to collapsed state */}
-                    <header className="gba:flex gba:h-12 gba:shrink-0 gba:items-center gba:gap-2 gba:transition-[width,height] gba:ease-linear gba:bg-white gba:border-b gba:border-gray-200">
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:px-4">
-                        <SidebarTrigger className="gba:-ml-1" />
-                        <Separator orientation="vertical" className="gba:mr-2" />
-                        <a
-                          href="#"
-                          onClick={e => {
-                            e.preventDefault()
-                            goToStartScreen()
-                          }}
-                          className="gba:flex gba:items-center gba:gap-2"
-                        >
-                          <img
-                            src={HeaderLogo}
-                            alt="Business Apps IDE"
-                            width="120"
-                            height="14"
-                            className="gba:w-[120px] gba:h-[14px]"
-                          />
-                          <span className="gba:text-xs gba:text-muted-foreground">v{packageVersion}</span>
-                        </a>
-                      </div>
+                }
+                header={
+                  <IDEHeader
+                    packageVersion={packageVersion}
+                    onBack={goBack}
+                    locale={locale}
+                    onLocaleChange={setLocale}
+                    density={density}
+                    onDensityChange={setDensity}
+                    tokenStatus={tokenStatus}
+                    onTokenBadgeClick={handleTokenBadgeClick}
+                    lastPublishedDate={lastPublishedDate}
+                    userInfo={userInfo}
+                    onUserInfoChange={value => {
+                      setUserInfo(value)
+                      validateUserInfo(value)
+                    }}
+                    userInfoError={userInfoError}
+                    accessToken={accessToken}
+                    onAccessTokenChange={setAccessToken}
+                    additionalData={additionalData}
+                    onAdditionalDataChange={value => {
+                      setAdditionalData(value)
+                      validateAdditionalData(value)
+                    }}
+                    additionalDataError={additionalDataError}
+                    enableStructureIdAutofill={enableIdeStructureIdAutofill}
+                    onEnableStructureIdAutofillChange={setEnableIdeStructureIdAutofill}
+                    onSettingsSave={saveSettings}
+                    onLogout={handleLogout}
+                    breadcrumbItems={breadcrumbItems}
+                    moduleSelector={moduleSelectorConfig}
+                    performanceWindowOpen={performanceWindowOpen}
+                    onPerformanceOpen={() => setPerformanceWindowOpen(currentWindowOpen => !currentWindowOpen)}
+                    onSearchOpen={() => setSearchCommandOpen(true)}
+                    onSettingsOpen={() => setSettingsModalVisible(true)}
+                    enableChat={enableChat}
+                    onEnableChatChange={setEnableChat}
+                    selectedAppName={selectedApp?.name ?? null}
+                    onPublishClick={() => setPublishConfirmDialogVisible(true)}
+                    searchCommandOpen={searchCommandOpen}
+                    settingsModalVisible={settingsModalVisible}
+                    publishConfirmDialogVisible={publishConfirmDialogVisible}
+                  />
+                }
+                contextPanel={
+                  <IDEContextPanel accessToken={accessToken || ''} userInfo={parsedUserInfo()} enabled={enableChat} />
+                }
+              >
+                <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:bg-background gba:rounded-xl">
+                  {!selectedApp ? (
+                    <IDEStartScreen
+                      filteredBusinessApps={filteredCatalogBusinessApps}
+                      allBusinessApps={businessApps}
+                      onAppSelect={handleAppSelect}
+                    />
+                  ) : (
+                    <IDERenderer
+                      selectedApp={selectedApp}
+                      userInfo={parsedUserInfo()}
+                      accessToken={accessToken || ''}
+                      additionalData={parsedAdditionalData()}
+                      onAppSelect={setSelectedApp}
+                    />
+                  )}
+                </div>
+              </ShellLayout>
 
-                      <div className="gba:flex gba:flex-1 gba:items-center gba:justify-center">
-                        <div className="gba:w-[250px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-input">
-                          <div className="gba:text-sm gba:text-input-foreground" data-testid="GlobalSearchButton-Text">
-                            Search in NEWWORK
-                          </div>
-                        </div>
-                      </div>
+              <PerformanceWindow open={performanceWindowOpen} onClose={() => setPerformanceWindowOpen(false)} />
 
-                      <div className="gba:flex gba:items-center gba:justify-end gba:gap-4 gba:pr-4">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Select value={locale} onValueChange={v => setLocale(v as SupportedLocale)}>
-                            <SelectTrigger data-testid="BusinessAppIDE-locale-select" aria-label="Language">
-                              <SelectValue placeholder="Language" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="en-US" data-testid="BusinessAppIDE-locale-en-US">
-                                English (US)
-                              </SelectItem>
-                              <SelectItem value="de-DE" data-testid="BusinessAppIDE-locale-de-DE">
-                                Deutsch (DE)
-                              </SelectItem>
-                              <SelectItem value="ro-RO" data-testid="BusinessAppIDE-locale-ro-RO">
-                                Română (RO)
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <ThemeSwitch data-testid="BusinessAppIDE-theme-switch" />
-                          <Select
-                            value={density}
-                            onValueChange={v => setDensity(v as 'default' | 'compact' | 'comfortable')}
-                          >
-                            <SelectTrigger data-testid="BusinessAppIDE-density-select" aria-label="Density">
-                              <SelectValue placeholder="Density" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="default" data-testid="BusinessAppIDE-density-default">
-                                Default
-                              </SelectItem>
-                              <SelectItem value="compact" data-testid="BusinessAppIDE-density-compact">
-                                Compact
-                              </SelectItem>
-                              <SelectItem value="comfortable" data-testid="BusinessAppIDE-density-comfortable">
-                                Comfortable
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {lastPublishedDate && (
-                          <div className="gba:flex gba:items-center gba:text-sm" data-testid="LastPublishedDate">
-                            <span className="gba:text-secondary-foreground">Last Published: {lastPublishedDate}</span>
-                          </div>
-                        )}
-                        {tokenStatus && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge
-                                  variant={tokenStatus.variant}
-                                  className="gba:cursor-pointer gba:gap-1.5 gba:px-2.5 gba:py-1"
-                                  onClick={handleTokenBadgeClick}
-                                  data-testid="TokenStatusBadge"
-                                >
-                                  {tokenStatus.isExpired ? (
-                                    <XCircle size={14} weight="fill" />
-                                  ) : tokenStatus.variant === 'warning' ? (
-                                    <Warning size={14} weight="fill" />
-                                  ) : (
-                                    <CheckCircle size={14} weight="fill" />
-                                  )}
-                                  <span className="gba:text-xs gba:font-medium">{tokenStatus.remainingTime}</span>
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <div className="gba:space-y-1">
-                                  <div className="gba:font-semibold">
-                                    {tokenStatus.isExpired ? 'Token Expired' : 'Access Token Status'}
-                                  </div>
-                                  {tokenStatus.expiresAt && (
-                                    <div className="gba:text-xs">Expires: {tokenStatus.expiresAt.toLocaleString()}</div>
-                                  )}
-                                  <div className="gba:text-xs gba:text-muted-foreground">Click to update token</div>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        {!tokenStatus && accessToken && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge
-                                  variant="secondary"
-                                  className="gba:cursor-pointer gba:gap-1.5 gba:px-2.5 gba:py-1"
-                                  onClick={handleTokenBadgeClick}
-                                  data-testid="TokenStatusBadge-Invalid"
-                                >
-                                  <Clock size={14} />
-                                  <span className="gba:text-xs gba:font-medium">Invalid Token</span>
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <div className="gba:space-y-1">
-                                  <div className="gba:font-semibold">Invalid Token Format</div>
-                                  <div className="gba:text-xs gba:text-muted-foreground">Click to update token</div>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setSettingsModalVisible(true)}>
-                                <Gear size={16} />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Settings</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setPerformanceModalVisible(true)}>
-                                <Info size={16} />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Performance Metrics</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </header>
+              <GlobalSearchCommand
+                open={searchCommandOpen}
+                onOpenChange={setSearchCommandOpen}
+                businessApps={businessApps}
+                menuConfiguration={menuConfiguration}
+                onAppSelect={handleAppSelect}
+              />
+            </ShellProvider>
 
-                    <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:bg-background gba:rounded-xl">
-                      {!selectedApp ? (
-                        <IDEStartScreen businessApps={businessApps} onAppSelect={handleAppSelect} />
-                      ) : (
-                        <IDERenderer
-                          selectedApp={selectedApp}
-                          userInfo={parsedUserInfo()}
-                          accessToken={accessToken ?? undefined}
-                          additionalData={parsedAdditionalData()}
-                          onAppSelect={setSelectedApp}
-                        />
-                      )}
-                    </div>
-                  </SidebarInset>
-                </SidebarProvider>
+            <PublishConfirmDialog
+              open={publishConfirmDialogVisible}
+              onOpenChange={setPublishConfirmDialogVisible}
+              selectedApp={selectedApp ?? null}
+              onConfirm={handleConfirmPublish}
+            />
 
-                <Dialog open={settingsModalVisible} onOpenChange={setSettingsModalVisible}>
-                  <DialogContent className="gba:max-w-[700px] gba:max-h-[90vh] gba:overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Business App Settings</DialogTitle>
-                    </DialogHeader>
-                    <div className="gba:space-y-6">
-                      <div className="gba:space-y-2">
-                        <Label htmlFor="userInfo">User Info (JSON format)</Label>
-                        <Textarea
-                          id="userInfo"
-                          placeholder="Enter user info in JSON format"
-                          rows={6}
-                          value={userInfo}
-                          onChange={e => {
-                            setUserInfo(e.target.value)
-                            validateUserInfo(e.target.value)
-                          }}
-                          className={`gba:w-full gba:resize-none gba:whitespace-pre-wrap gba:break-words ${userInfoError ? 'gba:border-red-500' : ''}`}
-                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                        />
-                        {userInfoError && <p className="gba:text-sm gba:text-red-500">{userInfoError}</p>}
-                      </div>
+            <SettingsDialog
+              open={settingsModalVisible}
+              onOpenChange={setSettingsModalVisible}
+              userInfo={userInfo}
+              onUserInfoChange={(value: string) => {
+                setUserInfo(value)
+                validateUserInfo(value)
+              }}
+              userInfoError={userInfoError}
+              accessToken={accessToken}
+              onAccessTokenChange={setAccessToken}
+              tokenStatus={tokenStatus}
+              additionalData={additionalData}
+              onAdditionalDataChange={(value: string) => {
+                setAdditionalData(value)
+                validateAdditionalData(value)
+              }}
+              additionalDataError={additionalDataError}
+              enableStructureIdAutofill={enableIdeStructureIdAutofill}
+              onEnableStructureIdAutofillChange={setEnableIdeStructureIdAutofill}
+              onSave={() => {
+                saveSettings()
+                setSettingsModalVisible(false)
+              }}
+              onLogout={handleLogout}
+              onCancel={() => setSettingsModalVisible(false)}
+            />
 
-                      <div className="gba:space-y-2">
-                        <Label htmlFor="accessToken">Access Token</Label>
-                        <Textarea
-                          id="accessToken"
-                          placeholder="Enter your access token"
-                          rows={3}
-                          value={accessToken}
-                          onChange={e => setAccessToken(e.target.value)}
-                          className="gba:w-full gba:resize-none gba:whitespace-pre-wrap gba:break-words"
-                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                        />
-                        {tokenStatus && (
-                          <div
-                            className={`gba:p-3 gba:rounded-lg gba:flex gba:items-start gba:gap-2 ${
-                              tokenStatus.variant === 'destructive'
-                                ? 'gba:bg-destructive-secondary gba:text-destructive-secondary'
-                                : tokenStatus.variant === 'warning'
-                                  ? 'gba:bg-warning-secondary gba:text-warning-secondary'
-                                  : 'gba:bg-success-secondary gba:text-success-secondary'
-                            }`}
-                            data-testid="TokenStatusInfo"
-                          >
-                            <div className="gba:flex-shrink-0 gba:mt-0.5">
-                              {tokenStatus.isExpired ? (
-                                <XCircle size={18} weight="fill" />
-                              ) : tokenStatus.variant === 'warning' ? (
-                                <Warning size={18} weight="fill" />
-                              ) : (
-                                <CheckCircle size={18} weight="fill" />
-                              )}
-                            </div>
-                            <div className="gba:flex-1 gba:space-y-1">
-                              <div className="gba:font-semibold gba:text-sm">
-                                {tokenStatus.isExpired
-                                  ? 'Token Expired'
-                                  : tokenStatus.variant === 'warning'
-                                    ? 'Token Expiring Soon'
-                                    : 'Token Valid'}
-                              </div>
-                              {tokenStatus.expiresAt && (
-                                <div className="gba:text-xs">
-                                  <div>Expires: {tokenStatus.expiresAt.toLocaleString()}</div>
-                                  <div className="gba:font-medium gba:mt-0.5">
-                                    {tokenStatus.isExpired
-                                      ? 'Please update your token'
-                                      : `${tokenStatus.remainingTime} remaining`}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        {!tokenStatus && accessToken && (
-                          <div
-                            className="gba:p-3 gba:rounded-lg gba:flex gba:items-start gba:gap-2 gba:bg-secondary gba:text-secondary-foreground"
-                            data-testid="TokenStatusInfo-Invalid"
-                          >
-                            <div className="gba:flex-shrink-0 gba:mt-0.5">
-                              <Clock size={18} />
-                            </div>
-                            <div className="gba:flex-1">
-                              <div className="gba:font-semibold gba:text-sm">Invalid Token Format</div>
-                              <div className="gba:text-xs gba:mt-1">
-                                The token format is invalid or cannot be decoded. Please ensure you're using a valid JWT
-                                token.
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="gba:space-y-2">
-                        <Label htmlFor="additionalData">Additional Data (JSON format)</Label>
-                        <Textarea
-                          id="additionalData"
-                          placeholder='Enter additional data in JSON format (e.g., {"employeeId": "123", "jobPositionId": "456"})'
-                          rows={4}
-                          value={additionalData}
-                          onChange={e => {
-                            setAdditionalData(e.target.value)
-                            validateAdditionalData(e.target.value)
-                          }}
-                          className={`gba:w-full gba:resize-none gba:whitespace-pre-wrap gba:break-words ${additionalDataError ? 'gba:border-red-500' : ''}`}
-                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                        />
-                        {additionalDataError && <p className="gba:text-sm gba:text-red-500">{additionalDataError}</p>}
-                      </div>
-
-                      <p className="gba:text-sm gba:text-gray-600">
-                        These settings will be saved in your browser's local storage and persisted between sessions.
-                        Additional Data is used to pass context information like employeeId, jobPositionId, etc.
-                      </p>
-
-                      <div className="gba:flex gba:justify-between gba:gap-2">
-                        <Button variant="outline" onClick={handleLogout}>
-                          Logout
-                        </Button>
-                        <div className="gba:flex gba:gap-2">
-                          <Button variant="outline" onClick={() => setSettingsModalVisible(false)}>
-                            Cancel
-                          </Button>
-                          <Button onClick={saveSettings}>Save Settings</Button>
-                        </div>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-                <Dialog open={performanceModalVisible} onOpenChange={setPerformanceModalVisible}>
-                  <DialogContent className="gba:max-w-[800px]">
-                    <DialogHeader>
-                      <DialogTitle>Dynamic Screen Loading Performance</DialogTitle>
-                    </DialogHeader>
-                    <div className="gba:space-y-4">
-                      <div className="gba:p-4 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg">
-                        <h4 className="gba:text-green-800 gba:font-semibold gba:mb-2">Performance Improvements</h4>
-                        <ul className="gba:text-green-700 gba:space-y-1">
-                          <li>• Global caching: Components loaded once, reused across sessions</li>
-                          <li>• Smart preloading: Common screens preloaded automatically</li>
-                          <li>• Concurrent loading prevention: Multiple requests for same screen deduplicated</li>
-                          <li>• Performance tracking: Load times monitored and optimized</li>
-                        </ul>
-                      </div>
-
-                      <div>
-                        <h4 className="gba:font-semibold gba:mb-2">Screen Loading Statistics</h4>
-                        <div className="gba:max-h-64 gba:overflow-y-auto gba:border gba:border-gray-200 gba:rounded-lg">
-                          <table className="gba:w-full gba:text-sm">
-                            <thead className="gba:bg-gray-50">
-                              <tr>
-                                <th className="gba:p-2 gba:text-left gba:font-medium">Screen</th>
-                                <th className="gba:p-2 gba:text-left gba:font-medium">Load Count</th>
-                                <th className="gba:p-2 gba:text-left gba:font-medium">Avg Time (ms)</th>
-                                <th className="gba:p-2 gba:text-left gba:font-medium">Last Load (ms)</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {Array.from(getPerformanceMetrics().entries()).map(([screenKey, metrics]) => (
-                                <tr key={screenKey} className="gba:border-t gba:border-gray-200">
-                                  <td className="gba:p-2 gba:font-mono gba:text-xs">{screenKey}</td>
-                                  <td className="gba:p-2">{metrics.loadCount}</td>
-                                  <td className="gba:p-2">{(metrics.loadTime / metrics.loadCount).toFixed(1)}</td>
-                                  <td className="gba:p-2">{metrics.lastLoadTime.toFixed(1)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          {getPerformanceMetrics().size === 0 && (
-                            <div className="gba:p-4 gba:text-center gba:text-gray-500">
-                              No screens loaded yet. Navigate to a screen to see performance data.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="gba:flex gba:justify-end">
-                        <Button onClick={() => setPerformanceModalVisible(false)}>Close</Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-                <Toaster />
-              </div>
-            </UiCatalogProvider>
-          </BlinkProvider>
-        </div>
+            <Toaster />
+          </UiCatalogProvider>
+        </BlinkProvider>
       </LocalizationProvider>
     </ThemeProvider>
   )

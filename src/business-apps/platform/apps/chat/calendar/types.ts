@@ -1,5 +1,8 @@
 // Calendar and Meeting Types
 
+// Note: Agenda utilities are in ./utils/agendaUtils
+// Import directly from there to avoid circular dependencies
+
 export enum MeetingStatus {
   SCHEDULED = 'scheduled',
   IN_PROGRESS = 'in_progress',
@@ -61,6 +64,7 @@ export interface Meeting {
   organizerId: string
   conversationId?: string
   webrtcSessionId?: string
+  transcriptionEnabled?: boolean
   reminderMinutes: number[]
   isAllDay: boolean
   color: string
@@ -91,6 +95,9 @@ export interface EventParticipant {
   comment?: string
 }
 
+/** Source of the calendar event */
+export type CalendarEventSource = 'internal' | 'microsoft' | 'google'
+
 export interface CalendarEvent {
   id: string
   title: string
@@ -117,6 +124,20 @@ export interface CalendarEvent {
   meetingLink?: string
   location?: string
   conversationId?: string
+  recurrence?: MeetingRecurrence
+  recurrenceEndDate?: Date
+  reminderMinutes?: number[]
+  metadata?: Record<string, any>
+  /** Whether AI transcription/recording is enabled for this meeting */
+  transcriptionEnabled?: boolean
+  /** Source of the event: internal meeting or external provider */
+  source?: CalendarEventSource
+  /** External provider event ID */
+  externalId?: string
+  /** Link to open the event in the external provider */
+  externalLink?: string
+  /** Whether this event is read-only (external events cannot be edited) */
+  isReadOnly?: boolean
 }
 
 export interface CreateMeetingData {

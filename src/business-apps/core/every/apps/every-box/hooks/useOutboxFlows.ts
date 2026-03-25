@@ -5,12 +5,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
 import { Flow, FlowStatus } from '../types'
+import { getCflowEndpoint } from '../../every-api/utils/config'
+import { getEveryboxServiceApiUrl } from '../../every-api/utils/everyboxServiceUrl'
 
-const FLOW_ENGINE_API = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+const FLOW_ENGINE_API = getCflowEndpoint()
 
-export const useOutboxFlows = (context: BusinessAppContextProps) => {
+export const useOutboxFlows = (context: BusinessAppContextProps, options?: { enabled?: boolean }) => {
+  const enabled = options?.enabled !== false
   const [flows, setFlows] = useState<Flow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -30,8 +32,20 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
     }
 
     try {
-      // Reduce limit to 50 and add timeout to prevent 524 errors
-      const url = `${FLOW_ENGINE_API}/api/flows/user/${userId}/initiated?limit=50&offset=0`
+      // Prefer everybox-service (server-side normalization + grouping + caching)
+      const everyboxApi = (() => {
+        try {
+          return getEveryboxServiceApiUrl()
+        } catch {
+          return null
+        }
+      })()
+
+      if (!everyboxApi) {
+        throw new Error('Everybox service URL not configured')
+      }
+
+      const url = `${everyboxApi}/flows/user/${userId}/initiated?limit=50&offset=0`
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController()
@@ -48,54 +62,70 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        if (response.status === 524) {
-          throw new Error('Flow engine is taking too long to respond. Please try again.')
-        }
-        throw new Error(`Flow engine API error: ${response.status}`)
+        throw new Error(`Everybox service API error: ${response.status}`)
       }
 
       const data = await response.json()
-      // API response structure: { status: "success", data: { flows: [...], totalCount: N } }
-      const rawFlows: any[] = data.data?.flows || []
-
-      return rawFlows.map(flow => transformFlow(flow))
+      const flowsFromService: Flow[] = data.flows || []
+      return flowsFromService
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         throw new Error('Request timed out. The server is taking too long to respond.')
       }
 
-      throw err
+      // Fallback to Flow Engine direct call if everybox-service is not routed yet
+      try {
+        const url = `${FLOW_ENGINE_API}/api/flows/user/${userId}/initiated?limit=50&offset=0`
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(context.accessToken && { Authorization: `Bearer ${context.accessToken}` })
+          },
+          signal: controller.signal
+        })
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          if (response.status === 524) {
+            throw new Error('Flow engine is taking too long to respond. Please try again.')
+          }
+          throw new Error(`Flow engine API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        const rawFlows: any[] = data.data?.flows || []
+        const transformed = rawFlows.map(flow => transformFlow(flow))
+        return groupFlowsByBlinkId(transformed)
+      } catch {
+        throw err
+      }
     }
   }, [userId, context.accessToken])
 
   /**
-   * Load all flows
+   * Build a lightweight fingerprint for change-detection (avoids full JSON.stringify)
+   */
+  const flowFingerprint = useCallback((flowList: Flow[]): string => {
+    return flowList.map(f => `${f.id}:${f.status}:${f.completedAssignees ?? ''}`).join('|')
+  }, [])
+
+  /**
+   * Load all flows (shows loading spinner — use for manual refresh / initial load)
    */
   const loadFlows = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const initiatedFlows = await fetchInitiatedFlows()
+      const groupedFlows = await fetchInitiatedFlows()
 
-      // Group flows by blinkGroupId
-      const groupedFlows = groupFlowsByBlinkId(initiatedFlows)
-
-      // Only update state if data has actually changed (optimization for polling)
-      const newFlowData = JSON.stringify(
-        groupedFlows.map(f => ({
-          id: f.id,
-          status: f.status,
-          startedAt: f.startedAt,
-          completedAt: f.completedAt,
-          blinkGroupId: f.blinkGroupId,
-          completedAssignees: f.completedAssignees,
-          assigneeCount: f.assigneeCount
-        }))
-      )
-
-      if (newFlowData !== lastFlowDataRef.current) {
-        lastFlowDataRef.current = newFlowData
+      const fp = flowFingerprint(groupedFlows)
+      if (fp !== lastFlowDataRef.current) {
+        lastFlowDataRef.current = fp
         setFlows(groupedFlows)
       }
     } catch (err) {
@@ -104,22 +134,40 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
     } finally {
       setIsLoading(false)
     }
-  }, [fetchInitiatedFlows])
+  }, [fetchInitiatedFlows, flowFingerprint])
+
+  /**
+   * Background refresh — does NOT set isLoading (no spinner during polling)
+   */
+  const backgroundRefresh = useCallback(async () => {
+    try {
+      const groupedFlows = await fetchInitiatedFlows()
+
+      const fp = flowFingerprint(groupedFlows)
+      if (fp !== lastFlowDataRef.current) {
+        lastFlowDataRef.current = fp
+        setFlows(groupedFlows)
+      }
+    } catch {
+      // Ignore background refresh errors silently
+    }
+  }, [fetchInitiatedFlows, flowFingerprint])
 
   /**
    * Initial load
    */
   useEffect(() => {
-    if (context.accessToken && userId) {
+    if (enabled && context.accessToken && userId) {
       loadFlows()
     }
-  }, [context.accessToken, userId, loadFlows])
+  }, [enabled, context.accessToken, userId, loadFlows])
 
   return {
     flows,
     isLoading,
     error,
-    refetch: loadFlows
+    refetch: loadFlows,
+    backgroundRefresh
   }
 }
 

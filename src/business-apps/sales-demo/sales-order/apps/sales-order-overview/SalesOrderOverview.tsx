@@ -1,7 +1,7 @@
 import React, { useEffect, useState, ReactNode, useCallback } from 'react'
 import { Alert } from 'antd'
 import { Tabs } from '@newwork/gravity-ui-catalog'
-import { PiShoppingCart, PiChartBar, PiGauge, PiListBullets } from 'react-icons/pi'
+import { ShoppingCartIcon, ChartBarIcon, GaugeIcon, ListBulletsIcon } from '@phosphor-icons/react'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -61,7 +61,7 @@ const SalesOrderOverview: React.FC<SalesOrderOverviewProps> = props => {
       key: 'dashboard',
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiGauge style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <GaugeIcon style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Dashboard</span>
         </div>
       ),
@@ -72,7 +72,7 @@ const SalesOrderOverview: React.FC<SalesOrderOverviewProps> = props => {
       key: 'orders',
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiListBullets style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <ListBulletsIcon style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Orders</span>
         </div>
       ),
@@ -89,7 +89,7 @@ const SalesOrderOverview: React.FC<SalesOrderOverviewProps> = props => {
       key: 'analytics',
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiChartBar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <ChartBarIcon style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Analytics</span>
         </div>
       ),
@@ -180,7 +180,7 @@ const SalesOrderOverview: React.FC<SalesOrderOverviewProps> = props => {
 
   return (
     <PageLayout
-      headerIcon={<PiShoppingCart color="#c92559" />}
+      headerIcon={<ShoppingCartIcon color="#c92559" />}
       headerLabel="Sales Order Overview"
       pageHeaderCenter={<SalesOrderAi />}
       pageController={

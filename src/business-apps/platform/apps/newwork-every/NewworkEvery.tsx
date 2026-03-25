@@ -79,7 +79,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({
       title: 'MyDocuments',
       description: 'Create and manage documents and spreadsheets. Collaborate with AI-powered editing features.',
       icon: FileText,
-      href: '/platform/apps/document-apps',
+      href: '/platform/every-office/documents',
       badge: 'New',
       badgeVariant: 'success',
       accentColor: 'success'
@@ -110,7 +110,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({
       title: 'Notes',
       description: 'Quick capture for your thoughts and ideas. Organize notes with tags and search.',
       icon: StickyNote,
-      href: '/platform/apps/notes',
+      href: '/platform/every-office/notes',
       isComingSoon: true,
       badge: 'Coming Soon',
       accentColor: 'offline'
@@ -173,7 +173,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({
       } else if (scores.everyBox === maxScore) {
         targetUrl = '/platform/task-manager'
       } else if (scores.documents === maxScore) {
-        targetUrl = '/platform/apps/document-apps'
+        targetUrl = '/platform/every-office/documents'
       } else if (scores.notes === maxScore) {
         // Notes coming soon, redirect to EveryAI
         targetUrl = '/platform/every-ai'

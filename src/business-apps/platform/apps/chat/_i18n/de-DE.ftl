@@ -17,6 +17,13 @@ chat-offline = Verbindung wird wiederhergestellt...
 chat-selectConversation = Wählen Sie eine Unterhaltung aus, um zu chatten
 chat-noConversationsFound = Keine Unterhaltungen gefunden
 chat-noConversationsYet = Noch keine Unterhaltungen
+chat-filters = Filter
+chat-filterDirect = Direkt
+chat-filterGroup = Gruppe
+chat-filterMeetingChats = Meeting
+chat-filterUnreadOnly = Ungelesen
+chat-filtersCollapse = Filter einklappen
+chat-filtersExpand = Alle Filter anzeigen
 chat-searchForUsers = Benutzer suchen...
 chat-noUsersFound = Keine Benutzer gefunden
 chat-noUsersAvailable = Keine Benutzer verfügbar
@@ -32,6 +39,7 @@ chat-authenticationFailed = Authentifizierung fehlgeschlagen. Bitte melden Sie s
 chat-connectionError = Verbindung zum Chat-Dienst fehlgeschlagen. Bitte überprüfen Sie Ihre Internetverbindung.
 chat-cannotLeaveAsLastOwner = Sie sind der einzige Besitzer dieser Gruppe. Bitte übertragen Sie die Eigentümerschaft an ein anderes Mitglied oder löschen Sie die Gruppe in den Gruppeneinstellungen.
 chat-failedToLeave = Verlassen der Unterhaltung fehlgeschlagen. Bitte versuchen Sie es erneut.
+chat-failedToCreateConversation = Unterhaltung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.
 chat-nudgeCooldown = Bitte warten Sie {$seconds} Sekunden, bevor Sie einen weiteren Anstoß senden.
 
 # Messages
@@ -47,6 +55,13 @@ chat-user = Benutzer
 chat-everyAI = Every AI
 chat-replyToEvery = An Every antworten
 
+# Message search (in-conversation)
+chat-searchInConversation = In Unterhaltung suchen
+chat-searchMessagesPlaceholder = Nachrichten suchen…
+chat-searchNoResults = Keine Ergebnisse
+chat-searchSearching = Suche…
+chat-searchClear = Löschen
+
 # Message Time
 chat-time-justNow = Gerade eben
 chat-time-minutesAgo = vor {$minutes}m
@@ -60,6 +75,25 @@ chat-input-attach = Datei anhängen
 chat-input-emoji = Emoji hinzufügen
 chat-attach = Datei anhängen
 chat-mention = Jemanden erwähnen
+
+# Quoted messages (reply = reply with quote)
+chat-reply = Antworten
+chat-reply-with-quote = Mit Zitat antworten
+chat-quoting-name = Zitat von {$name}
+chat-cancel-quote = Zitat abbrechen
+chat-quoted-message-unavailable = Nachricht nicht verfügbar
+
+# Edit message
+chat-edit-message = Nachricht bearbeiten
+chat-save = Speichern
+chat-cancel = Abbrechen
+chat-edited = Bearbeitet
+chat-edited-at = Bearbeitet um { $time }
+
+# Reactions
+chat-reaction-picker-full = Reaktion wählen
+chat-reaction-search-placeholder = Emoji suchen…
+chat-react-with-emoji = Reagieren mit {$emoji}
 
 # Typing Indicator
 chat-someone = Jemand
@@ -123,6 +157,9 @@ chat-lastSeenLongAgo = Vor längerer Zeit gesehen
 chat-viewProfile = Profil anzeigen
 chat-participantsCount = {$count} Teilnehmer
 chat-activeCallInGroup = Aktiver Anruf in dieser Gruppe
+chat-activeCallDirect = In einem Anruf
+chat-activeCallGroup = Aktiver Anruf in dieser Gruppe
+chat-activeCallMeeting = Besprechung läuft
 chat-sendNudge = Anstoß senden
 chat-startAudioCall = Audioanruf starten
 chat-startVideoCall = Videoanruf starten
@@ -185,10 +222,17 @@ chat-lastOwnerInfo = Sie sind der einzige Besitzer. Um diese Gruppe zu verlassen
 # Call Features
 chat-audioCall = Audioanruf
 chat-videoCall = Videoanruf
+chat-directCall = Anruf
+chat-meeting = Besprechung
 chat-groupCall = Gruppenanruf
 chat-endCall = Anruf beenden
 chat-mute = Stummschalten
 chat-unmute = Stummschaltung aufheben
+chat-pinConversation = Unterhaltung anheften
+chat-unpinConversation = Unterhaltung ablösen
+chat-muteConversation = Unterhaltung stummschalten
+chat-unmuteConversation = Stummschaltung der Unterhaltung aufheben
+chat-markAsUnread = Als ungelesen markieren
 chat-startVideo = Video starten
 chat-stopVideo = Video stoppen
 chat-turnOnCamera = Kamera einschalten
@@ -215,7 +259,38 @@ call-ringing = Klingelt
 call-decline = Ablehnen
 call-accept = Annehmen
 call-join = Beitreten
+call-joining = Tritt bei...
+call-joiningCall = Anruf beitreten...
+call-micOn = Mikro
+call-micOff = Mikro aus
+call-cameraOn = Kamera
+call-cameraOff = Kamera aus
+call-selectMicrophone = Mikrofon auswählen
+call-selectCamera = Kamera auswählen
+call-selectSpeaker = Lautsprecher auswählen
+call-deviceSettings = Geräteeinstellungen
+call-audioSettings = Audioeinstellungen
+call-videoSettings = Videoeinstellungen
+call-noDevicesFound = Keine Geräte gefunden
+call-noiseSuppression = Geräuschunterdrückung
+call-autoGainControl = Automatische Lautstärkeregelung
+call-speakerNotSupported = Lautsprecherauswahl wird in diesem Browser nicht unterstützt
+call-speakerNotSupportedShort = nicht auswählbar
+call-testDevices = Geräte testen
+call-testDevicesDescription = Spiele einen kurzen Ton ab und prüfe den Mikrofonpegel.
+call-testSpeaker = Lautsprecher testen
+call-testMicrophone = Mikrofon testen
+call-microphoneLevel = Mikrofonpegel
+call-testing = Test läuft…
+call-stop = Stopp
+call-close = Schließen
+call-testSpeakerError = Testton konnte nicht abgespielt werden.
+call-testSpeakerSinkError = Audio konnte nicht auf den ausgewählten Lautsprecher umgeleitet werden.
+call-testMicrophoneError = Zugriff auf das Mikrofon nicht möglich.
+call-backgroundOn = Hintergrund
+call-backgroundOff = Hintergrund aus
 call-startedBy = Gestartet von
+call-activeParticipants = aktiv
 call-unmute = Stummschaltung aufheben
 call-mute = Stummschalten
 call-turnOnCamera = Kamera einschalten
@@ -225,11 +300,45 @@ call-shareScreen = Bildschirm teilen
 call-endCall = Anruf beenden
 call-initiating = Anruf wird gestartet...
 call-connecting = Verbinde...
+call-startingCall = Anruf wird gestartet
+call-startingVideoCall = Videoanruf wird gestartet
+call-startingAudioCall = Audioanruf wird gestartet
+call-startVideoCall = Videoanruf starten
+call-startAudioCall = Audioanruf starten
+call-setupYourCallSettings = Richten Sie Ihre Anrufeinstellungen ein, bevor Sie beitreten
+call-readyToStart = Bereit zum Starten
+call-starting = Wird gestartet...
+call-start = Starten
+call-cancel = Abbrechen
+call-backgroundWillBeApplied = Hintergrund wird im Anruf angewendet
 call-ended = Anruf beendet
 call-failed = Anruf fehlgeschlagen
 call-disconnected = Getrennt
+call-internalMicAndSpeakers = Mikrofon & Lautsprecher
+call-microphone = Mikrofon
+call-speaker = Lautsprecher
+call-effectsAndAvatars = Effekte und Avatare
+call-moreAudioSettings = Weitere Audioeinstellungen
+call-advancedSettings = Erweiterte Einstellungen
+call-rnnoiseAI = Geräuschreduzierung
+call-rnnoiseDescription = Reduziert Hintergrundgeräusche, damit Sie besser verstanden werden.
+call-rnnoiseGentle = Sanft
+call-rnnoiseGentleDesc = Leichte Reduzierung – Ihre Stimme klingt natürlich
+call-rnnoiseModerate = Mittel
+call-rnnoiseModerateDesc = Ausgewogen – gut für die meisten Anrufe
+call-rnnoiseAggressive = Stark
+call-rnnoiseAggressiveDesc = Starke Reduzierung – ideal bei lauter Umgebung
+call-rnnoiseWarning = Ein Headset kann die Mikrofonqualität verbessern.
 
 # Call Settings
+call-video = Video
+call-audio = Audio
+call-typeLabelDirectVideo = 1:1-Videoanruf
+call-typeLabelDirectAudio = 1:1-Audioanruf
+call-typeLabelGroupVideo = Gruppen-Videoanruf
+call-typeLabelGroupAudio = Gruppen-Audioanruf
+call-typeLabelMeetingVideo = Meeting-Videoanruf
+call-typeLabelMeetingAudio = Meeting-Audioanruf
 call-videoQuality = Videoqualität
 call-highQuality = Hohe Qualität
 call-highQualityDesc = 720p, 30fps - Optimal für schnelle Verbindungen
@@ -250,6 +359,88 @@ call-retryConnection = Verbindung wiederholen
 call-reconnect = Erneut verbinden
 call-retrying = Wird wiederholt...
 call-waitingForParticipants = Warte auf Teilnehmer...
+
+# Group Call
+groupCall-title = Gruppenanruf
+groupCall-participants = Teilnehmer
+groupCall-audioOnly = Nur Audio
+groupCall-minimize = Anruf minimieren
+groupCall-waitingForParticipants = Warte auf Teilnehmer...
+groupCall-unmute = Stummschaltung aufheben
+groupCall-mute = Stummschalten
+groupCall-turnOnVideo = Kamera einschalten
+groupCall-turnOffVideo = Kamera ausschalten
+groupCall-endCall = Anruf beenden
+groupCall-enableBackground = Hintergrundeffekt aktivieren
+groupCall-disableBackground = Hintergrundeffekt deaktivieren
+groupCall-chat = Chat
+
+# Participants Panel
+participants-close = Schließen
+participants-in-this-call = In diesem Anruf
+participants-available = Verfügbar
+participants-pending-invites = Ausstehende Einladungen
+participants-invite = Einladen
+participants-inviting = Wird eingeladen...
+participants-no-available = Keine Teilnehmer zum Einladen verfügbar
+participants-host = Gastgeber
+participants-mute = Stummschalten
+participants-kick = Entfernen
+participants-no-hands-raised = Niemand hat die Hand gehoben
+participants-hand-raised = Hand gehoben
+participants-screen-sharing = Bildschirm teilen
+participants-audio-only = Nur Audio
+participants-speaking = Spricht
+participants-more-options = Mehr Optionen
+participants-mute-participant = {$name} stummschalten
+participants-mute-all = Alle stummschalten
+participants-no-results-found = Keine Ergebnisse gefunden
+participants-try-different-search = Versuchen Sie einen anderen Suchbegriff oder durchsuchen Sie alle Teilnehmer
+participants-clear-search = Suche löschen
+participants-everyones-here = Alle sind da!
+participants-all-members-in-call = Alle Mitglieder der Unterhaltung sind entweder im Anruf oder wurden eingeladen.
+participants-in-call = Im Anruf
+participants-invited = Eingeladen
+participants-not-in-this-meeting = Nicht in dieser Besprechung
+participants-left-call = Anruf verlassen
+participants-unknown = Unbekannt
+participants-you = Sie
+participants-declined-invite = Einladung abgelehnt
+participants-not-answered = Nicht beantwortet
+participants-ringing = Klingelt...
+participants-available-to-invite = Zum Einladen verfügbar
+participants-mute-all-confirm-title = Alle Teilnehmer stummschalten?
+participants-mute-all-confirm-message = Möchten Sie wirklich alle anderen Teilnehmer stummschalten? Sie müssen sich selbst wieder aktivieren, um zu sprechen.
+participants-muted-by = Sie wurden stummgeschaltet von {$name}
+participants-muted-by-all = Sie wurden stummgeschaltet von {$name} (alle stummschalten)
+participants-mute-failed = Mikrofon konnte nicht stummgeschaltet werden
+participants-cancel = Abbrechen
+participants-not-answered = Nicht beantwortet
+participants-ringing = Klingelt...
+participants-available-to-invite = Zum Einladen verfügbar
+
+# Video Grid
+videogrid-page-info = Seite {$current} von {$total}
+videogrid-previous-page = Vorherige Seite
+videogrid-next-page = Nächste Seite
+
+# Transcription
+chat-call-enableTranscription = Transkription aktivieren
+chat-call-transcriptionActive = Aufnahme
+chat-call-recording = Aufnahme
+chat-transcript-ready = Transkript bereit: { $sessionName }
+chat-transcript-view = Transkript anzeigen
+chat-transcript-saved = Ihr Meeting-Transkript wurde gespeichert
+chat-transcript-create-minutes-description = Erstellen Sie Besprechungsnotizen aus dem Anruftranskript in Notizen
+chat-transcript-create-minutes-button = Besprechungsnotizen erstellen
+chat-transcript-generating-minutes = Besprechungsnotizen werden erstellt...
+chat-transcript-generating-minutes-status = Besprechungsnotizen werden erstellt...
+chat-transcript-failed-create-minutes = Fehler beim Erstellen der Besprechungsnotizen
+chat-transcript-retry = Wiederholen
+chat-meeting-started-at = Gestartet: { $startedAt }
+chat-call-recordingTranscriptNotice = Aufzeichnung und Transkription. Durch Ihre Teilnahme willigen Sie ein, einbezogen zu werden.
+chat-call-recordingTranscriptActive = Audio wird aufgezeichnet, um ein Transkript und Besprechungsnotizen zu erstellen.
+chat-call-transcriptRecordingHeader = Gesprächstranskript wird aufgezeichnet
 
 # Notifications
 notifications-title = Benachrichtigungen
@@ -279,6 +470,7 @@ calendar-today = Heute
 calendar-viewDay = Tag
 calendar-viewWeek = Woche
 calendar-viewMonth = Monat
+calendar-refresh = Kalender aktualisieren
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Termin planen
@@ -346,6 +538,8 @@ calendar-accept = Zusagen
 calendar-maybe = Vielleicht
 calendar-decline = Absagen
 calendar-joinCall = Anruf beitreten
+calendar-startMeeting = Meeting starten
+calendar-joinMeeting = Meeting beitreten
 calendar-chat = Chat
 calendar-edit = Bearbeiten
 
@@ -369,8 +563,62 @@ calendar-no-events = Keine Termine geplant
 calendar-all-day = Ganztägig
 calendar-loading = Kalender wird geladen...
 calendar-error = Kalender konnte nicht geladen werden
+calendar-retry = Erneut versuchen
 calendar-event-details = Termindetails
 calendar-pending-invitations = Ausstehende Einladungen
 calendar-accept = Annehmen
 calendar-decline = Ablehnen
 calendar-tentative = Mit Vorbehalt
+
+# Calendar - Agenda
+calendar-agenda = Agenda
+calendar-agendaOptional = Agenda (optional)
+calendar-addAgendaItem = Agendapunkt hinzufügen
+calendar-agendaItemTitle = Thema
+calendar-agendaItemTitlePlaceholder = Thema eingeben...
+calendar-agendaItemDuration = Dauer (Min)
+calendar-agendaItemAssignee = Zuweisen an
+calendar-agendaItemUnassigned = Nicht zugewiesen
+calendar-agendaItemRemove = Entfernen
+calendar-agendaItemMoveUp = Nach oben
+calendar-agendaItemMoveDown = Nach unten
+calendar-agendaItems = {$count ->
+  [one] {$count} Agendapunkt
+  *[other] {$count} Agendapunkte
+}
+calendar-agendaTotalDuration = Gesamt: {$minutes} Min
+calendar-agendaAssignedTo = Zugewiesen an {$name}
+calendar-noAgenda = Keine Agendapunkte
+
+chat-callHistory = Anrufverlauf
+chat-callHistoryAll = Alle
+chat-callHistoryJoined = Teilgenommen
+chat-callHistoryMissed = Verpasst
+chat-callHistoryDeclined = Abgelehnt
+chat-callHistoryNotAnswered = Nicht geantwortet
+chat-callHistoryOpenConversation = Unterhaltung öffnen
+chat-callHistoryCallBack = Rückruf
+chat-callHistoryGroupCall = Gruppenanruf
+chat-callHistoryNoCalls = Noch keine Anrufe
+chat-callHistoryNoCallsFiltered = Keine Anrufe entsprechen diesem Filter
+chat-callHistoryMissedFrom = Sie haben einen Anruf von {$name} verpasst
+chat-callHistoryDeclinedFrom = Anruf von {$name} abgelehnt
+chat-callHistoryNotAnsweredFrom = Anruf von {$name} nicht beantwortet
+chat-callHistoryDuration = {$minutes} Min
+chat-callHistoryBack = Zurück
+chat-callHistoryFilterStatus = Status
+chat-callHistoryFilterType = Typ
+chat-callHistoryLoadMore = Mehr laden
+chat-callHistoryCallName = Anruf: {$name}
+chat-callHistoryGroupCallName = Gruppenanruf: {$name}
+chat-callHistoryMeetingName = Meeting: {$name}
+chat-callHistoryIncoming = Eingehend
+chat-callHistoryOutgoing = Ausgehend
+chat-callHistoryMissedIncoming = Verpasst eingehend
+chat-callHistoryAllTypes = Alle Typen
+chat-callHistoryTypeDirect = Direkt
+chat-callHistoryTypeGroup = Gruppe
+chat-callHistoryTypeMeeting = Meeting
+chat-callHistoryStartedAt = Begonnen {$time}
+chat-callHistoryInvitedAt = Einladung {$time}
+chat-callHistoryWhoInvited = {$name} hat Sie eingeladen

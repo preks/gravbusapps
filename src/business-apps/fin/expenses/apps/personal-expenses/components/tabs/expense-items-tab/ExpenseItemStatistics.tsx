@@ -3,7 +3,7 @@ import { formatCurrencyDisplay } from '../../../utils'
 import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
 import React, { useMemo, useCallback } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { EuroOutlined, WalletOutlined } from '@ant-design/icons'
+import { CurrencyEurIcon, WalletIcon } from '@phosphor-icons/react'
 
 interface ExpenseItemStatisticsProps {
   items: any[]
@@ -164,7 +164,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
           currentMonthName,
         value: formatCurrencyDisplay(totalExpenses ?? 0, currencyCode),
         valueIsString: true,
-        prefix: <EuroOutlined />,
+        prefix: <CurrencyEurIcon size={16} />,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 8, lg: 8 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -183,7 +183,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
         ),
         value: formatCurrencyDisplay(pendingReimbursement, currencyCode),
         valueIsString: true,
-        prefix: <WalletOutlined />,
+        prefix: <WalletIcon size={16} />,
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 8, lg: 8 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -218,6 +218,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
         onRetry={fetchItemStatistics}
         onWidgetClick={handleWidgetClick}
         skeletonCount={4}
+        useWidgetStructureForLoading={true}
         emptyText={getTranslationFromI18nKeyAndLabel(
           'lowcoder:personal_expenses.no_expense_item_statistics_available',
           'No expense item statistics available.'

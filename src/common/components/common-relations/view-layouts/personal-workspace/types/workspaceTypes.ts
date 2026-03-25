@@ -4,11 +4,32 @@
  */
 export interface GenericActivity {
   id: string
+  version?: number
   title: string
   description?: string
   occurredAt?: string
   createdAt: string
   activityType?: { value: string; code?: string }
+  // Owner/creator information
+  ownerEmployee?: {
+    id: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+  }
+  // Documents attached to activity
+  documents?: Array<{
+    id: string
+    name: string
+    mimeType?: string | null
+    fileSize?: number | null
+    fileInfo?: {
+      path: string
+      fileMetadata?: {
+        mimeType?: string
+      }
+    }
+  }>
   // Entity references (optional)
   accountId?: string | null
   account?: { id: string; name: string } | null
@@ -25,6 +46,7 @@ export interface GenericActivity {
  */
 export interface GenericTask {
   id: string
+  version?: number
   name: string
   description?: string
   createdAt: string

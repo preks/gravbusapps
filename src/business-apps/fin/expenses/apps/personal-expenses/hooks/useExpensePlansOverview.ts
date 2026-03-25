@@ -8,6 +8,7 @@ import {
   GET_EXPENSE_PLANS_STATISTICS,
   GET_EXPENSE_PLANS_DESTINATIONS
 } from '../queries/expensePlans'
+import { normalize } from '../utils/cacheUtils'
 
 // Type aliases for union types
 type SortField = string | null
@@ -47,22 +48,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
   const pageCacheRef = useRef<Map<string, PlansOverviewResult>>(new Map())
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  // Helper to normalize objects for stable keys - memoized to prevent recreation
-  const normalize = useCallback((val: any): any => {
-    if (Array.isArray(val)) {
-      return val.map(normalize)
-    }
-    if (val && typeof val === 'object') {
-      const sorted: any = {}
-      Object.keys(val)
-        .sort((a, b) => a.localeCompare(b))
-        .forEach(k => {
-          sorted[k] = normalize(val[k])
-        })
-      return sorted
-    }
-    return val
-  }, [])
+  // Helper to normalize objects for stable keys - using shared utility
 
   // Keep a ref in sync so fetchOverview doesn't need to depend on `data`
   useEffect(() => {
@@ -445,7 +431,11 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       }
 
       // Page not in cache or force refresh - fetch from server
-      setIsLoading(true)
+      // Only show table loading when we have no data yet (initial load); skip for sort/pagination so the table doesn't rerender/flash
+      const hasExistingListData = (dataRef.current?.items?.length ?? 0) > 0
+      if (!hasExistingListData) {
+        setIsLoading(true)
+      }
       // Always set statistics loading on initial fetch or when statistics don't exist
       // This ensures loading skeleton shows instead of 0 values
       // On initial load (data is null) or when statistics are missing, show loading skeleton

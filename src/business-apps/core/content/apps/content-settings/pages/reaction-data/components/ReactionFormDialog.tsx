@@ -273,7 +273,7 @@ export const ReactionFormDialog: React.FC<ReactionFormDialogProps> = ({
                     </FormItem>
                   )}
                 />
-                {customImageUrl && (
+                {customImageUrl && /^https?:\/\//i.test(customImageUrl) && (
                   <div className="gba:flex gba:justify-center gba:p-4 gba:border gba:rounded">
                     <img
                       src={customImageUrl}

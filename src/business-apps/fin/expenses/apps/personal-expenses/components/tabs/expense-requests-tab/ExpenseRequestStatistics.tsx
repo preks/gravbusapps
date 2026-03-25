@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react'
-import { FileTextOutlined, DollarOutlined, CalendarOutlined } from '@ant-design/icons'
+import { FileTextIcon, CurrencyDollarIcon, CalendarIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetExpenseRequestStatistics } from '../../../hooks/useGetExpenseRequestStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -163,7 +163,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     [onWidgetClick, isLoading]
   )
 
-  // Transform the stats data into widgets format
+  // No-trend widgets: value, empty row, footer (same layout as expense dashboard)
   const widgets: WidgetItem[] = [
     {
       key: 'total-requests',
@@ -172,7 +172,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ' ' +
         currentMonthName,
       value: statistics.currentMonthTotal,
-      prefix: <FileTextOutlined />,
+      prefix: <FileTextIcon size={16} />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
       description: getTranslationFromI18nKeyAndLabel(
@@ -193,7 +193,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ' ' +
         currentMonthName,
       value: formatCurrencyDisplay(statistics.currentMonthAmount || 0, effectiveCurrencyCode),
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon size={16} />,
       color: '#3f8600',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
@@ -212,13 +212,14 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         'Pending Approval'
       ),
       value: statistics.pendingApproval,
-      prefix: <CalendarOutlined />,
+      prefix: <CalendarIcon size={16} />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel(
+      footer: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.expense_plans_tab.requires_action',
         'Requires action'
       ),
+      trend: { hideBadge: true, value: '', description: '\u200B' },
       active: activeWidgetKey === 'pending-approval',
       onClick: () => handleWidgetClick('pending-approval')
     },
@@ -226,11 +227,12 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       key: 'reimbursable',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable', 'Reimbursable'),
       value: formatCurrencyDisplay(statistics.reimbursableAmount, effectiveCurrencyCode),
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon size={16} />,
       color: '#722ed1',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_be_reimbursed', 'To be reimbursed'),
+      footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_be_reimbursed', 'To be reimbursed'),
+      trend: { hideBadge: true, value: '', description: '\u200B' },
       active: activeWidgetKey === 'reimbursable',
       onClick: () => handleWidgetClick('reimbursable')
     }
@@ -244,6 +246,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       error={error}
       onRetry={fetchRequestStatistics}
       skeletonCount={4}
+      useWidgetStructureForLoading={true}
       emptyText={getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.no_expense_request_statistics_available',
         'No expense request statistics available.'

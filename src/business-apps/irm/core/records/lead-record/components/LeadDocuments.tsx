@@ -3,8 +3,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
-import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 interface LeadDocumentsProps {
   leadId: string
@@ -21,6 +22,9 @@ const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
     context,
     fetchDocuments
   })
+
+  // REST client for document operations (IRM uses Kogito processes)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   // Memoized action props for document operations
   const documentCreateFolderActionProps = useMemo(
@@ -46,16 +50,21 @@ const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
     [leadId]
   )
 
-  // Use shared document actions
-  const customActions = useMemo(
-    () =>
-      createDocumentSectionActions({
-        domain: 'investment-relations',
-        documentFieldName: 'investmentDocument',
-        entityType: 'lead',
-        updateProcessName: 'updateInvestmentDocument',
-        deleteEndpoint: '/investment-relations/deleteInvestmentDocument'
-      }),
+  const documentUpdateActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentUpdate],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'lead-document-update'
+    }),
+    []
+  )
+
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentDelete],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'lead-document-delete'
+    }),
     []
   )
 
@@ -67,9 +76,11 @@ const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
       error={error}
       onRefresh={refetch}
       apiConfig={getIrmDocumentApiConfig('lead')}
-      customActions={customActions}
+      restClient={restClient}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
+      updateActionProps={documentUpdateActionProps}
+      deleteActionProps={documentDeleteActionProps}
       data-testid="lead-document-section"
       {...context}
     />

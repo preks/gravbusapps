@@ -52,7 +52,6 @@ export const LiquidityPreferenceTable: React.FC<LiquidityPreferenceTableProps> =
   const loadLiquidityData = useCallback(() => {
     // This would trigger a refetch of investment data in the parent component
     // For now, the data will refresh automatically when the parent refetches
-    console.log('Liquidity preference data updated')
   }, [])
 
   // Render content based on current state

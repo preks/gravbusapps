@@ -1,100 +1,111 @@
-import React, { useState, useEffect } from 'react'
-import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system'
-import { MagnifyingGlass, X } from '@phosphor-icons/react'
-import { DebouncedInput } from '@/components/debounced-input'
-import { AssetStatus } from '../types'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { PiFunnelSimple, PiFunnelSimpleX, PiMagnifyingGlass } from 'react-icons/pi'
+import { useDebounce } from '@/common/hooks/useDebounce'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatStatus } from './AssetTableUtils'
 
 interface AssetTableFiltersProps {
   searchQuery: string
-  statusFilter: string
   onSearchChange: (search: string) => void
-  onStatusFilterChange: (status: string) => void
   onPageChange?: (page: number) => void
+  /** When provided, shows the filter toggle button (Category/Location/Status sidebar) inline with search */
+  showDataFilter?: boolean
+  onToggleDataFilter?: () => void
 }
 
 export const AssetTableFilters: React.FC<AssetTableFiltersProps> = ({
   searchQuery: searchQueryProp,
-  statusFilter: statusFilterProp,
   onSearchChange,
-  onStatusFilterChange,
-  onPageChange
+  onPageChange,
+  showDataFilter = false,
+  onToggleDataFilter
 }) => {
-  const [localStatusFilter, setLocalStatusFilter] = useState(statusFilterProp)
-  const [inputKey, setInputKey] = useState(0)
+  const [localSearch, setLocalSearch] = useState(searchQueryProp)
+  const [showSearchInput, setShowSearchInput] = useState(!!searchQueryProp)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchAreaRef = useRef<HTMLDivElement>(null)
+  const debouncedSearch = useDebounce(localSearch, 300)
 
   useEffect(() => {
-    setLocalStatusFilter(statusFilterProp)
-  }, [statusFilterProp])
+    setLocalSearch(searchQueryProp)
+  }, [searchQueryProp])
 
-  const handleStatusFilterChange = (value: string) => {
-    setLocalStatusFilter(value)
-    onStatusFilterChange(value)
-    onPageChange?.(1)
-  }
+  useEffect(() => {
+    if (debouncedSearch !== searchQueryProp) {
+      onSearchChange(debouncedSearch)
+      onPageChange?.(1)
+    }
+  }, [debouncedSearch, searchQueryProp, onSearchChange, onPageChange])
 
-  const handleSearchChange = (value: string) => {
-    onSearchChange(value)
-    onPageChange?.(1)
-  }
+  useEffect(() => {
+    if (showSearchInput && searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [showSearchInput])
 
-  const handleClearSearch = () => {
-    const emptyValue = ''
-    onSearchChange(emptyValue)
-    onPageChange?.(1)
-    setInputKey(prev => prev + 1)
-  }
+  useEffect(() => {
+    if (!showSearchInput) return
+    const handleMouseDown = (e: MouseEvent) => {
+      if (searchAreaRef.current && !searchAreaRef.current.contains(e.target as Node)) {
+        setShowSearchInput(false)
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [showSearchInput])
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalSearch(e.target.value)
+  }, [])
 
   return (
-    <div className="gba:flex gba:gap-4 gba:flex-wrap">
-      <div className="gba:flex-1 gba:min-w-[200px] gba:relative">
-        <DebouncedInput
-          key={`search-input-${inputKey}`}
-          value={searchQueryProp}
-          onChange={handleSearchChange}
-          placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
-          className="gba:w-full gba:pr-10"
-          debounceDelay={300}
-          ariaLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
-          data-testid="asset-search-input"
-          icon={
-            <MagnifyingGlass className="gba:w-4 gba:h-4 gba:text-muted-foreground" data-testid="asset-search-icon" />
-          }
-        />
-        {searchQueryProp && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClearSearch}
-            className="gba:absolute gba:right-1 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-6 gba:w-6 gba:p-0 gba:rounded-full hover:gba:bg-muted gba:transition-colors"
-            data-testid="asset-search-clear-button"
-            aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.clear_search', 'Clear search')}
-          >
-            <X className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
-          </Button>
-        )}
-      </div>
-
-      <Select value={localStatusFilter} onValueChange={handleStatusFilterChange}>
-        <SelectTrigger className="gba:w-[180px]" data-testid="asset-status-filter">
-          <SelectValue
-            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_statuses', 'All Statuses')}
+    <div ref={searchAreaRef} className="gba:flex gba:gap-4 gba:flex-wrap gba:items-center">
+      {onToggleDataFilter && (
+        <button
+          type="button"
+          className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:shrink-0 ${
+            showDataFilter ? 'gba:!bg-black gba:text-white' : 'gba:!bg-black/[0.04] gba:text-black'
+          }`}
+          aria-label={showDataFilter ? 'Close filter sidebar' : 'Open filter sidebar'}
+          onClick={onToggleDataFilter}
+          data-testid="asset-table-filter-toggle-button"
+        >
+          <span className="gba:w-5 gba:h-5 gba:flex-none">
+            {showDataFilter ? <PiFunnelSimpleX fill="currentColor" size={20} /> : <PiFunnelSimple size={20} />}
+          </span>
+        </button>
+      )}
+      {!showSearchInput ? (
+        <button
+          type="button"
+          className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:!bg-black/[0.04] gba:text-black gba:flex-none gba:shrink-0"
+          aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
+          onClick={() => setShowSearchInput(true)}
+          data-testid="asset-table-search-toggle-button"
+        >
+          <span className="gba:w-5 gba:h-5 gba:flex-none">
+            <PiMagnifyingGlass size={20} />
+          </span>
+        </button>
+      ) : (
+        <div
+          className="gba:flex gba:items-center gba:bg-black/[0.04] gba:rounded gba:px-2 gba:h-8 gba:min-w-[200px] gba:max-w-[280px] gba:flex-1"
+          data-testid="asset-search-container"
+        >
+          <span className="gba:text-gray-500 gba:mr-2 gba:shrink-0" aria-hidden>
+            <PiMagnifyingGlass size={20} />
+          </span>
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={localSearch}
+            onChange={handleInputChange}
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
+            className="gba:flex-1 gba:min-w-0 gba:bg-transparent gba:border-0 gba:outline-none gba:ring-0 gba:text-sm gba:placeholder:text-gray-400"
+            aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
+            data-testid="asset-search-input"
           />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_statuses', 'All Statuses')}
-          </SelectItem>
-          {Object.values(AssetStatus)
-            .filter(status => status !== AssetStatus.RETIRED)
-            .map(status => (
-              <SelectItem key={status} value={status}>
-                {formatStatus(status)}
-              </SelectItem>
-            ))}
-        </SelectContent>
-      </Select>
+        </div>
+      )}
     </div>
   )
 }

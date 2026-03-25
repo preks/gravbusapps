@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import {
   type InvestmentActivity,
   INVESTMENT_ACTIVITY_DESCRIPTORS
@@ -19,7 +21,7 @@ import {
 import { investmentActivityFilterConfig } from '@/common/components/common-relations/view-layouts/activity-layout/config/investmentActivityFilterConfig'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import type { MyActivitiesViewConfig } from '@/common/components/common-relations/view-layouts/personal-workspace/components/activities'
-import { useActivityKpis } from '../../activity-view/hooks/useActivityKpis'
+import { useInvestmentActivityStatistics } from '@/common/data/investment/hooks/useInvestmentActivityStatistics'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/activity-layout/utils/filterHelpers'
@@ -79,26 +81,29 @@ const buildOrderByConfig = (sorting: Array<{ id: string; desc: boolean }>): any[
 }
 
 // Helper: Build reference type filter conditions (IRM includes investment)
+// Uses nested relationship paths (same pattern as useCustomerTasks)
 const buildReferenceTypeFilter = (referenceTypes: string[]): Record<string, any>[] => {
-  const orConditions: Record<string, any>[] = []
-
-  if (referenceTypes.includes('account')) {
-    orConditions.push({ accountId: { _isNull: false } })
+  const conditions: Record<string, any>[] = []
+  for (const type of referenceTypes) {
+    switch (type) {
+      case 'account':
+        conditions.push({ account: { id: { _neq: null } } })
+        break
+      case 'contact':
+        conditions.push({ contact: { id: { _neq: null } } })
+        break
+      case 'investment':
+        conditions.push({ investment: { id: { _neq: null } } })
+        break
+      case 'lead':
+        conditions.push({ lead: { id: { _neq: null } } })
+        break
+      case 'opportunity':
+        conditions.push({ opportunity: { id: { _neq: null } } })
+        break
+    }
   }
-  if (referenceTypes.includes('contact')) {
-    orConditions.push({ contactId: { _isNull: false } })
-  }
-  if (referenceTypes.includes('investment')) {
-    orConditions.push({ investmentId: { _isNull: false } })
-  }
-  if (referenceTypes.includes('lead')) {
-    orConditions.push({ leadId: { _isNull: false } })
-  }
-  if (referenceTypes.includes('opportunity')) {
-    orConditions.push({ opportunityId: { _isNull: false } })
-  }
-
-  return orConditions
+  return conditions
 }
 
 // Helper: Apply reference filter to where condition
@@ -125,16 +130,8 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
   const graphqlClient = useGraphQLClient(context.accessToken)
   const employeeId = context.userInfo?.employeeDetails?.employeeId || context.userInfo?.id
 
-  // Fetch activity KPIs early to maintain hook order
-  const {
-    kpis,
-    loading: kpiLoading,
-    error: kpiError,
-    refetch: kpiRefetch
-  } = useActivityKpis({
-    employeeId: employeeId || '',
-    accessToken: context.accessToken
-  })
+  // Fetch activity statistics early to maintain hook order
+  const activityStatistics = useInvestmentActivityStatistics(context)
 
   // State for activities data
   const [activities, setActivities] = useState<InvestmentActivity[]>([])
@@ -161,8 +158,20 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
   const filterGroups = useFilterGroups(context, 'InvestmentActivity', INVESTMENT_ACTIVITY_DESCRIPTORS, { limit: 100 })
 
   // Dynamic Filter Configuration (using IRM-specific config with Investment option)
+  // Exclude owner filter since these are MY activities
   const dynamicFilterConfig = useMemo(() => {
-    return buildDynamicFilterConfig(investmentActivityFilterConfig, INVESTMENT_ACTIVITY_DESCRIPTORS, filterGroups)
+    const config = buildDynamicFilterConfig(
+      investmentActivityFilterConfig,
+      INVESTMENT_ACTIVITY_DESCRIPTORS,
+      filterGroups
+    )
+    // Remove owner filter group - activities are already filtered to current user
+    type FilterGroup = FilterConfiguration['groups'][number]
+    const filteredGroups = config.groups.filter((group: FilterGroup) => group.id !== 'owner-group')
+    return {
+      ...config,
+      groups: filteredGroups
+    }
   }, [filterGroups])
 
   // Initialize visible columns (excluding ownerEmployee)
@@ -236,10 +245,53 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
   // Process Completion Handler - refresh data when processes complete
   const handleProcessComplete = useCallback(() => {
     loadActivities()
-    kpiRefetch()
-  }, [loadActivities, kpiRefetch])
+    void activityStatistics.refetch()
+  }, [loadActivities, activityStatistics.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
+
+  // Fetch all activities for export (uses current filter state, overrides limit/offset)
+  const fetchAllActivities = useCallback(
+    async (vars: { limit: number; offset?: number }) => {
+      if (!context.accessToken || !employeeId) return { activities: [] as InvestmentActivity[], total: 0 }
+
+      const variables: InvestmentActivityQueryVariables = {
+        limit: vars.limit,
+        offset: vars.offset || 0,
+        search: searchTerm.trim() || undefined,
+        ownerEmployeeIds: [employeeId],
+        orderBy: buildOrderByConfig(sorting)
+      }
+
+      applyActivityTypeFilter(variables, selectedFilters)
+      applyDateRangeFilters(variables, selectedFilters)
+
+      const query = buildInvestmentActivityQuery()
+      let whereCondition = buildInvestmentActivityWhereCondition(variables)
+      const orderBy = buildInvestmentActivityOrderBy(variables.orderBy || [])
+
+      if (selectedFilters.referenceType?.length > 0) {
+        const orConditions = buildReferenceTypeFilter(selectedFilters.referenceType)
+        whereCondition = applyReferenceFilter(whereCondition, orConditions)
+      }
+
+      const result = await graphqlClient.request<{
+        InvestmentActivity: InvestmentActivity[]
+        InvestmentActivityAggregate: { aggregate: { count: number } }
+      }>(query, {
+        limit: variables.limit,
+        offset: variables.offset,
+        where: whereCondition,
+        orderBy: orderBy
+      })
+
+      return {
+        activities: result.InvestmentActivity || [],
+        total: result.InvestmentActivityAggregate?.aggregate?.count || 0
+      }
+    },
+    [context.accessToken, employeeId, searchTerm, sorting, selectedFilters, graphqlClient]
+  )
 
   // Handle search change
   const handleSearchChange = useCallback((value: string) => {
@@ -289,6 +341,22 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     filterConfiguration: dynamicFilterConfig,
     createContext: FlowContextName.investmentActivityCreate,
     rowActionsContextArray: [FlowContextName.investmentActivityEntity],
+    buildReferenceUrl: (entityType: string, entityId: string) => {
+      switch (entityType) {
+        case 'lead':
+          return buildPlatformUrl('/platform/irm/lead-record', { leadId: entityId })
+        case 'account':
+          return buildPlatformUrl('/platform/irm/account-record', { accountId: entityId })
+        case 'contact':
+          return buildPlatformUrl('/platform/irm/contact-record', { contactId: entityId })
+        case 'opportunity':
+          return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: entityId })
+        case 'investment':
+          return buildPlatformUrl('/platform/irm/investment-record', { investmentId: entityId })
+        default:
+          return ''
+      }
+    },
     buildRowActionsExternalContextData: (row: { original: InvestmentActivity }) => {
       const externalContextData: Record<string, string> = {
         activityId: row.original.id
@@ -306,12 +374,13 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     onRetry: () => {
       loadActivities()
     },
-    kpiStatistics: kpis,
-    kpiLoading,
-    kpiError,
+    kpiStatistics: activityStatistics.myActivitiesStatistics,
+    kpiLoading: activityStatistics.isLoading,
+    kpiError: activityStatistics.error,
     onKpiRetry: () => {
-      kpiRefetch()
+      void activityStatistics.refetch()
     },
+    fetchAllActivities,
     translations: {
       title: 'My Activities',
       searchPlaceholder: 'Search activities by title, type...'

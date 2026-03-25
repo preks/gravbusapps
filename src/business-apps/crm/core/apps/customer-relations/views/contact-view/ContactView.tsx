@@ -86,23 +86,17 @@ const processSorting = (sorting: Array<{ id: string; desc: boolean }>, vars: Cus
 }
 
 export const ContactView: React.FC<ContactViewProps> = context => {
-  const { accessToken } = context
-
   // Data Hooks
   const { fetchCustomerContacts } = useCustomerContacts(context)
   const contactStatistics = useCustomerContactStatistics(context)
 
-  // Statistics - Hook already returns the correct format
-  const contactStatisticsData = contactStatistics
-
-  // Config
+  // Config — contactStatistics is intentionally excluded so that statistics state
+  // updates do not recreate config, which would cascade into new queryVariables/
+  // loadData references and re-fire GetContacts. Passed as a direct prop instead.
   const config: ContactViewConfig<Contact, CustomerContactQueryVariables> = useMemo(
     () => ({
       fetchContacts: fetchCustomerContacts,
-      createColumns: () =>
-        commonContactColumns({
-          buildAccountRecordUrl: accountId => buildPlatformUrl('/platform/crm/account-record', { accountId })
-        }),
+      createColumns: () => commonContactColumns(),
       descriptors: CUSTOMER_CONTACT_DESCRIPTORS,
       entityName: 'Contact',
       columnLabels: {
@@ -112,7 +106,6 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         fullName: 'Full Name',
         department: 'Department',
         jobPosition: 'Job Position',
-        accountContacts: 'Account',
         ownerEmployee: 'Owner',
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'
@@ -143,7 +136,6 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         createContext: FlowContextName.customerContactCreate
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/crm/contact-record', { contactId: id }),
-      contactStatistics: contactStatisticsData,
       rowActionsContextArray: [FlowContextName.customerContactEntity],
       buildRowActionsExternalContextData: (row: { original: Contact }) => ({
         contactId: row.original.id || ''
@@ -159,10 +151,17 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         addContact: { key: 'common:addContact', default: 'Add Contact' }
       }
     }),
-    [fetchCustomerContacts, contactStatisticsData, accessToken]
+    [fetchCustomerContacts]
   )
 
-  return <ContactLayout context={context} config={config} dataTestId="customer-contact-view" />
+  return (
+    <ContactLayout
+      context={context}
+      config={config}
+      contactStatistics={contactStatistics}
+      dataTestId="customer-contact-view"
+    />
+  )
 }
 
 export default ContactView

@@ -17,6 +17,11 @@ import { buildDynamicFilterConfig } from './utils/filterHelpers'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 
+export interface QuickFiltersRenderProps {
+  selectedFilters: Record<string, any>
+  onFilterChange: (filters: Record<string, any>) => void
+}
+
 export interface AccountViewConfig<TAccount extends Account = Account, TQueryVariables = any> {
   fetchAccounts: (variables: TQueryVariables) => Promise<{
     accounts?: TAccount[]
@@ -67,6 +72,13 @@ export interface AccountLayoutProps<TAccount extends Account = Account, TQueryVa
   readonly initialFilters?: Record<string, any>
   readonly hideFilters?: boolean
   readonly customPrimaryAction?: React.ReactNode
+  readonly renderQuickFilters?: (props: QuickFiltersRenderProps) => React.ReactNode
+  /**
+   * Pass statistics here instead of via config.accountStatistics so that statistics
+   * state updates do not recreate the config object and inadvertently re-trigger
+   * the GetAccounts query via the queryVariables / loadData dependency chain.
+   */
+  readonly accountStatistics?: AccountStatisticsData
 }
 
 // Row Actions Component
@@ -109,8 +121,13 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
     dataTestId = 'account-view',
     initialFilters = {},
     hideFilters = false,
-    customPrimaryAction
+    customPrimaryAction,
+    renderQuickFilters,
+    accountStatistics: accountStatisticsProp
   } = props
+
+  // Prefer the directly-passed prop; fall back to config for backwards compatibility
+  const activeAccountStatistics = accountStatisticsProp ?? config.accountStatistics
 
   // View State
   const [searchTerm, setSearchTerm] = useState('')
@@ -177,20 +194,21 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
   useEffect(() => {
     if (!context?.accessToken || !isInitialLoad) return
     loadData(true)
-  }, [context?.accessToken, isInitialLoad, loadData])
+  }, [context?.accessToken, isInitialLoad])
 
-  // Reload data when filters/search/sort change (skip initial load)
+  // Reload data when filters/search/sort change (skip initial load).
+  // loadData is intentionally omitted from deps: it is derived from queryVariables,
+  // so including it would cause the effect to fire twice on every query change.
   useEffect(() => {
     if (isInitialLoad || !context?.accessToken) return
     loadData(false)
-  }, [queryVariables, isInitialLoad, context?.accessToken, loadData])
+  }, [queryVariables, context?.accessToken])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
     loadData(false)
-    // Also refresh statistics when process completes
-    config.accountStatistics?.refetch?.()
-  }, [loadData, config.accountStatistics?.refetch])
+    activeAccountStatistics?.refetch?.()
+  }, [loadData, activeAccountStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
@@ -251,12 +269,22 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {config.accountStatistics && (
+      {activeAccountStatistics && (
         <AccountStatisticsLayout
-          statistics={config.accountStatistics}
+          statistics={activeAccountStatistics}
           variant={config.variant || 'customer'}
           data-testid={`${dataTestId}-statistics`}
         />
+      )}
+
+      {/* Quick Filters */}
+      {renderQuickFilters && (
+        <div className="gba:mb-4" data-testid={`${dataTestId}-quick-filters`}>
+          {renderQuickFilters({
+            selectedFilters,
+            onFilterChange: handleFilterUpdate
+          })}
+        </div>
       )}
 
       {/* DataDisplay */}

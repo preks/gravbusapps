@@ -68,10 +68,10 @@ const DraggableConditionItem: React.FC<{
       data-testid={`${prefixDataTestId}-draggable-condition-${condition.id}`}
       className={`${isDragging ? 'gba:opacity-50' : ''}`}
     >
-      <Card className="gba:border-gray-200 hover:gba:border-blue-400 hover:gba:shadow-md gba:transition-all gba:cursor-pointer gba:relative">
+      <Card className="gba:border-border hover:gba:border-primary gba:transition-all gba:cursor-pointer gba:relative">
         <div className="gba:p-2 gba:flex gba:items-center gba:gap-2">
           {/* Order Number */}
-          <div className="gba:flex-shrink-0 gba:w-6 gba:h-6 gba:bg-blue-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium gba:text-blue-600">
+          <div className="gba:flex-shrink-0 gba:w-6 gba:h-6 gba:bg-primary/10 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium gba:text-primary">
             {index}
           </div>
 
@@ -79,7 +79,7 @@ const DraggableConditionItem: React.FC<{
           <div
             {...attributes}
             {...listeners}
-            className="gba:cursor-grab gba:text-gray-400 hover:gba:text-gray-600 gba:p-1 gba:flex-shrink-0 gba:select-none"
+            className="gba:cursor-grab gba:text-muted-foreground hover:gba:text-foreground gba:p-1 gba:flex-shrink-0 gba:select-none"
             style={{ touchAction: 'none' }}
           >
             <GripVertical className="gba:w-4 gba:h-4" />
@@ -90,7 +90,7 @@ const DraggableConditionItem: React.FC<{
             {/* Header with name and badges */}
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-2 gba:mb-1">
               <div className="gba:flex-1 gba:min-w-0">
-                <h5 className="gba:text-gray-800 gba:font-medium gba:text-sm gba:leading-tight gba:truncate">
+                <h5 className="gba:text-foreground gba:font-medium gba:text-sm gba:leading-tight gba:truncate">
                   {condition.value}
                 </h5>
               </div>
@@ -121,7 +121,7 @@ const DraggableConditionItem: React.FC<{
             {/* Description and checked by info */}
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-1">
               <p
-                className="gba:text-gray-500 gba:text-xs gba:leading-tight gba:flex-1"
+                className="gba:text-muted-foreground gba:text-xs gba:leading-tight gba:flex-1"
                 style={{
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
@@ -132,7 +132,7 @@ const DraggableConditionItem: React.FC<{
                 {condition.objectValue?.description || condition.additionalValue1 || 'No description'}
               </p>
               <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
-                <span className="gba:text-xs gba:text-gray-400">Checked by:</span>
+                <span className="gba:text-xs gba:text-muted-foreground">Checked by:</span>
                 <Badge variant="default" className="gba:text-xs gba:px-1.5 gba:py-0.5">
                   {condition.objectValue?.check_type || 'User'}
                 </Badge>
@@ -149,7 +149,7 @@ const DraggableConditionItem: React.FC<{
                 e.stopPropagation()
                 onEdit(condition)
               }}
-              className="gba:text-gray-400 hover:gba:text-blue-500 gba:p-1 gba:h-7 gba:w-7"
+              className="gba:text-muted-foreground hover:gba:text-primary gba:p-1 gba:h-7 gba:w-7"
               data-testid={`${prefixDataTestId}-edit-condition-${condition.id}`}
             >
               <Edit className="gba:w-3.5 gba:h-3.5" />
@@ -161,7 +161,7 @@ const DraggableConditionItem: React.FC<{
                 e.stopPropagation()
                 onDelete(condition.id)
               }}
-              className="gba:text-gray-400 hover:gba:text-red-500 gba:p-1 gba:h-7 gba:w-7"
+              className="gba:text-muted-foreground hover:gba:text-destructive gba:p-1 gba:h-7 gba:w-7"
               data-testid={`${prefixDataTestId}-delete-condition-${condition.id}`}
             >
               <Trash2 className="gba:w-3.5 gba:h-3.5" />
@@ -341,8 +341,8 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
 
     if (conditions.length === 0) {
       return (
-        <div className="gba:min-h-32 gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-lg gba:p-8">
-          <p className="gba:text-gray-500 gba:text-center">
+        <div className="gba:min-h-32 gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:p-8">
+          <p className="gba:text-muted-foreground gba:text-center">
             No conditions defined for this stage yet.
             <br />
             Click "Add Condition" to create the first one.
@@ -423,29 +423,32 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="gba:flex gba:flex-col gba:max-h-[85vh] gba:overflow-hidden">
+          <DialogHeader className="gba:flex-shrink-0">
             <DialogTitle>Conditions for: {selectedStage?.value}</DialogTitle>
             <DialogDescription>Manage conditions for this stage.</DialogDescription>
           </DialogHeader>
 
-          <div className="gba:space-y-4">
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">Conditions ({conditions.length})</h3>
-              <Button
-                onClick={openCreateModal}
-                disabled={operationLoading}
-                data-testid={`${prefixDataTestId}-add-condition-button`}
-              >
-                <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                Add Condition
-              </Button>
-            </div>
+          <div className="gba:flex gba:flex-shrink-0 gba:justify-between gba:items-center gba:gap-2 gba:pb-2">
+            <h3 className="gba:text-lg gba:font-semibold">Conditions ({conditions.length})</h3>
+            <Button
+              onClick={openCreateModal}
+              disabled={operationLoading}
+              data-testid={`${prefixDataTestId}-add-condition-button`}
+            >
+              <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+              Add Condition
+            </Button>
+          </div>
 
+          <div
+            className="gba:min-h-0 gba:flex-1 gba:overflow-y-auto gba:pr-1"
+            data-testid={`${prefixDataTestId}-conditions-scroll`}
+          >
             {renderConditionsContent()}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gba:flex-shrink-0">
             <Button variant="outline" onClick={onClose}>
               Close
             </Button>

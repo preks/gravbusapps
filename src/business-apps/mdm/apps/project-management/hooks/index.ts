@@ -1,4 +1,4 @@
-export { useProjects } from './useProjects'
+export { useProjects, getDateLocaleFromLanguage } from './useProjects'
 export { useTeamAssignments } from './useTeamAssignments'
 export { useCreateTeam } from './useCreateTeam'
 export type {

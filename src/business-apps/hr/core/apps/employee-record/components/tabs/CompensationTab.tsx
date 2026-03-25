@@ -13,24 +13,25 @@ import {
   CardHeader,
   CardContent
 } from '@newwork/nw-design-system'
-import { PiCurrencyEur, PiClockCounterClockwise } from 'react-icons/pi'
+import { CurrencyEurIcon, ClockCounterClockwiseIcon } from '@phosphor-icons/react'
 import CurrentCompensationView from './compensation/views/CurrentCompensationView'
 import PayHistoryView from './compensation/views/PayHistoryView'
 import { useCompensationData } from './compensation/hooks/useCompensationData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
-import { useCompensationPermissions } from './compensation/hooks/useCompensationPermissions'
+import { CompensationPermissions } from './compensation/hooks/useCompensationPermissions'
 import translations from '../../_i18n'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
-import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
-import { Employee } from '../../hooks/useEmployeeData'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 interface CompensationTabProps extends BusinessAppContextProps {
-  employee: Employee
   employeeId: string
-  isSelfView: boolean
   compensationFeatureFlag: boolean
   employeeRecordHrBackoffice: ScopePermissionCheckResult
+  // Computed permission props (passed from parent to avoid re-fetching)
+  employeeGrowthPermission: ScopePermissionCheckResult
+  employeeRecordAllHrBackoffice: ScopePermissionCheckResult
+  compensationPermissions: CompensationPermissions
 }
 
 const COMPENSATION_SUBVIEW_VALUES = ['currentCompensation', 'compensationHistory'] as const
@@ -49,14 +50,15 @@ const getInitialCompensationSubView = (): CompensationSubView => {
 }
 
 const CompensationTab: React.FC<CompensationTabProps> = ({
-  employee,
   employeeId,
   accessToken,
   userInfo,
-  isSelfView,
   compensationFeatureFlag,
   additionalData,
-  employeeRecordHrBackoffice
+  employeeRecordHrBackoffice,
+  employeeGrowthPermission,
+  employeeRecordAllHrBackoffice,
+  compensationPermissions
 }) => {
   const [activeSubView, setActiveSubView] = useState<CompensationSubView>(getInitialCompensationSubView())
   const { t } = useTranslation(translations)
@@ -64,29 +66,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
 
   const { loading: permissionsLoading } = useEmployeePermissions(employeeId, accessToken)
 
-  const employeeRecordAllHrBackoffice = useScopePermissionCheck(
-    '/platform/employee-record',
-    'employee-record-all-hr-backoffice',
-    accessToken
-  )
-
-  const employeeGrowthPermission = useScopePermissionCheck('/platform/employee-record', 'employee-growth', accessToken)
-
-  const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
-  const supervisorEmployeeId = employee?.employeePosition?.supervisorEmployeeId
-  const supervisorIdFromRelation = employee?.employeePosition?.supervisor?.id
-  const managerId = supervisorEmployeeId || supervisorIdFromRelation
-  const isManager = !!(managerId && currentUserEmployeeId && managerId === currentUserEmployeeId)
-
-  // Use centralized permission hook
-  const compensationPermissions = useCompensationPermissions({
-    isSelfView,
-    isManager,
-    hasEmployeeGrowthPermission: !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true,
-    hasEmployeeRecordAllHrBackoffice:
-      !employeeRecordAllHrBackoffice?.loading && employeeRecordAllHrBackoffice?.hasPermission === true
-  })
-
+  // Use permissions computed in parent
   const hasCompensationPermission =
     permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading
       ? false
@@ -101,8 +81,6 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
 
   const shouldLoadCompensationData =
     compensationFeatureFlag &&
-    !permissionsLoading &&
-    !employeeRecordAllHrBackoffice.loading &&
     hasCompensationPermission &&
     (activeSubView === 'currentCompensation' || activeSubView === 'compensationHistory')
 
@@ -117,6 +95,13 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
     shouldLoadCompensationData ? accessToken : '',
     currentLocale
   )
+
+  useProcessCompletion({
+    onSuccess: () => {
+      if (!shouldLoadCompensationData) return
+      void refetchCompensation()
+    }
+  })
 
   const updateUrl = useCallback(
     (subView: CompensationSubView) => {
@@ -210,7 +195,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
             disabled={permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading}
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-              <PiCurrencyEur />
+              <CurrencyEurIcon />
               <span>{t('tab-current-compensation')}</span>
             </div>
           </TabsTrigger>
@@ -221,7 +206,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
             disabled={permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading}
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-              <PiClockCounterClockwise />
+              <ClockCounterClockwiseIcon />
               <span>{t('tab-compensation-history')}</span>
             </div>
           </TabsTrigger>
@@ -260,9 +245,11 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
               userInfo={userInfo}
               additionalData={additionalData}
               locale={currentLocale}
-              isSelfView={isSelfView}
               employeeRecordHrBackoffice={employeeRecordHrBackoffice}
-              supervisorEmployeeId={supervisorEmployeeId || supervisorIdFromRelation}
+              canManageCompensation={compensationPermissions.canManageCompensation}
+              permissionsLoading={
+                permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading
+              }
             />
           )}
         </TabsContent>

@@ -55,16 +55,12 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
   const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchData = useCallback(async () => {
-    // Early validation
-    if (!employeeId) {
-      setError('No employee ID provided')
+    // Early validation - skip silently if no employeeId or accessToken
+    // This prevents showing error messages during initial load when parent hasn't provided data yet
+    if (!employeeId || !accessToken) {
       setLoading(false)
-      return
-    }
-
-    if (!accessToken) {
-      setError('No access token provided')
-      setLoading(false)
+      setError(null) // Clear any previous errors
+      setData(null)
       return
     }
 

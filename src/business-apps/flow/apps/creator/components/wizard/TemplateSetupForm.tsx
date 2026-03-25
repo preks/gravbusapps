@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Button, Input, Form, Alert, Collapse, Badge } from 'antd'
-import { PlusOutlined, SettingOutlined, InfoCircleOutlined, DownOutlined, RightOutlined } from '@ant-design/icons'
+import { PlusIcon, GearIcon, InfoIcon, CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react'
 import {
   Shield,
   Megaphone,
@@ -123,7 +123,7 @@ export const TemplateSetupForm: React.FC<TemplateSetupFormProps> = ({
           <CardHeader className="gba:cursor-pointer" onClick={() => setShowPatternSelector(!showPatternSelector)}>
             <CardTitle className="gba:flex gba:items-center gba:justify-between">
               <div className="gba:flex gba:items-center gba:gap-3">
-                <SettingOutlined className="gba:text-blue-500" />
+                <GearIcon size={16} className="gba:text-blue-500" />
                 <span>
                   {getTranslationFromI18nKeyAndLabel('flow.wizard.quickStart', 'Quick Start with Business Pattern')}
                 </span>
@@ -136,7 +136,7 @@ export const TemplateSetupForm: React.FC<TemplateSetupFormProps> = ({
                     <span className="gba:text-sm gba:text-gray-600">{selectedPattern.title}</span>
                   </div>
                 )}
-                {showPatternSelector ? <DownOutlined /> : <RightOutlined />}
+                {showPatternSelector ? <CaretDownIcon size={16} /> : <CaretRightIcon size={16} />}
               </div>
             </CardTitle>
           </CardHeader>
@@ -151,7 +151,7 @@ export const TemplateSetupForm: React.FC<TemplateSetupFormProps> = ({
                   )}
                   type="info"
                   showIcon
-                  icon={<InfoCircleOutlined />}
+                  icon={<InfoIcon size={16} />}
                 />
 
                 <PatternSelector
@@ -256,7 +256,7 @@ export const TemplateSetupForm: React.FC<TemplateSetupFormProps> = ({
       <Card className="gba:bg-gray-50" data-testid={`${testId}-next-steps`}>
         <CardContent className="gba:pt-6">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-            <PlusOutlined className="gba:text-gray-600" />
+            <PlusIcon size={16} className="gba:text-gray-600" />
             <h4 className="gba:font-semibold gba:text-gray-900">
               {getTranslationFromI18nKeyAndLabel('flow.wizard.nextSteps', 'Next: Configure Steps')}
             </h4>

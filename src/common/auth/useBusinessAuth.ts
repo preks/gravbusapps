@@ -6,6 +6,22 @@ import {
   STORAGE_KEY_ACCESS_TOKEN,
   STORAGE_KEY_ADDITIONAL_DATA
 } from '@/common/constants/ideStorageKeys'
+import { NAVIGATION_BASE_PATH } from '@/common/utils/navigationUtils'
+
+const SESSION_KEY_KEYCLOAK_RETURN_PATH = 'keycloak_return_path'
+
+/**
+ * Check if current URL is a Microsoft OAuth callback
+ * We detect this by checking if there's a pending MS OAuth state in sessionStorage
+ */
+function isMicrosoftOAuthCallback(): boolean {
+  if (typeof window === 'undefined') return false
+  const params = new URLSearchParams(window.location.search)
+  const hasCode = params.has('code')
+  const hasState = params.has('state')
+  const hasMsOAuthState = sessionStorage.getItem('ms_oauth_state') !== null
+  return hasCode && hasState && hasMsOAuthState
+}
 
 export interface UseBusinessAuthResult {
   initialized: boolean
@@ -14,10 +30,12 @@ export interface UseBusinessAuthResult {
   login: () => Promise<void>
   logout: () => Promise<void>
   refreshToken: () => Promise<boolean>
+  isMsOAuthCallback: boolean
 }
 
 export function useBusinessAuth(): UseBusinessAuthResult {
   const [initialized, setInitialized] = useState(false)
+  const [isMsOAuthCallback] = useState(() => isMicrosoftOAuthCallback())
   const [kcInstance, setKcInstance] = useState<Keycloak | null>(null)
   const [accessToken, setAccessToken] = useState<string | undefined>(undefined)
   const [tokenParsed, setTokenParsed] = useState<KeycloakTokenParsed | undefined>(undefined)
@@ -32,6 +50,13 @@ export function useBusinessAuth(): UseBusinessAuthResult {
   )
 
   useEffect(() => {
+    // Skip Keycloak initialization if this is a Microsoft OAuth callback
+    // The email app will handle the callback directly
+    if (isMsOAuthCallback) {
+      setInitialized(true)
+      return
+    }
+
     const kc = new Keycloak(keycloakConfig)
     setKcInstance(kc)
 
@@ -66,7 +91,19 @@ export function useBusinessAuth(): UseBusinessAuthResult {
         })
     }
 
-    const currentRedirectUri = typeof window !== 'undefined' ? window.location.href : undefined
+    const stableRedirectUri =
+      typeof window !== 'undefined' ? `${window.location.origin}${NAVIGATION_BASE_PATH}` : undefined
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (!params.has('code')) {
+        try {
+          sessionStorage.setItem(SESSION_KEY_KEYCLOAK_RETURN_PATH, window.location.pathname + window.location.search)
+        } catch {
+          // ignore
+        }
+      }
+    }
 
     const initOptions: KeycloakInitOptions = {
       onLoad: 'login-required',
@@ -74,7 +111,7 @@ export function useBusinessAuth(): UseBusinessAuthResult {
       flow: 'standard',
       pkceMethod: 'S256',
       checkLoginIframe: false,
-      redirectUri: currentRedirectUri
+      redirectUri: stableRedirectUri
     }
 
     ;(async () => {
@@ -83,14 +120,38 @@ export function useBusinessAuth(): UseBusinessAuthResult {
         if (cancelled) return
 
         if (!authenticated) {
-          await kc.login({ redirectUri: currentRedirectUri })
+          await kc.login({ redirectUri: stableRedirectUri })
           return
         }
 
         applyTokenFromInstance()
         setInitialized(true)
+
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search)
+          const savedPath = sessionStorage.getItem(SESSION_KEY_KEYCLOAK_RETURN_PATH)
+          const currentPath = window.location.pathname + window.location.search
+          const isStartUrl =
+            window.location.pathname === '' ||
+            window.location.pathname === '/' ||
+            window.location.pathname === NAVIGATION_BASE_PATH
+          if (savedPath && savedPath !== currentPath) {
+            try {
+              if (params.has('code')) {
+                sessionStorage.removeItem(SESSION_KEY_KEYCLOAK_RETURN_PATH)
+                window.history.replaceState(null, '', savedPath)
+              } else if (isStartUrl) {
+                sessionStorage.removeItem(SESSION_KEY_KEYCLOAK_RETURN_PATH)
+                window.history.replaceState(null, '', savedPath)
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
       } catch (err: unknown) {
         console.error('[BusinessAuth] Failed to initialize Keycloak', err)
+        if (!cancelled) setInitialized(true)
       }
     })()
 
@@ -99,11 +160,19 @@ export function useBusinessAuth(): UseBusinessAuthResult {
       kc.onAuthRefreshSuccess = undefined
       kc.onTokenExpired = undefined
     }
-  }, [keycloakConfig])
+  }, [keycloakConfig, isMsOAuthCallback])
 
   const login = useCallback(async () => {
     if (!kcInstance) return
-    await kcInstance.login()
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(SESSION_KEY_KEYCLOAK_RETURN_PATH, window.location.pathname + window.location.search)
+      } catch {
+        // ignore
+      }
+    }
+    const redirectUri = typeof window !== 'undefined' ? `${window.location.origin}${NAVIGATION_BASE_PATH}` : undefined
+    await kcInstance.login({ redirectUri })
   }, [kcInstance])
 
   const logout = useCallback(async () => {
@@ -152,6 +221,7 @@ export function useBusinessAuth(): UseBusinessAuthResult {
     tokenParsed,
     login,
     logout,
-    refreshToken
+    refreshToken,
+    isMsOAuthCallback
   }
 }

@@ -40,6 +40,9 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
   const isAlreadyDeactivated =
     benefit.isActive && Boolean(benefit.endDate) && benefit.benefitStatus === BenefitStatus.INACTIVE
 
+  // Check if deactivation request is pending approval (status = PENDING_COMPENSATION, benefitStatus = ACTIVE_BENEFIT)
+  const isPendingDeactivation = benefit.isPending && benefit.isActive && benefit.benefitStatus === BenefitStatus.ACTIVE
+
   return (
     <div className="gba:flex gba:justify-between gba:gap-3">
       {/* Left side: Benefit info stacked */}
@@ -53,7 +56,7 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
         {/* Active-specific: Start Date */}
         {benefit.startDate && (
           <div
-            className="gba:text-xs gba:text-muted-foreground gba:leading-tight"
+            className="gba:text-xs gba:text-decorative-secondary-foreground gba:leading-tight"
             data-testid={`benefit-start-date-${benefit.code}`}
           >
             {startDateInFuture ? t('benefit-starts-in') : t('benefit-since')}{' '}
@@ -75,7 +78,10 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
       </BenefitInfoSection>
 
       {/* Right side: Action buttons stacked */}
-      <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-32" data-testid={`benefit-actions-${benefit.code}`}>
+      <div
+        className="gba:flex gba:flex-col gba:gap-1 gba:shrink-0 gba:w-auto gba:min-w-32"
+        data-testid={`benefit-actions-${benefit.code}`}
+      >
         {onViewDetails && (
           <Button
             variant="outline"
@@ -84,12 +90,23 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
             className="gba:w-full"
             data-testid={`benefit-catalog-details-button-${benefit.code}`}
           >
-            {t('benefit-view-details')}
+            <span className="gba:truncate">{t('benefit-view-details')}</span>
           </Button>
         )}
-        {/* Show deactivate button (active or disabled) */}
-        {isAlreadyDeactivated ? (
-          /* Show disabled button when benefit is already deactivated */
+        {/* Show deactivate button (active, deactivated, or scheduled) */}
+        {isPendingDeactivation ? (
+          /* Show deactivated button when deactivation request is awaiting approval */
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={true}
+            className="gba:w-full"
+            data-testid={`benefit-catalog-deactivate-button-deactivated-${benefit.code}`}
+          >
+            <span className="gba:truncate">{t('benefit-deactivated-button')}</span>
+          </Button>
+        ) : isAlreadyDeactivated ? (
+          /* Show disabled button when benefit is already scheduled for deactivation */
           <Button
             variant="secondary"
             size="sm"
@@ -97,7 +114,7 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
             className="gba:w-full gba:opacity-50 gba:cursor-not-allowed"
             data-testid={`benefit-catalog-deactivate-button-disabled-${benefit.code}`}
           >
-            {t('benefit-deactivate-button')}
+            <span className="gba:truncate">{t('benefit-deactivate-button')}</span>
           </Button>
         ) : (
           /* Show active deactivate button when benefit can still be deactivated */
@@ -120,7 +137,7 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
             accessToken={accessToken}
             className="gba:w-full gba:text-destructive hover:gba:bg-destructive hover:gba:text-destructive-foreground"
           >
-            {t('benefit-deactivate-button')}
+            <span className="gba:truncate">{t('benefit-deactivate-button')}</span>
           </AppAction>
         )}
       </div>

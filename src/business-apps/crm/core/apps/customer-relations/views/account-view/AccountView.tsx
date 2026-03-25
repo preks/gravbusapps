@@ -1,11 +1,18 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { AccountLayout, type AccountViewConfig } from '@/common/components/common-relations/view-layouts/account-layout'
+import {
+  AccountLayout,
+  type AccountViewConfig,
+  type QuickFiltersRenderProps,
+  AccountQuickFilters,
+  type QuickFilterType
+} from '@/common/components/common-relations/view-layouts/account-layout'
 import type { Account } from '@/common/data/relations/types/accountTypes'
 import { CUSTOMER_ACCOUNT_DESCRIPTORS } from '@/common/data/customer/types/customerAccountTypes'
 import {
   commonAccountColumns,
-  commonAccountFilterConfig
+  commonAccountFilterConfig,
+  createProspectiveColumn
 } from '@/common/components/common-relations/view-layouts/account-layout/config'
 import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
 import type { CustomerAccountQueryVariables } from '@/common/data/customer/queries/customerAccountQueries'
@@ -13,6 +20,15 @@ import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCustomerAccountStatistics } from '@/common/data/customer/hooks/useCustomerAccountStatistics'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
+
+// Custom filter configuration for CRM Account View - excludes Status, Contact Information, and Account Category filters
+const crmAccountFilterConfig: FilterConfiguration = {
+  ...commonAccountFilterConfig,
+  groups: commonAccountFilterConfig.groups.filter(
+    group => group.id !== 'status-group' && group.id !== 'contact-filters' && group.id !== 'account-type-group'
+  )
+}
 
 // Helper function to process date range filters
 const processDateRangeFilters = (selectedFilters: Record<string, any>, vars: CustomerAccountQueryVariables): void => {
@@ -51,22 +67,58 @@ const copyNonDateFilters = (
 export type AccountViewProps = BusinessAppContextProps
 
 export const AccountView: React.FC<AccountViewProps> = context => {
-  const { accessToken } = context
+  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
+
+  const handleQuickFilterChange = useCallback(
+    (
+      filter: QuickFilterType,
+      prospective: boolean | undefined,
+      onFilterChange: (filters: Record<string, any>) => void,
+      currentFilters: Record<string, any>
+    ) => {
+      setActiveQuickFilter(filter)
+      onFilterChange({
+        ...currentFilters,
+        prospective: prospective
+      })
+    },
+    []
+  )
+
+  const renderQuickFilters = useCallback(
+    ({ selectedFilters, onFilterChange }: QuickFiltersRenderProps) => (
+      <AccountQuickFilters
+        activeFilter={activeQuickFilter}
+        onFilterChange={(filter, prospective) =>
+          handleQuickFilterChange(filter, prospective, onFilterChange, selectedFilters)
+        }
+        labels={{
+          all: 'All',
+          established: 'Customers',
+          prospect: 'Prospects'
+        }}
+        dataTestIdPrefix="customer-account"
+      />
+    ),
+    [activeQuickFilter, handleQuickFilterChange]
+  )
 
   // Data Hooks
   const { fetchCustomerAccounts } = useCustomerAccounts(context)
   const accountStatistics = useCustomerAccountStatistics(context)
 
-  // Statistics - Transform hook data to AccountStatisticsData format
-  // Statistics - Hook already returns the correct format
-  const accountStatisticsData = accountStatistics
-
-  // Config
+  // Config — accountStatistics is intentionally excluded so that statistics state
+  // updates (isLoading, recentAccounts, etc.) do not recreate config, which would
+  // cascade into new queryVariables/loadData references and re-fire GetAccounts.
+  // accountStatistics is passed as a separate prop to AccountLayout instead.
   const config: AccountViewConfig<Account, CustomerAccountQueryVariables> = useMemo(
     () => ({
       fetchAccounts: fetchCustomerAccounts,
       entityName: 'Account',
-      createColumns: () => commonAccountColumns,
+      createColumns: () => {
+        // Replace generic prospective column with CRM-specific version
+        return commonAccountColumns.map(col => (col.id === 'prospective' ? createProspectiveColumn('crm') : col))
+      },
       descriptors: CUSTOMER_ACCOUNT_DESCRIPTORS,
       columnLabels: {
         name: 'Account Name',
@@ -78,7 +130,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'
       },
-      baseFilterConfig: commonAccountFilterConfig,
+      baseFilterConfig: crmAccountFilterConfig,
       buildQueryVariables: (params: {
         pagination: { pageIndex: number; pageSize: number }
         searchTerm: string
@@ -106,6 +158,15 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         // Copy all other filters using helper
         copyNonDateFilters(params.selectedFilters, dateRangeKeys, vars)
 
+        // Special handling for prospective filter (checkbox-group returns array of strings)
+        if (params.selectedFilters.prospective && Array.isArray(params.selectedFilters.prospective)) {
+          const prospectiveValues = params.selectedFilters.prospective
+          // Only filter if exactly one option is selected (not both or neither)
+          if (prospectiveValues.length === 1) {
+            vars.prospective = prospectiveValues[0] === 'true'
+          }
+        }
+
         // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_ACCOUNT_DESCRIPTORS)
         // to resolve correct GraphQL paths (e.g., ownerEmployee.displayName, industryClass.value)
         if (params.sorting.length > 0) {
@@ -126,7 +187,6 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         createContext: FlowContextName.customerAccountCreate
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/crm/account-record', { accountId: id }),
-      accountStatistics: accountStatisticsData,
       variant: 'customer',
       rowActionsContextArray: [FlowContextName.customerAccountEntity],
       buildRowActionsExternalContextData: (row: { original: Account }) => ({
@@ -143,10 +203,18 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         addAccount: { key: 'crm:account.addAccount', default: 'Add Account' }
       }
     }),
-    [fetchCustomerAccounts, accountStatisticsData, accessToken]
+    [fetchCustomerAccounts]
   )
 
-  return <AccountLayout context={context} config={config} dataTestId="customer-account-view" />
+  return (
+    <AccountLayout
+      context={context}
+      config={config}
+      accountStatistics={accountStatistics}
+      dataTestId="customer-account-view"
+      renderQuickFilters={renderQuickFilters}
+    />
+  )
 }
 
 export default AccountView

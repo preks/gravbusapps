@@ -9,6 +9,7 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { FeedbackRequestClient } from '@/common/network/feedback-request/FeedbackRequestClient'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
+import { resolveRequestedFromUserIds, resolveSubjectUserId } from '../feedbackRequestFormUtils'
 
 interface FeedbackRequestFormContextType {
   formValues: FeedbackRequestFormValues
@@ -54,6 +55,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
     employeeId: undefined,
     employeeName: undefined,
     employeeIds: [],
+    employeeIdUserIdMap: {},
     employeeNames: [],
     requestMessage: '',
     ...initialValues
@@ -121,6 +123,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
         employeeId: preSelectedEmployee.id,
         employeeName: preSelectedEmployee.name,
         employeeIds: [preSelectedEmployee.id],
+        employeeIdUserIdMap: preSelectedEmployee.userId ? { [preSelectedEmployee.id]: preSelectedEmployee.userId } : {},
         employeeNames: [preSelectedEmployee.name]
       })
     }
@@ -159,7 +162,22 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
       return
     }
 
-    if (!currentUserEmployeeId) {
+    const targetSubjectUserId = resolveSubjectUserId(
+      businessAppContext.additionalData,
+      businessAppContext.userInfo?.id,
+      currentUserEmployeeId
+    )
+    const isOnBehalfRequest = Boolean(
+      businessAppContext.additionalData?.targetEmployeeId ||
+        businessAppContext.additionalData?.flowContext?.targetEmployeeId ||
+        businessAppContext.additionalData?.contextData?.targetEmployeeId ||
+        businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.targetEmployeeId
+    )
+    const successMessageKey = isOnBehalfRequest
+      ? 'notification-feedback-request-sent-success-on-behalf'
+      : 'notification-feedback-request-sent-success'
+
+    if (!targetSubjectUserId) {
       setError(getTranslationFromI18nKeyAndLabel('feedback.request.noCurrentUser', 'Unable to identify current user'))
       return
     }
@@ -168,23 +186,19 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
     setError(null)
 
     try {
-      // Resolve employees and collect userIds (fallback to employeeId)
-      const resolvedEmployees = selectedIds
-        .map(id => {
-          if (preSelectedEmployee?.id === id) return preSelectedEmployee
-          return knownEmployees.get(id) || getEmployeeById(id)
-        })
-        .filter(Boolean) as EmployeeOption[]
+      const { requestedFromList, unresolvedSelectedIds } = resolveRequestedFromUserIds({
+        selectedIds,
+        employeeIdUserIdMap: formValues.employeeIdUserIdMap,
+        resolveUserIdByEmployeeId: id => {
+          const resolved =
+            preSelectedEmployee?.id === id ? preSelectedEmployee : knownEmployees.get(id) || getEmployeeById(id)
+          return resolved?.userId
+        }
+      })
 
-      if (resolvedEmployees.length === 0) {
-        throw new Error(
-          getTranslationFromI18nKeyAndLabel('feedback.request.employeeNotFound', 'Selected employee not found')
-        )
+      if (requestedFromList.length === 0 || unresolvedSelectedIds.length > 0) {
+        throw new Error(t('feedback-request-missing-user-id'))
       }
-
-      console.log(resolvedEmployees, 'resolvedEmployees')
-
-      const requestedFromList = resolvedEmployees.map(emp => emp.userId || emp.id)
 
       console.log(requestedFromList, 'requestedFromList')
 
@@ -197,7 +211,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
 
         await client.bulkRequestFeedback({
           requestedFromList: remainingRequested,
-          creatorUserId: currentUserEmployeeId,
+          subjectUserId: targetSubjectUserId,
           requestMessage: formValues.requestMessage
         })
 
@@ -205,11 +219,11 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
         const payload: FeedbackRequestPayload = {
           requestedFrom: firstRequested,
           requestedFromList,
-          creatorUserId: currentUserEmployeeId,
+          subjectUserId: targetSubjectUserId,
           requestMessage: formValues.requestMessage,
           completeNotification: {
             type: 'success',
-            message: t('notification-feedback-request-sent-success')
+            message: t(successMessageKey)
           }
         }
         dispatchProcessContinueEvent('pse_submit', payload)
@@ -218,11 +232,11 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
         const payload: FeedbackRequestPayload = {
           requestedFrom: requestedFromList[0],
           requestedFromList,
-          creatorUserId: currentUserEmployeeId,
+          subjectUserId: targetSubjectUserId,
           requestMessage: formValues.requestMessage,
           completeNotification: {
             type: 'success',
-            message: t('notification-feedback-request-sent-success')
+            message: t(successMessageKey)
           }
         }
         dispatchProcessContinueEvent('pse_submit', payload)
@@ -237,7 +251,15 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
       )
       setIsLoading(false)
     }
-  }, [formValues, currentUserEmployeeId, preSelectedEmployee, getEmployeeById, businessAppContext.accessToken])
+  }, [
+    formValues,
+    currentUserEmployeeId,
+    preSelectedEmployee,
+    getEmployeeById,
+    businessAppContext.accessToken,
+    businessAppContext.additionalData,
+    businessAppContext.userInfo?.id
+  ])
 
   const handleCancel = useCallback(async () => {
     try {
@@ -246,8 +268,8 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
         await onCancel()
       }
 
-      // Dispatch cancel event to close the modal
-      dispatchProcessContinueEvent('pse_cancel', {})
+      // Dispatch abort event to close the modal
+      dispatchProcessContinueEvent('pse_abort', {})
     } catch (err) {
       // Silent error handling for cancellation
       console.error('Error :', err)

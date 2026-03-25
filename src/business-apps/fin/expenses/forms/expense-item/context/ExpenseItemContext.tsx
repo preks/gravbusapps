@@ -14,7 +14,8 @@ import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
   getStructureCostCenter,
-  expenseRequestByCurrencyQuery
+  expenseRequestByCurrencyQuery,
+  getExpenseRuleCurrencyQuery
 } from '../ExpenseItemQueries'
 import { fetchEmployeeRule } from '../ExpenseItemQueries'
 import {
@@ -36,7 +37,8 @@ import {
   handleExpenseTypeChange,
   handleSubmit,
   handleFileUpload,
-  setByEdit
+  setByEdit,
+  normalizeReceiptData
 } from './services'
 import { showToast } from '../../../utils/notificationUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -51,6 +53,9 @@ interface ExpenseItemContextProps {
   isInitialized: boolean
   fileList: any[]
   setFileList: (files: any[]) => void
+  supportingFileList: any[]
+  setSupportingFileList: (files: any[]) => void
+  requiredAttachmentInstructions: string[]
   isProcessingFiles: boolean
   setIsProcessingFiles: (isProcessing: boolean) => void
   isFormDisabled: boolean
@@ -117,6 +122,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [loading, setLoading] = useState<boolean>(false)
   const [isInitialized, setIsInitialized] = useState<boolean>(false)
   const [fileList, setFileListState] = useState<any[]>([])
+  const [supportingFileList, setSupportingFileListState] = useState<any[]>([])
   const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false)
   const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false)
   const [multiPosition, setMultiPosition] = useState<boolean>(false)
@@ -194,12 +200,25 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       try {
         let effectiveCurrencyId: string | undefined = form.getFieldValue('currency')
 
-        // If embedded in a wizard or task, prefer the provided itemCurrency
+        // If embedded in a wizard or task (item inside a request), use the provided itemCurrency (request currency)
         if (!effectiveCurrencyId && additionalData?.itemCurrency) {
           effectiveCurrencyId = additionalData.itemCurrency
         }
 
-        // Fall back to default currency for brand new items
+        // Standalone item or request-type expense: prefill with rule currency (separate query so we can use uuid!; only called when we have a rule id)
+        if (!effectiveCurrencyId && typeof employeeRuleId === 'string' && employeeRuleId) {
+          try {
+            const ruleResp = await graphqlClient.query({
+              query: getExpenseRuleCurrencyQuery,
+              variables: { expenseRuleId: employeeRuleId }
+            })
+            effectiveCurrencyId = ruleResp?.data?.ExpenseRuleByPk?.currency?.id
+          } catch {
+            // fall back to default currency
+          }
+        }
+
+        // Fall back to default currency for brand new items when no rule currency or not in request context
         if (!effectiveCurrencyId) {
           effectiveCurrencyId = DEFAULT_CURRENCY_ID
         }
@@ -238,7 +257,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
 
     void hydrateRequestsForInitialCurrency()
-  }, [catalogueDataResponse, accessToken, additionalData, expenseRuleError, isEditMode])
+  }, [catalogueDataResponse, accessToken, additionalData, expenseRuleError, isEditMode, employeeRuleId])
 
   // Avoid refetch loops: track attempted (requestId|currency) hydrations
   const attemptedLabelHydrationsRef = useRef<Set<string>>(new Set())
@@ -336,6 +355,30 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
     return result
   }, [generalDataResponse, employeeRuleId])
+
+  const requiredAttachmentInstructions = useMemo(() => {
+    const instructions = new Set<string>()
+
+    positions.forEach(position => {
+      if (!position.expenseGroup || !position.expenseType) {
+        return
+      }
+
+      const typeConfig = expenseTypes[position.expenseGroup]?.find(type => type.id === position.expenseType)
+      const instruction = typeConfig?.attachmentInstruction?.trim()
+      if (instruction) {
+        instructions.add(instruction)
+      }
+    })
+
+    return Array.from(instructions)
+  }, [positions, expenseTypes])
+
+  useEffect(() => {
+    if (requiredAttachmentInstructions.length === 0 && supportingFileList.length > 0) {
+      setSupportingFileListState([])
+    }
+  }, [requiredAttachmentInstructions.length, supportingFileList.length])
 
   const addRequestsWrapper = () => {
     if (!accessToken) {
@@ -488,10 +531,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const initializeCostCenters = async (employeePosition: any, costCenterData: any) => {
     try {
       const updatedPositions = [...positions]
+      const allCostCenters = costCenterData?.data?.userCostCenters || []
       const employeePositionCostCenterId = employeePosition[0]?.costCenterId
-      const firstCostCenterId = costCenterData?.data?.userCostCenters?.[0]?.id
+      const firstCostCenterId = allCostCenters[0]?.id
+      const isValidCostCenter = employeePositionCostCenterId && allCostCenters.some((c: any) => c.id === employeePositionCostCenterId)
 
-      if (employeePositionCostCenterId) {
+      if (isValidCostCenter) {
         updatedPositions[0].costCenter = employeePositionCostCenterId
         setUserCostCenter(employeePositionCostCenterId)
       } else if (firstCostCenterId) {
@@ -722,7 +767,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const createPositionsFromReceipt = (data: any): ExpensePosition[] => {
     if (!data.items || data.items.length === 0) return []
 
-    const costCenterId = positions[0]?.costCenter || ''
+    const rawCostCenterId = positions[0]?.costCenter || ''
+    const costCenterId = costCenters.some(c => c.id === rawCostCenterId)
+      ? rawCostCenterId
+      : costCenters[0]?.id || ''
 
     return data.items.map((item: any, index: number) => {
       const expenseGroupId = matchExpenseGroup(item)
@@ -747,6 +795,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     const formValuesBatch: Record<string, any> = {}
     newPositions.forEach((pos, idx) => {
       formValuesBatch[`expenseGroup-${idx}`] = pos.expenseGroup || undefined
+      formValuesBatch[`expenseType-${idx}`] = pos.expenseType || undefined
       formValuesBatch[`amount-${idx}`] = pos.amount
       formValuesBatch[`costCenter-${idx}`] = pos.costCenter
       formValuesBatch[`isReimbursable-${idx}`] = pos.isReimbursable
@@ -756,41 +805,68 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   }
 
   /**
-   * Fetches missing expense types for positions
+   * Fetches missing expense types for positions whose group is known but type wasn't resolved.
+   * Uses a single fetch covering all needed groups to avoid race conditions on setExpenseTypes.
    */
   const fetchMissingExpenseTypes = async (newPositions: ExpensePosition[], data: any): Promise<void> => {
-    const promises = newPositions.map(async (position, index) => {
-      if (!position.expenseGroup || position.expenseType) return
+    const missingGroupIds = [
+      ...new Set(newPositions.filter(pos => pos.expenseGroup && !pos.expenseType).map(pos => pos.expenseGroup))
+    ]
+    if (missingGroupIds.length === 0) return
 
-      try {
-        const types = await fetchExpenseTypesWrapper(position.expenseGroup)
+    try {
+      const allTypes = await fetchExpenseTypes(
+        missingGroupIds[0],
+        newPositions,
+        employeeRuleId,
+        graphqlClient,
+        setExpenseTypes,
+        t
+      )
+
+      const typesByGroup: Record<string, ExpenseType[]> = {}
+      allTypes.forEach((type: ExpenseType) => {
+        if (!typesByGroup[type.classId]) typesByGroup[type.classId] = []
+        typesByGroup[type.classId].push(type)
+      })
+
+      const updatedPositions = newPositions.map((position, index) => {
+        if (position.expenseType || !position.expenseGroup) return position
+
+        const groupTypes = typesByGroup[position.expenseGroup]
+        if (!groupTypes) return position
+
         const expenseCode = data.items[index]?.expenseDetails?.expenseCode
+        if (!expenseCode) return position
 
-        if (expenseCode) {
-          const matchingType = types.find(type => type.code === expenseCode)
-          if (matchingType) {
-            const updatedPositions = [...newPositions]
-            updatedPositions[index].expenseType = matchingType.id
-            setPositions(updatedPositions)
-            form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id })
-          }
+        const matchingType = groupTypes.find((type: ExpenseType) => type.code === expenseCode)
+        if (!matchingType) return position
+
+        return { ...position, expenseType: matchingType.id }
+      })
+
+      setPositions(updatedPositions)
+      const formBatch: Record<string, any> = {}
+      updatedPositions.forEach((pos, idx) => {
+        if (pos.expenseType) {
+          formBatch[`expenseType-${idx}`] = pos.expenseType
         }
-      } catch {
-        showToast(
-          t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
-          'error'
-        )
-      }
-    })
-
-    await Promise.all(promises)
+      })
+      form.setFieldsValue(formBatch)
+    } catch {
+      showToast(
+        t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
+        'error'
+      )
+    }
   }
 
   const setByReceipts = (receiptData: any): void => {
     if (!receiptData?.data) return
 
     try {
-      const data = receiptData.data
+      const rawData = receiptData.data
+      const data = normalizeReceiptData(rawData)
 
       // Ensure we can validate against the configured request currency when provided
       if (
@@ -893,11 +969,13 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         setLoading,
         t,
         fileList,
+        supportingFileList,
         accessToken,
         userInfo?.employeeDetails?.employeeId,
         additionalData,
         userInfo,
         itemValues || undefined,
+        setSupportingFileListState,
         getIsProcessEventDispatched,
         dispatchProcessContinueEventIfEnabled
       )
@@ -918,6 +996,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         form.resetFields()
         setPositions([DEFAULT_POSITION])
         setFileList([])
+        setSupportingFileListState([])
         setCurrentStep('start')
       } else {
         dispatchProcessContinueEventIfEnabled(EVENTS.ABORT, {
@@ -937,6 +1016,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       form.resetFields()
       setPositions([DEFAULT_POSITION])
       setFileListState([])
+      setSupportingFileListState([])
       setCurrentStep('start')
     }
   }
@@ -1088,6 +1168,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }
 
+  const setSupportingFileList = (files: any[]) => {
+    setSupportingFileListState(files)
+  }
+
   const contextValue: ExpenseItemContextProps = useMemo(
     () => ({
       form,
@@ -1098,6 +1182,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       isInitialized,
       fileList,
       setFileList,
+      supportingFileList,
+      setSupportingFileList,
+      requiredAttachmentInstructions,
       isProcessingFiles,
       setIsProcessingFiles,
       isFormDisabled,
@@ -1140,6 +1227,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       loading,
       isInitialized,
       fileList,
+      supportingFileList,
       isProcessingFiles,
       isFormDisabled,
       multiPosition,
@@ -1157,6 +1245,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       receiptCurrencyError,
       hasLinkedExpenseRequest,
       additionalData,
+      requiredAttachmentInstructions,
       calculateTotalWrapper,
       handleFileUploadWrapper,
       handleSubmitWrapper,

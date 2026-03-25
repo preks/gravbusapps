@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button, Card, Alert } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, Alert } from '@newwork/nw-design-system'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../hooks/useTimeTrackingData'
 import { TimeEntriesTable } from './TimeEntriesTable'
@@ -26,29 +26,31 @@ const History: React.FC<HistoryProps> = ({ employeeId, accessToken }) => {
         </Alert>
       )}
 
-      <Card className="gba:p-4">
-        <div className="gba:flex gba:items-center gba:justify-start gba:mb-3">
-          <div className="gba:flex gba:gap-2" data-testid="history-month-selector">
-            <Button variant="outline" onClick={prevMonth} data-testid="history-month-selector-prev">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.common.prev', 'Prev')}
-            </Button>
-            <div className="gba:self-center">
-              {currentMonth.toLocaleString(locale, { month: 'long', year: 'numeric' })}
+      <Card>
+        <CardContent className="gba:p-4">
+          <div className="gba:flex gba:items-center gba:justify-start gba:mb-3">
+            <div className="gba:flex gba:gap-2" data-testid="history-month-selector">
+              <Button variant="outline" onClick={prevMonth} data-testid="history-month-selector-prev">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.common.prev', 'Prev')}
+              </Button>
+              <div className="gba:self-center">
+                {currentMonth.toLocaleString(locale, { month: 'long', year: 'numeric' })}
+              </div>
+              <Button variant="outline" onClick={nextMonth} data-testid="history-month-selector-next">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.common.next', 'Next')}
+              </Button>
             </div>
-            <Button variant="outline" onClick={nextMonth} data-testid="history-month-selector-next">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.common.next', 'Next')}
-            </Button>
           </div>
-        </div>
 
-        <TimeEntriesTable
-          entries={entries}
-          locale={locale}
-          pageSize={pageSize}
-          onPageSizeChange={setPageSize}
-          accessToken={accessToken}
-          employeeId={employeeId}
-        />
+          <TimeEntriesTable
+            entries={entries}
+            locale={locale}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
+            accessToken={accessToken}
+            employeeId={employeeId}
+          />
+        </CardContent>
       </Card>
     </div>
   )

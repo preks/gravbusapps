@@ -115,6 +115,15 @@ export interface JobProfile {
   employmentTypeRef?: string
   recordState?: string
   version?: number
+  jobProfileSkills?: Array<{
+    id: string
+    skillId: string
+    requiredLevel?: number | null
+    skill?: {
+      id: string
+      name: string
+    }
+  }>
   // Computed fields for UI
   displayName: string
   isActive: boolean

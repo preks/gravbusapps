@@ -1,6 +1,15 @@
 import { io, Socket } from 'socket.io-client'
-import type { Message, TypingIndicator, PresenceStatus, ActiveCall } from '../types'
+import type {
+  Message,
+  TypingIndicator,
+  PresenceStatus,
+  ActiveCall,
+  UserStatusChangeEvent,
+  UserStatus,
+  SetUserStatusPayload
+} from '../types'
 import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
+import { normalizeMessage } from './chatApiClient'
 
 // Client version for tracking
 const CLIENT_VERSION = '2'
@@ -167,13 +176,15 @@ export class ChatWebSocketClient {
 
   // Event listeners
   onNewMessage(handler: (message: Message) => void) {
-    this.socket?.on('new_message', (message: Message) => {
-      handler(message)
+    this.socket?.on('new_message', (raw: unknown) => {
+      handler(normalizeMessage(raw))
     })
   }
 
   onMessageUpdated(handler: (message: Message) => void) {
-    this.socket?.on('message:updated', handler)
+    this.socket?.on('message:updated', (raw: unknown) => {
+      handler(normalizeMessage(raw))
+    })
   }
 
   onMessageDeleted(handler: (data: { messageId: string; conversationId: string }) => void) {
@@ -225,6 +236,18 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation_created', handler)
   }
 
+  onParticipantRemoved(handler: (data: { conversationId: string }) => void) {
+    this.socket?.on('participant_removed', handler)
+  }
+
+  onConversationRead(handler: (data: { conversationId: string; userId: string; readAt: string }) => void) {
+    this.socket?.on('conversation:read', handler)
+  }
+
+  onConversationUnread(handler: (data: { conversationId: string; userId: string }) => void) {
+    this.socket?.on('conversation:unread', handler)
+  }
+
   onConversationCallStarted(handler: (data: ActiveCall) => void) {
     this.socket?.on('conversation:call-started', handler)
   }
@@ -233,8 +256,17 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation:call-ended', handler)
   }
 
+  onCallHistoryMissedCount(handler: (data: { count: number }) => void): () => void {
+    this.socket?.on('call_history:missed_count', handler)
+    return () => {
+      this.socket?.off('call_history:missed_count', handler)
+    }
+  }
+
   onConversationActiveCalls(handler: (data: ActiveCall[]) => void) {
-    this.socket?.on('conversation:active-calls', handler)
+    this.socket?.on('conversation:active-calls', (data: ActiveCall[]) => {
+      handler(data)
+    })
   }
 
   // Emit events
@@ -251,18 +283,37 @@ export class ChatWebSocketClient {
     this.socket?.emit('leave_conversation', { conversationId })
   }
 
+  markConversationAsRead(conversationId: string) {
+    if (!this.socket || !this.socket.connected) {
+      return
+    }
+
+    this.socket.emit('conversation:mark-read', { conversationId })
+  }
+
+  markConversationAsUnread(conversationId: string) {
+    if (!this.socket?.connected) {
+      return
+    }
+
+    this.socket.emit('conversation:mark-unread', { conversationId })
+  }
+
   sendMessage(
     conversationId: string,
     content: string,
     senderId: string,
     parentId?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
+    quotedMessageId?: string
   ) {
     if (!this.socket) {
+      console.warn('[ChatWebSocket] ❌ Cannot send message - socket not initialized')
       return
     }
 
     if (!this.socket.connected) {
+      console.warn('[ChatWebSocket] ❌ Cannot send message - socket not connected')
       return
     }
 
@@ -271,12 +322,11 @@ export class ChatWebSocketClient {
       content,
       senderId,
       ...(parentId && { parentId }),
-      ...(metadata && { metadata })
+      ...(metadata && { metadata }),
+      ...(quotedMessageId && { quotedMessageId })
     }
 
-    this.socket.emit('send_message', payload, () => {
-      // Message acknowledgment received
-    })
+    this.socket.emit('send_message', payload)
   }
 
   sendTypingStart(conversationId: string) {
@@ -289,6 +339,100 @@ export class ChatWebSocketClient {
 
   requestActiveCalls() {
     this.socket?.emit('conversation:get-active-calls')
+  }
+
+  // ==================== User Status Events ====================
+
+  /**
+   * Listen for user status changes
+   */
+  onUserStatusChange(handler: (data: UserStatusChangeEvent) => void) {
+    const wrappedHandler = (data: UserStatusChangeEvent) => {
+      handler(data)
+    }
+    this.socket?.on('user_status_change', wrappedHandler)
+    return () => {
+      this.socket?.off('user_status_change', wrappedHandler)
+    }
+  }
+
+  /**
+   * Listen for initial status on connection
+   */
+  onUserStatusInitialized(handler: (data: UserStatus) => void) {
+    this.socket?.on('user_status_initialized', handler)
+    return () => {
+      this.socket?.off('user_status_initialized', handler)
+    }
+  }
+
+  /**
+   * Set user's manual status
+   */
+  setUserStatus(payload: SetUserStatusPayload): Promise<{ success: boolean; status?: string }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.socket.connected) {
+        reject(new Error('Socket not connected'))
+        return
+      }
+
+      this.socket.emit('user:set_status', payload, (response: any) => {
+        if (response?.success) {
+          resolve(response)
+        } else {
+          reject(new Error('Failed to set status'))
+        }
+      })
+    })
+  }
+
+  /**
+   * Get a user's current status
+   */
+  getUserStatus(userId: string): Promise<UserStatus> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.socket.connected) {
+        reject(new Error('Socket not connected'))
+        return
+      }
+
+      this.socket.emit('user:get_status', { userId }, (response: UserStatus) => {
+        resolve(response)
+      })
+    })
+  }
+
+  /**
+   * Get bulk user statuses (for contact lists)
+   */
+  getBulkUserStatuses(userIds: string[]): Promise<{ statuses: Record<string, UserStatus> }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.socket.connected) {
+        reject(new Error('Socket not connected'))
+        return
+      }
+
+      this.socket.emit('user:get_bulk_statuses', { userIds }, (response: { statuses: Record<string, UserStatus> }) => {
+        resolve(response)
+      })
+    })
+  }
+
+  /**
+   * Request initial status for all conversation participants
+   * Used when client listener is ready to avoid missing broadcasts
+   */
+  requestAllStatuses(): Promise<{ success: boolean; userCount: number }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.socket.connected) {
+        reject(new Error('Socket not connected'))
+        return
+      }
+
+      this.socket.emit('user:request_all_statuses', (response: { success: boolean; userCount: number }) => {
+        resolve(response)
+      })
+    })
   }
 
   // ==================== Call Signaling Events ====================

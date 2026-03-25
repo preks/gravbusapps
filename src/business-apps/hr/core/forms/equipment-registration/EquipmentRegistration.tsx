@@ -15,7 +15,7 @@ import {
   Textarea,
   DateInput
 } from '@newwork/nw-design-system'
-import { useForm } from 'react-hook-form'
+import { useForm, UseFormReturn, Control } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
@@ -37,12 +37,133 @@ type FormValues = {
   model: string
   serialNumber: string
   location?: string
-  acquisitionDate: string
+  acquisitionDate?: string
   warrantyPeriodMonths: number
   inventoryValue: number
   currency: string
   status: AssetStatus
   notes?: string
+}
+
+type SerialNumberFieldProps = {
+  form: UseFormReturn<FormValues>
+  control: Control<FormValues>
+  isEditMode: boolean
+  assetId: string | null
+  getAssets: (variables: { where?: { _and: unknown[] }; limit?: number }) => Promise<{ assets: unknown[] }>
+}
+
+const SerialNumberField: React.FC<SerialNumberFieldProps> = ({ form, control, isEditMode, assetId, getAssets }) => {
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = React.useState(false)
+  const [duplicateError, setDuplicateError] = React.useState<string | null>(null)
+  const category = form.watch('category')
+  const brand = form.watch('brand')
+
+  const checkDuplicate = React.useCallback(
+    async (value: string) => {
+      const trimmed = (value ?? '').trim()
+      if (trimmed.length === 0 || trimmed.length < 3) {
+        setDuplicateError(null)
+        return
+      }
+
+      const categoryVal = form.getValues('category')
+      const brandVal = form.getValues('brand')
+      if (!categoryVal || !brandVal) {
+        setDuplicateError(null)
+        return
+      }
+
+      setIsCheckingDuplicate(true)
+      try {
+        const whereConditions: Array<
+          | { serialNumber: { _eq: string } }
+          | { assetCategoryRef: { _eq: string } }
+          | { assetBrandRef: { _eq: string } }
+          | { id: { _neq: string } }
+        > = [
+          { serialNumber: { _eq: trimmed } },
+          { assetCategoryRef: { _eq: categoryVal } },
+          { assetBrandRef: { _eq: brandVal } }
+        ]
+        if (isEditMode && assetId) {
+          whereConditions.push({ id: { _neq: assetId } })
+        }
+        const result = await getAssets({
+          where: { _and: whereConditions },
+          limit: 1
+        })
+
+        if (result.assets.length > 0) {
+          const errorMsg = getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_assets.serial_number_duplicate',
+            'A serial number with this combination of category and producer already exists'
+          )
+          setDuplicateError(errorMsg)
+          form.setError('serialNumber', { type: 'manual', message: errorMsg })
+        } else {
+          setDuplicateError(null)
+          form.clearErrors('serialNumber')
+        }
+      } catch (error) {
+        console.error('Error checking duplicate serial number:', error)
+        setDuplicateError(null)
+      } finally {
+        setIsCheckingDuplicate(false)
+      }
+    },
+    [form, getAssets, isEditMode, assetId]
+  )
+
+  React.useEffect(() => {
+    checkDuplicate(form.getValues('serialNumber'))
+  }, [category, brand, checkDuplicate, form])
+
+  return (
+    <FormField
+      control={control}
+      name="serialNumber"
+      render={({ field, fieldState }) => {
+        const handleBlur = async () => {
+          field.onBlur()
+          await checkDuplicate(field.value)
+        }
+
+        const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+          field.onChange(e)
+          if (duplicateError) {
+            setDuplicateError(null)
+            form.clearErrors('serialNumber')
+          }
+        }
+
+        return (
+          <FormItem>
+            <Label htmlFor="serialNumber" data-testid="serial-number-label">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}
+            </Label>
+            <Input
+              id="serialNumber"
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_assets.serial_number_placeholder',
+                'Unique serial number'
+              )}
+              value={field.value || ''}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              data-testid="serial-number-input"
+              disabled={isEditMode || isCheckingDuplicate}
+            />
+            {(fieldState.error || duplicateError) && (
+              <p className="gba:text-sm gba:font-medium gba:text-destructive" data-testid="serial-number-error">
+                {fieldState.error?.message || duplicateError}
+              </p>
+            )}
+          </FormItem>
+        )
+      }}
+    />
+  )
 }
 
 const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
@@ -86,7 +207,8 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   const { options: assetOptions, isLoading: assetsLoading } = useAssetsCatalog(context)
   const { options: brandOptions, isLoading: brandsLoading } = useBrandsCatalog(context)
   const { options: locationOptions, isLoading: locationsLoading } = useSiteLocations(context)
-  const { getAssetById, getAssets, getCurrentAllocation } = useAssetService(context)
+  const { getAssetById, getAssets, getCurrentAllocation, getAllocationsForAsset, deallocateAsset } =
+    useAssetService(context)
 
   const [currentAllocation, setCurrentAllocation] = React.useState<any>(null)
 
@@ -135,23 +257,16 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           ),
         serialNumber: z
           .string()
-          .min(
-            3,
+          .transform(s => (s ?? '').trim())
+          .refine(
+            val => val.length === 0 || val.length >= 3,
             getTranslationFromI18nKeyAndLabel(
               'lowcoder:hr_assets.serial_number_min_length',
               'Serial number must be at least 3 characters'
             )
           ),
         location: z.string().optional(),
-        acquisitionDate: z
-          .string()
-          .min(
-            1,
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.acquisition_date_required',
-              'Acquisition date is required'
-            )
-          ),
+        acquisitionDate: z.string().optional(),
         warrantyPeriodMonths: z
           .number()
           .min(
@@ -159,13 +274,6 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             getTranslationFromI18nKeyAndLabel(
               'lowcoder:hr_assets.warranty_period_min',
               'Warranty period must be 0 or greater'
-            )
-          )
-          .max(
-            120,
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.warranty_period_max',
-              'Warranty period cannot exceed 120 months'
             )
           ),
         inventoryValue: z
@@ -318,11 +426,21 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
     try {
       const siteLocation = values.location && values.location.trim() !== '' ? values.location.trim() : undefined
 
+      const serialNumber =
+        values.serialNumber?.trim() && values.serialNumber.trim().length > 0 ? values.serialNumber.trim() : undefined
+      const acquisitionDate =
+        values.acquisitionDate?.trim() && values.acquisitionDate.trim().length > 0
+          ? values.acquisitionDate.trim()
+          : undefined
+      const warrantyPeriodMonths =
+        typeof values.warrantyPeriodMonths === 'number' && values.warrantyPeriodMonths > 0
+          ? values.warrantyPeriodMonths
+          : undefined
       const response = await assetProcessClient.createAsset({
         model: values.model,
-        serialNumber: values.serialNumber,
-        acquisitionDate: values.acquisitionDate,
-        warrantyPeriodMonths: values.warrantyPeriodMonths,
+        ...(serialNumber !== undefined && { serialNumber }),
+        ...(acquisitionDate !== undefined && { acquisitionDate }),
+        ...(warrantyPeriodMonths !== undefined && { warrantyPeriodMonths }),
         inventoryValue: values.inventoryValue,
         assetStatus: values.status,
         assetBrandRef: values.brand,
@@ -336,7 +454,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         asset: {
           id: response.assetId,
           model: values.model,
-          serialNumber: values.serialNumber
+          serialNumber: serialNumber ?? values.serialNumber
         }
       }
     } catch (error) {
@@ -367,13 +485,35 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
     try {
       const siteLocation = values.location && values.location.trim() !== '' ? values.location.trim() : undefined
 
+      const serialNumber =
+        values.serialNumber?.trim() && values.serialNumber.trim().length > 0 ? values.serialNumber.trim() : undefined
+      const acquisitionDate =
+        values.acquisitionDate?.trim() && values.acquisitionDate.trim().length > 0
+          ? values.acquisitionDate.trim()
+          : undefined
+      const warrantyPeriodMonths =
+        typeof values.warrantyPeriodMonths === 'number' && values.warrantyPeriodMonths > 0
+          ? values.warrantyPeriodMonths
+          : undefined
+
+      // When setting asset to "in repair", close any active allocation with end date = today
+      if (values.status === AssetStatus.UNDER_REPAIR) {
+        const allocations = await getAllocationsForAsset(assetId)
+        const today = new Date().toISOString().slice(0, 10)
+        for (const alloc of allocations) {
+          if (!alloc.endDate) {
+            await deallocateAsset(alloc.id, alloc.version, today)
+          }
+        }
+      }
+
       await assetProcessClient.updateAsset({
         id: assetId,
         version: assetVersion,
         model: values.model,
-        serialNumber: values.serialNumber,
-        acquisitionDate: values.acquisitionDate,
-        warrantyPeriodMonths: values.warrantyPeriodMonths,
+        ...(serialNumber !== undefined && { serialNumber }),
+        ...(acquisitionDate !== undefined && { acquisitionDate }),
+        ...(warrantyPeriodMonths !== undefined && { warrantyPeriodMonths }),
         inventoryValue: values.inventoryValue,
         assetStatus: values.status,
         assetBrandRef: values.brand,
@@ -391,7 +531,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           asset: {
             id: assetId,
             model: values.model,
-            serialNumber: values.serialNumber
+            serialNumber: serialNumber ?? values.serialNumber
           }
         }
       }
@@ -512,98 +652,12 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         />
       </div>
 
-      <FormField
+      <SerialNumberField
+        form={form}
         control={form.control}
-        name="serialNumber"
-        render={({ field, fieldState }) => {
-          const [isCheckingDuplicate, setIsCheckingDuplicate] = React.useState(false)
-          const [duplicateError, setDuplicateError] = React.useState<string | null>(null)
-
-          const checkDuplicate = async (value: string) => {
-            if (!value || value.length < 3 || isEditMode) {
-              setDuplicateError(null)
-              return
-            }
-
-            const category = form.getValues('category')
-            const brand = form.getValues('brand')
-
-            if (!category || !brand) {
-              setDuplicateError(null)
-              return
-            }
-
-            setIsCheckingDuplicate(true)
-            try {
-              const result = await getAssets({
-                where: {
-                  _and: [
-                    { serialNumber: { _eq: value } },
-                    { assetCategoryRef: { _eq: category } },
-                    { assetBrandRef: { _eq: brand } }
-                  ]
-                },
-                limit: 1
-              })
-
-              if (result.assets.length > 0) {
-                const errorMsg = getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:hr_assets.serial_number_duplicate',
-                  'A serial number with this combination of category and producer already exists'
-                )
-                setDuplicateError(errorMsg)
-                form.setError('serialNumber', { type: 'manual', message: errorMsg })
-              } else {
-                setDuplicateError(null)
-                form.clearErrors('serialNumber')
-              }
-            } catch (error) {
-              console.error('Error checking duplicate serial number:', error)
-              setDuplicateError(null)
-            } finally {
-              setIsCheckingDuplicate(false)
-            }
-          }
-
-          const handleBlur = async () => {
-            field.onBlur()
-            await checkDuplicate(field.value)
-          }
-
-          const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            field.onChange(e)
-            // Clear error on change
-            if (duplicateError) {
-              setDuplicateError(null)
-              form.clearErrors('serialNumber')
-            }
-          }
-
-          return (
-            <FormItem>
-              <Label htmlFor="serialNumber" data-testid="serial-number-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')} *
-              </Label>
-              <Input
-                id="serialNumber"
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:hr_assets.serial_number_placeholder',
-                  'Unique serial number'
-                )}
-                value={field.value || ''}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                data-testid="serial-number-input"
-                disabled={isEditMode || isCheckingDuplicate}
-              />
-              {(fieldState.error || duplicateError) && (
-                <p className="gba:text-sm gba:font-medium gba:text-destructive" data-testid="serial-number-error">
-                  {fieldState.error?.message || duplicateError}
-                </p>
-              )}
-            </FormItem>
-          )
-        }}
+        isEditMode={isEditMode}
+        assetId={assetId}
+        getAssets={getAssets}
       />
 
       <FormField
@@ -646,7 +700,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           render={({ field }) => (
             <FormItem>
               <Label htmlFor="acquisitionDate" data-testid="acquisition-date-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date')} *
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date')}
               </Label>
               <DateInput
                 type="date"
@@ -673,26 +727,51 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         <FormField
           control={form.control}
           name="warrantyPeriodMonths"
-          render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="warrantyPeriodMonths" data-testid="warranty-period-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_months', 'Warranty (months)')} *
-              </Label>
-              <Input
-                id="warrantyPeriodMonths"
-                type="number"
-                min="0"
-                max="120"
-                value={field.value ?? ''}
-                onChange={e => {
-                  const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0
-                  field.onChange(value)
-                }}
-                onBlur={field.onBlur}
-                data-testid="warranty-period-input"
-              />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            const [isFocused, setIsFocused] = React.useState(false)
+            // Show empty string when focused and value is 0, otherwise show the actual value
+            const displayValue = isFocused && field.value === 0 ? '' : (field.value ?? '')
+
+            return (
+              <FormItem>
+                <Label htmlFor="warrantyPeriodMonths" data-testid="warranty-period-label">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_months', 'Warranty (months)')}
+                </Label>
+                <Input
+                  id="warrantyPeriodMonths"
+                  type="number"
+                  min="0"
+                  value={displayValue}
+                  onChange={e => {
+                    const inputValue = e.target.value
+                    // If input is empty, set to 0
+                    if (inputValue === '') {
+                      field.onChange(0)
+                      return
+                    }
+                    // Parse the value
+                    const numValue = Number.parseInt(inputValue, 10)
+                    // If it's a valid number, update the field
+                    if (!isNaN(numValue)) {
+                      field.onChange(numValue)
+                    }
+                  }}
+                  onFocus={() => {
+                    setIsFocused(true)
+                  }}
+                  onBlur={e => {
+                    setIsFocused(false)
+                    field.onBlur()
+                    // If empty on blur, set back to 0
+                    if (e.target.value === '') {
+                      field.onChange(0)
+                    }
+                  }}
+                  data-testid="warranty-period-input"
+                />
+              </FormItem>
+            )
+          }}
         />
       </div>
 
@@ -700,27 +779,53 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         <FormField
           control={form.control}
           name="inventoryValue"
-          render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="inventoryValue" data-testid="inventory-value-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.inventory_value', 'Inventory Value')} *
-              </Label>
-              <Input
-                id="inventoryValue"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={field.value ?? ''}
-                onChange={e => {
-                  const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0
-                  field.onChange(value)
-                }}
-                onBlur={field.onBlur}
-                data-testid="inventory-value-input"
-              />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            const [isFocused, setIsFocused] = React.useState(false)
+            // Show empty string when focused and value is 0, otherwise show the actual value
+            const displayValue = isFocused && field.value === 0 ? '' : (field.value ?? '')
+
+            return (
+              <FormItem>
+                <Label htmlFor="inventoryValue" data-testid="inventory-value-label">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.inventory_value', 'Inventory Value')} *
+                </Label>
+                <Input
+                  id="inventoryValue"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={displayValue}
+                  onChange={e => {
+                    const inputValue = e.target.value
+                    // If input is empty, set to 0
+                    if (inputValue === '') {
+                      field.onChange(0)
+                      return
+                    }
+                    // Parse the value
+                    const numValue = parseFloat(inputValue)
+                    // If it's a valid number, update the field
+                    if (!isNaN(numValue)) {
+                      field.onChange(numValue)
+                    }
+                  }}
+                  onFocus={() => {
+                    setIsFocused(true)
+                  }}
+                  onBlur={e => {
+                    setIsFocused(false)
+                    field.onBlur()
+                    // If empty on blur, set back to 0
+                    if (e.target.value === '') {
+                      field.onChange(0)
+                    }
+                  }}
+                  data-testid="inventory-value-input"
+                />
+              </FormItem>
+            )
+          }}
         />
 
         <FormField
@@ -849,7 +954,6 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
               onChange={field.onChange}
               onBlur={field.onBlur}
               data-testid="notes-textarea"
-              disabled={isEditMode}
             />
           </FormItem>
         )}

@@ -14,6 +14,8 @@ import { ChevronRight } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
 import { TeamMemberAttendance } from '../hooks/useTeamAttendance'
+import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 export interface MyTeamCardProps {
   directReports: DirectReport[]
@@ -24,6 +26,13 @@ export interface MyTeamCardProps {
   loadingAvailability: boolean
   onNavigateToTeammates: () => void
   onNavigateToEmployee: (employeeId: string) => void
+  accessToken: string
+  userOrgData?: {
+    organizationalUnitId?: string
+    costCenterId?: string
+    siteLocationId?: string
+    companyId?: string
+  }
 }
 
 const LoadingSkeleton: React.FC = () => (
@@ -51,7 +60,9 @@ export const MyTeamCard: React.FC<MyTeamCardProps> = ({
   loadingDirectReports,
   loadingAvailability,
   onNavigateToTeammates,
-  onNavigateToEmployee
+  onNavigateToEmployee,
+  accessToken,
+  userOrgData
 }) => {
   return (
     <Card data-testid="manager-dashboard-my-team-card">
@@ -61,16 +72,41 @@ export const MyTeamCard: React.FC<MyTeamCardProps> = ({
           {directReports.length - onLeaveCount}/{directReports.length})
         </CardTitle>
         <CardAction>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gba:text-muted-foreground gba:hover:text-foreground"
-            onClick={onNavigateToTeammates}
-            data-testid="manager-dashboard-my-team-view-all-button"
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_all', 'View All')}
-            <ChevronRight size={16} className="gba:ml-1" />
-          </Button>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {accessToken && userOrgData && (
+              <AppAction
+                mode="button"
+                buttonVariant="default"
+                buttonSize="sm"
+                contexts={[
+                  {
+                    context: FlowContextName.jobRequestSubmit,
+                    contextData: {
+                      organizationalUnitId: userOrgData.organizationalUnitId,
+                      costCenterId: userOrgData.costCenterId,
+                      siteLocationId: userOrgData.siteLocationId,
+                      companyId: userOrgData.companyId
+                    }
+                  }
+                ]}
+                variant="create-primary"
+                accessToken={accessToken}
+                data-testid="manager-dashboard-my-team-submit-job-request"
+              >
+                Submit Job Request
+              </AppAction>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gba:text-muted-foreground gba:hover:text-foreground"
+              onClick={onNavigateToTeammates}
+              data-testid="manager-dashboard-my-team-view-all-button"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_all', 'View All')}
+              <ChevronRight size={16} className="gba:ml-1" />
+            </Button>
+          </div>
         </CardAction>
       </CardHeader>
       <CardContent className="gba:pt-2">

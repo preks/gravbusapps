@@ -8,7 +8,7 @@ import { readFile, rename as fsRename } from 'fs/promises' // For asynchronous f
 import crypto from 'crypto'
 import path from 'path'
 import dotenv from '@dotenvx/dotenvx'
-import { execSync } from 'child_process'
+import { execSync, spawn } from 'child_process'
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
@@ -190,6 +190,8 @@ export default defineConfig(({ command, mode }) => {
   const shouldHashFilesForDeployment = isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === 'true'
   const isBuildCommand = command === 'build'
   const isSingleBuild = targetEntryKey && targetEntryFile
+  const isBatchBuild = process.env.VITE_BATCH_MODE === 'true'
+  const isHashOnlyBuild = process.env.VITE_HASH_ONLY_BUILD === 'true'
 
   if (isBuildCommand && isSingleBuild) {
     console.log(`[vite.config.ts] Single build detected for: ${targetEntryKey}`)
@@ -281,6 +283,7 @@ export default defineConfig(({ command, mode }) => {
       : null
 
   const appBuildInfoObject = {
+    screen: targetEntryKey?.split('/').pop() || 'N/A',
     gitUser: gitUserForBanner,
     publishTime: publishTimeForBanner,
     prUrl: prUrl,
@@ -324,6 +327,7 @@ if (globalThis.__APP_BUILD_INFO__) {
   console.log('---------------------------------------');
   console.log('       Screen Build Information');
   console.log('---------------------------------------');
+  console.log('  Screen:      ' + buildInfo.screen);
   console.log('  Built by:    ' + buildInfo.gitUser);
   console.log('  Build time:  ' + formattedBuildTime);
   if (extraLines.length > 0) {
@@ -341,6 +345,7 @@ if (globalThis.__APP_BUILD_INFO__) {
     name: 'prepend-custom-build-info-banner',
     renderChunk(code: string, chunk: any) {
       if (
+        !isHashOnlyBuild &&
         !shouldHashFilesForDeployment &&
         isUnversionedBuild &&
         chunk.isEntry &&
@@ -426,7 +431,7 @@ if (globalThis.__APP_BUILD_INFO__) {
       : [])
   ]
 
-  // Virtual module for wrapping components
+  // Virtual module plugin for wrapping components
   const virtualModulePlugin = {
     name: 'virtual-module-plugin',
     resolveId(id) {
@@ -441,7 +446,8 @@ if (globalThis.__APP_BUILD_INFO__) {
     load(id) {
       if (id === 'virtual:wrapped-entries') {
         // Generate a module that re-exports all the wrapped components
-        let code = `import { wrapWithUiCatalog } from './common/wrapWithUiCatalog';
+        let code = `import './common/runtime/globalNetworkInterceptorsBootstrap';
+import { wrapWithUiCatalog } from './common/wrapWithUiCatalog';
 import { wrapWithLocalizationProvider } from './common/wrapWithLocalizationProvider';
 import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
 `
@@ -452,7 +458,7 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
           const relativePath = path.relative(projectRootDir, entryPath).replace(/\\/g, '/')
           // Use a unique variable name for each import based on entryKey
           const cleanEntryKey = entryKey.replace(/[^a-zA-Z0-9]/g, '_')
-          const shouldSkipWrap = entryKey === '.debug/DebugView' || entryKey.includes('/.debug/DebugView')
+          const shouldSkipWrap = entryKey === '.debug/apps/debug-view' || entryKey.includes('/.debug/apps/debug-view')
           code += `import ${cleanEntryKey}Original from './${relativePath}';
 `
           if (shouldSkipWrap) {
@@ -474,7 +480,10 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
 
         // In dev mode (serve), BusinessAppIDE already provides LocalizationProvider
         // So we only wrap with UiCatalog
-        let code = "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n\n"
+        let code =
+          "import '@/common/runtime/globalNetworkInterceptorsBootstrap';\n" +
+          "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n" +
+          "import { wrapWithDevReportDot } from '@/common/dev-report/wrapWithDevReportDot';\n\n"
         code += '// Available screen entries for dynamic loading\n'
         code += 'const availableScreens = ' + availableScreensJson + ';\n\n'
         code += '// Cache for loaded screens with metadata\n'
@@ -518,8 +527,9 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         code += '        throw new Error(`Screen "${screenKey}" does not have a default export`);\n'
         code += '      }\n'
         code += '      \n'
-        code += '      // Wrap with UI catalog only (BusinessAppIDE provides LocalizationProvider)\n'
-        code += '      const wrappedComponent = wrapWithUiCatalog(component);\n'
+        code += '      // Wrap with UI catalog (BusinessAppIDE provides LocalizationProvider)\n'
+        code += '      // Additionally add dev-only issue reporting overlay (IDE + NEWWORK dev tenant)\n'
+        code += '      const wrappedComponent = wrapWithDevReportDot(screenKey)(wrapWithUiCatalog(component));\n'
         code += '      \n'
         code += '      const loadTime = performance.now() - startTime;\n'
         code += '      \n'
@@ -569,12 +579,96 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         code += '}\n\n'
         code += '// Export the screens map for debugging\n'
         code += 'export { availableScreens };\n'
+        code += '\n'
+        code += '// HMR: accept updates so new/updated dynamic chunks do not trigger full page reload (localhost dev)\n'
+        code += 'if (import.meta.hot) {\n'
+        code += '  import.meta.hot.accept();\n'
+        code += '}\n'
 
         console.log('[Dynamic Screen Loader] Created virtual module for on-demand screen loading')
         return code
       }
 
       return null
+    }
+  }
+
+  // Plugin to compile and inline AudioWorklet as JavaScript string
+  const inlineWorkletPlugin = {
+    name: 'inline-worklet',
+
+    async resolveId(id: string) {
+      // Intercept ?inline imports
+      if (id.includes('rnnoise-processor.ts?inline')) {
+        return id // Mark for processing
+      }
+      return null
+    },
+
+    async load(id: string) {
+      if (!id.includes('rnnoise-processor.ts?inline')) {
+        return null
+      }
+
+      console.log('[inline-worklet] Compiling and inlining worklet:', id)
+
+      const filePath = id.split('?')[0]
+
+      // Use esbuild to compile and bundle the worklet into a single JavaScript string
+      const esbuild = await import('esbuild')
+
+      try {
+        const result = await esbuild.build({
+          entryPoints: [filePath],
+          bundle: true,
+          format: 'iife',
+          platform: 'browser',
+          target: 'es2020',
+          write: false,
+          minify: false,
+          logLevel: 'warning',
+          // Bundle all dependencies including @jitsi/rnnoise-wasm
+          external: []
+        })
+
+        const compiledCode = result.outputFiles[0].text
+
+        console.log('[inline-worklet] ✅ Worklet compiled and bundled:', {
+          originalPath: filePath,
+          compiledSize: `${(compiledCode.length / 1024).toFixed(2)} KB`
+        })
+
+        // Export the compiled JavaScript as a string
+        return {
+          code: `export default ${JSON.stringify(compiledCode)}`,
+          map: null
+        }
+      } catch (error) {
+        console.error('[inline-worklet] ❌ Failed to compile worklet:', error)
+        throw error
+      }
+    }
+  }
+
+  // SPA history fallback: serve index.html for path-based platform URLs so /platform/* works in dev
+  const spaHistoryFallbackPlugin = {
+    name: 'spa-history-fallback',
+    configureServer(server: any) {
+      const handler = (req: any, res: any, next: () => void) => {
+        if (req.method !== 'GET') return next()
+        const rawUrl = req.url || ''
+        const qIndex = rawUrl.indexOf('?')
+        const pathPart = qIndex >= 0 ? rawUrl.slice(0, qIndex) : rawUrl
+        const queryPart = qIndex >= 0 ? rawUrl.slice(qIndex) : ''
+        const isNonRootPath = pathPart && pathPart !== '/'
+        const isStaticAsset =
+          pathPart.includes('.') || pathPart.startsWith('/@') || pathPart.startsWith('/node_modules')
+        if (isNonRootPath && !isStaticAsset) {
+          req.url = '/' + queryPart
+        }
+        next()
+      }
+      server.middlewares.stack.unshift({ route: '', handle: handler })
     }
   }
 
@@ -591,6 +685,233 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
       }
 
       return `(function() {\n${code}\n})();`
+    }
+  }
+
+  // Rate limiter for expensive operations
+  class RateLimiter {
+    private lastRequestTime = 0
+    private inProgress = false
+    private readonly minIntervalMs: number
+    private readonly maxConcurrent: number
+
+    constructor(minIntervalMs: number, maxConcurrent = 1) {
+      this.minIntervalMs = minIntervalMs
+      this.maxConcurrent = maxConcurrent
+    }
+
+    tryAcquire(): { allowed: boolean; reason?: string } {
+      const now = Date.now()
+
+      if (this.inProgress && this.maxConcurrent <= 1) {
+        return { allowed: false, reason: 'A request is already in progress. Please wait for it to complete.' }
+      }
+
+      if (now - this.lastRequestTime < this.minIntervalMs) {
+        const waitTime = Math.ceil((this.minIntervalMs - (now - this.lastRequestTime)) / 1000)
+        return { allowed: false, reason: `Too many requests. Please wait ${waitTime} seconds.` }
+      }
+
+      this.lastRequestTime = now
+      this.inProgress = true
+      return { allowed: true }
+    }
+
+    release(): void {
+      this.inProgress = false
+    }
+  }
+
+  // Plugin to expose publish-screen endpoint in dev server
+  const publishScreenPlugin = {
+    name: 'publish-screen-endpoint',
+    configureServer(server: any) {
+      // Rate limiter: 5 seconds between requests, max 1 concurrent
+      const rateLimiter = new RateLimiter(5000, 1)
+
+      server.middlewares.use('/__publish-screen', async (req: any, res: any) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end(JSON.stringify({ error: 'Method not allowed' }))
+          return
+        }
+
+        // Check rate limit before processing
+        const rateCheck = rateLimiter.tryAcquire()
+        if (!rateCheck.allowed) {
+          res.statusCode = 429
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ error: rateCheck.reason }))
+          return
+        }
+
+        // Parse request body
+        let body = ''
+        for await (const chunk of req) {
+          body += chunk.toString()
+        }
+
+        let screenPath: string
+        try {
+          const parsed = JSON.parse(body)
+          screenPath = parsed.screenPath
+        } catch {
+          rateLimiter.release()
+          res.statusCode = 400
+          res.end(JSON.stringify({ error: 'Invalid JSON body' }))
+          return
+        }
+
+        if (!screenPath) {
+          rateLimiter.release()
+          res.statusCode = 400
+          res.end(JSON.stringify({ error: 'screenPath is required' }))
+          return
+        }
+
+        if (!fs.existsSync(path.join(projectRootDir, 'src', 'business-apps', screenPath, 'index.ts'))) {
+          rateLimiter.release()
+          res.statusCode = 400
+          res.end(JSON.stringify({ error: 'Screen not found' }))
+          return
+        }
+
+        // Execute the publish script
+        const publishScript = path.join(projectRootDir, 'scripts', 'publish-dev-screen.js')
+        if (!fs.existsSync(publishScript)) {
+          rateLimiter.release()
+          res.statusCode = 500
+          res.end(JSON.stringify({ error: 'Publish script not found' }))
+          return
+        }
+
+        console.log(`[Publish Screen Plugin] Publishing screen: ${screenPath}`)
+
+        // Set CORS headers
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+
+        // Timeout for the publish process (2 minutes max)
+        const PUBLISH_TIMEOUT_MS = 2 * 60 * 1000
+        // Max output buffer size to prevent OOM (1MB)
+        const MAX_OUTPUT_SIZE = 1024 * 1024
+
+        try {
+          // Use spawn with memory limit to prevent OOM
+          const child = spawn(
+            'node',
+            ['--max-old-space-size=2048', publishScript, `/${screenPath}`, '--no-interaction'],
+            {
+              cwd: projectRootDir,
+              env: { ...process.env },
+              stdio: ['pipe', 'pipe', 'pipe']
+            }
+          )
+
+          let stdout = ''
+          let stderr = ''
+          let hasResponded = false
+
+          // Set a timeout to kill the process if it takes too long
+          const timeoutId = setTimeout(() => {
+            if (!hasResponded) {
+              console.error('[Publish Screen Plugin] Publish process timed out, killing...')
+              child.kill('SIGTERM')
+              // Give it a moment to terminate gracefully, then force kill
+              setTimeout(() => {
+                if (!child.killed) {
+                  child.kill('SIGKILL')
+                }
+              }, 5000)
+            }
+          }, PUBLISH_TIMEOUT_MS)
+
+          child.stdout.on('data', (data: Buffer) => {
+            const text = data.toString()
+            // Only buffer output up to max size to prevent OOM
+            if (stdout.length < MAX_OUTPUT_SIZE) {
+              stdout += text.slice(0, MAX_OUTPUT_SIZE - stdout.length)
+            }
+            // Always log to console for real-time feedback
+            console.log(text)
+          })
+
+          child.stderr.on('data', (data: Buffer) => {
+            const text = data.toString()
+            // Only buffer output up to max size to prevent OOM
+            if (stderr.length < MAX_OUTPUT_SIZE) {
+              stderr += text.slice(0, MAX_OUTPUT_SIZE - stderr.length)
+            }
+            console.error(text)
+          })
+
+          child.on('close', (code: number | null, signal: string | null) => {
+            clearTimeout(timeoutId)
+            rateLimiter.release()
+
+            if (hasResponded) return
+            hasResponded = true
+
+            if (signal === 'SIGTERM' || signal === 'SIGKILL') {
+              res.statusCode = 500
+              res.end(
+                JSON.stringify({
+                  success: false,
+                  error: 'Publish process timed out or was killed',
+                  output: stdout.slice(-10000), // Last 10KB of output
+                  stderr: stderr.slice(-10000)
+                })
+              )
+            } else if (code === 0) {
+              res.statusCode = 200
+              res.end(
+                JSON.stringify({
+                  success: true,
+                  message: `Screen ${screenPath} published successfully`,
+                  output: stdout.slice(-10000) // Last 10KB of output
+                })
+              )
+            } else {
+              res.statusCode = 500
+              res.end(
+                JSON.stringify({
+                  success: false,
+                  error: `Publish failed with exit code ${code}`,
+                  output: stdout.slice(-10000),
+                  stderr: stderr.slice(-10000)
+                })
+              )
+            }
+          })
+
+          child.on('error', (err: Error) => {
+            clearTimeout(timeoutId)
+            rateLimiter.release()
+
+            if (hasResponded) return
+            hasResponded = true
+
+            console.error('[Publish Screen Plugin] Failed to start publish process:', err)
+            res.statusCode = 500
+            res.end(
+              JSON.stringify({
+                success: false,
+                error: `Failed to start publish process: ${err.message}`
+              })
+            )
+          })
+        } catch (err: any) {
+          rateLimiter.release()
+          console.error('[Publish Screen Plugin] Error:', err)
+          res.statusCode = 500
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: err.message
+            })
+          )
+        }
+      })
     }
   }
 
@@ -633,27 +954,31 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         entryKey.includes('/services') ||
         entryKey.endsWith('/services')
 
-      const isDebugViewEntry = entryKey === '.debug/DebugView' || entryKey.includes('/.debug/DebugView')
+      const isDebugViewEntry = entryKey === '.debug/apps/debug-view' || entryKey.includes('/.debug/apps/debug-view')
       let wrapperContent: string
       if (isNamedExportsOnlyEntry) {
         wrapperContent = `// Auto-generated wrapper file for types/queries/hooks/tabs/components/utils/views/pages/services - re-export all named exports
+import '@/common/runtime/globalNetworkInterceptorsBootstrap';
 export * from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 `
       } else if (isDebugViewEntry) {
         wrapperContent = `// Auto-generated wrapper file (no UiCatalogProvider for DebugView)
+import '@/common/runtime/globalNetworkInterceptorsBootstrap';
 import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 
 export default OriginalComponent;
 `
       } else {
         wrapperContent = `// Auto-generated wrapper file
+import '@/common/runtime/globalNetworkInterceptorsBootstrap';
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
 import { wrapWithLocalizationProvider } from '@/common/wrapWithLocalizationProvider';
 import { wrapWithBlinkProvider } from '@/common/wrapWithBlinkProvider';
+import { wrapWithDevReportDot } from '@/common/dev-report/wrapWithDevReportDot';
 import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 
 // Re-export wrapped component
-export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvider(OriginalComponent)));
+export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvider(OriginalComponent))));
 `
       }
 
@@ -683,7 +1008,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
         '@dnd-kit/utilities',
         'zustand',
         'react',
-        'react-icons',
         'react-dom'
       ],
       // Optimize caching strategy
@@ -693,12 +1017,17 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
       // Let Vite automatically handle all other dependencies including React, antd, etc.
     },
     plugins: [
+      ...(command === 'serve' ? [spaHistoryFallbackPlugin] : []),
       react(),
       tailwindCSS(),
       // Virtual module plugin for the wrapped entries
       virtualModulePlugin,
+      // Inline AudioWorklet plugin - compiles and embeds worklet as string
+      inlineWorkletPlugin,
       prependBuildInfoBannerPlugin, // Use the updated banner plugin
       wrapInIIFEPlugin,
+      // Publish screen endpoint for IDE (only in dev mode)
+      ...(command === 'serve' ? [publishScreenPlugin] : []),
       ...(shouldHashFilesForDeployment ? [sha256ContentHashPlugin(shouldHashFilesForDeployment)] : []),
       ...extraPlugins
     ].filter(Boolean),
@@ -724,7 +1053,8 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
       // emptyOutDir behavior:
       // true for 'npm run build' (multi-screen, full clean)
       // false for 'npm run publish:screen' (single-screen, script handles specific sub-dir deletion)
-      emptyOutDir: isBuildCommand && !isSingleBuild,
+      // false for batch builds to preserve outputs from previous batches
+      emptyOutDir: isBuildCommand && !isSingleBuild && !isBatchBuild,
       lib: {
         entry: wrappedEntries, // Use the wrapped entries instead of the original ones
         name: 'GravityBusinessApps', // Name for UMD global, less critical for CJS
@@ -732,7 +1062,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
         cssFileName: 'main'
       },
       minify: isProduction ? 'esbuild' : false, // Ensure minification for production
-      reportCompressedSize: isUnversionedBuild && isSingleBuild ? true : false,
+      reportCompressedSize: false,
       // Enable CSS processing
       css: {
         devSourcemap: true
@@ -757,7 +1087,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
 
         external: [
           'antd',
-          '@ant-design/icons',
           '@dnd-kit/core',
           '@dnd-kit/utilities',
           '@dnd-kit/sortable',
@@ -765,27 +1094,24 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
           'clsx',
           'tailwind-merge',
           'react-i18next',
-          'react-icons',
-          'react-icons/pi',
           '@phosphor-icons/react',
           '@newwork/gravity-ui-catalog',
-          '@remixicon/react',
           'class-variance-authority',
           'lucide-react',
           'react',
           'react-dom',
           'react/jsx-runtime',
-          'react-router-dom'
+          'react-router-dom',
+          '@univerjs/preset-sheets-core',
+          '@univerjs/presets'
         ],
         output: {
           globals: {
             react: 'React',
             'react-dom': 'ReactDOM',
             antd: 'antd',
-            '@ant-design/icons': 'antDesignIcons',
             'react-i18next': 'reactI18next',
-            'react-icons': 'reactIcons',
-            'react-icons/pi': 'reactIconsPi',
+            '@phosphor-icons/react': 'PhosphorIconsReact',
             clsx: 'clsx',
             'tailwind-merge': 'tailwindMerge',
             '@dnd-kit/core': 'DNDKitCore',
@@ -793,10 +1119,11 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
             '@dnd-kit/utilities': 'DNDKitUtilities',
             zustand: 'zustand',
             '@newwork/gravity-ui-catalog': 'GravityUICatalog',
-            '@remixicon/react': 'remixIconReact',
             'class-variance-authority': 'classVarianceAuthority',
             'lucide-react': 'lucideReact',
-            'react-router-dom': 'reactRouterDom'
+            'react-router-dom': 'reactRouterDom',
+            '@univerjs/preset-sheets-core': 'univerjsPresetSheetsCore',
+            '@univerjs/presets': 'univerjsPresets'
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.

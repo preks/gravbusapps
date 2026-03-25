@@ -9,6 +9,45 @@ import { createInvestmentReportColumns } from '@/business-apps/irm/investments/r
 import { InvestmentReportTableConfig, ColumnConfig } from './types'
 
 /**
+ * Factory that builds the standard investment-name column and wires up dynamic
+ * catalog columns for a given investment group.  Shared by EQUITY and REAL_ESTATE
+ * configs to avoid duplicating the identical ~40-line column-generator body.
+ */
+function createStandardColumnGenerator(
+  investmentGroupCode: string,
+  Icon: React.ElementType,
+  iconProps: { className?: string; style?: React.CSSProperties }
+): InvestmentReportTableConfig['columnGenerator'] {
+  return ({ investmentType, catalogData, accessToken }) => {
+    const staticColumns: ColumnConfig[] = [
+      {
+        key: 'investment',
+        title: 'Investment',
+        width: '200px',
+        render: (record: any) => (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:h-8">
+            <Icon {...iconProps} />
+            <span className="gba:font-medium gba:truncate gba:block" title={record.investment?.name || 'N/A'}>
+              {record.investment?.name || 'N/A'}
+            </span>
+          </div>
+        )
+      }
+    ]
+
+    if (!catalogData) return staticColumns
+
+    const dynamicColumns = createInvestmentReportColumns(investmentType, undefined, catalogData, accessToken, {
+      investmentGroup: { code: investmentGroupCode }
+    })
+
+    if (!dynamicColumns || dynamicColumns.length === 0) return staticColumns
+
+    return [...staticColumns, ...dynamicColumns]
+  }
+}
+
+/**
  * Equity Investment Table Configuration
  */
 export const EQUITY_TABLE_CONFIG: InvestmentReportTableConfig = {
@@ -20,48 +59,10 @@ export const EQUITY_TABLE_CONFIG: InvestmentReportTableConfig = {
       `No equity investment reports are available for ${type.toLowerCase()} in the selected time period.`
   },
   fromSubView: 'equity',
-  columnGenerator: ({ investmentType, catalogData, accessToken }) => {
-    // First add the static Investment column with icon
-    const staticColumns: ColumnConfig[] = [
-      {
-        key: 'investment',
-        title: 'Investment',
-        width: '200px',
-        render: (record: any) => (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--nw-spacing-2)'
-            }}
-          >
-            <ChartPieIcon className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-color-text-secondary)' }} />
-            <span className="gba:font-medium">{record.investment?.name || 'N/A'}</span>
-          </div>
-        )
-      }
-    ]
-
-    // Don't create dynamic columns if catalog data isn't ready
-    if (!catalogData) {
-      return staticColumns
-    }
-
-    // For reports-view, provide investment group context for correct column logic
-    const mockInvestmentForContext = {
-      investmentGroup: { code: 'EQUITY' }
-    }
-
-    const dynamicColumns = createInvestmentReportColumns(
-      investmentType,
-      undefined,
-      catalogData,
-      accessToken,
-      mockInvestmentForContext
-    )
-
-    return [...staticColumns, ...dynamicColumns]
-  },
+  columnGenerator: createStandardColumnGenerator('EQUITY', ChartPieIcon, {
+    className: 'gba:w-4 gba:h-4 gba:shrink-0',
+    style: { color: 'var(--nw-color-text-secondary)' }
+  }),
   getInvestmentId: row => row.investment?.id,
   getInvestmentName: row => row.investment?.name || 'N/A'
 }
@@ -78,46 +79,10 @@ export const REAL_ESTATE_TABLE_CONFIG: InvestmentReportTableConfig = {
       `No real estate investment reports are available for ${type.toLowerCase()} in the selected time period.`
   },
   fromSubView: 'real-estate',
-  columnGenerator: ({ investmentType, catalogData, accessToken }) => {
-    // First add the static Investment column with icon
-    const staticColumns: ColumnConfig[] = [
-      {
-        key: 'investment',
-        title: 'Investment',
-        width: '200px',
-        render: (record: any) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--nw-spacing-2)' }}>
-            <BuildingsIcon
-              style={{
-                width: 'var(--nw-spacing-4)',
-                height: 'var(--nw-spacing-4)',
-                color: 'var(--nw-muted-foreground)'
-              }}
-            />
-            <span className="gba:font-medium">{record.investment?.name || 'N/A'}</span>
-          </div>
-        )
-      }
-    ]
-
-    if (!catalogData) {
-      return staticColumns
-    }
-
-    const mockInvestmentForContext = {
-      investmentGroup: { code: 'REAL_ESTATE' }
-    }
-
-    const dynamicColumns = createInvestmentReportColumns(
-      investmentType,
-      undefined,
-      catalogData,
-      accessToken,
-      mockInvestmentForContext
-    )
-
-    return [...staticColumns, ...dynamicColumns]
-  },
+  columnGenerator: createStandardColumnGenerator('REAL_ESTATE', BuildingsIcon, {
+    className: 'gba:shrink-0',
+    style: { width: 'var(--nw-spacing-4)', height: 'var(--nw-spacing-4)', color: 'var(--nw-muted-foreground)' }
+  }),
   getInvestmentId: row => row.investment?.id,
   getInvestmentName: row => row.investment?.name || 'N/A'
 }
@@ -135,13 +100,14 @@ export const LIQUID_FUND_TABLE_CONFIG: InvestmentReportTableConfig = {
   },
   fromSubView: 'liquid-fund',
   columnGenerator: () => {
-    // Static columns for liquid funds (investment and date)
-    // Note: Liquid fund columns are actually generated via columnsOverride in LiquidFundReport.tsx
-    // This is just a fallback that returns basic columns
+    // Liquid Fund columns are generated dynamically via columnsOverride in GenericReportTab
+    // This fallback only returns minimal static columns (Investment + Date)
+    // If columnsOverride is not provided, only these columns will show
     const staticColumns: ColumnConfig[] = [
       {
         key: 'investment',
         title: 'Investment',
+        width: '200px',
         render: (record: any) => (
           <span style={{ fontWeight: 'var(--nw-font-weight-medium)' }}>{record.investmentName || 'N/A'}</span>
         )
@@ -149,6 +115,7 @@ export const LIQUID_FUND_TABLE_CONFIG: InvestmentReportTableConfig = {
       {
         key: 'date',
         title: 'Date',
+        width: '120px',
         render: (record: any) => {
           if (!record.reportDate) return <span>-</span>
           try {
@@ -168,13 +135,8 @@ export const LIQUID_FUND_TABLE_CONFIG: InvestmentReportTableConfig = {
       }
     ]
 
-    // For liquid funds, we would need to integrate with useInvestmentLiquidFundReportCatalog
-    // to get dynamic columns. Since that's a hook, we can't call it here.
-    // The dynamic columns will need to be generated in the parent component and passed down,
-    // or we need a different approach.
-
-    // For now, return static columns - the parent component will need to handle
-    // liquid fund column generation separately
+    // Return only static columns as fallback
+    // GenericReportTab will provide columnsOverride with dynamic catalog-based columns
     return staticColumns
   },
   actionsRenderer: (row, accessToken) => {

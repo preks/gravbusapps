@@ -30,12 +30,17 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { PipelineStageEntry } from '../hooks/usePipelineSettings'
 import { usePipelineUsageCheck } from '../hooks/usePipelineUsageCheck'
+import { getPipelineUsageCheckSource } from '../utils/catalogConfig'
+import { usePipelineStageTypes } from '../hooks/usePipelineStageTypes'
+import type { StageTypeBadgeVariant } from '../utils/pipelineStageTypeVariant'
 import StageForm from './StageForm'
 
 interface StagesFormProps extends BusinessAppContextProps {
   pipeline: any
   catalogConfig: {
+    pipelineCatalog?: string
     stageCatalog: string
+    stageTypeCatalog?: string
     conditionCatalog?: string
     version?: string
   }
@@ -45,24 +50,26 @@ interface StagesFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-// Stage type configurations for UI
-const STAGE_TYPE_CONFIGS = {
-  DISCOVERY: { label: 'Discovery', variant: 'offline' as const },
-  QUALIFICATION: { label: 'Qualification', variant: 'info' as const },
-  NEGOTIATION: { label: 'Negotiation', variant: 'warning' as const },
-  CLOSED_WON: { label: 'Closed Won', variant: 'success' as const },
-  CLOSED_LOST: { label: 'Closed Lost', variant: 'destructive' as const }
-} as const
-
 // Draggable Stage Card Component
 const DraggableStageCard: React.FC<{
   stage: PipelineStageEntry
   conditionCount: number
+  stageTypeOptions: { value: string; label: string }[]
+  variantMap: Record<string, StageTypeBadgeVariant>
   prefixDataTestId?: string
   onEdit: (stage: PipelineStageEntry) => void
   onDelete: (stage: PipelineStageEntry) => void
   onViewConditions: (stage: PipelineStageEntry) => void
-}> = ({ stage, conditionCount, prefixDataTestId, onEdit, onDelete, onViewConditions }) => {
+}> = ({
+  stage,
+  conditionCount,
+  stageTypeOptions,
+  variantMap,
+  prefixDataTestId,
+  onEdit,
+  onDelete,
+  onViewConditions
+}) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: stage.id
   })
@@ -73,13 +80,15 @@ const DraggableStageCard: React.FC<{
   }
 
   const stageType = stage.type || stage.alternativeCode || 'DISCOVERY'
-  const stageConfig = STAGE_TYPE_CONFIGS[stageType as keyof typeof STAGE_TYPE_CONFIGS] || STAGE_TYPE_CONFIGS.DISCOVERY
+  const stageTypeOption = stageTypeOptions.find(opt => opt.value.toUpperCase() === stageType.toUpperCase())
+  const stageLabel = stageTypeOption?.label ?? stage.value ?? stageType
+  const stageVariant = variantMap[stageType] ?? variantMap[stageType.toUpperCase()] ?? 'outline'
 
   return (
     <Card
       ref={setNodeRef}
       style={style}
-      className={`gba:relative gba:group gba:border-2 gba:border-gray-200 gba:hover:border-blue-400 gba:transition-all gba:duration-200 gba:w-64 ${isDragging ? 'gba:opacity-50' : ''}`}
+      className={`gba:relative gba:group gba:border-2 gba:border-border gba:hover:border-primary gba:transition-all gba:duration-200 gba:w-72 ${isDragging ? 'gba:opacity-50' : ''}`}
       data-testid={`${prefixDataTestId}-stage-card-${stage.id}`}
     >
       {/* Action buttons in top right */}
@@ -103,23 +112,23 @@ const DraggableStageCard: React.FC<{
         </Button>
       </div>
 
-      <div className="gba:p-4 gba:pr-16">
+      <div className="gba:p-4">
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
           <div
             {...attributes}
             {...listeners}
-            className="gba:cursor-grab gba:text-gray-400 gba:hover:text-gray-600 gba:p-1 gba:flex-shrink-0 gba:select-none"
+            className="gba:cursor-grab gba:text-muted-foreground gba:hover:text-foreground gba:p-1 gba:flex-shrink-0 gba:select-none"
             style={{ touchAction: 'none' }}
           >
             <GripVertical className="gba:w-4 gba:h-4" />
           </div>
           <div className="gba:flex-1 gba:min-w-0">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <h5 className="gba:text-gray-800 gba:font-medium gba:text-sm gba:leading-tight gba:truncate">
+              <h5 className="gba:text-foreground gba:font-medium gba:text-sm gba:leading-tight gba:truncate">
                 {stage.value}
               </h5>
-              <Badge variant={stageConfig.variant} className="gba:text-xs gba:px-1.5 gba:py-0.5">
-                {stageConfig.label}
+              <Badge variant={stageVariant} className="gba:text-xs gba:px-1.5 gba:py-0.5">
+                {stageLabel}
               </Badge>
             </div>
           </div>
@@ -127,13 +136,13 @@ const DraggableStageCard: React.FC<{
 
         {/* Conditions Count */}
         <div className="gba:mt-auto">
-          <div className="gba:flex gba:items-center gba:justify-between gba:bg-gray-50 gba:rounded-lg gba:p-2">
+          <div className="gba:flex gba:items-center gba:justify-between gba:bg-muted gba:rounded-lg gba:p-2">
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full"></div>
-              <span className="gba:text-xs gba:text-gray-600">Conditions</span>
+              <div className="gba:w-2 gba:h-2 gba:bg-warning gba:rounded-full"></div>
+              <span className="gba:text-xs gba:text-muted-foreground">Conditions</span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:font-semibold gba:text-orange-600">{conditionCount}</span>
+              <span className="gba:text-sm gba:font-semibold gba:text-warning">{conditionCount}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -177,7 +186,15 @@ const StagesForm: React.FC<StagesFormProps> = ({
   >(null)
 
   const catalogClient = useCatalogManagerClient(accessToken)
-  const { checkStageUsage } = usePipelineUsageCheck(accessToken, 'CRM')
+  const { checkStageUsage } = usePipelineUsageCheck(
+    accessToken,
+    getPipelineUsageCheckSource(catalogConfig.pipelineCatalog ?? 'SalesPipeline')
+  )
+  const { options: stageTypeOptions, variantMap } = usePipelineStageTypes(
+    accessToken,
+    catalogConfig.stageTypeCatalog,
+    catalogConfig.version || 'v1'
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -468,7 +485,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
 
   if (error) {
     return (
-      <Alert variant="destructive" className="gba:border-red-200 gba:bg-red-50">
+      <Alert variant="destructive" className="gba:border-destructive-secondary gba:bg-destructive-secondary">
         <AlertDescription>
           {error}
           <Button variant="outline" size="sm" onClick={fetchStages} className="gba:ml-2">
@@ -495,8 +512,8 @@ const StagesForm: React.FC<StagesFormProps> = ({
         </div>
 
         {stages.length === 0 ? (
-          <div className="gba:min-h-32 gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-lg gba:p-8">
-            <p className="gba:text-gray-500 gba:text-center">
+          <div className="gba:min-h-32 gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:p-8">
+            <p className="gba:text-muted-foreground gba:text-center">
               No stages defined for this pipeline yet.
               <br />
               Click "Add Stage" to create the first one.
@@ -516,6 +533,8 @@ const StagesForm: React.FC<StagesFormProps> = ({
                     <DraggableStageCard
                       stage={stage}
                       conditionCount={conditionCounts[stage.id] || 0}
+                      stageTypeOptions={stageTypeOptions}
+                      variantMap={variantMap}
                       prefixDataTestId={prefixDataTestId}
                       onEdit={openEditModal}
                       onDelete={handleDeleteStage}
@@ -524,7 +543,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
 
                     {index < stages.length - 1 && (
                       <div className="gba:flex gba:items-center gba:px-2 gba:flex-shrink-0 gba:mt-8">
-                        <ArrowRight className="gba:w-5 gba:h-5 gba:text-gray-400" />
+                        <ArrowRight className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
                       </div>
                     )}
                   </React.Fragment>
@@ -536,6 +555,8 @@ const StagesForm: React.FC<StagesFormProps> = ({
                 <DraggableStageCard
                   stage={activeStage}
                   conditionCount={conditionCounts[activeStage.id] || 0}
+                  stageTypeOptions={stageTypeOptions}
+                  variantMap={variantMap}
                   prefixDataTestId={prefixDataTestId}
                   onEdit={() => {}}
                   onDelete={() => {}}

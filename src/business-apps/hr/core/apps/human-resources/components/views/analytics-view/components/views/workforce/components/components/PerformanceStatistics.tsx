@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserOutlined, CalendarOutlined, TeamOutlined, BarChartOutlined } from '@ant-design/icons'
+import { UserIcon, CalendarIcon, UsersIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { PerformanceStatistics as PerformanceStatsType } from '../../../../../hooks/usePerformanceData'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
@@ -19,7 +19,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistic
       key: 'total-workdays',
       title: t('hr-analytics-total-workdays'),
       value: statistics.totalWorkdays,
-      prefix: <CalendarOutlined />,
+      prefix: <CalendarIcon size={16} />,
       color: 'var(--nw-info)',
       description: t('hr-analytics-total-workdays-description'),
       precision: 0
@@ -28,7 +28,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistic
       key: 'average-workdays',
       title: t('hr-analytics-avg-workdays-entity'),
       value: statistics.averageWorkdaysPerEntity,
-      prefix: <BarChartOutlined />,
+      prefix: <ChartBarIcon size={16} />,
       color: 'var(--nw-success)',
       description: t('hr-analytics-avg-workdays-entity-description'),
       precision: 1
@@ -37,7 +37,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistic
       key: 'total-entities',
       title: t('hr-analytics-active-entities'),
       value: statistics.totalEntities,
-      prefix: <TeamOutlined />,
+      prefix: <UsersIcon size={16} />,
       color: 'var(--nw-warning)',
       description: t('hr-analytics-active-entities-description'),
       precision: 0
@@ -46,7 +46,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistic
       key: 'total-employees',
       title: t('hr-analytics-total-employees'),
       value: statistics.totalEmployees,
-      prefix: <UserOutlined />,
+      prefix: <UserIcon size={16} />,
       color: 'var(--nw-info)',
       description: t('hr-analytics-total-employees-description'),
       precision: 0

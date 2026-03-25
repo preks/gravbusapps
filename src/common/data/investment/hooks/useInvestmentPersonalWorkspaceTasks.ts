@@ -19,6 +19,8 @@ export interface InvestmentPersonalWorkspaceTasksVariables {
   employeeId: string
   statusFilter?: string[]
   limit?: number
+  dueDateFrom?: string
+  dueDateTo?: string
 }
 
 export interface InvestmentPersonalWorkspaceTasksResult {
@@ -35,18 +37,20 @@ export const useInvestmentPersonalWorkspaceTasks = (context: BusinessAppContextP
 
   const fetchTasks = useCallback(
     async (variables: InvestmentPersonalWorkspaceTasksVariables): Promise<InvestmentPersonalWorkspaceTasksResult> => {
-      const { employeeId, statusFilter = ['PENDING', 'IN_PROGRESS'], limit = 100 } = variables
+      const { employeeId, statusFilter = ['PENDING', 'IN_PROGRESS'], limit = 100, dueDateFrom, dueDateTo } = variables
 
       // Build query variables
       const queryVariables: InvestmentTaskQueryVariables = {
-        assigneeEmployeeIds: [employeeId],
-        statusCodes: statusFilter,
+        assignedEmployeeIds: [employeeId],
+        taskStatusIds: statusFilter,
         limit,
         offset: 0,
         orderBy: [
           { field: 'dueDate', direction: 'ASC_NULLS_LAST' },
           { field: 'taskPriority', direction: 'DESC_NULLS_LAST' }
-        ]
+        ],
+        dueDateFrom,
+        dueDateTo
       }
 
       // Build query using central builders

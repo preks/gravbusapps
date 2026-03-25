@@ -14,7 +14,7 @@ import {
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { FilePdfOutlined } from '@ant-design/icons'
+import { FilePdfIcon } from '@phosphor-icons/react'
 import translations from '../../apps/personal-expenses/_i18n'
 import { getFileNameFromEmployeeDocument } from '../utils/fileNameUtils'
 
@@ -133,7 +133,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
         data-testid={`${dataTestIdPrefix}-travel-order-empty`}
       >
         <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
-          <FilePdfOutlined style={{ fontSize: '48px', color: 'border' }} />
+          <FilePdfIcon size={48} className="gba:text-border" />
           <p className="gba:text-sm gba:text-gray-600">{t('travel-order-no-attached')}</p>
         </div>
       </Card>
@@ -148,7 +148,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
         data-testid={`${dataTestIdPrefix}-travel-order-grid`}
       >
         <div
-          className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-background gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
+          className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-background gba:rounded-lg gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
           data-testid={`${dataTestIdPrefix}-travel-order-card`}
         >
           <button
@@ -157,7 +157,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
             onClick={openPdfPreview}
             data-testid={`${dataTestIdPrefix}-travel-order-pdf-thumb`}
           >
-            <FilePdfOutlined className="gba:text-red-500" style={{ fontSize: 48 }} />
+            <FilePdfIcon size={48} className="gba:text-red-500" />
           </button>
 
           <TooltipProvider>

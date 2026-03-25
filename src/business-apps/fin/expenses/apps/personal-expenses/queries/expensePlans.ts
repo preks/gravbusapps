@@ -363,7 +363,8 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
-        status: {_eq: "PENDING"}
+        status: {_eq: "PENDING"},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -462,7 +463,7 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
     ) { aggregate { sum { totalAmount } } }
 
     pendingApproval: ExpensePlanAggregate(
-      where: { employeeId: { _eq: $employeeId }, isDeleted: { _eq: false }, status: { _eq: "PENDING" } }
+      where: { employeeId: { _eq: $employeeId }, isDeleted: { _eq: false }, status: { _eq: "PENDING" }, currencyRef: { _eq: $currencyRef } }
     ) { aggregate { count } }
 
     destinations: ExpensePlan(
@@ -606,7 +607,7 @@ export const GET_EXPENSE_PLANS_STATISTICS = `
     ) { aggregate { sum { totalAmount } } }
 
     pendingApproval: ExpensePlanAggregate(
-      where: { employeeId: { _eq: $employeeId }, isDeleted: { _eq: false }, status: { _eq: "PENDING" } }
+      where: { employeeId: { _eq: $employeeId }, isDeleted: { _eq: false }, status: { _eq: "PENDING" }, currencyRef: { _eq: $currencyRef } }
     ) { aggregate { count } }
 
     currentMonthClosedPlans: ExpensePlanAggregate(

@@ -8,6 +8,7 @@ import type {
   TypingIndicator as TypingIndicatorType,
   ConversationParticipant
 } from '../types'
+import type { ChatApiClient } from '../services/chatApiClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface MessageListProps {
@@ -23,6 +24,14 @@ interface MessageListProps {
   accessToken?: string
   onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
   participants?: ConversationParticipant[]
+  compact?: boolean // Compact mode for in-call chat
+  apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
+  onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
+  scrollToMessageId?: string | null
+  onScrollToMessageDone?: () => void
+  highlightedMessageId?: string | null
+  onReplyWithQuote?: (message: Message) => void
+  onNavigateToQuotedMessage?: (quotedMessageId: string) => void
 }
 
 /**
@@ -50,7 +59,15 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     onReplyToAI,
     accessToken,
     onSendMessage,
-    participants
+    participants,
+    compact = false,
+    apiClient = null,
+    onUpdateMessage,
+    scrollToMessageId,
+    onScrollToMessageDone,
+    highlightedMessageId,
+    onReplyWithQuote,
+    onNavigateToQuotedMessage
   }) => {
     // OPTIMIZATION: Call useTranslation once and memoize the result
     const t = useChatTranslation()
@@ -70,7 +87,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     const lastScrollHeightIncreaseRef = useRef<number>(0) // Track scroll height increase for unseen message detection
     const lastLoadMoreTimeRef = useRef<number>(0) // Track when load-more was last triggered
 
-    // State for "new messages" indicator (Slack/Teams pattern)
+    // State for "new messages" indicator
     const [hasUnseenMessages, setHasUnseenMessages] = useState(false)
     const [unseenCount, setUnseenCount] = useState(0)
 
@@ -167,11 +184,13 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       const isAIResponse = latestMessage?.metadata?.isAIResponse === true
       const shouldForceScroll = hasNewMessages && (isOwnMessage || isAIResponse)
 
-      // CRITICAL: Only auto-scroll for new messages, NOT for typing indicator changes
-      // Typing indicator should appear at bottom without forcing user to scroll there
-      const shouldScroll = isInitialLoad || (hasNewMessages && isNearBottom) || shouldForceScroll
+      // When user is near bottom and someone starts typing, scroll so typing indicator is visible
+      const typingAppeared = typingChanged && currentTypingCount > prevTypingCount
 
-      // FEATURE: Track unseen messages when user is scrolled up (Slack/Teams pattern)
+      const shouldScroll =
+        isInitialLoad || (hasNewMessages && isNearBottom) || shouldForceScroll || (typingAppeared && isNearBottom)
+
+      // FEATURE: Track unseen messages when user is scrolled up
       // CRITICAL: Only count real new messages, not pagination (load-more)
       // Detection logic:
       // - Large scroll increase (>1000px) = pagination loading old messages → skip
@@ -253,7 +272,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         const savedScrollTop = scrollBeforeLoadRef.current
         const newScrollTop = savedScrollTop + scrollHeightDiff
 
-        // Adjust scroll to maintain viewport (Slack/Teams behavior)
+        // Adjust scroll to maintain viewport
         container.scrollTop = newScrollTop
         lastScrollTopRef.current = newScrollTop
 
@@ -323,7 +342,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         const timeSinceLastLoad = Date.now() - lastLoadMoreTimeRef.current
         const isRecentlyLoaded = timeSinceLastLoad < 3000
 
-        // Load more if near top (< 200px) - Slack/Teams use ~200px threshold
+        // Load more if near top (< 200px
         // Also check if not already loading and not recently loaded to prevent cascade
         if (scrollTop < 200 && !isLoadingMoreRef.current && !isRecentlyLoaded) {
           // CRITICAL: Save scroll position BEFORE loading (browser will reset it to 0)
@@ -362,6 +381,33 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       }
     }, [])
 
+    // Scroll to a specific message (e.g. from search result or quoted message). Retries once if
+    // the element isn't in the DOM yet (e.g. message was just loaded and React hasn't committed).
+    useEffect(() => {
+      if (!scrollToMessageId || !containerRef.current) return
+      const tryScroll = (): (() => void) | null => {
+        const el = containerRef.current?.querySelector(`[data-message-id="${scrollToMessageId}"]`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          const t = setTimeout(() => onScrollToMessageDone?.(), 500)
+          return () => clearTimeout(t)
+        }
+        return null
+      }
+      const cleanup = tryScroll()
+      if (cleanup) return cleanup
+      const retryId = setTimeout(() => {
+        const el = containerRef.current?.querySelector(`[data-message-id="${scrollToMessageId}"]`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          setTimeout(() => onScrollToMessageDone?.(), 500)
+        } else {
+          onScrollToMessageDone?.()
+        }
+      }, 150)
+      return () => clearTimeout(retryId)
+    }, [scrollToMessageId, onScrollToMessageDone])
+
     // Handle click on "new messages" banner
     const handleScrollToBottom = () => {
       if (messagesEndRef.current) {
@@ -378,7 +424,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         className="gba:flex-1 gba:overflow-y-auto gba:min-h-0 gba:relative"
         data-testid="message-list-v2"
       >
-        {/* "New Messages" indicator (Slack/Teams pattern) */}
+        {/* "New Messages" indicator */}
         {hasUnseenMessages && unseenCount > 0 && (
           <div
             className="gba:fixed gba:bottom-24 gba:left-1/2 gba:-translate-x-1/2 gba:z-[9999]"
@@ -459,7 +505,14 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                 {(() => {
                   // DEFENSIVE: Filter messages to only show those matching current conversation
                   // Prevents race conditions when switching conversations quickly
-                  const filteredMessages = messages.filter(m => m.conversationId === conversationId)
+                  const filteredByConversation = messages.filter(m => m.conversationId === conversationId)
+                  // DEFENSIVE: Dedupe by id so React keys are unique (avoids "two children with the same key")
+                  const seenIds = new Set<string>()
+                  const filteredMessages = filteredByConversation.filter(m => {
+                    if (seenIds.has(m.id)) return false
+                    seenIds.add(m.id)
+                    return true
+                  })
 
                   return filteredMessages.map((message, index) => {
                     // Show sender name for first message or when sender changes
@@ -488,21 +541,36 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                       // Default: undefined (MessageItem will hide forms/entities for safety)
                     }
 
+                    const isHighlighted = message.id === highlightedMessageId
                     return (
-                      <MessageItem
+                      <div
                         key={message.id}
-                        message={message}
-                        currentUserId={currentUserId}
-                        isGroupChat={isGroupChat}
-                        showSender={showSender}
-                        onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
-                        accessToken={accessToken}
-                        onSendMessage={onSendMessage}
-                        participants={participants}
-                        previewLabel={previewLabel}
-                        timestampRefreshKey={timestampRefreshKey}
-                        aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
-                      />
+                        data-message-id={message.id}
+                        className={
+                          isHighlighted
+                            ? 'gba:rounded-lg gba:px-1 gba:py-0.5 gba:bg-accent/40 gba:ring-1 gba:ring-accent gba:ring-inset gba:transition-colors gba:duration-300'
+                            : undefined
+                        }
+                      >
+                        <MessageItem
+                          message={message}
+                          currentUserId={currentUserId}
+                          isGroupChat={isGroupChat}
+                          showSender={showSender}
+                          onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
+                          accessToken={accessToken}
+                          onSendMessage={onSendMessage}
+                          participants={participants}
+                          previewLabel={previewLabel}
+                          timestampRefreshKey={timestampRefreshKey}
+                          aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
+                          compact={compact}
+                          apiClient={apiClient}
+                          onUpdateMessage={onUpdateMessage}
+                          onReplyWithQuote={onReplyWithQuote}
+                          onNavigateToQuotedMessage={onNavigateToQuotedMessage}
+                        />
+                      </div>
                     )
                   })
                 })()}
@@ -530,6 +598,10 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     // Loading state changed? Re-render
     if (prevProps.isLoading !== nextProps.isLoading) return false
 
+    // Re-render when messages array reference changes (e.g. reaction update, edit)
+    // so that in-place updates like reactions are visible without refresh
+    if (prevProps.messages !== nextProps.messages) return false
+
     // OPTIMIZATION: Check messages more efficiently than array reference
     // Instead of comparing array reference, check length + first/last message IDs
     if (prevProps.messages.length !== nextProps.messages.length) return false
@@ -546,6 +618,11 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
 
     // Typing users changed? Check length instead of array reference
     if (prevProps.typingUsers?.length !== nextProps.typingUsers?.length) return false
+
+    // Scroll-to-message request changed
+    if (prevProps.scrollToMessageId !== nextProps.scrollToMessageId) return false
+
+    if (prevProps.highlightedMessageId !== nextProps.highlightedMessageId) return false
 
     // Skip checking: currentUserId, conversationType, hasMore, callbacks, etc.
     // These rarely change and checking them wastes time

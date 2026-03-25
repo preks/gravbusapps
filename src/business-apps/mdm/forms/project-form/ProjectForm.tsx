@@ -26,8 +26,6 @@ import {
   Icon
 } from '@newwork/nw-design-system'
 import { WarningIcon } from '@phosphor-icons/react'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import type { Project } from '../../apps/project-management/types'
 import { ProjectStatusBE, ProjectStatusUI } from '../../apps/project-management/types'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -38,6 +36,9 @@ import * as z from 'zod'
 import { EmployeeSelect } from '@/components/employee-select'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useFormContext, ControllerRenderProps } from 'react-hook-form'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 const DATA_TEST_ID_PREFIX = 'ProjectForm'
 
@@ -201,8 +202,6 @@ const ConfirmStatusDialog: React.FC<ConfirmStatusDialogProps> = ({
     </Dialog>
   )
 }
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
-
 // Helper function to transform UI status to BE status
 const transformUIStatusToBE = (uiStatus: ProjectStatusUI): ProjectStatusBE => {
   switch (uiStatus) {
@@ -252,81 +251,82 @@ export const formatDateToISO = (date: Date | string | undefined): string | undef
   return undefined
 }
 
-// Zod validation schema
-const projectFormSchema = z
-  .object({
-    name: z.string({ message: 'Project name is required' }).min(1, 'Project name is required'),
-    description: z.string().optional(),
-    projectType: z.enum(['INTERNAL', 'EXTERNAL'], {
-      message: 'Project type is required'
-    }),
-    customerId: z.string().optional(),
-    projectManagerId: z.string().optional(),
-    hoursBudget: z.coerce.number().min(0, 'Effort must be a positive number').optional(),
-    validFrom: z.string({ message: 'Valid from date is required' }).min(1, 'Valid from date is required'),
-    validTo: z.string({ message: 'Valid to date is required' }).min(1, 'Valid to date is required'),
-    status: z.enum(ProjectStatusBE, {
-      message: 'Project status is required'
+// Zod validation schema factory — customerRelationsEnabled controls whether customerId is required for EXTERNAL
+const buildProjectFormSchema = (customerRelationsEnabled: boolean | undefined) =>
+  z
+    .object({
+      name: z.string({ message: 'Project name is required' }).min(1, 'Project name is required'),
+      description: z.string().optional(),
+      projectType: z.enum(['INTERNAL', 'EXTERNAL'], {
+        message: 'Project type is required'
+      }),
+      customerId: z.string().optional(),
+      projectManagerId: z.string().optional(),
+      hoursBudget: z.coerce.number().min(0, 'Effort must be a positive number').optional(),
+      validFrom: z.string({ message: 'Valid from date is required' }).min(1, 'Valid from date is required'),
+      validTo: z.string({ message: 'Valid to date is required' }).min(1, 'Valid to date is required'),
+      status: z.enum(ProjectStatusBE, {
+        message: 'Project status is required'
+      })
     })
-  })
-  .refine(
-    data => {
-      // If project type is EXTERNAL, customerId is required
-      if (data.projectType === 'EXTERNAL') {
-        return !!data.customerId && data.customerId.length > 0
+    .refine(
+      data => {
+        // customerId is required for EXTERNAL only when CRM (accounts) is enabled
+        if (customerRelationsEnabled && data.projectType === 'EXTERNAL') {
+          return !!data.customerId && data.customerId.length > 0
+        }
+        return true
+      },
+      {
+        message: 'Customer account is required for external projects',
+        path: ['customerId']
       }
-      return true
-    },
-    {
-      message: 'Customer account is required for external projects',
-      path: ['customerId']
-    }
-  )
-  .refine(
-    data => {
-      // Validate that validFrom is before or equal to validTo
-      if (data.validFrom && data.validTo) {
-        const fromDate = new Date(data.validFrom)
-        const toDate = new Date(data.validTo)
-        return fromDate <= toDate
+    )
+    .refine(
+      data => {
+        // Validate that validFrom is before or equal to validTo
+        if (data.validFrom && data.validTo) {
+          const fromDate = new Date(data.validFrom)
+          const toDate = new Date(data.validTo)
+          return fromDate <= toDate
+        }
+        return true
+      },
+      {
+        message: 'Valid from date must be before or equal to valid to date',
+        path: ['validFrom']
       }
-      return true
-    },
-    {
-      message: 'Valid from date must be before or equal to valid to date',
-      path: ['validFrom']
-    }
-  )
-  .refine(
-    data => {
-      // PLANNED: validFrom must be in the future
-      if (data.status === ProjectStatusBE.PLANNED && data.validFrom) {
-        const validFromDate = new Date(data.validFrom)
-        const now = new Date()
-        return validFromDate > now
+    )
+    .refine(
+      data => {
+        // PLANNED: validFrom must be in the future
+        if (data.status === ProjectStatusBE.PLANNED && data.validFrom) {
+          const validFromDate = new Date(data.validFrom)
+          const now = new Date()
+          return validFromDate > now
+        }
+        return true
+      },
+      {
+        message: 'For Planned status, Valid From date must be in the future',
+        path: ['validFrom']
       }
-      return true
-    },
-    {
-      message: 'For Planned status, Valid From date must be in the future',
-      path: ['validFrom']
-    }
-  )
-  .refine(
-    data => {
-      // IN_PROGRESS: validFrom cannot be in the future
-      if (data.status === ProjectStatusBE.IN_PROGRESS && data.validFrom) {
-        const validFromDate = new Date(data.validFrom)
-        const now = new Date()
-        return validFromDate <= now
+    )
+    .refine(
+      data => {
+        // IN_PROGRESS: validFrom cannot be in the future
+        if (data.status === ProjectStatusBE.IN_PROGRESS && data.validFrom) {
+          const validFromDate = new Date(data.validFrom)
+          const now = new Date()
+          return validFromDate <= now
+        }
+        return true
+      },
+      {
+        message: 'For In Progress status, Valid From date cannot be in the future',
+        path: ['validFrom']
       }
-      return true
-    },
-    {
-      message: 'For In Progress status, Valid From date cannot be in the future',
-      path: ['validFrom']
-    }
-  )
+    )
 
 export interface ProjectFormProps extends BusinessAppContextProps {
   project?: Project
@@ -359,8 +359,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
   onProjectClosed
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const { t } = useTranslation('master-data')
+  const customerRelationsEnabled = useFeature<boolean>(Feature.CRM.CustomerRelations.Key)
 
   const [loading, setLoading] = useState(false)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
@@ -454,11 +455,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
       }
 
       if (project) {
-        await restClient.put(`/projects/${project.id}`, projectData, {
+        await orgchartClient.updateProject(project.id, projectData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       } else {
-        await restClient.post(`/projects`, projectData, {
+        await orgchartClient.createProject(projectData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       }
@@ -489,8 +490,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
     }
   }, [project])
 
-  // Create Zod resolver
-  const resolver = useMemo(() => zodResolver(projectFormSchema) as any, [])
+  // Create Zod resolver — rebuilt when flag changes to apply/remove customerId validation
+  const resolver = useMemo(
+    () => zodResolver(buildProjectFormSchema(customerRelationsEnabled)) as any,
+    [customerRelationsEnabled]
+  )
 
   return (
     <FormWrapperModal
@@ -651,7 +655,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
             )}
           />
 
-          {projectType === 'EXTERNAL' && (
+          {projectType === 'EXTERNAL' && customerRelationsEnabled && (
             <FormField
               name="customerId"
               render={({ field }) => (

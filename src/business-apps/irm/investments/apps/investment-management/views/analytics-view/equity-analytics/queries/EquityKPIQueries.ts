@@ -1,6 +1,4 @@
-import { useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { createKPIQueryHook } from '@/common/data/investment/queries/GenericKPIQueries'
 
 export interface EquityKPIData {
   totalInvestments: number
@@ -14,230 +12,118 @@ export interface EquityKPIComparison {
   previous: EquityKPIData
 }
 
-const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?: string): string => {
-  // Currency codes are stored exactly as "EUR", "USD", etc.
-  // Use exact match for reliable filtering
-  const currencyCondition = currencyFilter ? `{ currency: { code: { _eq: "${currencyFilter}" } } }` : ''
-  return `
-    query GetEquityKPIsWithComparison {
-      # Current data (equity investments only - filter by investment group, not specialization)
-      currentAggregate: InvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
-            ${currencyCondition}
-          ]
-        }
-      ) {
-        aggregate {
-          count
-          sum {
-            totalInvestmentAmount
-            investmentMarketValue
-          }
-        }
-      }
-      
-      # Current investments for duration calculation
-      currentInvestments: Investment(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
-            { acquisitionDate: { _isNull: false } }
-            ${currencyCondition}
-          ]
-        }
-        limit: 1000
-      ) {
-        id
-        acquisitionDate
-        totalInvestmentAmount
-        investmentMarketValue
-      }
-      
-      # Previous period data (equity investments existing 91 days ago)
-      previousAggregate: InvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { createdAt: { _lte: "${comparisonDate}" } }
-            { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
-            ${currencyCondition}
-          ]
-        }
-      ) {
-        aggregate {
-          count
-          sum {
-            totalInvestmentAmount
-            investmentMarketValue
-          }
-        }
-      }
-      
-      # Previous investments for duration calculation
-      previousInvestments: Investment(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { createdAt: { _lte: "${comparisonDate}" } }
-            { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
-            { acquisitionDate: { _isNull: false } }
-            ${currencyCondition}
-          ]
-        }
-        limit: 1000
-      ) {
-        id
-        acquisitionDate
-        totalInvestmentAmount
-        investmentMarketValue
-      }
-    }
-  `
+/**
+ * Calculate Portfolio MOIC from aggregate data
+ */
+const calculatePortfolioMoic = (marketValue: number | null, totalInvestment: number | null): number => {
+  const MOIC_FALLBACK = 0
+
+  if (!totalInvestment || totalInvestment === 0) return MOIC_FALLBACK
+  if (!marketValue) return MOIC_FALLBACK
+
+  return marketValue / totalInvestment
 }
 
-export interface EquityKPIResponse {
-  currentAggregate: {
-    aggregate: {
-      count: number
-      sum: {
-        totalInvestmentAmount: number | null
-        investmentMarketValue: number | null
+/**
+ * Calculate Average Investment Duration in days
+ */
+const calculateAverageDuration = (investments: Array<{ acquisitionDate?: string | null }>): number => {
+  const DURATION_FALLBACK = 0
+
+  if (!investments || investments.length === 0) return DURATION_FALLBACK
+
+  const currentDate = new Date()
+  let totalDays = 0
+  let validCount = 0
+
+  for (const investment of investments) {
+    if (investment.acquisitionDate) {
+      const acquisitionDate = new Date(investment.acquisitionDate)
+      if (!Number.isNaN(acquisitionDate.getTime())) {
+        const durationMs = currentDate.getTime() - acquisitionDate.getTime()
+        const durationDays = Math.floor(durationMs / (1000 * 60 * 60 * 24))
+        totalDays += durationDays
+        validCount++
       }
     }
   }
-  currentInvestments: Array<{
-    id: string
-    acquisitionDate: string | null
-    totalInvestmentAmount: number | null
-    investmentMarketValue: number | null
-  }>
-  previousAggregate: {
-    aggregate: {
-      count: number
-      sum: {
-        totalInvestmentAmount: number | null
-        investmentMarketValue: number | null
-      }
-    }
-  }
-  previousInvestments: Array<{
-    id: string
-    acquisitionDate: string | null
-    totalInvestmentAmount: number | null
-    investmentMarketValue: number | null
-  }>
+
+  if (validCount === 0) return DURATION_FALLBACK
+  return Math.floor(totalDays / validCount)
 }
 
-export const useGetEquityKPIs = (context: BusinessAppContextProps, currency?: string) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const fetchEquityKPIs = useCallback(async (): Promise<EquityKPIComparison> => {
-    // Calculate date 91 days ago for comparison
-    const quarterAgo = new Date()
-    quarterAgo.setDate(quarterAgo.getDate() - 91)
-    const comparisonDate = quarterAgo.toISOString()
-
-    const query = GET_EQUITY_KPIS_WITH_COMPARISON(comparisonDate, currency)
-    try {
-      const result = await graphqlClient.request<EquityKPIResponse>(query)
-
-      // Helper function to calculate average duration in days
-      const calculateAverageDuration = (
-        investments: Array<{
-          id: string
-          acquisitionDate: string | null
-          totalInvestmentAmount: number | null
-          investmentMarketValue: number | null
-        }>
-      ): number => {
-        if (investments.length === 0) return 0
-
-        const today = new Date()
-
-        const durations = investments
-          .filter(inv => inv.acquisitionDate) // Has acquisition date
-          .map(inv => {
-            const acquisitionDate = new Date(inv.acquisitionDate!)
-
-            // Validate date is valid
-            if (Number.isNaN(acquisitionDate.getTime())) {
-              return null
-            }
-
-            const durationInMs = today.getTime() - acquisitionDate.getTime()
-            const durationInDays = Math.floor(durationInMs / (1000 * 60 * 60 * 24))
-
-            // Validate duration is reasonable (between 0 and 50 years)
-            if (durationInDays < 0) {
-              return null
-            }
-            if (durationInDays > 18250) {
-              // 50 years
-              return null
-            }
-
-            return durationInDays
-          })
-          .filter((duration): duration is number => duration !== null) // Remove invalid entries
-
-        if (durations.length === 0) {
-          return 0
-        }
-
-        const totalDuration = durations.reduce((sum, duration) => sum + duration, 0)
-        const avgDuration = Math.round(totalDuration / durations.length) // Round to nearest day
-
-        return avgDuration
-      }
-
-      // Helper function to calculate Portfolio MOIC from aggregate sums (weighted by investment size)
-      const calculatePortfolioMoicFromAggregates = (
-        totalMarketValue: number | null,
-        totalInvestmentAmount: number | null
-      ): number => {
-        if (!totalInvestmentAmount || totalInvestmentAmount === 0) return 0
-        if (!totalMarketValue) return 0
-        return totalMarketValue / totalInvestmentAmount
-      }
-
-      // Transform current data
-      const currentCount = result.currentAggregate.aggregate.count
-      const currentTotalAmount = result.currentAggregate.aggregate.sum.totalInvestmentAmount || 0
-      const currentTotalMarketValue = result.currentAggregate.aggregate.sum.investmentMarketValue || 0
-      const currentPortfolioMoic = calculatePortfolioMoicFromAggregates(currentTotalMarketValue, currentTotalAmount)
-      const currentAvgDuration = calculateAverageDuration(result.currentInvestments)
-
-      const current: EquityKPIData = {
-        totalInvestments: currentCount,
-        totalAmountInvested: currentTotalAmount,
-        portfolioMoic: currentPortfolioMoic,
-        averageDuration: currentAvgDuration
-      }
-
-      // Use actual historical data
-      const previousCount = result.previousAggregate.aggregate.count
-      const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0
-      const previousTotalMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0
-      const previousPortfolioMoic = calculatePortfolioMoicFromAggregates(previousTotalMarketValue, previousTotalAmount)
-      const previousAvgDuration = calculateAverageDuration(result.previousInvestments)
-
-      const previous: EquityKPIData = {
-        totalInvestments: previousCount,
-        totalAmountInvested: previousTotalAmount,
-        portfolioMoic: previousPortfolioMoic,
-        averageDuration: previousAvgDuration
-      }
-
-      return { current, previous }
-    } catch (error) {
-      console.error('Error fetching equity KPIs:', error)
-      throw error
+/**
+ * Hook to fetch equity KPI data with period comparison
+ * Uses generic KPI query factory with Equity specific configuration
+ */
+const useGetEquityKPIsBase = createKPIQueryHook<EquityKPIData>({
+  groupName: 'Equity',
+  groupFilterCondition: { equityInvestment: { id: { _isNull: false } } },
+  additionalWhereClauses: [
+    {
+      name: 'investmentsWhere',
+      conditions: [{ acquisitionDate: { _isNull: false } }]
     }
-  }, [graphqlClient, currency])
+  ],
+  queryFields: `
+    # Current data (equity investments only)
+    currentAggregate: InvestmentAggregate(where: $currentWhere) {
+      aggregate {
+        count
+        sum {
+          totalInvestmentAmount
+          investmentMarketValue
+        }
+      }
+    }
+    
+    # Current investments for duration calculation
+    currentInvestments: Investment(where: $currentInvestmentsWhere, limit: 1000) {
+      id
+      acquisitionDate
+    }
+    
+    # Previous period data
+    previousAggregate: InvestmentAggregate(where: $previousWhere) {
+      aggregate {
+        count
+        sum {
+          totalInvestmentAmount
+          investmentMarketValue
+        }
+      }
+    }
+    
+    # Previous investments for duration calculation
+    previousInvestments: Investment(where: $previousInvestmentsWhere, limit: 1000) {
+      id
+      acquisitionDate
+    }
+  `,
+  transformResult: data => ({
+    current: {
+      totalInvestments: data.currentAggregate?.aggregate?.count || 0,
+      totalAmountInvested: data.currentAggregate?.aggregate?.sum?.totalInvestmentAmount || 0,
+      portfolioMoic: calculatePortfolioMoic(
+        data.currentAggregate?.aggregate?.sum?.investmentMarketValue,
+        data.currentAggregate?.aggregate?.sum?.totalInvestmentAmount
+      ),
+      averageDuration: calculateAverageDuration(data.currentInvestments)
+    },
+    previous: {
+      totalInvestments: data.previousAggregate?.aggregate?.count || 0,
+      totalAmountInvested: data.previousAggregate?.aggregate?.sum?.totalInvestmentAmount || 0,
+      portfolioMoic: calculatePortfolioMoic(
+        data.previousAggregate?.aggregate?.sum?.investmentMarketValue,
+        data.previousAggregate?.aggregate?.sum?.totalInvestmentAmount
+      ),
+      averageDuration: calculateAverageDuration(data.previousInvestments)
+    }
+  })
+})
 
-  return { fetchEquityKPIs }
+// Export with consistent API
+export const useGetEquityKPIs = (context: any) => {
+  const hook = useGetEquityKPIsBase(context)
+  return { fetchEquityKPIs: hook.fetchEquityKPIs }
 }

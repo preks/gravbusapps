@@ -1,0 +1,39 @@
+# Change Tax Details - Labels (when not in lowcoder) and validation messages
+
+change-tax-details-title = Change Tax Details
+submit = Submit
+cancel = Cancel
+placeholder-enter = Please Enter
+placeholder-select = Please Select
+tax-number = Tax Number
+tax-bracket = Tax Bracket
+health-insurance = Health Insurance
+health-insurance-type = Type of Health Insurance
+tax-identification-number = Tax Identification Number
+church-affiliation = Church Affiliation
+social-security-number = Social Security Number
+child-tax-allowance = Child Tax Allowance
+request-at-tax-office = Request at tax office
+employee-tax-office = Employee's Tax Office
+individual-free-amount = Individual Free Amount
+health-insurance-document-upload = Upload document
+document-type = Document Type
+required-document-type-text = Document type is required when uploading a new health insurance document.
+document-valid-to = Valid to
+upload-new-health-insurance-document = Upload new health insurance document
+religion = Religion
+
+required-health-insurance-text = The Health Insurance field is required.
+required-tax-identification-number-text = The Tax Identification Number field is required.
+required-social-security-number-text = The Social Security Number field is required.
+invalid-tax-number-text = Please enter a valid German Tax Number (10, 11 or 13 digits, e.g. 313/876/56432) or leave empty.
+invalid-tax-identification-number-text = Please enter a valid 11-digit German Tax Identification Number.
+invalid-social-security-number-text = Please enter a valid German pension insurance number (e.g., 89 010299 B 123).
+ssn-birth-date-missing-text = Cannot validate Social Security Number: this employee has no birth date stored.
+ssn-birth-date-mismatch-text = Social Security Number birth date does not match the employee's stored birth date.
+ssn-birth-name-missing-text = Cannot validate Social Security Number: this employee has no birth name or last name stored.
+ssn-birth-name-mismatch-text = Social Security Number birth-name letter does not match the employee's birth name (or last name fallback).
+ssn-check-digit-invalid-text = Social Security Number check digit is invalid.
+invalid-cnp-text = Please enter a valid 13-digit Romanian CNP (Cod Numeric Personal).
+invalid-localized-number-text = Please enter a valid number using your locale format (e.g., 1,234.56 or 1.234,56).
+required-health-insurance-type-text = The Type of Health Insurance field is required.

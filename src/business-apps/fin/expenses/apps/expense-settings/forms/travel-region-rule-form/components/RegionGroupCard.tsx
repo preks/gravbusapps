@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import {
   Button,
   Input,
@@ -8,12 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
   Label,
-  Spinner,
   Checkbox,
   DateInput
 } from '@newwork/nw-design-system'
-import { PiTrash } from 'react-icons/pi'
+import { TrashIcon } from '@phosphor-icons/react'
 import { SmartColumnGroup, CatalogOption } from '../types'
+import { normalizeDateInputValue } from '../../../utils'
+import SearchableSelect from '../../../components/SearchableSelect'
 
 interface RegionGroupCardProps {
   group: SmartColumnGroup
@@ -21,12 +22,13 @@ interface RegionGroupCardProps {
   countries: CatalogOption[]
   travelRegions: CatalogOption[]
   currencies: CatalogOption[]
-  isLoadingMoreRegions: boolean
-  hasMore: boolean
+  isLoadingRegions: boolean
+  hasMoreRegions: boolean
+  onSearchRegions: (searchTerm: string) => void
+  onLoadMoreRegions: () => void
   onUpdateField: (field: string, value: any) => void
   onUpdateAmount: (amountIndex: number, value: string) => void
   onRemoveGroup: () => void
-  onScroll: (e: React.UIEvent<HTMLDivElement>) => void
   isUsedInTransactions?: boolean
   showValidation?: boolean
 }
@@ -37,12 +39,13 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
   countries,
   travelRegions,
   currencies,
-  isLoadingMoreRegions,
-  hasMore,
+  isLoadingRegions,
+  hasMoreRegions,
+  onSearchRegions,
+  onLoadMoreRegions,
   onUpdateField,
   onUpdateAmount,
   onRemoveGroup,
-  onScroll,
   isUsedInTransactions = false,
   showValidation = false
 }) => {
@@ -51,8 +54,21 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
   // Only restrict editing for EXISTING details when the rule is used in transactions
   const isEditRestricted = isUsedInTransactions && isExistingDetail
 
-  // Check if any amounts are invalid (0 or empty)
-  const hasInvalidAmounts = showValidation && group.amounts.every(amt => !amt || amt <= 0)
+  const hasInvalidAmounts =
+    showValidation && (group.amounts.length === 0 || group.amounts.some(a => a === null || a === undefined))
+
+  const regionOptions = useMemo(
+    () =>
+      travelRegions.map(region => ({
+        id: region.id,
+        value: region.id,
+        label: region.value,
+        name: region.value,
+        code: region.code
+      })),
+    [travelRegions]
+  )
+
   return (
     <div className="gba:border gba:rounded-lg gba:p-3 gba:space-y-3 gba:bg-card">
       {/* Group Header */}
@@ -65,7 +81,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           title="Remove Group"
           disabled={isEditRestricted}
         >
-          <PiTrash className="gba:h-3.5 gba:w-3.5 gba:mr-1" />
+          <TrashIcon className="gba:h-3.5 gba:w-3.5 gba:mr-1" />
           Remove
         </Button>
       </div>
@@ -100,37 +116,18 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           <Label className="gba:text-xs gba:font-medium">
             Travel Region <span className="gba:text-destructive gba:ml-1">*</span>
           </Label>
-          <Select
+          <SearchableSelect
             value={group.travelRegion}
-            onValueChange={value => onUpdateField('travelRegion', value)}
+            onChange={value => onUpdateField('travelRegion', value)}
+            options={regionOptions}
+            placeholder="Search and select region..."
+            loading={isLoadingRegions}
+            hasMore={hasMoreRegions}
+            onSearch={onSearchRegions}
+            onLoadMore={onLoadMoreRegions}
             disabled={isEditRestricted}
-          >
-            <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
-              <SelectValue placeholder="Select region" />
-            </SelectTrigger>
-            <SelectContent onScroll={onScroll} className="gba:max-h-48">
-              {travelRegions.map(region => (
-                <SelectItem key={region.id} value={region.id}>
-                  {region.value}
-                </SelectItem>
-              ))}
-
-              {/* Loading indicator */}
-              {isLoadingMoreRegions && (
-                <div className="gba:p-2 gba:text-center gba:border-t">
-                  <Spinner size="sm" className="gba:mr-2" />
-                  <span className="gba:text-muted-foreground gba:text-xs">Loading...</span>
-                </div>
-              )}
-
-              {/* Has more indicator */}
-              {hasMore && !isLoadingMoreRegions && (
-                <div className="gba:p-2 gba:text-center gba:text-muted-foreground gba:text-xs gba:border-t">
-                  Scroll down to load more...
-                </div>
-              )}
-            </SelectContent>
-          </Select>
+            data-testid={`travel-region-rule-region-select-${groupIndex}`}
+          />
         </div>
 
         {/* Currency */}
@@ -177,8 +174,9 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
               Valid From <span className="gba:text-destructive gba:ml-1">*</span>
             </Label>
             <DateInput
-              value={group.validFrom}
-              onChange={date => onUpdateField('activeFrom', date || '')}
+              value={group.activeFrom}
+              onChange={date => onUpdateField('activeFrom', normalizeDateInputValue(date) || '')}
+              outputFormat="iso"
               data-testid={`travel-region-rule-group-valid-from-${groupIndex}`}
               disabled={isEditRestricted}
             />
@@ -186,8 +184,9 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           <div className="gba:space-y-1">
             <Label className="gba:text-xs gba:font-medium">Valid To</Label>
             <DateInput
-              value={group.validTo || ''}
-              onChange={date => onUpdateField('activeTo', date || '')}
+              value={group.activeTo || ''}
+              onChange={date => onUpdateField('activeTo', normalizeDateInputValue(date) || '')}
+              outputFormat="iso"
               data-testid={`travel-region-rule-group-valid-to-${groupIndex}`}
               max="2099-12-31"
             />
@@ -205,7 +204,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           <Input
             type="number"
             step="0.01"
-            value={group.amounts[0] || ''}
+            value={group.amounts[0] !== null && group.amounts[0] !== undefined ? group.amounts[0] : ''}
             onChange={e => onUpdateAmount(0, e.target.value)}
             placeholder="0.00"
             className={`gba:h-8 gba:text-sm ${hasInvalidAmounts ? 'gba:border-destructive focus:gba:border-destructive' : ''}`}

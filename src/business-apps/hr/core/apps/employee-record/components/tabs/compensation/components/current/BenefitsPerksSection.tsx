@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Alert, Button } from '@newwork/nw-design-system'
 import { Search } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useBenefitsCatalog } from '../../hooks/useBenefitsCatalog'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { DebouncedInput } from '@/components/debounced-input'
@@ -65,14 +66,15 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitCatalogItem | null>(null)
 
-  // Fetch benefits catalog
-  const {
-    catalogData,
-    loading: catalogLoading,
-    error,
-    refetch
-  } = useBenefitsCatalog(employeeId, accessToken, {
-    excludeHrBackoffice: hrBackofficeHasPermission === false
+  // Fetch full catalog so assigned benefits (active/scheduled/not approved) always show.
+  // Role-based filtering is applied only to the "available" bucket in the section.
+  const { catalogData, loading: catalogLoading, error, refetch } = useBenefitsCatalog(employeeId, accessToken)
+
+  // Refresh catalog when a benefit request or deactivation flow completes
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch()
+    }
   })
 
   // Use external loading or internal loading
@@ -81,8 +83,14 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   /**
    * Filter and split benefits based on search query
    */
-  const { activeBenefits, scheduledBenefits, availableBenefits } = React.useMemo(() => {
-    if (!catalogData) return { activeBenefits: [], scheduledBenefits: [], availableBenefits: [] }
+  const { activeBenefits, scheduledBenefits, notApprovedBenefits, availableBenefits } = React.useMemo(() => {
+    if (!catalogData)
+      return {
+        activeBenefits: [],
+        scheduledBenefits: [],
+        notApprovedBenefits: [],
+        availableBenefits: []
+      }
 
     let benefits = catalogData.catalogBenefits
 
@@ -98,7 +106,15 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
       )
     }
 
-    // Eligibility filter based on catalogEntry.objectValue.groups
+    // Split into active, scheduled, not approved (cancelled), and available first.
+    // Assigned benefits (active/scheduled/not approved) are always visible regardless of role —
+    // if the employee was assigned a benefit, they can see it. Role-based filtering applies only to "available" benefits.
+    const active = benefits.filter(b => b.isActive)
+    const scheduled = benefits.filter(b => !b.isActive && b.isScheduled)
+    const notApproved = benefits.filter(b => b.isCancelled)
+    let available = benefits.filter(b => !b.isActive && !b.isScheduled && !b.isCancelled)
+
+    // Eligibility filter for *available* benefits only (catalogEntry.objectValue.groups)
     const hasHrBackoffice = hrBackofficeHasPermission === true
     const isEligibleByGroups = (b: BenefitCatalogItem): boolean => {
       const raw = b.catalogEntry?.objectValue as any
@@ -113,25 +129,23 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
       const groups: string[] = Array.isArray(obj?.groups) ? obj.groups.filter((g: any) => typeof g === 'string') : []
       if (groups.length === 0) return true
 
-      // Require that ALL groups are satisfied
       const satisfies = (g: string): boolean => {
         if (g === 'all-employees') return true
         if (g === 'all-hr-backoffice') return hasHrBackoffice
-        // Unknown or unsupported groups are not satisfied
         return false
       }
 
       return groups.every(satisfies)
     }
 
-    benefits = benefits.filter(isEligibleByGroups)
+    available = available.filter(isEligibleByGroups)
 
-    // Split into active, scheduled, and available
-    const active = benefits.filter(b => b.isActive)
-    const scheduled = benefits.filter(b => !b.isActive && b.isScheduled)
-    const available = benefits.filter(b => !b.isActive && !b.isScheduled)
-
-    return { activeBenefits: active, scheduledBenefits: scheduled, availableBenefits: available }
+    return {
+      activeBenefits: active,
+      scheduledBenefits: scheduled,
+      notApprovedBenefits: notApproved,
+      availableBenefits: available
+    }
   }, [catalogData, searchQuery, hrBackofficeHasPermission])
 
   /**
@@ -164,17 +178,30 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                       </span>
                     </>
                   )}
+                  {notApprovedBenefits.length > 0 && (
+                    <>
+                      {(activeBenefits.length > 0 || scheduledBenefits.length > 0 || availableBenefits.length > 0) && (
+                        <span> • </span>
+                      )}
+                      <span>
+                        {notApprovedBenefits.length} {t('benefit-status-not-approved').toLowerCase()}
+                      </span>
+                    </>
+                  )}
                   {availableBenefits.length > 0 && (
                     <>
-                      {(activeBenefits.length > 0 || scheduledBenefits.length > 0) && <span> • </span>}
+                      {(activeBenefits.length > 0 ||
+                        scheduledBenefits.length > 0 ||
+                        notApprovedBenefits.length > 0) && <span> • </span>}
                       <span>
                         {availableBenefits.length} {t('benefit-status-available').toLowerCase()}
                       </span>
                     </>
                   )}
-                  {activeBenefits.length === 0 && scheduledBenefits.length === 0 && availableBenefits.length === 0 && (
-                    <span>{t('benefits-catalog-no-results')}</span>
-                  )}
+                  {activeBenefits.length === 0 &&
+                    scheduledBenefits.length === 0 &&
+                    notApprovedBenefits.length === 0 &&
+                    availableBenefits.length === 0 && <span>{t('benefits-catalog-no-results')}</span>}
                 </div>
               )}
             </div>
@@ -223,7 +250,10 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
               t={t}
               totalBenefitsCount={catalogData?.totalBenefitsCount || 0}
               hasVisibleBenefits={
-                activeBenefits.length > 0 || scheduledBenefits.length > 0 || availableBenefits.length > 0
+                activeBenefits.length > 0 ||
+                scheduledBenefits.length > 0 ||
+                notApprovedBenefits.length > 0 ||
+                availableBenefits.length > 0
               }
               onClearSearch={() => setSearchQuery('')}
             />
@@ -263,21 +293,39 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             />
           )}
 
-          {/* Available Benefits Section */}
-          {!loading && !error && (
-            <BenefitsSectionGrid
-              t={t}
-              benefits={availableBenefits}
-              employeeId={employeeId}
-              currencyCode={currencyCode}
-              locale={locale}
-              onViewDetails={handleViewDetails}
-              sectionTitle={t('benefits-available-section-title', { count: availableBenefits.length })}
-              testId="available-benefits-section"
-              accessToken={accessToken}
-              userInfo={userInfo}
-              additionalData={additionalData}
-            />
+          {/* Lower-priority zones grouped on subtle gray background for better visual separation */}
+          {!loading && !error && (notApprovedBenefits.length > 0 || availableBenefits.length > 0) && (
+            <div className="gba:rounded-lg gba:px-0 gba:py-4 gba:mt-2">
+              {/* Not approved benefits Section (CANCELLED_COMPENSATION) */}
+              <BenefitsSectionGrid
+                t={t}
+                benefits={notApprovedBenefits}
+                employeeId={employeeId}
+                currencyCode={currencyCode}
+                locale={locale}
+                onViewDetails={handleViewDetails}
+                sectionTitle={t('benefits-not-approved-section-title', { count: notApprovedBenefits.length })}
+                testId="not-approved-benefits-section"
+                accessToken={accessToken}
+                userInfo={userInfo}
+                additionalData={additionalData}
+              />
+
+              {/* Available Benefits Section */}
+              <BenefitsSectionGrid
+                t={t}
+                benefits={availableBenefits}
+                employeeId={employeeId}
+                currencyCode={currencyCode}
+                locale={locale}
+                onViewDetails={handleViewDetails}
+                sectionTitle={t('benefits-available-section-title', { count: availableBenefits.length })}
+                testId="available-benefits-section"
+                accessToken={accessToken}
+                userInfo={userInfo}
+                additionalData={additionalData}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

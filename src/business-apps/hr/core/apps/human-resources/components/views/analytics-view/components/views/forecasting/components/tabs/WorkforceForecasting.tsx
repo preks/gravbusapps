@@ -1,14 +1,16 @@
-import React, { useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Typography } from 'antd'
 import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { WorkingConditionKpi } from '../../../../../hooks/useWorkingConditionForecast'
-import { useWorkingConditionForecast } from '../../../../../hooks/useWorkingConditionForecast'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
-import { useState, useEffect, useCallback } from 'react'
 import HeadcountChangesChart from '../HeadcountChangesChart'
+import { useMonthlyHeadcountChanges } from '../../../../../hooks/useMonthlyHeadcountChanges'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
+import { formatMonthPeriod } from '../../../../../utils/valueDisplayUtils'
+import AnalyticsDataTable, { DIFFERENT_BADGE } from '../../../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
 
@@ -18,8 +20,10 @@ interface WorkforceForecastingProps extends BusinessAppContextProps {
 
 export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props => {
   const { prefixDataTestId = 'WorkforceForecasting' } = props
-  const kpiData = useWorkingConditionForecast(props)
   const { t } = useTranslation(hrTranslations)
+  const [exportingTable, setExportingTable] = useState<string | null>(null)
+  const currentYear = useMemo(() => new Date().getFullYear(), [])
+  const { data: monthlyChanges, loading: monthlyChangesLoading } = useMonthlyHeadcountChanges(props, currentYear)
 
   // Add authoritative employee count hook
   const [totalEmployeeCount, setTotalEmployeeCount] = useState<number>(0)
@@ -51,10 +55,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
 
   // Calculate Workforce-related KPI metrics
   const workforceKpiCards: KpiCardData[] = useMemo(() => {
-    const { loading, data } = kpiData
-    const employees: WorkingConditionKpi[] = data as WorkingConditionKpi[]
-
-    if (loading || isLoadingEmployeeCount) {
+    if (monthlyChangesLoading || isLoadingEmployeeCount) {
       return [
         {
           id: 'current-headcount',
@@ -101,24 +102,23 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
       ]
     }
 
-    // Calculate metrics using working condition data for hire/departure calculations
-    const today = new Date()
-    const startOfYear = new Date(today.getFullYear(), 0, 1)
+    // KPI semantics: YTD = from Jan 1 to today (not end-of-year)
+    const now = new Date()
+    const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-    const ytdHires = employees.filter(
-      wc => wc.hireDate && new Date(wc.hireDate) >= startOfYear && new Date(wc.hireDate) <= today
-    ).length
-
-    const ytdDepartures = employees.filter(
-      wc => wc.exitDate && new Date(wc.exitDate) >= startOfYear && new Date(wc.exitDate) <= today
-    ).length
-
+    const ytdRows = monthlyChanges.filter(r => r.month >= `${currentYear}-01` && r.month <= currentYm)
+    const ytdHires = ytdRows.reduce((sum, r) => sum + (Number(r.newHires) || 0), 0)
+    const ytdDepartures = ytdRows.reduce((sum, r) => sum + (Number(r.departures) || 0), 0)
     const netChange = ytdHires - ytdDepartures
 
     // Use authoritative total employee count for headcount and calculations
     const headcount = totalEmployeeCount
+    // Calculate headcount at start of year (Jan 1st) for growth rate calculation
+    // Current headcount = headcount at Jan 1st + net change (YTD)
+    // Therefore: headcount at Jan 1st = current headcount - net change
+    const headcountAtStartOfYear = headcount - netChange
     const turnoverRate = headcount > 0 ? (ytdDepartures / headcount) * 100 : 0
-    const growthRate = headcount > 0 ? (netChange / headcount) * 100 : 0
+    const growthRate = headcountAtStartOfYear > 0 ? (netChange / headcountAtStartOfYear) * 100 : 0
 
     return [
       {
@@ -171,7 +171,45 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         footer: t('hr-analytics-year-to-date-growth')
       }
     ]
-  }, [kpiData, isLoadingEmployeeCount, totalEmployeeCount])
+  }, [monthlyChanges, monthlyChangesLoading, isLoadingEmployeeCount, totalEmployeeCount, t, currentYear])
+
+  const locale = getCurrentActiveUserLocale() ?? 'en-US'
+  const tableData = useMemo(
+    () =>
+      monthlyChanges.map(item => ({
+        period: formatMonthPeriod(item.month, locale),
+        hires: item.newHires,
+        departures: item.departures,
+        netChange: item.newHires - item.departures
+      })),
+    [monthlyChanges, locale]
+  )
+
+  const exportColumns = [
+    { key: 'period', header: t('hr-analytics-month') },
+    { key: 'hires', header: t('hr-analytics-hires') },
+    { key: 'departures', header: t('hr-analytics-monthly-departures') },
+    { key: 'netChange', header: t('hr-analytics-change'), badge: DIFFERENT_BADGE }
+  ]
+  const resolveExportingFormat = (): 'excel' | 'pdf' | null => {
+    if (exportingTable === 'headcount-changes-excel') return 'excel'
+    if (exportingTable === 'headcount-changes-pdf') return 'pdf'
+    return null
+  }
+
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    setExportingTable(`headcount-changes-${format}`)
+    try {
+      const rows = tableData.map(row => ({ ...row })) as Record<string, unknown>[]
+      if (format === 'excel') {
+        await exportTableToExcel(t('hr-analytics-headcount-changes-chart'), exportColumns, rows)
+      } else {
+        await exportTableToPdf(t('hr-analytics-headcount-changes-chart'), exportColumns, rows)
+      }
+    } finally {
+      setExportingTable(null)
+    }
+  }
 
   return (
     <div data-testid={prefixDataTestId} className="gba:flex gba:flex-col gba:gap-6">
@@ -193,7 +231,20 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
       {/* Workforce Charts */}
       <div className="gba:space-y-6">
         <HeadcountChangesChart {...props} />
-        {/* Future workforce-related charts can be added here */}
+        <AnalyticsDataTable
+          dataTestId={`${prefixDataTestId}-headcount-changes-table`}
+          title={t('hr-analytics-data-table', { title: t('hr-analytics-headcount-changes-chart') })}
+          entriesText={t('hr-analytics-total-entries', { count: tableData.length })}
+          columns={exportColumns}
+          rows={tableData}
+          exportingFormat={resolveExportingFormat()}
+          exportExcelTestId={`${prefixDataTestId}-headcount-changes-export-excel`}
+          exportPdfTestId={`${prefixDataTestId}-headcount-changes-export-pdf`}
+          exportExcelLabel={t('common-export-excel')}
+          exportPdfLabel={t('common-export-pdf')}
+          onExport={handleExport}
+          getRowKey={row => row.period}
+        />
       </div>
     </div>
   )

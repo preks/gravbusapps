@@ -85,12 +85,17 @@ const buildReferenceUrl = (reference: TaskReference): string => {
 /**
  * IRM My Tasks Configuration Builder
  * Creates the configuration for My Tasks view in IRM workspace
+ *
+ * @param context - Business app context
+ * @param investmentTasksHook - Hook result from useInvestmentTasks
+ * @param taskStatistics - Hook result from useInvestmentTaskStatistics
  */
 export const buildIrmMyTasksConfig = (
-  context: BusinessAppContextProps
+  context: BusinessAppContextProps,
+  investmentTasksHook: ReturnType<typeof useInvestmentTasks>,
+  taskStatistics: ReturnType<typeof useInvestmentTaskStatistics>
 ): MyTasksViewConfig<InvestmentTask, InvestmentTaskQueryVariables> => {
-  const { fetchInvestmentTasks } = useInvestmentTasks(context)
-  const taskStatistics = useInvestmentTaskStatistics(context)
+  const { fetchInvestmentTasks } = investmentTasksHook
 
   return {
     fetchMyTasks: async (variables: InvestmentTaskQueryVariables) => {
@@ -149,7 +154,7 @@ export const buildIrmMyTasksConfig = (
           }
         ]
       } else {
-        vars.orderBy = [{ field: 'dueDate' as any, direction: 'ASC_NULLS_LAST' }]
+        vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
       }
 
       return vars

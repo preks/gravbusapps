@@ -12,7 +12,7 @@ import {
   EmptyState
 } from '@newwork/nw-design-system'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PiGlobe, PiUsers, PiMapPin } from 'react-icons/pi'
+import { GlobeIcon, UsersIcon, MapPinIcon } from '@phosphor-icons/react'
 import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -140,16 +140,16 @@ const AccountSection: React.FC<AccountSectionProps> = ({
   }
 
   const config = {
-    type: 'AppActionButton' as const,
+    type: 'AppAction' as const,
     config: {
+      variant: 'header' as const,
       contextsArray: actionButtonProps.contextsArray || [FlowContextName.customerAccountEntity],
       externalContextData: {
         ...actionButtonProps.externalContextData,
         accountId: accountIdToUse // Override with current page accountId (must come after spread)
       },
       prefixDataTestId: actionButtonProps.prefixDataTestId || 'account-section-action',
-      emptyStateBehavior: 'enable' as const,
-      deferMainContextRequestsUntilClick: true
+      emptyStateBehavior: 'enable' as const
     }
   }
 
@@ -361,7 +361,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
             // Static fields (not from communication channels)
             const staticInfoItems = [
               {
-                icon: PiUsers,
+                icon: UsersIcon,
                 title: 'Employees',
                 value: employeesValue,
                 render: (value: string) => value
@@ -381,7 +381,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                 testId: 'account-industry-value'
               },
               {
-                icon: PiGlobe,
+                icon: GlobeIcon,
                 title: 'Website',
                 value: websiteValue,
                 render: (value: string) =>
@@ -403,7 +403,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                     : null
               },
               {
-                icon: PiMapPin,
+                icon: MapPinIcon,
                 title: 'Address',
                 value: accountAddress
                   ? formatAddress({

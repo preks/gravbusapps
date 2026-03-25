@@ -1,6 +1,9 @@
 import React from 'react'
 import { Employee, EmployeeAbsenceEntitlement } from '../hooks/useEmployeeData'
 import { UserInfoProps } from '@/common/BusinessAppContext'
+import { PrevalidateResult } from '../hooks/useAbsencePrevalidate'
+
+export type { PrevalidateResult }
 
 // Types for absence data
 export interface AbsenceListCardAbsence {
@@ -13,7 +16,7 @@ export interface AbsenceListCardAbsence {
   endDate: string
   duration: string
   description: string
-  icon: React.ReactNode
+  icon: React.ElementType | React.ReactNode
   typeColor: string
   statusColor: string
   requestDate: string
@@ -30,7 +33,7 @@ export interface Entitlement {
   total: number
   pending: number
   available: number
-  icon: React.ReactNode
+  icon: React.ElementType | React.ReactNode
   checkEntitlement?: boolean
 }
 
@@ -62,6 +65,11 @@ export interface CalendarProps {
   showDurationInTooltip?: boolean
   customLegend?: React.ReactNode
   holidayDates?: string[]
+  employeeAbsenceEntitlement?: EmployeeAbsenceEntitlement[]
+  employee?: Employee
+  accessToken?: string
+  onAbsenceTypeSelect?: (absenceType: string, startDate: string, endDate: string, flowType: string) => void
+  prevalidateResult?: PrevalidateResult
 }
 
 export interface AbsenceListProps {

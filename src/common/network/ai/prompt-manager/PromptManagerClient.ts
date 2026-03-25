@@ -1,4 +1,4 @@
-import { env } from '@/common/env/EnvUtils'
+import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { RestClient } from '@/common/network/rest/RestClient'
 
@@ -19,9 +19,17 @@ export interface PromptContent {
   parameters: string[]
 }
 
+export interface ToolPolicy {
+  /** MCP tool names (actions) that are allowed for this prompt */
+  allowedTools: string[]
+}
+
+/** Per-prompt tool policies, keyed by tool code (e.g. `mcp.flow-engine`) */
+export type ToolPolicies = Record<string, ToolPolicy>
+
 export interface KnowledgeSource {
-  id: string
-  type: 'document' | 'url' | 'content_entry' // content_entry = internal knowledge base
+  id?: string // Assigned by backend on save; optional for creation
+  type: 'document' | 'url' | 'content_entry' | 'catalog' | 'note' | 'spreadsheet' | 'slide' // content_entry = internal knowledge base, catalog = catalog entries, note/spreadsheet/slide = workspace content
   name: string
   description?: string
   url?: string
@@ -30,9 +38,21 @@ export interface KnowledgeSource {
   fileSize?: number
   mimeType?: string
   contentEntryId?: string // For internal content
+  catalogIdentifier?: string // For catalog sources (e.g., "ContentCategory")
+  catalogVersion?: string // For catalog sources (e.g., "v1")
+  catalogEntryCount?: number // Number of entries in the catalog
   extractedContent?: string // Extracted text from documents (parsed by FlowBot)
   lastUpdated: string
   createdAt: string
+}
+
+export interface PromptAgentCard {
+  division?: string
+  data_domains?: string[]
+  capabilities?: string[]
+  access_policy?: string
+  allowed_callers?: string[]
+  version?: string
 }
 
 export interface PromptODM {
@@ -44,6 +64,7 @@ export interface PromptODM {
   system_content?: PromptContent | null
   user_content: PromptContent
   tools?: string // comma-separated tool codes
+  toolPolicies?: ToolPolicies
   model: { id: string; collection: string }
   model_settings?: Record<string, unknown>
   response_schema?: Record<string, unknown> | null
@@ -61,6 +82,8 @@ export interface PromptODM {
   is_public?: boolean
   created_by?: string
   tags?: string[]
+  // Agent Mesh fields
+  agent_card?: PromptAgentCard | null
 }
 
 export interface PromptPage {
@@ -97,6 +120,7 @@ export interface PromptDetails {
   systemContent?: string | null
   userContent: string
   tools?: string[]
+  toolPolicies?: ToolPolicies
   modelId: string
   modelSettings?: Record<string, unknown>
   responseSchema?: Record<string, unknown> | null
@@ -120,6 +144,7 @@ export interface PromptPutDetails {
   systemContent?: string | null
   userContent: string
   tools?: string[]
+  toolPolicies?: ToolPolicies
   modelId: string
   modelSettings?: Record<string, unknown>
   responseSchema?: Record<string, unknown> | null
@@ -142,6 +167,7 @@ export interface PromptPatchDetails {
   systemContent?: string | null
   userContent?: string | null
   tools?: string[] | null
+  toolPolicies?: ToolPolicies | null
   modelId?: string | null
   modelSettings?: Record<string, unknown> | null
   responseSchema?: Record<string, unknown> | null
@@ -160,6 +186,128 @@ export interface PromptPatchDetails {
 
 export interface PromptExecuteResponse<T = unknown> {
   content: T | string | null
+}
+
+export interface PromptManagerUserDataRecord<TData = unknown> {
+  user_id: string
+  key: string
+  data: TData
+  updated_at: string
+}
+
+/** Knowledge source entry for execute-json (e.g. catalog reference). */
+export interface ExecutePromptJsonKnowledgeSource {
+  type: string
+  name?: string
+  catalogIdentifier?: string
+  catalogVersion?: string
+  [key: string]: unknown
+}
+
+/** Request body for POST /api/v1/prompts/execute-json (execute prompt with JSON + document links) */
+export interface ExecutePromptJsonBody {
+  model_id?: string
+  model_service?: string
+  model_name?: string
+  system_content?: string
+  user_content?: string
+  tools?: string[]
+  model_settings?: Record<string, unknown>
+  response_schema?: Record<string, unknown>
+  system_params?: Record<string, unknown>
+  user_params?: Record<string, unknown>
+  document_links?: string[]
+  knowledge_sources?: ExecutePromptJsonKnowledgeSource[]
+  citation_mode?: string
+  response_style?: string
+  context?: Record<string, unknown>
+}
+
+// --- Telemetry / Executions ---
+export type ExecutionRunStatus = 'running' | 'success' | 'error'
+
+export interface ExecutionRun {
+  executionId: string
+  createdAt: string
+  startedAt: string
+  finishedAt?: string | null
+  durationMs?: number | null
+  status: ExecutionRunStatus
+  errorType?: string | null
+  errorMessage?: string | null
+
+  promptId?: string | null
+  promptVersion?: number | null
+  promptName?: string | null
+  agentType?: string | null
+  tags?: string[] | null
+
+  policyRootIds?: string[] | null
+  policyVersionIds?: string[] | null
+
+  aiService?: string | null
+  aiModel?: string | null
+
+  toolCallsCount?: number
+  toolsUsed?: string[] | null
+  knowledgeSourceIds?: string[] | null
+
+  finalOutputPreview?: string | null
+  reasoningSummary?: Record<string, any> | null
+
+  promptTokens?: number
+  completionTokens?: number
+  totalTokens?: number
+  llmRequests?: number
+}
+
+export interface ExecutionRunPage {
+  data: ExecutionRun[]
+  paging: Paging
+}
+
+export interface ExecutionTraceEvent {
+  executionId: string
+  seq: number
+  ts: string
+  eventType: string
+  data: Record<string, any>
+}
+
+export interface ExecutionTracePage {
+  data: ExecutionTraceEvent[]
+  paging: Paging
+}
+
+export interface ExecutionStatsResponse {
+  total: number
+  success: number
+  error: number
+  running: number
+}
+
+export interface ExecutionTimeseriesPoint {
+  day: string
+  total: number
+  success: number
+  error: number
+  running: number
+  avgDurationMs?: number | null
+  toolCalls: number
+}
+
+export interface ExecutionTimeseriesResponse {
+  data: ExecutionTimeseriesPoint[]
+  resolution?: string
+}
+
+export interface ExecutionTopToolItem {
+  tool: string
+  count: number
+}
+
+export interface ExecutionTopToolsResponse {
+  data: ExecutionTopToolItem[]
 }
 
 /** Attachment to pass to prompt execution */
@@ -204,14 +352,9 @@ export interface AIModelPage {
 
 export interface MCPConfig {
   serverId?: string
-  transport: 'sse' | 'websocket'
+  transport: 'sse' | 'websocket' | 'http'
   url: string
   env?: Record<string, string>
-}
-
-export interface FunctionConfig {
-  runtime: 'js-runtime'
-  source: string
 }
 
 export interface ToolSettings {
@@ -227,15 +370,36 @@ export interface SchemaConfig {
 
 export interface ToolODM {
   _id?: string
+  /** Stable tool identifier used in prompts (e.g. `mcp.flow-engine`) */
+  code?: string
   name: string
   created_at?: string
   description?: string
-  type: 'mcp' | 'function'
-  config: MCPConfig | FunctionConfig
+  type: 'mcp'
+  config: MCPConfig
   settings?: ToolSettings
   schemaConfig?: SchemaConfig
   schema_config?: SchemaConfig // Backend returns snake_case
+  externalConnectionId?: string | null
+  external_connection_id?: string | null
   active?: boolean
+  /** Internal tools are preconfigured and read-only */
+  internal?: boolean
+}
+
+export interface McpAvailableAction {
+  name: string
+  description?: string
+  inputSchema?: Record<string, unknown> | null
+}
+
+export interface McpAvailableActionsResponse {
+  toolId: string
+  toolCode?: string | null
+  serverId?: string | null
+  externalConnectionId?: string | null
+  url: string
+  tools: McpAvailableAction[]
 }
 
 export interface ToolPage {
@@ -250,36 +414,162 @@ export interface MCPToolDetails {
   config: MCPConfig
   settings?: ToolSettings
   schemaConfig?: SchemaConfig
+  externalConnectionId?: string | null
 }
 
-export interface FunctionToolDetails {
-  name: string
-  description?: string
-  type: 'function'
-  config: FunctionConfig
-  settings?: ToolSettings
-  schemaConfig?: SchemaConfig
-}
-
-export type ToolDetails = MCPToolDetails | FunctionToolDetails
+export type ToolDetails = MCPToolDetails
 
 export interface ToolPutDetails {
   name?: string
   description?: string
-  type?: 'mcp' | 'function'
-  config?: MCPConfig | FunctionConfig
+  type?: 'mcp'
+  config?: MCPConfig
   settings?: ToolSettings
   schemaConfig?: SchemaConfig
+  externalConnectionId?: string | null
 }
 
 export interface ToolPatchDetails {
   name?: string | null
   description?: string | null
-  type?: 'mcp' | 'function' | null
-  config?: MCPConfig | FunctionConfig | null
+  type?: 'mcp' | null
+  config?: MCPConfig | null
   settings?: ToolSettings | null
   schemaConfig?: SchemaConfig | null
+  externalConnectionId?: string | null
   active?: boolean | null
+}
+
+export type ExternalConnectionKind = 'mcp' | 'structured' | 'unstructured'
+export type ExternalConnectionLane = 'mcp_servers' | 'data_bridge' | 'anypoint_connect'
+export type ConnectorProviderFormMode = 'custom_form' | 'oauth' | 'mcp_url'
+
+export interface ConnectorProviderConfigField {
+  key: string
+  fieldType: 'text' | 'password' | 'url' | 'number' | 'textarea'
+  required?: boolean
+}
+
+export interface ConnectorProviderODM {
+  _id?: string
+  providerId: string
+  provider_id?: string
+  name: string
+  description?: string
+  kind: ExternalConnectionKind
+  lane: ExternalConnectionLane
+  iconKey: string
+  icon_key?: string
+  formMode: ConnectorProviderFormMode
+  form_mode?: ConnectorProviderFormMode
+  configFields?: ConnectorProviderConfigField[] | null
+  config_fields?: ConnectorProviderConfigField[] | null
+  helpUrl?: string | null
+  help_url?: string | null
+  connectorId?: string | null
+  connector_id?: string | null
+  connectorName?: string | null
+  connector_name?: string | null
+  consumerTypes?: string[] | null
+  consumer_types?: string[] | null
+  active?: boolean
+  managed?: boolean
+  sortOrder?: number | null
+  sort_order?: number | null
+}
+
+export interface ExternalConnectionODM {
+  _id?: string
+  connectionId: string
+  connection_id?: string
+  name: string
+  description?: string
+  kind: ExternalConnectionKind
+  lane: ExternalConnectionLane
+  providerId?: string | null
+  provider_id?: string | null
+  connectorId?: string | null
+  connector_id?: string | null
+  connectorName?: string | null
+  connector_name?: string | null
+  url?: string | null
+  transport?: 'http' | 'sse' | 'websocket' | null
+  env?: Record<string, string> | null
+  config?: Record<string, string>
+  consumerTypes?: string[] | null
+  consumer_types?: string[] | null
+  active?: boolean
+  managed?: boolean
+  internal?: boolean
+}
+
+export interface ExternalConnectionDetails {
+  name: string
+  description?: string
+  kind: ExternalConnectionKind
+  lane: ExternalConnectionLane
+  providerId?: string | null
+  connectorId?: string | null
+  connectorName?: string | null
+  url?: string | null
+  transport?: 'http' | 'sse' | 'websocket' | null
+  env?: Record<string, string> | null
+  config?: Record<string, string> | null
+  consumerTypes?: string[] | null
+  active?: boolean | null
+  managed?: boolean | null
+  internal?: boolean | null
+}
+
+export interface ExternalConnectionPatchDetails {
+  name?: string | null
+  description?: string | null
+  lane?: ExternalConnectionLane | null
+  providerId?: string | null
+  connectorId?: string | null
+  connectorName?: string | null
+  url?: string | null
+  transport?: 'http' | 'sse' | 'websocket' | null
+  env?: Record<string, string> | null
+  config?: Record<string, string> | null
+  consumerTypes?: string[] | null
+  active?: boolean | null
+  managed?: boolean | null
+  internal?: boolean | null
+}
+
+export interface ExternalConnectionPage {
+  data: ExternalConnectionODM[]
+  paging: Paging
+}
+
+export interface ConnectorProviderPage {
+  data: ConnectorProviderODM[]
+  paging: Paging
+}
+
+export interface ConnectorProviderInstantiationDetails {
+  name: string
+  description?: string
+  url?: string | null
+  transport?: 'http' | 'sse' | 'websocket' | null
+  env?: Record<string, string> | null
+  config?: Record<string, string> | null
+  consumerTypes?: string[] | null
+  active?: boolean | null
+}
+
+export interface ExternalConnectionAvailableActionsResponse {
+  connectionId: string
+  url: string
+  tools: McpAvailableAction[]
+}
+
+export interface ExternalConnectionHealthResponse {
+  connectionId: string
+  success: boolean
+  message: string
+  details?: Record<string, unknown>
 }
 
 export interface AIServicePage {
@@ -290,38 +580,39 @@ export interface AIServicePage {
 // --- Client ---
 export class PromptManagerClient extends RestClient {
   constructor() {
-    // Follow the same pattern as other clients: use specific API URL or fallback to BASE_URL
-    // Priority: NEXT_PUBLIC_PROMPT_MANAGER_API_URL (incl. local override) >
-    //           localhost default (when running on localhost) >
-    //           NEXT_PUBLIC_BASE_URL/prompt-manager >
-    //           localhost
-    let url = env('NEXT_PUBLIC_PROMPT_MANAGER_API_URL')
-    // Prefer localhost when the app runs locally and no explicit URL is set
-    if (!url && typeof window !== 'undefined') {
-      const host = window.location.hostname
-      if (host === 'localhost' || host === '127.0.0.1') {
-        url = 'http://localhost:8000'
-      }
-    }
-    if (!url) {
-      // Fallback to BASE_URL/prompt-manager pattern (same as other services) or localhost
-      const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? ''
-      url = baseUrl ? `${baseUrl}/prompt-manager` : 'http://localhost:8000'
-    }
+    super(PROMPT_MANAGER_API_URL, {})
+  }
 
-    // Ensure URL doesn't end with slash (RestClient handles this)
-    if (url.endsWith('/')) {
-      url = url.slice(0, -1)
-    }
+  private hasHttpStatus(error: unknown, status: number): boolean {
+    return error instanceof Error && error.message.includes(`REST request failed: ${status}`)
+  }
 
-    super(url, {})
+  private normalizeAccessToken(accessToken: unknown): string | null {
+    if (typeof accessToken !== 'string') return null
+    const trimmed = accessToken.trim()
+    if (!trimmed) return null
+    if (trimmed === '[object Object]') return null
+    if (trimmed.toLowerCase() === 'undefined' || trimmed.toLowerCase() === 'null') return null
+    if (trimmed.startsWith('Bearer ')) {
+      const raw = trimmed.slice('Bearer '.length).trim()
+      return raw || null
+    }
+    return trimmed
   }
 
   setAccessToken(accessToken: string) {
     if (!this.headers) {
       this.headers = {}
     }
-    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
+    const normalized = this.normalizeAccessToken(accessToken)
+    if (!normalized) {
+      delete this.headers['Authorization']
+      if (typeof console !== 'undefined') {
+        console.warn('[PromptManagerClient] Invalid access token supplied; Authorization header cleared')
+      }
+      return
+    }
+    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(normalized)
   }
 
   // --- Workspaces ---
@@ -330,27 +621,27 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<WorkspacePage> {
-    return this.get<WorkspacePage>('/api/v1/workspaces/', { params })
+    return this.get<WorkspacePage>('/workspaces/', { params })
   }
 
   async getWorkspace(id: string): Promise<WorkspaceODM> {
-    return this.get<WorkspaceODM>(`/api/v1/workspaces/${encodeURIComponent(id)}`)
+    return this.get<WorkspaceODM>(`/workspaces/${encodeURIComponent(id)}`)
   }
 
   async createWorkspace(body: WorkspaceDetails): Promise<WorkspaceODM> {
-    return this.post<WorkspaceODM>('/api/v1/workspaces/', body)
+    return this.post<WorkspaceODM>('/workspaces/', body)
   }
 
   async updateWorkspace(id: string, body: WorkspaceDetails): Promise<WorkspaceODM> {
-    return this.put<WorkspaceODM>(`/api/v1/workspaces/${encodeURIComponent(id)}`, body)
+    return this.put<WorkspaceODM>(`/workspaces/${encodeURIComponent(id)}`, body)
   }
 
   async patchWorkspace(id: string, body: WorkspacePatchDetails): Promise<WorkspaceODM> {
-    return this.patch<WorkspaceODM>(`/api/v1/workspaces/${encodeURIComponent(id)}`, body)
+    return this.patch<WorkspaceODM>(`/workspaces/${encodeURIComponent(id)}`, body)
   }
 
   async deleteWorkspace(id: string): Promise<void> {
-    await this.delete<void>(`/api/v1/workspaces/${encodeURIComponent(id)}`)
+    await this.delete<void>(`/workspaces/${encodeURIComponent(id)}`)
   }
 
   // --- Prompts (Agents) ---
@@ -361,33 +652,33 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<PromptPage> {
-    return this.get<PromptPage>('/api/v1/prompts/', { params: params as Record<string, any> })
+    return this.get<PromptPage>('/prompts/', { params: params as Record<string, any> })
   }
 
   async getPrompt(id: string): Promise<PromptODM> {
-    return this.get<PromptODM>(`/api/v1/prompts/${encodeURIComponent(id)}`)
+    return this.get<PromptODM>(`/prompts/${encodeURIComponent(id)}`)
   }
 
   async getPromptParameters(id: string): Promise<{ system_parameters: string[]; user_parameters: string[] }> {
     return this.get<{ system_parameters: string[]; user_parameters: string[] }>(
-      `/api/v1/prompts/${encodeURIComponent(id)}/parameters`
+      `/prompts/${encodeURIComponent(id)}/parameters`
     )
   }
 
   async createPrompt(body: PromptDetails): Promise<PromptODM> {
-    return this.post<PromptODM>('/api/v1/prompts/', body)
+    return this.post<PromptODM>('/prompts/', body)
   }
 
   async putPrompt(id: string, body: PromptPutDetails): Promise<PromptODM> {
-    return this.put<PromptODM>(`/api/v1/prompts/${encodeURIComponent(id)}`, body)
+    return this.put<PromptODM>(`/prompts/${encodeURIComponent(id)}`, body)
   }
 
   async patchPrompt(id: string, body: PromptPatchDetails): Promise<PromptODM> {
-    return this.patch<PromptODM>(`/api/v1/prompts/${encodeURIComponent(id)}`, body)
+    return this.patch<PromptODM>(`/prompts/${encodeURIComponent(id)}`, body)
   }
 
   async deletePrompt(id: string): Promise<void> {
-    await this.delete<void>(`/api/v1/prompts/${encodeURIComponent(id)}`)
+    await this.delete<void>(`/prompts/${encodeURIComponent(id)}`)
   }
 
   async getPromptVersions(
@@ -398,18 +689,108 @@ export class PromptManagerClient extends RestClient {
       returnTotalRecords?: boolean
     }
   ): Promise<{ data: PromptODM[]; paging: Paging }> {
-    return this.get<{ data: PromptODM[]; paging: Paging }>(`/api/v1/prompts/${encodeURIComponent(id)}/versions`, {
+    return this.get<{ data: PromptODM[]; paging: Paging }>(`/prompts/${encodeURIComponent(id)}/versions`, {
       params
     })
   }
 
   // --- Execution ---
   async executePrompt(formData: FormData): Promise<PromptExecuteResponse> {
-    return this.post<PromptExecuteResponse>('/api/v1/prompts/execute', formData)
+    return this.post<PromptExecuteResponse>('/prompts/execute', formData)
   }
 
   async executePromptById(id: string, formData: FormData): Promise<PromptExecuteResponse> {
-    return this.post<PromptExecuteResponse>(`/api/v1/prompts/${encodeURIComponent(id)}/execute`, formData)
+    return this.post<PromptExecuteResponse>(`/prompts/${encodeURIComponent(id)}/execute`, formData)
+  }
+
+  /**
+   * Execute prompt with JSON body and optional document links.
+   * POST /prompts/execute-json
+   */
+  async executePromptByJson(body: ExecutePromptJsonBody): Promise<PromptExecuteResponse> {
+    return this.post<PromptExecuteResponse>('/prompts/execute-json', body)
+  }
+
+  // --- User data ---
+  async getUserData<TData = unknown>(key: string, userId: string): Promise<PromptManagerUserDataRecord<TData> | null> {
+    try {
+      return await this.get<PromptManagerUserDataRecord<TData>>(`/user-data/${encodeURIComponent(key)}`, {
+        params: { user_id: userId }
+      })
+    } catch (error) {
+      if (this.hasHttpStatus(error, 404)) {
+        return null
+      }
+      throw error
+    }
+  }
+
+  async putUserData<TData = unknown>(
+    key: string,
+    userId: string,
+    data: TData
+  ): Promise<PromptManagerUserDataRecord<TData> | null> {
+    return this.put<PromptManagerUserDataRecord<TData> | null>(
+      `/user-data/${encodeURIComponent(key)}`,
+      { data },
+      { params: { user_id: userId } }
+    )
+  }
+
+  // --- Execution telemetry (runs + traces) ---
+  async getExecutionRuns(params?: {
+    promptId?: string | null
+    status?: ExecutionRunStatus | string | null
+    policyRootId?: string | null
+    tag?: string | null
+    toolName?: string | null
+    createdAtFrom?: string | null
+    createdAtTo?: string | null
+    limit?: number
+    offset?: number
+    returnTotalRecords?: boolean
+  }): Promise<ExecutionRunPage> {
+    return this.get<ExecutionRunPage>('/executions/runs', { params: params as Record<string, any> })
+  }
+
+  async getExecutionRun(executionId: string): Promise<ExecutionRun> {
+    return this.get<ExecutionRun>(`/executions/runs/${encodeURIComponent(executionId)}`)
+  }
+
+  async getExecutionTrace(
+    executionId: string,
+    params?: { limit?: number; offset?: number; returnTotalRecords?: boolean }
+  ): Promise<ExecutionTracePage> {
+    return this.get<ExecutionTracePage>(`/executions/runs/${encodeURIComponent(executionId)}/trace`, { params })
+  }
+
+  async getExecutionStats(params?: {
+    policyRootId?: string | null
+    promptId?: string | null
+  }): Promise<ExecutionStatsResponse> {
+    return this.get<ExecutionStatsResponse>('/executions/stats', { params: params as Record<string, any> })
+  }
+
+  async getExecutionTimeseries(params?: {
+    policyRootId?: string | null
+    promptId?: string | null
+    days?: number
+    resolution?: string | null
+  }): Promise<ExecutionTimeseriesResponse> {
+    return this.get<ExecutionTimeseriesResponse>('/executions/timeseries', {
+      params: params as Record<string, any>
+    })
+  }
+
+  async getExecutionTopTools(params?: {
+    policyRootId?: string | null
+    promptId?: string | null
+    days?: number
+    limit?: number
+  }): Promise<ExecutionTopToolsResponse> {
+    return this.get<ExecutionTopToolsResponse>('/executions/tools-top', {
+      params: params as Record<string, any>
+    })
   }
 
   /**
@@ -449,7 +830,7 @@ export class PromptManagerClient extends RestClient {
       formData.append('context', JSON.stringify(options.context))
     }
 
-    return this.post<PromptExecuteResponse>(`/api/v1/prompts/${encodeURIComponent(id)}/execute`, formData)
+    return this.post<PromptExecuteResponse>(`/prompts/${encodeURIComponent(id)}/execute`, formData)
   }
 
   /**
@@ -484,7 +865,7 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<AIServicePage> {
-    return this.get<AIServicePage>('/api/v1/ai-services/', { params })
+    return this.get<AIServicePage>('/ai-services/', { params })
   }
 
   async getAiModels(params?: {
@@ -494,7 +875,7 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<AIModelPage> {
-    return this.get<AIModelPage>('/api/v1/ai-models/', {
+    return this.get<AIModelPage>('/ai-models/', {
       params: params as Record<string, any>
     })
   }
@@ -502,54 +883,115 @@ export class PromptManagerClient extends RestClient {
   // --- Tools (Common List API) ---
   async getTools(params?: {
     toolName?: string | null
-    toolType?: 'mcp' | 'function' | null
+    toolType?: 'mcp' | null
     limit?: number
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<ToolPage> {
-    return this.get<ToolPage>('/api/v1/tools/', { params: params as Record<string, any> })
+    return this.get<ToolPage>('/tools/', { params: params as Record<string, any> })
   }
 
   // --- MCP Tools ---
   async getMcpTool(id: string): Promise<ToolODM> {
-    return this.get<ToolODM>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`)
+    return this.get<ToolODM>(`/tools/mcp/${encodeURIComponent(id)}`)
+  }
+
+  async getMcpAvailableActions(id: string): Promise<McpAvailableActionsResponse> {
+    return this.get<McpAvailableActionsResponse>(`/tools/mcp/${encodeURIComponent(id)}/available-actions`)
   }
 
   async createMcpTool(body: MCPToolDetails): Promise<ToolODM> {
-    return this.post<ToolODM>('/api/v1/tools/mcp/', body)
+    return this.post<ToolODM>('/tools/mcp/', body)
   }
 
   async putMcpTool(id: string, body: MCPToolDetails): Promise<ToolODM> {
-    return this.put<ToolODM>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`, body)
+    return this.put<ToolODM>(`/tools/mcp/${encodeURIComponent(id)}`, body)
   }
 
   async patchMcpTool(id: string, body: ToolPatchDetails): Promise<ToolODM> {
-    return this.patch<ToolODM>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`, body)
+    return this.patch<ToolODM>(`/tools/mcp/${encodeURIComponent(id)}`, body)
   }
 
   async deleteMcpTool(id: string): Promise<void> {
-    await this.delete<void>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`)
+    await this.delete<void>(`/tools/mcp/${encodeURIComponent(id)}`)
   }
 
-  // --- Function Tools ---
-  async getFunctionTool(id: string): Promise<ToolODM> {
-    return this.get<ToolODM>(`/api/v1/tools/function/${encodeURIComponent(id)}`)
+  // --- External Connections ---
+  async getConnectorProviders(params?: {
+    search?: string | null
+    kind?: ExternalConnectionKind | null
+    lane?: ExternalConnectionLane | null
+    consumerType?: string | null
+    limit?: number
+    offset?: number
+    returnTotalRecords?: boolean
+  }): Promise<ConnectorProviderPage> {
+    return this.get<ConnectorProviderPage>('/connector-providers/', {
+      params: params as Record<string, any>
+    })
   }
 
-  async createFunctionTool(body: FunctionToolDetails): Promise<ToolODM> {
-    return this.post<ToolODM>('/api/v1/tools/function/', body)
+  async getConnectorProvider(providerId: string): Promise<ConnectorProviderODM> {
+    return this.get<ConnectorProviderODM>(`/connector-providers/${encodeURIComponent(providerId)}`)
   }
 
-  async putFunctionTool(id: string, body: FunctionToolDetails): Promise<ToolODM> {
-    return this.put<ToolODM>(`/api/v1/tools/function/${encodeURIComponent(id)}`, body)
+  async instantiateConnectorProvider(
+    providerId: string,
+    body: ConnectorProviderInstantiationDetails
+  ): Promise<ExternalConnectionODM> {
+    return this.post<ExternalConnectionODM>(`/connector-providers/${encodeURIComponent(providerId)}/instantiate`, body)
   }
 
-  async patchFunctionTool(id: string, body: ToolPatchDetails): Promise<ToolODM> {
-    return this.patch<ToolODM>(`/api/v1/tools/function/${encodeURIComponent(id)}`, body)
+  async getExternalConnections(params?: {
+    search?: string | null
+    kind?: ExternalConnectionKind | null
+    lane?: ExternalConnectionLane | null
+    connectorId?: string | null
+    consumerType?: string | null
+    limit?: number
+    offset?: number
+    returnTotalRecords?: boolean
+  }): Promise<ExternalConnectionPage> {
+    return this.get<ExternalConnectionPage>('/external-connections/', {
+      params: params as Record<string, any>
+    })
   }
 
-  async deleteFunctionTool(id: string): Promise<void> {
-    await this.delete<void>(`/api/v1/tools/function/${encodeURIComponent(id)}`)
+  async getExternalConnection(connectionId: string): Promise<ExternalConnectionODM> {
+    return this.get<ExternalConnectionODM>(`/external-connections/${encodeURIComponent(connectionId)}`)
+  }
+
+  async createExternalConnection(body: ExternalConnectionDetails): Promise<ExternalConnectionODM> {
+    return this.post<ExternalConnectionODM>('/external-connections/', body)
+  }
+
+  async putExternalConnection(connectionId: string, body: ExternalConnectionDetails): Promise<ExternalConnectionODM> {
+    return this.put<ExternalConnectionODM>(`/external-connections/${encodeURIComponent(connectionId)}`, body)
+  }
+
+  async patchExternalConnection(
+    connectionId: string,
+    body: ExternalConnectionPatchDetails
+  ): Promise<ExternalConnectionODM> {
+    return this.patch<ExternalConnectionODM>(`/external-connections/${encodeURIComponent(connectionId)}`, body)
+  }
+
+  async deleteExternalConnection(connectionId: string): Promise<void> {
+    await this.delete<void>(`/external-connections/${encodeURIComponent(connectionId)}`)
+  }
+
+  async getExternalConnectionAvailableActions(
+    connectionId: string
+  ): Promise<ExternalConnectionAvailableActionsResponse> {
+    return this.get<ExternalConnectionAvailableActionsResponse>(
+      `/external-connections/${encodeURIComponent(connectionId)}/available-actions`
+    )
+  }
+
+  async getExternalConnectionHealth(connectionId: string): Promise<ExternalConnectionHealthResponse> {
+    return this.get<ExternalConnectionHealthResponse>(
+      `/external-connections/${encodeURIComponent(connectionId)}/health`
+    )
   }
 
   // --- Every Experts (EveryAI Agents) ---
@@ -564,7 +1006,7 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<PromptPage> {
-    return this.get<PromptPage>('/api/v1/prompts/', {
+    return this.get<PromptPage>('/prompts/', {
       params: {
         ...params,
         agentType: 'everyai' // Filter for EveryAI agents only
@@ -583,7 +1025,7 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<PromptPage> {
-    return this.get<PromptPage>('/api/v1/prompts/', {
+    return this.get<PromptPage>('/prompts/', {
       params: {
         ...params,
         agentType: 'general' // Filter for General agents only
@@ -600,10 +1042,7 @@ export class PromptManagerClient extends RestClient {
     if (description) {
       formData.append('description', description)
     }
-    return this.post<KnowledgeSource>(
-      `/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/upload`,
-      formData
-    )
+    return this.post<KnowledgeSource>(`/prompts/${encodeURIComponent(promptId)}/knowledge-sources/upload`, formData)
   }
 
   /**
@@ -615,7 +1054,7 @@ export class PromptManagerClient extends RestClient {
     name: string,
     description?: string
   ): Promise<KnowledgeSource> {
-    return this.post<KnowledgeSource>(`/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/url`, {
+    return this.post<KnowledgeSource>(`/prompts/${encodeURIComponent(promptId)}/knowledge-sources/url`, {
       url,
       name,
       description
@@ -631,8 +1070,26 @@ export class PromptManagerClient extends RestClient {
     name: string,
     description?: string
   ): Promise<KnowledgeSource> {
-    return this.post<KnowledgeSource>(`/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/content`, {
+    return this.post<KnowledgeSource>(`/prompts/${encodeURIComponent(promptId)}/knowledge-sources/content`, {
       contentEntryId,
+      name,
+      description
+    })
+  }
+
+  /**
+   * Add catalog as a knowledge source
+   */
+  async addKnowledgeSourceCatalog(
+    promptId: string,
+    catalogIdentifier: string,
+    catalogVersion: string,
+    name: string,
+    description?: string
+  ): Promise<KnowledgeSource> {
+    return this.post<KnowledgeSource>(`/prompts/${encodeURIComponent(promptId)}/knowledge-sources/catalog`, {
+      catalogIdentifier,
+      catalogVersion,
       name,
       description
     })
@@ -643,7 +1100,7 @@ export class PromptManagerClient extends RestClient {
    */
   async removeKnowledgeSource(promptId: string, sourceId: string): Promise<void> {
     await this.delete<void>(
-      `/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/${encodeURIComponent(sourceId)}`
+      `/prompts/${encodeURIComponent(promptId)}/knowledge-sources/${encodeURIComponent(sourceId)}`
     )
   }
 
@@ -652,7 +1109,7 @@ export class PromptManagerClient extends RestClient {
    */
   async getKnowledgeSources(promptId: string): Promise<KnowledgeSource[]> {
     const response = await this.get<{ data: KnowledgeSource[] }>(
-      `/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources`
+      `/prompts/${encodeURIComponent(promptId)}/knowledge-sources`
     )
     return response.data || []
   }

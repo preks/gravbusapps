@@ -1,57 +1,226 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Tabs, TabsContent, Button, Badge } from '@newwork/nw-design-system'
-import { MessageSquare, Calendar as CalendarIcon, Sparkles, Bell } from 'lucide-react'
+import {
+  TabSwitch,
+  TabSwitchList,
+  TabSwitchTrigger,
+  TabSwitchContent,
+  TabSwitchBadge,
+  Button
+} from '@newwork/nw-design-system'
+import { MessageSquare, Calendar as CalendarIcon, Sparkles, Bell, LayoutDashboard } from 'lucide-react'
 import { ArrowsOut } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Chat } from './Chat'
 import { Calendar } from './calendar/Calendar'
 import { EveryAI } from '../every-ai/EveryAI'
 import { RemindersPanel } from './components/RemindersPanel'
+import { EveryOneDashboard } from './components/dashboard'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
+import { GlobalCallContainer } from './components/GlobalCallContainer'
+import { GlobalPreCallSetupDialog } from './components/GlobalPreCallSetupDialog'
+import { createCalendarApiClient } from './calendar/calendarApiClient'
+import { env } from '@/common/env/EnvUtils'
+import { useEmailAccounts } from '../email-apps/hooks/useEmailAccounts'
+import { useExternalCalendarEvents } from '../email-apps/hooks/useExternalCalendarEvents'
+import type { CalendarEvent, CalendarEventSource } from './calendar/types'
+import { InvitationStatus, MeetingStatus } from './calendar/types'
+import type { ExternalCalendarEvent } from '../email-apps/types'
 
-type TabValue = 'everyai' | 'chat' | 'calendar' | 'reminders'
+type TabValue = 'dashboard' | 'everyai' | 'chat' | 'calendar' | 'reminders'
 
 interface ChatWithCalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   defaultTab?: TabValue
 }
 
-/**
- * ChatWithCalendar - Combined EveryAI, Chat, Calendar, and Reminders view
- *
- * This component provides a unified interface for AI assistance, messaging, scheduling, and reminders,
- * allowing users to seamlessly switch between EveryAI conversations, chat conversations,
- * their meeting calendar, and personal reminders.
- */
+// Presence info type (same as in Chat.tsx)
+interface PresenceInfo {
+  state: 'online' | 'offline'
+  lastSeen?: string
+}
+
 const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   accessToken,
   userInfo,
   prefixDataTestId = 'chat-calendar',
-  defaultTab = 'everyai',
+  defaultTab = 'dashboard',
   ...props
 }) => {
   const t = useChatTranslation()
-  const [activeTab, setActiveTab] = useState<TabValue>(defaultTab)
   const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
+  const [presenceMap, setPresenceMap] = useState<Map<string, PresenceInfo>>(new Map())
+  const [activeCalls, setActiveCalls] = useState<Record<string, any>>({})
 
-  // Detect if we're in sidepanel mode (not the fullscreen view)
-  const isInSidepanel = useMemo(() => {
-    if (typeof window === 'undefined') return false
+  // Build API URL for calendar API client
+  const calendarApiUrl = useMemo(() => {
+    let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
+    baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 
-    // In prod mode, check if we're on /platform/chat (actual fullscreen route)
-    if (window.location.pathname === '/platform/chat') return false
+    const chatServiceOverride = env('NEXT_PUBLIC_CHAT_SERVICE_URL')
 
-    // For dev mode with ?app parameter:
-    // In dev, the component is always loaded via ?app parameter
-    // We can't reliably distinguish sidebar from fullscreen in dev mode this way
-    // So in dev mode (when ?app parameter exists), always show the button
-    // This matches EveryAI behavior where button is always visible in dev
-
-    return true // Always show button in dev mode, hide only in prod fullscreen
+    if (chatServiceOverride) {
+      const localUrl = chatServiceOverride.endsWith('/') ? chatServiceOverride.slice(0, -1) : chatServiceOverride
+      return `${localUrl}/api/v1`
+    } else {
+      const isLocalPlatform = baseUrl.includes('localhost')
+      if (isLocalPlatform) {
+        baseUrl = 'https://newwork-dev.newwork.com'
+      }
+      const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
+      if (apiUrl.includes('localhost')) {
+        return `${baseUrl}/chat-service/api/v1`
+      }
+      return apiUrl
+    }
   }, [])
 
-  // Navigate to fullscreen mode
+  // Create calendar API client
+  const calendarApiClient = useMemo(() => {
+    if (!accessToken || !calendarApiUrl) return null
+    return createCalendarApiClient(calendarApiUrl, accessToken)
+  }, [accessToken, calendarApiUrl])
+
+  // External calendar events from email accounts
+  const { accounts: emailAccounts } = useEmailAccounts(accessToken)
+
+  // Calculate a broad date range for external events (current month +/- 1 month)
+  const externalDateRange = useMemo(() => {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0)
+    return { start, end }
+  }, [])
+
+  const { events: rawExternalEvents } = useExternalCalendarEvents({
+    accessToken,
+    accounts: emailAccounts,
+    startDate: externalDateRange.start,
+    endDate: externalDateRange.end,
+    enabled: emailAccounts.length > 0
+  })
+
+  // Map external events to CalendarEvent format for the Calendar component
+  const externalCalendarEvents: CalendarEvent[] = useMemo(() => {
+    return rawExternalEvents
+      .filter(evt => evt.status !== 'cancelled')
+      .map(
+        (evt: ExternalCalendarEvent): CalendarEvent => ({
+          id: evt.id,
+          title: evt.title,
+          description: evt.description,
+          start: new Date(evt.start),
+          end: new Date(evt.end),
+          allDay: evt.allDay,
+          color: evt.provider === 'microsoft' ? '#0078D4' : '#4285F4',
+          status: MeetingStatus.SCHEDULED,
+          participantStatus:
+            evt.responseStatus === 'accepted'
+              ? InvitationStatus.ACCEPTED
+              : evt.responseStatus === 'declined'
+                ? InvitationStatus.DECLINED
+                : evt.responseStatus === 'tentative'
+                  ? InvitationStatus.TENTATIVE
+                  : InvitationStatus.PENDING,
+          isOrganizer: evt.isOrganizer,
+          organizer: {
+            id: '',
+            displayName: evt.organizer?.name || evt.organizer?.email || '',
+            email: evt.organizer?.email || ''
+          },
+          participantCount: evt.attendees?.length || 0,
+          acceptedCount: evt.attendees?.filter(a => a.status === 'accepted').length || 0,
+          participants:
+            evt.attendees?.map(a => ({
+              id: '',
+              email: a.email,
+              firstName: a.name?.split(' ')[0],
+              lastName: a.name?.split(' ').slice(1).join(' '),
+              displayName: a.name || a.email,
+              status:
+                a.status === 'accepted'
+                  ? InvitationStatus.ACCEPTED
+                  : a.status === 'declined'
+                    ? InvitationStatus.DECLINED
+                    : a.status === 'tentative'
+                      ? InvitationStatus.TENTATIVE
+                      : InvitationStatus.PENDING,
+              isOrganizer: false
+            })) || [],
+          meetingLink: evt.meetingLink,
+          location: evt.location,
+          source: evt.provider as CalendarEventSource,
+          externalId: evt.externalId,
+          externalLink: evt.externalLink,
+          isReadOnly: true
+        })
+      )
+  }, [rawExternalEvents])
+
+  const isInSidepanel = useMemo(() => {
+    if (globalThis.window === undefined) return false
+
+    let normalizedPath = globalThis.window.location.pathname
+    while (normalizedPath.length > 1 && normalizedPath.endsWith('/')) {
+      normalizedPath = normalizedPath.slice(0, -1)
+    }
+    // Fullscreen Chat can be mounted as canonical (/platform/chat) or as the app path (/platform/apps/chat) in local/dev.
+    if (normalizedPath === '/platform/chat' || normalizedPath === '/platform/apps/chat') return false
+
+    return true
+  }, [])
+
+  const isNarrowViewport = useMemo(() => {
+    if (globalThis.window === undefined) return false
+    return globalThis.window.innerWidth < 768
+  }, [])
+
+  const isCompactMode = isInSidepanel || isNarrowViewport
+
+  const effectiveDefaultTab = isCompactMode ? 'everyai' : defaultTab
+
+  const [chatInitState] = useState<{
+    tab: TabValue
+    pending: { userId: string; userName?: string; prefilledMessage?: string; metadata?: Record<string, unknown> } | null
+  }>(() => {
+    try {
+      if (globalThis.window === undefined) return { tab: effectiveDefaultTab, pending: null }
+      const raw = sessionStorage.getItem('chatPendingOpenWithUser')
+      if (raw) {
+        sessionStorage.removeItem('chatPendingOpenWithUser')
+        const pending = JSON.parse(raw) as {
+          userId: string
+          userName?: string
+          prefilledMessage?: string
+          metadata?: Record<string, unknown>
+        }
+        return { tab: 'chat', pending }
+      }
+      // On load with URL params (e.g. ?app=...&view=calendar&meetingId=... on localhost), open on the correct tab immediately
+      const viewParam = new URLSearchParams(globalThis.window.location.search).get('view')
+      if (viewParam === 'calendar' || viewParam === 'chat' || viewParam === 'reminders' || viewParam === 'everyai') {
+        const tab: TabValue = viewParam === 'everyai' ? 'everyai' : viewParam
+        return { tab, pending: null }
+      }
+      if (viewParam === 'dashboard') {
+        return { tab: 'dashboard', pending: null }
+      }
+    } catch {
+      // ignore
+    }
+    return { tab: effectiveDefaultTab, pending: null }
+  })
+  const [activeTab, setActiveTab] = useState<TabValue>(chatInitState.tab)
+  const pendingOpenWithUser = chatInitState.pending
+
+  useEffect(() => {
+    if (pendingOpenWithUser) {
+      const url = new URL(globalThis.window.location.href)
+      url.searchParams.set('view', 'chat')
+      globalThis.window.history.replaceState({}, '', url.toString())
+    }
+  }, [pendingOpenWithUser])
+
   const openFullscreen = useCallback(() => {
     // Preserve the current tab when going fullscreen
     const url = `/platform/chat?view=${activeTab}`
@@ -60,11 +229,20 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 
   // Handle URL parameter for initial tab
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
+    if (pendingOpenWithUser) return
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     const viewParam = urlParams.get('view')
 
-    if (viewParam === 'everyai') {
-      setActiveTab('everyai')
+    // In sidepanel mode, don't allow dashboard tab - redirect to everyai
+    if (viewParam === 'dashboard') {
+      if (isCompactMode) {
+        setActiveTab('everyai')
+      } else {
+        setActiveTab('dashboard')
+      }
+    } else if (viewParam === 'everyai') {
+      // EveryAI tab only available in sidebar; in fullscreen fall back to dashboard
+      setActiveTab(isInSidepanel ? 'everyai' : 'dashboard')
     } else if (viewParam === 'calendar') {
       setActiveTab('calendar')
     } else if (viewParam === 'chat') {
@@ -72,46 +250,70 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     } else if (viewParam === 'reminders') {
       setActiveTab('reminders')
     }
-  }, [])
+  }, [isCompactMode, isInSidepanel, pendingOpenWithUser])
 
-  // Listen for custom event to open sidebar with specific tab (e.g., from AI Summary button)
+  // Sync tab from URL on popstate (e.g. user clicks Back to calendar link so calendar + meeting open correctly)
+  useEffect(() => {
+    const syncTabFromUrl = () => {
+      const viewParam = new URLSearchParams(globalThis.window.location.search).get('view')
+      if (viewParam === 'calendar') setActiveTab('calendar')
+      else if (viewParam === 'chat') setActiveTab('chat')
+      else if (viewParam === 'reminders') setActiveTab('reminders')
+      else if (viewParam === 'dashboard') setActiveTab(isCompactMode ? 'everyai' : 'dashboard')
+      else if (viewParam === 'everyai') setActiveTab('everyai')
+    }
+    globalThis.window.addEventListener('popstate', syncTabFromUrl)
+    return () => globalThis.window.removeEventListener('popstate', syncTabFromUrl)
+  }, [isCompactMode])
+
+  // In fullscreen, EveryAI tab is not available; ensure we never stay on it
+  useEffect(() => {
+    if (!isInSidepanel && activeTab === 'everyai') {
+      setActiveTab('dashboard')
+      const url = new URL(globalThis.window.location.href)
+      url.searchParams.set('view', 'dashboard')
+      globalThis.window.history.replaceState({}, '', url.toString())
+    }
+  }, [isInSidepanel, activeTab])
+
+  // Listen for custom event to open sidebar with specific tab
   useEffect(() => {
     const handleChatSidebarOpened = (event: CustomEvent<{ defaultTab?: TabValue }>) => {
       const tab = event.detail?.defaultTab
-      if (tab && (tab === 'everyai' || tab === 'chat' || tab === 'calendar')) {
+      if (tab && (tab === 'dashboard' || tab === 'everyai' || tab === 'chat' || tab === 'calendar')) {
         setActiveTab(tab)
       }
     }
 
-    window.addEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
+    globalThis.window.addEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
     return () => {
-      window.removeEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
+      globalThis.window.removeEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
     }
   }, [])
 
-  // Listen for custom event to switch to chat (e.g., from platform chat opener)
+  // Listen for custom event to switch to chat
   useEffect(() => {
     const handleSwitchToChat = () => {
       setActiveTab('chat')
     }
 
-    window.addEventListener('switchToChat', handleSwitchToChat as EventListener)
+    globalThis.window.addEventListener('switchToChat', handleSwitchToChat as EventListener)
 
     return () => {
-      window.removeEventListener('switchToChat', handleSwitchToChat as EventListener)
+      globalThis.window.removeEventListener('switchToChat', handleSwitchToChat as EventListener)
     }
   }, [activeTab])
 
-  // Listen for custom event to switch to calendar (e.g., from MeetingCard click)
+  // Listen for custom event to switch to calendar
   useEffect(() => {
     const handleSwitchToCalendar = () => {
       setActiveTab('calendar')
       // The Calendar component will handle the date/meetingId from URL params
     }
 
-    window.addEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+    globalThis.window.addEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
     return () => {
-      window.removeEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+      globalThis.window.removeEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
     }
   }, [])
 
@@ -120,14 +322,13 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     setActiveTab(value as TabValue)
 
     // Update URL without page reload
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.window.location.href)
     url.searchParams.set('view', value)
-    window.history.replaceState({}, '', url.toString())
+    globalThis.window.history.replaceState({}, '', url.toString())
   }
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative" data-testid={prefixDataTestId}>
-      {/* Floating fullscreen button (only in sidepanel mode) */}
       {isInSidepanel && (
         <div className="gba:absolute gba:top-4 gba:left-4 gba:z-50">
           <Button
@@ -146,86 +347,189 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full gba:flex gba:flex-col">
-        {/* Tab bar */}
-        <div className="gba:flex gba:justify-center gba:border-b gba:border-border/40">
-          <div className="gba:flex gba:gap-0">
-            <button
-              onClick={() => handleTabChange('everyai')}
-              className={`gba:relative gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:transition-colors ${
-                activeTab === 'everyai' ? 'gba:text-foreground' : 'gba:text-muted-foreground gba:hover:text-foreground'
-              }`}
-              data-testid={`${prefixDataTestId}-everyai-tab`}
-            >
-              <Sparkles className="gba:h-3.5 gba:w-3.5" />
-              <span>{t('chat-tab-everyai')}</span>
-              {activeTab === 'everyai' && (
-                <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
-              )}
-            </button>
-            <button
-              onClick={() => handleTabChange('chat')}
-              className={`gba:relative gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:transition-colors ${
-                activeTab === 'chat' ? 'gba:text-foreground' : 'gba:text-muted-foreground gba:hover:text-foreground'
-              }`}
+      <TabSwitch
+        value={activeTab}
+        onValueChange={handleTabChange}
+        showBottomBorder
+        className="gba:h-full gba:flex gba:flex-col"
+      >
+        <div
+          className={`gba:flex gba:bg-card ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
+        >
+          <TabSwitchList className="gba:overflow-x-auto gba:scrollbar-hide">
+            {!isCompactMode && (
+              <TabSwitchTrigger
+                value="dashboard"
+                startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
+                data-testid={`${prefixDataTestId}-dashboard-tab`}
+              >
+                Dashboard
+              </TabSwitchTrigger>
+            )}
+            {isInSidepanel && (
+              <TabSwitchTrigger
+                value="everyai"
+                startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
+                data-testid={`${prefixDataTestId}-everyai-tab`}
+              >
+                {t('chat-tab-everyai')}
+              </TabSwitchTrigger>
+            )}
+            <TabSwitchTrigger
+              value="chat"
+              startIcon={<MessageSquare className="gba:h-4 gba:w-4" />}
               data-testid={`${prefixDataTestId}-chat-tab`}
             >
-              <MessageSquare className="gba:h-3.5 gba:w-3.5" />
-              <span>{t('chat-tab-chat')}</span>
-              {activeTab === 'chat' && (
-                <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
-              )}
-            </button>
-            <button
-              onClick={() => handleTabChange('calendar')}
-              className={`gba:relative gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:transition-colors ${
-                activeTab === 'calendar' ? 'gba:text-foreground' : 'gba:text-muted-foreground gba:hover:text-foreground'
-              }`}
+              {t('chat-tab-chat')}
+            </TabSwitchTrigger>
+            <TabSwitchTrigger
+              value="calendar"
+              startIcon={<CalendarIcon className="gba:h-4 gba:w-4" />}
               data-testid={`${prefixDataTestId}-calendar-tab`}
             >
-              <CalendarIcon className="gba:h-3.5 gba:w-3.5" />
-              <span>{t('chat-tab-calendar')}</span>
-              {activeTab === 'calendar' && (
-                <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
-              )}
-            </button>
-            <button
-              onClick={() => handleTabChange('reminders')}
-              className={`gba:relative gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:transition-colors ${
-                activeTab === 'reminders'
-                  ? 'gba:text-foreground'
-                  : 'gba:text-muted-foreground gba:hover:text-foreground'
-              }`}
+              {t('chat-tab-calendar')}
+            </TabSwitchTrigger>
+            <TabSwitchTrigger
+              value="reminders"
+              startIcon={<Bell className="gba:h-4 gba:w-4" />}
+              endAdornment={
+                overdueRemindersCount > 0 ? (
+                  <TabSwitchBadge variant="destructive" size="sm">
+                    {overdueRemindersCount}
+                  </TabSwitchBadge>
+                ) : undefined
+              }
               data-testid={`${prefixDataTestId}-reminders-tab`}
             >
-              <Bell className="gba:h-3.5 gba:w-3.5" />
-              <span>{t('chat-tab-reminders')}</span>
-              {overdueRemindersCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="gba:ml-1 gba:h-4 gba:min-w-4 gba:px-1 gba:text-[10px] gba:leading-none gba:flex gba:items-center gba:justify-center"
-                >
-                  {overdueRemindersCount}
-                </Badge>
-              )}
-              {activeTab === 'reminders' && (
-                <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
-              )}
-            </button>
-          </div>
+              {t('chat-tab-reminders')}
+            </TabSwitchTrigger>
+          </TabSwitchList>
         </div>
 
-        {/* Tab content - ensure proper height for mobile web views */}
         {/* Use forceMount to keep all tabs mounted for call persistence */}
-        <TabsContent
-          value="everyai"
-          forceMount
-          className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'everyai' ? 'gba:hidden' : ''}`}
-        >
-          <EveryAI accessToken={accessToken} userInfo={userInfo} {...props} />
-        </TabsContent>
+        {!isCompactMode && (
+          <TabSwitchContent
+            value="dashboard"
+            forceMount
+            className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'dashboard' ? 'gba:hidden' : ''}`}
+          >
+            <EveryOneDashboard
+              accessToken={accessToken}
+              userInfo={userInfo as { displayName?: string; firstName?: string; lastName?: string; email?: string }}
+              isActive={activeTab === 'dashboard'}
+              presenceMap={presenceMap}
+              onOpenChat={userId => {
+                setActiveTab('chat')
+                setTimeout(() => {
+                  globalThis.window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: { userId } }))
+                }, 100)
+              }}
+              onStartCall={(userId, displayName, callType, avatarUrl) => {
+                // Do not switch to Chat tab; PreCall dialog is global and works from any tab
+                setTimeout(() => {
+                  globalThis.window.dispatchEvent(
+                    new CustomEvent('chat:start-call-with-user', {
+                      detail: { userId, displayName, avatarUrl, callType }
+                    })
+                  )
+                }, 100)
+              }}
+              onJoinMeeting={async meeting => {
+                const conversationId = meeting.conversationId ?? meeting.id
+                const callId = meeting.conversationId || meeting.id
+                const isStarting = meeting.isOrganizer && !activeCalls[callId]
+                // Only pass participants when starting (organizer, no active call) so invites are sent; when joining existing call, pass empty
+                let participants: { id: string; odId: string; odName: string; avatarUrl?: string }[] = []
+                if (isStarting && calendarApiClient) {
+                  try {
+                    const fullMeeting = await calendarApiClient.getMeeting(meeting.id)
+                    const list =
+                      fullMeeting.participants
+                        ?.filter(p => p.status !== InvitationStatus.DECLINED)
+                        .map(p => ({
+                          id: p.userId,
+                          odId: p.userId,
+                          odName:
+                            p.user?.displayName ||
+                            `${p.user?.firstName ?? ''} ${p.user?.lastName ?? ''}`.trim() ||
+                            p.user?.email ||
+                            'Unknown',
+                          avatarUrl: p.user?.avatarUrl
+                        })) ?? []
+                    if (fullMeeting.organizer && !list.some(p => p.id === fullMeeting.organizer?.id)) {
+                      list.push({
+                        id: fullMeeting.organizer.id,
+                        odId: fullMeeting.organizer.id,
+                        odName:
+                          fullMeeting.organizer.displayName ||
+                          `${fullMeeting.organizer.firstName ?? ''} ${fullMeeting.organizer.lastName ?? ''}`.trim() ||
+                          fullMeeting.organizer.email ||
+                          'Unknown',
+                        avatarUrl: fullMeeting.organizer.avatarUrl
+                      })
+                    }
+                    participants = list
+                  } catch {
+                    participants =
+                      meeting.participants
+                        ?.filter(p => p.status !== InvitationStatus.DECLINED)
+                        .map(p => ({
+                          id: p.id,
+                          odId: p.id,
+                          odName:
+                            p.displayName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email || 'Unknown',
+                          avatarUrl: p.avatarUrl
+                        })) ?? []
+                    if (meeting.organizer && !participants.some(p => p.id === meeting.organizer?.id)) {
+                      participants.push({
+                        id: meeting.organizer.id,
+                        odId: meeting.organizer.id,
+                        odName:
+                          meeting.organizer.displayName ||
+                          `${meeting.organizer.firstName || ''} ${meeting.organizer.lastName || ''}`.trim() ||
+                          meeting.organizer.email ||
+                          'Unknown',
+                        avatarUrl: meeting.organizer.avatarUrl
+                      })
+                    }
+                  }
+                }
+                // Do not switch to Chat tab; PreCall dialog is global and works from any tab
+                setTimeout(() => {
+                  globalThis.window.dispatchEvent(
+                    new CustomEvent('chat:join-meeting', {
+                      detail: {
+                        meetingId: meeting.id,
+                        conversationId,
+                        title: meeting.title,
+                        participants
+                      }
+                    })
+                  )
+                }, 100)
+              }}
+              data-testid={`${prefixDataTestId}-dashboard`}
+            />
+          </TabSwitchContent>
+        )}
 
-        <TabsContent
+        {isInSidepanel && (
+          <TabSwitchContent
+            value="everyai"
+            forceMount
+            className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'everyai' ? 'gba:hidden' : ''}`}
+          >
+            <EveryAI
+              accessToken={accessToken}
+              userInfo={userInfo}
+              isActive={activeTab === 'everyai'}
+              compactSuggestions={isInSidepanel}
+              {...props}
+            />
+          </TabSwitchContent>
+        )}
+
+        <TabSwitchContent
           value="chat"
           forceMount
           className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'chat' ? 'gba:hidden' : ''}`}
@@ -233,12 +537,16 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           <Chat
             accessToken={accessToken}
             userInfo={userInfo}
+            calendarApiClient={calendarApiClient}
             prefixDataTestId={`${prefixDataTestId}-chat`}
+            onPresenceMapChange={setPresenceMap}
+            onActiveCallsChange={setActiveCalls}
+            initialOpenWithUser={pendingOpenWithUser}
             {...props}
           />
-        </TabsContent>
+        </TabSwitchContent>
 
-        <TabsContent
+        <TabSwitchContent
           value="calendar"
           forceMount
           className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'calendar' ? 'gba:hidden' : ''}`}
@@ -247,11 +555,19 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             prefixDataTestId={`${prefixDataTestId}-calendar`}
+            activeCalls={activeCalls}
+            externalCalendarEvents={externalCalendarEvents}
+            onOpenChat={conversationId => {
+              setActiveTab('chat')
+              setTimeout(() => {
+                globalThis.dispatchEvent(new CustomEvent('chat:open-with-conversation', { detail: { conversationId } }))
+              }, 100)
+            }}
             {...props}
           />
-        </TabsContent>
+        </TabSwitchContent>
 
-        <TabsContent
+        <TabSwitchContent
           value="reminders"
           forceMount
           className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'reminders' ? 'gba:hidden' : ''}`}
@@ -262,8 +578,8 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             onOverdueCountChange={setOverdueRemindersCount}
             t={t}
           />
-        </TabsContent>
-      </Tabs>
+        </TabSwitchContent>
+      </TabSwitch>
     </div>
   )
 }
@@ -275,6 +591,12 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = props => {
   return (
     <TranslationProvider>
       <ChatWithCalendarInner {...props} />
+
+      {/* Global call UI - renders minimized/full call view that persists across tab navigation */}
+      <GlobalCallContainer />
+
+      {/* Global pre-call setup dialog - singleton to prevent duplicates when multiple Chat instances exist */}
+      <GlobalPreCallSetupDialog />
     </TranslationProvider>
   )
 }

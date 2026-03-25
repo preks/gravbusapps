@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react'
-import { Input, Label, Button } from '@newwork/nw-design-system'
+import { Input, Label, Button, DateInput } from '@newwork/nw-design-system'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import {
@@ -18,6 +18,9 @@ import {
   extractFieldType
 } from './utils/formSchemaUtils'
 import { SearchableUuidField } from './SearchableUuidField'
+import { FlowProposalFileField, type FlowProposalFileUploadHints } from './FlowProposalFileField'
+import { useFlowProposalFileUpload } from '../../context/FlowProposalFileUploadContext'
+import { useFlowProposalId } from '../../context/FlowProposalFormContext'
 
 interface SchemaFieldProps {
   name: string
@@ -30,6 +33,8 @@ interface SchemaFieldProps {
   formData: Record<string, any>
   onFieldValueChange?: (path: string, value: any) => void
   accessToken: string
+  /** Flow module name (e.g. customer-relations, investment-relations). Passed to SearchableUuidField for IRM vs CRM label resolution. */
+  moduleName?: string
 }
 
 export const SchemaField: React.FC<SchemaFieldProps> = ({
@@ -42,11 +47,12 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
   onChange,
   formData,
   onFieldValueChange,
-  accessToken
+  accessToken,
+  moduleName
 }) => {
   const fieldPath = path ? `${path}.${name}` : name
   const controlId = sanitizeControlId(fieldPath)
-  const label = formatFieldName(name)
+  const label = String(schema?.title ?? formatFieldName(name))
 
   // Inject styles for react-quill text selection visibility
   useEffect(() => {
@@ -110,8 +116,38 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
   }
 
   const fieldType = extractFieldType(schema)
+  const fileSource = (schema as any)?.['x-fileSource']
+  const fileUploadHints = (schema as any)?.['x-fileUpload'] as FlowProposalFileUploadHints | undefined
+  const isFlowProposalFileField = fileSource === 'flow_proposal' && !!fileUploadHints
+  const flowProposalId = useFlowProposalId()
+  const uploadFlowProposalFiles = useFlowProposalFileUpload()
 
   const renderField = () => {
+    if (isFlowProposalFileField) {
+      if (!flowProposalId) {
+        return (
+          <div className="gba:text-xs gba:text-muted-foreground">
+            File upload is not available (missing flow proposal id).
+          </div>
+        )
+      }
+
+      return (
+        <FlowProposalFileField
+          controlId={controlId}
+          label={label}
+          required={required}
+          disabled={disabled}
+          value={Array.isArray(value) ? value : []}
+          onChange={onChange}
+          onUpload={uploadFlowProposalFiles}
+          flowProposalId={flowProposalId}
+          fieldKey={name}
+          hints={fileUploadHints}
+        />
+      )
+    }
+
     switch (fieldType) {
       case 'string': {
         const rawEnumOptions = schema.enum ?? null
@@ -157,6 +193,9 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
               (value === undefined || value === null ? '' : toOptionId(value))
           )
 
+          // Check if field should be disabled (endAssetConditionRef)
+          const isEndField = name === 'endAssetConditionRef'
+
           return (
             <select
               id={controlId}
@@ -166,7 +205,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 const selected = options.find((opt: SelectOption) => opt.id === e.target.value)
                 onChange(selected ? selected.rawValue : e.target.value)
               }}
-              disabled={disabled}
+              disabled={disabled || isEndField}
             >
               <option value="" disabled>
                 Select {String(label)}
@@ -191,6 +230,24 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 onChange(parsed ?? '')
               }}
               disabled={disabled}
+            />
+          )
+        }
+
+        if (schema.format === 'date') {
+          // Check if field should be disabled (endDate, endAssetConditionRef)
+          const isEndField = name === 'endDate' || name === 'endAssetConditionRef'
+
+          return (
+            <DateInput
+              type="date"
+              value={typeof value === 'string' ? value : ''}
+              onChange={(v: string | [string | null, string | null] | null) => {
+                const dateValue = typeof v === 'string' ? v : ''
+                onChange(dateValue)
+              }}
+              disabled={disabled || isEndField}
+              className="gba:w-full"
             />
           )
         }
@@ -248,6 +305,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
               disabled={disabled}
               value={typeof value === 'string' ? value : (value ?? '')}
               onChange={val => onChange(val)}
+              moduleName={moduleName}
             />
           )
         }
@@ -389,6 +447,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                       formData={formData}
                       onFieldValueChange={onFieldValueChange}
                       accessToken={accessToken}
+                      moduleName={moduleName}
                     />
                   ))}
                 </div>
@@ -441,6 +500,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 formData={formData}
                 onFieldValueChange={onFieldValueChange}
                 accessToken={accessToken}
+                moduleName={moduleName}
               />
             ))}
           </div>
@@ -457,6 +517,10 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
 
   if (schema.type === 'boolean') {
     return renderField()
+  }
+
+  if (isFlowProposalFileField) {
+    return <div className="gba:mb-4">{renderField()}</div>
   }
 
   return (

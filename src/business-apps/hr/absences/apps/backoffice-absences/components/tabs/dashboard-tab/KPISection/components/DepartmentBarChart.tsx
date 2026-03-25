@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
-import { RiBarChartLine } from '@remixicon/react'
+import { ChartBarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface DepartmentBarChartProps {
@@ -13,7 +13,7 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
   return (
     <Card className="gba:hover:shadow-md gba:transition-shadow gba:p-4" data-testid="department-chart-card">
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <RiBarChartLine className="gba:text-info" size={20} />
+        <ChartBarIcon size={20} className="gba:text-info" />
         <div>
           <h5 className="gba:text-sm gba:font-medium gba:m-0">
             {getTranslationFromI18nKeyAndLabel(

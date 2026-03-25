@@ -1,5 +1,6 @@
 # Error Messages
 
+error-title = Error
 error-accessToken = Authentication required. Please log in again.
 error-unauthorized = You are not authorized to perform this action.
 error-forbidden = Access denied. You don't have permission to access this resource.

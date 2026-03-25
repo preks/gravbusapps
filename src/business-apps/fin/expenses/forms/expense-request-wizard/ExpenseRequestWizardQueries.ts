@@ -54,7 +54,6 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
     const formattedDate = formatDateWithTimezone(date)
     const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
 
-    // Use the getResource method
     return await flowClient.getResource(path)
   } catch {
     showToast(
@@ -267,6 +266,10 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     currencyRef
     totalAmount
     expenseRuleId
+    expenseRule {
+      code
+      name
+    }
     status
     reimbursable
     itemOrder
@@ -353,14 +356,18 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
   }
     }`
 
-export const fetchEmployeeExpenseItems = `query FetchEmployeeExpenseItems($employeeId: uuid!, $status: String, $activeUserLocale: String, $limit: Int, $offset: Int, $idsArray: [uuid!], $itemCurrency: String, $titleSearch: String) {
-  ExpenseItemEmployee: ExpenseItem(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_nin: $idsArray}, currencyRef: {_eq: $itemCurrency}, title: {_ilike: $titleSearch}}, limit: $limit, offset: $offset) {
+export const fetchEmployeeExpenseItems = `query FetchEmployeeExpenseItems($employeeId: uuid!, $status: String, $activeUserLocale: String, $limit: Int, $offset: Int, $idsArray: [uuid!], $itemCurrency: String, $titleSearch: String, $expenseRuleId: uuid) {
+  ExpenseItemEmployee: ExpenseItem(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_nin: $idsArray}, currencyRef: {_eq: $itemCurrency}, title: {_ilike: $titleSearch}, _or: [{expenseRuleId: {_eq: $expenseRuleId}}, {expenseRuleId: {_isNull: true}}]}, limit: $limit, offset: $offset) {
     id
     version
     code
     expenseClassRef
     expenseGroupRef
     expenseRuleId
+    expenseRule {
+      code
+      name
+    }
     source
     title
     expenseDate
@@ -428,7 +435,7 @@ export const fetchEmployeeExpenseItems = `query FetchEmployeeExpenseItems($emplo
       createdAt
     }
   }
-  ExpenseItemAggregate(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_nin: $idsArray}, currencyRef: {_eq: $itemCurrency}, title: {_ilike: $titleSearch}}) {
+  ExpenseItemAggregate(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_nin: $idsArray}, currencyRef: {_eq: $itemCurrency}, title: {_ilike: $titleSearch}, _or: [{expenseRuleId: {_eq: $expenseRuleId}}, {expenseRuleId: {_isNull: true}}]}) {
     aggregate {
       count
     }
@@ -437,14 +444,18 @@ export const fetchEmployeeExpenseItems = `query FetchEmployeeExpenseItems($emplo
 
 `
 
-export const fetchEmployeeExpenseItemsFromPayload = `query FetchEmployeeExpenseItems($employeeId: uuid!, $status: String, $activeUserLocale: String, $idsArray: [uuid!], $itemCurrency: String) {
-  ExpenseItemEmployee: ExpenseItem(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_in: $idsArray}, currencyRef: {_eq: $itemCurrency}}) {
+export const fetchEmployeeExpenseItemsFromPayload = `query FetchEmployeeExpenseItems($employeeId: uuid!, $status: String, $activeUserLocale: String, $idsArray: [uuid!], $itemCurrency: String, $expenseRuleId: uuid) {
+  ExpenseItemEmployee: ExpenseItem(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_in: $idsArray}, currencyRef: {_eq: $itemCurrency}, _or: [{expenseRuleId: {_eq: $expenseRuleId}}, {expenseRuleId: {_isNull: true}}]}) {
     id
     version
     code
     expenseClassRef
     expenseGroupRef
     expenseRuleId
+    expenseRule {
+      code
+      name
+    }
     source
     title
     expenseDate
@@ -510,6 +521,21 @@ export const fetchEmployeeExpenseItemsFromPayload = `query FetchEmployeeExpenseI
     }
     expenseItemFile(where: {isDeleted: {_eq: false}}) {
       createdAt
+    }
+  }
+}
+
+`
+
+export const fetchEmployeeExpenseItemsFromPayloadForRuleCheck = `query FetchEmployeeExpenseItemsFromPayloadForRuleCheck($employeeId: uuid!, $status: String, $idsArray: [uuid!], $itemCurrency: String) {
+  ExpenseItemEmployee: ExpenseItem(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status}, isDeleted: {_eq: false}, id: {_in: $idsArray}, currencyRef: {_eq: $itemCurrency}}) {
+    id
+    code
+    title
+    expenseRuleId
+    expenseRule {
+      code
+      name
     }
   }
 }

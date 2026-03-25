@@ -181,11 +181,13 @@ const GET_OPPORTUNITY_TASKS = `
       priority {
         value
       }
-      assignedEmployee {
-        id
-        firstName
-        lastName
-        displayName
+      taskAssignees(where: { isDeleted: { _eq: false } }) {
+        assignedEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
       }
       creatorEmployee {
         id
@@ -313,7 +315,7 @@ function buildOpportunityAssociates(opportunity: OpportunityRecord, contactRecor
     associates.push({
       id: contact.id,
       name: [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim() || undefined,
-      relation: entry.contactType || contact.contactType || 'opportunityContact',
+      relation: entry.contactType || 'opportunityContact',
       role: contact.jobTitle || undefined,
       type: 'contact',
       email: normalizeEmail(contact.email),
@@ -451,14 +453,17 @@ function buildOpportunityActivities(params: { activities: any[]; tasks: any[]; n
       type: normalizedType,
       title: task.name || 'Task',
       occurredAt: task.dueDate || task.createdAt || undefined,
-      relationId: task.assignedEmployee?.id || undefined,
+      relationId: task.taskAssignees?.[0]?.assignedEmployee?.id || undefined,
       meta: compactRecord({
         statusRef: task.statusRef,
         timingType: task.timingType,
         priority: task.priority?.value || task.priorityRef,
         assignedEmployee:
-          task.assignedEmployee?.displayName ||
-          [task.assignedEmployee?.firstName, task.assignedEmployee?.lastName].filter(Boolean).join(' ').trim() ||
+          task.taskAssignees?.[0]?.assignedEmployee?.displayName ||
+          [task.taskAssignees?.[0]?.assignedEmployee?.firstName, task.taskAssignees?.[0]?.assignedEmployee?.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim() ||
           undefined,
         createdBy:
           task.creatorEmployee?.displayName ||

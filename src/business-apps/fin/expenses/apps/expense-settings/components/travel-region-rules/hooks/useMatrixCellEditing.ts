@@ -7,9 +7,9 @@ import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 /**
  * Helper to validate cell amount
  */
-const validateCellAmount = (amount: number): boolean => {
-  if (amount <= 0) {
-    toast.error('Amount must be greater than 0')
+const validateCellAmount = (amount: number | null | undefined): boolean => {
+  if (amount === null || amount === undefined || Number.isNaN(amount)) {
+    toast.error('Amount is required')
     return false
   }
   return true
@@ -164,6 +164,7 @@ const buildCellPayload = (
     activeTo: latestCell.activeTo || null,
     travelRegionRef: latestCell.travelRegionId,
     countryRef: countryRef,
+    home: latestCell.home || false,
     allowanceRegionRule: ruleId,
     ...(latestCell.id && latestCell.version !== undefined && { version: latestCell.version })
   },
@@ -375,6 +376,7 @@ export const useMatrixCellEditing = ({
               ...c,
               id: savedData.id || c.id,
               amount: savedData.amount,
+              home: latestCell.home || false,
               activeFrom: savedData.activeFrom,
               activeTo: savedData.activeTo,
               currencyCode: savedData.currencyCode,

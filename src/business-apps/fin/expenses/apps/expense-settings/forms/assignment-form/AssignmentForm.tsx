@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useEmployeeSelection } from '../../hooks/useEmployeeSelection'
 import { useCompanySelection } from '../../hooks/useCompanySelection'
@@ -14,20 +13,12 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Button,
   Checkbox,
   Alert,
   AlertDescription,
   Spinner,
-  Calendar,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+  DateInput,
   Form,
   FormField,
   FormItem,
@@ -35,7 +26,7 @@ import {
   FormControl,
   FormMessage
 } from '@newwork/nw-design-system'
-import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
+import { FloppyDiskIcon, XIcon, WarningIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -46,10 +37,12 @@ dayjs.extend(localeData)
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { SaveExpenseRuleAssignmentInput, ExpenseRule, ExpenseRuleAssignment } from '../../types/ExpenseRuleTypes'
 import { useGetExpenseRuleAssignmentById } from '../../queries/ExpenseRuleQueries'
+import { formatDateForInput, normalizeDateInputValue, toISOEndOfDay, toISOStartOfDay } from '../../utils'
 import { assignmentFormSchema } from '../../schemas'
 
 export interface AssignmentFormData {
   id?: string
+  assignmentOrder: number
   cascading: boolean
   applicants: boolean
   activeFrom?: string // Optional - null means eternity
@@ -66,6 +59,7 @@ export interface AssignmentFormData {
 interface AssignmentFormProps extends BusinessAppContextProps {
   initialData?: ExpenseRuleAssignment
   availableRules: ExpenseRule[]
+  usedOrderNumbers?: number[]
   isEditing?: boolean
   onSave: (data: SaveExpenseRuleAssignmentInput) => Promise<void>
   onCancel: () => void
@@ -81,20 +75,21 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   accessToken,
   initialData,
   availableRules,
+  usedOrderNumbers = [],
   isEditing = false,
   onSave,
   onCancel,
   loading = false
 }) => {
-  // Feature flag check
-  const isDevEnabled = useFeature('dev.enabled')
-
   // React Hook Form setup with Zod validation
   const form = useForm<AssignmentFormData>({
     resolver: zodResolver(assignmentFormSchema),
     defaultValues: {
+      assignmentOrder: 1,
       cascading: false,
       applicants: false,
+      activeFrom: dayjs().format('YYYY-MM-DD'),
+      activeTo: '9999-12-31',
       expenseRuleId: '',
       employeeId: '',
       companyId: '',
@@ -106,6 +101,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentVersion, setCurrentVersion] = useState<number | undefined>(initialData?.version)
   const [catalogs, setCatalogs] = useState<{
     employmentTypes: CatalogOption[]
     contractTypes: CatalogOption[]
@@ -128,10 +124,31 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   const orgUnitSelection = useOrganizationalUnitSelection(context)
   const siteLocationSelection = useSiteLocationSelection(context)
 
-  // Feature flag guard
-  if (isDevEnabled === false) {
-    return null
-  }
+  // Compute available order numbers (1-100, excluding used ones, but include current if editing)
+  const availableOrderNumbers = useMemo(() => {
+    const MAX_ORDER = 100
+    const currentOrder = initialData?.assignmentOrder
+    const usedSet = new Set(usedOrderNumbers)
+
+    // If editing, exclude the current order from the "used" set so it remains available
+    if (isEditing && currentOrder !== undefined) {
+      usedSet.delete(currentOrder)
+    }
+
+    // Generate available numbers
+    const available: { value: string; label: string }[] = []
+    for (let i = 1; i <= MAX_ORDER; i++) {
+      if (!usedSet.has(i)) {
+        available.push({ value: String(i), label: String(i) })
+      }
+    }
+    return available
+  }, [usedOrderNumbers, initialData?.assignmentOrder, isEditing])
+
+  // Get the first available order number for default
+  const firstAvailableOrder = useMemo(() => {
+    return availableOrderNumbers.length > 0 ? Number.parseInt(availableOrderNumbers[0].value, 10) : 1
+  }, [availableOrderNumbers])
 
   // Load catalog data
   const loadCatalogs = useCallback(async () => {
@@ -184,20 +201,27 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
         try {
           const freshData = await fetchExpenseRuleAssignmentById(initialData.id)
           if (freshData) {
-            form.reset({
+            // Store the version for update operations
+            if (freshData.version !== undefined) {
+              setCurrentVersion(freshData.version)
+            }
+
+            const formValues = {
+              assignmentOrder: freshData.assignmentOrder || 1,
               cascading: freshData.cascading || false,
               applicants: freshData.applicants || false,
-              activeFrom: freshData.activeFrom || '',
-              activeTo: freshData.activeTo || '',
+              activeFrom: formatDateForInput(freshData.activeFrom) || dayjs().format('YYYY-MM-DD'),
+              activeTo: formatDateForInput(freshData.activeTo) || '9999-12-31',
               expenseRuleId: freshData.expenseRuleId || '',
               employeeId: freshData.employeeId || '',
               companyId: freshData.companyId || '',
               organizationalUnitId: freshData.organizationalUnitId || '',
               siteLocationId: freshData.siteLocationId || '',
-              employmentTypeRef: freshData.employmentType?.id || '',
-              contractTypeRef: freshData.contractType?.id || '',
+              employmentTypeRef: freshData.employmentTypeRef || '',
+              contractTypeRef: freshData.contractTypeRef || '',
               id: freshData.id
-            })
+            }
+            form.reset(formValues)
             return
           }
         } catch (error) {
@@ -208,25 +232,30 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
       // Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
-        form.reset({
+        const fallbackValues = {
+          assignmentOrder: initialData.assignmentOrder || 1,
           cascading: initialData.cascading || false,
           applicants: initialData.applicants || false,
-          activeFrom: initialData.activeFrom || '',
-          activeTo: initialData.activeTo || '',
+          activeFrom: formatDateForInput(initialData.activeFrom) || dayjs().format('YYYY-MM-DD'),
+          activeTo: formatDateForInput(initialData.activeTo) || '9999-12-31',
           expenseRuleId: initialData.expenseRuleId || '',
           employeeId: initialData.employeeId || '',
           companyId: initialData.companyId || '',
           organizationalUnitId: initialData.organizationalUnitId || '',
           siteLocationId: initialData.siteLocationId || '',
-          employmentTypeRef: initialData.employmentType?.id || '',
-          contractTypeRef: initialData.contractType?.id || '',
+          employmentTypeRef: initialData.employmentTypeRef || '',
+          contractTypeRef: initialData.contractTypeRef || '',
           id: initialData.id
-        })
+        }
+        form.reset(fallbackValues)
       } else {
         // Set defaults for new assignment
         form.reset({
+          assignmentOrder: 1,
           cascading: false,
           applicants: false,
+          activeFrom: dayjs().format('YYYY-MM-DD'),
+          activeTo: '9999-12-31',
           expenseRuleId: '',
           employeeId: '',
           companyId: '',
@@ -241,25 +270,44 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     loadData()
   }, [initialData?.id, isEditing, fetchExpenseRuleAssignmentById, form])
 
+  // Update order to first available when creating new assignment
+  useEffect(() => {
+    if (!isEditing && !initialData && availableOrderNumbers.length > 0) {
+      const currentOrder = form.getValues('assignmentOrder')
+      const isCurrentOrderAvailable = availableOrderNumbers.some(opt => Number.parseInt(opt.value, 10) === currentOrder)
+      if (!isCurrentOrderAvailable) {
+        form.setValue('assignmentOrder', firstAvailableOrder)
+      }
+    }
+  }, [isEditing, initialData, availableOrderNumbers, firstAvailableOrder, form])
+
+  // Log form errors for debugging
+  const onFormError = (errors: any) => {
+    console.error('❌ Form validation errors:', errors)
+    console.log('📋 Current form values:', form.getValues())
+  }
+
   const handleSubmit = async (data: AssignmentFormData) => {
+    console.log('✅ Form submitted with data:', data)
     try {
       setIsSubmitting(true)
 
       const assignmentData: any = {
         ...(isEditing && initialData?.id ? { id: initialData.id } : {}),
-        ...(initialData?.version ? { version: initialData.version } : {}),
-        assignmentOrder: initialData?.assignmentOrder || 1, // Use existing order or default to 1
+        ...(typeof currentVersion === 'number' ? { version: currentVersion } : {}),
+        assignmentOrder: data.assignmentOrder,
         cascading: data.cascading || false,
         applicants: data.applicants || false,
         expenseRule: data.expenseRuleId
       }
+      console.log('📤 Submitting assignment data:', assignmentData)
 
       // Handle optional dates - use null for eternity
       if (data.activeFrom) {
-        assignmentData.activeFrom = dayjs(data.activeFrom).toISOString()
+        assignmentData.activeFrom = toISOStartOfDay(data.activeFrom)
       }
       if (data.activeTo) {
-        assignmentData.activeTo = dayjs(data.activeTo).toISOString()
+        assignmentData.activeTo = toISOEndOfDay(data.activeTo)
       }
 
       // Handle optional relationships
@@ -294,7 +342,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   if (catalogError) {
     return (
       <Alert data-testid="assignment-form-catalog-error" className="gba:mb-4">
-        <PiWarning className="gba:h-4 gba:w-4" />
+        <WarningIcon className="gba:h-4 gba:w-4" />
         <AlertDescription>{catalogError}</AlertDescription>
         <div className="gba:mt-2">
           <Button variant="outline" onClick={loadCatalogs}>
@@ -310,7 +358,11 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       <Card>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} data-testid="assignment-form" className="gba:space-y-6">
+            <form
+              onSubmit={form.handleSubmit(handleSubmit, onFormError)}
+              data-testid="assignment-form"
+              className="gba:space-y-6"
+            >
               {/* Rule Selection */}
               <Card className="gba:mb-4">
                 <CardHeader>
@@ -332,25 +384,24 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                             )}{' '}
                             *
                           </FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger data-testid="assignment-form-rule-select">
-                                <SelectValue
-                                  placeholder={getTranslationFromI18nKeyAndLabel(
-                                    'expenseSettings.assignment.selectRule',
-                                    'Select expense rule'
-                                  )}
-                                />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {availableRules.map(rule => (
-                                <SelectItem key={rule.id} value={rule.id}>
-                                  {rule.code} {rule.name && ` - ${rule.name}`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <SearchableSelect
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'expenseSettings.assignment.selectRule',
+                                'Select expense rule'
+                              )}
+                              value={field.value}
+                              onChange={field.onChange}
+                              options={availableRules.map(rule => ({
+                                id: rule.id,
+                                value: rule.id,
+                                label: rule.name ? `${rule.code} - ${rule.name}` : rule.code,
+                                name: rule.name || rule.code,
+                                code: rule.code
+                              }))}
+                              data-testid="assignment-form-rule-select"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -518,25 +569,24 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                               'Employment Type'
                             )}
                           </FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger data-testid="assignment-form-employment-type-select">
-                                <SelectValue
-                                  placeholder={getTranslationFromI18nKeyAndLabel(
-                                    'expenseSettings.assignment.selectEmploymentType',
-                                    'Select employment type'
-                                  )}
-                                />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {catalogs.employmentTypes.map(type => (
-                                <SelectItem key={type.id} value={type.id}>
-                                  {type.value}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <SearchableSelect
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'expenseSettings.assignment.selectEmploymentType',
+                                'Select employment type'
+                              )}
+                              value={field.value}
+                              onChange={field.onChange}
+                              options={catalogs.employmentTypes.map(type => ({
+                                id: type.id,
+                                value: type.id,
+                                label: type.value,
+                                name: type.value
+                              }))}
+                              loading={catalogsLoading}
+                              data-testid="assignment-form-employment-type-select"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -553,25 +603,24 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                               'Contract Type'
                             )}
                           </FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger data-testid="assignment-form-contract-type-select">
-                                <SelectValue
-                                  placeholder={getTranslationFromI18nKeyAndLabel(
-                                    'expenseSettings.assignment.selectContractType',
-                                    'Select contract type'
-                                  )}
-                                />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {catalogs.contractTypes.map(type => (
-                                <SelectItem key={type.id} value={type.id}>
-                                  {type.value}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <SearchableSelect
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'expenseSettings.assignment.selectContractType',
+                                'Select contract type'
+                              )}
+                              value={field.value}
+                              onChange={field.onChange}
+                              options={catalogs.contractTypes.map(type => ({
+                                id: type.id,
+                                value: type.id,
+                                label: type.value,
+                                name: type.value
+                              }))}
+                              loading={catalogsLoading}
+                              data-testid="assignment-form-contract-type-select"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -588,12 +637,49 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-4">
+                  {/* Order Field */}
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:mb-4">
+                    <FormField
+                      control={form.control}
+                      name="assignmentOrder"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.order', 'Order')} *
+                          </FormLabel>
+                          <FormControl>
+                            <SearchableSelect
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'expenseSettings.assignment.selectOrder',
+                                'Select order'
+                              )}
+                              value={field.value ? String(field.value) : ''}
+                              onChange={val => field.onChange(val ? Number.parseInt(val, 10) : firstAvailableOrder)}
+                              options={availableOrderNumbers.map(opt => ({
+                                id: opt.value,
+                                value: opt.value,
+                                label: opt.label,
+                                name: opt.label
+                              }))}
+                              data-testid="assignment-form-order-select"
+                            />
+                          </FormControl>
+                          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'expense-settings:assignment_order_hint',
+                              'Lower numbers have higher priority. Each order must be unique.'
+                            )}
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name="cascading"
                       render={({ field }) => (
-                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0 gba:pt-8">
                           <FormControl>
                             <Checkbox
                               checked={field.value}
@@ -612,7 +698,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                       control={form.control}
                       name="applicants"
                       render={({ field }) => (
-                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0 gba:pt-8">
                           <FormControl>
                             <Checkbox
                               checked={field.value}
@@ -640,30 +726,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                           <FormLabel>
                             {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.activeFrom', 'Active From')}
                           </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  className="gba:w-full gba:justify-start gba:text-left gba:font-normal"
-                                  data-testid="assignment-form-active-from-trigger"
-                                >
-                                  {field.value
-                                    ? dayjs(field.value).format('YYYY-MM-DD')
-                                    : 'Always active (empty = eternity)'}
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="gba:w-auto gba:p-0">
-                              <Calendar
-                                mode="single"
-                                selected={field.value ? new Date(field.value) : undefined}
-                                onSelect={(date: Date | undefined) =>
-                                  field.onChange(date ? dayjs(date).toISOString() : '')
-                                }
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <FormControl>
+                            <DateInput
+                              value={field.value || ''}
+                              onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                              outputFormat="iso"
+                              data-testid="assignment-form-active-from"
+                            />
+                          </FormControl>
                           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                             Leave empty for 'always active from the beginning'
                           </p>
@@ -680,33 +750,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                           <FormLabel>
                             {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.activeTo', 'Active To')}
                           </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  className="gba:w-full gba:justify-start gba:text-left gba:font-normal"
-                                  data-testid="assignment-form-active-to-trigger"
-                                >
-                                  {field.value ? dayjs(field.value).format('YYYY-MM-DD') : 'Ongoing (empty = eternity)'}
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="gba:w-auto gba:p-0">
-                              <Calendar
-                                mode="single"
-                                selected={field.value ? new Date(field.value) : undefined}
-                                onSelect={(date: Date | undefined) =>
-                                  field.onChange(date ? dayjs(date).toISOString() : '')
-                                }
-                                disabled={date => {
-                                  const activeFrom = form.getValues('activeFrom')
-                                  if (!activeFrom) return false
-                                  return date < new Date(activeFrom)
-                                }}
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <FormControl>
+                            <DateInput
+                              value={field.value || ''}
+                              onChange={date => field.onChange(normalizeDateInputValue(date))}
+                              outputFormat="iso"
+                              data-testid="assignment-form-active-to"
+                            />
+                          </FormControl>
                           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                             Leave empty for 'ongoing/never expires'
                           </p>
@@ -726,7 +777,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                   data-testid="assignment-form-save-button"
                   className="gba:flex gba:items-center gba:gap-2"
                 >
-                  {isSubmitting || loading ? <Spinner size="sm" /> : <PiFloppyDisk className="gba:h-4 gba:w-4" />}
+                  {isSubmitting || loading ? <Spinner size="sm" /> : <FloppyDiskIcon className="gba:h-4 gba:w-4" />}
                   {isEditing
                     ? getTranslationFromI18nKeyAndLabel(
                         'expenseSettings.assignment.updateAssignment',
@@ -744,7 +795,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                   data-testid="assignment-form-cancel-button"
                   className="gba:flex gba:items-center gba:gap-2"
                 >
-                  <PiX className="gba:h-4 gba:w-4" />
+                  <XIcon className="gba:h-4 gba:w-4" />
                   {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.cancel', 'Cancel')}
                 </Button>
               </div>

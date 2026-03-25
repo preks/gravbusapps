@@ -1,13 +1,13 @@
 import React from 'react'
 import { Card, Row, Col, Statistic, Alert, Typography } from 'antd'
 import {
-  ShoppingCartOutlined,
-  EuroOutlined,
-  FileTextOutlined,
-  ClockCircleOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined
-} from '@ant-design/icons'
+  ShoppingCartIcon,
+  CurrencyEurIcon,
+  FileTextIcon,
+  ClockIcon,
+  ArrowUpIcon,
+  ArrowDownIcon
+} from '@phosphor-icons/react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useSalesOrderData } from '../../../hooks/useSalesOrderData'
@@ -49,7 +49,7 @@ const SalesOrderDashboardTab: React.FC<SalesOrderDashboardTabProps> = ({
   const getTrendDisplay = (trend: number) => {
     const isPositive = trend > 0
     const color = isPositive ? '#52c41a' : trend < 0 ? '#ff4d4f' : '#faad14'
-    const icon = isPositive ? <ArrowUpOutlined /> : trend < 0 ? <ArrowDownOutlined /> : null
+    const icon = isPositive ? <ArrowUpIcon size={16} /> : trend < 0 ? <ArrowDownIcon size={16} /> : null
     return { color, icon, text: `${Math.abs(trend).toFixed(1)}%` }
   }
 
@@ -72,7 +72,7 @@ const SalesOrderDashboardTab: React.FC<SalesOrderDashboardTabProps> = ({
         value: kpiData.totalSalesOrders.value,
         trend: kpiData.totalSalesOrders.trend,
         period: kpiData.totalSalesOrders.period,
-        icon: <ShoppingCartOutlined />,
+        icon: <ShoppingCartIcon size={16} />,
         onClick: () => handleKPIClick('totalOrders')
       },
       {
@@ -81,7 +81,7 @@ const SalesOrderDashboardTab: React.FC<SalesOrderDashboardTabProps> = ({
         value: formatCurrency(kpiData.totalOrderValue.value, kpiData.totalOrderValue.currency),
         trend: kpiData.totalOrderValue.trend,
         period: kpiData.totalOrderValue.period,
-        icon: <EuroOutlined />,
+        icon: <CurrencyEurIcon size={16} />,
         onClick: () => handleKPIClick('totalValue')
       },
       {
@@ -90,7 +90,7 @@ const SalesOrderDashboardTab: React.FC<SalesOrderDashboardTabProps> = ({
         value: kpiData.openOrders.value,
         trend: kpiData.openOrders.trend,
         period: kpiData.openOrders.period,
-        icon: <FileTextOutlined />,
+        icon: <FileTextIcon size={16} />,
         onClick: () => handleKPIClick('openOrders')
       },
       {
@@ -99,7 +99,7 @@ const SalesOrderDashboardTab: React.FC<SalesOrderDashboardTabProps> = ({
         value: kpiData.pendingApproval.value,
         trend: kpiData.pendingApproval.trend,
         period: kpiData.pendingApproval.period,
-        icon: <ClockCircleOutlined />,
+        icon: <ClockIcon size={16} />,
         onClick: () => handleKPIClick('pendingApproval')
       }
     ]

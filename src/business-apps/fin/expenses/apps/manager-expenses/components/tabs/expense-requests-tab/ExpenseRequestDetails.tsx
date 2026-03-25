@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { Separator, Button, Badge } from '@newwork/nw-design-system'
 import { getExpenseRequestStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PiArrowRight, PiCheckCircle, PiXCircle } from 'react-icons/pi'
+import { ArrowRightIcon, CheckCircleIcon, XCircleIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
@@ -120,7 +120,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
                 data-testid="expense-request-approve-button"
               >
                 {getTranslationFromI18nKeyAndLabel('expense_request_approve', 'Approve')}
-                <PiCheckCircle className="gba:h-4 gba:w-4" />
+                <CheckCircleIcon className="gba:h-4 gba:w-4" />
               </Button>
             )}
             {canReject && onReject && (
@@ -131,7 +131,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
                 data-testid="expense-request-reject-button"
               >
                 {getTranslationFromI18nKeyAndLabel('expense_request_reject', 'Reject')}
-                <PiXCircle className="gba:h-4 gba:w-4" />
+                <XCircleIcon className="gba:h-4 gba:w-4" />
               </Button>
             )}
             <Button
@@ -145,7 +145,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
               }}
               data-testid="expense-request-view-details-button"
             >
-              <PiArrowRight className="gba:mr-2" />
+              <ArrowRightIcon className="gba:mr-2" />
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.plan_details.view_full_details',
                 'View Full Details'
@@ -154,6 +154,8 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           </div>
         </>
       }
+      expenseRequestId={request?.id}
+      accessToken={contextProps.accessToken}
     />
   )
 }

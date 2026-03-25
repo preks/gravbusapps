@@ -5,7 +5,7 @@
  */
 
 import { useCallback } from 'react'
-import { message } from 'antd'
+import { toast } from '@newwork/nw-design-system'
 import { UnifiedTask } from '../types'
 import { env } from '@/common/env/EnvUtils'
 
@@ -105,7 +105,7 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
         // Fallback: Build endpoint manually if no original endpoint available
         if (!processInstanceId) {
           const error = new Error('Cannot complete task: missing process instance ID and no original endpoint')
-          message.error(error.message)
+          toast.error(error.message)
           onError?.(error)
           throw error
         }
@@ -129,7 +129,7 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
       if (!response.ok) {
         const errorText = await response.text()
         const err = new Error(`HTTP ${response.status}: ${errorText}`)
-        message.error(`Failed to complete task: ${err.message}`)
+        toast.error(`Failed to complete task: ${err.message}`)
         onError?.(err)
         throw err
       }

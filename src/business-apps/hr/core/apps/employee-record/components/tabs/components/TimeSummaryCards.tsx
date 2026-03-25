@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Card, ItemMedia, useTranslation } from '@newwork/nw-design-system'
+import { Card, CardContent, ItemMedia, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   FolderIcon,
@@ -46,80 +46,88 @@ const TimeSummaryCards: React.FC<TimeSummaryCardsProps> = ({
         className="gba:grid gba:grid-cols-1 gba:md:grid-cols-4 gba:gap-4"
         data-testid="time-tracking-monthly-summary"
       >
-        <Card className="gba:p-6 gba:gap-0">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:text-base gba:font-semibold">
+        <Card>
+          <CardContent className="gba:p-6 gba:gap-0">
+            <div className="gba:flex gba:items-start gba:justify-between">
+              <div className="gba:text-base gba:font-semibold">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:time_tracking.summary.required_month',
+                  'Required this month'
+                )}
+              </div>
+              <ItemMedia variant="icon" icon={CalendarBlankIcon} iconVariant="decorative" />
+            </div>
+            <div className="gba:text-4xl gba:font-bold">{fmt(monthlyRequiredMinutes)}</div>
+            <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.summary.required_month',
-                'Required this month'
+                'lowcoder:time_tracking.summary.required_month_desc',
+                'Total required hours'
               )}
             </div>
-            <ItemMedia variant="icon" icon={CalendarBlankIcon} iconVariant="decorative" />
-          </div>
-          <div className="gba:text-4xl gba:font-bold">{fmt(monthlyRequiredMinutes)}</div>
-          <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:time_tracking.summary.required_month_desc',
-              'Total required hours'
-            )}
-          </div>
+          </CardContent>
         </Card>
 
-        <Card className="gba:p-6 gba:gap-0">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:text-base gba:font-semibold">
+        <Card>
+          <CardContent className="gba:p-6 gba:gap-0">
+            <div className="gba:flex gba:items-start gba:justify-between">
+              <div className="gba:text-base gba:font-semibold">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:time_tracking.summary.required_until_today',
+                  'Required until today'
+                )}
+              </div>
+              <ItemMedia variant="icon" icon={ClockIcon} iconVariant="decorative" />
+            </div>
+            <div className="gba:text-4xl gba:font-bold">{fmt(monthlyRequiredUntilYesterdayMinutes)}</div>
+            <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.summary.required_until_today',
-                'Required until today'
+                'lowcoder:time_tracking.summary.required_until_today_desc',
+                'Target up to yesterday'
               )}
             </div>
-            <ItemMedia variant="icon" icon={ClockIcon} iconVariant="decorative" />
-          </div>
-          <div className="gba:text-4xl gba:font-bold">{fmt(monthlyRequiredUntilYesterdayMinutes)}</div>
-          <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:time_tracking.summary.required_until_today_desc',
-              'Target up to yesterday'
-            )}
-          </div>
+          </CardContent>
         </Card>
 
-        <Card className="gba:p-6 gba:gap-0">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:text-base gba:font-semibold">
+        <Card>
+          <CardContent className="gba:p-6 gba:gap-0">
+            <div className="gba:flex gba:items-start gba:justify-between">
+              <div className="gba:text-base gba:font-semibold">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:time_tracking.summary.worked_until_today',
+                  'Worked until today'
+                )}
+              </div>
+              <ItemMedia variant="icon" icon={SunIcon} iconVariant="decorative" />
+            </div>
+            <div className="gba:text-4xl gba:font-bold">{fmt(monthlyWorkedUntilYesterdayMinutes)}</div>
+            <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.summary.worked_until_today',
-                'Worked until today'
+                'lowcoder:time_tracking.summary.worked_until_today_desc',
+                'Logged up to yesterday'
               )}
             </div>
-            <ItemMedia variant="icon" icon={SunIcon} iconVariant="decorative" />
-          </div>
-          <div className="gba:text-4xl gba:font-bold">{fmt(monthlyWorkedUntilYesterdayMinutes)}</div>
-          <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:time_tracking.summary.worked_until_today_desc',
-              'Logged up to yesterday'
-            )}
-          </div>
+          </CardContent>
         </Card>
 
-        <Card className="gba:p-6 gba:gap-0">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:text-base gba:font-semibold">
+        <Card>
+          <CardContent className="gba:p-6 gba:gap-0">
+            <div className="gba:flex gba:items-start gba:justify-between">
+              <div className="gba:text-base gba:font-semibold">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:time_tracking.summary.missing_vs_required',
+                  'Missing vs required'
+                )}
+              </div>
+              <ItemMedia variant="icon" icon={CalculatorIcon} iconVariant="decorative" />
+            </div>
+            <div className="gba:text-4xl gba:font-bold">{fmt(missingMinutes)}</div>
+            <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.summary.missing_vs_required',
-                'Missing vs required'
+                'lowcoder:time_tracking.summary.missing_vs_required_desc',
+                'Hours needed to reach target'
               )}
             </div>
-            <ItemMedia variant="icon" icon={CalculatorIcon} iconVariant="decorative" />
-          </div>
-          <div className="gba:text-4xl gba:font-bold">{fmt(missingMinutes)}</div>
-          <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:time_tracking.summary.missing_vs_required_desc',
-              'Hours needed to reach target'
-            )}
-          </div>
+          </CardContent>
         </Card>
       </div>
 
@@ -127,20 +135,24 @@ const TimeSummaryCards: React.FC<TimeSummaryCardsProps> = ({
         className="gba:mt-4 gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4"
         data-testid="time-tracking-monthly-secondary"
       >
-        <Card className="gba:p-6 gba:gap-0">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:text-base gba:font-semibold">{t('daily_average')}</div>
-            <ItemMedia variant="icon" icon={FolderIcon} iconVariant="decorative" />
-          </div>
-          <div className="gba:text-4xl gba:font-bold">{fmt(dailyAverageWorkedMinutesUntilYesterday)}</div>
+        <Card>
+          <CardContent className="gba:p-6 gba:gap-0">
+            <div className="gba:flex gba:items-start gba:justify-between">
+              <div className="gba:text-base gba:font-semibold">{t('daily_average')}</div>
+              <ItemMedia variant="icon" icon={FolderIcon} iconVariant="decorative" />
+            </div>
+            <div className="gba:text-4xl gba:font-bold">{fmt(dailyAverageWorkedMinutesUntilYesterday)}</div>
+          </CardContent>
         </Card>
 
-        <Card className="gba:p-6 gba:gap-0">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:text-base gba:font-semibold">{t('overtime')}</div>
-            <ItemMedia variant="icon" icon={CurrencyDollarIcon} iconVariant="decorative" />
-          </div>
-          <div className="gba:text-4xl gba:font-bold">{fmt(overtimeMinutesUntilYesterday)}</div>
+        <Card>
+          <CardContent className="gba:p-6 gba:gap-0">
+            <div className="gba:flex gba:items-start gba:justify-between">
+              <div className="gba:text-base gba:font-semibold">{t('overtime')}</div>
+              <ItemMedia variant="icon" icon={CurrencyDollarIcon} iconVariant="decorative" />
+            </div>
+            <div className="gba:text-4xl gba:font-bold">{fmt(overtimeMinutesUntilYesterday)}</div>
+          </CardContent>
         </Card>
       </div>
     </div>

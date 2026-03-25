@@ -2,14 +2,12 @@ import React, { Dispatch, SetStateAction, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useTranslation } from 'react-i18next'
 import type { Team } from '../../apps/organizational-data/types'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 
 const DATA_TEST_ID_PREFIX = 'TeamForm'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 export interface TeamFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -36,7 +34,7 @@ export const TeamForm: React.FC<TeamFormProps> = ({
   teamsCount
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const orgchartClient = useOrgchartClient(accessToken)
   const { t } = useTranslation('master-data')
 
   const [loading, setLoading] = useState(false)
@@ -65,12 +63,12 @@ export const TeamForm: React.FC<TeamFormProps> = ({
 
       if (team) {
         // Update existing team
-        await restClient.put(`/matrix-units/${team.id}`, teamData, {
+        await orgchartClient.updateMatrixUnit(team.id, teamData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       } else {
         // Create new team
-        await restClient.post('/matrix-units', teamData, {
+        await orgchartClient.createMatrixUnit(teamData, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       }

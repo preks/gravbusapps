@@ -6,6 +6,7 @@ import { useVoiceFormContext } from '../context/VoiceFormContext'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { FormHeader, FormActions, FormStatusMessages, SchemaField, SecondaryCollapsible } from './forms'
 import { formatFlowName } from './forms/utils/formSchemaUtils'
+import { FlowProposalFormProvider } from '../context/FlowProposalFormContext'
 
 interface DynamicFormDisplayProps {
   data: FlowProposalOutput
@@ -474,16 +475,26 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         const currentFormData = formDataRef.current
         console.log('[DynamicFormDisplay] Submitting with formData:', currentFormData)
 
+        // Merge original proposal entity with current form data so that pre-filled/extracted
+        // values (e.g. opportunity, creatorEmployee) are preserved when the form or select
+        // didn't keep them (e.g. Combobox cleared value when option wasn't in list yet).
+        const originalEntity =
+          objectKey && (sourceType === 'task' ? data.arguments?.task?.[objectKey] : data.arguments?.flow?.[objectKey])
+        const mergedEntity =
+          typeof originalEntity === 'object' && originalEntity !== null
+            ? { ...originalEntity, ...currentFormData }
+            : currentFormData
+
         const updatedArguments = { ...data.arguments }
         if (objectKey && sourceType === 'task' && updatedArguments.task?.[objectKey]) {
           updatedArguments.task = {
             ...updatedArguments.task,
-            [objectKey]: currentFormData
+            [objectKey]: mergedEntity
           }
         } else if (objectKey && sourceType === 'flow' && updatedArguments.flow?.[objectKey]) {
           updatedArguments.flow = {
             ...updatedArguments.flow,
-            [objectKey]: currentFormData
+            [objectKey]: mergedEntity
           }
         } else {
           updatedArguments.flow = {
@@ -971,52 +982,60 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
             </div>
           ) : (
             // Regular form with all fields
-            <div className="gba:space-y-4">
-              {/* PRIMARY fields first */}
-              {primaryFields.map(([fieldName, fieldSchema]) => {
-                if (fieldSchema == null || typeof fieldSchema !== 'object') {
-                  console.warn('[EveryAI][DynamicFormDisplay] skipping non-object schema field', fieldName, fieldSchema)
-                  return null
-                }
+            <FlowProposalFormProvider flowProposalId={data.uuid}>
+              <div className="gba:space-y-4">
+                {/* PRIMARY fields first */}
+                {primaryFields.map(([fieldName, fieldSchema]) => {
+                  if (fieldSchema == null || typeof fieldSchema !== 'object') {
+                    console.warn(
+                      '[EveryAI][DynamicFormDisplay] skipping non-object schema field',
+                      fieldName,
+                      fieldSchema
+                    )
+                    return null
+                  }
 
-                try {
-                  return (
-                    <SchemaField
-                      key={fieldName}
-                      name={fieldName}
-                      path=""
-                      schema={fieldSchema}
-                      required={schema.required?.includes(fieldName) || false}
-                      disabled={isCompleted}
-                      value={formData[fieldName]}
-                      onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
-                      formData={formData}
-                      onFieldValueChange={handleFieldValueChange}
-                      accessToken={accessToken}
-                    />
-                  )
-                } catch (error) {
-                  console.error('[EveryAI][DynamicFormDisplay] failed to render field', fieldName, error)
-                  return (
-                    <div key={`field-error-${fieldName}`} className="gba:text-sm gba:text-destructive">
-                      Unable to render field "{fieldName}". Please contact support.
-                    </div>
-                  )
-                }
-              })}
-              {/* SECONDARY fields in collapsible */}
-              {secondaryFields.length > 0 && (
-                <SecondaryCollapsible
-                  fields={secondaryFields}
-                  requiredFields={requiredFields}
-                  isCompleted={isCompleted}
-                  formData={formData}
-                  onFieldValueChange={handleFieldValueChange}
-                  onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
-                  accessToken={accessToken}
-                />
-              )}
-            </div>
+                  try {
+                    return (
+                      <SchemaField
+                        key={fieldName}
+                        name={fieldName}
+                        path=""
+                        schema={fieldSchema}
+                        required={schema.required?.includes(fieldName) || false}
+                        disabled={isCompleted}
+                        value={formData[fieldName]}
+                        onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                        formData={formData}
+                        onFieldValueChange={handleFieldValueChange}
+                        accessToken={accessToken}
+                        moduleName={data.module_name}
+                      />
+                    )
+                  } catch (error) {
+                    console.error('[EveryAI][DynamicFormDisplay] failed to render field', fieldName, error)
+                    return (
+                      <div key={`field-error-${fieldName}`} className="gba:text-sm gba:text-destructive">
+                        Unable to render field "{fieldName}". Please contact support.
+                      </div>
+                    )
+                  }
+                })}
+                {/* SECONDARY fields in collapsible */}
+                {secondaryFields.length > 0 && (
+                  <SecondaryCollapsible
+                    fields={secondaryFields}
+                    requiredFields={requiredFields}
+                    isCompleted={isCompleted}
+                    formData={formData}
+                    onFieldValueChange={handleFieldValueChange}
+                    onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                    accessToken={accessToken}
+                    moduleName={data.module_name}
+                  />
+                )}
+              </div>
+            </FlowProposalFormProvider>
           )}
 
           <FormStatusMessages isFlowCompleted={isFlowCompleted} hasError={hasError} isCancelled={isCancelled} />

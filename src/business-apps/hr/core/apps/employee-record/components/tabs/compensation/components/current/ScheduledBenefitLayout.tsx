@@ -29,54 +29,56 @@ const ScheduledBenefitLayout: React.FC<ScheduledBenefitLayoutProps> = ({
   valueDisplay
 }) => {
   return (
-    <div className="gba:flex gba:justify-between gba:gap-3">
-      {/* Left side: Benefit info stacked */}
-      <BenefitInfoSection
-        t={t}
-        benefit={benefit}
-        currencyCode={currencyCode}
-        locale={locale}
-        valueDisplay={valueDisplay}
-      >
-        {/* Scheduled-specific: Badge with Start Date */}
-        {benefit.startDate && (
-          <div
-            className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-foreground gba:bg-info-secondary gba:px-2 gba:py-1 gba:rounded-md gba:mt-2"
-            data-testid={`benefit-scheduled-badge-${benefit.code}`}
+    <div className="gba:flex gba:flex-col gba:min-h-0 gba:h-full">
+      {/* Top row: benefit info + actions (variable height) */}
+      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:justify-between gba:gap-3">
+        <BenefitInfoSection
+          t={t}
+          benefit={benefit}
+          currencyCode={currencyCode}
+          locale={locale}
+          valueDisplay={valueDisplay}
+        />
+
+        <div
+          className="gba:flex gba:flex-col gba:gap-1 gba:shrink-0 gba:w-auto gba:min-w-32"
+          data-testid={`benefit-actions-${benefit.code}`}
+        >
+          {onViewDetails && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewDetails}
+              className="gba:w-full"
+              data-testid={`benefit-catalog-details-button-${benefit.code}`}
+            >
+              <span className="gba:truncate">{t('benefit-view-details')}</span>
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={true}
+            className="gba:w-full gba:opacity-50 gba:cursor-not-allowed"
+            data-testid={`benefit-catalog-request-button-disabled-${benefit.code}`}
           >
+            <span className="gba:truncate">{t('benefit-already-scheduled')}</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Fixed bottom: Scheduled badge (aligned across all cards) */}
+      {benefit.startDate && (
+        <div className="gba:mt-auto gba:shrink-0 gba:pt-2" data-testid={`benefit-scheduled-badge-${benefit.code}`}>
+          <div className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-decorative-secondary-foreground gba:bg-decorative-secondary gba:py-1 gba:rounded-md">
             <span className="gba:font-semibold">{t('benefit-scheduled-badge')}</span>
             <span>•</span>
             <span>
               {t('benefit-starts-on')} {formatDate(benefit.startDate, 'date.short')}
             </span>
           </div>
-        )}
-      </BenefitInfoSection>
-
-      {/* Right side: Action buttons stacked */}
-      <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-32" data-testid={`benefit-actions-${benefit.code}`}>
-        {onViewDetails && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onViewDetails}
-            className="gba:w-full"
-            data-testid={`benefit-catalog-details-button-${benefit.code}`}
-          >
-            {t('benefit-view-details')}
-          </Button>
-        )}
-        {/* Disabled Request Button - Cannot request already scheduled benefit */}
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={true}
-          className="gba:w-full gba:opacity-50 gba:cursor-not-allowed"
-          data-testid={`benefit-catalog-request-button-disabled-${benefit.code}`}
-        >
-          {t('benefit-already-scheduled')}
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   )
 }

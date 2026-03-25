@@ -57,7 +57,11 @@ export interface TaskSegmentProps {
   // Type selection control
   initialTypeRef?: string | null
   hideTypeSelection?: boolean
+  disableTypeSelection?: boolean // Make type field read-only
   catalogSelectConfig?: CatalogSelectConfig // Configuration for catalog filtering
+
+  // Assignee selection control
+  hideAssigneeSelection?: boolean
 
   // Entity selection (still needs entities array until EntitySelect is refactored)
   showEntitySelection?: boolean
@@ -99,7 +103,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   accessToken,
   businessAppContext,
   assignedEmployee,
-  multiAssigneeMode = true, // Multi-assignee support is now the default
+  multiAssigneeMode = false, // Single assignee (EmployeeSelect) for normal tasks; set true for approval tasks (MultiEmployeeSelect)
   assignedEmployees = [],
   entityId,
   typeCatalog,
@@ -107,7 +111,9 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   // statusCatalog kept in props for backwards compatibility, backend now computes status
   initialTypeRef,
   hideTypeSelection = false,
+  disableTypeSelection = false,
   catalogSelectConfig,
+  hideAssigneeSelection = false,
   showEntitySelection = false,
   entities = [],
   entitiesLoading = false,
@@ -335,10 +341,11 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                 <FormControl>
                   <CatalogSelect
                     catalogIdentifier={typeCatalog}
-                    prefetch={true}
+                    prefetch={false}
                     value={field.value || ''}
                     onValueChange={field.onChange}
                     config={catalogSelectConfig}
+                    disabled={disableTypeSelection}
                     data-testid={`${dataTestId}-type`}
                   />
                 </FormControl>
@@ -377,65 +384,67 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           - Multi-select mode: array with multiple elements
           - Single-select mode: array with max 1 element (enforced by Zod validation)
           This unified approach matches the backend's taskAssignees array structure.
+          Hidden in update mode as tasks cannot be reassigned.
       */}
-      {multiAssigneeMode ? (
-        <FormField
-          control={form.control as any}
-          name="assignedEmployeeIds"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Assignees</FormLabel>
-              <FormControl>
-                <MultiEmployeeSelect
-                  accessToken={accessToken}
-                  initialEmployees={assignedEmployees as any}
-                  value={field.value || []}
-                  onValueChange={employeeIds => {
-                    field.onChange(employeeIds)
-                  }}
-                  onEmployeesChange={employees => {
-                    form.setValue('assignedEmployees', employees)
-                  }}
-                  placeholder="Add assignees..."
-                  searchPlaceholder="Search employees..."
-                  data-testid={`${dataTestId}-assignees`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      ) : (
-        <FormField
-          control={form.control as any}
-          name="assignedEmployeeIds"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('task-assignee-label')}</FormLabel>
-              <FormControl>
-                <EmployeeSelect
-                  accessToken={accessToken}
-                  businessAppContext={businessAppContext}
-                  initialEmployee={assignedEmployee}
-                  autoSelect={isNewEntity ? 'current-user' : undefined}
-                  value={field.value?.[0] || ''} // Extract single value from array
-                  onValueChange={(v: string | null) => {
-                    // Convert single value to array format (backend expects array)
-                    const newValue = v ? [v] : []
-                    field.onChange(newValue)
-                  }}
-                  onEmployeeChange={(employee: any) => {
-                    // Set assignedEmployees as array with single employee
-                    form.setValue('assignedEmployees', employee ? [employee] : [])
-                  }}
-                  data-testid={`${dataTestId}-assignee`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
+      {!hideAssigneeSelection &&
+        (multiAssigneeMode ? (
+          <FormField
+            control={form.control as any}
+            name="assignedEmployeeIds"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Assignees</FormLabel>
+                <FormControl>
+                  <MultiEmployeeSelect
+                    accessToken={accessToken}
+                    initialEmployees={assignedEmployees as any}
+                    value={field.value || []}
+                    onValueChange={employeeIds => {
+                      field.onChange(employeeIds)
+                    }}
+                    onEmployeesChange={employees => {
+                      form.setValue('assignedEmployees', employees)
+                    }}
+                    placeholder="Add assignees..."
+                    searchPlaceholder="Search employees..."
+                    data-testid={`${dataTestId}-assignees`}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : (
+          <FormField
+            control={form.control as any}
+            name="assignedEmployeeIds"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('task-assignee-label')}</FormLabel>
+                <FormControl>
+                  <EmployeeSelect
+                    accessToken={accessToken}
+                    businessAppContext={businessAppContext}
+                    initialEmployee={assignedEmployee}
+                    autoSelect={isNewEntity ? 'current-user' : undefined}
+                    value={field.value?.[0] || ''} // Extract single value from array
+                    onValueChange={(v: string | null) => {
+                      // Convert single value to array format (backend expects array)
+                      const newValue = v ? [v] : []
+                      field.onChange(newValue)
+                    }}
+                    onEmployeeChange={(employee: any) => {
+                      // Set assignedEmployees as array with single employee
+                      form.setValue('assignedEmployees', employee ? [employee] : [])
+                    }}
+                    data-testid={`${dataTestId}-assignee`}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ))}
 
       {/* Related Entity */}
       {showEntitySelection && (
@@ -538,7 +547,7 @@ const buildTaskSegmentSchema = (options?: {
   const requireAssignee = options?.requireAssignee !== false
   const requireEntity = options?.requireEntity !== false
   const requireType = options?.requireType !== false
-  const multiAssigneeMode = options?.multiAssigneeMode !== false // Multi-assignee is now the default
+  const multiAssigneeMode = options?.multiAssigneeMode === true // Single assignee by default; multi only for approval tasks
 
   const baseSchema = {
     name: z.string().min(1, 'Name is required'),

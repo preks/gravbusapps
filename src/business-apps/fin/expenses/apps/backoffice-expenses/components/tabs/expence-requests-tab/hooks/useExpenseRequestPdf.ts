@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpenseData } from '../../../../types'
 import { useExpenseRequestFileService } from '../../../../utils/expenseRequestFileService'
 
-export const useExpenseRequestPdf = (props: BusinessAppContextProps) => {
+export const useExpenseRequestPdf = (props: Readonly<BusinessAppContextProps>) => {
   const [isPdfModalVisible, setIsPdfModalVisible] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string>('')
   const [pdfLoading, setPdfLoading] = useState(false)
@@ -28,7 +28,7 @@ export const useExpenseRequestPdf = (props: BusinessAppContextProps) => {
           setPdfError(result.error || 'Failed to load PDF')
           setIsPdfModalVisible(true)
         }
-      } catch {
+      } catch (error) {
         setPdfError(error instanceof Error ? error.message : 'Unknown error occurred')
         setIsPdfModalVisible(true)
       } finally {

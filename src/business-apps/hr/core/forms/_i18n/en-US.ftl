@@ -1,9 +1,9 @@
 adjust-salary-title = Adjust Employee Salary
 adjust-salary-adjustment-type = Adjustment Type
-adjust-salary-adjustment-type-amount = Amount Increase
-adjust-salary-adjustment-type-percentage = Percentage Increase
-adjust-salary-increase-amount = Increase Amount
-adjust-salary-increase-percentage = Increase Percentage (%)
+adjust-salary-adjustment-type-amount = Amount Adjustment
+adjust-salary-adjustment-type-percentage = Percentage Adjustment
+adjust-salary-increase-amount = Adjustment Amount
+adjust-salary-increase-percentage = Adjustment Percentage (%)
 adjust-salary-calculated-amount = Calculated Amount:
 adjust-salary-calculated-percentage = Calculated Percentage:
 adjust-salary-new-salary = Adjusted Salary
@@ -19,8 +19,13 @@ adjust-salary-notes = Notes
 adjust-salary-adjustment-type-required = Adjustment type is required. Please select an adjustment type.
 adjust-salary-adjustment-value-required = Enter amount or percentage
 adjust-salary-adjustment-value-positive = Value must be positive
+adjust-salary-adjustment-value-not-zero = Value cannot be zero. Enter a positive value for increase or negative for reduction.
+adjust-salary-reduction-exceeds-current = Reduction cannot exceed current salary of { $current } ({ $frequency })
+adjust-salary-reduction-exceeds-100-percent = Reduction cannot exceed 100% of current salary
 adjust-salary-currency-required = Currency is required. Please select a currency.
 adjust-salary-effective-date-required = Effective date is required. Please select an effective date.
+adjust-salary-effective-date-too-old = Effective date cannot be more than 6 months in the past
+adjust-salary-effective-date-helper = Date must be within the last 6 months
 adjust-salary-reason-required = Reason is required. Please select a reason.
 adjust-salary-frequency = Salary Adjustment type
 adjust-salary-frequency-required = Salary Adjustment type is required. Please select a salary adjustment type.
@@ -29,9 +34,11 @@ adjust-salary-frequency-monthly = Monthly
 adjust-salary-frequency-hourly = Hourly
 adjust-salary-current-salary = Current Salary
 adjust-salary-calculation-breakdown = Salary Adjustment Summary
+adjust-salary-duplicate-month-warning = A salary adjustment already exists for this month on { $date }. Please choose another effective date.
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Assign Employee Salary
+assign-salary-no-employment-region-warning = An employment region must be set for this employee to ensure correct currency and compliance. Please set the employment region in the employee record.
 assign-salary-type = Compensation Type
 assign-salary-type-required = Compensation type is required. Please select a compensation type.
 assign-salary-type-yearly-monthly = Monthly Salary
@@ -56,7 +63,7 @@ adjust-salary-review-salary-comparison = Salary Comparison
 adjust-salary-review-current-salary = Current Salary
 adjust-salary-review-new-salary = New Salary
 adjust-salary-review-adjustment-details = Adjustment Details
-adjust-salary-review-total-increase = Total Increase
+adjust-salary-review-total-increase = Total Adjustment
 adjust-salary-review-effective-date = Effective Date
 adjust-salary-review-reason = Reason
 adjust-salary-review-notes = Notes
@@ -65,7 +72,7 @@ adjust-salary-review-reject = Reject
 adjust-salary-review-annual-gross-salary = Annual Gross Salary
 adjust-salary-review-monthly-gross-salary = Monthly Gross Salary
 adjust-salary-review-hourly-gross-salary = Hourly Gross Salary
-adjust-salary-review-increase-text = { $percentage }% increase
+adjust-salary-review-increase-text = { $percentage }% adjustment
 adjust-salary-review-hourly-suffix = /hr
 
 # Assign Employee Salary Review Form (new employee without existing salary)
@@ -87,6 +94,7 @@ action-enter-placeholder = Please Enter
 
 # Form Title
 form-title = Grant Employee Bonus
+grant-bonus-no-employment-region-warning = An employment region must be set for this employee to ensure correct currency and compliance. Please set the employment region in the employee record.
 
 # Form Actions
 action-cancel = Cancel
@@ -232,6 +240,9 @@ request-benefit-review-additional-info = Additional Information
 request-benefit-review-justification = Justification
 request-benefit-review-financial-details = Financial Details
 request-benefit-review-employee-contributions = Employee Contributions
+request-benefit-review-comments = Comment
+request-benefit-review-comments-placeholder = Please Enter
+request-benefit-review-comments-required = Comments are required
 request-benefit-review-approve = Approve
 request-benefit-review-reject = Reject
 request-benefit-review-loading = Loading benefit review data...
@@ -278,6 +289,7 @@ adjust-salary-pending-status = Pending
 
 # Update Working Conditions Form
 working-conditions-probation-period = Probation Period
+working-conditions-probation-end-before-start = Probation end date must be on or after the start date.
 working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
 working-conditions-unit-day = { $count ->
     [one] Day
@@ -298,9 +310,12 @@ working-conditions-unit-year = { $count ->
 
 # Create Request Correction Form
 complete-notification = The request is sent to be approved by the manager
+request-correction-date-absence-error = This date is a bank holiday or absence and cannot be used for a correction request.
 notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
 notification-working-hours-updated-success = Working hours updates are sent for HR approval
 notification-feedback-request-sent-success = Your feedback request has been sent
+notification-feedback-request-sent-success-on-behalf = The feedback request has been sent
+feedback-request-missing-user-id = Some selected employees are missing user IDs. Please reselect and try again.
 
 # ============================================
 # Create Employee Form
@@ -318,12 +333,16 @@ employee-form-email = Email
 employee-form-organizational-unit = Organizational Unit
 employee-form-job-position = Job Position
 employee-form-hire-date = Hire Date
+employee-form-fixed-term-end-date = Fixed-Term End Date
+employee-form-fixed-term-reason = Exit Reason
 employee-form-preferred-name = Preferred Name
 employee-form-employment-type = Employment Type
 employee-form-contract-type = Contract Type
 
 # Validation Messages
 employee-form-email-invalid = Please enter a valid email address
+employee-form-hire-date-required = Hire Date is required when Fixed-Term End Date is specified
+employee-form-fixed-term-before-hire = Fixed-Term End Date must be on or after Hire Date
 
 # Empty States
 employee-form-no-results = No results found
@@ -347,3 +366,18 @@ create-job-position-name = Name
 create-job-position-total-open = Total open
 create-job-position-organizational-unit = Organizational Unit
 create-job-position-error = Failed to create job position. Please try again.
+
+# Create New Absence – validation messages
+create-absence-unable-to-verify-balance = Unable to verify absence balance. Please check manually.
+create-absence-insufficient-balance = Insufficient balance
+create-absence-requested = Requested
+create-absence-available = Available
+create-absence-days = days
+create-absence-end-date-after-start = End date must be after start date
+create-absence-single-day-bank-holiday-blocked = The selected day is a bank holiday. You cannot submit a single-day absence for this date.
+create-absence-validation-failed = Validation failed. Please try again.
+create-absence-bank-holidays-not-counted = { $count } days are bank holidays, so they are not taken into consideration.
+create-absence-overlap-prefix = There is already a
+create-absence-overlap-scheduled = absence scheduled
+create-absence-from = from
+create-absence-to = to

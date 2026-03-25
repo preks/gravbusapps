@@ -77,6 +77,9 @@ export interface WorkingCondition {
   hireDate: string
   vacationDays: number
   exitDate: string
+  additionalProperties?: {
+    fixedTermReason?: string
+  }
 }
 
 // Employee position

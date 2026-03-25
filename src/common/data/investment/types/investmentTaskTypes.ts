@@ -17,6 +17,7 @@ import type { InvestmentDocument } from './investmentDocumentTypes'
 import type { InvestmentLead } from './investmentLeadTypes'
 import type { InvestmentOpportunity, InvestmentOpportunityStageCondition } from './investmentOpportunityTypes'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import { toISOFormat } from '@/common/utils/dateFormatter'
 
 /**
  * Investment Task Assignee (NEW - Multiple Assignees Support)
@@ -130,9 +131,17 @@ export const InvestmentTaskFormFields = {
  * NOTE: assignedEmployeeIds filtering handled separately via taskAssignees relationship
  */
 export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
-  ...createTaskDescriptors(InvestmentTaskFields as Record<keyof typeof TaskFields, string>).filter(
-    d => d.key !== 'reference' && d.key !== 'assignedEmployeeIds' // Remove assignedEmployeeIds - handled via taskAssignees
-  ),
+  ...createTaskDescriptors(InvestmentTaskFields as Record<keyof typeof TaskFields, string>)
+    .filter(
+      d => d.key !== 'reference' && d.key !== 'assignedEmployeeIds' // Remove assignedEmployeeIds - handled via taskAssignees
+    )
+    .map(d => {
+      // InvestmentTaskOrderBy has no taskAssignees (or nested assignee) ordering — avoid validation errors
+      if (d.key === 'taskAssignees' || d.key === 'assignedTo') {
+        return { ...d, enableSort: false }
+      }
+      return d
+    }),
   {
     key: 'reference',
     searchPaths: [
@@ -169,6 +178,15 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
 export const buildInvestmentTaskPayload = (task: Partial<InvestmentTask> & Record<string, any>) => {
   // Build base payload using buildPayload utility (handles most fields)
   const payload = buildPayload(task, InvestmentTaskFormFields)
+
+  // Convert date strings to ISO format (backend expects java.time.Instant)
+  // This handles dates from calendar quick actions which pass YYYY-MM-DD format
+  const dateFields = ['dueDate', 'startDate', 'endDate', 'templateStartDate'] as const
+  dateFields.forEach(field => {
+    if (payload[field] && typeof payload[field] === 'string') {
+      payload[field] = toISOFormat(payload[field])
+    }
+  })
 
   // Manually construct taskAssignees to preserve assignedUserId field name
   // (buildPayload's transformIdFields would transform assignedUserId → assignedUser, which is wrong)

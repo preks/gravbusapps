@@ -6,8 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system';
-import { PiDotsThreeVertical, PiPencil, PiTrash, PiEye } from 'react-icons/pi';
-
+import { DotsThreeVerticalIcon, PencilIcon, TrashIcon, EyeIcon } from '@phosphor-icons/react'
 export interface ContextMenuAction {
   key: string;
   label: string;
@@ -36,7 +35,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           data-testid={triggerTestId}
           onClick={(e) => e.stopPropagation()}
         >
-          <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+          <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" data-testid={`${triggerTestId}-menu`}>
@@ -71,7 +70,7 @@ export const createEditAction = (
 ): ContextMenuAction => ({
   key: 'edit',
   label: 'Edit',
-  icon: <PiPencil className="gba:h-4 gba:w-4" />,
+  icon: <PencilIcon className="gba:h-4 gba:w-4" />,
   onClick,
   disabled
 });
@@ -82,7 +81,7 @@ export const createDeleteAction = (
 ): ContextMenuAction => ({
   key: 'delete',
   label: 'Delete',
-  icon: <PiTrash className="gba:h-4 gba:w-4" />,
+  icon: <TrashIcon className="gba:h-4 gba:w-4" />,
   onClick,
   variant: 'destructive',
   disabled
@@ -94,7 +93,7 @@ export const createViewAction = (
 ): ContextMenuAction => ({
   key: 'view',
   label: 'View',
-  icon: <PiEye className="gba:h-4 gba:w-4" />,
+  icon: <EyeIcon className="gba:h-4 gba:w-4" />,
   onClick,
   disabled
 });

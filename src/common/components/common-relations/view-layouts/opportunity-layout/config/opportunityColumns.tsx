@@ -1,11 +1,12 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { Building2, Calendar } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { deriveSortableColumns } from '@/common/network/graphql/descriptorUtils'
 import { createOpportunityDescriptors, OpportunityFields } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
+import { getStageTypeVariant } from '@/common/components/common-relations/setting-pages/pipelines/utils/pipelineStageTypeVariant'
 
 // Generic opportunity interface that both Investment and Customer opportunities implement
 export interface GenericOpportunityForColumns {
@@ -47,27 +48,8 @@ export const getOwnerName = (opportunity: GenericOpportunityForColumns) => {
   return '-'
 }
 
-// Helper function to get stage color based on alternativeCode
-export const getStageColor = (
-  alternativeCode?: string
-): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info' => {
-  if (!alternativeCode) return 'outline'
-
-  switch (alternativeCode.toUpperCase()) {
-    case 'DISCOVERY':
-      return 'info'
-    case 'QUALIFICATION':
-      return 'warning'
-    case 'NEGOTIATION':
-      return 'secondary'
-    case 'CLOSED_WON':
-      return 'success'
-    case 'CLOSED_LOST':
-      return 'destructive'
-    default:
-      return 'outline'
-  }
-}
+// Helper function to get stage badge variant based on stage type (alternativeCode)
+export const getStageColor = getStageTypeVariant
 
 // Helper function to get status color based on alternativeCode
 export const getStatusColor = (
@@ -166,9 +148,7 @@ export const formatDate = (dateString: string): string => {
   }
 }
 
-export function createOpportunityColumns<T extends GenericOpportunityForColumns>(
-  buildAccountUrl: (accountId: string) => string
-): ColumnDef<T>[] {
+export function createOpportunityColumns<T extends GenericOpportunityForColumns>(): ColumnDef<T>[] {
   return [
     {
       id: 'opportunity',
@@ -355,49 +335,6 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
         ) : (
           <span className="gba:text-sm gba:text-muted-foreground">No close date</span>
         )
-    },
-    {
-      id: 'account',
-      accessorFn: row => row.opportunityAccounts?.[0]?.account?.name || '',
-      header: 'Account',
-      size: 200,
-      minSize: 180,
-      maxSize: 280,
-      cell: ({ row }) => {
-        const account = row.original.opportunityAccounts?.[0]?.account
-
-        if (!account) {
-          return <span className="gba:text-sm gba:text-muted-foreground">No account</span>
-        }
-
-        const imageUrl = account.pictureThumbnail
-          ? `data:image/gif;base64,${account.pictureThumbnail}`
-          : account.pictureThumbnailUrl || undefined
-
-        return (
-          <button
-            type="button"
-            onClick={e => {
-              e.stopPropagation()
-              navigateTo(buildAccountUrl(account.id))
-            }}
-            className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:group gba:bg-transparent gba:border-0 gba:p-0 gba:w-full gba:text-left"
-            data-testid={`opportunity-account-link-${row.original.id}`}
-          >
-            <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
-              {imageUrl && <AvatarImage src={imageUrl} alt={account.name} />}
-              <AvatarFallback>
-                <Building2 className="gba:h-4 gba:w-4" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="gba:min-w-0 gba:flex-1">
-              <div className="gba:font-medium gba:truncate gba:text-sm gba:group-hover:gba:text-primary gba:transition-colors">
-                {account.name}
-              </div>
-            </div>
-          </button>
-        )
-      }
     },
     {
       id: 'owner',

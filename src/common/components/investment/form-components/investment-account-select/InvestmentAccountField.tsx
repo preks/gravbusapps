@@ -25,8 +25,14 @@ export const InvestmentAccountField = ({
   onValueChange,
   ...props
 }: InvestmentAccountFieldProps) => {
-  // Use new declarative hook for account selection
-  const { accounts, loading: investmentAccountsLoading } = useInvestmentAccountsList(businessAppContext, { limit: 50 })
+  // Use declarative hook with infinite scroll support
+  const {
+    accounts,
+    loading: investmentAccountsLoading,
+    hasMore: investmentAccountsHasMore,
+    search: searchInvestmentAccounts,
+    loadMore: loadMoreInvestmentAccounts
+  } = useInvestmentAccountsList(businessAppContext, { limit: 20 })
 
   // Map InvestmentAccount[] to Combobox options format
   const accountOptions = useMemo(() => {
@@ -37,16 +43,6 @@ export const InvestmentAccountField = ({
       name: account.name || 'Unknown'
     }))
   }, [accounts])
-
-  // Note: useInvestmentAccountsList doesn't support search/loadMore yet
-  // This is a limitation of the migration - functionality preserved where possible
-  const searchInvestmentAccounts = () => {
-    // Placeholder - would need to implement search via refetch with variables
-  }
-  const loadMoreInvestmentAccounts = () => {
-    // Placeholder - would need pagination support in useInvestmentAccountsList
-  }
-  const investmentAccountsHasMore = false
 
   // Extract value: handle both object format {id: "..."} and string format
   const fieldValue =

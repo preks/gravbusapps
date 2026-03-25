@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useTaskExport } from './hooks/useTaskExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -87,6 +89,14 @@ export interface TaskLayoutProps<TTask extends Task = Task, TQueryVariables = an
   initialFilters?: Record<string, any>
   hideFilters?: boolean
   customPrimaryAction?: React.ReactNode
+  enableExport?: boolean
+  exportFilenamePrefix?: string
+}
+
+const getTaskExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
+  if (isExporting) return 'Exporting…'
+  if (totalCount === 0) return 'No data to export'
+  return `Export ${totalCount} tasks as ${format}`
 }
 
 /**
@@ -132,7 +142,9 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     dataTestId = 'task-view',
     initialFilters = {},
     hideFilters = false,
-    customPrimaryAction
+    customPrimaryAction,
+    enableExport = false,
+    exportFilenamePrefix = 'tasks'
   } = props
   const { accessToken, userInfo } = context
 
@@ -171,6 +183,9 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   }, [config.baseFilterConfig, config.descriptors, filterGroups])
 
   // Query Variables
+  // Build query variables from filter state
+  // NOTE: Deliberately NOT including config.buildQueryVariables in deps - function is stable
+  // We only want to rebuild when actual query params (pagination, filters, etc.) change
   const queryVariables = useMemo(
     () =>
       config.buildQueryVariables({
@@ -180,10 +195,12 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         sorting,
         userInfo
       }),
-    [pagination, searchTerm, selectedFilters, sorting, config, userInfo]
+    [pagination, searchTerm, selectedFilters, sorting, userInfo]
   )
 
   // Load Tasks
+  // NOTE: Deliberately NOT including config.fetchTasks in deps - function is stable
+  // We only want to recreate when accessToken or queryVariables actually change
   const loadTasks = useCallback(
     async (showLoading: boolean = true) => {
       if (!accessToken) return
@@ -202,20 +219,23 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         setIsInitialLoad(false)
       }
     },
-    [accessToken, config, queryVariables]
+    [accessToken, queryVariables]
   )
 
   // Initial load
+  // NOTE: Deliberately NOT including loadTasks in deps - we only want initial load once when mounted
   useEffect(() => {
     if (!accessToken || !isInitialLoad) return
     loadTasks(true)
-  }, [accessToken, isInitialLoad, loadTasks])
+  }, [accessToken, isInitialLoad])
 
   // Reload data when filters/search/sort change (skip initial load)
+  // NOTE: Deliberately NOT including loadTasks or isInitialLoad in deps
+  // isInitialLoad is used as a guard but shouldn't trigger re-runs
   useEffect(() => {
     if (isInitialLoad || !accessToken) return
     loadTasks(false)
-  }, [queryVariables, isInitialLoad, accessToken, loadTasks])
+  }, [queryVariables, accessToken])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -279,6 +299,47 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     return deriveSortableColumns(config.descriptors, config.columnLabels, availableColumnIds)
   }, [config.descriptors, config.columnLabels, availableColumns])
 
+  // Export hook — always called (hooks must not be conditional)
+  const { isExporting, handleExportCsv, handleExportExcel } = useTaskExport({
+    fetchTasks: config.fetchTasks as any,
+    queryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  // Export buttons — only rendered when enableExport is true
+  const exportButtons = useMemo(() => {
+    if (!enableExport) return null
+    const csvTitle = getTaskExportButtonTitle(isExporting, totalCount, 'CSV')
+    const excelTitle = getTaskExportButtonTitle(isExporting, totalCount, 'Excel')
+    return (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="task-export-csv-button"
+          title={csvTitle}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="task-export-excel-button"
+          title={excelTitle}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'Excel'}
+        </Button>
+      </>
+    )
+  }, [enableExport, isExporting, totalCount, handleExportCsv, handleExportExcel])
+
   return (
     <div data-testid={dataTestId}>
       {/* Statistics - Single set for Team Tasks */}
@@ -336,6 +397,7 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
             </AppAction>
           ) : undefined)
         }
+        secondaryActions={exportButtons}
         toolbarDensity="default"
         enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterTasks', 'Filter Tasks')}
@@ -370,6 +432,11 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         buildReferenceUrl={config.buildReferenceUrl}
         data-testid={`${dataTestId}-detail-sheet`}
         businessAppContext={context}
+        accessToken={accessToken}
+        assignedUserId={selectedTask?.taskAssignees?.[0]?.assignedUserId}
+        currentUserId={userInfo?.id}
+        flowContext={config.rowActionsContextArray?.[0]}
+        onTaskCompleted={() => loadTasks(false)}
       />
     </div>
   )

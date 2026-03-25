@@ -1,5 +1,13 @@
 import React from 'react'
-import { Pagination } from 'antd'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  IconAvatar
+} from '@newwork/nw-design-system'
 import { AbsenceListProps } from '../../../queries/types'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
@@ -13,8 +21,7 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
   error,
   currentPage,
   setCurrentPage,
-  pageSize,
-  setPageSize
+  pageSize
 }) => {
   if (loading) {
     return (
@@ -22,8 +29,8 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
         className="gba:loading-skeleton gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4"
         data-testid="absencehub-loading"
       >
-        {[1, 2, 3].map(i => (
-          <div key={i} className="gba:h-40 gba:bg-muted gba:rounded gba:animate-pulse"></div>
+        {['skeleton-1', 'skeleton-2', 'skeleton-3'].map(skeletonId => (
+          <div key={skeletonId} className="gba:h-40 gba:bg-muted gba:rounded gba:animate-pulse"></div>
         ))}
       </div>
     )
@@ -54,17 +61,12 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
         >
           {paginatedAbsenceList.map((absence, idx) => (
             <div
-              key={idx + (currentPage - 1) * pageSize}
-              className="gba:absence-card gba:border gba:rounded gba:p-4 gba:shadow-sm gba:bg-white gba:hover:shadow-md gba:transition-shadow"
+              key={absence.id || `${absence.startDate}-${absence.endDate}-${absence.title}`}
+              className="gba:absence-card gba:border gba:rounded gba:p-4"
               data-testid={`absence-card-${idx}`}
             >
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <div
-                  className="gba:icon-container gba:p-2 gba:rounded-full"
-                  style={{ backgroundColor: `${absence.typeColor}20` }}
-                >
-                  <span className="gba:icon">{absence.icon}</span>
-                </div>
+                <IconAvatar icon={absence.icon} variant="decorative" size="md" />
                 <h4 className="gba:text-lg gba:font-medium">{absence.title}</h4>
               </div>
 
@@ -121,30 +123,53 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
 
       {absenceList.length > pageSize && (
         <div
-          className="gba:absenceListPagination gba:mt-6 gba:flex gba:justify-center"
+          className="gba:absenceListPagination gba:mt-6 gba:flex gba:justify-center gba:items-center gba:gap-4"
           data-testid="absencehub-absence-list-pagination"
         >
-          <Pagination
-            current={currentPage}
-            pageSize={pageSize}
-            total={absenceList.length}
-            showSizeChanger
-            pageSizeOptions={['10', '20', '50']}
-            onChange={(page: number, size?: number) => {
-              setCurrentPage(page)
-              if (size) setPageSize(size)
-            }}
-            showTotal={(total: number, range: [number, number]) =>
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_hub.pagination',
-                '{{range0}}-{{range1}} of {{total}}',
-                { range0: range[0], range1: range[1], total }
-              )
-            }
-            locale={{
-              items_per_page: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.per_page', '/ page')
-            }}
-          />
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  className={currentPage === 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                />
+              </PaginationItem>
+
+              {Array.from({ length: Math.ceil(absenceList.length / pageSize) }, (_, i) => i + 1).map(page => (
+                <PaginationItem key={page}>
+                  <PaginationLink
+                    onClick={() => setCurrentPage(page)}
+                    isActive={currentPage === page}
+                    className="gba:cursor-pointer"
+                  >
+                    {page}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => setCurrentPage(Math.min(Math.ceil(absenceList.length / pageSize), currentPage + 1))}
+                  className={
+                    currentPage === Math.ceil(absenceList.length / pageSize)
+                      ? 'gba:pointer-events-none gba:opacity-50'
+                      : 'gba:cursor-pointer'
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+          <div className="gba:text-sm gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_hub.pagination',
+              '{{range0}}-{{range1}} of {{total}}',
+              {
+                range0: (currentPage - 1) * pageSize + 1,
+                range1: Math.min(currentPage * pageSize, absenceList.length),
+                total: absenceList.length
+              }
+            )}
+          </div>
         </div>
       )}
     </>

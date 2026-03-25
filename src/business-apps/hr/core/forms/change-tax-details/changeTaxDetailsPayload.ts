@@ -1,0 +1,74 @@
+import { parseLocalizedNumber } from '@/common/utils/numberFormatter'
+import type { TaxInfoFormValues } from './types'
+
+function buildAdditionalProperties(values: TaxInfoFormValues, data: any): Record<string, unknown> {
+  const additionalProperties: Record<string, unknown> = {}
+  const base = data?.additionalProperties
+  if (typeof base === 'object' && base !== null) {
+    Object.assign(additionalProperties, base)
+  }
+  additionalProperties.requestAtTaxOffice = Boolean(values.requestAtTaxOffice)
+  if (values.requestAtTaxOffice) {
+    const emp = String(values.employeeTaxOffice ?? '').trim()
+    const freeRaw = String(values.individualFreeAmount ?? '').trim()
+    const freeParsed = freeRaw ? parseLocalizedNumber(freeRaw) : Number.NaN
+    if (emp) additionalProperties.employeeTaxOffice = emp
+    if (freeRaw && !Number.isNaN(freeParsed)) additionalProperties.individualFreeAmount = String(freeParsed)
+  } else {
+    delete additionalProperties.employeeTaxOffice
+    delete additionalProperties.individualFreeAmount
+  }
+  return additionalProperties
+}
+
+function buildEmployeeTaxDetailObject(
+  values: TaxInfoFormValues,
+  data: any,
+  additionalProperties: Record<string, unknown>,
+  isEmployeeInGermany: boolean
+): any {
+  const childTaxAllowanceNum =
+    values.childTaxAllowance !== '' && values.childTaxAllowance != null
+      ? parseLocalizedNumber(values.childTaxAllowance)
+      : 0
+  const healthInsuranceDocId =
+    values.uploadedHealthInsuranceDocumentId ??
+    (typeof data?.healthInsuranceDocument === 'object' && data?.healthInsuranceDocument != null
+      ? (data.healthInsuranceDocument as { id?: string }).id
+      : data?.healthInsuranceDocument) ??
+    null
+  return {
+    ...(data?.id ? { id: data.id } : {}),
+    ...(data?.version !== undefined ? { version: data.version } : { version: 0 }),
+    ...(data?.businessKey ? { businessKey: data.businessKey } : {}),
+    ...(data?.activeTo ? { activeTo: data.activeTo } : {}),
+    employeeId: '', // caller must set
+    taxIdentificationNumber: values.taxIdentificationNumber || '',
+    ...(isEmployeeInGermany ? {} : { taxNumber: values.taxNumber || '' }),
+    taxBracketRef: values.taxBracketRef || '',
+    socialSecurityNumber: String(values.socialSecurityNumber ?? '').trim(),
+    wageTaxClassRef: data?.wageTaxClassRef ?? '',
+    taxableChurchAffiliationRef: values.taxableChurchAffiliationRef || '',
+    healthInsuranceTypeRef: values.healthInsuranceTypeRef || '',
+    healthInsuranceName: values.healthInsuranceName || '',
+    healthInsuranceDocument: healthInsuranceDocId,
+    childTaxAllowance: Number.isNaN(childTaxAllowanceNum) ? 0 : childTaxAllowanceNum,
+    additionalProperties
+  }
+}
+
+export function buildEmployeeTaxDetailPayload(
+  values: TaxInfoFormValues,
+  data: any,
+  isEmployeeInGermany: boolean
+): { employeeTaxDetail: any; changeMode: string; employeeId: string; event: string } {
+  const isUpdate = Boolean(data?.id)
+  const additionalProperties = buildAdditionalProperties(values, data)
+  const employeeTaxDetail = buildEmployeeTaxDetailObject(values, data, additionalProperties, isEmployeeInGermany)
+  return {
+    employeeTaxDetail,
+    changeMode: isUpdate ? 'UPDATE' : 'INSERT',
+    employeeId: '',
+    event: 'pse_submit'
+  }
+}

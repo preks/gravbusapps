@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useActivityExport } from './hooks/useActivityExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -65,10 +67,18 @@ export interface ActivityLayoutProps<TActivity extends Activity = Activity, TQue
   readonly hideFilters?: boolean
   readonly showOwnerEmployee?: boolean
   readonly secondaryActions?: React.ReactNode
+  readonly enableExport?: boolean
+  readonly exportFilenamePrefix?: string
   readonly kpiStatistics?: ActivityStatisticsData | null
   readonly kpiLoading?: boolean
   readonly kpiError?: Error | null
   readonly onKpiRetry?: () => void
+}
+
+const getExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
+  if (isExporting) return 'Exporting…'
+  if (totalCount === 0) return 'No data to export'
+  return `Export ${totalCount} activities as ${format}`
 }
 
 function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVariables = any>(
@@ -82,6 +92,8 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
     hideFilters = false,
     showOwnerEmployee = false,
     secondaryActions,
+    enableExport = false,
+    exportFilenamePrefix = 'activities',
     kpiStatistics,
     kpiLoading = false,
     kpiError = null,
@@ -227,6 +239,51 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
     [config, context.accessToken]
   )
 
+  // Export hook — always called (hooks must not be conditional)
+  const { isExporting, handleExportCsv, handleExportExcel } = useActivityExport({
+    fetchActivities: config.fetchActivities as any,
+    queryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  // Combine export buttons with any external secondaryActions
+  const combinedSecondaryActions = useMemo(() => {
+    if (!enableExport) return secondaryActions
+
+    const csvTitle = getExportButtonTitle(isExporting, totalCount, 'CSV')
+    const excelTitle = getExportButtonTitle(isExporting, totalCount, 'Excel')
+
+    const exportButtons = (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="activity-export-csv-button"
+          title={csvTitle}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="activity-export-excel-button"
+          title={excelTitle}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'Excel'}
+        </Button>
+        {secondaryActions}
+      </>
+    )
+    return exportButtons
+  }, [enableExport, isExporting, totalCount, handleExportCsv, handleExportExcel, secondaryActions])
+
   return (
     <div data-testid={dataTestId} className="gba:flex gba:flex-col gba:gap-4">
       {kpiStatistics && (
@@ -282,7 +339,7 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
             </AppAction>
           ) : undefined
         }
-        secondaryActions={secondaryActions}
+        secondaryActions={combinedSecondaryActions}
         toolbarDensity="default"
         enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterActivities', 'Filter Activities')}
@@ -323,6 +380,8 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
         }}
         businessAppContext={context}
         data-testid={`${dataTestId}-detail-sheet`}
+        accessToken={context.accessToken}
+        flowContext={config.rowActionsContextArray?.[0]}
       />
     </div>
   )

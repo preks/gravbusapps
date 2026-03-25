@@ -75,41 +75,45 @@ export const buildBankAccountPayload = (params: {
       }
 }
 
-export const isUnchangedExistingBankAccount = (form: any, existingAccount: any | null): boolean => {
-  if (!existingAccount) return false
+export const isUnchangedExistingBankAccount = (form: any, initialFormValues: any | null, isUS: boolean): boolean => {
+  if (!initialFormValues) return false
   try {
     const v = form.getValues() as any
-    const normalize = (x: any) => ({
+    const normalizeBase = (x: any) => ({
       countryId: x?.countryId || null,
       currencyId: x?.currencyId || null,
       bankName: String(x?.bankName || ''),
       accountType: String(x?.accountType || ''),
       accountHolder: String(x?.accountHolder || ''),
-      iban: String(x?.iban || ''),
-      swift: String(x?.swift || ''),
-      routingNumberTypeId: x?.routingNumberTypeId || null,
-      accountNumber: String(x?.accountNumber || ''),
-      routingNumber: String(x?.routingNumber || ''),
-      employeeAddressId: x?.employeeAddressId || null,
       comment: String(x?.comment || '')
     })
-    const normalizeAcc = (a: any) => ({
-      countryId: a?.country?.id || null,
-      currencyId: a?.currency?.id || null,
-      bankName: String(a?.bankName || ''),
-      accountType: String(a?.accountType || ''),
-      accountHolder: String(a?.accountHolder || ''),
-      iban: String(a?.iban || ''),
-      swift: String(a?.swift || ''),
-      routingNumberTypeId: a?.routingNumberType || null,
-      accountNumber: String(a?.accountNumber || ''),
-      routingNumber: String(a?.routingNumber || ''),
-      employeeAddressId: a?.employeeAddressId || null,
-      comment: String(a?.notes || '')
-    })
-    const current = normalize(v)
-    const existing = normalizeAcc(existingAccount)
-    return JSON.stringify(current) === JSON.stringify(existing)
+    const current = isUS
+      ? {
+          ...normalizeBase(v),
+          routingNumberTypeId: v?.routingNumberTypeId || null,
+          accountNumber: String(v?.accountNumber || ''),
+          routingNumber: String(v?.routingNumber || ''),
+          employeeAddressId: v?.employeeAddressId || null
+        }
+      : {
+          ...normalizeBase(v),
+          iban: String(v?.iban || ''),
+          swift: String(v?.swift || '')
+        }
+    const initial = isUS
+      ? {
+          ...normalizeBase(initialFormValues),
+          routingNumberTypeId: initialFormValues?.routingNumberTypeId || null,
+          accountNumber: String(initialFormValues?.accountNumber || ''),
+          routingNumber: String(initialFormValues?.routingNumber || ''),
+          employeeAddressId: initialFormValues?.employeeAddressId || null
+        }
+      : {
+          ...normalizeBase(initialFormValues),
+          iban: String(initialFormValues?.iban || ''),
+          swift: String(initialFormValues?.swift || '')
+        }
+    return JSON.stringify(current) === JSON.stringify(initial)
   } catch {
     return false
   }

@@ -1,5 +1,6 @@
-import { promptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
+import { executeContentPromptByJson } from '@/common/data/content/prompts'
 
 export interface ContentEntryInput {
   title?: string
@@ -27,37 +28,11 @@ export interface ContentEntryOutput {
 }
 
 export class ContentEntryAIService {
-  private readonly PROMPT_NAME = 'ContentArticleWriter'
-  private promptIdCache: string | null = null
-
-  constructor(accessToken: string) {
-    promptManagerClient.setAccessToken(accessToken)
-    // Set access token for GraphQL client (Singleton)
+  constructor(
+    private readonly promptManagerClient: PromptManagerClient,
+    accessToken: string
+  ) {
     graphQLClient.setAccessToken(accessToken)
-  }
-
-  private async getPromptId(): Promise<string> {
-    if (this.promptIdCache) {
-      return this.promptIdCache
-    }
-
-    const response = await promptManagerClient.getPrompts({
-      promptName: this.PROMPT_NAME,
-      limit: 1,
-      returnTotalRecords: false
-    })
-
-    if (!response.data || response.data.length === 0) {
-      throw new Error(`Prompt "${this.PROMPT_NAME}" not found`)
-    }
-
-    const promptId = response.data[0]._id
-    if (!promptId) {
-      throw new Error(`Prompt "${this.PROMPT_NAME}" has no ID`)
-    }
-
-    this.promptIdCache = promptId
-    return promptId
   }
 
   /**
@@ -195,11 +170,9 @@ export class ContentEntryAIService {
       contentTagNames: existingContent?.contentTagNames
     }
 
-    const formData = new FormData()
-    formData.append('user_params', JSON.stringify(userParams))
-
-    const promptId = await this.getPromptId()
-    const response = await promptManagerClient.executePromptById(promptId, formData)
+    const response = await executeContentPromptByJson(this.promptManagerClient, 'ContentArticleWriter', {
+      user_params: userParams
+    })
     const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
 
     const rawOutput = JSON.parse(content) as ContentEntryOutput

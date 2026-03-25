@@ -9,29 +9,23 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
-  Input,
   Button,
   Alert,
   AlertTitle,
   AlertDescription,
-  TabSwitch,
-  TabSwitchList,
-  TabSwitchTrigger,
-  TabSwitchBadge,
-  ScrollArea,
-  ScrollBar,
+  EmptyState as DesignEmptyState,
   useTranslation,
   useLocale
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
-import { Search, RefreshCw, Zap, FileText, X } from 'lucide-react'
 import { Flow } from '../types'
 import { FlowCard } from './FlowCard'
-import { FlowDetailDialog } from './FlowDetailDialog'
+import { FlowDetailContent } from './FlowDetailContent'
 import { EmptyState } from './EmptyState'
 import { LoadingSkeleton } from './LoadingSkeleton'
 import { sortFlowsByDate, filterFlowsBySearch } from '../utils/taskGrouping'
 import { useEmployeeAvatarsBatch } from '../hooks/useEmployeeAvatarsBatch'
+import { FilterType } from './FiltersDropdown'
 
 type FlowFilterType = 'all' | 'blinks' | 'requests'
 
@@ -41,6 +35,9 @@ interface OutboxViewProps {
   error: string | null
   onRefresh: () => void
   accessToken: string
+  // Global search and filters from parent
+  globalSearch?: string
+  selectedFilters?: FilterType[]
 }
 
 /**
@@ -67,17 +64,25 @@ const updateFlowUrl = (flowId: string | null) => {
   globalThis.history.replaceState({}, '', newUrl)
 }
 
-export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error, onRefresh, accessToken }) => {
+export const OutboxView: React.FC<OutboxViewProps> = ({
+  flows,
+  isLoading,
+  error,
+  onRefresh,
+  accessToken,
+  globalSearch = '',
+  selectedFilters = ['all']
+}) => {
   const { t } = useTranslation(translations)
   const { locale } = useLocale()
 
   /**
-   * Get empty state message based on search query and filter type
+   * Get empty state message based on filter type
    */
   const getEmptyFlowMessage = useCallback(
-    (query: string, filter: FlowFilterType): string => {
-      if (query.trim()) {
-        return t('outbox-empty-no-results', { query })
+    (filter: FlowFilterType): string => {
+      if (globalSearch.trim()) {
+        return t('outbox-empty-no-results', { query: globalSearch })
       }
 
       switch (filter) {
@@ -89,11 +94,17 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
           return t('outbox-empty-no-workflows')
       }
     },
-    [t]
+    [t, globalSearch]
   )
-  const [searchQuery, setSearchQuery] = useState('')
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null)
-  const [filterType, setFilterType] = useState<FlowFilterType>('all')
+  // Map selectedFilters from parent to local filterType
+  const filterType: FlowFilterType = selectedFilters.includes('all')
+    ? 'all'
+    : selectedFilters.includes('blinks')
+      ? 'blinks'
+      : selectedFilters.includes('requests')
+        ? 'requests'
+        : 'all'
   const [isInitialized, setIsInitialized] = useState(false)
 
   // Extract all user IDs from flows for batch fetching (assignees + initiators)
@@ -161,7 +172,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
     return false
   }
 
-  // Initialize selected flow from URL when flows are loaded
+  // Initialize selected flow from URL when flows are loaded, or auto-select first flow
   useEffect(() => {
     if (!isInitialized && flows.length > 0 && !isLoading) {
       const flowIdFromUrl = getInitialFlowId()
@@ -169,7 +180,15 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         const flowToSelect = flows.find(f => f.id === flowIdFromUrl)
         if (flowToSelect) {
           setSelectedFlow(flowToSelect)
+        } else {
+          // If flow from URL not found, select first flow
+          setSelectedFlow(flows[0])
+          updateFlowUrl(flows[0].id)
         }
+      } else {
+        // No flow in URL, auto-select first flow
+        setSelectedFlow(flows[0])
+        updateFlowUrl(flows[0].id)
       }
       setIsInitialized(true)
     }
@@ -231,24 +250,15 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
     // 'all' shows all flows - no filtering
 
     // Apply search filter
-    if (searchQuery.trim()) {
-      result = filterFlowsBySearch(result, searchQuery)
+    if (globalSearch.trim()) {
+      result = filterFlowsBySearch(result, globalSearch)
     }
 
     // Sort by date
     result = sortFlowsByDate(result)
 
     return result
-  }, [flows, searchQuery, filterType])
-
-  // Count flows by type for badges
-  const flowCounts = useMemo(() => {
-    return {
-      all: flows.length,
-      blinks: flows.filter(isBlinkFlow).length,
-      requests: flows.filter(isRequestFlow).length
-    }
-  }, [flows])
+  }, [flows, globalSearch, filterType])
 
   if (isLoading && flows.length === 0) {
     return <LoadingSkeleton type="flow" />
@@ -271,84 +281,9 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
   }
 
   return (
-    <div className="gba:flex gba:h-full gba:overflow-hidden" data-testid="outbox-view">
-      {/* Master Panel - Flow List (hidden on mobile/tablet when flow selected) */}
-      <div
-        className={`gba:gap-4 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
-          selectedFlow
-            ? 'gba:hidden gba:lg:flex gba:lg:flex-col gba:lg:w-[calc(40%-12px)] gba:lg:flex-shrink-0'
-            : 'gba:flex gba:flex-col gba:w-full'
-        }`}
-      >
-        {/* Search and Actions */}
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <div className="gba:relative gba:flex-1">
-            <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
-            <Input
-              placeholder={t('outbox-search-placeholder')}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="gba:pl-11 gba:pr-9"
-              style={{ paddingLeft: '2.75rem' }}
-              data-testid="outbox-search-input"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground hover:gba:text-foreground gba:cursor-pointer gba:z-10"
-                data-testid="outbox-search-clear-button"
-                aria-label={t('outbox-clear-search')}
-              >
-                <X className="gba:h-4 gba:w-4" />
-              </button>
-            )}
-          </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onRefresh}
-            disabled={isLoading}
-            data-testid="outbox-refresh-button"
-          >
-            <RefreshCw className={`gba:h-4 gba:w-4 ${isLoading ? 'gba:animate-spin' : ''}`} />
-          </Button>
-        </div>
-
-        {/* Flow Type Filters */}
-        <div className="gba:px-3">
-          <ScrollArea className="gba:-mx-3">
-            <TabSwitch value={filterType} onValueChange={value => setFilterType(value as FlowFilterType)}>
-              <TabSwitchList data-testid="outbox-filters">
-                <TabSwitchTrigger
-                  value="all"
-                  data-testid="outbox-filter-all"
-                  endAdornment={<TabSwitchBadge>{flowCounts.all}</TabSwitchBadge>}
-                >
-                  {t('outbox-filter-all')}
-                </TabSwitchTrigger>
-                <TabSwitchTrigger
-                  value="blinks"
-                  data-testid="outbox-filter-blinks"
-                  startIcon={<Zap className="gba:h-4 gba:w-4" />}
-                  endAdornment={<TabSwitchBadge>{flowCounts.blinks}</TabSwitchBadge>}
-                >
-                  {t('outbox-filter-blinks')}
-                </TabSwitchTrigger>
-                <TabSwitchTrigger
-                  value="requests"
-                  data-testid="outbox-filter-requests"
-                  startIcon={<FileText className="gba:h-4 gba:w-4" />}
-                  endAdornment={<TabSwitchBadge>{flowCounts.requests}</TabSwitchBadge>}
-                >
-                  {t('outbox-filter-requests')}
-                </TabSwitchTrigger>
-              </TabSwitchList>
-            </TabSwitch>
-            <ScrollBar orientation="horizontal" className="gba:opacity-50" />
-          </ScrollArea>
-        </div>
-
+    <div className="gba:flex gba:h-full gba:overflow-hidden gba:gap-0" data-testid="outbox-view">
+      {/* Master Panel - Flow List (always visible, fixed width) */}
+      <div className="gba:h-full gba:flex gba:flex-col gba:w-[480px] gba:flex-shrink-0 gba:bg-muted/30 gba:border-r gba:border-border">
         {/* Error Alert */}
         {error && (
           <Alert variant="destructive">
@@ -358,11 +293,11 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         )}
 
         {/* Flow List - Scrollable */}
-        <div className="gba:flex-1 gba:overflow-y-auto gba:pr-2">
+        <div className="gba:flex-1 gba:overflow-y-auto">
           {filteredFlows.length === 0 ? (
-            <EmptyState type="outbox" message={getEmptyFlowMessage(searchQuery, filterType)} />
+            <EmptyState type="outbox" message={getEmptyFlowMessage(filterType)} />
           ) : (
-            <div className="gba:space-y-2" data-testid="outbox-flow-list">
+            <div data-testid="outbox-flow-list">
               {filteredFlows.map(flow => (
                 <FlowCard
                   key={flow.id}
@@ -380,15 +315,22 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         </div>
       </div>
 
-      {/* Detail Panel - Flow Details (full-width on mobile/tablet, 60% on desktop ≥1024px) */}
-      <div
-        className={`gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
-          selectedFlow
-            ? 'gba:flex gba:flex-col gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:opacity-100 gba:translate-x-0'
-            : 'gba:hidden gba:lg:flex gba:lg:flex-col gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
-        }`}
-      >
-        {selectedFlow && <FlowDetailDialog flow={selectedFlow} onClose={handleCloseFlow} accessToken={accessToken} />}
+      {/* Detail Panel - Flow Details (always visible, fills remaining space) */}
+      <div className="gba:flex gba:flex-col gba:flex-1 gba:overflow-hidden gba:min-h-0">
+        {selectedFlow ? (
+          <div className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:p-6" data-testid="flow-detail-dialog">
+            <FlowDetailContent flow={selectedFlow} onClose={handleCloseFlow} accessToken={accessToken} />
+          </div>
+        ) : (
+          <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-background">
+            <DesignEmptyState
+              type="no-data"
+              title={t('outbox-no-flow-selected')}
+              description={t('outbox-select-flow-prompt')}
+              data-testid="flow-detail-empty"
+            />
+          </div>
+        )}
       </div>
     </div>
   )

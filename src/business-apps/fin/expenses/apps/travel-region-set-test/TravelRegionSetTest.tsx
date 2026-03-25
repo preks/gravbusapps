@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
-import { Button, Card, CardContent, CardHeader, CardTitle, Alert } from '@newwork/nw-design-system'
-import { useFeature } from '@/common/hooks/useFeature'
-import { PiPlus, PiMapPin } from 'react-icons/pi'
+import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { PlusIcon, MapPinIcon } from '@phosphor-icons/react'
 import {
   TravelRegionSetForm as TravelRegionSetTestForm,
   TravelRegionSetFormData
@@ -20,32 +19,8 @@ const TravelRegionSetTest: React.FC<TravelRegionSetTestProps> = ({
   className,
   prefixDataTestId = 'travel-region-set-test'
 }) => {
-  // Feature flag check (only for deployed environments, not local)
-  const isDevEnabled = useFeature('dev.enabled')
-
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [createdSets, setCreatedSets] = useState<TravelRegionSetFormData[]>([])
-
-  // Only enforce feature flag in deployed environments (when it's explicitly false)
-  // In local development, undefined/null should allow access
-  if (isDevEnabled === false) {
-    return (
-      <PageLayout
-        headerIcon={<PiMapPin className="gba:w-8 gba:h-8" />}
-        headerLabel={getTranslationFromI18nKeyAndLabel('travel-region-set-test:title', 'Travel Region Set Test')}
-        contentContainer={
-          <div className="gba:p-6" data-testid={`${prefixDataTestId}-disabled`}>
-            <Alert variant="destructive">
-              {getTranslationFromI18nKeyAndLabel(
-                'travel-region-set-test:feature-disabled',
-                'This feature is currently under development and not available.'
-              )}
-            </Alert>
-          </div>
-        }
-      />
-    )
-  }
 
   const handleOpenModal = () => {
     setIsModalVisible(true)
@@ -63,7 +38,7 @@ const TravelRegionSetTest: React.FC<TravelRegionSetTestProps> = ({
 
   return (
     <PageLayout
-      headerIcon={<PiMapPin className="gba:w-8 gba:h-8" />}
+      headerIcon={<MapPinIcon className="gba:w-8 gba:h-8" />}
       headerLabel={getTranslationFromI18nKeyAndLabel('travel-region-set-test:title', 'Travel Region Set Test')}
       contentContainer={
         <div className={className} data-testid={`${prefixDataTestId}-page`}>
@@ -72,7 +47,7 @@ const TravelRegionSetTest: React.FC<TravelRegionSetTestProps> = ({
             <Card data-testid={`${prefixDataTestId}-test-card`}>
               <CardHeader>
                 <CardTitle className="gba:flex gba:items-center gba:gap-2">
-                  <PiMapPin className="gba:w-5 gba:h-5" />
+                  <MapPinIcon className="gba:w-5 gba:h-5" />
                   {getTranslationFromI18nKeyAndLabel('travel-region-set-test:test_section', 'Test Modal')}
                 </CardTitle>
               </CardHeader>
@@ -89,7 +64,7 @@ const TravelRegionSetTest: React.FC<TravelRegionSetTestProps> = ({
                     data-testid={`${prefixDataTestId}-open-modal-button`}
                     className="gba:flex gba:items-center gba:gap-2"
                   >
-                    <PiPlus className="gba:w-4 gba:h-4" />
+                    <PlusIcon className="gba:w-4 gba:h-4" />
                     {getTranslationFromI18nKeyAndLabel(
                       'travel-region-set-test:open_modal',
                       'Open Travel Region Set Modal'

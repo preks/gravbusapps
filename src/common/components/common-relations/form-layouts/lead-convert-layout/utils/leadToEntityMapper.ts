@@ -64,6 +64,7 @@ export function mapLeadToAccount(leadData: Lead | Record<string, unknown> | null
     companySizeRef: (leadData.companySizeRef as string) || '',
     accountAnnualRevenueBandRef: (leadData.accountAnnualRevenueBandRef as string) || '',
     notesSummary: (leadData.description as string) || '',
+    prospective: true, // Lead conversions default to prospect status
     addresses: addresses as Address[] | undefined,
     communicationChannels: communicationChannels.length > 0 ? (communicationChannels as CommunicationChannel[]) : []
   }
@@ -91,6 +92,22 @@ export function mapLeadToContact(leadData: Lead | Record<string, unknown> | null
     communicationChannels.push({
       communicationChannelRef: `${COMMUNICATION_CHANNEL}:${CommunicationChannelCode.PHONE}`,
       value: communicationData.phoneNumber,
+      valueExtension: undefined
+    })
+  }
+
+  if (communicationData.secondaryNumber) {
+    communicationChannels.push({
+      communicationChannelRef: `${COMMUNICATION_CHANNEL}:${CommunicationChannelCode.MOBILE}`,
+      value: communicationData.secondaryNumber,
+      valueExtension: undefined
+    })
+  }
+
+  if (communicationData.linkedinUrl) {
+    communicationChannels.push({
+      communicationChannelRef: `${COMMUNICATION_CHANNEL}:${CommunicationChannelCode.LINKEDIN}`,
+      value: communicationData.linkedinUrl,
       valueExtension: undefined
     })
   }

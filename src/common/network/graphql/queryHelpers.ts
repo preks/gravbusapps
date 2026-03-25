@@ -488,8 +488,9 @@ export const buildCombinedFilterGroupsQuery = (args: {
   descriptors: Descriptor[]
   searchByKey?: Record<string, string>
   limit?: number
+  baseWhereParts?: string[]
 }): string => {
-  const { entityName, descriptors, searchByKey = {}, limit = 100 } = args
+  const { entityName, descriptors, searchByKey = {}, limit = 100, baseWhereParts = [] } = args
 
   const filterQueries: string[] = []
   const aggregateQueries: string[] = []
@@ -510,7 +511,7 @@ export const buildCombinedFilterGroupsQuery = (args: {
     const isNestedArray = firstPath.split('.').length > 2
 
     // Build where clause
-    const whereParts = ['isDeleted: { _eq: false }']
+    const whereParts = ['isDeleted: { _eq: false }', ...baseWhereParts]
 
     // For nested arrays, add filter to only get entities that have the array with non-null values
     // Example: addresses: { country: { id: { _isNull: false } } }
@@ -548,9 +549,11 @@ export const buildCombinedFilterGroupsQuery = (args: {
 
     // Aggregate count query
     // For nested arrays, we can't use distinctOn in aggregate, so we'll calculate count from flattened data
+    const aggregateWhereParts = ['isDeleted: { _eq: false }', ...baseWhereParts]
+    const aggregateWhere = `where: { ${aggregateWhereParts.join(', ')} }`
     aggregateQueries.push(`
       ${d.key}Count: ${entityName}Aggregate(
-        where: { isDeleted: { _eq: false } }
+        ${aggregateWhere}
         ${distinct}
       ) {
         aggregate {
@@ -578,6 +581,7 @@ export const fetchFilterGroups = async (args: {
   descriptors: Descriptor[]
   searchByKey?: Record<string, string>
   limit?: number
+  baseWhereParts?: string[]
 }): Promise<
   Record<
     string,
@@ -587,9 +591,9 @@ export const fetchFilterGroups = async (args: {
     }
   >
 > => {
-  const { graphqlClient, entityName, descriptors, searchByKey, limit } = args
+  const { graphqlClient, entityName, descriptors, searchByKey, limit, baseWhereParts } = args
 
-  const query = buildCombinedFilterGroupsQuery({ entityName, descriptors, searchByKey, limit })
+  const query = buildCombinedFilterGroupsQuery({ entityName, descriptors, searchByKey, limit, baseWhereParts })
   const result = await graphqlClient.request(query)
 
   const filterData: Record<

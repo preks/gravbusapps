@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Input, Label, DateInput } from '@newwork/nw-design-system'
 import { TravelRegionRuleFormData } from '../types'
+import { normalizeDateInputValue } from '../../../utils'
 
 interface BasicInformationSectionProps {
   formData: TravelRegionRuleFormData
@@ -48,7 +49,8 @@ export const BasicInformationSection: React.FC<BasicInformationSectionProps> = (
             <Label htmlFor="active-from">Active From</Label>
             <DateInput
               value={formData.activeFrom || ''}
-              onChange={date => onUpdate({ activeFrom: date || '' })}
+              onChange={date => onUpdate({ activeFrom: normalizeDateInputValue(date) || '' })}
+              outputFormat="iso"
               data-testid="travel-region-rule-form-active-from"
               disabled={isUsedInTransactions}
             />
@@ -57,7 +59,8 @@ export const BasicInformationSection: React.FC<BasicInformationSectionProps> = (
             <Label htmlFor="active-to">Active To</Label>
             <DateInput
               value={formData.activeTo || ''}
-              onChange={date => onUpdate({ activeTo: date || '' })}
+              onChange={date => onUpdate({ activeTo: normalizeDateInputValue(date) || '' })}
+              outputFormat="iso"
               data-testid="travel-region-rule-form-active-to"
             />
             {isUsedInTransactions && (

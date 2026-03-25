@@ -1,27 +1,27 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie } from 'recharts'
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts'
-import { Card } from '@newwork/nw-design-system'
+  Card,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig
+} from '@newwork/nw-design-system'
 import { CampaignAnalyticsMetrics, CampaignTimelineAnalysis } from '../../queries/CampaignAnalyticsQueries'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import { NW_CHART_COLOR_VARS, nwChartColorAt } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
 
 interface CampaignRevenueChartsProps {
   metrics: CampaignAnalyticsMetrics | null
   timelineData: CampaignTimelineAnalysis | null
 }
 
+const SLICE_NAME_KEY = 'sliceKey' as const
+const SLICE_VALUE_KEY = 'value' as const
+
 const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, timelineData }) => {
-  // State for line visibility in cumulative growth chart
   const [visibleLines, setVisibleLines] = useState({
     leads: true,
     accounts: true,
@@ -29,7 +29,6 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
     opportunities: true
   })
 
-  // Toggle line visibility
   const toggleLineVisibility = (lineKey: keyof typeof visibleLines) => {
     setVisibleLines(prev => ({
       ...prev,
@@ -37,86 +36,100 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
     }))
   }
 
-  // Prepare revenue breakdown data for pie chart
   const wonRevenue = metrics?.revenueMetrics.wonRevenue || 0
   const totalPipeline = metrics?.revenueMetrics.totalPipeline || 0
-
-  // Won Revenue is part of Claimable Revenue, so show them as parts of the whole
   const remainingClaimable = Math.max(0, totalPipeline - wonRevenue)
 
-  const revenueBreakdownData = [
-    {
-      id: 'won-revenue',
-      name: 'Won Revenue',
-      value: wonRevenue,
-      color: '#52c41a'
-    },
-    {
-      id: 'remaining-claimable',
-      name: 'Remaining Claimable',
-      value: remainingClaimable,
-      color: '#1890ff'
-    }
-  ].filter(item => item.value > 0)
+  const revenueBreakdownSlices = useMemo(() => {
+    const wonFill = NW_CHART_COLOR_VARS[1]
+    const remainingFill = NW_CHART_COLOR_VARS[0]
+    const slices = [
+      { id: 'won-revenue' as const, name: 'Won Revenue', value: wonRevenue, fill: wonFill },
+      {
+        id: 'remaining-claimable' as const,
+        name: 'Remaining Claimable',
+        value: remainingClaimable,
+        fill: remainingFill
+      }
+    ].filter(item => item.value > 0)
+    return slices.map(item => ({
+      [SLICE_NAME_KEY]: item.id,
+      name: item.name,
+      [SLICE_VALUE_KEY]: item.value,
+      fill: item.fill
+    }))
+  }, [wonRevenue, remainingClaimable])
 
-  // Legend data includes the total claimable revenue for context
-  const revenueLegendData = [
-    {
-      id: 'claimable-revenue',
-      name: 'Claimable Revenue',
-      value: totalPipeline,
-      color: '#f59e0b', // Amber/gold color representing potential/opportunity
-      isTotal: true
-    },
-    {
-      id: 'won-revenue-legend',
-      name: 'Won Revenue',
-      value: wonRevenue,
-      color: '#52c41a',
-      isTotal: false
-    },
-    ...(remainingClaimable > 0
-      ? [
-          {
-            id: 'remaining-claimable-legend',
-            name: 'Remaining Claimable',
-            value: remainingClaimable,
-            color: '#1890ff',
-            isTotal: false
-          }
-        ]
-      : [])
-  ]
+  const revenueBreakdownChartConfig = useMemo<ChartConfig>(() => {
+    const config: ChartConfig = {}
+    revenueBreakdownSlices.forEach(slice => {
+      const id = String(slice[SLICE_NAME_KEY])
+      config[id] = {
+        label: slice.name,
+        color: slice.fill
+      }
+    })
+    return config
+  }, [revenueBreakdownSlices])
 
-  // Prepare entity type distribution for pie chart
-  const entityDistributionData = [
-    {
-      id: 'leads',
-      name: 'Leads',
-      value: metrics?.totalEntities.leads || 0,
-      color: '#1890ff'
-    },
-    {
-      id: 'accounts',
-      name: 'Accounts',
-      value: metrics?.totalEntities.accounts || 0,
-      color: '#52c41a'
-    },
-    {
-      id: 'contacts',
-      name: 'Contacts',
-      value: metrics?.totalEntities.contacts || 0,
-      color: '#fa8c16'
-    },
-    {
-      id: 'opportunities',
-      name: 'Opportunities',
-      value: metrics?.totalEntities.opportunities || 0,
-      color: '#722ed1'
-    }
-  ].filter(item => item.value > 0)
+  const revenueLegendData = useMemo(
+    () => [
+      {
+        id: 'claimable-revenue',
+        name: 'Claimable Revenue',
+        value: totalPipeline,
+        color: NW_CHART_COLOR_VARS[3],
+        isTotal: true
+      },
+      {
+        id: 'won-revenue-legend',
+        name: 'Won Revenue',
+        value: wonRevenue,
+        color: NW_CHART_COLOR_VARS[1],
+        isTotal: false
+      },
+      ...(remainingClaimable > 0
+        ? [
+            {
+              id: 'remaining-claimable-legend',
+              name: 'Remaining Claimable',
+              value: remainingClaimable,
+              color: NW_CHART_COLOR_VARS[0],
+              isTotal: false
+            }
+          ]
+        : [])
+    ],
+    [totalPipeline, wonRevenue, remainingClaimable]
+  )
 
-  // Prepare cumulative timeline data for line chart
+  const entityDistributionSlices = useMemo(() => {
+    const rows = [
+      { id: 'leads' as const, name: 'Leads', value: metrics?.totalEntities.leads || 0 },
+      { id: 'accounts' as const, name: 'Accounts', value: metrics?.totalEntities.accounts || 0 },
+      { id: 'contacts' as const, name: 'Contacts', value: metrics?.totalEntities.contacts || 0 },
+      { id: 'opportunities' as const, name: 'Opportunities', value: metrics?.totalEntities.opportunities || 0 }
+    ].filter(item => item.value > 0)
+    return rows.map((item, index) => ({
+      [SLICE_NAME_KEY]: item.id,
+      name: item.name,
+      [SLICE_VALUE_KEY]: item.value,
+      fill: nwChartColorAt(index)
+    }))
+  }, [metrics?.totalEntities])
+
+  const entityDistributionChartConfig = useMemo<ChartConfig>(() => {
+    const config: ChartConfig = {}
+    entityDistributionSlices.forEach((slice, index) => {
+      const id = String(slice[SLICE_NAME_KEY])
+      config[id] = {
+        label: slice.name,
+        color: nwChartColorAt(index)
+      }
+    })
+    return config
+  }, [entityDistributionSlices])
+
   const timelineChartData =
     timelineData?.entityCreationTimeline.map(item => ({
       date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -128,62 +141,62 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
       cumulativeRevenue: item.cumulativeRevenue
     })) || []
 
-  // Custom tooltip for pie charts
-  const renderPieTooltip = (value: number | string, name: string) => {
-    return [
-      typeof value === 'number' && name.includes('Revenue') ? formatCurrencyCompact(value) : value.toLocaleString(),
-      name
-    ]
-  }
+  const cumulativeGrowthChartConfig = useMemo<ChartConfig>(
+    () => ({
+      cumulativeleads: { label: 'Cumulative Leads' },
+      cumulativeaccounts: { label: 'Cumulative Accounts' },
+      cumulativecontacts: { label: 'Cumulative Contacts' },
+      cumulativeopportunities: { label: 'Cumulative Opportunities' }
+    }),
+    []
+  )
 
-  // Custom tooltip for line chart
-  const renderLineTooltip = (value: number | string, name: string) => {
-    const nameMap: Record<string, string> = {
-      cumulativeLeads: 'Cumulative Leads',
-      cumulativeAccounts: 'Cumulative Accounts',
-      cumulativeContacts: 'Cumulative Contacts',
-      cumulativeOpportunities: 'Cumulative Opportunities'
-    }
-    return [value.toLocaleString(), nameMap[name] || name]
-  }
+  const revenueTimelineConfig = useMemo<ChartConfig>(() => ({ cumulativerevenue: { label: 'Revenue' } }), [])
+
+  const lineToggleStyle = useMemo(
+    () => [
+      { key: 'leads' as const, label: 'Total Leads', color: NW_CHART_COLOR_VARS[0] },
+      { key: 'accounts' as const, label: 'Total Accounts', color: NW_CHART_COLOR_VARS[1] },
+      { key: 'contacts' as const, label: 'Total Contacts', color: NW_CHART_COLOR_VARS[2] },
+      { key: 'opportunities' as const, label: 'Total Opportunities', color: NW_CHART_COLOR_VARS[3] }
+    ],
+    []
+  )
 
   return (
     <div
       className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6"
       data-testid="campaign-revenue-charts-container"
     >
-      {/* Chart 1: Revenue Breakdown Pie Chart */}
       <Card className="gba:p-6" data-testid="revenue-breakdown-chart">
         <h4 className="gba:text-md gba:font-semibold gba:mb-4 gba:text-foreground">Revenue Breakdown</h4>
 
-        {revenueBreakdownData.length > 0 ? (
+        {revenueBreakdownSlices.length > 0 ? (
           <div className="gba:h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer config={revenueBreakdownChartConfig} className="gba:h-64 gba:w-full">
               <PieChart>
                 <Pie
-                  data={revenueBreakdownData}
+                  data={revenueBreakdownSlices}
                   cx="50%"
                   cy="50%"
                   innerRadius={40}
                   outerRadius={80}
                   paddingAngle={5}
-                  dataKey="value"
-                >
-                  {revenueBreakdownData.map(entry => (
-                    <Cell key={`cell-${entry.id}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={renderPieTooltip}
-                  contentStyle={{
-                    backgroundColor: 'var(--color-surface-primary)',
-                    border: '1px solid var(--color-border-default)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    fontSize: '12px'
-                  }}
+                  dataKey={SLICE_VALUE_KEY}
+                  nameKey={SLICE_NAME_KEY}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      hideLabel
+                      labelKey={SLICE_VALUE_KEY}
+                      nameKey={SLICE_NAME_KEY}
+                      formatter={value => (typeof value === 'number' ? formatCurrencyCompact(value) : String(value))}
+                    />
+                  }
                 />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         ) : (
           <div className="gba:h-64 gba:flex gba:items-center gba:justify-center">
@@ -191,12 +204,11 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
           </div>
         )}
 
-        {/* Revenue Legend */}
         <div className="gba:mt-4 gba:space-y-2">
           {revenueLegendData.map(item => (
             <div key={item.id} className="gba:flex gba:items-center gba:justify-between">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: item.color }}></div>
+                <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: item.color }} />
                 <span className={`gba:text-sm gba:text-foreground ${item.isTotal ? 'gba:font-semibold' : ''}`}>
                   {item.name}
                 </span>
@@ -209,38 +221,35 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
         </div>
       </Card>
 
-      {/* Chart 2: Entity Distribution Pie Chart */}
       <Card className="gba:p-6" data-testid="entity-distribution-chart">
         <h4 className="gba:text-md gba:font-semibold gba:mb-4 gba:text-foreground">Entity Distribution</h4>
 
-        {entityDistributionData.length > 0 ? (
+        {entityDistributionSlices.length > 0 ? (
           <div className="gba:h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer config={entityDistributionChartConfig} className="gba:h-64 gba:w-full">
               <PieChart>
                 <Pie
-                  data={entityDistributionData}
+                  data={entityDistributionSlices}
                   cx="50%"
                   cy="50%"
                   innerRadius={40}
                   outerRadius={80}
                   paddingAngle={5}
-                  dataKey="value"
-                >
-                  {entityDistributionData.map(entry => (
-                    <Cell key={`cell-${entry.id}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={renderPieTooltip}
-                  contentStyle={{
-                    backgroundColor: 'var(--color-surface-primary)',
-                    border: '1px solid var(--color-border-default)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    fontSize: '12px'
-                  }}
+                  dataKey={SLICE_VALUE_KEY}
+                  nameKey={SLICE_NAME_KEY}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      hideLabel
+                      labelKey={SLICE_VALUE_KEY}
+                      nameKey={SLICE_NAME_KEY}
+                      formatter={value => (typeof value === 'number' ? value.toLocaleString() : String(value))}
+                    />
+                  }
                 />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         ) : (
           <div className="gba:h-64 gba:flex gba:items-center gba:justify-center">
@@ -248,21 +257,25 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
           </div>
         )}
 
-        {/* Entity Legend */}
         <div className="gba:mt-4 gba:space-y-2">
-          {entityDistributionData.map(item => (
-            <div key={item.id} className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: item.color }}></div>
-                <span className="gba:text-sm gba:text-foreground">{item.name}</span>
+          {entityDistributionSlices.map(item => {
+            const id = String(item[SLICE_NAME_KEY])
+            const label = item.name
+            return (
+              <div key={id} className="gba:flex gba:items-center gba:justify-between">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: item.fill }} />
+                  <span className="gba:text-sm gba:text-foreground">{label}</span>
+                </div>
+                <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                  {Number(item[SLICE_VALUE_KEY]).toLocaleString()}
+                </span>
               </div>
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">{item.value.toLocaleString()}</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </Card>
 
-      {/* Chart 3: Cumulative Growth Timeline */}
       {timelineChartData.length > 0 ? (
         <Card className="gba:p-6" data-testid="cumulative-growth-chart">
           <div className="gba:mb-4">
@@ -270,83 +283,65 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
           </div>
 
           <div className="gba:h-80 gba:mb-4">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer config={cumulativeGrowthChartConfig} className="gba:h-80 gba:w-full">
               <LineChart data={timelineChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-default)" />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="var(--color-text-secondary)" />
                 <YAxis
                   tick={{ fontSize: 12 }}
                   stroke="var(--color-text-secondary)"
-                  tickFormatter={value => Math.floor(value).toString()}
+                  tickFormatter={value => Math.floor(Number(value)).toString()}
                   domain={[0, 'dataMax']}
                   allowDecimals={false}
                 />
-                <Tooltip
-                  formatter={renderLineTooltip}
-                  labelFormatter={label => `Date: ${label}`}
-                  contentStyle={{
-                    backgroundColor: 'var(--color-surface-primary)',
-                    border: '1px solid var(--color-border-default)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    fontSize: '12px'
-                  }}
-                />
+                <ChartTooltip content={<ChartTooltipContent labelFormatter={label => `Date: ${label ?? ''}`} />} />
                 {visibleLines.leads && (
                   <Line
                     type="monotone"
                     dataKey="cumulativeLeads"
-                    // eslint-disable-next-line newwork-local/no-hardcoded-colors
-                    stroke="#1890ff"
+                    stroke="var(--color-cumulativeleads)"
                     strokeWidth={2}
                     dot={{ r: 4 }}
-                    name="Leads"
+                    name="Cumulative Leads"
                   />
                 )}
                 {visibleLines.accounts && (
                   <Line
                     type="monotone"
                     dataKey="cumulativeAccounts"
-                    // eslint-disable-next-line newwork-local/no-hardcoded-colors
-                    stroke="#52c41a"
+                    stroke="var(--color-cumulativeaccounts)"
                     strokeWidth={2}
                     dot={{ r: 4 }}
-                    name="Accounts"
+                    name="Cumulative Accounts"
                   />
                 )}
                 {visibleLines.contacts && (
                   <Line
                     type="monotone"
                     dataKey="cumulativeContacts"
-                    // eslint-disable-next-line newwork-local/no-hardcoded-colors
-                    stroke="#fa8c16"
+                    stroke="var(--color-cumulativecontacts)"
                     strokeWidth={2}
                     dot={{ r: 4 }}
-                    name="Contacts"
+                    name="Cumulative Contacts"
                   />
                 )}
                 {visibleLines.opportunities && (
                   <Line
                     type="monotone"
                     dataKey="cumulativeOpportunities"
-                    // eslint-disable-next-line newwork-local/no-hardcoded-colors
-                    stroke="#722ed1"
+                    stroke="var(--color-cumulativeopportunities)"
                     strokeWidth={2}
                     dot={{ r: 4 }}
-                    name="Opportunities"
+                    name="Cumulative Opportunities"
                   />
                 )}
+                <ChartLegend content={<ChartLegendContent />} />
               </LineChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
 
-          {/* Line Visibility Filters - Moved below chart */}
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-3 gba:pt-4 gba:border-t gba:border-border">
-            {[
-              { key: 'leads', label: 'Total Leads', color: '#1890ff' },
-              { key: 'accounts', label: 'Total Accounts', color: '#52c41a' },
-              { key: 'contacts', label: 'Total Contacts', color: '#fa8c16' },
-              { key: 'opportunities', label: 'Total Opportunities', color: '#722ed1' }
-            ].map(({ key, label, color }) => (
+            {lineToggleStyle.map(({ key, label, color }) => (
               <label
                 key={key}
                 className="gba:flex gba:items-center gba:gap-1 gba:cursor-pointer gba:select-none"
@@ -354,12 +349,12 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
               >
                 <input
                   type="checkbox"
-                  checked={visibleLines[key as keyof typeof visibleLines]}
-                  onChange={() => toggleLineVisibility(key as keyof typeof visibleLines)}
+                  checked={visibleLines[key]}
+                  onChange={() => toggleLineVisibility(key)}
                   className="gba:w-3 gba:h-3"
                   style={{ accentColor: color }}
                 />
-                <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: color }}></div>
+                <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: color }} />
                 <span className="gba:text-xs gba:text-foreground">{label}</span>
               </label>
             ))}
@@ -374,43 +369,38 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
         </Card>
       )}
 
-      {/* Chart 4: Revenue Performance Timeline (right) */}
       <Card className="gba:p-6" data-testid="revenue-performance-chart">
         <h4 className="gba:text-md gba:font-semibold gba:mb-4 gba:text-foreground">Revenue Performance Over Time</h4>
         {timelineChartData.length > 0 ? (
           <div className="gba:h-80">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer config={revenueTimelineConfig} className="gba:h-80 gba:w-full">
               <LineChart data={timelineChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-default)" />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="var(--color-text-secondary)" />
                 <YAxis
                   tick={{ fontSize: 12 }}
                   stroke="var(--color-text-secondary)"
-                  tickFormatter={value => formatCurrencyCompact(value)}
+                  tickFormatter={value => formatCurrencyCompact(Number(value))}
                   domain={[0, 'dataMax']}
                 />
-                <Tooltip
-                  formatter={(value: number | string) => [formatCurrencyCompact(Number(value)), 'Revenue']}
-                  labelFormatter={label => `Date: ${label}`}
-                  contentStyle={{
-                    backgroundColor: 'var(--color-surface-primary)',
-                    border: '1px solid var(--color-border-default)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    fontSize: '12px'
-                  }}
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      labelFormatter={label => `Date: ${label ?? ''}`}
+                      formatter={value => [formatCurrencyCompact(Number(value)), 'Revenue']}
+                    />
+                  }
                 />
-                {/* eslint-disable newwork-local/no-hardcoded-colors */}
                 <Line
                   type="monotone"
                   dataKey="cumulativeRevenue"
-                  stroke="#52c41a"
+                  stroke="var(--color-cumulativerevenue)"
                   strokeWidth={3}
-                  dot={{ r: 4, fill: '#52c41a' }}
+                  dot={{ r: 4, fill: 'var(--color-cumulativerevenue)' }}
                   name="Revenue"
                 />
-                {/* eslint-enable newwork-local/no-hardcoded-colors */}
               </LineChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         ) : (
           <div className="gba:h-80 gba:flex gba:items-center gba:justify-center">

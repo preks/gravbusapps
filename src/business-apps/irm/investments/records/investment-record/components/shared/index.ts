@@ -3,7 +3,7 @@
 // =============================================================================
 
 // Action Buttons
-export { GenerateOnePagerButton, UploadReportButton } from './InvestmentActionButtons'
+export { GenerateOnePagerButton } from './InvestmentActionButtons'
 export { DirectApiGenerateButton } from './DirectApiGenerateButton'
 export { FlowBasedGenerateButton } from './FlowBasedGenerateButton'
 
@@ -24,7 +24,7 @@ export { default as ReportFilters } from './ReportFilters'
 export * from './columnDefinitions'
 
 // Re-export types
-export type { GenerateOnePagerButtonProps, UploadReportButtonProps } from './InvestmentActionButtons'
+export type { GenerateOnePagerButtonProps } from './InvestmentActionButtons'
 export type { InvestmentReportPdfModalProps } from './InvestmentReportPdfModal'
 export type { DirectApiGenerateButtonProps } from './DirectApiGenerateButton'
 export type { FlowBasedGenerateButtonProps } from './FlowBasedGenerateButton'

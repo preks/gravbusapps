@@ -1,2 +1,9 @@
 export { default as OpportunityLayout } from './OpportunityLayout'
-export { opportunitySchema, type OpportunitySchema, createOpportunitySegmentResolver } from './opportunitySchema'
+export {
+  opportunitySchema,
+  opportunitySchemaBase,
+  addPipelineStageRefinement,
+  OPPORTUNITY_VALIDATION_ERRORS,
+  type OpportunitySchema,
+  createOpportunitySegmentResolver
+} from './opportunitySchema'

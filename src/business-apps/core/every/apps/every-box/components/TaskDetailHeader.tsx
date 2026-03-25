@@ -184,7 +184,7 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
       className="gba:z-40 gba:bg-card/95 gba:backdrop-blur-sm gba:border-b gba:shadow-sm gba:py-0 gba:mb-2 gba:sticky gba:top-0 gba:-mx-6 gba:w-[calc(100%+3rem)]"
       data-task-detail-header="true"
     >
-      <div className="gba:px-6 gba:py-4 gba:flex gba:items-center gba:justify-between gba:gap-4">
+      <div className="gba:pl-8 gba:pr-6 gba:py-4 gba:flex gba:items-center gba:justify-between gba:gap-4">
         {/* Left: Employee Context (if exists) */}
         {shouldShowEmployee && (
           <div

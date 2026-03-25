@@ -1,7 +1,7 @@
 import { RestClient } from '../rest/RestClient'
 import { env } from '../../env/EnvUtils'
 import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
-import { FeedbackRequestPayload } from '../../../business-apps/crm/common/forms/feedback-request-form/types'
+import { FeedbackRequestPayload } from '../../../business-apps/hr/core/forms/feedback-request-form/types'
 
 export interface FeedbackRequestResponse {
   id: string
@@ -12,7 +12,7 @@ export interface FeedbackRequestResponse {
 
 export interface BulkFeedbackRequestPayload {
   requestedFromList: string[]
-  creatorUserId: string
+  subjectUserId: string
   requestMessage?: string
 }
 

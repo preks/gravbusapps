@@ -12,19 +12,23 @@ const globalScreenCache = new Map<
 // Global loading state to prevent concurrent loads of the same screen
 const globalLoadingState = new Map<string, Promise<React.ComponentType<any>>>()
 
-// Performance tracking
-const performanceMetrics = new Map<
-  string,
-  {
-    loadTime: number
-    loadCount: number
-    lastLoadTime: number
-  }
->()
+const DYNAMIC_SCREEN_HMR_EVENT = 'gba:dynamic-screen-hmr'
+let hmrVersion = 0
 
 // Import the virtual module for dynamic screen loading
 // This will only work in development mode
 let dynamicScreenLoader: any = null
+
+// In dev, a cached component function can get "stuck" across HMR updates.
+// We clear caches and signal active screens to reload on any update.
+if (import.meta.hot && typeof window !== 'undefined') {
+  import.meta.hot.on('vite:afterUpdate', () => {
+    hmrVersion += 1
+    globalScreenCache.clear()
+    globalLoadingState.clear()
+    window.dispatchEvent(new Event(DYNAMIC_SCREEN_HMR_EVENT))
+  })
+}
 
 // Initialize the dynamic screen loader
 const initDynamicScreenLoader = async () => {
@@ -46,9 +50,10 @@ const initDynamicScreenLoader = async () => {
 
 // Global function to load a screen with caching
 const loadScreenGlobally = async (screenKey: string): Promise<React.ComponentType<any>> => {
+  const cacheKey = import.meta.env.MODE === 'development' ? `${screenKey}::hmr${hmrVersion}` : screenKey
   // Check global cache first
-  if (globalScreenCache.has(screenKey)) {
-    const cached = globalScreenCache.get(screenKey)!
+  if (globalScreenCache.has(cacheKey)) {
+    const cached = globalScreenCache.get(cacheKey)!
     console.log(
       `[useDynamicScreen] Using cached component for ${screenKey} (loaded ${Date.now() - cached.loadedAt}ms ago)`
     )
@@ -56,13 +61,10 @@ const loadScreenGlobally = async (screenKey: string): Promise<React.ComponentTyp
   }
 
   // Check if already loading
-  if (globalLoadingState.has(screenKey)) {
+  if (globalLoadingState.has(cacheKey)) {
     console.log(`[useDynamicScreen] Waiting for concurrent load of ${screenKey}`)
-    return globalLoadingState.get(screenKey)!
+    return globalLoadingState.get(cacheKey)!
   }
-
-  // Start performance tracking
-  const startTime = performance.now()
 
   // Create loading promise
   const loadPromise = (async () => {
@@ -76,33 +78,24 @@ const loadScreenGlobally = async (screenKey: string): Promise<React.ComponentTyp
       const component = await loader.loadScreen(screenKey)
 
       // Cache the component globally
-      globalScreenCache.set(screenKey, {
+      globalScreenCache.set(cacheKey, {
         component,
         loadedAt: Date.now()
       })
 
-      // Track performance
-      const loadTime = performance.now() - startTime
-      const existing = performanceMetrics.get(screenKey) || { loadTime: 0, loadCount: 0, lastLoadTime: 0 }
-      performanceMetrics.set(screenKey, {
-        loadTime: existing.loadTime + loadTime,
-        loadCount: existing.loadCount + 1,
-        lastLoadTime: loadTime
-      })
-
-      console.log(`[useDynamicScreen] Successfully loaded ${screenKey} in ${loadTime.toFixed(2)}ms`)
+      console.log(`[useDynamicScreen] Successfully loaded ${screenKey}`)
       return component
     } catch (error) {
       console.error(`[useDynamicScreen] Failed to load ${screenKey}:`, error)
       throw error
     } finally {
       // Remove from loading state
-      globalLoadingState.delete(screenKey)
+      globalLoadingState.delete(cacheKey)
     }
   })()
 
   // Store loading promise
-  globalLoadingState.set(screenKey, loadPromise)
+  globalLoadingState.set(cacheKey, loadPromise)
 
   return loadPromise
 }
@@ -120,7 +113,6 @@ export interface DynamicScreenHook {
   getScreenInfo: (screenKey: string) => any
   state: DynamicScreenState
   reset: () => void
-  getPerformanceMetrics: () => Map<string, any>
 }
 
 /**
@@ -223,17 +215,12 @@ export const useDynamicScreen = (): DynamicScreenHook => {
     }
   }, [])
 
-  const getPerformanceMetrics = useCallback(() => {
-    return performanceMetrics
-  }, [])
-
   return {
     loadScreen,
     getAvailableScreens,
     isScreenAvailable,
     getScreenInfo,
     state,
-    reset,
-    getPerformanceMetrics
+    reset
   }
 }

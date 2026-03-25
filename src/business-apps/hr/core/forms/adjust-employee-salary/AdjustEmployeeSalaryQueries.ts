@@ -163,3 +163,58 @@ export const EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY = `query fetchEmployeeBankAcco
   }
 }
 `
+
+/** Employee's employment region id (from working condition) */
+export const GET_EMPLOYEE_REGION_ID = `query GetEmployeeRegionId($employeeId: uuid!) {
+  Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
+    id
+    workingCondition {
+      region {
+        id
+      }
+    }
+  }
+}
+`
+
+/** Country catalog entry id for a given EmploymentRegion (additionalValue3) */
+export const GET_REGION_COUNTRY_ID = `query GetRegionCountryId($regionId: String!) {
+  CatalogEntry(where: { id: { _eq: $regionId } }) {
+    id
+    additionalValue3
+  }
+}
+`
+
+/** Country catalog entry objectValue (contains currency ref) for preset currency */
+export const GET_COUNTRY_OBJECT_VALUE = `query GetCountryObjectValue($id: String!) {
+  CatalogEntry(where: { id: { _eq: $id } }) {
+    id
+    objectValue
+  }
+}
+`
+
+export const EXISTING_SALARY_ADJUSTMENT_FOR_MONTH_QUERY = `query existingSalaryAdjustmentForMonth($idEmployee: uuid!, $monthStart: date!, $monthEnd: date!) {
+  EmployeeSalary(
+    where: {
+      _and: [
+        { employeeId: { _eq: $idEmployee } }
+        { isDeleted: { _eq: false } }
+        {
+          _or: [
+            { requestStatus: { _neq: "REJECTED_SALARY_ADJUSTMENT" } }
+            { requestStatus: { _isNull: true } }
+          ]
+        }
+        { startDate: { _gte: $monthStart, _lte: $monthEnd } }
+      ]
+    }
+    orderBy: [{ startDate: ASC }]
+    limit: 1
+  ) {
+    id
+    startDate
+  }
+}
+`

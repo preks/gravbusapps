@@ -18,6 +18,7 @@ export interface AllowanceRegionRuleDetail {
     id: string
     code: string
     value: string
+    parentEntryId?: string
     objectValue?: {
       destination_country_ref?: string
     }
@@ -79,6 +80,7 @@ export const GET_ALLOWANCE_REGION_RULES_WITH_DETAILS = `
       allowanceRegionRuleDetail(where: { isDeleted: { _eq: false } }) {
         id
         amount
+        home
         activeFrom
         activeTo
         version

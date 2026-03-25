@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Form, Input, Select, Switch, InputNumber, TimePicker, Divider, Space, Typography, Alert, Tooltip } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useWizardStore } from '../../hooks/useWizardStore'
 import dayjs from 'dayjs'
@@ -141,7 +141,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ 'data-testid
             <CardTitle className="gba:flex gba:items-center gba:space-x-2">
               <span>⏰ Timing Configuration</span>
               <Tooltip title="Configure default deadlines and working hours">
-                <InfoCircleOutlined className="gba:text-gray-400" />
+                <InfoIcon size={16} className="gba:text-gray-400" />
               </Tooltip>
             </CardTitle>
           </CardHeader>
@@ -237,7 +237,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ 'data-testid
             <CardTitle className="gba:flex gba:items-center gba:space-x-2">
               <span>🔔 Reminder Settings</span>
               <Tooltip title="Configure automatic reminders before deadlines">
-                <InfoCircleOutlined className="gba:text-gray-400" />
+                <InfoIcon size={16} className="gba:text-gray-400" />
               </Tooltip>
             </CardTitle>
           </CardHeader>
@@ -293,7 +293,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ 'data-testid
             <CardTitle className="gba:flex gba:items-center gba:space-x-2">
               <span>⚡ Escalation Settings</span>
               <Tooltip title="Configure automatic escalation after deadlines">
-                <InfoCircleOutlined className="gba:text-gray-400" />
+                <InfoIcon size={16} className="gba:text-gray-400" />
               </Tooltip>
             </CardTitle>
           </CardHeader>
@@ -363,7 +363,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ 'data-testid
             <CardTitle className="gba:flex gba:items-center gba:space-x-2">
               <span>📧 Notification Settings</span>
               <Tooltip title="Configure notification channels">
-                <InfoCircleOutlined className="gba:text-gray-400" />
+                <InfoIcon size={16} className="gba:text-gray-400" />
               </Tooltip>
             </CardTitle>
           </CardHeader>

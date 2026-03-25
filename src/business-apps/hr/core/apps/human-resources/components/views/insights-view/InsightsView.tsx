@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  CalendarOutlined,
-  UserOutlined,
-  TeamOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined
-} from '@ant-design/icons'
+  CalendarIcon,
+  UserIcon,
+  UsersIcon,
+  ClockIcon,
+  WarningCircleIcon
+} from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import {
   Spinner,
@@ -20,13 +20,24 @@ import {
   TableCell,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger
 } from '@newwork/nw-design-system'
+import { MoreHorizontal } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { format, addDays, isWithinInterval, parseISO, differenceInYears } from 'date-fns'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components'
+import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
+import { exportToWord } from '@/business-apps/platform/apps/document-apps/utils/exportUtils'
+import { toast } from 'sonner'
 
 interface EmployeeInsight {
   id: string
@@ -40,31 +51,47 @@ interface EmployeeInsight {
   pictureThumbnail?: string
   jobPositionName?: string
   organizationalUnitName?: string
+  companyName?: string
 }
 
 const GET_EMPLOYEE_INSIGHTS = `
-query GetEmployeeInsights {
-  Employee(where: {isDeleted: {_eq: false}}) {
-    id
-    firstName
-    lastName
-    fullName
-    birthDate
-    pictureThumbnail
-    workingCondition(limit: 1, orderBy: {createdAt: DESC}) {
-      hireDate
-      probationEnd
-      exitDate
-      contractStatus
+query GetEmployeeInsights($asOf: timestamp!) {
+  EmployeePosition(
+    where: {
+      _and: [
+        { _or: [{ hireDate: { _lte: $asOf } }, { hireDate: { _isNull: true } }] }
+        { _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gt: $asOf } }] }
+        { employee: { isDeleted: { _eq: false } } }
+      ]
     }
-    employeePosition {
-      organizationalUnit {
-        name
-      }
-      jobPosition {
-        name
+    orderBy: { createdAt: DESC }
+  ) {
+    employee {
+      id
+      firstName
+      lastName
+      fullName
+      birthDate
+      pictureThumbnail
+      workingCondition(
+        where: {
+          _and: [
+            { _or: [{ hireDate: { _lte: $asOf } }, { hireDate: { _isNull: true } }] }
+            { _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gt: $asOf } }] }
+            { isDeleted: { _eq: false } }
+          ]
+        }
+        limit: 1
+        orderBy: { createdAt: DESC }
+      ) {
+        hireDate
+        probationEnd
+        exitDate
+        contractStatus
       }
     }
+    organizationalUnit { name, companyId, company { id, name } }
+    jobPosition { name }
   }
 }
 `
@@ -77,30 +104,70 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   const [newHires, setNewHires] = useState<EmployeeInsight[]>([])
   const [probationEnds, setProbationEnds] = useState<EmployeeInsight[]>([])
   const [terminations, setTerminations] = useState<EmployeeInsight[]>([])
+  const [generateDocEmployee, setGenerateDocEmployee] = useState<EmployeeInsight | null>(null)
+  const [generateDocOpen, setGenerateDocOpen] = useState(false)
 
   const client = useGraphqlClient(accessToken)
+
+  const entityDataMapForDoc = useMemo(() => {
+    if (!generateDocEmployee) return {}
+    return {
+      employee: {
+        id: generateDocEmployee.id,
+        firstName: generateDocEmployee.firstName,
+        lastName: generateDocEmployee.lastName,
+        fullName: generateDocEmployee.fullName,
+        jobPositionName: generateDocEmployee.jobPositionName,
+        organizationalUnitName: generateDocEmployee.organizationalUnitName,
+        birthDate: generateDocEmployee.birthDate,
+        hireDate: generateDocEmployee.hireDate,
+        probationEnd: generateDocEmployee.probationEnd,
+        exitDate: generateDocEmployee.exitDate
+      },
+      employment: {
+        startDate: generateDocEmployee.hireDate,
+        endDate: generateDocEmployee.exitDate
+      },
+      job: {
+        position: generateDocEmployee.jobPositionName,
+        name: generateDocEmployee.jobPositionName
+      },
+      company: {
+        name: generateDocEmployee.companyName
+      }
+    }
+  }, [generateDocEmployee])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const data: any = await client.request(GET_EMPLOYEE_INSIGHTS)
-      const employees = data.Employee.map((emp: any) => ({
-        id: emp.id,
-        firstName: emp.firstName,
-        lastName: emp.lastName,
-        fullName: emp.fullName,
-        birthDate: emp.birthDate,
-        contract_status: emp.workingCondition?.[0]?.contractStatus,
-        pictureThumbnail: emp.pictureThumbnail,
-        hireDate: emp.workingCondition?.[0]?.hireDate,
-        probationEnd: emp.workingCondition?.[0]?.probationEnd,
-        exitDate: emp.workingCondition?.[0]?.exitDate,
-        jobPositionName: emp.employeePosition?.jobPosition?.name,
-        organizationalUnitName: emp.employeePosition?.organizationalUnit?.name
-      }))
-        // As additional safety, filter out records where both criteria are met
-        .filter((emp: any) => !(emp.exitDate && String(emp.contract_status || '').toUpperCase() === 'INACTIVE'))
+      const asOf = new Date().toISOString()
+      const data: any = await client.request(GET_EMPLOYEE_INSIGHTS, { asOf })
+      const now = new Date()
+      const employees = (data.EmployeePosition || [])
+        .map((ep: any) => ({
+          id: ep.employee?.id,
+          firstName: ep.employee?.firstName,
+          lastName: ep.employee?.lastName,
+          fullName: ep.employee?.fullName,
+          birthDate: ep.employee?.birthDate,
+          contract_status: ep.employee?.workingCondition?.[0]?.contractStatus,
+          pictureThumbnail: ep.employee?.pictureThumbnail,
+          hireDate: ep.employee?.workingCondition?.[0]?.hireDate,
+          probationEnd: ep.employee?.workingCondition?.[0]?.probationEnd,
+          exitDate: ep.employee?.workingCondition?.[0]?.exitDate,
+          jobPositionName: ep.jobPosition?.name,
+          organizationalUnitName: ep.organizationalUnit?.name,
+          companyName: ep.organizationalUnit?.company?.name
+        }))
+        // Active-as-of safeguard (server already filters positions)
+        .filter((emp: any) => {
+          const hireOk = !emp.hireDate || parseISO(emp.hireDate) <= now
+          const exitOk = !emp.exitDate || parseISO(emp.exitDate) > now
+          const notInactiveWithExit = !(emp.exitDate && String(emp.contract_status || '').toUpperCase() === 'INACTIVE')
+          return hireOk && exitOk && notInactiveWithExit
+        })
 
       const today = new Date()
       const startWindow = addDays(today, -30)
@@ -252,31 +319,31 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   const viewOptions = [
     {
       key: 'birthdays',
-      icon: <CalendarOutlined />,
+      icon: <CalendarIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthdays', 'Birthdays'),
       count: birthdays.length
     },
     {
       key: 'anniversaries',
-      icon: <UserOutlined />,
+      icon: <UserIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversaries', 'Anniversaries'),
       count: anniversaries.length
     },
     {
       key: 'new-hires',
-      icon: <TeamOutlined />,
+      icon: <UsersIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.new_hires', 'New Hires'),
       count: newHires.length
     },
     {
       key: 'probation-ends',
-      icon: <ClockCircleOutlined />,
+      icon: <ClockIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.probation_ends', 'Probation Ends'),
       count: probationEnds.length
     },
     {
       key: 'terminations',
-      icon: <ExclamationCircleOutlined />,
+      icon: <WarningCircleIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.terminations', 'Terminations'),
       count: terminations.length
     }
@@ -299,6 +366,11 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       )
     }
 
+    const handleGenerateDocument = (record: EmployeeInsight) => {
+      setGenerateDocEmployee(record)
+      setGenerateDocOpen(true)
+    }
+
     return (
       <Table>
         <TableHeader>
@@ -306,6 +378,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.employee', 'Employee')}</TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.department', 'Department')}</TableHead>
             <TableHead>{dateLabel}</TableHead>
+            <TableHead className="gba:w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -364,6 +437,34 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
                     getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.not_available', 'N/A')}
                 </TableCell>
                 <TableCell>{renderedDate}</TableCell>
+                <TableCell className="gba:text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-8 gba:w-8"
+                        data-testid="hr-insights-row-menu"
+                      >
+                        <MoreHorizontal className="gba:h-4 gba:w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel className="gba:font-semibold">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.actions', 'Actions')}
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => handleGenerateDocument(record)}
+                        data-testid="hr-insights-row-generate-document"
+                      >
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_insights.generate_document',
+                          'Generate document'
+                        )}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
               </TableRow>
             )
           })}
@@ -454,6 +555,31 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           )}
         </TabsContent>
       </Tabs>
+
+      <GenerateDocumentDialog
+        open={generateDocOpen}
+        onOpenChange={open => {
+          setGenerateDocOpen(open)
+          if (!open) setGenerateDocEmployee(null)
+        }}
+        entityDataMap={entityDataMapForDoc}
+        defaultTitle={generateDocEmployee?.fullName ?? 'Employee'}
+        onSuccess={async documentId => {
+          if (!accessToken) return
+          DocumentApiService.setAccessToken(accessToken)
+          try {
+            const doc = await DocumentApiService.getDocument(documentId)
+            if (doc?.content != null) {
+              await exportToWord(doc.title || 'Document', doc.content)
+              toast.success('Document downloaded')
+            }
+          } catch (err) {
+            console.error('Failed to download document:', err)
+            toast.error('Failed to download document')
+          }
+        }}
+        data-testid="hr-insights-generate-document-dialog"
+      />
     </div>
   )
 }

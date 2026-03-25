@@ -1,9 +1,9 @@
 adjust-salary-title = Gehalt anpassen
 adjust-salary-adjustment-type = Anpassungstyp
-adjust-salary-adjustment-type-amount = Betragserhöhung
-adjust-salary-adjustment-type-percentage = Prozentsatzerhöhung
-adjust-salary-increase-amount = Erhöhungsbetrag
-adjust-salary-increase-percentage = Erhöhungsprozentsatz (%)
+adjust-salary-adjustment-type-amount = Betragsanpassung
+adjust-salary-adjustment-type-percentage = Prozentsatzanpassung
+adjust-salary-increase-amount = Anpassungsbetrag
+adjust-salary-increase-percentage = Anpassungsprozentsatz (%)
 adjust-salary-calculated-amount = Berechneter Betrag:
 adjust-salary-calculated-percentage = Berechneter Prozentsatz:
 adjust-salary-new-salary = Neues Jahresgehalt
@@ -21,6 +21,8 @@ adjust-salary-adjustment-value-required = Betrag oder Prozentsatz eingeben
 adjust-salary-adjustment-value-positive = Wert muss positiv sein
 adjust-salary-currency-required = Währung ist erforderlich. Bitte wählen Sie eine Währung.
 adjust-salary-effective-date-required = Gültigkeitsdatum ist erforderlich. Bitte wählen Sie ein Gültigkeitsdatum.
+adjust-salary-effective-date-too-old = Das Gültigkeitsdatum darf nicht mehr als 6 Monate in der Vergangenheit liegen
+adjust-salary-effective-date-helper = Das Datum muss innerhalb der letzten 6 Monate liegen
 adjust-salary-reason-required = Grund ist erforderlich. Bitte wählen Sie einen Grund.
 adjust-salary-frequency = Gehaltsanpassungstyp
 adjust-salary-frequency-required = Gehaltsanpassungstyp ist erforderlich. Bitte wählen Sie einen Gehaltsanpassungstyp.
@@ -29,9 +31,11 @@ adjust-salary-frequency-monthly = Monatlich
 adjust-salary-frequency-hourly = Stündlich
 adjust-salary-current-salary = Aktuelles Gehalt
 adjust-salary-calculation-breakdown = Gehaltsanpassung Zusammenfassung
+adjust-salary-duplicate-month-warning = Für diesen Monat existiert bereits eine Gehaltsanpassung am { $date }. Bitte wählen Sie ein anderes Wirksamkeitsdatum.
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Gehalt zuweisen
+assign-salary-no-employment-region-warning = Für diesen Mitarbeiter muss eine Beschäftigungsregion festgelegt werden, um die richtige Währung und Compliance zu gewährleisten. Bitte legen Sie die Beschäftigungsregion in der Mitarbeiterakte fest.
 assign-salary-type = Vergütungsart
 assign-salary-type-required = Vergütungsart ist erforderlich. Bitte wählen Sie eine Vergütungsart.
 assign-salary-type-yearly-monthly = Monatsgehalt
@@ -56,7 +60,7 @@ adjust-salary-review-salary-comparison = Gehaltsvergleich
 adjust-salary-review-current-salary = Aktuelles Gehalt
 adjust-salary-review-new-salary = Neues Gehalt
 adjust-salary-review-adjustment-details = Anpassungsdetails
-adjust-salary-review-total-increase = Gesamterhöhung
+adjust-salary-review-total-increase = Gesamtanpassung
 adjust-salary-review-effective-date = Gültigkeitsdatum
 adjust-salary-review-reason = Grund
 adjust-salary-review-notes = Notizen
@@ -65,7 +69,7 @@ adjust-salary-review-reject = Ablehnen
 adjust-salary-review-annual-gross-salary = Jahresbruttogehalt
 adjust-salary-review-monthly-gross-salary = Monatliches Bruttogehalt
 adjust-salary-review-hourly-gross-salary = Stündliches Bruttogehalt
-adjust-salary-review-increase-text = { $percentage }% Erhöhung
+adjust-salary-review-increase-text = { $percentage }% Anpassung
 adjust-salary-review-hourly-suffix = /h
 
 # Assign Employee Salary Review Form (new employee without existing salary)
@@ -87,6 +91,7 @@ action-enter-placeholder = Bitte eingeben
 
 # Form Title
 form-title = Mitarbeiterbonus gewähren
+grant-bonus-no-employment-region-warning = Für diesen Mitarbeiter muss eine Beschäftigungsregion festgelegt werden, um die richtige Währung und Compliance zu gewährleisten. Bitte legen Sie die Beschäftigungsregion in der Mitarbeiterakte fest.
 
 # Form Actions
 action-cancel = Abbrechen
@@ -232,6 +237,9 @@ request-benefit-review-additional-info = Zusätzliche Informationen
 request-benefit-review-justification = Begründung
 request-benefit-review-financial-details = Finanzielle Details
 request-benefit-review-employee-contributions = Mitarbeiterbeiträge
+request-benefit-review-comments = Kommentar
+request-benefit-review-comments-placeholder = Bitte eingeben
+request-benefit-review-comments-required = Kommentare sind erforderlich
 request-benefit-review-approve = Genehmigen
 request-benefit-review-reject = Ablehnen
 request-benefit-review-loading = Lade Zusatzleistungsdaten...
@@ -278,6 +286,7 @@ adjust-salary-pending-status = Ausstehend
 
 # Update Working Conditions Form
 working-conditions-probation-period = Probezeit
+working-conditions-probation-end-before-start = Das Ende der Probezeit muss am Startdatum oder danach liegen.
 working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
 working-conditions-unit-day = { $count ->
     [one] Tag
@@ -298,9 +307,12 @@ working-conditions-unit-year = { $count ->
 
 # Create Request Correction Form
 complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
+request-correction-date-absence-error = Dieses Datum ist ein Feiertag oder eine Abwesenheit und kann nicht für eine Korrekturanfrage verwendet werden.
 notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
 notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet
+notification-feedback-request-sent-success-on-behalf = Die Feedbackanfrage wurde gesendet
+feedback-request-missing-user-id = Einige ausgewaehlte Mitarbeiter haben keine User-ID. Bitte waehlen Sie sie erneut aus und versuchen Sie es erneut.
 
 # ============================================
 # Create Employee Form
@@ -318,12 +330,16 @@ employee-form-email = E-Mail
 employee-form-organizational-unit = Organisationseinheit
 employee-form-job-position = Stelle
 employee-form-hire-date = Einstellungsdatum
+employee-form-fixed-term-end-date = Befristungsende
+employee-form-fixed-term-reason = Austrittsgrund
 employee-form-preferred-name = Bevorzugter Name
 employee-form-employment-type = Beschäftigungsart
 employee-form-contract-type = Vertragsart
 
 # Validation Messages
 employee-form-email-invalid = Bitte geben Sie eine gültige E-Mail-Adresse ein
+employee-form-hire-date-required = Einstellungsdatum ist erforderlich, wenn Befristungsende angegeben ist
+employee-form-fixed-term-before-hire = Befristungsende muss am oder nach dem Einstellungsdatum liegen
 
 # Empty States
 employee-form-no-results = Keine Ergebnisse gefunden
@@ -347,3 +363,18 @@ create-job-position-name = Name
 create-job-position-total-open = Anzahl offener Stellen
 create-job-position-organizational-unit = Organisationseinheit
 create-job-position-error = Stelle konnte nicht erstellt werden. Bitte versuchen Sie es erneut.
+
+# Create New Absence – validation messages
+create-absence-unable-to-verify-balance = Das Urlaubskonto konnte nicht geprüft werden. Bitte prüfen Sie es manuell.
+create-absence-insufficient-balance = Nicht ausreichendes Guthaben
+create-absence-requested = Angefordert
+create-absence-available = Verfügbar
+create-absence-days = Tage
+create-absence-end-date-after-start = Das Enddatum muss nach dem Startdatum liegen.
+create-absence-single-day-bank-holiday-blocked = Der gewählte Tag ist ein Feiertag. Sie können für dieses Datum keine eintägige Abwesenheit einreichen.
+create-absence-validation-failed = Validierung fehlgeschlagen. Bitte versuchen Sie es erneut.
+create-absence-bank-holidays-not-counted = { $count } Tage sind Feiertage und werden daher nicht berücksichtigt.
+create-absence-overlap-prefix = Es besteht bereits eine
+create-absence-overlap-scheduled = Abwesenheit geplant
+create-absence-from = vom
+create-absence-to = bis

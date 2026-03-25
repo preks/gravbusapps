@@ -1,6 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import React, { useMemo, useCallback } from 'react'
-import { FileTextOutlined, DollarOutlined, CalendarOutlined, CompassOutlined } from '@ant-design/icons'
+import { FileTextIcon, CurrencyDollarIcon, CalendarIcon, CompassIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { formatCurrencyDisplay } from '../../../utils'
 import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
@@ -150,7 +150,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_data_available', 'No data available')
   }, [destinationLoading, topDestination])
 
-  // Transform the stats data into widgets format
+  // No-trend widgets: value, empty row, footer (same layout as expense dashboard)
   const widgets: WidgetItem[] = useMemo(
     () => [
       {
@@ -160,7 +160,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: totalPlans,
-        prefix: <FileTextOutlined />,
+        prefix: <FileTextIcon />,
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -181,7 +181,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: `${formatCurrencyDisplay(String(totalEstimated ?? '0'), currencyCode)}`,
-        prefix: <DollarOutlined />,
+        prefix: <CurrencyDollarIcon size={16} />,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -197,10 +197,11 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
         key: 'pending-approval',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_approval', 'Pending Approval'),
         value: pendingApproval,
-        prefix: <CalendarOutlined />,
+        prefix: <CalendarIcon size={16} />,
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 6 },
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action', 'Requires action'),
+        footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action', 'Requires action'),
+        trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'pending-approval',
         onClick: () => handleWidgetClick('pending-approval')
       },
@@ -208,11 +209,12 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
         key: 'top-destinations',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination', 'Top Destination'),
         value: destinationValue,
-        prefix: <CompassOutlined />,
+        prefix: <CompassIcon size={16} />,
         color: '#722ed1',
         span: { xs: 24, sm: 12, md: 6 },
         valueIsString: true,
-        description: destinationDescription,
+        footer: destinationDescription,
+        trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'top-destinations',
         onClick: () => {
           // Prevent clicking when loading or when there's no valid destination data
@@ -247,6 +249,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       onRetry={fetchPlanStatistics}
       onWidgetClick={onWidgetClick}
       skeletonCount={4}
+      useWidgetStructureForLoading={true}
       emptyText={getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.no_expense_plan_statistics_available',
         'No expense plan statistics available.'

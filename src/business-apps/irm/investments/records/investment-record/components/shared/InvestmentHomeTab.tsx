@@ -12,7 +12,20 @@ import ActivitySection from '@/common/components/common-relations/record-section
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
+import {
+  APPROVAL_TASK_TYPE_REF,
+  FILE_CONTEXT,
+  APP_NAME,
+  getFileEntityFromType
+} from '@/common/data/investment/constants/investmentConstants'
+import { getReferenceEntityType } from '@/common/data/investment/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
+import { buildInvestmentActivityPayload } from '@/common/data/investment/types/investmentActivityTypes'
+import { buildInvestmentNotePayload } from '@/common/data/investment/types/investmentNoteTypes'
 
 interface InvestmentHomeTabProps extends BusinessAppContextProps {
   investmentId: string
@@ -20,6 +33,47 @@ interface InvestmentHomeTabProps extends BusinessAppContextProps {
 }
 
 export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investmentId, investment, ...context }) => {
+  const fileClient = useFileClient({ accessToken: context.accessToken, userInfo: context.userInfo })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: context.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      entityId: investmentId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [context.userInfo, fileClient, investmentId]
+  )
+  const activityPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: context.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      entityId: investmentId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [context.userInfo, fileClient, investmentId]
+  )
+  const notePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: context.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      entityId: investmentId,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false
+    }),
+    [context.userInfo, fileClient, investmentId]
+  )
+
   // Real data state
   const [tasks, setTasks] = useState<any[]>([])
   const [activities, setActivities] = useState<any[]>([])
@@ -135,9 +189,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
 
   return (
     <>
-      {/* Account Section - 1/3 width */}
+      {/* Account Section - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'account-section',
@@ -179,9 +233,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
         data-testid="investment-account-section-wrapper"
       />
 
-      {/* Contact Section - 1/3 width */}
+      {/* Contact Section - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'contact-section',
@@ -261,22 +315,33 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
         data-testid="investment-contact-section-wrapper"
       />
 
-      {/* Activities Section - 1/3 width, full height */}
+      {/* Activities & Notes - 1/2 width, spans 2 rows */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2 gba:min-h-196 gba:max-h-196"
         sections={[
           {
             id: 'activities-section',
             component: ActivitySection,
             props: {
               ...context,
+              investmentId,
               activities: activities,
               activitiesLoading: activitiesLoading,
               activitiesError: activitiesError,
               onReloadActivities: loadActivities,
               activitySectionActionProps: {
                 contextsArray: [FlowContextName.investmentActivityCreate],
-                externalContextData: { investmentId },
+                externalContextData: {
+                  investmentId,
+                  ...(context.userInfo?.employeeDetails?.employeeId && {
+                    ownerEmployeeId: context.userInfo.employeeDetails.employeeId
+                  }),
+                  ...(context.userInfo?.id && {
+                    employeeId: context.userInfo.id,
+                    userId: context.userInfo.id,
+                    employeeDetails: { userId: context.userInfo.id }
+                  })
+                },
                 prefixDataTestId: 'investment-activity',
                 emptyStateBehavior: 'enable'
               },
@@ -285,22 +350,50 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                 externalContextData: { investmentId },
                 prefixDataTestId: 'investment-activity-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              activityTypeCatalog: ACTIVITY_TYPE,
+              buildActivityPayload: buildInvestmentActivityPayload,
+              alignment: 'right',
+              preSubmit: activityPreSubmit
+            }
+          },
+          {
+            id: 'notes-section',
+            component: NoteSection,
+            props: {
+              ...context,
+              investmentId,
+              notes: notes,
+              noteActionProps: {
+                contextsArray: [FlowContextName.investmentNoteCreate],
+                externalContextData: { investmentId },
+                prefixDataTestId: 'investment-note',
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.investmentNoteEntity],
+                externalContextData: { investmentId },
+                prefixDataTestId: 'investment-note-entity',
+                emptyStateBehavior: 'enable'
+              },
+              buildNotePayload: buildInvestmentNotePayload,
+              preSubmit: notePreSubmit
             }
           }
         ]}
-        data-testid="investment-activities-section-wrapper"
+        data-testid="investment-activities-notes-section-wrapper"
       />
 
-      {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
+      {/* Tasks & Approvals - 1/2 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'tasks-section',
             component: TaskSection,
             props: {
               ...context,
+              investmentId,
               buildReferenceUrl,
               tasks: tasks,
               taskActionProps: {
@@ -314,7 +407,12 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                 externalContextData: { investmentId },
                 prefixDataTestId: 'investment-task-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildInvestmentTaskPayload,
+              defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           },
           {
@@ -323,14 +421,15 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             props: {
               ...context,
               sectionTitle: 'Approval Tasks',
+              investmentId,
               buildReferenceUrl,
               tasks: approvals,
               taskActionProps: {
                 contextsArray: [FlowContextName.investmentTaskCreate],
                 externalContextData: {
                   investmentId,
-                  typeRef: 'InvestmentTaskType:v1:APPROVAL',
-                  investmentTask: { investment: investmentId, type: 'InvestmentTaskType:v1:APPROVAL' }
+                  typeRef: APPROVAL_TASK_TYPE_REF,
+                  investmentTask: { investment: investmentId, type: APPROVAL_TASK_TYPE_REF }
                 },
                 prefixDataTestId: 'investment-approval',
                 emptyStateBehavior: 'enable'
@@ -340,39 +439,18 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                 externalContextData: { investmentId },
                 prefixDataTestId: 'investment-approval-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              typeCatalog: TASK_TYPE,
+              priorityCatalog: TASK_PRIORITY,
+              buildTaskPayload: buildInvestmentTaskPayload,
+              isApprovalTaskSection: true,
+              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+              defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+              preSubmit: taskPreSubmit
             }
           }
         ]}
         data-testid="investment-tasks-approvals-section-wrapper"
-      />
-
-      {/* Notes Section - 2/3 width, spans 2 rows */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
-        sections={[
-          {
-            id: 'notes-section',
-            component: NoteSection,
-            props: {
-              ...context,
-              notes: notes,
-              noteActionProps: {
-                contextsArray: [FlowContextName.investmentNoteCreate],
-                externalContextData: { investmentId },
-                prefixDataTestId: 'investment-note',
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.investmentNoteEntity],
-                externalContextData: { investmentId },
-                prefixDataTestId: 'investment-note-entity',
-                emptyStateBehavior: 'enable'
-              }
-            }
-          }
-        ]}
-        data-testid="investment-notes-section-wrapper"
       />
     </>
   )

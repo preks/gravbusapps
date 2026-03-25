@@ -10,6 +10,9 @@ interface ContactLayoutProps {
   // Business app context for EmployeeSelect
   businessAppContext?: BusinessAppContextProps
 
+  // Account contacts from loaded entity (with nested account) for display - same pattern as account form
+  accountContacts?: any[]
+
   // Owner employee from contact data (to display immediately in EmployeeSelect)
   ownerEmployee?: any
 
@@ -21,7 +24,10 @@ interface ContactLayoutProps {
     accounts: any[]
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
 
   // Custom fields injection for ContactInformationSegment
@@ -47,6 +53,7 @@ interface ContactLayoutProps {
 
 const ContactLayout: React.FC<ContactLayoutProps> = ({
   businessAppContext,
+  accountContacts,
   ownerEmployee,
   entityId,
   useAccounts,
@@ -93,6 +100,7 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
       {/* Contact Information - Not in FormAccordion */}
       <ContactInformationSegment
         businessAppContext={businessAppContext}
+        accountContacts={accountContacts}
         ownerEmployee={ownerEmployee}
         entityId={entityId}
         useAccounts={useAccounts}

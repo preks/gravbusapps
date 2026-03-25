@@ -6,7 +6,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
  * This component is used by the wrapped-entries system
  */
 const TypesComponent: React.FC<BusinessAppContextProps> = () => {
-  return <div data-testid="gba:backoffice-expenses-types" style={{ display: 'none' }} />
+  return <div data-testid="gba:backoffice-expenses-types" className="gba:hidden" />
 }
 
 export default TypesComponent

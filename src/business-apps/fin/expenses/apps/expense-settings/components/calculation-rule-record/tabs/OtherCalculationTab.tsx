@@ -42,16 +42,7 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog } from '../shared'
-import {
-  PiPlus,
-  PiCalendar,
-  PiCode,
-  PiBuilding,
-  PiPencil,
-  PiDotsThreeVertical,
-  PiTrash,
-  PiWarning
-} from 'react-icons/pi'
+import { PlusIcon, CalendarIcon, CodeIcon, BuildingIcon, PencilIcon, DotsThreeVerticalIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -62,7 +53,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
+import { formatDateForInput, findOverlappingPeriods, formatDate, normalizeDateInputValue } from '../../../utils'
 import {
   validateDateRange,
   applyDateValidationErrors,
@@ -103,8 +94,8 @@ interface OtherCalculation {
     name: string
   }
   reimbursablePercent?: number
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   version?: number
 }
 
@@ -114,8 +105,8 @@ interface OtherCalculationFormData {
   relatedId?: string
   costCenterId?: string
   reimbursablePercent?: number
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   version?: number
 }
 
@@ -152,7 +143,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       linkedItem: createFieldMappings.string((a: OtherCalculation) => a.relatedCode || a.relatedName),
       costCenter: createFieldMappings.nested((a: OtherCalculation) => a.costCenter),
       reimbursablePercent: createFieldMappings.number((a: OtherCalculation) => a.reimbursablePercent),
-      activeFrom: createFieldMappings.date((a: OtherCalculation) => a.validFrom)
+      activeFrom: createFieldMappings.date((a: OtherCalculation) => a.activeFrom)
     }),
     []
   )
@@ -173,8 +164,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       relatedId: undefined,
       costCenterId: undefined,
       reimbursablePercent: undefined,
-      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(activeTo) || '9999-12-31'
+      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(activeTo) || '9999-12-31'
     }
   })
 
@@ -352,8 +343,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
           relatedName,
           costCenter: calc.costCenter || undefined,
           reimbursablePercent: calc.reimbursablePercent || undefined,
-          validFrom: calc.activeFrom,
-          validTo: calc.activeTo,
+          activeFrom: calc.activeFrom,
+          activeTo: calc.activeTo,
           version: calc.version
         }
       })
@@ -410,15 +401,15 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
     setCurrentUsageInfo(null)
 
     // Get validity dates using shared utility (inherits from parent rule)
-    const { validFrom, validTo } = getValidityDatesFromRule(activeFrom, activeTo)
+    const { activeFrom: entryActiveFrom, activeTo: entryActiveTo } = getValidityDatesFromRule(activeFrom, activeTo)
 
     form.reset({
       source: '',
       relatedId: undefined,
       costCenterId: undefined,
       reimbursablePercent: undefined,
-      validFrom,
-      validTo
+      activeFrom: entryActiveFrom,
+      activeTo: entryActiveTo
     })
     setIsModalVisible(true)
   }
@@ -439,9 +430,9 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
         relatedId: record.relatedId,
         costCenterId: record.costCenter?.id,
         reimbursablePercent: record.reimbursablePercent,
-        validFrom:
-          formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-        validTo: formatDateForInput(record.validTo),
+        activeFrom:
+          formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+        activeTo: formatDateForInput(record.activeTo),
         version: record.version
       })
       setIsModalVisible(true)
@@ -579,8 +570,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       const calcExists = await checkOtherCalcUniqueness(
         formValues.source,
         formValues.relatedId,
-        formValues.validFrom,
-        formValues.validTo,
+        formValues.activeFrom,
+        formValues.activeTo,
         editingItem?.id
       )
 
@@ -596,8 +587,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
 
       // Date validation using shared utility
       const dateErrors = validateDateRange({
-        entryFrom: formValues.validFrom,
-        entryTo: formValues.validTo,
+        entryFrom: formValues.activeFrom,
+        entryTo: formValues.activeTo,
         ruleFrom: activeFrom,
         ruleTo: activeTo
       })
@@ -665,7 +656,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
               <Badge variant="default">{otherCalculations.length} calculations</Badge>
             </div>
             <Button onClick={handleAdd} data-testid="add-other-calculation-button">
-              <PiPlus className="gba:mr-2" />
+              <PlusIcon className="gba:mr-2" />
               Add Other Calculation
             </Button>
           </div>
@@ -746,7 +737,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                                 {isCheckingUsage ? (
                                   <Spinner className="gba:h-4 gba:w-4" />
                                 ) : (
-                                  <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                  <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                                 )}
                               </Button>
                             </DropdownMenuTrigger>
@@ -758,7 +749,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                                 }}
                                 data-testid={`other-calculation-edit-${record.id}`}
                               >
-                                <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                 Update
                               </DropdownMenuItem>
                               {/* Only show delete option if calculation is not used */}
@@ -773,7 +764,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                                     className="gba:text-destructive"
                                     data-testid={`other-calculation-delete-${record.id}`}
                                   >
-                                    <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                    <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                     Delete
                                   </DropdownMenuItem>
                                 </>
@@ -800,7 +791,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                       <TableCell>
                         {record.relatedCode ? (
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <PiCode className="gba:text-muted-foreground" />
+                            <CodeIcon className="gba:text-muted-foreground" />
                             <div>
                               <div className="gba:font-mono gba:font-medium gba:text-sm">{record.relatedCode}</div>
                               <div className="gba:text-muted-foreground gba:text-xs">{record.relatedName}</div>
@@ -813,7 +804,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                       <TableCell>
                         {record.costCenter ? (
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <PiBuilding className="gba:text-primary" />
+                            <BuildingIcon className="gba:text-primary" />
                             <div>
                               <div className="gba:font-mono gba:font-medium gba:text-sm">{record.costCenter.code}</div>
                               <div className="gba:text-muted-foreground gba:text-xs">{record.costCenter.name}</div>
@@ -832,9 +823,9 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                       </TableCell>
                       <TableCell>
                         <div className="gba:flex gba:items-center gba:gap-1">
-                          <PiCalendar className="gba:text-muted-foreground" />
+                          <CalendarIcon className="gba:text-muted-foreground" />
                           <span className="gba:text-sm">
-                            {formatDate(record.validFrom)} - {record.validTo ? formatDate(record.validTo) : '∞'}
+                            {formatDate(record.activeFrom)} - {record.activeTo ? formatDate(record.activeTo) : '∞'}
                           </span>
                         </div>
                       </TableCell>
@@ -869,7 +860,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
               className="gba:mb-4 gba:border-warning gba:bg-warning-secondary"
               data-testid="other-calculation-restricted-alert"
             >
-              <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
+              <WarningIcon className="gba:h-4 gba:w-4 gba:text-warning" />
               <AlertDescription>{currentUsageInfo.message}</AlertDescription>
             </Alert>
           )}
@@ -1028,7 +1019,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
               <div className="gba:space-y-4">
                 <FormField
                   control={form.control}
-                  name="validFrom"
+                  name="activeFrom"
                   rules={{ required: 'Valid From is required' }}
                   render={({ field }) => (
                     <FormItem>
@@ -1036,7 +1027,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          outputFormat="iso"
                           disabled={isRestrictedEdit}
                           data-testid="other-calculation-valid-from-input"
                         />
@@ -1048,14 +1040,15 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
 
                 <FormField
                   control={form.control}
-                  name="validTo"
+                  name="activeTo"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Valid To</FormLabel>
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date))}
+                          outputFormat="iso"
                           data-testid="other-calculation-valid-to-input"
                         />
                       </FormControl>

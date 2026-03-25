@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Separator, Label, Spinner } from '@newwork/nw-design-system'
-import { PiHandCoins } from 'react-icons/pi'
+import { HandCoinsIcon } from '@phosphor-icons/react'
 import { AdvancePaymentData } from '../types'
 import { formatCurrency } from '../utils/formatters'
 import { formatDateTime } from '@/common/utils/dateFormatter'
@@ -47,7 +47,7 @@ const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> 
     <Card data-testid={`${prefixDataTestId}-advance-payment-details-section`}>
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <PiHandCoins className="gba:h-5 gba:w-5" />
+          <HandCoinsIcon className="gba:h-5 gba:w-5" />
           {t('section-advance-payment')}
         </CardTitle>
       </CardHeader>

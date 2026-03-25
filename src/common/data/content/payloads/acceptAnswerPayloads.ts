@@ -8,6 +8,7 @@ export interface BuildAcceptAnswerPayloadParams {
   questionId: string
   accepted: boolean
   employeeId: string
+  version?: number
 }
 
 /**
@@ -22,11 +23,12 @@ export interface BuildAcceptAnswerPayloadParams {
  * @returns GraphQL mutation payload
  */
 export function buildAcceptAnswerPayload(params: BuildAcceptAnswerPayloadParams): any {
-  const { answerId, accepted, employeeId } = params
+  const { answerId, accepted, employeeId, version } = params
 
   return {
     contentEntry: {
       id: answerId,
+      version,
       accepted,
       acceptorEmployeeId: accepted ? employeeId : null,
       updatedBy: employeeId

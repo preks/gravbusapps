@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useActivityExport } from '@/common/components/common-relations/view-layouts/activity-layout/hooks/useActivityExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -57,11 +59,17 @@ export interface MyActivitiesViewConfig<TActivity extends Activity = Activity> {
   rowActionsContextArray?: FlowContextName[]
   buildRowActionsExternalContextData?: (row: { original: TActivity }) => Record<string, string>
 
+  // Reference navigation
+  buildReferenceUrl?: (entityType: string, entityId: string) => string
+
   // KPIs
   kpiStatistics?: ActivityStatisticsData | null
   kpiLoading?: boolean
   kpiError?: Error | null
   onKpiRetry?: () => void
+
+  // Export — fetches all items for current filters (limit/offset passed as args)
+  fetchAllActivities?: (variables: any) => Promise<{ activities?: Activity[]; total?: number }>
 
   // Translations
   translations?: {
@@ -73,6 +81,14 @@ export interface MyActivitiesViewConfig<TActivity extends Activity = Activity> {
 export interface MyActivitiesViewProps extends BusinessAppContextProps {
   config: MyActivitiesViewConfig<any>
   dataTestId?: string
+  enableExport?: boolean
+  exportFilenamePrefix?: string
+}
+
+const getActivityExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
+  if (isExporting) return 'Exporting…'
+  if (totalCount === 0) return 'No data to export'
+  return `Export ${totalCount} activities as ${format}`
 }
 
 /**
@@ -82,7 +98,9 @@ export interface MyActivitiesViewProps extends BusinessAppContextProps {
 export const MyActivitiesView: React.FC<MyActivitiesViewProps> = ({
   config,
   accessToken,
-  dataTestId = 'my-activities-view'
+  dataTestId = 'my-activities-view',
+  enableExport = false,
+  exportFilenamePrefix = 'my-activities'
 }) => {
   // Local state for columns visibility if not provided
   const [localVisibleColumns, setLocalVisibleColumns] = useState<string[]>([])
@@ -160,6 +178,44 @@ export const MyActivitiesView: React.FC<MyActivitiesViewProps> = ({
     return config.actions
   }, [config, accessToken])
 
+  // Export hook — always called (hooks must not be conditional)
+  const { isExporting, handleExportCsv, handleExportExcel } = useActivityExport({
+    fetchActivities: config.fetchAllActivities || (() => Promise.resolve({ activities: [], total: 0 })),
+    queryVariables: {},
+    totalCount: config.totalCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  const exportButtons = useMemo(() => {
+    if (!enableExport || !config.fetchAllActivities) return null
+    return (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || config.totalCount === 0}
+          data-testid="my-activities-export-csv-button"
+          title={getActivityExportButtonTitle(isExporting, config.totalCount, 'CSV')}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || config.totalCount === 0}
+          data-testid="my-activities-export-excel-button"
+          title={getActivityExportButtonTitle(isExporting, config.totalCount, 'Excel')}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'Excel'}
+        </Button>
+      </>
+    )
+  }, [enableExport, config.fetchAllActivities, config.totalCount, isExporting, handleExportCsv, handleExportExcel])
+
   return (
     <div data-testid={dataTestId} className="gba:flex gba:flex-col gba:gap-4">
       {config.kpiStatistics && (
@@ -215,6 +271,7 @@ export const MyActivitiesView: React.FC<MyActivitiesViewProps> = ({
             </AppAction>
           ) : undefined
         }
+        secondaryActions={exportButtons}
         toolbarDensity="default"
         enableLiveFiltering={config.onFilterChange !== undefined}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterActivities', 'Filter Activities')}
@@ -247,7 +304,10 @@ export const MyActivitiesView: React.FC<MyActivitiesViewProps> = ({
         onOpenChange={open => {
           if (!open) setSelectedActivity(null)
         }}
+        buildReferenceUrl={config.buildReferenceUrl}
         data-testid={`${dataTestId}-detail-sheet`}
+        accessToken={accessToken}
+        flowContext={config.rowActionsContextArray?.[0]}
       />
     </div>
   )

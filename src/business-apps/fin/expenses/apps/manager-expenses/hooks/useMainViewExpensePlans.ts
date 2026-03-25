@@ -161,8 +161,8 @@ export const useMainViewExpensePlans = ({
   const [totalCount, setTotalCount] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [sorting, setSorting] = useState<SortConfig>({
-    field: null,
-    order: null,
+    field: 'createdAt',
+    order: 'DESC',
     lastField: null
   })
   const [employeeFilter, setEmployeeFilter] = useState<string | null>(null)

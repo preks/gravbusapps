@@ -1,17 +1,28 @@
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from '../../../hooks/useMainViewAdvancePayments'
-import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { DollarOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { WidgetItem } from '@/components/widget-group'
+import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
+import { CurrencyDollarIcon, ClockIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useCurrencyStore } from '../../../store/useCurrencyStore'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
+import { ExpenseStatus } from '../../../utils'
+
+/** Statuses that contribute to the first card (Total Advance Payments = paid/transferred only). */
+const STATUSES_FOR_TOTAL_CARD: string[] = [ExpenseStatus.PAID, ExpenseStatus.TRANSFERRED]
 
 interface AdvancePaymentStatisticsProps {
   advancePaymentStats: AdvancePaymentStatisticsData | null
   statsLoading: boolean
   statsError: Error | null
   fetchAdvancePaymentStatistics: () => Promise<void>
-  currencyFilter: string | null
+  /** Selected currency filter from the tab (for list). */
+  currencyFilter?: string | null
+  /** Currency used for formatting stats card amounts (e.g. selected or most-used). */
+  displayCurrency?: string | null
+  /** Current status filter applied to the table. */
+  activeFilter?: string[]
+  /** Called when a card is clicked to apply the corresponding status filter. */
+  onFilterChange?: (statuses: string[]) => void
 }
 
 const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
@@ -19,14 +30,36 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   statsLoading,
   statsError,
   fetchAdvancePaymentStatistics,
-  currencyFilter
+  currencyFilter,
+  displayCurrency: displayCurrencyProp,
+  activeFilter = [],
+  onFilterChange
 }) => {
-  // Use currencyFilter from tab (synced with selected filter) instead of global store
-  const { primaryCurrency } = useCurrencyStore()
-  // Fallback to primaryCurrency if currencyFilter is not set
-  const effectiveCurrency = currencyFilter || primaryCurrency
+  const displayCurrency = displayCurrencyProp ?? currencyFilter ?? 'EUR'
 
-  // Transform the stats data into widgets format (memoized to avoid infinite effect loops)
+  const isTotalFilterActive =
+    activeFilter.length === STATUSES_FOR_TOTAL_CARD.length &&
+    STATUSES_FOR_TOTAL_CARD.every(s => activeFilter.includes(s))
+  const isPendingFilterActive = activeFilter.length === 1 && activeFilter[0] === ExpenseStatus.PENDING
+
+  const handleTotalCardClick = useCallback(() => {
+    if (!onFilterChange) return
+    if (isTotalFilterActive) {
+      onFilterChange([])
+    } else {
+      onFilterChange([...STATUSES_FOR_TOTAL_CARD])
+    }
+  }, [onFilterChange, isTotalFilterActive])
+
+  const handlePendingCardClick = useCallback(() => {
+    if (!onFilterChange) return
+    if (isPendingFilterActive) {
+      onFilterChange([])
+    } else {
+      onFilterChange([ExpenseStatus.PENDING])
+    }
+  }, [onFilterChange, isPendingFilterActive])
+
   const widgets: WidgetItem[] = useMemo(() => {
     if (!advancePaymentStats) return []
     return [
@@ -37,15 +70,17 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           'Total Advance Payments'
         ),
         value: advancePaymentStats.sumAmount
-          ? formatCurrencyDisplay(advancePaymentStats.sumAmount, effectiveCurrency)
-          : formatCurrencyDisplay(0, effectiveCurrency),
-        prefix: <DollarOutlined />,
-        color: 'var(--nw-success)',
+          ? formatCurrencyDisplay(advancePaymentStats.sumAmount, displayCurrency)
+          : formatCurrencyDisplay(0, displayCurrency),
+        prefix: <CurrencyDollarIcon size={16} />,
+        color: isTotalFilterActive ? 'var(--nw-primary)' : 'var(--nw-success)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.advance_payments_tab.all_advance_payments',
-          'All advance payments'
-        )
+          'lowcoder:team_expenses_page.advance_payments_tab.paid_and_transferred',
+          'Paid and transferred advance payments'
+        ),
+        active: isTotalFilterActive,
+        onClick: onFilterChange ? handleTotalCardClick : undefined
       },
       {
         key: 'pending-amount',
@@ -54,21 +89,31 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           'Pending Amount'
         ),
         value: advancePaymentStats.pendingAmount
-          ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, effectiveCurrency)
-          : formatCurrencyDisplay(0, effectiveCurrency),
-        prefix: <ClockCircleOutlined />,
-        color: 'var(--nw-destructive)',
+          ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, displayCurrency)
+          : formatCurrencyDisplay(0, displayCurrency),
+        prefix: <ClockIcon size={16} />,
+        color: isPendingFilterActive ? 'var(--nw-primary)' : 'var(--nw-destructive)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.expense_plans_tab.awaiting_approval',
           'Awaiting approval'
-        )
+        ),
+        active: isPendingFilterActive,
+        onClick: onFilterChange ? handlePendingCardClick : undefined
       }
     ]
-  }, [advancePaymentStats, effectiveCurrency])
+  }, [
+    advancePaymentStats,
+    displayCurrency,
+    isTotalFilterActive,
+    isPendingFilterActive,
+    onFilterChange,
+    handleTotalCardClick,
+    handlePendingCardClick
+  ])
 
   return (
-    <WidgetGroup
+    <ManagerClickableWidgetGroup
       widgets={widgets}
       isLoading={statsLoading}
       error={statsError ? 'Failed to load statistics' : undefined}

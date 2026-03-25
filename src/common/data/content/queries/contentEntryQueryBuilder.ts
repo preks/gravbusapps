@@ -33,6 +33,7 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
     'allowComment',
     'allowReaction',
     'descendantContentEntriesAggregate',
+    'contentEntryReactions',
     'contentEntryReactionCounts',
     'childContentEntriesAggregate'
   ],
@@ -52,6 +53,8 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
     'contentDocuments',
     'createdAt',
     'updatedAt',
+    'activeFrom',
+    'activeTo',
     'descendantContentEntriesAggregate',
     'contentEntryReactionCounts'
   ],
@@ -81,6 +84,8 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
     'createdBy',
     'updatedAt',
     'updatedBy',
+    'activeFrom',
+    'activeTo',
     'allowComment',
     'allowReaction',
     'accepted',
@@ -98,7 +103,6 @@ const SCALAR_FIELDS = [
   'preview',
   'content',
   'picture',
-  'pictureThumbnail',
   'contentGroupRef',
   'contentTypeRef',
   'languageRef',
@@ -222,7 +226,9 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         offset: ${offset}
       ) {
         id
+        version
         contentReactionRef
+        createdBy
         creatorEmployeeId
         creatorEmployee {
           ${EMPLOYEE_REF}
@@ -257,10 +263,12 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         orderBy: { createdAt: DESC }
       ) {
         id
+        version
         title
         preview
         content
         role
+        accepted
         creatorEmployeeId
         creatorEmployee {
           ${EMPLOYEE_REF}

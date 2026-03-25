@@ -78,6 +78,7 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({
                   catalogIdentifier="ContentType:v1"
                   parentField="contentGroupRef"
                   requireSourceForEnable={true}
+                  autoSelectFirst={true}
                   value={field.value || null}
                   onValueChange={field.onChange}
                   data-testid="question-segment-type-select"

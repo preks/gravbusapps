@@ -99,9 +99,12 @@ export type CustomerOpportunityStageConditionFieldName =
  * Adds CRM-specific fields that don't exist in Common/IRM
  */
 export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
-  // Filter out descriptors that need structural overrides
+  // Filter out descriptors that need structural overrides or have undefined field paths
   ...createOpportunityDescriptors(CustomerOpportunityFields as Record<keyof typeof OpportunityFields, string>).filter(
-    d => !['leads', 'notes', 'opportunityContacts', 'opportunityStageConditions', 'rejectionReasons'].includes(d.key)
+    d =>
+      !['account', 'leads', 'notes', 'opportunityContacts', 'opportunityStageConditions', 'rejectionReasons'].includes(
+        d.key
+      )
   ),
   {
     key: 'opportunityStageConditions',

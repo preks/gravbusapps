@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { TextTransformationRequest, TextTransformationResponse } from '../types'
-import { env } from '@/common/env/EnvUtils'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 
 export type TextOperation = 'formalize' | 'translate' | 'shorten'
 
@@ -13,6 +13,7 @@ const TEXT_OPERATION_QUERY_IDS: Record<TextOperation, string> = {
 export const useTextTransformation = (accessToken: string) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const promptManagerClient = usePromptManagerClient(accessToken)
 
   const clearError = useCallback(() => {
     setError(null)
@@ -35,42 +36,27 @@ export const useTextTransformation = (accessToken: string) => {
 
       try {
         const operation = request.transformationType as TextOperation
-        const executeUrl = `${env('NEXT_PUBLIC_BASE_URL')}/prompt-manager/api/v1/prompts/${TEXT_OPERATION_QUERY_IDS[operation]}/execute`
 
-        // Create payload with proper structure
-        const userParams = JSON.stringify({ userInput: request.text })
-
-        // Set system parameters based on operation type
+        const formData = new FormData()
         let systemParams = ''
         if (operation === 'translate') {
           systemParams = JSON.stringify({ language: request.targetLanguage || 'english' })
         } else if (operation === 'shorten') {
           systemParams = JSON.stringify({ numberOfSentences: 2 })
         }
+        formData.append('system_params', systemParams)
+        formData.append('user_params', JSON.stringify({ userInput: request.text }))
 
-        // Use URLSearchParams for proper encoding
-        const requestBody = new URLSearchParams()
-        requestBody.append('system_params', systemParams)
-        requestBody.append('user_params', userParams)
-
-        const response = await fetch(executeUrl, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: requestBody
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const data = await response.json()
+        const response = await promptManagerClient.executePromptById(TEXT_OPERATION_QUERY_IDS[operation], formData)
 
         // Extract the processed text from the response
-        // Check for different possible response structures
-        const processedText = data?.data?.content || data?.content
+        const responseContent = response.content
+        const processedText =
+          typeof responseContent === 'string'
+            ? responseContent
+            : responseContent && typeof responseContent === 'object' && 'content' in responseContent
+              ? String((responseContent as { content?: unknown }).content ?? '')
+              : null
 
         if (processedText) {
           const result: TextTransformationResponse = {
@@ -93,7 +79,7 @@ export const useTextTransformation = (accessToken: string) => {
         setIsLoading(false)
       }
     },
-    [accessToken]
+    [accessToken, promptManagerClient]
   )
 
   return {

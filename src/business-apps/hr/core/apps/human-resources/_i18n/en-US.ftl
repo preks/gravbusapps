@@ -49,6 +49,7 @@ hr-analytics-data-error = Could not load data
 hr-analytics-headcount-changes-chart = Headcount Changes
 hr-analytics-headcount-changes-description = Monthly workforce changes showing new hires versus departures and net headcount impact
 hr-analytics-chart-year = Year
+hr-analytics-year = Year
 hr-analytics-chart-employees = Employees
 hr-analytics-chart-hires = Hires
 hr-analytics-trend = Trend
@@ -157,9 +158,11 @@ hr-analytics-compensation-analysis = Compensation Analysis
 hr-analytics-compensation-description = Comprehensive compensation metrics, salary analysis, and payroll insights
 hr-analytics-total-payroll = Total Payroll
 hr-analytics-annual-payroll = Annual payroll
+hr-analytics-coming-soon = Coming soon
 hr-analytics-median-salary = Median Salary
 hr-analytics-company-median = Company median
-hr-analytics-avg-salary = Avg Salary
+hr-analytics-avg-salary = Average Salary
+hr-analytics-average-salary = Average Salary
 hr-analytics-merit-increases = Merit Increases
 hr-analytics-average-increase = Average increase
 
@@ -282,6 +285,7 @@ hr-analytics-bottleneck-managers = Bottleneck Managers
 hr-analytics-detailed-reporting-chains = Detailed Reporting Chains
 hr-analytics-chain-id = Chain ID
 hr-analytics-top-manager = Top Manager
+hr-analytics-parent-organizational-unit = Parent Organizational Unit
 hr-analytics-top-org-unit = Top organizational unit
 hr-analytics-levels-title = Levels
 hr-analytics-bottlenecks = Bottlenecks
@@ -329,7 +333,7 @@ hr-analytics-yearly-payroll-chart-title = Total Payroll by Year
 hr-analytics-yearly-payroll-description = Annual payroll expenditure trends showing total compensation costs across the organization
 
 # Analytics - Dashboard Salary Cards
-hr-analytics-highest-salary = Highest Avg Salary
+hr-analytics-highest-salary = Highest Average Salary
 
 # Analytics - Employment Tab
 hr-analytics-employment-analysis = Employment Analysis
@@ -340,6 +344,7 @@ hr-analytics-gap-rate-by-organizational-unit = Gap Rate by Organizational Unit
 hr-analytics-probation-rate-by-organizational-unit = Probation Rate by Organizational Unit
 hr-analytics-data-points = { $count } data points
 hr-analytics-employment-error = Error loading employment data. Please try again.
+hr-analytics-compensation-error = Error Loading Compensation Data
 hr-analytics-data-table = Data Table: { $title }
 hr-analytics-total-entries = { $count } entries
 hr-analytics-total-label = Total
@@ -417,6 +422,8 @@ hr-analytics-health-insurance-type-distribution = Health Insurance Type Distribu
 hr-analytics-health-insurance-type-distribution-description = Distribution of employees by health insurance type showing coverage preferences and policy selection patterns
 # Data Filter (generic texts used in HR)
 hr-data-filter-loading = Loading...
+hr-data-filter-error = Error loading data
+hr-data-filter-no-data = No data available
 hr-data-filter-error-loading-filters = Error loading filters
 hr-data-filter-search-in = Search in
 hr-data-filter-search-filters-in = Search filters in

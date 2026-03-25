@@ -27,6 +27,12 @@ export interface TeammatesViewProps {
   accessToken: string
   onNavigateBack: () => void
   onNavigateToEmployee: (employeeId: string) => void
+  userOrgData?: {
+    organizationalUnitId?: string
+    costCenterId?: string
+    siteLocationId?: string
+    companyId?: string
+  }
 }
 
 export const TeammatesView: React.FC<TeammatesViewProps> = ({
@@ -46,7 +52,8 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
   employeeId,
   accessToken,
   onNavigateBack,
-  onNavigateToEmployee
+  onNavigateToEmployee,
+  userOrgData
 }) => {
   // Filter direct reports based on active filter
   const getFilteredDirectReports = () => {
@@ -191,6 +198,7 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
           matrixTeamsError={matrixTeamsError}
           onSelectEmployee={handleSelectEmployee}
           accessToken={accessToken}
+          userOrgData={userOrgData}
         />
       </div>
     </div>

@@ -10,7 +10,7 @@ import {
   CardContent,
   useTranslation
 } from '@newwork/nw-design-system'
-import { PiTrendUp, PiArrowClockwise, PiUsers, PiBriefcase } from 'react-icons/pi'
+import { TrendUpIcon, ArrowClockwiseIcon, UsersIcon, BriefcaseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import HeadcountTrends from './components/tabs/HeadcountTrends'
 import TurnoverRetention from './components/tabs/TurnoverRetention'
@@ -83,7 +83,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
                 <p className="gba:text-destructive-secondary">{error}</p>
               </div>
               <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
-                <PiArrowClockwise />
+                <ArrowClockwiseIcon />
                 {t('common-retry')}
               </Button>
             </div>
@@ -124,7 +124,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
           data-testid={`${prefixDataTestId}-refresh-button`}
           className="gba:flex gba:items-center gba:gap-2"
         >
-          <PiArrowClockwise />
+          <ArrowClockwiseIcon />
           {t('common-refresh-data')}
         </Button>
       </div>
@@ -140,33 +140,33 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
           <TabsTrigger
             value="headcount-trends"
             data-testid="headcount-trends-tab"
-            className="gba:flex gba:flex-row gba:items-center gba:gap-2"
+            className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
             title={t('hr-analytics-headcount-trends')}
           >
-            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <PiTrendUp />
+            <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+              <TrendUpIcon />
               {t('hr-analytics-headcount-trends')}
             </span>
           </TabsTrigger>
           <TabsTrigger
             value="turnover-retention"
             data-testid="turnover-retention-tab"
-            className="gba:flex gba:flex-row gba:items-center gba:gap-2"
+            className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
             title={t('hr-analytics-turnover-retention')}
           >
-            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <PiUsers />
+            <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+              <UsersIcon />
               {t('hr-analytics-turnover-retention')}
             </span>
           </TabsTrigger>
           <TabsTrigger
             value="employment"
             data-testid="employment-tab"
-            className="gba:flex gba:flex-row gba:items-center gba:gap-2"
+            className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
             title={t('hr-analytics-employment')}
           >
-            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <PiBriefcase />
+            <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+              <BriefcaseIcon />
               {t('hr-analytics-employment')}
             </span>
           </TabsTrigger>

@@ -144,10 +144,6 @@ export const INVESTMENT_OPPORTUNITY = `
     ${INVESTMENT_ACTIVITY_REF}
   }
   
-  investmentAddress(where: { isDeleted: { _eq: false } }) {
-    ${ADDRESS_REF}
-  }
-  
   investmentCommunicationChannel(where: { isDeleted: { _eq: false } }) {
     ${COMMUNICATION_CHANNEL_REF}
   }

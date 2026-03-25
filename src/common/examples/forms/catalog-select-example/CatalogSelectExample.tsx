@@ -163,7 +163,7 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
       formData={form.getValues()}
       businessAppContext={context}
       form={form}
-      data-testid="example-catalog-select-form"
+      data-testid="catalog-select-form-example"
     >
       {/* ===== REGULAR FORM FIELDS (Non-Catalog) ===== */}
 
@@ -527,6 +527,7 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
                 <CatalogSelect
                   catalogIdentifier="InvestmentOpportunityPipelineStage:v1"
                   requireSourceForEnable={true}
+                  autoSelectFirst={true}
                   filterField="pipelineType:type"
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}

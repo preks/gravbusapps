@@ -28,10 +28,12 @@ import {
   ClockCounterClockwiseIcon,
   TextAlignLeftIcon,
   FileTextIcon,
+  DotsThreeVerticalIcon,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
 import { Activity, ActivityDocument } from './types'
-import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
+import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
+import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import {
   getActivityTypeBadgeVariant,
   getReferenceTypeBadgeVariant,
@@ -40,6 +42,8 @@ import {
 } from './utils'
 import dayjs from 'dayjs'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface ActivityDetailSheetProps {
   activity: Activity | null
@@ -47,6 +51,8 @@ interface ActivityDetailSheetProps {
   onOpenChange: (open: boolean) => void
   buildReferenceUrl?: (entityType: string, entityId: string) => string
   'data-testid'?: string
+  accessToken?: string
+  flowContext?: FlowContextName
 }
 
 const DATA_TEST_ID_PREFIX = 'ActivityDetailSheet'
@@ -83,19 +89,44 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
   open,
   onOpenChange,
   buildReferenceUrl,
-  'data-testid': dataTestId
+  'data-testid': dataTestId,
+  accessToken,
+  flowContext
 }) => {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Activity Details">
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
         <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
-          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
+          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left gba:mb-3">
             {activity?.title || 'Activity Details'}
           </SheetTitle>
+          {accessToken && flowContext && activity && (
+            <div className="gba:flex gba:justify-end">
+              <AppAction
+                contexts={[{ context: flowContext, contextData: { activityId: activity.id } }]}
+                accessToken={accessToken}
+                mode="button"
+                buttonSize="sm"
+                buttonVariant="outline"
+                emptyState="enable"
+                lazyLoad
+                prefixDataTestId={`${dataTestId || DATA_TEST_ID_PREFIX}-actions`}
+                data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-actions-button`}
+              >
+                <DotsThreeVerticalIcon size={16} className="gba:mr-2" />
+                Actions
+              </AppAction>
+            </div>
+          )}
         </SheetHeader>
         <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
           {activity ? (
-            <ActivityDetailContent activity={activity} buildReferenceUrl={buildReferenceUrl} data-testid={dataTestId} />
+            <ActivityDetailContent
+              activity={activity}
+              buildReferenceUrl={buildReferenceUrl}
+              data-testid={dataTestId}
+              accessToken={accessToken}
+            />
           ) : (
             <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground">
               No activity selected
@@ -111,48 +142,37 @@ interface ActivityDetailContentProps {
   activity: Activity
   buildReferenceUrl?: (entityType: string, entityId: string) => string
   'data-testid'?: string
+  accessToken?: string
 }
 
 const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
   activity,
   buildReferenceUrl,
-  'data-testid': dataTestId
+  'data-testid': dataTestId,
+  accessToken
 }) => {
   const activityType = activity.activityType?.value || 'Activity'
   const referenceType = getActivityReferenceType(activity)
   const referenceName = getActivityReferenceName(activity)
   const hasReference = activity.accountId || activity.contactId || activity.leadId || activity.opportunityId
 
-  const handleDocumentClick = (doc: ActivityDocument) => {
-    if (doc.fileInfo) {
-      try {
-        const fullUrl = buildFileUrl(doc.fileInfo)
-        window.open(fullUrl, '_blank', 'noopener,noreferrer')
-      } catch (error) {
-        console.error('Error building file URL:', error)
-      }
-    }
+  const handleDocumentClick = async (doc: ActivityDocument) => {
+    await handleDocumentClickUtil(doc, accessToken, { showToast: true })
   }
 
   const handleReferenceClick = () => {
+    if (!buildReferenceUrl) return
+
     let url: string | null = null
 
     if (activity.accountId) {
-      url = buildReferenceUrl
-        ? buildReferenceUrl('account', activity.accountId)
-        : buildPlatformUrl('/platform/crm/account-record', { accountId: activity.accountId })
+      url = buildReferenceUrl('account', activity.accountId)
     } else if (activity.contactId) {
-      url = buildReferenceUrl
-        ? buildReferenceUrl('contact', activity.contactId)
-        : buildPlatformUrl('/platform/crm/contact-record', { contactId: activity.contactId })
+      url = buildReferenceUrl('contact', activity.contactId)
     } else if (activity.leadId) {
-      url = buildReferenceUrl
-        ? buildReferenceUrl('lead', activity.leadId)
-        : buildPlatformUrl('/platform/crm/lead-record', { leadId: activity.leadId })
+      url = buildReferenceUrl('lead', activity.leadId)
     } else if (activity.opportunityId) {
-      url = buildReferenceUrl
-        ? buildReferenceUrl('opportunity', activity.opportunityId)
-        : buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: activity.opportunityId })
+      url = buildReferenceUrl('opportunity', activity.opportunityId)
     }
 
     if (url) {
@@ -188,15 +208,18 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:min-w-0 gba:max-w-full"
                       onClick={handleReferenceClick}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-link`}
                     >
-                      <Badge variant={getReferenceTypeBadgeVariant(referenceType.toLowerCase()) as any}>
+                      <Badge
+                        variant={getReferenceTypeBadgeVariant(referenceType.toLowerCase()) as any}
+                        className="gba:shrink-0"
+                      >
                         {referenceType}
                       </Badge>
-                      <span className="gba:text-sm gba:font-medium">{referenceName}</span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+                      <span className="gba:text-sm gba:font-medium gba:truncate">{referenceName}</span>
+                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>View {referenceType.toLowerCase()} record</TooltipContent>
@@ -213,11 +236,11 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:min-w-0 gba:max-w-full"
                       onClick={handleOwnerClick}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-owner-link`}
                     >
-                      <Avatar size="sm" className="gba:size-6">
+                      <Avatar size="sm" className="gba:size-6 gba:shrink-0">
                         {activity.ownerEmployee.pictureThumbnail && (
                           <AvatarImage
                             src={`data:image/gif;base64,${activity.ownerEmployee.pictureThumbnail}`}
@@ -231,12 +254,12 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                           {getInitials(activity.ownerEmployee.firstName || '', activity.ownerEmployee.lastName || '')}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="gba:text-sm gba:font-medium">
+                      <span className="gba:text-sm gba:font-medium gba:truncate">
                         {activity.ownerEmployee.displayName ||
                           `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
                           'Unknown'}
                       </span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>View employee profile</TooltipContent>
@@ -294,30 +317,27 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
             </CardHeader>
             <CardContent>
               <div className="gba:space-y-2">
-                {activity.documents.map(doc => {
-                  const FileIcon = getFileIcon(doc.mimeType)
-                  return (
-                    <button
-                      key={doc.id}
-                      type="button"
-                      onClick={() => handleDocumentClick(doc)}
-                      className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors gba:border-0 gba:text-left gba:group"
-                      data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-document-${doc.id}`}
-                    >
-                      <div className="gba:flex gba:items-center gba:justify-center gba:size-8 gba:bg-background gba:rounded gba:shrink-0">
-                        <FileIcon size={16} />
-                      </div>
-                      <div className="gba:flex-1 gba:min-w-0">
-                        <div className="gba:text-sm gba:font-medium gba:truncate">{doc.name}</div>
-                        {doc.mimeType && <div className="gba:text-xs gba:text-muted-foreground">{doc.mimeType}</div>}
-                      </div>
-                      <ArrowSquareOutIcon
-                        size={16}
-                        className="gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:shrink-0"
-                      />
-                    </button>
-                  )
-                })}
+                {activity.documents.map(doc => (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    onClick={() => handleDocumentClick(doc)}
+                    className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors gba:border-0 gba:text-left gba:group"
+                    data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-document-${doc.id}`}
+                  >
+                    <div className="gba:flex gba:items-center gba:justify-center gba:size-8 gba:bg-background gba:rounded gba:shrink-0">
+                      {getDocumentIcon({ name: doc.name, mimeType: doc.mimeType, size: 16 })}
+                    </div>
+                    <div className="gba:flex-1 gba:min-w-0">
+                      <div className="gba:text-sm gba:font-medium gba:truncate">{doc.name}</div>
+                      {doc.mimeType && <div className="gba:text-xs gba:text-muted-foreground">{doc.mimeType}</div>}
+                    </div>
+                    <ArrowSquareOutIcon
+                      size={16}
+                      className="gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:shrink-0"
+                    />
+                  </button>
+                ))}
               </div>
             </CardContent>
           </Card>
