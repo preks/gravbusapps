@@ -359,6 +359,21 @@ thread-summary-retry = Încercați din nou
 thread-summary-trigger = Rezumați această conversație
 thread-summary-trigger-desc = AI va analiza { $count } mesaj(e) și extrage punctele cheie
 
+# AI summarization suggestions
+email-suggestion-section-title = Sugestii de urmărire
+email-suggestion-assignee = Responsabil
+email-suggestion-due = Termen
+email-suggestion-start = Început
+email-suggestion-end = Sfârșit
+email-suggestion-confidence = Încredere { $value }
+email-suggestion-message-ref = Mesaj { $index }
+email-suggestion-type-task = Sarcină
+email-suggestion-type-follow-up = Reluare
+email-suggestion-type-reminder = Memento
+email-suggestion-type-meeting = Întâlnire
+email-suggestion-type-deadline = Termen limită
+email-suggestion-type-action-item = Punct de acțiune
+
 # Pagination/Admin consent additions
 provider-admin-consent-help = Dacă utilizatorii văd „Aprobare admin necesară", un admin poate deschide acest link pentru consimțământ.
 

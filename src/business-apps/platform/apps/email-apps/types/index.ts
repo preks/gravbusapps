@@ -92,6 +92,26 @@ export interface EmailMessageSummary {
   attachments?: EmailAttachment[]
 }
 
+/** Single AI-extracted suggestion from email/thread summarization */
+export interface EmailSummarizeSuggestion {
+  type: string
+  title: string
+  details?: string
+  assignee?: string
+  dueAt?: string
+  startAt?: string
+  endAt?: string
+  confidence?: number
+  evidence?: string
+  messageIndex?: number
+}
+
+/** AI summarization result for one message */
+export interface MessageSummaryResult {
+  summary: string
+  suggestions: EmailSummarizeSuggestion[]
+}
+
 /** AI-generated thread summary from Groq */
 export interface ThreadSummaryResult {
   threadId: string
@@ -99,6 +119,7 @@ export interface ThreadSummaryResult {
   messageCount: number
   participants: string[]
   keyPoints: string[]
+  suggestions: EmailSummarizeSuggestion[]
 }
 
 /** Full email message (for reader view) */

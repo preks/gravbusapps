@@ -10,8 +10,10 @@ import { Button, Card, CardContent, useTranslation } from '@newwork/nw-design-sy
 import translations from '../_i18n'
 import { SparkleIcon, CaretDownIcon, CaretUpIcon, UsersIcon, LightningIcon } from '@phosphor-icons/react'
 import { Loader2 } from 'lucide-react'
+import { EmailSummarizeSuggestions } from './EmailSummarizeSuggestions'
 import { EmailApiService } from '../services/EmailApiService'
 import type { ThreadSummaryResult } from '../types'
+import { stableKeyPointKey } from '../utils/emailSummarizeSuggestionUtils'
 
 /** Cache key: threadId. Value: { summary, messageCount } */
 const summaryCache = new Map<string, { summary: ThreadSummaryResult; messageCount: number }>()
@@ -175,9 +177,9 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
                 {t('thread-summary-key-points')}
               </p>
               <ul className="gba:space-y-1">
-                {summary.keyPoints.map((point, idx) => (
+                {summary.keyPoints.map(point => (
                   <li
-                    key={idx}
+                    key={stableKeyPointKey(point)}
                     className="gba:flex gba:items-start gba:gap-2 gba:text-sm gba:text-decorative-foreground/90"
                   >
                     <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-decorative-foreground/40 gba:mt-1.5 gba:flex-shrink-0" />
@@ -187,6 +189,12 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
               </ul>
             </div>
           )}
+
+          <EmailSummarizeSuggestions
+            suggestions={summary.suggestions ?? []}
+            variant="thread"
+            data-testid={`${testId}-suggestions`}
+          />
 
           {/* Participants */}
           {summary.participants.length > 0 && (

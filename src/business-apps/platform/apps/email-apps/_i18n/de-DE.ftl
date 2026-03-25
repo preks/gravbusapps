@@ -359,6 +359,21 @@ thread-summary-retry = Erneut versuchen
 thread-summary-trigger = Diesen Thread zusammenfassen
 thread-summary-trigger-desc = KI analysiert { $count } Nachricht(en) und extrahiert Kernpunkte
 
+# AI summarization suggestions
+email-suggestion-section-title = Vorgeschlagene nächste Schritte
+email-suggestion-assignee = Zugewiesen an
+email-suggestion-due = Fällig
+email-suggestion-start = Beginn
+email-suggestion-end = Ende
+email-suggestion-confidence = Konfidenz: { $value }
+email-suggestion-message-ref = Nachr. { $index }
+email-suggestion-type-task = Aufgabe
+email-suggestion-type-follow-up = Nachfassung
+email-suggestion-type-reminder = Erinnerung
+email-suggestion-type-meeting = Termin
+email-suggestion-type-deadline = Frist
+email-suggestion-type-action-item = Aktionspunkt
+
 # Pagination/Admin consent additions
 provider-admin-consent-help = Wenn Benutzer „Admin-Genehmigung erforderlich" sehen, kann ein Admin diesen Link öffnen, um die konfigurierten Bereiche im Mandanten zu genehmigen.
 

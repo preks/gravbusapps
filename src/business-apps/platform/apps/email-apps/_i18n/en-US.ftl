@@ -353,6 +353,21 @@ thread-summary-retry = Retry
 thread-summary-ai-label = AI Summary
 thread-summary-key-points = Key Points
 
+# AI summarization suggestions
+email-suggestion-section-title = Suggested follow-ups
+email-suggestion-assignee = Assignee
+email-suggestion-due = Due
+email-suggestion-start = Starts
+email-suggestion-end = Ends
+email-suggestion-confidence = Confidence: { $value }
+email-suggestion-message-ref = Msg { $index }
+email-suggestion-type-task = Task
+email-suggestion-type-follow-up = Follow-up
+email-suggestion-type-reminder = Reminder
+email-suggestion-type-meeting = Meeting
+email-suggestion-type-deadline = Deadline
+email-suggestion-type-action-item = Action item
+
 # Email thread view
 reader-thread-messages = { $count } message(s) in this conversation
 reader-download-failed = Failed to download
