@@ -3,13 +3,14 @@ import dayjs from 'dayjs'
 import {
   buildExpenseRequestSearchOrConditions,
   buildSearchCondition as buildSearchConditionUtil,
-  buildNumericRangeCondition
-} from '../../../hooks/queryFilterUtils'
+  buildNumericRangeCondition,
+  buildEmployeeFilterCondition
+} from '../../../../hooks/queryFilterUtils'
 import {
   buildDateRangeCondition as buildDateRangeConditionShared,
   buildRequestEffectiveDateFilter,
   buildRequestTypeFilter
-} from '../../../hooks/backofficeSharedOverview'
+} from '../../../../hooks/backofficeSharedOverview'
 
 const formatDatePickerRange = (range: any[] | null): { from?: string; to?: string } | null => {
   if (!range?.[0] && !range?.[1]) return null
@@ -28,7 +29,7 @@ interface QueryFilterState {
   readonly employeeFilter: string
   readonly amountMinFilter: string
   readonly amountMaxFilter: string
-  readonly departmentId: string
+  readonly departmentIds: string[]
   readonly currencyRef: string
   readonly effectiveDateRange: any[] | null
   readonly requestDateRange: any[] | null
@@ -42,7 +43,7 @@ export function useExpenseRequestQueryBuilder(state: QueryFilterState) {
     employeeFilter,
     amountMinFilter,
     amountMaxFilter,
-    departmentId,
+    departmentIds,
     currencyRef,
     effectiveDateRange,
     requestDateRange,
@@ -64,10 +65,14 @@ export function useExpenseRequestQueryBuilder(state: QueryFilterState) {
       statusFilter?.length > 0 ? { status: { _in: statusFilter } } : { status: { _nin: ['DISCARDED', 'CREATED'] } }
     )
 
-    if (employeeFilter) conditions.push({ employee: { id: { _eq: employeeFilter } } })
+    const employeeCond = buildEmployeeFilterCondition(employeeFilter)
+    if (employeeCond.length > 0) conditions.push(employeeCond[0])
     pushIfPresent(conditions, buildAmountCondition())
-    if (departmentId)
-      conditions.push({ employee: { employeePosition: { organizationalUnitId: { _eq: departmentId } } } })
+    if (departmentIds.length > 0) {
+      conditions.push({
+        employee: { employeePosition: { organizationalUnitId: { _in: departmentIds } } }
+      })
+    }
     if (currencyRef) conditions.push({ currencyRef: { _eq: currencyRef } })
 
     const effRange = formatDatePickerRange(effectiveDateRange)
@@ -87,7 +92,7 @@ export function useExpenseRequestQueryBuilder(state: QueryFilterState) {
     statusFilter,
     employeeFilter,
     buildAmountCondition,
-    departmentId,
+    departmentIds,
     currencyRef,
     effectiveDateRange,
     requestDateRange,

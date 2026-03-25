@@ -13,9 +13,10 @@ import {
 } from '../utils/utils'
 import { extractCurrencyCode } from '../utils/sharedUtils'
 import {
+  advancePaidFromApiOrSettled,
   buildEmployeeDisplayName,
+  coerceReportAmount,
   getFormerEmployeeLabel,
-  getSettledAdvancePaidAmount,
   isPaidLikeStatus,
   toUpperText,
   hasStatusTransition,
@@ -53,9 +54,12 @@ const mapSingleRequest = (
     createdAt: request.createdAt || '',
     status: request.status || '',
     statusLabel: statusDisplay.label,
-    totalAmount: Number(request.reimbursableAmount ?? 0),
-    advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
-    remainingAmount: Number(request.totalRemainingAmount ?? 0),
+    totalAmount: coerceReportAmount(request.totalAmount),
+    advancePaidAmount: advancePaidFromApiOrSettled(
+      request?.advancePaymentPaidAmount ?? request?.expensePlan?.advancePaymentPaidAmount,
+      request?.expensePlan?.advancePayment
+    ),
+    remainingAmount: coerceReportAmount(request.totalRemainingAmount),
     currency: extractCurrencyCode(request.currencyRef),
     employeeName:
       buildEmployeeDisplayName(request.employee) ||
@@ -93,9 +97,9 @@ export const mapPlansFromOverview = (
       endDate: plan.endDate || '',
       status: plan.status || '',
       statusLabel: statusDisplay.label,
-      totalAmount: Number(plan.totalAmount || 0),
-      advancePaidAmount: getSettledAdvancePaidAmount(plan?.advancePayment),
-      remainingAmount: Number(plan.totalRemainingAmount ?? 0),
+      totalAmount: coerceReportAmount(plan.totalAmount),
+      advancePaidAmount: advancePaidFromApiOrSettled(plan?.advancePaymentPaidAmount, plan?.advancePayment),
+      remainingAmount: coerceReportAmount(plan.totalRemainingAmount),
       currency: extractCurrencyCode(plan.currencyRef),
       employeeName:
         buildEmployeeDisplayName(plan.employee) ||
@@ -124,7 +128,7 @@ export const mapPaymentsFromOverview = (
       requestDate: p.createdAt || '',
       status: p.status || '',
       statusLabel: statusDisplay.label,
-      amount: Number(p.amount || 0),
+      amount: coerceReportAmount(p.amount),
       employeeName:
         buildEmployeeDisplayName(p.expensePlan?.employee) ||
         buildEmployeeDisplayName(p.employee) ||
@@ -194,7 +198,7 @@ export const processExpensePlansData = (
       endDate: plan.endDate || '',
       status: plan.status || '',
       statusLabel: statusDisplay.label,
-      totalAmount: plan.totalAmount || 0,
+      totalAmount: coerceReportAmount(plan.totalAmount),
       currency: extractCurrencyCode(plan.currencyRef),
       employeeName: resolveDisplayName([plan.employeeId, plan.createdBy], employeeNameById),
       departmentName: resolveDepartmentName([plan.employeeId, plan.createdBy]),
@@ -233,7 +237,7 @@ export const mapAdvancePaymentToReport = (
     requestDate: p.createdAt || '',
     status: p.status || '',
     statusLabel: statusDisplay.label,
-    amount: p.amount || 0,
+    amount: coerceReportAmount(p.amount),
     employeeName: resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
     departmentName: resolveDepartmentName([p.expensePlan?.employeeId, p.createdBy, p.expensePlan?.createdBy]),
     paymentMethod: p.paymentMethod || undefined,
@@ -350,7 +354,7 @@ const mapApprovalPayoutCycleRow = (
     ),
     status: request?.status || '',
     statusLabel: statusDisplay.label,
-    totalAmount: Number(request.reimbursableAmount ?? 0),
+    totalAmount: coerceReportAmount(request.totalAmount),
     currency: extractCurrencyCode(request.currencyRef)
   }
 }
