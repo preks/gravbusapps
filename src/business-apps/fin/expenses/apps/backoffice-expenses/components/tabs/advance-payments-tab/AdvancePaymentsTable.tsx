@@ -6,18 +6,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from '@newwork/nw-design-system'
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import translations from '../../../_i18n'
 import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
 import { useFilterData } from '../../../hooks/useFilterData'
 import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOptions'
 import type { AdvancePaymentItem } from '../../../types'
 import type { FetchPaymentsOptions } from '../../../hooks/useAdvancePayment'
-import { useAdvancePaymentsFilterState } from './hooks/useAdvancePaymentsFilterState'
+import { useAdvancePaymentsFilterState } from './hooks/useAdvancePaymentsFilterState.ts'
 import { buildAdvancePaymentFetchOptions } from './hooks/advancePaymentQueryBuilder'
 import { useAdvancePaymentsTableUrlSearch } from './hooks/useAdvancePaymentsTableUrlSearch'
 import AdvancePaymentsDataBody from './components/AdvancePaymentsDataBody'
 import AdvancePaymentsDetailsSheet from './components/AdvancePaymentsDetailsSheet'
+import { AdvancePaymentsDataDisplay } from './components/AdvancePaymentsDataDisplay'
+import { AdvancePaymentReporterFilter } from './components/AdvancePaymentReporterFilter'
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
@@ -65,12 +66,20 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   })
   const {
     queryFilterState,
-    filterGroups,
-    selectedFilters,
-    filterLabelMap,
-    handleFilterChange,
-    handleSetFilter,
-    hasActiveFilters
+    filterConfiguration,
+    filtersObject,
+    handleFilterChangeFromDisplay,
+    hasActiveFilters,
+    reporterSearchText,
+    setReporterSearchText,
+    showReporterDropdown,
+    setShowReporterDropdown,
+    reporterSearchResults,
+    reporterSearchLoading,
+    selectedReporters,
+    setSelectedReporters,
+    setReporterFilter,
+    reporterFilterRenderProps
   } = useAdvancePaymentsFilterState({
     t,
     searchStatuses,
@@ -112,25 +121,43 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const hasAnyFilter = hasSearchFilter || hasActiveFilters
 
   return (
-    <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="advance-payments-table-wrapper">
-      <DataContainer
-        contentBackground="white"
-        dataControllerProps={{
-          listTitle: t('tab-advance-payments'),
-          listAmount: totalCount ? `${totalCount}` : undefined,
-          search: searchText,
-          setSearch: handleSearchChangeWithReset,
-          placeholder: t('advance-payment-search'),
-          filter: totalCount === 0 && !isLoading ? [] : selectedFilters,
-          setFilter: handleSetFilter as (filter: string[]) => void,
-          filterLabelMap,
-          actions: []
-        }}
-        dataFilterProps={{
-          filterGroups,
-          onFilterChange: handleFilterChange
-        }}
-        dataBody={
+    <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
+      <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="advance-payments-table-wrapper">
+        <AdvancePaymentsDataDisplay
+          titleSections={[
+            {
+              id: 'list',
+              label: t('tab-advance-payments'),
+              metadata: { count: totalCount, isLoading }
+            }
+          ]}
+          currentSection="list"
+          searchValue={searchText}
+          searchPlaceholder={t('advance-payment-search')}
+          onSearchChange={handleSearchChangeWithReset}
+          filters={filtersObject}
+          filterConfiguration={filterConfiguration}
+          onFilterChange={handleFilterChangeFromDisplay}
+          enableLiveFiltering={false}
+          filterSheetTitle={t('tab-advance-payments')}
+          filterSheetDescription={t('advance-payment-search')}
+          renderReporterFilter={() => (
+            <AdvancePaymentReporterFilter
+              {...reporterFilterRenderProps}
+              reporterSearchText={reporterSearchText}
+              setReporterSearchText={setReporterSearchText}
+              showReporterDropdown={showReporterDropdown}
+              setShowReporterDropdown={setShowReporterDropdown}
+              reporterSearchResults={reporterSearchResults}
+              reporterSearchLoading={reporterSearchLoading}
+              selectedReporters={selectedReporters}
+              setSelectedReporters={setSelectedReporters}
+              setReporterFilter={setReporterFilter}
+              setCurrentPage={setCurrentPage}
+              t={t}
+            />
+          )}
+        >
           <AdvancePaymentsDataBody
             accessToken={props.accessToken}
             t={t}
@@ -145,15 +172,15 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             hasActiveFilters={hasAnyFilter}
             onSelectItem={setSelectedItem}
           />
-        }
-      />
-      <AdvancePaymentsDetailsSheet
-        selectedItem={selectedItem}
-        accessToken={props.accessToken}
-        userInfo={props.userInfo}
-        t={t}
-        onClose={handleCloseDetails}
-      />
+        </AdvancePaymentsDataDisplay>
+        <AdvancePaymentsDetailsSheet
+          selectedItem={selectedItem}
+          accessToken={props.accessToken}
+          userInfo={props.userInfo}
+          t={t}
+          onClose={handleCloseDetails}
+        />
+      </div>
     </div>
   )
 }
