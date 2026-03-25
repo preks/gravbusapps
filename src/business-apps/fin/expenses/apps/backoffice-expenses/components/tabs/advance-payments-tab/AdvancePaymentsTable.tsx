@@ -75,11 +75,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     showReporterDropdown,
     setShowReporterDropdown,
     reporterSearchResults,
-    reporterSearchLoading,
-    selectedReporters,
-    setSelectedReporters,
-    setReporterFilter,
-    reporterFilterRenderProps
+    reporterSearchLoading
   } = useAdvancePaymentsFilterState({
     t,
     searchStatuses,
@@ -141,19 +137,15 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           enableLiveFiltering={false}
           filterSheetTitle={t('tab-advance-payments')}
           filterSheetDescription={t('advance-payment-search')}
-          renderReporterFilter={() => (
+          renderReporterFilter={reporterFilterProps => (
             <AdvancePaymentReporterFilter
-              {...reporterFilterRenderProps}
+              {...reporterFilterProps}
               reporterSearchText={reporterSearchText}
               setReporterSearchText={setReporterSearchText}
               showReporterDropdown={showReporterDropdown}
               setShowReporterDropdown={setShowReporterDropdown}
               reporterSearchResults={reporterSearchResults}
               reporterSearchLoading={reporterSearchLoading}
-              selectedReporters={selectedReporters}
-              setSelectedReporters={setSelectedReporters}
-              setReporterFilter={setReporterFilter}
-              setCurrentPage={setCurrentPage}
               t={t}
             />
           )}

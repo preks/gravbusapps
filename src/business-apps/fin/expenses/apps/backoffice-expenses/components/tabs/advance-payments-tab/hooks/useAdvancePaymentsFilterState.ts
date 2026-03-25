@@ -6,11 +6,11 @@ import type { Currency } from '../../../../hooks/useFilterData'
 import { getErrorMessage } from '../../../../utils/errorUtils'
 import type { TranslateFn } from '../../../../utils/utils'
 import {
-  applyAdvancePaymentDisplayFilters,
   buildAdvancePaymentFilterConfiguration,
   buildAdvancePaymentFiltersObject,
   buildReporterOptions
 } from './advancePaymentDisplayFilterUtils'
+import { applyAdvancePaymentDisplayFilters } from './advancePaymentDisplayFilterApply'
 import { hasActiveAdvancePaymentFilters, type AdvancePaymentFilterState } from './advancePaymentQueryBuilder'
 import type { ReporterFilterRenderProps } from '../components/AdvancePaymentFilterSheet'
 

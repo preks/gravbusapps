@@ -1,7 +1,5 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import dayjs from 'dayjs'
 import {
-  applyDateRangeFromFilter,
   formatDateRangeForChip,
   type DateRange
 } from '../../../../../manager-expenses/components/tabs/expense-plans-tab/config/dataDisplayFilterUtils'
@@ -35,22 +33,6 @@ interface BuildAdvancePaymentFiltersObjectParams {
   amountMaxFilter: string
   advanceMinFilter: string
   advanceMaxFilter: string
-}
-
-interface ApplyAdvancePaymentDisplayFiltersParams {
-  filters: Record<string, unknown>
-  setStatusFilter: (value: string[]) => void
-  setSelectedReporters: (value: string[]) => void
-  setReporterFilter: (value: string) => void
-  setCurrencyRef: (value: string) => void
-  setDepartmentId: (value: string) => void
-  setDateFrom: (value: string) => void
-  setDateTo: (value: string) => void
-  setAmountMinFilter: (value: string) => void
-  setAmountMaxFilter: (value: string) => void
-  setAdvanceMinFilter: (value: string) => void
-  setAdvanceMaxFilter: (value: string) => void
-  setCurrentPage: (value: number) => void
 }
 
 function parseNumberRange(raw: unknown): { minValue: string; maxValue: string } {
@@ -270,53 +252,4 @@ export function buildReporterOptions(
 ): Array<{ id: string; label: string }> {
   const unique = new Set<string>([...selectedReporters, ...reporterSearchResults])
   return Array.from(unique).map(value => ({ id: value, label: value }))
-}
-
-export function applyAdvancePaymentDisplayFilters(params: ApplyAdvancePaymentDisplayFiltersParams): void {
-  const { filters } = params
-  if (Object.keys(filters).length === 0) {
-    params.setStatusFilter([])
-    params.setSelectedReporters([])
-    params.setReporterFilter('')
-    params.setCurrencyRef('')
-    params.setDepartmentId('')
-    params.setDateFrom('')
-    params.setDateTo('')
-    params.setAmountMinFilter('')
-    params.setAmountMaxFilter('')
-    params.setAdvanceMinFilter('')
-    params.setAdvanceMaxFilter('')
-    params.setCurrentPage(1)
-    return
-  }
-
-  const statusIds = (filters.statusIds as string[] | undefined) ?? []
-  params.setStatusFilter(statusIds)
-
-  const reporterIds = (filters.reporterIds as string[] | undefined) ?? []
-  params.setSelectedReporters(reporterIds)
-  params.setReporterFilter(reporterIds.join(','))
-
-  const currencyRefs = (filters.currencyRefs as string[] | undefined) ?? []
-  params.setCurrencyRef(currencyRefs[0] ?? '')
-
-  const departmentIds = (filters.departmentIds as string[] | undefined) ?? []
-  params.setDepartmentId(departmentIds[0] ?? '')
-
-  applyDateRangeFromFilter(filters.dateRange, range => {
-    const from = range?.[0] ? dayjs(range[0]).format('YYYY-MM-DD') : ''
-    const to = range?.[1] ? dayjs(range[1]).format('YYYY-MM-DD') : ''
-    params.setDateFrom(from)
-    params.setDateTo(to)
-  })
-
-  const amountRange = parseNumberRange(filters.amount)
-  params.setAmountMinFilter(amountRange.minValue)
-  params.setAmountMaxFilter(amountRange.maxValue)
-
-  const advanceRange = parseNumberRange(filters.advance)
-  params.setAdvanceMinFilter(advanceRange.minValue)
-  params.setAdvanceMaxFilter(advanceRange.maxValue)
-
-  params.setCurrentPage(1)
 }

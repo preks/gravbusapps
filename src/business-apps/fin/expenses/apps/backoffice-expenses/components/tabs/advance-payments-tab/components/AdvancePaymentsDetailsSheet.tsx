@@ -22,7 +22,7 @@ export default function AdvancePaymentsDetailsSheet({
 }: Readonly<AdvancePaymentsDetailsSheetProps>) {
   return (
     <Sheet open={selectedItem !== null} onOpenChange={open => !open && onClose()}>
-      <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+      <SheetContent className="gba:w-full gba:sm:max-w-2xl">
         <ExpenseDetailsShell
           title={selectedItem?.title || selectedItem?.description || t('advance-payment-details-title')}
         >

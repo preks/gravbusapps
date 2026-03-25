@@ -169,21 +169,21 @@ export default function AdvancePaymentsDataBody({
           ) : null}
 
           <div className="gba:overflow-x-auto gba:max-w-full gba:px-6">
-            <Table data-testid="advance-payments-data-table" className="gba:min-w-[1400px] gba:w-full">
+            <Table data-testid="advance-payments-data-table" className="gba:w-max gba:min-w-full gba:table-fixed">
               <TableHeader>
                 <TableRow className="gba:border-b gba:bg-muted">
-                  <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border">
+                  <TableHead className="gba:w-16 gba:min-w-16 gba:max-w-16 gba:box-border">
                     {t('header-actions')}
                   </TableHead>
-                  <TableHead className="gba:w-[20%]">{t('header-title')}</TableHead>
-                  <TableHead className="gba:w-[15%]">{t('header-employee')}</TableHead>
-                  <TableHead className="gba:w-[15%]">{t('header-org-unit')}</TableHead>
-                  <TableHead className="gba:w-[12%]">{t('header-cost-center')}</TableHead>
-                  <TableHead className="gba:w-[10%]">{t('header-plan-id')}</TableHead>
-                  <TableHead className="gba:w-[10%]">{t('header-status')}</TableHead>
-                  <TableHead className="gba:w-[12%] gba:text-right">{t('header-amount')}</TableHead>
-                  <TableHead className="gba:w-[12%] gba:text-right">{t('header-advance')}</TableHead>
-                  <TableHead className="gba:w-[12%]">{t('header-payment-method')}</TableHead>
+                  <TableHead className="gba:w-64">{t('header-title')}</TableHead>
+                  <TableHead className="gba:w-56">{t('header-employee')}</TableHead>
+                  <TableHead className="gba:w-56">{t('header-org-unit')}</TableHead>
+                  <TableHead className="gba:w-44">{t('header-cost-center')}</TableHead>
+                  <TableHead className="gba:w-36">{t('header-plan-id')}</TableHead>
+                  <TableHead className="gba:w-36">{t('header-status')}</TableHead>
+                  <TableHead className="gba:w-40 gba:text-right">{t('header-amount')}</TableHead>
+                  <TableHead className="gba:w-40 gba:text-right">{t('header-advance')}</TableHead>
+                  <TableHead className="gba:w-44">{t('header-payment-method')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -205,7 +205,7 @@ export default function AdvancePaymentsDataBody({
                         onClick={event => handleRowClick(event, record)}
                         className="gba:cursor-pointer gba:hover:bg-muted"
                       >
-                        <TableCell className="gba:w-[60px]">
+                        <TableCell className="gba:w-16">
                           <div
                             className="gba:flex gba:justify-center gba:items-center"
                             onClick={event => event.stopPropagation()}

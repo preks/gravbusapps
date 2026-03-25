@@ -1,39 +1,32 @@
 import type { TranslateFn } from '../../../../utils/utils'
+import type { ReporterFilterRenderProps } from './AdvancePaymentFilterSheet'
 
-export interface AdvancePaymentReporterFilterProps {
+export interface AdvancePaymentReporterFilterProps extends ReporterFilterRenderProps {
   reporterSearchText: string
   setReporterSearchText: (value: string) => void
   showReporterDropdown: boolean
   setShowReporterDropdown: (value: boolean) => void
   reporterSearchResults: string[]
   reporterSearchLoading: boolean
-  selectedReporters: string[]
-  setSelectedReporters: (value: string[]) => void
-  setReporterFilter: (value: string) => void
-  setCurrentPage: (value: number) => void
   t: TranslateFn
 }
 
 export function AdvancePaymentReporterFilter({
+  selectedReporterIds,
+  onSelectedReporterIdsChange,
   reporterSearchText,
   setReporterSearchText,
   showReporterDropdown,
   setShowReporterDropdown,
   reporterSearchResults,
   reporterSearchLoading,
-  selectedReporters,
-  setSelectedReporters,
-  setReporterFilter,
-  setCurrentPage,
   t
 }: Readonly<AdvancePaymentReporterFilterProps>) {
   const handleReporterClick = (reporter: string) => {
-    const newSelected = selectedReporters.includes(reporter)
-      ? selectedReporters.filter(value => value !== reporter)
-      : [...selectedReporters, reporter]
-    setSelectedReporters(newSelected)
-    setReporterFilter(newSelected.join(','))
-    setCurrentPage(1)
+    const newSelected = selectedReporterIds.includes(reporter)
+      ? selectedReporterIds.filter(value => value !== reporter)
+      : [...selectedReporterIds, reporter]
+    onSelectedReporterIdsChange(newSelected)
   }
 
   return (
@@ -63,7 +56,7 @@ export function AdvancePaymentReporterFilter({
               <button
                 key={reporter}
                 className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-muted gba:transition-colors ${
-                  selectedReporters.includes(reporter)
+                  selectedReporterIds.includes(reporter)
                     ? 'gba:bg-accent gba:text-accent-foreground'
                     : 'gba:text-foreground'
                 }`}

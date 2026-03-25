@@ -9,6 +9,8 @@ import {
 } from '../queries/advancePayment.queries'
 import { AdvancePaymentItem, AdvancePaymentStatisticsData } from '../types'
 import {
+  buildAdvancePaymentDepartmentPredicate,
+  buildAdvancePaymentListSearchOrConditions,
   buildNumericRangeCondition,
   buildSearchCondition as buildSearchConditionBase,
   buildStatusFilterCondition
@@ -77,17 +79,7 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
 
   // Helper: Build search condition (reduces cognitive complexity)
   const buildSearchCondition = (searchTerm: string): any[] => {
-    return buildSearchConditionBase(searchTerm, searchValue => [
-      { code: { _ilike: searchValue } },
-      { description: { _ilike: searchValue } },
-      { expensePlan: { code: { _ilike: searchValue } } },
-      { expensePlan: { title: { _ilike: searchValue } } },
-      { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
-      { expensePlan: { employee: { lastName: { _ilike: searchValue } } } },
-      { expensePlan: { employee: { employeePosition: { organizationalUnit: { name: { _ilike: searchValue } } } } } },
-      { expensePlan: { employee: { employeePosition: { costCenter: { name: { _ilike: searchValue } } } } } },
-      { paymentMethod: { _ilike: searchValue } }
-    ])
+    return buildSearchConditionBase(searchTerm, buildAdvancePaymentListSearchOrConditions)
   }
 
   // Helper: Build amount filter condition (reduces cognitive complexity)
@@ -173,15 +165,7 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
     }
 
     if (departmentId && departmentId.trim() !== '') {
-      conditions.push({
-        expensePlan: {
-          employee: {
-            employeePosition: {
-              organizationalUnitId: { _eq: departmentId }
-            }
-          }
-        }
-      })
+      conditions.push(buildAdvancePaymentDepartmentPredicate(departmentId))
     }
 
     if (dateFrom || dateTo) {
