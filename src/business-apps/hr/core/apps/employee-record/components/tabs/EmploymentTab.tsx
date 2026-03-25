@@ -11,8 +11,8 @@ import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { formatDate, formatNumberFunction, getCatalogValue } from '../../../../../../../common/utils/windowUtils'
 import { parseLocalizedNumber } from '../../../../../../../common/utils/numberFormatter'
 import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog'
-import { useReligionCatalog } from '../../hooks/useReligionCatalog'
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
+import { useTaxableChurchAffiliationCatalog } from '../../hooks/useTaxableChurchAffiliationCatalog'
 import { useEmploymentRegionLabel } from '../../hooks/useEmploymentRegionLabel'
 
 interface EmploymentTabProps {
@@ -41,10 +41,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
   // Fetch health insurance type catalog for health insurance type mapping
   const { getHealthInsuranceTypeValueById, loading: loadingHealthInsuranceTypes } =
     useHealthInsuranceTypeCatalog(accessToken)
-  // Fetch religion catalog for church affiliation mapping
-  const { getReligionValueById, loading: loadingReligions } = useReligionCatalog(accessToken)
   // Fetch tax bracket catalog for tax bracket mapping
   const { getTaxBracketValueById, loading: loadingTaxBrackets } = useTaxBracketCatalog(accessToken)
+  // Fetch taxable church affiliation catalog for translated church affiliation mapping
+  const { getTaxableChurchAffiliationValueById, loading: loadingTaxableChurchAffiliation } =
+    useTaxableChurchAffiliationCatalog(accessToken)
   // Prepare organizational data
   const organizationalData = [
     {
@@ -239,9 +240,9 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
       },
       {
         label: t('employment-label-church-affiliation'),
-        value: loadingReligions
+        value: loadingTaxableChurchAffiliation
           ? t('common-loading')
-          : getReligionValueById(taxDetails.taxableChurchAffiliationRef || '')
+          : getTaxableChurchAffiliationValueById(taxDetails.taxableChurchAffiliationRef || '')
       },
       {
         label: t('employment-label-child-tax-allowance'),

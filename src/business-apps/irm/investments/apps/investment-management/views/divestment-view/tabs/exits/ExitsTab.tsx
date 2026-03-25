@@ -79,7 +79,7 @@ export const ExitsTab: React.FC<ExitsTabProps> = ({ enabled = true, ...context }
   const graphqlClient = useGraphQLClient(gatedToken)
 
   // View State
-  const [selectedCurrency, setSelectedCurrency] = useState('all')
+  const [selectedCurrency, setSelectedCurrency] = useState('EUR')
   const activeCurrency = selectedCurrency === 'all' ? undefined : selectedCurrency
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
@@ -229,7 +229,6 @@ export const ExitsTab: React.FC<ExitsTabProps> = ({ enabled = true, ...context }
         value={selectedCurrency}
         currencies={availableCurrencies as string[]}
         onChange={setSelectedCurrency}
-        allOptionLabel="All"
       />
     ),
     [availableCurrencies, selectedCurrency]
