@@ -3,9 +3,10 @@ import type { ChatMessage, DeepAgentSession, SessionConfig } from '../../types/e
 import { MessageBubble } from './MessageBubble'
 import { AgentTypingIndicator } from './AgentTypingIndicator'
 import { ChatInput } from './ChatInput'
-import { WelcomeState } from '../empty-states/WelcomeState'
+import { AgentPickerScreen } from '../empty-states/AgentPickerScreen'
 
 interface AgentChatViewProps {
+  accessToken: string
   session: DeepAgentSession | null
   messages: ChatMessage[]
   isStreaming: boolean
@@ -17,6 +18,7 @@ interface AgentChatViewProps {
 }
 
 export const AgentChatView = ({
+  accessToken,
   session,
   messages,
   isStreaming,
@@ -57,23 +59,17 @@ export const AgentChatView = ({
     [session, onStartSession, onReply]
   )
 
-  const interruptQuestion = messages.find(m => m.type === 'human_interrupt')
-    ? (messages.findLast(m => m.type === 'human_interrupt')?.content as { question: string } | undefined)?.question
+  const lastInterrupt = [...messages].reverse().find(m => m.type === 'human_interrupt')
+  const interruptQuestion = lastInterrupt
+    ? (lastInterrupt.content as { question: string } | undefined)?.question
     : undefined
 
   if (!session) {
     return (
       <div className="gba:flex gba:flex-col gba:h-full" data-testid="enterprise-agent-chat">
-        <WelcomeState
-          onSelectSuggestion={task =>
-            handleSubmit(task, { mode: 'deep', enable_memory: true, enable_reflection: true })
-          }
-        />
-        <ChatInput
+        <AgentPickerScreen
+          accessToken={accessToken}
           onSubmit={handleSubmit}
-          disabled={false}
-          isRunning={false}
-          onStop={() => undefined}
           onReply={onReply}
           onOpenMemory={onOpenMemory}
         />

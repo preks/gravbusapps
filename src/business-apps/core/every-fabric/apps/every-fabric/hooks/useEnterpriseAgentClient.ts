@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import type { DeepAgentSession, SessionConfig } from '../types/enterpriseAgent'
+import type { DeepAgentSession, SessionConfig, SpecialistAgent } from '../types/enterpriseAgent'
 
 export const useEnterpriseAgentClient = (accessToken: string) => {
   const client = usePromptManagerClient(accessToken)
@@ -49,6 +49,23 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  const listSpecialistAgents = useCallback(
+    () => client.get<SpecialistAgent[]>('/autonomous-agents/agents', { params: { limit: '50' } }),
+    [client]
+  )
+
+  const createSpecialistAgent = useCallback(
+    (data: {
+      name: string
+      display_name: string
+      description: string
+      domain: string
+      system_prompt: string
+      tags: string[]
+    }) => client.post<SpecialistAgent>('/autonomous-agents/agents', data),
+    [client]
+  )
+
   return useMemo(
     () => ({
       startSession,
@@ -58,8 +75,21 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       stopSession,
       getMemory,
       saveMemory,
-      getMetrics
+      getMetrics,
+      listSpecialistAgents,
+      createSpecialistAgent
     }),
-    [startSession, getSession, getSessions, replyToInterrupt, stopSession, getMemory, saveMemory, getMetrics]
+    [
+      startSession,
+      getSession,
+      getSessions,
+      replyToInterrupt,
+      stopSession,
+      getMemory,
+      saveMemory,
+      getMetrics,
+      listSpecialistAgents,
+      createSpecialistAgent
+    ]
   )
 }

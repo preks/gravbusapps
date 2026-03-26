@@ -130,12 +130,23 @@ export interface CostSummary {
   budget_pct: number
 }
 
+export interface SpecialistAgent {
+  id: string
+  name: string
+  display_name: string
+  description: string
+  domain: string
+  tags: string[]
+  is_active?: boolean
+}
+
 export interface SessionConfig {
   mode: 'deep' | 'autonomous'
   model?: string
   enable_memory: boolean
   enable_reflection: boolean
   max_iterations?: number
+  selectedAgent?: SpecialistAgent
 }
 
 export type ChatMessageType =

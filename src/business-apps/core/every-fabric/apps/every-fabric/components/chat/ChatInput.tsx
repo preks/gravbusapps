@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
-import { Brain, CaretDown, CaretUp, PaperPlaneRight, SlidersHorizontal, Stop } from '@phosphor-icons/react'
-import type { SessionConfig } from '../../types/enterpriseAgent'
+import { Brain, CaretDown, CaretUp, PaperPlaneRight, SlidersHorizontal, Stop, X } from '@phosphor-icons/react'
+import type { SessionConfig, SpecialistAgent } from '../../types/enterpriseAgent'
 
 interface ChatInputProps {
   onSubmit: (task: string, options: SessionConfig) => void | Promise<unknown>
@@ -11,6 +11,8 @@ interface ChatInputProps {
   onReply: (message: string) => void | Promise<unknown>
   activeInterrupt?: string
   onOpenMemory?: () => void
+  selectedAgent?: SpecialistAgent
+  onClearAgent?: () => void
 }
 
 const DEFAULT_CONFIG: SessionConfig = {
@@ -26,7 +28,9 @@ export const ChatInput = ({
   onStop,
   onReply,
   activeInterrupt,
-  onOpenMemory
+  onOpenMemory,
+  selectedAgent,
+  onClearAgent
 }: ChatInputProps) => {
   const [value, setValue] = useState('')
   const [config, setConfig] = useState<SessionConfig>(DEFAULT_CONFIG)
@@ -50,13 +54,16 @@ export const ChatInput = ({
       if (isReplyMode) {
         await Promise.resolve(onReply(trimmed))
       } else {
-        await Promise.resolve(onSubmit(trimmed, config))
+        const task = selectedAgent
+          ? `[Working with: ${selectedAgent.display_name} — ${selectedAgent.description}]\n\n${trimmed}`
+          : trimmed
+        await Promise.resolve(onSubmit(task, { ...config, selectedAgent }))
       }
       setValue('')
     } finally {
       setIsSubmitting(false)
     }
-  }, [value, disabled, isReplyMode, isSubmitting, onReply, onSubmit, config])
+  }, [value, disabled, isReplyMode, isSubmitting, onReply, onSubmit, config, selectedAgent])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -219,6 +226,18 @@ export const ChatInput = ({
           <Brain className="gba:h-3.5 gba:w-3.5" />
           Memory
         </Button>
+
+        {selectedAgent && (
+          <button
+            onClick={onClearAgent}
+            className="gba:inline-flex gba:items-center gba:gap-1 gba:h-6 gba:px-2 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium gba:hover:bg-primary/20 gba:transition-colors"
+            data-testid="enterprise-agent-selected-badge"
+          >
+            {selectedAgent.display_name}
+            <X className="gba:h-3 gba:w-3" />
+          </button>
+        )}
+
         <span className="gba:ml-auto gba:text-xs gba:text-muted-foreground/60">Cmd/Ctrl+Enter to send</span>
       </div>
     </div>
