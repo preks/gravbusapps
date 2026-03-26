@@ -28,6 +28,11 @@ import {
   Checkbox,
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Textarea,
+  Label,
   useTranslation
 } from '@newwork/nw-design-system'
 import {
@@ -51,30 +56,26 @@ import {
   Upload,
   SortAsc,
   SortDesc,
-  X
+  X,
+  Wand2
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo } from '@/common/utils/navigationUtils'
+import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
+import { openEveryAI } from '@/common/utils/openEveryAI'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
 import { SlidesHero } from './components/SlidesHero'
 import type { SlideSection } from './components/SlidesHero'
 import { useSlides } from './hooks/useSlides'
-import {
-  useSlidesHubUrlState,
-  useSlidesHubFavorites,
-  useSlidesHubFiltering,
-  useSlidesHubUserLookup,
-  type SlideHubSidebarSection,
-  type SlideHubSortBy,
-  type SlideHubSortOrder
-} from './hooks'
+import { useSlidesHubUrlState, useSlidesHubFavorites, useSlidesHubFiltering, useSlidesHubUserLookup } from './hooks'
+import type { SlideHubSidebarSection, SlideHubSortBy, SlideHubSortOrder } from './hooks/useSlidesHubFiltering'
 import {
   SlideEditor,
   ShareSlideDialog,
   ManageSharesDialog,
   PowerPointUploader,
   TemplateBrowserDialog,
-  CastReceiver
+  CastReceiver,
+  GeneratePresentationDialogChat
 } from './components'
 import type { SlideData } from './components/slideElements'
 import { useHubPagination } from '../shared/hooks/useHubPagination'
@@ -179,6 +180,8 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [slideForManageShares, setSlideForManageShares] = useState<string | null>(null)
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [showTemplateBrowserDialog, setShowTemplateBrowserDialog] = useState(false)
+  const [showQuickAiDialog, setShowQuickAiDialog] = useState(false)
+  const [showGenerateDialogChat, setShowGenerateDialogChat] = useState(false)
   const [pendingTemplateSlides, setPendingTemplateSlides] = useState<{
     slides: SlideData[]
     themeId: string
@@ -431,16 +434,17 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const handlePowerPointImport = useCallback(
     async (parsedDoc: ParsedPowerPointDocument) => {
       try {
-        // Create new slide with imported content
+        // Create new slide
         const created = await createSlide({
-          title: parsedDoc.fileName.replace('.pptx', ''),
-          contentJson: {
-            slides: parsedDoc.slides,
-            themeId: 'corporate' // Default theme
-          }
+          title: parsedDoc.fileName.replace('.pptx', '')
         })
 
         if (created) {
+          // Store the imported slides to apply when editor loads
+          setPendingTemplateSlides({
+            slides: parsedDoc.slides,
+            themeId: 'corporate'
+          })
           setShowImportDialog(false)
           setSelectedSlideId(created.id)
           setCurrentView('editor')
@@ -522,6 +526,15 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           <div>
             <div className="gba:font-medium">{t('menu-new-blank-title')}</div>
             <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-blank-description')}</div>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setShowGenerateDialogChat(true)}>
+          <Wand2 className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
+          <div>
+            <div className="gba:font-medium">{t('menu-new-ai-title') || 'Generate with AI'}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">
+              {t('menu-new-ai-description') || 'Create presentation using AI'}
+            </div>
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setShowTemplateBrowserDialog(true)}>
@@ -620,7 +633,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                         </select>
                         <div className="gba:w-px gba:h-4 gba:bg-border/50" />
                         <button
-                          onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                          onClick={() => setSortOrder((prev: SlideHubSortOrder) => (prev === 'asc' ? 'desc' : 'asc'))}
                           className="gba:p-1 gba:rounded hover:gba:bg-accent gba:text-muted-foreground gba:transition-colors"
                           data-testid={`${testId}-sort-order`}
                         >
@@ -1027,7 +1040,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           slideId={slideForShare}
           slideTitle={slides.find(s => s.id === slideForShare)?.title || t('title-untitled-slide')}
           currentUserId={currentUserId}
-          currentUserName={userInfo?.displayName || userInfo?.employeeDetails?.displayName}
+          currentUserName={
+            userInfo?.employeeDetails?.displayName ||
+            `${userInfo?.givenName || ''} ${userInfo?.familyName || ''}`.trim()
+          }
           accessToken={accessToken}
           shareSlide={shareSlide}
           onShareComplete={async () => {
@@ -1077,12 +1093,100 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         </DialogContent>
       </Dialog>
 
+      {/* Quick AI Generation Dialog */}
+      <Dialog open={showQuickAiDialog} onOpenChange={setShowQuickAiDialog}>
+        <DialogContent className="gba:max-w-md" data-testid={`${testId}-quick-ai-dialog`}>
+          <DialogHeader>
+            <DialogTitle>{t('quick-ai-title') || 'Generate Presentation with AI'}</DialogTitle>
+          </DialogHeader>
+          <div className="gba:space-y-4 gba:py-4">
+            <div className="gba:space-y-2">
+              <Label htmlFor="quick-ai-description">
+                {t('quick-ai-description-label') || 'What should the presentation be about?'}
+              </Label>
+              <Textarea
+                id="quick-ai-description"
+                placeholder={t('quick-ai-placeholder') || 'e.g., about Istanbul, Q4 business review, product launch...'}
+                rows={3}
+                className="gba:resize-none"
+                data-testid={`${testId}-quick-ai-input`}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    const description = (e.target as HTMLTextAreaElement).value.trim()
+                    if (description) {
+                      const prompt = `Create a new EverySlides presentation: ${description}\n\nPresentation details:\n- Target length: 9-14 slides\n\nInstructions:\n1. FIRST call create_everyslides_presentation tool with:\n   - reason: "User requested new presentation"\n   - description: "${description}"\n   - length: "medium"\n   - additional_requirements: ""\n2. ONLY if presentation creation fails due to missing data, then gather additional facts.\n3. Return the presentation link when created.`
+
+                      openEveryAI({
+                        prompt,
+                        skills: ['Slides']
+                      })
+
+                      setShowQuickAiDialog(false)
+
+                      setTimeout(() => {
+                        const everyAiMounted = Boolean(document.querySelector('[data-testid="every-ai-app"]'))
+                        if (!everyAiMounted) {
+                          window.location.href = Navigation.PLATFORM_AI_CHAT
+                        }
+                      }, 500)
+                    }
+                  }
+                }}
+              />
+              <p className="gba:text-xs gba:text-muted-foreground">
+                {t('quick-ai-hint') || 'Press Cmd+Enter to generate'}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowQuickAiDialog(false)}>
+              {t('generate-cancel') || 'Cancel'}
+            </Button>
+            <Button
+              onClick={() => {
+                const textarea = document.getElementById('quick-ai-description') as HTMLTextAreaElement
+                const description = textarea?.value.trim()
+                if (description) {
+                  const prompt = `Create a new EverySlides presentation: ${description}\n\nPresentation details:\n- Target length: 9-14 slides\n\nInstructions:\n1. FIRST call create_everyslides_presentation tool with:\n   - reason: "User requested new presentation"\n   - description: "${description}"\n   - length: "medium"\n   - additional_requirements: ""\n2. ONLY if presentation creation fails due to missing data, then gather additional facts.\n3. Return the presentation link when created.`
+
+                  openEveryAI({
+                    prompt,
+                    skills: ['Slides']
+                  })
+
+                  setShowQuickAiDialog(false)
+
+                  setTimeout(() => {
+                    const everyAiMounted = Boolean(document.querySelector('[data-testid="every-ai-app"]'))
+                    if (!everyAiMounted) {
+                      window.location.href = Navigation.PLATFORM_AI_CHAT
+                    }
+                  }, 500)
+                }
+              }}
+              data-testid={`${testId}-quick-ai-submit`}
+            >
+              <Wand2 className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('quick-ai-generate') || 'Generate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Template Browser Dialog */}
       <TemplateBrowserDialog
         open={showTemplateBrowserDialog}
         onOpenChange={setShowTemplateBrowserDialog}
         onApplyTemplate={handleTemplateSelected}
         data-testid={`${testId}-template-browser`}
+      />
+
+      {/* Generate Presentation Dialog (Chat Version) */}
+      <GeneratePresentationDialogChat
+        open={showGenerateDialogChat}
+        onOpenChange={setShowGenerateDialogChat}
+        accessToken={accessToken || ''}
+        data-testid={`${testId}-generate-dialog-chat`}
       />
     </div>
   )
