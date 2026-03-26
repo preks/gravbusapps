@@ -11,7 +11,7 @@ import {
 } from './advancePaymentDisplayFilterUtils'
 import { applyAdvancePaymentDisplayFilters } from './advancePaymentDisplayFilterApply'
 import { hasActiveAdvancePaymentFilters, type AdvancePaymentFilterState } from './advancePaymentQueryBuilder'
-import type { ReporterFilterRenderProps } from '../components/AdvancePaymentFilterSheet'
+import type { CustomGroupRenderProps } from '../../../../common/components/BackofficeFilterSheet'
 
 interface DepartmentOption {
   id: string
@@ -188,13 +188,13 @@ export function useAdvancePaymentsFilterState({
   const reporterFilterRenderProps = useMemo(
     () =>
       ({
-        selectedReporterIds: selectedReporters,
-        onSelectedReporterIdsChange: reporterIds => {
+        selectedIds: selectedReporters,
+        onSelectedIdsChange: reporterIds => {
           setSelectedReporters(reporterIds)
           setReporterFilter(reporterIds.join(','))
           resetPage()
         }
-      }) satisfies ReporterFilterRenderProps,
+      }) satisfies CustomGroupRenderProps,
     [resetPage, selectedReporters]
   )
 

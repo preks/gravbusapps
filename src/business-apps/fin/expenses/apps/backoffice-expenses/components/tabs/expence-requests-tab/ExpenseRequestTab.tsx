@@ -27,7 +27,8 @@ import ExpenseRequestsTable from './table/ExpenseRequestsTable'
 import ExpenseRequestTableActions from './components/ExpenseRequestTableActions'
 import { ExpenseRequestPdfModal, EmployeeSearchFilter, ExpenseRequestSecondaryActions } from './components'
 import { BackofficeDataDisplay } from '../../../common/components/BackofficeDataDisplay'
-import { ExpenseRequestFilterSheet, type EmployeeFilterRenderProps } from './components/ExpenseRequestFilterSheet'
+import { BackofficeFilterSheet, type CustomGroupRenderProps } from '../../../common/components/BackofficeFilterSheet'
+import { EXPENSE_REQUEST_EMPLOYEE_FILTER_GROUP_ID } from './constants/expenseRequestEmployeeFilter'
 import BackofficeExpenseRequestDetailsSheet from './components/BackofficeExpenseRequestDetailsSheet'
 
 type ExpenseRequestTabProps = BackofficeTabProps
@@ -118,11 +119,11 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
   )
 
   const renderEmployeeFilter = useCallback(
-    ({ selectedEmployeeIds, onSelectedEmployeeIdsChange }: EmployeeFilterRenderProps) => (
+    ({ selectedIds, onSelectedIdsChange }: CustomGroupRenderProps) => (
       <EmployeeSearchFilter
         {...employeeSearchFilterProps}
-        selectedEmployeeIds={selectedEmployeeIds}
-        onSelectedEmployeeIdsChange={onSelectedEmployeeIdsChange}
+        selectedEmployeeIds={selectedIds}
+        onSelectedEmployeeIdsChange={onSelectedIdsChange}
       />
     ),
     [employeeSearchFilterProps]
@@ -277,14 +278,13 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
           toolbarDensity="default"
           secondaryActions={secondaryActions}
           renderFilterSheet={(open, onOpenChange) => (
-            <ExpenseRequestFilterSheet
+            <BackofficeFilterSheet
               open={open}
               onOpenChange={onOpenChange}
               configuration={filterConfiguration}
               values={filtersObject}
               onApply={handleFilterChangeFromDisplay}
               onChange={handleFilterChangeFromDisplay}
-              enableLiveFiltering={false}
               title={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:expense_request_list.expense_plan_table.title',
                 'Filter Expense Requests'
@@ -293,7 +293,11 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
                 'lowcoder:personal_expenses.filter_expense_requests_description',
                 'Apply filters to narrow down the expense requests list.'
               )}
-              renderEmployeeFilter={renderEmployeeFilter}
+              customGroup={{
+                groupId: EXPENSE_REQUEST_EMPLOYEE_FILTER_GROUP_ID,
+                valueKey: 'employeeIds',
+                render: renderEmployeeFilter
+              }}
             />
           )}
         >

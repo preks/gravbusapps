@@ -13,15 +13,20 @@ import {
   SheetTitle
 } from '@newwork/nw-design-system'
 import { cn } from '@/common/utils/cn'
-import { ExpenseRequestEmployeeFilterAccordion } from '../../expence-requests-tab/components/ExpenseRequestEmployeeFilterAccordion'
-import { ADVANCE_PAYMENT_REPORTER_FILTER_GROUP_ID } from '../constants/advancePaymentReporterFilter'
+import { ExpenseRequestEmployeeFilterAccordion } from '../../components/tabs/expence-requests-tab/components/ExpenseRequestEmployeeFilterAccordion'
 
-export interface ReporterFilterRenderProps {
-  selectedReporterIds: string[]
-  onSelectedReporterIdsChange: (reporterIds: string[]) => void
+export interface CustomGroupRenderProps {
+  selectedIds: string[]
+  onSelectedIdsChange: (ids: string[]) => void
 }
 
-export interface AdvancePaymentFilterSheetProps {
+export interface CustomGroupConfig {
+  groupId: string
+  valueKey: string
+  render: (props: CustomGroupRenderProps) => ReactNode
+}
+
+export interface BackofficeFilterSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   configuration: FilterConfiguration
@@ -33,10 +38,10 @@ export interface AdvancePaymentFilterSheetProps {
   description?: string
   side?: 'left' | 'right' | 'top' | 'bottom'
   className?: string
-  renderReporterFilter?: (props: ReporterFilterRenderProps) => ReactNode
+  customGroup?: CustomGroupConfig
 }
 
-export function AdvancePaymentFilterSheet({
+export function BackofficeFilterSheet({
   open,
   onOpenChange,
   configuration,
@@ -48,8 +53,8 @@ export function AdvancePaymentFilterSheet({
   description = 'Configure filters for your data',
   side = 'right',
   className,
-  renderReporterFilter
-}: Readonly<AdvancePaymentFilterSheetProps>) {
+  customGroup
+}: Readonly<BackofficeFilterSheetProps>) {
   const [draftValues, setDraftValues] = useState(valuesProp)
 
   useEffect(() => {
@@ -79,11 +84,8 @@ export function AdvancePaymentFilterSheet({
   const toggleGroup = useCallback((groupId: string) => {
     setExpandedIds(prev => {
       const next = new Set(prev)
-      if (next.has(groupId)) {
-        next.delete(groupId)
-      } else {
-        next.add(groupId)
-      }
+      if (next.has(groupId)) next.delete(groupId)
+      else next.add(groupId)
       return next
     })
   }, [])
@@ -92,26 +94,23 @@ export function AdvancePaymentFilterSheet({
     (filterId: string, value: FilterValue | undefined) => {
       setDraftValues(prev => {
         const next = { ...prev, [filterId]: value }
-        if (enableLiveFiltering) {
-          onChange?.(next)
-        }
+        if (enableLiveFiltering) onChange?.(next)
         return next
       })
     },
     [enableLiveFiltering, onChange]
   )
 
-  const handleReporterIdsChange = useCallback(
-    (reporterIds: string[]) => {
+  const handleCustomIdsChange = useCallback(
+    (ids: string[]) => {
+      if (!customGroup) return
       setDraftValues(prev => {
-        const next = { ...prev, reporterIds }
-        if (enableLiveFiltering) {
-          onChange?.(next)
-        }
+        const next = { ...prev, [customGroup.valueKey]: ids }
+        if (enableLiveFiltering) onChange?.(next)
         return next
       })
     },
-    [enableLiveFiltering, onChange]
+    [customGroup, enableLiveFiltering, onChange]
   )
 
   const hasAnyActiveFilter = useMemo(
@@ -124,57 +123,65 @@ export function AdvancePaymentFilterSheet({
 
   const groups = configuration?.groups ?? []
 
+  const renderGroup = (group: FilterConfiguration['groups'][number], index: number) => {
+    const groupId = group.id || `group-${index}`
+    const isExpanded = expandedIds.has(groupId)
+    const collapsible = group.collapsible !== false
+
+    const isCustom = customGroup && group.id === customGroup.groupId
+    const section = isCustom ? (
+      <ExpenseRequestEmployeeFilterAccordion
+        group={group}
+        values={draftValues}
+        isExpanded={isExpanded}
+        onToggle={collapsible ? () => toggleGroup(groupId) : undefined}
+      >
+        {customGroup.render({
+          selectedIds: Array.isArray(draftValues[customGroup.valueKey])
+            ? (draftValues[customGroup.valueKey] as string[])
+            : [],
+          onSelectedIdsChange: handleCustomIdsChange
+        })}
+      </ExpenseRequestEmployeeFilterAccordion>
+    ) : (
+      <FilterGroup
+        group={group}
+        values={draftValues as Record<string, FilterValue>}
+        onChange={handleFilterValueChange}
+        isExpanded={isExpanded}
+        onToggle={collapsible ? () => toggleGroup(groupId) : undefined}
+        context="filter-sheet"
+      />
+    )
+
+    return (
+      <div key={groupId}>
+        {section}
+        {index < groups.length - 1 ? <Separator className="gba:my-2" /> : null}
+      </div>
+    )
+  }
+
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side={side} className={cn('nw:overflow-hidden nw:gap-0', className)}>
-        <SheetHeader className="nw:border-b">
+      <SheetContent side={side} className={cn('gba:overflow-hidden gba:gap-0', className)}>
+        <SheetHeader className="gba:border-b">
           <SheetTitle>{title}</SheetTitle>
           {description ? <SheetDescription>{description}</SheetDescription> : null}
         </SheetHeader>
-        <ScrollArea className="nw:flex-1 nw:min-h-0">
-          <div className="nw:space-y-2 nw:px-3 nw:pt-3 nw:pb-6">
-            {groups.map((group, index) => {
-              const groupId = group.id || `group-${index}`
-              const isExpanded = expandedIds.has(groupId)
-              const collapsible = group.collapsible !== false
-
-              const section =
-                group.id === ADVANCE_PAYMENT_REPORTER_FILTER_GROUP_ID && renderReporterFilter ? (
-                  <ExpenseRequestEmployeeFilterAccordion
-                    group={group}
-                    values={draftValues}
-                    isExpanded={isExpanded}
-                    onToggle={collapsible ? () => toggleGroup(groupId) : undefined}
-                  >
-                    {renderReporterFilter({
-                      selectedReporterIds: Array.isArray(draftValues.reporterIds)
-                        ? (draftValues.reporterIds as string[])
-                        : [],
-                      onSelectedReporterIdsChange: handleReporterIdsChange
-                    })}
-                  </ExpenseRequestEmployeeFilterAccordion>
-                ) : (
-                  <FilterGroup
-                    group={group}
-                    values={draftValues as Record<string, FilterValue>}
-                    onChange={handleFilterValueChange}
-                    isExpanded={isExpanded}
-                    onToggle={collapsible ? () => toggleGroup(groupId) : undefined}
-                    context="filter-sheet"
-                  />
-                )
-
-              return (
-                <div key={groupId}>
-                  {section}
-                  {index < groups.length - 1 ? <Separator className="nw:my-2" /> : null}
-                </div>
-              )
-            })}
+        <ScrollArea className="gba:flex-1 gba:min-h-0">
+          <div className="gba:space-y-2 gba:px-3 gba:pt-3 gba:pb-6">
+            {groups.length === 0 ? (
+              <div className="gba:p-8 gba:text-center gba:text-sm gba:text-muted-foreground">
+                <p>No filters configured</p>
+              </div>
+            ) : (
+              groups.map(renderGroup)
+            )}
           </div>
         </ScrollArea>
-        <SheetFooter className="nw:border-t nw:pt-4">
-          <div className="nw:flex nw:items-center nw:justify-between nw:w-full">
+        <SheetFooter className="gba:border-t gba:pt-4">
+          <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
             {hasAnyActiveFilter ? (
               <Button
                 variant="ghost"
@@ -190,7 +197,7 @@ export function AdvancePaymentFilterSheet({
             ) : (
               <div />
             )}
-            <div className="nw:flex nw:items-center nw:gap-3">
+            <div className="gba:flex gba:items-center gba:gap-3">
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>

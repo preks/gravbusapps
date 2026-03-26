@@ -28,7 +28,8 @@ import { useAdvancePaymentsTableUrlSearch } from './hooks/useAdvancePaymentsTabl
 import AdvancePaymentsDataBody from './components/AdvancePaymentsDataBody'
 import AdvancePaymentsDetailsSheet from './components/AdvancePaymentsDetailsSheet'
 import { BackofficeDataDisplay } from '../../../common/components/BackofficeDataDisplay'
-import { AdvancePaymentFilterSheet } from './components/AdvancePaymentFilterSheet'
+import { BackofficeFilterSheet } from '../../../common/components/BackofficeFilterSheet'
+import { ADVANCE_PAYMENT_REPORTER_FILTER_GROUP_ID } from './constants/advancePaymentReporterFilter'
 import { AdvancePaymentReporterFilter } from './components/AdvancePaymentReporterFilter'
 import { AdvancePaymentsRowActions } from './components/AdvancePaymentsRowActions'
 import { createBackofficeAdvancePaymentDataColumns } from './table/backofficeAdvancePaymentColumns'
@@ -255,28 +256,31 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           onVisibleColumnsChange={handleVisibleColumnsChange}
           secondaryActions={currencySecondaryAction}
           renderFilterSheet={(open, onOpenChange) => (
-            <AdvancePaymentFilterSheet
+            <BackofficeFilterSheet
               open={open}
               onOpenChange={onOpenChange}
               configuration={filterConfiguration}
               values={filtersObject}
               onApply={handleFilterChangeFromDisplay}
               onChange={handleFilterChangeFromDisplay}
-              enableLiveFiltering={false}
               title={t('advance-payment-filter-sheet-title')}
               description={t('advance-payment-filter-sheet-description')}
-              renderReporterFilter={reporterFilterProps => (
-                <AdvancePaymentReporterFilter
-                  {...reporterFilterProps}
-                  reporterSearchText={reporterSearchText}
-                  setReporterSearchText={setReporterSearchText}
-                  showReporterDropdown={showReporterDropdown}
-                  setShowReporterDropdown={setShowReporterDropdown}
-                  reporterSearchResults={reporterSearchResults}
-                  reporterSearchLoading={reporterSearchLoading}
-                  t={t}
-                />
-              )}
+              customGroup={{
+                groupId: ADVANCE_PAYMENT_REPORTER_FILTER_GROUP_ID,
+                valueKey: 'reporterIds',
+                render: renderProps => (
+                  <AdvancePaymentReporterFilter
+                    {...renderProps}
+                    reporterSearchText={reporterSearchText}
+                    setReporterSearchText={setReporterSearchText}
+                    showReporterDropdown={showReporterDropdown}
+                    setShowReporterDropdown={setShowReporterDropdown}
+                    reporterSearchResults={reporterSearchResults}
+                    reporterSearchLoading={reporterSearchLoading}
+                    t={t}
+                  />
+                )
+              }}
             />
           )}
         >

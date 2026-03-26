@@ -1,7 +1,7 @@
 import type { TranslateFn } from '../../../../utils/utils'
-import type { ReporterFilterRenderProps } from './AdvancePaymentFilterSheet'
+import type { CustomGroupRenderProps } from '../../../../common/components/BackofficeFilterSheet'
 
-export interface AdvancePaymentReporterFilterProps extends ReporterFilterRenderProps {
+export interface AdvancePaymentReporterFilterProps extends CustomGroupRenderProps {
   reporterSearchText: string
   setReporterSearchText: (value: string) => void
   showReporterDropdown: boolean
@@ -12,8 +12,8 @@ export interface AdvancePaymentReporterFilterProps extends ReporterFilterRenderP
 }
 
 export function AdvancePaymentReporterFilter({
-  selectedReporterIds,
-  onSelectedReporterIdsChange,
+  selectedIds,
+  onSelectedIdsChange,
   reporterSearchText,
   setReporterSearchText,
   showReporterDropdown,
@@ -23,10 +23,10 @@ export function AdvancePaymentReporterFilter({
   t
 }: Readonly<AdvancePaymentReporterFilterProps>) {
   const handleReporterClick = (reporter: string) => {
-    const newSelected = selectedReporterIds.includes(reporter)
-      ? selectedReporterIds.filter(value => value !== reporter)
-      : [...selectedReporterIds, reporter]
-    onSelectedReporterIdsChange(newSelected)
+    const newSelected = selectedIds.includes(reporter)
+      ? selectedIds.filter(value => value !== reporter)
+      : [...selectedIds, reporter]
+    onSelectedIdsChange(newSelected)
   }
 
   return (
@@ -56,9 +56,7 @@ export function AdvancePaymentReporterFilter({
               <button
                 key={reporter}
                 className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-muted gba:transition-colors ${
-                  selectedReporterIds.includes(reporter)
-                    ? 'gba:bg-accent gba:text-accent-foreground'
-                    : 'gba:text-foreground'
+                  selectedIds.includes(reporter) ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-foreground'
                 }`}
                 onClick={() => handleReporterClick(reporter)}
                 data-testid={`reporter-option-${reporter}`}
