@@ -145,8 +145,8 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                 <TableRow>
                   <TableHead className="gba:w-[24px]"></TableHead>
                   <TableHead>{t('table-name')}</TableHead>
-                  <TableHead>{t('table-dates')}</TableHead>
                   <TableHead>{t('table-evaluation-period')}</TableHead>
+                  <TableHead>{t('table-dates')}</TableHead>
                   <TableHead>{t('table-type')}</TableHead>
                   <TableHead>{t('table-scale')}</TableHead>
                   <TableHead>{t('table-values')}</TableHead>
@@ -185,8 +185,8 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                       <TableRow key={c.id}>
                         <TableCell>{i + 1}</TableCell>
                         <TableCell className="gba:font-medium">{c.name}</TableCell>
-                        <TableCell>{dates}</TableCell>
                         <TableCell>{evalPeriod}</TableCell>
+                        <TableCell>{dates}</TableCell>
                         <TableCell>{c.frequency}</TableCell>
                         <TableCell>
                           {c.ratingScaleId ? ratingScales.find(s => s.id === c.ratingScaleId)?.name || '-' : '-'}

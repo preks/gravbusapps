@@ -198,11 +198,11 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   }
 
   useEffect(() => {
-    const parsed = parseStartDate(startDate)
+    const parsed = parseStartDate(evalPeriodStart)
     if (!parsed) return
     const computed = computeEndDateFromStart(parsed, frequency)
-    if (computed) setEndDate(computed)
-  }, [startDate, frequency])
+    if (computed) setEvalPeriodEnd(computed)
+  }, [evalPeriodStart, frequency])
 
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
@@ -292,49 +292,6 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               />
             </div>
             <div className="gba:space-y-2">
-              <Label>{t('field-start-date')} *</Label>
-              <DateInput
-                type="date"
-                value={startDate}
-                onChange={(value: DateInputValue) => {
-                  onClearDateError?.()
-                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
-                  const parsed = parseStartDate(raw)
-                  if (parsed) {
-                    const pad2 = (n: number) => n.toString().padStart(2, '0')
-                    const isoStart = `${parsed.y.toString().padStart(4, '0')}-${pad2(parsed.m)}-${pad2(parsed.d)}`
-                    setStartDate(isoStart)
-                    const end = computeEndDateFromStart(parsed, frequency)
-                    if (end) setEndDate(end)
-                  } else {
-                    setStartDate(raw)
-                  }
-                }}
-                outputFormat="iso"
-              />
-            </div>
-            <div className="gba:space-y-2">
-              <Label>{t('field-frequency')}</Label>
-              <Combobox
-                value={frequency}
-                onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
-                options={frequencyOptions.map(v => ({ label: getFrequencyLabel(v), value: v }))}
-                placeholder={t('placeholder-select-frequency')}
-              />
-            </div>
-            <div className="gba:space-y-2">
-              <Label>{t('field-end-date')} *</Label>
-              <DateInput type="date" value={endDate} disabled outputFormat="iso" />
-            </div>
-          </div>
-          {dateOverlapError && (
-            <p className="gba:text-sm gba:text-destructive gba:col-span-full" role="alert">
-              {dateOverlapError}
-            </p>
-          )}
-
-          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-            <div className="gba:space-y-2">
               <Label>{t('field-evaluation-period-start')} *</Label>
               <DateInput
                 type="date"
@@ -350,18 +307,57 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               />
             </div>
             <div className="gba:space-y-2">
+              <Label>{t('field-frequency')}</Label>
+              <Combobox
+                value={frequency}
+                onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
+                options={frequencyOptions.map(v => ({ label: getFrequencyLabel(v), value: v }))}
+                placeholder={t('placeholder-select-frequency')}
+              />
+            </div>
+            <div className="gba:space-y-2">
               <Label>{t('field-evaluation-period-end')} *</Label>
               <DateInput
                 type="date"
                 value={evalPeriodEnd}
-                onChange={(value: DateInputValue) => {
-                  onClearDateError?.()
-                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
-                  setEvalPeriodEnd(raw)
-                }}
+                disabled
                 outputFormat="iso"
                 captionLayout="dropdown"
                 data-testid="performance-cycle-evaluation-period-end"
+              />
+            </div>
+          </div>
+          {dateOverlapError && (
+            <p className="gba:text-sm gba:text-destructive gba:col-span-full" role="alert">
+              {dateOverlapError}
+            </p>
+          )}
+
+          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            <div className="gba:space-y-2">
+              <Label>{t('field-start-date')} *</Label>
+              <DateInput
+                type="date"
+                value={startDate}
+                onChange={(value: DateInputValue) => {
+                  onClearDateError?.()
+                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                  setStartDate(raw)
+                }}
+                outputFormat="iso"
+              />
+            </div>
+            <div className="gba:space-y-2">
+              <Label>{t('field-end-date')} *</Label>
+              <DateInput
+                type="date"
+                value={endDate}
+                onChange={(value: DateInputValue) => {
+                  onClearDateError?.()
+                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                  setEndDate(raw)
+                }}
+                outputFormat="iso"
               />
             </div>
           </div>

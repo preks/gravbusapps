@@ -122,14 +122,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
 
   const handleSaveFromModal = async (values: CycleEditorValues) => {
     const otherCycles = cycles.filter(c => c.id !== values.id)
-    const overlaps = otherCycles.some(c =>
-      doDateRangesOverlap(values.startDate, values.endDate, c.startDate, c.endDate)
-    )
-    if (overlaps) {
-      const err = new Error(t('cycles-error-dates-overlap')) as Error & { code?: string }
-      err.code = 'DATES_OVERLAP'
-      throw err
-    }
 
     if (values.evaluationPeriodStartDate && values.evaluationPeriodEndDate) {
       const evalOverlaps = otherCycles.some(
