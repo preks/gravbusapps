@@ -461,6 +461,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
               onShare={() => setManageBoardId(currentBoard!.id)}
               onImportSystemData={() => viewerRef.current?.openSystemData()}
               onImportFlowData={() => viewerRef.current?.openFlowData()}
+              onActivityLog={() => viewerRef.current?.openActivityLog()}
               onSettings={() => viewerRef.current?.openSettings()}
               data-testid={`${testId}-editor-header`}
             />
