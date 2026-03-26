@@ -13,11 +13,10 @@ import {
 } from '../services/performanceCycleApi'
 import type { CycleEditorValues } from '../CycleEditorModal'
 
-/** Backend enum: ANNUAL_PERFORMANCE_CYCLE_FREQUENCY | QUARTERLY_PERFORMANCE_CYCLE_FREQUENCY | SEMI_ANNUAL_PERFORMANCE_CYCLE_FREQUENCY | CUSTOM_PERFORMANCE_CYCLE_FREQUENCY. */
 const FREQUENCY_TO_API: Record<string, string> = {
   Annual: 'ANNUAL_PERFORMANCE_CYCLE_FREQUENCY',
   Quarterly: 'QUARTERLY_PERFORMANCE_CYCLE_FREQUENCY',
-  Custom: 'CUSTOM_PERFORMANCE_CYCLE_FREQUENCY'
+  Monthly: 'CUSTOM_PERFORMANCE_CYCLE_FREQUENCY'
 }
 
 /** API participant type enum: SELF_EVALUATION_PARTICIPANT_TYPE, PEER_EVALUATION_PARTICIPANT_TYPE, MANAGER_EVALUATION_PARTICIPANT_TYPE, etc. */
@@ -134,9 +133,20 @@ function buildUpdateActivePayload(cycle: CycleForUpdate, isActive: boolean): Upd
   }
 }
 
+function buildCompletePayload(cycle: CycleForUpdate): UpdatePerformanceCyclePayload {
+  return {
+    performanceCycle: {
+      id: cycle.id,
+      version: cycle.version ?? 0,
+      status: 'COMPLETED_PERFORMANCE_CYCLE_STATUS'
+    }
+  }
+}
+
 export interface UseSavePerformanceCycleResult {
   savePerformanceCycle: (values: CycleEditorValues) => Promise<SavePerformanceCycleResponse | null>
   updateCycleActive: (cycle: CycleForUpdate, isActive: boolean) => Promise<UpdatePerformanceCycleResponse | null>
+  completeCycle: (cycle: CycleForUpdate) => Promise<UpdatePerformanceCycleResponse | null>
   deletePerformanceCycle: (cycle: CycleForUpdate) => Promise<DeletePerformanceCycleResponse | null>
 }
 
@@ -161,6 +171,16 @@ export function useSavePerformanceCycle(accessToken: string | undefined): UseSav
     [accessToken]
   )
 
+  const completeCycle = useCallback(
+    async (cycle: CycleForUpdate): Promise<UpdatePerformanceCycleResponse | null> => {
+      if (!accessToken) return null
+      const payload = buildCompletePayload(cycle)
+      const result = await updatePerformanceCycleApi(accessToken, payload)
+      return result ?? null
+    },
+    [accessToken]
+  )
+
   const deletePerformanceCycle = useCallback(
     async (cycle: CycleForUpdate): Promise<DeletePerformanceCycleResponse | null> => {
       if (!accessToken) return null
@@ -173,5 +193,5 @@ export function useSavePerformanceCycle(accessToken: string | undefined): UseSav
     [accessToken]
   )
 
-  return { savePerformanceCycle, updateCycleActive, deletePerformanceCycle }
+  return { savePerformanceCycle, updateCycleActive, completeCycle, deletePerformanceCycle }
 }
