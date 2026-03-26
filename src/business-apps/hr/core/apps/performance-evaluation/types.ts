@@ -1,6 +1,6 @@
 /** Shared types for performance evaluation and tab components. */
 
-export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
+export type FrequencyType = 'Annual' | 'Quarterly' | 'Monthly'
 export type ParticipantType = 'Self' | 'Peer' | 'Manager'
 
 export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive' | 'Completed'

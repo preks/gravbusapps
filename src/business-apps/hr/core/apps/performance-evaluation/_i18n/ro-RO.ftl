@@ -78,7 +78,7 @@ participant-hr-team = Echipa HR
 # Frecvență
 frequency-annual = Anual
 frequency-quarterly = Trimestrial
-frequency-custom = Personalizat
+frequency-monthly = Lunar
 
 # Tabel scale de evaluare
 empty-no-rating-scales = Nu există încă scale de evaluare definite.
@@ -124,4 +124,5 @@ values-error-cannot-deactivate-active-cycle = Valoarea nu poate fi dezactivată 
 cycles-error-no-rating-scales = Este necesară cel puțin o scală de evaluare pentru a crea un ciclu.
 cycles-error-no-company-values = Este necesară cel puțin o valoare de companie pentru a crea un ciclu.
 cycles-error-dates-overlap = Datele ciclului nu pot suprapune cu un ciclu existent. Alegeți o dată de început după sfârșitul ciclurilor existente.
+cycles-error-eval-period-overlap = Perioada de evaluare se suprapune cu un ciclu existent. Alegeți date care nu intră în conflict cu alte perioade de evaluare.
 error-activate-out-of-period = Ciclul nu poate fi activat. Data de astăzi este în afara perioadei ciclului.

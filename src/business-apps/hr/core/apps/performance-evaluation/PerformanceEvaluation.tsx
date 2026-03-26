@@ -132,6 +132,25 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
       throw err
     }
 
+    if (values.evaluationPeriodStartDate && values.evaluationPeriodEndDate) {
+      const evalOverlaps = otherCycles.some(
+        c =>
+          c.evaluationPeriodStartDate &&
+          c.evaluationPeriodEndDate &&
+          doDateRangesOverlap(
+            values.evaluationPeriodStartDate!,
+            values.evaluationPeriodEndDate!,
+            c.evaluationPeriodStartDate,
+            c.evaluationPeriodEndDate
+          )
+      )
+      if (evalOverlaps) {
+        const err = new Error(t('cycles-error-eval-period-overlap')) as Error & { code?: string }
+        err.code = 'DATES_OVERLAP'
+        throw err
+      }
+    }
+
     if (accessToken) {
       try {
         await savePerformanceCycle(values)

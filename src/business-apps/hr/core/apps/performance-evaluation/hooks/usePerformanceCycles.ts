@@ -3,10 +3,12 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_PERFORMANCE_CYCLES,
   type GetPerformanceCyclesResponse,
-  type PerformanceCycleApi
+  type PerformanceCycleApi,
+  type PerformanceCycleParticipantApi,
+  type PerformanceCycleCompanyValueApi
 } from '../queries/performanceCycleQueries'
 
-export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
+export type FrequencyType = 'Annual' | 'Quarterly' | 'Monthly'
 export type ParticipantType = 'Self' | 'Peer' | 'Manager'
 export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive' | 'Completed'
 
@@ -53,7 +55,7 @@ function apiParticipantToUi(apiParticipant: string | null): ParticipantType | nu
 function apiFrequencyToUi(apiFrequency: string | null): FrequencyType {
   const freq = String(apiFrequency || '').toUpperCase()
   if (freq.includes('QUARTERLY')) return 'Quarterly'
-  if (freq.includes('CUSTOM')) return 'Custom'
+  if (freq.includes('CUSTOM')) return 'Monthly'
   return 'Annual'
 }
 

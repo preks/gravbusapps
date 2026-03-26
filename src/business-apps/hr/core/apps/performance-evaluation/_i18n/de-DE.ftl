@@ -78,7 +78,7 @@ participant-hr-team = HR Team
 # Häufigkeit
 frequency-annual = Jährlich
 frequency-quarterly = Vierteljährlich
-frequency-custom = Benutzerdefiniert
+frequency-monthly = Monatlich
 
 # Bewertungsskalen-Tabelle
 empty-no-rating-scales = Noch keine Bewertungsskalen definiert.
@@ -124,4 +124,5 @@ values-error-cannot-deactivate-active-cycle = Wert kann nicht deaktiviert werden
 cycles-error-no-rating-scales = Mindestens eine Bewertungsskala wird für das Erstellen eines Zyklus benötigt.
 cycles-error-no-company-values = Mindestens ein Unternehmenswert wird für das Erstellen eines Zyklus benötigt.
 cycles-error-dates-overlap = Die Zyklusdaten dürfen sich nicht mit einem bestehenden Zyklus überschneiden. Bitte wählen Sie ein Startdatum nach dem Ende bestehender Zyklen.
+cycles-error-eval-period-overlap = Der Bewertungszeitraum überschneidet sich mit einem bestehenden Zyklus. Bitte wählen Sie Daten, die nicht mit anderen Bewertungszeiträumen in Konflikt stehen.
 error-activate-out-of-period = Zyklus kann nicht aktiviert werden. Das heutige Datum liegt außerhalb des Zykluszeitraums.

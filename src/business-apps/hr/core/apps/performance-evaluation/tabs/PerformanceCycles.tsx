@@ -316,8 +316,9 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                     ? 'Quarterly'
                     : String(editing.frequency).toUpperCase().includes('ANNUAL')
                       ? 'Annual'
-                      : String(editing.frequency).toUpperCase().includes('CUSTOM')
-                        ? 'Custom'
+                      : String(editing.frequency).toUpperCase().includes('MONTHLY') ||
+                          String(editing.frequency).toUpperCase().includes('CUSTOM')
+                        ? 'Monthly'
                         : (editing.frequency as EditorFrequencyType)) ?? 'Annual',
                 participants: editing.participants as EditorParticipantType[],
                 stages: editing.stages as unknown as EditorStage[],
