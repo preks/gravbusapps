@@ -1,0 +1,114 @@
+import { useRef, useEffect, useCallback } from 'react'
+import type { ChatMessage, DeepAgentSession, SessionConfig } from '../../types/enterpriseAgent'
+import { MessageBubble } from './MessageBubble'
+import { AgentTypingIndicator } from './AgentTypingIndicator'
+import { ChatInput } from './ChatInput'
+import { WelcomeState } from '../empty-states/WelcomeState'
+
+interface AgentChatViewProps {
+  session: DeepAgentSession | null
+  messages: ChatMessage[]
+  isStreaming: boolean
+  isWaitingForInput: boolean
+  onStartSession: (task: string, config: SessionConfig) => Promise<string>
+  onReply: (message: string) => void
+  onStopSession: () => void
+  onOpenMemory: () => void
+}
+
+export const AgentChatView = ({
+  session,
+  messages,
+  isStreaming,
+  isWaitingForInput,
+  onStartSession,
+  onReply,
+  onStopSession,
+  onOpenMemory
+}: AgentChatViewProps) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const userScrolledUpRef = useRef(false)
+
+  const isSessionDone = !!session && session.status !== 'running' && session.status !== 'pending'
+  const visibleMessages = isSessionDone ? messages.filter(m => m.type !== 'agent_thinking') : messages
+
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    userScrolledUpRef.current = distanceFromBottom > 80
+  }, [])
+
+  useEffect(() => {
+    if (!userScrolledUpRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [visibleMessages.length, isStreaming])
+
+  const handleSubmit = useCallback(
+    async (task: string, config: SessionConfig) => {
+      if (session) {
+        await onReply(task)
+      } else {
+        await onStartSession(task, config)
+      }
+    },
+    [session, onStartSession, onReply]
+  )
+
+  const interruptQuestion = messages.find(m => m.type === 'human_interrupt')
+    ? (messages.findLast(m => m.type === 'human_interrupt')?.content as { question: string } | undefined)?.question
+    : undefined
+
+  if (!session) {
+    return (
+      <div className="gba:flex gba:flex-col gba:h-full" data-testid="enterprise-agent-chat">
+        <WelcomeState
+          onSelectSuggestion={task =>
+            handleSubmit(task, { mode: 'deep', enable_memory: true, enable_reflection: true })
+          }
+        />
+        <ChatInput
+          onSubmit={handleSubmit}
+          disabled={false}
+          isRunning={false}
+          onStop={() => undefined}
+          onReply={onReply}
+          onOpenMemory={onOpenMemory}
+        />
+      </div>
+    )
+  }
+
+  const isRunning = session.status === 'running'
+  const isDisabled = isRunning && !isWaitingForInput
+
+  return (
+    <div className="gba:flex gba:flex-col gba:h-full" data-testid="enterprise-agent-chat">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="gba:flex-1 gba:overflow-y-auto gba:py-4 gba:space-y-2"
+      >
+        {visibleMessages.map(msg => (
+          <MessageBubble key={msg.id} message={msg} sessionId={session.session_id} onReply={onReply} />
+        ))}
+
+        {isStreaming && !visibleMessages.some(m => m.type === 'agent_thinking') && <AgentTypingIndicator />}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <ChatInput
+        onSubmit={handleSubmit}
+        disabled={isDisabled}
+        isRunning={isRunning}
+        onStop={onStopSession}
+        onReply={onReply}
+        activeInterrupt={interruptQuestion}
+        onOpenMemory={onOpenMemory}
+      />
+    </div>
+  )
+}
