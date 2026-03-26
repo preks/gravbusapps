@@ -18,7 +18,7 @@ import {
   TooltipTrigger,
   toast
 } from '@newwork/nw-design-system'
-import { Bug, Camera, CameraOff, Lightbulb, Send } from 'lucide-react'
+import { Bug, Camera, CameraOff, Lightbulb, Send, X } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env, setProductReportBaseUrlOverride } from '@/common/env/EnvUtils'
 import { submitGravityIssue } from './productReportApi'
@@ -26,8 +26,9 @@ import { getReportedEnvironmentFromUrl } from './environment'
 import { captureDevReportScreenshot } from './screenshot'
 import { getDevReportTelemetrySnapshot, startDevReportTelemetry } from './telemetry'
 import type { CreateGravityIssueRequest, GravityIssueType } from './types'
+import type { DevReportScreenshot } from './screenshot'
 
-type Phase = 'form' | 'ask-screenshot' | 'capturing' | 'submitting'
+type Phase = 'form' | 'ask-screenshot' | 'capturing' | 'review-screenshots' | 'submitting'
 
 export interface DevReportDotProps {
   enabled: boolean
@@ -44,6 +45,10 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
   const [type, setType] = useState<GravityIssueType>('BUG')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [stepsToReproduce, setStepsToReproduce] = useState('')
+  const [expectedBehaviour, setExpectedBehaviour] = useState('')
+  const [actualBehaviour, setActualBehaviour] = useState('')
+  const [screenshots, setScreenshots] = useState<DevReportScreenshot[]>([])
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('form')
 
@@ -51,7 +56,10 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
 
   const baseUrl = useMemo(() => env('NEXT_PUBLIC_PRODUCT_REPORT_BASE_URL') || '', [baseUrlRefresh])
   const hasBaseUrl = Boolean(baseUrl)
-  const canSubmit = title.trim().length > 0 && description.trim().length > 0 && phase === 'form'
+  const canSubmit =
+    phase === 'form' &&
+    title.trim().length > 0 &&
+    (type === 'BUG' ? stepsToReproduce.trim().length > 0 : description.trim().length > 0)
 
   useEffect(() => {
     if (hasBaseUrl) return
@@ -67,6 +75,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
   const handleDotClick = () => {
     setPhase('form')
     setSubmitError(null)
+    setScreenshots([])
     setProductReportUrl(env('NEXT_PUBLIC_PRODUCT_REPORT_BASE_URL') || productReportUrl || '')
     setBaseUrlRefresh(v => v + 1)
     setOpen(true)
@@ -102,7 +111,18 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
     setPhase('ask-screenshot')
   }
 
-  const doSubmit = async (screenshotRes: { screenshot: any; error?: string }) => {
+  const doSubmit = async (capturedScreenshots: DevReportScreenshot[]) => {
+    const composedDescription =
+      type === 'BUG'
+        ? [
+            `**Steps to Reproduce:**\n${stepsToReproduce.trim()}`,
+            expectedBehaviour.trim() ? `**Expected Behaviour:**\n${expectedBehaviour.trim()}` : '',
+            actualBehaviour.trim() ? `**Actual Behaviour:**\n${actualBehaviour.trim()}` : ''
+          ]
+            .filter(Boolean)
+            .join('\n\n')
+        : description.trim()
+
     const pageUrl = typeof window !== 'undefined' ? window.location.href : undefined
     const reportedEnvironment = getReportedEnvironmentFromUrl(pageUrl)
     const buildInfo = typeof globalThis !== 'undefined' ? ((globalThis as any).__APP_BUILD_INFO__ ?? null) : null
@@ -112,13 +132,14 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
       screenKey,
       type,
       title: title.trim(),
-      description: description.trim(),
+      description: composedDescription,
       pageUrl,
       reportedEnvironment,
       buildInfo,
       evidence: {
-        screenshot: screenshotRes.screenshot,
-        screenshotError: screenshotRes.error ?? null,
+        screenshot: capturedScreenshots[0] ?? null,
+        screenshots: capturedScreenshots.length > 0 ? capturedScreenshots : null,
+        screenshotError: capturedScreenshots.length === 0 ? 'user_skipped' : null,
         telemetry
       },
       reporter: {
@@ -143,6 +164,10 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
       })
       setTitle('')
       setDescription('')
+      setStepsToReproduce('')
+      setExpectedBehaviour('')
+      setActualBehaviour('')
+      setScreenshots([])
       setType('BUG')
       setOpen(false)
       setPhase('form')
@@ -157,19 +182,30 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
     })
   }
 
-  const handleScreenshotYes = async () => {
+  const handleCaptureScreenshot = async () => {
     setOpen(false)
     setPhase('capturing')
     await new Promise(r => setTimeout(r, 300))
-    const screenshotRes = await captureDevReportScreenshot()
-    setPhase('submitting')
+    const result = await captureDevReportScreenshot()
+    if (result.screenshot) {
+      setScreenshots(prev => [...prev, result.screenshot!])
+    } else {
+      toast.error('Screenshot failed', {
+        description: <span className="gba:text-foreground">{result.error || 'Could not capture screenshot'}</span>,
+        position: 'top-right'
+      })
+    }
+    setPhase('review-screenshots')
     setOpen(true)
-    await doSubmit(screenshotRes)
   }
 
-  const handleScreenshotNo = async () => {
+  const handleFinalSubmit = async () => {
     setPhase('submitting')
-    await doSubmit({ screenshot: null, error: 'user_skipped' })
+    await doSubmit(screenshots)
+  }
+
+  const handleRemoveScreenshot = (index: number) => {
+    setScreenshots(prev => prev.filter((_, i) => i !== index))
   }
 
   const isBug = type === 'BUG'
@@ -299,23 +335,63 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
                   />
                 </div>
 
-                <div className="gba:space-y-1.5">
-                  <Label htmlFor="dev-report-description" className="gba:text-xs gba:text-muted-foreground">
-                    Description
-                  </Label>
-                  <Textarea
-                    id="dev-report-description"
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    placeholder={
-                      isBug
-                        ? 'Steps to reproduce, expected vs actual behavior…'
-                        : 'Describe the feature and why it would help…'
-                    }
-                    rows={4}
-                    data-testid="dev-report-description"
-                  />
-                </div>
+                {isBug ? (
+                  <>
+                    <div className="gba:space-y-1.5">
+                      <Label htmlFor="dev-report-steps" className="gba:text-xs gba:text-muted-foreground">
+                        Steps to Reproduce
+                      </Label>
+                      <Textarea
+                        id="dev-report-steps"
+                        value={stepsToReproduce}
+                        onChange={e => setStepsToReproduce(e.target.value)}
+                        placeholder={'1. Go to…\n2. Click on…\n3. Observe…'}
+                        rows={3}
+                        data-testid="dev-report-steps"
+                      />
+                    </div>
+                    <div className="gba:space-y-1.5">
+                      <Label htmlFor="dev-report-expected" className="gba:text-xs gba:text-muted-foreground">
+                        Expected Behaviour
+                      </Label>
+                      <Textarea
+                        id="dev-report-expected"
+                        value={expectedBehaviour}
+                        onChange={e => setExpectedBehaviour(e.target.value)}
+                        placeholder="What did you expect to happen?"
+                        rows={2}
+                        data-testid="dev-report-expected"
+                      />
+                    </div>
+                    <div className="gba:space-y-1.5">
+                      <Label htmlFor="dev-report-actual" className="gba:text-xs gba:text-muted-foreground">
+                        Actual Behaviour
+                      </Label>
+                      <Textarea
+                        id="dev-report-actual"
+                        value={actualBehaviour}
+                        onChange={e => setActualBehaviour(e.target.value)}
+                        placeholder="What actually happened?"
+                        rows={2}
+                        data-testid="dev-report-actual"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="gba:space-y-1.5">
+                    <Label htmlFor="dev-report-description" className="gba:text-xs gba:text-muted-foreground">
+                      Description
+                    </Label>
+                    <Textarea
+                      id="dev-report-description"
+                      value={description}
+                      onChange={e => setDescription(e.target.value)}
+                      placeholder="Describe the feature and why it would help…"
+                      rows={4}
+                      data-testid="dev-report-description"
+                    />
+                  </div>
+                )}
 
                 {submitError && (
                   <div
@@ -370,7 +446,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={handleScreenshotNo}
+                  onClick={handleFinalSubmit}
                   className="gba:gap-2"
                   data-testid="dev-report-screenshot-no"
                 >
@@ -380,12 +456,72 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
                 <Button
                   type="button"
                   size="sm"
-                  onClick={handleScreenshotYes}
+                  onClick={handleCaptureScreenshot}
                   className="gba:gap-2"
                   data-testid="dev-report-screenshot-yes"
                 >
                   <Camera className="gba:h-3.5 gba:w-3.5" />
                   Capture
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {phase === 'review-screenshots' && (
+            <div className="gba:px-6 gba:py-6">
+              <DialogHeader className="gba:text-center">
+                <DialogTitle className="gba:text-base">
+                  {screenshots.length > 0
+                    ? `${screenshots.length} screenshot${screenshots.length !== 1 ? 's' : ''} captured`
+                    : 'No screenshots captured'}
+                </DialogTitle>
+                <DialogDescription className="gba:mt-1">You can capture more or submit your report.</DialogDescription>
+              </DialogHeader>
+              {screenshots.length > 0 && (
+                <div className="gba:mt-4 gba:grid gba:grid-cols-3 gba:gap-2">
+                  {screenshots.map((ss, idx) => (
+                    <div key={idx} className="gba:relative gba:group gba:rounded-md gba:overflow-hidden gba:border">
+                      <img
+                        src={ss.dataUrl}
+                        alt={`Screenshot ${idx + 1}`}
+                        className="gba:w-full gba:h-auto gba:object-cover"
+                        data-testid={`dev-report-screenshot-preview-${idx}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveScreenshot(idx)}
+                        className="gba:absolute gba:top-1 gba:right-1 gba:h-5 gba:w-5 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity"
+                        data-testid={`dev-report-screenshot-remove-${idx}`}
+                      >
+                        <X className="gba:h-3 gba:w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="gba:mt-6 gba:flex gba:justify-center gba:gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCaptureScreenshot}
+                  className="gba:gap-2"
+                  data-testid="dev-report-screenshot-another"
+                >
+                  <Camera className="gba:h-3.5 gba:w-3.5" />
+                  Capture another
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleFinalSubmit}
+                  className="gba:gap-2"
+                  data-testid="dev-report-screenshot-submit"
+                >
+                  <Send className="gba:h-3.5 gba:w-3.5" />
+                  Submit report
                 </Button>
               </div>
             </div>
