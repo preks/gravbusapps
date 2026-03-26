@@ -387,7 +387,13 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
         {/* Drawer body */}
         <div style={{ flex: '1 1 auto', overflowY: 'auto' }}>
           {activeTab === 'activity' ? (
-            <RowAuditLog boardId={boardId} sheetId={sheetId} rowId={row.id} data-testid={`${testId}-activity`} />
+            <RowAuditLog
+              boardId={boardId}
+              sheetId={sheetId}
+              rowId={row.id}
+              accessToken={accessToken}
+              data-testid={`${testId}-activity`}
+            />
           ) : isLoading ? (
             <div className="gba:flex gba:justify-center gba:py-24">
               <Spinner />
