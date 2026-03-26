@@ -324,6 +324,10 @@ advance-payment-total-amount-zero = Gesamtbetrag: 0 €
 advance-payment-filter-sheet-title = Vorauszahlungen filtern
 advance-payment-filter-sheet-description = Wenden Sie Filter an, um die Liste der Vorauszahlungen einzugrenzen.
 
+# Expense Requests Filter Sheet
+expense-request-filter-sheet-title = Spesenabrechnungen filtern
+expense-request-filter-sheet-description = Wenden Sie Filter an, um die Liste der Spesenabrechnungen einzugrenzen.
+
 # Expense Request Details Panel
 detail-duration = Dauer
 detail-request-date = Abrechnungsdatum

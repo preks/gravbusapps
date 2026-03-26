@@ -1,8 +1,9 @@
 import React, { useMemo, useCallback, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
-import { DataDisplay } from '@newwork/nw-design-system'
+import { DataDisplay, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../../_i18n'
 import { requestFilterStatuses } from '../../../hooks/availableFilterStatuses'
 import { useExpenseRequestCurrencies } from '../../../hooks/useExpenseRequestCurrencies'
 import { getExpenseRequestStatusFilterLabel } from '../../../utils'
@@ -44,6 +45,7 @@ const DEFAULT_VISIBLE_COLUMN_IDS = [
 ]
 
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
+  const { t } = useTranslation(translations)
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -273,14 +275,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.expense_plan_table.title',
-          'Filter Expense Requests'
-        )}
-        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.filter_expense_plans_description',
-          'Apply filters to narrow down the expense requests list.'
-        )}
+        filterSheetTitle={t('filter-expense-requests-title')}
+        filterSheetDescription={t('filter-expense-requests-description')}
         secondaryActions={secondaryActions}
       >
         <ExpenseRequestsTable

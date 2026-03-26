@@ -324,6 +324,10 @@ advance-payment-total-amount-zero = Total Amount: $0
 advance-payment-filter-sheet-title = Filter Advance Payments
 advance-payment-filter-sheet-description = Apply filters to narrow down the advance payments list.
 
+# Expense Requests Filter Sheet
+expense-request-filter-sheet-title = Filter Expense Requests
+expense-request-filter-sheet-description = Apply filters to narrow down the expense requests list.
+
 # Expense Request Details Panel
 detail-duration = Duration
 detail-request-date = Request Date

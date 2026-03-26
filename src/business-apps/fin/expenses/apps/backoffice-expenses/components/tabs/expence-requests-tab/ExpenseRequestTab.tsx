@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { useCurrencySecondaryAction } from '../../../common/hooks/useSharedTabState'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import translations from '../../../_i18n'
@@ -285,14 +284,8 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
               values={filtersObject}
               onApply={handleFilterChangeFromDisplay}
               onChange={handleFilterChangeFromDisplay}
-              title={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_list.expense_plan_table.title',
-                'Filter Expense Requests'
-              )}
-              description={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.filter_expense_requests_description',
-                'Apply filters to narrow down the expense requests list.'
-              )}
+              title={t('expense-request-filter-sheet-title')}
+              description={t('expense-request-filter-sheet-description')}
               customGroup={{
                 groupId: EXPENSE_REQUEST_EMPLOYEE_FILTER_GROUP_ID,
                 valueKey: 'employeeIds',
