@@ -1,6 +1,7 @@
 // Investment Lead hooks - CRM lead entity operations
 import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { InvestmentLead } from '../types/investmentLeadTypes'
 import type { InvestmentTask } from '../types/investmentTaskTypes'
@@ -88,7 +89,7 @@ export interface InvestmentDocumentQueryResponse {
  * Returns fetch functions without state management.
  */
 export const useInvestmentLeads = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+  const graphqlClient: GraphQLClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentLeads = useCallback(
     async (variables: InvestmentLeadQueryVariables = {}): Promise<InvestmentLeadListData> => {
@@ -102,7 +103,7 @@ export const useInvestmentLeads = (context: BusinessAppContextProps) => {
       }
 
       const graphQLVariables: Record<string, any> = {
-        limit: Math.min(variables.limit || 50, 100),
+        limit: variables.limit || 50,
         offset: variables.offset || 0,
         where: whereCondition,
         orderBy: orderBy

@@ -162,6 +162,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       config={config}
       dataTestId="customer-opportunities-view"
       extendVisibleColumns={CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS}
+      enableExport
+      exportFilenamePrefix="opportunities"
     />
   )
 }
