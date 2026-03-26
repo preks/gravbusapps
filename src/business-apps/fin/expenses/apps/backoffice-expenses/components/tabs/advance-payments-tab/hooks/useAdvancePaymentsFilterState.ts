@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import useCloseDropdownOnOutsideClick from '../../common/useCloseDropdownOnOutsideClick'
 import { useBackofficeAsyncSearch } from '../../../../hooks/useBackofficeAsyncSearch'
-import type { Currency } from '../../../../hooks/useFilterData'
 import { getErrorMessage } from '../../../../utils/errorUtils'
 import type { TranslateFn } from '../../../../utils/utils'
 import {
@@ -23,8 +22,8 @@ interface UseAdvancePaymentsFilterStateParams {
   t: TranslateFn
   searchStatuses: () => Promise<string[]>
   searchReporters: (searchTerm: string) => Promise<string[]>
-  currencies: readonly Currency[]
   departmentOptions: DepartmentOption[]
+  currencyRef: string
   setCurrentPage: (page: number) => void
 }
 
@@ -32,8 +31,8 @@ export function useAdvancePaymentsFilterState({
   t,
   searchStatuses,
   searchReporters,
-  currencies,
   departmentOptions,
+  currencyRef,
   setCurrentPage
 }: UseAdvancePaymentsFilterStateParams) {
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -45,7 +44,6 @@ export function useAdvancePaymentsFilterState({
   const [reporterSearchText, setReporterSearchText] = useState('')
   const [showReporterDropdown, setShowReporterDropdown] = useState(false)
   const [selectedReporters, setSelectedReporters] = useState<string[]>([])
-  const [currencyRef, setCurrencyRef] = useState<string>('')
   const [departmentId, setDepartmentId] = useState<string>('')
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
@@ -124,11 +122,10 @@ export function useAdvancePaymentsFilterState({
       buildAdvancePaymentFilterConfiguration({
         t,
         availableStatuses,
-        currencies,
         departmentOptions,
         reporterOptions
       }),
-    [availableStatuses, currencies, departmentOptions, reporterOptions, t]
+    [availableStatuses, departmentOptions, reporterOptions, t]
   )
 
   const filtersObject = useMemo(
@@ -136,7 +133,6 @@ export function useAdvancePaymentsFilterState({
       buildAdvancePaymentFiltersObject({
         statusFilter,
         selectedReporters,
-        currencyRef,
         departmentId,
         dateFrom,
         dateTo,
@@ -148,7 +144,6 @@ export function useAdvancePaymentsFilterState({
     [
       statusFilter,
       selectedReporters,
-      currencyRef,
       departmentId,
       dateFrom,
       dateTo,
@@ -166,7 +161,6 @@ export function useAdvancePaymentsFilterState({
         setStatusFilter,
         setSelectedReporters,
         setReporterFilter,
-        setCurrencyRef,
         setDepartmentId,
         setDateFrom,
         setDateTo,

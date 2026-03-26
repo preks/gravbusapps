@@ -14,6 +14,7 @@ import { useFilterData } from '../../../hooks/useFilterData'
 import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOptions'
 import type { AdvancePaymentItem } from '../../../types'
 import type { AdvancePaymentOrderByClause, FetchPaymentsOptions } from '../../../hooks/useAdvancePayment'
+import { useAdvancePaymentCurrency } from './hooks/useAdvancePaymentCurrency'
 import { useAdvancePaymentsFilterState } from './hooks/useAdvancePaymentsFilterState.ts'
 import { buildAdvancePaymentFetchOptions } from './hooks/advancePaymentQueryBuilder'
 import {
@@ -69,11 +70,22 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     DEFAULT_ADVANCE_PAYMENT_VISIBLE_COLUMNS
   )
   const [selectedItem, setSelectedItem] = useState<AdvancePaymentItem | null>(null)
-  const { organizationalUnits = [], currencies = [] } = useFilterData({ accessToken: context.accessToken }) || {}
+  const {
+    organizationalUnits = [],
+    currencies = [],
+    mostUsedCurrency: mostUsedCurrencyRef
+  } = useFilterData({ accessToken: context.accessToken }) || {}
+
   const departmentOptions = useMemo(
     () => getActiveStructureDepartmentOptions(organizationalUnits),
     [organizationalUnits]
   )
+
+  const { selectedCurrencyCode, selectedCurrencyRef, currencySecondaryAction } = useAdvancePaymentCurrency({
+    currencies,
+    mostUsedCurrencyRef,
+    setCurrentPage
+  })
 
   const { searchText, debouncedSearchText, handleSearchChange } = useAdvancePaymentsTableUrlSearch({
     searchFromParent: search,
@@ -95,8 +107,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     t,
     searchStatuses,
     searchReporters,
-    currencies,
     departmentOptions,
+    currencyRef: selectedCurrencyRef,
     setCurrentPage
   })
 
@@ -199,7 +211,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   )
 
   const hasSearchFilter = searchText.trim() !== ''
-  const hasAnyFilter = hasSearchFilter || hasActiveFilters
+  const hasCurrencyFilter = selectedCurrencyCode !== null
+  const hasAnyFilter = hasSearchFilter || hasActiveFilters || hasCurrencyFilter
 
   const listEmptyMessage = useMemo(
     () => (hasAnyFilter ? t('empty-no-data') : t('advance-payment-no-payments-yet')),
@@ -241,6 +254,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           enableLiveFiltering={false}
           filterSheetTitle={t('advance-payment-filter-sheet-title')}
           filterSheetDescription={t('advance-payment-filter-sheet-description')}
+          secondaryActions={currencySecondaryAction}
           renderReporterFilter={reporterFilterProps => (
             <AdvancePaymentReporterFilter
               {...reporterFilterProps}

@@ -6,7 +6,6 @@ import {
 import { createDateRangeConfig } from '../../../../common/config/filterConfigHelpers'
 import { buildStatusDisplayName } from '../../../../utils/sharedUtils'
 import { getAdvancePaymentStatusDisplay, type TranslateFn } from '../../../../utils/utils'
-import type { Currency } from '../../../../hooks/useFilterData'
 import { ADVANCE_PAYMENT_REPORTER_FILTER_GROUP_ID } from '../constants/advancePaymentReporterFilter'
 
 interface DepartmentOption {
@@ -17,7 +16,6 @@ interface DepartmentOption {
 interface BuildAdvancePaymentFilterConfigurationParams {
   t: TranslateFn
   availableStatuses: string[]
-  currencies: readonly Currency[]
   departmentOptions: DepartmentOption[]
   reporterOptions: Array<{ id: string; label: string }>
 }
@@ -25,7 +23,6 @@ interface BuildAdvancePaymentFilterConfigurationParams {
 interface BuildAdvancePaymentFiltersObjectParams {
   statusFilter: string[]
   selectedReporters: string[]
-  currencyRef: string
   departmentId: string
   dateFrom: string
   dateTo: string
@@ -57,18 +54,12 @@ function toDateRange(dateFrom: string, dateTo: string): DateRange {
 export function buildAdvancePaymentFilterConfiguration({
   t,
   availableStatuses,
-  currencies,
   departmentOptions,
   reporterOptions
 }: BuildAdvancePaymentFilterConfigurationParams): FilterConfiguration {
   const statusOptions = availableStatuses.map(status => ({
     id: status,
     label: buildStatusDisplayName(status, getAdvancePaymentStatusDisplay, t)
-  }))
-
-  const currencyOptions = currencies.map(currency => ({
-    id: currency.currencyRef,
-    label: currency.code
   }))
 
   const departmentFilterOptions = departmentOptions.map(department => ({
@@ -107,21 +98,6 @@ export function buildAdvancePaymentFilterConfiguration({
             label: t('filter-employee'),
             type: 'multi-select',
             config: { options: reporterOptions, showSearch: false, showSelectAll: false }
-          }
-        ]
-      },
-      {
-        id: 'currency-group',
-        label: t('filter-currency'),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'currencyRefs',
-            field: 'currencyRefs',
-            label: t('filter-currency'),
-            type: 'multi-select',
-            config: { options: currencyOptions, showSearch: true, showSelectAll: false }
           }
         ]
       },
@@ -192,7 +168,6 @@ export function buildAdvancePaymentFilterConfiguration({
 export function buildAdvancePaymentFiltersObject({
   statusFilter,
   selectedReporters,
-  currencyRef,
   departmentId,
   dateFrom,
   dateTo,
@@ -208,9 +183,6 @@ export function buildAdvancePaymentFiltersObject({
   }
   if (selectedReporters.length > 0) {
     filters.reporterIds = selectedReporters
-  }
-  if (currencyRef) {
-    filters.currencyRefs = [currencyRef]
   }
   if (departmentId) {
     filters.departmentIds = [departmentId]

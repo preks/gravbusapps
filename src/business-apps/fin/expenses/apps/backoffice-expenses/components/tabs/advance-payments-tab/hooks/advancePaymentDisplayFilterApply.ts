@@ -6,7 +6,6 @@ interface ApplyAdvancePaymentDisplayFiltersParams {
   setStatusFilter: (value: string[]) => void
   setSelectedReporters: (value: string[]) => void
   setReporterFilter: (value: string) => void
-  setCurrencyRef: (value: string) => void
   setDepartmentId: (value: string) => void
   setDateFrom: (value: string) => void
   setDateTo: (value: string) => void
@@ -34,7 +33,6 @@ export function applyAdvancePaymentDisplayFilters(params: ApplyAdvancePaymentDis
     params.setStatusFilter([])
     params.setSelectedReporters([])
     params.setReporterFilter('')
-    params.setCurrencyRef('')
     params.setDepartmentId('')
     params.setDateFrom('')
     params.setDateTo('')
@@ -52,9 +50,6 @@ export function applyAdvancePaymentDisplayFilters(params: ApplyAdvancePaymentDis
   const reporterIds = (filters.reporterIds as string[] | undefined) ?? []
   params.setSelectedReporters(reporterIds)
   params.setReporterFilter(reporterIds.join(','))
-
-  const currencyRefs = (filters.currencyRefs as string[] | undefined) ?? []
-  params.setCurrencyRef(currencyRefs[0] ?? '')
 
   const departmentIds = (filters.departmentIds as string[] | undefined) ?? []
   params.setDepartmentId(departmentIds[0] ?? '')
