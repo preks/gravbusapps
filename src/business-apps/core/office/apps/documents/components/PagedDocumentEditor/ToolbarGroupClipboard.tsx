@@ -2,7 +2,6 @@
  * Ribbon group: Undo, Redo, Paste dropdown.
  */
 
-import React from 'react'
 import type { Editor } from '@tiptap/react'
 import { ChevronDown, Clipboard, Redo, Undo } from 'lucide-react'
 import {
@@ -13,9 +12,9 @@ import {
   DropdownMenuTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import DOMPurify from 'dompurify'
 import translations from '../../_i18n'
 import { ToolbarButton, RibbonGroup } from './editorToolbarShared'
+import { pasteClipboardContent, pasteTextOnly, pasteWithMergeFormatting } from './documentClipboardActions'
 
 interface ToolbarGroupClipboardProps {
   editor: Editor
@@ -24,44 +23,6 @@ interface ToolbarGroupClipboardProps {
 
 export function ToolbarGroupClipboard({ editor, testId = 'editor-toolbar' }: Readonly<ToolbarGroupClipboardProps>) {
   const { t } = useTranslation(translations)
-
-  const pasteClipboardContent = async () => {
-    if (globalThis.navigator?.clipboard?.read) {
-      const items = await globalThis.navigator.clipboard.read()
-      for (const item of items) {
-        if (item.types.includes('text/html')) {
-          const blob = await item.getType('text/html')
-          const html = await blob.text()
-          const sanitized = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }) || ''
-          if (sanitized) {
-            editor.chain().focus().insertContent(sanitized).run()
-            return
-          }
-        }
-      }
-    }
-
-    if (globalThis.navigator?.clipboard?.readText) {
-      const text = await globalThis.navigator.clipboard.readText()
-      if (text) {
-        editor.chain().focus().insertContent(text).run()
-      }
-    }
-  }
-
-  const pasteTextOnly = async () => {
-    const text = await globalThis.navigator?.clipboard?.readText?.()
-    if (text) {
-      editor.chain().focus().insertContent(text).run()
-    }
-  }
-
-  const pasteWithMergeFormatting = async () => {
-    const text = await globalThis.navigator?.clipboard?.readText?.()
-    if (text) {
-      editor.chain().focus().insertText(text).run()
-    }
-  }
 
   return (
     <RibbonGroup
@@ -97,21 +58,21 @@ export function ToolbarGroupClipboard({ editor, testId = 'editor-toolbar' }: Rea
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuItem
-            onSelect={() => void pasteClipboardContent()}
+            onSelect={() => void pasteClipboardContent(editor)}
             data-testid={testId ? `${testId}-paste-action` : undefined}
           >
             <Clipboard className="gba:mr-2 gba:h-4 gba:w-4" />
             {t('editor-toolbar-paste')}
           </DropdownMenuItem>
           <DropdownMenuItem
-            onSelect={() => void pasteTextOnly()}
+            onSelect={() => void pasteTextOnly(editor)}
             data-testid={testId ? `${testId}-paste-text-only-action` : undefined}
           >
             <Clipboard className="gba:mr-2 gba:h-4 gba:w-4" />
             {t('editor-toolbar-paste-text-only')}
           </DropdownMenuItem>
           <DropdownMenuItem
-            onSelect={() => void pasteWithMergeFormatting()}
+            onSelect={() => void pasteWithMergeFormatting(editor)}
             data-testid={testId ? `${testId}-paste-merge-formatting-action` : undefined}
           >
             <Clipboard className="gba:mr-2 gba:h-4 gba:w-4" />
