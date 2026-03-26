@@ -62,7 +62,7 @@ export function AdvancePaymentsDataDisplay({
 
   return (
     <EscapeContextProvider>
-      <div className={cn('nw:flex nw:flex-col nw:h-full', className)} data-testid={dataTestId}>
+      <div className={cn('gba:flex gba:flex-col gba:h-full', className)} data-testid={dataTestId}>
         <DataToolbar
           titleSections={toolbarTitleSections}
           currentSection={currentSection}
@@ -119,7 +119,7 @@ export function AdvancePaymentsDataDisplay({
           onSelectionClear={onClearSelection}
           density={toolbarDensity}
         />
-        <div className="nw:flex-1 nw:min-h-0 nw:overflow-y-auto nw:overflow-x-hidden">{children}</div>
+        <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overflow-x-hidden">{children}</div>
         {filterConfiguration ? (
           <AdvancePaymentFilterSheet
             open={filterSheetOpen}

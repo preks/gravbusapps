@@ -25,6 +25,8 @@ type OrderByValue = OrderDirection | { [field: string]: OrderByValue }
 type OrderByEntry = { [field: string]: OrderByValue }
 type OrderByClause = OrderByEntry[]
 
+export type AdvancePaymentOrderByClause = OrderByClause
+
 export interface FetchPaymentsOptions {
   searchTerm?: string
   page?: number
@@ -52,7 +54,7 @@ interface AdvancePaymentsResult {
   fetchAdvancePaymentStatistics: () => Promise<void>
   searchReporters: (searchTerm: string) => Promise<string[]>
   searchStatuses: () => Promise<string[]>
-  setOrderBy: (orderBy: OrderByClause) => void
+  setOrderBy: (orderBy: AdvancePaymentOrderByClause) => void
 }
 
 interface UseAdvancePaymentsProps extends BusinessAppContextProps {

@@ -12,6 +12,7 @@ import BackofficeTabHeaderAlert from '../common/BackofficeTabHeaderAlert'
 import useBackofficeTabSearch from '../common/useBackofficeTabSearch'
 import useBackofficeContentHeader from '../common/useBackofficeContentHeader'
 import { useAdvancePaymentsTabState } from './hooks/useAdvancePaymentsTabState'
+import type { AdvancePaymentOrderByClause } from '../../../hooks/useAdvancePayment'
 
 type AdvancePaymentTabProps = BackofficeTabProps
 
@@ -28,6 +29,7 @@ function AdvancePaymentTab(props: Readonly<AdvancePaymentTabProps>) {
     isLoading,
     error,
     fetchPayments,
+    setOrderBy,
     searchReporters,
     searchStatuses
   } = useAdvancePaymentsTabState({
@@ -44,6 +46,13 @@ function AdvancePaymentTab(props: Readonly<AdvancePaymentTabProps>) {
     }
     return t('advance-payment-total-amount-zero')
   }, [isLoading, advancePaymentStats?.totalAmount, t])
+
+  const handleOrderByChange = useCallback(
+    (orderBy: Array<Record<string, unknown>>) => {
+      setOrderBy(orderBy as AdvancePaymentOrderByClause)
+    },
+    [setOrderBy]
+  )
 
   const statsHeader = useMemo(
     () => (
@@ -71,6 +80,7 @@ function AdvancePaymentTab(props: Readonly<AdvancePaymentTabProps>) {
       isLoading={isLoading}
       error={error}
       fetchPayments={fetchPayments}
+      setOrderBy={handleOrderByChange}
       searchReporters={searchReporters}
       searchStatuses={searchStatuses}
       data-testid="advance-payments-table-component"

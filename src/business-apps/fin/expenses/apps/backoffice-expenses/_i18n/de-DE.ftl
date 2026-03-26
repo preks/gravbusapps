@@ -321,6 +321,8 @@ advance-payment-count = { $count } Vorauszahlungen
 advance-payment-loading-stats = Statistiken werden geladen...
 advance-payment-total-amount = Gesamtbetrag: { $amount }
 advance-payment-total-amount-zero = Gesamtbetrag: 0 €
+advance-payment-filter-sheet-title = Vorauszahlungen filtern
+advance-payment-filter-sheet-description = Wenden Sie Filter an, um die Liste der Vorauszahlungen einzugrenzen.
 
 # Expense Request Details Panel
 detail-duration = Dauer
