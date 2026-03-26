@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
 import { Brain, Plus } from '@phosphor-icons/react'
 import { useAgentMemory } from '../../hooks/useAgentMemory'
@@ -9,9 +9,13 @@ interface MemoryPanelProps {
 }
 
 export const MemoryPanel = ({ accessToken, sessionId }: MemoryPanelProps) => {
-  const { entries, loading, save } = useAgentMemory(accessToken)
+  const { entries, loading, save, search } = useAgentMemory(accessToken)
   const [newFact, setNewFact] = useState('')
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    search('')
+  }, [sessionId])
 
   const handleSave = async () => {
     if (!newFact.trim()) return
