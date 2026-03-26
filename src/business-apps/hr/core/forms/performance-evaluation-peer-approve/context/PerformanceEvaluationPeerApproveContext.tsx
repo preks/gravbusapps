@@ -315,7 +315,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       onReject: handleReject,
       businessAppContext,
       evaluatedEmployeeId: evaluatedEmployeeId ?? null,
-      managerEmployeeId: businessAppContext?.employeeDetails?.employeeId ?? null,
+      managerEmployeeId: businessAppContext?.userInfo?.employeeDetails?.employeeId ?? null,
       employeeForHeader,
       employeeForHeaderLoading,
       peerReplacements,
