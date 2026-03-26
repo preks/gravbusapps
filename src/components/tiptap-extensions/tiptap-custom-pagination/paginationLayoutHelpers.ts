@@ -410,36 +410,104 @@ function isEmptyParagraphPosition(view: EditorView, position: number) {
   )
 }
 
-function resolveEmptyFirstParagraphClick(
-  view: EditorView,
-  bodyBand: PageBodyBand | null,
-  clickX: number,
-  clickY: number
-) {
-  const firstNode = view.state.doc.firstChild
-  if (firstNode?.type.name !== 'paragraph' || firstNode.content.size !== 0) {
-    return null
+function resolveLeadingDocumentEndPosition(view: EditorView, firstDocumentPosition: number) {
+  const firstChild = view.state.doc.firstChild
+  if (!firstChild) {
+    return firstDocumentPosition
   }
 
-  const firstParagraphPosition = 1
-  const caretRect = getCaretRectAtPosition(view, firstParagraphPosition)
-  if (!caretRect) {
+  const firstChildNodeSize =
+    typeof (firstChild as PMNode & { nodeSize?: unknown }).nodeSize === 'number'
+      ? ((firstChild as PMNode & { nodeSize?: number }).nodeSize ?? null)
+      : null
+  const fallbackEndPosition =
+    typeof firstChild.content?.size === 'number'
+      ? firstDocumentPosition + firstChild.content.size
+      : firstDocumentPosition
+  const contentSize =
+    typeof view.state.doc.content?.size === 'number' ? view.state.doc.content.size : fallbackEndPosition
+  const resolvedEndPosition =
+    firstChildNodeSize !== null && firstChildNodeSize > 2
+      ? firstDocumentPosition + firstChildNodeSize - 2
+      : fallbackEndPosition
+
+  return Math.max(firstDocumentPosition, Math.min(resolvedEndPosition, contentSize))
+}
+
+function resolveLeadingDocumentClick(view: EditorView, bodyBand: PageBodyBand | null, clickX: number, clickY: number) {
+  const firstDocumentPosition = 1
+  const leadingStartCaretRect = getCaretRectAtPosition(view, firstDocumentPosition)
+  if (!leadingStartCaretRect) {
     return null
   }
+  const leadingEndPosition = resolveLeadingDocumentEndPosition(view, firstDocumentPosition)
+  const leadingEndCaretRect = getCaretRectAtPosition(view, leadingEndPosition) ?? leadingStartCaretRect
+  const leadingBlockTop = Math.min(leadingStartCaretRect.top, leadingEndCaretRect.top)
+  const leadingBlockBottom = Math.max(leadingStartCaretRect.bottom, leadingEndCaretRect.bottom)
 
-  const horizontalLeft = bodyBand?.left ?? caretRect.left - 1
-  const horizontalRight = bodyBand?.right ?? caretRect.right + 1
+  const horizontalLeft = bodyBand?.left ?? leadingStartCaretRect.left - 1
+  const horizontalRight = bodyBand?.right ?? leadingStartCaretRect.right + 1
   if (clickX < horizontalLeft || clickX > horizontalRight) {
     return null
   }
 
-  const lineHeight = Math.max(1, caretRect.bottom - caretRect.top)
+  const lineHeight = Math.max(1, leadingStartCaretRect.bottom - leadingStartCaretRect.top)
   const verticalTolerance = Math.max(10, Math.min(36, lineHeight * 1.5))
-  if (clickY < caretRect.top - verticalTolerance || clickY > caretRect.bottom + verticalTolerance) {
+  if (clickY < leadingBlockTop - verticalTolerance || clickY > leadingBlockBottom + verticalTolerance) {
     return null
   }
 
-  return firstParagraphPosition
+  if (isEmptyParagraphPosition(view, firstDocumentPosition)) {
+    return firstDocumentPosition
+  }
+
+  const minProbeY = Math.min(leadingBlockTop + 1, Math.max(leadingBlockTop + 1, leadingBlockBottom - 1))
+  const maxProbeY = Math.max(leadingBlockTop + 1, Math.max(leadingBlockTop + 1, leadingBlockBottom - 1))
+  const clampedClickY = Math.min(Math.max(clickY, minProbeY), maxProbeY)
+  const probeYs = [clampedClickY]
+  const probeStep = Math.max(6, Math.min(12, Math.round(lineHeight / 2)))
+
+  for (let probeY = minProbeY; probeY <= maxProbeY; probeY += probeStep) {
+    if (!probeYs.includes(probeY)) {
+      probeYs.push(probeY)
+    }
+  }
+
+  const leadingBlockMidpoint = Math.round((leadingBlockTop + leadingBlockBottom) / 2)
+  ;[leadingBlockTop + 1, leadingBlockMidpoint, leadingBlockBottom - 1].forEach(probeY => {
+    const boundedProbeY = Math.min(Math.max(probeY, minProbeY), maxProbeY)
+    if (!probeYs.includes(boundedProbeY)) {
+      probeYs.push(boundedProbeY)
+    }
+  })
+
+  for (const probeY of probeYs) {
+    const leadingBlockPosition = getPositionAtCoords(view, clickX, probeY)
+    if (leadingBlockPosition == null) {
+      continue
+    }
+
+    const leadingBlockCaretRect = getCaretRectAtPosition(view, leadingBlockPosition)
+    if (!leadingBlockCaretRect) {
+      continue
+    }
+
+    const matchesClickedVerticalRegion =
+      clickY >= leadingBlockCaretRect.top - verticalTolerance &&
+      clickY <= leadingBlockCaretRect.bottom + verticalTolerance
+    if (!matchesClickedVerticalRegion) {
+      continue
+    }
+
+    const overlapsLeadingBlock =
+      leadingBlockCaretRect.top <= leadingBlockBottom && leadingBlockCaretRect.bottom >= leadingBlockTop
+
+    if (overlapsLeadingBlock) {
+      return leadingBlockPosition
+    }
+  }
+
+  return firstDocumentPosition
 }
 
 function isStableBodyPosition(
@@ -539,9 +607,9 @@ export function resolvePaginationBodyClick(
   const hasRangeSelection = !view.state.selection.empty
 
   const firstPageBodyBand = bodyBands[0] ?? null
-  const emptyFirstParagraphPosition = resolveEmptyFirstParagraphClick(view, firstPageBodyBand, clientX, clientY)
-  if (emptyFirstParagraphPosition != null) {
-    return { action: 'set', position: emptyFirstParagraphPosition }
+  const leadingDocumentPosition = resolveLeadingDocumentClick(view, firstPageBodyBand, clientX, clientY)
+  if (leadingDocumentPosition != null) {
+    return { action: 'set', position: leadingDocumentPosition }
   }
 
   const bodyBand = resolveBodyBandAtOffset(bodyBands, clientY)

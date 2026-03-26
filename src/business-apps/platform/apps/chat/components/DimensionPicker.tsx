@@ -8,7 +8,8 @@ import {
   IconAvatar,
   RadioGroup,
   RadioGroupItem,
-  ScrollArea
+  ScrollArea,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   MagnifyingGlass,
@@ -23,7 +24,7 @@ import {
 import { UserIcon } from 'lucide-react'
 import type { DimensionType, DimensionOption } from '../hooks/useOrganizationalDimensions'
 import type { OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 
 interface DimensionPickerProps {
   organizationalUnits: DimensionOption[]
@@ -91,7 +92,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
   currentUserId,
   prefixDataTestId = 'dimension-picker'
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const [step, setStep] = useState<Step>('select_type')
   const [selectedType, setSelectedType] = useState<DimensionType | null>(null)
   const [selectedDimension, setSelectedDimension] = useState<DimensionOption | null>(null)

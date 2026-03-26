@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Message } from '../types'
-import type { ChatApiClient } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 
 const DEBOUNCE_MS = 300
 const MIN_QUERY_LENGTH = 2
 
 export interface UseMessageSearchOptions {
-  apiClient: ChatApiClient | null
+  apiClient: ChatClient | null
   conversationId: string | null
   enabled?: boolean
 }

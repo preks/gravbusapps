@@ -54,6 +54,14 @@ describe('applyMeasuredPageHeightsToView', () => {
     document.body.innerHTML = ''
   })
 
+  it('keeps first and later pages on the same spacer height when chrome measurements match', () => {
+    const storage = createStorageFromOptions(baseOptions)
+    const expectedBodyHeight = getPageLayoutHeights(storage.pageFormat, storage, 60, 20).bodyHeight
+
+    expect(getPageSpacerHeight(storage.pageFormat, storage, 1, 60, 20)).toBe(expectedBodyHeight)
+    expect(getPageSpacerHeight(storage.pageFormat, storage, 2, 60, 20)).toBe(expectedBodyHeight)
+  })
+
   it('writes per-page body and spacer CSS variables from measured chrome heights', () => {
     const editorDom = document.createElement('div')
     document.body.appendChild(editorDom)

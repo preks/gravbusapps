@@ -414,7 +414,11 @@ function createPageRangeSpacer(params: {
   const pageSegmentHeights: number[] = []
 
   const preservedHeight = spacerHeightsByRange.get(createPageRangeKey(startPage, endPage))
-  let totalHeight = Number.isFinite(preservedHeight) ? (preservedHeight ?? 0) : 0
+  const validPreservedHeight =
+    typeof preservedHeight === 'number' && Number.isFinite(preservedHeight) && preservedHeight > 0
+      ? preservedHeight
+      : undefined
+  let totalHeight = validPreservedHeight ?? 0
   if (!Number.isFinite(totalHeight) || totalHeight <= 0) {
     totalHeight = 0
   }
@@ -435,7 +439,7 @@ function createPageRangeSpacer(params: {
       )
     pageSegmentHeights.push(pageHeight)
 
-    if (!Number.isFinite(preservedHeight) || preservedHeight <= 0) {
+    if (validPreservedHeight === undefined) {
       totalHeight += pageHeight
     }
   }
@@ -671,10 +675,14 @@ export function ensurePagesStyles(targetDocument: Document) {
       width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
       margin-left: calc(-1 * var(--rm-page-margin-left));
       margin-right: calc(-1 * var(--rm-page-margin-right));
-      z-index: 2;
+      z-index: 1;
       pointer-events: none;
     }
     .rm-pages-root .rm-first-page-header > .rm-page-header {
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-first-page-header .rm-page-header-content,
+    .rm-pages-root .rm-first-page-header .rm-page-number-slot {
       pointer-events: auto;
     }
     .rm-pages-root .rm-page-header,
@@ -1114,6 +1122,7 @@ export function refreshPageMinHeight(targetNode: HTMLElement) {
 
 function blockInactiveRegion(event: Event, region: HTMLElement) {
   if (region.dataset.rmOverlayActive === 'true') return
+  if (region.dataset.rmHasVisibleContent !== 'true') return
 
   event.preventDefault()
   event.stopPropagation()
@@ -1190,9 +1199,6 @@ export function createHeaderFooterRegion(params: {
   region.appendChild(inner)
   requestAnimationFrame(() => layoutPageNumberSlots(region))
 
-  region.addEventListener('mousedown', event => {
-    blockInactiveRegion(event, region)
-  })
   region.addEventListener('selectstart', event => {
     blockInactiveRegion(event, region)
   })
@@ -1438,7 +1444,7 @@ export function applyWindowAttributesToPageBreak(
     return 'inside'
   }
 
-  const markerTargets = pageBreakEl.querySelectorAll(
+  const markerTargets = pageBreakEl.querySelectorAll<HTMLElement>(
     '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-image-overlay-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
   )
 

@@ -476,9 +476,13 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
     const target = wrapper.parentElement ?? wrapper
     const updateMeasurements = () => {
-      setMeasurementContext({
-        containerWidth: target.clientWidth || wrapper.clientWidth || null,
-        containerHeight: target.clientHeight || null
+      const containerWidth = target.clientWidth || wrapper.clientWidth || null
+      const containerHeight = target.clientHeight || null
+      setMeasurementContext(prev => {
+        if (prev.containerWidth === containerWidth && prev.containerHeight === containerHeight) {
+          return prev
+        }
+        return { containerWidth, containerHeight }
       })
     }
 
@@ -709,7 +713,9 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       const currentNode = editor.state.doc.nodeAt(pos)
       if (currentNode?.type.name !== 'image') return
 
-      if (currentNode.attrs.originalWidth === naturalWidth && currentNode.attrs.originalHeight === naturalHeight) {
+      const prevOw = Number(currentNode.attrs.originalWidth)
+      const prevOh = Number(currentNode.attrs.originalHeight)
+      if (prevOw === naturalWidth && prevOh === naturalHeight) {
         return
       }
 

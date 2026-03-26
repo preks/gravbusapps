@@ -8,7 +8,7 @@ import { GroupSettingsModal } from './GroupSettingsModal'
 import { ExpertSelectorPanel } from './ExpertSelectorPanel.tsx'
 import { IncomingGroupCallDialog } from './IncomingGroupCallDialog'
 import { PreCallSetupStateSync } from './PreCallSetupStateSync'
-import type { ChatApiClient } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import { ConversationType, type Conversation } from '../types'
 import type { ExpertInfo } from '../hooks/useChatMessageHandlers'
 import type { RejoinModalState } from '../hooks/useChatRejoinCall'
@@ -18,7 +18,7 @@ import type { GroupCallUIState, GroupCallInvite, UseGroupCallReturn } from '../s
 export interface ChatModalsProps {
   prefixDataTestId: string
   accessToken: string | undefined
-  apiClient: ChatApiClient | null
+  apiClient: ChatClient | null
   currentUserId: string | null
   currentUser: { id: string; username?: string } | null
   activeConversation: Conversation | null
