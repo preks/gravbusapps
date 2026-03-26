@@ -42,16 +42,20 @@ export const BoardsSidebarQuickAccess: React.FC<BoardsSidebarQuickAccessProps> =
           key={item.key}
           className={`gba:w-full gba:flex gba:items-center gba:gap-2.5 gba:px-2.5 gba:py-1.5 gba:rounded-md gba:text-sm gba:transition-colors ${
             isActive
-              ? 'gba:bg-white/15 gba:text-white gba:font-medium'
-              : 'gba:text-white/60 gba:hover:bg-white/10 gba:hover:text-white/80'
+              ? 'gba:bg-primary/8 gba:text-foreground gba:border gba:border-primary/15'
+              : 'gba:text-muted-foreground gba:hover:bg-background/60 gba:hover:text-foreground'
           }`}
           onClick={() => onSectionChange(item.key)}
           data-testid={`${testId}-${item.key}`}
         >
-          <span className="gba:flex-shrink-0 gba:opacity-70">{item.icon}</span>
+          <span className={`gba:flex-shrink-0 ${isActive ? '' : 'gba:opacity-80'}`}>{item.icon}</span>
           <span className="gba:flex-1 gba:text-left gba:truncate">{item.label}</span>
           {count !== undefined && count > 0 && (
-            <span className="gba:text-xs gba:text-white/40 gba:tabular-nums">{count}</span>
+            <span
+              className={`gba:text-xs gba:tabular-nums ${isActive ? 'gba:text-muted-foreground' : 'gba:text-muted-foreground/70'}`}
+            >
+              {count}
+            </span>
           )}
         </button>
       )

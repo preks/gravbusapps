@@ -26,6 +26,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEES_LIGHT_BY_USER_IDS } from '@/common/data/employee/queries/employeeQueries'
 import type { CollectionMember, CollectionMemberRole } from '../../types/collection'
 import { CollectionApiService } from '../../services/CollectionApiService'
+import { preventDialogCloseOnSelectOutside } from '../../utils/preventDialogCloseOnSelectOutside'
 
 export interface ShareCollectionDialogProps {
   open: boolean
@@ -204,7 +205,12 @@ export const ShareCollectionDialog: React.FC<ShareCollectionDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-lg" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg"
+        data-testid={testId}
+        onPointerDownOutside={preventDialogCloseOnSelectOutside}
+        onInteractOutside={preventDialogCloseOnSelectOutside}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
@@ -338,6 +344,7 @@ export const ShareCollectionDialog: React.FC<ShareCollectionDialogProps> = ({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="viewer">Viewer</SelectItem>
                           <SelectItem value="editor">Editor</SelectItem>
                         </SelectContent>

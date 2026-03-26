@@ -23,6 +23,10 @@ import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
 import { TASK_TYPE, TASK_PRIORITY } from '@/common/data/investment/constants/investmentCatalogs'
+import { APP_NAME, FILE_CONTEXT, getFileEntityFromType } from '@/common/data/investment/constants/investmentConstants'
+import { getReferenceEntityType } from '@/common/data/investment/utils/referenceEntityUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { useFileClient } from '@/common/network/files/useFileClient'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 
 interface InvestmentPortalTasksProps {
@@ -34,6 +38,24 @@ const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmen
   const [tasks, setTasks] = useState<InvestmentTask[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const fileClient = useFileClient({
+    accessToken: context.accessToken,
+    userInfo: context.userInfo
+  })
+  const taskPreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo: context.userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true,
+      additionalEntityIdFields: ['investmentId']
+    }),
+    [context.userInfo, fileClient]
+  )
 
   // Fetch tasks using the existing hook
   const { fetchInvestmentTasks } = useInvestmentTasks(context)
@@ -185,6 +207,7 @@ const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmen
           <TabsContent value="open" data-testid="investment-portal-tasks-content-open">
             <TaskSection
               {...context}
+              investmentId={investmentId}
               buildReferenceUrl={buildReferenceUrl}
               tasks={openTasks}
               taskActionProps={{
@@ -202,12 +225,15 @@ const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmen
               typeCatalog={TASK_TYPE}
               priorityCatalog={TASK_PRIORITY}
               buildTaskPayload={buildInvestmentTaskPayload}
+              defaultTaskStatusRef="InvestmentTaskStatus:v1:IN_PROGRESS"
+              preSubmit={taskPreSubmit}
             />
           </TabsContent>
 
           <TabsContent value="completed" data-testid="investment-portal-tasks-content-completed">
             <TaskSection
               {...context}
+              investmentId={investmentId}
               buildReferenceUrl={buildReferenceUrl}
               tasks={completedTasks}
               taskActionProps={{
@@ -225,6 +251,8 @@ const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmen
               typeCatalog={TASK_TYPE}
               priorityCatalog={TASK_PRIORITY}
               buildTaskPayload={buildInvestmentTaskPayload}
+              defaultTaskStatusRef="InvestmentTaskStatus:v1:IN_PROGRESS"
+              preSubmit={taskPreSubmit}
             />
           </TabsContent>
         </Tabs>

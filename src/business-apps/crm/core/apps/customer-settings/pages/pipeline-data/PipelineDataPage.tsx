@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { PipelineSettings } from '@/common/components/common-relations/setting-pages/pipelines/PipelineSettings'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePipelineSettings } from '@/common/components/common-relations/setting-pages/pipelines/hooks/usePipelineSettings'
+import { getPipelineCatalogConfig } from '@/common/components/common-relations/setting-pages/pipelines/utils/catalogConfig'
 
 export interface PipelineDataPageProps extends BusinessAppContextProps {
   className?: string
@@ -14,10 +15,7 @@ const DATA_TEST_ID = 'CustomerPipelineDataPage'
 const PipelineDataPage: React.FC<PipelineDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
   const catalogConfig = useMemo(
     () => ({
-      pipelineCatalog: 'SalesPipeline',
-      stageCatalog: 'SalesPipelineStage',
-      conditionCatalog: 'SalesPipelineStageCondition',
-      version: 'v1',
+      ...getPipelineCatalogConfig('CRM'),
       autoFetch: true
     }),
     []

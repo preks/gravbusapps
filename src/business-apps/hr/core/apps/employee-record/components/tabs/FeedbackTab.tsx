@@ -27,6 +27,8 @@ interface FeedbackTabProps {
   isSelfView: boolean
   /** When true, AI Insights button is shown (self-view, manager of employee, or HR). Default true. */
   canViewAiInsights?: boolean
+  /** When true, request feedback runs on behalf of the viewed employee. */
+  canRequestFeedbackOnBehalf?: boolean
 }
 
 const FeedbackTab: React.FC<FeedbackTabProps> = ({
@@ -35,7 +37,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   employeeId,
   userInfo,
   isSelfView = false,
-  canViewAiInsights = true
+  canViewAiInsights = true,
+  canRequestFeedbackOnBehalf = false
 }) => {
   const { t } = useTranslation(translations)
   const graphQLClient = useGraphqlClient(accessToken)
@@ -188,6 +191,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         accessToken={accessToken}
         isSelfView={isSelfView}
         currentUserEmployeeId={currentUserEmployeeId}
+        canRequestFeedbackOnBehalf={canRequestFeedbackOnBehalf}
       />
 
       <FeedbackHubKpiGrid

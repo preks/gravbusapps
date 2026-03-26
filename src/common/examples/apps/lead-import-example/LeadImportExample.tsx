@@ -25,6 +25,7 @@ import {
   FieldMapping,
   LeadImportAnalyzerResponse
 } from './services/LeadImportAnalyzerService'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 
 // Types
 interface ParsedRow {
@@ -154,13 +155,14 @@ const LeadImportExample: React.FC<BusinessAppContextProps> = context => {
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const aiServiceRef = useRef<LeadImportAnalyzerService | null>(null)
+  const promptManagerClient = usePromptManagerClient(context.accessToken)
 
   // Initialize AI service
   useEffect(() => {
     if (context.accessToken) {
-      aiServiceRef.current = new LeadImportAnalyzerService(context.accessToken)
+      aiServiceRef.current = new LeadImportAnalyzerService(promptManagerClient)
     }
-  }, [context.accessToken])
+  }, [context.accessToken, promptManagerClient])
 
   // Catalog data state
   const [catalogData, setCatalogData] = useState<{

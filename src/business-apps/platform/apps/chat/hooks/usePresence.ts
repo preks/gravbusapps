@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
+import type { ChatWebSocketClient } from '@/common/network/chat/ChatWebSocketClient'
 import type { UserStatus, UserStatusChangeEvent } from '../types'
 
 interface UsePresenceOptions {

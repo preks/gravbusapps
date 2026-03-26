@@ -53,6 +53,8 @@ interface ContactSelectProps {
   contactsLoading: boolean
   contactsError: string | null
   searchContacts: (search: string) => void
+  hasMore?: boolean
+  onLoadMore?: () => void
 
   // Full account contacts with full contact data (for email/phone extraction)
   accountContacts?: any[]
@@ -67,6 +69,8 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   contactsLoading,
   contactsError,
   searchContacts,
+  hasMore,
+  onLoadMore,
   accountContacts = []
 }) => {
   // Helper function to extract ID from value (string or object)
@@ -549,6 +553,9 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
         disabled={contactsLoading}
         loading={contactsLoading}
         onSearch={searchContacts}
+        searchDebounce={300}
+        hasMore={Boolean(hasMore)}
+        onLoadMore={onLoadMore}
         data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-combobox')}
       />
 

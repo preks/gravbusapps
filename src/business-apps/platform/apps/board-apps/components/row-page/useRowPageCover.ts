@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { uploadDocumentImage } from '@/business-apps/platform/apps/document-apps/services/DocumentImageUploadService'
+import { uploadDocumentImage } from '@/business-apps/core/office/apps/documents/services/DocumentImageUploadService'
 import { fileClient } from '@/common/network/files/FileClient'
 
 export const COVER_GRADIENTS = [

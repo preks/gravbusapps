@@ -1,12 +1,15 @@
 import React, { useMemo } from 'react'
-import { OpportunitySettingsLayout } from '@/common/components/common-relations/setting-pages/opportunity'
+import {
+  OpportunitySettingsLayout,
+  type OpportunitySettingsTab
+} from '@/common/components/common-relations/setting-pages/opportunity'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface OpportunityDataPageProps extends BusinessAppContextProps {
   className?: string
   prefixDataTestId?: string
   onBack?: () => void
-  initialTab?: 'pipelines' | 'statuses' | 'forecasts'
+  initialTab?: OpportunitySettingsTab
 }
 
 const OpportunityDataPage: React.FC<OpportunityDataPageProps> = props => {
@@ -16,6 +19,7 @@ const OpportunityDataPage: React.FC<OpportunityDataPageProps> = props => {
       forecastCatalog: 'CustomerOpportunityForecast',
       pipelineCatalog: 'SalesPipeline',
       stageCatalog: 'SalesPipelineStage',
+      stageTypeCatalog: 'SalesPipelineStageType',
       conditionCatalog: 'SalesPipelineStageCondition',
       dataTestIdPrefix: 'CustomerOpportunityDataPage',
       headerTitle: 'Opportunity Data',

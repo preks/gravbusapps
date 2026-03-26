@@ -23,6 +23,8 @@ import {
 import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { usePipelineStageTypes } from '../hooks/usePipelineStageTypes'
+import { FALLBACK_STAGE_TYPE_OPTIONS } from '../utils/pipelineStageTypeVariant'
 
 interface StageFormData {
   value: string
@@ -37,18 +39,11 @@ interface StageFormProps extends BusinessAppContextProps {
   pipeline: any
   catalogConfig: {
     stageCatalog: string
+    stageTypeCatalog?: string
     version?: string
   }
   prefixDataTestId?: string
 }
-
-const STAGE_TYPE_OPTIONS = [
-  { value: 'DISCOVERY', label: 'Discovery' },
-  { value: 'QUALIFICATION', label: 'Qualification' },
-  { value: 'NEGOTIATION', label: 'Negotiation' },
-  { value: 'CLOSED_WON', label: 'Closed Won' },
-  { value: 'CLOSED_LOST', label: 'Closed Lost' }
-]
 
 const StageForm: React.FC<StageFormProps> = ({
   isOpen,
@@ -61,6 +56,13 @@ const StageForm: React.FC<StageFormProps> = ({
 }) => {
   const [operationLoading, setOperationLoading] = useState(false)
   const catalogClient = useCatalogManagerClient(accessToken)
+  const { options: stageTypeOptions, loading: stageTypesLoading } = usePipelineStageTypes(
+    accessToken,
+    catalogConfig.stageTypeCatalog,
+    catalogConfig.version || 'v1'
+  )
+
+  const effectiveOptions = stageTypeOptions.length > 0 ? stageTypeOptions : FALLBACK_STAGE_TYPE_OPTIONS
 
   const form = useForm<StageFormData>({
     defaultValues: {
@@ -154,16 +156,16 @@ const StageForm: React.FC<StageFormProps> = ({
       if (editingStage) {
         form.reset({
           value: editingStage.value,
-          type: editingStage.type || editingStage.alternativeCode || 'DISCOVERY'
+          type: (editingStage.type || editingStage.alternativeCode || effectiveOptions[0]?.value) ?? 'DISCOVERY'
         })
       } else {
         form.reset({
           value: '',
-          type: 'DISCOVERY'
+          type: effectiveOptions[0]?.value ?? 'DISCOVERY'
         })
       }
     }
-  }, [isOpen, editingStage, form])
+  }, [isOpen, editingStage, form, effectiveOptions])
 
   const getSubmitButtonText = () => {
     if (operationLoading) return 'Saving...'
@@ -205,14 +207,14 @@ const StageForm: React.FC<StageFormProps> = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Stage Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={stageTypesLoading}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select stage type" />
+                        <SelectValue placeholder={stageTypesLoading ? 'Loading...' : 'Select stage type'} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {STAGE_TYPE_OPTIONS.map(option => (
+                      {effectiveOptions.map(option => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>

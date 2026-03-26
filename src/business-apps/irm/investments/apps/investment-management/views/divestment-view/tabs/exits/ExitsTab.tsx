@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
-import { DataDisplay } from '@newwork/nw-design-system'
+import { DataDisplay, Button } from '@newwork/nw-design-system'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { CurrencyFilter } from '@/business-apps/irm/investments/apps/investment-management/views/analytics-view/shared/components/CurrencyFilter'
+import { useExitsExport } from './hooks/useExitsExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
@@ -79,7 +81,7 @@ export const ExitsTab: React.FC<ExitsTabProps> = ({ enabled = true, ...context }
   const graphqlClient = useGraphQLClient(gatedToken)
 
   // View State
-  const [selectedCurrency, setSelectedCurrency] = useState('all')
+  const [selectedCurrency, setSelectedCurrency] = useState('EUR')
   const activeCurrency = selectedCurrency === 'all' ? undefined : selectedCurrency
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
@@ -223,16 +225,46 @@ export const ExitsTab: React.FC<ExitsTabProps> = ({ enabled = true, ...context }
     }
   )
 
+  const { isExporting, handleExportCsv, handleExportExcel } = useExitsExport({
+    accessToken: accessToken || '',
+    queryVariables,
+    activeCurrency,
+    totalCount
+  })
+
   const currencyFilterUI = useMemo(
     () => (
-      <CurrencyFilter
-        value={selectedCurrency}
-        currencies={availableCurrencies as string[]}
-        onChange={setSelectedCurrency}
-        allOptionLabel="All"
-      />
+      <>
+        <CurrencyFilter
+          value={selectedCurrency}
+          currencies={availableCurrencies as string[]}
+          onChange={setSelectedCurrency}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleExportCsv}
+          disabled={isExporting || totalCount === 0}
+          title={isExporting ? 'Exporting…' : `Export ${totalCount} exits as CSV`}
+          data-testid="export-exits-csv"
+        >
+          <DownloadIcon size={16} />
+          CSV
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleExportExcel}
+          disabled={isExporting || totalCount === 0}
+          title={isExporting ? 'Exporting…' : `Export ${totalCount} exits as Excel`}
+          data-testid="export-exits-excel"
+        >
+          <FileXlsIcon size={16} />
+          Excel
+        </Button>
+      </>
     ),
-    [availableCurrencies, selectedCurrency]
+    [availableCurrencies, selectedCurrency, isExporting, totalCount, handleExportCsv, handleExportExcel]
   )
 
   return (

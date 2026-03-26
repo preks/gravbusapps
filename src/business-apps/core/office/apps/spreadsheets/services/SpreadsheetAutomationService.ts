@@ -72,6 +72,13 @@ const automationDebug = (...args: unknown[]) => {
 
 const TRUTHY_STRING_VALUES = new Set(['true', '1', 'yes'])
 
+const maskIdentifier = (value: string | null | undefined): string => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return 'n/a'
+  if (normalized.length <= 8) return normalized
+  return `${normalized.slice(0, 4)}...${normalized.slice(-4)}`
+}
+
 /**
  * Parameters for executing a workflow for a single row
  */
@@ -635,7 +642,20 @@ export class SpreadsheetAutomationService {
       }
 
       const result = await response.json()
-      return this.mapExcelCollectionRunResult(result, recipients.length, executedAt, wasCreated ? backendId : undefined)
+      const mapped = this.mapExcelCollectionRunResult(
+        result,
+        recipients.length,
+        executedAt,
+        wasCreated ? backendId : undefined
+      )
+      console.info('[SpreadsheetAutomationService] Excel collection run result', {
+        automationId: maskIdentifier(backendId),
+        recipients: recipients.length,
+        workflowCount: mapped.workflows?.length || 0,
+        failedCount: mapped.failedRows?.length || 0,
+        success: mapped.success
+      })
+      return mapped
     } catch (error) {
       console.error('[SpreadsheetAutomationService] Excel collection execution error:', error)
       return {
@@ -2225,10 +2245,12 @@ export class SpreadsheetAutomationService {
   /**
    * Find and complete the Excel Collection task for the current user viewing their copy.
    * Looks up the open task by copyAppId (stored in flow tags) and completes it.
+   * Pass formData to capture submitted spreadsheet row data in the report sheet.
    */
   async findAndCompleteExcelCollectionTask(
     copyAppId: string,
-    userId: string
+    userId: string,
+    formData?: Record<string, unknown>
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const tasks = await this.fetchUserTasks(userId)
@@ -2250,7 +2272,7 @@ export class SpreadsheetAutomationService {
         return { success: false, error: 'Could not find your collection task. It may already be completed.' }
       }
 
-      const completed = await this.completeTask(targetTaskId, userId, copyAppId)
+      const completed = await this.completeTask(targetTaskId, userId, copyAppId, formData)
       if (!completed) {
         return { success: false, error: 'Failed to submit' }
       }
@@ -2324,7 +2346,16 @@ export class SpreadsheetAutomationService {
     return ((task.id as string) || (task.taskId as string) || '').trim() || null
   }
 
-  private async completeTask(taskId: string, userId: string, copyAppId: string): Promise<boolean> {
+  private async completeTask(
+    taskId: string,
+    userId: string,
+    copyAppId: string,
+    formData?: Record<string, unknown>
+  ): Promise<boolean> {
+    const baseFormData = { submitted: true, copyAppId }
+    const mergedFormData =
+      formData && Object.keys(formData).length > 0 ? { ...formData, ...baseFormData } : baseFormData
+
     const completeRes = await fetch(`${this.apiBaseUrl}/tasks/${taskId}/complete`, {
       method: 'POST',
       headers: {
@@ -2333,7 +2364,7 @@ export class SpreadsheetAutomationService {
       },
       body: JSON.stringify({
         userId,
-        formData: { submitted: true, copyAppId }
+        formData: mergedFormData
       })
     })
     if (!completeRes.ok) {

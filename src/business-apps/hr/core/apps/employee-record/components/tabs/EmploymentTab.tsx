@@ -11,8 +11,8 @@ import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { formatDate, formatNumberFunction, getCatalogValue } from '../../../../../../../common/utils/windowUtils'
 import { parseLocalizedNumber } from '../../../../../../../common/utils/numberFormatter'
 import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog'
-import { useReligionCatalog } from '../../hooks/useReligionCatalog'
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
+import { useTaxableChurchAffiliationCatalog } from '../../hooks/useTaxableChurchAffiliationCatalog'
 import { useEmploymentRegionLabel } from '../../hooks/useEmploymentRegionLabel'
 
 interface EmploymentTabProps {
@@ -41,10 +41,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
   // Fetch health insurance type catalog for health insurance type mapping
   const { getHealthInsuranceTypeValueById, loading: loadingHealthInsuranceTypes } =
     useHealthInsuranceTypeCatalog(accessToken)
-  // Fetch religion catalog for church affiliation mapping
-  const { getReligionValueById, loading: loadingReligions } = useReligionCatalog(accessToken)
   // Fetch tax bracket catalog for tax bracket mapping
   const { getTaxBracketValueById, loading: loadingTaxBrackets } = useTaxBracketCatalog(accessToken)
+  // Fetch taxable church affiliation catalog for translated church affiliation mapping
+  const { getTaxableChurchAffiliationValueById, loading: loadingTaxableChurchAffiliation } =
+    useTaxableChurchAffiliationCatalog(accessToken)
   // Prepare organizational data
   const organizationalData = [
     {
@@ -219,12 +220,18 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
   const getTaxInformationData = () => {
     const taxDetails = employee.taxDetails?.[0] || {}
     const additionalProps = taxDetails.additionalProperties ?? {}
+    const requestAtTaxOffice = additionalProps.requestAtTaxOffice === true
 
-    const rows: Array<{ label: string; value: string }> = [
-      {
+    const rows: Array<{ label: string; value: string }> = []
+
+    if (!isEmployeeInGermany) {
+      rows.push({
         label: t('employment-label-tax-number'),
         value: taxDetails.taxNumber || ''
-      },
+      })
+    }
+
+    rows.push(
       {
         label: t('employment-label-tax-identification-number'),
         value: taxDetails.taxIdentificationNumber || ''
@@ -239,9 +246,9 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
       },
       {
         label: t('employment-label-church-affiliation'),
-        value: loadingReligions
+        value: loadingTaxableChurchAffiliation
           ? t('common-loading')
-          : getReligionValueById(taxDetails.taxableChurchAffiliationRef || '')
+          : getTaxableChurchAffiliationValueById(taxDetails.taxableChurchAffiliationRef || '')
       },
       {
         label: t('employment-label-child-tax-allowance'),
@@ -267,19 +274,20 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
             ? (formatDate(taxDetails.updatedAt, 'datetime.short') ?? '')
             : ''
       }
-    ]
+    )
 
     if (isEmployeeInGermany) {
-      rows.push(
-        {
-          label: t('employment-label-request-at-office'),
-          value: additionalProps.requestAtTaxOffice === true ? t('common-yes') : t('common-no')
-        },
-        {
+      rows.push({
+        label: t('employment-label-request-at-office'),
+        value: requestAtTaxOffice ? t('common-yes') : t('common-no')
+      })
+
+      if (requestAtTaxOffice) {
+        rows.push({
           label: t('employment-label-employee-tax-office'),
           value: String(additionalProps.employeeTaxOffice ?? '')
-        },
-        {
+        })
+        rows.push({
           label: t('employment-label-individual-free-amount'),
           value: (() => {
             const raw = String(additionalProps.individualFreeAmount ?? '').trim()
@@ -287,8 +295,8 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
             const parsed = parseLocalizedNumber(raw)
             return Number.isNaN(parsed) ? raw : formatNumberFunction(parsed)
           })()
-        }
-      )
+        })
+      }
     }
 
     return rows

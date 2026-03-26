@@ -17,7 +17,8 @@ import {
   Switch,
   Badge,
   Spinner,
-  IconAvatar
+  IconAvatar,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Calendar,
@@ -42,7 +43,7 @@ import { MEETING_COLORS, REMINDER_OPTIONS, getDefaultCalendarColor } from '../ty
 import type { AgendaItem } from '../utils/agendaUtils'
 import { getAgendaFromMetadata, getTotalAgendaDuration } from '../utils/agendaUtils'
 import { createEmployeeSearchService, CalendarEmployee } from '../services/employeeSearchService'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import translations from '../../_i18n'
 
 interface CreateMeetingModalProps {
   isOpen: boolean
@@ -93,7 +94,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   initialHour,
   editMeeting
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const isEditMode = !!editMeeting
 
   // Helper to get translated reminder label

@@ -21,6 +21,7 @@ import {
   fetchCflowTaskStats
 } from '../utils/CflowClient'
 import { fetchKogitoUserTasks, fetchKogitoTask, fetchKogitoTaskStats } from '../utils/KogitoClient'
+import { EVERYBOX_FIRST_PAGE_LIMIT } from '../constants/everyboxPagination'
 import { getApiConfig } from '../utils/config'
 import { getEveryboxServiceApiUrl } from '../utils/everyboxServiceUrl'
 
@@ -49,6 +50,24 @@ export interface FetchTaskStatsResult {
     details?: any
   }>
   warnings: string[]
+}
+
+export interface FetchTasksBootstrapResult {
+  inbox: FetchTasksResult
+}
+
+export interface FetchTasksBootstrapCountsResult {
+  counts: {
+    completed: number
+    blinks: number
+    outflows: number
+  }
+}
+
+/** Single response: first inbox page + tab badge counts (everybox-service `GET .../initial-data`). */
+export interface FetchTasksInitialDataResult {
+  inbox: FetchTasksResult
+  counts: FetchTasksBootstrapCountsResult['counts']
 }
 
 // Fetch limits optimized for backend constraints
@@ -469,6 +488,89 @@ export async function fetchAllUserTasks(
 }
 
 /**
+ * Inbox first page + counts in one HTTP request (preferred when everybox-service is available).
+ */
+export async function fetchTasksInitialData(
+  userId: string,
+  accessToken?: string,
+  filters?: Partial<TaskFilters>
+): Promise<FetchTasksInitialDataResult> {
+  try {
+    return await everyboxGet<FetchTasksInitialDataResult>(
+      `/tasks/user/${userId}/initial-data`,
+      accessToken,
+      toEveryboxQuery(filters)
+    )
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (initial-data), falling back:', error)
+  }
+
+  const [bootstrap, countsResult] = await Promise.all([
+    fetchTasksBootstrap(userId, accessToken, filters),
+    fetchTasksBootstrapCounts(userId, accessToken, filters)
+  ])
+  return {
+    inbox: bootstrap.inbox,
+    counts: countsResult.counts
+  }
+}
+
+export async function fetchTasksBootstrap(
+  userId: string,
+  accessToken?: string,
+  filters?: Partial<TaskFilters>
+): Promise<FetchTasksBootstrapResult> {
+  try {
+    return await everyboxGet<FetchTasksBootstrapResult>(
+      `/tasks/user/${userId}/bootstrap`,
+      accessToken,
+      toEveryboxQuery(filters)
+    )
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (bootstrap), falling back:', error)
+  }
+
+  const inbox = await fetchAllUserTasks(userId, accessToken, filters)
+
+  return {
+    inbox
+  }
+}
+
+export async function fetchTasksBootstrapCounts(
+  userId: string,
+  accessToken?: string,
+  filters?: Partial<TaskFilters>
+): Promise<FetchTasksBootstrapCountsResult> {
+  try {
+    return await everyboxGet<FetchTasksBootstrapCountsResult>(
+      `/tasks/user/${userId}/bootstrap-counts`,
+      accessToken,
+      toEveryboxQuery(filters)
+    )
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (bootstrap-counts), falling back:', error)
+  }
+
+  const [completed, blinks] = await Promise.all([
+    fetchCompletedUserTasks(userId, accessToken, {
+      ...filters,
+      limit: 1,
+      offset: 0
+    }),
+    fetchBlinkUserTasks(userId, accessToken, { limit: 1, offset: 0 })
+  ])
+
+  return {
+    counts: {
+      completed: completed.totalCount,
+      blinks: blinks.totalCount,
+      outflows: 0
+    }
+  }
+}
+
+/**
  * Fetch COMPLETED tasks from all sources using dedicated endpoint
  * This uses the /completed endpoint which filters by task_business_status (not task_conductor_status)
  */
@@ -634,7 +736,7 @@ export async function fetchBlinkUserTasks(
 
   // Fallback: use Flow Engine tag filtering (legacy)
   const cflow = await fetchCflowUserAssignedTasks(userId, accessToken, {
-    limit: String(filters?.limit ?? 20),
+    limit: String(filters?.limit ?? EVERYBOX_FIRST_PAGE_LIMIT),
     offset: String(filters?.offset ?? 0),
     'tags.app': 'quick-task',
     ...(filters?.search ? { search: filters.search } : {})
@@ -648,7 +750,7 @@ export async function fetchBlinkUserTasks(
     kogitoTotalCount: 0,
     errors: [],
     warnings: [],
-    hasMore: Boolean(tasks.length && tasks.length >= (filters?.limit ?? 20))
+    hasMore: Boolean(tasks.length && tasks.length >= (filters?.limit ?? EVERYBOX_FIRST_PAGE_LIMIT))
   }
 }
 
@@ -749,14 +851,15 @@ export async function fetchTaskStatistics(userId: string, accessToken?: string):
       })
     }
 
-    // Aggregate priority counts
+    // Aggregate priority counts (API keys are strings; TaskStatistics uses numeric priority)
     if (cflowStats.byPriority && statistics.byPriority) {
-      Object.entries(cflowStats.byPriority).forEach(([priority, count]) => {
-        const byPriority = statistics.byPriority
-        if (byPriority) {
-          byPriority[priority] = (byPriority[priority] || 0) + (count as number)
-        }
-      })
+      const bucket = statistics.byPriority as Record<number, number>
+      for (const [key, raw] of Object.entries(cflowStats.byPriority)) {
+        const p = Number(key)
+        const n = typeof raw === 'number' ? raw : Number(raw)
+        if (!Number.isFinite(p) || !Number.isFinite(n)) continue
+        bucket[p] = (bucket[p] ?? 0) + n
+      }
     }
   } catch (error) {
     errors.push({

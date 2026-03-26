@@ -22,9 +22,13 @@ interface LeadConvertSegmentProps {
   accounts: AccountSelectOption[]
   isLoadingAccounts: boolean
   searchAccounts: (searchTerm: string) => void
+  hasMoreAccounts?: boolean
+  onLoadMoreAccounts?: () => void
   contacts: ContactSelectOption[]
   isLoadingContacts: boolean
   searchContacts: (searchTerm: string) => void
+  hasMoreContacts?: boolean
+  onLoadMoreContacts?: () => void
   loading?: boolean
 }
 
@@ -38,9 +42,13 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
   accounts,
   isLoadingAccounts,
   searchAccounts,
+  hasMoreAccounts,
+  onLoadMoreAccounts,
   contacts,
   isLoadingContacts,
   searchContacts,
+  hasMoreContacts,
+  onLoadMoreContacts,
   loading = false
 }) => {
   // Use useWatch instead of form.watch() to prevent re-render loops
@@ -152,6 +160,8 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
                         }}
                         onSearch={searchAccounts}
                         loading={isLoadingAccounts}
+                        hasMore={hasMoreAccounts}
+                        onLoadMore={onLoadMoreAccounts}
                         placeholder={getTranslationFromI18nKeyAndLabel(
                           'common:searchAndSelectAccount',
                           'Search and select account...'
@@ -227,6 +237,8 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
                         }}
                         onSearch={searchContacts}
                         loading={isLoadingContacts}
+                        hasMore={hasMoreContacts}
+                        onLoadMore={onLoadMoreContacts}
                         placeholder={getTranslationFromI18nKeyAndLabel(
                           'common:searchAndSelectContact',
                           'Search and select contact...'

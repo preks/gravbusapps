@@ -1,6 +1,5 @@
 export * from './useChatCallHandlers'
-export * from './useChatEnv'
-export * from './useChatClient'
+export * from './useChat'
 export * from './useChatConversationHandlers'
 export * from './useChatMessageHandlers'
 export * from './useChatPresenceSync'

@@ -308,9 +308,12 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = Cererea este trimisă către manager pentru aprobare
 request-correction-date-absence-error = Această dată este o sărbătoare sau o absență și nu poate fi folosită pentru o cerere de corectare.
+request-correction-zero-planned-warning = Această dată nu are ore de lucru planificate. Timpul introdus va fi considerat ore suplimentare.
 notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
 notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă
+notification-feedback-request-sent-success-on-behalf = Cererea de feedback a fost trimisă
+feedback-request-missing-user-id = Unii angajati selectati nu au user ID. Selectati-i din nou si incercati din nou.
 
 # ============================================
 # Create Employee Form

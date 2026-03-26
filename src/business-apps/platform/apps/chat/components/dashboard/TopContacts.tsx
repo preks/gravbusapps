@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Button } from '@newwork/nw-design-system'
 import { MessageSquare, Clock, UserPlus, Phone, Video } from 'lucide-react'
-import type { UserContactsResponse, ContactInfo, ReachOutSuggestion } from '../../services/chatApiClient'
+import type { UserContactsResponse, ContactInfo, ReachOutSuggestion } from '../../types'
 import { useEmployeeAvatarsCache } from '../../hooks/useEmployeeAvatarsCache'
 
 type CallType = 'audio' | 'video'
