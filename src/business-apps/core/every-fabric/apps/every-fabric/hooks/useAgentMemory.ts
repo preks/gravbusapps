@@ -14,7 +14,6 @@ export const useAgentMemory = (accessToken: string) => {
 
   const search = useCallback(
     async (query: string) => {
-      if (!query.trim()) return
       setLoading(true)
       try {
         const results = await client.getMemory(query)

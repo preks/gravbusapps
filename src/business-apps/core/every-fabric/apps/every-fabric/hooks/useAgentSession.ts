@@ -13,6 +13,9 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   const [streamVersion, setStreamVersion] = useState(0)
   const { messages: streamMessages, events, isConnected } = useSessionStream(sessionId, accessToken, streamVersion)
   const [session, setSession] = useState<DeepAgentSession | null>(null)
+  // Tracks that a reply POST was sent and the agent is running, even before the stream delivers
+  // new events. Terminal events clear this. Resets on session switch.
+  const [isAgentRunning, setIsAgentRunning] = useState(false)
 
   const sessionRef = useRef<DeepAgentSession | null>(null)
   sessionRef.current = session
@@ -29,8 +32,11 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   }, [sessionId, client])
 
   useEffect(() => {
+    // Always wipe stale data immediately so switching sessions never shows the previous
+    // session's messages while the new session loads.
+    setSession(null)
+    setIsAgentRunning(false)
     if (!sessionId) {
-      setSession(null)
       setStreamVersion(0)
       return
     }
@@ -57,6 +63,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   useEffect(() => {
     const lastEvent = events[events.length - 1]
     if (!lastEvent || lastEvent.type !== 'terminal') return
+    setIsAgentRunning(false)
     void fetchSession()
   }, [events, fetchSession])
 
@@ -70,6 +77,9 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   }, [session, events])
 
   const messages: ChatMessage[] = useMemo(() => {
+    // Stream accumulates all events across reconnects (events are not cleared on same-session
+    // reconnect). Use stream as the authoritative source; fall back to session snapshot only
+    // while the stream hasn't delivered its first event yet.
     if (streamMessages.length > 0) return streamMessages
     if (!mergedSession) return []
     return sessionToMessages(mergedSession)
@@ -86,6 +96,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   const reply = useCallback(
     async (message: string) => {
       if (!sessionId) return
+      setIsAgentRunning(true)
       await client.replyToInterrupt(sessionId, message)
       setStreamVersion(v => v + 1)
       await fetchSession()
@@ -96,7 +107,9 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   return {
     session: mergedSession,
     messages,
-    isStreaming: !!mergedSession && mergedSession.status === 'running',
+    events,
+    isConnected,
+    isStreaming: isAgentRunning || (!!mergedSession && mergedSession.status === 'running'),
     isWaitingForInput: mergedSession?.status === 'waiting_for_human',
     startSession,
     reply

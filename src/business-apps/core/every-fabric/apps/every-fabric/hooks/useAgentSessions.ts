@@ -7,28 +7,52 @@ export const useAgentSessions = (accessToken: string) => {
   const [sessions, setSessions] = useState<DeepAgentSession[]>([])
   const [loading, setLoading] = useState(true)
 
+  const byUpdatedDesc = useCallback((a: DeepAgentSession, b: DeepAgentSession) => {
+    const aTs = Date.parse(a.updated_at ?? a.created_at)
+    const bTs = Date.parse(b.updated_at ?? b.created_at)
+    return (Number.isNaN(bTs) ? 0 : bTs) - (Number.isNaN(aTs) ? 0 : aTs)
+  }, [])
+
+  const upsertSession = useCallback(
+    (prev: DeepAgentSession[], session: DeepAgentSession) => {
+      const existingIndex = prev.findIndex(s => s.session_id === session.session_id)
+      if (existingIndex === -1) return [session, ...prev].sort(byUpdatedDesc)
+
+      const next = [...prev]
+      next[existingIndex] = { ...next[existingIndex], ...session }
+      return next.sort(byUpdatedDesc)
+    },
+    [byUpdatedDesc]
+  )
+
   const fetchSessions = useCallback(async () => {
     try {
       const data = await client.getSessions({ limit: 50 })
-      setSessions(data)
+      setSessions([...data].sort(byUpdatedDesc))
     } catch {
       // silent — empty list shown
     } finally {
       setLoading(false)
     }
-  }, [client])
+  }, [client, byUpdatedDesc])
 
   useEffect(() => {
     fetchSessions()
   }, [fetchSessions])
 
-  const addSession = useCallback((session: DeepAgentSession) => {
-    setSessions(prev => [session, ...prev])
-  }, [])
+  const addSession = useCallback(
+    (session: DeepAgentSession) => {
+      setSessions(prev => upsertSession(prev, session))
+    },
+    [upsertSession]
+  )
 
-  const updateSession = useCallback((updated: DeepAgentSession) => {
-    setSessions(prev => prev.map(s => (s.session_id === updated.session_id ? updated : s)))
-  }, [])
+  const updateSession = useCallback(
+    (updated: DeepAgentSession) => {
+      setSessions(prev => upsertSession(prev, updated))
+    },
+    [upsertSession]
+  )
 
   const removeSession = useCallback(
     async (sessionId: string) => {
