@@ -509,3 +509,11 @@ export function isEffectivelyEmptyDocumentHtml(html: string): boolean {
     ).length === 0
   )
 }
+
+/** Cap HTML sent to AI flows to limit peak memory and payload size. */
+export const AI_CONTEXT_HTML_MAX_CHARS = 80_000
+
+export function truncateHtmlForAiContext(html: string, maxChars: number = AI_CONTEXT_HTML_MAX_CHARS): string {
+  if (html.length <= maxChars) return html
+  return `${html.slice(0, maxChars)}<!-- truncated-for-ai-context -->`
+}

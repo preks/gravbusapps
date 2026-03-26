@@ -33,6 +33,11 @@ type HydrationRefreshableEditor = {
   getHTML?: () => string
 }
 
+interface PendingHydrationRefresh {
+  rafId: number | null
+  timeoutId: ReturnType<typeof setTimeout> | null
+}
+
 interface TableDebugSummary {
   index: number
   rowCount: number
@@ -41,6 +46,8 @@ interface TableDebugSummary {
   tableAttrs: Record<string, string>
   nextTablePaginationAttrs: Record<string, string> | null
 }
+
+const pendingHydrationRefreshes = new WeakMap<HydrationRefreshableEditor, PendingHydrationRefresh>()
 
 function schedulePostHydrationPaginationRefresh(editor: HydrationRefreshableEditor) {
   const refreshPagination = () => {
@@ -52,13 +59,28 @@ function schedulePostHydrationPaginationRefresh(editor: HydrationRefreshableEdit
     editor.commands.refreshPages?.()
   }
 
-  requestAnimationFrame(() => {
-    refreshPagination()
-  })
+  const pendingRefresh = pendingHydrationRefreshes.get(editor)
+  if (pendingRefresh?.rafId != null) {
+    cancelAnimationFrame(pendingRefresh.rafId)
+  }
+  if (pendingRefresh?.timeoutId != null) {
+    clearTimeout(pendingRefresh.timeoutId)
+  }
 
-  setTimeout(() => {
+  if (typeof requestAnimationFrame === 'function') {
+    const rafId = requestAnimationFrame(() => {
+      pendingHydrationRefreshes.delete(editor)
+      refreshPagination()
+    })
+    pendingHydrationRefreshes.set(editor, { rafId, timeoutId: null })
+    return
+  }
+
+  const timeoutId = setTimeout(() => {
+    pendingHydrationRefreshes.delete(editor)
     refreshPagination()
-  }, 120)
+  }, 0)
+  pendingHydrationRefreshes.set(editor, { rafId: null, timeoutId })
 }
 
 function waitForNextAnimationFrame(): Promise<void> {
@@ -175,6 +197,7 @@ export function useYjsDocumentSync({
   const scheduleSnapshotSaveRef = useRef<(editor: { getHTML?: () => string }) => void>(() => {})
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const providerRef = useRef<SocketIoYjsProvider | null>(null)
+  const readyStateInspectionCompletedRef = useRef(false)
   const recoveryAttemptedRef = useRef(false)
   const paginationRuntimeRecoveryAttemptedRef = useRef(false)
   const pendingNormalizationRecoveryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -265,12 +288,14 @@ export function useYjsDocumentSync({
           ALLOW_DATA_ATTR: true
         }) || '<p></p>'
 
-      logDocumentTableDebug(debugTablesEnabled, documentId, 'apply-normalized-content:before-set', {
-        sourceHtmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(html || ''),
-        normalizedHtmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(normalizedHtml),
-        sourceTableSummary: collectTableDebugSummaryFromHtml(html || ''),
-        normalizedTableSummary: collectTableDebugSummaryFromHtml(normalizedHtml)
-      })
+      if (debugTablesEnabled) {
+        logDocumentTableDebug(debugTablesEnabled, documentId, 'apply-normalized-content:before-set', {
+          sourceHtmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(html || ''),
+          normalizedHtmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(normalizedHtml),
+          sourceTableSummary: collectTableDebugSummaryFromHtml(html || ''),
+          normalizedTableSummary: collectTableDebugSummaryFromHtml(normalizedHtml)
+        })
+      }
 
       try {
         if (suppressSnapshotSaveRef) {
@@ -281,10 +306,12 @@ export function useYjsDocumentSync({
         schedulePostHydrationPaginationRefresh(ed)
         await new Promise(resolve => setTimeout(resolve, 140))
         const postApplyHtml = ed.getHTML?.() || ''
-        logDocumentTableDebug(debugTablesEnabled, documentId, 'apply-normalized-content:after-set', {
-          postApplyHtmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(postApplyHtml),
-          postApplyTableSummary: collectTableDebugSummaryFromHtml(postApplyHtml)
-        })
+        if (debugTablesEnabled) {
+          logDocumentTableDebug(debugTablesEnabled, documentId, 'apply-normalized-content:after-set', {
+            postApplyHtmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(postApplyHtml),
+            postApplyTableSummary: collectTableDebugSummaryFromHtml(postApplyHtml)
+          })
+        }
       } finally {
         setTimeout(() => {
           if (suppressSnapshotSaveRef) {
@@ -323,28 +350,36 @@ export function useYjsDocumentSync({
   )
 
   const handleReadyStateApplied = useCallback(
-    async (info: {
-      source: 'sync' | 'event' | 'remote-update'
-      status: 'ready' | 'already_ready'
-      fragmentLength: number
-      fragmentContent: unknown
-    }) => {
-      const serializedFragment =
-        typeof info.fragmentContent === 'string' ? info.fragmentContent : JSON.stringify(info.fragmentContent ?? null)
-      const looksCorrupted = containsCustomDocumentTags(serializedFragment)
-      const fragmentContainsPaginationRuntimeMarkup = containsPaginationRuntimeTableMarkup(serializedFragment)
-
+    async (info: { source: 'sync' | 'event'; status: 'ready' | 'already_ready'; fragmentLength: number }) => {
       logDocumentTableDebug(debugTablesEnabled, documentId, 'ready-state-applied', {
         source: info.source,
         status: info.status,
-        fragmentLength: info.fragmentLength,
-        looksCorrupted,
-        fragmentContainsPaginationRuntimeMarkup
+        fragmentLength: info.fragmentLength
       })
 
-      if (!documentId || recoveryAttemptedRef.current || !looksCorrupted) {
-        // Continue below to inspect rendered HTML for leaked pagination table runtime markup.
-      } else {
+      if (!documentId || readyStateInspectionCompletedRef.current) {
+        return
+      }
+
+      readyStateInspectionCompletedRef.current = true
+
+      const currentHtml = await getCurrentEditorHtmlSnapshot()
+      const htmlHasCustomTags = containsCustomDocumentTags(currentHtml)
+      const htmlHasPaginationRuntimeMarkup = containsPaginationRuntimeTableMarkup(currentHtml)
+
+      if (debugTablesEnabled) {
+        logDocumentTableDebug(debugTablesEnabled, documentId, 'ready-state-html-snapshot', {
+          htmlHasCustomTags,
+          htmlHasPaginationRuntimeMarkup,
+          tableSummary: collectTableDebugSummaryFromHtml(currentHtml)
+        })
+      }
+
+      if (!documentId) {
+        return
+      }
+
+      if (htmlHasCustomTags && !recoveryAttemptedRef.current) {
         recoveryAttemptedRef.current = true
 
         const latest = await getDocumentById(officeClient, documentId, { fresh: true })
@@ -354,16 +389,7 @@ export function useYjsDocumentSync({
         return
       }
 
-      if (!documentId || paginationRuntimeRecoveryAttemptedRef.current) {
-        return
-      }
-
-      const currentHtml = await getCurrentEditorHtmlSnapshot()
-      logDocumentTableDebug(debugTablesEnabled, documentId, 'ready-state-html-snapshot', {
-        htmlHasPaginationRuntimeMarkup: containsPaginationRuntimeTableMarkup(currentHtml),
-        tableSummary: collectTableDebugSummaryFromHtml(currentHtml)
-      })
-      if (!containsPaginationRuntimeTableMarkup(currentHtml)) {
+      if (!htmlHasPaginationRuntimeMarkup || paginationRuntimeRecoveryAttemptedRef.current) {
         return
       }
 
@@ -383,6 +409,7 @@ export function useYjsDocumentSync({
   useEffect(() => {
     if (!documentId || !collaborationSocket) return
 
+    readyStateInspectionCompletedRef.current = false
     recoveryAttemptedRef.current = false
     paginationRuntimeRecoveryAttemptedRef.current = false
     if (pendingNormalizationRecoveryRef.current) {

@@ -33,6 +33,9 @@ import { InlineComment as InlineCommentExtension } from '@/business-apps/platfor
 
 const PAGE_GAP_PX = 24
 
+/** Empty body for collaborative docs; Yjs + SocketIoYjsProvider populate the fragment. */
+const COLLABORATION_EDITOR_SEED_HTML = '<p></p>'
+
 type TranslateFn = (key: string) => string
 
 function createSharedDocumentExtensions(accessToken: string): any[] {
@@ -187,6 +190,8 @@ export function usePagedDocumentEditorInstance({
     [onCommentClick]
   )
 
+  const tiptapInitialContent = isCollaborationMode ? COLLABORATION_EDITOR_SEED_HTML : editorContent
+
   const extensions = useMemo(
     () =>
       [
@@ -266,7 +271,7 @@ export function usePagedDocumentEditorInstance({
   return useEditor(
     {
       extensions,
-      content: editorContent,
+      content: tiptapInitialContent,
       editable: editorEditable,
       editorProps: {
         attributes: {
@@ -305,19 +310,33 @@ export function usePagedDocumentEditorInstance({
         scheduleAutocompleteRef.current()
       }
     },
-    [
-      documentId,
-      editorContent,
-      editorEditable,
-      extensions,
-      handlePaste,
-      handleDrop,
-      autocompleteSuggestionRef,
-      autocompleteCursorPosRef,
-      clearAutocompleteSuggestion,
-      editorRef,
-      onEditorUpdateRef,
-      scheduleAutocompleteRef
-    ]
+    isCollaborationMode
+      ? [
+          documentId,
+          editorEditable,
+          extensions,
+          handlePaste,
+          handleDrop,
+          autocompleteSuggestionRef,
+          autocompleteCursorPosRef,
+          clearAutocompleteSuggestion,
+          editorRef,
+          onEditorUpdateRef,
+          scheduleAutocompleteRef
+        ]
+      : [
+          documentId,
+          editorContent,
+          editorEditable,
+          extensions,
+          handlePaste,
+          handleDrop,
+          autocompleteSuggestionRef,
+          autocompleteCursorPosRef,
+          clearAutocompleteSuggestion,
+          editorRef,
+          onEditorUpdateRef,
+          scheduleAutocompleteRef
+        ]
   )
 }
