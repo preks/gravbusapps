@@ -81,7 +81,7 @@ export const AgentChatView = ({
     )
   }
 
-  const isRunning = session.status === 'running'
+  const isRunning = isStreaming
   const isDisabled = isRunning && !isWaitingForInput
 
   return (

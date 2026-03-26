@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react'
-import { Brain } from '@phosphor-icons/react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { BrainIcon } from '@phosphor-icons/react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CreateHeroHeader } from '@/business-apps/core/create/components/CreateHeroHeader'
 import { AgentSidebar } from './components/layout/AgentSidebar'
@@ -8,15 +8,17 @@ import { AgentChatView } from './components/chat/AgentChatView'
 import { ActivityPanel } from './components/panels/ActivityPanel'
 import { MemoryPanel } from './components/panels/MemoryPanel'
 import { TracePanel } from './components/panels/TracePanel'
+import { AgentTimeline } from './components/panels/AgentTimeline'
 import { useAgentSessions } from './hooks/useAgentSessions'
 import { useAgentSession } from './hooks/useAgentSession'
-import type { ActivityEvent } from './types/enterpriseAgent'
+import { deriveActivityFromEvents } from './utils/messageUtils'
 
-type AgentView = 'chat' | 'activity' | 'memory' | 'trace'
+type AgentView = 'chat' | 'activity' | 'timeline' | 'memory' | 'trace'
 
 const VIEW_LABELS: Record<AgentView, string> = {
   chat: 'Chat',
   activity: 'Activity',
+  timeline: 'Timeline',
   memory: 'Memory',
   trace: 'Trace'
 }
@@ -32,50 +34,53 @@ export const EnterpriseAgentApp: React.FC<EnterpriseAgentAppProps> = ({
   const [activeView, setActiveView] = useState<AgentView>('chat')
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
 
-  const { sessions, addSession, removeSession } = useAgentSessions(accessToken)
-  const { session, messages, isStreaming, isWaitingForInput, startSession, reply } = useAgentSession(
-    activeSessionId,
-    accessToken
-  )
+  const { sessions, addSession, updateSession, removeSession } = useAgentSessions(accessToken)
+  const { session, messages, events, isConnected, isStreaming, isWaitingForInput, startSession, reply } =
+    useAgentSession(activeSessionId, accessToken)
 
-  // Derive activity events from SSE events for the ActivityPanel
-  const activityEvents: ActivityEvent[] = useMemo(() => {
-    if (!session) return []
-    return messages
-      .filter(m => m.type === 'tool_call' || m.type === 'plan' || m.type === 'reflection' || m.type === 'expert_call')
-      .map(m => {
-        const base = {
-          id: m.id,
-          timestamp: m.timestamp,
-          durationMs: undefined as number | undefined
-        }
-        if (m.type === 'tool_call') {
-          const c = m.content as { toolName: string; durationMs?: number }
-          return {
-            ...base,
-            type: 'tool_call' as const,
-            toolName: c.toolName,
-            summary: `Called ${c.toolName}`,
-            durationMs: c.durationMs
-          }
-        }
-        if (m.type === 'plan') return { ...base, type: 'plan_update' as const, summary: 'Plan created' }
-        if (m.type === 'reflection') return { ...base, type: 'reflection' as const, summary: 'Reflection performed' }
-        if (m.type === 'expert_call') {
-          const c = m.content as { agentId: string; task: string }
-          return { ...base, type: 'subagent_spawn' as const, agent: c.agentId, summary: c.task }
-        }
-        return { ...base, type: 'plan_update' as const, summary: String(m.type) }
-      })
-  }, [messages, session])
+  useEffect(() => {
+    if (!session) return
+    updateSession(session)
+  }, [session, updateSession])
+
+  // Derive activity events directly from SSE events (step_started, subagent_spawned, etc.)
+  const activityEvents = useMemo(() => deriveActivityFromEvents(events), [events])
+
+  // Derive step metadata for the status bar
+  const stepInfo = useMemo(() => {
+    const stepStarted = events.filter(e => e.type === 'step_started' || e.type === 'subagent_spawned')
+    const stepCompleted = new Set(
+      events
+        .filter(e => e.type === 'step_completed' || e.type === 'subagent_completed')
+        .map(e => ('step_id' in e ? e.step_id : ''))
+    )
+    const runningSteps = stepStarted.filter(e => 'step_id' in e && !stepCompleted.has(e.step_id))
+    const currentStep = runningSteps[runningSteps.length - 1]
+    return {
+      stepCount: stepStarted.length,
+      currentStepName: currentStep && 'name' in currentStep ? (currentStep.name ?? undefined) : undefined
+    }
+  }, [events])
 
   const runningSessions = useMemo(
     () =>
       sessions
         .filter(s => s.status === 'running')
-        .map(s => ({ session_id: s.session_id, input: s.input, started_at: s.created_at })),
-    [sessions]
+        .map(s => ({
+          session_id: s.session_id,
+          input: s.input,
+          started_at: s.created_at,
+          // Inject live step info for the active session
+          ...(s.session_id === activeSessionId
+            ? {
+                step_count: stepInfo.stepCount || undefined,
+                current_step: stepInfo.currentStepName
+              }
+            : {})
+        })),
+    [sessions, activeSessionId, stepInfo]
   )
+
   const waitingSessions = useMemo(
     () =>
       sessions
@@ -88,7 +93,6 @@ export const EnterpriseAgentApp: React.FC<EnterpriseAgentAppProps> = ({
     async (task: string, config: Parameters<typeof startSession>[1]) => {
       const sessionId = await startSession(task, config)
       setActiveSessionId(sessionId)
-      // Optimistically add to session list
       addSession({
         session_id: sessionId,
         input: task,
@@ -129,7 +133,7 @@ export const EnterpriseAgentApp: React.FC<EnterpriseAgentAppProps> = ({
     <div className="gba:h-full gba:flex gba:flex-col gba:bg-background" data-testid={testId}>
       {/* Hero header */}
       <CreateHeroHeader
-        icon={Brain}
+        icon={BrainIcon}
         appLabel="Enterprise Agent"
         title="Enterprise Agent"
         description="Your AI that plans, researches and executes — in the background"
@@ -171,20 +175,26 @@ export const EnterpriseAgentApp: React.FC<EnterpriseAgentAppProps> = ({
               className="gba:flex gba:items-center gba:gap-1 gba:px-5 gba:overflow-x-auto gba:scrollbar-none"
               data-testid={`${testId}-nav`}
             >
-              {(['chat', 'activity', 'memory', 'trace'] as AgentView[]).map(view => (
-                <button
-                  key={view}
-                  onClick={() => setActiveView(view)}
-                  className={`gba:relative gba:px-3 gba:py-2.5 gba:text-xs gba:font-medium gba:whitespace-nowrap gba:transition-colors gba:rounded-none gba:border-b-2 ${
-                    activeView === view
-                      ? 'gba:text-foreground gba:border-primary'
-                      : 'gba:text-muted-foreground gba:border-transparent gba:hover:text-foreground'
-                  }`}
-                  data-testid={`${testId}-nav-${view}`}
-                >
-                  {VIEW_LABELS[view]}
-                </button>
-              ))}
+              {(['chat', 'activity', 'timeline', 'memory', 'trace'] as AgentView[]).map(view => {
+                const showBadge = view === 'activity' && activityEvents.length > 0 && activeView !== 'activity'
+                return (
+                  <button
+                    key={view}
+                    onClick={() => setActiveView(view)}
+                    className={`gba:relative gba:px-3 gba:py-2.5 gba:text-xs gba:font-medium gba:whitespace-nowrap gba:transition-colors gba:rounded-none gba:border-b-2 ${
+                      activeView === view
+                        ? 'gba:text-foreground gba:border-primary'
+                        : 'gba:text-muted-foreground gba:border-transparent gba:hover:text-foreground'
+                    }`}
+                    data-testid={`${testId}-nav-${view}`}
+                  >
+                    {VIEW_LABELS[view]}
+                    {showBadge && (
+                      <span className="gba:absolute gba:top-1.5 gba:right-1 gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary" />
+                    )}
+                  </button>
+                )
+              })}
             </nav>
           </div>
 
@@ -202,11 +212,19 @@ export const EnterpriseAgentApp: React.FC<EnterpriseAgentAppProps> = ({
                 onOpenMemory={() => setActiveView('memory')}
               />
             )}
-            {activeView === 'activity' && <ActivityPanel events={activityEvents} isConnected={isStreaming} />}
+            {activeView === 'activity' && <ActivityPanel events={activityEvents} isConnected={isConnected} />}
+            {activeView === 'timeline' && <AgentTimeline events={events} isConnected={isConnected} />}
             {activeView === 'memory' && session && (
               <MemoryPanel accessToken={accessToken} sessionId={session.session_id} />
             )}
-            {activeView === 'trace' && <TracePanel trace={session?.trace} sessionId={activeSessionId ?? 'none'} />}
+            {activeView === 'trace' && (
+              <TracePanel
+                trace={session?.trace}
+                events={events.length > 0 ? events : undefined}
+                sessionId={activeSessionId ?? 'none'}
+                isConnected={isConnected}
+              />
+            )}
           </div>
         </div>
       </div>
