@@ -94,6 +94,42 @@ function collectFontFaceRules(): string {
   return rules.join('\n')
 }
 
+export async function blobToDevReportScreenshot(blob: Blob): Promise<DevReportScreenshot | null> {
+  try {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+
+    return await new Promise<DevReportScreenshot | null>(resolve => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(null)
+          return
+        }
+        ctx.drawImage(img, 0, 0)
+        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.75)
+        if (jpegDataUrl.length > 4_000_000) {
+          resolve(null)
+          return
+        }
+        resolve({ dataUrl: jpegDataUrl, mimeType: 'image/jpeg', width: img.naturalWidth, height: img.naturalHeight })
+      }
+      img.onerror = () => resolve(null)
+      img.src = dataUrl
+    })
+  } catch {
+    return null
+  }
+}
+
 export async function captureDevReportScreenshot(): Promise<{
   screenshot: DevReportScreenshot | null
   error?: string

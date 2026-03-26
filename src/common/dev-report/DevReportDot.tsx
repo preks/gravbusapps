@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Badge,
   Button,
@@ -18,17 +18,17 @@ import {
   TooltipTrigger,
   toast
 } from '@newwork/nw-design-system'
-import { Bug, Camera, CameraOff, Lightbulb, Send, X } from 'lucide-react'
+import { ArrowLeft, Bug, Camera, ChevronRight, Clipboard, Lightbulb, Send, Upload, X } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env, setProductReportBaseUrlOverride } from '@/common/env/EnvUtils'
 import { submitGravityIssue } from './productReportApi'
 import { getReportedEnvironmentFromUrl } from './environment'
-import { captureDevReportScreenshot } from './screenshot'
+import { blobToDevReportScreenshot, captureDevReportScreenshot } from './screenshot'
 import { getDevReportTelemetrySnapshot, startDevReportTelemetry } from './telemetry'
 import type { CreateGravityIssueRequest, GravityIssueType } from './types'
 import type { DevReportScreenshot } from './screenshot'
 
-type Phase = 'form' | 'ask-screenshot' | 'capturing' | 'review-screenshots' | 'submitting'
+type Phase = 'form' | 'capturing' | 'review-screenshots' | 'submitting'
 
 export interface DevReportDotProps {
   enabled: boolean
@@ -49,6 +49,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
   const [expectedBehaviour, setExpectedBehaviour] = useState('')
   const [actualBehaviour, setActualBehaviour] = useState('')
   const [screenshots, setScreenshots] = useState<DevReportScreenshot[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('form')
 
@@ -108,7 +109,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
       setSubmitError('Please configure the Product Report URL first')
       return
     }
-    setPhase('ask-screenshot')
+    setPhase('review-screenshots')
   }
 
   const doSubmit = async (capturedScreenshots: DevReportScreenshot[]) => {
@@ -183,8 +184,8 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
   }
 
   const handleCaptureScreenshot = async () => {
-    setOpen(false)
     setPhase('capturing')
+    setOpen(false)
     await new Promise(r => setTimeout(r, 300))
     const result = await captureDevReportScreenshot()
     if (result.screenshot) {
@@ -195,7 +196,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
         position: 'top-right'
       })
     }
-    setPhase('review-screenshots')
+    setPhase('form')
     setOpen(true)
   }
 
@@ -206,6 +207,51 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
 
   const handleRemoveScreenshot = (index: number) => {
     setScreenshots(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      const items = await navigator.clipboard.read()
+      let added = false
+      for (const item of items) {
+        const imageType = item.types.find(t => t.startsWith('image/'))
+        if (!imageType) continue
+        const blob = await item.getType(imageType)
+        const screenshot = await blobToDevReportScreenshot(blob)
+        if (screenshot) {
+          setScreenshots(prev => [...prev, screenshot])
+          added = true
+        }
+      }
+      if (!added) {
+        toast.error('No image in clipboard', {
+          description: <span className="gba:text-foreground">Copy an image first, then paste.</span>,
+          position: 'top-right'
+        })
+      }
+    } catch {
+      toast.error('Clipboard paste failed', {
+        description: <span className="gba:text-foreground">No image found or clipboard permission denied.</span>,
+        position: 'top-right'
+      })
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue
+      const screenshot = await blobToDevReportScreenshot(file)
+      if (screenshot) {
+        setScreenshots(prev => [...prev, screenshot])
+      } else {
+        toast.error('Image too large', {
+          description: <span className="gba:text-foreground">{file.name} exceeds the 4 MB limit.</span>,
+          position: 'top-right'
+        })
+      }
+    }
+    e.target.value = ''
   }
 
   const isBug = type === 'BUG'
@@ -393,6 +439,47 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
                   </div>
                 )}
 
+                <div className="gba:space-y-2">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <Label className="gba:text-xs gba:text-muted-foreground">Page screenshot</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCaptureScreenshot}
+                      className="gba:gap-1.5 gba:h-7 gba:text-xs"
+                      data-testid="dev-report-capture"
+                    >
+                      <Camera className="gba:h-3 gba:w-3" />
+                      Capture page
+                    </Button>
+                  </div>
+                  {screenshots.length > 0 && (
+                    <div className="gba:grid gba:grid-cols-4 gba:gap-1.5">
+                      {screenshots.map((ss, idx) => (
+                        <div key={idx} className="gba:relative gba:group gba:rounded gba:overflow-hidden gba:border">
+                          <img
+                            src={ss.dataUrl}
+                            alt={`Screenshot ${idx + 1}`}
+                            className="gba:w-full gba:h-auto"
+                            data-testid={`dev-report-screenshot-preview-${idx}`}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveScreenshot(idx)}
+                            className="gba:absolute gba:top-0.5 gba:right-0.5 gba:h-4 gba:w-4 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity"
+                            data-testid={`dev-report-screenshot-remove-${idx}`}
+                          >
+                            <X className="gba:h-2.5 gba:w-2.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {submitError && (
                   <div
                     className="gba:rounded-lg gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:px-3 gba:py-2 gba:text-sm"
@@ -423,95 +510,106 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
                   className="gba:gap-2"
                   data-testid="dev-report-submit"
                 >
-                  <Send className="gba:h-3.5 gba:w-3.5" />
-                  Submit
+                  Next
+                  <ChevronRight className="gba:h-3.5 gba:w-3.5" />
                 </Button>
               </div>
             </>
           )}
 
-          {phase === 'ask-screenshot' && (
-            <div className="gba:flex gba:flex-col gba:items-center gba:px-6 gba:py-8">
-              <div className="gba:flex gba:h-12 gba:w-12 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted">
-                <Camera className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
-              </div>
-              <DialogHeader className="gba:mt-4 gba:text-center">
-                <DialogTitle className="gba:text-base">Include a screenshot?</DialogTitle>
-                <DialogDescription className="gba:mt-1">
-                  Capture the current page to attach to your report.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="gba:mt-6 gba:flex gba:gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleFinalSubmit}
-                  className="gba:gap-2"
-                  data-testid="dev-report-screenshot-no"
-                >
-                  <CameraOff className="gba:h-3.5 gba:w-3.5" />
-                  Skip
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleCaptureScreenshot}
-                  className="gba:gap-2"
-                  data-testid="dev-report-screenshot-yes"
-                >
-                  <Camera className="gba:h-3.5 gba:w-3.5" />
-                  Capture
-                </Button>
-              </div>
-            </div>
-          )}
-
           {phase === 'review-screenshots' && (
-            <div className="gba:px-6 gba:py-6">
-              <DialogHeader className="gba:text-center">
-                <DialogTitle className="gba:text-base">
-                  {screenshots.length > 0
-                    ? `${screenshots.length} screenshot${screenshots.length !== 1 ? 's' : ''} captured`
-                    : 'No screenshots captured'}
-                </DialogTitle>
-                <DialogDescription className="gba:mt-1">You can capture more or submit your report.</DialogDescription>
-              </DialogHeader>
-              {screenshots.length > 0 && (
-                <div className="gba:mt-4 gba:grid gba:grid-cols-3 gba:gap-2">
-                  {screenshots.map((ss, idx) => (
-                    <div key={idx} className="gba:relative gba:group gba:rounded-md gba:overflow-hidden gba:border">
-                      <img
-                        src={ss.dataUrl}
-                        alt={`Screenshot ${idx + 1}`}
-                        className="gba:w-full gba:h-auto gba:object-cover"
-                        data-testid={`dev-report-screenshot-preview-${idx}`}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveScreenshot(idx)}
-                        className="gba:absolute gba:top-1 gba:right-1 gba:h-5 gba:w-5 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity"
-                        data-testid={`dev-report-screenshot-remove-${idx}`}
-                      >
-                        <X className="gba:h-3 gba:w-3" />
-                      </Button>
-                    </div>
-                  ))}
+            <>
+              <div className="gba:px-6 gba:pt-6 gba:pb-4">
+                <DialogHeader className="gba:pb-0">
+                  <DialogTitle className="gba:text-base">Review screenshots</DialogTitle>
+                  <DialogDescription className="gba:mt-0.5">
+                    Add more screenshots from your clipboard or files, then submit.
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+
+              <Separator />
+
+              <div className="gba:space-y-4 gba:px-6 gba:py-5">
+                {screenshots.length > 0 && (
+                  <div className="gba:grid gba:grid-cols-3 gba:gap-2">
+                    {screenshots.map((ss, idx) => (
+                      <div key={idx} className="gba:relative gba:group gba:rounded-md gba:overflow-hidden gba:border">
+                        <img
+                          src={ss.dataUrl}
+                          alt={`Screenshot ${idx + 1}`}
+                          className="gba:w-full gba:h-auto gba:object-cover"
+                          data-testid={`dev-report-screenshot-review-${idx}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveScreenshot(idx)}
+                          className="gba:absolute gba:top-1 gba:right-1 gba:h-5 gba:w-5 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity"
+                          data-testid={`dev-report-screenshot-remove-${idx}`}
+                        >
+                          <X className="gba:h-3 gba:w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {screenshots.length === 0 && (
+                  <p className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-4">
+                    No screenshots yet. Add from clipboard or browse your files.
+                  </p>
+                )}
+
+                <div className="gba:flex gba:gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePasteFromClipboard}
+                    className="gba:flex-1 gba:gap-2"
+                    data-testid="dev-report-paste-clipboard"
+                  >
+                    <Clipboard className="gba:h-3.5 gba:w-3.5" />
+                    Paste from clipboard
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="gba:flex-1 gba:gap-2"
+                    data-testid="dev-report-browse-files"
+                  >
+                    <Upload className="gba:h-3.5 gba:w-3.5" />
+                    Browse files
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="gba:hidden"
+                    data-testid="dev-report-file-input"
+                  />
                 </div>
-              )}
-              <div className="gba:mt-6 gba:flex gba:justify-center gba:gap-3">
+              </div>
+
+              <Separator />
+
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  onClick={handleCaptureScreenshot}
-                  className="gba:gap-2"
-                  data-testid="dev-report-screenshot-another"
+                  onClick={() => setPhase('form')}
+                  className="gba:gap-1.5"
+                  data-testid="dev-report-back"
                 >
-                  <Camera className="gba:h-3.5 gba:w-3.5" />
-                  Capture another
+                  <ArrowLeft className="gba:h-3.5 gba:w-3.5" />
+                  Back
                 </Button>
                 <Button
                   type="button"
@@ -524,7 +622,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
                   Submit report
                 </Button>
               </div>
-            </div>
+            </>
           )}
 
           {phase === 'submitting' && (
