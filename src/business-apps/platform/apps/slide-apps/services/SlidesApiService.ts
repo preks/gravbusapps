@@ -126,16 +126,19 @@ export const SlidesApiService = {
     title: string
     description?: string
     content?: string
+    contentJson?: Record<string, unknown>
     spaceId?: string
   }): Promise<Slide> {
+    const body: Record<string, unknown> = {
+      title: payload.title || 'Untitled presentation',
+      description: payload.description,
+      content: payload.content || '',
+      spaceId: payload.spaceId
+    }
+    if (payload.contentJson) body.contentJson = payload.contentJson
     const created = await apiRequest<Record<string, unknown>>('/slides', {
       method: 'POST',
-      body: JSON.stringify({
-        title: payload.title || 'Untitled presentation',
-        description: payload.description,
-        content: payload.content || '',
-        spaceId: payload.spaceId
-      })
+      body: JSON.stringify(body)
     })
     return mapApiSlideToSlide(created)
   },
@@ -695,6 +698,29 @@ export const SlidesApiService = {
     }
 
     return fullTemplates
+  },
+
+  async uploadImageFromBase64(base64DataUrl: string, filename: string): Promise<string> {
+    const token = currentAccessToken
+    const mimeMatch = base64DataUrl.match(/^data:([^;]+);/)
+    const mime = mimeMatch?.[1] || 'image/png'
+    const raw = atob(base64DataUrl.split(',')[1])
+    const bytes = new Uint8Array(raw.length)
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
+    const blob = new Blob([bytes], { type: mime })
+    const file = new File([blob], filename, { type: mime })
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch(`${API_URL}/drive/files/upload`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: formData
+    })
+    if (!response.ok) throw new Error(`Image upload failed: ${response.status}`)
+    const result: { id: string } = await response.json()
+    return `${API_URL}/drive/files/${result.id}/download`
   }
 }
 

@@ -6,8 +6,26 @@
  */
 
 import React from 'react'
-import { Button, Separator, useTranslation } from '@newwork/nw-design-system'
-import { Play, StickyNote, ExternalLink, Cast, Save, FileDown, Sparkles } from 'lucide-react'
+import {
+  Button,
+  Separator,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
+import {
+  Play,
+  StickyNote,
+  ExternalLink,
+  Cast,
+  Save,
+  FileDown,
+  Sparkles,
+  LayoutTemplate,
+  ChevronDown
+} from 'lucide-react'
 import translations from '../../_i18n'
 
 export interface SlideshowTabContentProps {
@@ -23,6 +41,7 @@ export interface SlideshowTabContentProps {
   onSaveNow: () => void
   onExportPptx: () => void
   onExportPdf: () => void
+  onOpenMasterView?: () => void
   testId?: string
 }
 
@@ -39,6 +58,7 @@ export function SlideshowTabContent({
   onSaveNow,
   onExportPptx,
   onExportPdf,
+  onOpenMasterView,
   testId
 }: SlideshowTabContentProps) {
   const { t } = useTranslation(translations)
@@ -113,6 +133,17 @@ export function SlideshowTabContent({
           <Sparkles className="gba:w-4 gba:h-4 gba:mr-1" />
           {t('slideshow-transitions')}
         </Button>
+        {onOpenMasterView && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenMasterView}
+            data-testid={testId ? `${testId}-master-view` : undefined}
+          >
+            <LayoutTemplate className="gba:w-4 gba:h-4 gba:mr-1" />
+            {t('slideshow-slide-master') || 'Slide Master'}
+          </Button>
+        )}
       </div>
 
       <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
@@ -124,24 +155,25 @@ export function SlideshowTabContent({
           <Save className="gba:w-4 gba:h-4 gba:mr-1" />
           {t('slideshow-save-now')}
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onExportPptx}
-          data-testid={testId ? `${testId}-export-pptx` : undefined}
-        >
-          <FileDown className="gba:w-4 gba:h-4 gba:mr-1" />
-          {t('slideshow-export-pptx')}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onExportPdf}
-          data-testid={testId ? `${testId}-export-pdf` : undefined}
-        >
-          <FileDown className="gba:w-4 gba:h-4 gba:mr-1" />
-          {t('slideshow-export-pdf')}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" data-testid={testId ? `${testId}-export` : undefined}>
+              <FileDown className="gba:w-4 gba:h-4 gba:mr-1" />
+              {t('slideshow-export-group')}
+              <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={onExportPptx} data-testid={testId ? `${testId}-export-pptx` : undefined}>
+              <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('slideshow-export-pptx')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportPdf} data-testid={testId ? `${testId}-export-pdf` : undefined}>
+              <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('slideshow-export-pdf')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </>
   )
