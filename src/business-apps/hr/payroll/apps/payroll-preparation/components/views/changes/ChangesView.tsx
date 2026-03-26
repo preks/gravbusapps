@@ -1,7 +1,22 @@
-import React, { useMemo } from 'react'
-import { Badge, Card, Table, TableHeader, TableBody, TableRow, TableCell, TableHead } from '@newwork/nw-design-system'
-import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
-import type { PayrollEmployee, PayrollChangeEvent } from '../../../types/payrollTypes'
+import React, { useState, useMemo } from 'react'
+import {
+  Badge,
+  Card,
+  DebouncedInput,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead
+} from '@newwork/nw-design-system'
+import { ArrowsClockwiseIcon, MagnifyingGlassIcon, FunnelIcon } from '@phosphor-icons/react'
+import type { PayrollEmployee, PayrollChangeEvent, ChangeType } from '../../../types/payrollTypes'
 
 interface ChangesViewProps {
   employees: PayrollEmployee[]
@@ -30,6 +45,9 @@ interface ChangeWithEmployee extends PayrollChangeEvent {
 }
 
 export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [changeTypeFilter, setChangeTypeFilter] = useState<ChangeType | 'all'>('all')
+
   const changedEmployees = useMemo(() => employees.filter(e => e.changedSinceLastPayroll), [employees])
 
   const allChanges = useMemo(() => {
@@ -46,6 +64,26 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
     return changes.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())
   }, [changedEmployees])
 
+  const filteredChanges = useMemo(() => {
+    let result = allChanges
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(
+        c =>
+          c.employeeName.toLowerCase().includes(q) ||
+          c.employeeCode.toLowerCase().includes(q) ||
+          c.fieldName.toLowerCase().includes(q)
+      )
+    }
+
+    if (changeTypeFilter !== 'all') {
+      result = result.filter(c => c.changeType === changeTypeFilter)
+    }
+
+    return result
+  }, [allChanges, searchQuery, changeTypeFilter])
+
   const changeTypeCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const change of allChanges) {
@@ -54,16 +92,15 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
     return counts
   }, [allChanges])
 
+  const availableChangeTypes = useMemo(() => Object.keys(changeTypeCounts).sort() as ChangeType[], [changeTypeCounts])
+
   if (changedEmployees.length === 0 && allChanges.length === 0) {
     return (
       <div className="gba:space-y-6">
         <Card className="gba:p-12 gba:text-center">
           <ArrowsClockwiseIcon size={48} className="gba:mx-auto gba:text-muted-foreground/40 gba:mb-4" />
           <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('changes-title')}</h3>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            No changes detected since the last payroll run. Change tracking will be available once a previous payroll
-            run has been closed.
-          </p>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('changes-empty')}</p>
         </Card>
       </div>
     )
@@ -80,6 +117,49 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
           <p className="gba:text-2xl gba:font-bold gba:text-foreground">{allChanges.length}</p>
           <p className="gba:text-sm gba:text-muted-foreground">{t('changes-total')}</p>
         </Card>
+      </div>
+
+      <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
+        <div className="gba:relative gba:flex-1 gba:min-w-[200px] gba:max-w-[320px]">
+          <MagnifyingGlassIcon
+            size={16}
+            className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:text-muted-foreground"
+          />
+          <DebouncedInput
+            value={searchQuery}
+            onChange={(val: string | number) => setSearchQuery(String(val))}
+            placeholder={t('changes-search-placeholder')}
+            className="gba:pl-9"
+          />
+        </div>
+
+        <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-muted-foreground">
+          <FunnelIcon size={16} />
+        </div>
+
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+            {t('changes-type-label')}
+          </span>
+          <div className="gba:min-w-[180px]">
+            <Select
+              value={changeTypeFilter}
+              onValueChange={(val: string) => setChangeTypeFilter(val as ChangeType | 'all')}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t('filter-all')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('filter-all')}</SelectItem>
+                {availableChangeTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {CHANGE_TYPE_LABELS[type] || type} ({changeTypeCounts[type]})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       {Object.keys(changeTypeCounts).length > 0 && (
@@ -100,24 +180,24 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
             <TableHeader>
               <TableRow>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-employee')}</TableHead>
-                <TableHead className="gba:whitespace-nowrap">Change Type</TableHead>
-                <TableHead className="gba:whitespace-nowrap">Field</TableHead>
-                <TableHead className="gba:whitespace-nowrap">Old Value</TableHead>
-                <TableHead className="gba:whitespace-nowrap">New Value</TableHead>
-                <TableHead className="gba:whitespace-nowrap">Effective Date</TableHead>
-                <TableHead className="gba:whitespace-nowrap">Changed At</TableHead>
-                <TableHead className="gba:whitespace-nowrap">Changed By</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('changes-col-type')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('changes-col-field')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('changes-col-old')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('changes-col-new')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('changes-col-effective')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('changes-col-changed-at')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('changes-col-changed-by')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {allChanges.length === 0 ? (
+              {filteredChanges.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="gba:text-center gba:py-8 gba:text-muted-foreground">
-                    No change events recorded yet.
+                    {allChanges.length === 0 ? t('changes-empty') : t('changes-no-match')}
                   </TableCell>
                 </TableRow>
               ) : (
-                allChanges.map(change => (
+                filteredChanges.map(change => (
                   <TableRow key={change.id}>
                     <TableCell>
                       <div>

@@ -7,6 +7,7 @@ import {
   GET_PAYROLL_EMPLOYEES,
   GET_PAYROLL_SALARIES,
   GET_PAYROLL_ABSENCES,
+  GET_PAYROLL_BONUSES,
   GET_PAYROLL_ATTENDANCE,
   GET_ACTIVE_STRUCTURE,
   GET_COMPANY_ADDRESSES
@@ -129,6 +130,18 @@ interface RawAttendance {
   recordedTime: string | null
 }
 
+interface RawBonus {
+  id: string
+  employeeId: string
+  employeeBonusType: { id: string; value: string; code: string } | null
+  employeeBonusTypeRef: string | null
+  amount: number | null
+  currency: { id: string; code: string; value: string } | null
+  paymentDate: string | null
+  fiscalYear: number
+  status: string | null
+}
+
 function detectCountryFromCode(countryCode: string | null | undefined): PayrollCountry | null {
   if (!countryCode) return null
   const raw = countryCode.trim().toUpperCase()
@@ -168,6 +181,7 @@ function buildPayrollEmployee(
   salaryMap: Map<string, RawSalary>,
   absenceMap: Map<string, RawAbsence[]>,
   attendanceMap: Map<string, RawAttendance[]>,
+  bonusMap: Map<string, RawBonus[]>,
   country: PayrollCountry,
   payrollMonth: number,
   payrollYear: number
@@ -180,6 +194,7 @@ function buildPayrollEmployee(
   const salary = salaryMap.get(emp.id)
   const absences = absenceMap.get(emp.id) || []
   const attendance = attendanceMap.get(emp.id) || []
+  const bonuses = bonusMap.get(emp.id) || []
 
   const approvedAbsences = absences.filter(a => a.status === 'APPROVED')
 
@@ -243,6 +258,64 @@ function buildPayrollEmployee(
   const overtimeMinutes = Math.max(0, workedMinutes - contractTargetMinutes)
   const balanceMinutes = workedMinutes - contractTargetMinutes
 
+  const totalVariablePay = bonuses.reduce((sum, b) => sum + (b.amount || 0), 0)
+  const bonusCurrency = bonuses[0]?.currency?.code || null
+  const allBonusesApproved = bonuses.length > 0 && bonuses.every(b => b.status === 'APPROVED')
+  const hasPendingBonuses = bonuses.some(b => b.status !== 'APPROVED')
+  const variablePayStatus: PayrollEmployee['variablePayStatus'] =
+    bonuses.length === 0 ? 'none' : allBonusesApproved ? 'all_approved' : hasPendingBonuses ? 'pending' : null
+
+  const periodStart = new Date(payrollYear, payrollMonth - 1, 1)
+  const periodEnd = new Date(payrollYear, payrollMonth, 0)
+
+  const changes: PayrollEmployee['changes'] = []
+  const hireDate = wc?.hireDate || pos.hireDate
+  if (hireDate) {
+    const hd = new Date(hireDate)
+    if (hd >= periodStart && hd <= periodEnd) {
+      changes.push({
+        id: `chg-hire-${emp.id}`,
+        employeeId: emp.id,
+        changeType: 'new_hire',
+        fieldName: 'Hire Date',
+        oldValue: null,
+        newValue: hireDate,
+        effectiveDate: hireDate,
+        changedAt: hireDate
+      })
+    }
+  }
+  if (rawExitDate) {
+    const ed = new Date(rawExitDate)
+    if (ed >= periodStart && ed <= periodEnd) {
+      changes.push({
+        id: `chg-term-${emp.id}`,
+        employeeId: emp.id,
+        changeType: 'termination',
+        fieldName: 'Exit Date',
+        oldValue: null,
+        newValue: rawExitDate,
+        effectiveDate: rawExitDate,
+        changedAt: rawExitDate
+      })
+    }
+  }
+  if (salary?.createdAt) {
+    const salCreated = new Date(salary.createdAt)
+    if (salCreated >= periodStart && salCreated <= periodEnd) {
+      changes.push({
+        id: `chg-sal-${emp.id}`,
+        employeeId: emp.id,
+        changeType: 'salary_change',
+        fieldName: 'Monthly Gross Salary',
+        oldValue: null,
+        newValue: salary.monthlyGrossSalary != null ? String(salary.monthlyGrossSalary) : null,
+        effectiveDate: salary.startDate || salary.createdAt,
+        changedAt: salary.createdAt
+      })
+    }
+  }
+
   const payrollEmp: PayrollEmployee = {
     id: pos.id,
     employeeId: emp.id,
@@ -275,6 +348,10 @@ function buildPayrollEmployee(
     healthInsuranceTypeRef: tax?.healthInsuranceTypeRef || undefined,
     employmentTypeFlag: employmentTypeLabel || undefined,
 
+    totalVariablePay: totalVariablePay > 0 ? totalVariablePay : null,
+    variablePayCurrency: bonusCurrency,
+    variablePayStatus,
+
     paidLeaveDays: paidLeave,
     sickLeaveDays: sickLeave,
     unpaidLeaveDays: unpaidLeave,
@@ -287,8 +364,8 @@ function buildPayrollEmployee(
 
     readinessStatus: 'ready',
     issues: [],
-    changes: [],
-    changedSinceLastPayroll: false,
+    changes,
+    changedSinceLastPayroll: changes.length > 0,
     exportEligible: true
   }
 
@@ -355,7 +432,7 @@ export function usePayrollEmployees(
       const lastDay = new Date(year, month, 0).getDate()
       const periodEnd = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
 
-      const [salaryResult, absenceResult, attendanceResult] = await Promise.all([
+      const [salaryResult, absenceResult, attendanceResult, bonusResult] = await Promise.all([
         client.request<{ EmployeeSalary: RawSalary[] }>(GET_PAYROLL_SALARIES, { employeeIds }),
         client.request<{ EmployeeAbsence: RawAbsence[] }>(GET_PAYROLL_ABSENCES, {
           employeeIds,
@@ -367,7 +444,13 @@ export function usePayrollEmployees(
           employeeIds,
           dateFrom: periodStart,
           dateTo: periodEnd
-        })
+        }),
+        client
+          .request<{ EmployeeBonus: RawBonus[] }>(GET_PAYROLL_BONUSES, {
+            employeeIds,
+            fiscalYear: year
+          })
+          .catch(() => ({ EmployeeBonus: [] as RawBonus[] }))
       ])
 
       const salaryMap = new Map<string, RawSalary>()
@@ -391,9 +474,18 @@ export function usePayrollEmployees(
         attendanceMap.set(att.employeeId, existing)
       }
 
+      const bonusMap = new Map<string, RawBonus[]>()
+      for (const bonus of bonusResult.EmployeeBonus || []) {
+        const existing = bonusMap.get(bonus.employeeId) || []
+        existing.push(bonus)
+        bonusMap.set(bonus.employeeId, existing)
+      }
+
       const allEmployees = positions
         .filter(p => p.employee?.id)
-        .map(pos => buildPayrollEmployee(pos, salaryMap, absenceMap, attendanceMap, effectiveCountry, month, year))
+        .map(pos =>
+          buildPayrollEmployee(pos, salaryMap, absenceMap, attendanceMap, bonusMap, effectiveCountry, month, year)
+        )
 
       const payrollEmployees = allEmployees.filter(e => e.payrollRelevant !== false)
 

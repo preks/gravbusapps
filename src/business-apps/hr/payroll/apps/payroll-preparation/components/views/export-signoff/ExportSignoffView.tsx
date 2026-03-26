@@ -1,22 +1,38 @@
 import React, { useState } from 'react'
 import { Card, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { ExportIcon, CheckCircleIcon, ClockIcon } from '@phosphor-icons/react'
+import type { UserInfoProps } from '@/common/BusinessAppContext'
 import type {
   PayrollEmployee,
   PayrollRun,
+  PayrollRunStatus,
   ExportOptions,
   AuditEvent,
-  PayrollSummary
+  PayrollSummary,
+  SignOffData
 } from '../../../types/payrollTypes'
 import { generatePayrollCSV, generateExceptionsCSV, downloadCSV } from '../../../utils/exportUtils'
-import { usePayrollRunStore } from '../../../hooks/usePayrollRunStore'
 import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
+
+function getUserDisplayName(userInfo?: UserInfoProps): string {
+  if (!userInfo) return 'Unknown'
+  const emp = userInfo.employeeDetails
+  if (emp?.displayName) return emp.displayName
+  if (emp?.firstName && emp?.lastName) return `${emp.firstName} ${emp.lastName}`
+  if (userInfo.givenName && userInfo.familyName) return `${userInfo.givenName} ${userInfo.familyName}`
+  return userInfo.userName || 'Unknown'
+}
 
 interface ExportSignoffViewProps {
   employees: PayrollEmployee[]
   payrollRun: PayrollRun | null
   summary: PayrollSummary
   auditEvents: AuditEvent[]
+  userInfo?: UserInfoProps
+  updateStatus: (status: PayrollRunStatus) => Promise<void>
+  signOff: (data: SignOffData) => Promise<void>
+  recordExport: (mode: string, count: number) => void
+  saving: boolean
   t: (key: string) => string
 }
 
@@ -25,10 +41,13 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
   payrollRun,
   summary,
   auditEvents,
+  userInfo,
+  updateStatus,
+  signOff,
+  recordExport,
+  saving,
   t
 }) => {
-  const { recordExport, setSignOff, updateStatus } = usePayrollRunStore()
-
   const [exportMode, setExportMode] = useState<ExportOptions['mode']>('ready_only')
   const [includeIssues, setIncludeIssues] = useState(false)
   const [exportSuccess, setExportSuccess] = useState(false)
@@ -59,7 +78,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     const csv = generatePayrollCSV(employees, payrollRun, options)
     const filename = `payroll_${payrollRun.country}_${payrollRun.year}-${String(payrollRun.month).padStart(2, '0')}_${payrollRun.legalEntityName.replace(/\s+/g, '_')}.csv`
     downloadCSV(csv, filename)
-    recordExport(options, getExportCount())
+    recordExport(options.mode, getExportCount())
     setExportSuccess(true)
     setTimeout(() => setExportSuccess(false), 3000)
   }
@@ -72,17 +91,22 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     downloadCSV(csv, filename)
   }
 
-  const handleApprove = () => {
+  const displayName = getUserDisplayName(userInfo)
+
+  const handleApprove = async () => {
     if (!payrollRun) return
-    setSignOff({
-      preparedBy: 'Current User',
+    await signOff({
+      preparedBy: displayName,
       preparedAt: new Date().toISOString(),
-      reviewedBy: 'Current User',
+      reviewedBy: displayName,
       reviewedAt: new Date().toISOString(),
       approvalDecision: 'approved',
       comments: reviewComment
     })
-    updateStatus('approved_for_export')
+  }
+
+  const handleMarkReady = async () => {
+    await updateStatus('PAYROLL_READY_FOR_REVIEW')
   }
 
   return (
@@ -156,6 +180,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                   <span className="gba:text-muted-foreground">{t('signoff-status')}</span>
                   <PayrollRunStatusBadge status={payrollRun.status} />
                 </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:text-muted-foreground">{t('signoff-current-user')}</span>
+                  <span className="gba:text-foreground gba:font-medium">{displayName}</span>
+                </div>
                 {payrollRun.preparedBy && (
                   <div className="gba:flex gba:justify-between">
                     <span className="gba:text-muted-foreground">{t('signoff-prepared-by')}</span>
@@ -190,7 +218,12 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
             </div>
 
             <div className="gba:flex gba:gap-3">
-              <Button onClick={handleApprove} disabled={!payrollRun || summary.blockedCount > 0}>
+              {payrollRun?.status === 'PAYROLL_IN_PROGRESS' && (
+                <Button variant="outline" onClick={handleMarkReady} disabled={saving || summary.blockedCount > 0}>
+                  {t('signoff-mark-ready')}
+                </Button>
+              )}
+              <Button onClick={handleApprove} disabled={!payrollRun || summary.blockedCount > 0 || saving}>
                 <CheckCircleIcon size={16} weight="fill" className="gba:mr-2" />
                 {t('signoff-approve')}
               </Button>

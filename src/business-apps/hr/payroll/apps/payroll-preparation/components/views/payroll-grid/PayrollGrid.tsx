@@ -151,7 +151,10 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
                   order={sortOrder}
                   onSort={handleSort}
                 />
+                <TableHead className="gba:whitespace-nowrap">{t('grid-hire-date')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('grid-termination-date')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-cost-center')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('grid-location')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-contract-type')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-fte')}</TableHead>
                 <SortableHead
@@ -162,8 +165,10 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
                   onSort={handleSort}
                 />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-bank-details')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('grid-variable-pay')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-paid-leave')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-sick-leave')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('grid-unpaid-leave')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-logged-hours')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-capacity')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-balance')}</TableHead>
@@ -187,7 +192,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
             <TableBody>
               {paginated.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={17} className="gba:text-center gba:py-12 gba:text-muted-foreground">
+                  <TableCell colSpan={22} className="gba:text-center gba:py-12 gba:text-muted-foreground">
                     {t('no-data')}
                   </TableCell>
                 </TableRow>
@@ -229,7 +234,14 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
                         </Badge>
                       </TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.department}</TableCell>
+                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+                        {emp.hireDate || '—'}
+                      </TableCell>
+                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+                        {emp.terminationDate || '—'}
+                      </TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.costCenter}</TableCell>
+                      <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.workLocation || '—'}</TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.contractType}</TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground">
                         {emp.fte != null ? emp.fte.toFixed(2) : '—'}
@@ -240,11 +252,19 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
                       <TableCell>
                         <FieldStatusBadge present={emp.bankDetailsPresent} />
                       </TableCell>
+                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+                        {emp.totalVariablePay != null
+                          ? `${emp.totalVariablePay.toLocaleString()} ${emp.variablePayCurrency || ''}`
+                          : '—'}
+                      </TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground">
                         {emp.paidLeaveDays || '—'}
                       </TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground">
                         {emp.sickLeaveDays || '—'}
+                      </TableCell>
+                      <TableCell className="gba:text-sm gba:text-muted-foreground">
+                        {emp.unpaidLeaveDays || '—'}
                       </TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
                         {emp.loggedHours != null ? `${emp.loggedHours}h` : '—'}

@@ -18,12 +18,11 @@ const SEVERITY_VARIANTS: Record<IssueSeverity, { label: string; variant: BadgeVa
 }
 
 const RUN_STATUS_VARIANTS: Record<PayrollRunStatus, { label: string; variant: BadgeVariant }> = {
-  not_started: { label: 'Not Started', variant: 'secondary' },
-  in_progress: { label: 'In Progress', variant: 'outline' },
-  ready_for_review: { label: 'Ready for Review', variant: 'warning' },
-  approved_for_export: { label: 'Approved', variant: 'success' },
-  exported: { label: 'Exported', variant: 'success' },
-  closed: { label: 'Closed', variant: 'secondary' }
+  PAYROLL_IN_PROGRESS: { label: 'In Progress', variant: 'outline' },
+  PAYROLL_READY_FOR_REVIEW: { label: 'Ready for Review', variant: 'warning' },
+  PAYROLL_APPROVED_FOR_EXPORT: { label: 'Approved', variant: 'success' },
+  PAYROLL_EXPORTED: { label: 'Exported', variant: 'success' },
+  PAYROLL_CLOSED: { label: 'Closed', variant: 'secondary' }
 }
 
 interface ReadinessStatusBadgeProps {

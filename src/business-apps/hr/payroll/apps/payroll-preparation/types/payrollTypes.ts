@@ -1,10 +1,9 @@
 export type PayrollRunStatus =
-  | 'not_started'
-  | 'in_progress'
-  | 'ready_for_review'
-  | 'approved_for_export'
-  | 'exported'
-  | 'closed'
+  | 'PAYROLL_IN_PROGRESS'
+  | 'PAYROLL_READY_FOR_REVIEW'
+  | 'PAYROLL_APPROVED_FOR_EXPORT'
+  | 'PAYROLL_EXPORTED'
+  | 'PAYROLL_CLOSED'
 
 export type ReadinessStatus = 'ready' | 'warning' | 'blocked' | 'excluded'
 
@@ -46,20 +45,24 @@ export interface PayrollRun {
   id: string
   month: number
   year: number
-  country: PayrollCountry
+  country: string
   legalEntityId: string
   legalEntityName: string
   cutOffDate: string
   paymentDate: string
-  ownerUserId: string
   status: PayrollRunStatus
+  createdBy: string
   createdAt: string
+  preparedBy?: string | null
+  preparedAt?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  reviewComment?: string | null
+  approvalDecision?: string | null
   updatedAt: string
-  preparedBy?: string
-  preparedAt?: string
-  reviewedBy?: string
-  reviewedAt?: string
-  reviewComment?: string
+  updatedBy?: string | null
+  version: number
+  isDeleted: boolean
 }
 
 export interface PayrollEmployee {
@@ -98,6 +101,10 @@ export interface PayrollEmployee {
   specialEmploymentFlag?: string
 
   cnpStatus?: string
+
+  totalVariablePay: number | null
+  variablePayCurrency: string | null
+  variablePayStatus: 'all_approved' | 'pending' | 'none' | null
 
   paidLeaveDays: number
   sickLeaveDays: number
@@ -170,6 +177,18 @@ export interface PayrollSummary {
   excludedCount: number
   openBlockers: number
   changedSinceLastPayroll: number
+}
+
+export interface PayrollBonus {
+  id: string
+  employeeId: string
+  bonusType: string
+  bonusTypeCode: string
+  amount: number
+  currency: string
+  paymentDate: string | null
+  fiscalYear: number
+  status: string
 }
 
 export interface SignOffData {

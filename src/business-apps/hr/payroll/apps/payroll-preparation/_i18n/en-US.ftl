@@ -26,7 +26,6 @@ country-checks-description = Validation results for country-specific payroll req
 export-title = Export & Sign-off
 export-description = Export payroll data and complete the sign-off process
 
-status-not-started = Not Started
 status-in-progress = In Progress
 status-ready-for-review = Ready for Review
 status-approved = Approved for Export
@@ -75,6 +74,7 @@ grid-contract-type = Contract
 grid-fte = FTE
 grid-base-salary = Base Salary
 grid-bank-details = Bank
+grid-variable-pay = Variable Pay
 grid-paid-leave = Paid Leave
 grid-sick-leave = Sick Leave
 grid-unpaid-leave = Unpaid Leave
@@ -107,6 +107,8 @@ signoff-reviewed-at = Reviewed At
 signoff-comments = Comments
 signoff-approve = Approve for Export
 signoff-reject = Reject
+signoff-mark-ready = Mark Ready for Review
+signoff-current-user = Signed in as
 
 change-new-hire = New Hire
 change-termination = Termination
@@ -148,6 +150,17 @@ overview-readiness = Readiness Distribution
 
 changes-employees = Changed Employees
 changes-total = Total Changes
+changes-search-placeholder = Search employees or fields...
+changes-type-label = Change Type:
+changes-col-type = Change Type
+changes-col-field = Field
+changes-col-old = Old Value
+changes-col-new = New Value
+changes-col-effective = Effective Date
+changes-col-changed-at = Changed At
+changes-col-changed-by = Changed By
+changes-empty = No changes detected since the last payroll run. Change tracking will be available once a previous payroll run has been closed.
+changes-no-match = No changes match the selected filters.
 
 export-mode-label = Export Mode
 

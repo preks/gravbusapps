@@ -14,6 +14,7 @@ import { MODULE_COLORS } from '@/common/constants/ui'
 import { usePayrollEmployees, usePayrollSummary, useCompanyList } from './hooks/usePayrollEmployees'
 import type { PayrollCompany } from './hooks/usePayrollEmployees'
 import { usePayrollRunStore } from './hooks/usePayrollRunStore'
+import { usePayrollRun } from './hooks/usePayrollRun'
 import { PayrollRunSelector } from './components/shared/PayrollRunSelector'
 import { OverviewView } from './components/views/overview/OverviewView'
 import { PayrollGridView } from './components/views/payroll-grid/PayrollGrid'
@@ -28,19 +29,11 @@ const moduleColor = MODULE_COLORS.HR
 type ViewKey = 'overview' | 'grid' | 'exceptions' | 'changes' | 'country-checks' | 'export'
 
 export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => {
-  const { accessToken } = context
+  const { accessToken, userInfo } = context
   const { t } = useTranslation(translations)
 
-  const {
-    selectedCompanyId,
-    selectedMonth,
-    selectedYear,
-    detectedCountry,
-    payrollRun,
-    auditEvents,
-    setDetectedCountry,
-    initializeRun
-  } = usePayrollRunStore()
+  const { selectedCompanyId, selectedCompanyName, selectedMonth, selectedYear, detectedCountry, setDetectedCountry } =
+    usePayrollRunStore()
 
   const { companies, loading: companiesLoading } = useCompanyList(accessToken)
   const { employees, loading, error } = usePayrollEmployees(
@@ -52,6 +45,25 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
   )
   const summary = usePayrollSummary(employees)
 
+  const {
+    payrollRun,
+    loading: runLoading,
+    saving: runSaving,
+    auditEvents,
+    createRun,
+    updateStatus,
+    signOff,
+    recordExport
+  } = usePayrollRun(
+    accessToken,
+    selectedCompanyId,
+    selectedCompanyName,
+    selectedMonth,
+    selectedYear,
+    detectedCountry,
+    userInfo
+  )
+
   const handleCompanyChange = useCallback(
     (company: PayrollCompany) => {
       setDetectedCountry(company.countryCode)
@@ -60,10 +72,10 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
   )
 
   useEffect(() => {
-    if (selectedCompanyId && employees.length > 0 && !payrollRun) {
-      initializeRun()
+    if (selectedCompanyId && employees.length > 0 && !payrollRun && !runLoading) {
+      createRun()
     }
-  }, [selectedCompanyId, employees.length, payrollRun, initializeRun])
+  }, [selectedCompanyId, employees.length, payrollRun, runLoading, createRun])
 
   const getInitialView = (): ViewKey => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -198,6 +210,11 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
             payrollRun={payrollRun}
             summary={summary}
             auditEvents={auditEvents}
+            userInfo={userInfo}
+            updateStatus={updateStatus}
+            signOff={signOff}
+            recordExport={recordExport}
+            saving={runSaving}
             t={t}
           />
         )
