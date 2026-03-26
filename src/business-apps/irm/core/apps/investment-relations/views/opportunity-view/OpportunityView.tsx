@@ -196,6 +196,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       dataTestId="investment-opportunities-view"
       renderQuickFilters={renderQuickFilters}
       quickFilter={activeQuickFilter}
+      enableExport
+      exportFilenamePrefix="opportunities"
     />
   )
 }

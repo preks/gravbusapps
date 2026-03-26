@@ -108,14 +108,25 @@ export const getExportColumns = (selectedReportType: ReportType | null, t: Trans
   }
 }
 
+const EXPENSE_REQUEST_AND_PLAN_SORTABLE_KEYS = new Set([
+  'title',
+  'code',
+  'createdAt',
+  'status',
+  'totalAmount',
+  'advancePaidAmount',
+  'remainingAmount',
+  'startDate',
+  'endDate'
+])
+
 export const getBackendSortableColumnKeys = (selectedReportType: ReportType | null): Set<string> => {
   switch (selectedReportType) {
     case ReportType.EXPENSE_ITEM:
       return new Set(['title', 'date', 'amount', 'status'])
     case ReportType.EXPENSE_REQUEST:
-      return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'startDate', 'endDate'])
     case ReportType.EXPENSE_PLAN:
-      return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'startDate', 'endDate'])
+      return EXPENSE_REQUEST_AND_PLAN_SORTABLE_KEYS
     case ReportType.ADVANCE_PAYMENT:
       return new Set(['createdAt', 'status', 'amount', 'paymentMethod'])
     case ReportType.APPROVAL_PAYOUT_CYCLE:

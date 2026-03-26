@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react'
-import { DataDisplay } from '@newwork/nw-design-system'
+import { DataDisplay, Button } from '@newwork/nw-design-system'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
+import { useInvestmentExport } from './hooks/useInvestmentExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { InvestmentKPICards } from '@/common/components/investment-kpi-cards'
@@ -671,6 +673,22 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     )
   }
 
+  const activeGroup = investmentGroups.find(g => g.tabId === currentSection)
+  const exportFilenamePrefix =
+    currentSection === 'overview'
+      ? 'investments'
+      : activeGroup?.label?.toLowerCase().replace(/\s+/g, '-') || 'investments'
+
+  const { isExporting, handleExportCsv, handleExportExcel } = useInvestmentExport({
+    accessToken: accessToken || '',
+    currentState,
+    selectedFilters,
+    currentSection,
+    investmentGroups,
+    totalCount: activeTabCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
   if (groupsLoading || currenciesLoading) {
     return <div>Loading...</div>
   }
@@ -706,7 +724,33 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         visibleColumns={currentState.visibleColumns}
         onVisibleColumnsChange={currentState.setVisibleColumns}
         primaryAction={renderPrimaryAction}
-        secondaryActions={currencyFilterUI}
+        secondaryActions={
+          <>
+            {currencyFilterUI}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportCsv}
+              disabled={isExporting || activeTabCount === 0}
+              title={isExporting ? 'Exporting…' : `Export ${activeTabCount} investments as CSV`}
+              data-testid="export-investments-csv"
+            >
+              <DownloadIcon size={16} />
+              CSV
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={isExporting || activeTabCount === 0}
+              title={isExporting ? 'Exporting…' : `Export ${activeTabCount} investments as Excel`}
+              data-testid="export-investments-excel"
+            >
+              <FileXlsIcon size={16} />
+              Excel
+            </Button>
+          </>
+        }
         toolbarDensity="default"
       >
         {renderList()}

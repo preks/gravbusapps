@@ -9,7 +9,7 @@ import {
   CountingNumber
 } from '@newwork/nw-design-system'
 import { Globe, Users, MessageSquare, Activity, Smile, Phone } from 'lucide-react'
-import type { GlobalStatsResponse, EmojiCount } from '../../services/chatApiClient'
+import type { GlobalStatsResponse, EmojiCount } from '../../types'
 
 interface GlobalStatsProps {
   stats: GlobalStatsResponse | null

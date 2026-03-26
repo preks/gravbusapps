@@ -29,3 +29,7 @@ empty-message = Keine Funktionen gefunden
 # Editor
 create-function = Funktion erstellen
 edit-function = Funktion bearbeiten
+
+# Chat panel (AI wizard)
+chat-panel-title = KI-Assistent
+chat-panel-description = Beschreiben Sie Ihre Funktion oder stellen Sie Fragen. Der Assistent kann Namen, Ein-/Ausgabe-Schemata und Code vorschlagen. (Integration folgt.)

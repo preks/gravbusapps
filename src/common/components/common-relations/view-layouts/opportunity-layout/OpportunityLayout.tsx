@@ -12,6 +12,8 @@ import {
 } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useOpportunityExport } from './hooks/useOpportunityExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -160,6 +162,12 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   extendVisibleColumns?: string[] // Additional columns to add to base columns
   renderQuickFilters?: (props: QuickFiltersRenderProps) => React.ReactNode
   quickFilter?: string // Current quick filter value (e.g., 'all', 'qualified', 'unqualified')
+  /** When true, renders CSV and Excel export buttons in the list view toolbar. */
+  enableExport?: boolean
+  /** Filename prefix for exported files (timestamp is appended automatically). */
+  exportFilenamePrefix?: string
+  showAllCurrencyOption?: boolean
+  defaultCurrency?: string
 }
 
 interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
@@ -198,9 +206,15 @@ interface CurrencyFilterProps {
   selectedCurrency: string
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
+  showAllOption?: boolean
 }
 
-const CurrencyFilter: React.FC<CurrencyFilterProps> = ({ selectedCurrency, currencies, onCurrencyChange }) => {
+const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
+  selectedCurrency,
+  currencies,
+  onCurrencyChange,
+  showAllOption = true
+}) => {
   if (currencies.length === 0) return null
 
   // Get display label for selected currency
@@ -218,7 +232,7 @@ const CurrencyFilter: React.FC<CurrencyFilterProps> = ({ selectedCurrency, curre
           <SelectValue placeholder="Select currency">{getDisplayLabel(selectedCurrency)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All</SelectItem>
+          {showAllOption && <SelectItem value="ALL">All</SelectItem>}
           {currencies.map(currency => (
             <SelectItem key={currency.code} value={currency.code}>
               {currency.label}
@@ -238,6 +252,7 @@ interface BoardSecondaryActionsProps {
   selectedCurrency: string
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
+  showAllCurrencyOption?: boolean
 }
 
 const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
@@ -247,7 +262,8 @@ const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
   onPipelineChange,
   selectedCurrency,
   currencies,
-  onCurrencyChange
+  onCurrencyChange,
+  showAllCurrencyOption = true
 }) => {
   if (currentSection !== 'board') return undefined
 
@@ -268,7 +284,12 @@ const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
           </SelectContent>
         </Select>
       </div>
-      <CurrencyFilter selectedCurrency={selectedCurrency} currencies={currencies} onCurrencyChange={onCurrencyChange} />
+      <CurrencyFilter
+        selectedCurrency={selectedCurrency}
+        currencies={currencies}
+        onCurrencyChange={onCurrencyChange}
+        showAllOption={showAllCurrencyOption}
+      />
     </div>
   )
 }
@@ -278,18 +299,25 @@ interface ListSecondaryActionsProps {
   selectedCurrency: string
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
+  showAllCurrencyOption?: boolean
 }
 
 const ListSecondaryActions: React.FC<ListSecondaryActionsProps> = ({
   currentSection,
   selectedCurrency,
   currencies,
-  onCurrencyChange
+  onCurrencyChange,
+  showAllCurrencyOption = true
 }) => {
   if (currentSection !== 'list') return undefined
 
   return (
-    <CurrencyFilter selectedCurrency={selectedCurrency} currencies={currencies} onCurrencyChange={onCurrencyChange} />
+    <CurrencyFilter
+      selectedCurrency={selectedCurrency}
+      currencies={currencies}
+      onCurrencyChange={onCurrencyChange}
+      showAllOption={showAllCurrencyOption}
+    />
   )
 }
 
@@ -305,7 +333,11 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     customPrimaryAction,
     extendVisibleColumns = [],
     renderQuickFilters,
-    quickFilter
+    quickFilter,
+    enableExport = false,
+    exportFilenamePrefix = 'opportunities',
+    showAllCurrencyOption = true,
+    defaultCurrency = 'ALL'
   } = props
   const { accessToken } = context
 
@@ -352,7 +384,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Board View State
   const [boardPipelineId, setBoardPipelineId] = useState('')
-  const [selectedCurrency, setSelectedCurrency] = useState('ALL')
+  const [selectedCurrency, setSelectedCurrency] = useState(defaultCurrency)
   const [boardFilters, setBoardFilters] = useState<Record<string, any>>({})
   const [boardSearch, setBoardSearch] = useState('')
   const [boardOpportunities, setBoardOpportunities] = useState<TOpportunity[]>([])
@@ -484,6 +516,15 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
     return baseVars
   }, [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, availableCurrencies, config])
+
+  // Export
+  const { isExporting, handleExportCsv, handleExportExcel } = useOpportunityExport({
+    fetchOpportunities: config.fetchOpportunities as any,
+    queryVariables: listQueryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix,
+    contextType: config.contextType
+  })
 
   // Load List Data
   const loadListData = useCallback(
@@ -653,22 +694,62 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         selectedCurrency={selectedCurrency}
         currencies={availableCurrencies}
         onCurrencyChange={setSelectedCurrency}
+        showAllCurrencyOption={showAllCurrencyOption}
       />
     ),
-    [currentSection, boardPipelineId, pipelines, selectedCurrency, availableCurrencies]
+    [currentSection, boardPipelineId, pipelines, selectedCurrency, availableCurrencies, showAllCurrencyOption]
   )
 
-  // List secondary actions: Currency filter
+  // List secondary actions: Currency filter + optional export buttons
   const listSecondaryActions = useMemo(
     () => (
-      <ListSecondaryActions
-        currentSection={currentSection}
-        selectedCurrency={selectedCurrency}
-        currencies={availableCurrencies}
-        onCurrencyChange={setSelectedCurrency}
-      />
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <ListSecondaryActions
+          currentSection={currentSection}
+          selectedCurrency={selectedCurrency}
+          currencies={availableCurrencies}
+          onCurrencyChange={setSelectedCurrency}
+          showAllCurrencyOption={showAllCurrencyOption}
+        />
+        {enableExport && currentSection === 'list' && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCsv}
+              disabled={isExporting || totalCount === 0}
+              title={isExporting ? 'Exporting…' : `Export ${totalCount} opportunities as CSV`}
+              data-testid="export-csv-button"
+            >
+              <DownloadIcon size={16} />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              disabled={isExporting || totalCount === 0}
+              title={isExporting ? 'Exporting…' : `Export ${totalCount} opportunities as Excel`}
+              data-testid="export-excel-button"
+            >
+              <FileXlsIcon size={16} />
+              Excel
+            </Button>
+          </>
+        )}
+      </div>
     ),
-    [currentSection, selectedCurrency, availableCurrencies]
+    [
+      currentSection,
+      selectedCurrency,
+      availableCurrencies,
+      showAllCurrencyOption,
+      enableExport,
+      isExporting,
+      totalCount,
+      handleExportCsv,
+      handleExportExcel
+    ]
   )
 
   // Extract sortableColumns for list view

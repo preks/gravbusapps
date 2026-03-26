@@ -1,5 +1,9 @@
 import type { Editor, Extension, JSONContent } from '@tiptap/core'
 
+export type PageNumberNumeralStyle = 'decimal' | 'lowerRoman' | 'upperRoman' | 'lowerAlpha' | 'upperAlpha'
+
+export type PageNumberAlignment = 'left' | 'center' | 'right' | 'inside' | 'outside'
+
 export type PageNumber = number
 
 export type BuiltInPageFormatName = 'A4' | 'A3' | 'A5' | 'Letter' | 'Legal' | 'Tabloid'
@@ -35,6 +39,10 @@ export interface StoredHeaderFooterContent {
 
 export interface OpenHeaderFooterEditorParams {
   pageNumber: number
+  clickPosition?: {
+    clientX: number
+    clientY: number
+  }
 }
 
 export type PreventCloseCallback = (event: MouseEvent) => boolean
@@ -70,6 +78,13 @@ export interface PagesOptionUpdates {
   accentColor?: string
   headerAccentColor?: string
   footerAccentColor?: string
+  /** Resolved at display time for `{title}` in headers/footers */
+  documentTitle?: string
+  pageNumberRegion?: HeaderFooterEditorType | null
+  pageNumberNumeralStyle?: PageNumberNumeralStyle
+  pageNumberStartAt?: number
+  pageNumberAlignment?: PageNumberAlignment | null
+  pageNumberShowOnFirstPage?: boolean
 }
 
 export interface PagesOptions {
@@ -100,6 +115,13 @@ export interface PagesOptions {
   onPageFormatChange?: (pageFormat: PageFormat) => void
   onActiveEditorChange?: (state: ActivePagesEditorState) => void
   uiLabels?: Partial<PagesUiLabels>
+  /** Current document title; substitutes `{title}` when rendering headers/footers */
+  documentTitle?: string
+  pageNumberRegion?: HeaderFooterEditorType
+  pageNumberNumeralStyle?: PageNumberNumeralStyle
+  pageNumberStartAt?: number
+  pageNumberAlignment?: PageNumberAlignment
+  pageNumberShowOnFirstPage?: boolean
 }
 
 export interface PagesStorage {
