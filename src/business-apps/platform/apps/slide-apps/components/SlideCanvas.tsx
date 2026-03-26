@@ -132,6 +132,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     // Multi-select drag state - stores initial positions of all selected elements
     const [multiDragStart, setMultiDragStart] = useState<Map<string, Position>>(new Map())
 
+    // Single-click-to-edit: track mousedown origin to detect click vs drag
+    const mouseDownElementRef = useRef<{ id: string; x: number; y: number; type: string } | null>(null)
+    const CLICK_MOVE_THRESHOLD = 4
+
     // Marquee selection state (for rendering the selection box)
     const [isMarquee, setIsMarquee] = useState(false)
     const [marqueeStart, setMarqueeStart] = useState<Position>({ x: 0, y: 0 })
@@ -298,11 +302,26 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     const handleCanvasClick = (e: React.MouseEvent) => {
       // Skip if we just finished a marquee selection (to avoid clearing the selection)
       if (justFinishedMarqueeRef.current) {
+        mouseDownElementRef.current = null
         return
       }
 
       const target = e.target as HTMLElement
       const isClickOnElement = target.closest('[data-slide-element]')
+
+      // Single-click-to-edit: if mouseDown ref survived (mouse didn't drag), enter text editing
+      const mdRef = mouseDownElementRef.current
+      mouseDownElementRef.current = null
+
+      if (mdRef && mdRef.type === 'text') {
+        if (inlineEditing?.editingTextId && inlineEditing.editingTextId !== mdRef.id) {
+          inlineEditing.onFinishEditing()
+        }
+        if (inlineEditing?.editingTextId !== mdRef.id) {
+          onEditText(mdRef.id)
+        }
+        return
+      }
 
       // Finish inline editing if clicking outside the editing element
       if (inlineEditing?.editingTextId) {
@@ -404,6 +423,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         if (el) positions.set(id, { ...el.position })
       })
       setMultiDragStart(positions)
+
+      // Track mousedown for single-click-to-edit detection (plain click on single element only)
+      if (!isShiftKey && !isCtrlKey && effectiveSelection.size === 1) {
+        mouseDownElementRef.current = { id: element.id, x: e.clientX, y: e.clientY, type: element.type }
+      } else {
+        mouseDownElementRef.current = null
+      }
     }
 
     const handleResizeMouseDown = (e: React.MouseEvent, handle: ResizeHandle, element: AnySlideElement) => {
@@ -661,19 +687,31 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       ]
     )
 
-    const handleMouseUp = useCallback(() => {
-      // Only handle element drag/resize cleanup here (marquee is handled inline)
-      // Notify parent that drag/resize ended (for history recording)
-      if (isDragging || isResizing) {
-        onDragEnd?.()
-      }
-      setIsDragging(false)
-      setIsResizing(false)
-      setResizeHandle(null)
-      setElementStart(null)
-      setMultiDragStart(new Map())
-      setSnapGuides([])
-    }, [isDragging, isResizing, onDragEnd])
+    const handleMouseUp = useCallback(
+      (e: MouseEvent) => {
+        // If mouse moved beyond threshold, clear the click-to-edit ref (it was a drag)
+        const mdRef = mouseDownElementRef.current
+        if (mdRef) {
+          const dx = Math.abs(e.clientX - mdRef.x)
+          const dy = Math.abs(e.clientY - mdRef.y)
+          if (dx >= CLICK_MOVE_THRESHOLD || dy >= CLICK_MOVE_THRESHOLD) {
+            mouseDownElementRef.current = null
+          }
+        }
+
+        // Notify parent that drag/resize ended (for history recording)
+        if (isDragging || isResizing) {
+          onDragEnd?.()
+        }
+        setIsDragging(false)
+        setIsResizing(false)
+        setResizeHandle(null)
+        setElementStart(null)
+        setMultiDragStart(new Map())
+        setSnapGuides([])
+      },
+      [isDragging, isResizing, onDragEnd]
+    )
 
     // Event listeners for element drag/resize (marquee has its own inline handlers)
     useEffect(() => {
@@ -849,7 +887,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           data-element-id={element.id}
           style={wrapperStyle}
           onMouseDown={e => handleElementMouseDown(e, element)}
-          onDoubleClick={() => element.type === 'text' && onEditText(element.id)}
         >
           {element.type === 'text' && (
             <div
@@ -878,7 +915,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               {inlineEditing?.editingTextId === element.id ? (
                 <>
                   <textarea
-                    autoFocus
+                    ref={el => {
+                      if (el) {
+                        el.focus()
+                        el.selectionStart = el.selectionEnd = el.value.length
+                      }
+                    }}
                     value={(element as TextElement).content}
                     onChange={e => inlineEditing.onTextChange(e.target.value)}
                     onKeyDown={e => {
