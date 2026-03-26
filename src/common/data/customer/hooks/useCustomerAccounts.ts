@@ -1,6 +1,7 @@
 // Customer Account hooks - list and by-id operations for customer accounts
 import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
@@ -37,7 +38,7 @@ export interface CustomerAccountListData {
  * Returns fetch functions without state management.
  */
 export const useCustomerAccounts = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+  const graphqlClient: GraphQLClient = useGraphQLClient(context.accessToken)
 
   const fetchCustomerAccounts = useCallback(
     async (variables: CustomerAccountQueryVariables = {}): Promise<CustomerAccountListData> => {
@@ -52,7 +53,7 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
 
       // Prepare GraphQL variables
       const graphQLVariables: Record<string, any> = {
-        limit: Math.min(variables.limit || 50, 100),
+        limit: variables.limit || 50,
         offset: variables.offset || 0,
         where: whereCondition,
         orderBy: orderBy
@@ -65,6 +66,7 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
     },
     [graphqlClient]
   )
+
   return { fetchCustomerAccounts }
 }
 

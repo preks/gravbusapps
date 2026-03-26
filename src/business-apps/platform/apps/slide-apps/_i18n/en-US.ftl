@@ -27,6 +27,8 @@ sidebar-storage-slides = { $count } slides
 
 menu-new-blank-title = Blank Slide
 menu-new-blank-description = Start from scratch
+menu-new-ai-title = Generate with AI
+menu-new-ai-description = Create presentation using AI
 menu-new-template-title = From Template
 menu-new-template-description = Choose a template
 menu-new-import-title = Import PowerPoint
@@ -293,6 +295,8 @@ header-manage-access = Manage access...
 # Generate Presentation
 generate-title = Generate Presentation
 generate-description = Describe what you need and AI will create the slides.
+generate-presentation-title-label = Presentation Title
+generate-presentation-title-placeholder = e.g., Q4 Business Review
 generate-topic = Topic
 generate-topic-placeholder = Quarterly business review covering sales metrics, team highlights, and Q2 goals...
 generate-length = Length
