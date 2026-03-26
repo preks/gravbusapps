@@ -23,27 +23,12 @@ export const CompensationReviewForm: React.FC<BusinessAppContextProps> = () => {
       <Card>
         <CardContent className="gba:p-6">
           <h3 className="gba:text-sm gba:font-semibold gba:mb-4">Planned Features</h3>
-          <ul className="gba:space-y-2 gba:text-sm gba:text-muted-foreground">
-            <li className="gba:flex gba:items-start gba:gap-2">
-              <span>• </span>
-              View all submitted compensation proposals from managers
-            </li>
-            <li className="gba:flex gba:items-start gba:gap-2">
-              <span>• </span>
-              See proposed salary increases, bonuses, and justifications
-            </li>
-            <li className="gba:flex gba:items-start gba:gap-2">
-              <span>• </span>
-              Bulk approve, reject, or send back proposals with review notes
-            </li>
-            <li className="gba:flex gba:items-start gba:gap-2">
-              <span>• </span>
-              Summary statistics: total cost impact, average increase percentage
-            </li>
-            <li className="gba:flex gba:items-start gba:gap-2">
-              <span>• </span>
-              Upon final approval, trigger existing salary adjustment and bonus BPMN processes
-            </li>
+          <ul className="gba:list-disc gba:space-y-2 gba:pl-5 gba:text-sm gba:text-muted-foreground">
+            <li>View all submitted compensation proposals from managers</li>
+            <li>See proposed salary increases, bonuses, and justifications</li>
+            <li>Bulk approve, reject, or send back proposals with review notes</li>
+            <li>Summary statistics: total cost impact, average increase percentage</li>
+            <li>Upon final approval, trigger existing salary adjustment and bonus BPMN processes</li>
           </ul>
         </CardContent>
       </Card>

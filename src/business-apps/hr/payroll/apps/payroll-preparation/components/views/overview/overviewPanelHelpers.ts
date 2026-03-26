@@ -51,3 +51,15 @@ export function countOpenWarningsAcrossEmployees(employees: PayrollEmployee[]): 
     return acc + emp.issues.filter(i => i.severity === 'warning' && i.status === 'open').length
   }, 0)
 }
+
+/** When count is zero, KPI cards are not clickable (reduces branching in overview grids). */
+export function kpiPanelOnClick(
+  count: number,
+  setPanelCategory: (c: PanelCategory) => void,
+  category: Exclude<PanelCategory, null>
+): (() => void) | undefined {
+  if (count <= 0) {
+    return undefined
+  }
+  return () => setPanelCategory(category)
+}

@@ -22,9 +22,9 @@ import { EmployeeDetailDrawer } from './EmployeeDetailDrawer'
 import { getPictureDataUrl } from '../../../utils/imageUtils'
 
 interface PayrollGridViewProps {
-  employees: PayrollEmployee[]
-  country: PayrollCountry
-  t: (key: string) => string
+  readonly employees: PayrollEmployee[]
+  readonly country: PayrollCountry
+  readonly t: (key: string) => string
 }
 
 type SortField = 'displayName' | 'department' | 'baseSalary' | 'readinessStatus' | 'issues'
@@ -32,15 +32,13 @@ type SortOrder = 'asc' | 'desc'
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100]
 
-function PayrollGridSortIcon({
-  field,
-  activeField,
-  sortOrder
-}: {
+type PayrollGridSortIconProps = Readonly<{
   field: SortField
   activeField: SortField
   sortOrder: SortOrder
-}) {
+}>
+
+function PayrollGridSortIcon({ field, activeField, sortOrder }: PayrollGridSortIconProps) {
   if (activeField !== field) return <CaretUpIcon size={12} className="gba:text-muted-foreground/40" />
   return sortOrder === 'asc' ? (
     <CaretUpIcon size={12} className="gba:text-foreground" weight="bold" />
@@ -48,6 +46,16 @@ function PayrollGridSortIcon({
     <CaretDownIcon size={12} className="gba:text-foreground" weight="bold" />
   )
 }
+
+type PayrollGridSortableHeadProps = Readonly<{
+  field: SortField
+  label: string
+  className?: string
+  sticky?: boolean
+  activeField: SortField
+  sortOrder: SortOrder
+  onSort: (f: SortField) => void
+}>
 
 function PayrollGridSortableHead({
   field,
@@ -57,15 +65,7 @@ function PayrollGridSortableHead({
   activeField,
   sortOrder,
   onSort
-}: {
-  field: SortField
-  label: string
-  className?: string
-  sticky?: boolean
-  activeField: SortField
-  sortOrder: SortOrder
-  onSort: (f: SortField) => void
-}) {
+}: PayrollGridSortableHeadProps) {
   return (
     <TableHead
       className={`gba:cursor-pointer gba:select-none gba:whitespace-nowrap ${sticky ? 'gba:sticky gba:left-0 gba:z-20 gba:bg-background' : ''} ${className || ''}`}

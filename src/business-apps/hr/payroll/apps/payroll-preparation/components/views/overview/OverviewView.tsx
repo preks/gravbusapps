@@ -27,25 +27,26 @@ import {
   type PanelCategory,
   countOpenWarningsAcrossEmployees,
   filterEmployeesForPanel,
+  kpiPanelOnClick,
   panelTitleForCategory
 } from './overviewPanelHelpers'
 
 interface OverviewViewProps {
-  summary: PayrollSummary
-  payrollRun: PayrollRun | null
-  employees: PayrollEmployee[]
-  t: (key: string) => string
-  onNavigateToGrid?: () => void
+  readonly summary: PayrollSummary
+  readonly payrollRun: PayrollRun | null
+  readonly employees: PayrollEmployee[]
+  readonly t: (key: string) => string
+  readonly onNavigateToGrid?: () => void
 }
 
 interface KpiCardProps {
-  testId: string
-  label: string
-  value: number | string
-  icon: React.ReactNode
-  iconBgClass: string
-  iconColorClass: string
-  onClick?: () => void
+  readonly testId: string
+  readonly label: string
+  readonly value: number | string
+  readonly icon: React.ReactNode
+  readonly iconBgClass: string
+  readonly iconColorClass: string
+  readonly onClick?: () => void
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({ testId, label, value, icon, iconBgClass, iconColorClass, onClick }) => {
@@ -89,17 +90,17 @@ const KpiCard: React.FC<KpiCardProps> = ({ testId, label, value, icon, iconBgCla
 }
 
 interface EmployeeListPanelProps {
-  isOpen: boolean
-  onClose: () => void
-  title: string
-  employees: PayrollEmployee[]
-  t: (key: string) => string
-  onViewEmployee?: (employee: PayrollEmployee) => void
+  readonly isOpen: boolean
+  readonly onClose: () => void
+  readonly title: string
+  readonly employees: PayrollEmployee[]
+  readonly t: (key: string) => string
+  readonly onViewEmployee?: (employee: PayrollEmployee) => void
 }
 
 interface EmployeeListRowProps {
-  emp: PayrollEmployee
-  onViewEmployee?: (employee: PayrollEmployee) => void
+  readonly emp: PayrollEmployee
+  readonly onViewEmployee?: (employee: PayrollEmployee) => void
 }
 
 const EmployeeListRow: React.FC<EmployeeListRowProps> = ({ emp, onViewEmployee }) => {
@@ -197,7 +198,7 @@ const EmployeeListPanel: React.FC<EmployeeListPanelProps> = ({
 }
 
 interface OverviewPayrollRunCardProps {
-  payrollRun: PayrollRun
+  readonly payrollRun: PayrollRun
 }
 
 function OverviewPayrollRunCard({ payrollRun }: OverviewPayrollRunCardProps) {
@@ -217,13 +218,20 @@ function OverviewPayrollRunCard({ payrollRun }: OverviewPayrollRunCardProps) {
 }
 
 interface OverviewKpiGridsProps {
-  summary: PayrollSummary
-  t: (key: string) => string
-  openWarnings: number
-  setPanelCategory: (c: PanelCategory) => void
+  readonly summary: PayrollSummary
+  readonly t: (key: string) => string
+  readonly openWarnings: number
+  readonly setPanelCategory: (c: PanelCategory) => void
 }
 
 function OverviewKpiGrids({ summary, t, openWarnings, setPanelCategory }: OverviewKpiGridsProps) {
+  const onReady = kpiPanelOnClick(summary.readyCount, setPanelCategory, 'ready')
+  const onBlocked = kpiPanelOnClick(summary.blockedCount, setPanelCategory, 'blocked')
+  const onExcluded = kpiPanelOnClick(summary.excludedCount, setPanelCategory, 'excluded')
+  const onChanged = kpiPanelOnClick(summary.changedSinceLastPayroll, setPanelCategory, 'changed')
+  const onBlockers = kpiPanelOnClick(summary.openBlockers, setPanelCategory, 'blockers')
+  const onWarnings = kpiPanelOnClick(openWarnings, setPanelCategory, 'warning')
+
   return (
     <>
       <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-5 gba:gap-4">
@@ -243,7 +251,7 @@ function OverviewKpiGrids({ summary, t, openWarnings, setPanelCategory }: Overvi
           icon={<CheckCircleIcon size={20} weight="fill" />}
           iconBgClass="gba:bg-success/10"
           iconColorClass="gba:text-success"
-          onClick={summary.readyCount > 0 ? () => setPanelCategory('ready') : undefined}
+          onClick={onReady}
         />
         <KpiCard
           testId="payroll-overview-blocked-card"
@@ -252,7 +260,7 @@ function OverviewKpiGrids({ summary, t, openWarnings, setPanelCategory }: Overvi
           icon={<XCircleIcon size={20} weight="fill" />}
           iconBgClass="gba:bg-destructive/10"
           iconColorClass="gba:text-destructive"
-          onClick={summary.blockedCount > 0 ? () => setPanelCategory('blocked') : undefined}
+          onClick={onBlocked}
         />
         <KpiCard
           testId="payroll-overview-excluded-card"
@@ -261,7 +269,7 @@ function OverviewKpiGrids({ summary, t, openWarnings, setPanelCategory }: Overvi
           icon={<MinusCircleIcon size={20} weight="fill" />}
           iconBgClass="gba:bg-muted"
           iconColorClass="gba:text-muted-foreground"
-          onClick={summary.excludedCount > 0 ? () => setPanelCategory('excluded') : undefined}
+          onClick={onExcluded}
         />
         <KpiCard
           testId="payroll-overview-changed-card"
@@ -270,7 +278,7 @@ function OverviewKpiGrids({ summary, t, openWarnings, setPanelCategory }: Overvi
           icon={<ArrowsClockwiseIcon size={20} />}
           iconBgClass="gba:bg-primary/10"
           iconColorClass="gba:text-primary"
-          onClick={summary.changedSinceLastPayroll > 0 ? () => setPanelCategory('changed') : undefined}
+          onClick={onChanged}
         />
       </div>
 
@@ -282,7 +290,7 @@ function OverviewKpiGrids({ summary, t, openWarnings, setPanelCategory }: Overvi
           icon={<ShieldWarningIcon size={20} weight="fill" />}
           iconBgClass="gba:bg-destructive/10"
           iconColorClass="gba:text-destructive"
-          onClick={summary.openBlockers > 0 ? () => setPanelCategory('blockers') : undefined}
+          onClick={onBlockers}
         />
         <KpiCard
           testId="payroll-overview-warnings-card"
@@ -291,7 +299,7 @@ function OverviewKpiGrids({ summary, t, openWarnings, setPanelCategory }: Overvi
           icon={<WarningIcon size={20} weight="fill" />}
           iconBgClass="gba:bg-warning/10"
           iconColorClass="gba:text-warning"
-          onClick={openWarnings > 0 ? () => setPanelCategory('warning') : undefined}
+          onClick={onWarnings}
         />
       </div>
     </>
@@ -299,9 +307,9 @@ function OverviewKpiGrids({ summary, t, openWarnings, setPanelCategory }: Overvi
 }
 
 interface OverviewReadinessSectionProps {
-  summary: PayrollSummary
-  t: (key: string) => string
-  setPanelCategory: (c: PanelCategory) => void
+  readonly summary: PayrollSummary
+  readonly t: (key: string) => string
+  readonly setPanelCategory: (c: PanelCategory) => void
 }
 
 function OverviewReadinessSection({ summary, t, setPanelCategory }: OverviewReadinessSectionProps) {

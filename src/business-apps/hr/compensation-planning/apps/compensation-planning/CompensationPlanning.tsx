@@ -142,7 +142,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
 
   return (
     <PageLayout
-      headerPhosphorIcon={{ icon: StackIcon, variant: 'ext3' }}
+      headerIcon={StackIcon}
       headerTitle={t('dashboard-title')}
       headerDescription={t('dashboard-subtitle')}
       // PageHeader defaults onBack to history.back(); null hides the back control.

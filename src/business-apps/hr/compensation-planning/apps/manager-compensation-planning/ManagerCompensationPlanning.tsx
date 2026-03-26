@@ -235,7 +235,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
 
   return (
     <PageLayout
-      headerPhosphorIcon={{ icon: UsersIcon, variant: 'ext3' }}
+      headerIcon={UsersIcon}
       headerTitle={t('title')}
       headerDescription={t('subtitle')}
       onBack={null as unknown as (() => void) | undefined}

@@ -439,7 +439,7 @@ function resolvePayrollRelevantFlag(
 ): boolean | null {
   const contractObjVal = wc?.contractType?.objectValue
   if (!contractObjVal || typeof contractObjVal !== 'object') return null
-  const payrollRelevantRaw = (contractObjVal as Record<string, unknown>).payroll_relevant
+  const payrollRelevantRaw = Reflect.get(contractObjVal, 'payroll_relevant')
   if (payrollRelevantRaw === undefined) return null
   if (payrollRelevantRaw === 'true' || payrollRelevantRaw === true) return true
   return false
@@ -614,17 +614,30 @@ function assemblePayrollEmployeeRecord(params: {
   }
 }
 
-function buildPayrollEmployee(
-  pos: RawEmployeePosition,
-  salaryMap: Map<string, RawSalary>,
-  absenceMap: Map<string, RawAbsence[]>,
-  attendanceMap: Map<string, RawAttendance[]>,
-  previousSalaryMap: Map<string, RawPreviousSalary>,
-  country: PayrollCountry,
-  payrollMonth: number,
-  payrollYear: number,
+type BuildPayrollEmployeeInput = Readonly<{
+  pos: RawEmployeePosition
+  salaryMap: Map<string, RawSalary>
+  absenceMap: Map<string, RawAbsence[]>
+  attendanceMap: Map<string, RawAttendance[]>
+  previousSalaryMap: Map<string, RawPreviousSalary>
+  country: PayrollCountry
+  payrollMonth: number
+  payrollYear: number
   referenceDate: Date
-): PayrollEmployee {
+}>
+
+function buildPayrollEmployee(input: BuildPayrollEmployeeInput): PayrollEmployee {
+  const {
+    pos,
+    salaryMap,
+    absenceMap,
+    attendanceMap,
+    previousSalaryMap,
+    country,
+    payrollMonth,
+    payrollYear,
+    referenceDate
+  } = input
   const emp = pos.employee
   const wc = emp.workingCondition?.[0]
   const wh = emp.workingHours?.[0]
@@ -760,6 +773,56 @@ async function hydrateChangeActorDisplayNames(
   }
 }
 
+function computePayrollPeriodWindow(
+  year: number,
+  month: number
+): {
+  periodStart: string
+  periodEnd: string
+  referenceDate: Date
+} {
+  const periodStart = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastDay = new Date(year, month, 0).getDate()
+  const periodEnd = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
+  const referenceDate = new Date(year, month - 1, 1)
+  return { periodStart, periodEnd, referenceDate }
+}
+
+async function fetchPayrollSupplementalQueryResults(
+  client: PayrollGraphqlClient,
+  employeeIds: string[],
+  periodStart: string,
+  periodEnd: string,
+  referenceDate: Date,
+  locale: string
+): Promise<
+  [
+    { EmployeeSalary?: RawSalary[] },
+    { EmployeeAbsence?: RawAbsence[] },
+    { EmployeeAttendance?: RawAttendance[] },
+    { EmployeeSalary?: RawPreviousSalary[] }
+  ]
+> {
+  return Promise.all([
+    client.request<{ EmployeeSalary: RawSalary[] }>(GET_PAYROLL_SALARIES, { employeeIds }),
+    client.request<{ EmployeeAbsence: RawAbsence[] }>(GET_PAYROLL_ABSENCES, {
+      employeeIds,
+      periodStart,
+      periodEnd,
+      activeUserLocale: locale
+    }),
+    client.request<{ EmployeeAttendance: RawAttendance[] }>(GET_PAYROLL_ATTENDANCE, {
+      employeeIds,
+      dateFrom: periodStart,
+      dateTo: periodEnd
+    }),
+    client.request<{ EmployeeSalary: RawPreviousSalary[] }>(GET_PREVIOUS_SALARIES, {
+      employeeIds,
+      beforeDate: referenceDate.toISOString()
+    })
+  ])
+}
+
 async function fetchPayrollEmployeesForPeriod(
   client: PayrollGraphqlClient,
   companyId: string,
@@ -782,30 +845,16 @@ async function fetchPayrollEmployeesForPeriod(
 
   const employeeIds = [...new Set(positions.map(p => p.employee?.id).filter(Boolean))]
 
-  const periodStart = `${year}-${String(month).padStart(2, '0')}-01`
-  const lastDay = new Date(year, month, 0).getDate()
-  const periodEnd = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
+  const { periodStart, periodEnd, referenceDate } = computePayrollPeriodWindow(year, month)
 
-  const referenceDate = new Date(year, month - 1, 1)
-
-  const [salaryResult, absenceResult, attendanceResult, prevSalaryResult] = await Promise.all([
-    client.request<{ EmployeeSalary: RawSalary[] }>(GET_PAYROLL_SALARIES, { employeeIds }),
-    client.request<{ EmployeeAbsence: RawAbsence[] }>(GET_PAYROLL_ABSENCES, {
-      employeeIds,
-      periodStart,
-      periodEnd,
-      activeUserLocale: locale
-    }),
-    client.request<{ EmployeeAttendance: RawAttendance[] }>(GET_PAYROLL_ATTENDANCE, {
-      employeeIds,
-      dateFrom: periodStart,
-      dateTo: periodEnd
-    }),
-    client.request<{ EmployeeSalary: RawPreviousSalary[] }>(GET_PREVIOUS_SALARIES, {
-      employeeIds,
-      beforeDate: referenceDate.toISOString()
-    })
-  ])
+  const [salaryResult, absenceResult, attendanceResult, prevSalaryResult] = await fetchPayrollSupplementalQueryResults(
+    client,
+    employeeIds,
+    periodStart,
+    periodEnd,
+    referenceDate,
+    locale
+  )
 
   const { salaryMap, absenceMap, attendanceMap, previousSalaryMap } = buildPayrollMapsFromFetchResults(
     salaryResult,
@@ -817,17 +866,17 @@ async function fetchPayrollEmployeesForPeriod(
   const allEmployees = positions
     .filter(p => p.employee?.id)
     .map(pos =>
-      buildPayrollEmployee(
+      buildPayrollEmployee({
         pos,
         salaryMap,
         absenceMap,
         attendanceMap,
         previousSalaryMap,
-        effectiveCountry,
-        month,
-        year,
+        country: effectiveCountry,
+        payrollMonth: month,
+        payrollYear: year,
         referenceDate
-      )
+      })
     )
 
   await hydrateChangeActorDisplayNames(client, allEmployees)

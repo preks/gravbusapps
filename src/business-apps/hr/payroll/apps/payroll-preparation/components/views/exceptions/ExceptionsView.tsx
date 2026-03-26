@@ -6,8 +6,8 @@ import { SeverityBadge } from '../../shared/StatusBadge'
 import { Navigation, navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface ExceptionsViewProps {
-  employees: PayrollEmployee[]
-  t: (key: string) => string
+  readonly employees: PayrollEmployee[]
+  readonly t: (key: string) => string
 }
 
 const CATEGORY_LABELS: Record<IssueCategory, string> = {
@@ -47,7 +47,7 @@ interface IssueWithEmployee extends PayrollIssue {
   employeeCode: string
 }
 
-function IssueSeverityIcon({ severity }: { severity: IssueSeverity }) {
+function IssueSeverityIcon({ severity }: Readonly<{ severity: IssueSeverity }>) {
   switch (severity) {
     case 'blocker':
       return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
