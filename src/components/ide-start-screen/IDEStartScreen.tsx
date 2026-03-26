@@ -9,25 +9,16 @@ import {
   ClockIcon,
   CaretDownIcon,
   CaretRightIcon,
-  PushPinIcon,
-  FileTextIcon
+  PushPinIcon
 } from '@phosphor-icons/react'
 
 import { PageLayout } from '../layout/pageLayout'
+import type { BusinessAppInfo } from '@/components/ide-main-menu'
 import { STORAGE_KEY_PINNED_MODULE } from '@/common/constants/ideStorageKeys'
 
 // Removed antd Typography and Collapse imports - using nw-design-system instead
 
-type BusinessAppType = 'app' | 'form' | 'popup' | 'window'
-
-interface BusinessAppInfo {
-  name: string
-  path: string
-  module: string
-  subModule?: string
-  screenKey: string
-  type: BusinessAppType
-}
+type BusinessAppType = BusinessAppInfo['type']
 
 interface RecentlyUsedApp {
   name: string
@@ -38,11 +29,16 @@ interface RecentlyUsedApp {
 }
 
 interface IDEStartScreenProps {
-  businessApps: BusinessAppInfo[]
+  filteredBusinessApps: BusinessAppInfo[]
+  allBusinessApps: BusinessAppInfo[]
   onAppSelect: (app: BusinessAppInfo) => void
 }
 
-export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, onAppSelect }) => {
+export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
+  filteredBusinessApps,
+  allBusinessApps,
+  onAppSelect
+}) => {
   const [recentlyUsedApps, setRecentlyUsedApps] = React.useState<RecentlyUsedApp[]>([])
   const [pinnedSubModule, setPinnedSubModule] = React.useState<string | null>(null)
 
@@ -119,7 +115,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   }
 
   // Group business apps by module and sub-module
-  const groupedApps = businessApps.reduce(
+  const groupedApps = filteredBusinessApps.reduce(
     (acc, app) => {
       if (!acc[app.module]) {
         acc[app.module] = {}
@@ -155,7 +151,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
 
   const getRecentApps = (): BusinessAppInfo[] => {
     return recentlyUsedApps
-      .map(recent => businessApps.find(app => app.screenKey === recent.screenKey))
+      .map(recent => allBusinessApps.find(app => app.screenKey === recent.screenKey))
       .filter(Boolean) as BusinessAppInfo[]
   }
 
@@ -170,6 +166,8 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   const getTypeIcon = (type: BusinessAppType) => {
     switch (type) {
       case 'app':
+        return <PlayIcon />
+      case 'record':
         return <PlayIcon />
       case 'form':
         return <ArticleIcon />
@@ -186,6 +184,8 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     switch (type) {
       case 'app':
         return 'App'
+      case 'record':
+        return 'Record'
       case 'form':
         return 'Form'
       case 'popup':
@@ -202,6 +202,8 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     switch (type) {
       case 'app':
         return 'gba:text-info'
+      case 'record':
+        return 'gba:text-destructive'
       case 'form':
         return 'gba:text-success'
       case 'popup':
@@ -217,6 +219,8 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     switch (type) {
       case 'app':
         return 'gba:bg-info-secondary gba:text-info-secondary-foreground'
+      case 'record':
+        return 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground'
       case 'form':
         return 'gba:bg-success-secondary gba:text-success-secondary-foreground'
       case 'popup':
@@ -344,31 +348,32 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     )
   }
 
-  // Derive Examples from provided businessApps
+  // Derive Examples from the full business app catalog
   const exampleItems = React.useMemo(() => {
-    const items = businessApps.filter(app => app.module === 'examples')
+    const items = allBusinessApps.filter(app => app.module === 'examples')
+    const apps = items.filter(i => i.type === 'app')
+    const records = items.filter(i => i.type === 'record')
+    const forms = items.filter(i => i.type === 'form')
+    const popups = items.filter(i => i.type === 'popup')
+    const windows = items.filter(i => i.type === 'window')
+    return { items, apps, records, forms, popups, windows }
+  }, [allBusinessApps])
+
+  // Derive pinned submodule items from the filtered business app catalog
+  const pinnedSubModuleItems = React.useMemo(() => {
+    if (!pinnedSubModule) return null
+    const [module, subModule] = pinnedSubModule.split('/')
+    const items = filteredBusinessApps.filter(app => {
+      const appSubModule = app.subModule?.split('/')[0] || 'default'
+      return app.module === module && appSubModule === subModule
+    })
+    const records = items.filter(i => i.type === 'record')
     const apps = items.filter(i => i.type === 'app')
     const forms = items.filter(i => i.type === 'form')
     const popups = items.filter(i => i.type === 'popup')
     const windows = items.filter(i => i.type === 'window')
-    return { items, apps, forms, popups, windows }
-  }, [businessApps])
-
-  // Derive pinned submodule items from provided businessApps
-  const pinnedSubModuleItems = React.useMemo(() => {
-    if (!pinnedSubModule) return null
-    const [module, subModule] = pinnedSubModule.split('/')
-    const items = businessApps.filter(app => {
-      const appSubModule = app.subModule?.split('/')[0] || 'default'
-      return app.module === module && appSubModule === subModule
-    })
-    const records = items.filter(i => i.type === 'app' && i.path.includes('/records/'))
-    const apps = items.filter(i => i.type === 'app' && !i.path.includes('/records/'))
-    const forms = items.filter(i => i.type === 'form')
-    const popups = items.filter(i => i.type === 'popup')
-    const windows = items.filter(i => i.type === 'window')
     return { items, apps, forms, popups, windows, records, module, subModule }
-  }, [businessApps, pinnedSubModule])
+  }, [filteredBusinessApps, pinnedSubModule])
 
   return (
     <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-background-decorative">
@@ -501,7 +506,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <FileTextIcon className="gba:text-blue-600" />
+                            <PlayIcon className="gba:text-red-600" />
                             Records
                           </span>
                           <Badge variant="secondary">{pinnedSubModuleItems.records.length}</Badge>
@@ -544,6 +549,29 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                         </div>
                         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                           <div className="gba:space-y-1 gba:text-left">{exampleItems.apps.map(renderAppButton)}</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {/* Records */}
+                  {exampleItems.records.length > 0 && (
+                    <Card
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      style={{ display: 'flex', flexDirection: 'column' }}
+                    >
+                      <CardContent
+                        className="gba:p-3"
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                          <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                            <PlayIcon className="gba:text-red-600" />
+                            Records
+                          </span>
+                          <Badge variant="secondary">{exampleItems.records.length}</Badge>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                          <div className="gba:space-y-1 gba:text-left">{exampleItems.records.map(renderAppButton)}</div>
                         </div>
                       </CardContent>
                     </Card>
@@ -677,7 +705,9 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
               </h4>
               {Object.keys(groupedApps).length === 0 ? (
                 <div className="gba:py-12 gba:text-center">
-                  <div className="gba:text-secondary-foreground gba:text-lg">No business applications found</div>
+                  <div className="gba:text-secondary-foreground gba:text-lg">
+                    No business applications match the current filter
+                  </div>
                 </div>
               ) : (
                 <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-6">

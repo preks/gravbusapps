@@ -20,7 +20,6 @@ import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Users } from 'lucide-react'
 import { globalCallManager, type GlobalCallState } from '../services/globalCallManager'
 import type { GroupCallParticipant } from '../services/groupWebrtcClient'
-import { useChatTranslation } from '../contexts/TranslationContext'
 
 // All exports are commented out - this module is deprecated
 // See GlobalCallContainer.tsx for the new implementation

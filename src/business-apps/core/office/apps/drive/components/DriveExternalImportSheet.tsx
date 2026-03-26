@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, toast } from '@newwork/nw-design-system'
 import { CloudDownload } from 'lucide-react'
-import { DocumentExternalSourceService } from '@/business-apps/platform/apps/document-apps/services/DocumentExternalSourceService'
+import { DocumentExternalSourceService } from '@/business-apps/core/office/apps/documents/services/DocumentExternalSourceService'
 import type {
   UnstructuredConnectorSummary,
   UnstructuredPreviewItem,
   UnstructuredSyncRunStatus
-} from '@/business-apps/platform/apps/document-apps/types/externalUnstructuredConnector'
-import { UnstructuredConnectorSelector } from '@/business-apps/platform/apps/document-apps/components/external-import/UnstructuredConnectorSelector'
-import { UnstructuredPreview } from '@/business-apps/platform/apps/document-apps/components/external-import/UnstructuredPreview'
-import { UnstructuredImportConfig } from '@/business-apps/platform/apps/document-apps/components/external-import/UnstructuredImportConfig'
-import { UnstructuredSyncProgress } from '@/business-apps/platform/apps/document-apps/components/external-import/UnstructuredSyncProgress'
+} from '@/business-apps/core/office/apps/documents/types/externalUnstructuredConnector'
+import { UnstructuredConnectorSelector } from '@/business-apps/core/office/apps/documents/components/external-import/UnstructuredConnectorSelector'
+import { UnstructuredPreview } from '@/business-apps/core/office/apps/documents/components/external-import/UnstructuredPreview'
+import { UnstructuredImportConfig } from '@/business-apps/core/office/apps/documents/components/external-import/UnstructuredImportConfig'
+import { UnstructuredSyncProgress } from '@/business-apps/core/office/apps/documents/components/external-import/UnstructuredSyncProgress'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 
 type Step = 'select' | 'preview' | 'config' | 'progress'

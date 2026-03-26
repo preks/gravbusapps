@@ -88,6 +88,7 @@ export interface ExpenseRequest {
     firstName?: string
     lastName?: string
     code?: string
+    hrReferenceCode?: string
     id?: string
     userId?: string
     additionalProperties?: any

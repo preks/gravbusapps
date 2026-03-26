@@ -326,6 +326,11 @@ hr-growth-skills = Fähigkeiten
 hr-growth-feedback = Feedback-Hub
 hr-growth-performance = Ziele
 
+# My Development (self-service screen — same content as HR Development tab)
+my-development-page-title = Meine Entwicklung
+my-development-page-description = Fähigkeiten, Feedback, Ziele und Leistung — dieselbe Ansicht wie „Personalentwicklung“ in Mein Profil.
+my-development-unavailable = Der Bereich Entwicklung konnte nicht geladen werden. Bitte später erneut versuchen.
+
 # Feedback Hub (Unterseite unter Personalentwicklung)
 feedback-hub-title = Feedback-Hub
 feedback-hub-description = Geben und erhalten Sie Feedback von Kollegen und Vorgesetzten. Verfolgen Sie Anfragen und Einblicke.

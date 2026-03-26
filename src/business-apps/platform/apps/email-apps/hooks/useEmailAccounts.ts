@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { EmailApiService } from '../services/EmailApiService'
+import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { EmailAccount, CreateEmailAccountRequest } from '../types'
 
 export interface UseEmailAccountsOptions {
@@ -9,49 +9,51 @@ export interface UseEmailAccountsOptions {
 
 export function useEmailAccounts(accessToken: string, options: UseEmailAccountsOptions = {}) {
   const { t } = options
+  const officeClient = useOfficeClient(accessToken)
   const [accounts, setAccounts] = useState<EmailAccount[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    EmailApiService.setAccessToken(accessToken)
-  }, [accessToken])
 
   const loadAccounts = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const data = await EmailApiService.listAccounts()
+      const data = await officeClient.emails.getAccounts<EmailAccount[]>()
       setAccounts(data)
     } catch (err) {
       setError(t ? t('account-load-failed') : err instanceof Error ? err.message : String(err))
     } finally {
       setIsLoading(false)
     }
-  }, [t])
+  }, [t, officeClient])
 
   useEffect(() => {
     if (accessToken) loadAccounts()
   }, [accessToken, loadAccounts])
 
-  const createAccount = useCallback(async (data: CreateEmailAccountRequest) => {
-    const account = await EmailApiService.createAccount(data)
-    setAccounts(prev => [...prev, account])
-    return account
-  }, [])
+  const createAccount = useCallback(
+    async (data: CreateEmailAccountRequest) => {
+      const account = await officeClient.emails.createAccount<EmailAccount>(data)
+      setAccounts(prev => [...prev, account])
+      return account
+    },
+    [officeClient]
+  )
 
-  const deleteAccount = useCallback(async (id: string) => {
-    await EmailApiService.deleteAccount(id)
-    setAccounts(prev => prev.filter(a => a.id !== id))
-  }, [])
+  const deleteAccount = useCallback(
+    async (id: string) => {
+      await officeClient.emails.deleteAccount(id)
+      setAccounts(prev => prev.filter(a => a.id !== id))
+    },
+    [officeClient]
+  )
 
   const syncAccount = useCallback(
     async (id: string) => {
-      await EmailApiService.syncAccount(id)
-      // Refresh accounts to get updated sync status
+      await officeClient.emails.syncAccount(id)
       await loadAccounts()
     },
-    [loadAccounts]
+    [loadAccounts, officeClient]
   )
 
   const defaultAccount = accounts.find(a => a.isDefault) || accounts[0]

@@ -14,7 +14,6 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { globalCallManager } from '../services/globalCallManager'
 import { GroupCallModalRtk } from './GroupCallModalRtk'
 import { RealtimeKitProvider } from '@cloudflare/realtimekit-react'
-import { TranslationProvider } from '../contexts/TranslationContext'
 import { RTKVirtualBackground } from '../services/rtkVirtualBackground'
 import { STORAGE_KEY_ACCESS_TOKEN } from '@/common/constants/ideStorageKeys'
 
@@ -765,48 +764,46 @@ export const GlobalCallContainer: React.FC = () => {
   const hideReactionsAndHandRaise = conversationType === 'direct'
 
   return (
-    <TranslationProvider>
-      <RealtimeKitProvider value={callData.realtimeKitMeeting}>
-        <GroupCallModalRtk
-          viewMode={callData.callState.isMinimized ? 'minimized' : 'full'}
-          callState={callData.callState}
-          localStream={callData.localStream}
-          remoteStreams={callData.remoteStreams}
-          participants={callData.participants}
-          activeSpeakerId={callData.activeSpeakerId}
-          activeSpeakerHistory={callData.activeSpeakerHistory}
-          onEndCall={handleEndCall}
-          onToggleMute={handleToggleMute}
-          onToggleVideo={handleToggleVideo}
-          onToggleScreenShare={handleToggleScreenShare}
-          onToggleMinimize={handleToggleMinimize}
-          onToggleBackground={handleToggleBackground}
-          onToggleRnnoise={handleToggleRnnoise}
-          onRnnoiseModeChange={handleRnnoiseModeChange}
-          rnnoiseEnabled={callData.rnnoiseEnabled}
-          rnnoiseMode={callData.rnnoiseMode}
-          onToggleRaiseHand={handleToggleRaiseHand}
-          onSendReaction={handleSendReaction}
-          onSetVideoQuality={callData.setVideoQuality || (() => {})}
-          onMicDeviceChange={callData.switchAudioDevice || undefined}
-          onCameraDeviceChange={callData.switchVideoDevice || undefined}
-          apiClient={callData.apiClient}
-          wsClient={callData.wsClient}
-          accessToken={callData.accessToken || undefined}
-          currentUserId={callData.currentUserId}
-          currentUser={callData.currentUser}
-          conversationName={callData.conversationName || undefined}
-          callConversation={callData.callConversation || undefined}
-          activeConversation={callData.activeConversation || undefined}
-          pendingInvites={callData.pendingInvites || new Map()}
-          availableParticipants={callData.availableParticipants || []}
-          onInviteParticipant={callData.onInviteParticipant || undefined}
-          activeExperts={callData.activeExperts || []}
-          hideReactionsAndHandRaise={hideReactionsAndHandRaise}
-          transcriptionEnabled={callData.callState.transcriptionEnabled}
-          prefixDataTestId="global-call"
-        />
-      </RealtimeKitProvider>
-    </TranslationProvider>
+    <RealtimeKitProvider value={callData.realtimeKitMeeting}>
+      <GroupCallModalRtk
+        viewMode={callData.callState.isMinimized ? 'minimized' : 'full'}
+        callState={callData.callState}
+        localStream={callData.localStream}
+        remoteStreams={callData.remoteStreams}
+        participants={callData.participants}
+        activeSpeakerId={callData.activeSpeakerId}
+        activeSpeakerHistory={callData.activeSpeakerHistory}
+        onEndCall={handleEndCall}
+        onToggleMute={handleToggleMute}
+        onToggleVideo={handleToggleVideo}
+        onToggleScreenShare={handleToggleScreenShare}
+        onToggleMinimize={handleToggleMinimize}
+        onToggleBackground={handleToggleBackground}
+        onToggleRnnoise={handleToggleRnnoise}
+        onRnnoiseModeChange={handleRnnoiseModeChange}
+        rnnoiseEnabled={callData.rnnoiseEnabled}
+        rnnoiseMode={callData.rnnoiseMode}
+        onToggleRaiseHand={handleToggleRaiseHand}
+        onSendReaction={handleSendReaction}
+        onSetVideoQuality={callData.setVideoQuality || (() => {})}
+        onMicDeviceChange={callData.switchAudioDevice || undefined}
+        onCameraDeviceChange={callData.switchVideoDevice || undefined}
+        apiClient={callData.apiClient}
+        wsClient={callData.wsClient}
+        accessToken={callData.accessToken || undefined}
+        currentUserId={callData.currentUserId}
+        currentUser={callData.currentUser}
+        conversationName={callData.conversationName || undefined}
+        callConversation={callData.callConversation || undefined}
+        activeConversation={callData.activeConversation || undefined}
+        pendingInvites={callData.pendingInvites || new Map()}
+        availableParticipants={callData.availableParticipants || []}
+        onInviteParticipant={callData.onInviteParticipant || undefined}
+        activeExperts={callData.activeExperts || []}
+        hideReactionsAndHandRaise={hideReactionsAndHandRaise}
+        transcriptionEnabled={callData.callState.transcriptionEnabled}
+        prefixDataTestId="global-call"
+      />
+    </RealtimeKitProvider>
   )
 }

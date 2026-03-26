@@ -106,6 +106,10 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
         {
           label: t('crm.opportunity_forecasts', 'Forecasts'),
           onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'forecasts' })
+        },
+        {
+          label: t('crm.pipeline_stage_types', 'Stage Types'),
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'stage-types' })
         }
       ]
     },
@@ -229,7 +233,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
   }
 
   if (inlinePage?.key === 'opportunity-data') {
-    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | undefined
+    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | 'stage-types' | undefined
     return (
       <OpportunityDataPage
         {...context}

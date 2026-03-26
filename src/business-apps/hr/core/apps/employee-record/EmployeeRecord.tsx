@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useEmployeeData } from './hooks/useEmployeeData'
+import { useSilentRefetchOnProcessCompletion } from './hooks/useSilentRefetchOnProcessCompletion'
 import { useEmployeePermissions } from './hooks/useEmployeePermissions'
 import { useCompensationPermissions } from './components/tabs/compensation/hooks/useCompensationPermissions'
 import ProfileHeader, { ProfileHeaderActions } from './components/ProfileHeader'
@@ -234,30 +235,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     employeeIdToShow
   )
 
-  useEffect(() => {
-    const pendingRefetchTimers = new Set<number>()
-
-    const handleProcessCompletion = (event: Event) => {
-      const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
-      const resolution = customEvent.detail.resolution
-      if (resolution === 'success') {
-        // Use silent refetch — avoids the full-page loading spinner for background saves
-        silentRefetch()
-        const followUpRefetchTimer = window.setTimeout(() => {
-          pendingRefetchTimers.delete(followUpRefetchTimer)
-          silentRefetch()
-        }, 1200)
-        pendingRefetchTimers.add(followUpRefetchTimer)
-      }
-    }
-
-    globalThis.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
-
-    return () => {
-      pendingRefetchTimers.forEach(timerId => window.clearTimeout(timerId))
-      globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
-    }
-  }, [silentRefetch])
+  useSilentRefetchOnProcessCompletion(silentRefetch)
 
   // Use the hook to fetch employee work communications
   const { employee: employeeWithComms, loading: commsLoading } = useEmployeeWorkCommunications({

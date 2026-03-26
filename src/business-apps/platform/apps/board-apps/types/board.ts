@@ -114,6 +114,7 @@ export interface BoardSummary {
   description?: string
   icon?: string
   status: BoardStatus
+  settings?: Record<string, unknown>
   sheetCount: number
   rowCount: number
   spaceId?: string

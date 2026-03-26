@@ -5,11 +5,11 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { Button, Input, Card, CardContent, Spinner } from '@newwork/nw-design-system'
+import { Button, Input, Card, CardContent, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { X, Search, Sparkles, BookOpen, Plus, Check } from 'lucide-react'
 import type { AvailableExpert } from '../hooks/useEveryExperts'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 
 interface ExpertSelectorPanelProps {
   isOpen: boolean
@@ -30,7 +30,7 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
   onAddExpert,
   'data-testid': testId = 'expert-selector-panel'
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
 
   const filteredExperts = useMemo(() => {

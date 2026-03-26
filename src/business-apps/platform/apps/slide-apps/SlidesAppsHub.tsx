@@ -51,7 +51,8 @@ import {
   Upload,
   SortAsc,
   SortDesc,
-  X
+  X,
+  Wand2
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -59,28 +60,23 @@ import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
 import { SlidesHero } from './components/SlidesHero'
 import type { SlideSection } from './components/SlidesHero'
 import { useSlides } from './hooks/useSlides'
-import {
-  useSlidesHubUrlState,
-  useSlidesHubFavorites,
-  useSlidesHubFiltering,
-  useSlidesHubUserLookup,
-  type SlideHubSidebarSection,
-  type SlideHubSortBy,
-  type SlideHubSortOrder
-} from './hooks'
+import { useSlidesHubUrlState, useSlidesHubFavorites, useSlidesHubFiltering, useSlidesHubUserLookup } from './hooks'
+import type { SlideHubSidebarSection, SlideHubSortBy, SlideHubSortOrder } from './hooks/useSlidesHubFiltering'
 import {
   SlideEditor,
   ShareSlideDialog,
   ManageSharesDialog,
   PowerPointUploader,
   TemplateBrowserDialog,
-  CastReceiver
+  CastReceiver,
+  GeneratePresentationDialogChat
 } from './components'
 import type { SlideData } from './components/slideElements'
 import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import type { SlideSummary } from './types'
 import type { ParsedPowerPointDocument } from './hooks/usePowerPointParser'
+import { compressSlideImages } from './hooks/pptxImport'
 import translations from './_i18n'
 
 export interface SlidesAppsHubProps extends BusinessAppContextProps {
@@ -179,6 +175,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [slideForManageShares, setSlideForManageShares] = useState<string | null>(null)
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [showTemplateBrowserDialog, setShowTemplateBrowserDialog] = useState(false)
+  const [showGenerateDialogChat, setShowGenerateDialogChat] = useState(false)
   const [pendingTemplateSlides, setPendingTemplateSlides] = useState<{
     slides: SlideData[]
     themeId: string
@@ -194,6 +191,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     error,
     loadSlide,
     createSlide,
+    importSlide,
     deleteSlide,
     duplicateSlide,
     shareSlide,
@@ -431,29 +429,38 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const handlePowerPointImport = useCallback(
     async (parsedDoc: ParsedPowerPointDocument) => {
       try {
-        // Create new slide with imported content
-        const created = await createSlide({
+        const uploadedSlides = await compressSlideImages(parsedDoc.slides)
+
+        const result = await importSlide({
           title: parsedDoc.fileName.replace('.pptx', ''),
           contentJson: {
-            slides: parsedDoc.slides,
-            themeId: 'corporate' // Default theme
+            slides: uploadedSlides,
+            themeId: parsedDoc.themeId || 'corporate'
           }
         })
 
-        if (created) {
-          setShowImportDialog(false)
-          setSelectedSlideId(created.id)
-          setCurrentView('editor')
-          updateUrl(created.id, 'editor')
-          loadSlide(created.id)
+        if (!result) {
+          toast.error(t('toast-import-failed'))
+          return
+        }
+
+        setShowImportDialog(false)
+        setSelectedSlideId(result.slide.id)
+        setCurrentView('editor')
+        updateUrl(result.slide.id, 'editor')
+        await loadSlide(result.slide.id)
+
+        if (result.contentSaved) {
           toast.success(t('toast-imported-slides', { count: parsedDoc.slideCount }))
+        } else {
+          toast.warning(t('toast-import-partial'))
         }
       } catch (err) {
         console.error('[SlidesAppsHub] Import error:', err)
         toast.error(t('toast-import-failed'))
       }
     },
-    [createSlide, loadSlide, updateUrl, t]
+    [importSlide, loadSlide, updateUrl, t]
   )
 
   // Check if this is a cast receiver view (standalone page for external display)
@@ -522,6 +529,15 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           <div>
             <div className="gba:font-medium">{t('menu-new-blank-title')}</div>
             <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-blank-description')}</div>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setShowGenerateDialogChat(true)}>
+          <Wand2 className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
+          <div>
+            <div className="gba:font-medium">{t('menu-new-ai-title') || 'Generate with AI'}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">
+              {t('menu-new-ai-description') || 'Create presentation using AI'}
+            </div>
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setShowTemplateBrowserDialog(true)}>
@@ -620,7 +636,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                         </select>
                         <div className="gba:w-px gba:h-4 gba:bg-border/50" />
                         <button
-                          onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                          onClick={() => setSortOrder((prev: SlideHubSortOrder) => (prev === 'asc' ? 'desc' : 'asc'))}
                           className="gba:p-1 gba:rounded hover:gba:bg-accent gba:text-muted-foreground gba:transition-colors"
                           data-testid={`${testId}-sort-order`}
                         >
@@ -1027,7 +1043,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           slideId={slideForShare}
           slideTitle={slides.find(s => s.id === slideForShare)?.title || t('title-untitled-slide')}
           currentUserId={currentUserId}
-          currentUserName={userInfo?.displayName || userInfo?.employeeDetails?.displayName}
+          currentUserName={
+            userInfo?.employeeDetails?.displayName ||
+            `${userInfo?.givenName || ''} ${userInfo?.familyName || ''}`.trim()
+          }
           accessToken={accessToken}
           shareSlide={shareSlide}
           onShareComplete={async () => {
@@ -1083,6 +1102,14 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         onOpenChange={setShowTemplateBrowserDialog}
         onApplyTemplate={handleTemplateSelected}
         data-testid={`${testId}-template-browser`}
+      />
+
+      {/* Generate Presentation Dialog (Chat Version) */}
+      <GeneratePresentationDialogChat
+        open={showGenerateDialogChat}
+        onOpenChange={setShowGenerateDialogChat}
+        accessToken={accessToken || ''}
+        data-testid={`${testId}-generate-dialog-chat`}
       />
     </div>
   )

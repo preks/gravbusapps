@@ -304,6 +304,7 @@ export const BoardApiService = {
         description: app.description as string | undefined,
         icon: app.icon as string | undefined,
         status: app.status as BoardStatus,
+        ...(app.settings ? { settings: app.settings as Record<string, unknown> } : {}),
         sheetCount: sheets.length,
         rowCount: (app.rowCount as number) ?? 0,
         spaceId: app.spaceId as string | undefined,

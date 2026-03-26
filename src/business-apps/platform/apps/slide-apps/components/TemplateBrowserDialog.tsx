@@ -29,7 +29,11 @@ import translations from '../_i18n'
 export interface TemplateBrowserDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onApplyTemplate: (slides: SlideData[], themeId: string) => void
+  onApplyTemplate: (
+    slides: SlideData[],
+    themeId: string,
+    masters?: import('../types/slideMaster').SlideMaster[]
+  ) => void
   'data-testid'?: string
 }
 
@@ -192,7 +196,8 @@ export const TemplateBrowserDialog: React.FC<TemplateBrowserDialogProps> = ({
     try {
       const full = await SlidesApiService.getTemplate(selectedTemplate.id)
       if (full?.contentJson) {
-        onApplyTemplate(full.contentJson.slides, full.contentJson.themeId)
+        const templateMasters = (full.contentJson as any).masters || full.contentJson._templateMeta?.masters
+        onApplyTemplate(full.contentJson.slides, full.contentJson.themeId, templateMasters)
         onOpenChange(false)
       }
     } catch (error) {

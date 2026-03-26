@@ -27,7 +27,7 @@ import { useEntityDataSource } from './hooks/useEntityDataSource'
 import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
 import { useSpreadsheetBulkRows } from './hooks/useSpreadsheetBulkRows'
 import { useSpreadsheetColumns } from './hooks/useSpreadsheetColumns'
-import { useVersionUserDisplays } from '@/business-apps/platform/apps/document-apps/hooks/useVersionUserDisplays'
+import { useVersionUserDisplays } from '@/business-apps/core/office/apps/documents/hooks/useVersionUserDisplays'
 
 import { useVersioning } from '@/business-apps/platform/apps/shared/hooks/useVersioning'
 import { useComments } from '@/business-apps/platform/apps/shared/hooks/useComments'
