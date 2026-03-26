@@ -647,6 +647,29 @@ link-bubble-remove-link = Link entfernen
 link-bubble-open-link = Link öffnen
 link-bubble-open-new-tab = In neuem Tab öffnen
 
+# Dokument-Kontextmenü
+document-context-clipboard = Zwischenablage
+document-context-copy = Kopieren
+document-context-cut = Ausschneiden
+document-context-link = Link
+document-context-format = Format
+document-context-review = Überprüfen
+document-context-add-comment = Kommentar hinzufügen
+document-context-image-settings = Bildeinstellungen
+document-context-insert = Einfügen
+document-context-delete = Löschen
+document-context-cell = Zelle
+document-context-layout = Layout
+document-context-translate = Übersetzen
+document-context-proofing-language = Korrektursprache festlegen
+document-context-paragraph-options = Absatzoptionen
+document-context-change-picture = Bild ändern
+document-context-draw = Zeichnen
+document-context-format-picture = Bild formatieren
+document-context-split = Teilen
+document-context-distribute = Verteilen
+document-context-format-table = Tabelle formatieren
+
 image-context-cut = Ausschneiden
 image-context-copy = Kopieren
 image-context-paste = Einfügen

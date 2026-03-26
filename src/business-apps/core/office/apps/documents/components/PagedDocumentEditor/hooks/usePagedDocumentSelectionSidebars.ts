@@ -40,7 +40,7 @@ type SidebarContextSubtitleKey =
   | 'image-sidebar-in-header-context'
   | 'image-sidebar-in-footer-context'
 
-function getSelectedImageState(editor: TiptapEditor): Omit<SelectedImageSidebarState, 'open' | 'editor'> | null {
+export function getSelectedImageState(editor: TiptapEditor): Omit<SelectedImageSidebarState, 'open' | 'editor'> | null {
   const { selection } = editor.state
 
   if (selection instanceof NodeSelection && selection.node.type.name === 'image') {
@@ -78,7 +78,7 @@ export function shouldKeepImageSidebarOpenForUiMode(
   )
 }
 
-function getSelectedTableState(editor: TiptapEditor): Omit<SelectedTableSidebarState, 'open' | 'editor'> | null {
+export function getSelectedTableState(editor: TiptapEditor): Omit<SelectedTableSidebarState, 'open' | 'editor'> | null {
   const context = getSelectedTableRectContext(editor.state, 'table')
   if (!context) return null
 

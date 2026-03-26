@@ -648,6 +648,29 @@ link-bubble-remove-link = Remove link
 link-bubble-open-link = Open link
 link-bubble-open-new-tab = Open in new tab
 
+# Document context menu
+document-context-clipboard = Clipboard
+document-context-copy = Copy
+document-context-cut = Cut
+document-context-link = Link
+document-context-format = Format
+document-context-review = Review
+document-context-add-comment = Add comment
+document-context-image-settings = Picture settings
+document-context-insert = Insert
+document-context-delete = Delete
+document-context-cell = Cell
+document-context-layout = Layout
+document-context-translate = Translate
+document-context-proofing-language = Set Proofing Language
+document-context-paragraph-options = Paragraph Options
+document-context-change-picture = Change Picture
+document-context-draw = Draw
+document-context-format-picture = Format Picture
+document-context-split = Split
+document-context-distribute = Distribute
+document-context-format-table = Format Table
+
 # Image context menu (right-click on image)
 image-context-cut = Cut
 image-context-copy = Copy

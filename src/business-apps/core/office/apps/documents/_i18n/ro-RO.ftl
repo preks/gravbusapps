@@ -647,6 +647,29 @@ link-bubble-remove-link = Eliminați linkul
 link-bubble-open-link = Deschide linkul
 link-bubble-open-new-tab = Deschide în tab nou
 
+# Meniu contextual document
+document-context-clipboard = Clipboard
+document-context-copy = Copiere
+document-context-cut = Decupare
+document-context-link = Link
+document-context-format = Formatare
+document-context-review = Revizuire
+document-context-add-comment = Adăugați comentariu
+document-context-image-settings = Setări imagine
+document-context-insert = Inserare
+document-context-delete = Ștergere
+document-context-cell = Celulă
+document-context-layout = Aspect
+document-context-translate = Traduceți
+document-context-proofing-language = Setați limba de corectare
+document-context-paragraph-options = Opțiuni paragraf
+document-context-change-picture = Schimbați imaginea
+document-context-draw = Desenați
+document-context-format-picture = Formatați imaginea
+document-context-split = Împărțire
+document-context-distribute = Distribuire
+document-context-format-table = Formatați tabelul
+
 image-context-cut = Decupare
 image-context-copy = Copiere
 image-context-paste = Lipire
