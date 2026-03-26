@@ -28,11 +28,6 @@ import {
   Checkbox,
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  Textarea,
-  Label,
   useTranslation
 } from '@newwork/nw-design-system'
 import {
@@ -60,8 +55,7 @@ import {
   Wand2
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
-import { openEveryAI } from '@/common/utils/openEveryAI'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
 import { SlidesHero } from './components/SlidesHero'
 import type { SlideSection } from './components/SlidesHero'
@@ -180,7 +174,6 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [slideForManageShares, setSlideForManageShares] = useState<string | null>(null)
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [showTemplateBrowserDialog, setShowTemplateBrowserDialog] = useState(false)
-  const [showQuickAiDialog, setShowQuickAiDialog] = useState(false)
   const [showGenerateDialogChat, setShowGenerateDialogChat] = useState(false)
   const [pendingTemplateSlides, setPendingTemplateSlides] = useState<{
     slides: SlideData[]
@@ -1090,86 +1083,6 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             }}
             data-testid={`${testId}-import-uploader`}
           />
-        </DialogContent>
-      </Dialog>
-
-      {/* Quick AI Generation Dialog */}
-      <Dialog open={showQuickAiDialog} onOpenChange={setShowQuickAiDialog}>
-        <DialogContent className="gba:max-w-md" data-testid={`${testId}-quick-ai-dialog`}>
-          <DialogHeader>
-            <DialogTitle>{t('quick-ai-title') || 'Generate Presentation with AI'}</DialogTitle>
-          </DialogHeader>
-          <div className="gba:space-y-4 gba:py-4">
-            <div className="gba:space-y-2">
-              <Label htmlFor="quick-ai-description">
-                {t('quick-ai-description-label') || 'What should the presentation be about?'}
-              </Label>
-              <Textarea
-                id="quick-ai-description"
-                placeholder={t('quick-ai-placeholder') || 'e.g., about Istanbul, Q4 business review, product launch...'}
-                rows={3}
-                className="gba:resize-none"
-                data-testid={`${testId}-quick-ai-input`}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    const description = (e.target as HTMLTextAreaElement).value.trim()
-                    if (description) {
-                      const prompt = `Create a new EverySlides presentation: ${description}\n\nPresentation details:\n- Target length: 9-14 slides\n\nInstructions:\n1. FIRST call create_everyslides_presentation tool with:\n   - reason: "User requested new presentation"\n   - description: "${description}"\n   - length: "medium"\n   - additional_requirements: ""\n2. ONLY if presentation creation fails due to missing data, then gather additional facts.\n3. Return the presentation link when created.`
-
-                      openEveryAI({
-                        prompt,
-                        skills: ['Slides']
-                      })
-
-                      setShowQuickAiDialog(false)
-
-                      setTimeout(() => {
-                        const everyAiMounted = Boolean(document.querySelector('[data-testid="every-ai-app"]'))
-                        if (!everyAiMounted) {
-                          window.location.href = Navigation.PLATFORM_AI_CHAT
-                        }
-                      }, 500)
-                    }
-                  }
-                }}
-              />
-              <p className="gba:text-xs gba:text-muted-foreground">
-                {t('quick-ai-hint') || 'Press Cmd+Enter to generate'}
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowQuickAiDialog(false)}>
-              {t('generate-cancel') || 'Cancel'}
-            </Button>
-            <Button
-              onClick={() => {
-                const textarea = document.getElementById('quick-ai-description') as HTMLTextAreaElement
-                const description = textarea?.value.trim()
-                if (description) {
-                  const prompt = `Create a new EverySlides presentation: ${description}\n\nPresentation details:\n- Target length: 9-14 slides\n\nInstructions:\n1. FIRST call create_everyslides_presentation tool with:\n   - reason: "User requested new presentation"\n   - description: "${description}"\n   - length: "medium"\n   - additional_requirements: ""\n2. ONLY if presentation creation fails due to missing data, then gather additional facts.\n3. Return the presentation link when created.`
-
-                  openEveryAI({
-                    prompt,
-                    skills: ['Slides']
-                  })
-
-                  setShowQuickAiDialog(false)
-
-                  setTimeout(() => {
-                    const everyAiMounted = Boolean(document.querySelector('[data-testid="every-ai-app"]'))
-                    if (!everyAiMounted) {
-                      window.location.href = Navigation.PLATFORM_AI_CHAT
-                    }
-                  }, 500)
-                }
-              }}
-              data-testid={`${testId}-quick-ai-submit`}
-            >
-              <Wand2 className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('quick-ai-generate') || 'Generate'}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

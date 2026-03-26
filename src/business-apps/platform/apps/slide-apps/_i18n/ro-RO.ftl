@@ -27,6 +27,8 @@ sidebar-storage-slides = { $count } slide-uri
 
 menu-new-blank-title = Slide gol
 menu-new-blank-description = Începeți de la zero
+menu-new-ai-title = Generați cu AI
+menu-new-ai-description = Creați prezentare folosind AI
 menu-new-template-title = Din șablon
 menu-new-template-description = Alegeți un șablon
 menu-new-import-title = Importați PowerPoint
@@ -273,6 +275,8 @@ header-manage-access = Gestionare acces...
 # Generate Presentation
 generate-title = Generare prezentare
 generate-description = Descrieți ce aveți nevoie și AI va crea slide-urile.
+generate-presentation-title-label = Titlu prezentare
+generate-presentation-title-placeholder = de ex., Raport Q4
 generate-topic = Temă
 generate-topic-placeholder = Revizie trimestrială acoperind metrici vânzări, reușite echipă și obiective Q2...
 generate-length = Lungime
