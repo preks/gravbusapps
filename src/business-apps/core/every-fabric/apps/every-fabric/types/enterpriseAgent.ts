@@ -9,8 +9,11 @@ export interface DeepAgentSession {
   reflection?: ReflectionResult
   quality_score?: number
   cost_summary?: CostSummary
+  duration_ms?: number
   created_at: string
   updated_at: string
+  started_at?: string
+  completed_at?: string
   config?: SessionConfig
   human_question?: string | null
 }
@@ -33,17 +36,23 @@ export interface AgentChunkEvent {
   content: string
   timestamp: string
   chunk_kind?: AgentStreamChunkKind
+  tool_name?: string
+  tool_input?: Record<string, unknown>
+  step_id?: string
 }
 
 export interface AgentTerminalEvent {
   type: 'terminal'
   seq: number
   event_id: string
+  timestamp?: string
   status: 'completed' | 'failed' | 'cancelled' | 'waiting_for_human'
   output?: string | null
   todos?: TodoItem[]
   reflection?: ReflectionResult | null
   human_question?: string | null
+  duration_ms?: number
+  cost_summary?: CostSummary | null
 }
 
 export interface AgentErrorEvent {
@@ -51,7 +60,62 @@ export interface AgentErrorEvent {
   message: string
 }
 
-export type AgentStreamEvent = AgentChunkEvent | AgentTerminalEvent | AgentErrorEvent
+export interface AgentStepStartedEvent {
+  type: 'step_started'
+  seq: number
+  event_id: string
+  step_id: string
+  step_type?: 'tool' | 'thinking' | 'subagent'
+  name?: string
+  input?: Record<string, unknown>
+  timestamp: string
+}
+
+export interface AgentStepCompletedEvent {
+  type: 'step_completed'
+  seq: number
+  event_id: string
+  step_id: string
+  status?: 'done' | 'failed'
+  output?: string
+  duration_ms?: number
+  name?: string
+  timestamp: string
+}
+
+export interface AgentSubagentSpawnedEvent {
+  type: 'subagent_spawned'
+  seq: number
+  event_id: string
+  step_id: string
+  name?: string
+  subagent_id?: string
+  parent_step_id?: string
+  task_summary?: string
+  timestamp: string
+}
+
+export interface AgentSubagentCompletedEvent {
+  type: 'subagent_completed'
+  seq: number
+  event_id: string
+  step_id: string
+  status?: 'done' | 'failed'
+  output?: string
+  duration_ms?: number
+  subagent_id?: string
+  name?: string
+  timestamp: string
+}
+
+export type AgentStreamEvent =
+  | AgentChunkEvent
+  | AgentTerminalEvent
+  | AgentErrorEvent
+  | AgentStepStartedEvent
+  | AgentStepCompletedEvent
+  | AgentSubagentSpawnedEvent
+  | AgentSubagentCompletedEvent
 
 export interface ReflectionResult {
   complete: boolean
@@ -105,7 +169,7 @@ export interface ActivityEvent {
   durationMs?: number
 }
 
-export type TraceEvent = AgentChunkEvent
+export type TraceEvent = AgentStreamEvent
 
 export interface ActionSummary {
   step: string
@@ -117,6 +181,8 @@ export interface RunningSessionSummary {
   session_id: string
   input: string
   started_at: string
+  current_step?: string
+  step_count?: number
 }
 
 export interface WaitingSessionSummary {
