@@ -15,6 +15,7 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { Document, DocumentFormatting } from '../../types'
 import { sanitizeDocumentHtmlForEditor } from '../../utils/documentContentUtils'
+import { setDocumentTocLayoutHints } from '../../utils/tocLayoutBridge'
 import { createDocumentImageUploadHandler } from '../../utils/documentImageBindings'
 import { useDocumentEditorAvatars, useDocumentEditorShortcuts, useVersionUserDisplays } from '../../hooks'
 import { useOfficeDocumentCollaboration } from '../../hooks/useOfficeDocumentCollaboration'
@@ -59,6 +60,7 @@ import {
   getSelectedImageState,
   usePagedDocumentSelectionSidebars
 } from './hooks/usePagedDocumentSelectionSidebars'
+import { DOCUMENT_TOC_OPEN_FORMAT_EVENT } from './components/DocumentTableOfContentsView'
 import { useDocumentContextMenu } from './useDocumentContextMenu'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
@@ -338,10 +340,26 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showInsertSignatureDialog, setShowInsertSignatureDialog] = useState(false)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
+    const [tocSidebarNodePos, setTocSidebarNodePos] = useState<number | null>(null)
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const suppressYjsSnapshotSaveRef = useRef(false)
     const autocompleteRolloutEnabled = useMemo(() => isAutocompleteRolloutEnabled(), [])
+
+    useEffect(() => {
+      if (globalThis.window === undefined) return
+      type TocOpenFormatEvent = CustomEvent<{ pos: number }>
+      const handleOpenTocSidebar = (evt: Event) => {
+        const customEvent = evt as TocOpenFormatEvent
+        const nextPos = customEvent.detail?.pos
+        if (typeof nextPos !== 'number') return
+        setTocSidebarNodePos(nextPos)
+        setRightSidebar('toc')
+      }
+
+      globalThis.window.addEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
+      return () => globalThis.window.removeEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
+    }, [])
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -913,6 +931,24 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         isYjsSynced,
         layoutInputsKey
       })
+
+    useEffect(() => {
+      setDocumentTocLayoutHints({
+        pageBounds: layoutViewportModel.pageBounds,
+        mountedPageBodyBounds: layoutViewportModel.mountedPageBodyBounds,
+        pagePositionRanges: layoutViewportModel.pagePositionRanges,
+        pageSpans: layoutViewportModel.pageSpans,
+        retainedPageSpans: layoutViewportModel.retainedPageSpans
+      })
+      return () => setDocumentTocLayoutHints(undefined)
+    }, [
+      layoutViewportModel.layoutVersion,
+      layoutViewportModel.mountedPageBodyBounds,
+      layoutViewportModel.pageBounds,
+      layoutViewportModel.pagePositionRanges,
+      layoutViewportModel.pageSpans,
+      layoutViewportModel.retainedPageSpans
+    ])
 
     const handleInsertSignatureFromDialog = useCallback(
       (sig: {
@@ -1517,6 +1553,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           imageContextSubtitle={imageSidebarContextSubtitleKey ? t(imageSidebarContextSubtitleKey) : undefined}
           onCloseImageSidebar={closeImageSettingsSidebar}
           onReplaceImage={openReplaceImageDialog}
+          tocSidebarNodePos={tocSidebarNodePos}
+          onCloseTocSidebar={() => {
+            setRightSidebar('closed')
+            setTocSidebarNodePos(null)
+          }}
           showInlineCommentPopover={showInlineCommentPopover}
           inlineCommentPosition={inlineCommentPosition}
           onSubmitInlineComment={handleSubmitInlineComment}
