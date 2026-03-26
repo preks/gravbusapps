@@ -77,7 +77,6 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   const { t } = useTranslation(translations)
   const [isCompleting, setIsCompleting] = React.useState(false)
   const [screenMetadata, setScreenMetadata] = React.useState<any>(null)
-  const [loadingScreen, setLoadingScreen] = React.useState(true)
   const { fetchScreenByKey } = useScreenManagementApi(accessToken)
 
   // Fetch flow step data for CFlow tasks
@@ -365,61 +364,58 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     return screenKey
   }, [])
 
+  // Stable identity for screen registry: avoids refetching metadata when the same task is replaced
+  // by a new object reference (e.g. mark-as-read updating userState in the list).
+  const screenRegistryKey = React.useMemo(
+    () => (task.source === 'cflow' || task.source === 'kogito' ? generateScreenKey(task) : null),
+    [task.id, task.source, task.tags?.app, task.sourceMetadata?.endpoint, generateScreenKey]
+  )
+
+  const [registryFetchSettled, setRegistryFetchSettled] = React.useState(false)
+  const registryFetchGenRef = React.useRef(0)
+  const fetchScreenByKeyRef = React.useRef(fetchScreenByKey)
+  fetchScreenByKeyRef.current = fetchScreenByKey
+
+  React.useLayoutEffect(() => {
+    setScreenMetadata(null)
+  }, [task.id, task.source, screenRegistryKey])
+
   React.useEffect(() => {
-    const loadScreenMetadata = async () => {
-      if (!task) {
-        setLoadingScreen(false)
-        return
-      }
-
-      if (task.source === 'cflow') {
-        const screenKey = generateScreenKey(task)
-
-        if (!screenKey) {
-          setLoadingScreen(false)
-          setScreenMetadata(null)
-          return
-        }
-
-        setLoadingScreen(true)
-        try {
-          const metadata = await fetchScreenByKey(screenKey)
-          setScreenMetadata(metadata)
-        } catch {
-          setScreenMetadata(null)
-        } finally {
-          setLoadingScreen(false)
-        }
-        return
-      }
-
-      if (task.source === 'kogito') {
-        const screenKey = generateScreenKey(task)
-
-        if (!screenKey) {
-          setLoadingScreen(false)
-          setScreenMetadata(null)
-          return
-        }
-
-        setLoadingScreen(true)
-        try {
-          const metadata = await fetchScreenByKey(screenKey)
-          setScreenMetadata(metadata)
-        } catch {
-          setScreenMetadata(null)
-        } finally {
-          setLoadingScreen(false)
-        }
-        return
-      }
-
-      setLoadingScreen(false)
-      setScreenMetadata(null)
+    if (!screenRegistryKey) {
+      setRegistryFetchSettled(true)
+      return
     }
 
-    loadScreenMetadata()
-  }, [task, fetchScreenByKey, generateScreenKey])
+    const gen = ++registryFetchGenRef.current
+    setRegistryFetchSettled(false)
+
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const metadata = await fetchScreenByKeyRef.current(screenRegistryKey)
+        if (cancelled || gen !== registryFetchGenRef.current) {
+          return
+        }
+        setScreenMetadata(metadata)
+      } catch {
+        if (!cancelled && gen === registryFetchGenRef.current) {
+          setScreenMetadata(null)
+        }
+      } finally {
+        // Do not gate on `cancelled`: Strict Mode / fast remount cancels the effect while the
+        // in-flight request still completes with cancelled=true, which previously left the UI
+        // stuck on "loading". Only the latest generation may unblock the panel.
+        if (gen === registryFetchGenRef.current) {
+          setRegistryFetchSettled(true)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [screenRegistryKey, task.id, task.source])
 
   const handleCompleteBlinkTask = async () => {
     if (!task?.id || !userId) {
@@ -482,7 +478,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   }
 
   const renderTaskContent = () => {
-    if (loadingScreen) {
+    if (screenRegistryKey && !registryFetchSettled) {
       return (
         <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
           <div className="gba:text-muted-foreground">{t('task-dialog-loading')}</div>
@@ -490,7 +486,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       )
     }
 
-    if (task.source === 'cflow' && !screenMetadata) {
+    if (task.source === 'cflow' && (!screenRegistryKey || !screenMetadata)) {
       return (
         <UniversalCflowTaskDetails
           task={task}
@@ -606,7 +602,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           'gba:flex-1 gba:min-h-0',
           screenMetadata?.builderType === 'NATIVE_SCREEN'
             ? 'gba:overflow-hidden gba:flex gba:flex-col'
-            : task.source === 'cflow' && !screenMetadata && !loadingScreen
+            : task.source === 'cflow' && !screenMetadata && (registryFetchSettled || !screenRegistryKey)
               ? 'gba:overflow-hidden gba:flex gba:flex-col'
               : 'gba:overflow-y-auto'
         )}

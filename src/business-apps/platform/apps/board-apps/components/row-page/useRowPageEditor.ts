@@ -10,9 +10,9 @@ import { Typography } from '@tiptap/extension-typography'
 import { TaskList } from '@tiptap/extension-task-list'
 import { TaskItem } from '@tiptap/extension-task-item'
 import Collaboration from '@tiptap/extension-collaboration'
-import { createYjsCursorExtension } from '@/business-apps/platform/apps/document-apps/components/PagedDocumentEditor/extensions/YjsCursor'
-import { DocumentImage } from '@/business-apps/platform/apps/document-apps/components/PagedDocumentEditor/extensions/DocumentImage'
-import { uploadDocumentImage } from '@/business-apps/platform/apps/document-apps/services/DocumentImageUploadService'
+import { createYjsCursorExtension } from '@/business-apps/core/office/apps/documents/components/PagedDocumentEditor/extensions/YjsCursor'
+import { DocumentImage } from '@/business-apps/core/office/apps/documents/components/PagedDocumentEditor/extensions/DocumentImage'
+import { uploadDocumentImage } from '@/business-apps/core/office/apps/documents/services/DocumentImageUploadService'
 import type * as Y from 'yjs'
 import type { Awareness } from 'y-protocols/awareness'
 
@@ -154,7 +154,7 @@ export function useRowPageEditor({ accessToken, documentId, onDirty, ydoc, aware
       if (!editor) return
       isSettingContentRef.current = true
       try {
-        editor.commands.setContent(html || '', false)
+        editor.commands.setContent(html || '', { emitUpdate: false })
       } finally {
         isSettingContentRef.current = false
       }

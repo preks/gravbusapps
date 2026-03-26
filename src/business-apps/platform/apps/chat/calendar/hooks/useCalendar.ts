@@ -5,7 +5,8 @@ import localizedFormat from 'dayjs/plugin/localizedFormat'
 import 'dayjs/locale/de'
 import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
-import { CalendarApiClient, createCalendarApiClient } from '../calendarApiClient'
+import { useChatClient } from '@/common/network/chat/useChatClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import type {
   CalendarView,
   CalendarEvent,
@@ -14,7 +15,8 @@ import type {
   CreateMeetingData,
   UpdateMeetingData,
   InvitationResponse,
-  InvitationStatus
+  InvitationStatus,
+  MeetingParticipant
 } from '../types'
 import { getWeekRange, getMonthRange, getDayRange } from '../types'
 
@@ -22,8 +24,6 @@ dayjs.extend(localizedFormat)
 
 interface UseCalendarOptions {
   accessToken: string
-  apiUrl: string
-  wsUrl?: string
   /** External calendar events to merge with internal events */
   externalEvents?: CalendarEvent[]
 }
@@ -39,7 +39,7 @@ interface UseCalendarReturn {
   error: string | null
 
   // API client
-  apiClient: CalendarApiClient | null
+  apiClient: ChatClient
 
   // Navigation
   setCurrentDate: (date: Date) => void
@@ -66,7 +66,7 @@ interface UseCalendarReturn {
   viewTitle: string
 }
 
-export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCalendarOptions): UseCalendarReturn => {
+export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOptions): UseCalendarReturn => {
   const { locale } = useLocale()
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
   const [view, setView] = useState<CalendarView>('day')
@@ -76,11 +76,7 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Create API client
-  const apiClient = useMemo(() => {
-    if (!accessToken || !apiUrl) return null
-    return createCalendarApiClient(apiUrl, accessToken)
-  }, [accessToken, apiUrl])
+  const apiClient = useChatClient(accessToken)
 
   // Calculate date range based on view
   const dateRange = useMemo((): DateRange => {
@@ -133,15 +129,20 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
 
   // Load internal events for current date range (stable callback for manual refresh)
   const loadEvents = useCallback(async () => {
-    if (!apiClient) return
-
     setIsLoading(true)
     setError(null)
 
     try {
-      const loadedEvents = await apiClient.getCalendarEvents(dateRange.start, dateRange.end)
+      const response = await apiClient.getCalendarEvents<{ events: CalendarEvent[] }>(
+        dateRange.start.toISOString(),
+        dateRange.end.toISOString()
+      )
+      const loadedEvents = (response.events || []).map(evt => ({
+        ...evt,
+        start: new Date(evt.start),
+        end: new Date(evt.end)
+      }))
 
-      // Mark internal events with source
       setInternalEvents(
         loadedEvents.map(evt => ({
           ...evt,
@@ -160,8 +161,6 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
   const rangeStartMs = dateRange.start.getTime()
   const rangeEndMs = dateRange.end.getTime()
   useEffect(() => {
-    if (!apiClient) return
-
     let cancelled = false
     setIsLoading(true)
     setError(null)
@@ -169,9 +168,14 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
     const start = new Date(rangeStartMs)
     const end = new Date(rangeEndMs)
     apiClient
-      .getCalendarEvents(start, end)
-      .then(loadedEvents => {
+      .getCalendarEvents<{ events: CalendarEvent[] }>(start.toISOString(), end.toISOString())
+      .then(response => {
         if (cancelled) return
+        const loadedEvents = (response.events || []).map(evt => ({
+          ...evt,
+          start: new Date(evt.start),
+          end: new Date(evt.end)
+        }))
         setInternalEvents(
           loadedEvents.map(evt => ({
             ...evt,
@@ -212,11 +216,9 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
 
   // Load pending invitations
   const loadInvitations = useCallback(async () => {
-    if (!apiClient) return
-
     try {
-      const invitations = await apiClient.getPendingInvitations()
-      setPendingInvitations(invitations)
+      const response = await apiClient.getPendingInvitations<{ meetings: Meeting[] }>()
+      setPendingInvitations(response.meetings || [])
     } catch (err) {
       console.error('Error loading pending invitations:', err)
     }
@@ -267,32 +269,26 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
   // Meeting operations
   const createMeeting = useCallback(
     async (data: CreateMeetingData): Promise<Meeting> => {
-      if (!apiClient) throw new Error('Calendar not initialized')
-
-      const meeting = await apiClient.createMeeting(data)
-      await loadEvents() // Refresh events
-      return meeting
+      const response = await apiClient.createMeeting<{ meeting: Meeting }>(data)
+      await loadEvents()
+      return response.meeting
     },
     [apiClient, loadEvents]
   )
 
   const updateMeeting = useCallback(
     async (meetingId: string, data: UpdateMeetingData): Promise<Meeting> => {
-      if (!apiClient) throw new Error('Calendar not initialized')
-
-      const meeting = await apiClient.updateMeeting(meetingId, data)
-      await loadEvents() // Refresh events
-      return meeting
+      const response = await apiClient.updateMeeting<{ meeting: Meeting }>(meetingId, data)
+      await loadEvents()
+      return response.meeting
     },
     [apiClient, loadEvents]
   )
 
   const cancelMeeting = useCallback(
     async (meetingId: string): Promise<void> => {
-      if (!apiClient) throw new Error('Calendar not initialized')
-
       await apiClient.cancelMeeting(meetingId)
-      await loadEvents() // Refresh events
+      await loadEvents()
       setSelectedEvent(null)
     },
     [apiClient, loadEvents]
@@ -300,9 +296,7 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
 
   const respondToInvitation = useCallback(
     async (meetingId: string, response: InvitationResponse): Promise<void> => {
-      if (!apiClient) throw new Error('Calendar not initialized')
-
-      await apiClient.respondToInvitation(meetingId, response)
+      await apiClient.respondToInvitation<{ participant: MeetingParticipant }>(meetingId, response)
 
       // Refresh both events and invitations
       await Promise.all([loadEvents(), loadInvitations()])

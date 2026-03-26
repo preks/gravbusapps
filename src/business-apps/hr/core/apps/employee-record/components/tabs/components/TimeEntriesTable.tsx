@@ -174,7 +174,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                   )}
                 </TableCell>
                 <TableCell className="gba:py-1.5 gba:px-2 gba:align-middle">
-                  {!e.isPlaceholder ? (
+                  {!e.isPlaceholder && e.status !== 'pending' ? (
                     <div className="gba:flex gba:items-center gba:justify-start gba:scale-[0.65] gba:origin-left">
                       <AppActionButton
                         data-testid={`time-tracking-update-button-${e.id}`}

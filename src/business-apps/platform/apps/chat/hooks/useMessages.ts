@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef, startTransition, useMemo } from 'react'
 import type { Message, PaginatedResponse, Conversation } from '../types'
-import { ChatApiClient } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import { devPerf } from '../utils/performanceUtils'
 import { useCache } from './useCache'
 
 interface UseMessagesOptions {
-  apiClient: ChatApiClient
+  apiClient: ChatClient
   conversationId: string | null
   currentUserId?: string | null
   conversation?: Conversation | null

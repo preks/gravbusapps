@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import { MessageSquare, Users, Phone, TrendingUp, Calendar } from 'lucide-react'
-import type { UserOverviewResponse } from '../../services/chatApiClient'
+import type { UserOverviewResponse } from '../../types'
 
 interface PersonalStatsProps {
   overview: UserOverviewResponse | null

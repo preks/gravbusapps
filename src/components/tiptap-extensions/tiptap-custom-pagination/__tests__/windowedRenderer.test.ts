@@ -594,6 +594,8 @@ describe('renderWindowedPaginationChrome', () => {
     expect(chrome.querySelector('[data-rm-pagination]')).not.toBeNull()
     expect(chrome.querySelector('.rm-first-page-header')).not.toBeNull()
     expect(chrome.querySelector('.rm-page-header-content')?.innerHTML).toContain('Header title')
+    expect(chrome.firstElementChild?.className).toBe('rm-first-page-header')
+    expect(chrome.lastElementChild?.getAttribute('data-rm-pagination')).toBe('true')
     expect(chrome.querySelectorAll('.rm-page-gap')).toHaveLength(1)
     expect(chrome.querySelectorAll('.rm-page-spacer')).toHaveLength(1)
   })
