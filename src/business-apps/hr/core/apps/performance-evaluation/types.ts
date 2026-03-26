@@ -3,7 +3,7 @@
 export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
 export type ParticipantType = 'Self' | 'Peer' | 'Manager'
 
-export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive'
+export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive' | 'Completed'
 
 export interface EvaluationStage {
   id: string
