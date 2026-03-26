@@ -69,30 +69,21 @@ function formatDateOnly(isoOrTimestamp: string | null): string {
   return `${y}-${m}-${day}`
 }
 
-/** Map API status to UI CycleStatus. Check recordState, then status, then dates. */
+/** Map API status to UI CycleStatus using DB completed flag + evaluation period dates. */
 function apiStatusToUiStatus(
   apiStatus: string | null,
-  recordState: string | null,
-  startDate: string,
-  endDate: string,
-  active: boolean | null
+  evaluationPeriodStartDate: string | undefined,
+  evaluationPeriodEndDate: string | undefined
 ): CycleStatus {
-  // Check recordState first - inactive/deleted cycles are always Inactive
-  if (recordState && recordState.toLowerCase() !== 'active') return 'Inactive'
-
-  // Check explicit status - map status enum to UI status
-  if (apiStatus === 'ACTIVE_PERFORMANCE_CYCLE_STATUS') return 'Active'
-  if (apiStatus === 'DRAFT_PERFORMANCE_CYCLE_STATUS') return 'Active'
-  if (apiStatus === 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS') return 'Inactive'
   if (apiStatus === 'COMPLETED_PERFORMANCE_CYCLE_STATUS') return 'Completed'
-  if (active === false) return 'Inactive'
 
-  // For other statuses, use date-based determination
-  const today = new Date()
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  if (today < start) return 'Upcoming'
-  if (today >= start && today <= end) return 'Active'
+  if (evaluationPeriodStartDate && evaluationPeriodEndDate) {
+    const today = new Date()
+    const start = new Date(evaluationPeriodStartDate)
+    const end = new Date(evaluationPeriodEndDate)
+    if (today >= start && today <= end) return 'Active'
+  }
+
   return 'Inactive'
 }
 
@@ -103,13 +94,16 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
     .filter(p => p.enabled === true)
     .map(p => apiParticipantToUi(p.participantType))
     .filter((p): p is ParticipantType => p !== null)
-  const active = true
-  const status = apiStatusToUiStatus(api.status, api.recordState, startDate, endDate, active)
   const valueIds = (api.performanceCycleCompanyValue ?? [])
     .map(pc => pc.companyValueId)
     .filter((id): id is string => id != null && id !== '')
   const evaluationPeriodStartDate = formatDateOnly(api.evaluationPeriodStartDate ?? '')
   const evaluationPeriodEndDate = formatDateOnly(api.evaluationPeriodEndDate ?? '')
+  const status = apiStatusToUiStatus(
+    api.status,
+    evaluationPeriodStartDate || undefined,
+    evaluationPeriodEndDate || undefined
+  )
   return {
     id: api.id,
     version: api.version ?? 0,

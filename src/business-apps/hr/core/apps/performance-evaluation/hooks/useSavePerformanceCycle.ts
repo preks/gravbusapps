@@ -115,22 +115,10 @@ function buildSavePayload(values: CycleEditorValues): SavePerformanceCyclePayloa
   }
 }
 
-/** Minimal cycle shape needed for updatePerformanceCycle (activate/deactivate). */
+/** Minimal cycle shape needed for updatePerformanceCycle. */
 export interface CycleForUpdate {
   id: string
   version?: number
-}
-
-/** Build minimal payload for updatePerformanceCycle (id, version, status only). */
-function buildUpdateActivePayload(cycle: CycleForUpdate, isActive: boolean): UpdatePerformanceCyclePayload {
-  const status = isActive ? 'DRAFT_PERFORMANCE_CYCLE_STATUS' : 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS'
-  return {
-    performanceCycle: {
-      id: cycle.id,
-      version: cycle.version ?? 0,
-      status
-    }
-  }
 }
 
 function buildCompletePayload(cycle: CycleForUpdate): UpdatePerformanceCyclePayload {
@@ -145,7 +133,6 @@ function buildCompletePayload(cycle: CycleForUpdate): UpdatePerformanceCyclePayl
 
 export interface UseSavePerformanceCycleResult {
   savePerformanceCycle: (values: CycleEditorValues) => Promise<SavePerformanceCycleResponse | null>
-  updateCycleActive: (cycle: CycleForUpdate, isActive: boolean) => Promise<UpdatePerformanceCycleResponse | null>
   completeCycle: (cycle: CycleForUpdate) => Promise<UpdatePerformanceCycleResponse | null>
   deletePerformanceCycle: (cycle: CycleForUpdate) => Promise<DeletePerformanceCycleResponse | null>
 }
@@ -156,16 +143,6 @@ export function useSavePerformanceCycle(accessToken: string | undefined): UseSav
       if (!accessToken) return null
       const payload = buildSavePayload(values)
       const result = await savePerformanceCycleApi(accessToken, payload)
-      return result ?? null
-    },
-    [accessToken]
-  )
-
-  const updateCycleActive = useCallback(
-    async (cycle: CycleForUpdate, isActive: boolean): Promise<UpdatePerformanceCycleResponse | null> => {
-      if (!accessToken) return null
-      const payload = buildUpdateActivePayload(cycle, isActive)
-      const result = await updatePerformanceCycleApi(accessToken, payload)
       return result ?? null
     },
     [accessToken]
@@ -193,5 +170,5 @@ export function useSavePerformanceCycle(accessToken: string | undefined): UseSav
     [accessToken]
   )
 
-  return { savePerformanceCycle, updateCycleActive, completeCycle, deletePerformanceCycle }
+  return { savePerformanceCycle, completeCycle, deletePerformanceCycle }
 }

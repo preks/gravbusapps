@@ -25,7 +25,7 @@ import {
   Trash,
   Warning as WarningIcon
 } from '@phosphor-icons/react'
-import type { PerformanceCycle, RatingScale, ValueItemStored } from '../types'
+import type { CycleStatus, PerformanceCycle, RatingScale, ValueItemStored } from '../types'
 import CycleEditorModal, {
   CycleEditorValues,
   EvaluationStage as EditorStage,
@@ -41,8 +41,6 @@ export interface PerformanceCyclesProps {
   ratingScales: RatingScale[]
   valuesStore: ValueItemStored[]
   onSaveFromModal: (values: CycleEditorValues) => Promise<void>
-  onActivate: (cycleId: string) => Promise<void>
-  onDeactivate: (cycleId: string) => Promise<void>
   onCompleteCycle: (cycleId: string) => Promise<void>
   onDeleteCycle: (cycle: PerformanceCycle) => Promise<void>
   onStartCycle: (cycleId: string) => void
@@ -55,8 +53,6 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   ratingScales,
   valuesStore,
   onSaveFromModal,
-  onActivate,
-  onDeactivate,
   onCompleteCycle,
   onDeleteCycle,
   onStartCycle
@@ -66,31 +62,19 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   const [editing, setEditing] = useState<PerformanceCycle | null>(null)
   const [dateOverlapError, setDateOverlapError] = useState<string | null>(null)
 
-  const isDateWithinCyclePeriod = (cycle: PerformanceCycle): boolean => {
-    const today = new Date()
-    const start = new Date(cycle.startDate)
-    const end = new Date(cycle.endDate)
-    return today >= start && today <= end
+  const computeDisplayStatus = (c: PerformanceCycle): CycleStatus => {
+    if (c.status === 'Completed') return 'Completed'
+    if (c.evaluationPeriodStartDate && c.evaluationPeriodEndDate) {
+      const today = new Date()
+      const start = new Date(c.evaluationPeriodStartDate)
+      const end = new Date(c.evaluationPeriodEndDate)
+      if (today >= start && today <= end) return 'Active'
+    }
+    return 'Inactive'
   }
 
   const canStartCycle = (cycle: PerformanceCycle): boolean => {
-    return cycle.status === 'Active' && isDateWithinCyclePeriod(cycle)
-  }
-
-  const canActivateCycle = (cycle: PerformanceCycle): boolean => {
-    return isDateWithinCyclePeriod(cycle)
-  }
-
-  const handleActivateClick = (cycle: PerformanceCycle) => {
-    if (!canActivateCycle(cycle)) {
-      toast.warning(t('error-activate-out-of-period'), {
-        position: 'bottom-right',
-        className: 'gba:text-base',
-        icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
-      })
-      return
-    }
-    onActivate(cycle.id)
+    return computeDisplayStatus(cycle) === 'Active'
   }
 
   const handleEdit = (cycle: PerformanceCycle) => {
@@ -210,19 +194,22 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                         <TableCell>{valueTitles}</TableCell>
                         <TableCell>{participants}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              c.status === 'Active'
-                                ? 'success'
-                                : c.status === 'Upcoming'
-                                  ? 'info'
-                                  : c.status === 'Completed'
-                                    ? 'default'
-                                    : 'secondary'
-                            }
-                          >
-                            {c.status === 'Completed' ? t('status-completed') : c.status}
-                          </Badge>
+                          {(() => {
+                            const displayStatus = computeDisplayStatus(c)
+                            return (
+                              <Badge
+                                variant={
+                                  displayStatus === 'Active'
+                                    ? 'success'
+                                    : displayStatus === 'Completed'
+                                      ? 'default'
+                                      : 'secondary'
+                                }
+                              >
+                                {displayStatus === 'Completed' ? t('status-completed') : displayStatus}
+                              </Badge>
+                            )
+                          })()}
                         </TableCell>
                         <TableCell className="gba:text-right">
                           <div className="gba:flex gba:justify-end gba:gap-1">
@@ -238,26 +225,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                             >
                               <Trash />
                             </Button>
-                            {c.status === 'Inactive' || c.status === 'Completed' ? (
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleActivateClick(c)}
-                                data-testid={`cycle-activate-${c.id}`}
-                              >
-                                {t('button-activate')}
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => onDeactivate(c.id)}
-                                data-testid={`cycle-deactivate-${c.id}`}
-                              >
-                                {t('button-deactivate')}
-                              </Button>
-                            )}
-                            {c.status === 'Active' && (
+                            {computeDisplayStatus(c) === 'Active' && (
                               <Button
                                 variant="default"
                                 size="sm"

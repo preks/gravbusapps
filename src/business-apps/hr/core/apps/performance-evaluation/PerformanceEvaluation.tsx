@@ -25,13 +25,13 @@ import { RatingScales } from './tabs/RatingScales'
 import { CompanyValues } from './tabs/CompanyValues'
 import { StartCycleConfirmDialog } from './components/StartCycleConfirmDialog'
 
-function computeStatus(cycle: Omit<PerformanceCycle, 'status'> & { deactivated?: boolean }) {
-  if (cycle.deactivated) return 'Inactive' as const
-  const today = new Date()
-  const start = new Date(cycle.startDate)
-  const end = new Date(cycle.endDate)
-  if (today < start) return 'Upcoming' as const
-  if (today >= start && today <= end) return 'Active' as const
+function computeStatus(cycle: Omit<PerformanceCycle, 'status'>) {
+  if (cycle.evaluationPeriodStartDate && cycle.evaluationPeriodEndDate) {
+    const today = new Date()
+    const start = new Date(cycle.evaluationPeriodStartDate)
+    const end = new Date(cycle.evaluationPeriodEndDate)
+    if (today >= start && today <= end) return 'Active' as const
+  }
   return 'Inactive' as const
 }
 
@@ -76,8 +76,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     refetch: refetchValues
   } = useCompanyValues(accessToken)
   const { saveRatingScale } = useInsertRatingScale(accessToken)
-  const { savePerformanceCycle, updateCycleActive, completeCycle, deletePerformanceCycle } =
-    useSavePerformanceCycle(accessToken)
+  const { savePerformanceCycle, completeCycle, deletePerformanceCycle } = useSavePerformanceCycle(accessToken)
   const { saveCompanyValue, deleteCompanyValue, updateCompanyValueRecordState } = useSaveCompanyValue(accessToken)
 
   const hrBackoffice = useScopePermissionCheck(
@@ -191,46 +190,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
   }
 
-  const handleActivate = async (cycleId: string) => {
-    const cycle = cycles.find(c => c.id === cycleId)
-    if (!cycle) return
-    if (accessToken) {
-      try {
-        await updateCycleActive(cycle, true)
-        await refetchCycles()
-        toast.success(t('cycle-activated-to-database', { name: cycle.name }) ?? `"${cycle.name}" activated.`)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to activate cycle'
-        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
-        return
-      }
-    } else {
-      setCycles(prev =>
-        prev.map(c =>
-          c.id === cycleId ? { ...c, deactivated: false, status: computeStatus({ ...c, deactivated: false }) } : c
-        )
-      )
-    }
-  }
-
-  const handleDeactivate = async (cycleId: string) => {
-    const cycle = cycles.find(c => c.id === cycleId)
-    if (!cycle) return
-    if (accessToken) {
-      try {
-        await updateCycleActive(cycle, false)
-        await refetchCycles()
-        toast.success(t('cycle-deactivated-to-database', { name: cycle.name }) ?? `"${cycle.name}" deactivated.`)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to deactivate cycle'
-        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
-        return
-      }
-    } else {
-      setCycles(prev => prev.map(c => (c.id === cycleId ? { ...c, deactivated: true, status: 'Inactive' } : c)))
-    }
-  }
-
   const handleCompleteCycle = async (cycleId: string) => {
     const cycle = cycles.find(c => c.id === cycleId)
     if (!cycle) return
@@ -267,13 +226,12 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     const cycle = cycles.find(c => c.id === cycleId)
     if (!cycle) return
 
-    // Validation: Only active cycles can be started
-    if (cycle.status !== 'Active') {
+    const displayStatus = computeStatus(cycle)
+    if (displayStatus !== 'Active') {
       toast.warning(t('cycle-not-active', { name: cycle.name }) ?? `Only active cycles can be started`)
       return
     }
 
-    // Show confirmation dialog
     setStartingCycleId(cycleId)
   }
 
@@ -531,8 +489,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
             ratingScales={ratingScales}
             valuesStore={valuesStore}
             onSaveFromModal={handleSaveFromModal}
-            onActivate={handleActivate}
-            onDeactivate={handleDeactivate}
             onCompleteCycle={handleCompleteCycle}
             onDeleteCycle={handleDeleteCycle}
             onStartCycle={handleStartCycle}
