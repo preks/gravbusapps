@@ -6,9 +6,15 @@ interface FormHeaderProps {
   flowName: string
   isDeleteOperation: boolean
   operation?: 'create' | 'update' | 'delete'
+  bulkItemCount?: number
 }
 
-export const FormHeader: React.FC<FormHeaderProps> = ({ flowName, isDeleteOperation, operation: operationProp }) => {
+export const FormHeader: React.FC<FormHeaderProps> = ({
+  flowName,
+  isDeleteOperation,
+  operation: operationProp,
+  bulkItemCount
+}) => {
   // Use provided operation or extract from flow name as fallback
   const extractedOperation = extractOperation(flowName)
   const operation = operationProp
@@ -54,13 +60,20 @@ export const FormHeader: React.FC<FormHeaderProps> = ({ flowName, isDeleteOperat
             </svg>
             <CardTitle className="gba:text-foreground gba:text-base">{formatFlowName(flowName)}</CardTitle>
           </div>
-          {operation && (
-            <span
-              className={`gba:text-xs gba:font-medium gba:px-2 gba:py-1 gba:rounded-md gba:capitalize ${getBadgeClassName()}`}
-            >
-              {operation}
-            </span>
-          )}
+          <div className="gba:flex gba:items-center gba:gap-1.5">
+            {bulkItemCount != null && (
+              <span className="gba:text-xs gba:font-medium gba:px-2 gba:py-1 gba:rounded-md gba:bg-info-secondary gba:text-info">
+                x{bulkItemCount}
+              </span>
+            )}
+            {operation && (
+              <span
+                className={`gba:text-xs gba:font-medium gba:px-2 gba:py-1 gba:rounded-md gba:capitalize ${getBadgeClassName()}`}
+              >
+                {operation}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </CardHeader>
