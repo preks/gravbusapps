@@ -320,7 +320,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
         fetchActiveCallByConversationId: apiClient
           ? async (conversationId: string) => {
               try {
-                return await apiClient.getActiveCallByConversationId(conversationId)
+                return await apiClient.realtimeKitGetActiveCallByConversation(conversationId)
               } catch {
                 return null
               }

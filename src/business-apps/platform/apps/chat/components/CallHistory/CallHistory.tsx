@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react'
-import { Button, Spinner } from '@newwork/nw-design-system'
+import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
   PhoneIcon,
@@ -9,9 +9,9 @@ import {
   XIcon
 } from '@phosphor-icons/react'
 import { CalendarIcon, UsersIcon } from 'lucide-react'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import translations from '../../_i18n'
 import { useEmployeeAvatars } from '../../hooks/useEmployeeAvatars'
-import type { ChatApiClient } from '../../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import type { CallHistoryFilter, CallHistoryTypeFilter, CallHistoryEntry } from './CallHistoryTypes'
 import type { PresenceData } from '../../hooks/usePresence'
 import { CallHistoryItemJoined, CallHistoryItemOutcome } from './CallHistoryItem'
@@ -68,7 +68,7 @@ function getTypeFilterLabel(f: CallHistoryTypeFilter, t: TFunction): string {
 }
 
 interface CallHistoryProps {
-  apiClient: ChatApiClient
+  apiClient: ChatClient
   accessToken: string
   currentUserId: string
   onBack: () => void
@@ -94,7 +94,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
   refreshTrigger = 0,
   presenceMap
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const { fetchAvatars } = useEmployeeAvatars(accessToken)
   const [filter, setFilter] = useState<CallHistoryFilter>('all')
   const [callTypeFilter, setCallTypeFilter] = useState<CallHistoryTypeFilter>('all')

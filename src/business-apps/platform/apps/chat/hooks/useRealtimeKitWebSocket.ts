@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { toast } from '@newwork/nw-design-system'
-import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
+import type { ChatWebSocketClient } from '@/common/network/chat/ChatWebSocketClient'
 import type { CallParticipant } from '../services/webrtcClient'
 
 export interface UseRealtimeKitWebSocketOptions {

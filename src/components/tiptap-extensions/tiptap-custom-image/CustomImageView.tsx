@@ -336,9 +336,13 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
     const target = wrapper.parentElement ?? wrapper
     const updateMeasurements = () => {
-      setMeasurementContext({
-        containerWidth: target.clientWidth || wrapper.clientWidth || null,
-        containerHeight: target.clientHeight || null
+      const containerWidth = target.clientWidth || wrapper.clientWidth || null
+      const containerHeight = target.clientHeight || null
+      setMeasurementContext(prev => {
+        if (prev.containerWidth === containerWidth && prev.containerHeight === containerHeight) {
+          return prev
+        }
+        return { containerWidth, containerHeight }
       })
     }
 
@@ -357,6 +361,10 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     }
   }, [])
 
+  const accessToken = options.getAccessToken?.() ?? ''
+  const isProtectedSrc = options.isProtectedSrc
+  const resolveProtectedSrc = options.resolveProtectedSrc
+
   useEffect(() => {
     if (!src) {
       setDisplaySrc('')
@@ -364,23 +372,24 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       return
     }
 
-    if (!options.isProtectedSrc(src) || !options.resolveProtectedSrc) {
-      setDisplaySrc(src)
+    if (!isProtectedSrc(src) || !resolveProtectedSrc) {
+      setDisplaySrc(prev => (prev === src ? prev : src))
       setError(false)
       return
     }
 
-    const token = options.getAccessToken()
-    if (!token) {
-      setDisplaySrc(src)
+    if (!accessToken) {
+      setDisplaySrc(prev => (prev === src ? prev : src))
       setError(false)
       return
     }
 
-    setDisplaySrc('')
-    options
-      .resolveProtectedSrc(src, token)
+    let cancelled = false
+
+    setDisplaySrc(prev => (prev === '' ? prev : ''))
+    resolveProtectedSrc(src, accessToken)
       .then(resolved => {
+        if (cancelled) return
         if (objectUrlRef.current) {
           URL.revokeObjectURL(objectUrlRef.current)
           objectUrlRef.current = null
@@ -395,17 +404,19 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
         setError(false)
       })
       .catch(() => {
+        if (cancelled) return
         setDisplaySrc('')
         setError(true)
       })
 
     return () => {
+      cancelled = true
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current)
         objectUrlRef.current = null
       }
     }
-  }, [options, src])
+  }, [accessToken, isProtectedSrc, resolveProtectedSrc, src])
 
   const handleImageLoad = useCallback(
     (event: React.SyntheticEvent<HTMLImageElement>) => {
@@ -421,7 +432,9 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       const currentNode = editor.state.doc.nodeAt(pos)
       if (currentNode?.type.name !== 'image') return
 
-      if (currentNode.attrs.originalWidth === naturalWidth && currentNode.attrs.originalHeight === naturalHeight) {
+      const prevOw = Number(currentNode.attrs.originalWidth)
+      const prevOh = Number(currentNode.attrs.originalHeight)
+      if (prevOw === naturalWidth && prevOh === naturalHeight) {
         return
       }
 

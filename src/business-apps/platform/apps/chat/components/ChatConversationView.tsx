@@ -14,7 +14,7 @@ import { AIThinkingIndicator, AIResponseRenderer, ExpertThinkingIndicator } from
 import type { Conversation, Message, TypingIndicator, EntityReference, MessageEntityReference } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
-import type { ChatApiClient } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 
 export interface ChatConversationViewProps {
   prefixDataTestId: string
@@ -53,7 +53,7 @@ export interface ChatConversationViewProps {
   onReplyToAI: () => void
   accessToken: string | undefined
   onSendMessage: (content: string, metadata?: Record<string, unknown>) => Promise<void>
-  apiClient: ChatApiClient | null
+  apiClient: ChatClient | null
   onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
   isAIProcessing: boolean
   aiStreamingText: string | null

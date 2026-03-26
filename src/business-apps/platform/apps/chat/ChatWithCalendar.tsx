@@ -5,7 +5,8 @@ import {
   TabSwitchTrigger,
   TabSwitchContent,
   TabSwitchBadge,
-  Button
+  Button,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { MessageSquare, Calendar as CalendarIcon, Sparkles, Bell, LayoutDashboard } from 'lucide-react'
 import { ArrowsOut } from '@phosphor-icons/react'
@@ -16,11 +17,10 @@ import { EveryAI } from '../every-ai/EveryAI'
 import { RemindersPanel } from './components/RemindersPanel'
 import { EveryOneDashboard } from './components/dashboard'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
+import translations from './_i18n'
 import { GlobalCallContainer } from './components/GlobalCallContainer'
 import { GlobalPreCallSetupDialog } from './components/GlobalPreCallSetupDialog'
-import { createCalendarApiClient } from './calendar/calendarApiClient'
-import { env } from '@/common/env/EnvUtils'
+import { useChatClient } from '@/common/network/chat/useChatClient'
 import { useEmailAccounts } from '../email-apps/hooks/useEmailAccounts'
 import { useExternalCalendarEvents } from '../email-apps/hooks/useExternalCalendarEvents'
 import type { CalendarEvent, CalendarEventSource } from './calendar/types'
@@ -47,39 +47,12 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   defaultTab = 'dashboard',
   ...props
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceInfo>>(new Map())
   const [activeCalls, setActiveCalls] = useState<Record<string, any>>({})
 
-  // Build API URL for calendar API client
-  const calendarApiUrl = useMemo(() => {
-    let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-    baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-
-    const chatServiceOverride = env('NEXT_PUBLIC_CHAT_SERVICE_URL')
-
-    if (chatServiceOverride) {
-      const localUrl = chatServiceOverride.endsWith('/') ? chatServiceOverride.slice(0, -1) : chatServiceOverride
-      return `${localUrl}/api/v1`
-    } else {
-      const isLocalPlatform = baseUrl.includes('localhost')
-      if (isLocalPlatform) {
-        baseUrl = 'https://newwork-dev.newwork.com'
-      }
-      const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
-      if (apiUrl.includes('localhost')) {
-        return `${baseUrl}/chat-service/api/v1`
-      }
-      return apiUrl
-    }
-  }, [])
-
-  // Create calendar API client
-  const calendarApiClient = useMemo(() => {
-    if (!accessToken || !calendarApiUrl) return null
-    return createCalendarApiClient(calendarApiUrl, accessToken)
-  }, [accessToken, calendarApiUrl])
+  const calendarApiClient = useChatClient(accessToken)
 
   // External calendar events from email accounts
   const { accounts: emailAccounts } = useEmailAccounts(accessToken)
@@ -354,7 +327,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         className="gba:h-full gba:flex gba:flex-col"
       >
         <div
-          className={`gba:flex gba:bg-card ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
+          className={`gba:flex gba:bg-card gba:overflow-x-auto gba:scrollbar-hide ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
         >
           <TabSwitchList className="gba:overflow-x-auto gba:scrollbar-hide">
             {!isCompactMode && (
@@ -442,7 +415,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
                 let participants: { id: string; odId: string; odName: string; avatarUrl?: string }[] = []
                 if (isStarting && calendarApiClient) {
                   try {
-                    const fullMeeting = await calendarApiClient.getMeeting(meeting.id)
+                    const { meeting: fullMeeting } = await calendarApiClient.getMeeting<{ meeting: any }>(meeting.id)
                     const list =
                       fullMeeting.participants
                         ?.filter(p => p.status !== InvitationStatus.DECLINED)
@@ -586,10 +559,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 
 ChatWithCalendarInner.displayName = 'ChatWithCalendarInner'
 
-// Export wrapped version with TranslationProvider
 export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = props => {
   return (
-    <TranslationProvider>
+    <>
       <ChatWithCalendarInner {...props} />
 
       {/* Global call UI - renders minimized/full call view that persists across tab navigation */}
@@ -597,6 +569,6 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = props => {
 
       {/* Global pre-call setup dialog - singleton to prevent duplicates when multiple Chat instances exist */}
       <GlobalPreCallSetupDialog />
-    </TranslationProvider>
+    </>
   )
 }

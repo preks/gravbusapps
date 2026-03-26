@@ -16,14 +16,14 @@ import { useConversationExperts } from './useConversationExperts'
 import { useExpertRouting, type ExpertAttachment } from './useExpertRouting'
 import { detectExpertMention } from '../utils/expertMentionUtils'
 import type { MessageEntityReference } from '../types'
-import type { ChatApiClient } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import type { AvailableExpert } from './useEveryExperts'
 
 export interface UseChatExpertsOptions {
   accessToken: string
   conversationId: string | null
   currentUserId: string | null
-  apiClient: ChatApiClient | null
+  apiClient: ChatClient | null
 }
 
 export const useChatExperts = ({ accessToken, conversationId, currentUserId, apiClient }: UseChatExpertsOptions) => {

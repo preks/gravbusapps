@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import type { ChatApiClient } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import type { AvailableExpert } from './useEveryExperts'
 
 export interface ActiveExpert {
@@ -21,7 +21,7 @@ export interface ActiveExpert {
 export const useConversationExperts = (
   conversationId: string | null,
   currentUserId: string | null,
-  apiClient: ChatApiClient | null,
+  apiClient: ChatClient | null,
   availableExperts: AvailableExpert[] // To enrich expert IDs with full data
 ) => {
   const [activeExperts, setActiveExperts] = useState<ActiveExpert[]>([])
