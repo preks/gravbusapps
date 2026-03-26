@@ -27,7 +27,7 @@ export interface PendingInlineSelection {
 }
 
 export type ImageDialogMode = 'insert' | 'replace'
-export type RightSidebar = 'closed' | 'comments' | 'ai'
+export type RightSidebar = 'closed' | 'comments' | 'ai' | 'toc'
 
 export interface UsePagedDocumentInteractionDialogsParams {
   editor: TiptapEditor | null

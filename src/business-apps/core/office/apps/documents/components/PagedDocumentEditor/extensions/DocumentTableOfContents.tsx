@@ -3,7 +3,7 @@
  */
 
 import { Node, mergeAttributes } from '@tiptap/core'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import { getHeadingsForDocumentTableOfContents } from '../../../utils/navigationPanelUtils'
 import { DocumentTableOfContentsView } from '../components/DocumentTableOfContentsView'
@@ -14,10 +14,65 @@ export interface DocumentTableOfContentsOptions {
   HTMLAttributes: Record<string, unknown>
 }
 
+export type DocumentTocTabLeader = 'dot' | 'none'
+
+export interface DocumentTableOfContentsAttrs {
+  snapshotJson: string
+  showPageNumbers: boolean
+  rightAlignPageNumbers: boolean
+  tabLeader: DocumentTocTabLeader
+  headingLinks: boolean
+  maxHeadingLevel: number
+}
+
+const DEFAULT_DOCUMENT_TOC_ATTRS: DocumentTableOfContentsAttrs = {
+  snapshotJson: '[]',
+  showPageNumbers: true,
+  rightAlignPageNumbers: true,
+  tabLeader: 'dot',
+  headingLinks: true,
+  maxHeadingLevel: 3
+}
+
+function normalizeMaxHeadingLevel(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value ?? ''), 10)
+  if (!Number.isFinite(parsed)) return 3
+  return Math.max(1, Math.min(6, parsed))
+}
+
+function normalizeTabLeader(value: unknown): DocumentTocTabLeader {
+  return value === 'none' ? 'none' : 'dot'
+}
+
+function resolveDocumentTocPos(state: EditorState, explicitPos?: number): number | null {
+  if (typeof explicitPos === 'number') {
+    const nodeAtPos = state.doc.nodeAt(explicitPos)
+    if (nodeAtPos?.type.name === 'documentTableOfContents') {
+      return explicitPos
+    }
+  }
+
+  const { $from } = state.selection
+  for (let depth = $from.depth; depth >= 0; depth -= 1) {
+    const node = $from.node(depth)
+    if (node.type.name === 'documentTableOfContents') {
+      return $from.before(depth)
+    }
+  }
+
+  return null
+}
+
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     documentTableOfContents: {
       insertDocumentTableOfContents: () => ReturnType
+      updateDocumentTableOfContents: (pos?: number) => ReturnType
+      removeDocumentTableOfContents: (pos?: number) => ReturnType
+      setDocumentTableOfContentsOptions: (
+        attrs: Partial<Omit<DocumentTableOfContentsAttrs, 'snapshotJson'>>,
+        pos?: number
+      ) => ReturnType
     }
   }
 }
@@ -67,6 +122,41 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
           }
           return { 'data-toc-snapshot': raw }
         }
+      },
+      showPageNumbers: {
+        default: DEFAULT_DOCUMENT_TOC_ATTRS.showPageNumbers,
+        parseHTML: element => element.getAttribute('data-toc-show-page-numbers') !== 'false',
+        renderHTML: attributes => ({
+          'data-toc-show-page-numbers': String(attributes.showPageNumbers !== false)
+        })
+      },
+      rightAlignPageNumbers: {
+        default: DEFAULT_DOCUMENT_TOC_ATTRS.rightAlignPageNumbers,
+        parseHTML: element => element.getAttribute('data-toc-right-align-page-numbers') !== 'false',
+        renderHTML: attributes => ({
+          'data-toc-right-align-page-numbers': String(attributes.rightAlignPageNumbers !== false)
+        })
+      },
+      tabLeader: {
+        default: DEFAULT_DOCUMENT_TOC_ATTRS.tabLeader,
+        parseHTML: element => normalizeTabLeader(element.getAttribute('data-toc-tab-leader')),
+        renderHTML: attributes => ({
+          'data-toc-tab-leader': normalizeTabLeader(attributes.tabLeader)
+        })
+      },
+      headingLinks: {
+        default: DEFAULT_DOCUMENT_TOC_ATTRS.headingLinks,
+        parseHTML: element => element.getAttribute('data-toc-heading-links') !== 'false',
+        renderHTML: attributes => ({
+          'data-toc-heading-links': String(attributes.headingLinks !== false)
+        })
+      },
+      maxHeadingLevel: {
+        default: DEFAULT_DOCUMENT_TOC_ATTRS.maxHeadingLevel,
+        parseHTML: element => normalizeMaxHeadingLevel(element.getAttribute('data-toc-max-heading-level')),
+        renderHTML: attributes => ({
+          'data-toc-max-heading-level': String(normalizeMaxHeadingLevel(attributes.maxHeadingLevel))
+        })
       }
     }
   },
@@ -118,7 +208,10 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
               return
             }
             const afterPos = pos + node.nodeSize
-            const headings = getHeadingsForDocumentTableOfContents(newState.doc, afterPos)
+            const maxLevel = normalizeMaxHeadingLevel(node.attrs.maxHeadingLevel)
+            const headings = getHeadingsForDocumentTableOfContents(newState.doc, afterPos).filter(
+              h => h.level <= maxLevel
+            )
             const nextJson = JSON.stringify(headings.map(h => ({ level: h.level, text: h.text, pos: h.pos })))
             if (nextJson !== node.attrs.snapshotJson) {
               tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, snapshotJson: nextJson })
@@ -136,10 +229,49 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
       insertDocumentTableOfContents:
         () =>
         ({ chain }) =>
-          chain()
-            .focus()
-            .insertContent({ type: this.name, attrs: { snapshotJson: '[]' } })
-            .run()
+          chain().focus().insertContent({ type: this.name, attrs: DEFAULT_DOCUMENT_TOC_ATTRS }).run(),
+      updateDocumentTableOfContents:
+        (pos?: number) =>
+        ({ state, dispatch }) => {
+          const tocPos = resolveDocumentTocPos(state, pos)
+          if (tocPos === null) return false
+          const node = state.doc.nodeAt(tocPos)
+          if (!node || node.type.name !== this.name) return false
+          const afterPos = tocPos + node.nodeSize
+          const maxLevel = normalizeMaxHeadingLevel(node.attrs.maxHeadingLevel)
+          const headings = getHeadingsForDocumentTableOfContents(state.doc, afterPos).filter(h => h.level <= maxLevel)
+          const nextJson = JSON.stringify(headings.map(h => ({ level: h.level, text: h.text, pos: h.pos })))
+          dispatch?.(state.tr.setNodeMarkup(tocPos, undefined, { ...node.attrs, snapshotJson: nextJson }))
+          return true
+        },
+      removeDocumentTableOfContents:
+        (pos?: number) =>
+        ({ state, dispatch }) => {
+          const tocPos = resolveDocumentTocPos(state, pos)
+          if (tocPos === null) return false
+          const node = state.doc.nodeAt(tocPos)
+          if (!node || node.type.name !== this.name) return false
+          dispatch?.(state.tr.delete(tocPos, tocPos + node.nodeSize))
+          return true
+        },
+      setDocumentTableOfContentsOptions:
+        (attrs, pos?: number) =>
+        ({ state, dispatch, editor }) => {
+          const tocPos = resolveDocumentTocPos(state, pos)
+          if (tocPos === null) return false
+          const node = state.doc.nodeAt(tocPos)
+          if (!node || node.type.name !== this.name) return false
+
+          const nextAttrs = {
+            ...node.attrs,
+            ...attrs,
+            tabLeader: normalizeTabLeader(attrs.tabLeader ?? node.attrs.tabLeader),
+            maxHeadingLevel: normalizeMaxHeadingLevel(attrs.maxHeadingLevel ?? node.attrs.maxHeadingLevel)
+          }
+          dispatch?.(state.tr.setNodeMarkup(tocPos, undefined, nextAttrs))
+          editor.commands.updateDocumentTableOfContents(tocPos)
+          return true
+        }
     }
   }
 })

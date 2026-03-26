@@ -55,6 +55,7 @@ import { usePagedDocumentExternalContentSync } from './hooks/usePagedDocumentExt
 import { usePagedDocumentShellControls } from './hooks/usePagedDocumentShellControls'
 import { usePagedDocumentInteractionDialogs, type RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
 import { CLOSED_TABLE_SIDEBAR, usePagedDocumentSelectionSidebars } from './hooks/usePagedDocumentSelectionSidebars'
+import { DOCUMENT_TOC_OPEN_FORMAT_EVENT } from './components/DocumentTableOfContentsView'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
@@ -333,10 +334,26 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showInsertSignatureDialog, setShowInsertSignatureDialog] = useState(false)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
+    const [tocSidebarNodePos, setTocSidebarNodePos] = useState<number | null>(null)
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const suppressYjsSnapshotSaveRef = useRef(false)
     const autocompleteRolloutEnabled = useMemo(() => isAutocompleteRolloutEnabled(), [])
+
+    useEffect(() => {
+      if (globalThis.window === undefined) return
+      type TocOpenFormatEvent = CustomEvent<{ pos: number }>
+      const handleOpenTocSidebar = (evt: Event) => {
+        const customEvent = evt as TocOpenFormatEvent
+        const nextPos = customEvent.detail?.pos
+        if (typeof nextPos !== 'number') return
+        setTocSidebarNodePos(nextPos)
+        setRightSidebar('toc')
+      }
+
+      globalThis.window.addEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
+      return () => globalThis.window.removeEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
+    }, [])
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -1493,6 +1510,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           imageContextSubtitle={imageSidebarContextSubtitleKey ? t(imageSidebarContextSubtitleKey) : undefined}
           onCloseImageSidebar={closeImageSettingsSidebar}
           onReplaceImage={openReplaceImageDialog}
+          tocSidebarNodePos={tocSidebarNodePos}
+          onCloseTocSidebar={() => {
+            setRightSidebar('closed')
+            setTocSidebarNodePos(null)
+          }}
           showInlineCommentPopover={showInlineCommentPopover}
           inlineCommentPosition={inlineCommentPosition}
           onEditInlineCommentWithAI={openAiFromPendingSelection}
