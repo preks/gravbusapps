@@ -306,6 +306,15 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       // Skip if we just finished a marquee selection (to avoid clearing the selection)
       if (justFinishedMarqueeRef.current) {
         mouseDownElementRef.current = null
+        // Still finish inline editing when clicking away from the edited element
+        if (inlineEditing?.editingTextId) {
+          const target = e.target as HTMLElement
+          const editingElement = target.closest(`[data-element-id="${inlineEditing.editingTextId}"]`)
+          if (!editingElement) {
+            textareaInitializedRef.current = null
+            inlineEditing.onFinishEditing()
+          }
+        }
         return
       }
 
