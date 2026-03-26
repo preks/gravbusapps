@@ -72,6 +72,19 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme): OoxmlParagraph[] 
     const alignment = pPr?.getAttribute('algn') as OoxmlParagraph['alignment']
     const level = pPr?.getAttribute('lvl') ? parseInt(pPr.getAttribute('lvl')!) : undefined
 
+    const defRPr = pPr ? getChild(pPr, 'a:defRPr') : undefined
+    const defaultFontSize = defRPr?.getAttribute('sz') ? parseInt(defRPr.getAttribute('sz')!) : undefined
+    const defFill = defRPr ? getChild(defRPr, 'a:solidFill') : undefined
+    const defColor = defFill ? resolveColor(defFill, theme) : undefined
+
+    const endParaRPr = getChild(p, 'a:endParaRPr')
+    const endFontSize = endParaRPr?.getAttribute('sz') ? parseInt(endParaRPr.getAttribute('sz')!) : undefined
+    const endFill = endParaRPr ? getChild(endParaRPr, 'a:solidFill') : undefined
+    const endColor = endFill ? resolveColor(endFill, theme) : undefined
+
+    const paraFontSize = defaultFontSize || endFontSize
+    const paraColor = defColor || endColor
+
     const runs: OoxmlTextRun[] = []
     for (let j = 0; j < p.childNodes.length; j++) {
       const child = p.childNodes[j] as Element
@@ -80,7 +93,10 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme): OoxmlParagraph[] 
         const tEl = getChild(child, 'a:t')
         const text = tEl?.textContent || ''
         if (text) {
-          runs.push({ text, ...parseRunProperties(rPr, theme) })
+          const props = parseRunProperties(rPr, theme)
+          if (!props.fontSize && paraFontSize) props.fontSize = paraFontSize
+          if (!props.color && paraColor) props.color = paraColor
+          runs.push({ text, ...props })
         }
       } else if (child.tagName === 'a:br') {
         runs.push({ text: '\n' })
@@ -93,7 +109,10 @@ function parseParagraphs(txBody: Element, theme?: OoxmlTheme): OoxmlParagraph[] 
   return paragraphs
 }
 
-function determineDominantFormatting(paragraphs: OoxmlParagraph[]): {
+function determineDominantFormatting(
+  paragraphs: OoxmlParagraph[],
+  theme?: OoxmlTheme
+): {
   fontSize: number
   fontWeight: TextElement['fontWeight']
   fontStyle: TextElement['fontStyle']
@@ -114,16 +133,29 @@ function determineDominantFormatting(paragraphs: OoxmlParagraph[]): {
     }
   }
 
+  const themeTextColor = theme?.colors.get('dk1') || '#1e293b'
+  const defaultFont = theme?.minorFont || 'Inter'
+
   const firstAlignment = paragraphs[0]?.alignment
   return {
     fontSize: dominant.fontSize ? hundredthsPointToPixels(dominant.fontSize) : 32,
     fontWeight: dominant.bold ? 'bold' : 'normal',
     fontStyle: dominant.italic ? 'italic' : 'normal',
     textDecoration: dominant.strikethrough ? 'line-through' : dominant.underline ? 'underline' : 'none',
-    fontFamily: dominant.fontFamily || 'Inter',
-    color: dominant.color || '#1e293b',
+    fontFamily: dominant.fontFamily || defaultFont,
+    color: dominant.color || themeTextColor,
     textAlign: ALIGNMENT_MAP[firstAlignment || 'l'] || 'left'
   }
+}
+
+function resolveStyleFontColor(shape: Element, theme?: OoxmlTheme): string | undefined {
+  const style = getChild(shape, 'p:style')
+  if (!style) return undefined
+
+  const fontRef = getChild(style, 'a:fontRef')
+  if (!fontRef) return undefined
+
+  return parseSolidFill(fontRef, theme) || undefined
 }
 
 function extractShapeFill(shape: Element, theme?: OoxmlTheme): { backgroundColor: string; gradient?: GradientConfig } {
@@ -143,6 +175,18 @@ function extractShapeFill(shape: Element, theme?: OoxmlTheme): { backgroundColor
   if (gradFill) {
     const parsed = parseGradientFill(gradFill, theme)
     if (parsed) return { backgroundColor: parsed.stops[0]?.color || 'transparent', gradient: parsed }
+  }
+
+  const style = getChild(shape, 'p:style')
+  if (style) {
+    const fillRef = getChild(style, 'a:fillRef')
+    if (fillRef) {
+      const idx = parseInt(fillRef.getAttribute('idx') || '0')
+      if (idx > 0) {
+        const color = parseSolidFill(fillRef, theme)
+        if (color) return { backgroundColor: color }
+      }
+    }
   }
 
   return { backgroundColor: 'transparent' }
@@ -208,13 +252,19 @@ export function extractTextElements(
     const width = emuToPixels(transform.cx)
     const height = emuToPixels(transform.cy)
 
-    const formatting = determineDominantFormatting(paragraphs)
+    const formatting = determineDominantFormatting(paragraphs, theme)
+
+    if (formatting.color === (theme?.colors.get('dk1') || '#1e293b')) {
+      const styleColor = resolveStyleFontColor(shape, theme)
+      if (styleColor) formatting.color = styleColor
+    }
+
     const { content, links } = buildTextAndLinks(paragraphs, relationships)
     const shapeFill = extractShapeFill(shape, theme)
 
     if (!content) continue
 
-    const fontSize = Math.max(12, Math.min(128, Math.round(formatting.fontSize)))
+    const fontSize = Math.max(12, Math.min(200, Math.round(formatting.fontSize)))
 
     elements.push(
       createTextElement({

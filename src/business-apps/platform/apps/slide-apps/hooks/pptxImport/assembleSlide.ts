@@ -14,7 +14,8 @@ import { extractBackgroundWithInheritance } from './extractBackground'
 import { extractNotes } from './extractNotes'
 import { extractTransition } from './extractTransitions'
 import { flattenGroupedShapes } from './flattenGroups'
-import { getChild } from './ooxmlUtils'
+import { getChild, parseXML } from './ooxmlUtils'
+import { resolveLayoutRelationships, resolveMasterRelationships } from './resolveRelationships'
 
 const SP_TREE_NS = 'http://schemas.openxmlformats.org/presentationml/2006/main'
 const DRAWING_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
@@ -29,6 +30,111 @@ function wrapInFakeDoc(element: Element): Document {
   return doc
 }
 
+function isPlaceholder(spEl: Element): boolean {
+  const nvSpPr = getChild(spEl, 'p:nvSpPr')
+  if (!nvSpPr) return false
+  const nvPr = getChild(nvSpPr, 'p:nvPr')
+  if (!nvPr) return false
+  return !!getChild(nvPr, 'p:ph')
+}
+
+function extractNonPlaceholderElements(
+  xml: Document,
+  rels: SlideRelationships,
+  imageData: Map<string, string>,
+  theme: OoxmlTheme | undefined,
+  messages: ParserMessage[],
+  slideIndex: number
+): AnySlideElement[] {
+  const result: AnySlideElement[] = []
+  const spTree = xml.getElementsByTagName('p:spTree')[0]
+  if (!spTree) return result
+
+  for (let i = 0; i < spTree.childNodes.length; i++) {
+    const child = spTree.childNodes[i] as Element
+    if (!child.tagName) continue
+
+    if (child.tagName === 'p:sp') {
+      if (isPlaceholder(child)) continue
+
+      const doc = wrapInFakeDoc(child)
+      const texts = extractTextElements(doc, theme, rels)
+      if (texts.length > 0) {
+        result.push(...texts)
+      } else {
+        const shapes = extractShapeElements(doc, theme, messages, slideIndex)
+        result.push(...shapes)
+      }
+    } else if (child.tagName === 'p:pic') {
+      const doc = wrapInFakeDoc(child)
+      result.push(...extractImageElements(doc, rels, imageData))
+    } else if (child.tagName === 'p:grpSp') {
+      const groupEls = flattenGroupedShapes(xml, theme, rels, imageData, messages, slideIndex, child)
+      result.push(...groupEls)
+    }
+  }
+
+  return result
+}
+
+async function extractInheritedElements(
+  zip: JSZip,
+  relationships: SlideRelationships,
+  imageData: Map<string, string>,
+  theme: OoxmlTheme | undefined,
+  messages: ParserMessage[],
+  slideIndex: number
+): Promise<AnySlideElement[]> {
+  const inherited: AnySlideElement[] = []
+  if (!relationships.layoutPath) return inherited
+
+  const layoutFile = zip.file(relationships.layoutPath)
+  if (!layoutFile) return inherited
+
+  const layoutXml = parseXML(await layoutFile.async('text'))
+  const layoutRels = await resolveLayoutRelationships(zip, relationships.layoutPath)
+
+  const layoutRelationships: SlideRelationships = {
+    images: layoutRels.images,
+    hyperlinks: new Map(),
+    chartPaths: new Map()
+  }
+
+  const layoutEls = extractNonPlaceholderElements(
+    layoutXml,
+    layoutRelationships,
+    imageData,
+    theme,
+    messages,
+    slideIndex
+  )
+  inherited.push(...layoutEls)
+
+  if (layoutRels.masterPath) {
+    const masterFile = zip.file(layoutRels.masterPath)
+    if (masterFile) {
+      const masterXml = parseXML(await masterFile.async('text'))
+      const masterRels = await resolveMasterRelationships(zip, layoutRels.masterPath)
+      const masterRelationships: SlideRelationships = {
+        images: masterRels.images,
+        hyperlinks: new Map(),
+        chartPaths: new Map()
+      }
+      const masterEls = extractNonPlaceholderElements(
+        masterXml,
+        masterRelationships,
+        imageData,
+        theme,
+        messages,
+        slideIndex
+      )
+      inherited.push(...masterEls)
+    }
+  }
+
+  return inherited
+}
+
 export async function assembleSlide(
   slideXml: Document,
   relationships: SlideRelationships,
@@ -41,6 +147,8 @@ export async function assembleSlide(
   const background = await extractBackgroundWithInheritance(slideXml, theme, relationships, imageData, zip)
   const notes = await extractNotes(zip, relationships)
   const transition = extractTransition(slideXml, messages, slideIndex)
+
+  const inheritedElements = await extractInheritedElements(zip, relationships, imageData, theme, messages, slideIndex)
 
   const spTree = slideXml.getElementsByTagName('p:spTree')[0]
   const slideElements: AnySlideElement[] = []
@@ -93,13 +201,14 @@ export async function assembleSlide(
     }
   }
 
-  slideElements.forEach((el, idx) => {
+  const allElements = [...inheritedElements, ...slideElements]
+  allElements.forEach((el, idx) => {
     el.zIndex = idx + 1
   })
 
   return {
     id: `slide-${Date.now()}-${slideIndex}`,
-    elements: slideElements,
+    elements: allElements,
     background,
     notes: notes || undefined,
     transition

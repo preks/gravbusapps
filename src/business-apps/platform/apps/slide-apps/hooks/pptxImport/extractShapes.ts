@@ -84,6 +84,47 @@ const DASH_MAP: Record<string, ShapeElement['strokeStyle']> = {
   sysDashDotDot: 'dashed'
 }
 
+/**
+ * Resolve fill color from <p:style> > <a:fillRef>.
+ * Returns the resolved color, 'transparent' for idx=0, or undefined if not found.
+ */
+function resolveStyleFillRef(shapeEl: Element, theme: OoxmlTheme | undefined): string | undefined {
+  const style = getChild(shapeEl, 'p:style')
+  if (!style) return undefined
+
+  const fillRef = getChild(style, 'a:fillRef')
+  if (!fillRef) return undefined
+
+  const idx = parseInt(fillRef.getAttribute('idx') || '0')
+  if (idx === 0) return 'transparent'
+
+  const color = parseSolidFill(fillRef, theme)
+  if (color) return color
+
+  if (theme) {
+    const accent1 = theme.colors.get('accent1')
+    if (accent1) return accent1.startsWith('#') ? accent1 : `#${accent1}`
+  }
+
+  return undefined
+}
+
+/**
+ * Resolve line color from <p:style> > <a:lnRef>.
+ */
+function resolveStyleLnRef(shapeEl: Element, theme: OoxmlTheme | undefined): string | undefined {
+  const style = getChild(shapeEl, 'p:style')
+  if (!style) return undefined
+
+  const lnRef = getChild(style, 'a:lnRef')
+  if (!lnRef) return undefined
+
+  const idx = parseInt(lnRef.getAttribute('idx') || '0')
+  if (idx === 0) return undefined
+
+  return parseSolidFill(lnRef, theme)
+}
+
 function resolveShapeType(preset: string, width: number, height: number): ShapeType {
   if (preset === 'ellipse') {
     const ratio = Math.abs(width - height) / Math.max(width, height, 1)
@@ -170,7 +211,14 @@ export function extractShapeElements(
       hasFillDefined = true
     }
 
-    // Shapes without any explicit fill definition inherit from the theme
+    if (!hasFillDefined) {
+      const resolved = resolveStyleFillRef(shape, theme)
+      if (resolved !== undefined) {
+        fill = resolved
+        hasFillDefined = true
+      }
+    }
+
     if (!hasFillDefined && theme) {
       const accent1 = theme.colors.get('accent1')
       if (accent1) fill = accent1.startsWith('#') ? accent1 : `#${accent1}`
@@ -179,9 +227,11 @@ export function extractShapeElements(
     let strokeColor = '#000000'
     let strokeWidth = 0
     let strokeStyle: ShapeElement['strokeStyle'] = 'solid'
+    let hasExplicitLine = false
 
     const ln = getChild(spPr, 'a:ln')
     if (ln) {
+      hasExplicitLine = true
       const lnW = ln.getAttribute('w')
       if (lnW) strokeWidth = Math.round(emuToPixels(parseInt(lnW)))
 
@@ -196,6 +246,14 @@ export function extractShapeElements(
 
       const lnNoFill = getChild(ln, 'a:noFill')
       if (lnNoFill) strokeWidth = 0
+    }
+
+    if (!hasExplicitLine) {
+      const styleLnColor = resolveStyleLnRef(shape, theme)
+      if (styleLnColor) {
+        strokeColor = styleLnColor
+        strokeWidth = strokeWidth || 1
+      }
     }
 
     elements.push(

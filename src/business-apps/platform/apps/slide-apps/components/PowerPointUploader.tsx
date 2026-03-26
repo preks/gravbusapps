@@ -3,7 +3,7 @@
 
 import React, { useCallback, useState } from 'react'
 import { Button, Card, Spinner, useTranslation } from '@newwork/nw-design-system'
-import { Upload, AlertCircle, X, Presentation } from 'lucide-react'
+import { Upload, AlertCircle, X, Presentation, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePowerPointParser, type ParsedPowerPointDocument } from '../hooks/usePowerPointParser'
 import { ImportPreviewDialog } from './ImportPreviewDialog'
@@ -151,7 +151,7 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{progress}%</p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{Math.round(progress)}%</p>
           </div>
         </div>
       </Card>
@@ -241,14 +241,25 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
           className="gba:hidden"
         />
 
-        <div className="gba:text-xs gba:text-muted-foreground gba:border-t gba:pt-4 gba:w-full">
-          <p className="gba:mb-1">{t('import-supported-features')}</p>
-          <ul className="gba:space-y-0.5 gba:text-left">
-            <li>{t('import-feature-text')}</li>
-            <li>{t('import-feature-images')}</li>
-            <li>{t('import-feature-layouts')}</li>
-            <li>{t('import-feature-transitions')}</li>
-          </ul>
+        <div className="gba:border-t gba:pt-4 gba:w-full">
+          <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-x-4 gba:gap-y-1.5">
+            {(
+              [
+                'import-feature-text',
+                'import-feature-images',
+                'import-feature-layouts',
+                'import-feature-transitions'
+              ] as const
+            ).map(key => (
+              <span
+                key={key}
+                className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground"
+              >
+                <Check className="gba:w-3 gba:h-3 gba:text-primary gba:shrink-0" />
+                {t(key)}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </Card>

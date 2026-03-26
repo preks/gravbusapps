@@ -230,10 +230,10 @@ import-max-size = Maximum file size: { $size }
 import-choose-file = Choose File
 import-cancel = Cancel
 import-supported-features = Supported features:
-import-feature-text = Text boxes and formatting
-import-feature-images = Images and shapes
+import-feature-text = Text & formatting
+import-feature-images = Images & shapes
 import-feature-layouts = Slide layouts
-import-feature-transitions = Basic transitions (partial)
+import-feature-transitions = Transitions
 
 # Share Dialog
 share-title = Share Slide

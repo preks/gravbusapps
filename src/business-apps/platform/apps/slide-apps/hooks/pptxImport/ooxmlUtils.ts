@@ -85,6 +85,13 @@ function applyLuminanceModifiers(hex: string, lumMod?: number, lumOff?: number):
   return `${toHex(r)}${toHex(g)}${toHex(b)}`
 }
 
+const SCHEME_ALIAS: Record<string, string> = {
+  tx1: 'dk1',
+  bg1: 'lt1',
+  tx2: 'dk2',
+  bg2: 'lt2'
+}
+
 export function resolveColor(colorEl: Element, theme?: OoxmlTheme): string | undefined {
   const srgb = getChild(colorEl, 'a:srgbClr')
   if (srgb) {
@@ -103,7 +110,8 @@ export function resolveColor(colorEl: Element, theme?: OoxmlTheme): string | und
   if (scheme && theme) {
     const schemeVal = scheme.getAttribute('val')
     if (!schemeVal) return undefined
-    const resolved = theme.colors.get(schemeVal)
+    const mapped = SCHEME_ALIAS[schemeVal] || schemeVal
+    const resolved = theme.colors.get(mapped)
     if (!resolved) return undefined
     const hex = resolved.replace('#', '')
     const lumMod = getChild(scheme, 'a:lumMod')
