@@ -151,7 +151,14 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   )
 
   return (
-    <LeadLayout context={context} config={config} leadStatistics={leadStatistics} dataTestId="customer-lead-view" />
+    <LeadLayout
+      context={context}
+      config={config}
+      leadStatistics={leadStatistics}
+      dataTestId="customer-lead-view"
+      enableExport
+      exportFilenamePrefix="leads"
+    />
   )
 }
 

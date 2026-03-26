@@ -1,6 +1,7 @@
 // Investment Account hooks - CRM account entity operations
 import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 // buildWhere and buildOrderBy are now used internally by the new query builders
 // Descriptors are now used internally by the new query builders
@@ -140,7 +141,7 @@ export function useGetInvestmentAccounts(
 ): FunctionOnlyReturn | StatefulReturn {
   const { withState = false, autoFetch = false, pageSize = 20, mapToSelectOptions = false } = options || {}
 
-  const graphqlClient = useGraphQLClient(context.accessToken)
+  const graphqlClient: GraphQLClient = useGraphQLClient(context.accessToken)
 
   // State management (only used when withState=true)
   const [state, setState] = useState({
@@ -164,7 +165,7 @@ export function useGetInvestmentAccounts(
       const orderBy = buildInvestmentAccountOrderBy(variables.orderBy || [])
 
       const graphQLVariables: Record<string, any> = {
-        limit: Math.min(variables.limit || 50, 100),
+        limit: variables.limit || 50,
         offset: variables.offset || 0,
         where: whereCondition,
         orderBy: orderBy
