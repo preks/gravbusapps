@@ -1,20 +1,25 @@
 /**
- * SlideToolbarRibbon Component
- *
- * Ribbon-style toolbar with Home, Insert, and Slideshow tabs.
- * Home tab shows contextual formatting tools based on element selection.
- * Insert tab shows element creation tools.
- * Slideshow tab shows presentation, broadcast, and export options.
+ * Compact ribbon toolbar with an inline dropdown tab selector.
+ * Tabs: Home (contextual formatting), Insert (element creation), Slideshow (present/export).
  */
 
-import React, { useState } from 'react'
-import { ToggleGroup, ToggleGroupItem, useTranslation } from '@newwork/nw-design-system'
+import { useState } from 'react'
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { Check, ChevronDown } from 'lucide-react'
 import translations from '../../_i18n'
 import { HomeTabContent } from './HomeTabContent'
 import { InsertTabContent } from './InsertTabContent'
 import { SlideshowTabContent } from './SlideshowTabContent'
 import type { ToolbarContext } from '../../hooks/useToolbarContext'
-import type { AnySlideElement, SlideTheme, SlideData } from '../slideElements'
+import type { AnySlideElement, SlideData } from '../slideElements'
+import type { SlideTheme } from '../slideThemes'
 
 export interface SlideToolbarRibbonProps {
   context: ToolbarContext
@@ -66,6 +71,14 @@ export interface SlideToolbarRibbonProps {
   'data-testid'?: string
 }
 
+type RibbonTab = 'home' | 'insert' | 'slideshow'
+
+const TABS: { id: RibbonTab; labelKey: string; descKey: string }[] = [
+  { id: 'home', labelKey: 'ribbon-tab-home', descKey: 'ribbon-tab-home-desc' },
+  { id: 'insert', labelKey: 'ribbon-tab-insert', descKey: 'ribbon-tab-insert-desc' },
+  { id: 'slideshow', labelKey: 'ribbon-tab-slideshow', descKey: 'ribbon-tab-slideshow-desc' }
+]
+
 export function SlideToolbarRibbon({
   context,
   canUndo,
@@ -112,51 +125,60 @@ export function SlideToolbarRibbon({
   'data-testid': testId = 'slide-toolbar'
 }: Readonly<SlideToolbarRibbonProps>) {
   const { t } = useTranslation(translations)
-  const [activeTab, setActiveTab] = useState<'home' | 'insert' | 'slideshow'>('home')
+  const [activeTab, setActiveTab] = useState<RibbonTab>('home')
 
-  const ribbonTestId = testId ? `${testId}-ribbon-${activeTab}` : undefined
+  const activeTabLabel = t(`ribbon-tab-${activeTab}`)
 
   return (
-    <div className="gba:flex gba:flex-col gba:border-b gba:border-border gba:bg-muted/30 gba:w-full">
-      <div className="gba:flex gba:items-stretch gba:border-b gba:border-border gba:bg-background">
-        <ToggleGroup
-          type="single"
-          variant="default"
-          size="default"
-          value={activeTab}
-          onValueChange={value => value && setActiveTab(value as 'home' | 'insert' | 'slideshow')}
-          className="gba:flex gba:rounded-none gba:border-0 gba:bg-transparent gba:p-0 gba:shadow-none"
-          aria-label={t('ribbon-aria-label') || 'Slide editor ribbon'}
-        >
-          <ToggleGroupItem
-            value="home"
-            className="gba:rounded-none gba:border-0 gba:border-b-2 gba:border-transparent gba:bg-transparent gba:px-5 gba:py-2.5 gba:text-sm gba:font-medium gba:shadow-none gba:transition-colors gba:hover:bg-transparent gba:hover:text-foreground gba:data-[state=on]:border-primary gba:data-[state=on]:bg-transparent gba:data-[state=on]:text-foreground gba:data-[state=on]:shadow-none gba:first:rounded-none gba:last:rounded-none gba:-mb-px"
-            data-testid={testId ? `${testId}-tab-home` : undefined}
-          >
-            {t('ribbon-tab-home')}
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="insert"
-            className="gba:rounded-none gba:border-0 gba:border-b-2 gba:border-transparent gba:bg-transparent gba:px-5 gba:py-2.5 gba:text-sm gba:font-medium gba:shadow-none gba:transition-colors gba:hover:bg-transparent gba:hover:text-foreground gba:data-[state=on]:border-primary gba:data-[state=on]:bg-transparent gba:data-[state=on]:text-foreground gba:data-[state=on]:shadow-none gba:first:rounded-none gba:last:rounded-none gba:-mb-px"
-            data-testid={testId ? `${testId}-tab-insert` : undefined}
-          >
-            {t('ribbon-tab-insert')}
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="slideshow"
-            className="gba:rounded-none gba:border-0 gba:border-b-2 gba:border-transparent gba:bg-transparent gba:px-5 gba:py-2.5 gba:text-sm gba:font-medium gba:shadow-none gba:transition-colors gba:hover:bg-transparent gba:hover:text-foreground gba:data-[state=on]:border-primary gba:data-[state=on]:bg-transparent gba:data-[state=on]:text-foreground gba:data-[state=on]:shadow-none gba:first:rounded-none gba:last:rounded-none gba:-mb-px"
-            data-testid={testId ? `${testId}-tab-slideshow` : undefined}
-          >
-            {t('ribbon-tab-slideshow')}
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
-
+    <div
+      className="gba:w-full gba:border-b gba:border-border gba:bg-background"
+      data-testid={testId ? `${testId}-surface` : undefined}
+    >
       <section
-        className="gba:flex gba:items-center gba:gap-0 gba:p-2 gba:min-h-[48px] gba:overflow-x-auto"
-        aria-label={t(`ribbon-tab-${activeTab}`)}
-        data-testid={ribbonTestId}
+        className="gba:flex gba:flex-nowrap gba:items-center gba:bg-background gba:px-4 gba:h-11 gba:overflow-x-auto"
+        style={{ scrollbarWidth: 'none' }}
+        aria-label={activeTabLabel}
+        data-testid={testId ? `${testId}-ribbon-${activeTab}` : undefined}
       >
+        <div
+          className="gba:mr-3 gba:flex gba:items-center gba:self-stretch gba:pr-3 gba:border-r gba:border-border/60 gba:shrink-0"
+          data-testid={testId ? `${testId}-tab-selector` : undefined}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gba:h-7 gba:gap-1 gba:rounded-md gba:border gba:border-foreground gba:bg-foreground gba:px-2.5 gba:text-xs gba:font-medium gba:text-background hover:gba:bg-foreground/90 hover:gba:text-background"
+                data-testid={testId ? `${testId}-tab-trigger` : undefined}
+              >
+                {activeTabLabel}
+                <ChevronDown className="gba:h-3 gba:w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="gba:w-64">
+              {TABS.map(tab => (
+                <DropdownMenuItem
+                  key={tab.id}
+                  onSelect={() => setActiveTab(tab.id)}
+                  data-testid={testId ? `${testId}-tab-${tab.id}` : undefined}
+                  className="gba:flex gba:items-start gba:gap-2 gba:py-2"
+                >
+                  {activeTab === tab.id ? (
+                    <Check className="gba:mt-0.5 gba:h-4 gba:w-4 gba:shrink-0" />
+                  ) : (
+                    <span className="gba:mt-0.5 gba:w-4 gba:shrink-0" />
+                  )}
+                  <div className="gba:flex gba:flex-col">
+                    <span className="gba:text-sm gba:font-medium">{t(tab.labelKey)}</span>
+                    <span className="gba:text-xs gba:text-muted-foreground">{t(tab.descKey)}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         {activeTab === 'home' && (
           <HomeTabContent
             context={context}

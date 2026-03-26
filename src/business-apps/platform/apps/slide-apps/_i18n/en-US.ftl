@@ -809,8 +809,11 @@ transition-preview = Preview
 
 # Ribbon Toolbar
 ribbon-tab-home = Home
+ribbon-tab-home-desc = Formatting, layout, and design tools.
 ribbon-tab-insert = Insert
+ribbon-tab-insert-desc = Add text, images, shapes, and charts.
 ribbon-tab-slideshow = Slideshow
+ribbon-tab-slideshow-desc = Present, broadcast, and export.
 ribbon-aria-label = Slide editor ribbon
 
 # Toolbar hints
