@@ -24,6 +24,7 @@ function collapseWhitespaceLinear(input: string): string {
 
 const CUSTOM_DOCUMENT_TAG_PATTERN =
   /<(?:heading|paragraph|orderedlist|bulletlist|listitem|horizontalrule|tablerow|tableheader|tablecell|inlinecomment|textstyle|bold|italic|underline|strikethrough|subscript|superscript)\b/i
+const CUSTOM_IMAGE_HTML_PATTERN = /\bdata-node-type=(?:"|')custom-image(?:"|')/i
 
 const PRESERVED_HTML_TAGS = new Set([
   'a',
@@ -423,7 +424,10 @@ export function sanitizePaginationRuntimeHtml(html: string): string {
 function normalizeDocumentHtmlMarkupForEditor(html: string): string {
   const sanitizedHtml = sanitizePaginationRuntimeHtml(html)
 
-  if (!sanitizedHtml.trim() || !containsCustomDocumentTags(sanitizedHtml)) {
+  if (
+    !sanitizedHtml.trim() ||
+    (!containsCustomDocumentTags(sanitizedHtml) && !CUSTOM_IMAGE_HTML_PATTERN.test(sanitizedHtml))
+  ) {
     return sanitizedHtml
   }
 
@@ -448,11 +452,42 @@ function normalizeDocumentHtmlMarkupForEditor(html: string): string {
 
     const outputRoot = globalThis.document.createElement('div')
     appendConvertedChildren(sourceRoot, outputRoot, globalThis.document)
+    convertCustomImageFiguresToSpans(outputRoot, globalThis.document)
+    wrapTopLevelCustomImagesInParagraphs(outputRoot, globalThis.document)
 
     return outputRoot.innerHTML.trim() || '<p></p>'
   } catch {
     return sanitizedHtml
   }
+}
+
+function convertCustomImageFiguresToSpans(root: HTMLElement, documentRef: Document) {
+  Array.from(root.querySelectorAll('figure[data-node-type="custom-image"]')).forEach(figure => {
+    const span = documentRef.createElement('span')
+    Array.from(figure.attributes).forEach(attribute => {
+      span.setAttribute(attribute.name, attribute.value)
+    })
+    while (figure.firstChild) {
+      span.appendChild(figure.firstChild)
+    }
+    figure.replaceWith(span)
+  })
+}
+
+function wrapTopLevelCustomImagesInParagraphs(root: HTMLElement, documentRef: Document) {
+  Array.from(root.children).forEach(child => {
+    if (!(child instanceof HTMLElement)) {
+      return
+    }
+
+    if (child.getAttribute('data-node-type') !== 'custom-image') {
+      return
+    }
+
+    const paragraph = documentRef.createElement('p')
+    root.replaceChild(paragraph, child)
+    paragraph.appendChild(child)
+  })
 }
 
 export function sanitizeDocumentHtmlForEditor(html: string): string {
