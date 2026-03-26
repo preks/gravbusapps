@@ -5,7 +5,7 @@
 import { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { Hash, Image, Link, PenLine, SeparatorHorizontal, Table } from 'lucide-react'
+import { Hash, Image, Link, ListTree, PenLine, SeparatorHorizontal, Table } from 'lucide-react'
 import translations from '../../_i18n'
 import { ToolbarButton, RibbonGroup } from './editorToolbarShared'
 import { TableToolsMenu } from './TableToolsMenu'
@@ -72,6 +72,10 @@ export function InsertTabContent({
     onInsertPageBreak?.()
   }, [editor, onInsertPageBreak])
 
+  const insertTableOfContents = useCallback(() => {
+    editor.chain().focus().insertDocumentTableOfContents().run()
+  }, [editor])
+
   return (
     <RibbonGroup label={t('editor-ribbon-group-insert')} data-testid={`${testId}-group-insert`}>
       <ToolbarButton
@@ -95,6 +99,13 @@ export function InsertTabContent({
         <Table className="gba:h-4 gba:w-4" />
       </ToolbarButton>
       <TableToolsMenu editor={editor} t={t} testId={testId} onOpenSidebar={onOpenTableSidebar} />
+      <ToolbarButton
+        onClick={insertTableOfContents}
+        tooltip={t('editor-toolbar-insert-table-of-contents')}
+        data-testid={`${testId}-insert-toc`}
+      >
+        <ListTree className="gba:h-4 gba:w-4" />
+      </ToolbarButton>
       {onOpenPageNumbersDialog && (
         <ToolbarButton onClick={onOpenPageNumbersDialog} tooltip={t('editor-toolbar-page-numbers')}>
           <Hash className="gba:h-4 gba:w-4" />
