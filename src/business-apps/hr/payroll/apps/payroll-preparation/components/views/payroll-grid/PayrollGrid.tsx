@@ -32,6 +32,53 @@ type SortOrder = 'asc' | 'desc'
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100]
 
+function PayrollGridSortIcon({
+  field,
+  activeField,
+  sortOrder
+}: {
+  field: SortField
+  activeField: SortField
+  sortOrder: SortOrder
+}) {
+  if (activeField !== field) return <CaretUpIcon size={12} className="gba:text-muted-foreground/40" />
+  return sortOrder === 'asc' ? (
+    <CaretUpIcon size={12} className="gba:text-foreground" weight="bold" />
+  ) : (
+    <CaretDownIcon size={12} className="gba:text-foreground" weight="bold" />
+  )
+}
+
+function PayrollGridSortableHead({
+  field,
+  label,
+  className,
+  sticky,
+  activeField,
+  sortOrder,
+  onSort
+}: {
+  field: SortField
+  label: string
+  className?: string
+  sticky?: boolean
+  activeField: SortField
+  sortOrder: SortOrder
+  onSort: (f: SortField) => void
+}) {
+  return (
+    <TableHead
+      className={`gba:cursor-pointer gba:select-none gba:whitespace-nowrap ${sticky ? 'gba:sticky gba:left-0 gba:z-20 gba:bg-background' : ''} ${className || ''}`}
+      onClick={() => onSort(field)}
+    >
+      <span className="gba:flex gba:items-center gba:gap-1">
+        {label}
+        <PayrollGridSortIcon field={field} activeField={activeField} sortOrder={sortOrder} />
+      </span>
+    </TableHead>
+  )
+}
+
 export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, country, t }) => {
   const [filters, setFilters] = useState<FilterState>({
     search: '',
@@ -89,32 +136,6 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
     setCurrentPage(1)
   }
 
-  const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
-    if (sortField !== field) return <CaretUpIcon size={12} className="gba:text-muted-foreground/40" />
-    return sortOrder === 'asc' ? (
-      <CaretUpIcon size={12} className="gba:text-foreground" weight="bold" />
-    ) : (
-      <CaretDownIcon size={12} className="gba:text-foreground" weight="bold" />
-    )
-  }
-
-  const SortableHead: React.FC<{ field: SortField; label: string; className?: string; sticky?: boolean }> = ({
-    field,
-    label,
-    className,
-    sticky
-  }) => (
-    <TableHead
-      className={`gba:cursor-pointer gba:select-none gba:whitespace-nowrap ${sticky ? 'gba:sticky gba:left-0 gba:z-20 gba:bg-background' : ''} ${className || ''}`}
-      onClick={() => handleSort(field)}
-    >
-      <span className="gba:flex gba:items-center gba:gap-1">
-        {label}
-        <SortIcon field={field} />
-      </span>
-    </TableHead>
-  )
-
   return (
     <div>
       <PayrollGridFilters
@@ -132,22 +153,54 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
           <Table>
             <TableHeader>
               <TableRow>
-                <SortableHead field="displayName" label={t('grid-employee')} className="gba:min-w-[220px]" sticky />
+                <PayrollGridSortableHead
+                  field="displayName"
+                  label={t('grid-employee')}
+                  className="gba:min-w-[220px]"
+                  sticky
+                  activeField={sortField}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-employee-id')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-status')}</TableHead>
-                <SortableHead field="department" label={t('grid-department')} />
+                <PayrollGridSortableHead
+                  field="department"
+                  label={t('grid-department')}
+                  activeField={sortField}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-cost-center')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-contract-type')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-fte')}</TableHead>
-                <SortableHead field="baseSalary" label={t('grid-base-salary')} />
+                <PayrollGridSortableHead
+                  field="baseSalary"
+                  label={t('grid-base-salary')}
+                  activeField={sortField}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-bank-details')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-paid-leave')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-sick-leave')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-logged-hours')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-capacity')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-balance')}</TableHead>
-                <SortableHead field="issues" label={t('grid-issues')} />
-                <SortableHead field="readinessStatus" label={t('grid-readiness')} />
+                <PayrollGridSortableHead
+                  field="issues"
+                  label={t('grid-issues')}
+                  activeField={sortField}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                />
+                <PayrollGridSortableHead
+                  field="readinessStatus"
+                  label={t('grid-readiness')}
+                  activeField={sortField}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-changed')}</TableHead>
               </TableRow>
             </TableHeader>

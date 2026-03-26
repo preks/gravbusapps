@@ -10,7 +10,6 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { ChartBarIcon, GearIcon, ListChecksIcon, StackIcon, TreeStructureIcon } from '@phosphor-icons/react'
-import { MODULE_COLORS } from '@/common/constants/ui'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 import { useDefaultCompanyForCurrentUser } from '../../hooks/useDefaultCompanyForCurrentUser'
@@ -143,7 +142,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
 
   return (
     <PageLayout
-      headerIcon={StackIcon}
+      headerPhosphorIcon={{ icon: StackIcon, variant: 'ext3' }}
       headerTitle={t('dashboard-title')}
       headerDescription={t('dashboard-subtitle')}
       // PageHeader defaults onBack to history.back(); null hides the back control.
@@ -157,7 +156,6 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
           icon: opt.icon
         }))
       }}
-      variant={MODULE_COLORS.HR}
       className="gba:min-h-screen"
     >
       <div className="gba:space-y-6">{renderBody()}</div>

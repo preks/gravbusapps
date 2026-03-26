@@ -24,8 +24,12 @@ interface UseTeamMemberPerformanceScoresResult {
   refetch: () => Promise<void>
 }
 
+function compareEmployeeIdsForStableKey(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true })
+}
+
 function serializeEmployeeIds(ids: string[]): string {
-  return [...new Set(ids)].sort().join('\u0001')
+  return [...new Set(ids)].sort(compareEmployeeIdsForStableKey).join('\u0001')
 }
 
 export function useTeamMemberPerformanceScores(

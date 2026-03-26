@@ -4,7 +4,7 @@ import type { TeamMemberCompensationData } from '../../../types/compensationPlan
 import type { ManagerTeamSortField } from './useManagerPlanningStore'
 
 function sortLocale(): string | undefined {
-  if (typeof globalThis.window === 'undefined') return undefined
+  if (globalThis.window === undefined) return undefined
   try {
     return getCurrentActiveUserLocale()
   } catch {
@@ -26,7 +26,7 @@ function compare(
     if (aNull && bNull) return 0
     if (aNull) return 1
     if (bNull) return -1
-    return mul * (na! - nb!)
+    return mul * (Number(na) - Number(nb))
   }
 
   const loc = sortLocale()
@@ -35,8 +35,8 @@ function compare(
     case 'displayName':
       return mul * a.displayName.localeCompare(b.displayName, loc, { sensitivity: 'base' })
     case 'hireDate': {
-      const ta = a.hireDate ? new Date(a.hireDate).getTime() : NaN
-      const tb = b.hireDate ? new Date(b.hireDate).getTime() : NaN
+      const ta = a.hireDate ? new Date(a.hireDate).getTime() : Number.NaN
+      const tb = b.hireDate ? new Date(b.hireDate).getTime() : Number.NaN
       return cmpNumNullsLast(ta, tb)
     }
     case 'currentAnnualSalary':
@@ -44,8 +44,8 @@ function compare(
     case 'compaRatio':
       return cmpNumNullsLast(a.compaRatio, b.compaRatio)
     case 'lastRaiseDate': {
-      const la = a.lastRaiseDate ? new Date(a.lastRaiseDate).getTime() : NaN
-      const lb = b.lastRaiseDate ? new Date(b.lastRaiseDate).getTime() : NaN
+      const la = a.lastRaiseDate ? new Date(a.lastRaiseDate).getTime() : Number.NaN
+      const lb = b.lastRaiseDate ? new Date(b.lastRaiseDate).getTime() : Number.NaN
       return cmpNumNullsLast(la, lb)
     }
     case 'currentBonusTotal':

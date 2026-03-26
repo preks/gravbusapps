@@ -25,23 +25,23 @@ export const CompensationReviewForm: React.FC<BusinessAppContextProps> = () => {
           <h3 className="gba:text-sm gba:font-semibold gba:mb-4">Planned Features</h3>
           <ul className="gba:space-y-2 gba:text-sm gba:text-muted-foreground">
             <li className="gba:flex gba:items-start gba:gap-2">
-              <span>•</span>
+              <span>• </span>
               View all submitted compensation proposals from managers
             </li>
             <li className="gba:flex gba:items-start gba:gap-2">
-              <span>•</span>
+              <span>• </span>
               See proposed salary increases, bonuses, and justifications
             </li>
             <li className="gba:flex gba:items-start gba:gap-2">
-              <span>•</span>
+              <span>• </span>
               Bulk approve, reject, or send back proposals with review notes
             </li>
             <li className="gba:flex gba:items-start gba:gap-2">
-              <span>•</span>
+              <span>• </span>
               Summary statistics: total cost impact, average increase percentage
             </li>
             <li className="gba:flex gba:items-start gba:gap-2">
-              <span>•</span>
+              <span>• </span>
               Upon final approval, trigger existing salary adjustment and bonus BPMN processes
             </li>
           </ul>

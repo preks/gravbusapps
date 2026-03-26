@@ -92,7 +92,7 @@ export function buildTeamCompensationMembersColumns(
             {(member.currentMonthlySalary != null || member.currentAnnualSalary == null) && (
               <div className="gba:text-sm gba:text-muted-foreground gba:tabular-nums">
                 {formatCurrency(member.currentMonthlySalary, member.currency)}
-                {member.currentMonthlySalary != null ? t('salary-monthly-suffix') : null}
+                {member.currentMonthlySalary == null ? null : t('salary-monthly-suffix')}
               </div>
             )}
           </div>
@@ -161,7 +161,7 @@ export function buildTeamCompensationMembersColumns(
                   <div className="gba:text-sm gba:text-muted-foreground">
                     <span className="gba:tabular-nums">
                       {formatCurrency(member.lastRaiseAmount, member.currency)}
-                      {member.lastRaisePercent != null ? ` (${formatPercent(member.lastRaisePercent)})` : ''}
+                      {member.lastRaisePercent == null ? '' : ` (${formatPercent(member.lastRaisePercent)})`}
                     </span>
                   </div>
                 )}

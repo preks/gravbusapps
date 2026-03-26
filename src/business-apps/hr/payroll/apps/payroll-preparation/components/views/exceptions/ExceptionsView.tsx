@@ -47,6 +47,17 @@ interface IssueWithEmployee extends PayrollIssue {
   employeeCode: string
 }
 
+function IssueSeverityIcon({ severity }: { severity: IssueSeverity }) {
+  switch (severity) {
+    case 'blocker':
+      return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
+    case 'warning':
+      return <WarningCircleIcon size={16} weight="fill" className="gba:text-warning" />
+    case 'info':
+      return <InfoIcon size={16} weight="fill" className="gba:text-primary" />
+  }
+}
+
 export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) => {
   const [severityFilter, setSeverityFilter] = useState<IssueSeverity | 'all'>('all')
   const [categoryFilter, setCategoryFilter] = useState<IssueCategory | 'all'>('all')
@@ -81,17 +92,6 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
   const warningCount = allIssues.filter(i => i.severity === 'warning').length
   const infoCount = allIssues.filter(i => i.severity === 'info').length
   const affectedEmployees = new Set(allIssues.map(i => i.employeeId)).size
-
-  const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
-    switch (severity) {
-      case 'blocker':
-        return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
-      case 'warning':
-        return <WarningCircleIcon size={16} weight="fill" className="gba:text-warning" />
-      case 'info':
-        return <InfoIcon size={16} weight="fill" className="gba:text-primary" />
-    }
-  }
 
   const handleIssueClick = useCallback((issue: IssueWithEmployee) => {
     const tabConfig = CATEGORY_TO_TAB[issue.category]
@@ -181,7 +181,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
               onClick={() => handleIssueClick(issue)}
             >
               <div className="gba:flex gba:items-start gba:gap-3">
-                <SeverityIcon severity={issue.severity} />
+                <IssueSeverityIcon severity={issue.severity} />
                 <div className="gba:flex-1 gba:min-w-0">
                   <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:flex-wrap gba:gap-2">
                     <div className="gba:flex gba:items-center gba:gap-2">

@@ -32,7 +32,6 @@ function methodIcon(method: DistributionMethod): React.ComponentType<IconProps> 
     case 'equal':
       return EqualsIcon
     case 'custom':
-      return SlidersHorizontalIcon
     default:
       return SlidersHorizontalIcon
   }
@@ -59,11 +58,6 @@ function methodFluentKeys(method: DistributionMethod): { title: string; descript
       return {
         title: 'budget-distribution-method-equal-title',
         description: 'budget-distribution-method-equal-description'
-      }
-    case 'custom':
-      return {
-        title: 'budget-distribution-method-custom-title',
-        description: 'budget-distribution-method-custom-description'
       }
     default:
       return {

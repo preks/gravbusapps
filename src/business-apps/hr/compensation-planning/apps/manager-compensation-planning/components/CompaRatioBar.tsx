@@ -11,13 +11,12 @@ interface CompaRatioBarProps {
   } | null
   currentSalary: number | null
   proposedSalary?: number | null
-  currency?: string
 }
 
 export const CompaRatioBar: React.FC<CompaRatioBarProps> = ({ compaRatio, band, currentSalary, proposedSalary }) => {
   const { t } = useTranslation(translations)
 
-  if (!band || currentSalary == null) {
+  if (band == null || currentSalary == null) {
     return <span className="gba:text-sm gba:text-muted-foreground">{t('compa-no-band')}</span>
   }
 
@@ -26,7 +25,7 @@ export const CompaRatioBar: React.FC<CompaRatioBarProps> = ({ compaRatio, band, 
 
   const currentPosition = Math.max(0, Math.min(100, ((currentSalary - band.minSalary) / range) * 100))
   const proposedPosition =
-    proposedSalary != null ? Math.max(0, Math.min(100, ((proposedSalary - band.minSalary) / range) * 100)) : null
+    proposedSalary == null ? null : Math.max(0, Math.min(100, ((proposedSalary - band.minSalary) / range) * 100))
 
   return (
     <div className="gba:w-full gba:min-w-32 gba:max-w-48">

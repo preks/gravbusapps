@@ -65,7 +65,11 @@ function buildBudgetDistributionColumns(
       id: 'name',
       accessorKey: 'name',
       header: colOrgUnit,
-      cell: ({ getValue }) => <span className="gba:font-medium gba:text-sm">{String(getValue() ?? '')}</span>,
+      cell: ({ getValue }) => {
+        const raw = getValue()
+        const label = typeof raw === 'string' ? raw : ''
+        return <span className="gba:font-medium gba:text-sm">{label}</span>
+      },
       meta: { type: 'text' }
     },
     {
@@ -120,13 +124,7 @@ export const BudgetDistributionOrgUnitTable: React.FC<BudgetDistributionOrgUnitT
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...VISIBLE_COLUMN_IDS])
 
-  const { units, loading, error } = useCompanyOrganizationalUnits(
-    accessToken,
-    companyId,
-    100,
-    debouncedSearch,
-    undefined
-  )
+  const { units, loading, error } = useCompanyOrganizationalUnits(accessToken, companyId, 100, debouncedSearch)
 
   const orgUnitFilterOptions = useMemo(() => {
     return [...units].sort((a, b) => a.name.localeCompare(b.name)).map(u => ({ id: u.id, label: u.name }))
@@ -325,7 +323,7 @@ export const BudgetDistributionOrgUnitTable: React.FC<BudgetDistributionOrgUnitT
         data={filteredUnits}
         columns={visibleTableColumns}
         loading={loading}
-        error={error ?? undefined}
+        error={error}
         sorting={sorting}
         onSortingChange={setSorting}
         pagination={pagination}

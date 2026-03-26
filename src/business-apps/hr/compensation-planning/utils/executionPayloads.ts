@@ -63,7 +63,7 @@ export function buildSalaryAdjustmentPayload(
     employeeSalary: {
       employee: proposal.employeeId,
       annualGrossSalary: proposal.proposedNewSalary,
-      monthlyGrossSalary: proposal.proposedNewSalary != null ? proposal.proposedNewSalary / 12 : null,
+      monthlyGrossSalary: proposal.proposedNewSalary == null ? null : proposal.proposedNewSalary / 12,
       hourlyGrossSalary: snapshot.hourlyGrossSalary,
       currencyRef: snapshot.currencyRef,
       salaryAdjustReasonRef: 'SalaryAdjustReason:v1:COMPENSATION_PLANNING',

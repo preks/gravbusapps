@@ -16,8 +16,6 @@ import {
 
 import { UsersIcon } from '@phosphor-icons/react'
 
-import { MODULE_COLORS } from '@/common/constants/ui'
-
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
@@ -237,11 +235,10 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
 
   return (
     <PageLayout
-      headerIcon={UsersIcon}
+      headerPhosphorIcon={{ icon: UsersIcon, variant: 'ext3' }}
       headerTitle={t('title')}
       headerDescription={t('subtitle')}
       onBack={null as unknown as (() => void) | undefined}
-      variant={MODULE_COLORS.HR}
       className="gba:min-h-screen"
     >
       <div className="gba:space-y-6">{renderBody()}</div>
