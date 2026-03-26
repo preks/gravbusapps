@@ -15,6 +15,7 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { Document, DocumentFormatting } from '../../types'
 import { sanitizeDocumentHtmlForEditor } from '../../utils/documentContentUtils'
+import { setDocumentTocLayoutHints } from '../../utils/tocLayoutBridge'
 import { createDocumentImageUploadHandler } from '../../utils/documentImageBindings'
 import { useDocumentEditorAvatars, useDocumentEditorShortcuts, useVersionUserDisplays } from '../../hooks'
 import { useOfficeDocumentCollaboration } from '../../hooks/useOfficeDocumentCollaboration'
@@ -907,6 +908,24 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         isYjsSynced,
         layoutInputsKey
       })
+
+    useEffect(() => {
+      setDocumentTocLayoutHints({
+        pageBounds: layoutViewportModel.pageBounds,
+        mountedPageBodyBounds: layoutViewportModel.mountedPageBodyBounds,
+        pagePositionRanges: layoutViewportModel.pagePositionRanges,
+        pageSpans: layoutViewportModel.pageSpans,
+        retainedPageSpans: layoutViewportModel.retainedPageSpans
+      })
+      return () => setDocumentTocLayoutHints(undefined)
+    }, [
+      layoutViewportModel.layoutVersion,
+      layoutViewportModel.mountedPageBodyBounds,
+      layoutViewportModel.pageBounds,
+      layoutViewportModel.pagePositionRanges,
+      layoutViewportModel.pageSpans,
+      layoutViewportModel.retainedPageSpans
+    ])
 
     const handleInsertSignatureFromDialog = useCallback(
       (sig: {

@@ -387,6 +387,11 @@ editor-toolbar-insert-link = Inserați link
 editor-toolbar-insert-image = Inserați imagine
 editor-toolbar-insert-signature = Inserați semnătură
 editor-toolbar-insert-table = Inserați tabel
+editor-toolbar-insert-table-of-contents = Cuprins
+
+document-toc-block-title = Cuprins
+document-toc-empty = Nu există încă titluri sub acest cuprins.
+document-toc-page-unknown = —
 editor-toolbar-table-row-before = Inserați rând deasupra
 editor-toolbar-table-row-after = Inserați rând dedesubt
 editor-toolbar-table-duplicate-row = Duplicați rândul

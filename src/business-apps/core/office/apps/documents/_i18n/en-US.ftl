@@ -388,6 +388,11 @@ editor-toolbar-insert-link = Insert Link
 editor-toolbar-insert-image = Insert Image
 editor-toolbar-insert-signature = Insert Signature
 editor-toolbar-insert-table = Insert Table
+editor-toolbar-insert-table-of-contents = Table of Contents
+
+document-toc-block-title = Table of contents
+document-toc-empty = No headings below this table of contents yet.
+document-toc-page-unknown = —
 editor-toolbar-table-row-before = Insert Row Above
 editor-toolbar-table-row-after = Insert Row Below
 editor-toolbar-table-duplicate-row = Duplicate Row

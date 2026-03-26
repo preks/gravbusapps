@@ -28,7 +28,7 @@ import { isDocumentImageProtectedSrc, resolveProtectedDocumentImageSrc } from '.
 import { createYjsCursorExtension } from '../extensions/YjsCursor'
 import { LineAndParagraphSpacing } from '../extensions/LineAndParagraphSpacing'
 import { ParagraphIndent } from '../extensions/ParagraphIndent'
-import { DocumentImage, PageBreak, SearchHighlight, Signature } from '../extensions'
+import { DocumentImage, DocumentTableOfContents, PageBreak, SearchHighlight, Signature } from '../extensions'
 import { InlineComment as InlineCommentExtension } from '@/business-apps/platform/apps/shared/extensions/InlineCommentExtension'
 
 const PAGE_GAP_PX = 24
@@ -201,6 +201,7 @@ export function usePagedDocumentEditorInstance({
         }),
         ...createSharedDocumentExtensions(accessToken),
         PageBreak,
+        DocumentTableOfContents,
         SearchHighlight,
         ...(paginationConfig && !paginationDebugDisabled
           ? [

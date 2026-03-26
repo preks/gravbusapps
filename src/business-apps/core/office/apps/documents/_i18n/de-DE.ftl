@@ -387,6 +387,11 @@ editor-toolbar-insert-link = Link einfügen
 editor-toolbar-insert-image = Bild einfügen
 editor-toolbar-insert-signature = Unterschrift einfügen
 editor-toolbar-insert-table = Tabelle einfügen
+editor-toolbar-insert-table-of-contents = Inhaltsverzeichnis
+
+document-toc-block-title = Inhaltsverzeichnis
+document-toc-empty = Noch keine Überschriften unter diesem Inhaltsverzeichnis.
+document-toc-page-unknown = —
 editor-toolbar-table-row-before = Zeile oberhalb einfügen
 editor-toolbar-table-row-after = Zeile unterhalb einfügen
 editor-toolbar-table-duplicate-row = Zeile duplizieren
