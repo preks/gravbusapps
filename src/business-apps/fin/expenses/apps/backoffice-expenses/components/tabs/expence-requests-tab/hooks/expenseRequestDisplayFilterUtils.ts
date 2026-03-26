@@ -4,7 +4,7 @@ import {
   applyDateRangeFromFilter,
   formatDateRangeForChip,
   type DateRange
-} from '../../../../../manager-expenses/components/tabs/expense-plans-tab/config/dataDisplayFilterUtils'
+} from '../../../../common/utils/dateRangeFilterUtils'
 import { getExpenseRequestStatusDisplay, ExpenseStatus, type TranslateFn } from '../../../../utils/utils'
 import { buildStatusDisplayName } from '../../../../utils/sharedUtils'
 import { createBackofficeExpenseRequestFilterConfig } from '../config/backofficeExpenseRequestFilterConfig'

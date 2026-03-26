@@ -44,6 +44,10 @@ export function buildAdvancePaymentOrderBy(sortingState: SortingState): AdvanceP
       return [{ expensePlan: { totalAmount: sortDirection } }]
     case 'advance':
       return [{ amount: sortDirection }]
+    case 'orgUnit':
+      return [{ expensePlan: { employee: { employeePosition: { organizationalUnit: { name: sortDirection } } } } }]
+    case 'costCenter':
+      return [{ costCenter: { name: sortDirection } }]
     case 'paymentMethod':
       return [{ paymentMethod: sortDirection }]
     case 'createdAt':

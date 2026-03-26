@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { useCurrencySecondaryAction } from '../../../../manager-expenses/hooks/useTabState'
+import { useCurrencySecondaryAction } from '../../../common/hooks/useSharedTabState'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
@@ -25,13 +25,9 @@ import {
 } from './table/backofficeExpenseRequestColumns'
 import ExpenseRequestsTable from './table/ExpenseRequestsTable'
 import ExpenseRequestTableActions from './components/ExpenseRequestTableActions'
-import {
-  ExpenseRequestPdfModal,
-  EmployeeSearchFilter,
-  ExpenseRequestSecondaryActions,
-  ExpenseRequestsDataDisplay
-} from './components'
-import type { EmployeeFilterRenderProps } from './components/ExpenseRequestFilterSheet'
+import { ExpenseRequestPdfModal, EmployeeSearchFilter, ExpenseRequestSecondaryActions } from './components'
+import { BackofficeDataDisplay } from '../../../common/components/BackofficeDataDisplay'
+import { ExpenseRequestFilterSheet, type EmployeeFilterRenderProps } from './components/ExpenseRequestFilterSheet'
 import BackofficeExpenseRequestDetailsSheet from './components/BackofficeExpenseRequestDetailsSheet'
 
 type ExpenseRequestTabProps = BackofficeTabProps
@@ -68,6 +64,7 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     searchText,
     handleSearchChange,
     sortingState,
+    allDataColumns,
     sortableColumns,
     handleSortingChange,
     columnsFilteredByVisibility,
@@ -256,7 +253,7 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-requests-tab-container">
       <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="expense-requests-table-wrapper">
-        <ExpenseRequestsDataDisplay
+        <BackofficeDataDisplay
           titleSections={[
             {
               id: 'list',
@@ -274,21 +271,31 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
           sorting={sortingState}
           sortableColumns={sortableColumns}
           onSortingChange={handleSortingChange}
-          availableColumns={sortableColumns}
+          availableColumns={allDataColumns}
           visibleColumns={columnsFilteredByVisibility}
           onVisibleColumnsChange={setVisibleColumns}
           toolbarDensity="default"
-          enableLiveFiltering={false}
-          filterSheetTitle={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_plan_table.title',
-            'Filter Expense Requests'
-          )}
-          filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.filter_expense_requests_description',
-            'Apply filters to narrow down the expense requests list.'
-          )}
           secondaryActions={secondaryActions}
-          renderEmployeeFilter={renderEmployeeFilter}
+          renderFilterSheet={(open, onOpenChange) => (
+            <ExpenseRequestFilterSheet
+              open={open}
+              onOpenChange={onOpenChange}
+              configuration={filterConfiguration}
+              values={filtersObject}
+              onApply={handleFilterChangeFromDisplay}
+              onChange={handleFilterChangeFromDisplay}
+              enableLiveFiltering={false}
+              title={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_request_list.expense_plan_table.title',
+                'Filter Expense Requests'
+              )}
+              description={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.filter_expense_requests_description',
+                'Apply filters to narrow down the expense requests list.'
+              )}
+              renderEmployeeFilter={renderEmployeeFilter}
+            />
+          )}
         >
           <ExpenseRequestsTable
             expenses={expenses ?? []}
@@ -304,7 +311,7 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
             onRowClick={handleRowClick}
             actions={renderRowActions}
           />
-        </ExpenseRequestsDataDisplay>
+        </BackofficeDataDisplay>
 
         <BackofficeExpenseRequestDetailsSheet
           open={!!selectedExpense}

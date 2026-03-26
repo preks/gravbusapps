@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
@@ -71,11 +71,14 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
 
   const [advancePaymentStats, setAdvancePaymentStats] = useState<AdvancePaymentStatisticsData | null>(null)
 
-  // Request deduplication - prevent duplicate queries
   const lastRequestKey = useRef<string>('')
   const isLoadingRef = useRef<boolean>(false)
+  const paymentsRef = useRef<AdvancePaymentItem[]>([])
 
-  // CRITICAL: Do NOT pass empty string - it sets empty token on singleton client!
+  useEffect(() => {
+    paymentsRef.current = payments
+  }, [payments])
+
   const client = useGraphqlClient(accessToken)
   const [orderBy, setOrderBy] = useState<OrderByClause>([{ createdAt: 'DESC' }])
 
@@ -279,7 +282,9 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       lastRequestKey.current = requestKey
       isLoadingRef.current = true
 
-      setIsLoading(true)
+      if (paymentsRef.current.length === 0) {
+        setIsLoading(true)
+      }
       setError(null)
 
       try {

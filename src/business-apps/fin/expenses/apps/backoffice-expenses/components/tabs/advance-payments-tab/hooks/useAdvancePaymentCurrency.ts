@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { useCurrencyInit, useCurrencySecondaryAction } from '../../../../../manager-expenses/hooks/useTabState'
+import { useCurrencyInit, useCurrencySecondaryAction } from '../../../../common/hooks/useSharedTabState'
 import type { Currency } from '../../../../hooks/useFilterData'
 
 interface UseAdvancePaymentCurrencyParams {

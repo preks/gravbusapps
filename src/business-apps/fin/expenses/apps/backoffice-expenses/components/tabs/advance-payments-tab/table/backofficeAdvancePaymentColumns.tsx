@@ -68,10 +68,10 @@ export function createBackofficeAdvancePaymentDataColumns(t: TranslateFn): Colum
     },
     {
       id: 'orgUnit',
-      accessorFn: (row: AdvancePaymentItem) =>
-        row.expensePlan?.employee?.employeePosition?.organizationalUnit?.name ?? null,
+      accessorKey: 'id',
       header: t('header-org-unit'),
-      enableSorting: false,
+      enableSorting: true,
+      sortDescFirst: false,
       size: 200,
       minSize: 160,
       maxSize: 280,
@@ -89,7 +89,7 @@ export function createBackofficeAdvancePaymentDataColumns(t: TranslateFn): Colum
       id: 'costCenter',
       accessorFn: (row: AdvancePaymentItem) => row.costCenter?.name ?? null,
       header: t('header-cost-center'),
-      enableSorting: false,
+      enableSorting: true,
       size: 160,
       minSize: 120,
       maxSize: 240,

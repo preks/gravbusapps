@@ -2,10 +2,7 @@ import React, { useMemo } from 'react'
 import type { ActionOption } from '@newwork/nw-design-system'
 import { useTranslation } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action'
-import {
-  RowActionsIcon,
-  RowActionsWrapper
-} from '../../../../../manager-expenses/common/components/RowActionComponents'
+import { RowActionsIcon, RowActionsWrapper } from '../../../../common/components/RowActionComponents'
 import { ExpenseData } from '../../../../types'
 import translations from '../../../../_i18n'
 import type { ExpenseRequestActionHandlers } from '../../../../types/expenseRequestActionHandlers'

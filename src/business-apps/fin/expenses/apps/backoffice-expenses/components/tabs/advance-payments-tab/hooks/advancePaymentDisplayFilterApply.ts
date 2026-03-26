@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { applyDateRangeFromFilter } from '../../../../../manager-expenses/components/tabs/expense-plans-tab/config/dataDisplayFilterUtils'
+import { applyDateRangeFromFilter } from '../../../../common/utils/dateRangeFilterUtils'
 
 interface ApplyAdvancePaymentDisplayFiltersParams {
   filters: Record<string, unknown>

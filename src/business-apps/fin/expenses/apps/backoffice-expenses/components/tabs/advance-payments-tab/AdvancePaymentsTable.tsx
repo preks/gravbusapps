@@ -10,6 +10,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../../_i18n'
 import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
 import { useTableSetup } from '../../../common/hooks/useTableSetup'
+import { useVisibleColumns } from '../../../common/hooks/useSharedTabState'
 import { useFilterData } from '../../../hooks/useFilterData'
 import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOptions'
 import type { AdvancePaymentItem } from '../../../types'
@@ -26,7 +27,8 @@ import {
 import { useAdvancePaymentsTableUrlSearch } from './hooks/useAdvancePaymentsTableUrlSearch'
 import AdvancePaymentsDataBody from './components/AdvancePaymentsDataBody'
 import AdvancePaymentsDetailsSheet from './components/AdvancePaymentsDetailsSheet'
-import { AdvancePaymentsDataDisplay } from './components/AdvancePaymentsDataDisplay'
+import { BackofficeDataDisplay } from '../../../common/components/BackofficeDataDisplay'
+import { AdvancePaymentFilterSheet } from './components/AdvancePaymentFilterSheet'
 import { AdvancePaymentReporterFilter } from './components/AdvancePaymentReporterFilter'
 import { AdvancePaymentsRowActions } from './components/AdvancePaymentsRowActions'
 import { createBackofficeAdvancePaymentDataColumns } from './table/backofficeAdvancePaymentColumns'
@@ -137,37 +139,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   const allColumns = useMemo(() => createBackofficeAdvancePaymentDataColumns(t), [t])
 
-  const { columns, pagination, handlePaginationChange } = useTableSetup(
-    props,
-    allColumns,
-    visibleColumns,
-    currentPage,
-    pageSize,
-    setCurrentPage,
-    setPageSize
-  )
-
-  const handleRowClick = useCallback((record: AdvancePaymentItem) => {
-    setSelectedItem(record)
-  }, [])
-
-  const renderRowActions = useCallback(
-    (row: { original: AdvancePaymentItem }) => (
-      <AdvancePaymentsRowActions
-        accessToken={props.accessToken}
-        record={row.original}
-        onSelectItem={setSelectedItem}
-        t={t}
-      />
-    ),
-    [props.accessToken, t]
-  )
-
   const sortableColumns = useMemo(
     () => [
       { id: 'createdAt', label: t('header-creation-date') },
       { id: 'title', label: t('header-title') },
       { id: 'employee', label: t('header-employee') },
+      { id: 'orgUnit', label: t('header-org-unit') },
+      { id: 'costCenter', label: t('header-cost-center') },
       { id: 'planId', label: t('header-plan-id') },
       { id: 'status', label: t('header-status') },
       { id: 'amount', label: t('header-amount') },
@@ -190,6 +168,34 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       { id: 'paymentMethod', label: t('header-payment-method') }
     ],
     [t]
+  )
+
+  const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, availableColumns)
+
+  const { columns, pagination, handlePaginationChange } = useTableSetup(
+    props,
+    allColumns,
+    columnsFilteredByVisibility,
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize
+  )
+
+  const handleRowClick = useCallback((record: AdvancePaymentItem) => {
+    setSelectedItem(record)
+  }, [])
+
+  const renderRowActions = useCallback(
+    (row: { original: AdvancePaymentItem }) => (
+      <AdvancePaymentsRowActions
+        accessToken={props.accessToken}
+        record={row.original}
+        onSelectItem={setSelectedItem}
+        t={t}
+      />
+    ),
+    [props.accessToken, t]
   )
 
   const handleSortingChange = useCallback(
@@ -220,17 +226,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   )
 
   const handleVisibleColumnsChange = useCallback((nextVisibleColumns: string[]) => {
-    const ids = nextVisibleColumns as AdvancePaymentVisibleColumnId[]
-    if (ids.length === 0) {
-      return
-    }
-    setVisibleColumns(ids)
+    setVisibleColumns(nextVisibleColumns as AdvancePaymentVisibleColumnId[])
   }, [])
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
       <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="advance-payments-table-wrapper">
-        <AdvancePaymentsDataDisplay
+        <BackofficeDataDisplay
           titleSections={[
             {
               id: 'list',
@@ -249,22 +251,32 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           sortableColumns={sortableColumns}
           onSortingChange={handleSortingChange}
           availableColumns={availableColumns}
-          visibleColumns={visibleColumns}
+          visibleColumns={columnsFilteredByVisibility}
           onVisibleColumnsChange={handleVisibleColumnsChange}
-          enableLiveFiltering={false}
-          filterSheetTitle={t('advance-payment-filter-sheet-title')}
-          filterSheetDescription={t('advance-payment-filter-sheet-description')}
           secondaryActions={currencySecondaryAction}
-          renderReporterFilter={reporterFilterProps => (
-            <AdvancePaymentReporterFilter
-              {...reporterFilterProps}
-              reporterSearchText={reporterSearchText}
-              setReporterSearchText={setReporterSearchText}
-              showReporterDropdown={showReporterDropdown}
-              setShowReporterDropdown={setShowReporterDropdown}
-              reporterSearchResults={reporterSearchResults}
-              reporterSearchLoading={reporterSearchLoading}
-              t={t}
+          renderFilterSheet={(open, onOpenChange) => (
+            <AdvancePaymentFilterSheet
+              open={open}
+              onOpenChange={onOpenChange}
+              configuration={filterConfiguration}
+              values={filtersObject}
+              onApply={handleFilterChangeFromDisplay}
+              onChange={handleFilterChangeFromDisplay}
+              enableLiveFiltering={false}
+              title={t('advance-payment-filter-sheet-title')}
+              description={t('advance-payment-filter-sheet-description')}
+              renderReporterFilter={reporterFilterProps => (
+                <AdvancePaymentReporterFilter
+                  {...reporterFilterProps}
+                  reporterSearchText={reporterSearchText}
+                  setReporterSearchText={setReporterSearchText}
+                  showReporterDropdown={showReporterDropdown}
+                  setShowReporterDropdown={setShowReporterDropdown}
+                  reporterSearchResults={reporterSearchResults}
+                  reporterSearchLoading={reporterSearchLoading}
+                  t={t}
+                />
+              )}
             />
           )}
         >
@@ -282,7 +294,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             onRowClick={handleRowClick}
             actions={renderRowActions}
           />
-        </AdvancePaymentsDataDisplay>
+        </BackofficeDataDisplay>
         <AdvancePaymentsDetailsSheet
           selectedItem={selectedItem}
           accessToken={props.accessToken}
