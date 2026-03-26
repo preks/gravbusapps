@@ -40,6 +40,10 @@ export interface CustomImageAttributes {
   scaleWidthPercent?: number | null
   scaleHeightPercent?: number | null
   rotation?: number | null
+  cropTop?: number | null
+  cropRight?: number | null
+  cropBottom?: number | null
+  cropLeft?: number | null
   align?: ImageAlignment | null
   caption?: string | null
   display?: ImageDisplayMode | null
@@ -57,6 +61,13 @@ export interface CustomImageAttributes {
 }
 
 export type SetImageLayoutOptions = Partial<CustomImageAttributes>
+
+export interface SetImageCropOptions {
+  top?: number | null
+  right?: number | null
+  bottom?: number | null
+  left?: number | null
+}
 
 export type ProtectedSrcResolution = string | Blob
 

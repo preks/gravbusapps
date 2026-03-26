@@ -12,6 +12,8 @@ import {
 } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useOpportunityExport } from './hooks/useOpportunityExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -160,6 +162,10 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   extendVisibleColumns?: string[] // Additional columns to add to base columns
   renderQuickFilters?: (props: QuickFiltersRenderProps) => React.ReactNode
   quickFilter?: string // Current quick filter value (e.g., 'all', 'qualified', 'unqualified')
+  /** When true, renders CSV and Excel export buttons in the list view toolbar. */
+  enableExport?: boolean
+  /** Filename prefix for exported files (timestamp is appended automatically). */
+  exportFilenamePrefix?: string
   showAllCurrencyOption?: boolean
   defaultCurrency?: string
 }
@@ -328,6 +334,8 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     extendVisibleColumns = [],
     renderQuickFilters,
     quickFilter,
+    enableExport = false,
+    exportFilenamePrefix = 'opportunities',
     showAllCurrencyOption = true,
     defaultCurrency = 'ALL'
   } = props
@@ -509,6 +517,15 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     return baseVars
   }, [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, availableCurrencies, config])
 
+  // Export
+  const { isExporting, handleExportCsv, handleExportExcel } = useOpportunityExport({
+    fetchOpportunities: config.fetchOpportunities as any,
+    queryVariables: listQueryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix,
+    contextType: config.contextType
+  })
+
   // Load List Data
   const loadListData = useCallback(
     async (showLoading: boolean = true) => {
@@ -683,18 +700,56 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     [currentSection, boardPipelineId, pipelines, selectedCurrency, availableCurrencies, showAllCurrencyOption]
   )
 
-  // List secondary actions: Currency filter
+  // List secondary actions: Currency filter + optional export buttons
   const listSecondaryActions = useMemo(
     () => (
-      <ListSecondaryActions
-        currentSection={currentSection}
-        selectedCurrency={selectedCurrency}
-        currencies={availableCurrencies}
-        onCurrencyChange={setSelectedCurrency}
-        showAllCurrencyOption={showAllCurrencyOption}
-      />
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <ListSecondaryActions
+          currentSection={currentSection}
+          selectedCurrency={selectedCurrency}
+          currencies={availableCurrencies}
+          onCurrencyChange={setSelectedCurrency}
+          showAllCurrencyOption={showAllCurrencyOption}
+        />
+        {enableExport && currentSection === 'list' && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCsv}
+              disabled={isExporting || totalCount === 0}
+              title={isExporting ? 'Exporting…' : `Export ${totalCount} opportunities as CSV`}
+              data-testid="export-csv-button"
+            >
+              <DownloadIcon size={16} />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              disabled={isExporting || totalCount === 0}
+              title={isExporting ? 'Exporting…' : `Export ${totalCount} opportunities as Excel`}
+              data-testid="export-excel-button"
+            >
+              <FileXlsIcon size={16} />
+              Excel
+            </Button>
+          </>
+        )}
+      </div>
     ),
-    [currentSection, selectedCurrency, availableCurrencies, showAllCurrencyOption]
+    [
+      currentSection,
+      selectedCurrency,
+      availableCurrencies,
+      showAllCurrencyOption,
+      enableExport,
+      isExporting,
+      totalCount,
+      handleExportCsv,
+      handleExportExcel
+    ]
   )
 
   // Extract sortableColumns for list view

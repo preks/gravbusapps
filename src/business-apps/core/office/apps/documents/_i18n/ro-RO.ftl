@@ -672,6 +672,29 @@ link-bubble-remove-link = Eliminați linkul
 link-bubble-open-link = Deschide linkul
 link-bubble-open-new-tab = Deschide în tab nou
 
+# Meniu contextual document
+document-context-clipboard = Clipboard
+document-context-copy = Copiere
+document-context-cut = Decupare
+document-context-link = Link
+document-context-format = Formatare
+document-context-review = Revizuire
+document-context-add-comment = Adăugați comentariu
+document-context-image-settings = Setări imagine
+document-context-insert = Inserare
+document-context-delete = Ștergere
+document-context-cell = Celulă
+document-context-layout = Aspect
+document-context-translate = Traduceți
+document-context-proofing-language = Setați limba de corectare
+document-context-paragraph-options = Opțiuni paragraf
+document-context-change-picture = Schimbați imaginea
+document-context-draw = Desenați
+document-context-format-picture = Formatați imaginea
+document-context-split = Împărțire
+document-context-distribute = Distribuire
+document-context-format-table = Formatați tabelul
+
 image-context-cut = Decupare
 image-context-copy = Copiere
 image-context-paste = Lipire
@@ -679,7 +702,12 @@ image-context-delete = Ștergere
 image-context-replace = Schimbați imaginea
 image-context-alt-text = Text alternativ
 image-context-align = Aliniere
+image-context-anchor = Ancorare
 image-context-caption = Legendă
+image-context-crop = Decupare
+image-context-finish-crop = Finalizați decuparea
+image-context-reset-crop = Resetați decuparea
+image-context-crop-active = Decupare activă
 image-context-spacing = Distanță față de text
 
 image-context-wrap-text = Înfășurare text
@@ -691,6 +719,9 @@ image-wrap-through = Prin
 image-wrap-center = Sus și jos
 image-wrap-behind = În spatele textului
 image-wrap-in-front = În fața textului
+image-anchor-inline = În linie
+image-anchor-move-with-text = Mutați cu textul
+image-anchor-fixed = Fixați poziția pe pagină
 
 image-alt-text-dialog-title = Text alternativ
 image-alt-text-label = Descriere (pentru accesibilitate)
@@ -704,6 +735,7 @@ image-position-move-up = Mutare în sus
 image-position-move-down = Mutare în jos
 image-position-bring-forward = Aduceți în față
 image-position-send-backward = Trimiteți în spate
+image-position-z-index = Ordinea straturilor
 image-sidebar-title = Imagine
 table-sidebar-in-header-context = Tabel în antet
 table-sidebar-in-footer-context = Tabel în subsol
@@ -723,6 +755,10 @@ image-sidebar-reset-size = Resetați la dimensiunea originală
 image-sidebar-scale-width = Scalați lățimea (%)
 image-sidebar-scale-height = Scalați înălțimea (%)
 image-sidebar-rotation = Rotație (grade)
+image-crop-top = Decupați sus
+image-crop-right = Decupați dreapta
+image-crop-bottom = Decupați jos
+image-crop-left = Decupați stânga
 
 # Paged document editor
 editor-back-title = Înapoi la documente

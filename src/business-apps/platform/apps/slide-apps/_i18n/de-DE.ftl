@@ -27,6 +27,8 @@ sidebar-storage-slides = { $count } Folien
 
 menu-new-blank-title = Leere Folie
 menu-new-blank-description = Von Grund auf beginnen
+menu-new-ai-title = Mit KI generieren
+menu-new-ai-description = Präsentation mit KI erstellen
 menu-new-template-title = Aus Vorlage
 menu-new-template-description = Vorlage auswählen
 menu-new-import-title = PowerPoint importieren
@@ -292,6 +294,8 @@ header-manage-access = Zugriff verwalten...
 # Generate Presentation
 generate-title = Präsentation generieren
 generate-description = Beschreiben Sie, was Sie benötigen, und die KI erstellt die Folien.
+generate-presentation-title-label = Präsentationstitel
+generate-presentation-title-placeholder = z.B. Q4 Geschäftsbericht
 generate-topic = Thema
 generate-topic-placeholder = Quartalsgeschäftsprüfung mit Vertriebskennzahlen, Team-Highlights und Q2-Zielen...
 generate-length = Länge

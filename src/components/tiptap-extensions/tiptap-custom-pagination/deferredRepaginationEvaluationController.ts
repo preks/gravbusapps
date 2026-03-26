@@ -121,6 +121,7 @@ export function runDeferredRepaginationEvaluationLoop(options: {
     const hasTables = options.documentHasTables(options.view)
     const shouldInspectTableLayout = hasTables && !hasActiveEditor
     const tableBodyBands = shouldInspectTableLayout ? options.getBodyMeasurementBands(options.view.dom) : []
+    const measuredTablePageCount = new Set(tableBodyBands.map(band => band.pageNumber)).size
     const layoutTableFragmentsState = hasTables
       ? readPaginationLayoutTableFragmentsState(options.view.dom, options.view.state.doc)
       : createMissingPaginationLayoutTableFragmentsState()
@@ -133,7 +134,7 @@ export function runDeferredRepaginationEvaluationLoop(options: {
       shouldDeferTablePaginationEvaluation({
         hasTables,
         currentPageCount,
-        bodyBandCount: tableBodyBands.length
+        bodyBandCount: measuredTablePageCount
       })
     const tableMeasurementsPending =
       hasTables &&
@@ -146,7 +147,7 @@ export function runDeferredRepaginationEvaluationLoop(options: {
       hasActiveEditor,
       hasTables,
       currentPageCount,
-      bodyBandCount: tableBodyBands.length,
+      bodyBandCount: measuredTablePageCount,
       stabilizationAttemptsRemaining,
       tableMeasurementsPending
     })
@@ -166,6 +167,7 @@ export function runDeferredRepaginationEvaluationLoop(options: {
       pageCountReason,
       lastPageGap: lastMeasuredPageGap,
       bodyBandCount: tableBodyBands.length,
+      measuredTablePageCount,
       layoutTableFragmentCount: layoutTableFragmentsState.fragments.length,
       layoutTableFragmentsStatus: layoutTableFragmentsState.status,
       layoutTableFragmentsLayoutVersion: layoutTableFragmentsState.layoutVersion,

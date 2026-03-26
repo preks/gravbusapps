@@ -9,6 +9,7 @@ import {
   type MutableRefObject,
   type SetStateAction
 } from 'react'
+import { getMarkRange } from '@tiptap/core'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { buildDocumentEditAdditionInfo } from '@/common/utils/buildDocumentEditPrompt'
 import { openEveryAI } from '@/common/utils/openEveryAI'
@@ -69,6 +70,7 @@ export interface UsePagedDocumentInteractionDialogsResult {
   isAiSelectionPreviewExpanded: boolean
   setIsAiSelectionPreviewExpanded: Dispatch<SetStateAction<boolean>>
   openLinkDialog: () => void
+  openLinkDialogForEditor: (editor: TiptapEditor | null) => void
   openInsertImageDialog: () => void
   openReplaceImageDialog: (imagePos: number | null) => void
   handleReplaceSelectedImage: (src: string) => void
@@ -78,6 +80,7 @@ export interface UsePagedDocumentInteractionDialogsResult {
     contextMenuPosition?: { x: number; y: number },
     selectionRange?: { from: number; to: number }
   ) => void
+  openAiEditSidebar: () => void
   handleAiEditClick: () => void
   handleConfirmAiInstruction: () => void
   closeAiInstructionDialog: () => void
@@ -130,6 +133,27 @@ export function resolveLinkDialogRequest(options: {
     },
     insertWithNoSelection: false
   }
+}
+
+function resolveLinkDialogSelectionText(editor: TiptapEditor): string {
+  const { selection, doc } = editor.state
+  const selectionText = doc.textBetween(selection.from, selection.to)
+
+  if (selection.from !== selection.to || !editor.isActive('link')) {
+    return selectionText
+  }
+
+  const linkMark = editor.schema.marks.link
+  if (!linkMark || !selection.$from) {
+    return selectionText
+  }
+
+  const linkRange = getMarkRange(selection.$from, linkMark)
+  if (!linkRange) {
+    return selectionText
+  }
+
+  return doc.textBetween(linkRange.from, linkRange.to)
 }
 
 function stripHtmlTagsLinear(value: string): string {
@@ -391,14 +415,14 @@ export function usePagedDocumentInteractionDialogs({
     showInlineCommentPopover
   ])
 
-  const openLinkDialog = useCallback(() => {
-    if (!activeEditor) return
-    const { from, to } = activeEditor.state.selection
+  const openLinkDialogForEditor = useCallback((dialogEditor: TiptapEditor | null) => {
+    if (!dialogEditor) return
+    const { from, to } = dialogEditor.state.selection
     const resolved = resolveLinkDialogRequest({
-      isLinkActive: activeEditor.isActive('link'),
-      selectionText: activeEditor.state.doc.textBetween(from, to),
-      href: activeEditor.getAttributes('link').href,
-      target: activeEditor.getAttributes('link').target,
+      isLinkActive: dialogEditor.isActive('link'),
+      selectionText: resolveLinkDialogSelectionText(dialogEditor),
+      href: dialogEditor.getAttributes('link').href,
+      target: dialogEditor.getAttributes('link').target,
       isEmptySelection: from === to
     })
 
@@ -406,7 +430,11 @@ export function usePagedDocumentInteractionDialogs({
     setLinkDialogInitialValues(resolved.initialValues)
     setLinkDialogInsertWithNoSelection(resolved.insertWithNoSelection)
     setShowLinkDialog(true)
-  }, [activeEditor])
+  }, [])
+
+  const openLinkDialog = useCallback(() => {
+    openLinkDialogForEditor(activeEditor)
+  }, [activeEditor, openLinkDialogForEditor])
 
   const openInsertImageDialog = useCallback(() => {
     replaceImagePosRef.current = null
@@ -513,6 +541,16 @@ export function usePagedDocumentInteractionDialogs({
     [editor, layoutHintState]
   )
 
+  const openAiEditSidebar = useCallback(() => {
+    if (!documentId) return
+
+    setShowAiInstructionDialog(false)
+    setAiInstruction('')
+    setAiSelectionSnapshot('')
+    setAiSelectionSnapshotHtml('')
+    setRightSidebar(prev => (prev === 'ai' ? 'closed' : 'ai'))
+  }, [documentId, setRightSidebar])
+
   const handleAiEditClick = useCallback(() => {
     if (!documentId) return
 
@@ -609,12 +647,14 @@ export function usePagedDocumentInteractionDialogs({
     isAiSelectionPreviewExpanded,
     setIsAiSelectionPreviewExpanded,
     openLinkDialog,
+    openLinkDialogForEditor,
     openInsertImageDialog,
     openReplaceImageDialog,
     handleReplaceSelectedImage,
     handleLinkApply,
     handleLinkRemove,
     handleAddInlineComment,
+    openAiEditSidebar,
     handleAiEditClick,
     handleConfirmAiInstruction,
     closeAiInstructionDialog,

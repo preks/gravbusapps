@@ -1,8 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { DataDisplay, Button, DataTable } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action/AppAction'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
+import { useCampaignExport } from './hooks/useCampaignExport'
 import type { CampaignManagementLayoutProps, Campaign } from './types/CampaignManagementLayoutTypes'
 
 /**
@@ -75,6 +78,10 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
     // Filter configuration
     filterConfiguration,
     sortableColumns,
+    // Export
+    enableExport = false,
+    exportFilenamePrefix = 'campaigns',
+    fetchCampaignsForExport,
     // Access token
     accessToken
   } = props
@@ -110,25 +117,25 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
   // This effect ensures local sorting state stays in sync with parent's sortField/sortOrder
   // It only updates when parent props actually differ from local state to prevent loops
   React.useEffect(() => {
-    if (sortField && sortOrder) {
-      const currentSortField = sorting[0]?.id
-      const currentSortDesc = sorting[0]?.desc
-      const parentWantsDesc = sortOrder === 'DESC'
+    if (!sortField || !sortOrder) return
 
-      // Only sync if parent's sorting is actually different from local state
-      const needsSync = currentSortField !== sortField || currentSortDesc !== parentWantsDesc
+    const currentSortField = sorting[0]?.id
+    const currentSortDesc = sorting[0]?.desc
+    const parentWantsDesc = sortOrder === 'DESC'
 
-      if (needsSync) {
-        const newSorting = [{ id: sortField, desc: parentWantsDesc }]
-        setSorting(newSorting)
-      }
+    // Only sync if parent's sorting is actually different from local state
+    const needsSync = currentSortField !== sortField || currentSortDesc !== parentWantsDesc
+
+    if (needsSync) {
+      setSorting([{ id: sortField, desc: parentWantsDesc }])
     }
   }, [sortField, sortOrder])
 
   // Fetch analytics data only when switching to Analytics tab
   React.useEffect(() => {
-    if (mainActiveTab === 'analytics' && !analyticsDataFetched && onFetchAnalytics) {
-      onFetchAnalytics()
+    const shouldFetch = mainActiveTab === 'analytics' && !analyticsDataFetched
+    if (shouldFetch) {
+      onFetchAnalytics?.()
       setAnalyticsDataFetched(true)
     }
   }, [mainActiveTab, analyticsDataFetched, onFetchAnalytics])
@@ -202,6 +209,63 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
     ),
     [accessToken, campaignEntityContext]
   )
+
+  // Export — build query variables from current layout state
+  const exportQueryVariables = useMemo(() => {
+    const sortEntry = sorting[0]
+    const processedStartDate = normalizeDateRange(selectedFilters.startDateRange)
+    const processedEndDate = normalizeDateRange(selectedFilters.endDateRange)
+    const processedCreatedDate = normalizeDateRange(selectedFilters.createdAtRange)
+    return {
+      search: searchTerm || undefined,
+      campaignTypes: selectedFilters.types?.length ? selectedFilters.types : undefined,
+      startDateAfter: processedStartDate?.from,
+      startDateBefore: processedStartDate?.to,
+      endDateAfter: processedEndDate?.from,
+      endDateBefore: processedEndDate?.to,
+      createdAfter: processedCreatedDate?.from,
+      createdBefore: processedCreatedDate?.to,
+      sortField: sortEntry?.id,
+      sortOrder: sortEntry?.desc ? 'DESC' : 'ASC'
+    }
+  }, [searchTerm, selectedFilters, sorting])
+
+  const { isExporting, handleExportCsv, handleExportExcel } = useCampaignExport({
+    fetchCampaigns: fetchCampaignsForExport ?? (async () => ({})),
+    queryVariables: exportQueryVariables,
+    totalCount: campaigns.length,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  const exportActions = useMemo(() => {
+    if (!enableExport || !fetchCampaignsForExport) return undefined
+    return (
+      <>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleExportCsv}
+          disabled={isExporting || campaigns.length === 0}
+          title={isExporting ? 'Exporting…' : `Export ${campaigns.length} campaigns as CSV`}
+          data-testid="export-csv-button"
+        >
+          <DownloadIcon size={16} />
+          CSV
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleExportExcel}
+          disabled={isExporting || campaigns.length === 0}
+          title={isExporting ? 'Exporting…' : `Export ${campaigns.length} campaigns as Excel`}
+          data-testid="export-excel-button"
+        >
+          <FileXlsIcon size={16} />
+          Excel
+        </Button>
+      </>
+    )
+  }, [enableExport, fetchCampaignsForExport, isExporting, campaigns.length, handleExportCsv, handleExportExcel])
 
   return (
     <div className="layout-content gba:pb-8">
@@ -292,6 +356,7 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
             </AppAction>
           ) : undefined
         }
+        secondaryActions={mainActiveTab === 'overview' ? exportActions : undefined}
         toolbarDensity="default"
         enableLiveFiltering={mainActiveTab === 'overview'}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterCampaigns', 'Filter Campaigns')}

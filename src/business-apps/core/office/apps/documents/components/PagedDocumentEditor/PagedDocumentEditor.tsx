@@ -33,6 +33,7 @@ import { usePublishing } from '@/business-apps/platform/apps/shared/hooks/usePub
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { LinkBubbleMenu } from './LinkBubbleMenu'
+import { DocumentContextMenu } from './DocumentContextMenu'
 import { NavigationPanel } from './NavigationPanel'
 import { DocumentBottomBar } from './DocumentBottomBar'
 import { PagedDocumentAiInstructionOverlay } from './PagedDocumentAiInstructionOverlay'
@@ -54,8 +55,13 @@ import { usePagedDocumentEditorRuntimeEffects } from './hooks/usePagedDocumentEd
 import { usePagedDocumentExternalContentSync } from './hooks/usePagedDocumentExternalContentSync'
 import { usePagedDocumentShellControls } from './hooks/usePagedDocumentShellControls'
 import { usePagedDocumentInteractionDialogs, type RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
-import { CLOSED_TABLE_SIDEBAR, usePagedDocumentSelectionSidebars } from './hooks/usePagedDocumentSelectionSidebars'
+import {
+  CLOSED_TABLE_SIDEBAR,
+  getSelectedImageState,
+  usePagedDocumentSelectionSidebars
+} from './hooks/usePagedDocumentSelectionSidebars'
 import { DOCUMENT_TOC_OPEN_FORMAT_EVENT } from './components/DocumentTableOfContentsView'
+import { useDocumentContextMenu } from './useDocumentContextMenu'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
@@ -987,6 +993,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       documentEditorRightReservePx,
       imageSidebarContextSubtitleKey,
       tableSidebarContextSubtitleKey,
+      setSelectedImageSidebarState,
       setSelectedTableSidebarState,
       closeImageSettingsSidebar,
       closeTableSettingsSidebar,
@@ -1020,16 +1027,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       isAiSelectionPreviewExpanded,
       setIsAiSelectionPreviewExpanded,
       openLinkDialog,
+      openLinkDialogForEditor,
       openInsertImageDialog,
       openReplaceImageDialog,
       handleReplaceSelectedImage,
       handleLinkApply,
       handleLinkRemove,
       handleAddInlineComment,
-      handleAiEditClick,
+      openAiEditSidebar,
       handleConfirmAiInstruction,
-      closeAiInstructionDialog,
-      openAiFromPendingSelection
+      closeAiInstructionDialog
     } = usePagedDocumentInteractionDialogs({
       editor,
       activeEditor,
@@ -1065,6 +1072,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     useEffect(() => {
       setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
     }, [document?.id, setSelectedTableSidebarState])
+
+    const openImageSettingsSidebar = useCallback(() => {
+      if (!activeEditor) return
+
+      const imageSelection = getSelectedImageState(activeEditor)
+      if (!imageSelection) return
+
+      setSelectedImageSidebarState({
+        open: true,
+        editor: activeEditor,
+        pos: imageSelection.pos,
+        nodeSize: imageSelection.nodeSize,
+        attrs: imageSelection.attrs
+      })
+    }, [activeEditor, setSelectedImageSidebarState])
 
     usePagedDocumentEditorRuntimeEffects({
       editor,
@@ -1187,9 +1209,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         void handleSave()
       },
       onAddInlineComment: handleAddInlineComment,
+      onAiEdit: openAiEditSidebar,
       onOpenLinkDialog: openLinkDialog,
-      editor: activeEditor,
       editorContainerRef
+    })
+
+    const { contextMenuState, handleContextMenuCapture } = useDocumentContextMenu({
+      activeEditor
     })
 
     useEditorKeyboardIsolation(editorContainerRef)
@@ -1284,7 +1310,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onExportWord={handleExportWord}
             onExportPDF={handleExportPDF}
             onPrint={handlePrint}
-            onAiEditClick={handleAiEditClick}
+            onAiEditClick={openAiEditSidebar}
             activeEditor={activeEditor}
             canOpenPageNumbersDialog={Boolean(editor)}
             onOpenLinkDialog={openLinkDialog}
@@ -1366,27 +1392,44 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             data-layout-runtime-reason={runtimeState.lastResolvedReason ?? ''}
           >
             <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
-              <div
-                className="paged-document-editor"
-                style={{
-                  transform: `scale(${zoom / 100})`,
-                  transformOrigin: 'top center'
-                }}
-                data-layout-active-pages={layoutViewportModel.activePageNumbers.join(',')}
+              <DocumentContextMenu
+                editor={activeEditor}
+                contextMenuState={contextMenuState}
+                onContextMenuCapture={handleContextMenuCapture}
+                onOpenLinkDialog={openLinkDialog}
+                onAddInlineComment={() => handleAddInlineComment()}
+                onAiEditClick={openAiEditSidebar}
+                onOpenReplaceImageDialog={openReplaceImageDialog}
+                onOpenTableSidebar={openTableSettingsSidebar}
+                onOpenImageSidebar={openImageSettingsSidebar}
+                data-testid="document-editor-context-menu"
               >
-                <EditorContent editor={editor} className="editor-content" />
-                {editor && (
-                  <BubbleMenu
-                    editor={editor}
-                    shouldShow={({ editor: e }) => e.isActive('link')}
-                    pluginKey="linkBubbleMenu"
-                    onMouseDown={event => event.preventDefault()}
-                  >
-                    <LinkBubbleMenu editor={editor} onEdit={openLinkDialog} data-testid="document-link-bubble-menu" />
-                  </BubbleMenu>
-                )}
-                {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
-              </div>
+                <div
+                  className="paged-document-editor"
+                  style={{
+                    transform: `scale(${zoom / 100})`,
+                    transformOrigin: 'top center'
+                  }}
+                  data-layout-active-pages={layoutViewportModel.activePageNumbers.join(',')}
+                >
+                  <EditorContent editor={editor} className="editor-content" />
+                  {editor && (
+                    <BubbleMenu
+                      editor={editor}
+                      shouldShow={({ editor: e }) => e.isActive('link')}
+                      pluginKey="linkBubbleMenu"
+                      onMouseDown={event => event.preventDefault()}
+                    >
+                      <LinkBubbleMenu
+                        editor={editor}
+                        onEdit={() => openLinkDialogForEditor(editor)}
+                        data-testid="document-link-bubble-menu"
+                      />
+                    </BubbleMenu>
+                  )}
+                  {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
+                </div>
+              </DocumentContextMenu>
             </div>
           </div>
         </div>
@@ -1517,7 +1560,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }}
           showInlineCommentPopover={showInlineCommentPopover}
           inlineCommentPosition={inlineCommentPosition}
-          onEditInlineCommentWithAI={openAiFromPendingSelection}
           onSubmitInlineComment={handleSubmitInlineComment}
           onCloseInlineCommentPopover={handleCloseInlineCommentPopover}
           translate={t}

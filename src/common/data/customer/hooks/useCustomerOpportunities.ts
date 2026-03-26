@@ -110,7 +110,7 @@ export const useCustomerOpportunities = (context: BusinessAppContextProps) => {
       const orderBy = buildCustomerOpportunityOrderBy(variables.orderBy || [])
 
       const graphQLVariables: Record<string, any> = {
-        limit: Math.min(variables.limit || 50, 100),
+        limit: variables.limit || 50,
         offset: variables.offset || 0,
         where: whereCondition,
         orderBy: orderBy

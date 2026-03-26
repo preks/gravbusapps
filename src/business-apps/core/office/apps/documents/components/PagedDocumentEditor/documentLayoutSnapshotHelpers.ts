@@ -327,7 +327,10 @@ export function collectDocumentLayoutAnchors(
           pageSpans,
           pageBounds,
           metadata: {
-            src: typeof node.attrs.src === 'string' ? node.attrs.src : null
+            src: typeof node.attrs.src === 'string' ? node.attrs.src : null,
+            wrapMode: typeof node.attrs.wrapMode === 'string' ? node.attrs.wrapMode : null,
+            anchorMode: typeof node.attrs.anchorMode === 'string' ? node.attrs.anchorMode : null,
+            align: typeof node.attrs.align === 'string' ? node.attrs.align : null
           }
         })
       )
