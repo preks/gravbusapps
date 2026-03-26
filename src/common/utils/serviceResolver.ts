@@ -150,8 +150,7 @@ export const AUTHORIZATION_API_URL = resolveServiceUrl('NEXT_PUBLIC_AUTHORIZATIO
   servicePath: '/authorization',
   apiPath: '/api/v1'
 })
-// TODO: Temporary altered
-export const PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_PROMPT_MANAGER_API_URL_TEMP', {
+export const PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_PROMPT_MANAGER_API_URL', {
   servicePath: '/prompt-manager',
   apiPath: '/api/v1'
 })
