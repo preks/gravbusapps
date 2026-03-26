@@ -136,6 +136,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     const mouseDownElementRef = useRef<{ id: string; x: number; y: number; type: string } | null>(null)
     const CLICK_MOVE_THRESHOLD = 4
 
+    // Tracks which element's textarea has been initialized (cursor placed at end)
+    const textareaInitializedRef = useRef<string | null>(null)
+
     // Marquee selection state (for rendering the selection box)
     const [isMarquee, setIsMarquee] = useState(false)
     const [marqueeStart, setMarqueeStart] = useState<Position>({ x: 0, y: 0 })
@@ -315,6 +318,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
       if (mdRef && mdRef.type === 'text') {
         if (inlineEditing?.editingTextId && inlineEditing.editingTextId !== mdRef.id) {
+          textareaInitializedRef.current = null
           inlineEditing.onFinishEditing()
         }
         if (inlineEditing?.editingTextId !== mdRef.id) {
@@ -327,6 +331,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       if (inlineEditing?.editingTextId) {
         const editingElement = target.closest(`[data-element-id="${inlineEditing.editingTextId}"]`)
         if (!editingElement) {
+          textareaInitializedRef.current = null
           inlineEditing.onFinishEditing()
           return
         }
@@ -739,9 +744,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
       switch (shapeType) {
         case 'rectangle':
-          return <div style={baseStyle} />
         case 'rounded-rectangle':
-          return <div style={{ ...baseStyle, borderRadius: cornerRadius }} />
+          return <div style={{ ...baseStyle, borderRadius: cornerRadius || 0 }} />
         case 'circle':
           return <div style={{ ...baseStyle, borderRadius: '50%' }} />
         case 'ellipse':
@@ -916,7 +920,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 <>
                   <textarea
                     ref={el => {
-                      if (el) {
+                      if (el && textareaInitializedRef.current !== element.id) {
+                        textareaInitializedRef.current = element.id
                         el.focus()
                         el.selectionStart = el.selectionEnd = el.value.length
                       }
@@ -926,6 +931,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     onKeyDown={e => {
                       if (e.key === 'Escape') {
                         e.preventDefault()
+                        textareaInitializedRef.current = null
                         inlineEditing.onFinishEditing()
                       }
                     }}
@@ -1706,7 +1712,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             height: 720,
             ...getBackgroundStyle(),
             transform: `scale(${scale})`,
-            transformOrigin: 'top left'
+            transformOrigin: 'top left',
+            userSelect: isDragging || isResizing || isMarquee ? 'none' : undefined
           }}
           onMouseDown={handleCanvasMouseDown}
           onClick={handleCanvasClick}
