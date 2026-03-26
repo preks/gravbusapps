@@ -347,8 +347,10 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           cursor.setDate(cursor.getDate() + 1)
         }
       }
+      const WORK_ABSENCE_GROUP = 'AbsenceGroup:v1:WORK'
       for (const a of absences) {
         if (String(a.status).toUpperCase() !== 'APPROVED') continue
+        if (a.type?.parentEntryId === WORK_ABSENCE_GROUP) continue
         const translation = (a.type?.translations as { localeCode?: string; value?: string }[] | undefined)?.find(
           tr => tr.localeCode === activeLocale
         )
