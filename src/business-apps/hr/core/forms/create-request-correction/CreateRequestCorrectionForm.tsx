@@ -628,6 +628,12 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
               )}
             />
 
+            <div>
+              {isZeroPlannedDay && !isDateAbsence ? (
+                <p className="gba:text-sm gba:text-warning">{t('request-correction-zero-planned-warning')}</p>
+              ) : null}
+            </div>
+
             <FormField
               control={form.control as any}
               name="clockIn"
@@ -716,11 +722,6 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
               </FormItem>
             )}
           />
-          <div data-testid="rcf-zero-planned-warning">
-            {isZeroPlannedDay && !isDateAbsence ? (
-              <p className="gba:text-sm gba:text-warning">{t('request-correction-zero-planned-warning')}</p>
-            ) : null}
-          </div>
         </div>
       </AppActionForm>
     </div>
