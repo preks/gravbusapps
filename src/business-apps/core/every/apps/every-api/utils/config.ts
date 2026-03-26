@@ -3,6 +3,7 @@
  */
 
 import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL, FLOW_METRICS_API_URL } from '@/common/utils/serviceResolver'
 
 export interface EveryApiConfig {
   cflowEndpoint: string
@@ -12,14 +13,21 @@ export interface EveryApiConfig {
 }
 
 export function getCflowEndpoint(): string {
-  const endpoint = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-  const trimmed = (endpoint || '').trim().replace(/\/+$/, '')
-  // Some environments include `/api/v1` in the base URL already, but the client appends `/api/...`.
-  // Normalize to avoid `/api/v1/api/...` (404).
-  return trimmed.endsWith('/api/v1') ? trimmed.slice(0, -'/api/v1'.length) : trimmed
+  let trimmed = (CUSTOM_FLOW_ENGINE_API_URL || '').trim().replace(/\/+$/, '')
+  // Resolver URL is .../flow-engine/api; Every clients append `/api/...`. Normalize to avoid `/api/api/...`.
+  if (trimmed.endsWith('/api/v1')) {
+    trimmed = trimmed.slice(0, -'/api/v1'.length)
+  } else if (trimmed.endsWith('/api')) {
+    trimmed = trimmed.slice(0, -'/api'.length)
+  }
+  return trimmed
 }
 
 export function getFlowMetricsEndpoint(): string {
+  const fromResolver = (FLOW_METRICS_API_URL || '').trim()
+  if (fromResolver) {
+    return fromResolver.replace(/\/+$/, '')
+  }
   const endpoint = env('NEXT_PUBLIC_FLOW_METRICS_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL')
   if (!endpoint) {
     // Fallback to same-origin for microfrontend contexts

@@ -164,11 +164,11 @@ export const useInboxTasks = (
   }, [userId, fetchBatch, enabled, applyBatchState])
 
   /**
-   * Background refresh - lightweight check for new tasks
+   * Background refresh - first page is authoritative for those rows
    *
    * PERFORMANCE: Throttled to prevent hammering the backend.
-   * Only fetches first page to detect new tasks, preserves existing cursor for pagination.
-   * If new tasks detected, merges them into the top of the list.
+   * Merges the latest first page (new tasks + in-place updates for Kogito/CFlow) with
+   * already-loaded pages below the fold; does not change cursor / hasMore.
    */
   const backgroundRefresh = useCallback(async () => {
     // Skip if already loading, refetching, searching, or throttled
@@ -194,11 +194,7 @@ export const useInboxTasks = (
         return
       }
 
-      const newKeys = new Set(batch.tasks.map(t => `${t.source}:${t.id}`))
-      const hasNewTasksDetected = Array.from(newKeys).some(key => !lastTaskKeysRef.current.has(key))
-      if (!hasNewTasksDetected) return
-
-      // Merge: keep newest server-ordered first batch, then keep previously loaded tasks without duplicates
+      // Merge: server-ordered first batch (fresh payloads), then prior pages without duplicates
       // PERF: Cap merged array to prevent unbounded memory growth from repeated polling
       const MAX_TASKS_IN_MEMORY = 500
       setAllFetchedTasks(prev => {
