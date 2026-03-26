@@ -24,6 +24,7 @@ import {
   type BackofficeExpenseRequestTableChrome
 } from './table/backofficeExpenseRequestColumns'
 import ExpenseRequestsTable from './table/ExpenseRequestsTable'
+import ExpenseRequestTableActions from './components/ExpenseRequestTableActions'
 import {
   ExpenseRequestPdfModal,
   EmployeeSearchFilter,
@@ -189,32 +190,21 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     setSelectedExpense(record)
   }, [])
 
-  const handleCloseDetails = useCallback(() => {
-    setSelectedExpense(null)
-  }, [])
-
-  const tableChrome: BackofficeExpenseRequestTableChrome = useMemo(
-    () => ({
-      accessToken: accessToken ?? '',
-      bookableRecordsCount,
-      allBookableSelected,
-      onSelectAllRecords: handleSelectAllRecords,
-      selectedRowKeys,
-      onSelectRecord: handleSelectRecord,
-      isTransferInProgress,
-      onNavigateToExpenseRequest: handleNavigateToExpenseRequest,
-      onDownloadAccountingNote: handleDownloadAccountingNote,
-      onTriggerCSV: handleTriggerCSV,
-      onPrintExpenseRequest: handlePrintExpenseRequest,
-      onTransferPayment: handleTransferPayment
-    }),
+  const renderRowActions = useCallback(
+    (row: { original: ExpenseData }) => (
+      <ExpenseRequestTableActions
+        record={row.original}
+        accessToken={accessToken ?? ''}
+        transferInProgress={isTransferInProgress(row.original.id)}
+        onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
+        onDownloadAccountingNote={handleDownloadAccountingNote}
+        onTriggerCSV={handleTriggerCSV}
+        onPrintExpenseRequest={handlePrintExpenseRequest}
+        onTransferPayment={handleTransferPayment}
+      />
+    ),
     [
       accessToken,
-      bookableRecordsCount,
-      allBookableSelected,
-      handleSelectAllRecords,
-      selectedRowKeys,
-      handleSelectRecord,
       isTransferInProgress,
       handleNavigateToExpenseRequest,
       handleDownloadAccountingNote,
@@ -224,13 +214,28 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     ]
   )
 
+  const handleCloseDetails = useCallback(() => {
+    setSelectedExpense(null)
+  }, [])
+
+  const tableChrome: BackofficeExpenseRequestTableChrome = useMemo(
+    () => ({
+      bookableRecordsCount,
+      allBookableSelected,
+      onSelectAllRecords: handleSelectAllRecords,
+      selectedRowKeys,
+      onSelectRecord: handleSelectRecord
+    }),
+    [bookableRecordsCount, allBookableSelected, handleSelectAllRecords, selectedRowKeys, handleSelectRecord]
+  )
+
   const allExpenseRequestColumns = useMemo(
     () => createBackofficeExpenseRequestColumns(t, tableChrome),
     [t, tableChrome]
   )
 
   const visibleExpenseRequestColumnIds = useMemo(
-    () => ['select', ...columnsFilteredByVisibility, 'actions'],
+    () => ['select', ...columnsFilteredByVisibility],
     [columnsFilteredByVisibility]
   )
 
@@ -297,6 +302,7 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
             onPaginationChange={handlePaginationChange}
             emptyMessage={listEmptyMessage}
             onRowClick={handleRowClick}
+            actions={renderRowActions}
           />
         </ExpenseRequestsDataDisplay>
 
