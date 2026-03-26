@@ -48,7 +48,9 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
     isValid,
     replacementEmployees,
     replacementEmployeesLoading,
-    searchReplacementEmployees
+    searchReplacementEmployees,
+    evaluatedEmployeeId,
+    managerEmployeeId
   } = usePerformanceEvaluationPeerApprove()
 
   const employeeOptionsForSelect = useMemo<Employee[]>(
@@ -67,6 +69,23 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
       })),
     [replacementEmployees]
   )
+
+  const allSelectedIds = useMemo(() => {
+    const ids = new Set<string>()
+    if (evaluatedEmployeeId) ids.add(evaluatedEmployeeId)
+    if (managerEmployeeId) ids.add(managerEmployeeId)
+    for (const peer of nominatedPeers) {
+      const replacement = peerReplacements[peer.id]
+      ids.add(replacement ?? peer.id)
+    }
+    for (const slot of additionalSlots) {
+      if (slot.employeeId) ids.add(slot.employeeId)
+    }
+    return ids
+  }, [nominatedPeers, peerReplacements, additionalSlots, evaluatedEmployeeId, managerEmployeeId])
+
+  const getFilteredOptions = (currentValue: string | null) =>
+    employeeOptionsForSelect.filter(emp => emp.id === currentValue || !allSelectedIds.has(emp.id))
 
   const [approving, setApproving] = useState(false)
 
@@ -147,7 +166,7 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
                             value={peerReplacements[peer.id] ?? null}
                             onValueChange={value => setPeerReplacement(peer.id, value ?? null)}
                             placeholder={t('replace-with-placeholder')}
-                            employees={employeeOptionsForSelect}
+                            employees={getFilteredOptions(peerReplacements[peer.id] ?? null)}
                             loading={replacementEmployeesLoading}
                             onSearch={searchReplacementEmployees}
                             data-testid={formatDataTestId(prefixDataTestId, 'ReplaceSelect', peer.id)}
@@ -183,7 +202,7 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
                           value={slot.employeeId}
                           onValueChange={value => setAdditionalPeerEmployee(slot.slotId, value ?? null)}
                           placeholder={t('select-peer-placeholder')}
-                          employees={employeeOptionsForSelect}
+                          employees={getFilteredOptions(slot.employeeId)}
                           loading={replacementEmployeesLoading}
                           onSearch={searchReplacementEmployees}
                           data-testid={formatDataTestId(prefixDataTestId, 'AdditionalSelect', slot.slotId)}

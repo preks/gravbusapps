@@ -35,6 +35,8 @@ interface PerformanceEvaluationPeerApproveContextType {
   onApprove: () => Promise<void>
   onReject: (comment?: string) => Promise<void>
   businessAppContext: BusinessAppContextProps
+  evaluatedEmployeeId: string | null
+  managerEmployeeId: string | null
   employeeForHeader: EmployeeForHeader | null
   employeeForHeaderLoading: boolean
   peerReplacements: PeerReplacements
@@ -312,6 +314,8 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       onApprove: handleApprove,
       onReject: handleReject,
       businessAppContext,
+      evaluatedEmployeeId: evaluatedEmployeeId ?? null,
+      managerEmployeeId: businessAppContext?.employeeDetails?.employeeId ?? null,
       employeeForHeader,
       employeeForHeaderLoading,
       peerReplacements,
@@ -341,6 +345,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       handleApprove,
       handleReject,
       businessAppContext,
+      evaluatedEmployeeId,
       employeeForHeader,
       employeeForHeaderLoading,
       peerReplacements,
