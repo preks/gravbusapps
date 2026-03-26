@@ -1,4 +1,4 @@
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 const normalizeUrl = (value: string): string => value.trim().replace(/\/+$/, '')
 
@@ -27,17 +27,10 @@ const resolveFlowEngineBaseFromCustom = (customUrl: string): string => {
 }
 
 /**
- * Get the develop (remote) flow engine base URL.
+ * Flow engine base URL (.../flow-engine), derived from {@link CUSTOM_FLOW_ENGINE_API_URL}.
  */
 export const getFlowEngineBaseUrl = (): string => {
-  const custom = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL')
-  if (custom?.trim()) return resolveFlowEngineBaseFromCustom(custom)
-
-  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
-  const develop = baseUrl?.trim() ? `${normalizeUrl(baseUrl)}/flow-engine` : null
-  if (develop) return develop
-
-  return '/flow-engine'
+  return resolveFlowEngineBaseFromCustom(CUSTOM_FLOW_ENGINE_API_URL)
 }
 
 /**
@@ -62,15 +55,22 @@ const resolveFlowEngineApiFromCustom = (customUrl: string): string => {
 }
 
 /**
- * Returns the Flow Engine API base URL.
+ * Flow Engine API root (.../flow-engine/api), from {@link CUSTOM_FLOW_ENGINE_API_URL}.
  */
 export const getFlowEngineApiBaseUrl = (): string => {
-  const custom = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL')
-  if (custom?.trim()) return resolveFlowEngineApiFromCustom(custom)
+  return resolveFlowEngineApiFromCustom(CUSTOM_FLOW_ENGINE_API_URL)
+}
 
-  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
-  const developBase = baseUrl?.trim() ? `${normalizeUrl(baseUrl)}/flow-engine` : null
-  if (developBase) return `${developBase}/api`
-
-  return '/flow-engine/api'
+/**
+ * Full URL for POST .../templates/execute-dynamic.
+ * Callers sometimes pass .../flow-engine (append /api/...) and sometimes .../flow-engine/api
+ * ({@link CUSTOM_FLOW_ENGINE_API_URL}) — avoid .../api/api/templates/...
+ */
+export function resolveExecuteDynamicUrl(apiBaseUrl: string): string {
+  const trimmed = normalizeUrl(apiBaseUrl || '')
+  const withoutV1 = trimmed.endsWith('/api/v1') ? trimmed.slice(0, -'/api/v1'.length) : trimmed
+  if (withoutV1.endsWith('/api')) {
+    return `${withoutV1}/templates/execute-dynamic`
+  }
+  return `${withoutV1}/api/templates/execute-dynamic`
 }
