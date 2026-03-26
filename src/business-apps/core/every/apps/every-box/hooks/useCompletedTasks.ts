@@ -193,10 +193,9 @@ export const useCompletedTasks = (
   }, [userId, fetchBatch, prefetchNext, setCursor, enabled])
 
   /**
-   * Background refresh - lightweight check for new tasks
+   * Background refresh - first page is authoritative (new completed items + payload updates).
    *
    * PERFORMANCE: Throttled to prevent hammering the backend.
-   * Only fetches first page to detect new tasks, preserves existing cursor for pagination.
    */
   const backgroundRefresh = useCallback(async () => {
     // Skip if already loading, refetching, searching, or throttled
@@ -222,11 +221,7 @@ export const useCompletedTasks = (
         return
       }
 
-      const newKeys = new Set(batch.tasks.map(t => `${t.source}:${t.id}`))
-      const hasNewTasksDetected = Array.from(newKeys).some(key => !lastTaskKeysRef.current.has(key))
-      if (!hasNewTasksDetected) return
-
-      // Merge: keep newest server-ordered first batch, then keep previously loaded tasks without duplicates
+      // Merge: server-ordered first batch (fresh payloads), then prior pages without duplicates
       // PERF: Cap merged array to prevent unbounded memory growth from repeated polling
       const MAX_TASKS_IN_MEMORY = 500
       setAllFetchedTasks(prev => {
