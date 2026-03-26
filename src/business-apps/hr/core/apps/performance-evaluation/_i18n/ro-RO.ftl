@@ -11,6 +11,7 @@ button-save = Salvează
 button-start = Pornește
 button-activate = Activează
 button-deactivate = Dezactivează
+button-complete = Finalizează
 button-delete = Șterge
 
 table-name = Nume
@@ -19,6 +20,7 @@ table-type = Tip
 table-scale = Scală
 table-participants = Participanți
 table-status = Stare
+status-completed = Finalizat
 table-evaluation-period = Perioada de evaluare
 table-actions = Acțiuni
 empty-no-cycles = Nu există încă cicluri create.
@@ -76,7 +78,7 @@ participant-hr-team = Echipa HR
 # Frecvență
 frequency-annual = Anual
 frequency-quarterly = Trimestrial
-frequency-custom = Personalizat
+frequency-monthly = Lunar
 
 # Tabel scale de evaluare
 empty-no-rating-scales = Nu există încă scale de evaluare definite.
@@ -85,6 +87,7 @@ scale-deleted-to-database = Scala de evaluare "{ $name }" a fost ștearsă.
 cycle-saved-to-database = Ciclul de performanță "{ $name }" a fost salvat.
 cycle-activated-to-database = "{ $name }" a fost activat.
 cycle-deactivated-to-database = "{ $name }" a fost dezactivat.
+cycle-completed-to-database = "{ $name }" a fost marcat ca finalizat.
 cycle-deleted-to-database = "{ $name }" a fost șters.
 cycle-started = Se pornește ciclul: { $name }
 value-saved-to-database = Valoarea companiei "{ $title }" a fost salvată.
@@ -121,4 +124,5 @@ values-error-cannot-deactivate-active-cycle = Valoarea nu poate fi dezactivată 
 cycles-error-no-rating-scales = Este necesară cel puțin o scală de evaluare pentru a crea un ciclu.
 cycles-error-no-company-values = Este necesară cel puțin o valoare de companie pentru a crea un ciclu.
 cycles-error-dates-overlap = Datele ciclului nu pot suprapune cu un ciclu existent. Alegeți o dată de început după sfârșitul ciclurilor existente.
+cycles-error-eval-period-overlap = Perioada de evaluare se suprapune cu un ciclu existent. Alegeți date care nu intră în conflict cu alte perioade de evaluare.
 error-activate-out-of-period = Ciclul nu poate fi activat. Data de astăzi este în afara perioadei ciclului.

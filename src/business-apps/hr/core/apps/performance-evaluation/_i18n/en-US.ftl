@@ -11,6 +11,7 @@ button-save = Save
 button-start = Start
 button-activate = Activate
 button-deactivate = Deactivate
+button-complete = Complete
 button-delete = Delete
 
 table-name = Name
@@ -19,6 +20,7 @@ table-type = Type
 table-scale = Scale
 table-participants = Participants
 table-status = Status
+status-completed = Completed
 table-evaluation-period = Evaluation Period
 table-actions = Actions
 empty-no-cycles = No cycles created yet.
@@ -75,7 +77,7 @@ participant-hr-team = HR Team
 # Frequency
 frequency-annual = Annual
 frequency-quarterly = Quarterly
-frequency-custom = Custom
+frequency-monthly = Monthly
 
 # Rating scales table
 empty-no-rating-scales = No rating scales defined yet.
@@ -84,6 +86,7 @@ scale-deleted-to-database = Rating scale "{ $name }" deleted.
 cycle-saved-to-database = Performance cycle "{ $name }" saved.
 cycle-activated-to-database = "{ $name }" activated.
 cycle-deactivated-to-database = "{ $name }" deactivated.
+cycle-completed-to-database = "{ $name }" marked as completed.
 cycle-deleted-to-database = "{ $name }" deleted.
 cycle-started = Starting cycle: { $name }
 value-saved-to-database = Company value "{ $title }" saved.
@@ -120,5 +123,6 @@ values-error-cannot-deactivate-active-cycle = Cannot deactivate value while it i
 cycles-error-no-rating-scales = At least one rating scale is required to create a cycle.
 cycles-error-no-company-values = At least one company value is required to create a cycle.
 cycles-error-dates-overlap = Cycle dates cannot overlap with an existing cycle. Please choose a start date after the end of existing cycles.
+cycles-error-eval-period-overlap = Evaluation period overlaps with an existing cycle. Please choose dates that do not conflict with other evaluation periods.
 error-activate-out-of-period = Cannot activate cycle. Today's date is outside the cycle period.
 

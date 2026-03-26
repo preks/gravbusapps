@@ -3,12 +3,14 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_PERFORMANCE_CYCLES,
   type GetPerformanceCyclesResponse,
-  type PerformanceCycleApi
+  type PerformanceCycleApi,
+  type PerformanceCycleParticipantApi,
+  type PerformanceCycleCompanyValueApi
 } from '../queries/performanceCycleQueries'
 
-export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
+export type FrequencyType = 'Annual' | 'Quarterly' | 'Monthly'
 export type ParticipantType = 'Self' | 'Peer' | 'Manager'
-export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive'
+export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive' | 'Completed'
 
 export interface EvaluationStage {
   id: string
@@ -53,7 +55,7 @@ function apiParticipantToUi(apiParticipant: string | null): ParticipantType | nu
 function apiFrequencyToUi(apiFrequency: string | null): FrequencyType {
   const freq = String(apiFrequency || '').toUpperCase()
   if (freq.includes('QUARTERLY')) return 'Quarterly'
-  if (freq.includes('CUSTOM')) return 'Custom'
+  if (freq.includes('CUSTOM')) return 'Monthly'
   return 'Annual'
 }
 
@@ -82,7 +84,7 @@ function apiStatusToUiStatus(
   if (apiStatus === 'ACTIVE_PERFORMANCE_CYCLE_STATUS') return 'Active'
   if (apiStatus === 'DRAFT_PERFORMANCE_CYCLE_STATUS') return 'Active'
   if (apiStatus === 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS') return 'Inactive'
-  if (apiStatus === 'COMPLETED_PERFORMANCE_CYCLE_STATUS') return 'Inactive'
+  if (apiStatus === 'COMPLETED_PERFORMANCE_CYCLE_STATUS') return 'Completed'
   if (active === false) return 'Inactive'
 
   // For other statuses, use date-based determination
@@ -120,7 +122,7 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
     participants: participants.length ? participants : ['Self', 'Manager'],
     stages: [],
     status,
-    deactivated: status === 'Inactive',
+    deactivated: status === 'Inactive' || status === 'Completed',
     recordState: api.recordState ?? undefined,
     ratingScaleId: api.ratingScaleId ?? undefined,
     valueIds,
