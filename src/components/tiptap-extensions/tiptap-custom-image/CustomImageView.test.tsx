@@ -1,0 +1,507 @@
+import React from 'react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { CustomImageView } from './CustomImageView'
+
+jest.mock('@tiptap/react', () => {
+  const actualReact = jest.requireActual('react') as typeof import('react')
+
+  return {
+    NodeViewWrapper: actualReact.forwardRef<HTMLElement, any>(({ as: Tag = 'div', children, ...props }, ref) => (
+      <Tag ref={ref} {...props}>
+        {children}
+      </Tag>
+    ))
+  }
+})
+
+const mockCreateNodeSelection = jest.fn(() => ({ type: 'node-selection' }))
+
+jest.mock('@tiptap/pm/state', () => ({
+  NodeSelection: {
+    create: (...args: unknown[]) => mockCreateNodeSelection(...args)
+  }
+}))
+
+function createOptions() {
+  return {
+    defaultAlign: 'left' as const,
+    defaultWrapMode: 'inline' as const,
+    defaultAnchorMode: 'inline' as const,
+    defaultDisplay: 'inline' as const,
+    defaultDistance: 0,
+    getAccessToken: () => '',
+    isProtectedSrc: () => false,
+    resolveProtectedSrc: undefined,
+    minSize: 40
+  }
+}
+
+const BASE64_IMAGE =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sWwaP8AAAAASUVORK5CYII='
+
+function setRect(element: HTMLElement, rect: { top: number; bottom: number; left?: number; right?: number }) {
+  Object.defineProperty(element, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({
+      x: rect.left ?? 0,
+      y: rect.top,
+      top: rect.top,
+      bottom: rect.bottom,
+      left: rect.left ?? 0,
+      right: rect.right ?? 100,
+      width: (rect.right ?? 100) - (rect.left ?? 0),
+      height: rect.bottom - rect.top,
+      toJSON: () => ({})
+    })
+  })
+}
+
+describe('CustomImageView', () => {
+  it('renders a right-aligned flow shim for square-right images', () => {
+    render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: BASE64_IMAGE,
+            width: 120,
+            height: 80,
+            wrapMode: 'square-right',
+            align: 'right'
+          }
+        }}
+        editor={null}
+        getPos={() => 1}
+        selected={false}
+        options={createOptions()}
+      />
+    )
+
+    expect(screen.getByTestId('document-editor-image-anchor').tagName).toBe('SPAN')
+    expect(screen.getByTestId('document-editor-image-flow-shim')).toHaveStyle({
+      float: 'right'
+    })
+  })
+
+  it('mounts paragraph-anchored flow shims before paragraph content', async () => {
+    render(
+      <p data-testid="image-paragraph">
+        prefix
+        <CustomImageView
+          node={{
+            attrs: {
+              src: BASE64_IMAGE,
+              width: 120,
+              height: 80,
+              wrapMode: 'square-right',
+              align: 'right'
+            }
+          }}
+          editor={null}
+          getPos={() => 5}
+          selected={false}
+          options={createOptions()}
+        />
+      </p>
+    )
+
+    const paragraph = screen.getByTestId('image-paragraph')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('document-editor-image-flow-shim')).toBeInTheDocument()
+    })
+
+    expect(paragraph.firstChild).toBeInstanceOf(HTMLElement)
+    expect((paragraph.firstChild as HTMLElement).dataset.imageFlowShimHost).toBe('true')
+  })
+
+  it('treats top and bottom wrapping as a movable floating mode', () => {
+    render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: BASE64_IMAGE,
+            width: 120,
+            height: 80,
+            wrapMode: 'top-bottom',
+            align: 'center'
+          }
+        }}
+        editor={null}
+        getPos={() => 1}
+        selected={true}
+        options={createOptions()}
+      />
+    )
+
+    expect(screen.getByTestId('document-editor-image-flow-shim')).toHaveStyle({
+      width: '100%'
+    })
+    expect(screen.getByTestId('document-editor-image-frame').className).toContain('gba:cursor-move')
+  })
+
+  it('renders behind-text images into the matching page overlay layer', async () => {
+    const editorDom = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const behindLayer = document.createElement('div')
+
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    behindLayer.className = 'rm-page-image-overlay-layer'
+    behindLayer.dataset.rmPageNumber = '1'
+    behindLayer.dataset.rmImageLayer = 'behind'
+
+    editorDom.append(bodyLayer, behindLayer)
+    document.body.appendChild(editorDom)
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    setRect(editorDom, { top: 0, bottom: 400 })
+    setRect(bodyLayer, { top: 0, bottom: 320 })
+    setRect(behindLayer, { top: 0, bottom: 320 })
+
+    const { container } = render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: BASE64_IMAGE,
+            width: 120,
+            height: 80,
+            wrapMode: 'behind',
+            anchorMode: 'move-with-text'
+          }
+        }}
+        editor={
+          {
+            view: {
+              dom: editorDom
+            }
+          } as never
+        }
+        getPos={() => 1}
+        selected={false}
+        options={createOptions()}
+      />
+    )
+
+    const anchor = screen.getByTestId('document-editor-image-anchor')
+    setRect(anchor, { top: 48, bottom: 48 })
+    editorDom.style.setProperty('--overlay-refresh', '1')
+
+    await waitFor(() => {
+      expect(behindLayer.querySelector('[data-testid="document-editor-image-figure"]')).not.toBeNull()
+    })
+
+    expect(anchor).toHaveAttribute('data-image-render-mode', 'overlay')
+    expect(container.querySelector('[data-testid="document-editor-image-figure"]')).toBeNull()
+  })
+
+  it('anchors move-with-text overlay images to the paragraph rather than the inline marker', async () => {
+    const editorDom = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const behindLayer = document.createElement('div')
+
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    behindLayer.className = 'rm-page-image-overlay-layer'
+    behindLayer.dataset.rmPageNumber = '1'
+    behindLayer.dataset.rmImageLayer = 'behind'
+
+    editorDom.append(bodyLayer, behindLayer)
+    document.body.appendChild(editorDom)
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    setRect(editorDom, { top: 0, bottom: 400, left: 0, right: 400 })
+    setRect(bodyLayer, { top: 0, bottom: 320, left: 0, right: 320 })
+    setRect(behindLayer, { top: 0, bottom: 320, left: 0, right: 320 })
+
+    render(
+      <p data-testid="anchor-paragraph">
+        prefix
+        <CustomImageView
+          node={{
+            attrs: {
+              src: BASE64_IMAGE,
+              width: 120,
+              height: 80,
+              wrapMode: 'behind',
+              anchorMode: 'move-with-text'
+            }
+          }}
+          editor={
+            {
+              view: {
+                dom: editorDom
+              }
+            } as never
+          }
+          getPos={() => 1}
+          selected={false}
+          options={createOptions()}
+        />
+      </p>
+    )
+
+    const paragraph = screen.getByTestId('anchor-paragraph')
+    const anchor = screen.getByTestId('document-editor-image-anchor')
+    setRect(paragraph, { top: 24, bottom: 120, left: 0, right: 320 })
+    setRect(anchor, { top: 92, bottom: 92, left: 0, right: 0 })
+    editorDom.style.setProperty('--overlay-refresh', '4')
+
+    await waitFor(() => {
+      expect(behindLayer.querySelector('[data-testid="document-editor-image-figure"]')).not.toBeNull()
+    })
+
+    expect((behindLayer.querySelector('[data-testid="document-editor-image-figure"]') as HTMLElement).style.top).toBe(
+      '24px'
+    )
+  })
+
+  it('renders square-right images into the floating page overlay layer while keeping the flow anchor', async () => {
+    const editorDom = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const floatingLayer = document.createElement('div')
+
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    floatingLayer.className = 'rm-page-image-overlay-layer'
+    floatingLayer.dataset.rmPageNumber = '1'
+    floatingLayer.dataset.rmImageLayer = 'floating'
+
+    editorDom.append(bodyLayer, floatingLayer)
+    document.body.appendChild(editorDom)
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    setRect(editorDom, { top: 0, bottom: 400, left: 0, right: 400 })
+    setRect(bodyLayer, { top: 0, bottom: 320, left: 0, right: 320 })
+    setRect(floatingLayer, { top: 0, bottom: 320, left: 0, right: 320 })
+
+    const { container } = render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: BASE64_IMAGE,
+            width: 120,
+            height: 80,
+            wrapMode: 'square-right',
+            align: 'right'
+          }
+        }}
+        editor={
+          {
+            view: {
+              dom: editorDom
+            }
+          } as never
+        }
+        getPos={() => 1}
+        selected={false}
+        options={createOptions()}
+      />
+    )
+
+    const flowShim = screen.getByTestId('document-editor-image-flow-shim')
+    setRect(flowShim, { top: 40, bottom: 137, left: 172, right: 320 })
+    editorDom.style.setProperty('--overlay-refresh', '2')
+
+    await waitFor(() => {
+      expect(floatingLayer.querySelector('[data-testid="document-editor-image-figure"]')).not.toBeNull()
+    })
+
+    expect(flowShim).toHaveStyle({ float: 'right' })
+    expect(flowShim).toHaveAttribute('data-image-flow-mode', 'float')
+    expect(container.querySelector('[data-testid="document-editor-image-figure"]')).toBeNull()
+  })
+
+  it('does not crash when overlay images render before the editor view mounts', () => {
+    const editor = {
+      get view() {
+        throw new Error('view not mounted yet')
+      }
+    }
+
+    expect(() =>
+      render(
+        <CustomImageView
+          node={{
+            attrs: {
+              src: BASE64_IMAGE,
+              width: 120,
+              height: 80,
+              wrapMode: 'behind',
+              anchorMode: 'move-with-text'
+            }
+          }}
+          editor={editor as never}
+          getPos={() => 1}
+          selected={false}
+          options={createOptions()}
+        />
+      )
+    ).not.toThrow()
+
+    expect(screen.getByTestId('document-editor-image-anchor')).toBeInTheDocument()
+  })
+
+  it('selects floating overlay images through the portal-rendered figure', async () => {
+    const editorDom = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const floatingLayer = document.createElement('div')
+    const tr = {
+      setSelection: jest.fn(function setSelection() {
+        return this
+      })
+    }
+    const dispatch = jest.fn()
+    const focus = jest.fn()
+
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    floatingLayer.className = 'rm-page-image-overlay-layer'
+    floatingLayer.dataset.rmPageNumber = '1'
+    floatingLayer.dataset.rmImageLayer = 'floating'
+
+    editorDom.append(bodyLayer, floatingLayer)
+    document.body.appendChild(editorDom)
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    setRect(editorDom, { top: 0, bottom: 400, left: 0, right: 400 })
+    setRect(bodyLayer, { top: 0, bottom: 320, left: 0, right: 320 })
+    setRect(floatingLayer, { top: 0, bottom: 320, left: 0, right: 320 })
+
+    render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: BASE64_IMAGE,
+            width: 120,
+            height: 80,
+            wrapMode: 'square-right',
+            align: 'right'
+          }
+        }}
+        editor={
+          {
+            state: {
+              doc: {
+                nodeAt: () => ({ type: { name: 'image' }, attrs: {} })
+              },
+              tr
+            },
+            view: {
+              dom: editorDom,
+              dispatch,
+              focus
+            }
+          } as never
+        }
+        getPos={() => 1}
+        selected={false}
+        options={createOptions()}
+      />
+    )
+
+    const flowShim = screen.getByTestId('document-editor-image-flow-shim')
+    setRect(flowShim, { top: 40, bottom: 137, left: 172, right: 320 })
+    editorDom.style.setProperty('--overlay-refresh', '3')
+
+    await waitFor(() => {
+      expect(floatingLayer.querySelector('[data-testid="document-editor-image-figure"]')).not.toBeNull()
+    })
+
+    fireEvent.click(screen.getByTestId('document-editor-image-figure'))
+
+    expect(mockCreateNodeSelection).toHaveBeenCalledWith(expect.anything(), 1)
+    expect(tr.setSelection).toHaveBeenCalled()
+    expect(dispatch).toHaveBeenCalledWith(tr)
+    expect(focus).toHaveBeenCalled()
+  })
+
+  it('renders the loading placeholder in the computed image frame size', () => {
+    render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: '/protected/image.png',
+            width: 240,
+            height: 120,
+            wrapMode: 'inline'
+          }
+        }}
+        editor={null}
+        getPos={() => 1}
+        selected={false}
+        options={{
+          ...createOptions(),
+          getAccessToken: () => 'token',
+          isProtectedSrc: () => true,
+          resolveProtectedSrc: jest.fn(() => new Promise<string>(() => undefined))
+        }}
+      />
+    )
+
+    expect(screen.getByTestId('document-editor-image-frame')).toHaveStyle({
+      width: '240px',
+      height: '120px'
+    })
+    expect(screen.getByTestId('document-editor-image-broken')).toHaveTextContent('Loading image...')
+  })
+
+  it('keeps the current protected image visible when selection rerenders the node view', async () => {
+    let resolveProtectedImage: ((value: string) => void) | null = null
+    const initialResolver = jest.fn(
+      () =>
+        new Promise<string>(resolve => {
+          resolveProtectedImage = resolve
+        })
+    )
+
+    const { rerender } = render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: '/protected/image.png',
+            width: 120,
+            height: 80,
+            wrapMode: 'inline'
+          }
+        }}
+        editor={null}
+        getPos={() => 1}
+        selected={false}
+        options={{
+          ...createOptions(),
+          getAccessToken: () => 'token',
+          isProtectedSrc: () => true,
+          resolveProtectedSrc: initialResolver
+        }}
+      />
+    )
+
+    resolveProtectedImage?.(BASE64_IMAGE)
+    await waitFor(() => expect(screen.getByTestId('document-editor-image')).toHaveAttribute('src', BASE64_IMAGE))
+
+    rerender(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: '/protected/image.png',
+            width: 120,
+            height: 80,
+            wrapMode: 'inline'
+          }
+        }}
+        editor={null}
+        getPos={() => 1}
+        selected={true}
+        options={{
+          ...createOptions(),
+          getAccessToken: () => 'token',
+          isProtectedSrc: () => true,
+          resolveProtectedSrc: jest.fn(() => new Promise<string>(() => undefined))
+        }}
+      />
+    )
+
+    expect(screen.queryByTestId('document-editor-image-broken')).not.toBeInTheDocument()
+    expect(screen.getByTestId('document-editor-image')).toHaveAttribute('src', BASE64_IMAGE)
+  })
+})
