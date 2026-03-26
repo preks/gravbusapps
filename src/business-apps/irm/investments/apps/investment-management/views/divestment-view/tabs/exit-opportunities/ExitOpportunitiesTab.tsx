@@ -166,6 +166,8 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = ({ enab
       config={config}
       dataTestId="exit-opportunities-view"
       extendVisibleColumns={['divestment']}
+      showAllCurrencyOption={false}
+      defaultCurrency="EUR"
     />
   )
 }

@@ -54,6 +54,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   getDeferredStabilizationAttemptCount: (view: EditorView) => number
   shouldScheduleDeferredRepaginationOnUpdate: (options: {
     activeEditorType: PagesStorage['activeEditorType']
+    hasTables: boolean
     externalDocChange: boolean
     paginationOwnedDocChange: boolean
     hydrationOwnedDocChange: boolean
@@ -119,6 +120,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
         })
         options.onClearGrowthSuppression()
         options.onSetStoredPageCount(measurementState.measuredPageCount)
+        nextState.lastKnownSelectionHead = currentSelectionHead
         options.onRequestRefresh('selection-overflow')
         return nextState
       }
@@ -134,6 +136,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
       if (docChangedSinceLastUpdate || paginationOwnedDocChange || hydrationOwnedDocChange) {
         options.onScheduleDeferredRepagination()
       }
+      nextState.lastKnownSelectionHead = currentSelectionHead
       options.onRefreshLayoutBounds()
       return nextState
     }

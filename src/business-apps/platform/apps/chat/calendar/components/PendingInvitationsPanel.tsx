@@ -8,7 +8,8 @@ import {
   Badge,
   IconAvatar,
   Spinner,
-  useLocale
+  useLocale,
+  useTranslation
 } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -18,7 +19,7 @@ import 'dayjs/locale/de'
 import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
 import { Clock, User, Check, X, HelpCircle, Bell } from 'lucide-react'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import translations from '../../_i18n'
 import { type Meeting, InvitationStatus } from '../types'
 
 dayjs.extend(localizedFormat)
@@ -52,7 +53,7 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
   onRespond,
   onViewDetails
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const { locale } = useLocale()
 
   if (isLoading) {

@@ -160,6 +160,8 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   extendVisibleColumns?: string[] // Additional columns to add to base columns
   renderQuickFilters?: (props: QuickFiltersRenderProps) => React.ReactNode
   quickFilter?: string // Current quick filter value (e.g., 'all', 'qualified', 'unqualified')
+  showAllCurrencyOption?: boolean
+  defaultCurrency?: string
 }
 
 interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
@@ -198,9 +200,15 @@ interface CurrencyFilterProps {
   selectedCurrency: string
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
+  showAllOption?: boolean
 }
 
-const CurrencyFilter: React.FC<CurrencyFilterProps> = ({ selectedCurrency, currencies, onCurrencyChange }) => {
+const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
+  selectedCurrency,
+  currencies,
+  onCurrencyChange,
+  showAllOption = true
+}) => {
   if (currencies.length === 0) return null
 
   // Get display label for selected currency
@@ -218,7 +226,7 @@ const CurrencyFilter: React.FC<CurrencyFilterProps> = ({ selectedCurrency, curre
           <SelectValue placeholder="Select currency">{getDisplayLabel(selectedCurrency)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All</SelectItem>
+          {showAllOption && <SelectItem value="ALL">All</SelectItem>}
           {currencies.map(currency => (
             <SelectItem key={currency.code} value={currency.code}>
               {currency.label}
@@ -238,6 +246,7 @@ interface BoardSecondaryActionsProps {
   selectedCurrency: string
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
+  showAllCurrencyOption?: boolean
 }
 
 const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
@@ -247,7 +256,8 @@ const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
   onPipelineChange,
   selectedCurrency,
   currencies,
-  onCurrencyChange
+  onCurrencyChange,
+  showAllCurrencyOption = true
 }) => {
   if (currentSection !== 'board') return undefined
 
@@ -268,7 +278,12 @@ const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
           </SelectContent>
         </Select>
       </div>
-      <CurrencyFilter selectedCurrency={selectedCurrency} currencies={currencies} onCurrencyChange={onCurrencyChange} />
+      <CurrencyFilter
+        selectedCurrency={selectedCurrency}
+        currencies={currencies}
+        onCurrencyChange={onCurrencyChange}
+        showAllOption={showAllCurrencyOption}
+      />
     </div>
   )
 }
@@ -278,18 +293,25 @@ interface ListSecondaryActionsProps {
   selectedCurrency: string
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
+  showAllCurrencyOption?: boolean
 }
 
 const ListSecondaryActions: React.FC<ListSecondaryActionsProps> = ({
   currentSection,
   selectedCurrency,
   currencies,
-  onCurrencyChange
+  onCurrencyChange,
+  showAllCurrencyOption = true
 }) => {
   if (currentSection !== 'list') return undefined
 
   return (
-    <CurrencyFilter selectedCurrency={selectedCurrency} currencies={currencies} onCurrencyChange={onCurrencyChange} />
+    <CurrencyFilter
+      selectedCurrency={selectedCurrency}
+      currencies={currencies}
+      onCurrencyChange={onCurrencyChange}
+      showAllOption={showAllCurrencyOption}
+    />
   )
 }
 
@@ -305,7 +327,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     customPrimaryAction,
     extendVisibleColumns = [],
     renderQuickFilters,
-    quickFilter
+    quickFilter,
+    showAllCurrencyOption = true,
+    defaultCurrency = 'ALL'
   } = props
   const { accessToken } = context
 
@@ -352,7 +376,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Board View State
   const [boardPipelineId, setBoardPipelineId] = useState('')
-  const [selectedCurrency, setSelectedCurrency] = useState('ALL')
+  const [selectedCurrency, setSelectedCurrency] = useState(defaultCurrency)
   const [boardFilters, setBoardFilters] = useState<Record<string, any>>({})
   const [boardSearch, setBoardSearch] = useState('')
   const [boardOpportunities, setBoardOpportunities] = useState<TOpportunity[]>([])
@@ -653,9 +677,10 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         selectedCurrency={selectedCurrency}
         currencies={availableCurrencies}
         onCurrencyChange={setSelectedCurrency}
+        showAllCurrencyOption={showAllCurrencyOption}
       />
     ),
-    [currentSection, boardPipelineId, pipelines, selectedCurrency, availableCurrencies]
+    [currentSection, boardPipelineId, pipelines, selectedCurrency, availableCurrencies, showAllCurrencyOption]
   )
 
   // List secondary actions: Currency filter
@@ -666,9 +691,10 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         selectedCurrency={selectedCurrency}
         currencies={availableCurrencies}
         onCurrencyChange={setSelectedCurrency}
+        showAllCurrencyOption={showAllCurrencyOption}
       />
     ),
-    [currentSection, selectedCurrency, availableCurrencies]
+    [currentSection, selectedCurrency, availableCurrencies, showAllCurrencyOption]
   )
 
   // Extract sortableColumns for list view

@@ -124,7 +124,7 @@ describe('runPaginationPluginViewUpdate', () => {
     expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('selection-overflow')
     expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
     expect(nextState.lastKnownDoc).toBe(harness.currentDoc)
-    expect(nextState.lastKnownSelectionHead).toBe(4)
+    expect(nextState.lastKnownSelectionHead).toBe(10)
   })
 
   it('repositions the selection and schedules deferred repagination when overflow stays within page count', () => {
@@ -161,7 +161,38 @@ describe('runPaginationPluginViewUpdate', () => {
     })
     expect(harness.callbacks.onScheduleDeferredRepagination).toHaveBeenCalledWith()
     expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
-    expect(nextState.lastKnownSelectionHead).toBe(14)
+    expect(nextState.lastKnownSelectionHead).toBe(12)
+  })
+
+  it('updates the selection head bookkeeping even when overflow resolves without dispatching', () => {
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: createDoc('prev'),
+        lastKnownSelectionHead: 4
+      },
+      currentSelectionHead: 11,
+      selectionOverflow: { position: 11 },
+      measurementState: { currentPageCount: 2, measuredPageCount: 2 }
+    })
+
+    const nextState = runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow: () => harness.selectionOverflow,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => true,
+      getDeferredStabilizationAttemptCount: () => 4,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onDispatchSelection).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
+    expect(nextState.lastKnownSelectionHead).toBe(11)
   })
 
   it('resets controller state on external doc changes and consumes pending stabilization', () => {

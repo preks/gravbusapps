@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
-import { cn, useLocale } from '@newwork/nw-design-system'
+import { cn, useLocale, useTranslation } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import 'dayjs/locale/de'
@@ -7,7 +7,7 @@ import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
 import type { CalendarEvent } from '../types'
 import { CalendarEventItem } from './CalendarEventItem'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import translations from '../../_i18n'
 
 dayjs.extend(localizedFormat)
 
@@ -78,7 +78,7 @@ export const DayView: React.FC<DayViewProps> = ({
   activeConversationCalls,
   onJoinCall
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const { locale } = useLocale()
   const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
   const isTodayDate = isToday(currentDate)

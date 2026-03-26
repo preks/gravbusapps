@@ -40,7 +40,7 @@ export interface UseChatRejoinCallParams {
   joinGroupCall:
     | ((roomId: string, callType: 'audio' | 'video', initialParticipantsOrPreferences?: unknown) => void)
     | null
-  realtimeKitApiClient?: { getMeetingDetails: (meetingId: string) => Promise<any> } | null
+  realtimeKitApiClient?: { realtimeKitGetMeetingDetails: (meetingId: string) => Promise<any> } | null
   /** When provided (e.g. from ChatWithCalendar), used to resolve transcription for calendar meetings so Join dialog shows recording message */
   calendarApiClient?: { getMeeting: (meetingId: string) => Promise<unknown> } | null
   getUserPresence: (userId: string) => PresenceDataLike
@@ -174,7 +174,7 @@ export function useChatRejoinCall({
       }
     } else if (realtimeKitApiClient) {
       try {
-        const res = await realtimeKitApiClient.getMeetingDetails(activeCallInfo.roomId)
+        const res = await realtimeKitApiClient.realtimeKitGetMeetingDetails(activeCallInfo.roomId)
         const data = res?.data ?? res
         transcriptionEnabled = (data as { transcriptionEnabled?: boolean })?.transcriptionEnabled === true
       } catch {
