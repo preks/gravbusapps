@@ -202,6 +202,7 @@ export const EnterpriseAgentApp: React.FC<EnterpriseAgentAppProps> = ({
           <div className="gba:flex-1 gba:overflow-hidden">
             {activeView === 'chat' && (
               <AgentChatView
+                accessToken={accessToken}
                 session={session}
                 messages={messages}
                 isStreaming={isStreaming}
