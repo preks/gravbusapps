@@ -57,7 +57,6 @@ export interface PagedDocumentEditorSidebarHostProps {
   onReplaceImage: (imagePos: number | null) => void
   showInlineCommentPopover: boolean
   inlineCommentPosition: { top: number; left: number } | null
-  onEditInlineCommentWithAI: () => void
   onSubmitInlineComment: (content: string) => Promise<void>
   onCloseInlineCommentPopover: () => void
   translate: TranslateFn
@@ -109,7 +108,6 @@ export function PagedDocumentEditorSidebarHost({
   onReplaceImage,
   showInlineCommentPopover,
   inlineCommentPosition,
-  onEditInlineCommentWithAI,
   onSubmitInlineComment,
   onCloseInlineCommentPopover,
   translate
@@ -234,7 +232,6 @@ export function PagedDocumentEditorSidebarHost({
       <InlineCommentPopover
         isOpen={showInlineCommentPopover}
         position={inlineCommentPosition}
-        onEditWithAI={onEditInlineCommentWithAI}
         messages={{
           addComment: translate('shared-comment-add'),
           placeholder: translate('shared-comment-placeholder'),

@@ -88,4 +88,21 @@ describe('documentContentUtils pagination sanitization', () => {
     expect(image?.getAttribute('data-image-id')).toBe('image-1')
     expect(doc.body.textContent).toContain('Safe text')
   })
+
+  it('wraps top-level custom image nodes in paragraphs for inline-image parsing', () => {
+    const html = [
+      '<p>Before</p>',
+      '<figure data-node-type="custom-image" data-image-wrap="behind">',
+      '<img src="https://example.com/image.png" width="120" height="80" />',
+      '</figure>',
+      '<p>After</p>'
+    ].join('')
+
+    const normalized = normalizeDocumentHtmlForEditor(html)
+    const doc = new DOMParser().parseFromString(normalized, 'text/html')
+    const imageContainer = doc.body.querySelector('[data-node-type="custom-image"]')
+
+    expect(imageContainer?.parentElement?.tagName).toBe('P')
+    expect(doc.body.querySelectorAll('p')).toHaveLength(3)
+  })
 })

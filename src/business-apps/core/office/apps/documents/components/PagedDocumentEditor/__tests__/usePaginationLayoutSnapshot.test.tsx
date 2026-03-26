@@ -167,6 +167,32 @@ describe('usePaginationLayoutSnapshot', () => {
     expect(ranges).toEqual([{ pageNumber: 2, startPos: 12, endPos: 38 }])
   })
 
+  it('merges sampled positions from multiple mounted wrap bands on the same page', () => {
+    const ranges = resolveMountedPagePositionRanges(
+      {
+        view: {
+          posAtCoords: ({ left, top }: { left: number; top: number }) => {
+            if (top < 140) {
+              return {
+                pos: left < 80 ? 12 : 16
+              }
+            }
+
+            return {
+              pos: left < 80 ? 34 : 39
+            }
+          }
+        }
+      } as never,
+      [
+        { pageNumber: 2, top: 100, bottom: 140, left: 20, right: 80 },
+        { pageNumber: 2, top: 140, bottom: 220, left: 80, right: 140 }
+      ]
+    )
+
+    expect(ranges).toEqual([{ pageNumber: 2, startPos: 12, endPos: 39 }])
+  })
+
   it('resolves spacer page position ranges from page-segment metadata', () => {
     const spacer = document.createElement('div')
     spacer.className = 'rm-page-spacer'
