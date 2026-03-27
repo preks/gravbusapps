@@ -33,17 +33,16 @@ export interface PerformanceProps {
   valuesStore: ValueItemStored[]
   onCompleteCycle: (cycleId: string) => Promise<void>
   onStartCycle: (cycleId: string) => void
+  onManualRun: () => void
   onSaveFromModal: (values: CycleEditorValues) => Promise<void>
 }
 
 function computeDisplayStatus(c: PerformanceCycle): CycleStatus {
   if (c.status === 'Completed') return 'Completed'
   if (c.status === 'In Progress') return 'In Progress'
-  if (c.evaluationPeriodStartDate && c.evaluationPeriodEndDate) {
+  if (c.startDate && c.endDate) {
     const today = new Date()
-    const start = new Date(c.evaluationPeriodStartDate)
-    const end = new Date(c.evaluationPeriodEndDate)
-    if (today >= start && today <= end) return 'Active'
+    if (today >= new Date(c.startDate) && today <= new Date(c.endDate)) return 'Active'
   }
   return 'Inactive'
 }
@@ -56,6 +55,7 @@ export const Performance: React.FC<PerformanceProps> = ({
   valuesStore,
   onCompleteCycle,
   onStartCycle,
+  onManualRun,
   onSaveFromModal
 }) => {
   const { t } = useTranslation(translations)
@@ -102,12 +102,19 @@ export const Performance: React.FC<PerformanceProps> = ({
       <Card>
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between">
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <Lightning size={20} />
-              {t('tab-performance')}
-            </CardTitle>
+            <div>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                <Lightning size={20} />
+                {t('tab-performance')}
+              </CardTitle>
+              <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('review-cycle-description')}</p>
+            </div>
             <div className="gba:flex gba:items-center gba:gap-2 gba:min-h-9">
               {cyclesLoading && <Spinner className="gba:h-5 gba:w-5" data-testid="performance-tab-loading" />}
+              <Button size="sm" onClick={onManualRun} data-testid="performance-manual-run-button">
+                <Play weight="fill" className="gba:mr-1" size={16} />
+                {t('button-manual-run')}
+              </Button>
             </div>
           </div>
         </CardHeader>
