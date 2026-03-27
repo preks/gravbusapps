@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useInvestments } from '@/common/data/investment/hooks/useInvestments.new'
+import { investmentListQueryConfigForGroup } from '../utils/investmentListQueryConfig'
 
 export interface GenericInvestmentSectionStateProps {
   accessToken: string
@@ -51,6 +52,13 @@ export const useGenericInvestmentSectionState = ({
   }, [selectedFilters.currencyIds])
 
   // Build query variables — strip currencyIds (handled via currencyConditions above)
+  const investmentTypeFilter = useMemo(() => {
+    if (groupCode === 'EQUITY') return { equityInvestment: { id: { _isNull: false } } }
+    if (groupCode === 'REAL_ESTATE') return { realEstateInvestment: { id: { _isNull: false } } }
+    if (groupCode === 'LIQUID_FUND') return { liquidFundInvestment: { id: { _isNull: false } } }
+    return {}
+  }, [groupCode])
+
   const queryVariables = useMemo(() => {
     const existingConditions: Record<string, any>[] = selectedFilters.customConditions ?? []
     const listFilters = Object.fromEntries(
@@ -65,17 +73,31 @@ export const useGenericInvestmentSectionState = ({
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' as const }],
       ...listFilters,
+      ...investmentTypeFilter,
       customConditions: mergedConditions
     }
-  }, [pageSize, currentPage, search, sortField, sortOrder, selectedFilters, groupCondition, currencyConditions])
+  }, [
+    pageSize,
+    currentPage,
+    search,
+    sortField,
+    sortOrder,
+    selectedFilters,
+    groupCondition,
+    currencyConditions,
+    investmentTypeFilter
+  ])
+
+  const listQueryConfig = useMemo(() => investmentListQueryConfigForGroup(groupCode), [groupCode])
 
   const {
     investments,
     total: totalCount,
+    listAggregates,
     loading,
     error,
     refetch
-  } = useInvestments(accessToken, queryVariables, 'list')
+  } = useInvestments(accessToken, queryVariables, listQueryConfig)
 
   // Track initial load
   useEffect(() => {
@@ -117,6 +139,7 @@ export const useGenericInvestmentSectionState = ({
     // Use `total` as `totalCount` so InvestmentView can normalise with `?? total` fallback
     total: totalCount,
     totalCount,
+    listAggregates,
     loading,
     error,
     refetch,

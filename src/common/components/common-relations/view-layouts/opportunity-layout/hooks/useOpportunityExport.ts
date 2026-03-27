@@ -1,7 +1,8 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { formatExportDate } from '@/common/utils/excelExportUtils'
 import { useExportBase } from '@/common/hooks/useExportBase'
 import type { Opportunity } from '@/common/data/relations/types/opportunityTypes'
+import type { OpportunityAggregates } from '../components/OpportunityAggregatesBar'
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 
@@ -77,6 +78,35 @@ const formatIrmOpportunityForExport = (opp: any): Record<string, string> => ({
   createdAt: formatExportDate(opp.createdAt)
 })
 
+// ─── Summary rows ─────────────────────────────────────────────────────────────
+
+function formatCurrencyAmount(value: number | null, currencyCode: string): string {
+  if (value == null || Number.isNaN(value)) return '—'
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currencyCode,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value)
+}
+
+function buildOpportunitySummaryRows(
+  aggregates: OpportunityAggregates | null,
+  displayCurrencyCode: string
+): Array<[string, string]> {
+  if (!aggregates) return []
+
+  const fmt = (v: number | null) => formatCurrencyAmount(v, displayCurrencyCode)
+
+  return [
+    ['Count:', String(aggregates.count)],
+    ['Total Estimated Amount:', fmt(aggregates.totalEstimatedAmount)],
+    ['Average Estimated Amount:', fmt(aggregates.avgEstimatedAmount)],
+    ['Total Investment Amount:', fmt(aggregates.totalInvestmentAmount)],
+    ['Average Investment Amount:', fmt(aggregates.avgInvestmentAmount)]
+  ]
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 interface UseOpportunityExportOptions {
@@ -85,6 +115,10 @@ interface UseOpportunityExportOptions {
   totalCount: number
   filenamePrefix?: string
   contextType: 'customer' | 'investment'
+  /** Aggregates from the current filtered list (IRM only). */
+  listAggregates?: OpportunityAggregates | null
+  /** Currency code for formatting aggregate amounts (IRM only). */
+  displayCurrencyCode?: string
 }
 
 export function useOpportunityExport({
@@ -92,7 +126,9 @@ export function useOpportunityExport({
   queryVariables,
   totalCount,
   filenamePrefix = 'opportunities',
-  contextType
+  contextType,
+  listAggregates,
+  displayCurrencyCode = 'EUR'
 }: UseOpportunityExportOptions) {
   const fetchAllItems = useCallback(async (): Promise<Opportunity[]> => {
     const result = await fetchOpportunities({ ...queryVariables, limit: totalCount, offset: 0 })
@@ -100,6 +136,11 @@ export function useOpportunityExport({
   }, [fetchOpportunities, queryVariables, totalCount])
 
   const isIrm = contextType === 'investment'
+
+  const summaryRows = useMemo(
+    () => (isIrm ? buildOpportunitySummaryRows(listAggregates ?? null, displayCurrencyCode) : []),
+    [isIrm, listAggregates, displayCurrencyCode]
+  )
 
   return useExportBase<Opportunity>({
     fetchAllItems,
@@ -109,6 +150,7 @@ export function useOpportunityExport({
     sheetName: 'Opportunities',
     entityLabel: 'opportunities',
     totalCount,
-    filenamePrefix
+    filenamePrefix,
+    summaryRows
   })
 }

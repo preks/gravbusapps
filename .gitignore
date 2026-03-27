@@ -46,3 +46,7 @@ __pycache__
 coverage/
 .jest-cache/
 
+# Local dev tooling
+.claude/
+scripts/start-document-service.sh
+

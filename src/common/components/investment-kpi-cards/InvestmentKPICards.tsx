@@ -90,7 +90,7 @@ export function InvestmentKPICards<T extends BaseKPIData>({
         trend: {
           value: trend.value,
           positive: trend.positive,
-          description: 'vs last quarter'
+          description: kpi.trendDescription ?? 'vs last quarter'
         }
       }
     })

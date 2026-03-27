@@ -87,6 +87,86 @@ export interface InvestmentOpportunityAggregateResponse {
   }
 }
 
+/** Shared where-condition builder for the investment opportunity list and aggregate queries. */
+function buildInvestmentOpportunityCustomConditions(
+  variables: InvestmentOpportunityQueryVariables
+): Record<string, any>[] {
+  const conditions: Record<string, any>[] = []
+
+  if (variables.dealType) {
+    conditions.push({ dealType: { _eq: variables.dealType } })
+  }
+  if (variables.accountSearch?.trim()) {
+    conditions.push({ account: { name: { _ilike: `%${variables.accountSearch.trim()}%` } } })
+  }
+  if (variables.currencyCode?.trim()) {
+    conditions.push({ currency: { code: { _eq: variables.currencyCode.trim() } } })
+  }
+
+  if (variables.estimatedAmountRanges?.length) {
+    const orConditions = variables.estimatedAmountRanges.flatMap(range => {
+      const rangeConditions: any[] = []
+      const amountCondition: any = {}
+
+      if (range.min !== undefined) amountCondition._gte = range.min
+      if (range.max !== undefined) amountCondition._lte = range.max
+
+      if (Object.keys(amountCondition).length > 0) {
+        rangeConditions.push({ estimatedAmount: amountCondition })
+      }
+
+      const includesZero = (range.min === undefined || range.min === 0) && (range.max === undefined || range.max >= 0)
+      if (includesZero) {
+        rangeConditions.push({ estimatedAmount: { _isNull: true } })
+      }
+
+      return rangeConditions
+    })
+    conditions.push({ _or: orConditions })
+  }
+
+  if (variables.forecastedProfitBetween) {
+    conditions.push({
+      forecastedProfitAmount: {
+        _gte: variables.forecastedProfitBetween[0],
+        _lte: variables.forecastedProfitBetween[1]
+      }
+    })
+  }
+
+  return conditions
+}
+
+const INVESTMENT_OPPORTUNITY_AGGREGATES_QUERY = `
+  query GetInvestmentOpportunityAggregates($where: InvestmentOpportunityBoolExp) {
+    InvestmentOpportunityAggregate(where: $where) {
+      aggregate {
+        count
+        sum { estimatedAmount initialInvestmentAmount }
+        avg { estimatedAmount initialInvestmentAmount }
+      }
+    }
+  }
+`
+
+export interface InvestmentOpportunityAggregatesResult {
+  count: number
+  totalEstimatedAmount: number | null
+  avgEstimatedAmount: number | null
+  totalInvestmentAmount: number | null
+  avgInvestmentAmount: number | null
+}
+
+function parseAggregateValue(value: unknown): number | null {
+  if (value == null) return null
+  if (typeof value === 'number' && !Number.isNaN(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value)
+    return Number.isNaN(parsed) ? null : parsed
+  }
+  return null
+}
+
 /**
  * @deprecated This hook is in transition. Use `useInvestmentOpportunitiesList` instead.
  *
@@ -99,53 +179,7 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
   const fetchInvestmentOpportunities = useCallback(
     async (variables: InvestmentOpportunityQueryVariables = {}) => {
       const query = buildInvestmentOpportunityQuery()
-
-      const customConditions: Record<string, any>[] = []
-
-      if (variables.dealType) {
-        customConditions.push({ dealType: { _eq: variables.dealType } })
-      }
-      if (variables.accountSearch?.trim()) {
-        customConditions.push({ account: { name: { _ilike: `%${variables.accountSearch.trim()}%` } } })
-      }
-      if (variables.currencyCode?.trim()) {
-        customConditions.push({ currency: { code: { _eq: variables.currencyCode.trim() } } })
-      }
-
-      // Custom ranged filters for estimatedAmount (treat null as 0)
-      if (variables.estimatedAmountRanges?.length) {
-        const orConditions = variables.estimatedAmountRanges.flatMap(range => {
-          const conditions: any[] = []
-          const amountCondition: any = {}
-
-          if (range.min !== undefined) amountCondition._gte = range.min
-          if (range.max !== undefined) amountCondition._lte = range.max
-
-          if (Object.keys(amountCondition).length > 0) {
-            conditions.push({ estimatedAmount: amountCondition })
-          }
-
-          // If range includes 0, also include null values (null treated as 0)
-          const includesZero =
-            (range.min === undefined || range.min === 0) && (range.max === undefined || range.max >= 0)
-          if (includesZero) {
-            conditions.push({ estimatedAmount: { _isNull: true } })
-          }
-
-          return conditions
-        })
-        customConditions.push({ _or: orConditions })
-      }
-
-      if (variables.forecastedProfitBetween) {
-        customConditions.push({
-          forecastedProfitAmount: {
-            _gte: variables.forecastedProfitBetween[0],
-            _lte: variables.forecastedProfitBetween[1]
-          }
-        })
-      }
-
+      const customConditions = buildInvestmentOpportunityCustomConditions(variables)
       const whereCondition = buildInvestmentOpportunityWhereCondition(variables, [], customConditions)
       const orderBy = buildInvestmentOpportunityOrderBy(variables.orderBy || [])
 
@@ -164,7 +198,6 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
           }
         }>(query, graphQLVariables)
 
-        // Transform base types to enhanced types using mapper
         const enhancedOpportunities = result.InvestmentOpportunity.map(toInvestmentOpportunity)
 
         return {
@@ -179,7 +212,39 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
     [graphqlClient]
   )
 
-  return { fetchInvestmentOpportunities }
+  const fetchInvestmentOpportunityAggregates = useCallback(
+    async (variables: InvestmentOpportunityQueryVariables = {}): Promise<InvestmentOpportunityAggregatesResult> => {
+      const customConditions = buildInvestmentOpportunityCustomConditions(variables)
+      const whereCondition = buildInvestmentOpportunityWhereCondition(variables, [], customConditions)
+
+      try {
+        const result = await graphqlClient.request<{
+          InvestmentOpportunityAggregate: {
+            aggregate: {
+              count: number
+              sum: { estimatedAmount: number | null; initialInvestmentAmount: number | null }
+              avg: { estimatedAmount: number | null; initialInvestmentAmount: number | null }
+            }
+          }
+        }>(INVESTMENT_OPPORTUNITY_AGGREGATES_QUERY, { where: whereCondition })
+
+        const agg = result.InvestmentOpportunityAggregate.aggregate
+        return {
+          count: agg.count,
+          totalEstimatedAmount: parseAggregateValue(agg.sum.estimatedAmount),
+          avgEstimatedAmount: parseAggregateValue(agg.avg.estimatedAmount),
+          totalInvestmentAmount: parseAggregateValue(agg.sum.initialInvestmentAmount),
+          avgInvestmentAmount: parseAggregateValue(agg.avg.initialInvestmentAmount)
+        }
+      } catch (error) {
+        console.error('Error fetching investment opportunity aggregates:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates }
 }
 
 // Hook for getting investment opportunity by ID

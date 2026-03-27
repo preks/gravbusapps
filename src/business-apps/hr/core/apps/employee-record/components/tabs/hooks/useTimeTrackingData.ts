@@ -89,6 +89,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [holidayDates, setHolidayDates] = useState<string[]>([])
   const [holidayNamesByDate, setHolidayNamesByDate] = useState<Record<string, string>>({})
   const [absenceLabelsByDate, setAbsenceLabelsByDate] = useState<Record<string, string>>({})
+  const [workAbsenceDates, setWorkAbsenceDates] = useState<Set<string>>(new Set())
   // monthly totals (minutes)
   const [monthlyRequiredMinutes, setMonthlyRequiredMinutes] = useState(0)
   const [monthlyRequiredUntilYesterdayMinutes, setMonthlyRequiredUntilYesterdayMinutes] = useState(0)
@@ -324,6 +325,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
     // Fetch personal absences (Vacation, Relocation, Health Cure, etc.) — same query as Personal Absences calendar
     const absenceLabelsByDateMap: Record<string, string> = {}
+    const workAbsenceDateSet = new Set<string>()
     try {
       const absRes = await graphqlClient.request<any>(GET_EMPLOYEE_ABSENCES, {
         where: { employee: { id: { _eq: employeeId } }, isDeleted: { _eq: false } },
@@ -333,7 +335,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         activeUserLocale: activeLocale
       })
       const absences: any[] = absRes?.EmployeeAbsence || []
-      const addAbsenceRange = (fromIso: string, toIso: string, label: string) => {
+      const WORK_ABSENCE_GROUP = 'AbsenceGroup:v1:WORK'
+      const addAbsenceRange = (fromIso: string, toIso: string, label: string, isWork: boolean) => {
         const from = new Date(fromIso)
         const to = new Date(toIso)
         const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
@@ -343,34 +346,38 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           if (cursor >= monthStart && cursor <= monthEnd) {
             const existing = absenceLabelsByDateMap[key]
             absenceLabelsByDateMap[key] = existing ? `${existing}, ${label}` : label
+            if (isWork) workAbsenceDateSet.add(key)
           }
           cursor.setDate(cursor.getDate() + 1)
         }
       }
       for (const a of absences) {
         if (String(a.status).toUpperCase() !== 'APPROVED') continue
+        const isWork = a.type?.parentEntryId === WORK_ABSENCE_GROUP
         const translation = (a.type?.translations as { localeCode?: string; value?: string }[] | undefined)?.find(
           tr => tr.localeCode === activeLocale
         )
         const label = translation?.value ?? a.type?.translations?.[0]?.value ?? a.type?.objectValue ?? ''
         const trimmed = (label && String(label).trim()) || 'Absence'
         if (a.startDate && a.endDate) {
-          addAbsenceRange(String(a.startDate), String(a.endDate), trimmed)
+          addAbsenceRange(String(a.startDate), String(a.endDate), trimmed, isWork)
         }
       }
     } catch (e) {
       console.error(e)
     }
     setAbsenceLabelsByDate(absenceLabelsByDateMap)
+    setWorkAbsenceDates(workAbsenceDateSet)
 
-    // Compute monthly required totals based on working hours pattern, excluding holidays and absences
+    // Compute monthly required totals based on working hours pattern, excluding holidays and non-work absences
     const computeRequiredMinutesForRange = (from: Date, to: Date) => {
       let acc = 0
       const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
       const end = new Date(to.getFullYear(), to.getMonth(), to.getDate())
       while (cursor <= end) {
         const key = toLocalDateKey(cursor)
-        if (!holidayDateSet.has(key) && !absenceLabelsByDateMap[key]) {
+        const hasNonWorkAbsence = absenceLabelsByDateMap[key] && !workAbsenceDateSet.has(key)
+        if (!holidayDateSet.has(key) && !hasNonWorkAbsence) {
           acc += getPlannedMinutesForDate(cursor.toISOString())
         }
         cursor.setDate(cursor.getDate() + 1)
@@ -610,6 +617,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       return dayOfWeek === 0 || dayOfWeek === 6 ? 'weekend' : 'non_working'
     }
 
+    const isNonWorkAbsence = (key: string) => absenceLabelsByDate[key] && !workAbsenceDates.has(key)
+
     const filled: TimeEntry[] = allMonthEntries.map(e => {
       const key = toLocalDateKey(new Date(e.attendanceDateISO))
       const dayType = getDayType(key)
@@ -617,7 +626,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const absenceLabel = dayType !== 'holiday' && absenceLabelsByDate[key] ? absenceLabelsByDate[key] : undefined
 
       let plannedTime: string | undefined
-      if (dayType === 'holiday' || absenceLabelsByDate[key]) {
+      if (dayType === 'holiday' || isNonWorkAbsence(key)) {
         plannedTime = minutesToHHMM(0)
       } else {
         const backendPlannedMinutes = parseDurationToMinutes(e.plannedTime)
@@ -633,9 +642,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const key = toLocalDateKey(cursor)
       if (!existingDates.has(key)) {
         const isHoliday = holidaySet.has(key)
-        const hasAbsence = Boolean(absenceLabelsByDate[key])
         const plannedMinutes =
-          isHoliday || hasAbsence
+          isHoliday || isNonWorkAbsence(key)
             ? 0
             : getPlannedMinutesForDate(
                 new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 12).toISOString()
@@ -656,7 +664,15 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       cursor.setDate(cursor.getDate() + 1)
     }
     return filled
-  }, [allMonthEntries, currentMonth, workingHours, holidayDates, holidayNamesByDate, absenceLabelsByDate])
+  }, [
+    allMonthEntries,
+    currentMonth,
+    workingHours,
+    holidayDates,
+    holidayNamesByDate,
+    absenceLabelsByDate,
+    workAbsenceDates
+  ])
 
   const sortedFilledEntries = useMemo(() => {
     return [...filledMonthEntries].sort((a, b) => {

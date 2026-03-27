@@ -8,6 +8,12 @@ import {
 } from '@/common/data/investment/queries/investmentQueries.new'
 import { formatExportDate } from '@/common/utils/excelExportUtils'
 import { useExportBase } from '@/common/hooks/useExportBase'
+import type { InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
+import {
+  formatFlatCurrencyAmount,
+  computePortfolioPerformanceFromSums
+} from '../data/shared/investmentAggregatesFormat'
+import { getPerformanceSign } from '../data/shared/investmentPerformanceDisplay'
 
 // ─── Columns ─────────────────────────────────────────────────────────────────
 
@@ -53,6 +59,42 @@ interface UseInvestmentExportOptions {
   investmentGroups: Array<{ code: string; tabId: string; label: string }>
   totalCount: number
   filenamePrefix?: string
+  displayCurrencyCode?: string
+}
+
+const buildInvestmentSummaryRows = (
+  listAggregates: InvestmentListAggregates | undefined,
+  displayCurrencyCode: string,
+  showEquityMetrics: boolean
+): Array<[string, string]> => {
+  if (!listAggregates) return []
+
+  const fmt = (v: number | null) => formatFlatCurrencyAmount(v, displayCurrencyCode)
+
+  const rows: Array<[string, string]> = [
+    ['Investments (filtered):', String(listAggregates.count)],
+    ['Total investment:', fmt(listAggregates.totalInvestmentAmount)],
+    ['Average investment:', fmt(listAggregates.avgTotalInvestmentAmount)],
+    ['Market value:', fmt(listAggregates.investmentMarketValue)],
+    ['Average market value:', fmt(listAggregates.avgInvestmentMarketValue)]
+  ]
+
+  if (!showEquityMetrics) return rows
+
+  const perf = computePortfolioPerformanceFromSums(
+    listAggregates.totalInvestmentAmount,
+    listAggregates.investmentMarketValue
+  )
+  const sign = getPerformanceSign(perf.amount === 0, perf.amount > 0)
+  const perfAbs = fmt(Math.abs(perf.amount))
+  const perfPct = perf.percent != null ? `${sign}${Math.abs(perf.percent).toFixed(2)}%` : '—'
+
+  return [
+    ...rows,
+    ['Performance (portfolio):', `${sign}${perfAbs} (${perfPct})`],
+    ['EBITDA (sum):', fmt(listAggregates.ebitdaAmount)],
+    ['EBITDA (average):', fmt(listAggregates.avgEbitdaAmount)]
+  ]
 }
 
 export function useInvestmentExport({
@@ -62,7 +104,8 @@ export function useInvestmentExport({
   currentSection,
   investmentGroups,
   totalCount,
-  filenamePrefix = 'investments'
+  filenamePrefix = 'investments',
+  displayCurrencyCode = 'EUR'
 }: UseInvestmentExportOptions) {
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -159,6 +202,14 @@ export function useInvestmentExport({
     return (result.Investment || []) as Investment[]
   }, [graphqlClient, queryVariables, totalCount])
 
+  const activeGroup = investmentGroups.find(g => g.tabId === currentSection)
+  const showEquityMetrics = activeGroup?.code === 'EQUITY'
+
+  const summaryRows = useMemo(
+    () => buildInvestmentSummaryRows(currentState.listAggregates, displayCurrencyCode, showEquityMetrics),
+    [currentState.listAggregates, displayCurrencyCode, showEquityMetrics]
+  )
+
   return useExportBase<Investment>({
     fetchAllItems,
     formatItem: formatInvestmentForExport,
@@ -167,6 +218,7 @@ export function useInvestmentExport({
     sheetName: 'Investments',
     entityLabel: 'investments',
     totalCount,
-    filenamePrefix
+    filenamePrefix,
+    summaryRows
   })
 }
