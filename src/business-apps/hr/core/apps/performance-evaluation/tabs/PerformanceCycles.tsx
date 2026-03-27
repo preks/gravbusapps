@@ -98,10 +98,13 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
       <Card>
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between">
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <CalendarBlank size={20} />
-              {t('tab-cycles')}
-            </CardTitle>
+            <div>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                <CalendarBlank size={20} />
+                {t('tab-cycles')}
+              </CardTitle>
+              <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('performance-period-description')}</p>
+            </div>
             <div className="gba:flex gba:items-center gba:gap-2">
               {cyclesLoading && <Spinner className="gba:h-5 gba:w-5" data-testid="performance-cycles-loading" />}
               <Button variant="default" onClick={handleAdd} data-testid="performance-cycles-add-button">

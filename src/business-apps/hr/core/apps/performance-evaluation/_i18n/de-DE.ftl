@@ -1,8 +1,8 @@
 title = Konfiguration des Leistungszyklus
 subtitle = Leistungsbeurteilungszyklen erstellen und verwalten
 
-tab-cycles = Zyklen
-tab-performance = Leistungszyklen
+tab-cycles = Leistungszeitraum
+tab-performance = Überprüfungszyklus
 tab-rating-scales = Bewertungsskalen
 tab-values = Werte
 
@@ -28,6 +28,8 @@ cycle-already-started = "{ $name }" wurde bereits gestartet.
 table-evaluation-period = Bewerteter Zeitraum
 table-actions = Aktionen
 empty-no-cycles = Noch keine Zyklen erstellt.
+performance-period-description = Der bewertete Arbeitszeitraum. Beispiel: Leistungszeitraum: 1. Jan – 31. Dez 2025.
+review-cycle-description = Der Zeitraum für Feedback, Managerbewertung und Kalibrierung. Beispiel: Überprüfungszyklus: 15. Jan – 20. Feb 2026.
 empty-no-values = Noch keine Werte definiert.
 
 modal-create-title = Neuen Zyklus erstellen
@@ -113,6 +115,7 @@ start-confirm-title = Leistungsbeurteilung starten
 start-confirm-description-with-cycle = Möchten Sie die Leistungsbeurteilung für „{ $name }" wirklich starten? Damit wird der Bewertungsablauf eingeleitet.
 start-confirm-description-generic = Möchten Sie diese Leistungsbeurteilung wirklich starten?
 start-confirm-select-cycle = Zyklus auswählen *
+manual-run-cycle-already-started = Dieser Zyklus wurde bereits gestartet.
 start-confirm-run-for-label = Bewertung starten für
 start-confirm-run-for-employee = Mitarbeiter
 start-confirm-run-for-team = Team

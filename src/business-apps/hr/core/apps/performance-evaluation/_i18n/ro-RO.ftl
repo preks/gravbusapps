@@ -1,8 +1,8 @@
 title = Configurare ciclu de evaluare a performanței
 subtitle = Creează și gestionează cicluri de evaluare a performanței
 
-tab-cycles = Cicluri
-tab-performance = Cicluri de performanță
+tab-cycles = Perioadă de performanță
+tab-performance = Ciclu de evaluare
 tab-rating-scales = Scale de evaluare
 tab-values = Valori
 
@@ -28,6 +28,8 @@ cycle-already-started = "{ $name }" a fost deja pornit.
 table-evaluation-period = Perioadă evaluată
 table-actions = Acțiuni
 empty-no-cycles = Nu există încă cicluri create.
+performance-period-description = Perioada de muncă evaluată. Exemplu: Perioadă de performanță: 1 ian – 31 dec, 2025.
+review-cycle-description = Perioada în care au loc feedback-ul, evaluarea managerului și calibrarea. Exemplu: Ciclu de evaluare: 15 ian – 20 feb, 2026.
 empty-no-values = Nu există încă valori definite.
 
 modal-create-title = Creează ciclu nou
@@ -113,6 +115,7 @@ start-confirm-title = Pornește evaluarea performanței
 start-confirm-description-with-cycle = Sigur doriți să porniți evaluarea performanței pentru „{ $name }"? Aceasta va iniția fluxul de evaluare.
 start-confirm-description-generic = Sigur doriți să porniți această evaluare a performanței?
 start-confirm-select-cycle = Selectează ciclu *
+manual-run-cycle-already-started = Acest ciclu a fost deja pornit.
 start-confirm-run-for-label = Rulează evaluarea pentru
 start-confirm-run-for-employee = Angajat
 start-confirm-run-for-team = Echipă

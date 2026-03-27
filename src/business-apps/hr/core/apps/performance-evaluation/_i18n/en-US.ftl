@@ -1,8 +1,8 @@
 title = Performance Cycle Configuration
 subtitle = Create and manage performance evaluation cycles
 
-tab-cycles = Cycles
-tab-performance = Performance Cycles
+tab-cycles = Performance Period
+tab-performance = Review Cycle
 tab-rating-scales = Rating Scales
 tab-values = Values
 
@@ -28,6 +28,8 @@ cycle-already-started = "{ $name }" has already been started.
 table-evaluation-period = Evaluated Period
 table-actions = Actions
 empty-no-cycles = No cycles created yet.
+performance-period-description = The time span of work being evaluated. Example: Performance Period: Jan 1–Dec 31, 2025.
+review-cycle-description = The time span when feedback, manager review, and calibration happen. Example: Review Cycle: Jan 15–Feb 20, 2026.
 empty-no-values = No values defined yet.
 
 modal-create-title = Create New Cycle
@@ -112,6 +114,7 @@ start-confirm-title = Start Performance Evaluation
 start-confirm-description-with-cycle = Are you sure you want to start the performance evaluation for "{ $name }"? This will initiate the evaluation flow.
 start-confirm-description-generic = Are you sure you want to start this performance evaluation?
 start-confirm-select-cycle = Select Cycle *
+manual-run-cycle-already-started = This cycle has been already started.
 start-confirm-run-for-label = Run evaluation for
 start-confirm-run-for-employee = Employee
 start-confirm-run-for-team = Team

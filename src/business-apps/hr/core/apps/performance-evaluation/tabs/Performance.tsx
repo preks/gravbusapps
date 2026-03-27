@@ -102,10 +102,13 @@ export const Performance: React.FC<PerformanceProps> = ({
       <Card>
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between">
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <Lightning size={20} />
-              {t('tab-performance')}
-            </CardTitle>
+            <div>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                <Lightning size={20} />
+                {t('tab-performance')}
+              </CardTitle>
+              <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('review-cycle-description')}</p>
+            </div>
             <div className="gba:flex gba:items-center gba:gap-2 gba:min-h-9">
               {cyclesLoading && <Spinner className="gba:h-5 gba:w-5" data-testid="performance-tab-loading" />}
               <Button size="sm" onClick={onManualRun} data-testid="performance-manual-run-button">

@@ -181,6 +181,9 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
                 className="gba:w-full"
                 data-testid="performance-manual-run-cycle-select"
               />
+              {selectedCycleId && (
+                <p className="gba:text-sm gba:text-warning gba:font-medium">{t('manual-run-cycle-already-started')}</p>
+              )}
             </div>
           )}
           <div className="gba:space-y-3">
