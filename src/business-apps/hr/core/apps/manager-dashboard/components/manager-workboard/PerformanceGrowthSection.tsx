@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Progress, Badge } from '@newwork/nw-design-system'
-import { CheckCircle2, XCircle, Target } from 'lucide-react'
+import { CheckCircle2, XCircle, Target, BarChart3 } from 'lucide-react'
 
 interface PerformanceGrowthSectionProps {
   onTrack: number
@@ -13,6 +13,7 @@ interface PerformanceGrowthSectionProps {
   loading: boolean
   onNavigateToTeamPerformance: () => void
   onNavigateToAtRiskGoals: () => void
+  onNavigateToTeamPerformanceOverview?: () => void
 }
 
 export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> = ({
@@ -23,7 +24,8 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
   averageProgress,
   loading,
   onNavigateToTeamPerformance,
-  onNavigateToAtRiskGoals
+  onNavigateToAtRiskGoals,
+  onNavigateToTeamPerformanceOverview
 }) => {
   if (loading) {
     return (
@@ -102,6 +104,19 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
             <p className="gba:text-xs gba:mb-3">Set goals to track team progress</p>
             <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm">
               Set goals
+            </Button>
+          </div>
+        )}
+        {onNavigateToTeamPerformanceOverview && (
+          <div className="gba:border-t gba:pt-2 gba:mt-2">
+            <Button
+              onClick={onNavigateToTeamPerformanceOverview}
+              variant="outline"
+              size="sm"
+              className="gba:w-full gba:h-8"
+            >
+              <BarChart3 size={14} className="gba:mr-1.5" />
+              Team Performance Dashboard
             </Button>
           </div>
         )}

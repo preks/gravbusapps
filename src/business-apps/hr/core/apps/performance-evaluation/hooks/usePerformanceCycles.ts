@@ -28,6 +28,8 @@ export interface PerformanceCycleFromApi {
   participants: ParticipantType[]
   stages: EvaluationStage[]
   status: CycleStatus
+  /** Raw API status enum (e.g. COMPLETED_PERFORMANCE_CYCLE_STATUS, ACTIVE_PERFORMANCE_CYCLE_STATUS) */
+  apiStatus?: string
   deactivated?: boolean
   recordState?: string
   ratingScaleId?: string
@@ -120,6 +122,7 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
     participants: participants.length ? participants : ['Self', 'Manager'],
     stages: [],
     status,
+    apiStatus: api.status ?? undefined,
     deactivated: status === 'Inactive',
     recordState: api.recordState ?? undefined,
     ratingScaleId: api.ratingScaleId ?? undefined,

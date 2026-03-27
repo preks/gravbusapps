@@ -107,16 +107,63 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
         return
       }
 
-      // Get employee IDs for the next query
       const employeeIds = employees.map((emp: any) => emp.id)
 
-      // Step 2: Query EmployeePerformanceGoal directly for all team members
+      const today = new Date().toISOString()
+      const currentCycleQuery = `
+        query GetCurrentPerformanceCycle($today: timestamp!) {
+          PerformanceCycle(
+            where: {
+              isDeleted: { _eq: false },
+              evaluationPeriodStartDate: { _lte: $today },
+              evaluationPeriodEndDate: { _gte: $today }
+            },
+            limit: 1,
+            orderBy: { evaluationPeriodStartDate: DESC }
+          ) {
+            id
+            name
+          }
+        }
+      `
+
+      const cycleResponse = await graphQLClient.request(currentCycleQuery, { today })
+      const currentCycle = cycleResponse?.PerformanceCycle?.[0]
+      const currentCycleId: string | null = currentCycle?.id ?? null
+
+      if (!currentCycleId) {
+        setTeamPerformance(
+          employees.map((emp: any) => ({
+            employeeId: emp.id,
+            userId: emp.userId || emp.id,
+            firstName: emp.firstName,
+            lastName: emp.lastName,
+            pictureThumbnail: emp.pictureThumbnail,
+            jobPositionName: emp.employeePosition?.[0]?.jobPosition?.name || '',
+            goals: [],
+            averageProgress: 0,
+            totalGoals: 0,
+            goalsOnTrack: 0,
+            goalsAtRisk: 0,
+            goalsBehindTarget: 0
+          }))
+        )
+        setAverageTeamProgress(0)
+        setTotalGoals(0)
+        setGoalsOnTrack(0)
+        setGoalsAtRisk(0)
+        setGoalsBehindTarget(0)
+        setLoading(false)
+        return
+      }
+
       const performanceGoalsQuery = `
-        query GetTeamPerformanceGoals($employeeIds: [uuid!]!) {
+        query GetTeamPerformanceGoals($employeeIds: [uuid!]!, $cycleId: uuid!) {
           EmployeePerformanceGoal(
             where: {
               employeeId: { _in: $employeeIds },
-              isDeleted: { _eq: false }
+              isDeleted: { _eq: false },
+              performanceCycleId: { _eq: $cycleId }
             },
             orderBy: { progressPercent: DESC }
           ) {
@@ -128,11 +175,15 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
             progressPercent
             status
             employeeId
+            performanceCycleId
           }
         }
       `
 
-      const goalsResponse = await graphQLClient.request(performanceGoalsQuery, { employeeIds })
+      const goalsResponse = await graphQLClient.request(performanceGoalsQuery, {
+        employeeIds,
+        cycleId: currentCycleId
+      })
       const allGoals: PerformanceGoal[] = goalsResponse?.EmployeePerformanceGoal || []
 
       // Step 3: Group goals by employee and calculate stats

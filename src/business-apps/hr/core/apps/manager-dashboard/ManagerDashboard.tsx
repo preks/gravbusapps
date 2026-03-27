@@ -8,6 +8,7 @@ import { useManagerWorkboardVM } from './hooks/useManagerWorkboardVM'
 import { NotClockedInView } from './views/NotClockedInView'
 import { FilteredTeammatesView } from './views/FilteredTeammatesView'
 import { TeamPerformanceView } from './views/TeamPerformanceView'
+import { TeamPerformanceDashboard } from './views/TeamPerformanceDashboard'
 import { TeamInsightsView } from './views/TeamInsightsView'
 import { OpenPositionsView } from './views/OpenPositionsView'
 import { BirthdaysView } from './views/BirthdaysView'
@@ -265,6 +266,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                   loading={vm.performanceGrowth.loading}
                   onNavigateToTeamPerformance={vm.actions.navigateToTeamPerformance}
                   onNavigateToAtRiskGoals={vm.actions.navigateToGoalsAtRisk}
+                  onNavigateToTeamPerformanceOverview={vm.actions.navigateToTeamPerformanceOverview}
                 />
                 <OpenPositionsSection
                   openPositions={vm.workCapacity.openPositions}
@@ -344,6 +346,56 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         />
         {assignProjectDialog}
       </>
+    )
+  }
+
+  if (vm.currentView === 'team-performance-overview') {
+    const tpo = vm.teamPerformanceOverview
+    const db = tpo.dashboard
+    return (
+      <TeamPerformanceDashboard
+        teamPerformance={tpo.goals.teamPerformance}
+        totalGoals={tpo.goals.totalGoals}
+        goalsOnTrack={tpo.goals.goalsOnTrack}
+        goalsAtRisk={tpo.goals.goalsAtRisk}
+        goalsBehindTarget={tpo.goals.goalsBehindTarget}
+        loadingGoals={tpo.goals.loading}
+        skillsMembers={tpo.skills.members}
+        skillGrowth={tpo.skills.skillGrowth}
+        loadingSkills={tpo.skills.loading}
+        feedbackMembers={tpo.feedback.members}
+        feedbackCoverage={tpo.feedback.feedbackCoverage}
+        recognitionRatio={tpo.feedback.recognitionRatio}
+        totalReceivedCount={tpo.feedback.totalFeedbackCount}
+        totalGivenCount={tpo.feedback.totalGivenCount}
+        loadingFeedback={tpo.feedback.loading}
+        evaluationMembers={tpo.evaluations.members}
+        teamAvgScore={tpo.evaluations.teamAvgScore}
+        teamCompanyValuesAvg={tpo.evaluations.teamCompanyValuesAvg}
+        teamSkillsAvg={tpo.evaluations.teamSkillsAvg}
+        loadingEvaluations={tpo.evaluations.loading}
+        availableCycles={tpo.evaluations.availableCycles}
+        selectedCycleId={db.selectedCycleId}
+        onCycleChange={db.setSelectedCycleId}
+        alerts={db.alerts}
+        talentSignals={db.talentSignals}
+        employeeSignals={db.employeeSignals}
+        teamSignals={db.teamSignals}
+        scoreDistribution={db.scoreDistribution}
+        trendSeries={db.trendSeries}
+        companyValuesDimensionAverages={db.companyValuesDimensionAverages}
+        skillsDimensionAverages={db.skillsDimensionAverages}
+        alignmentGaps={db.alignmentGaps}
+        ratingScaleLimit={db.ratingScaleLimit}
+        skillGrowthRate={db.skillGrowthRate}
+        needsAttentionCount={db.alerts.filter(a => a.severity === 'high').length}
+        changeOverall={db.changeOverall}
+        changeCompanyValues={db.changeCompanyValues}
+        changeSkills={db.changeSkills}
+        insights={tpo.insights}
+        onNavigateBack={vm.handleNavigateBackToDashboard}
+        onNavigateToEmployee={vm.handleNavigateToEmployee}
+      />
     )
   }
 
