@@ -52,9 +52,9 @@ export const MemoryPanel = ({ accessToken, sessionId }: MemoryPanelProps) => {
       </div>
 
       <div className="gba:flex-1 gba:overflow-y-auto gba:p-4 gba:space-y-3">
-        {/* Dev-mode persistence note */}
+        {/* Persistence note */}
         <p className="gba:text-[10px] gba:text-muted-foreground/50 gba:leading-relaxed gba:border gba:border-border/60 gba:rounded-lg gba:px-2.5 gba:py-1.5">
-          Memory is stored in-process and resets when the server restarts.
+          Memory persistence depends on the server memory backend configuration.
         </p>
 
         {loading ? (

@@ -135,7 +135,7 @@ export const EnterpriseAgentApp: React.FC<EnterpriseAgentAppProps> = ({
       <CreateHeroHeader
         icon={BrainIcon}
         appLabel="Enterprise Agent"
-        title="Enterprise Agent"
+        title="Every Fabric"
         description="Your AI that plans, researches and executes — in the background"
         data-testid={`${testId}-hero`}
       />
