@@ -7,8 +7,11 @@
 import React, { useCallback, memo } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types'
-import type { DocumentParticipant, DocumentOperation } from '../../../../../platform/apps/shared/services/CollaborationClient'
-import { UniverSheetGrid, type UniverSheetGridHandle } from '../components/UniverSheetGrid'
+import type {
+  DocumentParticipant,
+  DocumentOperation
+} from '../../../../../platform/apps/shared/services/CollaborationClient'
+import { UniverSheetGrid, type UniverSheetGridHandle, type CellDimensionsPayload } from '../components/UniverSheetGrid'
 
 export interface TableViewProps {
   sheet: SpreadsheetSheet
@@ -40,8 +43,9 @@ export interface TableViewProps {
   onCursorEmit?: (position: { path: string[] }) => void
   collaborationEnabled?: boolean
   isReadOnly?: boolean
+  onDimensionsChange?: (payload: CellDimensionsPayload) => void
   /** Ref to access UniverSheetGrid imperative methods */
-  gridRef?: React.RefObject<UniverSheetGridHandle | null>
+  gridRef?: React.Ref<UniverSheetGridHandle>
 }
 
 /**
@@ -72,6 +76,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   onCursorEmit,
   collaborationEnabled,
   isReadOnly,
+  onDimensionsChange,
   gridRef
 }) {
   // Handle cell change from Univer
@@ -128,6 +133,7 @@ export const TableView = memo<TableViewProps>(function TableView({
         onOperationEmit={onOperationEmit}
         onCursorEmit={onCursorEmit}
         collaborationEnabled={collaborationEnabled}
+        onDimensionsChange={onDimensionsChange}
         height="100%"
         width="100%"
       />
