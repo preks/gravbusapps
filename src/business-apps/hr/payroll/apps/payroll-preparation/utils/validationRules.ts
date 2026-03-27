@@ -122,6 +122,20 @@ export function runGenericValidation(employee: PayrollEmployee): PayrollIssue[] 
     )
   }
 
+  if (employee.variablePayStatus === 'pending' && employee.totalVariablePay != null && employee.totalVariablePay > 0) {
+    issues.push(
+      createIssue(
+        employee.employeeId,
+        'PENDING_VARIABLE_PAY',
+        'missing_approvals',
+        'warning',
+        'Variable compensation exists but has not been fully approved.',
+        'Review and approve pending bonus entries before payroll processing.',
+        'variablePay'
+      )
+    )
+  }
+
   return issues
 }
 

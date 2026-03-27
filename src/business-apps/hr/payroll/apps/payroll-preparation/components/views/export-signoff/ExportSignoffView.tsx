@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Card, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { ExportIcon, CheckCircleIcon, ClockIcon } from '@phosphor-icons/react'
+import { ExportIcon, CheckCircleIcon, ClockIcon, FunnelIcon } from '@phosphor-icons/react'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import type {
   PayrollEmployee,
@@ -11,7 +11,14 @@ import type {
   PayrollSummary,
   SignOffData
 } from '../../../types/payrollTypes'
-import { generatePayrollCSV, generateExceptionsCSV, downloadCSV } from '../../../utils/exportUtils'
+import {
+  generatePayrollCSV,
+  generatePayrollXLSX,
+  generateExceptionsCSV,
+  downloadCSV,
+  downloadBlob,
+  getExportableEmployees
+} from '../../../utils/exportUtils'
 import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
 
 function getUserDisplayName(userInfo?: UserInfoProps): string {
@@ -25,6 +32,8 @@ function getUserDisplayName(userInfo?: UserInfoProps): string {
 
 interface ExportSignoffViewProps {
   employees: PayrollEmployee[]
+  filteredEmployees: PayrollEmployee[]
+  gridFiltersActive: boolean
   payrollRun: PayrollRun | null
   summary: PayrollSummary
   auditEvents: AuditEvent[]
@@ -38,6 +47,8 @@ interface ExportSignoffViewProps {
 
 export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
   employees,
+  filteredEmployees,
+  gridFiltersActive,
   payrollRun,
   summary,
   auditEvents,
@@ -50,43 +61,54 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
 }) => {
   const [exportMode, setExportMode] = useState<ExportOptions['mode']>('ready_only')
   const [includeIssues, setIncludeIssues] = useState(false)
+  const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx'>('csv')
+  const [applyGridFilters, setApplyGridFilters] = useState(false)
   const [exportSuccess, setExportSuccess] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [reviewComment, setReviewComment] = useState('')
 
-  const getExportCount = (): number => {
-    switch (exportMode) {
-      case 'ready_only':
-        return summary.readyCount
-      case 'ready_and_warning':
-        return summary.readyCount + summary.warningCount
-      case 'all':
-        return summary.totalEmployees - summary.excludedCount
-      default:
-        return 0
-    }
-  }
+  const sourceEmployees = applyGridFilters ? filteredEmployees : employees
 
-  const handleExport = () => {
+  const exportCount = useMemo(() => {
+    const opts: ExportOptions = { mode: exportMode, includeIssueSummary: false, format: 'csv', applyGridFilters }
+    return getExportableEmployees(sourceEmployees, opts).length
+  }, [sourceEmployees, exportMode, applyGridFilters])
+
+  const handleExport = async () => {
     if (!payrollRun) return
 
     const options: ExportOptions = {
       mode: exportMode,
       includeIssueSummary: includeIssues,
-      format: 'csv'
+      format: exportFormat,
+      applyGridFilters
     }
 
-    const csv = generatePayrollCSV(employees, payrollRun, options)
-    const filename = `payroll_${payrollRun.country}_${payrollRun.year}-${String(payrollRun.month).padStart(2, '0')}_${payrollRun.legalEntityName.replace(/\s+/g, '_')}.csv`
-    downloadCSV(csv, filename)
-    recordExport(options.mode, getExportCount())
-    setExportSuccess(true)
-    setTimeout(() => setExportSuccess(false), 3000)
+    setExporting(true)
+    try {
+      const baseFilename = `payroll_${payrollRun.country}_${payrollRun.year}-${String(payrollRun.month).padStart(2, '0')}_${payrollRun.legalEntityName.replace(/\s+/g, '_')}`
+
+      if (exportFormat === 'xlsx') {
+        const blob = await generatePayrollXLSX(sourceEmployees, payrollRun, options)
+        downloadBlob(blob, `${baseFilename}.xlsx`)
+      } else {
+        const csv = generatePayrollCSV(sourceEmployees, payrollRun, options)
+        downloadCSV(csv, `${baseFilename}.csv`)
+      }
+
+      recordExport(options.mode, exportCount)
+      await updateStatus('PAYROLL_EXPORTED')
+      setExportSuccess(true)
+      setTimeout(() => setExportSuccess(false), 3000)
+    } finally {
+      setExporting(false)
+    }
   }
 
   const handleExportExceptions = () => {
     if (!payrollRun) return
 
-    const csv = generateExceptionsCSV(employees)
+    const csv = generateExceptionsCSV(sourceEmployees)
     const filename = `payroll_exceptions_${payrollRun.country}_${payrollRun.year}-${String(payrollRun.month).padStart(2, '0')}.csv`
     downloadCSV(csv, filename)
   }
@@ -119,42 +141,75 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
           </h3>
 
           <div className="gba:space-y-4">
-            <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
-                {t('export-mode-label')}
-              </label>
-              <Select value={exportMode} onValueChange={(val: string) => setExportMode(val as ExportOptions['mode'])}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ready_only">
-                    {t('export-mode-ready')} ({summary.readyCount})
-                  </SelectItem>
-                  <SelectItem value="ready_and_warning">
-                    {t('export-mode-ready-warning')} ({summary.readyCount + summary.warningCount})
-                  </SelectItem>
-                  <SelectItem value="all">
-                    {t('export-mode-all')} ({summary.totalEmployees - summary.excludedCount})
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+              <div>
+                <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
+                  {t('export-mode-label')}
+                </label>
+                <Select value={exportMode} onValueChange={(val: string) => setExportMode(val as ExportOptions['mode'])}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ready_only">{t('export-mode-ready')}</SelectItem>
+                    <SelectItem value="ready_and_warning">{t('export-mode-ready-warning')}</SelectItem>
+                    <SelectItem value="all">{t('export-mode-all')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
+                  {t('export-format-label')}
+                </label>
+                <Select value={exportFormat} onValueChange={(val: string) => setExportFormat(val as 'csv' | 'xlsx')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="csv">{t('export-format-csv')}</SelectItem>
+                    <SelectItem value="xlsx">{t('export-format-xlsx')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:cursor-pointer">
-              <input
-                type="checkbox"
-                checked={includeIssues}
-                onChange={e => setIncludeIssues(e.target.checked)}
-                className="gba:rounded gba:border-border"
-              />
-              {t('export-include-issues')}
-            </label>
+            <div className="gba:space-y-2">
+              <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeIssues}
+                  onChange={e => setIncludeIssues(e.target.checked)}
+                  className="gba:rounded gba:border-border"
+                />
+                {t('export-include-issues')}
+              </label>
+
+              <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={applyGridFilters}
+                  onChange={e => setApplyGridFilters(e.target.checked)}
+                  className="gba:rounded gba:border-border"
+                />
+                <span
+                  className={gridFiltersActive ? 'gba:text-foreground gba:font-medium' : 'gba:text-muted-foreground'}
+                >
+                  {t('export-apply-grid-filters')}
+                </span>
+                {gridFiltersActive && <FunnelIcon size={14} weight="fill" className="gba:text-primary" />}
+              </label>
+              {applyGridFilters && gridFiltersActive && (
+                <p className="gba:text-xs gba:text-muted-foreground gba:ml-6">
+                  {t('export-grid-filters-active', { count: filteredEmployees.length, total: employees.length })}
+                </p>
+              )}
+            </div>
 
             <div className="gba:flex gba:gap-3">
-              <Button onClick={handleExport} disabled={!payrollRun || getExportCount() === 0}>
+              <Button onClick={handleExport} disabled={!payrollRun || exportCount === 0 || exporting}>
                 <ExportIcon size={16} className="gba:mr-2" />
-                {t('export-button')} ({getExportCount()})
+                {t('export-button')} ({exportCount})
               </Button>
               <Button variant="outline" onClick={handleExportExceptions}>
                 {t('export-exceptions-button')}

@@ -96,9 +96,14 @@ export-mode-all = All In-Scope Employees
 export-mode-ready = Ready Only
 export-mode-ready-warning = Ready + Warning
 export-include-issues = Include Issue Summary
-export-button = Export CSV
+export-apply-grid-filters = Apply grid filters to export
+export-grid-filters-active = Grid filters active: { $count } of { $total } employees selected
+export-format-label = Format
+export-format-csv = CSV (.csv)
+export-format-xlsx = Excel (.xlsx)
+export-button = Export
 export-exceptions-button = Export Exceptions Report
-export-success = Payroll data exported successfully.
+export-success = Payroll data exported successfully. Run status set to Exported.
 
 signoff-prepared-by = Prepared By
 signoff-prepared-at = Prepared At
@@ -119,7 +124,37 @@ change-legal-entity = Legal Entity Change
 change-department = Department Change
 change-bank-details = Bank Details Change
 change-variable-pay = Variable Pay Change
+change-one-off-payment = One-off Payment
+change-deduction = Deduction Change
 change-absence = Absence Change
+change-country-specific = Country-Specific Change
+
+category-missing-personal-data = Missing Personal Data
+category-missing-bank-details = Missing Bank Details
+category-missing-contract-salary = Missing Contract/Salary
+category-missing-tax-social = Missing Tax/Social Data
+category-missing-country-specific = Missing Country-Specific Data
+category-missing-approvals = Missing Approvals
+category-missing-absence-data = Missing Absence Data
+category-overlapping-absences = Overlapping Absences
+category-retroactive-changes = Retroactive Changes
+category-pending-final-payroll = Pending Final Payroll
+category-invalid-effective-dates = Invalid Effective Dates
+
+month-1 = January
+month-2 = February
+month-3 = March
+month-4 = April
+month-5 = May
+month-6 = June
+month-7 = July
+month-8 = August
+month-9 = September
+month-10 = October
+month-11 = November
+month-12 = December
+
+grid-other-leave = Other Leave
 
 country-de = Germany
 country-ro = Romania
@@ -147,6 +182,8 @@ employee-detail-changes = Changes
 employee-detail-notes = Notes
 
 overview-readiness = Readiness Distribution
+overview-no-company-title = { $count } employee(s) without a company assignment
+overview-no-company-description = These employees have no legal entity assigned. They may be missing from payroll exports or produce incorrect results. Please assign them to a company in the employee record.
 
 changes-employees = Changed Employees
 changes-total = Total Changes

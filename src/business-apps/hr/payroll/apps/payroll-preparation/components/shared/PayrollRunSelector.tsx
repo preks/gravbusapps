@@ -10,20 +10,7 @@ interface PayrollRunSelectorProps {
   t: (key: string) => string
 }
 
-const MONTHS = [
-  { value: 1, label: 'January' },
-  { value: 2, label: 'February' },
-  { value: 3, label: 'March' },
-  { value: 4, label: 'April' },
-  { value: 5, label: 'May' },
-  { value: 6, label: 'June' },
-  { value: 7, label: 'July' },
-  { value: 8, label: 'August' },
-  { value: 9, label: 'September' },
-  { value: 10, label: 'October' },
-  { value: 11, label: 'November' },
-  { value: 12, label: 'December' }
-]
+const MONTH_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
 function getYearOptions(): number[] {
   const current = new Date().getFullYear()
@@ -86,9 +73,9 @@ export const PayrollRunSelector: React.FC<PayrollRunSelectorProps> = ({
               <SelectValue placeholder={t('select-month')} />
             </SelectTrigger>
             <SelectContent>
-              {MONTHS.map(m => (
-                <SelectItem key={m.value} value={String(m.value)}>
-                  {m.label}
+              {MONTH_VALUES.map(m => (
+                <SelectItem key={m} value={String(m)}>
+                  {t(`month-${m}`)}
                 </SelectItem>
               ))}
             </SelectContent>

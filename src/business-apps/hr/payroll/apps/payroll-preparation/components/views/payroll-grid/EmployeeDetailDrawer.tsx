@@ -1,5 +1,5 @@
 import React from 'react'
-import { Badge, Card } from '@newwork/nw-design-system'
+import { Badge, Button, Card } from '@newwork/nw-design-system'
 import { XIcon, UserIcon, ArrowSquareOutIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollCountry } from '../../../types/payrollTypes'
 import { ReadinessStatusBadge, SeverityBadge } from '../../shared/StatusBadge'
@@ -58,17 +58,13 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
               <p className="gba:text-xs gba:text-muted-foreground">{employee.code}</p>
             </div>
           </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <button
-              onClick={openEmployeeRecord}
-              className="gba:p-1.5 gba:rounded gba:hover:bg-muted gba:text-muted-foreground"
-              title="Open Employee Record"
-            >
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <Button variant="ghost" size="icon" onClick={openEmployeeRecord} title={t('employee-detail-title')}>
               <ArrowSquareOutIcon size={18} />
-            </button>
-            <button onClick={onClose} className="gba:p-1.5 gba:rounded gba:hover:bg-muted gba:text-muted-foreground">
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onClose}>
               <XIcon size={18} />
-            </button>
+            </Button>
           </div>
         </div>
         <div className="gba:mt-2">
@@ -87,10 +83,16 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
 
         <Section title={t('employee-detail-contract')}>
           <Field label={t('grid-contract-type')} value={employee.contractType} />
-          <Field label={t('grid-hire-date')} value={employee.hireDate} />
-          <Field label={t('grid-termination-date')} value={employee.terminationDate} />
+          <Field
+            label={t('grid-hire-date')}
+            value={employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : null}
+          />
+          <Field
+            label={t('grid-termination-date')}
+            value={employee.terminationDate ? new Date(employee.terminationDate).toLocaleDateString() : null}
+          />
           <Field label={t('grid-fte')} value={employee.fte != null ? String(employee.fte) : null} />
-          <Field label="Weekly Hours" value={employee.weeklyHours != null ? String(employee.weeklyHours) : null} />
+          <Field label={t('grid-capacity')} value={employee.weeklyHours != null ? `${employee.weeklyHours}h` : null} />
           <Field
             label={t('grid-base-salary')}
             value={employee.baseSalary != null ? `${employee.baseSalary.toLocaleString()} ${employee.currency}` : null}
@@ -105,7 +107,7 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
           <Field label={t('grid-paid-leave')} value={`${employee.paidLeaveDays} days`} />
           <Field label={t('grid-sick-leave')} value={`${employee.sickLeaveDays} days`} />
           <Field label={t('grid-unpaid-leave')} value={`${employee.unpaidLeaveDays} days`} />
-          <Field label="Other Leave" value={`${employee.otherLeaveDays} days`} />
+          <Field label={t('grid-other-leave')} value={`${employee.otherLeaveDays} days`} />
           {employee.loggedHours != null && <Field label={t('grid-logged-hours')} value={`${employee.loggedHours}h`} />}
           {employee.contractCapacityHours != null && (
             <Field label={t('grid-capacity')} value={`${employee.contractCapacityHours}h`} />

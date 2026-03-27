@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Badge, Card } from '@newwork/nw-design-system'
 import {
   CheckCircleIcon,
@@ -7,13 +7,15 @@ import {
   MinusCircleIcon,
   UsersIcon,
   ArrowsClockwiseIcon,
-  ShieldWarningIcon
+  ShieldWarningIcon,
+  WarningCircleIcon
 } from '@phosphor-icons/react'
-import type { PayrollSummary, PayrollRun } from '../../../types/payrollTypes'
+import type { PayrollSummary, PayrollRun, PayrollEmployee } from '../../../types/payrollTypes'
 import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
 
 interface OverviewViewProps {
   summary: PayrollSummary
+  employees: PayrollEmployee[]
   payrollRun: PayrollRun | null
   t: (key: string) => string
 }
@@ -42,9 +44,37 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => (
   </Card>
 )
 
-export const OverviewView: React.FC<OverviewViewProps> = ({ summary, payrollRun, t }) => {
+export const OverviewView: React.FC<OverviewViewProps> = ({ summary, employees, payrollRun, t }) => {
+  const employeesWithoutCompany = useMemo(() => employees.filter(e => !e.legalEntityName), [employees])
+
   return (
     <div className="gba:space-y-6">
+      {employeesWithoutCompany.length > 0 && (
+        <Card className="gba:p-4 gba:border-warning gba:bg-warning/5">
+          <div className="gba:flex gba:items-start gba:gap-3">
+            <WarningCircleIcon size={20} weight="fill" className="gba:text-warning gba:mt-0.5 gba:shrink-0" />
+            <div>
+              <p className="gba:text-sm gba:font-semibold gba:text-foreground">
+                {t('overview-no-company-title', { count: employeesWithoutCompany.length })}
+              </p>
+              <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('overview-no-company-description')}</p>
+              <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-2">
+                {employeesWithoutCompany.slice(0, 10).map(e => (
+                  <Badge key={e.id} variant="outline" className="gba:text-xs">
+                    {e.displayName} ({e.code})
+                  </Badge>
+                ))}
+                {employeesWithoutCompany.length > 10 && (
+                  <Badge variant="outline" className="gba:text-xs">
+                    +{employeesWithoutCompany.length - 10} more
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {payrollRun && (
         <Card className="gba:p-6">
           <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">

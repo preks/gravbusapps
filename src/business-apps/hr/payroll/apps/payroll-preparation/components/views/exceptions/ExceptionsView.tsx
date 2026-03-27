@@ -10,18 +10,18 @@ interface ExceptionsViewProps {
   t: (key: string) => string
 }
 
-const CATEGORY_LABELS: Record<IssueCategory, string> = {
-  missing_personal_data: 'Missing Personal Data',
-  missing_bank_details: 'Missing Bank Details',
-  missing_contract_salary: 'Missing Contract/Salary',
-  missing_tax_social: 'Missing Tax/Social Data',
-  missing_country_specific: 'Missing Country-Specific Data',
-  missing_approvals: 'Missing Approvals',
-  missing_absence_data: 'Missing Absence Data',
-  overlapping_absences: 'Overlapping Absences',
-  retroactive_changes: 'Retroactive Changes',
-  pending_final_payroll: 'Pending Final Payroll',
-  invalid_effective_dates: 'Invalid Effective Dates'
+const CATEGORY_KEYS: Record<IssueCategory, string> = {
+  missing_personal_data: 'category-missing-personal-data',
+  missing_bank_details: 'category-missing-bank-details',
+  missing_contract_salary: 'category-missing-contract-salary',
+  missing_tax_social: 'category-missing-tax-social',
+  missing_country_specific: 'category-missing-country-specific',
+  missing_approvals: 'category-missing-approvals',
+  missing_absence_data: 'category-missing-absence-data',
+  overlapping_absences: 'category-overlapping-absences',
+  retroactive_changes: 'category-retroactive-changes',
+  pending_final_payroll: 'category-pending-final-payroll',
+  invalid_effective_dates: 'category-invalid-effective-dates'
 }
 
 const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
@@ -70,10 +70,19 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
     return result
   }, [allIssues, severityFilter, categoryFilter])
 
-  const blockerCount = allIssues.filter(i => i.severity === 'blocker').length
-  const warningCount = allIssues.filter(i => i.severity === 'warning').length
-  const infoCount = allIssues.filter(i => i.severity === 'info').length
-  const affectedEmployees = new Set(allIssues.map(i => i.employeeId)).size
+  const { blockerCount, warningCount, infoCount, affectedEmployees } = useMemo(() => {
+    let blockers = 0
+    let warnings = 0
+    let infos = 0
+    const employeeIds = new Set<string>()
+    for (const issue of allIssues) {
+      if (issue.severity === 'blocker') blockers++
+      else if (issue.severity === 'warning') warnings++
+      else if (issue.severity === 'info') infos++
+      employeeIds.add(issue.employeeId)
+    }
+    return { blockerCount: blockers, warningCount: warnings, infoCount: infos, affectedEmployees: employeeIds.size }
+  }, [allIssues])
 
   const handleNavigateForIssue = useCallback((employeeId: string, category: IssueCategory) => {
     switch (category) {
@@ -105,7 +114,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
 
   return (
     <div className="gba:space-y-6">
-      <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 gba:gap-4">
+      <div className="gba:grid gba:grid-cols-4 gba:gap-4">
         <Card className="gba:p-4 gba:text-center">
           <p className="gba:text-2xl gba:font-bold gba:text-destructive">{blockerCount}</p>
           <p className="gba:text-sm gba:text-muted-foreground">{t('severity-blocker')}s</p>
@@ -160,9 +169,9 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('filter-all')}</SelectItem>
-                {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                {Object.entries(CATEGORY_KEYS).map(([key, i18nKey]) => (
                   <SelectItem key={key} value={key}>
-                    {label}
+                    {t(i18nKey)}
                   </SelectItem>
                 ))}
               </SelectContent>

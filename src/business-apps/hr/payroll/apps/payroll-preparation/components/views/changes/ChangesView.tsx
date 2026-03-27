@@ -23,20 +23,20 @@ interface ChangesViewProps {
   t: (key: string) => string
 }
 
-const CHANGE_TYPE_LABELS: Record<string, string> = {
-  new_hire: 'New Hire',
-  termination: 'Termination',
-  salary_change: 'Salary Change',
-  working_time_change: 'Working Time Change',
-  contract_type_change: 'Contract Type Change',
-  legal_entity_change: 'Legal Entity Change',
-  department_change: 'Department Change',
-  bank_details_change: 'Bank Details Change',
-  variable_pay_change: 'Variable Pay Change',
-  one_off_payment: 'One-off Payment',
-  deduction_change: 'Deduction Change',
-  absence_change: 'Absence Change',
-  country_specific_change: 'Country-Specific Change'
+const CHANGE_TYPE_KEYS: Record<string, string> = {
+  new_hire: 'change-new-hire',
+  termination: 'change-termination',
+  salary_change: 'change-salary',
+  working_time_change: 'change-working-time',
+  contract_type_change: 'change-contract-type',
+  legal_entity_change: 'change-legal-entity',
+  department_change: 'change-department',
+  bank_details_change: 'change-bank-details',
+  variable_pay_change: 'change-variable-pay',
+  one_off_payment: 'change-one-off-payment',
+  deduction_change: 'change-deduction',
+  absence_change: 'change-absence',
+  country_specific_change: 'change-country-specific'
 }
 
 interface ChangeWithEmployee extends PayrollChangeEvent {
@@ -153,7 +153,7 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
                 <SelectItem value="all">{t('filter-all')}</SelectItem>
                 {availableChangeTypes.map(type => (
                   <SelectItem key={type} value={type}>
-                    {CHANGE_TYPE_LABELS[type] || type} ({changeTypeCounts[type]})
+                    {t(CHANGE_TYPE_KEYS[type] || type)} ({changeTypeCounts[type]})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -167,7 +167,7 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
           {Object.entries(changeTypeCounts).map(([type, count]) => (
             <Card key={type} className="gba:px-3 gba:py-2">
               <span className="gba:text-sm gba:text-foreground">
-                {CHANGE_TYPE_LABELS[type] || type}: <span className="gba:font-semibold">{count}</span>
+                {t(CHANGE_TYPE_KEYS[type] || type)}: <span className="gba:font-semibold">{count}</span>
               </span>
             </Card>
           ))}
@@ -206,7 +206,7 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{CHANGE_TYPE_LABELS[change.changeType] || change.changeType}</Badge>
+                      <Badge variant="secondary">{t(CHANGE_TYPE_KEYS[change.changeType] || change.changeType)}</Badge>
                     </TableCell>
                     <TableCell className="gba:text-sm gba:text-foreground">{change.fieldName}</TableCell>
                     <TableCell>

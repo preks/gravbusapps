@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { PageLayout, Spinner, useTranslation } from '@newwork/nw-design-system'
 import {
   HouseLineIcon,
@@ -11,8 +11,14 @@ import {
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
-import { usePayrollEmployees, usePayrollSummary, useCompanyList } from './hooks/usePayrollEmployees'
+import {
+  usePayrollEmployees,
+  usePayrollSummary,
+  useCompanyList,
+  useFilteredEmployees
+} from './hooks/usePayrollEmployees'
 import type { PayrollCompany } from './hooks/usePayrollEmployees'
+import type { PayrollGridFilters as FilterState } from './types/payrollTypes'
 import { usePayrollRunStore } from './hooks/usePayrollRunStore'
 import { usePayrollRun } from './hooks/usePayrollRun'
 import { PayrollRunSelector } from './components/shared/PayrollRunSelector'
@@ -64,6 +70,26 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     userInfo
   )
 
+  const [gridFilters, setGridFilters] = useState<FilterState>({
+    search: '',
+    readinessStatus: 'all',
+    changedOnly: false,
+    issueCategory: 'all',
+    department: 'all'
+  })
+
+  const filteredEmployees = useFilteredEmployees(employees, gridFilters)
+
+  const gridFiltersActive = useMemo(
+    () =>
+      gridFilters.search !== '' ||
+      gridFilters.readinessStatus !== 'all' ||
+      gridFilters.changedOnly ||
+      gridFilters.issueCategory !== 'all' ||
+      gridFilters.department !== 'all',
+    [gridFilters]
+  )
+
   const handleCompanyChange = useCallback(
     (company: PayrollCompany) => {
       setDetectedCountry(company.countryCode)
@@ -89,50 +115,53 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
 
   const [activeTab, setActiveTab] = useState<ViewKey>(getInitialView())
 
-  const viewOptions = [
-    {
-      key: 'overview' as ViewKey,
-      icon: <HouseLineIcon />,
-      label: t('tab-overview'),
-      title: t('overview-title'),
-      description: t('overview-description')
-    },
-    {
-      key: 'grid' as ViewKey,
-      icon: <TableIcon />,
-      label: t('tab-payroll-grid'),
-      title: t('grid-title'),
-      description: t('grid-description')
-    },
-    {
-      key: 'exceptions' as ViewKey,
-      icon: <WarningCircleIcon />,
-      label: t('tab-exceptions'),
-      title: t('exceptions-title'),
-      description: t('exceptions-description')
-    },
-    {
-      key: 'changes' as ViewKey,
-      icon: <ArrowsClockwiseIcon />,
-      label: t('tab-changes'),
-      title: t('changes-title'),
-      description: t('changes-description')
-    },
-    {
-      key: 'country-checks' as ViewKey,
-      icon: <FlagIcon />,
-      label: t('tab-country-checks'),
-      title: t('country-checks-title'),
-      description: t('country-checks-description')
-    },
-    {
-      key: 'export' as ViewKey,
-      icon: <ExportIcon />,
-      label: t('tab-export'),
-      title: t('export-title'),
-      description: t('export-description')
-    }
-  ]
+  const viewOptions = useMemo(
+    () => [
+      {
+        key: 'overview' as ViewKey,
+        icon: <HouseLineIcon />,
+        label: t('tab-overview'),
+        title: t('overview-title'),
+        description: t('overview-description')
+      },
+      {
+        key: 'grid' as ViewKey,
+        icon: <TableIcon />,
+        label: t('tab-payroll-grid'),
+        title: t('grid-title'),
+        description: t('grid-description')
+      },
+      {
+        key: 'exceptions' as ViewKey,
+        icon: <WarningCircleIcon />,
+        label: t('tab-exceptions'),
+        title: t('exceptions-title'),
+        description: t('exceptions-description')
+      },
+      {
+        key: 'changes' as ViewKey,
+        icon: <ArrowsClockwiseIcon />,
+        label: t('tab-changes'),
+        title: t('changes-title'),
+        description: t('changes-description')
+      },
+      {
+        key: 'country-checks' as ViewKey,
+        icon: <FlagIcon />,
+        label: t('tab-country-checks'),
+        title: t('country-checks-title'),
+        description: t('country-checks-description')
+      },
+      {
+        key: 'export' as ViewKey,
+        icon: <ExportIcon />,
+        label: t('tab-export'),
+        title: t('export-title'),
+        description: t('export-description')
+      }
+    ],
+    [t]
+  )
 
   const updateUrl = (view: ViewKey) => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -194,9 +223,17 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
 
     switch (activeTab) {
       case 'overview':
-        return <OverviewView summary={summary} payrollRun={payrollRun} t={t} />
+        return <OverviewView summary={summary} employees={employees} payrollRun={payrollRun} t={t} />
       case 'grid':
-        return <PayrollGridView employees={employees} country={detectedCountry || 'DE'} t={t} />
+        return (
+          <PayrollGridView
+            employees={employees}
+            country={detectedCountry || 'DE'}
+            filters={gridFilters}
+            onFiltersChange={setGridFilters}
+            t={t}
+          />
+        )
       case 'exceptions':
         return <ExceptionsView employees={employees} t={t} />
       case 'changes':
@@ -207,6 +244,8 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
         return (
           <ExportSignoffView
             employees={employees}
+            filteredEmployees={filteredEmployees}
+            gridFiltersActive={gridFiltersActive}
             payrollRun={payrollRun}
             summary={summary}
             auditEvents={auditEvents}

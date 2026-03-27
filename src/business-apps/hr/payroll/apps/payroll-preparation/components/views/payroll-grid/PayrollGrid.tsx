@@ -3,6 +3,11 @@ import {
   Badge,
   Button,
   Card,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TableHeader,
   TableBody,
@@ -20,6 +25,8 @@ import { EmployeeDetailDrawer } from './EmployeeDetailDrawer'
 interface PayrollGridViewProps {
   employees: PayrollEmployee[]
   country: PayrollCountry
+  filters: FilterState
+  onFiltersChange: (filters: FilterState) => void
   t: (key: string) => string
 }
 
@@ -60,14 +67,13 @@ const SortableHead: React.FC<{
   </TableHead>
 )
 
-export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, country, t }) => {
-  const [filters, setFilters] = useState<FilterState>({
-    search: '',
-    readinessStatus: 'all',
-    changedOnly: false,
-    issueCategory: 'all',
-    department: 'all'
-  })
+export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
+  employees,
+  country,
+  filters,
+  onFiltersChange,
+  t
+}) => {
   const [sortField, setSortField] = useState<SortField>('displayName')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [currentPage, setCurrentPage] = useState(1)
@@ -122,7 +128,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
       <PayrollGridFilters
         filters={filters}
         onFiltersChange={f => {
-          setFilters(f)
+          onFiltersChange(f)
           setCurrentPage(1)
         }}
         employees={employees}
@@ -235,10 +241,10 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
                       </TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.department}</TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-                        {emp.hireDate || '—'}
+                        {emp.hireDate ? new Date(emp.hireDate).toLocaleDateString() : '—'}
                       </TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-                        {emp.terminationDate || '—'}
+                        {emp.terminationDate ? new Date(emp.terminationDate).toLocaleDateString() : '—'}
                       </TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.costCenter}</TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.workLocation || '—'}</TableCell>
@@ -306,20 +312,24 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
                 Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sorted.length)} of{' '}
                 {sorted.length}
               </span>
-              <select
-                value={pageSize}
-                onChange={e => {
-                  setPageSize(Number(e.target.value))
+              <Select
+                value={String(pageSize)}
+                onValueChange={(val: string) => {
+                  setPageSize(Number(val))
                   setCurrentPage(1)
                 }}
-                className="gba:border gba:border-border gba:rounded gba:px-2 gba:py-1 gba:text-sm gba:bg-background"
               >
-                {PAGE_SIZE_OPTIONS.map(size => (
-                  <option key={size} value={size}>
-                    {size} / page
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="gba:h-8 gba:w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map(size => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size} / page
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">
               <Button
@@ -348,7 +358,10 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({ employees, cou
 
       {selectedEmployee && (
         <>
-          <div className="gba:fixed gba:inset-0 gba:bg-black/20 gba:z-40" onClick={() => setSelectedEmployee(null)} />
+          <div
+            className="gba:fixed gba:inset-0 gba:bg-foreground/20 gba:z-40"
+            onClick={() => setSelectedEmployee(null)}
+          />
           <EmployeeDetailDrawer
             employee={selectedEmployee}
             country={country}

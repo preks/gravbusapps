@@ -221,5 +221,6 @@ export interface PayrollGridFilters {
 export interface ExportOptions {
   mode: 'all' | 'ready_only' | 'ready_and_warning'
   includeIssueSummary: boolean
-  format: 'csv'
+  format: 'csv' | 'xlsx'
+  applyGridFilters: boolean
 }
