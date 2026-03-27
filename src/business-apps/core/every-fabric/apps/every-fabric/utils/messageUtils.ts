@@ -1,4 +1,5 @@
 import type {
+  ActivityEvent,
   AgentChunkEvent,
   AgentStepCompletedEvent,
   AgentStepStartedEvent,
@@ -191,7 +192,7 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
     }
   }
 
-  const activityEvents = events
+  const activityEvents: ActivityEvent[] = events
     .filter(
       (e): e is AgentStepStartedEvent | AgentSubagentSpawnedEvent =>
         e.type === 'step_started' || e.type === 'subagent_spawned'
@@ -243,6 +244,7 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
 
 export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
   const traceMessages = [...(session.trace ?? [])]
+    .filter((e): e is AgentChunkEvent => e.type === 'agent_chunk')
     .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
     .map(chunkToMessage)
     .filter((msg): msg is ChatMessage => msg !== null)
@@ -268,14 +270,11 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
       return Number.isNaN(diff) ? undefined : diff
     })()
     const actionsPerformed = (session.trace ?? [])
-      .filter(
-        (e): e is Record<string, unknown> =>
-          typeof e === 'object' && e !== null && (e as Record<string, unknown>).type === 'step_completed'
-      )
+      .filter((e): e is AgentStepCompletedEvent => e.type === 'step_completed')
       .map(e => ({
-        step: String(e.name ?? 'Tool call'),
-        tool: e.name ? String(e.name) : undefined,
-        outcome: String(e.status ?? 'done')
+        step: e.name ?? 'Tool call',
+        tool: e.name,
+        outcome: e.status ?? 'done'
       }))
     terminalMessages.push({
       id: `terminal-${session.session_id}-${session.updated_at}`,

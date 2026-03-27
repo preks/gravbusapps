@@ -5,7 +5,7 @@ export interface DeepAgentSession {
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'waiting_for_human'
   output?: string
   todos?: TodoItem[]
-  trace?: AgentChunkEvent[]
+  trace?: AgentStreamEvent[]
   reflection?: ReflectionResult
   quality_score?: number
   cost_summary?: CostSummary
