@@ -298,9 +298,16 @@ export function useEntityImport<T = ConvertedEntity>(
 
         // Build mapping JSON for backend
         const mappingJson = JSON.stringify({ fieldMappings: filteredMappings })
+        const extractionDomain = config.domain === 'investment' ? 'irm' : undefined
 
         // Call backend extract endpoint with enforced fields
-        const response = await flowbotClient.extractFromFile(config.entityType, file, mappingJson, enforcedFieldsJson)
+        const response = await flowbotClient.extractFromFile(
+          config.entityType,
+          file,
+          mappingJson,
+          enforcedFieldsJson,
+          extractionDomain
+        )
 
         // Apply transformation function if provided (for nested structures like investments)
         const transformedEntities = transformFn ? response.records.map(transformFn) : (response.records as T[])
@@ -319,7 +326,7 @@ export function useEntityImport<T = ConvertedEntity>(
         setIsLoading(false)
       }
     },
-    [file, config.entityType]
+    [file, config.entityType, config.domain]
   )
 
   // Import to backend

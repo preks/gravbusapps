@@ -66,6 +66,7 @@ export interface ExtractFromFileRequest {
   entity_type: string
   import_file: File
   mapping_json: string
+  domain?: 'crm' | 'irm'
   offset?: number
   max_rows?: number
 }
@@ -186,6 +187,7 @@ export class FlowbotClient extends RestClient {
     importFile: File,
     mappingJson: string,
     enforcedFieldsJson?: string,
+    domain?: 'crm' | 'irm',
     offset: number = 0,
     maxRows: number = 5000,
     options: Omit<RequestOptions, 'body'> = {}
@@ -196,6 +198,9 @@ export class FlowbotClient extends RestClient {
     formData.append('mapping_json', mappingJson)
     if (enforcedFieldsJson) {
       formData.append('enforced_fields_json', enforcedFieldsJson)
+    }
+    if (domain) {
+      formData.append('domain', domain)
     }
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())
