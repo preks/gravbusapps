@@ -16,9 +16,9 @@ export interface ExpenseDataTableProps<T = unknown> {
   actions?: (row: { original: T }) => ReactNode
   emptyMessage?: string
   dataTestId?: string
+  rowsPerPage?: number
 }
 
-/** Mirrors manager-expenses `ExpenseDataTable` so backoffice lists match design-system table styling. */
 function normalizeTotalCountForDataTable(value: number | undefined): number {
   const n = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(n) ? n : 0
@@ -38,11 +38,10 @@ export function ExpenseDataTable<T extends { id?: string }>(props: Readonly<Expe
     onRowClick,
     actions,
     emptyMessage = 'No data found',
-    dataTestId = 'expense-data-table'
+    dataTestId = 'expense-data-table',
+    rowsPerPage
   } = props
 
-  // nw-design-system enables manual (server) pagination only when typeof totalCount === 'number'.
-  // Coerce so GraphQL/string counts never fall back to client-side pagination (which breaks page UI vs server offset).
   const safeTotalCount = normalizeTotalCountForDataTable(totalCount)
 
   return (
@@ -56,7 +55,7 @@ export function ExpenseDataTable<T extends { id?: string }>(props: Readonly<Expe
       onSortingChange={onSortingChange}
       pagination={pagination}
       onPaginationChange={onPaginationChange}
-      rowsPerPage={pagination?.pageSize}
+      rowsPerPage={rowsPerPage}
       enablePagination
       enableSorting
       enableSelection={false}

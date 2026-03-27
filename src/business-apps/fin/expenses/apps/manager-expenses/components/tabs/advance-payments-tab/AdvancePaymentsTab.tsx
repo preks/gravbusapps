@@ -10,9 +10,10 @@ import {
   useCurrencySecondaryAction,
   useEmptyMessage
 } from '../../../hooks/useTabState'
-import { DataDisplay } from '@newwork/nw-design-system'
+import { DataDisplay, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import translations from '../../../_i18n'
 import { advancePaymentFilterStatuses } from '../../../hooks/availableFilterStatuses'
 import { ExpenseStatus, getAdvancePaymentStatusFilterLabel } from '../../../utils'
 import AdvancePaymentStatistics from './AdvancePaymentStatistics'
@@ -38,6 +39,7 @@ const DEFAULT_VISIBLE_COLUMN_IDS = [
 ]
 
 const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
+  const { t } = useTranslation(translations)
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -212,14 +214,8 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:backoffice_expense_landing_page.advance_title',
-          'Filter Advance Payments'
-        )}
-        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:advance_payments.filter_description',
-          'Apply filters to narrow down the advance payments list.'
-        )}
+        filterSheetTitle={t('filter-advance-payments-title')}
+        filterSheetDescription={t('filter-advance-payments-description')}
         secondaryActions={secondaryActions}
       >
         <AdvancePaymentsTable

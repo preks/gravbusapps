@@ -2,9 +2,6 @@ import { useMemo, useCallback } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-/**
- * Shared table setup: context props, column filtering, and pagination handling.
- */
 export function useTableSetup<T>(
   props: Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'>,
   allColumns: ColumnDef<T>[],

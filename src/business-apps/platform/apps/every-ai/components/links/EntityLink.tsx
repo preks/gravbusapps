@@ -112,8 +112,26 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
     }
   }
 
+  let resolvedUrl = config.urlTemplate.replace('{id}', effectiveId)
+
+  if (effectiveProtocol === 'chat_conversation' && metadata?.messageId) {
+    const [path, queryString = ''] = resolvedUrl.split('?')
+    const baseParams = new URLSearchParams(queryString)
+    const view = baseParams.get('view')
+    const orderedParams = new URLSearchParams()
+
+    orderedParams.set('conversationId', effectiveId)
+    orderedParams.set('messageId', metadata.messageId)
+
+    if (view) {
+      orderedParams.set('view', view)
+    }
+
+    resolvedUrl = `${path}?${orderedParams.toString()}`
+  }
+
   return {
-    url: config.urlTemplate.replace('{id}', effectiveId),
+    url: resolvedUrl,
     protocol: effectiveProtocol,
     id: effectiveId,
     alternateId: metadata?.alternateId,

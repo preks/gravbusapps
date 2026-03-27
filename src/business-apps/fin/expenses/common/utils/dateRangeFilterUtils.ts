@@ -3,9 +3,6 @@ import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 export type DateRange = [Date | null, Date | null] | null
 export type DateRangeSetter = (range: DateRange) => void
 
-/**
- * Format a date range for display in filter chips.
- */
 export function formatDateRangeForChip(range: DateRange | undefined): string | null {
   if (!range?.[0] && !range?.[1]) return null
   const opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
@@ -13,10 +10,6 @@ export function formatDateRangeForChip(range: DateRange | undefined): string | n
   return range[0] && range[1] ? `${fmt(range[0])} – ${fmt(range[1])}` : fmt(range[0]) || fmt(range[1])
 }
 
-/**
- * Apply a date range value from DataDisplay's filter Record to a state setter.
- * Returns true if the setter was called.
- */
 export function applyDateRangeFromFilter(raw: unknown, setter: DateRangeSetter | undefined): boolean {
   if (!setter) return false
   const isDisplayString = typeof raw === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(raw) && !raw.includes(',')
