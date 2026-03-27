@@ -7,6 +7,7 @@ import {
   employeeAbsenceCalendarRangeQuery,
   latestEntitlementSnapshotForRangeQuery
 } from '../queries/getEmployeeAbsences'
+import { resolveEmploymentRegionRef } from '../utils/employmentRegion'
 
 interface AbsenceCalendarDay {
   dayDate: string
@@ -72,30 +73,7 @@ export const useAbsenceCalendarData = (
           employeeId,
           activeUserLocale: getCurrentActiveUserLocale()
         })
-        const workingCondition = res?.employee?.[0]?.workingCondition?.[0] as
-          | { regionRef?: string; region?: { id?: string } }
-          | undefined
-
-        // Match big-calendar behavior: use ONLY employment region from working condition.
-        // If employee has no employment region, we must not show any bank holidays.
-        const regionCodeRaw = String(workingCondition?.region?.id ?? '').trim()
-        if (!regionCodeRaw) {
-          setRegionRef(null)
-          return
-        }
-
-        // Normalize Romania sub-regions (e.g. RO211 => ROU) same as big calendar utility.
-        let regionCode = regionCodeRaw
-        try {
-          const segment = regionCodeRaw.split(':').pop() || ''
-          if (segment.startsWith('RO') && segment !== 'ROU') {
-            regionCode = 'EmploymentRegion:v1:ROU'
-          }
-        } catch {
-          // Keep original code if normalization fails
-        }
-
-        setRegionRef(regionCode)
+        setRegionRef(resolveEmploymentRegionRef(res))
       } catch {
         setRegionRef(null)
       }

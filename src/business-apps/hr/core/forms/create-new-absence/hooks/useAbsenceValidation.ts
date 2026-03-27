@@ -29,6 +29,7 @@ import {
   employmentRegionHolidaysInRangeQuery,
   employeeWorkingHoursQuery
 } from '../queries/getEmployeeAbsences'
+import { resolveEmploymentRegionRef } from '../utils/employmentRegion'
 
 export interface AbsenceValidationError {
   type: 'overlap' | 'balance' | 'general'
@@ -340,15 +341,7 @@ export const useAbsenceValidation = ({
           employeeId,
           activeUserLocale: activeLocale
         })
-        const addresses = (res?.addresses || []) as Array<{ type?: string; region?: { id: string } }>
-        const workingCondition = res?.employee?.[0]?.workingCondition?.[0] as
-          | { regionRef?: string; region?: { id: string } }
-          | undefined
-        const primaryAddress = addresses.find(a => a?.type === 'PRIMARY')
-        const firstAddress = addresses[0]
-        const regionFromAddress = primaryAddress?.region?.id ?? firstAddress?.region?.id
-        const regionCode = regionFromAddress ?? workingCondition?.regionRef ?? workingCondition?.region?.id
-        setEmployeeRegionRef(regionCode ?? null)
+        setEmployeeRegionRef(resolveEmploymentRegionRef(res))
       } catch {
         setEmployeeRegionRef(null)
       }
