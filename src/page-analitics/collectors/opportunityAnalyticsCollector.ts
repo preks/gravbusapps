@@ -315,7 +315,7 @@ function buildOpportunityAssociates(opportunity: OpportunityRecord, contactRecor
     associates.push({
       id: contact.id,
       name: [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim() || undefined,
-      relation: entry.contactType || contact.contactType || 'opportunityContact',
+      relation: entry.contactType || 'opportunityContact',
       role: contact.jobTitle || undefined,
       type: 'contact',
       email: normalizeEmail(contact.email),

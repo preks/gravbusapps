@@ -699,7 +699,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   disabled={isLoading}
                   suggestions={nextStepProposals}
                   isPrechatLoading={isPrechatLoading}
-                  placeholder="Ask EveryAI anything..."
                   // Voice mode props
                   isSpeechMode={isSpeechMode}
                   isListening={voiceInput.isListening}

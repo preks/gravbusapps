@@ -17,7 +17,6 @@ import { UserIcon, BriefcaseIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
-import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contactId?: string
@@ -137,18 +136,10 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
     return parts.length > 0 ? parts.join(' ') : '-'
   }
 
-  // Get contact type from extended contact object (passed from parent via accountContacts/opportunityContacts)
-  const contactType = (contact as any)?.contactType
-
-  // Helper function to build secondary info (Position • Contact Type)
+  // Helper function to build secondary info (e.g. job position)
   const buildSecondaryInfo = () => {
     const parts = []
     if (contact?.jobPosition) parts.push(contact.jobPosition)
-
-    // Add contact type if available
-    const contactTypeLabel = getContactTypeLabel(contactType)
-    if (contactTypeLabel) parts.push(contactTypeLabel)
-
     return parts.length > 0 ? parts.join(' • ') : null
   }
 

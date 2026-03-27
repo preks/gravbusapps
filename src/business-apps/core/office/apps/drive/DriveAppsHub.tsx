@@ -232,7 +232,10 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
 
       <div
         className="gba:flex-1 gba:min-w-0 gba:min-h-0 gba:flex gba:flex-col gba:relative gba:max-w-6xl gba:mx-auto gba:w-full"
-        {...dropZone.dropZoneProps}
+        onDragEnter={dropZone.dropZoneProps.onDragEnter}
+        onDragOver={dropZone.dropZoneProps.onDragOver}
+        onDragLeave={dropZone.dropZoneProps.onDragLeave}
+        onDrop={dropZone.dropZoneProps.onDrop}
       >
         <DriveDropZoneOverlay
           isDragActive={dropZone.isDragActive}

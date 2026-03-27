@@ -82,6 +82,7 @@ export interface SaveTemplateDialogProps {
   onOpenChange: (open: boolean) => void
   slides: SlideData[]
   themeId: string
+  masters?: import('../types/slideMaster').SlideMaster[]
   onSaved?: () => void
   'data-testid'?: string
 }
@@ -99,6 +100,7 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
   onOpenChange,
   slides,
   themeId,
+  masters,
   onSaved,
   'data-testid': testId = 'save-template-dialog'
 }) => {
@@ -213,7 +215,8 @@ export const SaveTemplateDialog: React.FC<SaveTemplateDialogProps> = ({
         slideMeta: slideMeta.length > 0 ? slideMeta : undefined,
         contentJson: {
           slides,
-          themeId
+          themeId,
+          ...(masters && masters.length > 0 ? { masters } : {})
         }
       })
 

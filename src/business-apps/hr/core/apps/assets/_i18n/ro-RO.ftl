@@ -10,6 +10,7 @@ retired-at-by = Retras la { $disposalDate } de { $responsiblePerson }
 
 # Allocate Asset validation
 issue-date-not-before-purchase = Activul nu poate fi alocat înainte de data achiziției.
+start-date-not-before-last-return = Data de început a alocării trebuie să fie în ziua ultimei returnări sau după aceasta.
 
 # Actions
 generate_document = Generează document
@@ -28,6 +29,9 @@ serial_number = Număr serial
 location = Locație
 inventory_value = Valoare inventar
 acquisition_date = Data achiziție
+disposal_date = Data casării
+date_from = De la
+date_to = Până la
 warranty = Garanție
 warranty_period = Perioadă garanție
 months = luni

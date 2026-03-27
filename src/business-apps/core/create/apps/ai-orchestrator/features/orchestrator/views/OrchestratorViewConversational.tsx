@@ -40,6 +40,7 @@ import { useOrchestratorSidebar } from '../hooks/useOrchestratorSidebar'
 import { SessionSwitchOverlay } from '../components/widgets/SessionSwitchOverlay'
 import { ImportFolderNewAppDialog } from '@/common/components/ai-builder/import-new-app/ImportFolderNewAppDialog'
 import type { BuildPlan } from '../types/build'
+import type { OrchestratorFixComposerScope } from '../types/chat'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
@@ -85,6 +86,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   const [importNewAppDialogOpen, setImportNewAppDialogOpen] = useState(false)
   const [lastCompletedPlanSnapshot, setLastCompletedPlanSnapshot] = useState<BuildPlan | null>(null)
   const [reviewCanvasMode, setReviewCanvasMode] = useState<'plan' | 'currentBuild'>('plan')
+  const [fixComposerScope, setFixComposerScope] = useState<OrchestratorFixComposerScope>('screen')
   const [pendingImportFiles, setPendingImportFiles] = useState<File[] | null>(null)
   const [importTargetPath, setImportTargetPath] = useState('')
   const [importResourceUrl, setImportResourceUrl] = useState('')
@@ -198,23 +200,44 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     async (
       prompt: string,
       onPartial?: (partial: AssistantStreamPartial) => void,
-      conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+      conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+      options?: { changeScope: OrchestratorFixComposerScope }
     ) => {
       const sessionId = lastSessionId
       const repoId = lastRepoId
       if (!sessionId || !repoId) {
         throw new Error('No session available for AI fix')
       }
-      const stream = await orchestratorClient.client.streamTurnRaw({
-        intent: 'auto',
-        scope: 'orchestrator_full',
-        prompt,
-        jobId: currentPlan?.jobId,
-        sessionId,
-        repoId,
-        conversationHistory,
-        createdBy: userInfo
-      })
+      const changeScope = options?.changeScope ?? 'screen'
+
+      const stream =
+        changeScope === 'screen'
+          ? await orchestratorClient.client.streamTurnRaw({
+              intent: 'ui_mutate',
+              scope: 'ui_only',
+              prompt,
+              sessionId,
+              repoId,
+              conversationHistory,
+              createdBy: userInfo
+            })
+          : await (async () => {
+              if (!currentPlan?.jobId) {
+                throw new Error(
+                  'No active plan for this session. Use Screen & layout for visual changes, or reopen a session that has a plan.'
+                )
+              }
+              return orchestratorClient.client.streamTurnRaw({
+                intent: 'plan_refine',
+                scope: 'orchestrator_full',
+                prompt,
+                jobId: currentPlan.jobId,
+                sessionId,
+                repoId,
+                conversationHistory,
+                createdBy: userInfo
+              })
+            })()
       const { assistantMessage, hasMutation, hasPlanUpdate, planJobId } = await parseFixAssistantFromStream(
         stream,
         onPartial
@@ -250,6 +273,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     onRefineSend: handleRefineSend as Parameters<typeof useCreateChat>[0]['onRefineSend'],
     onStartBuild: handlers.handleStartBuild,
     onFixSend: handleFixSend as Parameters<typeof useCreateChat>[0]['onFixSend'],
+    fixComposerChangeScope: fixComposerScope,
     userInfo
   })
 
@@ -272,6 +296,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       state,
       chat,
       currentPlan,
+      buildSummaryMessage: buildProgress.buildSummaryMessage,
       initialJobId,
       lastSessionId,
       lastRepoId,
@@ -1357,6 +1382,9 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
               builtBy={builtBy}
               builtByLoading={builtByLoading}
               accessToken={accessToken}
+              showComposerChangeScope={state.viewState === 'complete'}
+              composerChangeScope={fixComposerScope}
+              onComposerChangeScope={setFixComposerScope}
             />
           }
           canvasPanel={

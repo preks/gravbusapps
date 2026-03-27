@@ -23,10 +23,41 @@ export const buildEmployeeDisplayName = (
   return `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
 }
 
+/** GraphQL money fields often arrive as number or string; Hasura may use numeric as string without locale grouping. */
+export function coerceReportAmount(value: unknown): number {
+  if (value == null || value === '') {
+    return 0
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0
+  }
+  const direct = Number(value)
+  if (Number.isFinite(direct)) {
+    return direct
+  }
+  if (typeof value !== 'string') {
+    return 0
+  }
+  const normalized = value.replace(/,/g, '')
+  const n = Number(normalized)
+  return Number.isFinite(n) ? n : 0
+}
+
 export const getSettledAdvancePaidAmount = (advancePayments: any[]): number => {
   return (Array.isArray(advancePayments) ? advancePayments : [])
     .filter((payment: any) => ['PAID', 'CLOSED', 'TRANSFERRED'].includes(String(payment?.status || '').toUpperCase()))
-    .reduce((sum: number, payment: any) => sum + Number(payment?.amount || 0), 0)
+    .reduce((sum: number, payment: any) => sum + coerceReportAmount(payment?.amount), 0)
+}
+
+/**
+ * Prefer persisted `advancePaymentPaidAmount` (matches server sort) when present; otherwise sum settled lines.
+ * See backoffice expense reports: sort uses plan.advancePaymentPaidAmount.
+ */
+export function advancePaidFromApiOrSettled(apiPaidAmount: unknown, advancePaymentRows: any[] | undefined): number {
+  if (apiPaidAmount != null && apiPaidAmount !== '') {
+    return coerceReportAmount(apiPaidAmount)
+  }
+  return getSettledAdvancePaidAmount(advancePaymentRows ?? [])
 }
 
 const toPrimitiveString = (value: unknown): string => {

@@ -16,7 +16,10 @@ export interface LeadConvertAccountStepProps {
     contacts: any[]
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   loading?: boolean
   accountInformationCustomFields?: React.ReactNode
@@ -88,7 +91,10 @@ export interface LeadConvertContactStepProps {
     accounts: any[]
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   loading?: boolean
   contactInformationCustomFields?: React.ReactNode
@@ -142,17 +148,23 @@ export interface LeadConvertOpportunityStepProps {
   ownerEmployee?: any
   useAccounts?: {
     accounts: any[]
-    total: number
+    total?: number
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   useContacts?: {
     contacts: any[]
-    total: number
+    total?: number
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   loading?: boolean
   opportunityInformationCustomFields?: React.ReactNode

@@ -1,6 +1,7 @@
 // Customer Lead hooks - list and by-id operations for leads
 import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
@@ -39,7 +40,7 @@ export interface CustomerLeadListData {
  * Returns fetch functions without state management.
  */
 export const useCustomerLeads = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+  const graphqlClient: GraphQLClient = useGraphQLClient(context.accessToken)
 
   const fetchCustomerLeads = useCallback(
     async (variables: CustomerLeadQueryVariables = {}): Promise<CustomerLeadListData> => {
@@ -52,7 +53,7 @@ export const useCustomerLeads = (context: BusinessAppContextProps) => {
       }
 
       const graphQLVariables: Record<string, any> = {
-        limit: Math.min(variables.limit || 50, 100),
+        limit: variables.limit || 50,
         offset: variables.offset || 0,
         where: whereCondition,
         orderBy: orderBy

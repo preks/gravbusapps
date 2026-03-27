@@ -13,6 +13,12 @@ export interface OverviewPagingAndSort<TOrder> {
 export interface UseManagerExpensesOverviewParams {
   managerId: string
   currencyRef?: string | null
+  /** When set, request card stats use this currency (e.g. most-used when list shows All). Falls back to currencyRef. */
+  reqStatsCurrencyRef?: string | null
+  /** When set, plan card stats use this currency (e.g. most-used when list shows All). Falls back to currencyRef. */
+  planStatsCurrencyRef?: string | null
+  /** When set, payment card stats use this currency. Falls back to currencyRef. */
+  payStatsCurrencyRef?: string | null
   searchTerm?: string | null
   // Windows for aggregates/trends
   monthStart?: string | null // ISO timestamp
@@ -218,12 +224,15 @@ function buildPaymentStatusWhere(statuses?: string[]): GqlBoolExp {
   return buildEntityStatusWhere(statuses, PAYMENT_DEFAULT_EXCLUDED)
 }
 
-/** Build plan status filter. Excludes statuses by default, but honors explicit user selections. */
+/** Build plan status filter. When exclude is provided and non-empty, excludes those statuses when none selected; when exclude is empty, no exclusion (show all). Honors explicit user selections. */
 function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]): GqlBoolExp {
-  const excluded: readonly string[] = Array.isArray(exclude) && exclude.length > 0 ? exclude : ['CREATED']
+  const excluded: readonly string[] = Array.isArray(exclude) ? exclude : ['CREATED']
   const selected = Array.isArray(statuses) ? statuses.filter(Boolean) : []
   if (selected.length > 0) {
     return { status: { _in: selected } } as unknown as GqlBoolExp
+  }
+  if (excluded.length === 0) {
+    return {} as unknown as GqlBoolExp
   }
   return { status: { _nin: excluded } } as unknown as GqlBoolExp
 }
@@ -272,11 +281,17 @@ function buildRequestDateWhereClause(params: UseManagerExpensesOverviewParams): 
 
 function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Record<string, unknown> {
   const currencyRef = params.currencyRef || null
+  const reqStatsCurrencyRef = params.reqStatsCurrencyRef ?? currencyRef
+  const planStatsCurrencyRef = params.planStatsCurrencyRef ?? currencyRef
+  const payStatsCurrencyRef = params.payStatsCurrencyRef ?? currencyRef
   const searchTerm = buildSearchPattern(params.searchTerm)
 
   const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const reqStatsCurrencyWhere = reqStatsCurrencyRef ? { currencyRef: { _eq: reqStatsCurrencyRef } } : {}
   const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const planStatsCurrencyWhere = planStatsCurrencyRef ? { currencyRef: { _eq: planStatsCurrencyRef } } : {}
   const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const payStatsCurrencyWhere = payStatsCurrencyRef ? { currencyRef: { _eq: payStatsCurrencyRef } } : {}
 
   return {
     managerId: params.managerId,
@@ -295,8 +310,11 @@ function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Recor
     monthEnd: params.monthEnd ?? undefined,
     yearStart: params.yearStart ?? undefined,
     reqCurrencyWhere,
+    reqStatsCurrencyWhere,
     planCurrencyWhere,
+    planStatsCurrencyWhere,
     payCurrencyWhere,
+    payStatsCurrencyWhere,
     planDateWhere: buildPlanDateWhereClause(params),
     reqDateWhere: buildRequestDateWhereClause(params),
     reqStatusWhere: buildRequestStatusWhere(params.requestsStatus),
@@ -479,6 +497,9 @@ export const useManagerExpensesOverview = (
   }, [
     params.managerId,
     params.currencyRef,
+    params.reqStatsCurrencyRef,
+    params.planStatsCurrencyRef,
+    params.payStatsCurrencyRef,
     params.searchTerm,
     params.requests?.limit,
     params.requests?.offset,

@@ -108,7 +108,7 @@ export function useContactAiSummary(
         email: getEmailChannel(contact.communicationChannels)?.value,
         phone: getPhoneChannel(contact.communicationChannels)?.value,
         jobTitle: contact.jobPosition,
-        contactType: contact.type,
+        contactType: contact.accountContacts?.[0]?.contactType,
         department: contact.department,
         academicTitle: contact.academicTitle?.value,
         linkedinUrl: getLinkedInChannel(contact.communicationChannels)?.value,

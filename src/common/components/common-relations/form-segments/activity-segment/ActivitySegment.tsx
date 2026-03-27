@@ -164,7 +164,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     // Handle common entity types (account, contact, opportunity, lead)
     const commonEntityApplied = applyInitialCommonEntityFromContext(initialEntityFromContext as CommonEntityContext, {
       form,
-      useIdFields: false
+      useIdFields: true
     })
 
     // If no common entity was applied, handle additional entity types (e.g. investmentId) via handler
@@ -306,9 +306,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('activity-entity-label')} <span className="gba:text-destructive">*</span>
-              </FormLabel>
+              <FormLabel>{t('activity-entity-label')}</FormLabel>
               <FormControl>
                 <EntitySelect
                   entities={entities}
@@ -318,7 +316,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                     if (form) {
                       const handleEntityChange = createCommonEntitySelectHandler({
                         form,
-                        useIdFields: false,
+                        useIdFields: true,
                         entities: entities || [],
                         onAdditionalEntityChange
                       })

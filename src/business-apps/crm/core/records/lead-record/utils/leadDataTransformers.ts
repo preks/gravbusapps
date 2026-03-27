@@ -145,7 +145,6 @@ export function buildCustomerContactFromLead(lead: CustomerLead | any): Customer
     lastName: lead.lastName || '',
     // Map CRM field names to Contact standard
     jobPosition: lead.position || lead.jobTitle || lead.jobPosition,
-    type: lead.contactType,
     academicTitle: lead.academicTitle,
     academicTitleRef: lead.academicTitleRef,
     salutation: lead.salutation,

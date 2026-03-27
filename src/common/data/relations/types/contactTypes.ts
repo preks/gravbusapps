@@ -9,7 +9,6 @@ import type { Lead } from './leadTypes'
 import type { Note } from './noteTypes'
 import type { Opportunity } from './opportunityTypes'
 import type { Task } from './taskTypes'
-import type { ContactType } from '../constants/contactConstants'
 
 export interface Contact extends BaseEntity {
   academicTitle?: CatalogEntry // IRM | CRM
@@ -41,7 +40,6 @@ export interface Contact extends BaseEntity {
   salutation?: CatalogEntry // IRM | CRM
   salutationRef?: string // IRM | CRM
   tasks?: Task[] // IRM | CRM
-  type?: ContactType // IRM | TODO (contactType)
   userId?: string // Platform user ID for this contact (optional)
 }
 
@@ -78,7 +76,6 @@ export const ContactFields = {
   salutation: 'salutation',
   salutationRef: 'salutationRef',
   tasks: 'tasks',
-  type: 'type',
   userId: 'userId'
 } as const
 
@@ -193,7 +190,6 @@ export const createContactDescriptors = (
     sortPath: `${fields.tasks}.name`,
     type: 'text'
   },
-  { key: 'type', searchPaths: [fields.type], sortPath: fields.type, type: 'text' },
 
   // Filter IDs
   {
@@ -309,7 +305,6 @@ export const contactFormFields = {
   pictureThumbnail: 'pictureThumbnail',
   professionalTitleRef: 'professionalTitleRef',
   salutationRef: 'salutationRef',
-  type: 'type',
   userId: 'userId',
   version: 'version'
 } as const

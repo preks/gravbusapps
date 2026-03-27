@@ -20,7 +20,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   MicrophoneIcon,
@@ -35,7 +36,7 @@ import {
   CaretDownIcon,
   SpeakerHighIcon
 } from '@phosphor-icons/react'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 import { useMediaDevices } from '../hooks/useMediaDevices'
 import { MicLevelIndicator } from './call/MicLevelIndicator'
 
@@ -98,7 +99,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
     prefixDataTestId = 'pre-call-setup-dialog',
     conversationType = 'group' // Default to group for backward compatibility
   }) => {
-    const t = useChatTranslation()
+    const { t } = useTranslation(translations)
     const [isStarting, setIsStarting] = useState(false)
     const [micEnabled, setMicEnabled] = useState(true)
     const [cameraEnabled, setCameraEnabled] = useState(callType === 'video')

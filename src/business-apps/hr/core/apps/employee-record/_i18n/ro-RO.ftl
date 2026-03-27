@@ -326,6 +326,11 @@ hr-growth-skills = Competențe
 hr-growth-feedback = Hub Feedback
 hr-growth-performance = Obiective
 
+# My Development (self-service screen — same content as HR Development tab)
+my-development-page-title = Dezvoltarea mea
+my-development-page-description = Competențe, feedback, obiective și performanță — aceeași experiență ca Dezvoltare HR din Profilul meu.
+my-development-unavailable = Zona de dezvoltare nu a putut fi încărcată. Încearcă din nou mai târziu.
+
 # Feedback Hub (sub-pagină sub Dezvoltare HR)
 feedback-hub-title = Hub Feedback
 feedback-hub-description = Oferiți și primiți feedback de la colegi și manageri. Urmăriți solicitările și analizele.
@@ -388,6 +393,7 @@ feedback-hub-kpi-received-title = Feedback primit
 feedback-hub-kpi-given-title = Feedback oferit
 feedback-hub-kpi-contributors-title = Contribuitori distincți
 feedback-hub-kpi-trend-30d = Trend (30z): { $value }
+feedback-hub-kpi-trend-vs-30d = față de ultimele 30 de zile
 feedback-hub-suggested-actions-title = Acțiuni sugerate
 feedback-hub-suggested-pending = Ai { $count } solicitări de feedback în așteptare.
 feedback-hub-suggested-no-received = Ia în considerare să ceri feedback. Ultimul feedback a fost acum { $days } zile.
@@ -398,6 +404,7 @@ feedback-hub-pending-panel-title = Solicitări de feedback în așteptare
 feedback-hub-pending-give-feedback-btn = Oferă feedback
 feedback-hub-pending-due = Scadență: { $date }
 feedback-hub-section-received-title = Feedback primit ({ $total } total)
+feedback-hub-section-received-visible-title = Feedback primit ({ $visible } vizibil)
 feedback-hub-section-given-title = Feedback oferit ({ $total } total)
 feedback-hub-ai-insights-button = Insight-uri AI
 feedback-hub-ai-insights-analyzing = Se analizează…

@@ -534,5 +534,13 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   document: {
     urlTemplate: '/platform/every-office/documents?docId={id}&view=editor',
     icon: DEFAULT_ICON
+  },
+
+  // -------------------------------------------------------------------------
+  // Slides/Presentations
+  // -------------------------------------------------------------------------
+  slide: {
+    urlTemplate: '/platform/every-office/slides?slideId={id}&view=editor',
+    icon: DEFAULT_ICON
   }
 }

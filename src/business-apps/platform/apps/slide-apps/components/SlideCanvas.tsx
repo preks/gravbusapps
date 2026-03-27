@@ -26,6 +26,7 @@ import type {
 import { gradientToCss } from './slideElements'
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
+import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
 
 const hexToRgba = (hex: string, alpha: number): string => {
   const cleanHex = hex.replace('#', '')
@@ -131,6 +132,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     // Multi-select drag state - stores initial positions of all selected elements
     const [multiDragStart, setMultiDragStart] = useState<Map<string, Position>>(new Map())
 
+    // Single-click-to-edit: track mousedown origin to detect click vs drag
+    const mouseDownElementRef = useRef<{ id: string; x: number; y: number; type: string } | null>(null)
+    const CLICK_MOVE_THRESHOLD = 4
+
+    // Tracks which element's textarea has been initialized (cursor placed at end)
+    const textareaInitializedRef = useRef<string | null>(null)
+
     // Marquee selection state (for rendering the selection box)
     const [isMarquee, setIsMarquee] = useState(false)
     const [marqueeStart, setMarqueeStart] = useState<Position>({ x: 0, y: 0 })
@@ -176,7 +184,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         }
         case 'image':
           return background.imageUrl
-            ? { backgroundImage: `url(${background.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            ? {
+                backgroundImage: `url(${getCachedImageUrl(background.imageUrl)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+              }
             : {}
         case 'video':
           return { backgroundColor: '#000000' }
@@ -293,16 +305,42 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     const handleCanvasClick = (e: React.MouseEvent) => {
       // Skip if we just finished a marquee selection (to avoid clearing the selection)
       if (justFinishedMarqueeRef.current) {
+        mouseDownElementRef.current = null
+        // Still finish inline editing when clicking away from the edited element
+        if (inlineEditing?.editingTextId) {
+          const target = e.target as HTMLElement
+          const editingElement = target.closest(`[data-element-id="${inlineEditing.editingTextId}"]`)
+          if (!editingElement) {
+            textareaInitializedRef.current = null
+            inlineEditing.onFinishEditing()
+          }
+        }
         return
       }
 
       const target = e.target as HTMLElement
       const isClickOnElement = target.closest('[data-slide-element]')
 
+      // Single-click-to-edit: if mouseDown ref survived (mouse didn't drag), enter text editing
+      const mdRef = mouseDownElementRef.current
+      mouseDownElementRef.current = null
+
+      if (mdRef && mdRef.type === 'text') {
+        if (inlineEditing?.editingTextId && inlineEditing.editingTextId !== mdRef.id) {
+          textareaInitializedRef.current = null
+          inlineEditing.onFinishEditing()
+        }
+        if (inlineEditing?.editingTextId !== mdRef.id) {
+          onEditText(mdRef.id)
+        }
+        return
+      }
+
       // Finish inline editing if clicking outside the editing element
       if (inlineEditing?.editingTextId) {
         const editingElement = target.closest(`[data-element-id="${inlineEditing.editingTextId}"]`)
         if (!editingElement) {
+          textareaInitializedRef.current = null
           inlineEditing.onFinishEditing()
           return
         }
@@ -399,6 +437,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         if (el) positions.set(id, { ...el.position })
       })
       setMultiDragStart(positions)
+
+      // Track mousedown for single-click-to-edit detection (plain click on single element only)
+      if (!isShiftKey && !isCtrlKey && effectiveSelection.size === 1) {
+        mouseDownElementRef.current = { id: element.id, x: e.clientX, y: e.clientY, type: element.type }
+      } else {
+        mouseDownElementRef.current = null
+      }
     }
 
     const handleResizeMouseDown = (e: React.MouseEvent, handle: ResizeHandle, element: AnySlideElement) => {
@@ -656,19 +701,31 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       ]
     )
 
-    const handleMouseUp = useCallback(() => {
-      // Only handle element drag/resize cleanup here (marquee is handled inline)
-      // Notify parent that drag/resize ended (for history recording)
-      if (isDragging || isResizing) {
-        onDragEnd?.()
-      }
-      setIsDragging(false)
-      setIsResizing(false)
-      setResizeHandle(null)
-      setElementStart(null)
-      setMultiDragStart(new Map())
-      setSnapGuides([])
-    }, [isDragging, isResizing, onDragEnd])
+    const handleMouseUp = useCallback(
+      (e: MouseEvent) => {
+        // If mouse moved beyond threshold, clear the click-to-edit ref (it was a drag)
+        const mdRef = mouseDownElementRef.current
+        if (mdRef) {
+          const dx = Math.abs(e.clientX - mdRef.x)
+          const dy = Math.abs(e.clientY - mdRef.y)
+          if (dx >= CLICK_MOVE_THRESHOLD || dy >= CLICK_MOVE_THRESHOLD) {
+            mouseDownElementRef.current = null
+          }
+        }
+
+        // Notify parent that drag/resize ended (for history recording)
+        if (isDragging || isResizing) {
+          onDragEnd?.()
+        }
+        setIsDragging(false)
+        setIsResizing(false)
+        setResizeHandle(null)
+        setElementStart(null)
+        setMultiDragStart(new Map())
+        setSnapGuides([])
+      },
+      [isDragging, isResizing, onDragEnd]
+    )
 
     // Event listeners for element drag/resize (marquee has its own inline handlers)
     useEffect(() => {
@@ -696,9 +753,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
       switch (shapeType) {
         case 'rectangle':
-          return <div style={baseStyle} />
         case 'rounded-rectangle':
-          return <div style={{ ...baseStyle, borderRadius: cornerRadius }} />
+          return <div style={{ ...baseStyle, borderRadius: cornerRadius || 0 }} />
         case 'circle':
           return <div style={{ ...baseStyle, borderRadius: '50%' }} />
         case 'ellipse':
@@ -844,7 +900,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           data-element-id={element.id}
           style={wrapperStyle}
           onMouseDown={e => handleElementMouseDown(e, element)}
-          onDoubleClick={() => element.type === 'text' && onEditText(element.id)}
         >
           {element.type === 'text' && (
             <div
@@ -873,12 +928,19 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               {inlineEditing?.editingTextId === element.id ? (
                 <>
                   <textarea
-                    autoFocus
+                    ref={el => {
+                      if (el && textareaInitializedRef.current !== element.id) {
+                        textareaInitializedRef.current = element.id
+                        el.focus()
+                        el.selectionStart = el.selectionEnd = el.value.length
+                      }
+                    }}
                     value={(element as TextElement).content}
                     onChange={e => inlineEditing.onTextChange(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Escape') {
                         e.preventDefault()
+                        textareaInitializedRef.current = null
                         inlineEditing.onFinishEditing()
                       }
                     }}
@@ -1059,7 +1121,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             <>
               {!failedImages.has(element.id) && sanitizeMediaUrl((element as ImageElement).src, ['image/']) ? (
                 <img
-                  src={sanitizeMediaUrl((element as ImageElement).src, ['image/'])}
+                  src={getCachedImageUrl(sanitizeMediaUrl((element as ImageElement).src, ['image/']))}
                   alt={(element as ImageElement).alt}
                   style={{
                     width: '100%',
@@ -1659,7 +1721,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             height: 720,
             ...getBackgroundStyle(),
             transform: `scale(${scale})`,
-            transformOrigin: 'top left'
+            transformOrigin: 'top left',
+            userSelect: isDragging || isResizing || isMarquee ? 'none' : undefined
           }}
           onMouseDown={handleCanvasMouseDown}
           onClick={handleCanvasClick}

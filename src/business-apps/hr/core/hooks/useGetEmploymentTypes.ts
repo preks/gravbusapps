@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useUserLocale } from '@/common/locale/useUserLocale'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { parseEmploymentMetadata } from '@/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata'
 
 export interface EmploymentTypeOption {
   id: string
@@ -53,6 +54,7 @@ export function useGetEmploymentTypes(accessToken: string, searchRegex: string, 
 
         const typesArr: EmploymentTypeOption[] = entries
           .filter((entry: any) => entry && (entry.id || entry._id))
+          .filter((entry: any) => !parseEmploymentMetadata(entry.additionalValue2).is_deleted)
           .map((entry: any) => ({
             id: entry.id || entry._id || '',
             name: entry.value || entry.name || entry.label || entry.id || ''

@@ -34,6 +34,23 @@ import type {
   BuildProgressEvent
 } from '@/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/types/progress'
 
+/** Optional callbacks and abort signal for {@link OrchestratorClient.executeWiringRetry}. */
+export interface ExecuteWiringRetryOptions {
+  onError?: (error: Error) => void
+  onComplete?: () => void
+  signal?: AbortSignal
+  onResponse?: (content: string) => void
+}
+
+function extractWiringWarnings(metadata?: Record<string, unknown>): string[] | undefined {
+  if (!metadata) return undefined
+  const warnings = metadata.wiringWarnings ?? metadata.wiring_warnings
+  if (Array.isArray(warnings) && warnings.every((w): w is string => typeof w === 'string')) {
+    return warnings.length > 0 ? warnings : undefined
+  }
+  return undefined
+}
+
 /** Normalize SSE event from API (may send snake_case) to camelCase */
 function normalizeProgressEvent(raw: Record<string, unknown>): BuildProgressEvent {
   // Normalize metadata keys (session_id -> sessionId, repo_id -> repoId)
@@ -63,6 +80,7 @@ function normalizeProgressEvent(raw: Record<string, unknown>): BuildProgressEven
     createdId: (raw.createdId ?? raw.created_id) as string | undefined,
     errorDetails: (raw.errorDetails ?? raw.error_details) as string | undefined,
     metadata: normalizedMetadata,
+    wiringWarnings: extractWiringWarnings(normalizedMetadata),
     totalComponents: (raw.totalComponents ?? raw.total_components) as number | undefined,
     completedComponents: (raw.completedComponents ?? raw.completed_components) as number | undefined,
     failedComponents: (raw.failedComponents ?? raw.failed_components) as number | undefined,
@@ -118,6 +136,42 @@ function sanitizeTurnRequest(request: TurnRequest): TurnRequest {
   else delete sanitized.repoId
 
   return sanitized
+}
+
+/** Mutable holder for turn-level errors parsed from SSE (shared by build + wiring retry streams). */
+interface ProgressTurnStreamContext {
+  turnErrorMessage: string | null
+}
+
+/**
+ * Maps one SSE turn event to either a terminal turn error, assistant response chunk, or normalized build progress.
+ */
+function handleProgressTurnStreamEvent(
+  event: TurnEvent,
+  ctx: ProgressTurnStreamContext,
+  onProgressEvent: (event: BuildProgressEvent) => void,
+  onResponse: ((content: string) => void) | undefined,
+  defaultErrorMessage: string
+): void {
+  const raw = event as unknown as Record<string, unknown>
+  const eventType = (raw.eventType ?? raw.event_type) as string | undefined
+  const turnType = typeof raw.type === 'string' ? raw.type : undefined
+  if (turnType === 'error' || turnType === 'turn_error') {
+    ctx.turnErrorMessage =
+      (typeof raw.content === 'string' && raw.content.trim()) ||
+      (typeof raw.message === 'string' && raw.message.trim()) ||
+      (typeof raw.error === 'string' && raw.error.trim()) ||
+      defaultErrorMessage
+    return
+  }
+  if (turnType === 'response' && typeof raw.content === 'string' && raw.content.trim()) {
+    onResponse?.(raw.content)
+    return
+  }
+  if (!eventType || eventType === 'heartbeat') {
+    return
+  }
+  onProgressEvent(normalizeProgressEvent(raw))
 }
 
 /**
@@ -193,6 +247,40 @@ export class OrchestratorClient {
     }
 
     return events
+  }
+
+  /**
+   * Stream a turn that emits build-style progress events; handles turn errors, assistant text, and abort.
+   */
+  private async consumeProgressTurnStream(
+    request: TurnRequest,
+    onProgressEvent: (event: BuildProgressEvent) => void,
+    options: {
+      defaultTurnError: string
+      onError?: (error: Error) => void
+      onComplete?: () => void
+      signal?: AbortSignal
+      onResponse?: (content: string) => void
+    }
+  ): Promise<void> {
+    try {
+      const ctx: ProgressTurnStreamContext = { turnErrorMessage: null }
+      await this.streamTurn(
+        request,
+        event =>
+          handleProgressTurnStreamEvent(event, ctx, onProgressEvent, options.onResponse, options.defaultTurnError),
+        options.signal
+      )
+      if (ctx.turnErrorMessage) {
+        throw new Error(ctx.turnErrorMessage)
+      }
+      options.onComplete?.()
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+      options.onError?.(error instanceof Error ? error : new Error(String(error)))
+    }
   }
 
   private extractPlanFromEvent(event: TurnEvent | undefined): BuildPlan | undefined {
@@ -298,50 +386,55 @@ export class OrchestratorClient {
     onEvent: (event: BuildProgressEvent) => void,
     onError?: (error: Error) => void,
     onComplete?: () => void,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    onResponse?: (content: string) => void
   ): Promise<void> {
-    try {
-      let turnErrorMessage: string | null = null
-      await this.streamTurn(
-        {
-          intent: 'build_execute',
-          scope: 'orchestrator_full',
-          jobId,
-          sessionId: request.sessionId,
-          repoId: request.repoId,
-          skipComponents: request.skipComponents,
-          plan: request.plan,
-          createdBy: request.createdBy
-        },
-        event => {
-          const raw = event as unknown as Record<string, unknown>
-          const eventType = (raw.eventType ?? raw.event_type) as string | undefined
-          const turnType = typeof raw.type === 'string' ? raw.type : undefined
-          if (turnType === 'error' || turnType === 'turn_error') {
-            turnErrorMessage =
-              (typeof raw.content === 'string' && raw.content.trim()) ||
-              (typeof raw.message === 'string' && raw.message.trim()) ||
-              (typeof raw.error === 'string' && raw.error.trim()) ||
-              'Build execution failed'
-            return
-          }
-          if (!eventType || eventType === 'heartbeat') {
-            return
-          }
-          onEvent(normalizeProgressEvent(raw))
-        },
-        signal
-      )
-      if (turnErrorMessage) {
-        throw new Error(turnErrorMessage)
+    await this.consumeProgressTurnStream(
+      {
+        intent: 'build_execute',
+        scope: 'orchestrator_full',
+        jobId,
+        sessionId: request.sessionId,
+        repoId: request.repoId,
+        skipComponents: request.skipComponents,
+        plan: request.plan,
+        createdBy: request.createdBy
+      },
+      onEvent,
+      {
+        defaultTurnError: 'Build execution failed',
+        onError,
+        onComplete,
+        signal,
+        onResponse
       }
-      onComplete?.()
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return
+    )
+  }
+
+  async executeWiringRetry(
+    jobId: string,
+    sessionId: string | undefined,
+    repoId: string | undefined,
+    onEvent: (event: BuildProgressEvent) => void,
+    options?: ExecuteWiringRetryOptions
+  ): Promise<void> {
+    await this.consumeProgressTurnStream(
+      {
+        intent: 'wiring_retry',
+        scope: 'orchestrator_full',
+        jobId,
+        sessionId,
+        repoId
+      },
+      onEvent,
+      {
+        defaultTurnError: 'Wiring retry failed',
+        onError: options?.onError,
+        onComplete: options?.onComplete,
+        signal: options?.signal,
+        onResponse: options?.onResponse
       }
-      onError?.(error instanceof Error ? error : new Error(String(error)))
-    }
+    )
   }
 
   /**
@@ -515,7 +608,9 @@ export class OrchestratorClient {
     return response.json() as Promise<DraftCheckpoint[]>
   }
 
-  async resolveDraftCheckpointByMessage(params: ResolveDraftCheckpointByMessageParams): Promise<DraftCheckpoint | null> {
+  async resolveDraftCheckpointByMessage(
+    params: ResolveDraftCheckpointByMessageParams
+  ): Promise<DraftCheckpoint | null> {
     const searchParams = new URLSearchParams({
       sessionId: params.sessionId,
       chatCheckpointMessageId: params.chatCheckpointMessageId
@@ -523,12 +618,15 @@ export class OrchestratorClient {
     if (params.jobId) {
       searchParams.set('jobId', params.jobId)
     }
-    const response = await fetch(`${this.baseUrl}/orchestration/drafts/checkpoints/resolve?${searchParams.toString()}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`
+    const response = await fetch(
+      `${this.baseUrl}/orchestration/drafts/checkpoints/resolve?${searchParams.toString()}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`
+        }
       }
-    })
+    )
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))

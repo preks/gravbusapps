@@ -5,8 +5,20 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react'
-import { Button, Input } from '@newwork/nw-design-system'
-import { Plus, Search, LayoutDashboard } from 'lucide-react'
+import {
+  Button,
+  Input,
+  toast,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@newwork/nw-design-system'
+import { Plus, Search, LayoutDashboard, Loader2, Trash2 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
@@ -17,7 +29,7 @@ import { PremiumHeroBackground } from '@/common/components/premium-hero-backgrou
 
 // Hooks
 import { useSpaces } from './hooks/useSpaces'
-import type { CreateSpaceInput } from './types/space.types'
+import type { CreateSpaceInput, Space } from './types/space.types'
 
 export interface SpacesHubProps extends BusinessAppContextProps {
   /** Open a specific space in detail view (handled by SpacesRouter) */
@@ -36,11 +48,13 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<FilterType>('all')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [spacePendingDelete, setSpacePendingDelete] = useState<Space | null>(null)
+  const [isDeletingSpace, setIsDeletingSpace] = useState(false)
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
   // Fetch spaces
-  const { spaces, isLoading, error, createSpace, refresh } = useSpaces(accessToken, {
+  const { spaces, isLoading, error, createSpace, refresh, deleteSpace } = useSpaces(accessToken, {
     includeMembers: true,
     includeContent: true,
     ownedOnly: filter === 'owned',
@@ -97,6 +111,22 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
     },
     [onOpenSpace]
   )
+
+  const handleConfirmDeleteFromHub = useCallback(async () => {
+    if (!spacePendingDelete) return
+    setIsDeletingSpace(true)
+    try {
+      const ok = await deleteSpace(spacePendingDelete.id)
+      if (ok) {
+        toast.success('Space deleted')
+        setSpacePendingDelete(null)
+      } else {
+        toast.error('Could not delete space. Only the owner can delete a space.')
+      }
+    } finally {
+      setIsDeletingSpace(false)
+    }
+  }, [spacePendingDelete, deleteSpace])
 
   return (
     <div className="gba:min-h-screen gba:bg-background" data-testid={testId}>
@@ -231,6 +261,7 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
                 space={space}
                 onClick={() => handleSpaceClick(space.id)}
                 isOwner={space.ownerId === currentUserId}
+                onRequestDelete={space.ownerId === currentUserId ? () => setSpacePendingDelete(space) : undefined}
                 data-testid={`${testId}-space-card-${space.id}`}
               />
             ))}
@@ -247,6 +278,43 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
         currentUserId={currentUserId}
         data-testid={`${testId}-create-dialog`}
       />
+
+      <AlertDialog open={!!spacePendingDelete} onOpenChange={open => !open && setSpacePendingDelete(null)}>
+        <AlertDialogContent data-testid={`${testId}-delete-space-alert`}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this space?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {spacePendingDelete?.name ? (
+                <>
+                  &quot;{spacePendingDelete.name}&quot; will be removed for everyone. Your documents, notes, boards, and
+                  slides stay in Every Office; they are only unlinked from this space.
+                </>
+              ) : (
+                'This space will be removed for everyone. Your content stays in Every Office; it is only unlinked from this space.'
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingSpace}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingSpace}
+              onClick={() => void handleConfirmDeleteFromHub()}
+              className="gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90"
+              data-testid={`${testId}-delete-space-confirm`}
+            >
+              {isDeletingSpace ? (
+                <>
+                  <Loader2 className="gba:w-4 gba:h-4 gba:mr-2 gba:inline gba:animate-spin" /> Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="gba:w-4 gba:h-4 gba:mr-2 gba:inline" /> Delete space
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

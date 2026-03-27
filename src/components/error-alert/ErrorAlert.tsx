@@ -1,5 +1,6 @@
 import React from 'react'
-import { Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, AlertTitle, useTranslation } from '@newwork/nw-design-system'
+import { CircleX } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import translations from './_i18n'
 
@@ -83,6 +84,7 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({
   prefixDataTestId
 }) => {
   const { t } = useTranslation(translations)
+  const title = t('error-title')
 
   // Collection mode: render multiple errors
   if (errors && errors.length > 0) {
@@ -97,7 +99,14 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({
             : `error-alert-${index}`
 
           return (
-            <Alert key={err.type || `error-${index}`} variant="destructive" data-testid={itemDataTestId}>
+            <Alert
+              key={err.type || `error-${index}`}
+              className="gba:max-w-md"
+              variant="destructive"
+              data-testid={itemDataTestId}
+            >
+              <CircleX className="gba:h-4 gba:w-4" />
+              <AlertTitle>{title}</AlertTitle>
               <AlertDescription>
                 {message}
                 {err.context && <span className="gba:block gba:mt-2 gba:text-sm gba:opacity-80">{err.context}</span>}
@@ -117,7 +126,9 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({
   const message = t(translationKey)
 
   return (
-    <Alert variant="destructive" data-testid={dataTestId}>
+    <Alert className="gba:max-w-md" variant="destructive" data-testid={dataTestId}>
+      <CircleX className="gba:h-4 gba:w-4" />
+      <AlertTitle>{title}</AlertTitle>
       <AlertDescription>
         {message}
         {context && <span className="gba:block gba:mt-2 gba:text-sm gba:opacity-80">{context}</span>}

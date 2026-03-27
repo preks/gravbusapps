@@ -9,7 +9,6 @@ export const useContactInsights = (accessToken: string) => {
     () => ({
       contactEntity: 'InvestmentContact',
       contactAggregate: 'InvestmentContactAggregate',
-      typeField: 'type',
       accountRelationEntity: 'InvestmentAccountContact',
       accountRelationField: 'contact',
       accountLookupWhere: 'contact: { isDeleted: { _eq: false } }, accountId: { _isNull: false }',

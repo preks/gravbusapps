@@ -39,7 +39,7 @@ const ACTION_LABELS_BY_LOCALE: Record<string, Record<ActionLabelKey, string>> = 
   }
 }
 
-function getActionLabels(): Record<ActionLabelKey, string> {
+export function getActionLabels(): Record<ActionLabelKey, string> {
   const locale = getCurrentActiveUserLocale()
   return ACTION_LABELS_BY_LOCALE[locale] ?? ACTION_LABELS_BY_LOCALE['en-US']!
 }

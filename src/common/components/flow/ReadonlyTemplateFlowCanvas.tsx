@@ -19,6 +19,7 @@ import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateCli
 interface ReadonlyTemplateFlowCanvasProps {
   accessToken: string
   templateId?: string | null
+  templateVersion?: number | null
   templateDefinition?: Record<string, unknown> | null
   title: string
   description: string
@@ -36,6 +37,7 @@ interface ReadonlyTemplateFlowCanvasProps {
 export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProps> = ({
   accessToken,
   templateId,
+  templateVersion,
   templateDefinition,
   title,
   description,
@@ -74,7 +76,7 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
     setError(null)
 
     templateClient
-      .getTemplate(templateId)
+      .getTemplate(templateId, templateVersion ?? undefined)
       .then(nextTemplate => {
         if (!cancelled) setTemplate(nextTemplate)
       })
@@ -91,7 +93,7 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
     return () => {
       cancelled = true
     }
-  }, [templateClient, templateDefinition, templateId])
+  }, [templateClient, templateDefinition, templateId, templateVersion])
 
   const graphDefinition = useMemo(() => {
     if (!template) return null
@@ -133,6 +135,7 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
   const hasGraphContent = Boolean(previewGraphDefinition?.nodes?.length)
   const canvasMountKey = [
     templateId ?? 'none',
+    templateVersion ?? 'latest',
     isVisible ? 'visible' : 'hidden',
     resolvedSelectedNodeId ?? 'no-selection',
     previewGraphDefinition?.nodes?.length ?? 0,

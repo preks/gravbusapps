@@ -15,6 +15,7 @@ import type {
 import { AssignmentMode } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import type { FlowTags } from '@/business-apps/flow/types'
 import { END_ID, START_ID, normalizeGraph } from './graphStoreUtils'
+import { orderNodesForTemplate } from './studioStepOrder'
 
 function isForwardEdge(edge: FlowGraphEdge): boolean {
   return String((edge as any)?.direction ?? 'forward').toLowerCase() !== 'backward'
@@ -37,43 +38,6 @@ function buildForwardAdjacency(edges: FlowGraphEdge[]): Map<string, string[]> {
     adjacency.set(e.source, list)
   }
   return adjacency
-}
-
-function orderNodesForTemplate(nodes: StudioNode[], edges: FlowGraphEdge[]): StudioNode[] {
-  const startId = nodes.find(n => n.type === 'start')?.id ?? START_ID
-  const endId = nodes.find(n => n.type === 'end')?.id ?? END_ID
-
-  const nodeById = new Map(nodes.map(n => [n.id, n] as const))
-  const adjacency = buildForwardAdjacency(edges)
-
-  const visited = new Set<string>()
-  const orderedIds: string[] = []
-
-  const initial = adjacency.get(startId) ?? []
-  const stack: string[] = []
-  for (let i = initial.length - 1; i >= 0; i--) stack.push(initial[i])
-
-  while (stack.length > 0) {
-    const current = stack.pop()!
-    if (!current || current === startId || current === endId) continue
-    if (visited.has(current)) continue
-    const node = nodeById.get(current)
-    if (!node) continue
-    visited.add(current)
-    orderedIds.push(current)
-
-    const next = adjacency.get(current) ?? []
-    for (let i = next.length - 1; i >= 0; i--) stack.push(next[i])
-  }
-
-  // Append any remaining nodes (incl. unreachable) to avoid data loss.
-  for (const n of nodes) {
-    if (n.id === startId || n.id === endId) continue
-    if (visited.has(n.id)) continue
-    orderedIds.push(n.id)
-  }
-
-  return orderedIds.map(id => nodeById.get(id)).filter(Boolean) as StudioNode[]
 }
 
 function buildStartTrigger(startNodeId: string, config: any): FlowTrigger {
@@ -326,12 +290,18 @@ export function studioGraphToTemplate(
           instructions: aiCfg.instructions,
           humanInstructions: aiCfg.humanInstructions ?? '',
           mapping: aiCfg.mapping,
+          systemParamsMap: aiCfg.systemParamsMap,
+          userParamsMap: aiCfg.userParamsMap,
           reasoningPath: aiCfg.reasoningPath,
           escalation: aiCfg.escalation
         }
       }
       if (decisionMode === 'LOGIC') {
-        decisionStep.logicConfig = cfg.logicConfig
+        const raw = cfg.logicConfig
+        decisionStep.logicConfig =
+          raw && typeof raw === 'object'
+            ? { ...raw, conditions: Array.isArray(raw.conditions) ? raw.conditions : [] }
+            : { conditions: [] }
       }
 
       steps.push(decisionStep as FlowStep)
@@ -345,11 +315,13 @@ export function studioGraphToTemplate(
         label: edge.label ?? `Branch ${i + 1}`,
         steps: [edge.target]
       }))
-
-      const joinNode = nodes.find(
-        n => n.type === 'join' && (n.config as any)?.nodeType === 'join' && (n.config as any)?.forkReference === node.id
+      const matchingJoinNode = nodes.find(
+        candidateNode =>
+          candidateNode.type === 'join' &&
+          (candidateNode.config as any)?.nodeType === 'join' &&
+          (candidateNode.config as any)?.forkReference === node.id
       )
-      const joinIdx = joinNode ? nodeIdToStepIndex.get(joinNode.id) : undefined
+      const joinStepIndex = matchingJoinNode ? nodeIdToStepIndex.get(matchingJoinNode.id) : undefined
 
       const forkStep: any = {
         id: node.id,
@@ -357,7 +329,7 @@ export function studioGraphToTemplate(
         type: 'FORK',
         title: node.label || 'Parallel Split',
         parallelBranches,
-        nextStep: typeof joinIdx === 'number' ? joinIdx : null
+        nextStep: typeof joinStepIndex === 'number' ? joinStepIndex : null
       }
 
       steps.push(forkStep as FlowStep)
@@ -515,6 +487,47 @@ export function templateToStudioGraph(template: FlowTemplate): {
       continue
     }
 
+    // Backend AI sends GATEWAY for conditional routing; map to decision node (LOGIC) so branch edges are created
+    if (type === 'GATEWAY') {
+      const branchList: any[] = Array.isArray(step.branches) ? step.branches : []
+      const branches = branchList.map((b: any, bi: number) => {
+        const nextStepIdx = typeof b?.nextStep === 'number' ? b.nextStep : null
+        const targetId = nextStepIdx != null ? stepNodeIdByIndex.get(nextStepIdx) : undefined
+        return {
+          id: b?.id || `gw_${i}_${bi}`,
+          label: b?.label ?? `Branch ${bi + 1}`,
+          condition: typeof b?.condition === 'string' ? b.condition : '',
+          nextStep: nextStepIdx ?? undefined,
+          targetStepReference: targetId ?? ''
+        }
+      })
+      const logicConditions = branches
+        .filter(branch => typeof branch.id === 'string' && typeof branch.condition === 'string')
+        .map(branch => ({
+          expression: branch.condition,
+          branchId: branch.id
+        }))
+      const configuredDefaultBranchId = safeString(step.defaultBranch || '')
+      const node: StudioNode = {
+        id: nodeId,
+        type: 'decision',
+        label: safeString(step.title || 'Decision'),
+        config: {
+          nodeType: 'decision',
+          decisionMode: 'LOGIC',
+          links: [],
+          branches,
+          defaultBranch:
+            configuredDefaultBranchId && branches.some(branch => branch.id === configuredDefaultBranchId)
+              ? configuredDefaultBranchId
+              : branches[0]?.id,
+          logicConfig: { conditions: logicConditions }
+        } as any
+      }
+      nodes.push(node)
+      continue
+    }
+
     // Task-like node (includes system tasks)
     const node: StudioNode = {
       id: nodeId,
@@ -585,7 +598,7 @@ export function templateToStudioGraph(template: FlowTemplate): {
     const type = safeString(step.type || 'TASK')
     const sourceId = stepNodeIdByIndex.get(i)!
 
-    if (type === 'DECISION') {
+    if (type === 'DECISION' || type === 'GATEWAY') {
       const branches: any[] = Array.isArray(step.branches) ? step.branches : []
       const rejectRework: any = (step as any)?.rejectRework ?? (step as any)?.userConfig?.rejectRework
       for (const b of branches) {
@@ -595,7 +608,7 @@ export function templateToStudioGraph(template: FlowTemplate): {
           targetRef || (typeof targetIndex === 'number' ? stepNodeIdByIndex.get(targetIndex) : undefined) || END_ID
 
         const targetStepIdx = targetRef
-          ? steps.findIndex(s => safeString(s?.reference || s?.id || '') === targetRef)
+          ? steps.findIndex((s: any) => safeString(s?.reference || s?.id || '') === targetRef)
           : -1
         const isBackward =
           (typeof targetIndex === 'number' && targetIndex < i) || (targetStepIdx >= 0 && targetStepIdx < i)
@@ -616,8 +629,9 @@ export function templateToStudioGraph(template: FlowTemplate): {
               }
             : undefined
 
+        const edgeId = type === 'GATEWAY' ? `gw_${i}_${targetId}` : `dec_${i}_${targetId}`
         edges.push({
-          id: safeString(b?.id || `dec_${i}_${targetId}`),
+          id: safeString(b?.id || edgeId),
           source: sourceId,
           target: targetId,
           label: b?.label,

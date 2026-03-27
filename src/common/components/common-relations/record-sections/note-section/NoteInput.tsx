@@ -7,13 +7,11 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  InputGroup,
-  InputGroupInput,
-  InputGroupTextarea,
-  InputGroupAddon,
-  InputGroupButton,
+  Input,
+  Textarea,
   DateInput,
   FileUpload,
+  Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
 import { PlusIcon, XIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react'
@@ -98,18 +96,19 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               </span>
             </FormLabel>
             <FormControl>
-              <InputGroup>
+              <div className="gba:flex gba:flex-col gba:w-full gba:overflow-hidden gba:rounded-md gba:border gba:border-border gba:bg-background">
                 <FormField
                   control={form.control}
                   name="details.title"
                   render={({ field }) => (
-                    <InputGroupInput
-                      placeholder={t('notes-titlePlaceholder')}
-                      value={field.value}
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
                       onChange={e => field.onChange(e.target.value)}
+                      placeholder={t('notes-titlePlaceholder')}
                       disabled={isProcessing}
                       data-testid="note-quick-add-title"
-                      className="gba:border-b gba:border-border"
+                      className="gba:rounded-none gba:border-0 gba:border-b gba:border-border gba:shadow-none gba:focus-visible:gba:ring-0 gba:focus-visible:gba:ring-offset-0"
                     />
                   )}
                 />
@@ -117,30 +116,19 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                   control={form.control}
                   name="details.text"
                   render={({ field }) => (
-                    <InputGroupTextarea
-                      placeholder={t('notes-textPlaceholder')}
-                      value={field.value}
+                    <Textarea
+                      {...field}
+                      value={field.value ?? ''}
                       onChange={e => field.onChange(e.target.value)}
+                      placeholder={t('notes-textPlaceholder')}
                       disabled={isProcessing}
                       data-testid="note-quick-add-text"
-                      rows={3}
-                      className="gba:text-xs gba:resize-none gba:text-muted-foreground"
+                      rows={5}
+                      className="gba:min-h-24 gba:rounded-none gba:border-0 gba:shadow-none gba:text-xs gba:resize-y gba:text-muted-foreground gba:focus-visible:gba:ring-0 gba:focus-visible:gba:ring-offset-0"
                     />
                   )}
                 />
-                <InputGroupAddon align="block-end">
-                  <InputGroupButton
-                    type="submit"
-                    disabled={isProcessing}
-                    size="sm"
-                    data-testid="note-quick-add-submit"
-                    className="gba:ml-auto"
-                  >
-                    <PaperPlaneTiltIcon size={14} weight="bold" />
-                    {isProcessing ? t('notes-creating') : t('notes-create')}
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
+              </div>
             </FormControl>
           </FormItem>
 
@@ -177,6 +165,28 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               </FormItem>
             )}
           />
+
+          <div className="gba:border-t gba:border-border gba:pt-3 gba:mt-1">
+            <Button
+              type="submit"
+              variant="default"
+              disabled={isProcessing}
+              className="gba:w-full gba:gap-2"
+              data-testid="note-quick-add-submit"
+            >
+              {isProcessing ? (
+                <span className="gba:inline-flex gba:items-center gba:gap-2">
+                  <Spinner size="sm" />
+                  {t('notes-creating')}
+                </span>
+              ) : (
+                <span className="gba:inline-flex gba:items-center gba:gap-2">
+                  <PaperPlaneTiltIcon size={16} weight="bold" />
+                  {t('notes-create')}
+                </span>
+              )}
+            </Button>
+          </div>
         </form>
       </Form>
     </div>

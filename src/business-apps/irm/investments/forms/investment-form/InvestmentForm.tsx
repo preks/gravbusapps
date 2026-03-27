@@ -34,6 +34,10 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   const opportunityId =
     additionalData?.opportunityId || additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
 
+  // Extract companyId from additionalData (for prefilling company when opened from a company context)
+  const contextCompanyId =
+    additionalData?.companyId || additionalData?.psi_taskPayload?.psi_initialParameters?.companyId
+
   // Load investment data if in update mode
   const { investment: fetchedInvestment, loading: investmentLoading } = useInvestment(
     accessToken || '',
@@ -216,6 +220,14 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
       }
     }
 
+    // Prefill companyId from additionalData context (e.g. opened from a company page)
+    if (contextCompanyId && !result.investment?.companyId) {
+      result.investment = {
+        ...result.investment,
+        companyId: contextCompanyId
+      }
+    }
+
     return result
   }, [
     fetchedInvestment,
@@ -223,6 +235,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
     investmentId,
     mappedInitialValues,
     opportunityId,
+    contextCompanyId,
     extractedDynamicFields,
     getPathByType
   ])

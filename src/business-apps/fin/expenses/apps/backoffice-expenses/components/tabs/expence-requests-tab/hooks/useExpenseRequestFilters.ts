@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
+import { useBackofficeAsyncSearch } from '../../../../hooks/useBackofficeAsyncSearch'
 
 interface Employee {
   id: string
@@ -13,6 +14,8 @@ interface UseExpenseRequestFiltersProps {
   handleAmountFilter: (min: string, max: string) => void
   amountMinFilter: string
   amountMaxFilter: string
+  /** Debounced query from the filter sheet employee search field (any non-empty text triggers API search). */
+  employeeListSearchQuery: string
 }
 
 export const useExpenseRequestFilters = ({
@@ -21,14 +24,11 @@ export const useExpenseRequestFilters = ({
   handleStatusFilter,
   handleAmountFilter,
   amountMinFilter,
-  amountMaxFilter
+  amountMaxFilter,
+  employeeListSearchQuery
 }: UseExpenseRequestFiltersProps) => {
   // Employee filter state
   const [employeeFilter, setEmployeeFilter] = useState('')
-  const [employeeSearchText, setEmployeeSearchText] = useState('')
-  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false)
-  const [employeeSearchResults, setEmployeeSearchResults] = useState<Employee[]>([])
-  const [employeeSearchLoading, setEmployeeSearchLoading] = useState(false)
   const [selectedEmployees, setSelectedEmployees] = useState<Employee[]>([])
 
   // Status filter state
@@ -39,31 +39,14 @@ export const useExpenseRequestFilters = ({
   const [localAmountMax, setLocalAmountMax] = useState(amountMaxFilter)
 
   // Debounced values using useDebounce hook
-  const debouncedEmployeeSearchText = useDebounce(employeeSearchText, 300)
   const debouncedAmountMin = useDebounce(localAmountMin, 500)
   const debouncedAmountMax = useDebounce(localAmountMax, 500)
 
-  // Handle debounced employee search
-  useEffect(() => {
-    const searchEmployeesDebounced = async () => {
-      if (debouncedEmployeeSearchText.trim().length >= 2) {
-        setEmployeeSearchLoading(true)
-        try {
-          const results = await searchEmployees(debouncedEmployeeSearchText)
-          setEmployeeSearchResults(results)
-        } catch {
-          console.error('Error searching employees:', error)
-          setEmployeeSearchResults([])
-        } finally {
-          setEmployeeSearchLoading(false)
-        }
-      } else {
-        setEmployeeSearchResults([])
-      }
-    }
-
-    searchEmployeesDebounced()
-  }, [debouncedEmployeeSearchText, searchEmployees])
+  const { results: employeeSearchResults, loading: employeeSearchLoading } = useBackofficeAsyncSearch<Employee>({
+    query: employeeListSearchQuery,
+    searchFn: searchEmployees,
+    logContext: 'Error searching employees:'
+  })
 
   // Handle debounced amount filter
   useEffect(() => {
@@ -91,7 +74,6 @@ export const useExpenseRequestFilters = ({
   const clearAllFilters = useCallback(() => {
     setEmployeeFilter('')
     setSelectedEmployees([])
-    setEmployeeSearchText('')
     setStatusFilter([])
     setLocalAmountMin('')
     setLocalAmountMax('')
@@ -105,15 +87,10 @@ export const useExpenseRequestFilters = ({
     // Employee filter
     employeeFilter,
     setEmployeeFilter,
-    employeeSearchText,
-    setEmployeeSearchText,
-    showEmployeeDropdown,
-    setShowEmployeeDropdown,
     employeeSearchResults,
     employeeSearchLoading,
     selectedEmployees,
     setSelectedEmployees,
-    debouncedSearchEmployees: setEmployeeSearchText,
 
     // Status filter
     statusFilter,

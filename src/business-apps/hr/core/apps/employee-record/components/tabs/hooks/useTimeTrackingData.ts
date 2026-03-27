@@ -15,7 +15,11 @@ import { GET_EMPLOYEE_ABSENCES } from '@/business-apps/hr/absences/apps/personal
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
-import { parseDurationToMinutes, minutesToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
+import {
+  parseDurationToMinutes,
+  minutesToHHMM,
+  minutesToSignedHHMM
+} from '@/business-apps/hr/core/apps/my-time/utils/duration'
 
 export type TimeEntry = {
   id: string
@@ -344,6 +348,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         }
       }
       for (const a of absences) {
+        if (String(a.status).toUpperCase() !== 'APPROVED') continue
         const translation = (a.type?.translations as { localeCode?: string; value?: string }[] | undefined)?.find(
           tr => tr.localeCode === activeLocale
         )
@@ -358,14 +363,14 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     }
     setAbsenceLabelsByDate(absenceLabelsByDateMap)
 
-    // Compute monthly required totals based on working hours pattern, excluding holidays
+    // Compute monthly required totals based on working hours pattern, excluding holidays and absences
     const computeRequiredMinutesForRange = (from: Date, to: Date) => {
       let acc = 0
       const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
       const end = new Date(to.getFullYear(), to.getMonth(), to.getDate())
       while (cursor <= end) {
         const key = toLocalDateKey(cursor)
-        if (!holidayDateSet.has(key)) {
+        if (!holidayDateSet.has(key) && !absenceLabelsByDateMap[key]) {
           acc += getPlannedMinutesForDate(cursor.toISOString())
         }
         cursor.setDate(cursor.getDate() + 1)
@@ -573,7 +578,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           effectiveTime: minutesToHHMM(effectiveMinutes),
           breakTime: minutesToHHMM(breakMinutes),
           plannedTime: minutesToHHMM(plannedMinutes),
-          differenceTime: minutesToHHMM(diffMinutes),
+          differenceTime: minutesToSignedHHMM(diffMinutes),
           notes: 'Clock-out'
         }
       })
@@ -610,13 +615,17 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const dayType = getDayType(key)
       const holidayLabel = dayType === 'holiday' ? holidayNamesByDate[key] : undefined
       const absenceLabel = dayType !== 'holiday' && absenceLabelsByDate[key] ? absenceLabelsByDate[key] : undefined
-      // When backend plannedTime is missing or zero, derive from working hours so work days show correct planned time
-      const backendPlannedMinutes = parseDurationToMinutes(e.plannedTime)
-      const useComputedPlanned =
-        backendPlannedMinutes == null || Number.isNaN(backendPlannedMinutes) || backendPlannedMinutes <= 0
-      const plannedTime = useComputedPlanned
-        ? minutesToHHMM(getPlannedMinutesForDate(e.attendanceDateISO))
-        : e.plannedTime
+
+      let plannedTime: string | undefined
+      if (dayType === 'holiday' || absenceLabelsByDate[key]) {
+        plannedTime = minutesToHHMM(0)
+      } else {
+        const backendPlannedMinutes = parseDurationToMinutes(e.plannedTime)
+        const useComputedPlanned =
+          backendPlannedMinutes == null || Number.isNaN(backendPlannedMinutes) || backendPlannedMinutes <= 0
+        plannedTime = useComputedPlanned ? minutesToHHMM(getPlannedMinutesForDate(e.attendanceDateISO)) : e.plannedTime
+      }
+
       return { ...e, dayType, holidayLabel, absenceLabel, plannedTime }
     })
     const cursor = new Date(monthStart)
@@ -624,11 +633,13 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const key = toLocalDateKey(cursor)
       if (!existingDates.has(key)) {
         const isHoliday = holidaySet.has(key)
-        const plannedMinutes = isHoliday
-          ? 0
-          : getPlannedMinutesForDate(
-              new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 12).toISOString()
-            )
+        const hasAbsence = Boolean(absenceLabelsByDate[key])
+        const plannedMinutes =
+          isHoliday || hasAbsence
+            ? 0
+            : getPlannedMinutesForDate(
+                new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 12).toISOString()
+              )
         const dayType = getDayType(key)
         const holidayLabel = dayType === 'holiday' ? holidayNamesByDate[key] : undefined
         const absenceLabel = dayType !== 'holiday' && absenceLabelsByDate[key] ? absenceLabelsByDate[key] : undefined

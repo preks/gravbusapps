@@ -1,16 +1,25 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger, Badge } from '@newwork/nw-design-system'
+import {
+  Button,
+  Input,
+  Spinner,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Badge,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { PlusIcon, MagnifyingGlassIcon, UserIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { PhoneMissedIcon } from 'lucide-react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import { UserStatusDropdown } from './UserStatusDropdown'
 import type { Conversation } from '../types'
-import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
+import type { ChatWebSocketClient } from '@/common/network/chat/ChatWebSocketClient'
 import type { PresenceData } from '../hooks/usePresence'
 import type { ConversationFilterKind } from '../hooks/useConversations'
 import { sortConversationsPinThenTime } from '../utils/conversationSort'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -96,7 +105,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   onMarkAsUnread,
   markedAsUnreadConversationIds
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   // Force re-render when presenceVersion changes
   void presenceVersion
 

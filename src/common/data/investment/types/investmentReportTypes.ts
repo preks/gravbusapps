@@ -107,6 +107,7 @@ export interface RealEstateInvestmentReport extends BaseEntity {
   date?: string // ISO date string
   scope?: ReportScope
   size?: number
+  sizeMeasurementUnitRef?: string
   numberOfUnits?: number
   occupancyPercent?: number
   annualNetColdRent?: number
@@ -341,6 +342,7 @@ export const RealEstateInvestmentReportFormFields = {
   scope: 'scope',
   // Real Estate Investment Report Fields
   size: 'size',
+  sizeMeasurementUnitRef: 'sizeMeasurementUnitRef',
   numberOfUnits: 'numberOfUnits',
   occupancyPercent: 'occupancyPercent',
   annualNetColdRent: 'annualNetColdRent',
