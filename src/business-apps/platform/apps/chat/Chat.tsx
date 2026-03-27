@@ -114,6 +114,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const urlContextProcessed = useRef(false)
     const conversationIdFromUrlProcessed = useRef(false)
     const urlCallActionProcessed = useRef(false)
+    const [pendingMessageId, setPendingMessageId] = useState<string | null>(null)
     const activeConversationIdRef = useRef<string | null>(null)
     const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
     const lastNudgeTimeRef = useRef<number>(0)
@@ -820,6 +821,7 @@ const ChatInner: React.FC<ChatProps> = memo(
 
       const urlParams = new URLSearchParams(window.location.search)
       const conversationIdParam = urlParams.get('conversationId')
+      const messageIdParam = urlParams.get('messageId')
 
       if (!conversationIdParam) {
         return
@@ -831,6 +833,7 @@ const ChatInner: React.FC<ChatProps> = memo(
         conversationIdFromUrlProcessed.current = true
         setActiveConversation(conversation)
         setShowConversationList(false)
+        if (messageIdParam) setPendingMessageId(messageIdParam)
         return
       }
 
@@ -846,6 +849,7 @@ const ChatInner: React.FC<ChatProps> = memo(
             if (fetchedConversation) {
               setActiveConversation(fetchedConversation)
               setShowConversationList(false)
+              if (messageIdParam) setPendingMessageId(messageIdParam)
             }
           })
           .catch(() => {
@@ -1201,6 +1205,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     onMarkAsUnread={handleMarkAsUnread}
                     isSingleViewMode={isSingleViewMode}
                     viewMode={viewMode}
+                    initialMessageId={pendingMessageId}
                     onBack={handleBack}
                     onCloseConversation={handleCloseConversation}
                     onRemoveConversation={handleRemoveConversation}
