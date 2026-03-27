@@ -17,7 +17,7 @@ button-delete = Löschen
 button-manual-run = Manuell starten
 
 table-name = Name
-table-dates = Ausführungsdaten
+table-dates = Überprüfungsdaten
 table-type = Typ
 table-scale = Skala
 table-participants = Teilnehmer
@@ -25,7 +25,7 @@ table-status = Status
 status-completed = Abgeschlossen
 status-in-progress = In Bearbeitung
 cycle-already-started = "{ $name }" wurde bereits gestartet.
-table-evaluation-period = Bewerteter Zeitraum
+table-evaluation-period = Leistungszeitraum
 table-actions = Aktionen
 empty-no-cycles = Noch keine Zyklen erstellt.
 performance-period-description = Der bewertete Arbeitszeitraum. Beispiel: Leistungszeitraum: 1. Jan – 31. Dez 2025.

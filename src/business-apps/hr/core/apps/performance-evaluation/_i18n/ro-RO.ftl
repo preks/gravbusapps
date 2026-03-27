@@ -17,7 +17,7 @@ button-delete = Șterge
 button-manual-run = Rulare manuală
 
 table-name = Nume
-table-dates = Date de execuție
+table-dates = Date de evaluare
 table-type = Tip
 table-scale = Scală
 table-participants = Participanți
@@ -25,7 +25,7 @@ table-status = Stare
 status-completed = Finalizat
 status-in-progress = În desfășurare
 cycle-already-started = "{ $name }" a fost deja pornit.
-table-evaluation-period = Perioadă evaluată
+table-evaluation-period = Perioadă de performanță
 table-actions = Acțiuni
 empty-no-cycles = Nu există încă cicluri create.
 performance-period-description = Perioada de muncă evaluată. Exemplu: Perioadă de performanță: 1 ian – 31 dec, 2025.

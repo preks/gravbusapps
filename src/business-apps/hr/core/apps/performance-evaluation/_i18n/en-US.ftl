@@ -17,7 +17,7 @@ button-delete = Delete
 button-manual-run = Manual Run
 
 table-name = Name
-table-dates = Execution Dates
+table-dates = Review Dates
 table-type = Type
 table-scale = Scale
 table-participants = Participants
@@ -25,7 +25,7 @@ table-status = Status
 status-completed = Completed
 status-in-progress = In Progress
 cycle-already-started = "{ $name }" has already been started.
-table-evaluation-period = Evaluated Period
+table-evaluation-period = Performance Period
 table-actions = Actions
 empty-no-cycles = No cycles created yet.
 performance-period-description = The time span of work being evaluated. Example: Performance Period: Jan 1–Dec 31, 2025.
