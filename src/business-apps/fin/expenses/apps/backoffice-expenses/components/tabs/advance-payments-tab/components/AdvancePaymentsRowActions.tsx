@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react'
 import { AppAction } from '@/components/app-action'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { RowActionsIcon, RowActionsWrapper } from '../../../../common/components/RowActionComponents'
+import { RowActionsIcon, RowActionsWrapper } from '../../../../../../common/components/RowActionComponents'
 import type { AdvancePaymentItem } from '../../../../types'
 import type { TranslateFn } from '../../../../utils/utils'
 

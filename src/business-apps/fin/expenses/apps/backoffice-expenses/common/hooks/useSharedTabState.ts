@@ -1,22 +1,6 @@
-import React, { useMemo } from 'react'
-import { CurrencyDropdown } from '../components/CurrencyDropdown'
-
-export { useCurrencyInit, useFilterSignatureReset, useVisibleColumns } from '../../../../common/hooks/useSharedTabState'
-
-export function useCurrencySecondaryAction(
-  availableCurrencies: string[],
-  selectedCurrency: string | null,
-  onCurrencyChange: (code: string | null) => void,
-  testIdPrefix: string
-) {
-  return useMemo(
-    () =>
-      React.createElement(CurrencyDropdown, {
-        availableCurrencies,
-        selectedCurrency,
-        onCurrencyChange,
-        testIdPrefix
-      }),
-    [availableCurrencies, selectedCurrency, onCurrencyChange, testIdPrefix]
-  )
-}
+export {
+  useCurrencyInit,
+  useFilterSignatureReset,
+  useVisibleColumns,
+  useCurrencySecondaryAction
+} from '../../../../common/hooks/useSharedTabState'

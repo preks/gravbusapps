@@ -1,5 +1,5 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { formatDateRangeForChip, type DateRange } from '../../../../common/utils/dateRangeFilterUtils'
+import { formatDateRangeForChip, type DateRange } from '../../../../../../common/utils/dateRangeFilterUtils'
 import { createDateRangeConfig } from '../../../../common/config/filterConfigHelpers'
 import { buildStatusDisplayName } from '../../../../utils/sharedUtils'
 import { getAdvancePaymentStatusDisplay, type TranslateFn } from '../../../../utils/utils'

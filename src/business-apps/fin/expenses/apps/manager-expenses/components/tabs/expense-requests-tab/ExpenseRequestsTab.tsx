@@ -16,7 +16,7 @@ import { createExpenseRequestFilterConfig } from './config/expenseRequestFilterC
 import { buildExpenseRequestOrderBy } from './config/expenseRequestOrderBy'
 import { expenseRequestSortableColumns } from './config/expenseRequestSortableColumns'
 import { expenseRequestAvailableColumns } from './config/expenseRequestAvailableColumns'
-import { formatDateRangeForChip, applyDateRangeFromFilter } from '../expense-plans-tab/config/dataDisplayFilterUtils'
+import { formatDateRangeForChip, applyDateRangeFromFilter } from '../../../../../common/utils/dateRangeFilterUtils'
 import {
   useCurrencyInit,
   useFilterSignatureReset,

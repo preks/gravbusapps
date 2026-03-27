@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { CurrencyDropdown } from '../components/CurrencyDropdown'
 
 export function useCurrencyInit(
   mostUsedCurrency: string | null | undefined,
@@ -75,5 +76,23 @@ export function useEmptyMessage(hasActiveFilters: boolean, noDataI18nKey: string
           )
         : getTranslationFromI18nKeyAndLabel(noDataI18nKey, noDataFallback),
     [hasActiveFilters, noDataI18nKey, noDataFallback]
+  )
+}
+
+export function useCurrencySecondaryAction(
+  availableCurrencies: string[],
+  selectedCurrency: string | null,
+  onCurrencyChange: (code: string | null) => void,
+  testIdPrefix: string
+) {
+  return useMemo(
+    () =>
+      React.createElement(CurrencyDropdown, {
+        availableCurrencies,
+        selectedCurrency,
+        onCurrencyChange,
+        testIdPrefix
+      }),
+    [availableCurrencies, selectedCurrency, onCurrencyChange, testIdPrefix]
   )
 }

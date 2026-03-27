@@ -17,7 +17,7 @@ import {
   useExpenseRequestSelection,
   useExpenseRequestTabState
 } from './hooks'
-import { useTableSetup } from '../../../common/hooks/useTableSetup'
+import { useTableSetup } from '../../../../../common/hooks/useTableSetup'
 import {
   createBackofficeExpenseRequestColumns,
   type BackofficeExpenseRequestTableChrome

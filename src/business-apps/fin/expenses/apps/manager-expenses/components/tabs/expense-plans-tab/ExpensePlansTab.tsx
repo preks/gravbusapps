@@ -24,7 +24,7 @@ import { DetailsSheet } from '../../../common/components/DetailsSheet'
 import { createExpensePlanFilterConfig } from './config/expensePlanFilterConfig'
 import { expensePlanSortableColumns } from './config/expensePlanSortableColumns'
 import { expensePlanAvailableColumns } from './config/expensePlanAvailableColumns'
-import { formatDateRangeForChip, applyDateRangeFromFilter } from './config/dataDisplayFilterUtils'
+import { formatDateRangeForChip, applyDateRangeFromFilter } from '../../../../../common/utils/dateRangeFilterUtils'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   employeeId?: string

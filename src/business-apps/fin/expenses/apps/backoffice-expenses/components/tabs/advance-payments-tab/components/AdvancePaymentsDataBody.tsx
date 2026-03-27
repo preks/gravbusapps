@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
-import { ExpenseDataTable } from '../../../../common/components/ExpenseDataTable'
-import { TableErrorState } from '../../../../common/components/TableErrorState'
+import { ExpenseDataTable } from '../../../../../../common/components/ExpenseDataTable'
+import { TableErrorState } from '../../../../../../common/components/TableErrorState'
 import type { AdvancePaymentItem } from '../../../../types'
 
 interface AdvancePaymentsDataBodyProps {
@@ -54,6 +54,7 @@ export default function AdvancePaymentsDataBody({
         actions={actions}
         emptyMessage={emptyMessage}
         dataTestId="advance-payments-data-table"
+        rowsPerPage={pagination?.pageSize}
       />
     </div>
   )
