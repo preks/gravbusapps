@@ -1,6 +1,14 @@
 import React from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Button,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import translations from '../../_i18n'
 

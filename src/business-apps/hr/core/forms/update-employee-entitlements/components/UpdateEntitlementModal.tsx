@@ -10,9 +10,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
 import { WarningCircleIcon } from '@phosphor-icons/react'
 import {
   getCatalogValue,
