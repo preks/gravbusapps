@@ -55,6 +55,13 @@ export interface CflowTaskStatsResponse {
   }
 }
 
+export interface CflowCountResponse {
+  status: string
+  data?: {
+    totalCount?: number
+  }
+}
+
 export interface CflowTasksWithCount {
   tasks: CflowTask[]
   totalCount: number
@@ -477,5 +484,43 @@ export async function fetchCflowTaskStats(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     throw new Error(`Custom Flow Engine stats fetch error: ${errorMsg}`)
+  }
+}
+
+export async function fetchCflowUserInitiatedFlowsCount(userId: string, accessToken?: string): Promise<number> {
+  const endpoint = getCflowEndpoint()
+
+  if (!endpoint) {
+    throw new Error(
+      'Custom Flow Engine endpoint not configured. Set NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL environment variable.'
+    )
+  }
+
+  const url = `${endpoint}/api/flows/user/${userId}/initiated/count`
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json'
+  }
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(30000)
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`HTTP ${response.status}: ${response.statusText}. ${errorText}`)
+    }
+
+    const data: CflowCountResponse = await response.json()
+    return data.data?.totalCount || 0
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    throw new Error(`Custom Flow Engine initiated flows count error: ${errorMsg}`)
   }
 }

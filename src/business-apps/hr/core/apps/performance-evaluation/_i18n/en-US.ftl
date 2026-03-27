@@ -2,6 +2,7 @@ title = Performance Cycle Configuration
 subtitle = Create and manage performance evaluation cycles
 
 tab-cycles = Cycles
+tab-performance = Performance Cycles
 tab-rating-scales = Rating Scales
 tab-values = Values
 
@@ -11,15 +12,19 @@ button-save = Save
 button-start = Start
 button-activate = Activate
 button-deactivate = Deactivate
+button-complete = Complete
 button-delete = Delete
 
 table-name = Name
-table-dates = Dates
+table-dates = Execution Dates
 table-type = Type
 table-scale = Scale
 table-participants = Participants
 table-status = Status
-table-evaluation-period = Evaluation Period
+status-completed = Completed
+status-in-progress = In Progress
+cycle-already-started = "{ $name }" has already been started.
+table-evaluation-period = Evaluated Period
 table-actions = Actions
 empty-no-cycles = No cycles created yet.
 empty-no-values = No values defined yet.
@@ -29,13 +34,13 @@ modal-edit-title = Edit Cycle
 modal-description = Configure details for the performance cycle.
 
 field-name = Name
-field-start-date = Start Date
-field-end-date = End Date
+field-start-date = Execution Start Date
+field-end-date = Execution End Date
 field-frequency = Frequency/Type
 field-rating-scale = Rating Scale
 label-evaluation-participants = Evaluation Participants
-field-evaluation-period-start = Evaluation Period Start
-field-evaluation-period-end = Evaluation Period End
+field-evaluation-period-start = Evaluated Period Start
+field-evaluation-period-end = Evaluated Period End
 field-values = Values
 field-title = Title
 field-description = Description
@@ -75,7 +80,7 @@ participant-hr-team = HR Team
 # Frequency
 frequency-annual = Annual
 frequency-quarterly = Quarterly
-frequency-custom = Custom
+frequency-monthly = Monthly
 
 # Rating scales table
 empty-no-rating-scales = No rating scales defined yet.
@@ -84,8 +89,10 @@ scale-deleted-to-database = Rating scale "{ $name }" deleted.
 cycle-saved-to-database = Performance cycle "{ $name }" saved.
 cycle-activated-to-database = "{ $name }" activated.
 cycle-deactivated-to-database = "{ $name }" deactivated.
+cycle-completed-to-database = "{ $name }" marked as completed.
 cycle-deleted-to-database = "{ $name }" deleted.
 cycle-started = Starting cycle: { $name }
+cycle-start-rating-scale-required = A rating scale is required before starting "{ $name }". Please edit the cycle and select a rating scale.
 value-saved-to-database = Company value "{ $title }" saved.
 value-deleted-to-database = "{ $title }" deleted.
 value-activated-to-database = "{ $title }" activated.
@@ -120,5 +127,6 @@ values-error-cannot-deactivate-active-cycle = Cannot deactivate value while it i
 cycles-error-no-rating-scales = At least one rating scale is required to create a cycle.
 cycles-error-no-company-values = At least one company value is required to create a cycle.
 cycles-error-dates-overlap = Cycle dates cannot overlap with an existing cycle. Please choose a start date after the end of existing cycles.
+cycles-error-eval-period-overlap = Evaluation period overlaps with an existing cycle. Please choose dates that do not conflict with other evaluation periods.
 error-activate-out-of-period = Cannot activate cycle. Today's date is outside the cycle period.
 

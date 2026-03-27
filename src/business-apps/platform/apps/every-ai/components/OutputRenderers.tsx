@@ -33,6 +33,7 @@ import { CrmFunnelDisplay } from './displays/crm-funnel'
 import { AssetSummaryDisplay } from './displays/asset-summary'
 import { TeamAvailabilityDisplay } from './displays/team-availability'
 import { FlowbotCalendarDisplay } from './displays/calendar/FlowbotCalendarDisplay'
+import { ChatSnippetDisplay } from './displays/ChatSnippetDisplay'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FlowProposalBoundaryProps {
@@ -801,6 +802,8 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       return renderEntity(item, accessToken)
     case 'file':
       return <FileDisplay key={idx} data={item} />
+    case 'chat_reference':
+      return <ChatSnippetDisplay key={idx} data={item} />
     case 'reminder':
       // ReminderData is already handled via EntityData with entity: 'reminder'
       // Skip rendering to avoid duplicates

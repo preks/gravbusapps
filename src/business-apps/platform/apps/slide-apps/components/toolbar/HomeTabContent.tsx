@@ -21,7 +21,9 @@ import { Undo2, Redo2, Copy, ClipboardPaste, Palette, Grid3X3, SpellCheck, Chevr
 import translations from '../../_i18n'
 import type { ToolbarContext } from '../../hooks/useToolbarContext'
 import type { AnySlideElement, SlideTheme } from '../slideElements'
+import type { SlideMaster } from '../../types/slideMaster'
 import { SLIDE_THEMES } from '../slideThemes'
+import { SlideLayoutPicker } from '../SlideLayoutPicker'
 import { TextFormattingTools } from './TextFormattingTools'
 import { ShapeFormattingTools } from './ShapeFormattingTools'
 import { ImageFormattingTools } from './ImageFormattingTools'
@@ -46,6 +48,8 @@ export interface HomeTabContentProps {
   onShowLinkDialog: () => void
   onUpdateTheme: (themeId: string) => void
   onToggleSpellCheck: () => void
+  masters?: SlideMaster[]
+  onChangeLayout?: (layoutId: string, masterId: string) => void
   testId?: string
 }
 
@@ -68,6 +72,8 @@ export function HomeTabContent({
   onShowLinkDialog,
   onUpdateTheme,
   onToggleSpellCheck,
+  masters,
+  onChangeLayout,
   testId
 }: HomeTabContentProps) {
   const { t } = useTranslation(translations)
@@ -167,6 +173,15 @@ export function HomeTabContent({
 
       {/* Design Group - Always visible */}
       <div className="gba:flex gba:items-center gba:gap-1">
+        {onChangeLayout && (
+          <SlideLayoutPicker
+            masters={masters}
+            currentTheme={currentTheme}
+            onSelectLayout={onChangeLayout}
+            mode="change-layout"
+            data-testid={testId ? `${testId}-change-layout` : undefined}
+          />
+        )}
         <Button
           variant="ghost"
           size="sm"

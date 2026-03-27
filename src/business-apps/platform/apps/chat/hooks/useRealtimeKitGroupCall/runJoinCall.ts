@@ -55,10 +55,16 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
 
   try {
     const authToken = meetingId
-      ? (await apiClient.addParticipant(meetingId, undefined, 'host', currentUser?.odName, undefined, undefined)).data
+      ? (await apiClient.realtimeKitAddParticipant(meetingId, { role: 'host', displayName: currentUser?.odName })).data
           .authToken
-      : (await apiClient.createMeeting(roomId, callType, currentUser?.odName, undefined, undefined, undefined, false))
-          .data.hostAuthToken
+      : (
+          await apiClient.realtimeKitCreateMeeting({
+            conversationId: roomId,
+            callType,
+            displayName: currentUser?.odName,
+            transcriptionEnabled: false
+          })
+        ).data.hostAuthToken
 
     const finalMeetingId = meetingId || roomId
 
@@ -172,7 +178,8 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
     let transcriptionEnabled = false
     if (calendarMeetingIdForJoin && options?.calendarApiClient) {
       try {
-        const meetingDetails = await options.calendarApiClient.getMeeting(calendarMeetingIdForJoin)
+        const response = await options.calendarApiClient.getMeeting(calendarMeetingIdForJoin)
+        const meetingDetails = response?.meeting ?? response
         if (
           meetingDetails?.transcriptionEnabled === true ||
           (meetingDetails as { metadata?: { aiTranscriptionEnabled?: boolean } })?.metadata?.aiTranscriptionEnabled ===
@@ -183,9 +190,9 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
       } catch {
         // Best-effort
       }
-    } else if (apiClient && typeof apiClient.getMeetingDetails === 'function') {
+    } else if (apiClient && typeof apiClient.realtimeKitGetMeetingDetails === 'function') {
       try {
-        const details = await apiClient.getMeetingDetails(finalMeetingId)
+        const details = await apiClient.realtimeKitGetMeetingDetails(finalMeetingId)
         const data = details?.data ?? details
         if ((data as { transcriptionEnabled?: boolean })?.transcriptionEnabled === true) transcriptionEnabled = true
       } catch {
@@ -214,7 +221,7 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
     if (!sessionIdToEmit && calendarMeetingIdForJoin && options?.calendarApiClient) {
       try {
         const { sessionId: linkedSessionId, meeting: linkedMeeting } =
-          await options.calendarApiClient.resolveAndLinkSession(calendarMeetingIdForJoin)
+          await options.calendarApiClient.resolveMeetingSession(calendarMeetingIdForJoin)
         if (linkedSessionId) {
           refs.sessionIdRef.current = linkedSessionId
           sessionIdToEmit = linkedSessionId
@@ -236,7 +243,7 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
     }
     if (!sessionIdToEmit && roomId && apiClient) {
       try {
-        const active = await apiClient.getActiveCallByConversationId(roomId)
+        const active = await apiClient.realtimeKitGetActiveCallByConversation(roomId)
         if (active?.sessionId) {
           refs.sessionIdRef.current = active.sessionId
           sessionIdToEmit = active.sessionId

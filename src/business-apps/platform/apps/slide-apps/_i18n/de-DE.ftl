@@ -27,6 +27,8 @@ sidebar-storage-slides = { $count } Folien
 
 menu-new-blank-title = Leere Folie
 menu-new-blank-description = Von Grund auf beginnen
+menu-new-ai-title = Mit KI generieren
+menu-new-ai-description = Präsentation mit KI erstellen
 menu-new-template-title = Aus Vorlage
 menu-new-template-description = Vorlage auswählen
 menu-new-import-title = PowerPoint importieren
@@ -76,6 +78,8 @@ toast-favorite-removed = Aus Favoriten entfernt
 toast-favorite-added = Zu Favoriten hinzugefügt
 toast-imported-slides = { $count } Folien importiert
 toast-import-failed = PowerPoint-Import fehlgeschlagen
+toast-import-partial = Präsentation erstellt, aber Folieninhalte konnten nicht gespeichert werden. Versuchen Sie, sie erneut zu öffnen und zu speichern.
+import-saving = Präsentation wird gespeichert...
 toast-template-matched = Vorlage wird verwendet: { $name }
 toast-template-applied = Vorlage angewendet
 
@@ -292,6 +296,8 @@ header-manage-access = Zugriff verwalten...
 # Generate Presentation
 generate-title = Präsentation generieren
 generate-description = Beschreiben Sie, was Sie benötigen, und die KI erstellt die Folien.
+generate-presentation-title-label = Präsentationstitel
+generate-presentation-title-placeholder = z.B. Q4 Geschäftsbericht
 generate-topic = Thema
 generate-topic-placeholder = Quartalsgeschäftsprüfung mit Vertriebskennzahlen, Team-Highlights und Q2-Zielen...
 generate-length = Länge
@@ -506,6 +512,22 @@ parser-slide-not-found = Folie { $number } nicht gefunden
 parser-no-slides-parsed = Keine Folien konnten geparst werden. Leere Folie erstellt.
 parser-failed = PowerPoint-Datei konnte nicht geparst werden
 parser-imported-slide = Importierte Folie
+parser-shape-unsupported = Formtyp „{ $type }" auf Folie { $slide } wurde als Rechteck importiert
+parser-chart-unsupported = Diagrammtyp „{ $type }" auf Folie { $slide } konnte nicht importiert werden
+parser-chart-imported = { $type }-Diagramm auf Folie { $slide } importiert
+parser-table-imported = Tabelle importiert ({ $rows } Zeilen, { $cols } Spalten) auf Folie { $slide }
+parser-notes-imported = Sprechernotizen für { $count } { $count ->
+    [one] Folie
+   *[other] Folien
+} importiert
+parser-transition-unsupported = Übergang „{ $type }" auf Folie { $slide } wurde angenähert
+parser-group-flattened = Gruppierte Formen auf Folie { $slide } wurden aufgelöst
+parser-theme-mapped = Präsentationsdesign wurde „{ $theme }" zugeordnet
+import-preview-title = Importvorschau
+import-preview-select-slides = Folien zum Import auswählen
+import-preview-selected = { $selected } von { $total } Folien ausgewählt
+import-preview-import-all = Alle importieren
+import-preview-import-selected = Auswahl importieren
 
 # SlidesApiService
 api-error = API-Fehler: { $status }
@@ -835,3 +857,21 @@ template-purpose-help = Definieren Sie den Zweck dieser Folie
 template-inferring = Folienzwecke werden erkannt...
 template-inference-complete = Folienzwecke erkannt
 template-inference-failed = Zwecke konnten nicht automatisch erkannt werden
+
+# Layoutauswahl
+layout-change = Layout
+layout-duplicate-slides = Ausgewählte Folien duplizieren
+layout-browse-templates = Vorlagen durchsuchen...
+
+# Folienmaster-Ansicht
+slideshow-slide-master = Folienmaster
+master-view-title = Folienmaster-Ansicht
+master-insert-layout = Layout einfügen
+master-close = Masteransicht schließen
+master-new-layout = Benutzerdefiniertes Layout
+master-layout-added = Layout hinzugefügt
+master-layout-duplicated = Layout dupliziert
+master-layout-deleted = Layout gelöscht
+master-delete-last-layout-error = Das letzte Layout kann nicht gelöscht werden
+master-editing-master = Bearbeitung: Folienmaster
+master-editing-layout = Layout bearbeiten

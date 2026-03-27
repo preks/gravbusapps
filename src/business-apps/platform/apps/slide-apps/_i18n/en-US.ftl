@@ -27,6 +27,8 @@ sidebar-storage-slides = { $count } slides
 
 menu-new-blank-title = Blank Slide
 menu-new-blank-description = Start from scratch
+menu-new-ai-title = Generate with AI
+menu-new-ai-description = Create presentation using AI
 menu-new-template-title = From Template
 menu-new-template-description = Choose a template
 menu-new-import-title = Import PowerPoint
@@ -76,6 +78,8 @@ toast-favorite-removed = Removed from favorites
 toast-favorite-added = Added to favorites
 toast-imported-slides = Imported { $count } slides
 toast-import-failed = Failed to import PowerPoint
+toast-import-partial = Presentation created, but slide content could not be saved. Try opening and re-saving.
+import-saving = Saving presentation...
 toast-template-matched = Using template: { $name }
 toast-template-applied = Template applied
 
@@ -228,10 +232,10 @@ import-max-size = Maximum file size: { $size }
 import-choose-file = Choose File
 import-cancel = Cancel
 import-supported-features = Supported features:
-import-feature-text = Text boxes and formatting
-import-feature-images = Images and shapes
+import-feature-text = Text & formatting
+import-feature-images = Images & shapes
 import-feature-layouts = Slide layouts
-import-feature-transitions = Basic transitions (partial)
+import-feature-transitions = Transitions
 
 # Share Dialog
 share-title = Share Slide
@@ -293,6 +297,8 @@ header-manage-access = Manage access...
 # Generate Presentation
 generate-title = Generate Presentation
 generate-description = Describe what you need and AI will create the slides.
+generate-presentation-title-label = Presentation Title
+generate-presentation-title-placeholder = e.g., Q4 Business Review
 generate-topic = Topic
 generate-topic-placeholder = Quarterly business review covering sales metrics, team highlights, and Q2 goals...
 generate-length = Length
@@ -509,6 +515,22 @@ parser-slide-not-found = Slide { $number } not found
 parser-no-slides-parsed = No slides could be parsed. Created a blank slide.
 parser-failed = Failed to parse PowerPoint file
 parser-imported-slide = Imported Slide
+parser-shape-unsupported = Shape type "{ $type }" on slide { $slide } was imported as a rectangle
+parser-chart-unsupported = Chart type "{ $type }" on slide { $slide } could not be imported
+parser-chart-imported = Imported { $type } chart on slide { $slide }
+parser-table-imported = Imported table ({ $rows } rows, { $cols } columns) on slide { $slide }
+parser-notes-imported = Imported speaker notes for { $count } { $count ->
+    [one] slide
+   *[other] slides
+}
+parser-transition-unsupported = Transition "{ $type }" on slide { $slide } was approximated
+parser-group-flattened = Grouped shapes on slide { $slide } were ungrouped
+parser-theme-mapped = Presentation theme was mapped to "{ $theme }"
+import-preview-title = Import Preview
+import-preview-select-slides = Select slides to import
+import-preview-selected = { $selected } of { $total } slides selected
+import-preview-import-all = Import All
+import-preview-import-selected = Import Selected
 
 # SlidesApiService (used when throwing to user)
 api-error = API Error: { $status }
@@ -787,8 +809,11 @@ transition-preview = Preview
 
 # Ribbon Toolbar
 ribbon-tab-home = Home
+ribbon-tab-home-desc = Formatting, layout, and design tools.
 ribbon-tab-insert = Insert
+ribbon-tab-insert-desc = Add text, images, shapes, and charts.
 ribbon-tab-slideshow = Slideshow
+ribbon-tab-slideshow-desc = Present, broadcast, and export.
 ribbon-aria-label = Slide editor ribbon
 
 # Toolbar hints
@@ -918,3 +943,21 @@ template-purpose-help = Define what this slide is for
 template-inferring = Detecting slide purposes...
 template-inference-complete = Slide purposes detected
 template-inference-failed = Could not detect purposes automatically
+
+# Layout Picker
+layout-change = Layout
+layout-duplicate-slides = Duplicate Selected Slides
+layout-browse-templates = Browse Templates...
+
+# Slide Master View
+slideshow-slide-master = Slide Master
+master-view-title = Slide Master View
+master-insert-layout = Insert Layout
+master-close = Close Master View
+master-new-layout = Custom Layout
+master-layout-added = Layout added
+master-layout-duplicated = Layout duplicated
+master-layout-deleted = Layout deleted
+master-delete-last-layout-error = Cannot delete the last layout
+master-editing-master = Editing: Slide Master
+master-editing-layout = Editing Layout

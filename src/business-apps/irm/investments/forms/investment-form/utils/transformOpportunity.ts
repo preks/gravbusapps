@@ -46,7 +46,9 @@ const createBaseInvestmentValues = (
       currencyRef: opportunityData.currency?.id || opportunityData.currencyRef || '',
       investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any,
       investmentAccounts: investmentInvestmentAccounts as any, // GraphQL field name
-      investmentTypeId: investmentTypeId || null
+      investmentTypeId: investmentTypeId || null,
+      company: (opportunityData.company as any) || undefined,
+      companyId: opportunityData.companyId || undefined
     }
   }
 

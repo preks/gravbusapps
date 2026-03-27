@@ -3,7 +3,8 @@
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { getScreenShareTrack } from '../utils/groupCallModalUtils'
 import { isVideoTrackScreenShare } from '../utils/callUtils'
 import type { GroupCallModalRtkProps } from '../components/call/groupCallModalTypes'
@@ -120,7 +121,7 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     videoElementsVersion
   )
 
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
 
   const { handleMuteParticipant, handleMuteAll } = useGroupCallModalMuteHandlers(
     props,

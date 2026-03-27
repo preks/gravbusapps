@@ -295,7 +295,13 @@ export class ChatClient extends RestClient {
   getConversations<T = any>(
     page: number = 1,
     limit: number = 20,
-    filters: { search?: string; filter?: 'all' | 'direct' | 'group' | 'meeting'; unreadOnly?: boolean } = {},
+    filters: {
+      search?: string
+      filter?: 'all' | 'direct' | 'group' | 'meeting'
+      unreadOnly?: boolean
+      contextEntity?: string
+      contextEntityId?: string
+    } = {},
     options: RequestOptions = {}
   ) {
     const tokenKey = this.accessToken ? String(hashToken(this.accessToken)) : 'no-token'
@@ -321,7 +327,9 @@ export class ChatClient extends RestClient {
           limit,
           search: filters.search || undefined,
           filter: filters.filter && filters.filter !== 'all' ? filters.filter : undefined,
-          unreadOnly: filters.unreadOnly === true ? true : undefined
+          unreadOnly: filters.unreadOnly === true ? true : undefined,
+          contextEntity: filters.contextEntity || undefined,
+          contextEntityId: filters.contextEntityId || undefined
         }),
         options
       )

@@ -2,6 +2,7 @@ title = Konfiguration des Leistungszyklus
 subtitle = Leistungsbeurteilungszyklen erstellen und verwalten
 
 tab-cycles = Zyklen
+tab-performance = Leistungszyklen
 tab-rating-scales = Bewertungsskalen
 tab-values = Werte
 
@@ -11,15 +12,19 @@ button-save = Speichern
 button-start = Starten
 button-activate = Aktivieren
 button-deactivate = Deaktivieren
+button-complete = Abschließen
 button-delete = Löschen
 
 table-name = Name
-table-dates = Zeitraum
+table-dates = Ausführungsdaten
 table-type = Typ
 table-scale = Skala
 table-participants = Teilnehmer
 table-status = Status
-table-evaluation-period = Bewertungszeitraum
+status-completed = Abgeschlossen
+status-in-progress = In Bearbeitung
+cycle-already-started = "{ $name }" wurde bereits gestartet.
+table-evaluation-period = Bewerteter Zeitraum
 table-actions = Aktionen
 empty-no-cycles = Noch keine Zyklen erstellt.
 empty-no-values = Noch keine Werte definiert.
@@ -29,13 +34,13 @@ modal-edit-title = Zyklus bearbeiten
 modal-description = Details für den Leistungszyklus konfigurieren.
 
 field-name = Name
-field-start-date = Startdatum
-field-end-date = Enddatum
+field-start-date = Ausführung Startdatum
+field-end-date = Ausführung Enddatum
 field-frequency = Häufigkeit/Typ
 field-rating-scale = Bewertungsskala
 label-evaluation-participants = Bewertungsteilnehmer
-field-evaluation-period-start = Bewertungszeitraum Beginn
-field-evaluation-period-end = Bewertungszeitraum Ende
+field-evaluation-period-start = Bewerteter Zeitraum Beginn
+field-evaluation-period-end = Bewerteter Zeitraum Ende
 field-values = Werte
 field-title = Titel
 field-description = Beschreibung
@@ -76,7 +81,7 @@ participant-hr-team = HR Team
 # Häufigkeit
 frequency-annual = Jährlich
 frequency-quarterly = Vierteljährlich
-frequency-custom = Benutzerdefiniert
+frequency-monthly = Monatlich
 
 # Bewertungsskalen-Tabelle
 empty-no-rating-scales = Noch keine Bewertungsskalen definiert.
@@ -85,8 +90,10 @@ scale-deleted-to-database = Bewertungsskala "{ $name }" gelöscht.
 cycle-saved-to-database = Leistungszyklus "{ $name }" gespeichert.
 cycle-activated-to-database = "{ $name }" aktiviert.
 cycle-deactivated-to-database = "{ $name }" deaktiviert.
+cycle-completed-to-database = "{ $name }" als abgeschlossen markiert.
 cycle-deleted-to-database = "{ $name }" gelöscht.
 cycle-started = Zyklus wird gestartet: { $name }
+cycle-start-rating-scale-required = Eine Bewertungsskala ist erforderlich, bevor "{ $name }" gestartet werden kann. Bitte bearbeiten Sie den Zyklus und wählen Sie eine Bewertungsskala aus.
 value-saved-to-database = Firmenwert "{ $title }" gespeichert.
 value-deleted-to-database = "{ $title }" gelöscht.
 value-activated-to-database = "{ $title }" aktiviert.
@@ -121,4 +128,5 @@ values-error-cannot-deactivate-active-cycle = Wert kann nicht deaktiviert werden
 cycles-error-no-rating-scales = Mindestens eine Bewertungsskala wird für das Erstellen eines Zyklus benötigt.
 cycles-error-no-company-values = Mindestens ein Unternehmenswert wird für das Erstellen eines Zyklus benötigt.
 cycles-error-dates-overlap = Die Zyklusdaten dürfen sich nicht mit einem bestehenden Zyklus überschneiden. Bitte wählen Sie ein Startdatum nach dem Ende bestehender Zyklen.
+cycles-error-eval-period-overlap = Der Bewertungszeitraum überschneidet sich mit einem bestehenden Zyklus. Bitte wählen Sie Daten, die nicht mit anderen Bewertungszeiträumen in Konflikt stehen.
 error-activate-out-of-period = Zyklus kann nicht aktiviert werden. Das heutige Datum liegt außerhalb des Zykluszeitraums.

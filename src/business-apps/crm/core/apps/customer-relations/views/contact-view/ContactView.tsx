@@ -160,6 +160,8 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       config={config}
       contactStatistics={contactStatistics}
       dataTestId="customer-contact-view"
+      enableExport
+      exportFilenamePrefix="contacts"
     />
   )
 }

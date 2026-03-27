@@ -78,23 +78,22 @@ export async function runConfirmStartCall(
 
     setCallState((prev: any) => ({ ...prev, transcriptionEnabled }))
 
-    const sessionResponse = await apiClient.createMeeting(
+    const sessionResponse = await apiClient.realtimeKitCreateMeeting({
       conversationId,
       callType,
-      currentUser?.odName,
-      undefined,
-      undefined,
-      conversationName,
+      displayName: currentUser?.odName,
+      meetingName: conversationName,
       transcriptionEnabled,
       calendarMeetingId,
-      conversationType === 'direct' && participants.length > 0
-        ? [
-            { id: currentUser.id, odName: currentUser.odName },
-            ...participants.map((p: CallParticipant) => ({ id: p.id, odName: p.odName }))
-          ]
-        : undefined,
+      participants:
+        conversationType === 'direct' && participants.length > 0
+          ? [
+              { id: currentUser.id, odName: currentUser.odName },
+              ...participants.map((p: CallParticipant) => ({ id: p.id, odName: p.odName }))
+            ]
+          : undefined,
       conversationType
-    )
+    })
 
     if (refs.abortControllerRef.current?.signal.aborted) {
       return
@@ -212,7 +211,7 @@ export async function runConfirmStartCall(
         }
         for (let i = 0; i < retries; i++) {
           try {
-            await options.calendarApiClient.resolveAndLinkSession(calendarMeetingId)
+            await options.calendarApiClient.resolveMeetingSession(calendarMeetingId)
             return
           } catch {
             if (i < retries - 1) await new Promise(r => setTimeout(r, delayMs))

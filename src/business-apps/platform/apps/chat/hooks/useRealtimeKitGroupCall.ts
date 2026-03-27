@@ -5,8 +5,8 @@
  */
 
 import { useEffect, useMemo, useRef } from 'react'
-import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
-import { RealtimeKitApiClient } from '../services/realtimeKitApiClient'
+import type { ChatWebSocketClient } from '@/common/network/chat/ChatWebSocketClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import type { CallParticipant } from '../services/webrtcClient'
 import type { UseGroupCallReturn } from '../services/callTypes'
 import { useCallPreferences } from './useCallPreferences'
@@ -21,7 +21,7 @@ import { useRealtimeKitCallActions } from './useRealtimeKitGroupCall/useRealtime
 
 export interface UseRealtimeKitGroupCallOptions {
   wsClient: ChatWebSocketClient | null
-  apiClient?: RealtimeKitApiClient | null
+  apiClient?: ChatClient | null
   chatApiClient?: any // ChatApiClient type for in-call chat
   calendarApiClient?: any // CalendarApiClient type
   currentUser: CallParticipant | null

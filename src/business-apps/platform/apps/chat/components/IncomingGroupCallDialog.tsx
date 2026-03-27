@@ -20,7 +20,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   MicrophoneIcon,
@@ -35,7 +36,7 @@ import {
   SpeakerHighIcon
 } from '@phosphor-icons/react'
 import type { GroupCallInvite } from '../services/callTypes'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 import { useMediaDevices } from '../hooks/useMediaDevices'
 import { MicLevelIndicator } from './call/MicLevelIndicator'
 
@@ -88,7 +89,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     onDecline,
     prefixDataTestId = 'incoming-group-call-dialog'
   }) => {
-    const t = useChatTranslation()
+    const { t } = useTranslation(translations)
     const [ringCount, setRingCount] = useState(0)
     const [isJoining, setIsJoining] = useState(false)
     const [micEnabled, setMicEnabled] = useState(true)

@@ -2,6 +2,7 @@ title = Configurare ciclu de evaluare a performanței
 subtitle = Creează și gestionează cicluri de evaluare a performanței
 
 tab-cycles = Cicluri
+tab-performance = Cicluri de performanță
 tab-rating-scales = Scale de evaluare
 tab-values = Valori
 
@@ -11,15 +12,19 @@ button-save = Salvează
 button-start = Pornește
 button-activate = Activează
 button-deactivate = Dezactivează
+button-complete = Finalizează
 button-delete = Șterge
 
 table-name = Nume
-table-dates = Perioadă
+table-dates = Date de execuție
 table-type = Tip
 table-scale = Scală
 table-participants = Participanți
 table-status = Stare
-table-evaluation-period = Perioada de evaluare
+status-completed = Finalizat
+status-in-progress = În desfășurare
+cycle-already-started = "{ $name }" a fost deja pornit.
+table-evaluation-period = Perioadă evaluată
 table-actions = Acțiuni
 empty-no-cycles = Nu există încă cicluri create.
 empty-no-values = Nu există încă valori definite.
@@ -29,13 +34,13 @@ modal-edit-title = Editează ciclul
 modal-description = Configurează detaliile ciclului de evaluare a performanței.
 
 field-name = Nume
-field-start-date = Data începerii
-field-end-date = Data încheierii
+field-start-date = Dată început execuție
+field-end-date = Dată sfârșit execuție
 field-frequency = Frecvență/Tip
 field-rating-scale = Scală de evaluare
 label-evaluation-participants = Participanți la evaluare
-field-evaluation-period-start = Început perioadă evaluare
-field-evaluation-period-end = Sfârșit perioadă evaluare
+field-evaluation-period-start = Început perioadă evaluată
+field-evaluation-period-end = Sfârșit perioadă evaluată
 field-values = Valori
 field-title = Titlu
 field-description = Descriere
@@ -76,7 +81,7 @@ participant-hr-team = Echipa HR
 # Frecvență
 frequency-annual = Anual
 frequency-quarterly = Trimestrial
-frequency-custom = Personalizat
+frequency-monthly = Lunar
 
 # Tabel scale de evaluare
 empty-no-rating-scales = Nu există încă scale de evaluare definite.
@@ -85,8 +90,10 @@ scale-deleted-to-database = Scala de evaluare "{ $name }" a fost ștearsă.
 cycle-saved-to-database = Ciclul de performanță "{ $name }" a fost salvat.
 cycle-activated-to-database = "{ $name }" a fost activat.
 cycle-deactivated-to-database = "{ $name }" a fost dezactivat.
+cycle-completed-to-database = "{ $name }" a fost marcat ca finalizat.
 cycle-deleted-to-database = "{ $name }" a fost șters.
 cycle-started = Se pornește ciclul: { $name }
+cycle-start-rating-scale-required = O scară de evaluare este necesară înainte de a porni "{ $name }". Vă rugăm editați ciclul și selectați o scară de evaluare.
 value-saved-to-database = Valoarea companiei "{ $title }" a fost salvată.
 value-deleted-to-database = "{ $title }" a fost ștearsă.
 value-activated-to-database = "{ $title }" a fost activată.
@@ -121,4 +128,5 @@ values-error-cannot-deactivate-active-cycle = Valoarea nu poate fi dezactivată 
 cycles-error-no-rating-scales = Este necesară cel puțin o scală de evaluare pentru a crea un ciclu.
 cycles-error-no-company-values = Este necesară cel puțin o valoare de companie pentru a crea un ciclu.
 cycles-error-dates-overlap = Datele ciclului nu pot suprapune cu un ciclu existent. Alegeți o dată de început după sfârșitul ciclurilor existente.
+cycles-error-eval-period-overlap = Perioada de evaluare se suprapune cu un ciclu existent. Alegeți date care nu intră în conflict cu alte perioade de evaluare.
 error-activate-out-of-period = Ciclul nu poate fi activat. Data de astăzi este în afara perioadei ciclului.

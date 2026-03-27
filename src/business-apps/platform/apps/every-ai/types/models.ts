@@ -150,6 +150,16 @@ export type NavigationData = {
   reason: string
 }
 
+export type ChatReferenceData = {
+  type: 'chat_reference'
+  id: string
+  message_id?: string
+  conversation_type?: string
+  snippet: string
+  sender_name?: string
+  timestamp?: string
+}
+
 export type { AssetSummaryData, TeamAvailabilityData }
 export type { CrmFunnelData }
 export type DisplayData =
@@ -165,6 +175,7 @@ export type DisplayData =
   | CrmFunnelData
   | AssetSummaryData
   | TeamAvailabilityData
+  | ChatReferenceData
 
 export type NextStepProposal = {
   heading: string
@@ -192,6 +203,20 @@ export type ErrorOutput = {
   text?: string
 }
 
+export type BulkFlowProposalItem = {
+  key: string
+  label?: string
+  overrides: Record<string, any>
+  metadata?: Record<string, any>
+}
+
+export type BulkFlowProposal = {
+  varying_field: string
+  items: BulkFlowProposalItem[]
+  item_label?: string
+  require_explicit_item_confirmation?: boolean
+}
+
 export type FlowProposalOutput = {
   type: 'flow_proposal'
   flow_name: string
@@ -207,6 +232,7 @@ export type FlowProposalOutput = {
     required?: string[]
     properties?: Record<string, any>
   }
+  bulk_operation?: BulkFlowProposal
 }
 
 export type DocumentStreamStartOutput = {
