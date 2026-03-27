@@ -19,11 +19,15 @@ import {
 } from '@newwork/nw-design-system'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
+import {
+  type CatalogTranslationValues,
+  getCatalogTranslationValues
+} from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 import translations from '../_i18n'
 
 export interface AbsenceTypeModalValues {
   code: string
-  name: string
+  translations: CatalogTranslationValues
   parentEntryId: string
 }
 
@@ -37,13 +41,17 @@ interface AbsenceTypeModalProps {
 
 const emptyFormState = {
   code: '',
-  name: '',
   parentEntryId: ''
 }
 
 export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }: Readonly<AbsenceTypeModalProps>) {
   const { t } = useTranslation(translations)
   const [formValues, setFormValues] = useState(emptyFormState)
+  const [translationValues, setTranslationValues] = useState<CatalogTranslationValues>({
+    enUS: '',
+    deDE: '',
+    roRO: ''
+  })
   const [isSaving, setIsSaving] = useState(false)
 
   const groupOptions = groups.map(group => ({
@@ -63,18 +71,19 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }:
 
     if (!absenceType) {
       setFormValues(emptyFormState)
+      setTranslationValues({ enUS: '', deDE: '', roRO: '' })
       return
     }
 
     setFormValues({
       code: absenceType.code || '',
-      name: absenceType.translations?.find(item => item.localeCode === 'en-US')?.value || absenceType.value || '',
       parentEntryId: absenceType.parentEntryId || ''
     })
+    setTranslationValues(getCatalogTranslationValues(absenceType))
   }, [absenceType, open])
 
   const isSaveDisabled =
-    isSaving || !formValues.code.trim() || !formValues.name.trim() || !formValues.parentEntryId.trim()
+    isSaving || !formValues.code.trim() || !translationValues.enUS.trim() || !formValues.parentEntryId.trim()
 
   const handleSubmit = async () => {
     if (isSaveDisabled) {
@@ -85,7 +94,11 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }:
       setIsSaving(true)
       await onSave({
         code: formValues.code.trim(),
-        name: formValues.name.trim(),
+        translations: {
+          enUS: translationValues.enUS.trim(),
+          deDE: translationValues.deDE.trim(),
+          roRO: translationValues.roRO.trim()
+        },
         parentEntryId: formValues.parentEntryId.trim()
       })
     } catch (saveError) {
@@ -133,15 +146,35 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }:
                 </div>
 
                 <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-name">
-                    {t('field-name-label')}
+                  <Label htmlFor="absence-type-name-en">
+                    {t('field-name-en-label')}
                     <span className="gba:text-destructive"> *</span>
                   </Label>
                   <Input
-                    id="absence-type-name"
-                    value={formValues.name}
-                    onChange={event => setFormValues(current => ({ ...current, name: event.target.value }))}
-                    data-testid="absence-type-name-input"
+                    id="absence-type-name-en"
+                    value={translationValues.enUS}
+                    onChange={event => setTranslationValues(current => ({ ...current, enUS: event.target.value }))}
+                    data-testid="absence-type-name-en-input"
+                  />
+                </div>
+
+                <div className="gba:space-y-2">
+                  <Label htmlFor="absence-type-name-de">{t('field-name-de-label')}</Label>
+                  <Input
+                    id="absence-type-name-de"
+                    value={translationValues.deDE}
+                    onChange={event => setTranslationValues(current => ({ ...current, deDE: event.target.value }))}
+                    data-testid="absence-type-name-de-input"
+                  />
+                </div>
+
+                <div className="gba:space-y-2">
+                  <Label htmlFor="absence-type-name-ro">{t('field-name-ro-label')}</Label>
+                  <Input
+                    id="absence-type-name-ro"
+                    value={translationValues.roRO}
+                    onChange={event => setTranslationValues(current => ({ ...current, roRO: event.target.value }))}
+                    data-testid="absence-type-name-ro-input"
                   />
                 </div>
 

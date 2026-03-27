@@ -1,6 +1,11 @@
 # Page
 page-title = Absence Setup
 page-description = Manage absence types, versions, and entitlement templates from one place.
+absence-type-management-title = Absence Types and Versions
+absence-type-management-description = Manage absence types together with their versions so the relationship stays clear.
+header-sections-count = { $count } sections
+header-entries-count = { $count } entries
+header-current-view = View: { $view }
 
 # Sections
 absence-types-title = Absence Types
@@ -8,13 +13,13 @@ absence-types-description = Create and maintain the base absence categories used
 absence-groups-title = Absence Groups
 absence-groups-description = Organize absence types into groups.
 absence-policies-title = Absence Policies
-absence-policies-description = Manage policy catalog entries used for absence governance.
-absence-reasons-title = Absence Reasons
-absence-reasons-description = Manage the reason catalog entries available for absence requests.
+absence-policies-description = Store advanced policy rule definitions for absence governance. These rules are not consumed elsewhere yet.
 absence-type-versions-title = Absence Type Versions
 absence-type-versions-description = Configure version-specific rules and operational settings.
 absence-entitlements-title = Absence Entitlements
 absence-entitlements-description = Define yearly and special entitlement templates for absence types.
+entitlement-rules-title = Entitlement Rules
+entitlement-rules-description = Store entitlement rule templates for absence types. These rules are not consumed directly by runtime flows yet.
 
 # Common actions and states
 add-absence-type-button = Add Absence Type
@@ -42,15 +47,39 @@ empty-absence-entitlements = No absence entitlements configured yet.
 no-group = No group
 status-active = Active
 status-inactive = Inactive
+filter-all-label = All
+sort-a-to-z-label = A to Z
+sort-z-to-a-label = Z to A
+section-search-placeholder = Search { $entity }...
+section-results-count = Showing { $count } of { $total } entries
+section-no-results-title = No matching entries
+section-no-results-description = Try a different search term or filter.
+details-panel-title = Details
+details-panel-empty-description = Select an entry to inspect its most relevant details.
+details-empty-value = Not available
 untitled-absence-type = Untitled absence type
 untitled-absence-type-version = Untitled absence type version
 untitled-entitlement = Untitled entitlement
 absence-type-entity-label = Absence Type
 absence-type-version-entity-label = Absence Type Version
-absence-entitlement-entity-label = Absence Entitlement
+absence-entitlement-entity-label = Entitlement Rule
 absence-group-entity-label = Absence Group
 absence-policy-entity-label = Absence Policy
 absence-reason-entity-label = Absence Reason
+details-label-name = Name
+details-label-code = Code
+details-label-group = Group
+details-label-icon = Icon
+details-label-color = Color
+details-label-measurement = Measurement
+details-label-access = Access
+details-label-priority = Priority
+details-label-type = Type
+details-label-full-time = Full-time setup
+details-label-detail-count = Detail entries
+details-label-working-time = Counts as working time
+details-value-yes = Yes
+details-value-no = No
 
 # Delete dialog and toasts
 delete-absence-type-title = Delete absence type
@@ -135,15 +164,23 @@ validation-name-required = English name is required.
 validation-group-required = Group is required.
 validation-absence-type-required = Select an absence type first.
 validation-duplicate-code = Code "{ $code }" already exists. Use a different code.
+validation-version-required = Version is required.
+validation-duplicate-version = This version already exists for the selected absence type.
+validation-valid-to-before-valid-from = Valid to must be on or after valid from.
+validation-overlapping-version-dates = The selected validity dates overlap with another version of this absence type.
 access-by-employee = Employee
 access-by-manager = Manager
 access-by-assistant = Assistant
 access-by-hr = HR
-toggle-display = Display
-toggle-enable-reason = Reason
-toggle-enable-approval = Approval
-toggle-check-entitlement = Check entitlement
-toggle-attachment = Attachment
+toggle-display-balance = Show Balance in Personal Absence Overview
+toggle-requires-approval = Requires Approval
+toggle-requires-entitlement = Requires Entitlement
+toggle-show-document-upload = Show Document Upload
+toggle-allow-half-days = Allow Half Days
+toggle-show-substitute-selection = Show Substitute Selection
+toggle-requires-substitute = Requires Substitute
+toggle-requires-attachment = Requires Attachment
+toggle-counts-as-working-time = Counts as Working Time
 
 # Absence type version modal
 version-modal-create-title = Add absence type version
@@ -152,7 +189,13 @@ version-modal-description = Configure version settings and access options for th
 version-basic-section-title = Basic information
 version-settings-section-title = Settings
 version-access-section-title = Access options
+field-absence-type-label = Absence Type
+field-absence-type-placeholder = Select absence type
+field-absence-type-search-placeholder = Search absence type by code or name
 field-version-label = Version
+field-version-name-en-label = Version label (English)
+field-version-name-de-label = Version label (German)
+field-version-name-ro-label = Version label (Romanian)
 field-valid-from-label = Valid from
 field-valid-to-label = Valid to
 field-color-token-label = Visual color token
@@ -179,9 +222,9 @@ toggle-access-plan = Plan
 toggle-access-request = Request
 
 # Absence entitlement modal
-entitlement-modal-create-title = Add absence entitlement
-entitlement-modal-edit-title = Edit absence entitlement
-entitlement-modal-description = Configure the entitlement template and map allowance amounts to absence types.
+entitlement-modal-create-title = Add entitlement rule
+entitlement-modal-edit-title = Edit entitlement rule
+entitlement-modal-description = Configure the entitlement rule template and map allowance amounts to absence types.
 entitlement-basic-section-title = Basic information
 entitlement-yearly-section-title = Yearly configuration
 entitlement-rows-section-title = Annual entitlements by absence type

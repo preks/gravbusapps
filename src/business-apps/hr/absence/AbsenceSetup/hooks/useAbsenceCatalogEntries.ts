@@ -3,6 +3,7 @@ import { toast } from '@newwork/nw-design-system'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import type { CatalogEntry, GetCatalogEntriesParams, GetCatalogsParams } from '@/common/types/CatalogTypes'
 import type { JSONValue } from '@/common/types/i18nTypes'
+import { buildSoftDeletedObjectValue, isCatalogEntryDeleted } from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 
 export interface AbsenceCatalogEntryPayload {
   id?: string
@@ -70,7 +71,8 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
         limit: 200,
         offset: 0
       }
-      setEntries(await fetchEntries(queryParams))
+      const loadedEntries = await fetchEntries(queryParams)
+      setEntries(loadedEntries.filter(entry => !isCatalogEntryDeleted(entry)))
     } catch (err) {
       const resolvedError = err instanceof Error ? err : new Error(`Failed to fetch ${catalogIdentifier} entries`)
       console.error(`[useAbsenceCatalogEntries] Failed to fetch ${catalogIdentifier}:`, resolvedError.message)
@@ -129,16 +131,26 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
     [catalogIdentifier, client]
   )
 
-  const deleteEntry = useCallback(
+  const softDeleteEntry = useCallback(
     async (entryId: string) => {
       if (!client) {
         throw new Error('Catalog manager client not available')
       }
 
-      await client.deleteCatalogEntry(catalogIdentifier, CATALOG_VERSION, entryId)
+      const existingEntry = entries.find(item => item.id === entryId) || (await client.getCatalogEntryById(entryId))
+
+      await client.updateCatalogEntry(catalogIdentifier, CATALOG_VERSION, entryId, {
+        code: existingEntry.code,
+        value: existingEntry.value,
+        parentEntryId: existingEntry.parentEntryId,
+        objectValue: buildSoftDeletedObjectValue(existingEntry.objectValue),
+        localeCode: existingEntry.localeCode || 'en-US',
+        translations: existingEntry.translations || [],
+        isDeleted: true
+      } as any)
       setEntries(prev => prev.filter(item => item.id !== entryId))
     },
-    [catalogIdentifier, client]
+    [catalogIdentifier, client, entries]
   )
 
   return {
@@ -147,7 +159,7 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
     error,
     createEntry,
     updateEntry,
-    deleteEntry,
+    deleteEntry: softDeleteEntry,
     fetchEntries,
     refetch: loadEntries
   }

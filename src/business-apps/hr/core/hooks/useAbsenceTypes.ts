@@ -3,6 +3,7 @@ import { toast } from '@newwork/nw-design-system'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import type { CatalogEntry, GetCatalogEntriesParams, GetCatalogsParams } from '@/common/types/CatalogTypes'
+import { buildSoftDeletedObjectValue, isCatalogEntryDeleted } from '../utils/catalogEntryHelpers'
 
 const ABSENCE_TYPE_CATALOG = 'AbsenceType'
 const ABSENCE_TYPE_VERSION = 'v1'
@@ -56,7 +57,7 @@ const useAbsenceTypes = (accessToken: string) => {
       }
 
       const response = await client.getCatalogEntriesList(pathParams, queryParams)
-      const entries = (response?.data || []) as CatalogEntry[]
+      const entries = ((response?.data || []) as CatalogEntry[]).filter(entry => !isCatalogEntryDeleted(entry))
       setAbsenceTypes(entries.map(mapCatalogEntryToAbsenceType))
     } catch (err) {
       const resolvedError = err instanceof Error ? err : new Error('Failed to fetch absence types')
@@ -127,16 +128,30 @@ const useAbsenceTypes = (accessToken: string) => {
     [absenceTypes, client]
   )
 
-  const deleteAbsenceType = useCallback(
+  const softDeleteAbsenceType = useCallback(
     async (id: string) => {
       if (!client) {
         throw new Error('Catalog manager client not available')
       }
 
-      await client.deleteCatalogEntry(
+      const existingType = absenceTypes.find(item => item.id === id)
+      if (!existingType) {
+        throw new Error('Absence type not found')
+      }
+
+      await client.updateCatalogEntry(
         ABSENCE_TYPE_CATALOG,
         ABSENCE_TYPE_VERSION,
-        resolveCatalogEntryId(absenceTypes, id)
+        resolveCatalogEntryId(absenceTypes, id),
+        {
+          code: existingType.code,
+          value: existingType.value,
+          parentEntryId: existingType.parentEntryId,
+          objectValue: buildSoftDeletedObjectValue(existingType.objectValue),
+          localeCode: existingType.localeCode || 'en-US',
+          translations: existingType.translations || [],
+          isDeleted: true
+        } as any
       )
       setAbsenceTypes(prev => prev.filter(item => item.id !== id))
     },
@@ -149,7 +164,7 @@ const useAbsenceTypes = (accessToken: string) => {
     error,
     createAbsenceType,
     updateAbsenceType,
-    deleteAbsenceType,
+    deleteAbsenceType: softDeleteAbsenceType,
     refetch: loadAbsenceTypes
   }
 }

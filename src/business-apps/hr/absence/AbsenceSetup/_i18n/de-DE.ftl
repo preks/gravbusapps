@@ -1,6 +1,11 @@
 # Page
 page-title = Abwesenheitskonfiguration
 page-description = Verwalte Abwesenheitstypen, Versionen und Anspruchsvorlagen an einem Ort.
+absence-type-management-title = Abwesenheitstypen und Versionen
+absence-type-management-description = Verwalte Abwesenheitstypen zusammen mit ihren Versionen, damit der Zusammenhang klar bleibt.
+header-sections-count = { $count } Bereiche
+header-entries-count = { $count } Eintraege
+header-current-view = Ansicht: { $view }
 
 # Sections
 absence-types-title = Abwesenheitstypen
@@ -8,13 +13,13 @@ absence-types-description = Erstelle und pflege die grundlegenden Abwesenheitska
 absence-groups-title = Abwesenheitsgruppen
 absence-groups-description = Ordne Abwesenheitstypen in Gruppen.
 absence-policies-title = Abwesenheitsrichtlinien
-absence-policies-description = Verwalte Richtlinienkataloge fuer die Steuerung von Abwesenheiten.
-absence-reasons-title = Abwesenheitsgruende
-absence-reasons-description = Verwalte die Gruende, die fuer Abwesenheitsantraege verfuegbar sind.
+absence-policies-description = Speichere erweiterte Richtlinienregeln fuer die Steuerung von Abwesenheiten. Diese Regeln werden derzeit noch nicht an anderer Stelle verwendet.
 absence-type-versions-title = Versionen von Abwesenheitstypen
 absence-type-versions-description = Konfiguriere versionsspezifische Regeln und operative Einstellungen.
 absence-entitlements-title = Abwesenheitsansprueche
 absence-entitlements-description = Definiere jaehrliche und spezielle Anspruchsvorlagen fuer Abwesenheitstypen.
+entitlement-rules-title = Anspruchsregeln
+entitlement-rules-description = Speichere Vorlagen fuer Anspruchsregeln von Abwesenheitstypen. Diese Regeln werden derzeit noch nicht direkt in Laufzeitablaeufen verwendet.
 
 # Common actions and states
 add-absence-type-button = Abwesenheitstyp hinzufuegen
@@ -42,15 +47,39 @@ empty-absence-entitlements = Es sind noch keine Abwesenheitsansprueche konfiguri
 no-group = Keine Gruppe
 status-active = Aktiv
 status-inactive = Inaktiv
+filter-all-label = Alle
+sort-a-to-z-label = A bis Z
+sort-z-to-a-label = Z bis A
+section-search-placeholder = { $entity } suchen...
+section-results-count = { $count } von { $total } Eintraegen werden angezeigt
+section-no-results-title = Keine passenden Eintraege
+section-no-results-description = Versuche einen anderen Suchbegriff oder Filter.
+details-panel-title = Details
+details-panel-empty-description = Waehle einen Eintrag aus, um die wichtigsten Details anzuzeigen.
+details-empty-value = Nicht verfuegbar
 untitled-absence-type = Unbenannter Abwesenheitstyp
 untitled-absence-type-version = Unbenannte Version des Abwesenheitstyps
 untitled-entitlement = Unbenannter Anspruch
 absence-type-entity-label = Abwesenheitstyp
 absence-type-version-entity-label = Version des Abwesenheitstyps
-absence-entitlement-entity-label = Abwesenheitsanspruch
+absence-entitlement-entity-label = Anspruchsregel
 absence-group-entity-label = Abwesenheitsgruppe
 absence-policy-entity-label = Abwesenheitsrichtlinie
 absence-reason-entity-label = Abwesenheitsgrund
+details-label-name = Name
+details-label-code = Code
+details-label-group = Gruppe
+details-label-icon = Symbol
+details-label-color = Farbe
+details-label-measurement = Messgroesse
+details-label-access = Zugriff
+details-label-priority = Prioritaet
+details-label-type = Typ
+details-label-full-time = Vollzeitkonfiguration
+details-label-detail-count = Detaileintraege
+details-label-working-time = Zaehlt als Arbeitszeit
+details-value-yes = Ja
+details-value-no = Nein
 
 # Delete dialog and toasts
 delete-absence-type-title = Abwesenheitstyp loeschen
@@ -135,15 +164,23 @@ validation-name-required = Der englische Name ist erforderlich.
 validation-group-required = Gruppe ist erforderlich.
 validation-absence-type-required = Waehle zuerst einen Abwesenheitstyp aus.
 validation-duplicate-code = Der Code "{ $code }" existiert bereits. Bitte verwende einen anderen Code.
+validation-version-required = Die Version ist erforderlich.
+validation-duplicate-version = Diese Version existiert bereits fuer den ausgewaehlten Abwesenheitstyp.
+validation-valid-to-before-valid-from = Gueltig bis muss am oder nach Gueltig ab liegen.
+validation-overlapping-version-dates = Der ausgewaehlte Gueltigkeitszeitraum ueberschneidet sich mit einer anderen Version dieses Abwesenheitstyps.
 access-by-employee = Mitarbeiter
 access-by-manager = Manager
 access-by-assistant = Assistent
 access-by-hr = HR
-toggle-display = Anzeigen
-toggle-enable-reason = Grund
-toggle-enable-approval = Genehmigung
-toggle-check-entitlement = Anspruch pruefen
-toggle-attachment = Anhang
+toggle-display-balance = Kontostand in der persoenlichen Abwesenheitsuebersicht anzeigen
+toggle-requires-approval = Genehmigung erforderlich
+toggle-requires-entitlement = Anspruch erforderlich
+toggle-show-document-upload = Dokumentenupload anzeigen
+toggle-allow-half-days = Halbe Tage erlauben
+toggle-show-substitute-selection = Vertretungsauswahl anzeigen
+toggle-requires-substitute = Vertretung erforderlich
+toggle-requires-attachment = Anhang erforderlich
+toggle-counts-as-working-time = Zaehlt als Arbeitszeit
 
 # Absence type version modal
 version-modal-create-title = Version des Abwesenheitstyps hinzufuegen
@@ -152,7 +189,13 @@ version-modal-description = Konfiguriere Versionseinstellungen und Zugriffsoptio
 version-basic-section-title = Grundinformationen
 version-settings-section-title = Einstellungen
 version-access-section-title = Zugriffsoptionen
+field-absence-type-label = Abwesenheitstyp
+field-absence-type-placeholder = Abwesenheitstyp auswaehlen
+field-absence-type-search-placeholder = Abwesenheitstyp nach Code oder Name suchen
 field-version-label = Version
+field-version-name-en-label = Versionsbezeichnung (Englisch)
+field-version-name-de-label = Versionsbezeichnung (Deutsch)
+field-version-name-ro-label = Versionsbezeichnung (Rumaenisch)
 field-valid-from-label = Gueltig ab
 field-valid-to-label = Gueltig bis
 field-color-token-label = Visuelles Farb-Token
@@ -179,9 +222,9 @@ toggle-access-plan = Plan
 toggle-access-request = Antrag
 
 # Absence entitlement modal
-entitlement-modal-create-title = Abwesenheitsanspruch hinzufuegen
-entitlement-modal-edit-title = Abwesenheitsanspruch bearbeiten
-entitlement-modal-description = Konfiguriere die Anspruchsvorlage und ordne Betragswerte den Abwesenheitstypen zu.
+entitlement-modal-create-title = Anspruchsregel hinzufuegen
+entitlement-modal-edit-title = Anspruchsregel bearbeiten
+entitlement-modal-description = Konfiguriere die Vorlage fuer die Anspruchsregel und ordne Betragswerte den Abwesenheitstypen zu.
 entitlement-basic-section-title = Grundinformationen
 entitlement-yearly-section-title = Jaehrliche Konfiguration
 entitlement-rows-section-title = Jaehrliche Ansprueche nach Abwesenheitstyp

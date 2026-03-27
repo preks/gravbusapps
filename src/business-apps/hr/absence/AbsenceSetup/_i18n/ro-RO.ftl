@@ -1,6 +1,11 @@
 # Page
 page-title = Configurare absente
 page-description = Gestioneaza tipurile de absenta, versiunile si sabloanele de drepturi dintr-un singur loc.
+absence-type-management-title = Tipuri de absenta si versiuni
+absence-type-management-description = Gestioneaza tipurile de absenta impreuna cu versiunile lor, astfel incat relatia sa fie mai clara.
+header-sections-count = { $count } sectiuni
+header-entries-count = { $count } intrari
+header-current-view = Vizualizare: { $view }
 
 # Sections
 absence-types-title = Tipuri de absenta
@@ -8,13 +13,13 @@ absence-types-description = Creeaza si mentine categoriile de baza pentru absent
 absence-groups-title = Grupuri de absenta
 absence-groups-description = Organizeaza tipurile de absenta in grupuri.
 absence-policies-title = Politici de absenta
-absence-policies-description = Gestioneaza intrarile de catalog pentru politicile de absenta.
-absence-reasons-title = Motive de absenta
-absence-reasons-description = Gestioneaza motivele disponibile pentru cererile de absenta.
+absence-policies-description = Stocheaza definitii avansate de reguli pentru politicile de absenta. Aceste reguli nu sunt folosite inca in alte fluxuri.
 absence-type-versions-title = Versiuni ale tipurilor de absenta
 absence-type-versions-description = Configureaza reguli specifice versiunii si setari operationale.
 absence-entitlements-title = Drepturi de absenta
 absence-entitlements-description = Defineste sabloane anuale si speciale de drepturi pentru tipurile de absenta.
+entitlement-rules-title = Reguli de drepturi
+entitlement-rules-description = Stocheaza sabloane de reguli pentru drepturile tipurilor de absenta. Aceste reguli nu sunt folosite direct in fluxurile runtime inca.
 
 # Common actions and states
 add-absence-type-button = Adauga tip de absenta
@@ -42,15 +47,39 @@ empty-absence-entitlements = Nu exista inca drepturi de absenta configurate.
 no-group = Fara grup
 status-active = Activ
 status-inactive = Inactiv
+filter-all-label = Toate
+sort-a-to-z-label = A la Z
+sort-z-to-a-label = Z la A
+section-search-placeholder = Cauta in { $entity }...
+section-results-count = Se afiseaza { $count } din { $total } intrari
+section-no-results-title = Nu exista intrari potrivite
+section-no-results-description = Incearca alt termen de cautare sau alt filtru.
+details-panel-title = Detalii
+details-panel-empty-description = Selecteaza o intrare pentru a vedea cele mai importante detalii.
+details-empty-value = Indisponibil
 untitled-absence-type = Tip de absenta fara nume
 untitled-absence-type-version = Versiune de tip de absenta fara nume
 untitled-entitlement = Drept fara nume
 absence-type-entity-label = Tip de absenta
 absence-type-version-entity-label = Versiune tip de absenta
-absence-entitlement-entity-label = Drept de absenta
+absence-entitlement-entity-label = Regula de drepturi
 absence-group-entity-label = Grup de absenta
 absence-policy-entity-label = Politica de absenta
 absence-reason-entity-label = Motiv de absenta
+details-label-name = Nume
+details-label-code = Cod
+details-label-group = Grup
+details-label-icon = Pictograma
+details-label-color = Culoare
+details-label-measurement = Unitate de masura
+details-label-access = Acces
+details-label-priority = Prioritate
+details-label-type = Tip
+details-label-full-time = Configurare norma intreaga
+details-label-detail-count = Intrari de detaliu
+details-label-working-time = Se considera timp de lucru
+details-value-yes = Da
+details-value-no = Nu
 
 # Delete dialog and toasts
 delete-absence-type-title = Sterge tipul de absenta
@@ -135,15 +164,23 @@ validation-name-required = Numele in engleza este obligatoriu.
 validation-group-required = Grupul este obligatoriu.
 validation-absence-type-required = Selecteaza mai intai un tip de absenta.
 validation-duplicate-code = Codul "{ $code }" exista deja. Foloseste un alt cod.
+validation-version-required = Versiunea este obligatorie.
+validation-duplicate-version = Aceasta versiune exista deja pentru tipul de absenta selectat.
+validation-valid-to-before-valid-from = Valabil pana la trebuie sa fie in aceeasi zi sau dupa data de inceput.
+validation-overlapping-version-dates = Intervalul de valabilitate selectat se suprapune cu o alta versiune a acestui tip de absenta.
 access-by-employee = Angajat
 access-by-manager = Manager
 access-by-assistant = Asistent
 access-by-hr = HR
-toggle-display = Afisare
-toggle-enable-reason = Motiv
-toggle-enable-approval = Aprobare
-toggle-check-entitlement = Verifica dreptul
-toggle-attachment = Atasament
+toggle-display-balance = Afiseaza soldul in pagina de absente personale
+toggle-requires-approval = Necesita aprobare
+toggle-requires-entitlement = Necesita drept
+toggle-show-document-upload = Afiseaza incarcarea documentelor
+toggle-allow-half-days = Permite jumatati de zi
+toggle-show-substitute-selection = Afiseaza selectia inlocuitorului
+toggle-requires-substitute = Necesita inlocuitor
+toggle-requires-attachment = Necesita atasament
+toggle-counts-as-working-time = Se considera timp de lucru
 
 # Absence type version modal
 version-modal-create-title = Adauga versiune de tip de absenta
@@ -152,7 +189,13 @@ version-modal-description = Configureaza setarile versiunii si optiunile de acce
 version-basic-section-title = Informatii de baza
 version-settings-section-title = Setari
 version-access-section-title = Optiuni de acces
+field-absence-type-label = Tip de absenta
+field-absence-type-placeholder = Selecteaza tipul de absenta
+field-absence-type-search-placeholder = Cauta tipul de absenta dupa cod sau nume
 field-version-label = Versiune
+field-version-name-en-label = Eticheta versiune (engleza)
+field-version-name-de-label = Eticheta versiune (germana)
+field-version-name-ro-label = Eticheta versiune (romana)
 field-valid-from-label = Valabil de la
 field-valid-to-label = Valabil pana la
 field-color-token-label = Token de culoare vizuala
@@ -179,9 +222,9 @@ toggle-access-plan = Plan
 toggle-access-request = Cerere
 
 # Absence entitlement modal
-entitlement-modal-create-title = Adauga drept de absenta
-entitlement-modal-edit-title = Editeaza dreptul de absenta
-entitlement-modal-description = Configureaza sablonul de drept si aloca valorile la tipurile de absenta.
+entitlement-modal-create-title = Adauga regula de drepturi
+entitlement-modal-edit-title = Editeaza regula de drepturi
+entitlement-modal-description = Configureaza sablonul regulii de drepturi si aloca valorile la tipurile de absenta.
 entitlement-basic-section-title = Informatii de baza
 entitlement-yearly-section-title = Configurare anuala
 entitlement-rows-section-title = Drepturi anuale dupa tipul de absenta

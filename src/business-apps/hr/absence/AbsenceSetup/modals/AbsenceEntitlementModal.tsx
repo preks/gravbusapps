@@ -23,6 +23,10 @@ import {
 } from '@newwork/nw-design-system'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
+import {
+  type CatalogTranslationValues,
+  getCatalogTranslationValues
+} from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 import translations from '../_i18n'
 import { AbsenceEntitlementSettingsSection } from '../components/AbsenceEntitlementSettingsSection'
 import {
@@ -39,7 +43,7 @@ import type { JSONObject } from '@/common/types/i18nTypes'
 
 export interface AbsenceEntitlementModalValues {
   code: string
-  name: string
+  translations: CatalogTranslationValues
   objectValue: AbsenceEntitlementObjectValue
 }
 
@@ -80,7 +84,11 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
   const { t } = useTranslation(translations)
   const nextDetailIdRef = useRef(0)
   const [code, setCode] = useState('')
-  const [name, setName] = useState('')
+  const [translationValues, setTranslationValues] = useState<CatalogTranslationValues>({
+    enUS: '',
+    deDE: '',
+    roRO: ''
+  })
   const [settings, setSettings] = useState<AbsenceEntitlementObjectSettings>(defaultAbsenceEntitlementObjectSettings)
   const [detailEntries, setDetailEntries] = useState<AbsenceEntitlementDetailEntry[]>([])
   const [extraObjectValue, setExtraObjectValue] = useState<JSONObject>({})
@@ -98,13 +106,13 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
       entitlement?.objectValue as AbsenceEntitlementObjectValue | undefined
     )
     setCode(entitlement?.code || '')
-    setName(entitlement?.value || '')
+    setTranslationValues(getCatalogTranslationValues(entitlement))
     setSettings(nextState.settings)
     setDetailEntries(nextState.detailEntries)
     setExtraObjectValue(nextState.extraObjectValue)
   }, [entitlement, open])
 
-  const isSaveDisabled = isSaving || !code.trim() || !name.trim()
+  const isSaveDisabled = isSaving || !code.trim() || !translationValues.enUS.trim()
 
   const updateSettingsField = <K extends keyof AbsenceEntitlementObjectSettings>(
     field: K,
@@ -158,7 +166,11 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
       setIsSaving(true)
       await onSave({
         code: code.trim(),
-        name: name.trim(),
+        translations: {
+          enUS: translationValues.enUS.trim(),
+          deDE: translationValues.deDE.trim(),
+          roRO: translationValues.roRO.trim()
+        },
         objectValue: buildAbsenceEntitlementObjectValue(settings, detailEntries, extraObjectValue)
       })
     } catch (saveError) {
@@ -204,12 +216,33 @@ export const AbsenceEntitlementModal: React.FC<AbsenceEntitlementModalProps> = (
                   />
                 </div>
                 <div className="gba:space-y-2">
-                  <Label htmlFor="absence-entitlement-name">{t('field-name-label')}</Label>
+                  <Label htmlFor="absence-entitlement-name-en">
+                    {t('field-name-en-label')}
+                    <span className="gba:text-destructive"> *</span>
+                  </Label>
                   <Input
-                    id="absence-entitlement-name"
-                    value={name}
-                    onChange={event => setName(event.target.value)}
-                    data-testid="absence-entitlement-name-input"
+                    id="absence-entitlement-name-en"
+                    value={translationValues.enUS}
+                    onChange={event => setTranslationValues(current => ({ ...current, enUS: event.target.value }))}
+                    data-testid="absence-entitlement-name-en-input"
+                  />
+                </div>
+                <div className="gba:space-y-2">
+                  <Label htmlFor="absence-entitlement-name-de">{t('field-name-de-label')}</Label>
+                  <Input
+                    id="absence-entitlement-name-de"
+                    value={translationValues.deDE}
+                    onChange={event => setTranslationValues(current => ({ ...current, deDE: event.target.value }))}
+                    data-testid="absence-entitlement-name-de-input"
+                  />
+                </div>
+                <div className="gba:space-y-2">
+                  <Label htmlFor="absence-entitlement-name-ro">{t('field-name-ro-label')}</Label>
+                  <Input
+                    id="absence-entitlement-name-ro"
+                    value={translationValues.roRO}
+                    onChange={event => setTranslationValues(current => ({ ...current, roRO: event.target.value }))}
+                    data-testid="absence-entitlement-name-ro-input"
                   />
                 </div>
                 <div className="gba:space-y-2">
