@@ -10,6 +10,11 @@ export type { OpportunityListLayoutProps } from './components/OpportunityListLay
 export { OpportunityBoardLayout } from './components/OpportunityBoardLayout'
 export type { OpportunityBoardLayoutProps } from './components/OpportunityBoardLayout'
 export { OpportunityStatisticsLayout, type OpportunityStatisticsData } from './components/OpportunityStatisticsLayout'
+export {
+  OpportunityAggregatesBar,
+  type OpportunityAggregates,
+  type OpportunityAggregatesBarProps
+} from './components/OpportunityAggregatesBar'
 export type {
   GenericOpportunityForBoard,
   OpportunityBoardConfig,

@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   buildInvestmentOpportunityQuery,
@@ -13,6 +13,7 @@ import {
 import { buildOpportunityCustomConditions, WON_STATUS_CONDITION } from '../../../config/divestmentOpportunityConditions'
 import { formatExportDate } from '@/common/utils/excelExportUtils'
 import { useExportBase } from '@/common/hooks/useExportBase'
+import { formatFlatCurrencyAmount } from '../../../../investment-view/data/shared/investmentAggregatesFormat'
 
 const EXITS_EXPORT_COLUMNS = [
   { key: 'name', title: 'Opportunity' },
@@ -38,15 +39,56 @@ const formatExitForExport = (opp: InvestmentOpportunity): Record<string, string>
   createdAt: formatExportDate(opp.createdAt)
 })
 
+interface ExitAmounts {
+  totalExitAmount: number | null
+  averageExitAmount: number | null
+  totalInvestmentAmount: number | null
+  avgInvestmentAmount: number | null
+}
+
+const buildExitsSummaryRows = (
+  totalCount: number,
+  exitAmounts: ExitAmounts | undefined,
+  displayCurrencyCode: string
+): Array<[string, string]> => {
+  const fmt = (v: number | null) => formatFlatCurrencyAmount(v, displayCurrencyCode)
+
+  if (!exitAmounts) {
+    return [['Count:', String(totalCount)]]
+  }
+
+  return [
+    ['Count:', String(totalCount)],
+    ['Total Estimated Amount:', fmt(exitAmounts.totalExitAmount)],
+    ['Average Estimated Amount:', fmt(exitAmounts.averageExitAmount)],
+    ['Total Investment Amount:', fmt(exitAmounts.totalInvestmentAmount)],
+    ['Average Investment Amount:', fmt(exitAmounts.avgInvestmentAmount)]
+  ]
+}
+
 interface UseExitsExportOptions {
   accessToken: string
   queryVariables: InvestmentOpportunityQueryVariables
   activeCurrency: string | undefined
   totalCount: number
+  exitAmounts?: ExitAmounts
+  displayCurrencyCode?: string
 }
 
-export function useExitsExport({ accessToken, queryVariables, activeCurrency, totalCount }: UseExitsExportOptions) {
+export function useExitsExport({
+  accessToken,
+  queryVariables,
+  activeCurrency,
+  totalCount,
+  exitAmounts,
+  displayCurrencyCode = 'EUR'
+}: UseExitsExportOptions) {
   const graphqlClient = useGraphQLClient(accessToken)
+
+  const summaryRows = useMemo(
+    () => buildExitsSummaryRows(totalCount, exitAmounts, displayCurrencyCode),
+    [totalCount, exitAmounts, displayCurrencyCode]
+  )
 
   const fetchAllItems = useCallback(async (): Promise<InvestmentOpportunity[]> => {
     const query = buildInvestmentOpportunityQuery()
@@ -73,6 +115,7 @@ export function useExitsExport({ accessToken, queryVariables, activeCurrency, to
     sheetName: 'Exits',
     entityLabel: 'exits',
     totalCount,
-    filenamePrefix: 'exits'
+    filenamePrefix: 'exits',
+    summaryRows
   })
 }

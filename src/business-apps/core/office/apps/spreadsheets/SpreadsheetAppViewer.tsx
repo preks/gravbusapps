@@ -215,6 +215,41 @@ const applyDeltaChangesToRows = (baseRows: ViewerRow[], changes: unknown[] | und
   return next
 }
 
+const SPREADSHEET_STRUCTURAL_REMOTE_OPS = new Set([
+  'row_add',
+  'row_delete',
+  'row_update',
+  'column_add',
+  'column_update',
+  'column_delete'
+])
+
+function getSpreadsheetOperationSheetId(data: unknown): string | undefined {
+  if (!data || typeof data !== 'object') return undefined
+  const d = data as Record<string, unknown>
+  return typeof d.sheetId === 'string' ? d.sheetId : undefined
+}
+
+/**
+ * Refuse to apply a delta when the server says so, when the version advanced without ops,
+ * or when the first logged version is past sinceVersion+1 (truncated log / column-only bumps).
+ */
+function sheetDeltaRequiresFullSnapshot(
+  sinceVersion: number,
+  delta: { currentVersion: number; changes?: unknown[]; requiresSnapshot?: boolean }
+): boolean {
+  if (delta.requiresSnapshot) return true
+  if (delta.currentVersion <= sinceVersion) return false
+  const changes = delta.changes || []
+  if (changes.length === 0) return true
+  const applied = changes
+    .map(c => Number((c as Record<string, unknown>).appliedVersion))
+    .filter(n => Number.isFinite(n) && n > 0)
+  if (applied.length === 0) return true
+  const minApplied = Math.min(...applied)
+  return minApplied > sinceVersion + 1
+}
+
 const mapSnapshotRowsToViewerRows = (snapshotRows: unknown[]): ViewerRow[] =>
   snapshotRows.map(row => {
     const rowRecord = row as Record<string, unknown>
@@ -727,6 +762,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const sheetVersionRef = useRef<number>(0)
+  const recoverFromVersionConflictRef = useRef<() => Promise<void>>(async () => {})
+  const remoteStructuralResyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const remoteVersionRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const snapshotSaveMetricsRef = useRef({
     attempts: 0,
     conflicts: 0,
@@ -1260,9 +1298,34 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [activeSheet.columns, localSheetDataRef]
   )
 
+  const scheduleRemoteStructuralResync = useCallback(() => {
+    if (remoteStructuralResyncTimeoutRef.current) clearTimeout(remoteStructuralResyncTimeoutRef.current)
+    remoteStructuralResyncTimeoutRef.current = setTimeout(() => {
+      remoteStructuralResyncTimeoutRef.current = null
+      void recoverFromVersionConflictRef.current()
+    }, 500)
+  }, [])
+
+  const scheduleSheetVersionRefreshFromApi = useCallback(() => {
+    if (remoteVersionRefreshTimeoutRef.current) clearTimeout(remoteVersionRefreshTimeoutRef.current)
+    remoteVersionRefreshTimeoutRef.current = setTimeout(() => {
+      remoteVersionRefreshTimeoutRef.current = null
+      void (async () => {
+        try {
+          const sheet = await SpreadsheetApiService.getSheet(app.id, activeSheetId)
+          if (sheet?.version != null) {
+            sheetVersionRef.current = Math.max(sheetVersionRef.current, Number(sheet.version))
+          }
+        } catch {
+          /* ignore */
+        }
+      })()
+    }, 250)
+  }, [app.id, activeSheetId])
+
   // --- Collaboration (header presence + Univer grid operations/cursors) ---
   const handleCollaborationOperation = useCallback(
-    (payload: { operation: { type: string; data?: unknown }; version?: number }) => {
+    (payload: { operation: { type: string; data?: unknown; broadcastOnly?: boolean }; version?: number }) => {
       const operation = payload.operation
       if (operation.type === 'dimension_sync') {
         const d = operation.data as CellDimensionsPayload | undefined
@@ -1271,6 +1334,27 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
         return
       }
+
+      const opSheetId = getSpreadsheetOperationSheetId(operation.data)
+      if (
+        opSheetId === activeSheetId &&
+        typeof payload.version === 'number' &&
+        Number.isFinite(payload.version) &&
+        payload.version >= 0
+      ) {
+        sheetVersionRef.current = Math.max(sheetVersionRef.current, Math.trunc(payload.version))
+      } else if (
+        opSheetId === activeSheetId &&
+        (operation.type === 'cell_update' || operation.type === 'cell_change') &&
+        payload.version == null
+      ) {
+        scheduleSheetVersionRefreshFromApi()
+      }
+
+      if (opSheetId === activeSheetId && SPREADSHEET_STRUCTURAL_REMOTE_OPS.has(operation.type)) {
+        scheduleRemoteStructuralResync()
+      }
+
       if (operation.type !== 'cell_update' && operation.type !== 'cell_change') return
       const d = operation.data as {
         sheetId?: string
@@ -1296,7 +1380,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         spreadsheetGridRef.current?.applyRemoteCellUpdate(rowIndex, colIndex, d.value)
       }
     },
-    [activeSheetId, localSheetDataRef, onDataChange, resolveRemoteCellCoordinates, setLocalSheetData]
+    [
+      activeSheetId,
+      localSheetDataRef,
+      onDataChange,
+      resolveRemoteCellCoordinates,
+      scheduleRemoteStructuralResync,
+      scheduleSheetVersionRefreshFromApi,
+      setLocalSheetData
+    ]
   )
 
   const collaboration = useSpreadsheetViewerCollaboration({
@@ -1394,8 +1486,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const recoverFromVersionConflict = useCallback(async () => {
     try {
-      const delta = await SpreadsheetApiService.getSheetChangesSince(app.id, activeSheetId, sheetVersionRef.current)
-      if (!delta.requiresSnapshot) {
+      const sinceVersion = sheetVersionRef.current
+      const delta = await SpreadsheetApiService.getSheetChangesSince(app.id, activeSheetId, sinceVersion)
+      if (!sheetDeltaRequiresFullSnapshot(sinceVersion, delta)) {
         const next = applyDeltaChangesToRows(localSheetDataRef.current, delta.changes)
         sheetVersionRef.current = Number(delta.currentVersion || sheetVersionRef.current)
         setLocalSheetData(next)
@@ -1413,6 +1506,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       setLocalSheetData(rows)
       lastPersistedSheetDataRef.current = rows
       onDataChange?.(activeSheetId, rows)
+
+      const sheetMeta = snapshot.sheet as Record<string, unknown> | undefined
+      if (onSheetUpdate && sheetMeta && Array.isArray(sheetMeta.columns)) {
+        void onSheetUpdate(app.id, activeSheetId, {
+          columns: sheetMeta.columns as SpreadsheetColumn[]
+        })
+      }
+
       debugLog('version conflict fallback snapshot loaded', {
         appId: app.id,
         sheetId: activeSheetId,
@@ -1428,10 +1529,22 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     app.id,
     localSheetDataRef,
     onDataChange,
+    onSheetUpdate,
     setLocalSheetData,
     sheetPersist.recordSuccess,
     versioning.markAsSaved
   ])
+
+  useEffect(() => {
+    recoverFromVersionConflictRef.current = recoverFromVersionConflict
+  }, [recoverFromVersionConflict])
+
+  useEffect(() => {
+    return () => {
+      if (remoteStructuralResyncTimeoutRef.current) clearTimeout(remoteStructuralResyncTimeoutRef.current)
+      if (remoteVersionRefreshTimeoutRef.current) clearTimeout(remoteVersionRefreshTimeoutRef.current)
+    }
+  }, [])
 
   // applyBatchDirect: calls the API immediately without chaining to operationQueueRef.
   // Use this inside functions that are already running as part of the queue to avoid

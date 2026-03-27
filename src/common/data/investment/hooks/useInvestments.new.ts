@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
+import { buildWhere, buildOrderBy, type SortInput } from '@/common/network/graphql/queryHelpers'
 import { INVESTMENT_DESCRIPTORS, type Investment } from '../types/investmentTypes.new'
 import {
   buildInvestmentFragment,
@@ -11,9 +11,119 @@ import {
   type InvestmentQueryVariables
 } from '../queries/investmentQueries.new'
 
+/** Server-side list totals for the same filter as the investment rows (all pages). */
+export interface InvestmentListAggregates {
+  count: number
+  totalInvestmentAmount: number | null
+  investmentMarketValue: number | null
+  /** Populated when the query config is `equity` (EquityInvestmentAggregate). */
+  ebitdaAmount: number | null
+  /** Server `avg` over filtered investments (same `where` as the list). */
+  avgTotalInvestmentAmount: number | null
+  avgInvestmentMarketValue: number | null
+  /** Populated when the query config is `equity`. */
+  avgEbitdaAmount: number | null
+}
+
+const EMPTY_LIST_AGGREGATES: InvestmentListAggregates = {
+  count: 0,
+  totalInvestmentAmount: null,
+  investmentMarketValue: null,
+  ebitdaAmount: null,
+  avgTotalInvestmentAmount: null,
+  avgInvestmentMarketValue: null,
+  avgEbitdaAmount: null
+}
+
+function parseAggregateNumeric(value: unknown): number | null {
+  if (value == null) return null
+  if (typeof value === 'number' && !Number.isNaN(value)) return value
+  if (typeof value === 'string') {
+    const n = Number.parseFloat(value)
+    return Number.isNaN(n) ? null : n
+  }
+  return null
+}
+
+function resolveQueryFields(config: string | string[]): string[] {
+  return typeof config === 'string' ? INVESTMENT_QUERY_CONFIGS[config] || INVESTMENT_QUERY_CONFIGS.list : config
+}
+
+function resolveOrderBy(vars: { orderBy?: SortInput[] }): SortInput[] {
+  if (vars.orderBy && vars.orderBy.length > 0) return vars.orderBy
+  return [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }]
+}
+
+function buildEquityEbitdaBlock(include: boolean): string {
+  if (!include) return ''
+  return `
+    equityEbitdaAggregate: EquityInvestmentAggregate(
+      where: { investment: $where, isDeleted: { _eq: false } }
+    ) {
+      aggregate {
+        sum { ebitdaAmount }
+        avg { ebitdaAmount }
+      }
+    }
+  `
+}
+
+type AggregateResult = {
+  InvestmentAggregate: {
+    aggregate: {
+      count: number
+      sum?: { totalInvestmentAmount?: unknown; investmentMarketValue?: unknown } | null
+      avg?: { totalInvestmentAmount?: unknown; investmentMarketValue?: unknown } | null
+    } | null
+  }
+  equityEbitdaAggregate?: {
+    aggregate: { sum?: { ebitdaAmount?: unknown } | null; avg?: { ebitdaAmount?: unknown } | null } | null
+  }
+}
+
+function parseInvestmentListAggregates(result: AggregateResult, includeEquity: boolean): InvestmentListAggregates {
+  const agg = result.InvestmentAggregate?.aggregate
+  const sum = agg?.sum
+  const avg = agg?.avg
+  const ebitdaAgg = includeEquity ? result.equityEbitdaAggregate?.aggregate : null
+  return {
+    count: agg?.count ?? 0,
+    totalInvestmentAmount: parseAggregateNumeric(sum?.totalInvestmentAmount),
+    investmentMarketValue: parseAggregateNumeric(sum?.investmentMarketValue),
+    ebitdaAmount: includeEquity ? parseAggregateNumeric(ebitdaAgg?.sum?.ebitdaAmount) : null,
+    avgTotalInvestmentAmount: parseAggregateNumeric(avg?.totalInvestmentAmount),
+    avgInvestmentMarketValue: parseAggregateNumeric(avg?.investmentMarketValue),
+    avgEbitdaAmount: includeEquity ? parseAggregateNumeric(ebitdaAgg?.avg?.ebitdaAmount) : null
+  }
+}
+
+function buildInvestmentCustomConditions(
+  varsWithFilters: InvestmentQueryVariables & Record<string, any>
+): Record<string, any>[] {
+  const customConditions: Record<string, any>[] = Array.isArray(varsWithFilters.customConditions)
+    ? [...varsWithFilters.customConditions]
+    : []
+
+  if (varsWithFilters.liquidFundInvestment) {
+    customConditions.push({ liquidFundInvestment: varsWithFilters.liquidFundInvestment })
+  }
+  if (varsWithFilters.realEstateInvestment) {
+    customConditions.push({ realEstateInvestment: varsWithFilters.realEstateInvestment })
+  }
+  if (varsWithFilters.equityInvestment) {
+    customConditions.push({ equityInvestment: varsWithFilters.equityInvestment })
+  }
+  if (varsWithFilters.planedExit !== undefined) {
+    customConditions.push({ planedExit: { _eq: varsWithFilters.planedExit } })
+  }
+
+  return customConditions
+}
+
 export interface UseInvestmentsResult {
   investments: Investment[]
   total: number
+  listAggregates: InvestmentListAggregates
   loading: boolean
   error: string | null
   refetch: (variables?: InvestmentQueryVariables) => Promise<void>
@@ -66,6 +176,7 @@ export function useInvestments(
   const [state, setState] = useState<Omit<UseInvestmentsResult, 'refetch'>>({
     investments: [],
     total: 0,
+    listAggregates: EMPTY_LIST_AGGREGATES,
     loading: true,
     error: null
   })
@@ -76,45 +187,19 @@ export function useInvestments(
       const vars = { ...stableVariables, ...fetchVariables }
       // Don't fetch if no access token
       if (!accessToken) {
-        setState(prev => ({ ...prev, loading: false }))
+        setState(prev => ({ ...prev, loading: false, listAggregates: EMPTY_LIST_AGGREGATES }))
         return
       }
 
       setState(prev => ({ ...prev, loading: true, error: null }))
 
       try {
-        // Resolve fields from config
-        const fields: string[] =
-          typeof config === 'string' ? INVESTMENT_QUERY_CONFIGS[config] || INVESTMENT_QUERY_CONFIGS.list : config
-
-        // Build fragment
+        const fields = resolveQueryFields(config)
         const fragment = buildInvestmentFragment(fields)
 
-        // Extract investment type filters from variables (these are not processed by descriptors)
-        // These filters come from the State-Hooks and need to be passed as customConditions
         const varsWithFilters = vars as InvestmentQueryVariables & Record<string, any>
+        const customConditions = buildInvestmentCustomConditions(varsWithFilters)
 
-        // Start with any customConditions passed in (e.g., from useGenericInvestmentSectionState)
-        const customConditions: Record<string, any>[] = Array.isArray(varsWithFilters.customConditions)
-          ? [...varsWithFilters.customConditions]
-          : []
-
-        // Add legacy investment type filters
-        if (varsWithFilters.liquidFundInvestment) {
-          customConditions.push({ liquidFundInvestment: varsWithFilters.liquidFundInvestment })
-        }
-        if (varsWithFilters.realEstateInvestment) {
-          customConditions.push({ realEstateInvestment: varsWithFilters.realEstateInvestment })
-        }
-        if (varsWithFilters.equityInvestment) {
-          customConditions.push({ equityInvestment: varsWithFilters.equityInvestment })
-        }
-        if (varsWithFilters.planedExit !== undefined) {
-          customConditions.push({ planedExit: { _eq: varsWithFilters.planedExit } })
-        }
-
-        // Remove investment type filters and customConditions from variables before passing to buildWhere
-        // (they will be passed as customConditions instead)
         const filteredVars = { ...varsWithFilters }
         delete filteredVars.customConditions
         delete filteredVars.liquidFundInvestment
@@ -122,7 +207,6 @@ export function useInvestments(
         delete filteredVars.equityInvestment
         delete filteredVars.planedExit
 
-        // Build where condition using descriptors
         const whereObj = buildWhere({
           variables: filteredVars,
           descriptors: INVESTMENT_DESCRIPTORS,
@@ -131,26 +215,9 @@ export function useInvestments(
           customConditions
         })
 
-        // Build orderBy using descriptors
-        // Use default orderBy if none provided
-        const orderByInput =
-          vars.orderBy && vars.orderBy.length > 0
-            ? vars.orderBy
-            : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' as const }]
-        const orderByArray = buildOrderBy(orderByInput, INVESTMENT_DESCRIPTORS)
+        const orderByArray = buildOrderBy(resolveOrderBy(vars), INVESTMENT_DESCRIPTORS)
+        const includeEquity = config === 'equity'
 
-        // Build GraphQL variables
-        const limit = Math.min(vars.limit || 20, 100)
-        const offset = vars.offset || 0
-
-        const graphQLVariables: Record<string, any> = {
-          limit,
-          offset,
-          where: whereObj,
-          orderBy: orderByArray
-        }
-
-        // Build query
         const query = `
           query GetInvestments(
             $limit: Int
@@ -158,36 +225,33 @@ export function useInvestments(
             $where: InvestmentBoolExp
             $orderBy: [InvestmentOrderBy!]
           ) {
-            Investment(
-              limit: $limit
-              offset: $offset
-              orderBy: $orderBy
-              where: $where
-            ) {
+            Investment(limit: $limit offset: $offset orderBy: $orderBy where: $where) {
               ${fragment}
             }
-            
             InvestmentAggregate(where: $where) {
               aggregate {
                 count
+                sum { totalInvestmentAmount investmentMarketValue }
+                avg { totalInvestmentAmount investmentMarketValue }
               }
             }
+            ${buildEquityEbitdaBlock(includeEquity)}
           }
         `
 
-        // Execute query
-        const result = await graphqlClient.request<{
-          Investment: any[]
-          InvestmentAggregate: {
-            aggregate: {
-              count: number
-            }
-          }
-        }>(query, graphQLVariables)
+        const result = await graphqlClient.request<AggregateResult & { Investment: any[] }>(query, {
+          limit: Math.min(vars.limit || 20, 100),
+          offset: vars.offset || 0,
+          where: whereObj,
+          orderBy: orderByArray
+        })
+
+        const listAggregates = parseInvestmentListAggregates(result, includeEquity)
 
         setState({
           investments: (result.Investment || []) as Investment[],
-          total: result.InvestmentAggregate?.aggregate?.count || 0,
+          total: listAggregates.count,
+          listAggregates,
           loading: false,
           error: null
         })
@@ -197,6 +261,7 @@ export function useInvestments(
         setState({
           investments: [],
           total: 0,
+          listAggregates: EMPTY_LIST_AGGREGATES,
           loading: false,
           error: errorMessage
         })

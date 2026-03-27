@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useState, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { isAllCurrencySelection } from '@/common/data/investment/utils/investmentCurrencySelection'
 import { InvestmentGroup } from './useInvestmentGroups'
+
+function investmentWhereForTab(currencyCode: string, group?: InvestmentGroup): Record<string, any> {
+  const base: Record<string, any> = { isDeleted: { _eq: false } }
+  if (group) {
+    base.investmentGroup = { id: { _eq: `InvestmentGroup:v1:${group.code}` } }
+  }
+  if (!isAllCurrencySelection(currencyCode)) {
+    base.currency = { code: { _eq: currencyCode } }
+  }
+  return base
+}
 
 export interface AllInvestmentCounts {
   overview: { count: number; isLoading: boolean }
@@ -61,20 +73,13 @@ export const useAllInvestmentCounts = (
         }
       `
 
-      const overviewCurrency = currencyByTab.overview || 'EUR'
+      const overviewCurrency = currencyByTab.overview || 'all'
       const variables: Record<string, any> = {
-        overviewWhere: {
-          isDeleted: { _eq: false },
-          currency: { code: { _eq: overviewCurrency } }
-        }
+        overviewWhere: investmentWhereForTab(overviewCurrency)
       }
       investmentGroups.forEach((group, i) => {
-        const tabCurrency = currencyByTab[group.tabId] || 'EUR'
-        variables[`group${i}Where`] = {
-          isDeleted: { _eq: false },
-          investmentGroup: { id: { _eq: `InvestmentGroup:v1:${group.code}` } },
-          currency: { code: { _eq: tabCurrency } }
-        }
+        const tabCurrency = currencyByTab[group.tabId] || 'all'
+        variables[`group${i}Where`] = investmentWhereForTab(tabCurrency, group)
       })
 
       const result = await graphqlClient.request<Record<string, any>>(query, variables)

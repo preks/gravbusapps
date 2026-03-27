@@ -1,12 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
-import type { KPIConfig } from '@/common/data/investment/kpis/types'
-import {
-  EQUITY_KPI_CONFIG,
-  LIQUID_FUND_KPI_CONFIG,
-  REAL_ESTATE_KPI_CONFIG,
-  GENERIC_INVESTMENT_KPI_CONFIG
-} from '@/common/data/investment/kpis'
 import { AcquisitionDateCell } from '../data/shared/cellRenderers'
 import { FundTypeCell } from '../data/liquid-fund-data/FundTypeCell'
 import {
@@ -24,10 +17,6 @@ import {
 export interface GroupConfiguration {
   /** Extra columns specific to this group */
   extraColumns?: ColumnDef<Investment>[]
-  /** Custom KPI configuration (if undefined, uses GENERIC_INVESTMENT_KPI_CONFIG) */
-  kpiConfig?: KPIConfig
-  /** Custom KPI hook name (if undefined, uses generic hook) */
-  kpiHookName?: string
 }
 
 /**
@@ -35,21 +24,15 @@ export interface GroupConfiguration {
  *
  * Any group NOT in this configuration will use:
  * - GenericInvestmentsList with base columns only
- * - GENERIC_INVESTMENT_KPI_CONFIG (4 basic KPIs)
- * - Generic KPI query hook
  *
- * This allows new groups added to catalog to work automatically with sensible defaults,
- * while preserving custom behavior for groups that need it.
+ * Investment View KPI cards are shared (`INVESTMENT_VIEW_KPI_CONFIG` in `InvestmentView.tsx`).
+ * Analytics tabs keep their own KPI configs and hooks.
  */
 export const GROUP_CONFIGURATIONS: Record<string, GroupConfiguration> = {
   /**
-   * Equity Investment Configuration
-   * - Custom KPIs: MOIC, Duration, Market Value
-   * - Extra columns: Market Value, Performance, Stake info, EBITDA
+   * Equity — extra columns: market value, performance, stake, EBITDA, dates
    */
   EQUITY: {
-    kpiConfig: EQUITY_KPI_CONFIG,
-    kpiHookName: 'useEquityKPIIntegration',
     extraColumns: [
       {
         id: 'investmentMarketValue',
@@ -110,13 +93,9 @@ export const GROUP_CONFIGURATIONS: Record<string, GroupConfiguration> = {
   },
 
   /**
-   * Real Estate Investment Configuration
-   * - Custom KPIs: Market Value, Occupancy Rate
-   * - Extra columns: Acquisition Date
+   * Real estate — extra columns: acquisition date
    */
   REAL_ESTATE: {
-    kpiConfig: REAL_ESTATE_KPI_CONFIG,
-    kpiHookName: 'useRealEstateKPIIntegration',
     extraColumns: [
       {
         id: 'acquisitionDate',
@@ -133,13 +112,9 @@ export const GROUP_CONFIGURATIONS: Record<string, GroupConfiguration> = {
   },
 
   /**
-   * Liquid Fund Investment Configuration
-   * - Standard KPIs (same as generic: 4 basic metrics)
-   * - Extra columns: Fund Type
+   * Liquid fund — extra columns: fund type
    */
   LIQUID_FUND: {
-    kpiConfig: LIQUID_FUND_KPI_CONFIG,
-    kpiHookName: 'useLiquidFundKPIIntegration',
     extraColumns: [
       {
         id: 'fundType',
@@ -150,22 +125,15 @@ export const GROUP_CONFIGURATIONS: Record<string, GroupConfiguration> = {
       }
     ]
   }
+}
 
-  // Future groups added to catalog (including Private Equity) will automatically use:
-  // - GENERIC_INVESTMENT_KPI_CONFIG
-  // - Base columns from GenericInvestmentsList
-  // - Generic KPI query hook
+const DEFAULT_GROUP_CONFIGURATION: GroupConfiguration = {
+  extraColumns: []
 }
 
 /**
- * Get configuration for a specific investment group
- * Returns specialized config if defined, otherwise returns default generic config
+ * Get configuration for a specific investment group (table columns, etc.)
  */
 export const getGroupConfiguration = (groupCode: string): GroupConfiguration => {
-  return (
-    GROUP_CONFIGURATIONS[groupCode] || {
-      kpiConfig: GENERIC_INVESTMENT_KPI_CONFIG,
-      extraColumns: []
-    }
-  )
+  return GROUP_CONFIGURATIONS[groupCode] || DEFAULT_GROUP_CONFIGURATION
 }
