@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { message } from 'antd'
-import {
-  ClockIcon,
-  CheckCircleIcon,
-  FileTextIcon,
-  InfoIcon,
-  ListBulletsIcon,
-  EyeIcon
-} from '@phosphor-icons/react'
+import { ClockIcon, CheckCircleIcon, FileTextIcon, InfoIcon, ListBulletsIcon, EyeIcon } from '@phosphor-icons/react'
 import {
   Button,
   Card,
@@ -535,7 +528,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
         uploadResults: [], // File upload can be added later if needed
         accessToken,
         initiatorId: userInfo?.id || 'unknown',
-        apiBaseUrl: API_BASE.replace('/api', '')
+        apiBaseUrl: API_BASE
       })
 
       message.success(`Quick Task "${data.title}" created successfully!`)

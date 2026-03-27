@@ -23,6 +23,7 @@ import {
   mergeRetainedDocumentLayoutPageSpans,
   resolveNextDocumentLayoutVersion
 } from '../documentLayoutSnapshotHelpers'
+import { resolvePageBodyWrapBands } from '@/components/tiptap-extensions/tiptap-custom-pagination/utils'
 
 export interface UsePaginationLayoutSnapshotProps {
   editor: TiptapEditor | null
@@ -102,27 +103,65 @@ export function resolveMountedPagePositionRanges(
     return []
   }
 
-  return mountedPageBodyBounds
-    .map(bounds => {
-      const horizontalSamples = resolveCoordinateSamples(bounds.left, bounds.right)
-      const verticalSamples = resolveCoordinateSamples(bounds.top, bounds.bottom)
-      const positions = verticalSamples.flatMap(top =>
-        horizontalSamples
-          .map(left => resolvePositionAtCoordinates(view, left, top))
-          .filter((position): position is number => position !== null)
-      )
+  const positionsByPageNumber = new Map<number, number[]>()
+
+  mountedPageBodyBounds.forEach(bounds => {
+    const horizontalSamples = resolveCoordinateSamples(bounds.left, bounds.right)
+    const verticalSamples = resolveCoordinateSamples(bounds.top, bounds.bottom)
+    const positions = verticalSamples.flatMap(top =>
+      horizontalSamples
+        .map(left => resolvePositionAtCoordinates(view, left, top))
+        .filter((position): position is number => position !== null)
+    )
+    if (positions.length === 0) {
+      return
+    }
+
+    const existingPositions = positionsByPageNumber.get(bounds.pageNumber) ?? []
+    existingPositions.push(...positions)
+    positionsByPageNumber.set(bounds.pageNumber, existingPositions)
+  })
+
+  return Array.from(positionsByPageNumber.entries())
+    .map(([pageNumber, positions]) => {
       if (positions.length === 0) {
         return null
       }
 
       return {
-        pageNumber: bounds.pageNumber,
+        pageNumber,
         startPos: Math.min(...positions),
         endPos: Math.max(...positions)
       }
     })
     .filter((range): range is DocumentLayoutPagePositionRange => range !== null)
     .sort((left, right) => left.pageNumber - right.pageNumber)
+}
+
+function resolveMountedPageSamplingBounds(
+  editor: TiptapEditor | null,
+  fallbackBounds: DocumentLayoutPageBodyBounds[]
+): DocumentLayoutPageBodyBounds[] {
+  const view = resolveEditorView(editor)
+  if (!view || !(view.dom instanceof HTMLElement)) {
+    return fallbackBounds
+  }
+
+  const wrapBands = resolvePageBodyWrapBands(view.dom, 'viewport')
+  if (wrapBands.length === 0) {
+    return fallbackBounds
+  }
+
+  const mountedPageNumbers = new Set(fallbackBounds.map(bounds => bounds.pageNumber))
+  return wrapBands
+    .filter(band => mountedPageNumbers.size === 0 || mountedPageNumbers.has(band.pageNumber))
+    .map(band => ({
+      pageNumber: band.pageNumber,
+      left: band.left,
+      right: band.right,
+      top: band.top,
+      bottom: band.bottom
+    }))
 }
 
 function resolveSpacerPageRange(spacerElement: HTMLElement): DocumentLayoutPageRange | null {
@@ -532,11 +571,12 @@ export function usePaginationLayoutSnapshot({
       navigationStateRef.current = measurement.navigationState
       setLayoutNavigationState(measurement.navigationState)
       const spacerPageBodyBounds = resolveSpacerPageBodyBounds(measurement.navigationState.flowEls)
-      const pageBounds = mergeMeasuredPageBodyBounds(measurement.layout.mountedPageBodyBounds, spacerPageBodyBounds)
-      const mountedPagePositionRanges = resolveMountedPagePositionRanges(
+      const mountedPageSamplingBounds = resolveMountedPageSamplingBounds(
         editor,
         measurement.layout.mountedPageBodyBounds
       )
+      const pageBounds = mergeMeasuredPageBodyBounds(measurement.layout.mountedPageBodyBounds, spacerPageBodyBounds)
+      const mountedPagePositionRanges = resolveMountedPagePositionRanges(editor, mountedPageSamplingBounds)
       const spacerPagePositionRanges = resolveSpacerPagePositionRanges(editor, measurement.navigationState.flowEls)
       const measuredPageSpans = mergeMeasuredDocumentLayoutPageSpans({
         mountedRanges: mountedPagePositionRanges,

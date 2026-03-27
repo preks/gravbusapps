@@ -10,7 +10,15 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import type { Editor } from '@tiptap/react'
-import type { ImageAlignment, ImageWrapMode } from '@/components/tiptap-extensions/tiptap-custom-image'
+import {
+  dispatchDocumentImageUiMode,
+  hasImageCrop,
+  normalizeImageCrop,
+  resolveImageWrapPreset,
+  type ImageAlignment,
+  type ImageAnchorMode,
+  type ImageWrapMode
+} from '@/components/tiptap-extensions/tiptap-custom-image'
 import translations from '../../_i18n'
 
 const WRAP_OPTIONS: ReadonlyArray<{ key: string; value: ImageWrapMode }> = [
@@ -28,6 +36,12 @@ const ALIGN_OPTIONS: ReadonlyArray<{ key: string; value: ImageAlignment }> = [
   { key: 'editor-toolbar-align-left', value: 'left' },
   { key: 'editor-toolbar-align-center', value: 'center' },
   { key: 'editor-toolbar-align-right', value: 'right' }
+]
+
+const ANCHOR_OPTIONS: ReadonlyArray<{ key: string; value: ImageAnchorMode }> = [
+  { key: 'image-anchor-inline', value: 'inline' },
+  { key: 'image-anchor-move-with-text', value: 'move-with-text' },
+  { key: 'image-anchor-fixed', value: 'fixed' }
 ]
 
 export interface ImageBubbleMenuProps {
@@ -51,18 +65,6 @@ function parseImageAttributeNumber(value: unknown, fallback: number): number {
   }
 
   return fallback
-}
-
-function resolveWrapAlignmentAttrs(wrapMode: ImageWrapMode): Partial<{ align: ImageAlignment }> {
-  if (wrapMode === 'square-right') {
-    return { align: 'right' }
-  }
-
-  if (wrapMode === 'square-left' || wrapMode === 'tight' || wrapMode === 'through') {
-    return { align: 'left' }
-  }
-
-  return {}
 }
 
 function getSelectedImage(editor: Editor): { pos: number; attrs: Record<string, unknown>; nodeSize: number } | null {
@@ -101,10 +103,20 @@ export function ImageBubbleMenu({
   const imageAttrs = imageSelection?.attrs ?? {}
   const wrapMode = (imageAttrs.wrapMode as ImageWrapMode | undefined) ?? 'inline'
   const align = (imageAttrs.align as ImageAlignment | undefined) ?? 'left'
-  const spacing = parseImageAttributeNumber(imageAttrs.distanceRight, 8)
-  const offsetX = parseImageAttributeNumber(imageAttrs.offsetX, 0)
-  const offsetY = parseImageAttributeNumber(imageAttrs.offsetY, 0)
+  const anchorMode = (imageAttrs.anchorMode as ImageAnchorMode | undefined) ?? 'inline'
   const zIndex = parseImageAttributeNumber(imageAttrs.zIndex, 1)
+  const crop = normalizeImageCrop({
+    cropTop: parseImageAttributeNumber(imageAttrs.cropTop, 0),
+    cropRight: parseImageAttributeNumber(imageAttrs.cropRight, 0),
+    cropBottom: parseImageAttributeNumber(imageAttrs.cropBottom, 0),
+    cropLeft: parseImageAttributeNumber(imageAttrs.cropLeft, 0)
+  })
+  const imageHasCrop = hasImageCrop({
+    cropTop: crop.top,
+    cropRight: crop.right,
+    cropBottom: crop.bottom,
+    cropLeft: crop.left
+  })
 
   const updateImageAttrs = useCallback(
     (nextAttrs: Record<string, unknown>) => {
@@ -117,55 +129,20 @@ export function ImageBubbleMenu({
       })
       tr.setSelection(NodeSelection.create(tr.doc, imageSelection.pos))
       editor.view.dispatch(tr)
+      editor.commands.refreshPagesAndStabilize?.()
       editor.view.focus()
       return true
     },
     [editor, imageSelection]
   )
 
-  const deleteImage = useCallback(() => {
-    if (!imageSelection) return false
-    const tr = editor.state.tr.delete(imageSelection.pos, imageSelection.pos + imageSelection.nodeSize)
-    editor.view.dispatch(tr)
-    editor.view.focus()
-    return true
-  }, [editor, imageSelection])
-
-  const handleCaption = useCallback(() => {
-    const current = typeof imageAttrs.caption === 'string' ? imageAttrs.caption : ''
-    const next = globalThis.prompt(t('image-caption-prompt'), current)
-    if (next === null) return
-    updateImageAttrs({ caption: next.trim() || null })
-  }, [imageAttrs.caption, t, updateImageAttrs])
-
-  const handleAltText = useCallback(() => {
-    const current = typeof imageAttrs.alt === 'string' ? imageAttrs.alt : ''
-    const next = globalThis.prompt(t('image-alt-text-label'), current)
-    if (next === null) return
-    updateImageAttrs({ alt: next.trim() || '' })
-  }, [imageAttrs.alt, t, updateImageAttrs])
-
-  const handleSpacing = useCallback(() => {
-    const next = globalThis.prompt(t('image-distance-prompt'), String(spacing))
-    if (next === null) return
-    const parsed = Number.parseFloat(next.replace(',', '.'))
-    if (!Number.isFinite(parsed)) return
-    updateImageAttrs({
-      distanceTop: parsed,
-      distanceRight: parsed,
-      distanceBottom: parsed,
-      distanceLeft: parsed
-    })
-  }, [spacing, t, updateImageAttrs])
+  const deleteImage = useCallback(() => editor.commands.removeSelectedImage?.(), [editor])
 
   const nudgeImage = useCallback(
     (dx: number, dy: number) => {
-      updateImageAttrs({
-        offsetX: offsetX + dx,
-        offsetY: offsetY + dy
-      })
+      editor.commands.moveImage?.(dx, dy)
     },
-    [offsetX, offsetY, updateImageAttrs]
+    [editor]
   )
 
   const adjustZIndex = useCallback(
@@ -180,7 +157,10 @@ export function ImageBubbleMenu({
 
   const wrapButtonLabel = t('image-context-wrap-text')
   const alignButtonLabel = t('image-context-align')
+  const anchorButtonLabel = t('image-context-anchor')
   const positionButtonLabel = t('image-position-menu')
+  const cropButtonLabel = imageHasCrop ? t('image-context-crop-active') : t('image-context-crop')
+  const finishCropButtonLabel = t('image-context-finish-crop')
 
   return (
     <div
@@ -205,12 +185,8 @@ export function ImageBubbleMenu({
             <DropdownMenuItem
               key={option.value}
               onSelect={() =>
-                updateImageAttrs({
-                  wrapMode: option.value,
-                  display: option.value === 'inline' ? 'inline' : 'block',
-                  anchorMode: option.value === 'behind' || option.value === 'front' ? 'move-with-text' : 'inline',
-                  allowOverlap: option.value === 'behind' || option.value === 'front',
-                  ...resolveWrapAlignmentAttrs(option.value)
+                editor.commands.setImageLayout?.({
+                  ...resolveImageWrapPreset(option.value, imageAttrs)
                 })
               }
               data-testid={`image-bubble-wrap-${option.value}`}
@@ -264,6 +240,37 @@ export function ImageBubbleMenu({
             size="sm"
             onMouseDown={preventEditorBlurOnMouseDown}
             className="gba:h-8 gba:gap-1"
+            data-testid="image-bubble-anchor-trigger"
+          >
+            {anchorButtonLabel}
+            <ChevronDown className="gba:h-3 gba:w-3" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {ANCHOR_OPTIONS.map(option => (
+            <DropdownMenuItem
+              key={option.value}
+              onSelect={() => editor.commands.setImageAnchorMode?.(option.value)}
+              data-testid={`image-bubble-anchor-${option.value}`}
+            >
+              {anchorMode === option.value ? (
+                <Check className="gba:mr-2 gba:h-4 gba:w-4" />
+              ) : (
+                <span className="gba:mr-2 gba:w-4" />
+              )}
+              {t(option.key)}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={preventEditorBlurOnMouseDown}
+            className="gba:h-8 gba:gap-1"
             data-testid="image-bubble-position-trigger"
           >
             {positionButtonLabel}
@@ -296,31 +303,31 @@ export function ImageBubbleMenu({
         variant="ghost"
         size="sm"
         onMouseDown={preventEditorBlurOnMouseDown}
-        onClick={handleSpacing}
+        onClick={() => dispatchDocumentImageUiMode({ pos: imageSelection?.pos ?? null, mode: 'crop' })}
         className="gba:h-8"
-        data-testid="image-bubble-spacing"
+        data-testid="image-bubble-crop"
       >
-        {t('image-context-spacing')}
+        {cropButtonLabel}
       </Button>
       <Button
         variant="ghost"
         size="sm"
         onMouseDown={preventEditorBlurOnMouseDown}
-        onClick={handleCaption}
+        onClick={() => dispatchDocumentImageUiMode({ pos: imageSelection?.pos ?? null, mode: 'default' })}
         className="gba:h-8"
-        data-testid="image-bubble-caption"
+        data-testid="image-bubble-finish-crop"
       >
-        {t('image-context-caption')}
+        {finishCropButtonLabel}
       </Button>
       <Button
         variant="ghost"
         size="sm"
         onMouseDown={preventEditorBlurOnMouseDown}
-        onClick={handleAltText}
+        onClick={() => editor.commands.resetImageCrop?.()}
         className="gba:h-8"
-        data-testid="image-bubble-alt-text"
+        data-testid="image-bubble-reset-crop"
       >
-        {t('image-context-alt-text')}
+        {t('image-context-reset-crop')}
       </Button>
       <Button
         variant="ghost"

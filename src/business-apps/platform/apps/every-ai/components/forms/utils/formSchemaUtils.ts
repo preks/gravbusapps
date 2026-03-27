@@ -158,6 +158,18 @@ export const extractFieldType = (schema: any): string | undefined => {
 }
 
 /**
+ * Convert a camelCase or snake_case field key to a human-readable label.
+ */
+export const formatFieldName = (key: string): string => {
+  if (!key) return ''
+  return key
+    .replace(/_/g, ' ')
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
+    .replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase())
+}
+
+/**
  * Format flow name for display
  * Removes "save" prefix if present (since operation is shown in badge)
  */

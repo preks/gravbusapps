@@ -222,6 +222,8 @@ export const AccountView: React.FC<AccountViewProps> = context => {
       accountStatistics={accountStatistics}
       dataTestId="investment-account-view"
       renderQuickFilters={renderQuickFilters}
+      enableExport
+      exportFilenamePrefix="accounts"
     />
   )
 }

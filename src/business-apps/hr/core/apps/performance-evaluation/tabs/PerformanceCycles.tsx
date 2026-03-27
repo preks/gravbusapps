@@ -16,7 +16,15 @@ import {
   toast,
   Spinner
 } from '@newwork/nw-design-system'
-import { CalendarBlank, PencilSimple, Play, Plus, Trash, Warning as WarningIcon } from '@phosphor-icons/react'
+import {
+  CalendarBlank,
+  CheckCircle,
+  PencilSimple,
+  Play,
+  Plus,
+  Trash,
+  Warning as WarningIcon
+} from '@phosphor-icons/react'
 import type { PerformanceCycle, RatingScale, ValueItemStored } from '../types'
 import CycleEditorModal, {
   CycleEditorValues,
@@ -35,6 +43,7 @@ export interface PerformanceCyclesProps {
   onSaveFromModal: (values: CycleEditorValues) => Promise<void>
   onActivate: (cycleId: string) => Promise<void>
   onDeactivate: (cycleId: string) => Promise<void>
+  onCompleteCycle: (cycleId: string) => Promise<void>
   onDeleteCycle: (cycle: PerformanceCycle) => Promise<void>
   onStartCycle: (cycleId: string) => void
 }
@@ -48,6 +57,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   onSaveFromModal,
   onActivate,
   onDeactivate,
+  onCompleteCycle,
   onDeleteCycle,
   onStartCycle
 }) => {
@@ -201,9 +211,17 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                         <TableCell>{participants}</TableCell>
                         <TableCell>
                           <Badge
-                            variant={c.status === 'Active' ? 'success' : c.status === 'Upcoming' ? 'info' : 'secondary'}
+                            variant={
+                              c.status === 'Active'
+                                ? 'success'
+                                : c.status === 'Upcoming'
+                                  ? 'info'
+                                  : c.status === 'Completed'
+                                    ? 'default'
+                                    : 'secondary'
+                            }
                           >
-                            {c.status}
+                            {c.status === 'Completed' ? t('status-completed') : c.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="gba:text-right">
@@ -220,7 +238,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                             >
                               <Trash />
                             </Button>
-                            {c.status === 'Inactive' ? (
+                            {c.status === 'Inactive' || c.status === 'Completed' ? (
                               <Button
                                 variant="secondary"
                                 size="sm"
@@ -237,6 +255,18 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                                 data-testid={`cycle-deactivate-${c.id}`}
                               >
                                 {t('button-deactivate')}
+                              </Button>
+                            )}
+                            {c.status === 'Active' && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="gba:bg-success gba:hover:bg-success/90"
+                                onClick={() => onCompleteCycle(c.id)}
+                                data-testid={`cycle-complete-${c.id}`}
+                              >
+                                <CheckCircle weight="fill" className="gba:mr-1" size={16} />
+                                {t('button-complete')}
                               </Button>
                             )}
                             <Button
@@ -286,8 +316,9 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                     ? 'Quarterly'
                     : String(editing.frequency).toUpperCase().includes('ANNUAL')
                       ? 'Annual'
-                      : String(editing.frequency).toUpperCase().includes('CUSTOM')
-                        ? 'Custom'
+                      : String(editing.frequency).toUpperCase().includes('MONTHLY') ||
+                          String(editing.frequency).toUpperCase().includes('CUSTOM')
+                        ? 'Monthly'
                         : (editing.frequency as EditorFrequencyType)) ?? 'Annual',
                 participants: editing.participants as EditorParticipantType[],
                 stages: editing.stages as unknown as EditorStage[],

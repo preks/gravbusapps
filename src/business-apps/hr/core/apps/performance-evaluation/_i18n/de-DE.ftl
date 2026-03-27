@@ -11,6 +11,7 @@ button-save = Speichern
 button-start = Starten
 button-activate = Aktivieren
 button-deactivate = Deaktivieren
+button-complete = Abschließen
 button-delete = Löschen
 
 table-name = Name
@@ -19,6 +20,7 @@ table-type = Typ
 table-scale = Skala
 table-participants = Teilnehmer
 table-status = Status
+status-completed = Abgeschlossen
 table-evaluation-period = Bewertungszeitraum
 table-actions = Aktionen
 empty-no-cycles = Noch keine Zyklen erstellt.
@@ -76,7 +78,7 @@ participant-hr-team = HR Team
 # Häufigkeit
 frequency-annual = Jährlich
 frequency-quarterly = Vierteljährlich
-frequency-custom = Benutzerdefiniert
+frequency-monthly = Monatlich
 
 # Bewertungsskalen-Tabelle
 empty-no-rating-scales = Noch keine Bewertungsskalen definiert.
@@ -85,6 +87,7 @@ scale-deleted-to-database = Bewertungsskala "{ $name }" gelöscht.
 cycle-saved-to-database = Leistungszyklus "{ $name }" gespeichert.
 cycle-activated-to-database = "{ $name }" aktiviert.
 cycle-deactivated-to-database = "{ $name }" deaktiviert.
+cycle-completed-to-database = "{ $name }" als abgeschlossen markiert.
 cycle-deleted-to-database = "{ $name }" gelöscht.
 cycle-started = Zyklus wird gestartet: { $name }
 value-saved-to-database = Firmenwert "{ $title }" gespeichert.
@@ -121,4 +124,5 @@ values-error-cannot-deactivate-active-cycle = Wert kann nicht deaktiviert werden
 cycles-error-no-rating-scales = Mindestens eine Bewertungsskala wird für das Erstellen eines Zyklus benötigt.
 cycles-error-no-company-values = Mindestens ein Unternehmenswert wird für das Erstellen eines Zyklus benötigt.
 cycles-error-dates-overlap = Die Zyklusdaten dürfen sich nicht mit einem bestehenden Zyklus überschneiden. Bitte wählen Sie ein Startdatum nach dem Ende bestehender Zyklen.
+cycles-error-eval-period-overlap = Der Bewertungszeitraum überschneidet sich mit einem bestehenden Zyklus. Bitte wählen Sie Daten, die nicht mit anderen Bewertungszeiträumen in Konflikt stehen.
 error-activate-out-of-period = Zyklus kann nicht aktiviert werden. Das heutige Datum liegt außerhalb des Zykluszeitraums.

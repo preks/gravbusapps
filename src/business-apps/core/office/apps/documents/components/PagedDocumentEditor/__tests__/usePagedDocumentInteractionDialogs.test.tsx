@@ -40,6 +40,32 @@ function createBasicSchema() {
   })
 }
 
+function createLinkSchema() {
+  return new Schema({
+    nodes: {
+      doc: { content: 'block+' },
+      paragraph: {
+        content: 'text*',
+        group: 'block',
+        toDOM: () => ['p', 0]
+      },
+      text: {
+        group: 'inline'
+      }
+    },
+    marks: {
+      link: {
+        attrs: {
+          href: {},
+          target: { default: null }
+        },
+        inclusive: false,
+        toDOM: mark => ['a', mark.attrs, 0]
+      }
+    }
+  })
+}
+
 function createTrackedEditor(options?: { initialText?: string; selection?: { from: number; to: number } }) {
   const schema = createBasicSchema()
   const handlers: Record<string, Array<(payload?: unknown) => void>> = {}
@@ -90,6 +116,35 @@ function createTrackedEditor(options?: { initialText?: string; selection?: { fro
       text = next.text ?? text
       selection = next.selection ?? selection
     }
+  }
+}
+
+function createCollapsedLinkEditor() {
+  const schema = createLinkSchema()
+  const linkMark = schema.marks.link.create({
+    href: 'https://google.com',
+    target: '_blank'
+  })
+  const doc = schema.node('doc', null, [schema.node('paragraph', null, [schema.text('Google', [linkMark])])])
+  const selection = {
+    from: 3,
+    to: 3,
+    $from: doc.resolve(3)
+  }
+
+  return {
+    activeEditor: {
+      schema,
+      state: {
+        selection,
+        doc
+      },
+      isActive: jest.fn((name: string) => name === 'link'),
+      getAttributes: jest.fn(() => ({
+        href: 'https://google.com',
+        target: '_blank'
+      }))
+    } as unknown as TiptapEditor
   }
 }
 
@@ -273,6 +328,54 @@ describe('usePagedDocumentInteractionDialogs', () => {
       href: '',
       displayText: 'Sample',
       openInNewTab: false
+    })
+  })
+
+  it('opens the link dialog with the active link text for a collapsed caret', () => {
+    const { activeEditor } = createCollapsedLinkEditor()
+
+    const { result } = renderHook(() =>
+      usePagedDocumentInteractionDialogs(
+        createHookParams({
+          activeEditor
+        })
+      )
+    )
+
+    act(() => {
+      result.current.openLinkDialog()
+    })
+
+    expect(result.current.showLinkDialog).toBe(true)
+    expect(result.current.linkDialogMode).toBe('edit')
+    expect(result.current.linkDialogInitialValues).toEqual({
+      href: 'https://google.com',
+      displayText: 'Google',
+      openInNewTab: true
+    })
+  })
+
+  it('opens the link dialog for an explicitly provided editor', () => {
+    const { activeEditor } = createCollapsedLinkEditor()
+
+    const { result } = renderHook(() =>
+      usePagedDocumentInteractionDialogs(
+        createHookParams({
+          activeEditor: null
+        })
+      )
+    )
+
+    act(() => {
+      result.current.openLinkDialogForEditor(activeEditor)
+    })
+
+    expect(result.current.showLinkDialog).toBe(true)
+    expect(result.current.linkDialogMode).toBe('edit')
+    expect(result.current.linkDialogInitialValues).toEqual({
+      href: 'https://google.com',
+      displayText: 'Google',
+      openInNewTab: true
     })
   })
 
@@ -636,6 +739,31 @@ describe('usePagedDocumentInteractionDialogs', () => {
 
     expect(result.current.aiSelectionSnapshot).toBe('Brave')
     expect(result.current.aiSelectionSnapshotHtml).toBe('Brave')
+
+    global.localStorage.removeItem('document-ai-edit-entrypoint')
+  })
+
+  it('opens the AI sidebar directly even when the dialog entrypoint flag is set', () => {
+    const setRightSidebar = jest.fn()
+    const { result } = renderHook(() =>
+      usePagedDocumentInteractionDialogs(
+        createHookParams({
+          documentId: 'doc-1',
+          setRightSidebar
+        })
+      )
+    )
+
+    act(() => {
+      result.current.setShowAiInstructionDialog(true)
+      global.localStorage.setItem('document-ai-edit-entrypoint', 'dialog')
+      result.current.openAiEditSidebar()
+    })
+
+    expect(result.current.showAiInstructionDialog).toBe(false)
+    expect(setRightSidebar).toHaveBeenCalledWith(expect.any(Function))
+    expect(setRightSidebar.mock.calls[0]?.[0]('closed')).toBe('ai')
+    expect(setRightSidebar.mock.calls[0]?.[0]('ai')).toBe('closed')
 
     global.localStorage.removeItem('document-ai-edit-entrypoint')
   })

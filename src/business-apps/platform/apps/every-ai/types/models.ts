@@ -192,6 +192,20 @@ export type ErrorOutput = {
   text?: string
 }
 
+export type BulkFlowProposalItem = {
+  key: string
+  label?: string
+  overrides: Record<string, any>
+  metadata?: Record<string, any>
+}
+
+export type BulkFlowProposal = {
+  varying_field: string
+  items: BulkFlowProposalItem[]
+  item_label?: string
+  require_explicit_item_confirmation?: boolean
+}
+
 export type FlowProposalOutput = {
   type: 'flow_proposal'
   flow_name: string
@@ -207,6 +221,7 @@ export type FlowProposalOutput = {
     required?: string[]
     properties?: Record<string, any>
   }
+  bulk_operation?: BulkFlowProposal
 }
 
 export type DocumentStreamStartOutput = {

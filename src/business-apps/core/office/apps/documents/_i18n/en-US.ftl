@@ -388,6 +388,31 @@ editor-toolbar-insert-link = Insert Link
 editor-toolbar-insert-image = Insert Image
 editor-toolbar-insert-signature = Insert Signature
 editor-toolbar-insert-table = Insert Table
+editor-toolbar-insert-table-of-contents = Table of Contents
+
+document-toc-block-title = Table of contents
+document-toc-empty = No headings below this table of contents yet.
+document-toc-page-unknown = —
+document-toc-context-update = Update Table of Contents
+document-toc-context-format = Format Table of Contents
+document-toc-context-remove = Remove Table of Contents
+document-toc-settings-title = Table of Contents
+document-toc-settings-close = Close
+document-toc-settings-page-numbers = Page numbers
+document-toc-settings-heading-links = Heading links
+document-toc-settings-page-number-align = Page number alignment
+document-toc-settings-page-number-align-right = Right align
+document-toc-settings-page-number-align-inline = Inline
+document-toc-settings-tab-leader = Tab leaders
+document-toc-settings-tab-leader-dot = Dot leader
+document-toc-settings-tab-leader-none = None
+document-toc-settings-max-heading-level = Show headings up to
+document-toc-settings-heading-1 = Heading 1
+document-toc-settings-heading-2 = Heading 2
+document-toc-settings-heading-3 = Heading 3
+document-toc-settings-heading-4 = Heading 4
+document-toc-settings-heading-5 = Heading 5
+document-toc-settings-heading-6 = Heading 6
 editor-toolbar-table-row-before = Insert Row Above
 editor-toolbar-table-row-after = Insert Row Below
 editor-toolbar-table-duplicate-row = Duplicate Row
@@ -648,6 +673,29 @@ link-bubble-remove-link = Remove link
 link-bubble-open-link = Open link
 link-bubble-open-new-tab = Open in new tab
 
+# Document context menu
+document-context-clipboard = Clipboard
+document-context-copy = Copy
+document-context-cut = Cut
+document-context-link = Link
+document-context-format = Format
+document-context-review = Review
+document-context-add-comment = Add comment
+document-context-image-settings = Picture settings
+document-context-insert = Insert
+document-context-delete = Delete
+document-context-cell = Cell
+document-context-layout = Layout
+document-context-translate = Translate
+document-context-proofing-language = Set Proofing Language
+document-context-paragraph-options = Paragraph Options
+document-context-change-picture = Change Picture
+document-context-draw = Draw
+document-context-format-picture = Format Picture
+document-context-split = Split
+document-context-distribute = Distribute
+document-context-format-table = Format Table
+
 # Image context menu (right-click on image)
 image-context-cut = Cut
 image-context-copy = Copy
@@ -656,7 +704,12 @@ image-context-delete = Delete
 image-context-replace = Change picture
 image-context-alt-text = Alt text
 image-context-align = Align
+image-context-anchor = Anchor
 image-context-caption = Caption
+image-context-crop = Crop
+image-context-finish-crop = Finish crop
+image-context-reset-crop = Reset crop
+image-context-crop-active = Crop active
 image-context-spacing = Distance from text
 
 # Wrap text (Word-style)
@@ -669,6 +722,9 @@ image-wrap-through = Through
 image-wrap-center = Top and bottom
 image-wrap-behind = Behind text
 image-wrap-in-front = In front of text
+image-anchor-inline = Inline
+image-anchor-move-with-text = Move with text
+image-anchor-fixed = Fix position on page
 
 image-alt-text-dialog-title = Alt text
 image-alt-text-label = Description (for accessibility)
@@ -682,6 +738,7 @@ image-position-move-up = Move up
 image-position-move-down = Move down
 image-position-bring-forward = Bring forward
 image-position-send-backward = Send backward
+image-position-z-index = Layer order
 image-sidebar-title = Picture
 table-sidebar-in-header-context = Table in header
 table-sidebar-in-footer-context = Table in footer
@@ -701,6 +758,10 @@ image-sidebar-reset-size = Reset original size
 image-sidebar-scale-width = Scale width (%)
 image-sidebar-scale-height = Scale height (%)
 image-sidebar-rotation = Rotation (deg)
+image-crop-top = Crop top
+image-crop-right = Crop right
+image-crop-bottom = Crop bottom
+image-crop-left = Crop left
 
 # Paged document editor
 editor-back-title = Back to documents

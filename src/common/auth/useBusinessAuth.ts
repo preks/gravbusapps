@@ -182,6 +182,8 @@ export function useBusinessAuth(): UseBusinessAuthResult {
       window.localStorage.removeItem(STORAGE_KEY_USER_INFO)
       window.localStorage.removeItem(STORAGE_KEY_ACCESS_TOKEN)
       window.localStorage.removeItem(STORAGE_KEY_ADDITIONAL_DATA)
+      window.localStorage.removeItem('newwork_every_ai')
+      window.localStorage.removeItem('everyai-submitted-forms')
     } catch {
       // ignore storage errors
     }

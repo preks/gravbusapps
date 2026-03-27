@@ -9,7 +9,7 @@ import {
   getPageSpacerHeight,
   measureHeaderFooterContentHeights,
   resolveDirectChildPaginationElement,
-  resolvePageBodyLayers,
+  resolvePageBodyWrapBands,
   resolveMountedPaginationPageNumbers,
   resolveViewportMountedPaginationRange
 } from './utils'
@@ -270,20 +270,7 @@ export function applyMeasuredPageHeightsToView(view: EditorView, storage: PagesS
 }
 
 export function getPageBodyBands(editorDom: HTMLElement): PageBodyBand[] {
-  const bodyBands = resolvePageBodyLayers(editorDom)
-    .map(element => {
-      const rect = element.getBoundingClientRect()
-      return {
-        pageNumber: Number(element.dataset.rmPageNumber ?? '0'),
-        left: rect.left,
-        right: rect.right,
-        top: rect.top,
-        bottom: rect.bottom
-      }
-    })
-    .filter(band => Number.isFinite(band.pageNumber) && band.pageNumber > 0 && band.bottom > band.top)
-
-  return sortPageBodyBandsIfNeeded(bodyBands)
+  return sortPageBodyBandsIfNeeded(resolvePageBodyWrapBands(editorDom, 'viewport'))
 }
 
 export function documentHasTables(doc: PMNode) {
@@ -322,7 +309,13 @@ function isCaretRectWithinBand(
   bodyBand: PageBodyBand,
   tolerance = 1
 ) {
-  return caretRect.top >= bodyBand.top - tolerance && caretRect.bottom <= bodyBand.bottom + tolerance
+  const caretCenterX = (caretRect.left + caretRect.right) / 2
+  return (
+    caretRect.top >= bodyBand.top - tolerance &&
+    caretRect.bottom <= bodyBand.bottom + tolerance &&
+    caretCenterX >= bodyBand.left - tolerance &&
+    caretCenterX <= bodyBand.right + tolerance
+  )
 }
 
 function getPositionAtCoords(view: EditorView, left: number, top: number) {
@@ -716,6 +709,10 @@ function resolveOverflowTargetBodyBand(
   const { containingIndex, insertionIndex } = resolveBodyBandSearch(bodyBands, caretCenterY)
 
   if (containingIndex !== null) {
+    if (direction === null) {
+      return bodyBands[containingIndex] ?? null
+    }
+
     if (containingIndex >= bodyBands.length - 1) {
       return bodyBands[bodyBands.length - 1] ?? null
     }

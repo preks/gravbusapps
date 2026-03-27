@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Button, Spinner, toast } from '@newwork/nw-design-system'
-import { X, FileText } from 'lucide-react'
+import { X, FileText, Activity } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import type { BoardRow, BoardColumn } from '../../types'
 import { BoardApiService } from '../../services/BoardApiService'
@@ -14,6 +14,7 @@ import { useRowPageCollaboration } from './useRowPageCollaboration'
 import { SaveIndicator } from './SaveIndicator'
 import { encodeMetaIntoHtml, decodeMetaFromHtml } from './rowPageMeta'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
+import { RowAuditLog } from './RowAuditLog'
 
 export interface RowPagePanelProps {
   boardId: string
@@ -36,6 +37,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
   onPageCreated,
   'data-testid': testId = 'row-page-panel'
 }) => {
+  const [activeTab, setActiveTab] = useState<'page' | 'activity'>('page')
   const [pageContent, setPageContent] = useState<string | null>(null)
   const [pageTitle, setPageTitle] = useState<string | null>(null)
   const [noteId, setNoteId] = useState<string | null>(null)
@@ -333,27 +335,66 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
         data-testid={testId}
       >
         {/* Drawer header */}
-        <header className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2 gba:flex-shrink-0 gba:border-b gba:border-border/40">
-          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
-            <SaveIndicator isDirty={isDirty} isSaving={isSaving} hasPage={!!noteId} />
+        <header className="gba:flex gba:flex-col gba:flex-shrink-0 gba:border-b gba:border-border/40">
+          <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+              <SaveIndicator isDirty={isDirty} isSaving={isSaving} hasPage={!!noteId} />
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {participants.length > 0 && <PresenceIndicator participants={participants} size="sm" />}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="gba:h-8 gba:w-8 gba:rounded-lg gba:hover:bg-muted"
+                data-testid={`${testId}-close`}
+              >
+                <X className="gba:w-4 gba:h-4" />
+              </Button>
+            </div>
           </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {participants.length > 0 && <PresenceIndicator participants={participants} size="sm" />}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="gba:h-8 gba:w-8 gba:rounded-lg gba:hover:bg-muted"
-              data-testid={`${testId}-close`}
+          {/* Tab bar */}
+          <div className="gba:flex gba:gap-0 gba:px-4">
+            <button
+              onClick={() => setActiveTab('page')}
+              className={[
+                'gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:border-b-2 gba:transition-colors',
+                activeTab === 'page'
+                  ? 'gba:border-foreground gba:text-foreground'
+                  : 'gba:border-transparent gba:text-muted-foreground gba:hover:text-foreground'
+              ].join(' ')}
+              data-testid={`${testId}-tab-page`}
             >
-              <X className="gba:w-4 gba:h-4" />
-            </Button>
+              <FileText className="gba:w-3.5 gba:h-3.5" />
+              Page
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={[
+                'gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:border-b-2 gba:transition-colors',
+                activeTab === 'activity'
+                  ? 'gba:border-foreground gba:text-foreground'
+                  : 'gba:border-transparent gba:text-muted-foreground gba:hover:text-foreground'
+              ].join(' ')}
+              data-testid={`${testId}-tab-activity`}
+            >
+              <Activity className="gba:w-3.5 gba:h-3.5" />
+              Activity
+            </button>
           </div>
         </header>
 
         {/* Drawer body */}
         <div style={{ flex: '1 1 auto', overflowY: 'auto' }}>
-          {isLoading ? (
+          {activeTab === 'activity' ? (
+            <RowAuditLog
+              boardId={boardId}
+              sheetId={sheetId}
+              rowId={row.id}
+              accessToken={accessToken}
+              data-testid={`${testId}-activity`}
+            />
+          ) : isLoading ? (
             <div className="gba:flex gba:justify-center gba:py-24">
               <Spinner />
             </div>

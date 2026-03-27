@@ -55,7 +55,11 @@ export interface InsertTabContentProps {
   onAddElement: (element: AnySlideElement) => void
   onShowImageDialog: () => void
   onShowVideoDialog: () => void
-  onApplyTemplate: (slides: SlideData[], themeId: string) => void
+  onApplyTemplate: (
+    slides: SlideData[],
+    themeId: string,
+    masters?: import('../../types/slideMaster').SlideMaster[]
+  ) => void
   onRefineSlide?: () => void
   onGenerateSlides?: () => void
   testId?: string

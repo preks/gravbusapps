@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { useContactExport } from './hooks/useContactExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -72,6 +74,10 @@ export interface ContactLayoutProps<TContact extends Contact = Contact, TQueryVa
    * the GetContacts query via the queryVariables / loadData dependency chain.
    */
   readonly contactStatistics?: ContactStatisticsData
+  /** When true, renders CSV and Excel export buttons in the toolbar. */
+  readonly enableExport?: boolean
+  /** Filename prefix for exported files (timestamp is appended automatically). */
+  readonly exportFilenamePrefix?: string
 }
 
 // Row Actions Component
@@ -115,7 +121,9 @@ function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables
     initialFilters = {},
     hideFilters = false,
     customPrimaryAction,
-    contactStatistics: contactStatisticsProp
+    contactStatistics: contactStatisticsProp,
+    enableExport = false,
+    exportFilenamePrefix = 'contacts'
   } = props
 
   // Prefer the directly-passed prop; fall back to config for backwards compatibility
@@ -252,9 +260,56 @@ function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables
     )
   }, [config, context?.accessToken])
 
+  // Export hook — always called unconditionally (React rules).
+  const { isExporting, handleExportCsv, handleExportExcel } = useContactExport({
+    fetchContacts: config.fetchContacts as any,
+    queryVariables,
+    totalCount,
+    filenamePrefix: exportFilenamePrefix
+  })
+
+  const exportSecondaryActions = useMemo(() => {
+    if (!enableExport) return undefined
+
+    const getTitle = (entityLabel: string) => {
+      if (isExporting) return 'Exporting…'
+      if (totalCount === 0) return 'No data to export'
+      return entityLabel
+    }
+    const csvTitle = getTitle(`Export ${totalCount} contacts as CSV`)
+    const excelTitle = getTitle(`Export ${totalCount} contacts as Excel`)
+
+    return (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="contact-export-csv-button"
+          title={csvTitle}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={isExporting || totalCount === 0}
+          data-testid="contact-export-excel-button"
+          title={excelTitle}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {isExporting ? 'Exporting…' : 'Excel'}
+        </Button>
+      </>
+    )
+  }, [enableExport, isExporting, totalCount, handleExportCsv, handleExportExcel])
+
   if (!context) {
     console.error('ContactLayout: context is required')
-    return null
+    return <></>
   }
 
   const accessToken = context.accessToken
@@ -317,6 +372,7 @@ function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables
             </AppAction>
           ) : undefined)
         }
+        secondaryActions={exportSecondaryActions}
         toolbarDensity="default"
         enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel(

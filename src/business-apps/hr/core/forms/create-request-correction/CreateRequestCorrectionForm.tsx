@@ -354,6 +354,23 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return key ? absenceDatesSet.has(key) : false
   }, [dateVal, absenceDatesSet])
 
+  const isZeroPlannedDay = useMemo(() => {
+    if (!dateVal || !workingHours) return false
+    const d = new Date(dateVal)
+    if (Number.isNaN(d.getTime())) return false
+    const day = d.getDay()
+    const hoursByDay = [
+      workingHours.sundayHours,
+      workingHours.mondayHours,
+      workingHours.tuesdayHours,
+      workingHours.wednesdayHours,
+      workingHours.thursdayHours,
+      workingHours.fridayHours,
+      workingHours.saturdayHours
+    ]
+    return (hoursByDay[day] ?? 0) <= 0
+  }, [dateVal, workingHours])
+
   const isValid = useMemo(() => {
     const hasNotes = typeof notesVal === 'string' && notesVal.trim().length > 0
     const startMins = hhmmToMinutes(clockInVal)
@@ -594,8 +611,6 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
                     // no-op
                   }
                   if (key && absenceDatesSet.has(key)) return t('request-correction-date-absence-error')
-                  if (key && getPlannedMinutesForDate(toUtcMidnightIso(key), workingHours) === 0)
-                    return t('request-correction-zero-planned-warning')
                   return true
                 }
               }}
@@ -612,6 +627,12 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
                 </FormItem>
               )}
             />
+
+            <div>
+              {isZeroPlannedDay && !isDateAbsence ? (
+                <p className="gba:text-sm gba:text-warning">{t('request-correction-zero-planned-warning')}</p>
+              ) : null}
+            </div>
 
             <FormField
               control={form.control as any}
