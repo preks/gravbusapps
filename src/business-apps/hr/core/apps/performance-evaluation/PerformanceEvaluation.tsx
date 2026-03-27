@@ -27,11 +27,9 @@ import { CompanyValues } from './tabs/CompanyValues'
 import { StartCycleConfirmDialog } from './components/StartCycleConfirmDialog'
 
 function computeStatus(cycle: Omit<PerformanceCycle, 'status'>) {
-  if (cycle.evaluationPeriodStartDate && cycle.evaluationPeriodEndDate) {
+  if (cycle.startDate && cycle.endDate) {
     const today = new Date()
-    const start = new Date(cycle.evaluationPeriodStartDate)
-    const end = new Date(cycle.evaluationPeriodEndDate)
-    if (today >= start && today <= end) return 'Active' as const
+    if (today >= new Date(cycle.startDate) && today <= new Date(cycle.endDate)) return 'Active' as const
   }
   return 'Inactive' as const
 }

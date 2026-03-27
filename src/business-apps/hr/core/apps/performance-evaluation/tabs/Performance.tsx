@@ -40,11 +40,9 @@ export interface PerformanceProps {
 function computeDisplayStatus(c: PerformanceCycle): CycleStatus {
   if (c.status === 'Completed') return 'Completed'
   if (c.status === 'In Progress') return 'In Progress'
-  if (c.evaluationPeriodStartDate && c.evaluationPeriodEndDate) {
+  if (c.startDate && c.endDate) {
     const today = new Date()
-    const start = new Date(c.evaluationPeriodStartDate)
-    const end = new Date(c.evaluationPeriodEndDate)
-    if (today >= start && today <= end) return 'Active'
+    if (today >= new Date(c.startDate) && today <= new Date(c.endDate)) return 'Active'
   }
   return 'Inactive'
 }

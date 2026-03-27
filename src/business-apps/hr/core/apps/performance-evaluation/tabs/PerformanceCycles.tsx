@@ -16,7 +16,7 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import { CalendarBlank, PencilSimple, Plus, Trash } from '@phosphor-icons/react'
-import type { CycleStatus, PerformanceCycle, RatingScale, ValueItemStored } from '../types'
+import type { PerformanceCycle, RatingScale, ValueItemStored } from '../types'
 import CycleEditorModal, {
   CycleEditorValues,
   EvaluationStage as EditorStage,
@@ -58,16 +58,12 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
     [cycles]
   )
 
-  const computeDisplayStatus = (c: PerformanceCycle): CycleStatus => {
-    if (c.status === 'Completed') return 'Completed'
-    if (c.status === 'In Progress') return 'In Progress'
+  const isEvalPeriodActive = (c: PerformanceCycle): boolean => {
     if (c.evaluationPeriodStartDate && c.evaluationPeriodEndDate) {
       const today = new Date()
-      const start = new Date(c.evaluationPeriodStartDate)
-      const end = new Date(c.evaluationPeriodEndDate)
-      if (today >= start && today <= end) return 'Active'
+      return today >= new Date(c.evaluationPeriodStartDate) && today <= new Date(c.evaluationPeriodEndDate)
     }
-    return 'Inactive'
+    return false
   }
 
   const handleEdit = (cycle: PerformanceCycle) => {
@@ -166,28 +162,9 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                         <TableCell>{evalPeriod}</TableCell>
                         <TableCell>{valueNames || '-'}</TableCell>
                         <TableCell>
-                          {(() => {
-                            const displayStatus = computeDisplayStatus(c)
-                            return (
-                              <Badge
-                                variant={
-                                  displayStatus === 'Active'
-                                    ? 'success'
-                                    : displayStatus === 'In Progress'
-                                      ? 'info'
-                                      : displayStatus === 'Completed'
-                                        ? 'default'
-                                        : 'secondary'
-                                }
-                              >
-                                {displayStatus === 'Completed'
-                                  ? t('status-completed')
-                                  : displayStatus === 'In Progress'
-                                    ? t('status-in-progress')
-                                    : displayStatus}
-                              </Badge>
-                            )
-                          })()}
+                          <Badge variant={isEvalPeriodActive(c) ? 'success' : 'secondary'}>
+                            {isEvalPeriodActive(c) ? 'Active' : 'Inactive'}
+                          </Badge>
                         </TableCell>
                         <TableCell className="gba:text-right">
                           <div className="gba:flex gba:justify-end gba:gap-1">
