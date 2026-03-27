@@ -191,7 +191,7 @@ export const Performance: React.FC<PerformanceProps> = ({
                             <Button variant="ghost" size="icon" onClick={() => handleEdit(c)} aria-label="Edit">
                               <PencilSimple />
                             </Button>
-                            {(displayStatus === 'Active' || displayStatus === 'In Progress') && (
+                            {displayStatus === 'In Progress' && (
                               <Button
                                 variant="default"
                                 size="sm"

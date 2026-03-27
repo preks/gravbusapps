@@ -198,8 +198,10 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
     const newMonthZeroBased = totalMonths % 12
     const daysInNewMonth = new Date(newYear, newMonthZeroBased + 1, 0).getDate()
     const newDay = Math.min(parsed.d, daysInNewMonth)
+    const endDate = new Date(newYear, newMonthZeroBased, newDay)
+    endDate.setDate(endDate.getDate() - 1)
     const pad2 = (n: number) => n.toString().padStart(2, '0')
-    return `${newYear.toString().padStart(4, '0')}-${pad2(newMonthZeroBased + 1)}-${pad2(newDay)}`
+    return `${endDate.getFullYear().toString().padStart(4, '0')}-${pad2(endDate.getMonth() + 1)}-${pad2(endDate.getDate())}`
   }
 
   useEffect(() => {
