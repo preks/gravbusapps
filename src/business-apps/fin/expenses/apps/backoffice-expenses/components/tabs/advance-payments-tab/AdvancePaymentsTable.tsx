@@ -14,10 +14,14 @@ import { useVisibleColumns } from '../../../common/hooks/useSharedTabState'
 import { useFilterData } from '../../../hooks/useFilterData'
 import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOptions'
 import type { AdvancePaymentItem } from '../../../types'
-import type { AdvancePaymentOrderByClause, FetchPaymentsOptions } from '../../../hooks/useAdvancePayment'
+import type { OrderByClause, FetchPaymentsOptions } from '../../../hooks/useAdvancePayment'
 import { useAdvancePaymentCurrency } from './hooks/useAdvancePaymentCurrency'
 import { useAdvancePaymentsFilterState } from './hooks/useAdvancePaymentsFilterState.ts'
 import { buildAdvancePaymentFetchOptions } from './hooks/advancePaymentQueryBuilder'
+import {
+  createBackofficeAdvancePaymentAllDataColumns,
+  createBackofficeAdvancePaymentSortableColumns
+} from './config/backofficeAdvancePaymentSortableColumns'
 import {
   buildAdvancePaymentOrderBy,
   DEFAULT_ADVANCE_PAYMENT_SORTING_STATE,
@@ -43,7 +47,7 @@ interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   isLoading: boolean
   error: unknown
   fetchPayments: (options?: FetchPaymentsOptions) => Promise<void>
-  setOrderBy: (orderBy: AdvancePaymentOrderByClause) => void
+  setOrderBy: (orderBy: OrderByClause) => void
   searchReporters: (searchTerm: string) => Promise<string[]>
   searchStatuses: () => Promise<string[]>
 }
@@ -140,36 +144,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   const allColumns = useMemo(() => createBackofficeAdvancePaymentDataColumns(t), [t])
 
-  const sortableColumns = useMemo(
-    () => [
-      { id: 'createdAt', label: t('header-creation-date') },
-      { id: 'title', label: t('header-title') },
-      { id: 'employee', label: t('header-employee') },
-      { id: 'orgUnit', label: t('header-org-unit') },
-      { id: 'costCenter', label: t('header-cost-center') },
-      { id: 'planId', label: t('header-plan-id') },
-      { id: 'status', label: t('header-status') },
-      { id: 'amount', label: t('header-amount') },
-      { id: 'advance', label: t('header-advance') },
-      { id: 'paymentMethod', label: t('header-payment-method') }
-    ],
-    [t]
-  )
-
-  const availableColumns = useMemo(
-    () => [
-      { id: 'title', label: t('header-title') },
-      { id: 'employee', label: t('header-employee') },
-      { id: 'orgUnit', label: t('header-org-unit') },
-      { id: 'costCenter', label: t('header-cost-center') },
-      { id: 'planId', label: t('header-plan-id') },
-      { id: 'status', label: t('header-status') },
-      { id: 'amount', label: t('header-amount') },
-      { id: 'advance', label: t('header-advance') },
-      { id: 'paymentMethod', label: t('header-payment-method') }
-    ],
-    [t]
-  )
+  const sortableColumns = useMemo(() => createBackofficeAdvancePaymentSortableColumns(t), [t])
+  const availableColumns = useMemo(() => createBackofficeAdvancePaymentAllDataColumns(t), [t])
 
   const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, availableColumns)
 

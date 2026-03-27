@@ -23,9 +23,7 @@ import { buildEmployeeDisplayName } from './backofficeReportUtils'
 type OrderDirection = 'ASC' | 'DESC'
 type OrderByValue = OrderDirection | { [field: string]: OrderByValue }
 type OrderByEntry = { [field: string]: OrderByValue }
-type OrderByClause = OrderByEntry[]
-
-export type AdvancePaymentOrderByClause = OrderByClause
+export type OrderByClause = OrderByEntry[]
 
 export interface FetchPaymentsOptions {
   searchTerm?: string
@@ -54,7 +52,7 @@ interface AdvancePaymentsResult {
   fetchAdvancePaymentStatistics: () => Promise<void>
   searchReporters: (searchTerm: string) => Promise<string[]>
   searchStatuses: () => Promise<string[]>
-  setOrderBy: (orderBy: AdvancePaymentOrderByClause) => void
+  setOrderBy: (orderBy: OrderByClause) => void
 }
 
 interface UseAdvancePaymentsProps extends BusinessAppContextProps {

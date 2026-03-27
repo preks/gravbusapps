@@ -11,6 +11,43 @@ export interface AdvancePaymentReporterFilterProps extends CustomGroupRenderProp
   t: TranslateFn
 }
 
+function ReporterDropdownContent({
+  reporterSearchLoading,
+  reporterSearchResults,
+  selectedIds,
+  onReporterClick,
+  t
+}: Readonly<{
+  reporterSearchLoading: boolean
+  reporterSearchResults: string[]
+  selectedIds: string[]
+  onReporterClick: (reporter: string) => void
+  t: TranslateFn
+}>) {
+  if (reporterSearchLoading) {
+    return <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">{t('advance-payment-loading-reporters')}</div>
+  }
+  if (reporterSearchResults.length === 0) {
+    return <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">{t('advance-payment-no-reporters')}</div>
+  }
+  return (
+    <>
+      {reporterSearchResults.map(reporter => (
+        <button
+          key={reporter}
+          className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-muted gba:transition-colors ${
+            selectedIds.includes(reporter) ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-foreground'
+          }`}
+          onClick={() => onReporterClick(reporter)}
+          data-testid={`reporter-option-${reporter}`}
+        >
+          {reporter}
+        </button>
+      ))}
+    </>
+  )
+}
+
 export function AdvancePaymentReporterFilter({
   selectedIds,
   onSelectedIdsChange,
@@ -45,26 +82,13 @@ export function AdvancePaymentReporterFilter({
       />
       {showReporterDropdown && reporterSearchText.trim() !== '' ? (
         <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-input gba:rounded gba:max-h-40 gba:overflow-y-auto gba:z-10">
-          {reporterSearchLoading ? (
-            <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
-              {t('advance-payment-loading-reporters')}
-            </div>
-          ) : reporterSearchResults.length === 0 ? (
-            <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">{t('advance-payment-no-reporters')}</div>
-          ) : (
-            reporterSearchResults.map(reporter => (
-              <button
-                key={reporter}
-                className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-muted gba:transition-colors ${
-                  selectedIds.includes(reporter) ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-foreground'
-                }`}
-                onClick={() => handleReporterClick(reporter)}
-                data-testid={`reporter-option-${reporter}`}
-              >
-                {reporter}
-              </button>
-            ))
-          )}
+          <ReporterDropdownContent
+            reporterSearchLoading={reporterSearchLoading}
+            reporterSearchResults={reporterSearchResults}
+            selectedIds={selectedIds}
+            onReporterClick={handleReporterClick}
+            t={t}
+          />
         </div>
       ) : null}
     </div>

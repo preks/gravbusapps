@@ -1,5 +1,5 @@
 import type { SortingState } from '@tanstack/react-table'
-import type { AdvancePaymentOrderByClause } from '../../../../hooks/useAdvancePayment'
+import type { OrderByClause } from '../../../../hooks/useAdvancePayment'
 
 export type AdvancePaymentVisibleColumnId =
   | 'title'
@@ -26,7 +26,7 @@ export const DEFAULT_ADVANCE_PAYMENT_VISIBLE_COLUMNS: AdvancePaymentVisibleColum
   'paymentMethod'
 ]
 
-export function buildAdvancePaymentOrderBy(sortingState: SortingState): AdvancePaymentOrderByClause {
+export function buildAdvancePaymentOrderBy(sortingState: SortingState): OrderByClause {
   const [primarySort] = sortingState
   const sortDirection = primarySort?.desc ? 'DESC' : 'ASC'
   const sortId = primarySort?.id

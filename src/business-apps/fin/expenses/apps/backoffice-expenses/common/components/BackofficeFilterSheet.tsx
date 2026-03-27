@@ -13,7 +13,7 @@ import {
   SheetTitle
 } from '@newwork/nw-design-system'
 import { cn } from '@/common/utils/cn'
-import { ExpenseRequestEmployeeFilterAccordion } from '../../components/tabs/expence-requests-tab/components/ExpenseRequestEmployeeFilterAccordion'
+import { FilterGroupAccordion } from './FilterGroupAccordion'
 
 export interface CustomGroupRenderProps {
   selectedIds: string[]
@@ -90,10 +90,10 @@ export function BackofficeFilterSheet({
     })
   }, [])
 
-  const handleFilterValueChange = useCallback(
-    (filterId: string, value: FilterValue | undefined) => {
+  const updateDraftField = useCallback(
+    (key: string, value: unknown) => {
       setDraftValues(prev => {
-        const next = { ...prev, [filterId]: value }
+        const next = { ...prev, [key]: value }
         if (enableLiveFiltering) onChange?.(next)
         return next
       })
@@ -101,16 +101,17 @@ export function BackofficeFilterSheet({
     [enableLiveFiltering, onChange]
   )
 
+  const handleFilterValueChange = useCallback(
+    (filterId: string, value: FilterValue | undefined) => updateDraftField(filterId, value),
+    [updateDraftField]
+  )
+
   const handleCustomIdsChange = useCallback(
     (ids: string[]) => {
       if (!customGroup) return
-      setDraftValues(prev => {
-        const next = { ...prev, [customGroup.valueKey]: ids }
-        if (enableLiveFiltering) onChange?.(next)
-        return next
-      })
+      updateDraftField(customGroup.valueKey, ids)
     },
-    [customGroup, enableLiveFiltering, onChange]
+    [customGroup, updateDraftField]
   )
 
   const hasAnyActiveFilter = useMemo(
@@ -128,9 +129,9 @@ export function BackofficeFilterSheet({
     const isExpanded = expandedIds.has(groupId)
     const collapsible = group.collapsible !== false
 
-    const isCustom = customGroup && group.id === customGroup.groupId
+    const isCustom = customGroup?.groupId === group.id
     const section = isCustom ? (
-      <ExpenseRequestEmployeeFilterAccordion
+      <FilterGroupAccordion
         group={group}
         values={draftValues}
         isExpanded={isExpanded}
@@ -142,7 +143,7 @@ export function BackofficeFilterSheet({
             : [],
           onSelectedIdsChange: handleCustomIdsChange
         })}
-      </ExpenseRequestEmployeeFilterAccordion>
+      </FilterGroupAccordion>
     ) : (
       <FilterGroup
         group={group}
@@ -176,7 +177,7 @@ export function BackofficeFilterSheet({
                 <p>No filters configured</p>
               </div>
             ) : (
-              groups.map(renderGroup)
+              groups.map((group, index) => renderGroup(group, index))
             )}
           </div>
         </ScrollArea>

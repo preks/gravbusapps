@@ -54,7 +54,8 @@ export function BackofficeDataDisplay({
 
   const primarySortEntry = sorting?.length > 0 ? sorting[0] : undefined
   const currentSortId = primarySortEntry?.id ?? undefined
-  const currentSortDirection = primarySortEntry ? (primarySortEntry.desc ? 'desc' : 'asc') : undefined
+  const resolvedDirection = primarySortEntry?.desc ? 'desc' : 'asc'
+  const currentSortDirection = primarySortEntry ? resolvedDirection : undefined
 
   return (
     <EscapeContextProvider>

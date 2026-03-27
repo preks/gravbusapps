@@ -12,7 +12,7 @@ import BackofficeTabHeaderAlert from '../common/BackofficeTabHeaderAlert'
 import useBackofficeTabSearch from '../common/useBackofficeTabSearch'
 import useBackofficeContentHeader from '../common/useBackofficeContentHeader'
 import { useAdvancePaymentsTabState } from './hooks/useAdvancePaymentsTabState'
-import type { AdvancePaymentOrderByClause } from '../../../hooks/useAdvancePayment'
+import type { OrderByClause } from '../../../hooks/useAdvancePayment'
 
 type AdvancePaymentTabProps = BackofficeTabProps
 
@@ -49,7 +49,7 @@ function AdvancePaymentTab(props: Readonly<AdvancePaymentTabProps>) {
 
   const handleOrderByChange = useCallback(
     (orderBy: Array<Record<string, unknown>>) => {
-      setOrderBy(orderBy as AdvancePaymentOrderByClause)
+      setOrderBy(orderBy as OrderByClause)
     },
     [setOrderBy]
   )

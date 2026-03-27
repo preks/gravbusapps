@@ -162,6 +162,18 @@ export function buildAdvancePaymentFilterConfiguration({
   }
 }
 
+function buildRangeFilter(minFilter: string, maxFilter: string): { min?: number; max?: number } | undefined {
+  const range = parseNumberRange({
+    min: minFilter ? Number(minFilter) : undefined,
+    max: maxFilter ? Number(maxFilter) : undefined
+  })
+  if (!range.minValue && !range.maxValue) return undefined
+  return {
+    min: range.minValue ? Number(range.minValue) : undefined,
+    max: range.maxValue ? Number(range.maxValue) : undefined
+  }
+}
+
 export function buildAdvancePaymentFiltersObject({
   statusFilter,
   selectedReporters,
@@ -190,26 +202,14 @@ export function buildAdvancePaymentFiltersObject({
     filters.dateRange = dateRangeLabel
   }
 
-  const amountRange = parseNumberRange({
-    min: amountMinFilter ? Number(amountMinFilter) : undefined,
-    max: amountMaxFilter ? Number(amountMaxFilter) : undefined
-  })
-  if (amountRange.minValue || amountRange.maxValue) {
-    filters.amount = {
-      min: amountRange.minValue ? Number(amountRange.minValue) : undefined,
-      max: amountRange.maxValue ? Number(amountRange.maxValue) : undefined
-    }
+  const amountRange = buildRangeFilter(amountMinFilter, amountMaxFilter)
+  if (amountRange) {
+    filters.amount = amountRange
   }
 
-  const advanceRange = parseNumberRange({
-    min: advanceMinFilter ? Number(advanceMinFilter) : undefined,
-    max: advanceMaxFilter ? Number(advanceMaxFilter) : undefined
-  })
-  if (advanceRange.minValue || advanceRange.maxValue) {
-    filters.advance = {
-      min: advanceRange.minValue ? Number(advanceRange.minValue) : undefined,
-      max: advanceRange.maxValue ? Number(advanceRange.maxValue) : undefined
-    }
+  const advanceRange = buildRangeFilter(advanceMinFilter, advanceMaxFilter)
+  if (advanceRange) {
+    filters.advance = advanceRange
   }
 
   return filters
